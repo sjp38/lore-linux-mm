@@ -1,208 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 102C86B0003
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 10:15:37 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 33-v6so14128106wrb.12
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 07:15:37 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 138-v6sor78649wmo.16.2018.06.19.07.15.35
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 853986B0003
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 10:43:24 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id f207-v6so17375894qke.22
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 07:43:24 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id a194-v6si3397850qkg.205.2018.06.19.07.43.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Jun 2018 07:15:35 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Jun 2018 07:43:23 -0700 (PDT)
+Date: Tue, 19 Jun 2018 17:43:17 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [virtio-dev] Re: [PATCH v33 2/4] virtio-balloon:
+ VIRTIO_BALLOON_F_FREE_PAGE_HINT
+Message-ID: <20180619173256-mutt-send-email-mst@kernel.org>
+References: <1529037793-35521-1-git-send-email-wei.w.wang@intel.com>
+ <1529037793-35521-3-git-send-email-wei.w.wang@intel.com>
+ <20180615144000-mutt-send-email-mst@kernel.org>
+ <286AC319A985734F985F78AFA26841F7396A3D04@shsmsx102.ccr.corp.intel.com>
+ <20180615171635-mutt-send-email-mst@kernel.org>
+ <286AC319A985734F985F78AFA26841F7396A5CB0@shsmsx102.ccr.corp.intel.com>
+ <20180618051637-mutt-send-email-mst@kernel.org>
+ <286AC319A985734F985F78AFA26841F7396AA10C@shsmsx102.ccr.corp.intel.com>
+ <20180619055449-mutt-send-email-mst@kernel.org>
+ <5B28F371.9020308@intel.com>
 MIME-Version: 1.0
-References: <20180619051327.149716-1-shakeelb@google.com> <20180619051327.149716-3-shakeelb@google.com>
- <CAOQ4uxgACdbNryEKdcngy+Fm9vOdFQNrioPuHFULa8gmA-gYaQ@mail.gmail.com>
-In-Reply-To: <CAOQ4uxgACdbNryEKdcngy+Fm9vOdFQNrioPuHFULa8gmA-gYaQ@mail.gmail.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Tue, 19 Jun 2018 07:15:20 -0700
-Message-ID: <CALvZod7pNo1aGtVepcP3G4ArO3ygM_EQMO2PMYUT0FJEoE2oyA@mail.gmail.com>
-Subject: Re: [PATCH 2/3] fs: fsnotify: account fsnotify metadata to kmemcg
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5B28F371.9020308@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Amir Goldstein <amir73il@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.com>, Greg Thelen <gthelen@google.com>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu0@gmail.com" <quan.xu0@gmail.com>, "nilal@redhat.com" <nilal@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "peterx@redhat.com" <peterx@redhat.com>
 
-On Tue, Jun 19, 2018 at 12:20 AM Amir Goldstein <amir73il@gmail.com> wrote:
->
-> On Tue, Jun 19, 2018 at 8:13 AM, Shakeel Butt <shakeelb@google.com> wrote:
-> > A lot of memory can be consumed by the events generated for the huge or
-> > unlimited queues if there is either no or slow listener.  This can cause
-> > system level memory pressure or OOMs.  So, it's better to account the
-> > fsnotify kmem caches to the memcg of the listener.
-> >
-> > There are seven fsnotify kmem caches and among them allocations from
-> > dnotify_struct_cache, dnotify_mark_cache, fanotify_mark_cache and
-> > inotify_inode_mark_cachep happens in the context of syscall from the
-> > listener.  So, SLAB_ACCOUNT is enough for these caches.
-> >
-> > The objects from fsnotify_mark_connector_cachep are not accounted as they
-> > are small compared to the notification mark or events and it is unclear
-> > whom to account connector to since it is shared by all events attached to
-> > the inode.
-> >
-> > The allocations from the event caches happen in the context of the event
-> > producer.  For such caches we will need to remote charge the allocations
-> > to the listener's memcg.  Thus we save the memcg reference in the
-> > fsnotify_group structure of the listener.
-> >
-> > This patch has also moved the members of fsnotify_group to keep the size
-> > same, at least for 64 bit build, even with additional member by filling
-> > the holes.
-> >
-> > Signed-off-by: Shakeel Butt <shakeelb@google.com>
-> > Acked-by: Jan Kara <jack@suse.cz>
-> > Cc: Michal Hocko <mhocko@kernel.org>
-> > Cc: Amir Goldstein <amir73il@gmail.com>
-> > Cc: Christoph Lameter <cl@linux.com>
-> > Cc: Pekka Enberg <penberg@kernel.org>
-> > Cc: David Rientjes <rientjes@google.com>
-> > Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > Cc: Greg Thelen <gthelen@google.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> > Cc: Mel Gorman <mgorman@suse.de>
-> > Cc: Vlastimil Babka <vbabka@suse.cz>
-> > Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > ---
-> > Changelog since v5:
-> > - None
-> >
-> > Changelog since v4:
-> > - Fixed the build for CONFIG_MEMCG=n
-> >
-> > Changelog since v3:
-> > - Rebased over Jan's patches.
-> > - Some cleanup based on Amir's comments.
-> >
-> > Changelog since v2:
-> > - None
-> >
-> > Changelog since v1:
-> > - no more charging fsnotify_mark_connector objects
-> > - Fixed the build for SLOB
-> >
-> >  fs/notify/dnotify/dnotify.c          |  5 +++--
-> >  fs/notify/fanotify/fanotify.c        |  6 ++++--
-> >  fs/notify/fanotify/fanotify_user.c   |  5 ++++-
-> >  fs/notify/group.c                    |  6 ++++++
-> >  fs/notify/inotify/inotify_fsnotify.c |  2 +-
-> >  fs/notify/inotify/inotify_user.c     |  5 ++++-
-> >  include/linux/fsnotify_backend.h     | 12 ++++++++----
-> >  include/linux/memcontrol.h           |  7 +++++++
-> >  mm/memcontrol.c                      | 15 +++++++++++++--
-> >  9 files changed, 50 insertions(+), 13 deletions(-)
-> >
-> > diff --git a/fs/notify/dnotify/dnotify.c b/fs/notify/dnotify/dnotify.c
-> > index e2bea2ac5dfb..a6365e6bc047 100644
-> > --- a/fs/notify/dnotify/dnotify.c
-> > +++ b/fs/notify/dnotify/dnotify.c
-> > @@ -384,8 +384,9 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
-> >
-> >  static int __init dnotify_init(void)
-> >  {
-> > -       dnotify_struct_cache = KMEM_CACHE(dnotify_struct, SLAB_PANIC);
-> > -       dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC);
-> > +       dnotify_struct_cache = KMEM_CACHE(dnotify_struct,
-> > +                                         SLAB_PANIC|SLAB_ACCOUNT);
-> > +       dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC|SLAB_ACCOUNT);
-> >
-> >         dnotify_group = fsnotify_alloc_group(&dnotify_fsnotify_ops);
-> >         if (IS_ERR(dnotify_group))
-> > diff --git a/fs/notify/fanotify/fanotify.c b/fs/notify/fanotify/fanotify.c
-> > index f90842efea13..c8d6e37a4855 100644
-> > --- a/fs/notify/fanotify/fanotify.c
-> > +++ b/fs/notify/fanotify/fanotify.c
-> > @@ -154,14 +154,16 @@ struct fanotify_event_info *fanotify_alloc_event(struct fsnotify_group *group,
-> >         if (fanotify_is_perm_event(mask)) {
-> >                 struct fanotify_perm_event_info *pevent;
-> >
-> > -               pevent = kmem_cache_alloc(fanotify_perm_event_cachep, gfp);
-> > +               pevent = kmem_cache_alloc_memcg(fanotify_perm_event_cachep, gfp,
-> > +                                               group->memcg);
-> >                 if (!pevent)
-> >                         return NULL;
-> >                 event = &pevent->fae;
-> >                 pevent->response = 0;
-> >                 goto init;
-> >         }
-> > -       event = kmem_cache_alloc(fanotify_event_cachep, gfp);
-> > +       event = kmem_cache_alloc_memcg(fanotify_event_cachep, gfp,
-> > +                                      group->memcg);
-> >         if (!event)
-> >                 return NULL;
-> >  init: __maybe_unused
-> > diff --git a/fs/notify/fanotify/fanotify_user.c b/fs/notify/fanotify/fanotify_user.c
-> > index ec4d8c59d0e3..0cf45041dc32 100644
-> > --- a/fs/notify/fanotify/fanotify_user.c
-> > +++ b/fs/notify/fanotify/fanotify_user.c
-> > @@ -16,6 +16,7 @@
-> >  #include <linux/uaccess.h>
-> >  #include <linux/compat.h>
-> >  #include <linux/sched/signal.h>
-> > +#include <linux/memcontrol.h>
-> >
-> >  #include <asm/ioctls.h>
-> >
-> > @@ -756,6 +757,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
-> >
-> >         group->fanotify_data.user = user;
-> >         atomic_inc(&user->fanotify_listeners);
-> > +       group->memcg = get_mem_cgroup_from_mm(current->mm);
-> >
->
-> It seem to me that you should export a wrapper to modules with
-> the mem_cgroup_ prefix and not sure that need to pass current->mm
-> to this wrapper.
->
+On Tue, Jun 19, 2018 at 08:13:37PM +0800, Wei Wang wrote:
+> On 06/19/2018 11:05 AM, Michael S. Tsirkin wrote:
+> > On Tue, Jun 19, 2018 at 01:06:48AM +0000, Wang, Wei W wrote:
+> > > On Monday, June 18, 2018 10:29 AM, Michael S. Tsirkin wrote:
+> > > > On Sat, Jun 16, 2018 at 01:09:44AM +0000, Wang, Wei W wrote:
+> > > > > Not necessarily, I think. We have min(4m_page_blocks / 512, 1024) above,
+> > > > so the maximum memory that can be reported is 2TB. For larger guests, e.g.
+> > > > 4TB, the optimization can still offer 2TB free memory (better than no
+> > > > optimization).
+> > > > 
+> > > > Maybe it's better, maybe it isn't. It certainly muddies the waters even more.
+> > > > I'd rather we had a better plan. From that POV I like what Matthew Wilcox
+> > > > suggested for this which is to steal the necessary # of entries off the list.
+> > > Actually what Matthew suggested doesn't make a difference here. That method always steal the first free page blocks, and sure can be changed to take more. But all these can be achieved via kmalloc
+> > I'd do get_user_pages really. You don't want pages split, etc.
 
-Thanks, I will test with fsnotify as module.
+Oops sorry. I meant get_free_pages .
 
-> >         oevent = fanotify_alloc_event(group, NULL, FS_Q_OVERFLOW, NULL);
-> >         if (unlikely(!oevent)) {
-> > @@ -957,7 +959,8 @@ COMPAT_SYSCALL_DEFINE6(fanotify_mark,
-> >   */
-> >  static int __init fanotify_user_setup(void)
-> >  {
-> > -       fanotify_mark_cache = KMEM_CACHE(fsnotify_mark, SLAB_PANIC);
-> > +       fanotify_mark_cache = KMEM_CACHE(fsnotify_mark,
-> > +                                        SLAB_PANIC|SLAB_ACCOUNT);
-> >         fanotify_event_cachep = KMEM_CACHE(fanotify_event_info, SLAB_PANIC);
-> >         if (IS_ENABLED(CONFIG_FANOTIFY_ACCESS_PERMISSIONS)) {
-> >                 fanotify_perm_event_cachep =
-> > diff --git a/fs/notify/group.c b/fs/notify/group.c
-> > index aa5468f23e45..300fc0f62115 100644
-> > --- a/fs/notify/group.c
-> > +++ b/fs/notify/group.c
-> > @@ -22,6 +22,7 @@
-> >  #include <linux/srcu.h>
-> >  #include <linux/rculist.h>
-> >  #include <linux/wait.h>
-> > +#include <linux/memcontrol.h>
-> >
-> >  #include <linux/fsnotify_backend.h>
-> >  #include "fsnotify.h"
-> > @@ -36,6 +37,11 @@ static void fsnotify_final_destroy_group(struct fsnotify_group *group)
-> >         if (group->ops->free_group_priv)
-> >                 group->ops->free_group_priv(group);
-> >
-> > +#ifdef CONFIG_MEMCG
-> > +       if (group->memcg)
-> > +               css_put(&group->memcg->css);
-> > +#endif
-> > +
->
-> This looks very much like an internal implementation detail that has no
-> business in an external module. I see evidence that you have used
-> mem_cgroup_put() in the patch at some point and I agree that you
-> need to export a pair of matching helpers to external modules.
->
+> 
+> > > by the caller which is more prudent and makes the code more straightforward. I think we don't need to take that risk unless the MM folks strongly endorse that approach.
+> > > 
+> > > The max size of the kmalloc-ed memory is 4MB, which gives us the limitation that the max free memory to report is 2TB. Back to the motivation of this work, the cloud guys want to use this optimization to accelerate their guest live migration. 2TB guests are not common in today's clouds. When huge guests become common in the future, we can easily tweak this API to fill hints into scattered buffer (e.g. several 4MB arrays passed to this API) instead of one as in this version.
+> > > 
+> > > This limitation doesn't cause any issue from functionality perspective. For the extreme case like a 100TB guest live migration which is theoretically possible today, this optimization helps skip 2TB of its free memory. This result is that it may reduce only 2% live migration time, but still better than not skipping the 2TB (if not using the feature).
+> > Not clearly better, no, since you are slowing the guest.
+> 
+> Not really. Live migration slows down the guest itself. It seems that the
+> guest spends a little extra time reporting free pages, but in return the
+> live migration time gets reduced a lot, which makes the guest endure less
+> from live migration. (there is no drop of the workload performance when
+> using the optimization in the tests)
 
-Do not worry. Andrew will change this to mem_cgroup_put(). Basically
-mem_cgroup_put() was defined by still-in-review patch series by Roman.
-There were build failure reports where someone was taking this series
-either without Roman's series or applying series out of order.
+My point was you can't say what is better without measuring.
+Without special limitations you have hint overhead vs migration
+overhead. I think we need to  build to scale to huge guests.
+We might discover scalability problems down the road,
+but no sense in building in limitations straight away.
 
-thanks,
-Shakeel
+> 
+> 
+> > 
+> > 
+> > > So, for the first release of this feature, I think it is better to have the simpler and more straightforward solution as we have now, and clearly document why it can report up to 2TB free memory.
+> > No one has the time to read documentation about how an internal flag
+> > within a device works. Come on, getting two pages isn't much harder
+> > than a single one.
+> 
+> > > > If that doesn't fly, we can allocate out of the loop and just retry with more
+> > > > pages.
+> > > > 
+> > > > > On the other hand, large guests being large mostly because the guests need
+> > > > to use large memory. In that case, they usually won't have that much free
+> > > > memory to report.
+> > > > 
+> > > > And following this logic small guests don't have a lot of memory to report at
+> > > > all.
+> > > > Could you remind me why are we considering this optimization then?
+> > > If there is a 3TB guest, it is 3TB not 2TB mostly because it would need to use e.g. 2.5TB memory from time to time. In the worst case, it only has 0.5TB free memory to report, but reporting 0.5TB with this optimization is better than no optimization. (and the current 2TB limitation isn't a limitation for the 3TB guest in this case)
+> > I'd rather not spend time writing up random limitations.
+> 
+> This is not a random limitation. It would be more clear to see the code.
+
+Users don't see code though, that's the point.
+
+Exporting internal limitations from code to users isn't great.
+
+
+> Also I'm not sure how get_user_pages could be used in our case, and what you
+> meant by "getting two pages". I'll post out a new version, and we can
+> discuss on the code.
+
+Sorry, I meant get_free_pages.
+
+> 
+> Best,
+> Wei
