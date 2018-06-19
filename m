@@ -1,68 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8915E6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 15:22:00 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id e39-v6so339099plb.10
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 12:22:00 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A7A136B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 15:51:30 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id x6-v6so510688wrl.6
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 12:51:30 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q20-v6sor135887pfh.150.2018.06.19.12.21.56
+        by mx.google.com with SMTPS id z21-v6sor270165wma.48.2018.06.19.12.51.28
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 19 Jun 2018 12:21:57 -0700 (PDT)
+        Tue, 19 Jun 2018 12:51:28 -0700 (PDT)
+MIME-Version: 1.0
+References: <20180619051327.149716-1-shakeelb@google.com> <20180619051327.149716-4-shakeelb@google.com>
+ <20180619162741.GC27423@cmpxchg.org> <20180619174040.GA4304@castle.DHCP.thefacebook.com>
+In-Reply-To: <20180619174040.GA4304@castle.DHCP.thefacebook.com>
 From: Shakeel Butt <shakeelb@google.com>
-Subject: Re: Possible regression in "slab, slub: skip unnecessary kasan_cache_shutdown()"
-Date: Tue, 19 Jun 2018 12:21:39 -0700
-Message-Id: <20180619192139.31781-1-shakeelb@google.com>
-In-Reply-To: <CAHmME9q7aKGNiYauCjyy6Fu+bryPphEoLEMbAObTJgTrTfS2uw@mail.gmail.com>
-References: <CAHmME9q7aKGNiYauCjyy6Fu+bryPphEoLEMbAObTJgTrTfS2uw@mail.gmail.com>
+Date: Tue, 19 Jun 2018 12:51:15 -0700
+Message-ID: <CALvZod5_0_LuqWpri=uviE5hHhTMPT0VQOZDgHtTtLhvcCtb3A@mail.gmail.com>
+Subject: Re: [PATCH 3/3] fs, mm: account buffer_head to kmemcg
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Jason A . Donenfeld" <Jason@zx2c4.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>, aryabinin@virtuozzo.com, Alexander Potapenko <glider@google.com>, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, kasan-dev@googlegroups.com, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Shakeel Butt <shakeelb@google.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.com>, Greg Thelen <gthelen@google.com>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>
 
-On Tue, Jun 19, 2018 at 8:19 AM Jason A. Donenfeld <Jason@zx2c4.com> wrote:
+On Tue, Jun 19, 2018 at 10:41 AM Roman Gushchin <guro@fb.com> wrote:
 >
-> On Tue, Jun 19, 2018 at 5:08 PM Shakeel Butt <shakeelb@google.com> wrote:
-> > > > Are you using SLAB or SLUB? We stress kernel pretty heavily, but with
-> > > > SLAB, and I suspect Shakeel may also be using SLAB. So if you are
-> > > > using SLUB, there is significant chance that it's a bug in the SLUB
-> > > > part of the change.
+> On Tue, Jun 19, 2018 at 12:27:41PM -0400, Johannes Weiner wrote:
+> > On Mon, Jun 18, 2018 at 10:13:27PM -0700, Shakeel Butt wrote:
+> > > The buffer_head can consume a significant amount of system memory and
+> > > is directly related to the amount of page cache. In our production
+> > > environment we have observed that a lot of machines are spending a
+> > > significant amount of memory as buffer_head and can not be left as
+> > > system memory overhead.
 > > >
-> > > Nice intuition; I am indeed using SLUB rather than SLAB...
+> > > Charging buffer_head is not as simple as adding __GFP_ACCOUNT to the
+> > > allocation. The buffer_heads can be allocated in a memcg different from
+> > > the memcg of the page for which buffer_heads are being allocated. One
+> > > concrete example is memory reclaim. The reclaim can trigger I/O of pages
+> > > of any memcg on the system. So, the right way to charge buffer_head is
+> > > to extract the memcg from the page for which buffer_heads are being
+> > > allocated and then use targeted memcg charging API.
 > > >
+> > > Signed-off-by: Shakeel Butt <shakeelb@google.com>
+> > > Cc: Jan Kara <jack@suse.cz>
+> > > Cc: Greg Thelen <gthelen@google.com>
+> > > Cc: Michal Hocko <mhocko@kernel.org>
+> > > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> > > Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> > > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > > ---
+> > >  fs/buffer.c                | 14 +++++++++++++-
+> > >  include/linux/memcontrol.h |  7 +++++++
+> > >  mm/memcontrol.c            | 21 +++++++++++++++++++++
+> > >  3 files changed, 41 insertions(+), 1 deletion(-)
+> > >
+> > > diff --git a/fs/buffer.c b/fs/buffer.c
+> > > index 8194e3049fc5..26389b7a3cab 100644
+> > > --- a/fs/buffer.c
+> > > +++ b/fs/buffer.c
+> > > @@ -815,10 +815,17 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
+> > >     struct buffer_head *bh, *head;
+> > >     gfp_t gfp = GFP_NOFS;
+> > >     long offset;
+> > > +   struct mem_cgroup *old_memcg;
+> > > +   struct mem_cgroup *memcg = get_mem_cgroup_from_page(page);
+> > >
+> > >     if (retry)
+> > >             gfp |= __GFP_NOFAIL;
+> > >
+> > > +   if (memcg) {
+> > > +           gfp |= __GFP_ACCOUNT;
+> > > +           old_memcg = memalloc_memcg_save(memcg);
+> > > +   }
 > >
-> > Can you try once with SLAB? Just to make sure that it is SLUB specific.
+> > Please move the get_mem_cgroup_from_page() call out of the
+> > declarations and down to right before the if (memcg) branch.
+> >
+> > >     head = NULL;
+> > >     offset = PAGE_SIZE;
+> > >     while ((offset -= size) >= 0) {
+> > > @@ -835,6 +842,11 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
+> > >             /* Link the buffer to its page */
+> > >             set_bh_page(bh, page, offset);
+> > >     }
+> > > +out:
+> > > +   if (memcg) {
+> > > +           memalloc_memcg_restore(old_memcg);
+> > > +#ifdef CONFIG_MEMCG
+> > > +           css_put(&memcg->css);
+> > > +#endif
+> >
+> > Please add a put_mem_cgroup() ;)
 >
-> Sorry, I meant to mention that earlier. I tried with SLAB; the crash
-> does not occur. This appears to be SLUB-specific.
+> I've added such helper by commit 8a34a8b7fd62 ("mm, oom: cgroup-aware OOM killer").
+> It's in the mm tree.
+>
 
-Jason, can you try the following patch?
+I was using mem_cgroup_put() defined by Roman's patch but there were a
+lot of build failure reports where someone was taking this series
+without Roman's series or applying the series out of order. Andrew
+asked me to keep it like this and then he will convert these callsites
+into mem_cgroup_put() after making making sure Roman's series is
+applied in mm tree. I will recheck with him, how he wants to handle it
+now.
 
----
- mm/slub.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
-
-diff --git a/mm/slub.c b/mm/slub.c
-index a3b8467c14af..746cfe4515c2 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3673,9 +3673,17 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
- 
- bool __kmem_cache_empty(struct kmem_cache *s)
- {
-+	int cpu;
- 	int node;
- 	struct kmem_cache_node *n;
- 
-+	for_each_online_cpu(cpu) {
-+		struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
-+
-+		if (c->page || slub_percpu_partial(c))
-+			return false;
-+	}
-+
- 	for_each_kmem_cache_node(s, node, n)
- 		if (n->nr_partial || slabs_node(s, node))
- 			return false;
--- 
-2.18.0.rc1.244.gcf134e6275-goog
+thanks,
+Shakeel
