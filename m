@@ -1,118 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B12F6B0003
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 04:29:54 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id b65-v6so10628681plb.5
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 01:29:54 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E68556B0003
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 04:33:18 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id j18-v6so6496929wme.5
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 01:33:18 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t5-v6si16490134plo.113.2018.06.19.01.29.52
+        by mx.google.com with ESMTPS id 50-v6si6516031edz.449.2018.06.19.01.33.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Jun 2018 01:29:52 -0700 (PDT)
-Date: Tue, 19 Jun 2018 10:29:49 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/2] mm: set PG_dma_pinned on get_user_pages*()
-Message-ID: <20180619082949.wzoe42wpxsahuitu@quack2.suse.cz>
-References: <CAPcyv4i=eky-QrPcLUEqjsASuRUrFEWqf79hWe0mU8xtz6Jk-w@mail.gmail.com>
- <20180617200432.krw36wrcwidb25cj@ziepe.ca>
- <CAPcyv4gayKk_zHDYAvntware12qMXWjnnL_FDJNUQsJS_zNfDw@mail.gmail.com>
- <311eba48-60f1-b6cc-d001-5cc3ed4d76a9@nvidia.com>
- <20180618081258.GB16991@lst.de>
- <d4817192-6db0-2f3f-7c67-6078b69686d3@nvidia.com>
- <CAPcyv4iacHYxGmyWokFrVsmxvLj7=phqp2i0tv8z6AT-mYuEEA@mail.gmail.com>
- <3898ef6b-2fa0-e852-a9ac-d904b47320d5@nvidia.com>
- <CAPcyv4iRBzmwWn_9zDvqdfVmTZL_Gn7uA_26A1T-kJib=84tvA@mail.gmail.com>
- <0e6053b3-b78c-c8be-4fab-e8555810c732@nvidia.com>
+        Tue, 19 Jun 2018 01:33:17 -0700 (PDT)
+Date: Tue, 19 Jun 2018 10:33:16 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [patch] mm, oom: fix unnecessary killing of additional processes
+Message-ID: <20180619083316.GB13685@dhcp22.suse.cz>
+References: <alpine.DEB.2.21.1805241422070.182300@chino.kir.corp.google.com>
+ <alpine.DEB.2.21.1806141339580.4543@chino.kir.corp.google.com>
+ <20180615065541.GA24039@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1806151559360.49038@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <0e6053b3-b78c-c8be-4fab-e8555810c732@nvidia.com>
+In-Reply-To: <alpine.DEB.2.21.1806151559360.49038@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgg@ziepe.ca>, John Hubbard <john.hubbard@gmail.com>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jan Kara <jack@suse.cz>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon 18-06-18 14:36:44, John Hubbard wrote:
-> On 06/18/2018 12:21 PM, Dan Williams wrote:
-> > On Mon, Jun 18, 2018 at 11:14 AM, John Hubbard <jhubbard@nvidia.com> wrote:
-> >> On 06/18/2018 10:56 AM, Dan Williams wrote:
-> >>> On Mon, Jun 18, 2018 at 10:50 AM, John Hubbard <jhubbard@nvidia.com> wrote:
-> >>>> On 06/18/2018 01:12 AM, Christoph Hellwig wrote:
-> >>>>> On Sun, Jun 17, 2018 at 01:28:18PM -0700, John Hubbard wrote:
-> >>>>>> Yes. However, my thinking was: get_user_pages() can become a way to indicate that
-> >>>>>> these pages are going to be treated specially. In particular, the caller
-> >>>>>> does not really want or need to support certain file operations, while the
-> >>>>>> page is flagged this way.
-> >>>>>>
-> >>>>>> If necessary, we could add a new API call.
-> >>>>>
-> >>>>> That API call is called get_user_pages_longterm.
-> >>>>
-> >>>> OK...I had the impression that this was just semi-temporary API for dax, but
-> >>>> given that it's an exported symbol, I guess it really is here to stay.
-> >>>
-> >>> The plan is to go back and provide api changes that bypass
-> >>> get_user_page_longterm() for RDMA. However, for VFIO and others, it's
-> >>> not clear what we could do. In the VFIO case the guest would need to
-> >>> be prepared handle the revocation.
-> >>
-> >> OK, let's see if I understand that plan correctly:
-> >>
-> >> 1. Change RDMA users (this could be done entirely in the various device drivers'
-> >> code, unless I'm overlooking something) to use mmu notifiers, and to do their
-> >> DMA to/from non-pinned pages.
-> > 
-> > The problem with this approach is surprising the RDMA drivers with
-> > notifications of teardowns. It's the RDMA userspace applications that
-> > need the notification, and it likely needs to be explicit opt-in, at
-> > least for the non-ODP drivers.
-> > 
-> >> 2. Return early from get_user_pages_longterm, if the memory is...marked for
-> >> RDMA? (How? Same sort of page flag that I'm floating here, or something else?)
-> >> That would avoid the problem with pinned pages getting their buffer heads
-> >> removed--by disallowing the pinning. Makes sense.
-> > 
-> > Well, right now the RDMA workaround is DAX specific and it seems we
-> > need to generalize it for the page-cache case. One thought is to have
-> > try_to_unmap() take it's own reference and wait for the page reference
-> > count to drop to one so that the truncate path knows the page is
-> > dma-idle and disconnected from the page cache, but I have not looked
-> > at the details.
-> > 
-> >> Also, is there anything I can help with here, so that things can happen sooner?
-> > 
-> > I do think we should explore a page flag for pages that are "long
-> > term" pinned. Michal asked for something along these lines at LSF / MM
-> > so that the core-mm can give up on pages that the kernel has lost
-> > lifetime control. Michal, did I capture your ask correctly?
+On Fri 15-06-18 16:15:39, David Rientjes wrote:
+[...]
+> I'd be happy to make the this timeout configurable, however, and default 
+> it to perhaps one second as the blockable mmu notifier timeout in your own 
+> code does.  I find it somewhat sad that we'd need a sysctl for this, but 
+> if that will appease you and it will help to move this into -mm then we 
+> can do that.
+
+No. This has been nacked in the past and I do not see anything different
+from back than.
+
+> > Other than that I've already pointed to a more robust solution. If you
+> > are reluctant to try it out I will do, but introducing a timeout is just
+> > papering over the real problem. Maybe we will not reach the state that
+> > _all_ the memory is reapable but we definitely should try to make as
+> > much as possible to be reapable and I do not see any fundamental
+> > problems in that direction.
 > 
-> 
-> OK, that "refcount == 1" approach sounds promising:
-> 
->    -- still use a page flag, but narrow the scope to get_user_pages_longterm() pages
->    -- just wait in try_to_unmap, instead of giving up
+> You introduced the timeout already, I'm sure you realized yourself that 
+> the oom reaper sets MMF_OOM_SKIP much too early.  Trying to grab 
+> mm->mmap_sem 10 times in a row with HZ/10 sleeps in between is a timeout.  
 
-But this would fix only the RDMA use case, isn't it? Direct IO (and other
-get_user_pages_fast() users) would be still problematic.
+Yes, it is. And it is a timeout based some some feedback. The lock is
+held, let's retry later but do not retry for ever. We can do the same
+with blockable mmu notifiers. We are currently giving up right away. I
+was proposing to add can_sleep parameter to mmu_notifier_invalidate_range_start
+and return it EAGAIN if it would block. This would allow to simply retry
+on EAGAIN like we do for the mmap_sem.
 
-And for record, the problem with page cache pages is not only that
-try_to_unmap() may unmap them. It is also that page_mkclean() can
-write-protect them. And once PTEs are write-protected filesystems may end
-up doing bad things if DMA then modifies the page contents (DIF/DIX
-failures, data corruption, oopses). As such I don't think that solutions
-based on page reference count have a big chance of dealing with the
-problem.
+[...]
+ 
+> The reproducer on powerpc is very simple.  Do an mmap() and mlock() the 
+> length.  Fork one 120MB process that does that and two 60MB processes that 
+> do that in a 128MB memcg.
 
-And your page flag approach would also need to take page_mkclean() into
-account. And there the issue is that until the flag is cleared (i.e., we
-are sure there are no writers using references from GUP) you cannot
-writeback the page safely which does not work well with your idea of
-clearing the flag only once the page is evicted from page cache (hint, page
-cache page cannot get evicted until it is written back).
+And again, to solve this we just need to teach oom_reaper to handle
+mlocked memory. There shouldn't be any fundamental reason why this would
+be impossible AFAICS. Timeout is not a solution!
 
-So as sad as it is, I don't see an easy solution here.
+[...]
 
-								Honza
+> It's inappropriate to merge code that oom kills many processes 
+> unnecessarily when one happens to be mlocked or have blockable mmu 
+> notifiers or when mm->mmap_sem can't be grabbed fast enough but forward 
+> progress is actually being made.  It's a regression, and it impacts real 
+> users.  Insisting that we fix the problem you introduced by making all mmu 
+> notifiers unblockable and mlocked memory can always be reaped and 
+> mm->mmap_sem can always be grabbed within a second is irresponsible.
+
+Well, a lack of real world bug reports doesn't really back your story
+here. I have asked about non-artificial workloads suffering and your
+responsive were quite nonspecific to say the least.
+
+And I do insist to come with a reasonable solution rather than random
+hacks. Jeez the oom killer was full of these.
+
+As I've said, if you are not willing to work on a proper solution, I
+will, but my nack holds for this patch until we see no other way around
+existing and real world problems.
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
