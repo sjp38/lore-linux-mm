@@ -1,40 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A11B86B000A
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 12:00:28 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id n66-v6so8757898itg.0
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 09:00:28 -0700 (PDT)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id p77-v6si16261iop.184.2018.06.19.09.00.25
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 99F466B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 12:09:34 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id g73-v6so457828wmc.5
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 09:09:34 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id t46-v6si192558edb.396.2018.06.19.09.09.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 19 Jun 2018 09:00:25 -0700 (PDT)
-References: <152938827880.17797.439879736804291936.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152938829462.17797.17960582127304725369.stgit@dwillia2-desk3.amr.corp.intel.com>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <6d5ae5ea-48ed-fc0b-8945-a0478aa0ca5c@deltatee.com>
-Date: Tue, 19 Jun 2018 10:00:19 -0600
+        Tue, 19 Jun 2018 09:09:33 -0700 (PDT)
+Date: Tue, 19 Jun 2018 12:11:49 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v6 0/3] Directed kmem charging
+Message-ID: <20180619161149.GA27423@cmpxchg.org>
+References: <20180619051327.149716-1-shakeelb@google.com>
 MIME-Version: 1.0
-In-Reply-To: <152938829462.17797.17960582127304725369.stgit@dwillia2-desk3.amr.corp.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-Subject: Re: [PATCH v3 3/8] mm, devm_memremap_pages: Fix shutdown handling
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180619051327.149716-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
-Cc: stable@vger.kernel.org, Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
+Hi Shakeel,
 
+this looks generally reasonable to me.
 
-On 19/06/18 12:04 AM, Dan Williams wrote:
-> Cc: <stable@vger.kernel.org>
-> Fixes: e8d513483300 ("memremap: change devm_memremap_pages interface...")
-> Cc: Christoph Hellwig <hch@lst.de>
-> Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
-> Reported-by: Logan Gunthorpe <logang@deltatee.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+However, patch 1 introduces API that isn't used until patch 2 and 3,
+which makes reviewing harder since you have to jump back and forth
+between emails. Please fold patch 1 and introduce API along with the
+users.
 
-Looks good to me.
+On Mon, Jun 18, 2018 at 10:13:24PM -0700, Shakeel Butt wrote:
+> This patchset introduces memcg variant memory allocation functions.  The
+> caller can explicitly pass the memcg to charge for kmem allocations.
+> Currently the kernel, for __GFP_ACCOUNT memory allocation requests,
+> extract the memcg of the current task to charge for the kmem allocation.
+> This patch series introduces kmem allocation functions where the caller
+> can pass the pointer to the remote memcg.  The remote memcg will be
+> charged for the allocation instead of the memcg of the caller.  However
+> the caller must have a reference to the remote memcg.  This patch series
+> also introduces scope API for targeted memcg charging. So, all the
+> __GFP_ACCOUNT alloctions within the specified scope will be charged to
+> the given target memcg.
 
-Reviewed-by: Logan Gunthorpe <logang@deltatee.com>
+Can you open with the rationale for the series, i.e. the problem
+statement (fsnotify and bh memory footprint), *then* follow with the
+proposed solution?
+
+Thanks!
