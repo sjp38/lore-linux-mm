@@ -1,73 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BAC066B0003
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 02:59:30 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id z10-v6so16931949qki.5
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 23:59:30 -0700 (PDT)
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id e1-v6si2097219qtc.6.2018.06.18.23.59.29
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 833FE6B0003
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 03:20:53 -0400 (EDT)
+Received: by mail-yb0-f197.google.com with SMTP id i9-v6so714495ybj.21
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 00:20:53 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d69-v6sor37130ybc.199.2018.06.19.00.20.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jun 2018 23:59:29 -0700 (PDT)
-Subject: Re: [PATCH v3 8/8] mm: Fix exports that inadvertently make put_page()
- EXPORT_SYMBOL_GPL
-References: <152938827880.17797.439879736804291936.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152938832086.17797.4538943238207602944.stgit@dwillia2-desk3.amr.corp.intel.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <3f7833bf-99ad-f36c-1e95-36bf78b60d50@nvidia.com>
-Date: Mon, 18 Jun 2018 23:59:07 -0700
+        (Google Transport Security);
+        Tue, 19 Jun 2018 00:20:52 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <152938832086.17797.4538943238207602944.stgit@dwillia2-desk3.amr.corp.intel.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180619051327.149716-3-shakeelb@google.com>
+References: <20180619051327.149716-1-shakeelb@google.com> <20180619051327.149716-3-shakeelb@google.com>
+From: Amir Goldstein <amir73il@gmail.com>
+Date: Tue, 19 Jun 2018 10:20:51 +0300
+Message-ID: <CAOQ4uxgACdbNryEKdcngy+Fm9vOdFQNrioPuHFULa8gmA-gYaQ@mail.gmail.com>
+Subject: Re: [PATCH 2/3] fs: fsnotify: account fsnotify metadata to kmemcg
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
-Cc: Joe Gorse <jhgorse@gmail.com>, hch@lst.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.com>, Greg Thelen <gthelen@google.com>, linux-kernel <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>
 
-On 06/18/2018 11:05 PM, Dan Williams wrote:
-> Now that all producers of dev_pagemap instances in the kernel are
-> properly converted to EXPORT_SYMBOL_GPL, fix up implicit consumers that
-> interact with dev_pagemap owners via put_page(). To reiterate,
-> dev_pagemap producers are EXPORT_SYMBOL_GPL because they adopt and
-> modify core memory management interfaces such that the dev_pagemap owner
-> can interact with all other kernel infrastructure and sub-systems
-> (drivers, filesystems, etc...) that consume page structures.
-> 
-> Fixes: e76384884344 ("mm: introduce MEMORY_DEVICE_FS_DAX and CONFIG_DEV_PAGEMAP_OPS")
-> Reported-by: Joe Gorse <jhgorse@gmail.com>
-> Reported-by: John Hubbard <jhubbard@nvidia.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+On Tue, Jun 19, 2018 at 8:13 AM, Shakeel Butt <shakeelb@google.com> wrote:
+> A lot of memory can be consumed by the events generated for the huge or
+> unlimited queues if there is either no or slow listener.  This can cause
+> system level memory pressure or OOMs.  So, it's better to account the
+> fsnotify kmem caches to the memcg of the listener.
+>
+> There are seven fsnotify kmem caches and among them allocations from
+> dnotify_struct_cache, dnotify_mark_cache, fanotify_mark_cache and
+> inotify_inode_mark_cachep happens in the context of syscall from the
+> listener.  So, SLAB_ACCOUNT is enough for these caches.
+>
+> The objects from fsnotify_mark_connector_cachep are not accounted as they
+> are small compared to the notification mark or events and it is unclear
+> whom to account connector to since it is shared by all events attached to
+> the inode.
+>
+> The allocations from the event caches happen in the context of the event
+> producer.  For such caches we will need to remote charge the allocations
+> to the listener's memcg.  Thus we save the memcg reference in the
+> fsnotify_group structure of the listener.
+>
+> This patch has also moved the members of fsnotify_group to keep the size
+> same, at least for 64 bit build, even with additional member by filling
+> the holes.
+>
+> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+> Acked-by: Jan Kara <jack@suse.cz>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Amir Goldstein <amir73il@gmail.com>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Greg Thelen <gthelen@google.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
 > ---
->  kernel/memremap.c |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/kernel/memremap.c b/kernel/memremap.c
-> index 16141b608b63..ecee37b44aa1 100644
-> --- a/kernel/memremap.c
-> +++ b/kernel/memremap.c
-> @@ -330,7 +330,7 @@ EXPORT_SYMBOL_GPL(get_dev_pagemap);
->  
->  #ifdef CONFIG_DEV_PAGEMAP_OPS
->  DEFINE_STATIC_KEY_FALSE(devmap_managed_key);
-> -EXPORT_SYMBOL_GPL(devmap_managed_key);
-> +EXPORT_SYMBOL(devmap_managed_key);
->  static atomic_t devmap_enable;
->  
->  /*
-> @@ -371,5 +371,5 @@ void __put_devmap_managed_page(struct page *page)
->  	} else if (!count)
->  		__put_page(page);
->  }
-> -EXPORT_SYMBOL_GPL(__put_devmap_managed_page);
-> +EXPORT_SYMBOL(__put_devmap_managed_page);
->  #endif /* CONFIG_DEV_PAGEMAP_OPS */
-> 
+> Changelog since v5:
+> - None
+>
+> Changelog since v4:
+> - Fixed the build for CONFIG_MEMCG=n
+>
+> Changelog since v3:
+> - Rebased over Jan's patches.
+> - Some cleanup based on Amir's comments.
+>
+> Changelog since v2:
+> - None
+>
+> Changelog since v1:
+> - no more charging fsnotify_mark_connector objects
+> - Fixed the build for SLOB
+>
+>  fs/notify/dnotify/dnotify.c          |  5 +++--
+>  fs/notify/fanotify/fanotify.c        |  6 ++++--
+>  fs/notify/fanotify/fanotify_user.c   |  5 ++++-
+>  fs/notify/group.c                    |  6 ++++++
+>  fs/notify/inotify/inotify_fsnotify.c |  2 +-
+>  fs/notify/inotify/inotify_user.c     |  5 ++++-
+>  include/linux/fsnotify_backend.h     | 12 ++++++++----
+>  include/linux/memcontrol.h           |  7 +++++++
+>  mm/memcontrol.c                      | 15 +++++++++++++--
+>  9 files changed, 50 insertions(+), 13 deletions(-)
+>
+> diff --git a/fs/notify/dnotify/dnotify.c b/fs/notify/dnotify/dnotify.c
+> index e2bea2ac5dfb..a6365e6bc047 100644
+> --- a/fs/notify/dnotify/dnotify.c
+> +++ b/fs/notify/dnotify/dnotify.c
+> @@ -384,8 +384,9 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
+>
+>  static int __init dnotify_init(void)
+>  {
+> -       dnotify_struct_cache = KMEM_CACHE(dnotify_struct, SLAB_PANIC);
+> -       dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC);
+> +       dnotify_struct_cache = KMEM_CACHE(dnotify_struct,
+> +                                         SLAB_PANIC|SLAB_ACCOUNT);
+> +       dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC|SLAB_ACCOUNT);
+>
+>         dnotify_group = fsnotify_alloc_group(&dnotify_fsnotify_ops);
+>         if (IS_ERR(dnotify_group))
+> diff --git a/fs/notify/fanotify/fanotify.c b/fs/notify/fanotify/fanotify.c
+> index f90842efea13..c8d6e37a4855 100644
+> --- a/fs/notify/fanotify/fanotify.c
+> +++ b/fs/notify/fanotify/fanotify.c
+> @@ -154,14 +154,16 @@ struct fanotify_event_info *fanotify_alloc_event(struct fsnotify_group *group,
+>         if (fanotify_is_perm_event(mask)) {
+>                 struct fanotify_perm_event_info *pevent;
+>
+> -               pevent = kmem_cache_alloc(fanotify_perm_event_cachep, gfp);
+> +               pevent = kmem_cache_alloc_memcg(fanotify_perm_event_cachep, gfp,
+> +                                               group->memcg);
+>                 if (!pevent)
+>                         return NULL;
+>                 event = &pevent->fae;
+>                 pevent->response = 0;
+>                 goto init;
+>         }
+> -       event = kmem_cache_alloc(fanotify_event_cachep, gfp);
+> +       event = kmem_cache_alloc_memcg(fanotify_event_cachep, gfp,
+> +                                      group->memcg);
+>         if (!event)
+>                 return NULL;
+>  init: __maybe_unused
+> diff --git a/fs/notify/fanotify/fanotify_user.c b/fs/notify/fanotify/fanotify_user.c
+> index ec4d8c59d0e3..0cf45041dc32 100644
+> --- a/fs/notify/fanotify/fanotify_user.c
+> +++ b/fs/notify/fanotify/fanotify_user.c
+> @@ -16,6 +16,7 @@
+>  #include <linux/uaccess.h>
+>  #include <linux/compat.h>
+>  #include <linux/sched/signal.h>
+> +#include <linux/memcontrol.h>
+>
+>  #include <asm/ioctls.h>
+>
+> @@ -756,6 +757,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
+>
+>         group->fanotify_data.user = user;
+>         atomic_inc(&user->fanotify_listeners);
+> +       group->memcg = get_mem_cgroup_from_mm(current->mm);
+>
 
-Yep, that fixes everything I was seeing.
+It seem to me that you should export a wrapper to modules with
+the mem_cgroup_ prefix and not sure that need to pass current->mm
+to this wrapper.
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+>         oevent = fanotify_alloc_event(group, NULL, FS_Q_OVERFLOW, NULL);
+>         if (unlikely(!oevent)) {
+> @@ -957,7 +959,8 @@ COMPAT_SYSCALL_DEFINE6(fanotify_mark,
+>   */
+>  static int __init fanotify_user_setup(void)
+>  {
+> -       fanotify_mark_cache = KMEM_CACHE(fsnotify_mark, SLAB_PANIC);
+> +       fanotify_mark_cache = KMEM_CACHE(fsnotify_mark,
+> +                                        SLAB_PANIC|SLAB_ACCOUNT);
+>         fanotify_event_cachep = KMEM_CACHE(fanotify_event_info, SLAB_PANIC);
+>         if (IS_ENABLED(CONFIG_FANOTIFY_ACCESS_PERMISSIONS)) {
+>                 fanotify_perm_event_cachep =
+> diff --git a/fs/notify/group.c b/fs/notify/group.c
+> index aa5468f23e45..300fc0f62115 100644
+> --- a/fs/notify/group.c
+> +++ b/fs/notify/group.c
+> @@ -22,6 +22,7 @@
+>  #include <linux/srcu.h>
+>  #include <linux/rculist.h>
+>  #include <linux/wait.h>
+> +#include <linux/memcontrol.h>
+>
+>  #include <linux/fsnotify_backend.h>
+>  #include "fsnotify.h"
+> @@ -36,6 +37,11 @@ static void fsnotify_final_destroy_group(struct fsnotify_group *group)
+>         if (group->ops->free_group_priv)
+>                 group->ops->free_group_priv(group);
+>
+> +#ifdef CONFIG_MEMCG
+> +       if (group->memcg)
+> +               css_put(&group->memcg->css);
+> +#endif
+> +
+
+This looks very much like an internal implementation detail that has no
+business in an external module. I see evidence that you have used
+mem_cgroup_put() in the patch at some point and I agree that you
+need to export a pair of matching helpers to external modules.
+
+Thanks,
+Amir.
