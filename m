@@ -1,80 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4920E6B0007
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 22:16:20 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id z25-v6so1033162otk.3
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 19:16:20 -0700 (PDT)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id j41-v6si452879otb.287.2018.06.19.19.16.18
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 80DB36B0003
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 23:32:01 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id y26-v6so870988pfn.14
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 20:32:01 -0700 (PDT)
+Received: from huawei.com ([45.249.212.32])
+        by mx.google.com with ESMTPS id e90-v6si1428897plb.437.2018.06.19.20.31.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jun 2018 19:16:19 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm: skip invalid pages block at a time in
- zero_resv_unresv
-Date: Wed, 20 Jun 2018 02:14:53 +0000
-Message-ID: <20180620021452.GA7241@hori1.linux.bs1.fc.nec.co.jp>
-References: <20180615155733.1175-1-pasha.tatashin@oracle.com>
-In-Reply-To: <20180615155733.1175-1-pasha.tatashin@oracle.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <5C4BEA7B6AF786479FE83EE4EF287E8D@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Tue, 19 Jun 2018 20:32:00 -0700 (PDT)
+Subject: Re: [PATCH 1/2] arm64: avoid alloc memory on offline node
+References: <20180611145330.GO13364@dhcp22.suse.cz>
+ <87lgbk59gs.fsf@e105922-lin.cambridge.arm.com>
+ <87bmce60y3.fsf@e105922-lin.cambridge.arm.com>
+ <8b715082-14d4-f10b-d2d6-b23be7e4bf7e@huawei.com>
+ <20180619120714.GE13685@dhcp22.suse.cz>
+ <874lhz3pmn.fsf@e105922-lin.cambridge.arm.com>
+ <20180619140818.GA16927@e107981-ln.cambridge.arm.com>
+ <87wouu3jz1.fsf@e105922-lin.cambridge.arm.com>
+ <20180619151425.GH13685@dhcp22.suse.cz>
+ <87r2l23i2b.fsf@e105922-lin.cambridge.arm.com>
+ <20180619163256.GA18952@e107981-ln.cambridge.arm.com>
+From: Xie XiuQi <xiexiuqi@huawei.com>
+Message-ID: <814205eb-ae86-a519-bed0-f09b8e2d3a02@huawei.com>
+Date: Wed, 20 Jun 2018 11:31:34 +0800
 MIME-Version: 1.0
+In-Reply-To: <20180619163256.GA18952@e107981-ln.cambridge.arm.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "daniel.m.jordan@oracle.com" <daniel.m.jordan@oracle.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "osalvador@suse.de" <osalvador@suse.de>, "willy@infradead.org" <willy@infradead.org>, "mingo@kernel.org" <mingo@kernel.org>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "ying.huang@intel.com" <ying.huang@intel.com>
+To: Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Punit Agrawal <punit.agrawal@arm.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Hanjun Guo <guohanjun@huawei.com>, Bjorn Helgaas <helgaas@kernel.org>, tnowicki@caviumnetworks.com, linux-pci@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Will Deacon <will.deacon@arm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>, linux-mm@kvack.org, wanghuiqiang@huawei.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Bjorn Helgaas <bhelgaas@google.com>, Andrew Morton <akpm@linux-foundation.org>, zhongjiang <zhongjiang@huawei.com>, linux-arm <linux-arm-kernel@lists.infradead.org>
 
-On Fri, Jun 15, 2018 at 11:57:33AM -0400, Pavel Tatashin wrote:
-> The role of zero_resv_unavail() is to make sure that every struct page th=
-at
-> is allocated but is not backed by memory that is accessible by kernel is
-> zeroed and not in some uninitialized state.
->=20
-> Since struct pages are allocated in blocks (2M pages in x86 case), we can
-> skip pageblock_nr_pages at a time, when the first one is found to be
-> invalid.
->=20
-> This optimization may help since now on x86 every hole in e820 maps
-> is marked as reserved in memblock, and thus will go through this function=
-.
->=20
-> This function is called before sched_clock() is initialized, so I used my
-> x86 early boot clock patches to measure the performance improvement.
->=20
-> With 1T hole on i7-8700 currently we would take 0.606918s of boot time, b=
-ut
-> with this optimization 0.001103s.
->=20
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Hi Lorenzo, Punit,
 
-Looks good to me, thanks!
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+On 2018/6/20 0:32, Lorenzo Pieralisi wrote:
+> On Tue, Jun 19, 2018 at 04:35:40PM +0100, Punit Agrawal wrote:
+>> Michal Hocko <mhocko@kernel.org> writes:
+>>
+>>> On Tue 19-06-18 15:54:26, Punit Agrawal wrote:
+>>> [...]
+>>>> In terms of $SUBJECT, I wonder if it's worth taking the original patch
+>>>> as a temporary fix (it'll also be easier to backport) while we work on
+>>>> fixing these other issues and enabling memoryless nodes.
+>>>
+>>> Well, x86 already does that but copying this antipatern is not really
+>>> nice. So it is good as a quick fix but it would be definitely much
+>>> better to have a robust fix. Who knows how many other places might hit
+>>> this. You certainly do not want to add a hack like this all over...
+>>
+>> Completely agree! I was only suggesting it as a temporary measure,
+>> especially as it looked like a proper fix might be invasive.
+>>
+>> Another fix might be to change the node specific allocation to node
+>> agnostic allocations. It isn't clear why the allocation is being
+>> requested from a specific node. I think Lorenzo suggested this in one of
+>> the threads.
+> 
+> I think that code was just copypasted but it is better to fix the
+> underlying issue.
+> 
+>> I've started putting together a set fixing the issues identified in this
+>> thread. It should give a better idea on the best course of action.
+> 
+> On ACPI ARM64, this diff should do if I read the code correctly, it
+> should be (famous last words) just a matter of mapping PXMs to nodes for
+> every SRAT GICC entry, feel free to pick it up if it works.
+> 
+> Yes, we can take the original patch just because it is safer for an -rc
+> cycle even though if the patch below would do delaying the fix for a
+> couple of -rc (to get it tested across ACPI ARM64 NUMA platforms) is
+> not a disaster.
 
-> ---
->  mm/page_alloc.c | 5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
->=20
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 1521100f1e63..94f1b3201735 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6404,8 +6404,11 @@ void __paginginit zero_resv_unavail(void)
->  	pgcnt =3D 0;
->  	for_each_resv_unavail_range(i, &start, &end) {
->  		for (pfn =3D PFN_DOWN(start); pfn < PFN_UP(end); pfn++) {
-> -			if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages)))
-> +			if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages))) {
-> +				pfn =3D ALIGN_DOWN(pfn, pageblock_nr_pages)
-> +					+ pageblock_nr_pages - 1;
->  				continue;
-> +			}
->  			mm_zero_struct_page(pfn_to_page(pfn));
->  			pgcnt++;
->  		}
-> --=20
-> 2.17.1
->=20
-> =
+I tested this patch on my arm board, it works.
+
+-- 
+Thanks,
+Xie XiuQi
+
+> 
+> Lorenzo
+> 
+> -- >8 --
+> diff --git a/arch/arm64/kernel/acpi_numa.c b/arch/arm64/kernel/acpi_numa.c
+> index d190a7b231bf..877b268ef9fa 100644
+> --- a/arch/arm64/kernel/acpi_numa.c
+> +++ b/arch/arm64/kernel/acpi_numa.c
+> @@ -70,12 +70,6 @@ void __init acpi_numa_gicc_affinity_init(struct acpi_srat_gicc_affinity *pa)
+>  	if (!(pa->flags & ACPI_SRAT_GICC_ENABLED))
+>  		return;
+>  
+> -	if (cpus_in_srat >= NR_CPUS) {
+> -		pr_warn_once("SRAT: cpu_to_node_map[%d] is too small, may not be able to use all cpus\n",
+> -			     NR_CPUS);
+> -		return;
+> -	}
+> -
+>  	pxm = pa->proximity_domain;
+>  	node = acpi_map_pxm_to_node(pxm);
+>  
+> @@ -85,6 +79,14 @@ void __init acpi_numa_gicc_affinity_init(struct acpi_srat_gicc_affinity *pa)
+>  		return;
+>  	}
+>  
+> +	node_set(node, numa_nodes_parsed);
+> +
+> +	if (cpus_in_srat >= NR_CPUS) {
+> +		pr_warn_once("SRAT: cpu_to_node_map[%d] is too small, may not be able to use all cpus\n",
+> +			     NR_CPUS);
+> +		return;
+> +	}
+> +
+>  	mpidr = acpi_map_madt_entry(pa->acpi_processor_uid);
+>  	if (mpidr == PHYS_CPUID_INVALID) {
+>  		pr_err("SRAT: PXM %d with ACPI ID %d has no valid MPIDR in MADT\n",
+> @@ -95,7 +97,6 @@ void __init acpi_numa_gicc_affinity_init(struct acpi_srat_gicc_affinity *pa)
+>  
+>  	early_node_cpu_hwid[cpus_in_srat].node_id = node;
+>  	early_node_cpu_hwid[cpus_in_srat].cpu_hwid =  mpidr;
+> -	node_set(node, numa_nodes_parsed);
+>  	cpus_in_srat++;
+>  	pr_info("SRAT: PXM %d -> MPIDR 0x%Lx -> Node %d\n",
+>  		pxm, mpidr, node);
+> 
+> .
+> 
