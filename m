@@ -1,262 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 93EA96B0003
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2018 18:36:48 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id y7-v6so542610plt.17
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 15:36:48 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A127C6B0003
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2018 18:42:04 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id 31-v6so553646plf.19
+        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 15:42:04 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v129-v6sor738011pgv.164.2018.06.20.15.36.46
+        by mx.google.com with SMTPS id c10-v6sor924304pfl.108.2018.06.20.15.42.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Jun 2018 15:36:47 -0700 (PDT)
-Date: Wed, 20 Jun 2018 15:36:45 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm,oom: Bring OOM notifier callbacks to outside of OOM
- killer.
-In-Reply-To: <1529493638-6389-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <alpine.DEB.2.21.1806201528490.16984@chino.kir.corp.google.com>
-References: <1529493638-6389-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Wed, 20 Jun 2018 15:42:03 -0700 (PDT)
+From: Shakeel Butt <shakeelb@google.com>
+Subject: [PATCH] slub: track number of slabs irrespective of CONFIG_SLUB_DEBUG
+Date: Wed, 20 Jun 2018 15:41:47 -0700
+Message-Id: <20180620224147.23777-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: linux-mm@kvack.org, mhocko@kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: "Jason A . Donenfeld" <Jason@zx2c4.com>
+Cc: David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>, stable@vger.kernel.org
 
-On Wed, 20 Jun 2018, Tetsuo Handa wrote:
+For !CONFIG_SLUB_DEBUG, SLUB does not maintain the number of slabs
+allocated per node for a kmem_cache. Thus, slabs_node() in
+__kmem_cache_empty(), __kmem_cache_shrink() and __kmem_cache_destroy()
+will always return 0 for such config. This is wrong and can cause issues
+for all users of these functions.
 
-> Sleeping with oom_lock held can cause AB-BA lockup bug because
-> __alloc_pages_may_oom() does not wait for oom_lock. Since
-> blocking_notifier_call_chain() in out_of_memory() might sleep, sleeping
-> with oom_lock held is currently an unavoidable problem.
-> 
-> As a preparation for not to sleep with oom_lock held, this patch brings
-> OOM notifier callbacks to outside of OOM killer, with two small behavior
-> changes explained below.
-> 
-> One is that this patch makes it impossible for SysRq-f and PF-OOM to
-> reclaim via OOM notifier. But such change should be tolerable because
-> "we unlikely try to use SysRq-f for reclaiming memory via OOM notifier
-> callbacks" and "pagefault_out_of_memory() will be called when OOM killer
-> selected current thread as an OOM victim after OOM notifier callbacks
-> already failed to reclaim memory".
-> 
-> The other is that this patch makes it possible to reclaim memory via OOM
-> notifier after OOM killer is disabled (that is, suspend/hibernate is in
-> progress). But such change should be safe because of pm_suspended_storage()
-> check.
-> 
+Infact in [1] Jason has reported a system crash while using SLUB without
+CONFIG_SLUB_DEBUG. The reason was the usage of slabs_node() by
+__kmem_cache_empty().
 
-Makes sense in general and I don't think that getting around these two 
-caveats is problematic.  We should be handling everything that can free 
-memory to preempt an oom kill in the page allocator and get rid of the 
-notion that this is "oom notification" when in reality it is intended as 
-the last form of reclaim prior to oom kill.
+The right solution is to make slabs_node() work even for
+!CONFIG_SLUB_DEBUG. The commit 0f389ec63077 ("slub: No need for per node
+slab counters if !SLUB_DEBUG") had put the per node slab counter under
+CONFIG_SLUB_DEBUG because it was only read through sysfs API and the
+sysfs API was disabled on !CONFIG_SLUB_DEBUG. However the users of the
+per node slab counter assumed that it will work in the absence of
+CONFIG_SLUB_DEBUG. So, make the counter work for !CONFIG_SLUB_DEBUG.
 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> ---
->  include/linux/oom.h |  1 +
->  mm/oom_kill.c       | 35 ++++++++++++++++++------
->  mm/page_alloc.c     | 76 +++++++++++++++++++++++++++++++----------------------
->  3 files changed, 73 insertions(+), 39 deletions(-)
-> 
-> diff --git a/include/linux/oom.h b/include/linux/oom.h
-> index 6adac11..085b033 100644
-> --- a/include/linux/oom.h
-> +++ b/include/linux/oom.h
-> @@ -101,6 +101,7 @@ extern unsigned long oom_badness(struct task_struct *p,
->  		struct mem_cgroup *memcg, const nodemask_t *nodemask,
->  		unsigned long totalpages);
->  
-> +extern unsigned long try_oom_notifier(void);
->  extern bool out_of_memory(struct oom_control *oc);
->  
->  extern void exit_oom_victim(void);
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 84081e7..2ff5db2 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -1010,6 +1010,33 @@ int unregister_oom_notifier(struct notifier_block *nb)
->  EXPORT_SYMBOL_GPL(unregister_oom_notifier);
->  
->  /**
-> + * try_oom_notifier - Try to reclaim memory from OOM notifier list.
-> + *
-> + * Returns non-zero if notifier callbacks released something, zero otherwise.
-> + */
-> +unsigned long try_oom_notifier(void)
+Please note that commit f9e13c0a5a33 ("slab, slub: skip unnecessary
+kasan_cache_shutdown()") exposed this issue but it is present even
+before.
 
-It certainly is tried, but based on its usage it would probably be better 
-to describe what is being returned (it's going to set *did_some_progress, 
-which is a page count).
+[1] http://lkml.kernel.org/r/CAHmME9rtoPwxUSnktxzKso14iuVCWT7BE_-_8PAC=pGw1iJnQg@mail.gmail.com
 
-That makes me think that "oom_notify_list" isn't very intuitive: it can 
-free memory as a last step prior to oom kill.  OOM notify, to me, sounds 
-like its only notifying some callbacks about the condition.  Maybe 
-oom_reclaim_list and then rename this to oom_reclaim_pages()?
+Fixes: f9e13c0a5a33 ("slab, slub: skip unnecessary kasan_cache_shutdown()")
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
+Suggested-by: David Rientjes <rientjes@google.com>
+Reported-by: Jason A . Donenfeld <Jason@zx2c4.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: <stable@vger.kernel.org>
+Cc: <linux-mm@kvack.org>
+Cc: <linux-kernel@vger.kernel.org>
+---
+ mm/slab.h |  2 +-
+ mm/slub.c | 80 +++++++++++++++++++++++++------------------------------
+ 2 files changed, 38 insertions(+), 44 deletions(-)
 
-> +{
-> +	static DEFINE_MUTEX(oom_notifier_lock);
-> +	unsigned long freed = 0;
-> +
-> +	/*
-> +	 * Since OOM notifier callbacks must not depend on __GFP_DIRECT_RECLAIM
-> +	 * && !__GFP_NORETRY memory allocation, waiting for mutex here is safe.
-> +	 * If lockdep reports possible deadlock dependency, it will be a bug in
-> +	 * OOM notifier callbacks.
-> +	 *
-> +	 * If SIGKILL is pending, it is likely that current thread was selected
-> +	 * as an OOM victim. In that case, current thread should return as soon
-> +	 * as possible using memory reserves.
-> +	 */
-> +	if (mutex_lock_killable(&oom_notifier_lock))
-> +		return 0;
-> +	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
-> +	mutex_unlock(&oom_notifier_lock);
-> +	return freed;
-> +}
-
-If __blocking_notifier_call_chain() used down_read_killable(), could we 
-eliminate oom_notifier_lock?
-
-> +
-> +/**
->   * out_of_memory - kill the "best" process when we run out of memory
->   * @oc: pointer to struct oom_control
->   *
-> @@ -1020,19 +1047,11 @@ int unregister_oom_notifier(struct notifier_block *nb)
->   */
->  bool out_of_memory(struct oom_control *oc)
->  {
-> -	unsigned long freed = 0;
->  	enum oom_constraint constraint = CONSTRAINT_NONE;
->  
->  	if (oom_killer_disabled)
->  		return false;
->  
-> -	if (!is_memcg_oom(oc)) {
-> -		blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
-> -		if (freed > 0)
-> -			/* Got some memory back in the last second. */
-> -			return true;
-> -	}
-> -
->  	/*
->  	 * If current has a pending SIGKILL or is exiting, then automatically
->  	 * select it.  The goal is to allow it to allocate so that it may
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 1521100..c72ef1e 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3447,10 +3447,50 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
->  	return page;
->  }
->  
-> +static inline bool can_oomkill(gfp_t gfp_mask, unsigned int order,
-> +			       const struct alloc_context *ac)
-
-I'd suggest a more mm/page_alloc.c friendly name, something like 
-oom_kill_allowed().
-
-> +{
-> +	/* Coredumps can quickly deplete all memory reserves */
-> +	if (current->flags & PF_DUMPCORE)
-> +		return false;
-> +	/* The OOM killer will not help higher order allocs */
-> +	if (order > PAGE_ALLOC_COSTLY_ORDER)
-> +		return false;
-> +	/*
-> +	 * We have already exhausted all our reclaim opportunities without any
-> +	 * success so it is time to admit defeat. We will skip the OOM killer
-> +	 * because it is very likely that the caller has a more reasonable
-> +	 * fallback than shooting a random task.
-> +	 */
-> +	if (gfp_mask & __GFP_RETRY_MAYFAIL)
-> +		return false;
-> +	/* The OOM killer does not needlessly kill tasks for lowmem */
-> +	if (ac->high_zoneidx < ZONE_NORMAL)
-> +		return false;
-> +	if (pm_suspended_storage())
-> +		return false;
-> +	/*
-> +	 * XXX: GFP_NOFS allocations should rather fail than rely on
-> +	 * other request to make a forward progress.
-> +	 * We are in an unfortunate situation where out_of_memory cannot
-> +	 * do much for this context but let's try it to at least get
-> +	 * access to memory reserved if the current task is killed (see
-> +	 * out_of_memory). Once filesystems are ready to handle allocation
-> +	 * failures more gracefully we should just bail out here.
-> +	 */
-> +
-> +	/* The OOM killer may not free memory on a specific node */
-> +	if (gfp_mask & __GFP_THISNODE)
-> +		return false;
-> +
-> +	return true;
-> +}
-> +
->  static inline struct page *
->  __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
->  	const struct alloc_context *ac, unsigned long *did_some_progress)
->  {
-> +	const bool oomkill = can_oomkill(gfp_mask, order, ac);
->  	struct oom_control oc = {
->  		.zonelist = ac->zonelist,
->  		.nodemask = ac->nodemask,
-> @@ -3462,6 +3502,10 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
->  
->  	*did_some_progress = 0;
->  
-> +	/* Try to reclaim via OOM notifier callback. */
-> +	if (oomkill)
-> +		*did_some_progress = try_oom_notifier();
-> +
->  	/*
->  	 * Acquire the oom lock.  If that fails, somebody else is
->  	 * making progress for us.
-
-*did_some_progress = oom_kill_allowed ? oom_reclaim_pages() : 0;
-
-This patch is certainly an improvement because it does the last 
-get_page_from_freelist() call after invoking the oom notifiers that can 
-free memory and we've otherwise pointlessly redirected it elsewhere.
-
-> @@ -3485,37 +3529,7 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
->  	if (page)
->  		goto out;
->  
-> -	/* Coredumps can quickly deplete all memory reserves */
-> -	if (current->flags & PF_DUMPCORE)
-> -		goto out;
-> -	/* The OOM killer will not help higher order allocs */
-> -	if (order > PAGE_ALLOC_COSTLY_ORDER)
-> -		goto out;
-> -	/*
-> -	 * We have already exhausted all our reclaim opportunities without any
-> -	 * success so it is time to admit defeat. We will skip the OOM killer
-> -	 * because it is very likely that the caller has a more reasonable
-> -	 * fallback than shooting a random task.
-> -	 */
-> -	if (gfp_mask & __GFP_RETRY_MAYFAIL)
-> -		goto out;
-> -	/* The OOM killer does not needlessly kill tasks for lowmem */
-> -	if (ac->high_zoneidx < ZONE_NORMAL)
-> -		goto out;
-> -	if (pm_suspended_storage())
-> -		goto out;
-> -	/*
-> -	 * XXX: GFP_NOFS allocations should rather fail than rely on
-> -	 * other request to make a forward progress.
-> -	 * We are in an unfortunate situation where out_of_memory cannot
-> -	 * do much for this context but let's try it to at least get
-> -	 * access to memory reserved if the current task is killed (see
-> -	 * out_of_memory). Once filesystems are ready to handle allocation
-> -	 * failures more gracefully we should just bail out here.
-> -	 */
-> -
-> -	/* The OOM killer may not free memory on a specific node */
-> -	if (gfp_mask & __GFP_THISNODE)
-> +	if (!oomkill)
->  		goto out;
->  
->  	/* Exhausted what can be done so it's blame time */
+diff --git a/mm/slab.h b/mm/slab.h
+index 68bdf498da3b..a6545332cc86 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -473,8 +473,8 @@ struct kmem_cache_node {
+ #ifdef CONFIG_SLUB
+ 	unsigned long nr_partial;
+ 	struct list_head partial;
+-#ifdef CONFIG_SLUB_DEBUG
+ 	atomic_long_t nr_slabs;
++#ifdef CONFIG_SLUB_DEBUG
+ 	atomic_long_t total_objects;
+ 	struct list_head full;
+ #endif
+diff --git a/mm/slub.c b/mm/slub.c
+index a3b8467c14af..c9c190d54687 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1030,42 +1030,6 @@ static void remove_full(struct kmem_cache *s, struct kmem_cache_node *n, struct
+ 	list_del(&page->lru);
+ }
+ 
+-/* Tracking of the number of slabs for debugging purposes */
+-static inline unsigned long slabs_node(struct kmem_cache *s, int node)
+-{
+-	struct kmem_cache_node *n = get_node(s, node);
+-
+-	return atomic_long_read(&n->nr_slabs);
+-}
+-
+-static inline unsigned long node_nr_slabs(struct kmem_cache_node *n)
+-{
+-	return atomic_long_read(&n->nr_slabs);
+-}
+-
+-static inline void inc_slabs_node(struct kmem_cache *s, int node, int objects)
+-{
+-	struct kmem_cache_node *n = get_node(s, node);
+-
+-	/*
+-	 * May be called early in order to allocate a slab for the
+-	 * kmem_cache_node structure. Solve the chicken-egg
+-	 * dilemma by deferring the increment of the count during
+-	 * bootstrap (see early_kmem_cache_node_alloc).
+-	 */
+-	if (likely(n)) {
+-		atomic_long_inc(&n->nr_slabs);
+-		atomic_long_add(objects, &n->total_objects);
+-	}
+-}
+-static inline void dec_slabs_node(struct kmem_cache *s, int node, int objects)
+-{
+-	struct kmem_cache_node *n = get_node(s, node);
+-
+-	atomic_long_dec(&n->nr_slabs);
+-	atomic_long_sub(objects, &n->total_objects);
+-}
+-
+ /* Object debug checks for alloc/free paths */
+ static void setup_object_debug(struct kmem_cache *s, struct page *page,
+ 								void *object)
+@@ -1321,16 +1285,46 @@ slab_flags_t kmem_cache_flags(unsigned int object_size,
+ 
+ #define disable_higher_order_debug 0
+ 
++#endif /* CONFIG_SLUB_DEBUG */
++
+ static inline unsigned long slabs_node(struct kmem_cache *s, int node)
+-							{ return 0; }
++{
++	struct kmem_cache_node *n = get_node(s, node);
++
++	return atomic_long_read(&n->nr_slabs);
++}
++
+ static inline unsigned long node_nr_slabs(struct kmem_cache_node *n)
+-							{ return 0; }
+-static inline void inc_slabs_node(struct kmem_cache *s, int node,
+-							int objects) {}
+-static inline void dec_slabs_node(struct kmem_cache *s, int node,
+-							int objects) {}
++{
++	return atomic_long_read(&n->nr_slabs);
++}
+ 
+-#endif /* CONFIG_SLUB_DEBUG */
++static inline void inc_slabs_node(struct kmem_cache *s, int node, int objects)
++{
++	struct kmem_cache_node *n = get_node(s, node);
++
++	/*
++	 * May be called early in order to allocate a slab for the
++	 * kmem_cache_node structure. Solve the chicken-egg
++	 * dilemma by deferring the increment of the count during
++	 * bootstrap (see early_kmem_cache_node_alloc).
++	 */
++	if (likely(n)) {
++		atomic_long_inc(&n->nr_slabs);
++#ifdef CONFIG_SLUB_DEBUG
++		atomic_long_add(objects, &n->total_objects);
++#endif
++	}
++}
++static inline void dec_slabs_node(struct kmem_cache *s, int node, int objects)
++{
++	struct kmem_cache_node *n = get_node(s, node);
++
++	atomic_long_dec(&n->nr_slabs);
++#ifdef CONFIG_SLUB_DEBUG
++	atomic_long_sub(objects, &n->total_objects);
++#endif
++}
+ 
+ /*
+  * Hooks for other subsystems that check memory allocations. In a typical
+-- 
+2.18.0.rc1.244.gcf134e6275-goog
