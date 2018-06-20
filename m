@@ -1,79 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B9DD16B0006
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 21:24:46 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id h18-v6so1127944wmb.8
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 18:24:46 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b65-v6sor439695wmi.72.2018.06.19.18.24.45
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 50B486B0003
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 21:35:13 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id h15-v6so1418074qkj.17
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 18:35:13 -0700 (PDT)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id w1-v6si1096166qtg.224.2018.06.19.18.35.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Jun 2018 18:24:45 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Jun 2018 18:35:12 -0700 (PDT)
+Subject: Re: [PATCH 2/2] mm: set PG_dma_pinned on get_user_pages*()
+References: <CAPcyv4gayKk_zHDYAvntware12qMXWjnnL_FDJNUQsJS_zNfDw@mail.gmail.com>
+ <311eba48-60f1-b6cc-d001-5cc3ed4d76a9@nvidia.com>
+ <20180618081258.GB16991@lst.de>
+ <d4817192-6db0-2f3f-7c67-6078b69686d3@nvidia.com>
+ <CAPcyv4iacHYxGmyWokFrVsmxvLj7=phqp2i0tv8z6AT-mYuEEA@mail.gmail.com>
+ <3898ef6b-2fa0-e852-a9ac-d904b47320d5@nvidia.com>
+ <CAPcyv4iRBzmwWn_9zDvqdfVmTZL_Gn7uA_26A1T-kJib=84tvA@mail.gmail.com>
+ <0e6053b3-b78c-c8be-4fab-e8555810c732@nvidia.com>
+ <20180619082949.wzoe42wpxsahuitu@quack2.suse.cz>
+ <20180619090255.GA25522@bombadil.infradead.org>
+ <20180619104142.lpilc6esz7w3a54i@quack2.suse.cz>
+ <70001987-3938-d33e-11e0-de5b19ca3bdf@nvidia.com>
+ <CAPcyv4iGKYRpbv-KK3KUrm8Ab485DwX05y4uGH2ZZ8GNYh8Q_g@mail.gmail.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <ecb54f89-52dc-a37a-5592-d2c40f216047@nvidia.com>
+Date: Tue, 19 Jun 2018 18:34:12 -0700
 MIME-Version: 1.0
-References: <20180619213352.71740-1-shakeelb@google.com> <alpine.DEB.2.21.1806191748040.25812@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.21.1806191748040.25812@chino.kir.corp.google.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Tue, 19 Jun 2018 18:24:32 -0700
-Message-ID: <CALvZod7A+QC5OqYNx-kQcJYOQmeSm8ie9JGnh3_-CUfYn7jpOA@mail.gmail.com>
-Subject: Re: [PATCH] slub: fix __kmem_cache_empty for !CONFIG_SLUB_DEBUG
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CAPcyv4iGKYRpbv-KK3KUrm8Ab485DwX05y4uGH2ZZ8GNYh8Q_g@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Jason@zx2c4.com, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgg@ziepe.ca>, John Hubbard <john.hubbard@gmail.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>
 
-On Tue, Jun 19, 2018 at 5:49 PM David Rientjes <rientjes@google.com> wrote:
->
-> On Tue, 19 Jun 2018, Shakeel Butt wrote:
->
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > index a3b8467c14af..731c02b371ae 100644
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -3673,9 +3673,23 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
-> >
-> >  bool __kmem_cache_empty(struct kmem_cache *s)
-> >  {
-> > -     int node;
-> > +     int cpu, node;
->
-> Nit: wouldn't cpu be unused if CONFIG_SLUB_DEBUG is disabled?
->
+On 06/19/2018 06:24 PM, Dan Williams wrote:
+> On Tue, Jun 19, 2018 at 11:11 AM, John Hubbard <jhubbard@nvidia.com> wrote:
+>> On 06/19/2018 03:41 AM, Jan Kara wrote:
+>>> On Tue 19-06-18 02:02:55, Matthew Wilcox wrote:
+>>>> On Tue, Jun 19, 2018 at 10:29:49AM +0200, Jan Kara wrote:
+> [..]
+>>> And then there's the aspect that both these approaches are a bit too
+>>> heavyweight for some get_user_pages_fast() users (e.g. direct IO) - Al Viro
+>>> had an idea to use page lock for that path but e.g. fs/direct-io.c would have
+>>> problems due to lock ordering constraints (filesystem ->get_block would
+>>> suddently get called with the page lock held). But we can probably leave
+>>> performance optimizations for phase two.
+>>
+>>
+>> So I assume that phase one would be to apply this approach only to
+>> get_user_pages_longterm. (Please let me know if that's wrong.)
+> 
+> I think that's wrong, because get_user_pages_longterm() is only a
+> filesystem-dax avoidance mechanism, it's not trying to address all the
+> problems that Jan is talking about. I don't see any viable half-step
+> solutions.
+> 
 
-I think I didn't get the warning as I didn't use #ifdef.
+OK, but in that case, I'm slightly confused by Jan's comment above, about leaving 
+performance optimizations until phase two. Because that *is* a half-step approach: 
+phase one, phase two.  
 
-> >       struct kmem_cache_node *n;
-> >
-> > +     /*
-> > +      * slabs_node will always be 0 for !CONFIG_SLUB_DEBUG. So, manually
-> > +      * check slabs for all cpus.
-> > +      */
-> > +     if (!IS_ENABLED(CONFIG_SLUB_DEBUG)) {
-> > +             for_each_online_cpu(cpu) {
-> > +                     struct kmem_cache_cpu *c;
-> > +
-> > +                     c = per_cpu_ptr(s->cpu_slab, cpu);
-> > +                     if (c->page || slub_percpu_partial(c))
-> > +                             return false;
-> > +             }
-> > +     }
-> > +
-> >       for_each_kmem_cache_node(s, node, n)
-> >               if (n->nr_partial || slabs_node(s, node))
-> >                       return false;
->
-> Wouldn't it just be better to allow {inc,dec}_slabs_node() to adjust the
-> nr_slabs counter instead of doing the per-cpu iteration on every shutdown?
+Are you disagreeing with Jan, or are you suggesting "fix get_user_pages first, and
+leave get_user_pages_fast alone for now?" 
 
-Yes that is doable as the functions {inc,dec}_slabs_node() are called
-in slow path. I can move them out of CONFIG_SLUB_DEBUG. I think the
-reason 0f389ec63077 ("slub: No need for per node slab counters if
-!SLUB_DEBUG") put them under CONFIG_SLUB_DEBUG is because these
-counters were only read through sysfs API which were disabled on
-!CONFIG_SLUB_DEBUG. However we have a usecase other than sysfs API.
-
-Please let me know if there is any objection to this conversion. For
-large machines I think this is preferable approach.
-
-thanks,
-Shakeel
+Or something else? 
