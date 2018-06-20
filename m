@@ -1,47 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F3536B0006
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2018 11:34:41 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id n21-v6so74020wmc.4
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 08:34:41 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x4-v6si1149546wmg.226.2018.06.20.08.34.40
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5040D6B0003
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2018 12:23:55 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id l2-v6so57406pff.3
+        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 09:23:55 -0700 (PDT)
+Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
+        by mx.google.com with ESMTPS id d7-v6si2177210pgf.484.2018.06.20.09.23.51
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 20 Jun 2018 08:34:40 -0700 (PDT)
-Date: Wed, 20 Jun 2018 17:34:38 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] memcg, oom: move out_of_memory back to the charge
- path
-Message-ID: <20180620153438.GP13685@dhcp22.suse.cz>
-References: <20180620103736.13880-1-mhocko@kernel.org>
- <20180620151812.GA2441@cmpxchg.org>
- <20180620153148.GO13685@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Jun 2018 09:23:52 -0700 (PDT)
+Subject: Re: [RFC v2 PATCH 2/2] mm: mmap: zap pages with read mmap_sem for
+ large mapping
+References: <1529364856-49589-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1529364856-49589-3-git-send-email-yang.shi@linux.alibaba.com>
+ <20180619100218.GN2458@hirez.programming.kicks-ass.net>
+ <f78924fc-ea81-9ddd-ebb2-28241d5721c8@linux.alibaba.com>
+ <20180620071708.GI13685@dhcp22.suse.cz>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <41456a0f-0091-dfdb-952b-9bf08b323ba6@linux.alibaba.com>
+Date: Wed, 20 Jun 2018 09:23:17 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180620153148.GO13685@dhcp22.suse.cz>
+In-Reply-To: <20180620071708.GI13685@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Shakeel Butt <shakeelb@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, willy@infradead.org, ldufour@linux.vnet.ibm.com, akpm@linux-foundation.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 20-06-18 17:31:48, Michal Hocko wrote:
-> On Wed 20-06-18 11:18:12, Johannes Weiner wrote:
-[...]
-> > 1) Why warn for kernel allocations, but not userspace ones? This
-> > should have a comment at least.
-> 
-> I am not sure I understand. We do warn for all allocations types of
-> mem_cgroup_out_of_memory fails as long as we are not in a legacy -
-> oom_disabled case.
 
-OK, I can see it now. It wasn't in the quoted context and I just forgot
-that WARN(!current->memcg_may_oom, ...). Well, I do not remember why
-I've made it conditional and you are right it doesn't make any sense.
-Probably a different code flow back then.
 
-Updated to warn regardless of memcg_may_oom.
--- 
-Michal Hocko
-SUSE Labs
+On 6/20/18 12:17 AM, Michal Hocko wrote:
+> On Tue 19-06-18 14:13:05, Yang Shi wrote:
+>>
+>> On 6/19/18 3:02 AM, Peter Zijlstra wrote:
+> [...]
+>>> Hold up, two things: you having to copy most of do_munmap() didn't seem
+>>> to suggest a helper function? And second, since when are we allowed to
+>> Yes, they will be extracted into a helper function in the next version.
+>>
+>> May bad, I don't think it is allowed. We could reform this to:
+>>
+>> acquire write mmap_sem
+>> vma lookup (split vmas)
+>> release write mmap_sem
+>>
+>> acquire read mmap_sem
+>> zap pages
+>> release read mmap_sem
+>>
+>> I'm supposed this is safe as what Michal said before.
+> I didn't get to read your patches carefully yet but I am wondering why
+> do you need to split in the first place. Why cannot you simply unmap the
+> range (madvise(DONTNEED)) under the read lock and then take the lock for
+> write to finish the rest?
+
+Yes, we can. I just thought splitting vma up-front sounds more straight 
+forward. But, I neglected the write mmap_sem issue. Will move the vma 
+split into later write mmap_sem in the next version.
+
+Thanks,
+Yang
