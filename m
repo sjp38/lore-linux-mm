@@ -1,122 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 940EF6B0278
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2018 13:40:36 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id f7-v6so250881wrq.19
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 10:40:36 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 66-v6sor920936wmo.45.2018.06.20.10.40.35
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E5CD46B000D
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2018 14:42:50 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id y7-v6so246549plt.17
+        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 11:42:50 -0700 (PDT)
+Received: from out4438.biz.mail.alibaba.com (out4438.biz.mail.alibaba.com. [47.88.44.38])
+        by mx.google.com with ESMTPS id m89-v6si2891858pfj.192.2018.06.20.11.42.48
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Jun 2018 10:40:35 -0700 (PDT)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v3 17/17] kasan: add SPDX-License-Identifier mark to source files
-Date: Wed, 20 Jun 2018 19:40:03 +0200
-Message-Id: <f76d3070776e0038eda3cd76d471d1bfeae18480.1529515183.git.andreyknvl@google.com>
-In-Reply-To: <cover.1529515183.git.andreyknvl@google.com>
-References: <cover.1529515183.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Jun 2018 11:42:49 -0700 (PDT)
+Subject: Re: [RFC v2 PATCH 2/2] mm: mmap: zap pages with read mmap_sem for
+ large mapping
+References: <1529364856-49589-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1529364856-49589-3-git-send-email-yang.shi@linux.alibaba.com>
+ <3DDF2672-FCC4-4387-9624-92F33C309CAE@gmail.com>
+ <158a4e4c-d290-77c4-a595-71332ede392b@linux.alibaba.com>
+ <BFD6A249-B1D7-43D5-8D7C-9FAED4A168A1@gmail.com>
+ <20180620071817.GJ13685@dhcp22.suse.cz>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <c184031d-b1db-503e-1a32-7963b4bf3de0@linux.alibaba.com>
+Date: Wed, 20 Jun 2018 11:42:27 -0700
+MIME-Version: 1.0
+In-Reply-To: <20180620071817.GJ13685@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Andrey Konovalov <andreyknvl@google.com>
+To: Michal Hocko <mhocko@kernel.org>, Nadav Amit <nadav.amit@gmail.com>
+Cc: Matthew Wilcox <willy@infradead.org>, ldufour@linux.vnet.ibm.com, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-This patch adds a "SPDX-License-Identifier: GPL-2.0" mark to all source
-files under mm/kasan.
 
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- mm/kasan/common.c         | 1 +
- mm/kasan/kasan.c          | 1 +
- mm/kasan/kasan.h          | 2 +-
- mm/kasan/kasan_init.c     | 1 +
- mm/kasan/kasan_report.c   | 1 +
- mm/kasan/khwasan.c        | 1 +
- mm/kasan/khwasan_report.c | 1 +
- mm/kasan/quarantine.c     | 1 +
- mm/kasan/report.c         | 1 +
- 9 files changed, 9 insertions(+), 1 deletion(-)
 
-diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index 6cf7dec0b765..955e0ebdc644 100644
---- a/mm/kasan/common.c
-+++ b/mm/kasan/common.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains common KASAN and KHWASAN code.
-  *
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 44ec228de0a2..128a865c9e05 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains core KASAN code.
-  *
-diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-index 6f4f2ebf5f57..3feacd889e24 100644
---- a/mm/kasan/kasan.h
-+++ b/mm/kasan/kasan.h
-@@ -1,4 +1,4 @@
--/* SPDX-License-Identifier: GPL-2.0 */
-+// SPDX-License-Identifier: GPL-2.0
- #ifndef __MM_KASAN_KASAN_H
- #define __MM_KASAN_KASAN_H
- 
-diff --git a/mm/kasan/kasan_init.c b/mm/kasan/kasan_init.c
-index f436246ccc79..2dfa730a9d43 100644
---- a/mm/kasan/kasan_init.c
-+++ b/mm/kasan/kasan_init.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains some kasan initialization code.
-  *
-diff --git a/mm/kasan/kasan_report.c b/mm/kasan/kasan_report.c
-index fdf2d77e3125..48da73f4ef7c 100644
---- a/mm/kasan/kasan_report.c
-+++ b/mm/kasan/kasan_report.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains KASAN specific error reporting code.
-  *
-diff --git a/mm/kasan/khwasan.c b/mm/kasan/khwasan.c
-index fd1725022794..f0d528a8c3f3 100644
---- a/mm/kasan/khwasan.c
-+++ b/mm/kasan/khwasan.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains core KHWASAN code.
-  *
-diff --git a/mm/kasan/khwasan_report.c b/mm/kasan/khwasan_report.c
-index 51238b404b08..4e193546d94e 100644
---- a/mm/kasan/khwasan_report.c
-+++ b/mm/kasan/khwasan_report.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains KHWASAN specific error reporting code.
-  *
-diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
-index 3a8ddf8baf7d..0e4dc1a22615 100644
---- a/mm/kasan/quarantine.c
-+++ b/mm/kasan/quarantine.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * KASAN quarantine.
-  *
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index e031c78f2e52..633b4b245798 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains common KASAN and KHWASAN error reporting code.
-  *
--- 
-2.18.0.rc1.244.gcf134e6275-goog
+On 6/20/18 12:18 AM, Michal Hocko wrote:
+> On Tue 19-06-18 17:31:27, Nadav Amit wrote:
+>> at 4:08 PM, Yang Shi <yang.shi@linux.alibaba.com> wrote:
+>>
+>>>
+>>> On 6/19/18 3:17 PM, Nadav Amit wrote:
+>>>> at 4:34 PM, Yang Shi <yang.shi@linux.alibaba.com>
+>>>>   wrote:
+>>>>
+>>>>
+>>>>> When running some mmap/munmap scalability tests with large memory (i.e.
+>>>>>
+>>>>>> 300GB), the below hung task issue may happen occasionally.
+>>>>>>
+>>>>> INFO: task ps:14018 blocked for more than 120 seconds.
+>>>>>        Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
+>>>>> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
+>>>>> message.
+>>>>> ps              D    0 14018      1 0x00000004
+>>>>>
+>>>>>
+>>>> (snip)
+>>>>
+>>>>
+>>>>> Zapping pages is the most time consuming part, according to the
+>>>>> suggestion from Michal Hock [1], zapping pages can be done with holding
+>>>>> read mmap_sem, like what MADV_DONTNEED does. Then re-acquire write
+>>>>> mmap_sem to manipulate vmas.
+>>>>>
+>>>> Does munmap() == MADV_DONTNEED + munmap() ?
+>>> Not exactly the same. So, I basically copied the page zapping used by munmap instead of calling MADV_DONTNEED.
+>>>
+>>>> For example, what happens with userfaultfd in this case? Can you get an
+>>>> extra #PF, which would be visible to userspace, before the munmap is
+>>>> finished?
+>>>>
+>>> userfaultfd is handled by regular munmap path. So, no change to userfaultfd part.
+>> Right. I see it now.
+>>
+>>>> In addition, would it be ok for the user to potentially get a zeroed page in
+>>>> the time window after the MADV_DONTNEED finished removing a PTE and before
+>>>> the munmap() is done?
+>>>>
+>>> This should be undefined behavior according to Michal. This has been discussed in  https://lwn.net/Articles/753269/.
+>> Thanks for the reference.
+>>
+>> Reading the man page I see: "All pages containing a part of the indicated
+>> range are unmapped, and subsequent references to these pages will generate
+>> SIGSEGV.a??
+> Yes, this is true but I guess what Yang Shi meant was that an userspace
+> access racing with munmap is not well defined. You never know whether
+> you get your data, #PTF or SEGV because it depends on timing. The user
+> visible change might be that you lose content and get zero page instead
+> if you hit the race window while we are unmapping which was not possible
+> before. But whouldn't such an access pattern be buggy anyway? You need
+> some form of external synchronization AFAICS.
+>
+> But maybe some userspace depends on "getting right data or get SEGV"
+> semantic. If we have to preserve that then we can come up with a VM_DEAD
+> flag set before we tear it down and force the SEGV on the #PF path.
+> Something similar we already do for MMF_UNSTABLE.
+
+Set VM_DEAD with read mmap_sem held? It should be ok since this is the 
+only place to set this flag for this unique special case.
+
+Yang
