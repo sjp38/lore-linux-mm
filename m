@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CE6606B0275
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2018 13:40:33 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l4-v6so305046wmh.0
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 10:40:33 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B95F6B0277
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2018 13:40:36 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id s15-v6so251374wrn.16
+        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 10:40:35 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c11-v6sor1055683wmi.55.2018.06.20.10.40.32
+        by mx.google.com with SMTPS id o127-v6sor977487wma.21.2018.06.20.10.40.34
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Jun 2018 10:40:32 -0700 (PDT)
+        Wed, 20 Jun 2018 10:40:34 -0700 (PDT)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v3 15/17] khwasan, mm, arm64: tag non slab memory allocated via pagealloc
-Date: Wed, 20 Jun 2018 19:40:01 +0200
-Message-Id: <05d48d96bcecdb74bc8b7977634a4c16feb7a465.1529515183.git.andreyknvl@google.com>
+Subject: [PATCH v3 16/17] khwasan: update kasan documentation
+Date: Wed, 20 Jun 2018 19:40:02 +0200
+Message-Id: <ce878d72ed7d9c416d7fa5d67b8bc053afcdfb3b.1529515183.git.andreyknvl@google.com>
 In-Reply-To: <cover.1529515183.git.andreyknvl@google.com>
 References: <cover.1529515183.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,224 +20,282 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
 Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Andrey Konovalov <andreyknvl@google.com>
 
-KWHASAN doesn't check memory accesses through pointers tagged with 0xff.
-When page_address is used to get pointer to memory that corresponds to
-some page, the tag of the resulting pointer gets set to 0xff, even though
-the allocated memory might have been tagged differently.
-
-For slab pages it's impossible to recover the correct tag to return from
-page_address, since the page might contain multiple slab objects tagged
-with different values, and we can't know in advance which one of them is
-going to get accessed. For non slab pages however, we can recover the tag
-in page_address, since the whole page was marked with the same tag.
-
-This patch adds tagging to non slab memory allocated with pagealloc. To
-set the tag of the pointer returned from page_address, the tag gets stored
-to page->flags when the memory gets allocated.
+This patch updates KASAN documentation to reflect the addition of KHWASAN.
 
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- arch/arm64/include/asm/memory.h   | 10 ++++++++++
- include/linux/mm.h                | 29 +++++++++++++++++++++++++++++
- include/linux/page-flags-layout.h | 10 ++++++++++
- mm/cma.c                          | 11 +++++++++++
- mm/kasan/common.c                 | 15 +++++++++++++--
- mm/page_alloc.c                   |  1 +
- 6 files changed, 74 insertions(+), 2 deletions(-)
+ Documentation/dev-tools/kasan.rst | 213 +++++++++++++++++-------------
+ 1 file changed, 123 insertions(+), 90 deletions(-)
 
-diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-index e9e054dfb1fc..3352a65b8312 100644
---- a/arch/arm64/include/asm/memory.h
-+++ b/arch/arm64/include/asm/memory.h
-@@ -305,7 +305,17 @@ static inline void *phys_to_virt(phys_addr_t x)
- #define __virt_to_pgoff(kaddr)	(((u64)(kaddr) & ~PAGE_OFFSET) / PAGE_SIZE * sizeof(struct page))
- #define __page_to_voff(kaddr)	(((u64)(kaddr) & ~VMEMMAP_START) * PAGE_SIZE / sizeof(struct page))
+diff --git a/Documentation/dev-tools/kasan.rst b/Documentation/dev-tools/kasan.rst
+index aabc8738b3d8..842d95af74d3 100644
+--- a/Documentation/dev-tools/kasan.rst
++++ b/Documentation/dev-tools/kasan.rst
+@@ -8,11 +8,19 @@ KernelAddressSANitizer (KASAN) is a dynamic memory error detector. It provides
+ a fast and comprehensive solution for finding use-after-free and out-of-bounds
+ bugs.
  
-+#ifndef CONFIG_KASAN_HW
- #define page_to_virt(page)	((void *)((__page_to_voff(page)) | PAGE_OFFSET))
-+#else
-+#define page_to_virt(page)	({					\
-+	unsigned long __addr =						\
-+		((__page_to_voff(page)) | PAGE_OFFSET);			\
-+	__addr = KASAN_SET_TAG(__addr, page_kasan_tag(page));		\
-+	((void *)__addr);						\
-+})
-+#endif
+-KASAN uses compile-time instrumentation for checking every memory access,
+-therefore you will need a GCC version 4.9.2 or later. GCC 5.0 or later is
+-required for detection of out-of-bounds accesses to stack or global variables.
++KASAN has two modes: classic KASAN (a classic version, similar to user space
++ASan) and KHWASAN (a version based on memory tagging, similar to user space
++HWASan).
+ 
+-Currently KASAN is supported only for the x86_64 and arm64 architectures.
++KASAN uses compile-time instrumentation to insert validity checks before every
++memory access, and therefore requires a compiler version that supports that.
++For classic KASAN you need GCC version 4.9.2 or later. GCC 5.0 or later is
++required for detection of out-of-bounds accesses on stack and global variables.
++KHWASAN in turns is only supported in clang and requires revision 330044 or
++later.
 +
- #define virt_to_page(vaddr)	((struct page *)((__virt_to_pgoff(vaddr)) | VMEMMAP_START))
++Currently classic KASAN is supported for the x86_64, arm64 and xtensa
++architectures, and KHWASAN is supported only for arm64.
  
- #define _virt_addr_valid(kaddr)	pfn_valid((((u64)(kaddr) & ~PAGE_OFFSET) \
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a0fbb9ffe380..46afadf4f48c 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -784,6 +784,7 @@ int finish_mkwrite_fault(struct vm_fault *vmf);
- #define NODES_PGOFF		(SECTIONS_PGOFF - NODES_WIDTH)
- #define ZONES_PGOFF		(NODES_PGOFF - ZONES_WIDTH)
- #define LAST_CPUPID_PGOFF	(ZONES_PGOFF - LAST_CPUPID_WIDTH)
-+#define KASAN_TAG_PGOFF		(LAST_CPUPID_PGOFF - KASAN_TAG_WIDTH)
+ Usage
+ -----
+@@ -21,12 +29,14 @@ To enable KASAN configure kernel with::
  
- /*
-  * Define the bit shifts to access each section.  For non-existent
-@@ -794,6 +795,7 @@ int finish_mkwrite_fault(struct vm_fault *vmf);
- #define NODES_PGSHIFT		(NODES_PGOFF * (NODES_WIDTH != 0))
- #define ZONES_PGSHIFT		(ZONES_PGOFF * (ZONES_WIDTH != 0))
- #define LAST_CPUPID_PGSHIFT	(LAST_CPUPID_PGOFF * (LAST_CPUPID_WIDTH != 0))
-+#define KASAN_TAG_PGSHIFT	(KASAN_TAG_PGOFF * (KASAN_TAG_WIDTH != 0))
+ 	  CONFIG_KASAN = y
  
- /* NODE:ZONE or SECTION:ZONE is used to ID a zone for the buddy allocator */
- #ifdef NODE_NOT_IN_PAGE_FLAGS
-@@ -816,6 +818,7 @@ int finish_mkwrite_fault(struct vm_fault *vmf);
- #define NODES_MASK		((1UL << NODES_WIDTH) - 1)
- #define SECTIONS_MASK		((1UL << SECTIONS_WIDTH) - 1)
- #define LAST_CPUPID_MASK	((1UL << LAST_CPUPID_SHIFT) - 1)
-+#define KASAN_TAG_MASK		((1UL << KASAN_TAG_WIDTH) - 1)
- #define ZONEID_MASK		((1UL << ZONEID_SHIFT) - 1)
+-and choose between CONFIG_KASAN_OUTLINE and CONFIG_KASAN_INLINE. Outline and
+-inline are compiler instrumentation types. The former produces smaller binary
+-the latter is 1.1 - 2 times faster. Inline instrumentation requires a GCC
++and choose between CONFIG_KASAN_GENERIC (to enable classic KASAN) and
++CONFIG_KASAN_HW (to enabled KHWASAN). You also need to choose choose between
++CONFIG_KASAN_OUTLINE and CONFIG_KASAN_INLINE. Outline and inline are compiler
++instrumentation types. The former produces smaller binary while the latter is
++1.1 - 2 times faster. For classic KASAN inline instrumentation requires GCC
+ version 5.0 or later.
  
- static inline enum zone_type page_zonenum(const struct page *page)
-@@ -1070,6 +1073,32 @@ static inline bool cpupid_match_pid(struct task_struct *task, int cpupid)
- }
- #endif /* CONFIG_NUMA_BALANCING */
+-KASAN works with both SLUB and SLAB memory allocators.
++Both KASAN modes work with both SLUB and SLAB memory allocators.
+ For better bug detection and nicer reporting, enable CONFIG_STACKTRACE.
  
-+#ifdef CONFIG_KASAN_HW
-+static inline u8 page_kasan_tag(const struct page *page)
-+{
-+	return (page->flags >> KASAN_TAG_PGSHIFT) & KASAN_TAG_MASK;
-+}
+ To disable instrumentation for specific files or directories, add a line
+@@ -43,85 +53,80 @@ similar to the following to the respective kernel Makefile:
+ Error reports
+ ~~~~~~~~~~~~~
+ 
+-A typical out of bounds access report looks like this::
++A typical out-of-bounds access classic KASAN report looks like this::
+ 
+     ==================================================================
+-    BUG: AddressSanitizer: out of bounds access in kmalloc_oob_right+0x65/0x75 [test_kasan] at addr ffff8800693bc5d3
+-    Write of size 1 by task modprobe/1689
+-    =============================================================================
+-    BUG kmalloc-128 (Not tainted): kasan error
+-    -----------------------------------------------------------------------------
+-
+-    Disabling lock debugging due to kernel taint
+-    INFO: Allocated in kmalloc_oob_right+0x3d/0x75 [test_kasan] age=0 cpu=0 pid=1689
+-     __slab_alloc+0x4b4/0x4f0
+-     kmem_cache_alloc_trace+0x10b/0x190
+-     kmalloc_oob_right+0x3d/0x75 [test_kasan]
+-     init_module+0x9/0x47 [test_kasan]
+-     do_one_initcall+0x99/0x200
+-     load_module+0x2cb3/0x3b20
+-     SyS_finit_module+0x76/0x80
+-     system_call_fastpath+0x12/0x17
+-    INFO: Slab 0xffffea0001a4ef00 objects=17 used=7 fp=0xffff8800693bd728 flags=0x100000000004080
+-    INFO: Object 0xffff8800693bc558 @offset=1368 fp=0xffff8800693bc720
+-
+-    Bytes b4 ffff8800693bc548: 00 00 00 00 00 00 00 00 5a 5a 5a 5a 5a 5a 5a 5a  ........ZZZZZZZZ
+-    Object ffff8800693bc558: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
+-    Object ffff8800693bc568: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
+-    Object ffff8800693bc578: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
+-    Object ffff8800693bc588: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
+-    Object ffff8800693bc598: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
+-    Object ffff8800693bc5a8: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
+-    Object ffff8800693bc5b8: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
+-    Object ffff8800693bc5c8: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b a5  kkkkkkkkkkkkkkk.
+-    Redzone ffff8800693bc5d8: cc cc cc cc cc cc cc cc                          ........
+-    Padding ffff8800693bc718: 5a 5a 5a 5a 5a 5a 5a 5a                          ZZZZZZZZ
+-    CPU: 0 PID: 1689 Comm: modprobe Tainted: G    B          3.18.0-rc1-mm1+ #98
+-    Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.7.5-0-ge51488c-20140602_164612-nilsson.home.kraxel.org 04/01/2014
+-     ffff8800693bc000 0000000000000000 ffff8800693bc558 ffff88006923bb78
+-     ffffffff81cc68ae 00000000000000f3 ffff88006d407600 ffff88006923bba8
+-     ffffffff811fd848 ffff88006d407600 ffffea0001a4ef00 ffff8800693bc558
++    BUG: KASAN: slab-out-of-bounds in kmalloc_oob_right+0xa8/0xbc [test_kasan]
++    Write of size 1 at addr ffff8800696f3d3b by task insmod/2734
++    
++    CPU: 0 PID: 2734 Comm: insmod Not tainted 4.15.0+ #98
++    Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1 04/01/2014
+     Call Trace:
+-     [<ffffffff81cc68ae>] dump_stack+0x46/0x58
+-     [<ffffffff811fd848>] print_trailer+0xf8/0x160
+-     [<ffffffffa00026a7>] ? kmem_cache_oob+0xc3/0xc3 [test_kasan]
+-     [<ffffffff811ff0f5>] object_err+0x35/0x40
+-     [<ffffffffa0002065>] ? kmalloc_oob_right+0x65/0x75 [test_kasan]
+-     [<ffffffff8120b9fa>] kasan_report_error+0x38a/0x3f0
+-     [<ffffffff8120a79f>] ? kasan_poison_shadow+0x2f/0x40
+-     [<ffffffff8120b344>] ? kasan_unpoison_shadow+0x14/0x40
+-     [<ffffffff8120a79f>] ? kasan_poison_shadow+0x2f/0x40
+-     [<ffffffffa00026a7>] ? kmem_cache_oob+0xc3/0xc3 [test_kasan]
+-     [<ffffffff8120a995>] __asan_store1+0x75/0xb0
+-     [<ffffffffa0002601>] ? kmem_cache_oob+0x1d/0xc3 [test_kasan]
+-     [<ffffffffa0002065>] ? kmalloc_oob_right+0x65/0x75 [test_kasan]
+-     [<ffffffffa0002065>] kmalloc_oob_right+0x65/0x75 [test_kasan]
+-     [<ffffffffa00026b0>] init_module+0x9/0x47 [test_kasan]
+-     [<ffffffff810002d9>] do_one_initcall+0x99/0x200
+-     [<ffffffff811e4e5c>] ? __vunmap+0xec/0x160
+-     [<ffffffff81114f63>] load_module+0x2cb3/0x3b20
+-     [<ffffffff8110fd70>] ? m_show+0x240/0x240
+-     [<ffffffff81115f06>] SyS_finit_module+0x76/0x80
+-     [<ffffffff81cd3129>] system_call_fastpath+0x12/0x17
++     __dump_stack lib/dump_stack.c:17
++     dump_stack+0x83/0xbc lib/dump_stack.c:53
++     print_address_description+0x73/0x280 mm/kasan/report.c:254
++     kasan_report_error mm/kasan/report.c:352
++     kasan_report+0x10e/0x220 mm/kasan/report.c:410
++     __asan_report_store1_noabort+0x17/0x20 mm/kasan/report.c:505
++     kmalloc_oob_right+0xa8/0xbc [test_kasan] lib/test_kasan.c:42
++     kmalloc_tests_init+0x16/0x769 [test_kasan]
++     do_one_initcall+0x9e/0x240 init/main.c:832
++     do_init_module+0x1b6/0x542 kernel/module.c:3462
++     load_module+0x6042/0x9030 kernel/module.c:3786
++     SYSC_init_module+0x18f/0x1c0 kernel/module.c:3858
++     SyS_init_module+0x9/0x10 kernel/module.c:3841
++     do_syscall_64+0x198/0x480 arch/x86/entry/common.c:287
++     entry_SYSCALL_64_after_hwframe+0x21/0x86 arch/x86/entry/entry_64.S:251
++    RIP: 0033:0x7fdd79df99da
++    RSP: 002b:00007fff2229bdf8 EFLAGS: 00000202 ORIG_RAX: 00000000000000af
++    RAX: ffffffffffffffda RBX: 000055c408121190 RCX: 00007fdd79df99da
++    RDX: 00007fdd7a0b8f88 RSI: 0000000000055670 RDI: 00007fdd7a47e000
++    RBP: 000055c4081200b0 R08: 0000000000000003 R09: 0000000000000000
++    R10: 00007fdd79df5d0a R11: 0000000000000202 R12: 00007fdd7a0b8f88
++    R13: 000055c408120090 R14: 0000000000000000 R15: 0000000000000000
++    
++    Allocated by task 2734:
++     save_stack+0x43/0xd0 mm/kasan/common.c:176
++     set_track+0x20/0x30 mm/kasan/common.c:188
++     kasan_kmalloc+0x9a/0xc0 mm/kasan/kasan.c:372
++     kmem_cache_alloc_trace+0xcd/0x1a0 mm/slub.c:2761
++     kmalloc ./include/linux/slab.h:512
++     kmalloc_oob_right+0x56/0xbc [test_kasan] lib/test_kasan.c:36
++     kmalloc_tests_init+0x16/0x769 [test_kasan]
++     do_one_initcall+0x9e/0x240 init/main.c:832
++     do_init_module+0x1b6/0x542 kernel/module.c:3462
++     load_module+0x6042/0x9030 kernel/module.c:3786
++     SYSC_init_module+0x18f/0x1c0 kernel/module.c:3858
++     SyS_init_module+0x9/0x10 kernel/module.c:3841
++     do_syscall_64+0x198/0x480 arch/x86/entry/common.c:287
++     entry_SYSCALL_64_after_hwframe+0x21/0x86 arch/x86/entry/entry_64.S:251
++    
++    The buggy address belongs to the object at ffff8800696f3cc0
++     which belongs to the cache kmalloc-128 of size 128
++    The buggy address is located 123 bytes inside of
++     128-byte region [ffff8800696f3cc0, ffff8800696f3d40)
++    The buggy address belongs to the page:
++    page:ffffea0001a5bcc0 count:1 mapcount:0 mapping:          (null) index:0x0
++    flags: 0x100000000000100(slab)
++    raw: 0100000000000100 0000000000000000 0000000000000000 0000000180150015
++    raw: ffffea0001a8ce40 0000000300000003 ffff88006d001640 0000000000000000
++    page dumped because: kasan: bad access detected
++    
+     Memory state around the buggy address:
+-     ffff8800693bc300: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
+-     ffff8800693bc380: fc fc 00 00 00 00 00 00 00 00 00 00 00 00 00 fc
+-     ffff8800693bc400: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
+-     ffff8800693bc480: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
+-     ffff8800693bc500: fc fc fc fc fc fc fc fc fc fc fc 00 00 00 00 00
+-    >ffff8800693bc580: 00 00 00 00 00 00 00 00 00 00 03 fc fc fc fc fc
+-                                                 ^
+-     ffff8800693bc600: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
+-     ffff8800693bc680: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
+-     ffff8800693bc700: fc fc fc fc fb fb fb fb fb fb fb fb fb fb fb fb
+-     ffff8800693bc780: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+-     ffff8800693bc800: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
++     ffff8800696f3c00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 fc
++     ffff8800696f3c80: fc fc fc fc fc fc fc fc 00 00 00 00 00 00 00 00
++    >ffff8800696f3d00: 00 00 00 00 00 00 00 03 fc fc fc fc fc fc fc fc
++                                            ^
++     ffff8800696f3d80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 fc fc
++     ffff8800696f3e00: fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb fb
+     ==================================================================
+ 
+-The header of the report discribe what kind of bug happened and what kind of
+-access caused it. It's followed by the description of the accessed slub object
+-(see 'SLUB Debug output' section in Documentation/vm/slub.rst for details) and
+-the description of the accessed memory page.
++The header of the report provides a short summary of what kind of bug happened
++and what kind of access caused it. It's followed by a stack trace of the bad
++access, a stack trace of where the accessed memory was allocated (in case bad
++access happens on a slab object), and a stack trace of where the object was
++freed (in case of a use-after-free bug report). Next comes a description of
++the accessed slab object and information about the accessed memory page.
+ 
+ In the last section the report shows memory state around the accessed address.
+ Reading this part requires some understanding of how KASAN works.
+@@ -138,18 +143,24 @@ inaccessible memory like redzones or freed memory (see mm/kasan/kasan.h).
+ In the report above the arrows point to the shadow byte 03, which means that
+ the accessed address is partially accessible.
+ 
++For KHWASAN this last report section shows the memory tags around the accessed
++address (see Implementation details section).
 +
-+static inline void page_kasan_tag_set(struct page *page, u8 tag)
-+{
-+	page->flags &= ~(KASAN_TAG_MASK << KASAN_TAG_PGSHIFT);
-+	page->flags |= (tag & KASAN_TAG_MASK) << KASAN_TAG_PGSHIFT;
-+}
+ 
+ Implementation details
+ ----------------------
+ 
++Classic KASAN
++~~~~~~~~~~~~~
 +
-+static inline void page_kasan_tag_reset(struct page *page)
-+{
-+	page_kasan_tag_set(page, 0xff);
-+}
-+#else
-+static inline u8 page_kasan_tag(const struct page *page)
-+{
-+	return 0xff;
-+}
+ From a high level, our approach to memory error detection is similar to that
+ of kmemcheck: use shadow memory to record whether each byte of memory is safe
+-to access, and use compile-time instrumentation to check shadow memory on each
+-memory access.
++to access, and use compile-time instrumentation to insert checks of shadow
++memory on each memory access.
+ 
+-AddressSanitizer dedicates 1/8 of kernel memory to its shadow memory
+-(e.g. 16TB to cover 128TB on x86_64) and uses direct mapping with a scale and
+-offset to translate a memory address to its corresponding shadow address.
++Classic KASAN dedicates 1/8th of kernel memory to its shadow memory (e.g. 16TB
++to cover 128TB on x86_64) and uses direct mapping with a scale and offset to
++translate a memory address to its corresponding shadow address.
+ 
+ Here is the function which translates an address to its corresponding shadow
+ address::
+@@ -162,12 +173,34 @@ address::
+ 
+ where ``KASAN_SHADOW_SCALE_SHIFT = 3``.
+ 
+-Compile-time instrumentation used for checking memory accesses. Compiler inserts
+-function calls (__asan_load*(addr), __asan_store*(addr)) before each memory
+-access of size 1, 2, 4, 8 or 16. These functions check whether memory access is
+-valid or not by checking corresponding shadow memory.
++Compile-time instrumentation is used to insert memory access checks. Compiler
++inserts function calls (__asan_load*(addr), __asan_store*(addr)) before each
++memory access of size 1, 2, 4, 8 or 16. These functions check whether memory
++access is valid or not by checking corresponding shadow memory.
+ 
+ GCC 5.0 has possibility to perform inline instrumentation. Instead of making
+ function calls GCC directly inserts the code to check the shadow memory.
+ This option significantly enlarges kernel but it gives x1.1-x2 performance
+ boost over outline instrumented kernel.
 +
-+static inline void page_kasan_tag_set(struct page *page, u8 tag) { }
-+static inline void page_kasan_tag_reset(struct page *page) { }
-+#endif
++KHWASAN
++~~~~~~~
 +
- static inline struct zone *page_zone(const struct page *page)
- {
- 	return &NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)];
-diff --git a/include/linux/page-flags-layout.h b/include/linux/page-flags-layout.h
-index 7ec86bf31ce4..8dbad17664c2 100644
---- a/include/linux/page-flags-layout.h
-+++ b/include/linux/page-flags-layout.h
-@@ -82,6 +82,16 @@
- #define LAST_CPUPID_WIDTH 0
- #endif
- 
-+#ifdef CONFIG_KASAN_HW
-+#define KASAN_TAG_WIDTH 8
-+#if SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH+LAST_CPUPID_WIDTH+KASAN_TAG_WIDTH \
-+	> BITS_PER_LONG - NR_PAGEFLAGS
-+#error "KASAN: not enough bits in page flags for tag"
-+#endif
-+#else
-+#define KASAN_TAG_WIDTH 0
-+#endif
++KHWASAN uses the Top Byte Ignore (TBI) feature of modern arm64 CPUs to store
++a pointer tag in the top byte of kernel pointers. KHWASAN also uses shadow
++memory to store memory tags associated with each 16-byte memory cell (therefore
++it dedicates 1/16th of the kernel memory for shadow memory).
 +
- /*
-  * We are going to use the flags for the page to node mapping if its in
-  * there.  This includes the case where there is no node, so it is implicit.
-diff --git a/mm/cma.c b/mm/cma.c
-index 5809bbe360d7..fdad7ad0d9c4 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -407,6 +407,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
- 	unsigned long pfn = -1;
- 	unsigned long start = 0;
- 	unsigned long bitmap_maxno, bitmap_no, bitmap_count;
-+	size_t i;
- 	struct page *page = NULL;
- 	int ret = -ENOMEM;
- 
-@@ -466,6 +467,16 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
- 
- 	trace_cma_alloc(pfn, page, count, align);
- 
-+	/*
-+	 * CMA can allocate multiple page blocks, which results in different
-+	 * blocks being marked with different tags. Reset the tags to ignore
-+	 * those page blocks.
-+	 */
-+	if (page) {
-+		for (i = 0; i < count; i++)
-+			page_kasan_tag_reset(page + i);
-+	}
++On each memory allocation KHWASAN generates a random tag, tags allocated memory
++with this tag, and embeds this tag into the returned pointer. KHWASAN uses
++compile-time instrumentation to insert checks before each memory access. These
++checks make sure that tag of the memory that is being accessed is equal to tag
++of the pointer that is used to access this memory. In case of a tag mismatch
++KHWASAN prints a bug report.
 +
- 	if (ret && !(gfp_mask & __GFP_NOWARN)) {
- 		pr_err("%s: alloc failed, req-size: %zu pages, ret: %d\n",
- 			__func__, count, ret);
-diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index 1e96ca050c75..6cf7dec0b765 100644
---- a/mm/kasan/common.c
-+++ b/mm/kasan/common.c
-@@ -212,8 +212,15 @@ void kasan_unpoison_stack_above_sp_to(const void *watermark)
- 
- void kasan_alloc_pages(struct page *page, unsigned int order)
- {
-+	u8 tag;
-+	unsigned long i;
-+
- 	if (unlikely(PageHighMem(page)))
- 		return;
-+
-+	tag = random_tag();
-+	for (i = 0; i < (1 << order); i++)
-+		page_kasan_tag_set(page + i, tag);
- 	kasan_unpoison_shadow(page_address(page), PAGE_SIZE << order);
- }
- 
-@@ -311,6 +318,10 @@ struct kasan_free_meta *get_free_info(struct kmem_cache *cache,
- 
- void kasan_poison_slab(struct page *page)
- {
-+	unsigned long i;
-+
-+	for (i = 0; i < (1 << compound_order(page)); i++)
-+		page_kasan_tag_reset(page + i);
- 	kasan_poison_shadow(page_address(page),
- 			PAGE_SIZE << compound_order(page),
- 			KASAN_KMALLOC_REDZONE);
-@@ -483,7 +494,7 @@ void kasan_poison_kfree(void *ptr, unsigned long ip)
- 	page = virt_to_head_page(ptr);
- 
- 	if (unlikely(!PageSlab(page))) {
--		if (reset_tag(ptr) != page_address(page)) {
-+		if (ptr != page_address(page)) {
- 			kasan_report_invalid_free(ptr, ip);
- 			return;
- 		}
-@@ -496,7 +507,7 @@ void kasan_poison_kfree(void *ptr, unsigned long ip)
- 
- void kasan_kfree_large(void *ptr, unsigned long ip)
- {
--	if (reset_tag(ptr) != page_address(virt_to_head_page(ptr)))
-+	if (ptr != page_address(virt_to_head_page(ptr)))
- 		kasan_report_invalid_free(ptr, ip);
- 	/* The object will be poisoned by page_alloc. */
- }
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1521100f1e63..266e86323d73 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1176,6 +1176,7 @@ static void __meminit __init_single_page(struct page *page, unsigned long pfn,
- 	init_page_count(page);
- 	page_mapcount_reset(page);
- 	page_cpupid_reset_last(page);
-+	page_kasan_tag_reset(page);
- 
- 	INIT_LIST_HEAD(&page->lru);
- #ifdef WANT_PAGE_VIRTUAL
++KHWASAN also has two instrumentation modes (outline, that emits callbacks to
++check memory accesses; and inline, that performs the shadow memory checks
++inline). With outline instrumentation mode, a bug report is simply printed
++from the function that performs the access check. With inline instrumentation
++a brk instruction is emitted by the compiler, and a dedicated brk handler is
++used to print KHWASAN reports.
 -- 
 2.18.0.rc1.244.gcf134e6275-goog
