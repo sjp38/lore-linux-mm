@@ -1,100 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E5CD46B000D
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2018 14:42:50 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id y7-v6so246549plt.17
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 11:42:50 -0700 (PDT)
-Received: from out4438.biz.mail.alibaba.com (out4438.biz.mail.alibaba.com. [47.88.44.38])
-        by mx.google.com with ESMTPS id m89-v6si2891858pfj.192.2018.06.20.11.42.48
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 016206B0003
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2018 15:15:21 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id n9-v6so326577otk.23
+        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 12:15:20 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e63-v6sor1088529oia.82.2018.06.20.12.15.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Jun 2018 11:42:49 -0700 (PDT)
-Subject: Re: [RFC v2 PATCH 2/2] mm: mmap: zap pages with read mmap_sem for
- large mapping
-References: <1529364856-49589-1-git-send-email-yang.shi@linux.alibaba.com>
- <1529364856-49589-3-git-send-email-yang.shi@linux.alibaba.com>
- <3DDF2672-FCC4-4387-9624-92F33C309CAE@gmail.com>
- <158a4e4c-d290-77c4-a595-71332ede392b@linux.alibaba.com>
- <BFD6A249-B1D7-43D5-8D7C-9FAED4A168A1@gmail.com>
- <20180620071817.GJ13685@dhcp22.suse.cz>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <c184031d-b1db-503e-1a32-7963b4bf3de0@linux.alibaba.com>
-Date: Wed, 20 Jun 2018 11:42:27 -0700
+        (Google Transport Security);
+        Wed, 20 Jun 2018 12:15:19 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180620071817.GJ13685@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+In-Reply-To: <f76d3070776e0038eda3cd76d471d1bfeae18480.1529515183.git.andreyknvl@google.com>
+References: <cover.1529515183.git.andreyknvl@google.com> <f76d3070776e0038eda3cd76d471d1bfeae18480.1529515183.git.andreyknvl@google.com>
+From: Fabio Estevam <festevam@gmail.com>
+Date: Wed, 20 Jun 2018 16:15:18 -0300
+Message-ID: <CAOMZO5BgPaMsmx_3AJvMTKCFjhusfH=kH26U_PQCSD5TcUDA+w@mail.gmail.com>
+Subject: Re: [PATCH v3 17/17] kasan: add SPDX-License-Identifier mark to
+ source files
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Nadav Amit <nadav.amit@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, ldufour@linux.vnet.ibm.com, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>, "moderated list:ARM/FREESCALE IMX / MXC ARM ARCHITECTURE" <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jann Horn <jannh@google.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Mark Brand <markbrand@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
 
+On Wed, Jun 20, 2018 at 2:40 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
 
+> diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+> index 6f4f2ebf5f57..3feacd889e24 100644
+> --- a/mm/kasan/kasan.h
+> +++ b/mm/kasan/kasan.h
+> @@ -1,4 +1,4 @@
+> -/* SPDX-License-Identifier: GPL-2.0 */
+> +// SPDX-License-Identifier: GPL-2.0
 
-On 6/20/18 12:18 AM, Michal Hocko wrote:
-> On Tue 19-06-18 17:31:27, Nadav Amit wrote:
->> at 4:08 PM, Yang Shi <yang.shi@linux.alibaba.com> wrote:
->>
->>>
->>> On 6/19/18 3:17 PM, Nadav Amit wrote:
->>>> at 4:34 PM, Yang Shi <yang.shi@linux.alibaba.com>
->>>>   wrote:
->>>>
->>>>
->>>>> When running some mmap/munmap scalability tests with large memory (i.e.
->>>>>
->>>>>> 300GB), the below hung task issue may happen occasionally.
->>>>>>
->>>>> INFO: task ps:14018 blocked for more than 120 seconds.
->>>>>        Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
->>>>> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
->>>>> message.
->>>>> ps              D    0 14018      1 0x00000004
->>>>>
->>>>>
->>>> (snip)
->>>>
->>>>
->>>>> Zapping pages is the most time consuming part, according to the
->>>>> suggestion from Michal Hock [1], zapping pages can be done with holding
->>>>> read mmap_sem, like what MADV_DONTNEED does. Then re-acquire write
->>>>> mmap_sem to manipulate vmas.
->>>>>
->>>> Does munmap() == MADV_DONTNEED + munmap() ?
->>> Not exactly the same. So, I basically copied the page zapping used by munmap instead of calling MADV_DONTNEED.
->>>
->>>> For example, what happens with userfaultfd in this case? Can you get an
->>>> extra #PF, which would be visible to userspace, before the munmap is
->>>> finished?
->>>>
->>> userfaultfd is handled by regular munmap path. So, no change to userfaultfd part.
->> Right. I see it now.
->>
->>>> In addition, would it be ok for the user to potentially get a zeroed page in
->>>> the time window after the MADV_DONTNEED finished removing a PTE and before
->>>> the munmap() is done?
->>>>
->>> This should be undefined behavior according to Michal. This has been discussed in  https://lwn.net/Articles/753269/.
->> Thanks for the reference.
->>
->> Reading the man page I see: "All pages containing a part of the indicated
->> range are unmapped, and subsequent references to these pages will generate
->> SIGSEGV.a??
-> Yes, this is true but I guess what Yang Shi meant was that an userspace
-> access racing with munmap is not well defined. You never know whether
-> you get your data, #PTF or SEGV because it depends on timing. The user
-> visible change might be that you lose content and get zero page instead
-> if you hit the race window while we are unmapping which was not possible
-> before. But whouldn't such an access pattern be buggy anyway? You need
-> some form of external synchronization AFAICS.
->
-> But maybe some userspace depends on "getting right data or get SEGV"
-> semantic. If we have to preserve that then we can come up with a VM_DEAD
-> flag set before we tear it down and force the SEGV on the #PF path.
-> Something similar we already do for MMF_UNSTABLE.
-
-Set VM_DEAD with read mmap_sem held? It should be ok since this is the 
-only place to set this flag for this unique special case.
-
-Yang
+The original notation is correct: /* */ style is used for header files.
