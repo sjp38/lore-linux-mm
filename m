@@ -1,127 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 79E486B0003
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2018 16:52:22 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id v194-v6so343624vke.17
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 13:52:22 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CA2106B0003
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2018 17:36:47 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id k18-v6so685000wrn.8
+        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 14:36:47 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 78-v6sor1209074vkl.158.2018.06.20.13.52.21
+        by mx.google.com with SMTPS id w12-v6sor1732261wrs.4.2018.06.20.14.36.46
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Jun 2018 13:52:21 -0700 (PDT)
+        Wed, 20 Jun 2018 14:36:46 -0700 (PDT)
 MIME-Version: 1.0
-References: <20180529025722.GA25784@bombadil.infradead.org> <20180530061212.84915-1-gthelen@google.com>
-In-Reply-To: <20180530061212.84915-1-gthelen@google.com>
-From: Greg Thelen <gthelen@google.com>
-Date: Wed, 20 Jun 2018 13:52:08 -0700
-Message-ID: <CAHH2K0Z-rgqZU3wqZ2kuHKyZ4tmZK8RgTK-Keg0E-U+i4gDeqA@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: condense scan_control
+References: <20180619213352.71740-1-shakeelb@google.com> <3f61e143-e7b3-5517-fbaf-d663675f0e96@virtuozzo.com>
+In-Reply-To: <3f61e143-e7b3-5517-fbaf-d663675f0e96@virtuozzo.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Wed, 20 Jun 2018 14:36:33 -0700
+Message-ID: <CALvZod5z8_6KytDdoS26qE1iLVg3yoOT+BUYtxHX2XuN1UKkCg@mail.gmail.com>
+Subject: Re: [PATCH] slub: fix __kmem_cache_empty for !CONFIG_SLUB_DEBUG
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, willy@infradead.org
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: "Jason A . Donenfeld" <Jason@zx2c4.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
 
-On Tue, May 29, 2018 at 11:12 PM Greg Thelen <gthelen@google.com> wrote:
+On Wed, Jun 20, 2018 at 5:08 AM Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
 >
-> Use smaller scan_control fields for order, priority, and reclaim_idx.
-> Convert fields from int => s8.  All easily fit within a byte:
-> * allocation order range: 0..MAX_ORDER(64?)
-> * priority range:         0..12(DEF_PRIORITY)
-> * reclaim_idx range:      0..6(__MAX_NR_ZONES)
 >
-> Since commit 6538b8ea886e ("x86_64: expand kernel stack to 16K") x86_64
-> stack overflows are not an issue.  But it's inefficient to use ints.
 >
-> Use s8 (signed byte) rather than u8 to allow for loops like:
->         do {
->                 ...
->         } while (--sc.priority >= 0);
+> On 06/20/2018 12:33 AM, Shakeel Butt wrote:
+> > For !CONFIG_SLUB_DEBUG, SLUB does not maintain the number of slabs
+> > allocated per node for a kmem_cache. Thus, slabs_node() in
+> > __kmem_cache_empty() will always return 0. So, in such situation, it is
+> > required to check per-cpu slabs to make sure if a kmem_cache is empty or
+> > not.
+> >
+> > Please note that __kmem_cache_shutdown() and __kmem_cache_shrink() are
+> > not affected by !CONFIG_SLUB_DEBUG as they call flush_all() to clear
+> > per-cpu slabs.
 >
-> Add BUILD_BUG_ON to verify that s8 is capable of storing max values.
+> So what? Yes, they call flush_all() and then check if there are non-empty slabs left.
+> And that check doesn't work in case of disabled CONFIG_SLUB_DEBUG.
+> How is flush_all() or per-cpu slabs even relevant here?
 >
-> This reduces sizeof(struct scan_control):
-> * 96 => 80 bytes (x86_64)
-> * 68 => 56 bytes (i386)
->
-> scan_control structure field order is changed to utilize padding.
-> After this patch there is 1 bit of scan_control padding.
->
-> Signed-off-by: Greg Thelen <gthelen@google.com>
-> Suggested-by: Matthew Wilcox <willy@infradead.org>
 
-Is there any interest in this?  Less stack usage could mean less
-dcache and dtlb pressure.  But I understand if the complexity is
-distasteful.
-
-> ---
->  mm/vmscan.c | 32 ++++++++++++++++++++------------
->  1 file changed, 20 insertions(+), 12 deletions(-)
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 9b697323a88c..42731faea306 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -65,12 +65,6 @@ struct scan_control {
->         /* How many pages shrink_list() should reclaim */
->         unsigned long nr_to_reclaim;
->
-> -       /* This context's GFP mask */
-> -       gfp_t gfp_mask;
-> -
-> -       /* Allocation order */
-> -       int order;
-> -
->         /*
->          * Nodemask of nodes allowed by the caller. If NULL, all nodes
->          * are scanned.
-> @@ -83,12 +77,6 @@ struct scan_control {
->          */
->         struct mem_cgroup *target_mem_cgroup;
->
-> -       /* Scan (total_size >> priority) pages at once */
-> -       int priority;
-> -
-> -       /* The highest zone to isolate pages for reclaim from */
-> -       enum zone_type reclaim_idx;
-> -
->         /* Writepage batching in laptop mode; RECLAIM_WRITE */
->         unsigned int may_writepage:1;
->
-> @@ -111,6 +99,18 @@ struct scan_control {
->         /* One of the zones is ready for compaction */
->         unsigned int compaction_ready:1;
->
-> +       /* Allocation order */
-> +       s8 order;
-> +
-> +       /* Scan (total_size >> priority) pages at once */
-> +       s8 priority;
-> +
-> +       /* The highest zone to isolate pages for reclaim from */
-> +       s8 reclaim_idx;
-> +
-> +       /* This context's GFP mask */
-> +       gfp_t gfp_mask;
-> +
->         /* Incremented by the number of inactive pages that were scanned */
->         unsigned long nr_scanned;
->
-> @@ -3047,6 +3047,14 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
->                 .may_swap = 1,
->         };
->
-> +       /*
-> +        * scan_control uses s8 fields for order, priority, and reclaim_idx.
-> +        * Confirm they are large enough for max values.
-> +        */
-> +       BUILD_BUG_ON(MAX_ORDER > S8_MAX);
-> +       BUILD_BUG_ON(DEF_PRIORITY > S8_MAX);
-> +       BUILD_BUG_ON(MAX_NR_ZONES > S8_MAX);
-> +
->         /*
->          * Do not enter reclaim if fatal signal was delivered while throttled.
->          * 1 is returned so that the page allocator does not OOM kill at this
-> --
-> 2.17.0.921.gf22659ad46-goog
->
+The flush_all() will move all cpu slabs and partials to node's partial
+list and thus later check of node's partial list will handle non-empty
+slabs situation. However what I missed is the 'full slabs' which are
+not on any list for !CONFIG_SLUB_DEBUG. So, this patch is not the
+complete solution. I think David's suggestion is the complete
+solution. I will post a patch based on David's suggestion.
