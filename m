@@ -1,47 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C27806B0003
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2018 07:55:35 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id q18-v6so1755846pll.3
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 04:55:35 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t3-v6si2336432plz.93.2018.06.20.04.55.34
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CD10D6B0003
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2018 08:08:15 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id c6-v6so1772896pll.4
+        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 05:08:15 -0700 (PDT)
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50122.outbound.protection.outlook.com. [40.107.5.122])
+        by mx.google.com with ESMTPS id w65-v6si2288764pfb.309.2018.06.20.05.08.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 20 Jun 2018 04:55:34 -0700 (PDT)
-Date: Wed, 20 Jun 2018 13:55:31 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: Bring OOM notifier callbacks to outside of OOM
- killer.
-Message-ID: <20180620115531.GL13685@dhcp22.suse.cz>
-References: <1529493638-6389-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 20 Jun 2018 05:08:14 -0700 (PDT)
+Subject: Re: [PATCH] slub: fix __kmem_cache_empty for !CONFIG_SLUB_DEBUG
+References: <20180619213352.71740-1-shakeelb@google.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <3f61e143-e7b3-5517-fbaf-d663675f0e96@virtuozzo.com>
+Date: Wed, 20 Jun 2018 15:09:38 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1529493638-6389-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <20180619213352.71740-1-shakeelb@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: Shakeel Butt <shakeelb@google.com>, "Jason A . Donenfeld" <Jason@zx2c4.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
 
-On Wed 20-06-18 20:20:38, Tetsuo Handa wrote:
-> Sleeping with oom_lock held can cause AB-BA lockup bug because
-> __alloc_pages_may_oom() does not wait for oom_lock. Since
-> blocking_notifier_call_chain() in out_of_memory() might sleep, sleeping
-> with oom_lock held is currently an unavoidable problem.
 
-Could you be more specific about the potential deadlock? Sleeping while
-holding oom lock is certainly not nice but I do not see how that would
-result in a deadlock assuming that the sleeping context doesn't sleep on
-the memory allocation obviously.
 
-> As a preparation for not to sleep with oom_lock held, this patch brings
-> OOM notifier callbacks to outside of OOM killer, with two small behavior
-> changes explained below.
+On 06/20/2018 12:33 AM, Shakeel Butt wrote:
+> For !CONFIG_SLUB_DEBUG, SLUB does not maintain the number of slabs
+> allocated per node for a kmem_cache. Thus, slabs_node() in
+> __kmem_cache_empty() will always return 0. So, in such situation, it is
+> required to check per-cpu slabs to make sure if a kmem_cache is empty or
+> not.
+> 
+> Please note that __kmem_cache_shutdown() and __kmem_cache_shrink() are
+> not affected by !CONFIG_SLUB_DEBUG as they call flush_all() to clear
+> per-cpu slabs.
 
-Can we just eliminate this ugliness and remove it altogether? We do not
-have that many notifiers. Is there anything fundamental that would
-prevent us from moving them to shrinkers instead?
--- 
-Michal Hocko
-SUSE Labs
+So what? Yes, they call flush_all() and then check if there are non-empty slabs left.
+And that check doesn't work in case of disabled CONFIG_SLUB_DEBUG.
+How is flush_all() or per-cpu slabs even relevant here?
