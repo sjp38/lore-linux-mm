@@ -1,88 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B7AE66B0003
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2018 18:18:23 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id bf1-v6so540002plb.2
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 15:18:23 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id u23-v6si3571571plk.487.2018.06.20.15.18.20
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 87F426B0003
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2018 18:26:59 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id j25-v6so468746pfi.20
+        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 15:26:59 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id n22-v6si3044275pff.370.2018.06.20.15.26.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Jun 2018 15:18:20 -0700 (PDT)
-Date: Wed, 20 Jun 2018 15:18:19 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/4] mm/memory_hotplug: Make add_memory_resource use
- __try_online_node
-Message-Id: <20180620151819.3f39226998bd80f7161fcea5@linux-foundation.org>
-In-Reply-To: <20180601125321.30652-2-osalvador@techadventures.net>
-References: <20180601125321.30652-1-osalvador@techadventures.net>
-	<20180601125321.30652-2-osalvador@techadventures.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 20 Jun 2018 15:26:58 -0700 (PDT)
+Date: Wed, 20 Jun 2018 15:26:53 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 1/3] vmalloc: Add __vmalloc_node_try_addr function
+Message-ID: <20180620222653.GC11479@bombadil.infradead.org>
+References: <1529532570-21765-1-git-send-email-rick.p.edgecombe@intel.com>
+ <1529532570-21765-2-git-send-email-rick.p.edgecombe@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1529532570-21765-2-git-send-email-rick.p.edgecombe@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: osalvador@techadventures.net
-Cc: mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Rick Edgecombe <rick.p.edgecombe@intel.com>
+Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, kristen.c.accardi@intel.com, dave.hansen@intel.com, arjan.van.de.ven@intel.com
 
-On Fri,  1 Jun 2018 14:53:18 +0200 osalvador@techadventures.net wrote:
-
-> From: Oscar Salvador <osalvador@suse.de>
-> 
-> add_memory_resource() contains code to allocate a new node in case
-> it is necessary.
-> Since try_online_node() also hast some code for this purpose,
-> let us make use of that and remove duplicate code.
-> 
-> This introduces __try_online_node(), which is called by add_memory_resource()
-> and try_online_node().
-> __try_online_node() has two new parameters, start_addr of the node,
-> and if the node should be onlined and registered right away.
-> This is always wanted if we are calling from do_cpu_up(), but not
-> when we are calling from memhotplug code.
-> Nothing changes from the point of view of the users of try_online_node(),
-> since try_online_node passes start_addr=0 and online_node=true to
-> __try_online_node().
-> 
-> ...
->
-> @@ -1126,17 +1136,14 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
->  	 */
->  	memblock_add_node(start, size, nid);
+On Wed, Jun 20, 2018 at 03:09:28PM -0700, Rick Edgecombe wrote:
 >  
-> -	new_node = !node_online(nid);
-> -	if (new_node) {
-> -		pgdat = hotadd_new_pgdat(nid, start);
-> -		ret = -ENOMEM;
-> -		if (!pgdat)
-> -			goto error;
-> -	}
-> +	ret = __try_online_node (nid, start, false);
-> +	new_node = !!(ret > 0);
+>  /**
+> + *	__vmalloc_try_addr  -  try to alloc at a specific address
+> + *	@addr:		address to try
+> + *	@size:		size to try
+> + *	@gfp_mask:	flags for the page level allocator
+> + *	@prot:		protection mask for the allocated pages
+> + *	@vm_flags:	additional vm area flags (e.g. %VM_NO_GUARD)
+> + *	@node:		node to use for allocation or NUMA_NO_NODE
+> + *	@caller:	caller's return address
+> + *
+> + *	Try to allocate at the specific address. If it succeeds the address is
+> + *	returned. If it fails NULL is returned.  It may trigger TLB flushes.
 
-I don't think __try_online_node() will ever return a value greater than
-zero.  I assume what was meant was
+ * Try to allocate memory at a specific address.  May trigger TLB flushes.
+ *
+ * Context: Process context.
+ * Return: The allocated address if it succeeds.  NULL if it fails.
 
-	new_node = !!(ret >= 0);
-
-which may as well be
-
-	new_node = (ret >= 0);
-
-since both sides have bool type.
-
-The fact that testing didn't detect this is worrisome....
-
-> +	if (ret < 0)
-> +		goto error;
-> +
+> @@ -1759,8 +1795,9 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+>  	return addr;
 >  
->  	/* call arch's memory hotadd */
->  	ret = arch_add_memory(nid, start, size, NULL, true);
-> -
->  	if (ret < 0)
->  		goto error;
->  
-> 
-> ...
->
+>  fail:
+> -	warn_alloc(gfp_mask, NULL,
+> -			  "vmalloc: allocation failure: %lu bytes", real_size);
+> +	if (!(gfp_mask & __GFP_NOWARN))
+> +		warn_alloc(gfp_mask, NULL,
+> +			"vmalloc: allocation failure: %lu bytes", real_size);
+>  	return NULL;
+
+Not needed:
+
+void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+{
+...
+        if ((gfp_mask & __GFP_NOWARN) || !__ratelimit(&nopage_rs))
+                return;
