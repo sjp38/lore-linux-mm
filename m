@@ -1,102 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BDE86B0003
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 10:59:51 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id r2-v6so2519217wrm.15
-        for <linux-mm@kvack.org>; Thu, 21 Jun 2018 07:59:50 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A046E6B0006
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 11:01:28 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id p9-v6so2527868wrm.22
+        for <linux-mm@kvack.org>; Thu, 21 Jun 2018 08:01:28 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a19-v6si2688787edj.406.2018.06.21.07.59.49
+        by mx.google.com with ESMTPS id y20-v6si2219645edm.267.2018.06.21.08.01.27
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 21 Jun 2018 07:59:49 -0700 (PDT)
-Date: Thu, 21 Jun 2018 16:59:47 +0200
+        Thu, 21 Jun 2018 08:01:27 -0700 (PDT)
+Date: Thu, 21 Jun 2018 17:01:22 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: mempool: Remove unused argument in
- kasan_unpoison_element() and remove_element()
-Message-ID: <20180621145947.GA13063@dhcp22.suse.cz>
-References: <20180621070332.16633-1-baijiaju1990@gmail.com>
+Subject: Re: [PATCH] slub: track number of slabs irrespective of
+ CONFIG_SLUB_DEBUG
+Message-ID: <20180621150122.GB13063@dhcp22.suse.cz>
+References: <20180620224147.23777-1-shakeelb@google.com>
+ <010001641fe92599-9006a895-d1ea-4881-a63c-f3749ff9b7b3-000000@email.amazonses.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180621070332.16633-1-baijiaju1990@gmail.com>
+In-Reply-To: <010001641fe92599-9006a895-d1ea-4881-a63c-f3749ff9b7b3-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jia-Ju Bai <baijiaju1990@gmail.com>
-Cc: akpm@linux-foundation.org, jthumshirn@suse.de, cl@linux.com, kstewart@linuxfoundation.org, pombredanne@nexb.com, gregkh@linuxfoundation.org, dvyukov@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christopher Lameter <cl@linux.com>
+Cc: Shakeel Butt <shakeelb@google.com>, "Jason A . Donenfeld" <Jason@zx2c4.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-On Thu 21-06-18 15:03:32, Jia-Ju Bai wrote:
-> The argument "gfp_t flags" is not used in kasan_unpoison_element() 
-> and remove_element(), so remove it.
-
-yeah, seems like left over from 9b75a867cc9d ("mm: mempool: kasan: don't
-poot mempool objects in quarantine")
- 
-> Signed-off-by: Jia-Ju Bai <baijiaju1990@gmail.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/mempool.c | 12 ++++++------
->  1 file changed, 6 insertions(+), 6 deletions(-)
+On Thu 21-06-18 01:15:30, Cristopher Lameter wrote:
+> On Wed, 20 Jun 2018, Shakeel Butt wrote:
 > 
-> diff --git a/mm/mempool.c b/mm/mempool.c
-> index 5c9dce34719b..3076ab3f7bc4 100644
-> --- a/mm/mempool.c
-> +++ b/mm/mempool.c
-> @@ -111,7 +111,7 @@ static __always_inline void kasan_poison_element(mempool_t *pool, void *element)
->  		kasan_free_pages(element, (unsigned long)pool->pool_data);
->  }
->  
-> -static void kasan_unpoison_element(mempool_t *pool, void *element, gfp_t flags)
-> +static void kasan_unpoison_element(mempool_t *pool, void *element)
->  {
->  	if (pool->alloc == mempool_alloc_slab || pool->alloc == mempool_kmalloc)
->  		kasan_unpoison_slab(element);
-> @@ -127,12 +127,12 @@ static __always_inline void add_element(mempool_t *pool, void *element)
->  	pool->elements[pool->curr_nr++] = element;
->  }
->  
-> -static void *remove_element(mempool_t *pool, gfp_t flags)
-> +static void *remove_element(mempool_t *pool)
->  {
->  	void *element = pool->elements[--pool->curr_nr];
->  
->  	BUG_ON(pool->curr_nr < 0);
-> -	kasan_unpoison_element(pool, element, flags);
-> +	kasan_unpoison_element(pool, element);
->  	check_element(pool, element);
->  	return element;
->  }
-> @@ -151,7 +151,7 @@ void mempool_destroy(mempool_t *pool)
->  		return;
->  
->  	while (pool->curr_nr) {
-> -		void *element = remove_element(pool, GFP_KERNEL);
-> +		void *element = remove_element(pool);
->  		pool->free(element, pool->pool_data);
->  	}
->  	kfree(pool->elements);
-> @@ -247,7 +247,7 @@ int mempool_resize(mempool_t *pool, int new_min_nr)
->  	spin_lock_irqsave(&pool->lock, flags);
->  	if (new_min_nr <= pool->min_nr) {
->  		while (new_min_nr < pool->curr_nr) {
-> -			element = remove_element(pool, GFP_KERNEL);
-> +			element = remove_element(pool);
->  			spin_unlock_irqrestore(&pool->lock, flags);
->  			pool->free(element, pool->pool_data);
->  			spin_lock_irqsave(&pool->lock, flags);
-> @@ -333,7 +333,7 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
->  
->  	spin_lock_irqsave(&pool->lock, flags);
->  	if (likely(pool->curr_nr)) {
-> -		element = remove_element(pool, gfp_temp);
-> +		element = remove_element(pool);
->  		spin_unlock_irqrestore(&pool->lock, flags);
->  		/* paired with rmb in mempool_free(), read comment there */
->  		smp_wmb();
-> -- 
-> 2.17.0
+> > For !CONFIG_SLUB_DEBUG, SLUB does not maintain the number of slabs
+> > allocated per node for a kmem_cache. Thus, slabs_node() in
+> > __kmem_cache_empty(), __kmem_cache_shrink() and __kmem_cache_destroy()
+> > will always return 0 for such config. This is wrong and can cause issues
+> > for all users of these functions.
+> 
+> 
+> CONFIG_SLUB_DEBUG is set by default on almost all builds. The only case
+> where CONFIG_SLUB_DEBUG is switched off is when we absolutely need to use
+> the minimum amount of memory (embedded or some such thing).
 
+I thought those would be using SLOB rather than SLUB.
+
+> 
+> > The right solution is to make slabs_node() work even for
+> > !CONFIG_SLUB_DEBUG. The commit 0f389ec63077 ("slub: No need for per node
+> > slab counters if !SLUB_DEBUG") had put the per node slab counter under
+> > CONFIG_SLUB_DEBUG because it was only read through sysfs API and the
+> > sysfs API was disabled on !CONFIG_SLUB_DEBUG. However the users of the
+> > per node slab counter assumed that it will work in the absence of
+> > CONFIG_SLUB_DEBUG. So, make the counter work for !CONFIG_SLUB_DEBUG.
+> 
+> Please do not do this. Find a way to avoid these checks. The
+> objective of a !CONFIG_SLUB_DEBUG configuration is to not compile in
+> debuggin checks etc etc in order to reduce the code/data footprint to the
+> minimum necessary while sacrificing debuggability etc etc.
+> 
+> Maybe make it impossible to disable CONFIG_SLUB_DEBUG if CGROUPs are in
+> use?
+
+Why don't we simply remove the config option altogether and make it
+enabled effectively.
 -- 
 Michal Hocko
 SUSE Labs
