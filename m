@@ -1,82 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 188A16B000A
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 01:56:18 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id p83-v6so860986vkf.9
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 22:56:18 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DCE46B000D
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 02:30:44 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id p9-v6so1529324wrm.22
+        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 23:30:44 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n91-v6sor1681700uan.22.2018.06.20.22.56.17
+        by mx.google.com with SMTPS id h3-v6sor1405312wmb.78.2018.06.20.23.30.42
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Jun 2018 22:56:17 -0700 (PDT)
+        Wed, 20 Jun 2018 23:30:42 -0700 (PDT)
 MIME-Version: 1.0
-References: <8fda53b0-9d86-943b-e8b4-fd9d6553f010@i-love.sakura.ne.jp>
- <20180621001509.GQ19934@dastard> <201806210547.w5L5l5Mh029257@www262.sakura.ne.jp>
-In-Reply-To: <201806210547.w5L5l5Mh029257@www262.sakura.ne.jp>
-From: Greg Thelen <gthelen@google.com>
-Date: Wed, 20 Jun 2018 22:56:04 -0700
-Message-ID: <CAHH2K0YqWswbfKdi915PJToJUngAbdKqN_2cgtG9CzS1FJRHdg@mail.gmail.com>
-Subject: Re: [PATCH] Makefile: Fix backtrace breakage
+References: <20180620224147.23777-1-shakeelb@google.com> <010001641fe92599-9006a895-d1ea-4881-a63c-f3749ff9b7b3-000000@email.amazonses.com>
+In-Reply-To: <010001641fe92599-9006a895-d1ea-4881-a63c-f3749ff9b7b3-000000@email.amazonses.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Wed, 20 Jun 2018 23:30:29 -0700
+Message-ID: <CALvZod7fgFYDY7nqE2S4a78TqoX19MC66YTFFrWqqR0h9F8iPA@mail.gmail.com>
+Subject: Re: [PATCH] slub: track number of slabs irrespective of CONFIG_SLUB_DEBUG
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: ak@linux.intel.com, Steven Rostedt <rostedt@goodmis.org>, Dave Chinner <david@fromorbit.com>, dchinner@redhat.com, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, osandov@fb.com
+To: Christoph Lameter <cl@linux.com>
+Cc: "Jason A . Donenfeld" <Jason@zx2c4.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, stable@vger.kernel.org
 
-On Wed, Jun 20, 2018 at 10:47 PM Tetsuo Handa
-<penguin-kernel@i-love.sakura.ne.jp> wrote:
+On Wed, Jun 20, 2018 at 6:15 PM Christopher Lameter <cl@linux.com> wrote:
 >
-> From 7208bf13827fa7c7d6196ee20f7678eff0d29b36 Mon Sep 17 00:00:00 2001
-> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Thu, 21 Jun 2018 14:15:10 +0900
-> Subject: [PATCH] Makefile: Fix backtrace breakage
+> On Wed, 20 Jun 2018, Shakeel Butt wrote:
 >
-> Dave Chinner noticed that backtrace part is missing in a lockdep report.
+> > For !CONFIG_SLUB_DEBUG, SLUB does not maintain the number of slabs
+> > allocated per node for a kmem_cache. Thus, slabs_node() in
+> > __kmem_cache_empty(), __kmem_cache_shrink() and __kmem_cache_destroy()
+> > will always return 0 for such config. This is wrong and can cause issues
+> > for all users of these functions.
 >
->   [   68.760085] the existing dependency chain (in reverse order) is:
->   [   69.258520]
->   [   69.258520] -> #1 (fs_reclaim){+.+.}:
->   [   69.623516]
->   [   69.623516] -> #0 (sb_internal){.+.+}:
->   [   70.152322]
->   [   70.152322] other info that might help us debug this:
 >
-> Since the kernel was using CONFIG_FTRACE_MCOUNT_RECORD=n &&
-> CONFIG_FRAME_POINTER=n, objtool_args was not properly calculated
-> due to incorrectly placed "endif" in commit 96f60dfa5819a065 ("trace:
-> Use -mcount-record for dynamic ftrace").
+> CONFIG_SLUB_DEBUG is set by default on almost all builds. The only case
+> where CONFIG_SLUB_DEBUG is switched off is when we absolutely need to use
+> the minimum amount of memory (embedded or some such thing).
 >
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: Dave Chinner <david@fromorbit.com>
-> Cc: Andi Kleen <ak@linux.intel.com>
-> Cc: Steven Rostedt (VMware) <rostedt@goodmis.org>
+> > The right solution is to make slabs_node() work even for
+> > !CONFIG_SLUB_DEBUG. The commit 0f389ec63077 ("slub: No need for per node
+> > slab counters if !SLUB_DEBUG") had put the per node slab counter under
+> > CONFIG_SLUB_DEBUG because it was only read through sysfs API and the
+> > sysfs API was disabled on !CONFIG_SLUB_DEBUG. However the users of the
+> > per node slab counter assumed that it will work in the absence of
+> > CONFIG_SLUB_DEBUG. So, make the counter work for !CONFIG_SLUB_DEBUG.
+>
+> Please do not do this. Find a way to avoid these checks. The
+> objective of a !CONFIG_SLUB_DEBUG configuration is to not compile in
+> debuggin checks etc etc in order to reduce the code/data footprint to the
+> minimum necessary while sacrificing debuggability etc etc.
+>
+> Maybe make it impossible to disable CONFIG_SLUB_DEBUG if CGROUPs are in
+> use?
+>
 
-This looks similar to https://lkml.org/lkml/2018/6/8/545
+Copying from the other thread:
 
-> ---
->  scripts/Makefile.build | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+On Wed, Jun 20, 2018 at 6:22 PM Jason A. Donenfeld <Jason@zx2c4.com> wrote:
 >
-> diff --git a/scripts/Makefile.build b/scripts/Makefile.build
-> index 34d9e9c..55f22f4 100644
-> --- a/scripts/Makefile.build
-> +++ b/scripts/Makefile.build
-> @@ -239,6 +239,7 @@ cmd_record_mcount =                                         \
->              "$(CC_FLAGS_FTRACE)" ]; then                       \
->                 $(sub_cmd_record_mcount)                        \
->         fi;
-> +endif
->  endif # CONFIG_FTRACE_MCOUNT_RECORD
+> On Thu, Jun 21, 2018 at 3:20 AM Christopher Lameter <cl@linux.com> wrote:
+> >
+> > NAK. Its easier to simply not allow !CONFIG_SLUB_DEBUG for cgroups based
+> > configs because in that case you certainly have enough memory to include
+> > the runtime debug code as well as the extended counters.
+> >
 >
->  ifdef CONFIG_STACK_VALIDATION
-> @@ -263,7 +264,6 @@ ifneq ($(RETPOLINE_CFLAGS),)
->    objtool_args += --retpoline
->  endif
->  endif
-> -endif
->
->
->  ifdef CONFIG_MODVERSIONS
-> --
-> 1.8.3.1
->
+> FWIW, I ran into issues with a combination of KASAN+CONFIG_SLUB
+> without having CONFIG_SLUB_DEBUG, because KASAN was using functions
+> that were broken without CONFIG_SLUB_DEBUG, so while you're at it with
+> creating dependencies, you might want to also say KASAN+CONFIG_SLUB
+> ==> CONFIG_SLUB_DEBUG.
+
+KASAN is the only user of __kmem_cache_empty(). So, enforcing
+KASAN+CONFIG_SLUB => CONFIG_SLUB_DEBUG makes sense but not sure about
+cgroups or memcg. Though is it ok let __kmem_cache_shrink() &
+__kmem_cache_shutdown() be broken for !CONFIG_SLUB_DEBUG?
+
+For __kmem_cache_shutdown(), I can understand that shutting down a
+kmem_cache when there are still objects allocated from it, is broken
+and wrong. For __kmem_cache_shrink(), maybe wrong answer from it is
+tolerable.
+
+Shakeel
