@@ -1,36 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B79DC6B0003
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 18:02:50 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id bf1-v6so2484089plb.2
-        for <linux-mm@kvack.org>; Thu, 21 Jun 2018 15:02:50 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id q186-v6si4685750pga.322.2018.06.21.15.02.43
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 07DA86B0003
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 18:10:14 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id y26-v6so2140415pfn.14
+        for <linux-mm@kvack.org>; Thu, 21 Jun 2018 15:10:13 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f15-v6sor1437824pgt.87.2018.06.21.15.10.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Jun 2018 15:02:44 -0700 (PDT)
-From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
-Subject: Re: [PATCH 1/3] vmalloc: Add __vmalloc_node_try_addr function
-Date: Thu, 21 Jun 2018 22:02:39 +0000
-Message-ID: <1529618574.29548.207.camel@intel.com>
-References: <1529532570-21765-1-git-send-email-rick.p.edgecombe@intel.com>
-	 <1529532570-21765-2-git-send-email-rick.p.edgecombe@intel.com>
-	 <20180620222653.GC11479@bombadil.infradead.org>
-In-Reply-To: <20180620222653.GC11479@bombadil.infradead.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <FBF7B1AD2130BB4D8BDEDBD442B31691@intel.com>
-Content-Transfer-Encoding: base64
+        (Google Transport Security);
+        Thu, 21 Jun 2018 15:10:13 -0700 (PDT)
+Date: Fri, 22 Jun 2018 01:10:08 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: thp: register mm for khugepaged when merging vma for
+ shmem
+Message-ID: <20180621221008.r33hpd223kx2gv3a@kshutemo-mobl1>
+References: <1529617247-126312-1-git-send-email-yang.shi@linux.alibaba.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1529617247-126312-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "willy@infradead.org" <willy@infradead.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Van De
- Ven, Arjan" <arjan.van.de.ven@intel.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "Accardi, Kristen C" <kristen.c.accardi@intel.com>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "Hansen, Dave" <dave.hansen@intel.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: hughd@google.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-T24gV2VkLCAyMDE4LTA2LTIwIGF0IDE1OjI2IC0wNzAwLCBNYXR0aGV3IFdpbGNveCB3cm90ZToN
-Cj4gTm90IG5lZWRlZDoNCj4gDQo+IHZvaWQgd2Fybl9hbGxvYyhnZnBfdCBnZnBfbWFzaywgbm9k
-ZW1hc2tfdCAqbm9kZW1hc2ssIGNvbnN0IGNoYXINCj4gKmZtdCwgLi4uKQ0KPiB7DQo+IC4uLg0K
-PiDCoMKgwqDCoMKgwqDCoMKgaWYgKChnZnBfbWFzayAmIF9fR0ZQX05PV0FSTikgfHwgIV9fcmF0
-ZWxpbWl0KCZub3BhZ2VfcnMpKQ0KPiDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoHJl
-dHVybjsNCj4gDQpZZXMsIHRoYW5rcyE=
+On Fri, Jun 22, 2018 at 05:40:47AM +0800, Yang Shi wrote:
+> When merging anonymous page vma, if the size of vam can fit in at least
+
+s/vam/vma/
+
+> one hugepage, the mm will be registered for khugepaged for collapsing
+> THP in the future.
+> 
+> But, it skips shmem vma. Doing so for shmem too when merging vma in
+> order to increase the odd to collapse hugepage by khugepaged.
+
+Good catch. Thanks.
+
+I think the fix incomplete. We shouldn't require vma->anon_vma for shmem,
+only for anonymous mappings. We don't support file-private THPs.
+
+> Also increase the count of shmem THP collapse. It looks missed before.
+
+Separate patch, please.
+
+-- 
+ Kirill A. Shutemov
