@@ -1,88 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CC1186B0003
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 04:41:19 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k2-v6so1824300wrp.14
-        for <linux-mm@kvack.org>; Thu, 21 Jun 2018 01:41:19 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g9-v6sor2003485edp.56.2018.06.21.01.41.18
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F6656B0003
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 06:59:24 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id j10-v6so1135968pgv.6
+        for <linux-mm@kvack.org>; Thu, 21 Jun 2018 03:59:24 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id n187-v6si3639304pga.98.2018.06.21.03.59.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 21 Jun 2018 01:41:18 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Jun 2018 03:59:23 -0700 (PDT)
+Date: Thu, 21 Jun 2018 18:58:48 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [RFC PATCH] mm, oom: oom_free_timeout_ms can be static
+Message-ID: <20180621105848.GA114615@lkp-hsx02>
+References: <alpine.DEB.2.21.1806201458540.14059@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20180621011656.GA15427@ming.t460p>
-References: <20180609123014.8861-1-ming.lei@redhat.com> <CAJX1YtaRtCGt7f8H0VEDrDkcOYusB0JoL-CNB_E--MYGhcvbow@mail.gmail.com>
- <20180621011656.GA15427@ming.t460p>
-From: Gi-Oh Kim <gi-oh.kim@profitbricks.com>
-Date: Thu, 21 Jun 2018 10:40:37 +0200
-Message-ID: <CAJX1YtbmOhXh7rfb72hY=d+EumOfacqCxUY_8t0u39+0R4emcw@mail.gmail.com>
-Subject: Re: [PATCH V6 00/30] block: support multipage bvec
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.21.1806201458540.14059@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@redhat.com>
-Cc: Jens Axboe <axboe@fb.com>, hch@infradead.org, Al Viro <viro@zeniv.linux.org.uk>, Kent Overstreet <kent.overstreet@gmail.com>, dsterba@suse.cz, ying.huang@intel.com, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, darrick.wong@oracle.com, colyli@suse.de, Filipe Manana <fdmanana@gmail.com>, rdunlap@infradead.org
-
-On Thu, Jun 21, 2018 at 3:17 AM, Ming Lei <ming.lei@redhat.com> wrote:
-> On Fri, Jun 15, 2018 at 02:59:19PM +0200, Gi-Oh Kim wrote:
->> >
->> > - bio size can be increased and it should improve some high-bandwidth =
-IO
->> > case in theory[4].
->> >
->>
->> Hi,
->>
->> I would like to report your patch set works well on my system based on v=
-4.14.48.
->> I thought the multipage bvec could improve the performance of my system.
->> (FYI, my system has v4.14.48 and provides KVM-base virtualization servic=
-e.)
->
-> Thanks for your test!
->
->>
->> So I did back-porting your patches to v4.14.48.
->> It has done without any serious problem.
->> I only needed to cherry-pick "blk-merge: compute
->> bio->bi_seg_front_size efficiently" and
->> "block: move bio_alloc_pages() to bcache" patches before back-porting
->> to prevent conflicts.
->
-> Not sure I understand your point, you have to backport all patches.
-
-Never mind.
-I just meant I did backporting for myself and it is still working well.
-
->
-> At least now, BIO_MAX_PAGES can be fixed as 256 in case of CONFIG_THP_SWA=
-P,
-> otherwise 2 pages may be allocated for holding the bvec table, so tests
-> in case of THP_SWAP may be improved.
->
-> Also filesystem may support IO to/from THP, and multipage bvec should
-> improve this case too.
-
-OK, I got it.
-I will find something to use THP_SWAP and run the performance test with it.
-Thank you ;-)
+To: David Rientjes <rientjes@google.com>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 
---=20
-GIOH KIM
-Linux Kernel Entwickler
+Fixes: 45c6e373dd94 ("mm, oom: fix unnecessary killing of additional processes")
+Signed-off-by: kbuild test robot <fengguang.wu@intel.com>
+---
+ oom_kill.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-ProfitBricks GmbH
-Greifswalder Str. 207
-D - 10405 Berlin
-
-Tel:       +49 176 2697 8962
-Fax:      +49 30 577 008 299
-Email:    gi-oh.kim@profitbricks.com
-URL:      https://www.profitbricks.de
-
-Sitz der Gesellschaft: Berlin
-Registergericht: Amtsgericht Charlottenburg, HRB 125506 B
-Gesch=C3=A4ftsf=C3=BChrer: Achim Weiss, Matthias Steinberg, Christoph Steff=
-ens
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 8a775c4..6b776b9 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -653,7 +653,7 @@ static int oom_reaper(void *unused)
+  * Millisecs to wait for an oom mm to free memory before selecting another
+  * victim.
+  */
+-u64 oom_free_timeout_ms = 1000;
++static u64 oom_free_timeout_ms = 1000;
+ static void wake_oom_reaper(struct task_struct *tsk)
+ {
+ 	/*
