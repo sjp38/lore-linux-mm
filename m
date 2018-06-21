@@ -1,98 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 832666B0003
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 15:00:03 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j8-v6so1949291pfn.6
-        for <linux-mm@kvack.org>; Thu, 21 Jun 2018 12:00:03 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 133-v6si5791662pfc.21.2018.06.21.12.00.02
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C23946B0003
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 15:08:33 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id d6-v6so2271860plo.15
+        for <linux-mm@kvack.org>; Thu, 21 Jun 2018 12:08:33 -0700 (PDT)
+Received: from 9pmail.ess.barracuda.com (9pmail.ess.barracuda.com. [64.235.154.211])
+        by mx.google.com with ESMTPS id o25-v6si3609533pge.7.2018.06.21.12.07.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Jun 2018 12:00:02 -0700 (PDT)
-From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
-Subject: Re: [PATCH 0/3] KASLR feature to randomize each loadable module
-Date: Thu, 21 Jun 2018 18:59:59 +0000
-Message-ID: <1529607615.29548.202.camel@intel.com>
-References: <1529532570-21765-1-git-send-email-rick.p.edgecombe@intel.com>
-	 <CAGXu5jLt8Zv-p=9J590WFppc3O6LWrAVdi-xtU7r_8f4j0XeRg@mail.gmail.com>
-	 <CAG48ez2uuQkSS9DLz6j5HbpuxaHMyAVYGMM+xoZEo51N=sHmdg@mail.gmail.com>
-In-Reply-To: <CAG48ez2uuQkSS9DLz6j5HbpuxaHMyAVYGMM+xoZEo51N=sHmdg@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <872ADC6A6EF5B044B71DB96FBDE5FF8E@intel.com>
-Content-Transfer-Encoding: base64
+        Thu, 21 Jun 2018 12:08:32 -0700 (PDT)
+Date: Thu, 21 Jun 2018 12:07:21 -0700
+From: Paul Burton <paul.burton@mips.com>
+Subject: Re: [PATCH] Revert "mm: page_alloc: skip over regions of invalid
+ pfns where possible"
+Message-ID: <20180621190721.bdr42xmp6f2uba7x@pburton-laptop>
+References: <20180316143855.29838-1-neelx@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180316143855.29838-1-neelx@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "jannh@google.com" <jannh@google.com>, "keescook@chromium.org" <keescook@chromium.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Van De
- Ven, Arjan" <arjan.van.de.ven@intel.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "Accardi, Kristen C" <kristen.c.accardi@intel.com>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "Hansen, Dave" <dave.hansen@intel.com>
+To: Daniel Vacek <neelx@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, stable@vger.kernel.org
 
-T24gVGh1LCAyMDE4LTA2LTIxIGF0IDE1OjM3ICswMjAwLCBKYW5uIEhvcm4gd3JvdGU6DQo+IE9u
-IFRodSwgSnVuIDIxLCAyMDE4IGF0IDEyOjM0IEFNIEtlZXMgQ29vayA8a2Vlc2Nvb2tAY2hyb21p
-dW0ub3JnPg0KPiB3cm90ZToNCj4gPiBBbmQgbW9zdCBzeXN0ZW1zIGhhdmUgPDIwMCBtb2R1bGVz
-LCByZWFsbHkuIEkgaGF2ZSAxMTMgb24gYSBkZXNrdG9wDQo+ID4gcmlnaHQgbm93LCA2MyBvbiBh
-IHNlcnZlci4gU28gdGhpcyBsb29rcyBsaWtlIGEgdHJpdmlhbCB3aW4uDQo+IEJ1dCBub3RlIHRo
-YXQgdGhlIGVCUEYgSklUIGFsc28gdXNlcyBtb2R1bGVfYWxsb2MoKS4gRXZlcnkgdGltZSBhIEJQ
-Rg0KPiBwcm9ncmFtICh0aGlzIGluY2x1ZGVzIHNlY2NvbXAgZmlsdGVycyEpIGlzIEpJVC1jb21w
-aWxlZCBieSB0aGUNCj4ga2VybmVsLCBhbm90aGVyIG1vZHVsZV9hbGxvYygpIGFsbG9jYXRpb24g
-aXMgbWFkZS4gRm9yIGV4YW1wbGUsIG9uIG15DQo+IGRlc2t0b3AgbWFjaGluZSwgSSBoYXZlIGEg
-YnVuY2ggb2Ygc2VjY29tcC1zYW5kYm94ZWQgcHJvY2Vzc2VzIHRoYW5rcw0KPiB0byBDaHJvbWUu
-IElmIEkgZW5hYmxlIHRoZSBuZXQuY29yZS5icGZfaml0X2VuYWJsZSBzeXNjdGwgYW5kIG9wZW4g
-YQ0KPiBmZXcgQ2hyb21lIHRhYnMsIEJQRiBKSVQgYWxsb2NhdGlvbnMgc3RhcnQgc2hvd2luZyB1
-cCBiZXR3ZWVuDQo+IG1vZHVsZXM6DQo+IA0KPiAjIGdyZXAgLUMxIGJwZl9qaXRfYmluYXJ5X2Fs
-bG9jIC9wcm9jL3ZtYWxsb2NpbmZvIHwgY3V0IC1kJyAnIC1mIDItDQo+IMKgIDIwNDgwIGxvYWRf
-bW9kdWxlKzB4MTMyNi8weDJhYjAgcGFnZXM9NCB2bWFsbG9jIE4wPTQNCj4gwqAgMTIyODggYnBm
-X2ppdF9iaW5hcnlfYWxsb2MrMHgzMi8weDkwIHBhZ2VzPTIgdm1hbGxvYyBOMD0yDQo+IMKgIDIw
-NDgwIGxvYWRfbW9kdWxlKzB4MTMyNi8weDJhYjAgcGFnZXM9NCB2bWFsbG9jIE4wPTQNCj4gLS0N
-Cj4gwqAgMjA0ODAgbG9hZF9tb2R1bGUrMHgxMzI2LzB4MmFiMCBwYWdlcz00IHZtYWxsb2MgTjA9
-NA0KPiDCoCAxMjI4OCBicGZfaml0X2JpbmFyeV9hbGxvYysweDMyLzB4OTAgcGFnZXM9MiB2bWFs
-bG9jIE4wPTINCj4gwqAgMzY4NjQgbG9hZF9tb2R1bGUrMHgxMzI2LzB4MmFiMCBwYWdlcz04IHZt
-YWxsb2MgTjA9OA0KPiAtLQ0KPiDCoCAyMDQ4MCBsb2FkX21vZHVsZSsweDEzMjYvMHgyYWIwIHBh
-Z2VzPTQgdm1hbGxvYyBOMD00DQo+IMKgIDEyMjg4IGJwZl9qaXRfYmluYXJ5X2FsbG9jKzB4MzIv
-MHg5MCBwYWdlcz0yIHZtYWxsb2MgTjA9Mg0KPiDCoCA0MDk2MCBsb2FkX21vZHVsZSsweDEzMjYv
-MHgyYWIwIHBhZ2VzPTkgdm1hbGxvYyBOMD05DQo+IC0tDQo+IMKgIDIwNDgwIGxvYWRfbW9kdWxl
-KzB4MTMyNi8weDJhYjAgcGFnZXM9NCB2bWFsbG9jIE4wPTQNCj4gwqAgMTIyODggYnBmX2ppdF9i
-aW5hcnlfYWxsb2MrMHgzMi8weDkwIHBhZ2VzPTIgdm1hbGxvYyBOMD0yDQo+IMKgMjUzOTUyIGxv
-YWRfbW9kdWxlKzB4MTMyNi8weDJhYjAgcGFnZXM9NjEgdm1hbGxvYyBOMD02MQ0KPiANCj4gSWYg
-eW91IHVzZSBDaHJvbWUgd2l0aCBTaXRlIElzb2xhdGlvbiwgeW91IGhhdmUgYSBmZXcgZG96ZW4g
-b3Blbg0KPiB0YWJzLA0KPiBhbmQgdGhlIEJQRiBKSVQgaXMgZW5hYmxlZCwgcmVhY2hpbmcgYSBm
-ZXcgaHVuZHJlZCBhbGxvY2F0aW9ucyBtaWdodA0KPiBub3QgYmUgdGhhdCBoYXJkLg0KPiANCj4g
-QWxzbzogV2hhdCdzIHRoZSBpbXBhY3Qgb24gbWVtb3J5IHVzYWdlPyBJcyB0aGlzIGdvaW5nIHRv
-IGluY3JlYXNlDQo+IHRoZQ0KPiBudW1iZXIgb2YgcGFnZXRhYmxlcyB0aGF0IG5lZWQgdG8gYmUg
-YWxsb2NhdGVkIGJ5IHRoZSBrZXJuZWwgcGVyDQo+IG1vZHVsZV9hbGxvYygpIGJ5IDRLIG9yIDhL
-IG9yIHNvPw0KVGhhbmtzLCBpdCBzZWVtcyBpdCBtaWdodCByZXF1aXJlIHNvbWUgZXh0cmEgbWVt
-b3J5LsKgwqBJJ2xsIGxvb2sgaW50byBpdA0KdG8gZmluZCBvdXQgZXhhY3RseSBob3cgbXVjaC4N
-Cg0KSSBkaWRuJ3QgaW5jbHVkZSBlQkZQIG1vZHVsZXMgaW4gdGhlIHJhbmRvbWl6YXRpb24gZXN0
-aW1hdGVzLCBidXQgaXQNCmxvb2tzIGxpa2UgdGhleSBhcmUgdXN1YWxseSBzbWFsbGVyIHRoYW4g
-YSBwYWdlLiDCoFNvIHdpdGggdGhlIHNsaWdodA0KbGVhcCB0aGF0IHRoZSBsYXJnZXIgbm9ybWFs
-IG1vZHVsZXMgYmFzZWQgZXN0aW1hdGXCoGlzIHRoZSB3b3JzdCBjYXNlLA0KeW91IHNob3VsZCBz
-dGlsbCBnZXQgfjgwMCBtb2R1bGVzIGF0IDE4IGJpdHMuIEFmdGVyIHRoYXQgaXQgd2lsbCBzdGFy
-dA0KdG8gZ28gZG93biB0byAxMCBiaXRzIGFuZCBzbyBpbiBlaXRoZXIgY2FzZSBpdCBhdCBsZWFz
-dCB3b24ndCByZWdyZXNzDQp0aGUgcmFuZG9tbmVzcyBvZiB0aGUgZXhpc3RpbmcgYWxnb3JpdGht
-Lg0KDQo+ID4gDQo+ID4gPiANCj4gPiA+IEFzIGZvciBmcmFnbWVudGF0aW9uLCB0aGlzIGFsZ29y
-aXRobSByZWR1Y2VzIHRoZSBhdmVyYWdlIG51bWJlcg0KPiA+ID4gb2YgbW9kdWxlcyB0aGF0DQo+
-ID4gPiBjYW4gYmUgbG9hZGVkIHdpdGhvdXQgYW4gYWxsb2NhdGlvbiBmYWlsdXJlIGJ5IGFib3V0
-IDYlICh+MTcwMDANCj4gPiA+IHRvIH4xNjAwMCkNCj4gPiA+IChwPDAuMDUpLiBJdCBjYW4gYWxz
-byByZWR1Y2UgdGhlIGxhcmdlc3QgbW9kdWxlIGV4ZWN1dGFibGUNCj4gPiA+IHNlY3Rpb24gdGhh
-dCBjYW4gYmUNCj4gPiA+IGxvYWRlZCBieSBoYWxmIHRvIH41MDBNQiBpbiB0aGUgd29yc3QgY2Fz
-ZS4NCj4gPiBHaXZlbiB0aGF0IHdlIG9ubHkgaGF2ZSA4MzEyIHRyaXN0YXRlIEtjb25maWcgaXRl
-bXMsIEkgdGhpbmsgMTYwMDANCj4gPiB3aWxsIHJlbWFpbiBqdXN0IGZpbmUuIEFuZCBldmVuIGxh
-cmdlIG1vZHVsZXMgKGk5MTUpIGFyZSB1bmRlcg0KPiA+IDJNQi4uLg0KPiA+IA0KPiA+ID4gDQo+
-ID4gPiBUaGUgbmV3IF9fdm1hbGxvY19ub2RlX3RyeV9hZGRyIGZ1bmN0aW9uIHVzZXMgdGhlIGV4
-aXN0aW5nDQo+ID4gPiBmdW5jdGlvbg0KPiA+ID4gX192bWFsbG9jX25vZGVfcmFuZ2UsIGluIG9y
-ZGVyIHRvIGludHJvZHVjZSB0aGlzIGFsZ29yaXRobSB3aXRoDQo+ID4gPiB0aGUgbGVhc3QNCj4g
-PiA+IGludmFzaXZlIGNoYW5nZS4gVGhlIHNpZGUgZWZmZWN0IGlzIHRoYXQgZWFjaCB0aW1lIHRo
-ZXJlIGlzIGENCj4gPiA+IGNvbGxpc2lvbiB3aGVuDQo+ID4gPiB0cnlpbmcgdG8gYWxsb2NhdGUg
-aW4gdGhlIHJhbmRvbSBhcmVhIGEgVExCIGZsdXNoIHdpbGwgYmUNCj4gPiA+IHRyaWdnZXJlZC4g
-VGhlcmUgaXMNCj4gPiA+IGEgbW9yZSBjb21wbGV4LCBtb3JlIGVmZmljaWVudCBpbXBsZW1lbnRh
-dGlvbiB0aGF0IGNhbiBiZSB1c2VkDQo+ID4gPiBpbnN0ZWFkIGlmDQo+ID4gPiB0aGVyZSBpcyBp
-bnRlcmVzdCBpbiBpbXByb3ZpbmcgcGVyZm9ybWFuY2UuDQo+ID4gVGhlIG9ubHkgdGltZSB3aGVu
-IG1vZHVsZSBsb2FkaW5nIHNwZWVkIGlzIG5vdGljZWFibGUsIEkgd291bGQNCj4gPiB0aGluaywN
-Cj4gPiB3b3VsZCBiZSBib290IHRpbWUuIEhhdmUgeW91IGRvbmUgYW55IGJvb3QgdGltZSBkZWx0
-YSBhbmFseXNpcz8gSQ0KPiA+IHdvdWxkbid0IGV4cGVjdCBpdCB0byBjaGFuZ2UgaGFyZGx5IGF0
-IGFsbCwgYnV0IGl0J3MgcHJvYmFibHkgYQ0KPiA+IGdvb2QNCj4gPiBpZGVhIHRvIGFjdHVhbGx5
-IHRlc3QgaXQuIDopDQo+IElmIHlvdSBoYXZlIGEgZm9ya2luZyBzZXJ2ZXIgdGhhdCBhcHBsaWVz
-IHNlY2NvbXAgZmlsdGVycyBvbiBlYWNoDQo+IGZvcmssIG9yIHNvbWV0aGluZyBsaWtlIHRoYXQs
-IHlvdSBtaWdodCBjYXJlIGFib3V0IHRob3NlIFRMQiBmbHVzaGVzLg0KPiANCg0KSSBjYW4gdGVz
-dCB0aGlzIGFzIHdlbGwu
+Hi Daniel,
+
+Hmm... I only just noticed this because you CC'd an email address that
+is no longer functional. I presume you're not using .mailmap, which
+would have given you my current email address.
+
+On Fri, Mar 16, 2018 at 03:38:55PM +0100, Daniel Vacek wrote:
+> This reverts commit b92df1de5d289c0b5d653e72414bf0850b8511e0. The commit
+> is meant to be a boot init speed up skipping the loop in memmap_init_zone()
+> for invalid pfns. But given some specific memory mapping on x86_64 (or more
+> generally theoretically anywhere but on arm with CONFIG_HAVE_ARCH_PFN_VALID)
+
+My patch definitely wasn't ARM-specific & I have never tested it on ARM.
+It was motivated by a MIPS platform with an extremely sparse memory map.
+Could you explain why you think it depends on ARM or
+CONFIG_HAVE_ARCH_PFN_VALID?
+
+> the implementation also skips valid pfns which is plain wrong and causes
+> 'kernel BUG at mm/page_alloc.c:1389!'
+
+Which VM_BUG_ON is that? I don't see one on line 1389 as of commit
+b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns where
+possible") or any mainline final release since.
+
+> crash> log | grep -e BUG -e RIP -e Call.Trace -e move_freepages_block -e rmqueue -e freelist -A1
+> kernel BUG at mm/page_alloc.c:1389!
+> invalid opcode: 0000 [#1] SMP
+> --
+> RIP: 0010:[<ffffffff8118833e>]  [<ffffffff8118833e>] move_freepages+0x15e/0x160
+> RSP: 0018:ffff88054d727688  EFLAGS: 00010087
+> --
+> Call Trace:
+>  [<ffffffff811883b3>] move_freepages_block+0x73/0x80
+>  [<ffffffff81189e63>] __rmqueue+0x263/0x460
+>  [<ffffffff8118c781>] get_page_from_freelist+0x7e1/0x9e0
+>  [<ffffffff8118caf6>] __alloc_pages_nodemask+0x176/0x420
+> --
+> RIP  [<ffffffff8118833e>] move_freepages+0x15e/0x160
+>  RSP <ffff88054d727688>
+> 
+> crash> page_init_bug -v | grep RAM
+> <struct resource 0xffff88067fffd2f8>          1000 -        9bfff       System RAM (620.00 KiB)
+> <struct resource 0xffff88067fffd3a0>        100000 -     430bffff       System RAM (  1.05 GiB = 1071.75 MiB = 1097472.00 KiB)
+> <struct resource 0xffff88067fffd410>      4b0c8000 -     4bf9cfff       System RAM ( 14.83 MiB = 15188.00 KiB)
+> <struct resource 0xffff88067fffd480>      4bfac000 -     646b1fff       System RAM (391.02 MiB = 400408.00 KiB)
+> <struct resource 0xffff88067fffd560>      7b788000 -     7b7fffff       System RAM (480.00 KiB)
+> <struct resource 0xffff88067fffd640>     100000000 -    67fffffff       System RAM ( 22.00 GiB)
+> 
+> crash> page_init_bug | head -6
+> <struct resource 0xffff88067fffd560>      7b788000 -     7b7fffff       System RAM (480.00 KiB)
+> <struct page 0xffffea0001ede200>   1fffff00000000  0 <struct pglist_data 0xffff88047ffd9000> 1 <struct zone 0xffff88047ffd9800> DMA32          4096    1048575
+> <struct page 0xffffea0001ede200> 505736 505344 <struct page 0xffffea0001ed8000> 505855 <struct page 0xffffea0001edffc0>
+> <struct page 0xffffea0001ed8000>                0  0 <struct pglist_data 0xffff88047ffd9000> 0 <struct zone 0xffff88047ffd9000> DMA               1       4095
+> <struct page 0xffffea0001edffc0>   1fffff00000400  0 <struct pglist_data 0xffff88047ffd9000> 1 <struct zone 0xffff88047ffd9800> DMA32          4096    1048575
+> BUG, zones differ!
+> 
+> crash> kmem -p 77fff000 78000000 7b5ff000 7b600000 7b787000 7b788000
+>       PAGE        PHYSICAL      MAPPING       INDEX CNT FLAGS
+> ffffea0001e00000  78000000                0        0  0 0
+> ffffea0001ed7fc0  7b5ff000                0        0  0 0
+> ffffea0001ed8000  7b600000                0        0  0 0       <<<<
+> ffffea0001ede1c0  7b787000                0        0  0 0
+> ffffea0001ede200  7b788000                0        0  1 1fffff00000000
+
+I'm not really sure what I'm looking at here. I presume you're saying
+that memmap_init_zone() didn't initialize the struct page for
+phys=0x7b788000?
+
+Could you describe the memblock region list, and what ranges
+memmap_init_zone() skipped over?
+
+Thanks,
+    Paul
