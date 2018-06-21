@@ -1,68 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4605F6B0006
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 16:50:57 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id f5-v6so2359554plf.18
-        for <linux-mm@kvack.org>; Thu, 21 Jun 2018 13:50:57 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 34-v6sor1981828plp.97.2018.06.21.13.50.55
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EA9E6B0003
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 17:23:23 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id q8-v6so26015wmc.2
+        for <linux-mm@kvack.org>; Thu, 21 Jun 2018 14:23:23 -0700 (PDT)
+Received: from www62.your-server.de (www62.your-server.de. [213.133.104.62])
+        by mx.google.com with ESMTPS id f10-v6si13568wmh.212.2018.06.21.14.23.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 21 Jun 2018 13:50:55 -0700 (PDT)
-Date: Thu, 21 Jun 2018 13:50:53 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, oom: fix unnecessary killing of additional
- processes
-In-Reply-To: <20180621074537.GC10465@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.21.1806211347050.213939@chino.kir.corp.google.com>
-References: <alpine.DEB.2.21.1805241422070.182300@chino.kir.corp.google.com> <alpine.DEB.2.21.1806141339580.4543@chino.kir.corp.google.com> <20180615065541.GA24039@dhcp22.suse.cz> <alpine.DEB.2.21.1806151559360.49038@chino.kir.corp.google.com>
- <20180619083316.GB13685@dhcp22.suse.cz> <20180620130311.GM13685@dhcp22.suse.cz> <alpine.DEB.2.21.1806201325330.158126@chino.kir.corp.google.com> <20180621074537.GC10465@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Jun 2018 14:23:22 -0700 (PDT)
+Subject: Re: [PATCH 0/3] KASLR feature to randomize each loadable module
+References: <1529532570-21765-1-git-send-email-rick.p.edgecombe@intel.com>
+ <CAGXu5jLt8Zv-p=9J590WFppc3O6LWrAVdi-xtU7r_8f4j0XeRg@mail.gmail.com>
+ <CAG48ez2uuQkSS9DLz6j5HbpuxaHMyAVYGMM+xoZEo51N=sHmdg@mail.gmail.com>
+ <1529607615.29548.202.camel@intel.com>
+From: Daniel Borkmann <daniel@iogearbox.net>
+Message-ID: <4efbcefe-78fb-b7db-affd-ad86f9e9b0ee@iogearbox.net>
+Date: Thu, 21 Jun 2018 23:23:11 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <1529607615.29548.202.camel@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>, "jannh@google.com" <jannh@google.com>, "keescook@chromium.org" <keescook@chromium.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Van De Ven, Arjan" <arjan.van.de.ven@intel.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "Accardi, Kristen C" <kristen.c.accardi@intel.com>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "Hansen, Dave" <dave.hansen@intel.com>
 
-On Thu, 21 Jun 2018, Michal Hocko wrote:
-
-> > > diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-> > > index 6bcecc325e7e..ac08f5d711be 100644
-> > > --- a/arch/x86/kvm/x86.c
-> > > +++ b/arch/x86/kvm/x86.c
-> > > @@ -7203,8 +7203,9 @@ static void vcpu_load_eoi_exitmap(struct kvm_vcpu *vcpu)
-> > >  	kvm_x86_ops->load_eoi_exitmap(vcpu, eoi_exit_bitmap);
-> > >  }
-> > >  
-> > > -void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
-> > > -		unsigned long start, unsigned long end)
-> > > +int kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
-> > > +		unsigned long start, unsigned long end,
-> > > +		bool blockable)
-> > >  {
-> > >  	unsigned long apic_address;
-> > >  
-> > > @@ -7215,6 +7216,8 @@ void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
-> > >  	apic_address = gfn_to_hva(kvm, APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT);
-> > >  	if (start <= apic_address && apic_address < end)
-> > >  		kvm_make_all_cpus_request(kvm, KVM_REQ_APIC_PAGE_RELOAD);
-> > > +
-> > > +	return 0;
-> > >  }
-> > >  
-> > >  void kvm_vcpu_reload_apic_access_page(struct kvm_vcpu *vcpu)
-> > 
-> > Auditing the first change in the patch, this is incorrect because 
-> > kvm_make_all_cpus_request() for KVM_REQ_APIC_PAGE_RELOAD can block in 
-> > kvm_kick_many_cpus() and that is after kvm_make_request() has been done.
+On 06/21/2018 08:59 PM, Edgecombe, Rick P wrote:
+> On Thu, 2018-06-21 at 15:37 +0200, Jann Horn wrote:
+>> On Thu, Jun 21, 2018 at 12:34 AM Kees Cook <keescook@chromium.org>
+>> wrote:
+>>> And most systems have <200 modules, really. I have 113 on a desktop
+>>> right now, 63 on a server. So this looks like a trivial win.
+>> But note that the eBPF JIT also uses module_alloc(). Every time a BPF
+>> program (this includes seccomp filters!) is JIT-compiled by the
+>> kernel, another module_alloc() allocation is made. For example, on my
+>> desktop machine, I have a bunch of seccomp-sandboxed processes thanks
+>> to Chrome. If I enable the net.core.bpf_jit_enable sysctl and open a
+>> few Chrome tabs, BPF JIT allocations start showing up between
+>> modules:
+>>
+>> # grep -C1 bpf_jit_binary_alloc /proc/vmallocinfo | cut -d' ' -f 2-
+>> A  20480 load_module+0x1326/0x2ab0 pages=4 vmalloc N0=4
+>> A  12288 bpf_jit_binary_alloc+0x32/0x90 pages=2 vmalloc N0=2
+>> A  20480 load_module+0x1326/0x2ab0 pages=4 vmalloc N0=4
+>> --
+>> A  20480 load_module+0x1326/0x2ab0 pages=4 vmalloc N0=4
+>> A  12288 bpf_jit_binary_alloc+0x32/0x90 pages=2 vmalloc N0=2
+>> A  36864 load_module+0x1326/0x2ab0 pages=8 vmalloc N0=8
+>> --
+>> A  20480 load_module+0x1326/0x2ab0 pages=4 vmalloc N0=4
+>> A  12288 bpf_jit_binary_alloc+0x32/0x90 pages=2 vmalloc N0=2
+>> A  40960 load_module+0x1326/0x2ab0 pages=9 vmalloc N0=9
+>> --
+>> A  20480 load_module+0x1326/0x2ab0 pages=4 vmalloc N0=4
+>> A  12288 bpf_jit_binary_alloc+0x32/0x90 pages=2 vmalloc N0=2
+>> A 253952 load_module+0x1326/0x2ab0 pages=61 vmalloc N0=61
+>>
+>> If you use Chrome with Site Isolation, you have a few dozen open
+>> tabs,
+>> and the BPF JIT is enabled, reaching a few hundred allocations might
+>> not be that hard.
+>>
+>> Also: What's the impact on memory usage? Is this going to increase
+>> the
+>> number of pagetables that need to be allocated by the kernel per
+>> module_alloc() by 4K or 8K or so?
+> Thanks, it seems it might require some extra memory.A A I'll look into it
+> to find out exactly how much.
 > 
-> I would have to check the code closer. But doesn't
-> kvm_make_all_cpus_request call get_cpu which is preempt_disable? I
-> definitely plan to talk to respective maintainers about these changes of
-> course.
-> 
+> I didn't include eBFP modules in the randomization estimates, but it
+> looks like they are usually smaller than a page. A So with the slight
+> leap that the larger normal modules based estimateA is the worst case,
+> you should still get ~800 modules at 18 bits. After that it will start
+> to go down to 10 bits and so in either case it at least won't regress
+> the randomness of the existing algorithm.
 
-preempt_disable() is required because it calls kvm_kick_many_cpus() with 
-wait == true because KVM_REQ_APIC_PAGE_RELOAD sets KVM_REQUEST_WAIT and 
-thus the smp_call_function_many() is going to block until all cpus can run 
-ack_flush().
+Assume typically complex (real) programs at around 2.5k BPF insns today.
+In our case it's max a handful per net device, thus approx per netns (veth)
+which can be few hundreds. Worst case is 4k that BPF allows and then JITs.
+There's a BPF kselftest suite you could also run to check on worst case
+upper bounds.
