@@ -1,84 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DCE46B000D
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 02:30:44 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id p9-v6so1529324wrm.22
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 23:30:44 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 77A896B0007
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 03:03:41 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id n19-v6so1100260pff.8
+        for <linux-mm@kvack.org>; Thu, 21 Jun 2018 00:03:41 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h3-v6sor1405312wmb.78.2018.06.20.23.30.42
+        by mx.google.com with SMTPS id x17-v6sor1234097pfh.33.2018.06.21.00.03.39
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Jun 2018 23:30:42 -0700 (PDT)
-MIME-Version: 1.0
-References: <20180620224147.23777-1-shakeelb@google.com> <010001641fe92599-9006a895-d1ea-4881-a63c-f3749ff9b7b3-000000@email.amazonses.com>
-In-Reply-To: <010001641fe92599-9006a895-d1ea-4881-a63c-f3749ff9b7b3-000000@email.amazonses.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Wed, 20 Jun 2018 23:30:29 -0700
-Message-ID: <CALvZod7fgFYDY7nqE2S4a78TqoX19MC66YTFFrWqqR0h9F8iPA@mail.gmail.com>
-Subject: Re: [PATCH] slub: track number of slabs irrespective of CONFIG_SLUB_DEBUG
-Content-Type: text/plain; charset="UTF-8"
+        Thu, 21 Jun 2018 00:03:40 -0700 (PDT)
+From: Jia-Ju Bai <baijiaju1990@gmail.com>
+Subject: [PATCH] mm: mempool: Remove unused argument in kasan_unpoison_element() and remove_element()
+Date: Thu, 21 Jun 2018 15:03:32 +0800
+Message-Id: <20180621070332.16633-1-baijiaju1990@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: "Jason A . Donenfeld" <Jason@zx2c4.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, stable@vger.kernel.org
+To: akpm@linux-foundation.org, jthumshirn@suse.de, cl@linux.com, kstewart@linuxfoundation.org, pombredanne@nexb.com, gregkh@linuxfoundation.org, dvyukov@google.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jia-Ju Bai <baijiaju1990@gmail.com>
 
-On Wed, Jun 20, 2018 at 6:15 PM Christopher Lameter <cl@linux.com> wrote:
->
-> On Wed, 20 Jun 2018, Shakeel Butt wrote:
->
-> > For !CONFIG_SLUB_DEBUG, SLUB does not maintain the number of slabs
-> > allocated per node for a kmem_cache. Thus, slabs_node() in
-> > __kmem_cache_empty(), __kmem_cache_shrink() and __kmem_cache_destroy()
-> > will always return 0 for such config. This is wrong and can cause issues
-> > for all users of these functions.
->
->
-> CONFIG_SLUB_DEBUG is set by default on almost all builds. The only case
-> where CONFIG_SLUB_DEBUG is switched off is when we absolutely need to use
-> the minimum amount of memory (embedded or some such thing).
->
-> > The right solution is to make slabs_node() work even for
-> > !CONFIG_SLUB_DEBUG. The commit 0f389ec63077 ("slub: No need for per node
-> > slab counters if !SLUB_DEBUG") had put the per node slab counter under
-> > CONFIG_SLUB_DEBUG because it was only read through sysfs API and the
-> > sysfs API was disabled on !CONFIG_SLUB_DEBUG. However the users of the
-> > per node slab counter assumed that it will work in the absence of
-> > CONFIG_SLUB_DEBUG. So, make the counter work for !CONFIG_SLUB_DEBUG.
->
-> Please do not do this. Find a way to avoid these checks. The
-> objective of a !CONFIG_SLUB_DEBUG configuration is to not compile in
-> debuggin checks etc etc in order to reduce the code/data footprint to the
-> minimum necessary while sacrificing debuggability etc etc.
->
-> Maybe make it impossible to disable CONFIG_SLUB_DEBUG if CGROUPs are in
-> use?
->
+The argument "gfp_t flags" is not used in kasan_unpoison_element() 
+and remove_element(), so remove it.
 
-Copying from the other thread:
+Signed-off-by: Jia-Ju Bai <baijiaju1990@gmail.com>
+---
+ mm/mempool.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
-On Wed, Jun 20, 2018 at 6:22 PM Jason A. Donenfeld <Jason@zx2c4.com> wrote:
->
-> On Thu, Jun 21, 2018 at 3:20 AM Christopher Lameter <cl@linux.com> wrote:
-> >
-> > NAK. Its easier to simply not allow !CONFIG_SLUB_DEBUG for cgroups based
-> > configs because in that case you certainly have enough memory to include
-> > the runtime debug code as well as the extended counters.
-> >
->
-> FWIW, I ran into issues with a combination of KASAN+CONFIG_SLUB
-> without having CONFIG_SLUB_DEBUG, because KASAN was using functions
-> that were broken without CONFIG_SLUB_DEBUG, so while you're at it with
-> creating dependencies, you might want to also say KASAN+CONFIG_SLUB
-> ==> CONFIG_SLUB_DEBUG.
-
-KASAN is the only user of __kmem_cache_empty(). So, enforcing
-KASAN+CONFIG_SLUB => CONFIG_SLUB_DEBUG makes sense but not sure about
-cgroups or memcg. Though is it ok let __kmem_cache_shrink() &
-__kmem_cache_shutdown() be broken for !CONFIG_SLUB_DEBUG?
-
-For __kmem_cache_shutdown(), I can understand that shutting down a
-kmem_cache when there are still objects allocated from it, is broken
-and wrong. For __kmem_cache_shrink(), maybe wrong answer from it is
-tolerable.
-
-Shakeel
+diff --git a/mm/mempool.c b/mm/mempool.c
+index 5c9dce34719b..3076ab3f7bc4 100644
+--- a/mm/mempool.c
++++ b/mm/mempool.c
+@@ -111,7 +111,7 @@ static __always_inline void kasan_poison_element(mempool_t *pool, void *element)
+ 		kasan_free_pages(element, (unsigned long)pool->pool_data);
+ }
+ 
+-static void kasan_unpoison_element(mempool_t *pool, void *element, gfp_t flags)
++static void kasan_unpoison_element(mempool_t *pool, void *element)
+ {
+ 	if (pool->alloc == mempool_alloc_slab || pool->alloc == mempool_kmalloc)
+ 		kasan_unpoison_slab(element);
+@@ -127,12 +127,12 @@ static __always_inline void add_element(mempool_t *pool, void *element)
+ 	pool->elements[pool->curr_nr++] = element;
+ }
+ 
+-static void *remove_element(mempool_t *pool, gfp_t flags)
++static void *remove_element(mempool_t *pool)
+ {
+ 	void *element = pool->elements[--pool->curr_nr];
+ 
+ 	BUG_ON(pool->curr_nr < 0);
+-	kasan_unpoison_element(pool, element, flags);
++	kasan_unpoison_element(pool, element);
+ 	check_element(pool, element);
+ 	return element;
+ }
+@@ -151,7 +151,7 @@ void mempool_destroy(mempool_t *pool)
+ 		return;
+ 
+ 	while (pool->curr_nr) {
+-		void *element = remove_element(pool, GFP_KERNEL);
++		void *element = remove_element(pool);
+ 		pool->free(element, pool->pool_data);
+ 	}
+ 	kfree(pool->elements);
+@@ -247,7 +247,7 @@ int mempool_resize(mempool_t *pool, int new_min_nr)
+ 	spin_lock_irqsave(&pool->lock, flags);
+ 	if (new_min_nr <= pool->min_nr) {
+ 		while (new_min_nr < pool->curr_nr) {
+-			element = remove_element(pool, GFP_KERNEL);
++			element = remove_element(pool);
+ 			spin_unlock_irqrestore(&pool->lock, flags);
+ 			pool->free(element, pool->pool_data);
+ 			spin_lock_irqsave(&pool->lock, flags);
+@@ -333,7 +333,7 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
+ 
+ 	spin_lock_irqsave(&pool->lock, flags);
+ 	if (likely(pool->curr_nr)) {
+-		element = remove_element(pool, gfp_temp);
++		element = remove_element(pool);
+ 		spin_unlock_irqrestore(&pool->lock, flags);
+ 		/* paired with rmb in mempool_free(), read comment there */
+ 		smp_wmb();
+-- 
+2.17.0
