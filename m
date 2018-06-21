@@ -1,58 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C7CF46B0003
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 09:39:15 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id v71-v6so1767373oie.20
-        for <linux-mm@kvack.org>; Thu, 21 Jun 2018 06:39:15 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v1-v6sor1905529otj.252.2018.06.21.06.39.14
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BE5796B0003
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 10:35:27 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id g6-v6so2526255wrp.4
+        for <linux-mm@kvack.org>; Thu, 21 Jun 2018 07:35:27 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id v15-v6si2643005edb.343.2018.06.21.07.35.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 21 Jun 2018 06:39:14 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 21 Jun 2018 07:35:26 -0700 (PDT)
+Date: Thu, 21 Jun 2018 10:37:51 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC PATCH] memcg, oom: move out_of_memory back to the charge
+ path
+Message-ID: <20180621143751.GA11230@cmpxchg.org>
+References: <20180620103736.13880-1-mhocko@kernel.org>
+ <20180621080927.GE10465@dhcp22.suse.cz>
 MIME-Version: 1.0
-References: <1529532570-21765-1-git-send-email-rick.p.edgecombe@intel.com>
- <CAGXu5jLt8Zv-p=9J590WFppc3O6LWrAVdi-xtU7r_8f4j0XeRg@mail.gmail.com> <CAG48ez2uuQkSS9DLz6j5HbpuxaHMyAVYGMM+xoZEo51N=sHmdg@mail.gmail.com>
-In-Reply-To: <CAG48ez2uuQkSS9DLz6j5HbpuxaHMyAVYGMM+xoZEo51N=sHmdg@mail.gmail.com>
-From: Jann Horn <jannh@google.com>
-Date: Thu, 21 Jun 2018 15:39:03 +0200
-Message-ID: <CAG48ez1eAKVy13tmAxrVkRqj2Fd+wduqBt4fzMBjY5FA1aFFmw@mail.gmail.com>
-Subject: Re: [PATCH 0/3] KASLR feature to randomize each loadable module
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180621080927.GE10465@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, rick.p.edgecombe@intel.com
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, kernel list <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, kristen.c.accardi@intel.com, Dave Hansen <dave.hansen@intel.com>, arjan.van.de.ven@intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Shakeel Butt <shakeelb@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jun 21, 2018 at 3:37 PM Jann Horn <jannh@google.com> wrote:
->
-> On Thu, Jun 21, 2018 at 12:34 AM Kees Cook <keescook@chromium.org> wrote:
-> >
-> > On Wed, Jun 20, 2018 at 3:09 PM, Rick Edgecombe
-> > <rick.p.edgecombe@intel.com> wrote:
-> > > This patch changes the module loading KASLR algorithm to randomize the position
-> > > of each module text section allocation with at least 18 bits of entropy in the
-> > > typical case. It used on x86_64 only for now.
-> >
-> > Very cool! Thanks for sending the series. :)
-> >
-> > > Today the RANDOMIZE_BASE feature randomizes the base address where the module
-> > > allocations begin with 10 bits of entropy. From here, a highly deterministic
-> > > algorithm allocates space for the modules as they are loaded and un-loaded. If
-> > > an attacker can predict the order and identities for modules that will be
-> > > loaded, then a single text address leak can give the attacker access to the
-> >
-> > nit: "text address" -> "module text address"
-> >
-> > > So the defensive strength of this algorithm in typical usage (<800 modules) for
-> > > x86_64 should be at least 18 bits, even if an address from the random area
-> > > leaks.
-> >
-> > And most systems have <200 modules, really. I have 113 on a desktop
-> > right now, 63 on a server. So this looks like a trivial win.
-[...]
-> Also: What's the impact on memory usage? Is this going to increase the
-> number of pagetables that need to be allocated by the kernel per
-> module_alloc() by 4K or 8K or so?
+On Thu, Jun 21, 2018 at 10:09:27AM +0200, Michal Hocko wrote:
+> @@ -496,14 +496,14 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
+>  
+>  static inline void mem_cgroup_oom_enable(void)
+>  {
+> -	WARN_ON(current->memcg_may_oom);
+> -	current->memcg_may_oom = 1;
+> +	WARN_ON(current->in_user_fault);
+> +	current->in_user_fault = 1;
+>  }
+>  
+>  static inline void mem_cgroup_oom_disable(void)
+>  {
+> -	WARN_ON(!current->memcg_may_oom);
+> -	current->memcg_may_oom = 0;
+> +	WARN_ON(!current->in_user_fault);
+> +	current->in_user_fault = 0;
+>  }
 
-Sorry, I meant increase the amount of memory used by pagetables by 4K
-or 8K, not the number of pagetables.
+Would it make more sense to rename these to
+mem_cgroup_enter_user_fault(), mem_cgroup_exit_user_fault()?
+
+Other than that, this looks great to me.
+
+Thanks
