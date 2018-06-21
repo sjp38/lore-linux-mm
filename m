@@ -1,69 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E95C6B0003
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 12:30:43 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id l4-v6so2174627wmh.0
-        for <linux-mm@kvack.org>; Thu, 21 Jun 2018 09:30:43 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 32-v6si2322899edr.363.2018.06.21.09.30.39
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 835CC6B0003
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 14:06:52 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id d70-v6so3299116itd.1
+        for <linux-mm@kvack.org>; Thu, 21 Jun 2018 11:06:52 -0700 (PDT)
+Received: from 9pmail.ess.barracuda.com (9pmail.ess.barracuda.com. [64.235.150.224])
+        by mx.google.com with ESMTPS id y8-v6si1878196iof.72.2018.06.21.11.06.46
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 21 Jun 2018 09:30:39 -0700 (PDT)
-Date: Thu, 21 Jun 2018 18:30:36 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/2] mm: set PG_dma_pinned on get_user_pages*()
-Message-ID: <20180621163036.jvdbsv3t2lu34pdl@quack2.suse.cz>
-References: <CAPcyv4iacHYxGmyWokFrVsmxvLj7=phqp2i0tv8z6AT-mYuEEA@mail.gmail.com>
- <3898ef6b-2fa0-e852-a9ac-d904b47320d5@nvidia.com>
- <CAPcyv4iRBzmwWn_9zDvqdfVmTZL_Gn7uA_26A1T-kJib=84tvA@mail.gmail.com>
- <0e6053b3-b78c-c8be-4fab-e8555810c732@nvidia.com>
- <20180619082949.wzoe42wpxsahuitu@quack2.suse.cz>
- <20180619090255.GA25522@bombadil.infradead.org>
- <20180619104142.lpilc6esz7w3a54i@quack2.suse.cz>
- <70001987-3938-d33e-11e0-de5b19ca3bdf@nvidia.com>
- <20180620120824.bghoklv7qu2z5wgy@quack2.suse.cz>
- <151edbf3-66ff-df0c-c1cc-5998de50111e@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Jun 2018 11:06:50 -0700 (PDT)
+Date: Thu, 21 Jun 2018 11:06:38 -0700
+From: Paul Burton <paul.burton@mips.com>
+Subject: Re: [PATCH] mm/memblock: add missing include <linux/bootmem.h>
+Message-ID: <20180621180638.ahxpgzwrztopve55@pburton-laptop>
+References: <20180606194144.16990-1-malat@debian.org>
+ <CA+8MBbKj4A5kh=hE0vcadzD+=cEAFY7OCWFCzvubu6cWULCJ0A@mail.gmail.com>
+ <20180615121716.37fb93385825b0b2f59240cc@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="utf-8"
 Content-Disposition: inline
-In-Reply-To: <151edbf3-66ff-df0c-c1cc-5998de50111e@nvidia.com>
+Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20180615121716.37fb93385825b0b2f59240cc@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Dan Williams <dan.j.williams@intel.com>, Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgg@ziepe.ca>, John Hubbard <john.hubbard@gmail.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Tony Luck <tony.luck@gmail.com>, Mathieu Malaterre <malat@debian.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Wed 20-06-18 15:55:41, John Hubbard wrote:
-> On 06/20/2018 05:08 AM, Jan Kara wrote:
-> > On Tue 19-06-18 11:11:48, John Hubbard wrote:
-> >> On 06/19/2018 03:41 AM, Jan Kara wrote:
-> >>> On Tue 19-06-18 02:02:55, Matthew Wilcox wrote:
-> >>>> On Tue, Jun 19, 2018 at 10:29:49AM +0200, Jan Kara wrote:
-> [...]
-> >>> I'm also still pondering the idea of inserting a "virtual" VMA into vma
-> >>> interval tree in the inode - as the GUP references are IMHO closest to an
-> >>> mlocked mapping - and that would achieve all the functionality we need as
-> >>> well. I just didn't have time to experiment with it.
-> >>
-> >> How would this work? Would it have the same virtual address range? And how
-> >> does it avoid the problems we've been discussing? Sorry to be a bit slow
-> >> here. :)
-> > 
-> > The range covered by the virtual mapping would be the one sent to
-> > get_user_pages() to get page references. And then we would need to teach
-> > page_mkclean() to check for these virtual VMAs and block / skip / report
-> > (different situations would need different behavior) such page. But this
-> > second part is the same regardless how we identify a page that is pinned by
-> > get_user_pages().
-> 
-> 
-> OK. That neatly avoids the need a new page flag, I think. But of course it is 
-> somewhat more extensive to implement. Sounds like something to keep in mind,
-> in case it has better tradeoffs than the direction I'm heading so far.
+Hi Andrew & Stephen,
 
-Yes, the changes needed are somewhat more intrusive. I'm looking into this
-approach now to see how the result will look like...
+On Fri, Jun 15, 2018 at 12:17:16PM -0700, Andrew Morton wrote:
+> > Sadly that breaks ia64 build:
+> >=20
+> >   CC      mm/memblock.o
+> > mm/memblock.c:1340: error: redefinition of =E2=80=98memblock_virt_alloc=
+_try_nid_raw=E2=80=99
+> > ./include/linux/bootmem.h:335: error: previous definition of
+> > =E2=80=98memblock_virt_alloc_try_nid_raw=E2=80=99 was here
+> > mm/memblock.c:1377: error: redefinition of =E2=80=98memblock_virt_alloc=
+_try_nid_nopanic=E2=80=99
+> > ./include/linux/bootmem.h:343: error: previous definition of
+> > =E2=80=98memblock_virt_alloc_try_nid_nopanic=E2=80=99 was here
+> > mm/memblock.c:1413: error: redefinition of =E2=80=98memblock_virt_alloc=
+_try_nid=E2=80=99
+> > ./include/linux/bootmem.h:327: error: previous definition of
+> > =E2=80=98memblock_virt_alloc_try_nid=E2=80=99 was here
+> > make[1]: *** [mm/memblock.o] Error 1
+> > make: *** [mm/memblock.o] Error 2
+>=20
+> Huh.  How did that ever work.  I guess it's either this:
+<snip>
+> and I'm not sure which.  I think I'll just revert $subject for now.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+This is fine now in master after Andrew's revert, but the problematic
+patch is still being picked up in linux-next somehow. This breaks MIPS
+builds from linux-next, and presumably the ia64 build too.
+
+I'm not sure I understand how it's picked up - next-20180621 appears to
+based atop 1abd8a8f39cd:
+
+  $ git show next-20180621:Next/SHA1s | grep -E '^origin\s'
+  origin          1abd8a8f39cd9a2925149000056494523c85643a
+
+There we have the Andrew's revert:
+
+  $ git log --pretty=3Doneline -n5 1abd8a8f39cd mm/memblock.c
+  6cc22dc08a247b7b4a173e4561e39705a557d300 revert "mm/memblock: add missing=
+ include <linux/bootmem.h>"
+  0825a6f98689d847ab8058c51b3a55f0abcc6563 mm: use octal not symbolic permi=
+ssions
+  69b5086b12cda645d95f00575c25f1dfd1e929ad mm/memblock: add missing include=
+ <linux/bootmem.h>
+  25cf23d7a95716fc6eb165208b5eb2e3b2e86f82 mm/memblock: print memblock_remo=
+ve
+  1c4bc43ddfd52cbe5a08bb86ae636f55d2799424 mm/memblock: introduce PHYS_ADDR=
+_MAX
+
+Yet the revert doesn't show up at all in next-20180621..?
+
+  $ git log --pretty=3Doneline -n5 next-20180621 mm/memblock.c
+  a95f41a659344e221e8ad39e8fbba2e0f419c096 mm: use octal not symbolic permi=
+ssions
+  0b558dea04a405800505c7f56eb1638ae761b5d4 mm/memblock: add missing include=
+ <linux/bootmem.h>
+  25cf23d7a95716fc6eb165208b5eb2e3b2e86f82 mm/memblock: print memblock_remo=
+ve
+  1c4bc43ddfd52cbe5a08bb86ae636f55d2799424 mm/memblock: introduce PHYS_ADDR=
+_MAX
+  49a695ba723224875df50e327bd7b0b65dd9a56b Merge tag 'powerpc-4.17-1' of gi=
+t://git.kernel.org/pub/scm/linux/kernel/git/powerpc/linux
+
+I was expecting to see the original commit, then the revert, then
+perhaps a re-application of it but instead it looks like the commits
+from master are missing entirely after 25cf23d7a957 ("mm/memblock: print
+memblock_remove"). Maybe I'm missing something about the way the merges
+for linux-next are done..?
+
+In any case, could we get the problematic patch removed from linux-next?
+
+Thanks,
+    Paul
