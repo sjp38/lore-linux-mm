@@ -1,84 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AC6526B0007
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 01:54:40 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id c6-v6so1173406pll.4
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 22:54:40 -0700 (PDT)
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 188A16B000A
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2018 01:56:18 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id p83-v6so860986vkf.9
+        for <linux-mm@kvack.org>; Wed, 20 Jun 2018 22:56:18 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a190-v6sor104382pgc.302.2018.06.20.22.54.39
+        by mx.google.com with SMTPS id n91-v6sor1681700uan.22.2018.06.20.22.56.17
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Jun 2018 22:54:39 -0700 (PDT)
+        Wed, 20 Jun 2018 22:56:17 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <7a900944-5281-2e07-54f9-fc7574d2c538@gmail.com>
-References: <20180621030714.10368-1-baijiaju1990@gmail.com>
- <20180621033839.GB12608@bombadil.infradead.org> <7a900944-5281-2e07-54f9-fc7574d2c538@gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Thu, 21 Jun 2018 07:54:18 +0200
-Message-ID: <CACT4Y+avpKvoRKUsoZ=VUiN79RVEJAtzOCgkz0ZXRLFL4fSCbg@mail.gmail.com>
-Subject: Re: [PATCH] mm: mempool: Fix a possible sleep-in-atomic-context bug
- in mempool_resize()
+References: <8fda53b0-9d86-943b-e8b4-fd9d6553f010@i-love.sakura.ne.jp>
+ <20180621001509.GQ19934@dastard> <201806210547.w5L5l5Mh029257@www262.sakura.ne.jp>
+In-Reply-To: <201806210547.w5L5l5Mh029257@www262.sakura.ne.jp>
+From: Greg Thelen <gthelen@google.com>
+Date: Wed, 20 Jun 2018 22:56:04 -0700
+Message-ID: <CAHH2K0YqWswbfKdi915PJToJUngAbdKqN_2cgtG9CzS1FJRHdg@mail.gmail.com>
+Subject: Re: [PATCH] Makefile: Fix backtrace breakage
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jia-Ju Bai <baijiaju1990@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Johannes Thumshirn <jthumshirn@suse.de>, Philippe Ombredanne <pombredanne@nexb.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: ak@linux.intel.com, Steven Rostedt <rostedt@goodmis.org>, Dave Chinner <david@fromorbit.com>, dchinner@redhat.com, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, osandov@fb.com
 
-On Thu, Jun 21, 2018 at 5:46 AM, Jia-Ju Bai <baijiaju1990@gmail.com> wrote:
-> On 2018/6/21 11:38, Matthew Wilcox wrote:
->>
->> On Thu, Jun 21, 2018 at 11:07:14AM +0800, Jia-Ju Bai wrote:
->>>
->>> The kernel may sleep with holding a spinlock.
->>> The function call path (from bottom to top) in Linux-4.16.7 is:
->>>
->>> [FUNC] remove_element(GFP_KERNEL)
->>> mm/mempool.c, 250: remove_element in mempool_resize
->>> mm/mempool.c, 247: _raw_spin_lock_irqsave in mempool_resize
->>>
->>> To fix this bug, GFP_KERNEL is replaced with GFP_ATOMIC.
->>>
->>> This bug is found by my static analysis tool (DSAC-2) and checked by
->>> my code review.
->>
->> But ... we don't use the flags argument.
->>
->> static void *remove_element(mempool_t *pool, gfp_t flags)
->> {
->>          void *element = pool->elements[--pool->curr_nr];
->>
->>          BUG_ON(pool->curr_nr < 0);
->>          kasan_unpoison_element(pool, element, flags);
->>          check_element(pool, element);
->>          return element;
->> }
->>
->> ...
->>
->> static void kasan_unpoison_element(mempool_t *pool, void *element, gfp_t
->> flags)
->> {
->>          if (pool->alloc == mempool_alloc_slab || pool->alloc ==
->> mempool_kmalloc)
->>                  kasan_unpoison_slab(element);
->>          if (pool->alloc == mempool_alloc_pages)
->>                  kasan_alloc_pages(element, (unsigned
->> long)pool->pool_data);
->> }
->>
->> So the correct patch would just remove this argument to remove_element()
->> and
->> kasan_unpoison_element()?
+On Wed, Jun 20, 2018 at 10:47 PM Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
+>
+> From 7208bf13827fa7c7d6196ee20f7678eff0d29b36 Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Thu, 21 Jun 2018 14:15:10 +0900
+> Subject: [PATCH] Makefile: Fix backtrace breakage
+>
+> Dave Chinner noticed that backtrace part is missing in a lockdep report.
+>
+>   [   68.760085] the existing dependency chain (in reverse order) is:
+>   [   69.258520]
+>   [   69.258520] -> #1 (fs_reclaim){+.+.}:
+>   [   69.623516]
+>   [   69.623516] -> #0 (sb_internal){.+.+}:
+>   [   70.152322]
+>   [   70.152322] other info that might help us debug this:
+>
+> Since the kernel was using CONFIG_FTRACE_MCOUNT_RECORD=n &&
+> CONFIG_FRAME_POINTER=n, objtool_args was not properly calculated
+> due to incorrectly placed "endif" in commit 96f60dfa5819a065 ("trace:
+> Use -mcount-record for dynamic ftrace").
+>
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Dave Chinner <david@fromorbit.com>
+> Cc: Andi Kleen <ak@linux.intel.com>
+> Cc: Steven Rostedt (VMware) <rostedt@goodmis.org>
+
+This looks similar to https://lkml.org/lkml/2018/6/8/545
+
+> ---
+>  scripts/Makefile.build | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/scripts/Makefile.build b/scripts/Makefile.build
+> index 34d9e9c..55f22f4 100644
+> --- a/scripts/Makefile.build
+> +++ b/scripts/Makefile.build
+> @@ -239,6 +239,7 @@ cmd_record_mcount =                                         \
+>              "$(CC_FLAGS_FTRACE)" ]; then                       \
+>                 $(sub_cmd_record_mcount)                        \
+>         fi;
+> +endif
+>  endif # CONFIG_FTRACE_MCOUNT_RECORD
+>
+>  ifdef CONFIG_STACK_VALIDATION
+> @@ -263,7 +264,6 @@ ifneq ($(RETPOLINE_CFLAGS),)
+>    objtool_args += --retpoline
+>  endif
+>  endif
+> -endif
 >
 >
-> Yes, I also find this.
-> I can submit a patch that removes the flag in:
-> Definitions of kasan_unpoison_element() and remove_element()
-> Three calls to remove_element() and one call to kasan_unpoison_element() in
-> mempool.c.
+>  ifdef CONFIG_MODVERSIONS
+> --
+> 1.8.3.1
 >
-> Do you think it is okay?
-
-Hi Jia-Ju,
-
-Removing an unused argument within a single file looks good to me.
