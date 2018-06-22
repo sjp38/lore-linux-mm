@@ -1,127 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 82CA66B0003
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 16:03:46 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id w1-v6so3062060pgr.7
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 13:03:46 -0700 (PDT)
-Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id w1-v6si6696934pgr.489.2018.06.22.13.03.43
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E4DD16B0006
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 16:09:21 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id u20-v6so6565574qkk.20
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 13:09:21 -0700 (PDT)
+Received: from NAM04-BN3-obe.outbound.protection.outlook.com (mail-eopbgr680073.outbound.protection.outlook.com. [40.107.68.73])
+        by mx.google.com with ESMTPS id e33-v6si8369313qte.258.2018.06.22.13.09.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Jun 2018 13:03:44 -0700 (PDT)
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [v3 PATCH] mm: thp: register mm for khugepaged when merging vma for shmem
-Date: Sat, 23 Jun 2018 04:03:11 +0800
-Message-Id: <1529697791-6950-1-git-send-email-yang.shi@linux.alibaba.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 22 Jun 2018 13:09:20 -0700 (PDT)
+Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+References: <20180622150242.16558-1-mhocko@kernel.org>
+ <0aa9f695-5702-6704-9462-7779cbfdb3fd@amd.com>
+ <20180622152444.GC10465@dhcp22.suse.cz>
+From: Felix Kuehling <felix.kuehling@amd.com>
+Message-ID: <dd260800-6457-f3ff-47df-b65ef258f4b7@amd.com>
+Date: Fri, 22 Jun 2018 16:09:06 -0400
+MIME-Version: 1.0
+In-Reply-To: <20180622152444.GC10465@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Content-Language: en-CA
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hughd@google.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-When merging anonymous page vma, if the size of vma can fit in at least
-one hugepage, the mm will be registered for khugepaged for collapsing
-THP in the future.
+On 2018-06-22 11:24 AM, Michal Hocko wrote:
+> On Fri 22-06-18 17:13:02, Christian KA?nig wrote:
+>> Hi Michal,
+>>
+>> [Adding Felix as well]
+>>
+>> Well first of all you have a misconception why at least the AMD graphics
+>> driver need to be able to sleep in an MMU notifier: We need to sleep because
+>> we need to wait for hardware operations to finish and *NOT* because we need
+>> to wait for locks.
+>>
+>> I'm not sure if your flag now means that you generally can't sleep in MMU
+>> notifiers any more, but if that's the case at least AMD hardware will break
+>> badly. In our case the approach of waiting for a short time for the process
+>> to be reaped and then select another victim actually sounds like the right
+>> thing to do.
+> Well, I do not need to make the notifier code non blocking all the time.
+> All I need is to ensure that it won't sleep if the flag says so and
+> return -EAGAIN instead.
+>
+> So here is what I do for amdgpu:
 
-But, it skips shmem vma. Doing so for shmem too, but not file-private
-mapping, when merging vma in order to increase the odd to collapse
-hugepage by khugepaged.
+In the case of KFD we also need to take the DQM lock:
 
-hugepage_vma_check() sounds like a good fit to do the check. And, moved
-the definition of it before khugepaged_enter_vma_merge() to suppress
-build error.
+amdgpu_mn_invalidate_range_start_hsa -> amdgpu_amdkfd_evict_userptr ->
+kgd2kfd_quiesce_mm -> kfd_process_evict_queues -> evict_process_queues_cpsch
 
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
----
-v2 --> v3:
-* Use hugepage_vma_check() do the check per Kirill's comment
+So we'd need to pass the blockable parameter all the way through that
+call chain.
 
-v1 --> v2:
-* Exclude file-private mapping per Kirill's comment
+Regards,
+A  Felix
 
- mm/khugepaged.c | 53 ++++++++++++++++++++++++++---------------------------
- 1 file changed, 26 insertions(+), 27 deletions(-)
-
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index d7b2a4b..22da712 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -397,6 +397,25 @@ static inline int khugepaged_test_exit(struct mm_struct *mm)
- 	return atomic_read(&mm->mm_users) == 0;
- }
- 
-+static bool hugepage_vma_check(struct vm_area_struct *vma)
-+{
-+	if ((!(vma->vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
-+	    (vma->vm_flags & VM_NOHUGEPAGE) ||
-+	    test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
-+		return false;
-+	if (shmem_file(vma->vm_file)) {
-+		if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
-+			return false;
-+		return IS_ALIGNED((vma->vm_start >> PAGE_SHIFT) - vma->vm_pgoff,
-+				HPAGE_PMD_NR);
-+	}
-+	if (!vma->anon_vma || vma->vm_ops)
-+		return false;
-+	if (is_vma_temporary_stack(vma))
-+		return false;
-+	return !(vma->vm_flags & VM_NO_KHUGEPAGED);
-+}
-+
- int __khugepaged_enter(struct mm_struct *mm)
- {
- 	struct mm_slot *mm_slot;
-@@ -434,15 +453,14 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
- 			       unsigned long vm_flags)
- {
- 	unsigned long hstart, hend;
--	if (!vma->anon_vma)
--		/*
--		 * Not yet faulted in so we will register later in the
--		 * page fault if needed.
--		 */
--		return 0;
--	if (vma->vm_ops || (vm_flags & VM_NO_KHUGEPAGED))
--		/* khugepaged not yet working on file or special mappings */
-+
-+	/*
-+	 * khugepaged does not yet work on non-shmem files or special
-+	 * mappings. And file-private shmem THP is not supported.
-+	 */
-+	if (!hugepage_vma_check(vma))
- 		return 0;
-+
- 	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
- 	hend = vma->vm_end & HPAGE_PMD_MASK;
- 	if (hstart < hend)
-@@ -819,25 +837,6 @@ static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
- }
- #endif
- 
--static bool hugepage_vma_check(struct vm_area_struct *vma)
--{
--	if ((!(vma->vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
--	    (vma->vm_flags & VM_NOHUGEPAGE) ||
--	    test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
--		return false;
--	if (shmem_file(vma->vm_file)) {
--		if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
--			return false;
--		return IS_ALIGNED((vma->vm_start >> PAGE_SHIFT) - vma->vm_pgoff,
--				HPAGE_PMD_NR);
--	}
--	if (!vma->anon_vma || vma->vm_ops)
--		return false;
--	if (is_vma_temporary_stack(vma))
--		return false;
--	return !(vma->vm_flags & VM_NO_KHUGEPAGED);
--}
--
- /*
-  * If mmap_sem temporarily dropped, revalidate vma
-  * before taking mmap_sem.
--- 
-1.8.3.1
+>
+>>> diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
+>>> index 83e344fbb50a..d138a526feff 100644
+>>> --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
+>>> +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
+>>> @@ -136,12 +136,18 @@ void amdgpu_mn_unlock(struct amdgpu_mn *mn)
+>>>    *
+>>>    * Take the rmn read side lock.
+>>>    */
+>>> -static void amdgpu_mn_read_lock(struct amdgpu_mn *rmn)
+>>> +static int amdgpu_mn_read_lock(struct amdgpu_mn *rmn, bool blockable)
+>>>   {
+>>> -	mutex_lock(&rmn->read_lock);
+>>> +	if (blockable)
+>>> +		mutex_lock(&rmn->read_lock);
+>>> +	else if (!mutex_trylock(&rmn->read_lock))
+>>> +		return -EAGAIN;
+>>> +
+>>>   	if (atomic_inc_return(&rmn->recursion) == 1)
+>>>   		down_read_non_owner(&rmn->lock);
+>>>   	mutex_unlock(&rmn->read_lock);
+>>> +
+>>> +	return 0;
+>>>   }
+>>>   /**
+>>> @@ -197,10 +203,11 @@ static void amdgpu_mn_invalidate_node(struct amdgpu_mn_node *node,
+>>>    * We block for all BOs between start and end to be idle and
+>>>    * unmap them by move them into system domain again.
+>>>    */
+>>> -static void amdgpu_mn_invalidate_range_start_gfx(struct mmu_notifier *mn,
+>>> +static int amdgpu_mn_invalidate_range_start_gfx(struct mmu_notifier *mn,
+>>>   						 struct mm_struct *mm,
+>>>   						 unsigned long start,
+>>> -						 unsigned long end)
+>>> +						 unsigned long end,
+>>> +						 bool blockable)
+>>>   {
+>>>   	struct amdgpu_mn *rmn = container_of(mn, struct amdgpu_mn, mn);
+>>>   	struct interval_tree_node *it;
+>>> @@ -208,7 +215,11 @@ static void amdgpu_mn_invalidate_range_start_gfx(struct mmu_notifier *mn,
+>>>   	/* notification is exclusive, but interval is inclusive */
+>>>   	end -= 1;
+>>> -	amdgpu_mn_read_lock(rmn);
+>>> +	/* TODO we should be able to split locking for interval tree and
+>>> +	 * amdgpu_mn_invalidate_node
+>>> +	 */
+>>> +	if (amdgpu_mn_read_lock(rmn, blockable))
+>>> +		return -EAGAIN;
+>>>   	it = interval_tree_iter_first(&rmn->objects, start, end);
+>>>   	while (it) {
+>>> @@ -219,6 +230,8 @@ static void amdgpu_mn_invalidate_range_start_gfx(struct mmu_notifier *mn,
+>>>   		amdgpu_mn_invalidate_node(node, start, end);
+>>>   	}
+>>> +
+>>> +	return 0;
+>>>   }
+>>>   /**
+>>> @@ -233,10 +246,11 @@ static void amdgpu_mn_invalidate_range_start_gfx(struct mmu_notifier *mn,
+>>>    * necessitates evicting all user-mode queues of the process. The BOs
+>>>    * are restorted in amdgpu_mn_invalidate_range_end_hsa.
+>>>    */
+>>> -static void amdgpu_mn_invalidate_range_start_hsa(struct mmu_notifier *mn,
+>>> +static int amdgpu_mn_invalidate_range_start_hsa(struct mmu_notifier *mn,
+>>>   						 struct mm_struct *mm,
+>>>   						 unsigned long start,
+>>> -						 unsigned long end)
+>>> +						 unsigned long end,
+>>> +						 bool blockable)
+>>>   {
+>>>   	struct amdgpu_mn *rmn = container_of(mn, struct amdgpu_mn, mn);
+>>>   	struct interval_tree_node *it;
+>>> @@ -244,7 +258,8 @@ static void amdgpu_mn_invalidate_range_start_hsa(struct mmu_notifier *mn,
+>>>   	/* notification is exclusive, but interval is inclusive */
+>>>   	end -= 1;
+>>> -	amdgpu_mn_read_lock(rmn);
+>>> +	if (amdgpu_mn_read_lock(rmn, blockable))
+>>> +		return -EAGAIN;
+>>>   	it = interval_tree_iter_first(&rmn->objects, start, end);
+>>>   	while (it) {
+>>> @@ -262,6 +277,8 @@ static void amdgpu_mn_invalidate_range_start_hsa(struct mmu_notifier *mn,
+>>>   				amdgpu_amdkfd_evict_userptr(mem, mm);
+>>>   		}
+>>>   	}
+>>> +
+>>> +	return 0;
+>>>   }
+>>>   /**
