@@ -1,116 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F32ED6B0003
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 06:24:42 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id p41-v6so3562442oth.5
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 03:24:42 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id x11-v6si2310162otg.173.2018.06.22.03.24.40
-        for <linux-mm@kvack.org>;
-        Fri, 22 Jun 2018 03:24:40 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [PATCH 1/2] arm64: avoid alloc memory on offline node
-References: <20180619120714.GE13685@dhcp22.suse.cz>
-	<874lhz3pmn.fsf@e105922-lin.cambridge.arm.com>
-	<20180619140818.GA16927@e107981-ln.cambridge.arm.com>
-	<87wouu3jz1.fsf@e105922-lin.cambridge.arm.com>
-	<20180619151425.GH13685@dhcp22.suse.cz>
-	<87r2l23i2b.fsf@e105922-lin.cambridge.arm.com>
-	<20180619163256.GA18952@e107981-ln.cambridge.arm.com>
-	<814205eb-ae86-a519-bed0-f09b8e2d3a02@huawei.com>
-	<87602d3ccl.fsf@e105922-lin.cambridge.arm.com>
-	<5c083c9c-473f-f504-848b-48506d0fd380@huawei.com>
-	<20180622091153.GU10465@dhcp22.suse.cz>
-Date: Fri, 22 Jun 2018 11:24:38 +0100
-In-Reply-To: <20180622091153.GU10465@dhcp22.suse.cz> (Michal Hocko's message
-	of "Fri, 22 Jun 2018 11:11:53 +0200")
-Message-ID: <87y3f7yv89.fsf@e105922-lin.cambridge.arm.com>
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BE4FC6B0006
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 06:42:22 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id 70-v6so3536817plc.1
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 03:42:22 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d10-v6si7085458pla.140.2018.06.22.03.42.21
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 22 Jun 2018 03:42:21 -0700 (PDT)
+Date: Fri, 22 Jun 2018 12:42:17 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v9] Refactor part of the oom report in dump_header
+Message-ID: <20180622104217.GV10465@dhcp22.suse.cz>
+References: <1529056341-16182-1-git-send-email-ufo19890607@gmail.com>
+ <20180622083949.GR10465@dhcp22.suse.cz>
+ <CAHCio2jkE2FGc2g48jm+ddvEbN3hEOoohBM+-871v32N2i2gew@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAHCio2jkE2FGc2g48jm+ddvEbN3hEOoohBM+-871v32N2i2gew@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Hanjun Guo <guohanjun@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Bjorn Helgaas <helgaas@kernel.org>, tnowicki@caviumnetworks.com, linux-pci@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Will Deacon <will.deacon@arm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>, linux-mm@kvack.org, wanghuiqiang@huawei.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Bjorn Helgaas <bhelgaas@google.com>, Andrew Morton <akpm@linux-foundation.org>, zhongjiang <zhongjiang@huawei.com>, linux-arm <linux-arm-kernel@lists.infradead.org>
+To: =?utf-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>
+Cc: akpm@linux-foundation.org, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
 
-Michal Hocko <mhocko@kernel.org> writes:
+On Fri 22-06-18 17:33:12, c|1e??e?(R) wrote:
+> Hi Michal
+> > diff --git a/include/linux/oom.h b/include/linux/oom.h
+> > index 6adac113e96d..5bed78d4bfb8 100644
+> > --- a/include/linux/oom.h
+> > +++ b/include/linux/oom.h
+> > @@ -15,6 +15,20 @@ struct notifier_block;
+> >  struct mem_cgroup;
+> >  struct task_struct;
+> >
+> > +enum oom_constraint {
+> > +     CONSTRAINT_NONE,
+> > +     CONSTRAINT_CPUSET,
+> > +     CONSTRAINT_MEMORY_POLICY,
+> > +     CONSTRAINT_MEMCG,
+> > +};
+> > +
+> > +static const char * const oom_constraint_text[] = {
+> > +     [CONSTRAINT_NONE] = "CONSTRAINT_NONE",
+> > +     [CONSTRAINT_CPUSET] = "CONSTRAINT_CPUSET",
+> > +     [CONSTRAINT_MEMORY_POLICY] = "CONSTRAINT_MEMORY_POLICY",
+> > +     [CONSTRAINT_MEMCG] = "CONSTRAINT_MEMCG",
+> > +};
+> 
+> > I've suggested that this should be a separate patch.
+> I've separate this part in patch v7.
+> 
+> [PATCH v7 1/2] Add an array of const char and enum oom_constraint in
+> memcontrol.h
+> On Sat 02-06-18 19:58:51, ufo19890607@gmail.com wrote:
+> >> From: yuzhoujian <yuzhoujian@didichuxing.com>
+> >>
+> >> This patch will make some preparation for the follow-up patch: Refactor
+> >> part of the oom report in dump_header. It puts enum oom_constraint in
+> >> memcontrol.h and adds an array of const char for each constraint.
+> 
+> > I do not get why you separate this specific part out.
+> > oom_constraint_text is not used in the patch. It is almost always
+> > preferable to have a user of newly added functionality.
+> 
+> So do I need to separate this part ?
 
-> On Fri 22-06-18 16:58:05, Hanjun Guo wrote:
->> On 2018/6/20 19:51, Punit Agrawal wrote:
->> > Xie XiuQi <xiexiuqi@huawei.com> writes:
->> > 
->> >> Hi Lorenzo, Punit,
->> >>
->> >>
->> >> On 2018/6/20 0:32, Lorenzo Pieralisi wrote:
->> >>> On Tue, Jun 19, 2018 at 04:35:40PM +0100, Punit Agrawal wrote:
->> >>>> Michal Hocko <mhocko@kernel.org> writes:
->> >>>>
->> >>>>> On Tue 19-06-18 15:54:26, Punit Agrawal wrote:
->> >>>>> [...]
->> >>>>>> In terms of $SUBJECT, I wonder if it's worth taking the original patch
->> >>>>>> as a temporary fix (it'll also be easier to backport) while we work on
->> >>>>>> fixing these other issues and enabling memoryless nodes.
->> >>>>>
->> >>>>> Well, x86 already does that but copying this antipatern is not really
->> >>>>> nice. So it is good as a quick fix but it would be definitely much
->> >>>>> better to have a robust fix. Who knows how many other places might hit
->> >>>>> this. You certainly do not want to add a hack like this all over...
->> >>>>
->> >>>> Completely agree! I was only suggesting it as a temporary measure,
->> >>>> especially as it looked like a proper fix might be invasive.
->> >>>>
->> >>>> Another fix might be to change the node specific allocation to node
->> >>>> agnostic allocations. It isn't clear why the allocation is being
->> >>>> requested from a specific node. I think Lorenzo suggested this in one of
->> >>>> the threads.
->> >>>
->> >>> I think that code was just copypasted but it is better to fix the
->> >>> underlying issue.
->> >>>
->> >>>> I've started putting together a set fixing the issues identified in this
->> >>>> thread. It should give a better idea on the best course of action.
->> >>>
->> >>> On ACPI ARM64, this diff should do if I read the code correctly, it
->> >>> should be (famous last words) just a matter of mapping PXMs to nodes for
->> >>> every SRAT GICC entry, feel free to pick it up if it works.
->> >>>
->> >>> Yes, we can take the original patch just because it is safer for an -rc
->> >>> cycle even though if the patch below would do delaying the fix for a
->> >>> couple of -rc (to get it tested across ACPI ARM64 NUMA platforms) is
->> >>> not a disaster.
->> >>
->> >> I tested this patch on my arm board, it works.
->> > 
->> > I am assuming you tried the patch without enabling support for
->> > memory-less nodes.
->> > 
->> > The patch de-couples the onlining of numa nodes (as parsed from SRAT)
->> > from NR_CPUS restriction. When it comes to building zonelists, the node
->> > referenced by the PCI controller also has zonelists initialised.
->> > 
->> > So it looks like a fallback node is setup even if we don't have
->> > memory-less nodes enabled. I need to stare some more at the code to see
->> > why we need memory-less nodes at all then ...
->> 
->> Yes, please. From my limited MM knowledge, zonelists should not be
->> initialised if no CPU and no memory on this node, correct me if I'm
->> wrong.
->
-> Well, as long as there is a code which can explicitly ask for a specific
-> node than it is safer to have zonelists configured. Otherwise you just
-> force callers to add hacks and figure out the proper placement there.
-> Zonelists should be cheep to configure for all possible nodes. It's not
-> like we are talking about huge amount of resources.
-
-I agree. The current problem stems from not configuring the zonelists
-for nodes that don't have onlined cpu and memory. Lorenzo's patch fixes
-the configuration of such nodes.
-
-For allocation requests targeting memory-less nodes, the allocator will
-take the slow path and fall back to one of the other nodes based on the
-zonelists.
-
-I'm not sure how common such allocations are but I'll work on enabling
-CONFIG_HAVE_MEMORYLESS_NODES on top of Lorenzo's patch. AIUI, this
-config improves the fallback mechanism by starting the search from a
-near-by node with memory.
+You misunderstood my suggestion. Let me be more specific. Please
+separate the whole new oom_constraint including its _usage_.
+-- 
+Michal Hocko
+SUSE Labs
