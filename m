@@ -1,106 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AB8A6B026B
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 12:19:09 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id o2-v6so611374edt.4
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 09:19:09 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 92-v6si3755976ede.194.2018.06.22.09.19.07
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 402686B026E
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 12:19:14 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id p16-v6so3419746pfn.7
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 09:19:14 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id b10-v6si6461025pga.51.2018.06.22.09.19.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 22 Jun 2018 09:19:07 -0700 (PDT)
-Date: Fri, 22 Jun 2018 18:19:05 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [Intel-gfx] [RFC PATCH] mm, oom: distinguish blockable mode for
- mmu notifiers
-Message-ID: <20180622161905.GA23260@dhcp22.suse.cz>
-References: <20180622150242.16558-1-mhocko@kernel.org>
- <152968180950.11773.3374981930722769733@mail.alporthouse.com>
- <20180622155716.GE10465@dhcp22.suse.cz>
- <152968364170.11773.4392861266443293819@mail.alporthouse.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Jun 2018 09:19:13 -0700 (PDT)
+Date: Fri, 22 Jun 2018 19:19:12 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [v2 PATCH 1/2] mm: thp: register mm for khugepaged when merging
+ vma for shmem
+Message-ID: <20180622161912.sq32cnhfxo5ctgdp@black.fi.intel.com>
+References: <1529622949-75504-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20180622075958.mzagr2ayufiuokea@black.fi.intel.com>
+ <cce4aa50-f8b7-8626-31ae-12464a30f884@linux.alibaba.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <152968364170.11773.4392861266443293819@mail.alporthouse.com>
+In-Reply-To: <cce4aa50-f8b7-8626-31ae-12464a30f884@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Michal Hocko <mhocko@suse.com>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, =?us-ascii?B?PT9VVEYtOD9xP1JhZGltPTIwS3I9QzQ9OERtPUMzPUExPUM1PTk5Pz0=?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, =?us-ascii?B?PT9VVEYtOD9xP0NocmlzdGlhbj0yMEs9QzM9QjZuaWc/PQ==?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?us-ascii?B?PT9VVEYtOD9xP0o9QzM9QTlyPUMzPUI0bWU9MjBHbGlzc2U/PQ==?= <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: yang.shi@linux.alibaba.com
+Cc: hughd@google.com, vbabka@suse.cz, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-[Hmm, the cc list got mangled somehow - you have just made many people
-to work for suse ;) and to kvack.org in the preious one - fixed up
-hopefully]
-
-On Fri 22-06-18 17:07:21, Chris Wilson wrote:
-> Quoting Michal Hocko (2018-06-22 16:57:16)
-> > On Fri 22-06-18 16:36:49, Chris Wilson wrote:
-> > > Quoting Michal Hocko (2018-06-22 16:02:42)
-> > > > Hi,
-> > > > this is an RFC and not tested at all. I am not very familiar with the
-> > > > mmu notifiers semantics very much so this is a crude attempt to achieve
-> > > > what I need basically. It might be completely wrong but I would like
-> > > > to discuss what would be a better way if that is the case.
-> > > > 
-> > > > get_maintainers gave me quite large list of people to CC so I had to trim
-> > > > it down. If you think I have forgot somebody, please let me know
-> > > 
-> > > > diff --git a/drivers/gpu/drm/i915/i915_gem_userptr.c b/drivers/gpu/drm/i915/i915_gem_userptr.c
-> > > > index 854bd51b9478..5285df9331fa 100644
-> > > > --- a/drivers/gpu/drm/i915/i915_gem_userptr.c
-> > > > +++ b/drivers/gpu/drm/i915/i915_gem_userptr.c
-> > > > @@ -112,10 +112,11 @@ static void del_object(struct i915_mmu_object *mo)
-> > > >         mo->attached = false;
-> > > >  }
-> > > >  
-> > > > -static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
-> > > > +static int i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
-> > > >                                                        struct mm_struct *mm,
-> > > >                                                        unsigned long start,
-> > > > -                                                      unsigned long end)
-> > > > +                                                      unsigned long end,
-> > > > +                                                      bool blockable)
-> > > >  {
-> > > >         struct i915_mmu_notifier *mn =
-> > > >                 container_of(_mn, struct i915_mmu_notifier, mn);
-> > > > @@ -124,7 +125,7 @@ static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
-> > > >         LIST_HEAD(cancelled);
-> > > >  
-> > > >         if (RB_EMPTY_ROOT(&mn->objects.rb_root))
-> > > > -               return;
-> > > > +               return 0;
-> > > 
-> > > The principle wait here is for the HW (even after fixing all the locks
-> > > to be not so coarse, we still have to wait for the HW to finish its
-> > > access).
-> > 
-> > Is this wait bound or it can take basically arbitrary amount of time?
+On Fri, Jun 22, 2018 at 04:04:12PM +0000, yang.shi@linux.alibaba.com wrote:
 > 
-> Arbitrary. It waits for the last operation in the queue that needs that
-> set of backing pages, and that queue is unbounded and not even confined
-> to the local driver. (Though each operation should be bounded to be
-> completed within an interval or be cancelled, that interval is on the
-> order of 10s!)
-
-OK, I see. We should rather not wait that long so backoff is just
-better. The whole point of the oom_reaper is to tear down and free some
-memory. We do not really need to reclaim all of it.
-
-It would be great if we could do something like - kick the tear down of
-the device memory but have it done in the background. We wouldn't tear
-the vma down in that case but the whole process would start at least.
-I am not sure something like that is possible.
- 
-> > > The first pass would be then to not do anything here if
-> > > !blockable.
-> > 
-> > something like this? (incremental diff)
 > 
-> Yup.
+> On 6/22/18 12:59 AM, Kirill A. Shutemov wrote:
+> > On Thu, Jun 21, 2018 at 11:15:48PM +0000, yang.shi@linux.alibaba.com wrote:
+> > > When merging anonymous page vma, if the size of vma can fit in at least
+> > > one hugepage, the mm will be registered for khugepaged for collapsing
+> > > THP in the future.
+> > > 
+> > > But, it skips shmem vma. Doing so for shmem too, but not file-private
+> > > mapping, when merging vma in order to increase the odd to collapse
+> > > hugepage by khugepaged.
+> > > 
+> > > Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> > > Cc: Hugh Dickins <hughd@google.com>
+> > > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > Cc: Vlastimil Babka <vbabka@suse.cz>
+> > > ---
+> > > v1 --> 2:
+> > > * Exclude file-private mapping per Kirill's comment
+> > > 
+> > >   mm/khugepaged.c | 8 ++++++--
+> > >   1 file changed, 6 insertions(+), 2 deletions(-)
+> > > 
+> > > diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> > > index d7b2a4b..9b0ec30 100644
+> > > --- a/mm/khugepaged.c
+> > > +++ b/mm/khugepaged.c
+> > > @@ -440,8 +440,12 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
+> > >   		 * page fault if needed.
+> > >   		 */
+> > >   		return 0;
+> > > -	if (vma->vm_ops || (vm_flags & VM_NO_KHUGEPAGED))
+> > > -		/* khugepaged not yet working on file or special mappings */
+> > > +	if ((vma->vm_ops && (!shmem_file(vma->vm_file) || vma->anon_vma)) ||
+> > > +	    (vm_flags & VM_NO_KHUGEPAGED))
+> > > +		/*
+> > > +		 * khugepaged not yet working on non-shmem file or special
+> > > +		 * mappings. And, file-private shmem THP is not supported.
+> > > +		 */
+> > >   		return 0;
+> > My point was that vma->anon_vma check above this one should not prevent
+> > collapse for shmem.
+> > 
+> > Looking into this more, I think we should just replace all these checks
+> > with hugepage_vma_check() call.
+> 
+> I got a little bit confused here. I thought the condition to *not* collapse
+> file-private shmem mapping should be:
+> 
+> shmem_file(vma->vm_file) && vma->anon_vma
+> 
+> Is this right?
 
-Cool, I will start with that because even that is an improvement from
-the oom_reaper POV.
+No, if shmem_file(vma->vm_file) is true, vma->anon_vma doesn't matter.
+We don't care about anon_vma in such VMA as we don't touch file-private
+pages.
 
-Thanks!
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
