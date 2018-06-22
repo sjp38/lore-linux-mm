@@ -1,101 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 730E56B000A
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 05:01:39 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id n20-v6so853157pgv.14
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 02:01:39 -0700 (PDT)
-Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id x1-v6si5813058pgb.635.2018.06.22.02.01.37
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C2E526B000D
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 05:01:53 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id g16-v6so339974edq.10
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 02:01:53 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e45-v6si3486482edd.409.2018.06.22.02.01.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Jun 2018 02:01:37 -0700 (PDT)
-Subject: Re: [PATCH 1/2] arm64: avoid alloc memory on offline node
-References: <20180611145330.GO13364@dhcp22.suse.cz>
- <87lgbk59gs.fsf@e105922-lin.cambridge.arm.com>
- <87bmce60y3.fsf@e105922-lin.cambridge.arm.com>
- <8b715082-14d4-f10b-d2d6-b23be7e4bf7e@huawei.com>
- <20180619120714.GE13685@dhcp22.suse.cz>
- <874lhz3pmn.fsf@e105922-lin.cambridge.arm.com>
- <20180619140818.GA16927@e107981-ln.cambridge.arm.com>
- <87wouu3jz1.fsf@e105922-lin.cambridge.arm.com>
- <20180619151425.GH13685@dhcp22.suse.cz>
- <87r2l23i2b.fsf@e105922-lin.cambridge.arm.com>
- <20180619163256.GA18952@e107981-ln.cambridge.arm.com>
- <814205eb-ae86-a519-bed0-f09b8e2d3a02@huawei.com>
- <87602d3ccl.fsf@e105922-lin.cambridge.arm.com>
-From: Hanjun Guo <guohanjun@huawei.com>
-Message-ID: <5c083c9c-473f-f504-848b-48506d0fd380@huawei.com>
-Date: Fri, 22 Jun 2018 16:58:05 +0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 22 Jun 2018 02:01:52 -0700 (PDT)
+Date: Fri, 22 Jun 2018 11:01:51 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: dm bufio: Reduce dm_bufio_lock contention
+Message-ID: <20180622090151.GS10465@dhcp22.suse.cz>
+References: <20180614073153.GB9371@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806141424510.30404@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180615073201.GB24039@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806150724260.15022@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180615115547.GH24039@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806150832100.26650@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180615130925.GI24039@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806181003560.4201@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180619104312.GD13685@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806191228110.25656@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <87602d3ccl.fsf@e105922-lin.cambridge.arm.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1806191228110.25656@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Punit Agrawal <punit.agrawal@arm.com>, Xie XiuQi <xiexiuqi@huawei.com>
-Cc: Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Michal Hocko <mhocko@kernel.org>, Bjorn Helgaas <helgaas@kernel.org>, tnowicki@caviumnetworks.com, linux-pci@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Will Deacon <will.deacon@arm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>, linux-mm@kvack.org, wanghuiqiang@huawei.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Bjorn Helgaas <bhelgaas@google.com>, Andrew Morton <akpm@linux-foundation.org>, zhongjiang <zhongjiang@huawei.com>, linux-arm <linux-arm-kernel@lists.infradead.org>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: jing xia <jing.xia.mail@gmail.com>, Mike Snitzer <snitzer@redhat.com>, agk@redhat.com, dm-devel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 2018/6/20 19:51, Punit Agrawal wrote:
-> Xie XiuQi <xiexiuqi@huawei.com> writes:
+On Thu 21-06-18 21:17:24, Mikulas Patocka wrote:
+[...]
+> > But seriously, isn't the best way around the throttling issue to use
+> > PF_LESS_THROTTLE?
 > 
->> Hi Lorenzo, Punit,
->>
->>
->> On 2018/6/20 0:32, Lorenzo Pieralisi wrote:
->>> On Tue, Jun 19, 2018 at 04:35:40PM +0100, Punit Agrawal wrote:
->>>> Michal Hocko <mhocko@kernel.org> writes:
->>>>
->>>>> On Tue 19-06-18 15:54:26, Punit Agrawal wrote:
->>>>> [...]
->>>>>> In terms of $SUBJECT, I wonder if it's worth taking the original patch
->>>>>> as a temporary fix (it'll also be easier to backport) while we work on
->>>>>> fixing these other issues and enabling memoryless nodes.
->>>>>
->>>>> Well, x86 already does that but copying this antipatern is not really
->>>>> nice. So it is good as a quick fix but it would be definitely much
->>>>> better to have a robust fix. Who knows how many other places might hit
->>>>> this. You certainly do not want to add a hack like this all over...
->>>>
->>>> Completely agree! I was only suggesting it as a temporary measure,
->>>> especially as it looked like a proper fix might be invasive.
->>>>
->>>> Another fix might be to change the node specific allocation to node
->>>> agnostic allocations. It isn't clear why the allocation is being
->>>> requested from a specific node. I think Lorenzo suggested this in one of
->>>> the threads.
->>>
->>> I think that code was just copypasted but it is better to fix the
->>> underlying issue.
->>>
->>>> I've started putting together a set fixing the issues identified in this
->>>> thread. It should give a better idea on the best course of action.
->>>
->>> On ACPI ARM64, this diff should do if I read the code correctly, it
->>> should be (famous last words) just a matter of mapping PXMs to nodes for
->>> every SRAT GICC entry, feel free to pick it up if it works.
->>>
->>> Yes, we can take the original patch just because it is safer for an -rc
->>> cycle even though if the patch below would do delaying the fix for a
->>> couple of -rc (to get it tested across ACPI ARM64 NUMA platforms) is
->>> not a disaster.
->>
->> I tested this patch on my arm board, it works.
-> 
-> I am assuming you tried the patch without enabling support for
-> memory-less nodes.
-> 
-> The patch de-couples the onlining of numa nodes (as parsed from SRAT)
-> from NR_CPUS restriction. When it comes to building zonelists, the node
-> referenced by the PCI controller also has zonelists initialised.
-> 
-> So it looks like a fallback node is setup even if we don't have
-> memory-less nodes enabled. I need to stare some more at the code to see
-> why we need memory-less nodes at all then ...
+> Yes - it could be done by setting PF_LESS_THROTTLE. But I think it would 
+> be better to change it just in one place than to add PF_LESS_THROTTLE to 
+> every block device driver (because adding it to every block driver results 
+> in more code).
 
-Yes, please. From my limited MM knowledge, zonelists should not be
-initialised if no CPU and no memory on this node, correct me if I'm
-wrong.
+Why would every block device need this? I thought we were talking about
+mempool allocator and the md variant of it. They are explicitly doing
+their own back off so PF_LESS_THROTTLE sounds appropriate to me.
 
-Thanks
-Hanjun
+> What about this patch? If __GFP_NORETRY and __GFP_FS is not set (i.e. the 
+> request comes from a block device driver or a filesystem), we should not 
+> sleep.
+
+Why? How are you going to audit all the callers that the behavior makes
+sense and moreover how are you going to ensure that future usage will
+still make sense. The more subtle side effects gfp flags have the harder
+they are to maintain.
+
+> Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
+> Cc: stable@vger.kernel.org
+> 
+> Index: linux-2.6/mm/vmscan.c
+> ===================================================================
+> --- linux-2.6.orig/mm/vmscan.c
+> +++ linux-2.6/mm/vmscan.c
+> @@ -2674,6 +2674,7 @@ static bool shrink_node(pg_data_t *pgdat
+>  		 * the LRU too quickly.
+>  		 */
+>  		if (!sc->hibernation_mode && !current_is_kswapd() &&
+> +		   (sc->gfp_mask & (__GFP_NORETRY | __GFP_FS)) != __GFP_NORETRY &&
+>  		   current_may_throttle() && pgdat_memcg_congested(pgdat, root))
+>  			wait_iff_congested(BLK_RW_ASYNC, HZ/10);
+>  
+
+-- 
+Michal Hocko
+SUSE Labs
