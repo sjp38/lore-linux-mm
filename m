@@ -1,76 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 419A76B0006
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 05:28:57 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id z20-v6so2457471pgv.17
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 02:28:57 -0700 (PDT)
-Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id l14-v6si6051941pgs.155.2018.06.22.02.28.55
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CF756B000A
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 05:33:27 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id h7-v6so1798041lfc.13
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 02:33:27 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n4-v6sor1581725ljh.98.2018.06.22.02.33.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Jun 2018 02:28:55 -0700 (PDT)
-From: Zhen Lei <thunder.leizhen@huawei.com>
-Subject: [PATCH 1/1] kasan: fix shadow_size calculation error in kasan_module_alloc
-Date: Fri, 22 Jun 2018 17:27:06 +0800
-Message-ID: <1529659626-12660-1-git-send-email-thunder.leizhen@huawei.com>
+        (Google Transport Security);
+        Fri, 22 Jun 2018 02:33:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+References: <1529056341-16182-1-git-send-email-ufo19890607@gmail.com> <20180622083949.GR10465@dhcp22.suse.cz>
+In-Reply-To: <20180622083949.GR10465@dhcp22.suse.cz>
+From: =?UTF-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>
+Date: Fri, 22 Jun 2018 17:33:12 +0800
+Message-ID: <CAHCio2jkE2FGc2g48jm+ddvEbN3hEOoohBM+-871v32N2i2gew@mail.gmail.com>
+Subject: Re: [PATCH v9] Refactor part of the oom report in dump_header
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
-Cc: Zhen Lei <thunder.leizhen@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Libin <huawei.libin@huawei.com>
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
 
-There is a special case that the size is "(N << KASAN_SHADOW_SCALE_SHIFT)
-Pages plus X", the value of X is [1, KASAN_SHADOW_SCALE_SIZE-1]. The
-operation "size >> KASAN_SHADOW_SCALE_SHIFT" will drop X, and the roundup
-operation can not retrieve the missed one page. For example: size=0x28006,
-PAGE_SIZE=0x1000, KASAN_SHADOW_SCALE_SHIFT=3, we will get
-shadow_size=0x5000, but actually we need 6 pages.
+Hi Michal
+> diff --git a/include/linux/oom.h b/include/linux/oom.h
+> index 6adac113e96d..5bed78d4bfb8 100644
+> --- a/include/linux/oom.h
+> +++ b/include/linux/oom.h
+> @@ -15,6 +15,20 @@ struct notifier_block;
+>  struct mem_cgroup;
+>  struct task_struct;
+>
+> +enum oom_constraint {
+> +     CONSTRAINT_NONE,
+> +     CONSTRAINT_CPUSET,
+> +     CONSTRAINT_MEMORY_POLICY,
+> +     CONSTRAINT_MEMCG,
+> +};
+> +
+> +static const char * const oom_constraint_text[] = {
+> +     [CONSTRAINT_NONE] = "CONSTRAINT_NONE",
+> +     [CONSTRAINT_CPUSET] = "CONSTRAINT_CPUSET",
+> +     [CONSTRAINT_MEMORY_POLICY] = "CONSTRAINT_MEMORY_POLICY",
+> +     [CONSTRAINT_MEMCG] = "CONSTRAINT_MEMCG",
+> +};
 
-shadow_size = round_up(size >> KASAN_SHADOW_SCALE_SHIFT, PAGE_SIZE);
+> I've suggested that this should be a separate patch.
+I've separate this part in patch v7.
 
-This can lead kernel to be crashed, when kasan is enabled and the value
-of mod->core_layout.size or mod->init_layout.size is like above. Because
-the shadow memory of X has not been allocated and mapped.
+[PATCH v7 1/2] Add an array of const char and enum oom_constraint in
+memcontrol.h
+On Sat 02-06-18 19:58:51, ufo19890607@gmail.com wrote:
+>> From: yuzhoujian <yuzhoujian@didichuxing.com>
+>>
+>> This patch will make some preparation for the follow-up patch: Refactor
+>> part of the oom report in dump_header. It puts enum oom_constraint in
+>> memcontrol.h and adds an array of const char for each constraint.
 
-move_module:
-ptr = module_alloc(mod->core_layout.size);
-...
-memset(ptr, 0, mod->core_layout.size);		//crashed
+> I do not get why you separate this specific part out.
+> oom_constraint_text is not used in the patch. It is almost always
+> preferable to have a user of newly added functionality.
 
-Unable to handle kernel paging request at virtual address ffff0fffff97b000
-......
-Call trace:
-[<ffff8000004694d4>] __asan_storeN+0x174/0x1a8
-[<ffff800000469844>] memset+0x24/0x48
-[<ffff80000025cf28>] layout_and_allocate+0xcd8/0x1800
-[<ffff80000025dbe0>] load_module+0x190/0x23e8
-[<ffff8000002601e8>] SyS_finit_module+0x148/0x180
+So do I need to separate this part ?
 
-Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
----
- mm/kasan/kasan.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 81a2f45..f5ac4ac 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -427,12 +427,13 @@ void kasan_kfree_large(const void *ptr)
- int kasan_module_alloc(void *addr, size_t size)
- {
- 	void *ret;
-+	size_t scaled_size;
- 	size_t shadow_size;
- 	unsigned long shadow_start;
-
- 	shadow_start = (unsigned long)kasan_mem_to_shadow(addr);
--	shadow_size = round_up(size >> KASAN_SHADOW_SCALE_SHIFT,
--			PAGE_SIZE);
-+	scaled_size = (size + KASAN_SHADOW_MASK) >> KASAN_SHADOW_SCALE_SHIFT;
-+	shadow_size = round_up(scaled_size, PAGE_SIZE);
-
- 	if (WARN_ON(!PAGE_ALIGNED(shadow_start)))
- 		return -EINVAL;
---
-1.8.3
+Thanks
