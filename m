@@ -1,47 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9808F6B0003
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 18:10:42 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id x2-v6so4338162plv.0
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 15:10:42 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 144FD6B0003
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 19:33:15 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id b12-v6so5251263wrs.10
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 16:33:15 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m8-v6sor2839319plt.136.2018.06.22.15.10.41
+        by mx.google.com with SMTPS id b206-v6sor929031wmh.31.2018.06.22.16.33.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 22 Jun 2018 15:10:41 -0700 (PDT)
-Date: Sat, 23 Jun 2018 01:10:36 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [v3 PATCH] mm: thp: register mm for khugepaged when merging vma
- for shmem
-Message-ID: <20180622221036.va5vmdcnxny3fhxu@kshutemo-mobl1>
-References: <1529697791-6950-1-git-send-email-yang.shi@linux.alibaba.com>
+        Fri, 22 Jun 2018 16:33:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1529697791-6950-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <20180619051327.149716-1-shakeelb@google.com> <20180619051327.149716-4-shakeelb@google.com>
+ <20180619162741.GC27423@cmpxchg.org> <20180619174040.GA4304@castle.DHCP.thefacebook.com>
+ <CALvZod5_0_LuqWpri=uviE5hHhTMPT0VQOZDgHtTtLhvcCtb3A@mail.gmail.com> <20180619195525.GA19193@castle>
+In-Reply-To: <20180619195525.GA19193@castle>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Fri, 22 Jun 2018 16:33:00 -0700
+Message-ID: <CALvZod7G-ggYTpmdDsNeQRf4upYa34ccOerVmEkEkLOVFrBr2w@mail.gmail.com>
+Subject: Re: [PATCH 3/3] fs, mm: account buffer_head to kmemcg
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: hughd@google.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.com>, Greg Thelen <gthelen@google.com>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>
 
-On Sat, Jun 23, 2018 at 04:03:11AM +0800, Yang Shi wrote:
-> When merging anonymous page vma, if the size of vma can fit in at least
-> one hugepage, the mm will be registered for khugepaged for collapsing
-> THP in the future.
-> 
-> But, it skips shmem vma. Doing so for shmem too, but not file-private
-> mapping, when merging vma in order to increase the odd to collapse
-> hugepage by khugepaged.
-> 
-> hugepage_vma_check() sounds like a good fit to do the check. And, moved
-> the definition of it before khugepaged_enter_vma_merge() to suppress
-> build error.
-> 
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+On Tue, Jun 19, 2018 at 12:55 PM Roman Gushchin <guro@fb.com> wrote:
+>
+> On Tue, Jun 19, 2018 at 12:51:15PM -0700, Shakeel Butt wrote:
+> > On Tue, Jun 19, 2018 at 10:41 AM Roman Gushchin <guro@fb.com> wrote:
+> > >
+> > > On Tue, Jun 19, 2018 at 12:27:41PM -0400, Johannes Weiner wrote:
+> > > > On Mon, Jun 18, 2018 at 10:13:27PM -0700, Shakeel Butt wrote:
+> > > > > The buffer_head can consume a significant amount of system memory and
+> > > > > is directly related to the amount of page cache. In our production
+> > > > > environment we have observed that a lot of machines are spending a
+> > > > > significant amount of memory as buffer_head and can not be left as
+> > > > > system memory overhead.
+> > > > >
+> > > > > Charging buffer_head is not as simple as adding __GFP_ACCOUNT to the
+> > > > > allocation. The buffer_heads can be allocated in a memcg different from
+> > > > > the memcg of the page for which buffer_heads are being allocated. One
+> > > > > concrete example is memory reclaim. The reclaim can trigger I/O of pages
+> > > > > of any memcg on the system. So, the right way to charge buffer_head is
+> > > > > to extract the memcg from the page for which buffer_heads are being
+> > > > > allocated and then use targeted memcg charging API.
+> > > > >
+> > > > > Signed-off-by: Shakeel Butt <shakeelb@google.com>
+> > > > > Cc: Jan Kara <jack@suse.cz>
+> > > > > Cc: Greg Thelen <gthelen@google.com>
+> > > > > Cc: Michal Hocko <mhocko@kernel.org>
+> > > > > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > > > > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> > > > > Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> > > > > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > > > > ---
+> > > > >  fs/buffer.c                | 14 +++++++++++++-
+> > > > >  include/linux/memcontrol.h |  7 +++++++
+> > > > >  mm/memcontrol.c            | 21 +++++++++++++++++++++
+> > > > >  3 files changed, 41 insertions(+), 1 deletion(-)
+> > > > >
+> > > > > diff --git a/fs/buffer.c b/fs/buffer.c
+> > > > > index 8194e3049fc5..26389b7a3cab 100644
+> > > > > --- a/fs/buffer.c
+> > > > > +++ b/fs/buffer.c
+> > > > > @@ -815,10 +815,17 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
+> > > > >     struct buffer_head *bh, *head;
+> > > > >     gfp_t gfp = GFP_NOFS;
+> > > > >     long offset;
+> > > > > +   struct mem_cgroup *old_memcg;
+> > > > > +   struct mem_cgroup *memcg = get_mem_cgroup_from_page(page);
+> > > > >
+> > > > >     if (retry)
+> > > > >             gfp |= __GFP_NOFAIL;
+> > > > >
+> > > > > +   if (memcg) {
+> > > > > +           gfp |= __GFP_ACCOUNT;
+> > > > > +           old_memcg = memalloc_memcg_save(memcg);
+> > > > > +   }
+> > > >
+> > > > Please move the get_mem_cgroup_from_page() call out of the
+> > > > declarations and down to right before the if (memcg) branch.
+> > > >
+> > > > >     head = NULL;
+> > > > >     offset = PAGE_SIZE;
+> > > > >     while ((offset -= size) >= 0) {
+> > > > > @@ -835,6 +842,11 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
+> > > > >             /* Link the buffer to its page */
+> > > > >             set_bh_page(bh, page, offset);
+> > > > >     }
+> > > > > +out:
+> > > > > +   if (memcg) {
+> > > > > +           memalloc_memcg_restore(old_memcg);
+> > > > > +#ifdef CONFIG_MEMCG
+> > > > > +           css_put(&memcg->css);
+> > > > > +#endif
+> > > >
+> > > > Please add a put_mem_cgroup() ;)
+> > >
+> > > I've added such helper by commit 8a34a8b7fd62 ("mm, oom: cgroup-aware OOM killer").
+> > > It's in the mm tree.
+> > >
+> >
+> > I was using mem_cgroup_put() defined by Roman's patch but there were a
+> > lot of build failure reports where someone was taking this series
+> > without Roman's series or applying the series out of order. Andrew
+> > asked me to keep it like this and then he will convert these callsites
+> > into mem_cgroup_put() after making making sure Roman's series is
+> > applied in mm tree. I will recheck with him, how he wants to handle it
+> > now.
+>
+> I can also split the introduction of mem_cgroup_put() into a separate commit,
+> as it seems to be usable not only by the cgroup oom stuff.
+> Please, let me know, if it's a preferred way to go.
+>
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Oh I forgot to reply. Yes, let's do that, a separate patch to
+introduce mem_cgroup_put() which can used by remote charging and memcg
+aware oom-killer patches.
 
--- 
- Kirill A. Shutemov
+Shakeel
