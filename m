@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id ECA996B000C
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 07:19:34 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id g73-v6so993523wmc.5
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 04:19:34 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 865736B000E
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 07:19:35 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id e5-v6so2858932wro.2
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 04:19:35 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p63-v6sor452513wmf.28.2018.06.22.04.19.33
+        by mx.google.com with SMTPS id h63-v6sor451694wmi.13.2018.06.22.04.19.34
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 22 Jun 2018 04:19:33 -0700 (PDT)
+        Fri, 22 Jun 2018 04:19:34 -0700 (PDT)
 From: osalvador@techadventures.net
-Subject: [PATCH v2 2/4] mm/memory_hotplug: Call register_mem_sect_under_node
-Date: Fri, 22 Jun 2018 13:18:37 +0200
-Message-Id: <20180622111839.10071-3-osalvador@techadventures.net>
+Subject: [PATCH v2 3/4] mm/memory_hotplug: Make register_mem_sect_under_node a cb of walk_memory_range
+Date: Fri, 22 Jun 2018 13:18:38 +0200
+Message-Id: <20180622111839.10071-4-osalvador@techadventures.net>
 In-Reply-To: <20180622111839.10071-1-osalvador@techadventures.net>
 References: <20180622111839.10071-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
@@ -22,103 +22,168 @@ Cc: mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, Jonathan.Cameron
 
 From: Oscar Salvador <osalvador@suse.de>
 
-When hotpluging memory, it is possible that two calls are being made
-to register_mem_sect_under_node().
-One comes from __add_section()->hotplug_memory_register()
-and the other from add_memory_resource()->link_mem_sections() if
-we had to register a new node.
+link_mem_sections() and walk_memory_range() share most of the code,
+so we can use convert link_mem_sections() into a dummy function that calls
+walk_memory_range() with a callback to register_mem_sect_under_node().
 
-In case we had to register a new node, hotplug_memory_register()
-will only handle/allocate the memory_block's since
-register_mem_sect_under_node() will return right away because the
-node it is not online yet.
-
-I think it is better if we leave hotplug_memory_register() to
-handle/allocate only memory_block's and make link_mem_sections()
-to call register_mem_sect_under_node().
-
-So this patch removes the call to register_mem_sect_under_node()
-from hotplug_memory_register(), and moves the call to link_mem_sections()
-out of the condition, so it will always be called.
-In this way we only have one place where the memory sections
-are registered.
+This patch converts register_mem_sect_under_node() in order to
+match a walk_memory_range's callback, getting rid of the
+check_nid argument and checking instead if the system is still
+boothing, since we only have to check for the nid if the system
+is in such state.
 
 Signed-off-by: Oscar Salvador <osalvador@suse.de>
-Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Suggested-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 ---
- drivers/base/memory.c |  2 --
- mm/memory_hotplug.c   | 32 +++++++++++---------------------
- 2 files changed, 11 insertions(+), 23 deletions(-)
+ drivers/base/node.c  | 44 ++++++--------------------------------------
+ include/linux/node.h | 12 +++++++-----
+ mm/memory_hotplug.c  |  5 +----
+ 3 files changed, 14 insertions(+), 47 deletions(-)
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index f5e560188a18..c8a1cb0b6136 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -736,8 +736,6 @@ int hotplug_memory_register(int nid, struct mem_section *section)
- 		mem->section_count++;
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index a5e821d09656..845d5523812b 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -399,10 +399,9 @@ static int __ref get_nid_for_pfn(unsigned long pfn)
+ }
+ 
+ /* register memory section under specified node if it spans that node */
+-int register_mem_sect_under_node(struct memory_block *mem_blk, int nid,
+-				 bool check_nid)
++int register_mem_sect_under_node(struct memory_block *mem_blk, void *arg)
+ {
+-	int ret;
++	int ret, nid = *(int *)arg;
+ 	unsigned long pfn, sect_start_pfn, sect_end_pfn;
+ 
+ 	if (!mem_blk)
+@@ -433,7 +432,7 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, int nid,
+ 		 * case, during hotplug we know that all pages in the memory
+ 		 * block belong to the same node.
+ 		 */
+-		if (check_nid) {
++		if (system_state == SYSTEM_BOOTING) {
+ 			page_nid = get_nid_for_pfn(pfn);
+ 			if (page_nid < 0)
+ 				continue;
+@@ -490,41 +489,10 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+ 	return 0;
+ }
+ 
+-int link_mem_sections(int nid, unsigned long start_pfn, unsigned long nr_pages,
+-		      bool check_nid)
++int link_mem_sections(int nid, unsigned long start_pfn, unsigned long end_pfn)
+ {
+-	unsigned long end_pfn = start_pfn + nr_pages;
+-	unsigned long pfn;
+-	struct memory_block *mem_blk = NULL;
+-	int err = 0;
+-
+-	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+-		unsigned long section_nr = pfn_to_section_nr(pfn);
+-		struct mem_section *mem_sect;
+-		int ret;
+-
+-		if (!present_section_nr(section_nr))
+-			continue;
+-		mem_sect = __nr_to_section(section_nr);
+-
+-		/* same memblock ? */
+-		if (mem_blk)
+-			if ((section_nr >= mem_blk->start_section_nr) &&
+-			    (section_nr <= mem_blk->end_section_nr))
+-				continue;
+-
+-		mem_blk = find_memory_block_hinted(mem_sect, mem_blk);
+-
+-		ret = register_mem_sect_under_node(mem_blk, nid, check_nid);
+-		if (!err)
+-			err = ret;
+-
+-		/* discard ref obtained in find_memory_block() */
+-	}
+-
+-	if (mem_blk)
+-		kobject_put(&mem_blk->dev.kobj);
+-	return err;
++	return walk_memory_range(start_pfn, end_pfn, (void *)&nid,
++					register_mem_sect_under_node);
+ }
+ 
+ #ifdef CONFIG_HUGETLBFS
+diff --git a/include/linux/node.h b/include/linux/node.h
+index 6d336e38d155..257bb3d6d014 100644
+--- a/include/linux/node.h
++++ b/include/linux/node.h
+@@ -33,10 +33,10 @@ typedef  void (*node_registration_func_t)(struct node *);
+ 
+ #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_NUMA)
+ extern int link_mem_sections(int nid, unsigned long start_pfn,
+-			     unsigned long nr_pages, bool check_nid);
++			     unsigned long end_pfn);
+ #else
+ static inline int link_mem_sections(int nid, unsigned long start_pfn,
+-				    unsigned long nr_pages, bool check_nid)
++				    unsigned long end_pfn)
+ {
+ 	return 0;
+ }
+@@ -54,12 +54,14 @@ static inline int register_one_node(int nid)
+ 
+ 	if (node_online(nid)) {
+ 		struct pglist_data *pgdat = NODE_DATA(nid);
++		unsigned long start_pfn = pgdat->node_start_pfn;
++		unsigned long end_pfn = start_pfn + pgdat->node_spanned_pages;
+ 
+ 		error = __register_one_node(nid);
+ 		if (error)
+ 			return error;
+ 		/* link memory sections under this node */
+-		error = link_mem_sections(nid, pgdat->node_start_pfn, pgdat->node_spanned_pages, true);
++		error = link_mem_sections(nid, start_pfn, end_pfn);
  	}
  
--	if (mem->section_count == sections_per_block)
--		ret = register_mem_sect_under_node(mem, nid, false);
- out:
- 	mutex_unlock(&mem_sysfs_mutex);
- 	return ret;
+ 	return error;
+@@ -69,7 +71,7 @@ extern void unregister_one_node(int nid);
+ extern int register_cpu_under_node(unsigned int cpu, unsigned int nid);
+ extern int unregister_cpu_under_node(unsigned int cpu, unsigned int nid);
+ extern int register_mem_sect_under_node(struct memory_block *mem_blk,
+-						int nid, bool check_nid);
++						void *arg);
+ extern int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+ 					   unsigned long phys_index);
+ 
+@@ -99,7 +101,7 @@ static inline int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
+ 	return 0;
+ }
+ static inline int register_mem_sect_under_node(struct memory_block *mem_blk,
+-							int nid, bool check_nid)
++							void *arg)
+ {
+ 	return 0;
+ }
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 504ba120bdfc..e2ed64b994e5 100644
+index e2ed64b994e5..4eb6e824a80c 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -1123,6 +1123,7 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
+@@ -1123,7 +1123,6 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
  	u64 start, size;
  	bool new_node = false;
  	int ret;
-+	unsigned long start_pfn, nr_pages;
+-	unsigned long start_pfn, nr_pages;
  
  	start = res->start;
  	size = resource_size(res);
-@@ -1151,34 +1152,23 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
- 	if (ret < 0)
- 		goto error;
- 
--	/* we online node here. we can't roll back from here. */
--	node_set_online(nid);
--
- 	if (new_node) {
--		unsigned long start_pfn = start >> PAGE_SHIFT;
--		unsigned long nr_pages = size >> PAGE_SHIFT;
--
--		ret = __register_one_node(nid);
--		if (ret)
--			goto register_fail;
--
--		/*
--		 * link memory sections under this node. This is already
--		 * done when creatig memory section in register_new_memory
--		 * but that depends to have the node registered so offline
--		 * nodes have to go through register_node.
--		 * TODO clean up this mess.
--		 */
--		ret = link_mem_sections(nid, start_pfn, nr_pages, false);
--register_fail:
--		/*
--		 * If sysfs file of new node can't create, cpu on the node
-+		/* If sysfs file of new node can't be created, cpu on the node
- 		 * can't be hot-added. There is no rollback way now.
- 		 * So, check by BUG_ON() to catch it reluctantly..
-+		 * We online node here. We can't roll back from here.
- 		 */
-+		node_set_online(nid);
-+		ret = __register_one_node(nid);
- 		BUG_ON(ret);
+@@ -1164,9 +1163,7 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
  	}
  
-+	/* link memory sections under this node.*/
-+	start_pfn = start >> PAGE_SHIFT;
-+	nr_pages = size >> PAGE_SHIFT;
-+	ret = link_mem_sections(nid, start_pfn, nr_pages, false);
-+	BUG_ON(ret);
-+
- 	/* create new memmap entry */
- 	firmware_map_add_hotplug(start, start + size, "System RAM");
+ 	/* link memory sections under this node.*/
+-	start_pfn = start >> PAGE_SHIFT;
+-	nr_pages = size >> PAGE_SHIFT;
+-	ret = link_mem_sections(nid, start_pfn, nr_pages, false);
++	ret = link_mem_sections(nid, PFN_DOWN(start), PFN_UP(start + size - 1));
+ 	BUG_ON(ret);
  
+ 	/* create new memmap entry */
 -- 
 2.13.6
