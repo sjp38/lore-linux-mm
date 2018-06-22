@@ -1,55 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EFFFD6B000D
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 09:07:13 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id v127-v6so1686304ith.9
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 06:07:13 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id r137-v6si1163985itb.144.2018.06.22.06.07.12
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E10746B0010
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 09:10:15 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id f16-v6so475873edq.18
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 06:10:15 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o8-v6si3988144edl.95.2018.06.22.06.10.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Jun 2018 06:07:12 -0700 (PDT)
-Subject: Re: [PATCH] printk: inject caller information into the body of
- message
-References: <20180524021451.GA23443@jagdpanzerIV>
- <CACT4Y+brbqfBWntjVaj-Ri2WhBdXpkA_PYs59qgLZ0vtepZEtw@mail.gmail.com>
- <CACT4Y+ZGSefrYL9xtQs=yPMRNFsOUumuJXsShJPhCOBSLySxuw@mail.gmail.com>
- <20180620083126.GA477@jagdpanzerIV>
- <CACT4Y+YMubTm1xduj+XCbQnNwQxYFLjBT33cFKisN1HyeaBpZw@mail.gmail.com>
- <20180620090413.GA444@jagdpanzerIV> <20180620091541.GB444@jagdpanzerIV>
- <CACT4Y+bcp4fSBBq3F86T-C4+n-YkeXUGMqpvkJ6vj6mK-TU2EA@mail.gmail.com>
- <20180620110759.GD444@jagdpanzerIV>
- <CACT4Y+aER3O2x2ApM=MVFoFXhp_T_rUeyG9CBx031qyH0voSRg@mail.gmail.com>
- <20180620130628.GA1000@tigerII.localdomain>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <197be25e-c841-bf3c-7081-61f0a9653c8c@i-love.sakura.ne.jp>
-Date: Fri, 22 Jun 2018 22:06:45 +0900
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 22 Jun 2018 06:10:14 -0700 (PDT)
+Date: Fri, 22 Jun 2018 15:10:13 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: dm bufio: Reduce dm_bufio_lock contention
+Message-ID: <20180622131013.GA10465@dhcp22.suse.cz>
+References: <20180615073201.GB24039@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806150724260.15022@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180615115547.GH24039@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806150832100.26650@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180615130925.GI24039@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806181003560.4201@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180619104312.GD13685@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806191228110.25656@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180622090151.GS10465@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806220828040.8072@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20180620130628.GA1000@tigerII.localdomain>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1806220828040.8072@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dmitry Vyukov <dvyukov@google.com>, Fengguang Wu <fengguang.wu@intel.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, syzkaller <syzkaller@googlegroups.com>, Steven Rostedt <rostedt@goodmis.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: jing xia <jing.xia.mail@gmail.com>, Mike Snitzer <snitzer@redhat.com>, agk@redhat.com, dm-devel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 2018/06/20 22:06, Sergey Senozhatsky wrote:
-> On (06/20/18 13:32), Dmitry Vyukov wrote:
->>> So, if we could get rid of pr_cont() from the most important parts
->>> (instruction dumps, etc) then I would just vote to leave pr_cont()
->>> alone and avoid any handling of it in printk context tracking. Simply
->>> because we wouldn't care about pr_cont(). This also could simplify
->>> Tetsuo's patch significantly.
->>
->> Sounds good to me.
+On Fri 22-06-18 08:44:52, Mikulas Patocka wrote:
+> On Fri, 22 Jun 2018, Michal Hocko wrote:
+[...]
+> > Why? How are you going to audit all the callers that the behavior makes
+> > sense and moreover how are you going to ensure that future usage will
+> > still make sense. The more subtle side effects gfp flags have the harder
+> > they are to maintain.
 > 
-> Awesome. If you and Fengguang can combine forces and lead the
-> whole thing towards "we couldn't care of pr_cont() less", it
-> would be really huuuuuge. Go for it!
+> I did audit them - see the previous email in this thread: 
+> https://www.redhat.com/archives/dm-devel/2018-June/thread.html
 
-Can't we have seq_printf()-like one which flushes automatically upon seeing '\n'
-or buffer full? Printing memory information is using a lot of pr_cont(), even in
-function names (e.g. http://lkml.kernel.org/r/20180622083949.GR10465@dhcp22.suse.cz ).
-Since OOM killer code is serialized by oom_lock, we can use static buffer for
-OOM killer messages.
+I do not see any mention about throttling expectations for those users.
+You have focused only on the allocation failure fallback AFAIR
+-- 
+Michal Hocko
+SUSE Labs
