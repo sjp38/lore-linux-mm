@@ -1,69 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 848006B0003
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 11:33:54 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id s15-v6so4656531wrn.16
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 08:33:54 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u7-v6sor4201249wrp.10.2018.06.22.08.33.53
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A4206B026D
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 11:37:28 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id t14-v6so4600900wrr.23
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 08:37:28 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
+        by mx.google.com with ESMTPS id u66-v6si1773825wma.231.2018.06.22.08.37.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Jun 2018 08:33:53 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Jun 2018 08:37:27 -0700 (PDT)
+Content-Type: text/plain; charset="utf-8"
 MIME-Version: 1.0
-References: <20180620224147.23777-1-shakeelb@google.com> <010001641fe92599-9006a895-d1ea-4881-a63c-f3749ff9b7b3-000000@email.amazonses.com>
- <20180621150122.GB13063@dhcp22.suse.cz>
-In-Reply-To: <20180621150122.GB13063@dhcp22.suse.cz>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Fri, 22 Jun 2018 08:33:40 -0700
-Message-ID: <CALvZod7Rf0FZHqYBPd1OTkVuvA5QRrkYQku40QJtS2--g6PrQQ@mail.gmail.com>
-Subject: Re: [PATCH] slub: track number of slabs irrespective of CONFIG_SLUB_DEBUG
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+From: Chris Wilson <chris@chris-wilson.co.uk>
+In-Reply-To: <20180622150242.16558-1-mhocko@kernel.org>
+References: <20180622150242.16558-1-mhocko@kernel.org>
+Message-ID: <152968180950.11773.3374981930722769733@mail.alporthouse.com>
+Subject: Re: [Intel-gfx] [RFC PATCH] mm,
+ oom: distinguish blockable mode for mmu notifiers
+Date: Fri, 22 Jun 2018 16:36:49 +0100
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, "Jason A . Donenfeld" <Jason@zx2c4.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, stable@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: "Michal Hocko  <mhocko@suse.com>, kvm@vger.kernel.org,  =?utf-8?b?IiBSYWRpbSBLcsSNbcOhxZk=?= <rkrcmar@redhat.com>,  David Airlie" <airlied@linux.ie>, Sudeep Dutt <sudeep.dutt@intel.com>, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Dimitri Sivanich <sivanich@sgi.com>, linux-rdma@vger.kernel.org, amd-gfx@lists.freedesktop.org, Jason Gunthorpe <jgg@ziepe.ca>, Doug Ledford <dledford@redhat.com>, David Rientjes <rientjes@google.com>, xen-devel@lists.xenproject.org, intel-gfx@lists.freedesktop.org, =?utf-8?b?IiBKw6lyw7RtZSBHbGlzc2U=?= <jglisse@redhat.com>, Rodrigo@kvack.org, Vivi@kvack.org, " <rodrigo.vivi@intel.com>,  "@kvack.org, Boris@kvack.org, Ostrovsky@kvack.org, " <boris.ostrovsky@oracle.com>,  "@kvack.org, Juergen@kvack.org, Gross@kvack.org, " <jgross@suse.com>,  "@kvack.org, Mike@kvack.org, Marciniszyn@kvack.org, " <mike.marciniszyn@intel.com>,  "@kvack.org, Dennis@kvack.org, Dalessandro@kvack.org, " <dennis.dalessandro@intel.com>,  "@kvack.org, Ashutosh@kvack.org, Dixit@kvack.org, " <ashutosh.dixit@intel.com>,  "@kvack.org, Alex@kvack.org, Deucher@kvack.org, " <alexander.deucher@amd.com>,  "@kvack.org, Paolo@kvack.org, Bonzini@kvack.org, " <pbonzini@redhat.com>,  =?utf-8?q?=22_Christian_K=C3=B6nig?= <christian.koenig@amd.com>"@kvack.org
 
-On Thu, Jun 21, 2018 at 8:01 AM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Thu 21-06-18 01:15:30, Cristopher Lameter wrote:
-> > On Wed, 20 Jun 2018, Shakeel Butt wrote:
-> >
-> > > For !CONFIG_SLUB_DEBUG, SLUB does not maintain the number of slabs
-> > > allocated per node for a kmem_cache. Thus, slabs_node() in
-> > > __kmem_cache_empty(), __kmem_cache_shrink() and __kmem_cache_destroy()
-> > > will always return 0 for such config. This is wrong and can cause issues
-> > > for all users of these functions.
-> >
-> >
-> > CONFIG_SLUB_DEBUG is set by default on almost all builds. The only case
-> > where CONFIG_SLUB_DEBUG is switched off is when we absolutely need to use
-> > the minimum amount of memory (embedded or some such thing).
->
-> I thought those would be using SLOB rather than SLUB.
->
-> >
-> > > The right solution is to make slabs_node() work even for
-> > > !CONFIG_SLUB_DEBUG. The commit 0f389ec63077 ("slub: No need for per node
-> > > slab counters if !SLUB_DEBUG") had put the per node slab counter under
-> > > CONFIG_SLUB_DEBUG because it was only read through sysfs API and the
-> > > sysfs API was disabled on !CONFIG_SLUB_DEBUG. However the users of the
-> > > per node slab counter assumed that it will work in the absence of
-> > > CONFIG_SLUB_DEBUG. So, make the counter work for !CONFIG_SLUB_DEBUG.
-> >
-> > Please do not do this. Find a way to avoid these checks. The
-> > objective of a !CONFIG_SLUB_DEBUG configuration is to not compile in
-> > debuggin checks etc etc in order to reduce the code/data footprint to the
-> > minimum necessary while sacrificing debuggability etc etc.
-> >
-> > Maybe make it impossible to disable CONFIG_SLUB_DEBUG if CGROUPs are in
-> > use?
->
-> Why don't we simply remove the config option altogether and make it
-> enabled effectively.
->
+Quoting Michal Hocko (2018-06-22 16:02:42)
+> Hi,
+> this is an RFC and not tested at all. I am not very familiar with the
+> mmu notifiers semantics very much so this is a crude attempt to achieve
+> what I need basically. It might be completely wrong but I would like
+> to discuss what would be a better way if that is the case.
+> =
 
-Christopher, how do you want to proceed? I don't have any strong
-opinion. I just don't want KASAN users kept broken for SLUB.
+> get_maintainers gave me quite large list of people to CC so I had to trim
+> it down. If you think I have forgot somebody, please let me know
 
-thanks,
-Shakeel
+> diff --git a/drivers/gpu/drm/i915/i915_gem_userptr.c b/drivers/gpu/drm/i9=
+15/i915_gem_userptr.c
+> index 854bd51b9478..5285df9331fa 100644
+> --- a/drivers/gpu/drm/i915/i915_gem_userptr.c
+> +++ b/drivers/gpu/drm/i915/i915_gem_userptr.c
+> @@ -112,10 +112,11 @@ static void del_object(struct i915_mmu_object *mo)
+>         mo->attached =3D false;
+>  }
+>  =
+
+> -static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifi=
+er *_mn,
+> +static int i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifie=
+r *_mn,
+>                                                        struct mm_struct *=
+mm,
+>                                                        unsigned long star=
+t,
+> -                                                      unsigned long end)
+> +                                                      unsigned long end,
+> +                                                      bool blockable)
+>  {
+>         struct i915_mmu_notifier *mn =3D
+>                 container_of(_mn, struct i915_mmu_notifier, mn);
+> @@ -124,7 +125,7 @@ static void i915_gem_userptr_mn_invalidate_range_star=
+t(struct mmu_notifier *_mn,
+>         LIST_HEAD(cancelled);
+>  =
+
+>         if (RB_EMPTY_ROOT(&mn->objects.rb_root))
+> -               return;
+> +               return 0;
+
+The principle wait here is for the HW (even after fixing all the locks
+to be not so coarse, we still have to wait for the HW to finish its
+access). The first pass would be then to not do anything here if
+!blockable.
+
+Jerome keeps on shaking his head and telling us we're doing it all
+wrong, so maybe it'll all fall out of HMM before we have to figure out
+how to differentiate between objects that can be invalidated immediately
+and those that need to acquire locks and/or wait.
+-Chris
