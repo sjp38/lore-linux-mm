@@ -1,144 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A3E2B6B0003
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 13:26:19 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id w74-v6so6198170qka.4
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 10:26:19 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id r5-v6si3038817qvc.200.2018.06.22.10.26.18
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 837A96B0006
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 13:43:22 -0400 (EDT)
+Received: by mail-ot0-f198.google.com with SMTP id p41-v6so4264564oth.5
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 10:43:22 -0700 (PDT)
+Received: from huawei.com ([45.249.212.35])
+        by mx.google.com with ESMTPS id g204-v6si2545222oia.40.2018.06.22.10.43.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Jun 2018 10:26:18 -0700 (PDT)
-Date: Fri, 22 Jun 2018 13:26:14 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [Intel-gfx] [RFC PATCH] mm, oom: distinguish blockable mode for
- mmu notifiers
-Message-ID: <20180622172614.GD3497@redhat.com>
-References: <20180622150242.16558-1-mhocko@kernel.org>
- <152968180950.11773.3374981930722769733@mail.alporthouse.com>
- <20180622155716.GE10465@dhcp22.suse.cz>
- <20180622161845.GA3497@redhat.com>
- <20180622164026.GA23674@dhcp22.suse.cz>
- <20180622164243.GB23674@dhcp22.suse.cz>
+        Fri, 22 Jun 2018 10:43:20 -0700 (PDT)
+Date: Fri, 22 Jun 2018 18:42:23 +0100
+From: Jonathan Cameron <jonathan.cameron@huawei.com>
+Subject: Re: [PATCH 1/2] arm64: avoid alloc memory on offline node
+Message-ID: <20180622184223.00007bc3@huawei.com>
+In-Reply-To: <87y3f7yv89.fsf@e105922-lin.cambridge.arm.com>
+References: <20180619120714.GE13685@dhcp22.suse.cz>
+	<874lhz3pmn.fsf@e105922-lin.cambridge.arm.com>
+	<20180619140818.GA16927@e107981-ln.cambridge.arm.com>
+	<87wouu3jz1.fsf@e105922-lin.cambridge.arm.com>
+	<20180619151425.GH13685@dhcp22.suse.cz>
+	<87r2l23i2b.fsf@e105922-lin.cambridge.arm.com>
+	<20180619163256.GA18952@e107981-ln.cambridge.arm.com>
+	<814205eb-ae86-a519-bed0-f09b8e2d3a02@huawei.com>
+	<87602d3ccl.fsf@e105922-lin.cambridge.arm.com>
+	<5c083c9c-473f-f504-848b-48506d0fd380@huawei.com>
+	<20180622091153.GU10465@dhcp22.suse.cz>
+	<87y3f7yv89.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180622164243.GB23674@dhcp22.suse.cz>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, =?us-ascii?B?PT9VVEYtOD9xP1JhZGltPTIwS3I9QzQ9OERtPUMzPUExPUM1PTk5Pz0=?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, =?us-ascii?B?PT9VVEYtOD9xP0NocmlzdGlhbj0yMEs9QzM9QjZuaWc/PQ==?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Punit Agrawal <punit.agrawal@arm.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, tnowicki@caviumnetworks.com, Xie XiuQi <xiexiuqi@huawei.com>, linux-pci@vger.kernel.org, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Will Deacon <will.deacon@arm.com>, Linux
+ Kernel Mailing List <linux-kernel@vger.kernel.org>, Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Bjorn Helgaas <helgaas@kernel.org>, linux-arm <linux-arm-kernel@lists.infradead.org>, Hanjun Guo <guohanjun@huawei.com>, Bjorn Helgaas <bhelgaas@google.com>, Andrew Morton <akpm@linux-foundation.org>, zhongjiang <zhongjiang@huawei.com>, wanghuiqiang@huawei.com
 
-On Fri, Jun 22, 2018 at 06:42:43PM +0200, Michal Hocko wrote:
-> [Resnding with the CC list fixed]
+On Fri, 22 Jun 2018 11:24:38 +0100
+Punit Agrawal <punit.agrawal@arm.com> wrote:
+
+> Michal Hocko <mhocko@kernel.org> writes:
 > 
-> On Fri 22-06-18 18:40:26, Michal Hocko wrote:
-> > On Fri 22-06-18 12:18:46, Jerome Glisse wrote:
-> > > On Fri, Jun 22, 2018 at 05:57:16PM +0200, Michal Hocko wrote:
-> > > > On Fri 22-06-18 16:36:49, Chris Wilson wrote:
-> > > > > Quoting Michal Hocko (2018-06-22 16:02:42)
-> > > > > > Hi,
-> > > > > > this is an RFC and not tested at all. I am not very familiar with the
-> > > > > > mmu notifiers semantics very much so this is a crude attempt to achieve
-> > > > > > what I need basically. It might be completely wrong but I would like
-> > > > > > to discuss what would be a better way if that is the case.
-> > > > > > 
-> > > > > > get_maintainers gave me quite large list of people to CC so I had to trim
-> > > > > > it down. If you think I have forgot somebody, please let me know
-> > > > > 
-> > > > > > diff --git a/drivers/gpu/drm/i915/i915_gem_userptr.c b/drivers/gpu/drm/i915/i915_gem_userptr.c
-> > > > > > index 854bd51b9478..5285df9331fa 100644
-> > > > > > --- a/drivers/gpu/drm/i915/i915_gem_userptr.c
-> > > > > > +++ b/drivers/gpu/drm/i915/i915_gem_userptr.c
-> > > > > > @@ -112,10 +112,11 @@ static void del_object(struct i915_mmu_object *mo)
-> > > > > >         mo->attached = false;
-> > > > > >  }
-> > > > > >  
-> > > > > > -static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
-> > > > > > +static int i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
-> > > > > >                                                        struct mm_struct *mm,
-> > > > > >                                                        unsigned long start,
-> > > > > > -                                                      unsigned long end)
-> > > > > > +                                                      unsigned long end,
-> > > > > > +                                                      bool blockable)
-> > > > > >  {
-> > > > > >         struct i915_mmu_notifier *mn =
-> > > > > >                 container_of(_mn, struct i915_mmu_notifier, mn);
-> > > > > > @@ -124,7 +125,7 @@ static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
-> > > > > >         LIST_HEAD(cancelled);
-> > > > > >  
-> > > > > >         if (RB_EMPTY_ROOT(&mn->objects.rb_root))
-> > > > > > -               return;
-> > > > > > +               return 0;
-> > > > > 
-> > > > > The principle wait here is for the HW (even after fixing all the locks
-> > > > > to be not so coarse, we still have to wait for the HW to finish its
-> > > > > access).
-> > > > 
-> > > > Is this wait bound or it can take basically arbitrary amount of time?
-> > > 
-> > > Arbitrary amount of time but in desktop use case you can assume that
-> > > it should never go above 16ms for a 60frame per second rendering of
-> > > your desktop (in GPU compute case this kind of assumption does not
-> > > hold). Is the process exit_state already updated by the time this mmu
-> > > notifier callbacks happen ?
-> > 
-> > What do you mean? The process is killed (by SIGKILL) at the time but we
-> > do not know much more than that. The task might be stuck anywhere in the
-> > kernel before handling that signal.
+> > On Fri 22-06-18 16:58:05, Hanjun Guo wrote:  
+> >> On 2018/6/20 19:51, Punit Agrawal wrote:  
+> >> > Xie XiuQi <xiexiuqi@huawei.com> writes:
+> >> >   
+> >> >> Hi Lorenzo, Punit,
+> >> >>
+> >> >>
+> >> >> On 2018/6/20 0:32, Lorenzo Pieralisi wrote:  
+> >> >>> On Tue, Jun 19, 2018 at 04:35:40PM +0100, Punit Agrawal wrote:  
+> >> >>>> Michal Hocko <mhocko@kernel.org> writes:
+> >> >>>>  
+> >> >>>>> On Tue 19-06-18 15:54:26, Punit Agrawal wrote:
+> >> >>>>> [...]  
+> >> >>>>>> In terms of $SUBJECT, I wonder if it's worth taking the original patch
+> >> >>>>>> as a temporary fix (it'll also be easier to backport) while we work on
+> >> >>>>>> fixing these other issues and enabling memoryless nodes.  
+> >> >>>>>
+> >> >>>>> Well, x86 already does that but copying this antipatern is not really
+> >> >>>>> nice. So it is good as a quick fix but it would be definitely much
+> >> >>>>> better to have a robust fix. Who knows how many other places might hit
+> >> >>>>> this. You certainly do not want to add a hack like this all over...  
+> >> >>>>
+> >> >>>> Completely agree! I was only suggesting it as a temporary measure,
+> >> >>>> especially as it looked like a proper fix might be invasive.
+> >> >>>>
+> >> >>>> Another fix might be to change the node specific allocation to node
+> >> >>>> agnostic allocations. It isn't clear why the allocation is being
+> >> >>>> requested from a specific node. I think Lorenzo suggested this in one of
+> >> >>>> the threads.  
+> >> >>>
+> >> >>> I think that code was just copypasted but it is better to fix the
+> >> >>> underlying issue.
+> >> >>>  
+> >> >>>> I've started putting together a set fixing the issues identified in this
+> >> >>>> thread. It should give a better idea on the best course of action.  
+> >> >>>
+> >> >>> On ACPI ARM64, this diff should do if I read the code correctly, it
+> >> >>> should be (famous last words) just a matter of mapping PXMs to nodes for
+> >> >>> every SRAT GICC entry, feel free to pick it up if it works.
+> >> >>>
+> >> >>> Yes, we can take the original patch just because it is safer for an -rc
+> >> >>> cycle even though if the patch below would do delaying the fix for a
+> >> >>> couple of -rc (to get it tested across ACPI ARM64 NUMA platforms) is
+> >> >>> not a disaster.  
+> >> >>
+> >> >> I tested this patch on my arm board, it works.  
+> >> > 
+> >> > I am assuming you tried the patch without enabling support for
+> >> > memory-less nodes.
+> >> > 
+> >> > The patch de-couples the onlining of numa nodes (as parsed from SRAT)
+> >> > from NR_CPUS restriction. When it comes to building zonelists, the node
+> >> > referenced by the PCI controller also has zonelists initialised.
+> >> > 
+> >> > So it looks like a fallback node is setup even if we don't have
+> >> > memory-less nodes enabled. I need to stare some more at the code to see
+> >> > why we need memory-less nodes at all then ...  
+> >> 
+> >> Yes, please. From my limited MM knowledge, zonelists should not be
+> >> initialised if no CPU and no memory on this node, correct me if I'm
+> >> wrong.  
+> >
+> > Well, as long as there is a code which can explicitly ask for a specific
+> > node than it is safer to have zonelists configured. Otherwise you just
+> > force callers to add hacks and figure out the proper placement there.
+> > Zonelists should be cheep to configure for all possible nodes. It's not
+> > like we are talking about huge amount of resources.  
+> 
+> I agree. The current problem stems from not configuring the zonelists
+> for nodes that don't have onlined cpu and memory. Lorenzo's patch fixes
+> the configuration of such nodes.
+> 
+> For allocation requests targeting memory-less nodes, the allocator will
+> take the slow path and fall back to one of the other nodes based on the
+> zonelists.
+> 
+> I'm not sure how common such allocations are but I'll work on enabling
+> CONFIG_HAVE_MEMORYLESS_NODES on top of Lorenzo's patch. AIUI, this
+> config improves the fallback mechanism by starting the search from a
+> near-by node with memory.
 
-I was wondering if another thread might still be dereferencing any of
-the structure concurrently with the OOM mmu notifier callback. Saddly
-yes, it would be simpler if we could make such assumption.
+I'll test it when back in the office, but I had a similar issue with
+memory only nodes when I moved the SRAT listing for cpus from the 4
+4th mode to the 3rd node to fake some memory I could hot unplug.
+This gave a memory only node for the last node on the system.
 
-> > 
-> > > > > The first pass would be then to not do anything here if
-> > > > > !blockable.
-> > > > 
-> > > > something like this? (incremental diff)
-> > > 
-> > > What i wanted to do with HMM and mmu notifier is split the invalidation
-> > > in 2 pass. First pass tell the drivers to stop/cancel pending jobs that
-> > > depends on the range and invalidate internal driver states (like clear
-> > > buffer object pages array in case of GPU but not GPU page table). While
-> > > the second callback would do the actual wait on the GPU to be done and
-> > > update the GPU page table.
-> > 
-> > What can you do after the first phase? Can I unmap the range?
+When I instead moved cpus from the 3rd node to the 4th (so the node
+with only memory was now in the middle, everything worked).
 
-No you can't do anything but this force synchronization as any other
-thread that concurrently trie to do something with those would queue
-up. So it would serialize thing. Also main motivation on my side is
-multi-GPU, right now multi-GPU are not that common but this is changing
-quickly and what we see on high end (4, 8 or 16 GPUs per socket) is
-spreading into more configurations. Here in mutli GPU case splitting
-in two would avoid having to fully wait on first GPU before trying to
-invaidate on second GPU, so on and so forth.
+Was odd, and I'd been meaning to chase it down but hadn't gotten to it
+yet.  If I get time I'll put together some test firmwares as see if there
+are any other nasty corner cases we aren't handling.
 
-> > 
-> > > Now in this scheme in case the task is already in some exit state and
-> > > that all CPU threads are frozen/kill then we can probably find a way to
-> > > do the first path mostly lock less. AFAICR nor AMD nor Intel allow to
-> > > share userptr bo hence a uptr bo should only ever be access through
-> > > ioctl submited by the process.
-> > > 
-> > > The second call can then be delayed and ping from time to time to see
-> > > if GPU jobs are done.
-> > > 
-> > > 
-> > > Note that what you propose might still be useful as in case there is
-> > > no buffer object for a range then OOM can make progress in freeing a
-> > > range of memory. It is very likely that significant virtual address
-> > > range of a process and backing memory can be reclaim that way. This
-> > > assume OOM reclaim vma by vma or in some form of granularity like
-> > > reclaiming 1GB by 1GB. Or we could also update blocking callback to
-> > > return range that are blocking that way OOM can reclaim around.
-> > 
-> > Exactly my point. What we have right now is all or nothing which is
-> > obviously too coarse to be useful.
+Jonathan
 
-Yes i think it is a good step in the right direction.
-
-Cheers,
-Jerome
+> 
+> _______________________________________________
+> linux-arm-kernel mailing list
+> linux-arm-kernel@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
