@@ -1,83 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0645D6B0006
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 03:43:06 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id q21-v6so321059pff.4
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 00:43:05 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p12-v6si7912472pll.142.2018.06.22.00.43.01
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2024F6B0003
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 04:00:00 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id z5-v6so3286001pln.20
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 01:00:00 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id d14-v6si7421906pln.206.2018.06.22.00.59.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 22 Jun 2018 00:43:01 -0700 (PDT)
-Date: Fri, 22 Jun 2018 09:42:57 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch] mm, oom: fix unnecessary killing of additional processes
-Message-ID: <20180622074257.GQ10465@dhcp22.suse.cz>
-References: <alpine.DEB.2.21.1805241422070.182300@chino.kir.corp.google.com>
- <alpine.DEB.2.21.1806141339580.4543@chino.kir.corp.google.com>
- <20180615065541.GA24039@dhcp22.suse.cz>
- <alpine.DEB.2.21.1806151559360.49038@chino.kir.corp.google.com>
- <20180619083316.GB13685@dhcp22.suse.cz>
- <20180620130311.GM13685@dhcp22.suse.cz>
- <alpine.DEB.2.21.1806201325330.158126@chino.kir.corp.google.com>
- <20180621074537.GC10465@dhcp22.suse.cz>
- <alpine.DEB.2.21.1806211347050.213939@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Jun 2018 00:59:58 -0700 (PDT)
+Date: Fri, 22 Jun 2018 10:59:58 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [v2 PATCH 1/2] mm: thp: register mm for khugepaged when merging
+ vma for shmem
+Message-ID: <20180622075958.mzagr2ayufiuokea@black.fi.intel.com>
+References: <1529622949-75504-1-git-send-email-yang.shi@linux.alibaba.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1806211347050.213939@chino.kir.corp.google.com>
+In-Reply-To: <1529622949-75504-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: yang.shi@linux.alibaba.com
+Cc: hughd@google.com, vbabka@suse.cz, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 21-06-18 13:50:53, David Rientjes wrote:
-> On Thu, 21 Jun 2018, Michal Hocko wrote:
+On Thu, Jun 21, 2018 at 11:15:48PM +0000, yang.shi@linux.alibaba.com wrote:
+> When merging anonymous page vma, if the size of vma can fit in at least
+> one hugepage, the mm will be registered for khugepaged for collapsing
+> THP in the future.
 > 
-> > > > diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-> > > > index 6bcecc325e7e..ac08f5d711be 100644
-> > > > --- a/arch/x86/kvm/x86.c
-> > > > +++ b/arch/x86/kvm/x86.c
-> > > > @@ -7203,8 +7203,9 @@ static void vcpu_load_eoi_exitmap(struct kvm_vcpu *vcpu)
-> > > >  	kvm_x86_ops->load_eoi_exitmap(vcpu, eoi_exit_bitmap);
-> > > >  }
-> > > >  
-> > > > -void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
-> > > > -		unsigned long start, unsigned long end)
-> > > > +int kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
-> > > > +		unsigned long start, unsigned long end,
-> > > > +		bool blockable)
-> > > >  {
-> > > >  	unsigned long apic_address;
-> > > >  
-> > > > @@ -7215,6 +7216,8 @@ void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
-> > > >  	apic_address = gfn_to_hva(kvm, APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT);
-> > > >  	if (start <= apic_address && apic_address < end)
-> > > >  		kvm_make_all_cpus_request(kvm, KVM_REQ_APIC_PAGE_RELOAD);
-> > > > +
-> > > > +	return 0;
-> > > >  }
-> > > >  
-> > > >  void kvm_vcpu_reload_apic_access_page(struct kvm_vcpu *vcpu)
-> > > 
-> > > Auditing the first change in the patch, this is incorrect because 
-> > > kvm_make_all_cpus_request() for KVM_REQ_APIC_PAGE_RELOAD can block in 
-> > > kvm_kick_many_cpus() and that is after kvm_make_request() has been done.
-> > 
-> > I would have to check the code closer. But doesn't
-> > kvm_make_all_cpus_request call get_cpu which is preempt_disable? I
-> > definitely plan to talk to respective maintainers about these changes of
-> > course.
-> > 
+> But, it skips shmem vma. Doing so for shmem too, but not file-private
+> mapping, when merging vma in order to increase the odd to collapse
+> hugepage by khugepaged.
 > 
-> preempt_disable() is required because it calls kvm_kick_many_cpus() with 
-> wait == true because KVM_REQ_APIC_PAGE_RELOAD sets KVM_REQUEST_WAIT and 
-> thus the smp_call_function_many() is going to block until all cpus can run 
-> ack_flush().
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> ---
+> v1 --> 2:
+> * Exclude file-private mapping per Kirill's comment
+> 
+>  mm/khugepaged.c | 8 ++++++--
+>  1 file changed, 6 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> index d7b2a4b..9b0ec30 100644
+> --- a/mm/khugepaged.c
+> +++ b/mm/khugepaged.c
+> @@ -440,8 +440,12 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
+>  		 * page fault if needed.
+>  		 */
+>  		return 0;
+> -	if (vma->vm_ops || (vm_flags & VM_NO_KHUGEPAGED))
+> -		/* khugepaged not yet working on file or special mappings */
+> +	if ((vma->vm_ops && (!shmem_file(vma->vm_file) || vma->anon_vma)) ||
+> +	    (vm_flags & VM_NO_KHUGEPAGED))
+> +		/*
+> +		 * khugepaged not yet working on non-shmem file or special
+> +		 * mappings. And, file-private shmem THP is not supported.
+> +		 */
+>  		return 0;
 
-I will make sure to talk to the maintainer of the respective code to
-do the nonblock case correctly.
+My point was that vma->anon_vma check above this one should not prevent
+collapse for shmem.
+
+Looking into this more, I think we should just replace all these checks
+with hugepage_vma_check() call.
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
