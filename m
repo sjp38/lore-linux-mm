@@ -1,80 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A4206B026D
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 11:37:28 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id t14-v6so4600900wrr.23
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 08:37:28 -0700 (PDT)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
-        by mx.google.com with ESMTPS id u66-v6si1773825wma.231.2018.06.22.08.37.27
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C4A26B026F
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 11:40:03 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b5-v6so3398130pfi.5
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 08:40:03 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id o61-v6si7691947pld.109.2018.06.22.08.40.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Jun 2018 08:37:27 -0700 (PDT)
-Content-Type: text/plain; charset="utf-8"
+        Fri, 22 Jun 2018 08:40:00 -0700 (PDT)
+Date: Fri, 22 Jun 2018 18:39:50 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCHv3 09/17] x86/mm: Implement page_keyid() using page_ext
+Message-ID: <20180622153949.sjfdaeax6exfzxx2@black.fi.intel.com>
+References: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
+ <20180612143915.68065-10-kirill.shutemov@linux.intel.com>
+ <169af1d8-7fb6-5e1a-4f34-0150570018cc@intel.com>
+ <20180618100721.qvm4maovfhxbfoo7@black.fi.intel.com>
+ <7fab87eb-7b6d-6995-b6c6-46c0fd049d2a@intel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-From: Chris Wilson <chris@chris-wilson.co.uk>
-In-Reply-To: <20180622150242.16558-1-mhocko@kernel.org>
-References: <20180622150242.16558-1-mhocko@kernel.org>
-Message-ID: <152968180950.11773.3374981930722769733@mail.alporthouse.com>
-Subject: Re: [Intel-gfx] [RFC PATCH] mm,
- oom: distinguish blockable mode for mmu notifiers
-Date: Fri, 22 Jun 2018 16:36:49 +0100
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <7fab87eb-7b6d-6995-b6c6-46c0fd049d2a@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>
-Cc: "Michal Hocko  <mhocko@suse.com>, kvm@vger.kernel.org,  =?utf-8?b?IiBSYWRpbSBLcsSNbcOhxZk=?= <rkrcmar@redhat.com>,  David Airlie" <airlied@linux.ie>, Sudeep Dutt <sudeep.dutt@intel.com>, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Dimitri Sivanich <sivanich@sgi.com>, linux-rdma@vger.kernel.org, amd-gfx@lists.freedesktop.org, Jason Gunthorpe <jgg@ziepe.ca>, Doug Ledford <dledford@redhat.com>, David Rientjes <rientjes@google.com>, xen-devel@lists.xenproject.org, intel-gfx@lists.freedesktop.org, =?utf-8?b?IiBKw6lyw7RtZSBHbGlzc2U=?= <jglisse@redhat.com>, Rodrigo@kvack.org, Vivi@kvack.org, " <rodrigo.vivi@intel.com>,  "@kvack.org, Boris@kvack.org, Ostrovsky@kvack.org, " <boris.ostrovsky@oracle.com>,  "@kvack.org, Juergen@kvack.org, Gross@kvack.org, " <jgross@suse.com>,  "@kvack.org, Mike@kvack.org, Marciniszyn@kvack.org, " <mike.marciniszyn@intel.com>,  "@kvack.org, Dennis@kvack.org, Dalessandro@kvack.org, " <dennis.dalessandro@intel.com>,  "@kvack.org, Ashutosh@kvack.org, Dixit@kvack.org, " <ashutosh.dixit@intel.com>,  "@kvack.org, Alex@kvack.org, Deucher@kvack.org, " <alexander.deucher@amd.com>,  "@kvack.org, Paolo@kvack.org, Bonzini@kvack.org, " <pbonzini@redhat.com>,  =?utf-8?q?=22_Christian_K=C3=B6nig?= <christian.koenig@amd.com>"@kvack.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Quoting Michal Hocko (2018-06-22 16:02:42)
-> Hi,
-> this is an RFC and not tested at all. I am not very familiar with the
-> mmu notifiers semantics very much so this is a crude attempt to achieve
-> what I need basically. It might be completely wrong but I would like
-> to discuss what would be a better way if that is the case.
-> =
+On Mon, Jun 18, 2018 at 12:54:29PM +0000, Dave Hansen wrote:
+> On 06/18/2018 03:07 AM, Kirill A. Shutemov wrote:
+> > On Wed, Jun 13, 2018 at 06:20:10PM +0000, Dave Hansen wrote:
+> >>> +int page_keyid(const struct page *page)
+> >>> +{
+> >>> +	if (mktme_status != MKTME_ENABLED)
+> >>> +		return 0;
+> >>> +
+> >>> +	return lookup_page_ext(page)->keyid;
+> >>> +}
+> >>> +EXPORT_SYMBOL(page_keyid);
+> >> Please start using a proper X86_FEATURE_* flag for this.  It will give
+> >> you all the fancy static patching that you are missing by doing it this way.
+> > There's no MKTME CPU feature.
+> 
+> Right.  We have tons of synthetic features that have no basis in the
+> hardware CPUID feature.
 
-> get_maintainers gave me quite large list of people to CC so I had to trim
-> it down. If you think I have forgot somebody, please let me know
+I've tried the approach, but it doesn't fit here.
 
-> diff --git a/drivers/gpu/drm/i915/i915_gem_userptr.c b/drivers/gpu/drm/i9=
-15/i915_gem_userptr.c
-> index 854bd51b9478..5285df9331fa 100644
-> --- a/drivers/gpu/drm/i915/i915_gem_userptr.c
-> +++ b/drivers/gpu/drm/i915/i915_gem_userptr.c
-> @@ -112,10 +112,11 @@ static void del_object(struct i915_mmu_object *mo)
->         mo->attached =3D false;
->  }
->  =
+We enable MKTME relatively late during boot process -- after page_ext as
+page_keyid() depends on it. Enabling it earlier would make page_keyid()
+return garbage.
 
-> -static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifi=
-er *_mn,
-> +static int i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifie=
-r *_mn,
->                                                        struct mm_struct *=
-mm,
->                                                        unsigned long star=
-t,
-> -                                                      unsigned long end)
-> +                                                      unsigned long end,
-> +                                                      bool blockable)
->  {
->         struct i915_mmu_notifier *mn =3D
->                 container_of(_mn, struct i915_mmu_notifier, mn);
-> @@ -124,7 +125,7 @@ static void i915_gem_userptr_mn_invalidate_range_star=
-t(struct mmu_notifier *_mn,
->         LIST_HEAD(cancelled);
->  =
+By the time page_ext initialized, CPU features is already handled and
+setup_force_cpu_cap() doesn't do anything.
 
->         if (RB_EMPTY_ROOT(&mn->objects.rb_root))
-> -               return;
-> +               return 0;
+I've implemented the enabling with static key instead.
 
-The principle wait here is for the HW (even after fixing all the locks
-to be not so coarse, we still have to wait for the HW to finish its
-access). The first pass would be then to not do anything here if
-!blockable.
-
-Jerome keeps on shaking his head and telling us we're doing it all
-wrong, so maybe it'll all fall out of HMM before we have to figure out
-how to differentiate between objects that can be invalidated immediately
-and those that need to acquire locks and/or wait.
--Chris
+-- 
+ Kirill A. Shutemov
