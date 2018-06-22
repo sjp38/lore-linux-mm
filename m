@@ -1,79 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EB2456B0003
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 17:06:02 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id p9-v6so5075444wrm.22
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 14:06:02 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c10-v6sor4351296wri.22.2018.06.22.14.06.01
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 28C866B0006
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 17:16:35 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id q8-v6so1559065wmc.2
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 14:16:35 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id i3-v6si7820229wro.408.2018.06.22.14.16.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Jun 2018 14:06:01 -0700 (PDT)
-From: Mathieu Malaterre <malat@debian.org>
-Subject: [PATCH] mm/memblock: add missing include <linux/bootmem.h> and #ifdef
-Date: Fri, 22 Jun 2018 23:05:41 +0200
-Message-Id: <20180622210542.2025-1-malat@debian.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Jun 2018 14:16:33 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5MLDxpM050814
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 17:16:31 -0400
+Received: from e31.co.us.ibm.com (e31.co.us.ibm.com [32.97.110.149])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2js4ef9ac5-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 17:16:31 -0400
+Received: from localhost
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Fri, 22 Jun 2018 15:16:31 -0600
+Date: Fri, 22 Jun 2018 16:16:23 -0500
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 0/4] Small cleanup for memoryhotplug
+References: <20180622111839.10071-1-osalvador@techadventures.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <20180622111839.10071-1-osalvador@techadventures.net>
+Message-Id: <20180622211622.hwkcrlexjo5ygxns@arbab-laptop.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tony Luck <tony.luck@intel.com>, Mathieu Malaterre <malat@debian.org>, Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Vacek <neelx@redhat.com>, Stefan Agner <stefan@agner.ch>, Joe Perches <joe@perches.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: osalvador@techadventures.net
+Cc: akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, Jonathan.Cameron@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
-Commit 26f09e9b3a06 ("mm/memblock: add memblock memory allocation apis")
-introduced two new function definitions:
+On Thu, Jun 21, 2018 at 10:32:58AM +0200, Michal Hocko wrote:
+>[Cc Reza Arbab - I remember he was able to hit some bugs in memblock
+>registration code when I was reworking that area previously]
 
-  memblock_virt_alloc_try_nid_nopanic()
-  memblock_virt_alloc_try_nid()
+Thanks for the heads-up!
 
-Commit ea1f5f3712af ("mm: define memblock_virt_alloc_try_nid_raw")
-introduced the following function definition:
+I have verified that this patchset doesn't seem to cause any regression 
+in the kooky memoryless node use case I was testing.
 
-  memblock_virt_alloc_try_nid_raw()
-
-This commit adds an include of header file <linux/bootmem.h> to provide
-the missing function prototypes. Silence the following gcc warning
-(W=1):
-
-  mm/memblock.c:1334:15: warning: no previous prototype for `memblock_virt_alloc_try_nid_raw' [-Wmissing-prototypes]
-  mm/memblock.c:1371:15: warning: no previous prototype for `memblock_virt_alloc_try_nid_nopanic' [-Wmissing-prototypes]
-  mm/memblock.c:1407:15: warning: no previous prototype for `memblock_virt_alloc_try_nid' [-Wmissing-prototypes]
-
-As seen in commit 6cc22dc08a24 ("revert "mm/memblock: add missing include
-<linux/bootmem.h>"") #ifdef blockers were missing which lead to compilation
-failure on mips/ia64 where CONFIG_NO_BOOTMEM=n.
-
-Suggested-by: Tony Luck <tony.luck@intel.com>
-Signed-off-by: Mathieu Malaterre <malat@debian.org>
----
- mm/memblock.c | 3 +++
- 1 file changed, 3 insertions(+)
-
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 4c98672bc3e2..f4b6766d7907 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -20,6 +20,7 @@
- #include <linux/kmemleak.h>
- #include <linux/seq_file.h>
- #include <linux/memblock.h>
-+#include <linux/bootmem.h>
- 
- #include <asm/sections.h>
- #include <linux/io.h>
-@@ -1226,6 +1227,7 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
- 	return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
- }
- 
-+#if defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM)
- /**
-  * memblock_virt_alloc_internal - allocate boot memory block
-  * @size: size of memory block to be allocated in bytes
-@@ -1433,6 +1435,7 @@ void * __init memblock_virt_alloc_try_nid(
- 	      (u64)max_addr);
- 	return NULL;
- }
-+#endif
- 
- /**
-  * __memblock_free_early - free boot memory block
 -- 
-2.11.0
+Reza Arbab
