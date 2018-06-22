@@ -1,87 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4456A6B0003
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 17:39:04 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j25-v6so3760905pfi.20
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 14:39:04 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id n1-v6si6656484pge.263.2018.06.22.14.39.02
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9808F6B0003
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 18:10:42 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id x2-v6so4338162plv.0
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 15:10:42 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m8-v6sor2839319plt.136.2018.06.22.15.10.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Jun 2018 14:39:03 -0700 (PDT)
-Date: Fri, 22 Jun 2018 14:39:00 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/3] mm: use irq locking suffix instead
- local_irq_disable()
-Message-Id: <20180622143900.802fbfa2236d8f5bba965e2e@linux-foundation.org>
-In-Reply-To: <20180622151221.28167-1-bigeasy@linutronix.de>
-References: <20180622151221.28167-1-bigeasy@linutronix.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Fri, 22 Jun 2018 15:10:41 -0700 (PDT)
+Date: Sat, 23 Jun 2018 01:10:36 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [v3 PATCH] mm: thp: register mm for khugepaged when merging vma
+ for shmem
+Message-ID: <20180622221036.va5vmdcnxny3fhxu@kshutemo-mobl1>
+References: <1529697791-6950-1-git-send-email-yang.shi@linux.alibaba.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1529697791-6950-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: linux-mm@kvack.org, tglx@linutronix.de, Kirill Tkhai <ktkhai@virtuozzo.com>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: hughd@google.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 22 Jun 2018 17:12:18 +0200 Sebastian Andrzej Siewior <bigeasy@linutronix.de> wrote:
+On Sat, Jun 23, 2018 at 04:03:11AM +0800, Yang Shi wrote:
+> When merging anonymous page vma, if the size of vma can fit in at least
+> one hugepage, the mm will be registered for khugepaged for collapsing
+> THP in the future.
+> 
+> But, it skips shmem vma. Doing so for shmem too, but not file-private
+> mapping, when merging vma in order to increase the odd to collapse
+> hugepage by khugepaged.
+> 
+> hugepage_vma_check() sounds like a good fit to do the check. And, moved
+> the definition of it before khugepaged_enter_vma_merge() to suppress
+> build error.
+> 
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-> small series which avoids using local_irq_disable()/local_irq_enable()
-> but instead does spin_lock_irq()/spin_unlock_irq() so it is within the
-> context of the lock which it belongs to.
-> Patch #1 is a cleanup where local_irq_.*() remained after the lock was
-> removed.
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-Looks OK.
-
-And we may as well do this...
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm/list_lru.c: fold __list_lru_count_one() into its caller
-
-__list_lru_count_one() has a single callsite.
-
-Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- mm/list_lru.c |   12 +++---------
- 1 file changed, 3 insertions(+), 9 deletions(-)
-
-diff -puN mm/list_lru.c~mm-list_lruc-fold-__list_lru_count_one-into-its-caller mm/list_lru.c
---- a/mm/list_lru.c~mm-list_lruc-fold-__list_lru_count_one-into-its-caller
-+++ a/mm/list_lru.c
-@@ -162,26 +162,20 @@ void list_lru_isolate_move(struct list_l
- }
- EXPORT_SYMBOL_GPL(list_lru_isolate_move);
- 
--static unsigned long __list_lru_count_one(struct list_lru *lru,
--					  int nid, int memcg_idx)
-+unsigned long list_lru_count_one(struct list_lru *lru,
-+				 int nid, struct mem_cgroup *memcg)
- {
- 	struct list_lru_node *nlru = &lru->node[nid];
- 	struct list_lru_one *l;
- 	unsigned long count;
- 
- 	rcu_read_lock();
--	l = list_lru_from_memcg_idx(nlru, memcg_idx);
-+	l = list_lru_from_memcg_idx(nlru, memcg_cache_id(memcg));
- 	count = l->nr_items;
- 	rcu_read_unlock();
- 
- 	return count;
- }
--
--unsigned long list_lru_count_one(struct list_lru *lru,
--				 int nid, struct mem_cgroup *memcg)
--{
--	return __list_lru_count_one(lru, nid, memcg_cache_id(memcg));
--}
- EXPORT_SYMBOL_GPL(list_lru_count_one);
- 
- unsigned long list_lru_count_node(struct list_lru *lru, int nid)
-_
+-- 
+ Kirill A. Shutemov
