@@ -1,88 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 402686B026E
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 12:19:14 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id p16-v6so3419746pfn.7
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 09:19:14 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id b10-v6si6461025pga.51.2018.06.22.09.19.12
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CF746B0006
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 12:28:50 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id j8-v6so4645908wrh.18
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 09:28:50 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z12-v6sor4097331wrn.56.2018.06.22.09.28.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Jun 2018 09:19:13 -0700 (PDT)
-Date: Fri, 22 Jun 2018 19:19:12 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [v2 PATCH 1/2] mm: thp: register mm for khugepaged when merging
- vma for shmem
-Message-ID: <20180622161912.sq32cnhfxo5ctgdp@black.fi.intel.com>
-References: <1529622949-75504-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180622075958.mzagr2ayufiuokea@black.fi.intel.com>
- <cce4aa50-f8b7-8626-31ae-12464a30f884@linux.alibaba.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cce4aa50-f8b7-8626-31ae-12464a30f884@linux.alibaba.com>
+        (Google Transport Security);
+        Fri, 22 Jun 2018 09:28:48 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] mm: drop VM_BUG_ON from __get_free_pages
+Date: Fri, 22 Jun 2018 18:28:41 +0200
+Message-Id: <20180622162841.25114-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yang.shi@linux.alibaba.com
-Cc: hughd@google.com, vbabka@suse.cz, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: JianKang Chen <chenjiankang1@huawei.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com, Michal Hocko <mhocko@suse.com>
 
-On Fri, Jun 22, 2018 at 04:04:12PM +0000, yang.shi@linux.alibaba.com wrote:
-> 
-> 
-> On 6/22/18 12:59 AM, Kirill A. Shutemov wrote:
-> > On Thu, Jun 21, 2018 at 11:15:48PM +0000, yang.shi@linux.alibaba.com wrote:
-> > > When merging anonymous page vma, if the size of vma can fit in at least
-> > > one hugepage, the mm will be registered for khugepaged for collapsing
-> > > THP in the future.
-> > > 
-> > > But, it skips shmem vma. Doing so for shmem too, but not file-private
-> > > mapping, when merging vma in order to increase the odd to collapse
-> > > hugepage by khugepaged.
-> > > 
-> > > Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> > > Cc: Hugh Dickins <hughd@google.com>
-> > > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > > Cc: Vlastimil Babka <vbabka@suse.cz>
-> > > ---
-> > > v1 --> 2:
-> > > * Exclude file-private mapping per Kirill's comment
-> > > 
-> > >   mm/khugepaged.c | 8 ++++++--
-> > >   1 file changed, 6 insertions(+), 2 deletions(-)
-> > > 
-> > > diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-> > > index d7b2a4b..9b0ec30 100644
-> > > --- a/mm/khugepaged.c
-> > > +++ b/mm/khugepaged.c
-> > > @@ -440,8 +440,12 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
-> > >   		 * page fault if needed.
-> > >   		 */
-> > >   		return 0;
-> > > -	if (vma->vm_ops || (vm_flags & VM_NO_KHUGEPAGED))
-> > > -		/* khugepaged not yet working on file or special mappings */
-> > > +	if ((vma->vm_ops && (!shmem_file(vma->vm_file) || vma->anon_vma)) ||
-> > > +	    (vm_flags & VM_NO_KHUGEPAGED))
-> > > +		/*
-> > > +		 * khugepaged not yet working on non-shmem file or special
-> > > +		 * mappings. And, file-private shmem THP is not supported.
-> > > +		 */
-> > >   		return 0;
-> > My point was that vma->anon_vma check above this one should not prevent
-> > collapse for shmem.
-> > 
-> > Looking into this more, I think we should just replace all these checks
-> > with hugepage_vma_check() call.
-> 
-> I got a little bit confused here. I thought the condition to *not* collapse
-> file-private shmem mapping should be:
-> 
-> shmem_file(vma->vm_file) && vma->anon_vma
-> 
-> Is this right?
+From: Michal Hocko <mhocko@suse.com>
 
-No, if shmem_file(vma->vm_file) is true, vma->anon_vma doesn't matter.
-We don't care about anon_vma in such VMA as we don't touch file-private
-pages.
+There is no real reason to blow up just because the caller doesn't know
+that __get_free_pages cannot return highmem pages. Simply fix that up
+silently. Even if we have some confused users such a fixup will not be
+harmful.
 
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+Hi Andrew,
+previously posted [1] but it fell through cracks. Can we merge it now?
+
+[1] http://lkml.kernel.org/r/20171129160446.jluzpv3n6mjc3fwv@dhcp22.suse.cz
+
+ mm/page_alloc.c | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1521100f1e63..5f56f662a52d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4402,18 +4402,14 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
+ EXPORT_SYMBOL(__alloc_pages_nodemask);
+ 
+ /*
+- * Common helper functions.
++ * Common helper functions. Never use with __GFP_HIGHMEM because the returned
++ * address cannot represent highmem pages. Use alloc_pages and then kmap if
++ * you need to access high mem.
+  */
+ unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order)
+ {
+ 	struct page *page;
+ 
+-	/*
+-	 * __get_free_pages() returns a virtual address, which cannot represent
+-	 * a highmem page
+-	 */
+-	VM_BUG_ON((gfp_mask & __GFP_HIGHMEM) != 0);
+-
+ 	page = alloc_pages(gfp_mask, order);
+ 	if (!page)
+ 		return 0;
 -- 
- Kirill A. Shutemov
+2.17.1
