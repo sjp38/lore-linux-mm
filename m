@@ -1,120 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E650D6B0003
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 04:39:54 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id n2-v6so326300edr.5
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 01:39:54 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 1E6A66B0006
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 04:50:39 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id m18-v6so281781eds.0
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 01:50:39 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r19-v6si3634362eda.307.2018.06.22.01.39.51
+        by mx.google.com with ESMTPS id i43-v6si3628087ede.243.2018.06.22.01.50.37
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 22 Jun 2018 01:39:52 -0700 (PDT)
-Date: Fri, 22 Jun 2018 10:39:49 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v9] Refactor part of the oom report in dump_header
-Message-ID: <20180622083949.GR10465@dhcp22.suse.cz>
-References: <1529056341-16182-1-git-send-email-ufo19890607@gmail.com>
+        Fri, 22 Jun 2018 01:50:38 -0700 (PDT)
+Date: Fri, 22 Jun 2018 10:50:35 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [BUG] mm: backing-dev: a possible sleep-in-atomic-context bug in
+ cgwb_create()
+Message-ID: <20180622085035.2zn2voqgqxcx55f3@quack2.suse.cz>
+References: <626acba3-c565-7e05-6c8b-0d100ff645c5@gmail.com>
+ <20180621033515.GA12608@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1529056341-16182-1-git-send-email-ufo19890607@gmail.com>
+In-Reply-To: <20180621033515.GA12608@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ufo19890607@gmail.com
-Cc: akpm@linux-foundation.org, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yuzhoujian@didichuxing.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Jia-Ju Bai <baijiaju1990@gmail.com>, axboe@kernel.dk, akpm@linux-foundation.or, jack@suse.cz, zhangweiping@didichuxing.com, sergey.senozhatsky@gmail.com, andriy.shevchenko@linux.intel.com, christophe.jaillet@wanadoo.fr, aryabinin@virtuozzo.com, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Fri 15-06-18 17:52:21, ufo19890607@gmail.com wrote:
-> From: yuzhoujian <yuzhoujian@didichuxing.com>
+On Wed 20-06-18 20:35:15, Matthew Wilcox wrote:
+> On Thu, Jun 21, 2018 at 11:02:58AM +0800, Jia-Ju Bai wrote:
+> > The kernel may sleep with holding a spinlock.
+> > The function call path (from bottom to top) in Linux-4.16.7 is:
+> > 
+> > [FUNC] schedule
+> > lib/percpu-refcount.c, 222:
+> >         schedule in __percpu_ref_switch_mode
+> > lib/percpu-refcount.c, 339:
+> >         __percpu_ref_switch_mode in percpu_ref_kill_and_confirm
+> > ./include/linux/percpu-refcount.h, 127:
+> >         percpu_ref_kill_and_confirm in percpu_ref_kill
+> > mm/backing-dev.c, 545:
+> >         percpu_ref_kill in cgwb_kill
+> > mm/backing-dev.c, 576:
+> >         cgwb_kill in cgwb_create
+> > mm/backing-dev.c, 573:
+> >         _raw_spin_lock_irqsave in cgwb_create
+> > 
+> > This bug is found by my static analysis tool (DSAC-2) and checked by my
+> > code review.
 > 
-> Some users complains that system-wide oom report does not print memcg's
-> name which contains the task killed by the oom-killer. The current system
-> wide oom report prints the task's command, gfp_mask, order ,oom_score_adj
-> and shows the memory info, but misses some important information, etc. the
-> memcg that has reached its limit and the memcg to which the killed process
-> is attached.
-
-We do not print the memcg which reached the limit in the global context
-because that is irrelevant completely. I do agree that memcg of the
-oom victim might be interesting and the changelog should explain why.
-
-So what about the following wording instead:
-"
-The current system wide oom report prints information about the victim
-and the allocation context and restrictions. It, however, doesn't
-provide any information about memory cgroup the victim belongs to. This
-information can be interesting for container users because they can find
-the victim's container much more easily.
-"
- 
-> I follow the advices of David Rientjes and Michal Hocko, and refactor
-> part of the oom report. After this patch, users can get the memcg's
-> path from the oom report and check the certain container more quickly.
+> I disagree with your code review.
 > 
-> The oom print info after this patch:
-> oom-kill:constraint=<constraint>,nodemask=<nodemask>,origin_memcg=<memcg>,kill_memcg=<memcg>,task=<commm>,pid=<pid>,uid=<uid>
-[...]
-> diff --git a/include/linux/oom.h b/include/linux/oom.h
-> index 6adac113e96d..5bed78d4bfb8 100644
-> --- a/include/linux/oom.h
-> +++ b/include/linux/oom.h
-> @@ -15,6 +15,20 @@ struct notifier_block;
->  struct mem_cgroup;
->  struct task_struct;
->  
-> +enum oom_constraint {
-> +	CONSTRAINT_NONE,
-> +	CONSTRAINT_CPUSET,
-> +	CONSTRAINT_MEMORY_POLICY,
-> +	CONSTRAINT_MEMCG,
-> +};
-> +
-> +static const char * const oom_constraint_text[] = {
-> +	[CONSTRAINT_NONE] = "CONSTRAINT_NONE",
-> +	[CONSTRAINT_CPUSET] = "CONSTRAINT_CPUSET",
-> +	[CONSTRAINT_MEMORY_POLICY] = "CONSTRAINT_MEMORY_POLICY",
-> +	[CONSTRAINT_MEMCG] = "CONSTRAINT_MEMCG",
-> +};
+>          * If the previous ATOMIC switching hasn't finished yet, wait for
+>          * its completion.  If the caller ensures that ATOMIC switching
+>          * isn't in progress, this function can be called from any context.
+> 
+> I believe cgwb_kill is always called under the spinlock, so we will never
+> sleep because the percpu ref will never be switching to atomic mode.
 
-I've suggested that this should be a separate patch.
+You are right that the sleep under spinlock never happens. And the reason
+is that percpu_ref_kill() never results in blocking - it does call
+percpu_ref_kill_and_confirm() but the 'confirm' argument is NULL and thus
+even percpu_ref_kill_and_confirm() never blocks.
 
-[...]
-> -void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
-> +void mem_cgroup_print_oom_context(struct mem_cgroup *memcg, struct task_struct *p,
-> +		enum oom_constraint constraint, nodemask_t *nodemask)
->  {
-> -	struct mem_cgroup *iter;
-> -	unsigned int i;
-> +	struct cgroup *origin_cgrp, *kill_cgrp;
->  
->  	rcu_read_lock();
->  
-> +	pr_info("oom-kill:constraint=%s,nodemask=%*pbl,origin_memcg=",
-> +	    oom_constraint_text[constraint], nodemask_pr_args(nodemask));
-> +
-> +	if (memcg)
-> +		pr_cont_cgroup_path(memcg->css.cgroup);
-> +	else
-> +		pr_cont("(null)");
-
-I do not like this. What does origin_memcg=(null) tell you? You really
-have to know the code to see this is a global oom killer actually.
-Furthermore I would expect that origin_memcg is tasks' origin memcg
-rather than oom's origin. So I think you want the following instead
-
-
-	pr_info("oom-kill:constraint=%s,nodemask=%*pbl",
-		oom_constraint_text[constraint], nodemask_pr_args(nodemask));
-	if (memcg) {
-		pr_cont(", oom_memcg=");
-		pr_cont_cgroup_path(memcg->css.cgroup);
-	}
-	
-	if (p) {
-		pr_cont(", task_memcg=");
-  		pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
-		pr_cont(", task=%s, pid=%5d, uid=%5d", p->comm, p->pid, from_kuid(&init_user_ns, task_uid(p)));
-	}
-  	pr_cont("\n");
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
