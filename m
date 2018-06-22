@@ -1,68 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 62FE26B000A
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 02:13:51 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id d207-v6so3113334oig.7
-        for <linux-mm@kvack.org>; Thu, 21 Jun 2018 23:13:51 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f51-v6sor2667352otc.99.2018.06.21.23.13.50
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A0576B000D
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 02:33:15 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id d11-v6so1638862lfb.19
+        for <linux-mm@kvack.org>; Thu, 21 Jun 2018 23:33:14 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id j141-v6sor1597307lfg.29.2018.06.21.23.33.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 21 Jun 2018 23:13:50 -0700 (PDT)
+        Thu, 21 Jun 2018 23:33:13 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4hpdvGRi+=psT47ePB6QigJW2JEq-zhbVXsTHb14pWfUQ@mail.gmail.com>
-References: <1529647683-14531-1-git-send-email-n-horiguchi@ah.jp.nec.com> <CAPcyv4hpdvGRi+=psT47ePB6QigJW2JEq-zhbVXsTHb14pWfUQ@mail.gmail.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 21 Jun 2018 23:13:49 -0700
-Message-ID: <CAPcyv4ism+Sy7=h982R3b3ftpp0jzT04-uvSrgwz=7ad6tZ1fQ@mail.gmail.com>
-Subject: Re: [PATCH v1] mm: initialize struct page for reserved pages in ZONE_DEVICE
-Content-Type: text/plain; charset="UTF-8"
+References: <1529056341-16182-1-git-send-email-ufo19890607@gmail.com>
+In-Reply-To: <1529056341-16182-1-git-send-email-ufo19890607@gmail.com>
+From: =?UTF-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>
+Date: Fri, 22 Jun 2018 14:33:01 +0800
+Message-ID: <CAHCio2jG6xVo280TW=a+bd4+o_F2Hers_VwysxescKwEVTjtMQ@mail.gmail.com>
+Subject: Re: [PATCH v9] Refactor part of the oom report in dump_header
+Content-Type: multipart/alternative; boundary="000000000000c30c78056f353442"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@intel.com>
+To: akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
 
-On Thu, Jun 21, 2018 at 11:12 PM, Dan Williams <dan.j.williams@intel.com> wrote:
-> On Thu, Jun 21, 2018 at 11:08 PM, Naoya Horiguchi
-> <n-horiguchi@ah.jp.nec.com> wrote:
->> Reading /proc/kpageflags for pfns allocated by pmem namespace triggers
->> kernel panic with a message like "BUG: unable to handle kernel paging
->> request at fffffffffffffffe".
->>
->> The first few pages (controlled by altmap passed to memmap_init_zone())
->> in the ZONE_DEVICE can skip struct page initialization, which causes
->> the reported issue.
->>
->> This patch simply adds some initialization code for them.
->>
->> Fixes: 4b94ffdc4163 ("x86, mm: introduce vmem_altmap to augment vmemmap_populate()")
->> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->> ---
->>  mm/page_alloc.c | 10 +++++++++-
->>  1 file changed, 9 insertions(+), 1 deletion(-)
->>
->> diff --git v4.17-mmotm-2018-06-07-16-59/mm/page_alloc.c v4.17-mmotm-2018-06-07-16-59_patched/mm/page_alloc.c
->> index 1772513..0b36afe 100644
->> --- v4.17-mmotm-2018-06-07-16-59/mm/page_alloc.c
->> +++ v4.17-mmotm-2018-06-07-16-59_patched/mm/page_alloc.c
->> @@ -5574,8 +5574,16 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->>          * Honor reservation requested by the driver for this ZONE_DEVICE
->>          * memory
->>          */
->> -       if (altmap && start_pfn == altmap->base_pfn)
->> +       if (altmap && start_pfn == altmap->base_pfn) {
->> +               unsigned long i;
->> +
->> +               for (i = 0; i < altmap->reserve; i++) {
->> +                       page = pfn_to_page(start_pfn + i);
->> +                       __init_single_page(page, start_pfn + i, zone, nid);
->> +                       SetPageReserved(page);
->> +               }
->>                 start_pfn += altmap->reserve;
->> +       }
->
-> No, unfortunately this will clobber metadata that lives in that
-> reserved area, see __nvdimm_setup_pfn().
+--000000000000c30c78056f353442
+Content-Type: text/plain; charset="UTF-8"
 
-I think the kpageflags code needs to lookup the dev_pagemap in the
-ZONE_DEVICE case and honor the altmap.
+PING
+
+--000000000000c30c78056f353442
+Content-Type: text/html; charset="UTF-8"
+
+<div dir="ltr">PING<br></div>
+
+--000000000000c30c78056f353442--
