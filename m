@@ -1,67 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E6A66B0006
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 04:50:39 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id m18-v6so281781eds.0
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 01:50:39 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i43-v6si3628087ede.243.2018.06.22.01.50.37
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 730E56B000A
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 05:01:39 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id n20-v6so853157pgv.14
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 02:01:39 -0700 (PDT)
+Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id x1-v6si5813058pgb.635.2018.06.22.02.01.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 22 Jun 2018 01:50:38 -0700 (PDT)
-Date: Fri, 22 Jun 2018 10:50:35 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [BUG] mm: backing-dev: a possible sleep-in-atomic-context bug in
- cgwb_create()
-Message-ID: <20180622085035.2zn2voqgqxcx55f3@quack2.suse.cz>
-References: <626acba3-c565-7e05-6c8b-0d100ff645c5@gmail.com>
- <20180621033515.GA12608@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Jun 2018 02:01:37 -0700 (PDT)
+Subject: Re: [PATCH 1/2] arm64: avoid alloc memory on offline node
+References: <20180611145330.GO13364@dhcp22.suse.cz>
+ <87lgbk59gs.fsf@e105922-lin.cambridge.arm.com>
+ <87bmce60y3.fsf@e105922-lin.cambridge.arm.com>
+ <8b715082-14d4-f10b-d2d6-b23be7e4bf7e@huawei.com>
+ <20180619120714.GE13685@dhcp22.suse.cz>
+ <874lhz3pmn.fsf@e105922-lin.cambridge.arm.com>
+ <20180619140818.GA16927@e107981-ln.cambridge.arm.com>
+ <87wouu3jz1.fsf@e105922-lin.cambridge.arm.com>
+ <20180619151425.GH13685@dhcp22.suse.cz>
+ <87r2l23i2b.fsf@e105922-lin.cambridge.arm.com>
+ <20180619163256.GA18952@e107981-ln.cambridge.arm.com>
+ <814205eb-ae86-a519-bed0-f09b8e2d3a02@huawei.com>
+ <87602d3ccl.fsf@e105922-lin.cambridge.arm.com>
+From: Hanjun Guo <guohanjun@huawei.com>
+Message-ID: <5c083c9c-473f-f504-848b-48506d0fd380@huawei.com>
+Date: Fri, 22 Jun 2018 16:58:05 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180621033515.GA12608@bombadil.infradead.org>
+In-Reply-To: <87602d3ccl.fsf@e105922-lin.cambridge.arm.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Jia-Ju Bai <baijiaju1990@gmail.com>, axboe@kernel.dk, akpm@linux-foundation.or, jack@suse.cz, zhangweiping@didichuxing.com, sergey.senozhatsky@gmail.com, andriy.shevchenko@linux.intel.com, christophe.jaillet@wanadoo.fr, aryabinin@virtuozzo.com, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Punit Agrawal <punit.agrawal@arm.com>, Xie XiuQi <xiexiuqi@huawei.com>
+Cc: Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Michal Hocko <mhocko@kernel.org>, Bjorn Helgaas <helgaas@kernel.org>, tnowicki@caviumnetworks.com, linux-pci@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Will Deacon <will.deacon@arm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>, linux-mm@kvack.org, wanghuiqiang@huawei.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Bjorn Helgaas <bhelgaas@google.com>, Andrew Morton <akpm@linux-foundation.org>, zhongjiang <zhongjiang@huawei.com>, linux-arm <linux-arm-kernel@lists.infradead.org>
 
-On Wed 20-06-18 20:35:15, Matthew Wilcox wrote:
-> On Thu, Jun 21, 2018 at 11:02:58AM +0800, Jia-Ju Bai wrote:
-> > The kernel may sleep with holding a spinlock.
-> > The function call path (from bottom to top) in Linux-4.16.7 is:
-> > 
-> > [FUNC] schedule
-> > lib/percpu-refcount.c, 222:
-> >         schedule in __percpu_ref_switch_mode
-> > lib/percpu-refcount.c, 339:
-> >         __percpu_ref_switch_mode in percpu_ref_kill_and_confirm
-> > ./include/linux/percpu-refcount.h, 127:
-> >         percpu_ref_kill_and_confirm in percpu_ref_kill
-> > mm/backing-dev.c, 545:
-> >         percpu_ref_kill in cgwb_kill
-> > mm/backing-dev.c, 576:
-> >         cgwb_kill in cgwb_create
-> > mm/backing-dev.c, 573:
-> >         _raw_spin_lock_irqsave in cgwb_create
-> > 
-> > This bug is found by my static analysis tool (DSAC-2) and checked by my
-> > code review.
+On 2018/6/20 19:51, Punit Agrawal wrote:
+> Xie XiuQi <xiexiuqi@huawei.com> writes:
 > 
-> I disagree with your code review.
+>> Hi Lorenzo, Punit,
+>>
+>>
+>> On 2018/6/20 0:32, Lorenzo Pieralisi wrote:
+>>> On Tue, Jun 19, 2018 at 04:35:40PM +0100, Punit Agrawal wrote:
+>>>> Michal Hocko <mhocko@kernel.org> writes:
+>>>>
+>>>>> On Tue 19-06-18 15:54:26, Punit Agrawal wrote:
+>>>>> [...]
+>>>>>> In terms of $SUBJECT, I wonder if it's worth taking the original patch
+>>>>>> as a temporary fix (it'll also be easier to backport) while we work on
+>>>>>> fixing these other issues and enabling memoryless nodes.
+>>>>>
+>>>>> Well, x86 already does that but copying this antipatern is not really
+>>>>> nice. So it is good as a quick fix but it would be definitely much
+>>>>> better to have a robust fix. Who knows how many other places might hit
+>>>>> this. You certainly do not want to add a hack like this all over...
+>>>>
+>>>> Completely agree! I was only suggesting it as a temporary measure,
+>>>> especially as it looked like a proper fix might be invasive.
+>>>>
+>>>> Another fix might be to change the node specific allocation to node
+>>>> agnostic allocations. It isn't clear why the allocation is being
+>>>> requested from a specific node. I think Lorenzo suggested this in one of
+>>>> the threads.
+>>>
+>>> I think that code was just copypasted but it is better to fix the
+>>> underlying issue.
+>>>
+>>>> I've started putting together a set fixing the issues identified in this
+>>>> thread. It should give a better idea on the best course of action.
+>>>
+>>> On ACPI ARM64, this diff should do if I read the code correctly, it
+>>> should be (famous last words) just a matter of mapping PXMs to nodes for
+>>> every SRAT GICC entry, feel free to pick it up if it works.
+>>>
+>>> Yes, we can take the original patch just because it is safer for an -rc
+>>> cycle even though if the patch below would do delaying the fix for a
+>>> couple of -rc (to get it tested across ACPI ARM64 NUMA platforms) is
+>>> not a disaster.
+>>
+>> I tested this patch on my arm board, it works.
 > 
->          * If the previous ATOMIC switching hasn't finished yet, wait for
->          * its completion.  If the caller ensures that ATOMIC switching
->          * isn't in progress, this function can be called from any context.
+> I am assuming you tried the patch without enabling support for
+> memory-less nodes.
 > 
-> I believe cgwb_kill is always called under the spinlock, so we will never
-> sleep because the percpu ref will never be switching to atomic mode.
+> The patch de-couples the onlining of numa nodes (as parsed from SRAT)
+> from NR_CPUS restriction. When it comes to building zonelists, the node
+> referenced by the PCI controller also has zonelists initialised.
+> 
+> So it looks like a fallback node is setup even if we don't have
+> memory-less nodes enabled. I need to stare some more at the code to see
+> why we need memory-less nodes at all then ...
 
-You are right that the sleep under spinlock never happens. And the reason
-is that percpu_ref_kill() never results in blocking - it does call
-percpu_ref_kill_and_confirm() but the 'confirm' argument is NULL and thus
-even percpu_ref_kill_and_confirm() never blocks.
+Yes, please. From my limited MM knowledge, zonelists should not be
+initialised if no CPU and no memory on this node, correct me if I'm
+wrong.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Thanks
+Hanjun
