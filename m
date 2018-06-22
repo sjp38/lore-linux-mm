@@ -1,84 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 502496B0003
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 05:43:08 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id w1-v6so3415963plq.8
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 02:43:08 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f70-v6sor1756143pgc.8.2018.06.22.02.43.04
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Jun 2018 02:43:05 -0700 (PDT)
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F32ED6B0003
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 06:24:42 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id p41-v6so3562442oth.5
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 03:24:42 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id x11-v6si2310162otg.173.2018.06.22.03.24.40
+        for <linux-mm@kvack.org>;
+        Fri, 22 Jun 2018 03:24:40 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH 1/2] arm64: avoid alloc memory on offline node
+References: <20180619120714.GE13685@dhcp22.suse.cz>
+	<874lhz3pmn.fsf@e105922-lin.cambridge.arm.com>
+	<20180619140818.GA16927@e107981-ln.cambridge.arm.com>
+	<87wouu3jz1.fsf@e105922-lin.cambridge.arm.com>
+	<20180619151425.GH13685@dhcp22.suse.cz>
+	<87r2l23i2b.fsf@e105922-lin.cambridge.arm.com>
+	<20180619163256.GA18952@e107981-ln.cambridge.arm.com>
+	<814205eb-ae86-a519-bed0-f09b8e2d3a02@huawei.com>
+	<87602d3ccl.fsf@e105922-lin.cambridge.arm.com>
+	<5c083c9c-473f-f504-848b-48506d0fd380@huawei.com>
+	<20180622091153.GU10465@dhcp22.suse.cz>
+Date: Fri, 22 Jun 2018 11:24:38 +0100
+In-Reply-To: <20180622091153.GU10465@dhcp22.suse.cz> (Michal Hocko's message
+	of "Fri, 22 Jun 2018 11:11:53 +0200")
+Message-ID: <87y3f7yv89.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-In-Reply-To: <1529659626-12660-1-git-send-email-thunder.leizhen@huawei.com>
-References: <1529659626-12660-1-git-send-email-thunder.leizhen@huawei.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Fri, 22 Jun 2018 11:42:43 +0200
-Message-ID: <CACT4Y+Y3cLwVroPri8kKE+wG+YCMOynfzJcL_CjXRXn1omRF_Q@mail.gmail.com>
-Subject: Re: [PATCH 1/1] kasan: fix shadow_size calculation error in kasan_module_alloc
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhen Lei <thunder.leizhen@huawei.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Hanjun Guo <guohanjun@huawei.com>, Libin <huawei.libin@huawei.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Hanjun Guo <guohanjun@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Bjorn Helgaas <helgaas@kernel.org>, tnowicki@caviumnetworks.com, linux-pci@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Will Deacon <will.deacon@arm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>, linux-mm@kvack.org, wanghuiqiang@huawei.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Bjorn Helgaas <bhelgaas@google.com>, Andrew Morton <akpm@linux-foundation.org>, zhongjiang <zhongjiang@huawei.com>, linux-arm <linux-arm-kernel@lists.infradead.org>
 
-On Fri, Jun 22, 2018 at 11:27 AM, Zhen Lei <thunder.leizhen@huawei.com> wrote:
-> There is a special case that the size is "(N << KASAN_SHADOW_SCALE_SHIFT)
-> Pages plus X", the value of X is [1, KASAN_SHADOW_SCALE_SIZE-1]. The
-> operation "size >> KASAN_SHADOW_SCALE_SHIFT" will drop X, and the roundup
-> operation can not retrieve the missed one page. For example: size=0x28006,
-> PAGE_SIZE=0x1000, KASAN_SHADOW_SCALE_SHIFT=3, we will get
-> shadow_size=0x5000, but actually we need 6 pages.
->
-> shadow_size = round_up(size >> KASAN_SHADOW_SCALE_SHIFT, PAGE_SIZE);
->
-> This can lead kernel to be crashed, when kasan is enabled and the value
-> of mod->core_layout.size or mod->init_layout.size is like above. Because
-> the shadow memory of X has not been allocated and mapped.
->
-> move_module:
-> ptr = module_alloc(mod->core_layout.size);
-> ...
-> memset(ptr, 0, mod->core_layout.size);          //crashed
->
-> Unable to handle kernel paging request at virtual address ffff0fffff97b000
-> ......
-> Call trace:
-> [<ffff8000004694d4>] __asan_storeN+0x174/0x1a8
-> [<ffff800000469844>] memset+0x24/0x48
-> [<ffff80000025cf28>] layout_and_allocate+0xcd8/0x1800
-> [<ffff80000025dbe0>] load_module+0x190/0x23e8
-> [<ffff8000002601e8>] SyS_finit_module+0x148/0x180
->
-> Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
-> ---
->  mm/kasan/kasan.c | 5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-> index 81a2f45..f5ac4ac 100644
-> --- a/mm/kasan/kasan.c
-> +++ b/mm/kasan/kasan.c
-> @@ -427,12 +427,13 @@ void kasan_kfree_large(const void *ptr)
->  int kasan_module_alloc(void *addr, size_t size)
->  {
->         void *ret;
-> +       size_t scaled_size;
->         size_t shadow_size;
->         unsigned long shadow_start;
->
->         shadow_start = (unsigned long)kasan_mem_to_shadow(addr);
-> -       shadow_size = round_up(size >> KASAN_SHADOW_SCALE_SHIFT,
-> -                       PAGE_SIZE);
-> +       scaled_size = (size + KASAN_SHADOW_MASK) >> KASAN_SHADOW_SCALE_SHIFT;
-> +       shadow_size = round_up(scaled_size, PAGE_SIZE);
->
->         if (WARN_ON(!PAGE_ALIGNED(shadow_start)))
->                 return -EINVAL;
+Michal Hocko <mhocko@kernel.org> writes:
 
+> On Fri 22-06-18 16:58:05, Hanjun Guo wrote:
+>> On 2018/6/20 19:51, Punit Agrawal wrote:
+>> > Xie XiuQi <xiexiuqi@huawei.com> writes:
+>> > 
+>> >> Hi Lorenzo, Punit,
+>> >>
+>> >>
+>> >> On 2018/6/20 0:32, Lorenzo Pieralisi wrote:
+>> >>> On Tue, Jun 19, 2018 at 04:35:40PM +0100, Punit Agrawal wrote:
+>> >>>> Michal Hocko <mhocko@kernel.org> writes:
+>> >>>>
+>> >>>>> On Tue 19-06-18 15:54:26, Punit Agrawal wrote:
+>> >>>>> [...]
+>> >>>>>> In terms of $SUBJECT, I wonder if it's worth taking the original patch
+>> >>>>>> as a temporary fix (it'll also be easier to backport) while we work on
+>> >>>>>> fixing these other issues and enabling memoryless nodes.
+>> >>>>>
+>> >>>>> Well, x86 already does that but copying this antipatern is not really
+>> >>>>> nice. So it is good as a quick fix but it would be definitely much
+>> >>>>> better to have a robust fix. Who knows how many other places might hit
+>> >>>>> this. You certainly do not want to add a hack like this all over...
+>> >>>>
+>> >>>> Completely agree! I was only suggesting it as a temporary measure,
+>> >>>> especially as it looked like a proper fix might be invasive.
+>> >>>>
+>> >>>> Another fix might be to change the node specific allocation to node
+>> >>>> agnostic allocations. It isn't clear why the allocation is being
+>> >>>> requested from a specific node. I think Lorenzo suggested this in one of
+>> >>>> the threads.
+>> >>>
+>> >>> I think that code was just copypasted but it is better to fix the
+>> >>> underlying issue.
+>> >>>
+>> >>>> I've started putting together a set fixing the issues identified in this
+>> >>>> thread. It should give a better idea on the best course of action.
+>> >>>
+>> >>> On ACPI ARM64, this diff should do if I read the code correctly, it
+>> >>> should be (famous last words) just a matter of mapping PXMs to nodes for
+>> >>> every SRAT GICC entry, feel free to pick it up if it works.
+>> >>>
+>> >>> Yes, we can take the original patch just because it is safer for an -rc
+>> >>> cycle even though if the patch below would do delaying the fix for a
+>> >>> couple of -rc (to get it tested across ACPI ARM64 NUMA platforms) is
+>> >>> not a disaster.
+>> >>
+>> >> I tested this patch on my arm board, it works.
+>> > 
+>> > I am assuming you tried the patch without enabling support for
+>> > memory-less nodes.
+>> > 
+>> > The patch de-couples the onlining of numa nodes (as parsed from SRAT)
+>> > from NR_CPUS restriction. When it comes to building zonelists, the node
+>> > referenced by the PCI controller also has zonelists initialised.
+>> > 
+>> > So it looks like a fallback node is setup even if we don't have
+>> > memory-less nodes enabled. I need to stare some more at the code to see
+>> > why we need memory-less nodes at all then ...
+>> 
+>> Yes, please. From my limited MM knowledge, zonelists should not be
+>> initialised if no CPU and no memory on this node, correct me if I'm
+>> wrong.
+>
+> Well, as long as there is a code which can explicitly ask for a specific
+> node than it is safer to have zonelists configured. Otherwise you just
+> force callers to add hacks and figure out the proper placement there.
+> Zonelists should be cheep to configure for all possible nodes. It's not
+> like we are talking about huge amount of resources.
 
-Hi Zhen,
+I agree. The current problem stems from not configuring the zonelists
+for nodes that don't have onlined cpu and memory. Lorenzo's patch fixes
+the configuration of such nodes.
 
-Yes, this is a bug. Thanks for fixing it!
+For allocation requests targeting memory-less nodes, the allocator will
+take the slow path and fall back to one of the other nodes based on the
+zonelists.
 
-Reviewed-by: Dmitriy Vyukov <dvyukov@google.com>
+I'm not sure how common such allocations are but I'll work on enabling
+CONFIG_HAVE_MEMORYLESS_NODES on top of Lorenzo's patch. AIUI, this
+config improves the fallback mechanism by starting the search from a
+near-by node with memory.
