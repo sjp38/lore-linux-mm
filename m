@@ -1,65 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CF746B0006
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 12:28:50 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id j8-v6so4645908wrh.18
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 09:28:50 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z12-v6sor4097331wrn.56.2018.06.22.09.28.48
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 20F186B0003
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 12:42:49 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id y26-v6so3452999pfn.14
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 09:42:49 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q9-v6si7654945pll.370.2018.06.22.09.42.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Jun 2018 09:28:48 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 22 Jun 2018 09:42:47 -0700 (PDT)
+Date: Fri, 22 Jun 2018 18:42:43 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mm: drop VM_BUG_ON from __get_free_pages
-Date: Fri, 22 Jun 2018 18:28:41 +0200
-Message-Id: <20180622162841.25114-1-mhocko@kernel.org>
+Subject: Re: [Intel-gfx] [RFC PATCH] mm, oom: distinguish blockable mode for
+ mmu notifiers
+Message-ID: <20180622164243.GB23674@dhcp22.suse.cz>
+References: <20180622150242.16558-1-mhocko@kernel.org>
+ <152968180950.11773.3374981930722769733@mail.alporthouse.com>
+ <20180622155716.GE10465@dhcp22.suse.cz>
+ <20180622161845.GA3497@redhat.com>
+ <20180622164026.GA23674@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180622164026.GA23674@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: JianKang Chen <chenjiankang1@huawei.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com, Michal Hocko <mhocko@suse.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, =?us-ascii?B?PT9VVEYtOD9xP1JhZGltPTIwS3I9QzQ9OERtPUMzPUExPUM1PTk5Pz0=?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, =?us-ascii?B?PT9VVEYtOD9xP0NocmlzdGlhbj0yMEs9QzM9QjZuaWc/PQ==?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-From: Michal Hocko <mhocko@suse.com>
+[Resnding with the CC list fixed]
 
-There is no real reason to blow up just because the caller doesn't know
-that __get_free_pages cannot return highmem pages. Simply fix that up
-silently. Even if we have some confused users such a fixup will not be
-harmful.
+On Fri 22-06-18 18:40:26, Michal Hocko wrote:
+> On Fri 22-06-18 12:18:46, Jerome Glisse wrote:
+> > On Fri, Jun 22, 2018 at 05:57:16PM +0200, Michal Hocko wrote:
+> > > On Fri 22-06-18 16:36:49, Chris Wilson wrote:
+> > > > Quoting Michal Hocko (2018-06-22 16:02:42)
+> > > > > Hi,
+> > > > > this is an RFC and not tested at all. I am not very familiar with the
+> > > > > mmu notifiers semantics very much so this is a crude attempt to achieve
+> > > > > what I need basically. It might be completely wrong but I would like
+> > > > > to discuss what would be a better way if that is the case.
+> > > > > 
+> > > > > get_maintainers gave me quite large list of people to CC so I had to trim
+> > > > > it down. If you think I have forgot somebody, please let me know
+> > > > 
+> > > > > diff --git a/drivers/gpu/drm/i915/i915_gem_userptr.c b/drivers/gpu/drm/i915/i915_gem_userptr.c
+> > > > > index 854bd51b9478..5285df9331fa 100644
+> > > > > --- a/drivers/gpu/drm/i915/i915_gem_userptr.c
+> > > > > +++ b/drivers/gpu/drm/i915/i915_gem_userptr.c
+> > > > > @@ -112,10 +112,11 @@ static void del_object(struct i915_mmu_object *mo)
+> > > > >         mo->attached = false;
+> > > > >  }
+> > > > >  
+> > > > > -static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
+> > > > > +static int i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
+> > > > >                                                        struct mm_struct *mm,
+> > > > >                                                        unsigned long start,
+> > > > > -                                                      unsigned long end)
+> > > > > +                                                      unsigned long end,
+> > > > > +                                                      bool blockable)
+> > > > >  {
+> > > > >         struct i915_mmu_notifier *mn =
+> > > > >                 container_of(_mn, struct i915_mmu_notifier, mn);
+> > > > > @@ -124,7 +125,7 @@ static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
+> > > > >         LIST_HEAD(cancelled);
+> > > > >  
+> > > > >         if (RB_EMPTY_ROOT(&mn->objects.rb_root))
+> > > > > -               return;
+> > > > > +               return 0;
+> > > > 
+> > > > The principle wait here is for the HW (even after fixing all the locks
+> > > > to be not so coarse, we still have to wait for the HW to finish its
+> > > > access).
+> > > 
+> > > Is this wait bound or it can take basically arbitrary amount of time?
+> > 
+> > Arbitrary amount of time but in desktop use case you can assume that
+> > it should never go above 16ms for a 60frame per second rendering of
+> > your desktop (in GPU compute case this kind of assumption does not
+> > hold). Is the process exit_state already updated by the time this mmu
+> > notifier callbacks happen ?
+> 
+> What do you mean? The process is killed (by SIGKILL) at the time but we
+> do not know much more than that. The task might be stuck anywhere in the
+> kernel before handling that signal.
+> 
+> > > > The first pass would be then to not do anything here if
+> > > > !blockable.
+> > > 
+> > > something like this? (incremental diff)
+> > 
+> > What i wanted to do with HMM and mmu notifier is split the invalidation
+> > in 2 pass. First pass tell the drivers to stop/cancel pending jobs that
+> > depends on the range and invalidate internal driver states (like clear
+> > buffer object pages array in case of GPU but not GPU page table). While
+> > the second callback would do the actual wait on the GPU to be done and
+> > update the GPU page table.
+> 
+> What can you do after the first phase? Can I unmap the range?
+> 
+> > Now in this scheme in case the task is already in some exit state and
+> > that all CPU threads are frozen/kill then we can probably find a way to
+> > do the first path mostly lock less. AFAICR nor AMD nor Intel allow to
+> > share userptr bo hence a uptr bo should only ever be access through
+> > ioctl submited by the process.
+> > 
+> > The second call can then be delayed and ping from time to time to see
+> > if GPU jobs are done.
+> > 
+> > 
+> > Note that what you propose might still be useful as in case there is
+> > no buffer object for a range then OOM can make progress in freeing a
+> > range of memory. It is very likely that significant virtual address
+> > range of a process and backing memory can be reclaim that way. This
+> > assume OOM reclaim vma by vma or in some form of granularity like
+> > reclaiming 1GB by 1GB. Or we could also update blocking callback to
+> > return range that are blocking that way OOM can reclaim around.
+> 
+> Exactly my point. What we have right now is all or nothing which is
+> obviously too coarse to be useful.
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-Hi Andrew,
-previously posted [1] but it fell through cracks. Can we merge it now?
-
-[1] http://lkml.kernel.org/r/20171129160446.jluzpv3n6mjc3fwv@dhcp22.suse.cz
-
- mm/page_alloc.c | 10 +++-------
- 1 file changed, 3 insertions(+), 7 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1521100f1e63..5f56f662a52d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4402,18 +4402,14 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
- EXPORT_SYMBOL(__alloc_pages_nodemask);
- 
- /*
-- * Common helper functions.
-+ * Common helper functions. Never use with __GFP_HIGHMEM because the returned
-+ * address cannot represent highmem pages. Use alloc_pages and then kmap if
-+ * you need to access high mem.
-  */
- unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order)
- {
- 	struct page *page;
- 
--	/*
--	 * __get_free_pages() returns a virtual address, which cannot represent
--	 * a highmem page
--	 */
--	VM_BUG_ON((gfp_mask & __GFP_HIGHMEM) != 0);
--
- 	page = alloc_pages(gfp_mask, order);
- 	if (!page)
- 		return 0;
 -- 
-2.17.1
+Michal Hocko
+SUSE Labs
