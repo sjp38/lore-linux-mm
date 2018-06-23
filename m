@@ -1,121 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 144FD6B0003
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 19:33:15 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id b12-v6so5251263wrs.10
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 16:33:15 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b206-v6sor929031wmh.31.2018.06.22.16.33.13
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FE0B6B0003
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 20:06:39 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id f19-v6so813021edq.22
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 17:06:39 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id h88-v6si4932869edc.133.2018.06.22.17.06.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Jun 2018 16:33:13 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Jun 2018 17:06:37 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: [PATCH 1/2] mm: revert mem_cgroup_put() introduction
+Date: Fri, 22 Jun 2018 17:05:59 -0700
+Message-ID: <20180623000600.5818-1-guro@fb.com>
+In-Reply-To: <CALvZod7G-ggYTpmdDsNeQRf4upYa34ccOerVmEkEkLOVFrBr2w@mail.gmail.com>
+References: <CALvZod7G-ggYTpmdDsNeQRf4upYa34ccOerVmEkEkLOVFrBr2w@mail.gmail.com>
 MIME-Version: 1.0
-References: <20180619051327.149716-1-shakeelb@google.com> <20180619051327.149716-4-shakeelb@google.com>
- <20180619162741.GC27423@cmpxchg.org> <20180619174040.GA4304@castle.DHCP.thefacebook.com>
- <CALvZod5_0_LuqWpri=uviE5hHhTMPT0VQOZDgHtTtLhvcCtb3A@mail.gmail.com> <20180619195525.GA19193@castle>
-In-Reply-To: <20180619195525.GA19193@castle>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Fri, 22 Jun 2018 16:33:00 -0700
-Message-ID: <CALvZod7G-ggYTpmdDsNeQRf4upYa34ccOerVmEkEkLOVFrBr2w@mail.gmail.com>
-Subject: Re: [PATCH 3/3] fs, mm: account buffer_head to kmemcg
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.com>, Greg Thelen <gthelen@google.com>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, shakeelb@google.com, hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, Roman Gushchin <guro@fb.com>
 
-On Tue, Jun 19, 2018 at 12:55 PM Roman Gushchin <guro@fb.com> wrote:
->
-> On Tue, Jun 19, 2018 at 12:51:15PM -0700, Shakeel Butt wrote:
-> > On Tue, Jun 19, 2018 at 10:41 AM Roman Gushchin <guro@fb.com> wrote:
-> > >
-> > > On Tue, Jun 19, 2018 at 12:27:41PM -0400, Johannes Weiner wrote:
-> > > > On Mon, Jun 18, 2018 at 10:13:27PM -0700, Shakeel Butt wrote:
-> > > > > The buffer_head can consume a significant amount of system memory and
-> > > > > is directly related to the amount of page cache. In our production
-> > > > > environment we have observed that a lot of machines are spending a
-> > > > > significant amount of memory as buffer_head and can not be left as
-> > > > > system memory overhead.
-> > > > >
-> > > > > Charging buffer_head is not as simple as adding __GFP_ACCOUNT to the
-> > > > > allocation. The buffer_heads can be allocated in a memcg different from
-> > > > > the memcg of the page for which buffer_heads are being allocated. One
-> > > > > concrete example is memory reclaim. The reclaim can trigger I/O of pages
-> > > > > of any memcg on the system. So, the right way to charge buffer_head is
-> > > > > to extract the memcg from the page for which buffer_heads are being
-> > > > > allocated and then use targeted memcg charging API.
-> > > > >
-> > > > > Signed-off-by: Shakeel Butt <shakeelb@google.com>
-> > > > > Cc: Jan Kara <jack@suse.cz>
-> > > > > Cc: Greg Thelen <gthelen@google.com>
-> > > > > Cc: Michal Hocko <mhocko@kernel.org>
-> > > > > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > > > > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> > > > > Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> > > > > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > > > > ---
-> > > > >  fs/buffer.c                | 14 +++++++++++++-
-> > > > >  include/linux/memcontrol.h |  7 +++++++
-> > > > >  mm/memcontrol.c            | 21 +++++++++++++++++++++
-> > > > >  3 files changed, 41 insertions(+), 1 deletion(-)
-> > > > >
-> > > > > diff --git a/fs/buffer.c b/fs/buffer.c
-> > > > > index 8194e3049fc5..26389b7a3cab 100644
-> > > > > --- a/fs/buffer.c
-> > > > > +++ b/fs/buffer.c
-> > > > > @@ -815,10 +815,17 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
-> > > > >     struct buffer_head *bh, *head;
-> > > > >     gfp_t gfp = GFP_NOFS;
-> > > > >     long offset;
-> > > > > +   struct mem_cgroup *old_memcg;
-> > > > > +   struct mem_cgroup *memcg = get_mem_cgroup_from_page(page);
-> > > > >
-> > > > >     if (retry)
-> > > > >             gfp |= __GFP_NOFAIL;
-> > > > >
-> > > > > +   if (memcg) {
-> > > > > +           gfp |= __GFP_ACCOUNT;
-> > > > > +           old_memcg = memalloc_memcg_save(memcg);
-> > > > > +   }
-> > > >
-> > > > Please move the get_mem_cgroup_from_page() call out of the
-> > > > declarations and down to right before the if (memcg) branch.
-> > > >
-> > > > >     head = NULL;
-> > > > >     offset = PAGE_SIZE;
-> > > > >     while ((offset -= size) >= 0) {
-> > > > > @@ -835,6 +842,11 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
-> > > > >             /* Link the buffer to its page */
-> > > > >             set_bh_page(bh, page, offset);
-> > > > >     }
-> > > > > +out:
-> > > > > +   if (memcg) {
-> > > > > +           memalloc_memcg_restore(old_memcg);
-> > > > > +#ifdef CONFIG_MEMCG
-> > > > > +           css_put(&memcg->css);
-> > > > > +#endif
-> > > >
-> > > > Please add a put_mem_cgroup() ;)
-> > >
-> > > I've added such helper by commit 8a34a8b7fd62 ("mm, oom: cgroup-aware OOM killer").
-> > > It's in the mm tree.
-> > >
-> >
-> > I was using mem_cgroup_put() defined by Roman's patch but there were a
-> > lot of build failure reports where someone was taking this series
-> > without Roman's series or applying the series out of order. Andrew
-> > asked me to keep it like this and then he will convert these callsites
-> > into mem_cgroup_put() after making making sure Roman's series is
-> > applied in mm tree. I will recheck with him, how he wants to handle it
-> > now.
->
-> I can also split the introduction of mem_cgroup_put() into a separate commit,
-> as it seems to be usable not only by the cgroup oom stuff.
-> Please, let me know, if it's a preferred way to go.
->
+This patch should be folded into "mm, oom: cgroup-aware OOM killer".
 
-Oh I forgot to reply. Yes, let's do that, a separate patch to
-introduce mem_cgroup_put() which can used by remote charging and memcg
-aware oom-killer patches.
+Signed-off-by: Roman Gushchin <guro@fb.com>
+---
+ include/linux/memcontrol.h | 9 ---------
+ 1 file changed, 9 deletions(-)
 
-Shakeel
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 3607913032be..cf1c3555328f 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -383,11 +383,6 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
+ 	return css ? container_of(css, struct mem_cgroup, css) : NULL;
+ }
+ 
+-static inline void mem_cgroup_put(struct mem_cgroup *memcg)
+-{
+-	css_put(&memcg->css);
+-}
+-
+ #define mem_cgroup_from_counter(counter, member)	\
+ 	container_of(counter, struct mem_cgroup, member)
+ 
+@@ -857,10 +852,6 @@ static inline bool task_in_mem_cgroup(struct task_struct *task,
+ 	return true;
+ }
+ 
+-static inline void mem_cgroup_put(struct mem_cgroup *memcg)
+-{
+-}
+-
+ static inline struct mem_cgroup *
+ mem_cgroup_iter(struct mem_cgroup *root,
+ 		struct mem_cgroup *prev,
+-- 
+2.14.4
