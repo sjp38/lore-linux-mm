@@ -1,61 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 469C86B0010
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 21:01:35 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id l2-v6so3961335pff.3
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 18:01:35 -0700 (PDT)
-Received: from out4438.biz.mail.alibaba.com (out4438.biz.mail.alibaba.com. [47.88.44.38])
-        by mx.google.com with ESMTPS id b24-v6si8418447pfl.223.2018.06.22.18.01.31
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 79E446B0269
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2018 21:09:36 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id i12-v6so3288526pgt.13
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2018 18:09:36 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p4-v6sor2919465plk.111.2018.06.22.18.09.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Jun 2018 18:01:33 -0700 (PDT)
-Subject: Re: [RFC v2 PATCH 2/2] mm: mmap: zap pages with read mmap_sem for
- large mapping
-From: Yang Shi <yang.shi@linux.alibaba.com>
-References: <1529364856-49589-1-git-send-email-yang.shi@linux.alibaba.com>
- <1529364856-49589-3-git-send-email-yang.shi@linux.alibaba.com>
- <3DDF2672-FCC4-4387-9624-92F33C309CAE@gmail.com>
- <158a4e4c-d290-77c4-a595-71332ede392b@linux.alibaba.com>
- <BFD6A249-B1D7-43D5-8D7C-9FAED4A168A1@gmail.com>
- <20180620071817.GJ13685@dhcp22.suse.cz>
- <c184031d-b1db-503e-1a32-7963b4bf3de0@linux.alibaba.com>
-Message-ID: <94bdfcf0-68ea-404c-a60f-362f677884b6@linux.alibaba.com>
-Date: Fri, 22 Jun 2018 18:01:08 -0700
+        (Google Transport Security);
+        Fri, 22 Jun 2018 18:09:35 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <c184031d-b1db-503e-1a32-7963b4bf3de0@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+From: air icy <icytxw@gmail.com>
+Date: Sat, 23 Jun 2018 09:09:34 +0800
+Message-ID: <CAAzSK-wOcRRMfPiRJ91EaPgwZJ-CFj7UHrcaVuSGj2wZSEn1Og@mail.gmail.com>
+Subject: UBSAN: Undefined behaviour in mm/fadvise.c
+Content-Type: multipart/alternative; boundary="000000000000343994056f44cd96"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Nadav Amit <nadav.amit@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, ldufour@linux.vnet.ibm.com, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Yes, this is true but I guess what Yang Shi meant was that an userspace
->> access racing with munmap is not well defined. You never know whether
->> you get your data, #PTF or SEGV because it depends on timing. The user
->> visible change might be that you lose content and get zero page instead
->> if you hit the race window while we are unmapping which was not possible
->> before. But whouldn't such an access pattern be buggy anyway? You need
->> some form of external synchronization AFAICS.
->>
->> But maybe some userspace depends on "getting right data or get SEGV"
->> semantic. If we have to preserve that then we can come up with a VM_DEAD
->> flag set before we tear it down and force the SEGV on the #PF path.
->> Something similar we already do for MMF_UNSTABLE.
->
-> Set VM_DEAD with read mmap_sem held? It should be ok since this is the 
-> only place to set this flag for this unique special case.
+--000000000000343994056f44cd96
+Content-Type: text/plain; charset="UTF-8"
 
-BTW, it looks the vm flags have used up in 32 bit. If we really need 
-VM_DEAD, it should be for both 32-bit and 64-bit.
+Hi,
+This bug was found in Linux Kernel v4.18-rc2
 
-Any suggestion?
+ 75         /* Careful about overflows. Len == 0 means "as much as possible" */
+ 76         endbyte = offset + len;
+ 77         if (!len || endbyte < len)
+ 78                 endbyte = -1;
+ 79         else
+ 80                 endbyte--;              /* inclusive */
 
+$ cat report0
+================================================================================
+UBSAN: Undefined behaviour in mm/fadvise.c:76:10
+signed integer overflow:
+4 + 9223372036854775805 cannot be represented in type 'long long int'
+CPU: 0 PID: 13477 Comm: syz-executor1 Not tainted 4.18.0-rc1 #2
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
+rel-1.10.2-0-g5f4c7b1-prebuilt.qemu-project.org 04/01/2014
+Call Trace:
+ __dump_stack lib/dump_stack.c:77 [inline]
+ dump_stack+0x122/0x1c8 lib/dump_stack.c:113
+ ubsan_epilogue+0x12/0x86 lib/ubsan.c:159
+ handle_overflow+0x1c2/0x21f lib/ubsan.c:190
+ __ubsan_handle_add_overflow+0x2a/0x31 lib/ubsan.c:198
+ ksys_fadvise64_64+0xbf0/0xd10 mm/fadvise.c:76
+ __do_sys_fadvise64 mm/fadvise.c:198 [inline]
+ __se_sys_fadvise64 mm/fadvise.c:196 [inline]
+ __x64_sys_fadvise64+0xa9/0x120 mm/fadvise.c:196
+ do_syscall_64+0xb8/0x3a0 arch/x86/entry/common.c:290
+ entry_SYSCALL_64_after_hwframe+0x49/0xbe
+RIP: 0033:0x455a09
+Code: 1d ba fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48
+89 f7 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d
+01 f0 ff ff 0f 83 eb b9 fb ff c3 66 2e 0f 1f 84 00 00 00 00
+RSP: 002b:00007fc2de8f2c68 EFLAGS: 00000246 ORIG_RAX: 00000000000000dd
+RAX: ffffffffffffffda RBX: 00007fc2de8f36d4 RCX: 0000000000455a09
+RDX: 7ffffffffffffffd RSI: 0000000000000004 RDI: 0000000000000013
+RBP: 000000000072bea0 R08: 0000000000000000 R09: 0000000000000000
+R10: 0000000000000004 R11: 0000000000000246 R12: 00000000ffffffff
+R13: 000000000000007d R14: 00000000006f5c58 R15: 0000000000000000
+================================================================================
+This bug can be repro, if you need it, please tell me.
+
+bugzilla url: https://bugzilla.kernel.org/show_bug.cgi?id=200209
 Thanks,
-Yang
+Icytxw
 
->
-> Yang
->
->
+--000000000000343994056f44cd96
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">
+
+<pre class=3D"gmail-bz_comment_text" id=3D"gmail-comment_text_0" style=3D"f=
+ont-size:medium;width:50em;font-family:monospace;white-space:pre-wrap;color=
+:rgb(0,0,0);text-decoration-style:initial;text-decoration-color:initial">Hi=
+,
+This bug was found in Linux Kernel v4.18-rc2<br></pre><pre class=3D"gmail-b=
+z_comment_text" id=3D"gmail-comment_text_0" style=3D"width:50em;text-decora=
+tion-style:initial;text-decoration-color:initial"><font color=3D"#000000" s=
+ize=3D"3"><span style=3D"white-space:pre-wrap"> 75         /* Careful about=
+ overflows. Len =3D=3D 0 means &quot;as much as possible&quot; */
+ 76         endbyte =3D offset + len;
+ 77         if (!len || endbyte &lt; len)
+ 78                 endbyte =3D -1;
+ 79         else
+ 80                 endbyte--;              /* inclusive */
+
+$ cat report0=20
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D
+UBSAN: Undefined behaviour in mm/fadvise.c:76:10
+signed integer overflow:
+4 + 9223372036854775805 cannot be represented in type &#39;long long int&#3=
+9;
+CPU: 0 PID: 13477 Comm: syz-executor1 Not tainted 4.18.0-rc1 #2
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS <a href=3D"http=
+://rel-1.10.2-0-g5f4c7b1-prebuilt.qemu-project.org">rel-1.10.2-0-g5f4c7b1-p=
+rebuilt.qemu-project.org</a> 04/01/2014
+Call Trace:
+ __dump_stack lib/dump_stack.c:77 [inline]
+ dump_stack+0x122/0x1c8 lib/dump_stack.c:113
+ ubsan_epilogue+0x12/0x86 lib/ubsan.c:159
+ handle_overflow+0x1c2/0x21f lib/ubsan.c:190
+ __ubsan_handle_add_overflow+0x2a/0x31 lib/ubsan.c:198
+ ksys_fadvise64_64+0xbf0/0xd10 mm/fadvise.c:76
+ __do_sys_fadvise64 mm/fadvise.c:198 [inline]
+ __se_sys_fadvise64 mm/fadvise.c:196 [inline]
+ __x64_sys_fadvise64+0xa9/0x120 mm/fadvise.c:196
+ do_syscall_64+0xb8/0x3a0 arch/x86/entry/common.c:290
+ entry_SYSCALL_64_after_hwframe+0x49/0xbe
+RIP: 0033:0x455a09
+Code: 1d ba fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7 =
+48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 &lt;48&gt; 3d 01 f=
+0 ff ff 0f 83 eb b9 fb ff c3 66 2e 0f 1f 84 00 00 00 00=20
+RSP: 002b:00007fc2de8f2c68 EFLAGS: 00000246 ORIG_RAX: 00000000000000dd
+RAX: ffffffffffffffda RBX: 00007fc2de8f36d4 RCX: 0000000000455a09
+RDX: 7ffffffffffffffd RSI: 0000000000000004 RDI: 0000000000000013
+RBP: 000000000072bea0 R08: 0000000000000000 R09: 0000000000000000
+R10: 0000000000000004 R11: 0000000000000246 R12: 00000000ffffffff
+R13: 000000000000007d R14: 00000000006f5c58 R15: 0000000000000000
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D
+This bug can be repro, if you need it, please tell me.</span></font></pre><=
+pre class=3D"gmail-bz_comment_text" id=3D"gmail-comment_text_0" style=3D"wi=
+dth:50em;text-decoration-style:initial;text-decoration-color:initial"><font=
+ color=3D"#000000" size=3D"3"><span style=3D"white-space:pre-wrap">bugzilla=
+ url: <a href=3D"https://bugzilla.kernel.org/show_bug.cgi?id=3D200209">http=
+s://bugzilla.kernel.org/show_bug.cgi?id=3D200209</a>
+Thanks,
+Icytxw</span></font></pre>
+
+<br></div>
+
+--000000000000343994056f44cd96--
