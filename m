@@ -1,44 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CEDA6B0003
-	for <linux-mm@kvack.org>; Sun, 24 Jun 2018 04:11:25 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id i14-v6so7427327wrq.1
-        for <linux-mm@kvack.org>; Sun, 24 Jun 2018 01:11:24 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id d17-v6sor1044655wrn.61.2018.06.24.01.11.23
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A8CD26B0003
+	for <linux-mm@kvack.org>; Sun, 24 Jun 2018 09:19:44 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id i14-v6so7714624wrq.1
+        for <linux-mm@kvack.org>; Sun, 24 Jun 2018 06:19:44 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id 17-v6si4117533wrv.412.2018.06.24.06.19.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 24 Jun 2018 01:11:23 -0700 (PDT)
-Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
-References: <20180622150242.16558-1-mhocko@kernel.org>
-From: Paolo Bonzini <pbonzini@redhat.com>
-Message-ID: <d617fc1d-28a7-3441-7465-bedf4dc69976@redhat.com>
-Date: Sun, 24 Jun 2018 10:11:21 +0200
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Sun, 24 Jun 2018 06:19:43 -0700 (PDT)
+Date: Sun, 24 Jun 2018 15:19:18 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v3 0/3] fix free pmd/pte page handlings on x86
+In-Reply-To: <20180516233207.1580-1-toshi.kani@hpe.com>
+Message-ID: <alpine.DEB.2.21.1806241516410.8650@nanos.tec.linutronix.de>
+References: <20180516233207.1580-1-toshi.kani@hpe.com>
 MIME-Version: 1.0
-In-Reply-To: <20180622150242.16558-1-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>
-Cc: Michal Hocko <mhocko@suse.com>, kvm@vger.kernel.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+To: Toshi Kani <toshi.kani@hpe.com>
+Cc: mhocko@suse.com, akpm@linux-foundation.org, mingo@redhat.com, hpa@zytor.com, cpandya@codeaurora.org, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
 
-On 22/06/2018 17:02, Michal Hocko wrote:
-> @@ -7215,6 +7216,8 @@ void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
->  	apic_address = gfn_to_hva(kvm, APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT);
->  	if (start <= apic_address && apic_address < end)
->  		kvm_make_all_cpus_request(kvm, KVM_REQ_APIC_PAGE_RELOAD);
-> +
-> +	return 0;
+On Wed, 16 May 2018, Toshi Kani wrote:
 
-This is wrong, gfn_to_hva can sleep.
+> This series fixes two issues in the x86 ioremap free page handlings
+> for pud/pmd mappings.
+> 
+> Patch 01 fixes BUG_ON on x86-PAE reported by Joerg.  It disables
+> the free page handling on x86-PAE.
+> 
+> Patch 02-03 fixes a possible issue with speculation which can cause
+> stale page-directory cache.
+>  - Patch 02 is from Chintan's v9 01/04 patch [1], which adds a new arg
+>    'addr', with my merge change to patch 01.
+>  - Patch 03 adds a TLB purge (INVLPG) to purge page-structure caches
+>    that may be cached by speculation.  See the patch descriptions for
+>    more detal.
 
-You could do the the kvm_make_all_cpus_request unconditionally, but only
-if !blockable is a really rare thing.  OOM would be fine, since the
-request actually would never be processed, but I'm afraid of more uses
-of !blockable being introduced later.
+Toshi, Joerg, Michal!
+
+I'm failing to find a conclusion of this discussion. Can we finally make
+some progress with that?
+
+Can someone give me a hint what to pick up urgently please?
 
 Thanks,
 
-Paolo
+	tglx
