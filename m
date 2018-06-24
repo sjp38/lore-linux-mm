@@ -1,50 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A8CD26B0003
-	for <linux-mm@kvack.org>; Sun, 24 Jun 2018 09:19:44 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id i14-v6so7714624wrq.1
-        for <linux-mm@kvack.org>; Sun, 24 Jun 2018 06:19:44 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 17-v6si4117533wrv.412.2018.06.24.06.19.42
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 531706B0005
+	for <linux-mm@kvack.org>; Sun, 24 Jun 2018 14:25:39 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id x203-v6so3142908wmg.8
+        for <linux-mm@kvack.org>; Sun, 24 Jun 2018 11:25:39 -0700 (PDT)
+Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
+        by mx.google.com with ESMTPS id t132-v6si329481wmb.31.2018.06.24.11.25.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sun, 24 Jun 2018 06:19:43 -0700 (PDT)
-Date: Sun, 24 Jun 2018 15:19:18 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v3 0/3] fix free pmd/pte page handlings on x86
-In-Reply-To: <20180516233207.1580-1-toshi.kani@hpe.com>
-Message-ID: <alpine.DEB.2.21.1806241516410.8650@nanos.tec.linutronix.de>
-References: <20180516233207.1580-1-toshi.kani@hpe.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 24 Jun 2018 11:25:37 -0700 (PDT)
+From: Colin King <colin.king@canonical.com>
+Subject: [PATCH] mm, swap: make swap_slots_cache_mutex and swap_slots_cache_enable_mutex static
+Date: Sun, 24 Jun 2018 19:25:36 +0100
+Message-Id: <20180624182536.4937-1-colin.king@canonical.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hpe.com>
-Cc: mhocko@suse.com, akpm@linux-foundation.org, mingo@redhat.com, hpa@zytor.com, cpandya@codeaurora.org, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, 16 May 2018, Toshi Kani wrote:
+From: Colin Ian King <colin.king@canonical.com>
 
-> This series fixes two issues in the x86 ioremap free page handlings
-> for pud/pmd mappings.
-> 
-> Patch 01 fixes BUG_ON on x86-PAE reported by Joerg.  It disables
-> the free page handling on x86-PAE.
-> 
-> Patch 02-03 fixes a possible issue with speculation which can cause
-> stale page-directory cache.
->  - Patch 02 is from Chintan's v9 01/04 patch [1], which adds a new arg
->    'addr', with my merge change to patch 01.
->  - Patch 03 adds a TLB purge (INVLPG) to purge page-structure caches
->    that may be cached by speculation.  See the patch descriptions for
->    more detal.
+The mutexes swap_slots_cache_mutex and swap_slots_cache_enable_mutex are
+local to the source and do not need to be in global scope, so make them
+static.
 
-Toshi, Joerg, Michal!
+Cleans up sparse warnings:
+symbol 'swap_slots_cache_mutex' was not declared. Should it be static?
+symbol 'swap_slots_cache_enable_mutex' was not declared. Should it be
+static?
 
-I'm failing to find a conclusion of this discussion. Can we finally make
-some progress with that?
+Signed-off-by: Colin Ian King <colin.king@canonical.com>
+---
+ mm/swap_slots.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Can someone give me a hint what to pick up urgently please?
-
-Thanks,
-
-	tglx
+diff --git a/mm/swap_slots.c b/mm/swap_slots.c
+index a791411fed71..008ccb22fee6 100644
+--- a/mm/swap_slots.c
++++ b/mm/swap_slots.c
+@@ -38,9 +38,9 @@ static DEFINE_PER_CPU(struct swap_slots_cache, swp_slots);
+ static bool	swap_slot_cache_active;
+ bool	swap_slot_cache_enabled;
+ static bool	swap_slot_cache_initialized;
+-DEFINE_MUTEX(swap_slots_cache_mutex);
++static DEFINE_MUTEX(swap_slots_cache_mutex);
+ /* Serialize swap slots cache enable/disable operations */
+-DEFINE_MUTEX(swap_slots_cache_enable_mutex);
++static DEFINE_MUTEX(swap_slots_cache_enable_mutex);
+ 
+ static void __drain_swap_slots_cache(unsigned int type);
+ static void deactivate_swap_slots_cache(void);
+-- 
+2.17.0
