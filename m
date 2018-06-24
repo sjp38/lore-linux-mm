@@ -1,40 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C04DA6B000D
-	for <linux-mm@kvack.org>; Sun, 24 Jun 2018 16:10:41 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id f22-v6so2219340lfa.11
-        for <linux-mm@kvack.org>; Sun, 24 Jun 2018 13:10:41 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g129-v6sor2656246lfg.75.2018.06.24.13.10.40
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A3D786B0010
+	for <linux-mm@kvack.org>; Sun, 24 Jun 2018 17:33:26 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id q8-v6so3244167wmc.2
+        for <linux-mm@kvack.org>; Sun, 24 Jun 2018 14:33:26 -0700 (PDT)
+Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
+        by mx.google.com with ESMTPS id p196-v6si1843825wmg.96.2018.06.24.14.33.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 24 Jun 2018 13:10:40 -0700 (PDT)
-Date: Sun, 24 Jun 2018 23:10:37 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH 0/3] mm: use irq locking suffix instead
- local_irq_disable()
-Message-ID: <20180624201037.nsbkzq4bqcn53r5h@esperanza>
-References: <20180622151221.28167-1-bigeasy@linutronix.de>
- <20180622143900.802fbfa2236d8f5bba965e2e@linux-foundation.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 24 Jun 2018 14:33:25 -0700 (PDT)
+From: Colin King <colin.king@canonical.com>
+Subject: [PATCH] mm/zsmalloc: make several functions and a struct static
+Date: Sun, 24 Jun 2018 22:33:22 +0100
+Message-Id: <20180624213322.13776-1-colin.king@canonical.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180622143900.802fbfa2236d8f5bba965e2e@linux-foundation.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, linux-mm@kvack.org, tglx@linutronix.de, Kirill Tkhai <ktkhai@virtuozzo.com>
+To: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org
+Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Jun 22, 2018 at 02:39:00PM -0700, Andrew Morton wrote:
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: mm/list_lru.c: fold __list_lru_count_one() into its caller
-> 
-> __list_lru_count_one() has a single callsite.
-> 
-> Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-> Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+From: Colin Ian King <colin.king@canonical.com>
 
-Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+The functions zs_page_isolate, zs_page_migrate, zs_page_putback,
+lock_zspage, trylock_zspage and structure zsmalloc_aops are local to
+source and do not need to be in global scope, so make them static.
+
+Cleans up sparse warnings:
+symbol 'zs_page_isolate' was not declared. Should it be static?
+symbol 'zs_page_migrate' was not declared. Should it be static?
+symbol 'zs_page_putback' was not declared. Should it be static?
+symbol 'zsmalloc_aops' was not declared. Should it be static?
+symbol 'lock_zspage' was not declared. Should it be static?
+symbol 'trylock_zspage' was not declared. Should it be static?
+
+Signed-off-by: Colin Ian King <colin.king@canonical.com>
+---
+ mm/zsmalloc.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index a1a9debb6fc8..900bea99452a 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -928,7 +928,7 @@ static void reset_page(struct page *page)
+  * To prevent zspage destroy during migration, zspage freeing should
+  * hold locks of all pages in the zspage.
+  */
+-void lock_zspage(struct zspage *zspage)
++static void lock_zspage(struct zspage *zspage)
+ {
+ 	struct page *page = get_first_page(zspage);
+ 
+@@ -937,7 +937,7 @@ void lock_zspage(struct zspage *zspage)
+ 	} while ((page = get_next_page(page)) != NULL);
+ }
+ 
+-int trylock_zspage(struct zspage *zspage)
++static int trylock_zspage(struct zspage *zspage)
+ {
+ 	struct page *cursor, *fail;
+ 
+@@ -1906,7 +1906,7 @@ static void replace_sub_page(struct size_class *class, struct zspage *zspage,
+ 	__SetPageMovable(newpage, page_mapping(oldpage));
+ }
+ 
+-bool zs_page_isolate(struct page *page, isolate_mode_t mode)
++static bool zs_page_isolate(struct page *page, isolate_mode_t mode)
+ {
+ 	struct zs_pool *pool;
+ 	struct size_class *class;
+@@ -1961,7 +1961,7 @@ bool zs_page_isolate(struct page *page, isolate_mode_t mode)
+ 	return true;
+ }
+ 
+-int zs_page_migrate(struct address_space *mapping, struct page *newpage,
++static int zs_page_migrate(struct address_space *mapping, struct page *newpage,
+ 		struct page *page, enum migrate_mode mode)
+ {
+ 	struct zs_pool *pool;
+@@ -2077,7 +2077,7 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
+ 	return ret;
+ }
+ 
+-void zs_page_putback(struct page *page)
++static void zs_page_putback(struct page *page)
+ {
+ 	struct zs_pool *pool;
+ 	struct size_class *class;
+@@ -2109,7 +2109,7 @@ void zs_page_putback(struct page *page)
+ 	spin_unlock(&class->lock);
+ }
+ 
+-const struct address_space_operations zsmalloc_aops = {
++static const struct address_space_operations zsmalloc_aops = {
+ 	.isolate_page = zs_page_isolate,
+ 	.migratepage = zs_page_migrate,
+ 	.putback_page = zs_page_putback,
+-- 
+2.17.0
