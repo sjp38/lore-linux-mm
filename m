@@ -1,57 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 531706B0005
-	for <linux-mm@kvack.org>; Sun, 24 Jun 2018 14:25:39 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id x203-v6so3142908wmg.8
-        for <linux-mm@kvack.org>; Sun, 24 Jun 2018 11:25:39 -0700 (PDT)
-Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
-        by mx.google.com with ESMTPS id t132-v6si329481wmb.31.2018.06.24.11.25.37
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0035E6B0005
+	for <linux-mm@kvack.org>; Sun, 24 Jun 2018 15:51:17 -0400 (EDT)
+Received: by mail-lj1-f197.google.com with SMTP id s25-v6so159798lji.0
+        for <linux-mm@kvack.org>; Sun, 24 Jun 2018 12:51:17 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q10-v6sor2577154ljh.60.2018.06.24.12.51.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 24 Jun 2018 11:25:37 -0700 (PDT)
-From: Colin King <colin.king@canonical.com>
-Subject: [PATCH] mm, swap: make swap_slots_cache_mutex and swap_slots_cache_enable_mutex static
-Date: Sun, 24 Jun 2018 19:25:36 +0100
-Message-Id: <20180624182536.4937-1-colin.king@canonical.com>
+        (Google Transport Security);
+        Sun, 24 Jun 2018 12:51:16 -0700 (PDT)
+Date: Sun, 24 Jun 2018 22:51:13 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH 1/3] mm: workingset: remove local_irq_disable() from
+ count_shadow_nodes()
+Message-ID: <20180624195113.rmrr3mkpnfa4pqlg@esperanza>
+References: <20180622151221.28167-1-bigeasy@linutronix.de>
+ <20180622151221.28167-2-bigeasy@linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180622151221.28167-2-bigeasy@linutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Cc: linux-mm@kvack.org, tglx@linutronix.de, Andrew Morton <akpm@linux-foundation.org>, Kirill Tkhai <ktkhai@virtuozzo.com>
 
-From: Colin Ian King <colin.king@canonical.com>
+On Fri, Jun 22, 2018 at 05:12:19PM +0200, Sebastian Andrzej Siewior wrote:
+> In commit 0c7c1bed7e13 ("mm: make counting of list_lru_one::nr_items
+> lockless") the
+> 	spin_lock(&nlru->lock);
+> 
+> statement was replaced with
+> 	rcu_read_lock();
+> 
+> in __list_lru_count_one(). The comment in count_shadow_nodes() says that
+> the local_irq_disable() is required because the lock must be acquired
+> with disabled interrupts and (spin_lock()) does not do so.
+> Since the lock is replaced with rcu_read_lock() the local_irq_disable()
+> is no longer needed. The code path is
+>   list_lru_shrink_count()
+>     -> list_lru_count_one()
+>       -> __list_lru_count_one()
+>         -> rcu_read_lock()
+>         -> list_lru_from_memcg_idx()
+>         -> rcu_read_unlock()
+> 
+> Remove the local_irq_disable() statement.
+> 
+> Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
+> Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 
-The mutexes swap_slots_cache_mutex and swap_slots_cache_enable_mutex are
-local to the source and do not need to be in global scope, so make them
-static.
-
-Cleans up sparse warnings:
-symbol 'swap_slots_cache_mutex' was not declared. Should it be static?
-symbol 'swap_slots_cache_enable_mutex' was not declared. Should it be
-static?
-
-Signed-off-by: Colin Ian King <colin.king@canonical.com>
----
- mm/swap_slots.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/swap_slots.c b/mm/swap_slots.c
-index a791411fed71..008ccb22fee6 100644
---- a/mm/swap_slots.c
-+++ b/mm/swap_slots.c
-@@ -38,9 +38,9 @@ static DEFINE_PER_CPU(struct swap_slots_cache, swp_slots);
- static bool	swap_slot_cache_active;
- bool	swap_slot_cache_enabled;
- static bool	swap_slot_cache_initialized;
--DEFINE_MUTEX(swap_slots_cache_mutex);
-+static DEFINE_MUTEX(swap_slots_cache_mutex);
- /* Serialize swap slots cache enable/disable operations */
--DEFINE_MUTEX(swap_slots_cache_enable_mutex);
-+static DEFINE_MUTEX(swap_slots_cache_enable_mutex);
- 
- static void __drain_swap_slots_cache(unsigned int type);
- static void deactivate_swap_slots_cache(void);
--- 
-2.17.0
+Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
