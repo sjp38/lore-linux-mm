@@ -1,158 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C49876B000C
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 11:22:12 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id h15-v6so13347396qkj.17
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 08:22:12 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id b48-v6si1250803qtc.146.2018.06.25.08.22.11
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B8AF6B0003
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 11:37:27 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id o7-v6so8283137itf.4
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 08:37:27 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 129-v6sor5269391ioy.201.2018.06.25.08.37.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jun 2018 08:22:11 -0700 (PDT)
-Subject: Re: [PATCH] add param that allows bootline control of hardened
- usercopy
-From: Christoph von Recklinghausen <crecklin@redhat.com>
-References: <1529939300-27461-1-git-send-email-crecklin@redhat.com>
-Message-ID: <d110c9af-cb68-5a3c-bc70-0c7650edb0d4@redhat.com>
-Date: Mon, 25 Jun 2018 11:22:09 -0400
+        (Google Transport Security);
+        Mon, 25 Jun 2018 08:37:25 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1529939300-27461-1-git-send-email-crecklin@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+In-Reply-To: <CAG_fn=Vc5134sX6JRUoGp=W0to6eg56DuW3YErqeWuR_W_O9gQ@mail.gmail.com>
+References: <CAG_fn=Vc5134sX6JRUoGp=W0to6eg56DuW3YErqeWuR_W_O9gQ@mail.gmail.com>
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Date: Mon, 25 Jun 2018 17:37:25 +0200
+Message-ID: <CAKv+Gu_Bghu11a+XMSFaE31QQxizsrG1UDi4-9vSke0Vso1MaA@mail.gmail.com>
+Subject: Re: Calling vmalloc_to_page() on ioremap memory?
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: keescook@chromium.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alexander Potapenko <glider@google.com>
+Cc: Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-Add correct address for linux-mm
+On 25 June 2018 at 16:59, Alexander Potapenko <glider@google.com> wrote:
+> Hi Ard, Mark, Andrew and others,
+>
+> AFAIU, commit 029c54b09599573015a5c18dbe59cbdf42742237 ("mm/vmalloc.c:
+> huge-vmap: fail gracefully on unexpected huge vmap mappings") was
+> supposed to make vmalloc_to_page() return NULL for pointers not
+> returned by vmalloc().
+> But when I call vmalloc_to_page() for the pointer returned by
+> acpi_os_ioremap() (see the patch below) I see that the resulting
+> `struct page *` points to unmapped memory:
+>
 
-On 06/25/2018 11:08 AM, Chris von Recklinghausen wrote:
-> Enabling HARDENED_USER_COPY causes measurable regressions in the
-> networking performances, up to 8% under UDP flood.
+Why do you assume it maps memory? It could map a device's MMIO
+registers as well, which don't have struct pages associated with them.
+
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D
+> ACPI: Enabled 2 GPEs in block 00 to 0F
+> phys: 00000000fed00000, vmalloc: ffffc9000019a000, page:
+
+Isn't that phys address something like the HPET on a x86 system?
+
+> ffff8800fed00000 [ffffea0003fb4000]
+> BUG: unable to handle kernel paging request at ffffea0003fb4000
+> PGD 3f7d5067 P4D 3f7d5067 PUD 3f7d4067 PMD 0
+> Oops: 0000 [#1] SMP PTI
+> CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.18.0-rc2+ #1325
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1 04/0=
+1/=3D
+> 2014
+> RIP: 0010:acpi_os_map_iomem+0x1c5/0x210 ??:?
+> Code: 00 88 ff ff 4d 89 f8 48 c1 f9 06 4c 89 f6 48 c7 c7 60 5f 01 82
+> 48 c1 e1 0c 48 01 c1 e8 6d 42 70 ff 4d 85 ff 0f 84 14 ff ff ff <49> 8b
+> 37 48 c7 c7 d2 61 01 82 e8 55 42 70 ff e9 00 ff ff ff 48 c7
+> RSP: 0000:ffff88003e253840 EFLAGS: 00010286
+> RAX: 000000000000005c RBX: ffff88003d857b80 RCX: ffffffff82245d38
+> RDX: 0000000000000000 RSI: 0000000000000096 RDI: ffffffff8288e86c
+> RBP: 00000000fed00000 R08: 00000000000000ae R09: 0000000000000007
+> R10: 0000000000000000 R11: ffffffff828908ad R12: 0000000000001000
+> R13: ffffc9000019a000 R14: 00000000fed00000 R15: ffffea0003fb4000
+> FS:  0000000000000000(0000) GS:ffff88003fc00000(0000) knlGS:0000000000000=
+00=3D
+> 0
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: ffffea0003fb4000 CR3: 000000000220a000 CR4: 00000000000006f0
+> Call Trace:
+>  acpi_ex_system_memory_space_handler+0xca/0x19f ??:?
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D
 >
-> A generic distro may want to enable HARDENED_USER_COPY in their default
-> kernel config, but at the same time, such distro may want to be able to
-> avoid the performance penalties in with the default configuration and
-> enable the stricter check on a per-boot basis.
+> For memory error detection purposes I'm trying to map the addresses
+> from the vmalloc range to valid struct pages, or at least make sure
+> there's no struct page for a given address.
+> Looking up the vmap_area_root rbtree isn't an option, as this must be
+> done from instrumented code, including interrupt handlers.
+> I've been trying to employ vmalloc_to_page(), but looks like it
+> doesn't work for ioremapped addresses.
+> Is this at all possible?
 >
-> This change adds a config variable and a boot parameter to conditionally
-> enable HARDENED_USER_COPY at boot time, and switch HUC to off if
-> HUC_DEFAULT_OFF is set.
+> Patch showing the problem follows. I'm building using GCC 7.1.1 on a
+> defconfig for x86_64.
 >
-> Signed-off-by: Chris von Recklinghausen <crecklin@redhat.com>
-> ---
->  .../admin-guide/kernel-parameters.rst         |  2 ++
->  .../admin-guide/kernel-parameters.txt         |  3 ++
->  include/linux/thread_info.h                   |  7 +++++
->  mm/usercopy.c                                 | 28 +++++++++++++++++++
->  security/Kconfig                              | 10 +++++++
->  5 files changed, 50 insertions(+)
->
-> diff --git a/Documentation/admin-guide/kernel-parameters.rst b/Documentation/admin-guide/kernel-parameters.rst
-> index b8d0bc07ed0a..c3035038e3ae 100644
-> --- a/Documentation/admin-guide/kernel-parameters.rst
-> +++ b/Documentation/admin-guide/kernel-parameters.rst
-> @@ -100,6 +100,8 @@ parameter is applicable::
->  	FB	The frame buffer device is enabled.
->  	FTRACE	Function tracing enabled.
->  	GCOV	GCOV profiling is enabled.
-> +	HUC	Hardened usercopy is enabled
-> +	HUCF	Hardened usercopy disabled at boot
->  	HW	Appropriate hardware is enabled.
->  	IA-64	IA-64 architecture is enabled.
->  	IMA     Integrity measurement architecture is enabled.
-> diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-> index efc7aa7a0670..cd3354bc14d3 100644
-> --- a/Documentation/admin-guide/kernel-parameters.txt
-> +++ b/Documentation/admin-guide/kernel-parameters.txt
-> @@ -816,6 +816,9 @@
->  	disable=	[IPV6]
->  			See Documentation/networking/ipv6.txt.
->  
-> +	enable_hardened_usercopy [HUC,HUCF]
-> +			Enable hardened usercopy checks
-> +
->  	disable_radix	[PPC]
->  			Disable RADIX MMU mode on POWER9
->  
-> diff --git a/include/linux/thread_info.h b/include/linux/thread_info.h
-> index 8d8821b3689a..140a36cc1c2c 100644
-> --- a/include/linux/thread_info.h
-> +++ b/include/linux/thread_info.h
-> @@ -109,12 +109,19 @@ static inline int arch_within_stack_frames(const void * const stack,
->  #endif
->  
->  #ifdef CONFIG_HARDENED_USERCOPY
-> +#include <linux/jump_label.h>
-> +
-> +DECLARE_STATIC_KEY_FALSE(bypass_usercopy_checks);
-> +
->  extern void __check_object_size(const void *ptr, unsigned long n,
->  					bool to_user);
->  
->  static __always_inline void check_object_size(const void *ptr, unsigned long n,
->  					      bool to_user)
+> --- a/drivers/acpi/osl.c
+> +++ b/drivers/acpi/osl.c
+> @@ -279,14 +279,23 @@ acpi_map_lookup_virt(void __iomem *virt, acpi_size =
+si=3D
+> ze)
+>  static void __iomem *acpi_map(acpi_physical_address pg_off, unsigned
+> long pg_sz)
 >  {
-> +	if (static_branch_likely(&bypass_usercopy_checks))
-> +		return;
-> +
->  	if (!__builtin_constant_p(n))
->  		__check_object_size(ptr, n, to_user);
+>         unsigned long pfn;
+> +       void __iomem *ret;
+> +       struct page *page;
+>
+>         pfn =3D3D pg_off >> PAGE_SHIFT;
+>         if (should_use_kmap(pfn)) {
+>                 if (pg_sz > PAGE_SIZE)
+>                         return NULL;
+>                 return (void __iomem __force *)kmap(pfn_to_page(pfn));
+> -       } else
+> -               return acpi_os_ioremap(pg_off, pg_sz);
+> +       } else {
+> +               ret =3D3D acpi_os_ioremap(pg_off, pg_sz);
+> +               BUG_ON(!is_vmalloc_addr(ret));
+> +               page =3D3D vmalloc_to_page(ret);
+> +               pr_err("phys: %px, vmalloc: %px, page: %px [%px]\n",
+> pg_off, ret, page_address(page), page);
+> +               if (page)
+> +                       pr_err("flags: %d\n", page->flags);
+> +               return ret;
+> +       }
 >  }
-> diff --git a/mm/usercopy.c b/mm/usercopy.c
-> index e9e9325f7638..ce3996da1b2e 100644
-> --- a/mm/usercopy.c
-> +++ b/mm/usercopy.c
-> @@ -279,3 +279,31 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
->  	check_kernel_text_object((const unsigned long)ptr, n, to_user);
->  }
->  EXPORT_SYMBOL(__check_object_size);
-> +
-> +DEFINE_STATIC_KEY_FALSE(bypass_usercopy_checks);
-> +EXPORT_SYMBOL(bypass_usercopy_checks);
-> +
-> +#ifdef CONFIG_HUC_DEFAULT_OFF
-> +#define HUC_DEFAULT false
-> +#else
-> +#define HUC_DEFAULT true
-> +#endif
-> +
-> +static bool enable_huc_atboot = HUC_DEFAULT;
-> +
-> +static int __init parse_enable_usercopy(char *str)
-> +{
-> +	enable_huc_atboot = true;
-> +	return 1;
-> +}
-> +
-> +static int __init set_enable_usercopy(void)
-> +{
-> +	if (enable_huc_atboot == false)
-> +		static_branch_enable(&bypass_usercopy_checks);
-> +	return 1;
-> +}
-> +
-> +__setup("enable_hardened_usercopy", parse_enable_usercopy);
-> +
-> +late_initcall(set_enable_usercopy);
-> diff --git a/security/Kconfig b/security/Kconfig
-> index c4302067a3ad..a6173897b85c 100644
-> --- a/security/Kconfig
-> +++ b/security/Kconfig
-> @@ -189,6 +189,16 @@ config HARDENED_USERCOPY_PAGESPAN
->  	  been removed. This config is intended to be used only while
->  	  trying to find such users.
->  
-> +config HUC_DEFAULT_OFF
-> +	bool "allow CONFIG_HARDENED_USERCOPY to be configured but disabled"
-> +	depends on HARDENED_USERCOPY
-> +	help
-> +	  When CONFIG_HARDENED_USERCOPY is enabled, disable its
-> +	  functionality unless it is enabled via at boot time
-> +	  via the "enable_hardened_usercopy" boot parameter. This allows
-> +	  the functionality of hardened usercopy to be present but not
-> +	  impact performance unless it is needed.
-> +
->  config FORTIFY_SOURCE
->  	bool "Harden common str/mem functions against buffer overflows"
->  	depends on ARCH_HAS_FORTIFY_SOURCE
+>
+> Thanks,
+> Alexander Potapenko
+> Software Engineer
+>
+> Google Germany GmbH
+> Erika-Mann-Stra=C3=9Fe, 33
+> 80636 M=C3=BCnchen
+>
+> Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+> Registergericht und -nummer: Hamburg, HRB 86891
+> Sitz der Gesellschaft: Hamburg
