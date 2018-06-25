@@ -1,64 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 88F076B0006
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 07:08:33 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id t25-v6so2226971edq.14
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 04:08:33 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x38-v6si1437426eda.438.2018.06.25.04.08.31
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DB3C6B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 08:30:36 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id c6-v6so8181773pll.4
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 05:30:36 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id w65-v6si2893805pgb.377.2018.06.25.05.30.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Jun 2018 04:08:31 -0700 (PDT)
-Date: Mon, 25 Jun 2018 13:08:30 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
-Message-ID: <20180625110830.GJ28965@dhcp22.suse.cz>
-References: <20180622150242.16558-1-mhocko@kernel.org>
- <d617fc1d-28a7-3441-7465-bedf4dc69976@redhat.com>
- <20180625075715.GA28965@dhcp22.suse.cz>
- <e7f3289e-3ee3-3f02-1947-9e4327e1a864@redhat.com>
- <20180625084529.GC28965@dhcp22.suse.cz>
- <45e1a12c-280b-635a-fc76-716440f084ec@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <45e1a12c-280b-635a-fc76-716440f084ec@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Jun 2018 05:30:34 -0700 (PDT)
+From: Wei Wang <wei.w.wang@intel.com>
+Subject: [PATCH v34 0/4] Virtio-balloon: support free page reporting
+Date: Mon, 25 Jun 2018 20:05:08 +0800
+Message-Id: <1529928312-30500-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paolo Bonzini <pbonzini@redhat.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, kvm@vger.kernel.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
+To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org
+Cc: torvalds@linux-foundation.org, pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
 
-On Mon 25-06-18 12:34:43, Paolo Bonzini wrote:
-> On 25/06/2018 10:45, Michal Hocko wrote:
-> > On Mon 25-06-18 10:10:18, Paolo Bonzini wrote:
-> >> On 25/06/2018 09:57, Michal Hocko wrote:
-> >>> On Sun 24-06-18 10:11:21, Paolo Bonzini wrote:
-> >>>> On 22/06/2018 17:02, Michal Hocko wrote:
-> >>>>> @@ -7215,6 +7216,8 @@ void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
-> >>>>>  	apic_address = gfn_to_hva(kvm, APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT);
-> >>>>>  	if (start <= apic_address && apic_address < end)
-> >>>>>  		kvm_make_all_cpus_request(kvm, KVM_REQ_APIC_PAGE_RELOAD);
-> >>>>> +
-> >>>>> +	return 0;
-> >>>>
-> >>>> This is wrong, gfn_to_hva can sleep.
-> >>>
-> >>> Hmm, I have tried to crawl the call chain and haven't found any
-> >>> sleepable locks taken. Maybe I am just missing something.
-> >>> __kvm_memslots has a complex locking assert. I do not see we would take
-> >>> slots_lock anywhere from the notifier call path. IIUC that means that
-> >>> users_count has to be zero at that time. I have no idea how that is
-> >>> guaranteed.
-> >>
-> >> Nevermind, ENOCOFFEE.  This is gfn_to_hva, not gfn_to_pfn.  It only
-> >> needs SRCU.
-> > 
-> > OK, so just the make sure I follow, the change above is correct?
-> 
-> Yes.  It's only gfn_to_pfn that calls get_user_pages and therefore can
-> sleep.
+This patch series is separated from the previous "Virtio-balloon
+Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_HINT,  
+implemented by this series enables the virtio-balloon driver to report
+hints of guest free pages to the host. It can be used to accelerate live
+migration of VMs. Here is an introduction of this usage:
 
-OK, thanks for the confirmation!
+Live migration needs to transfer the VM's memory from the source machine
+to the destination round by round. For the 1st round, all the VM's memory
+is transferred. From the 2nd round, only the pieces of memory that were
+written by the guest (after the 1st round) are transferred. One method
+that is popularly used by the hypervisor to track which part of memory is
+written is to write-protect all the guest memory.
+
+This feature enables the optimization by skipping the transfer of guest
+free pages during VM live migration. It is not concerned that the memory
+pages are used after they are given to the hypervisor as a hint of the
+free pages, because they will be tracked by the hypervisor and transferred
+in the subsequent round if they are used and written.
+
+* Tests
+- Test Environment
+    Host: Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz
+    Guest: 8G RAM, 4 vCPU
+    Migration setup: migrate_set_speed 100G, migrate_set_downtime 2 second
+
+- Test Results
+    - Idle Guest Live Migration Time (results are averaged over 10 runs):
+        - Optimization v.s. Legacy = 284ms vs 1757ms --> ~84% reduction
+    - Guest with Linux Compilation Workload (make bzImage -j4):
+        - Live Migration Time (average)
+          Optimization v.s. Legacy = 1402ms v.s. 2528ms --> ~44% reduction
+        - Linux Compilation Time
+          Optimization v.s. Legacy = 5min6s v.s. 5min12s
+          --> no obvious difference
+
+ChangeLog:
+v33->v34:
+    - mm:
+        - add a new API max_free_page_blocks, which estimates the max
+          number of free page blocks that a free page list may have
+        - get_from_free_page_list: store addresses to multiple arrays,
+          instead of just one array. This removes the limitation of being
+          able to report only 2TB free memory (the largest array memory
+          that can be allocated on x86 is 4MB, which can store 2^19
+          addresses of 4MB free page blocks).
+    - virtio-balloon:
+        - Allocate multiple arrays to load free page hints;
+        - Use the same method in v32 to do guest/host interaction, the
+          differeces are
+              - the hints are tranferred array by array, instead of
+                one by one.
+	      - send the free page block size of a hint along with the cmd
+                id to host, so that host knows each address represents e.g.
+                a 4MB memory in our case. 
+v32->v33:
+    - mm/get_from_free_page_list: The new implementation to get free page
+      hints based on the suggestions from Linus:
+      https://lkml.org/lkml/2018/6/11/764
+      This avoids the complex call chain, and looks more prudent.
+    - virtio-balloon: 
+      - use a fix-sized buffer to get free page hints;
+      - remove the cmd id related interface. Now host can just send a free
+        page hint command to the guest (via the host_cmd config register)
+        to start the reporting. Currentlty the guest reports only the max
+        order free page hints to host, which has generated similar good
+        results as before. But the interface used by virtio-balloon to
+        report can support reporting more orders in the future when there
+        is a need.
+v31->v32:
+    - virtio-balloon:
+        - rename cmd_id_use to cmd_id_active;
+        - report_free_page_func: detach used buffers after host sends a vq
+          interrupt, instead of busy waiting for used buffers.
+v30->v31:
+    - virtio-balloon:
+        - virtio_balloon_send_free_pages: return -EINTR rather than 1 to
+          indicate an active stop requested by host; and add more
+          comments to explain about access to cmd_id_received without
+          locks;
+        -  add_one_sg: add TODO to comments about possible improvement.
+v29->v30:
+    - mm/walk_free_mem_block: add cond_sched() for each order
+v28->v29:
+    - mm/page_poison: only expose page_poison_enabled(), rather than more
+      changes did in v28, as we are not 100% confident about that for now.
+    - virtio-balloon: use a separate buffer for the stop cmd, instead of
+      having the start and stop cmd use the same buffer. This avoids the
+      corner case that the start cmd is overridden by the stop cmd when
+      the host has a delay in reading the start cmd.
+v27->v28:
+    - mm/page_poison: Move PAGE_POISON to page_poison.c and add a function
+      to expose page poison val to kernel modules.
+v26->v27:
+    - add a new patch to expose page_poisoning_enabled to kernel modules
+    - virtio-balloon: set poison_val to 0xaaaaaaaa, instead of 0xaa
+v25->v26: virtio-balloon changes only
+    - remove kicking free page vq since the host now polls the vq after
+      initiating the reporting
+    - report_free_page_func: detach all the used buffers after sending
+      the stop cmd id. This avoids leaving the detaching burden (i.e.
+      overhead) to the next cmd id. Detaching here isn't considered
+      overhead since the stop cmd id has been sent, and host has already
+      moved formard.
+v24->v25:
+    - mm: change walk_free_mem_block to return 0 (instead of true) on
+          completing the report, and return a non-zero value from the
+          callabck, which stops the reporting.
+    - virtio-balloon:
+        - use enum instead of define for VIRTIO_BALLOON_VQ_INFLATE etc.
+        - avoid __virtio_clear_bit when bailing out;
+        - a new method to avoid reporting the some cmd id to host twice
+        - destroy_workqueue can cancel free page work when the feature is
+          negotiated;
+        - fail probe when the free page vq size is less than 2.
+v23->v24:
+    - change feature name VIRTIO_BALLOON_F_FREE_PAGE_VQ to
+      VIRTIO_BALLOON_F_FREE_PAGE_HINT
+    - kick when vq->num_free < half full, instead of "= half full"
+    - replace BUG_ON with bailing out
+    - check vb->balloon_wq in probe(), if null, bail out
+    - add a new feature bit for page poisoning
+    - solve the corner case that one cmd id being sent to host twice
+v22->v23:
+    - change to kick the device when the vq is half-way full;
+    - open-code batch_free_page_sg into add_one_sg;
+    - change cmd_id from "uint32_t" to "__virtio32";
+    - reserver one entry in the vq for the driver to send cmd_id, instead
+      of busywaiting for an available entry;
+    - add "stop_update" check before queue_work for prudence purpose for
+      now, will have a separate patch to discuss this flag check later;
+    - init_vqs: change to put some variables on stack to have simpler
+      implementation;
+    - add destroy_workqueue(vb->balloon_wq);
+v21->v22:
+    - add_one_sg: some code and comment re-arrangement
+    - send_cmd_id: handle a cornercase
+
+For previous ChangeLog, please reference
+https://lwn.net/Articles/743660/
+
+
+
+Wei Wang (4):
+  mm: support to get hints of free page blocks
+  virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
+  mm/page_poison: expose page_poisoning_enabled to kernel modules
+  virtio-balloon: VIRTIO_BALLOON_F_PAGE_POISON
+
+ drivers/virtio/virtio_balloon.c     | 357 ++++++++++++++++++++++++++++++++----
+ include/linux/mm.h                  |   3 +
+ include/uapi/linux/virtio_balloon.h |  14 ++
+ mm/page_alloc.c                     |  82 +++++++++
+ mm/page_poison.c                    |   6 +
+ 5 files changed, 426 insertions(+), 36 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+2.7.4
