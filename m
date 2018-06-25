@@ -1,88 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C56146B0006
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 05:29:40 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id s16-v6so564331pgq.4
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 02:29:40 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id c7-v6si11329995pgn.132.2018.06.25.02.29.39
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D6B746B0006
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 06:34:50 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id s63-v6so9557540qkc.7
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 03:34:50 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id o19-v6si3426752qtb.380.2018.06.25.03.34.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jun 2018 02:29:39 -0700 (PDT)
-Date: Mon, 25 Jun 2018 12:29:38 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCHv3 15/17] x86/mm: Implement sync_direct_mapping()
-Message-ID: <20180625092937.gmu6m7kwet5s5w6m@black.fi.intel.com>
-References: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
- <20180612143915.68065-16-kirill.shutemov@linux.intel.com>
- <848a6836-1f54-4775-0b87-e926d7b7991d@intel.com>
+        Mon, 25 Jun 2018 03:34:48 -0700 (PDT)
+Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+References: <20180622150242.16558-1-mhocko@kernel.org>
+ <d617fc1d-28a7-3441-7465-bedf4dc69976@redhat.com>
+ <20180625075715.GA28965@dhcp22.suse.cz>
+ <e7f3289e-3ee3-3f02-1947-9e4327e1a864@redhat.com>
+ <20180625084529.GC28965@dhcp22.suse.cz>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <45e1a12c-280b-635a-fc76-716440f084ec@redhat.com>
+Date: Mon, 25 Jun 2018 12:34:43 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <848a6836-1f54-4775-0b87-e926d7b7991d@intel.com>
+In-Reply-To: <20180625084529.GC28965@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, kvm@vger.kernel.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
 
-On Mon, Jun 18, 2018 at 04:28:27PM +0000, Dave Hansen wrote:
-> > index 17383f9677fa..032b9a1ba8e1 100644
-> > --- a/arch/x86/mm/init_64.c
-> > +++ b/arch/x86/mm/init_64.c
-> > @@ -731,6 +731,8 @@ kernel_physical_mapping_init(unsigned long paddr_start,
-> >  		pgd_changed = true;
-> >  	}
-> >  
-> > +	sync_direct_mapping();
-> > +
-> >  	if (pgd_changed)
-> >  		sync_global_pgds(vaddr_start, vaddr_end - 1);
-> >  
-> > @@ -1142,10 +1144,13 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
-> >  static void __meminit
-> >  kernel_physical_mapping_remove(unsigned long start, unsigned long end)
-> >  {
-> > +	int ret;
-> >  	start = (unsigned long)__va(start);
-> >  	end = (unsigned long)__va(end);
-> >  
-> >  	remove_pagetable(start, end, true, NULL);
-> > +	ret = sync_direct_mapping();
-> > +	WARN_ON(ret);
-> >  }
+On 25/06/2018 10:45, Michal Hocko wrote:
+> On Mon 25-06-18 10:10:18, Paolo Bonzini wrote:
+>> On 25/06/2018 09:57, Michal Hocko wrote:
+>>> On Sun 24-06-18 10:11:21, Paolo Bonzini wrote:
+>>>> On 22/06/2018 17:02, Michal Hocko wrote:
+>>>>> @@ -7215,6 +7216,8 @@ void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+>>>>>  	apic_address = gfn_to_hva(kvm, APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT);
+>>>>>  	if (start <= apic_address && apic_address < end)
+>>>>>  		kvm_make_all_cpus_request(kvm, KVM_REQ_APIC_PAGE_RELOAD);
+>>>>> +
+>>>>> +	return 0;
+>>>>
+>>>> This is wrong, gfn_to_hva can sleep.
+>>>
+>>> Hmm, I have tried to crawl the call chain and haven't found any
+>>> sleepable locks taken. Maybe I am just missing something.
+>>> __kvm_memslots has a complex locking assert. I do not see we would take
+>>> slots_lock anywhere from the notifier call path. IIUC that means that
+>>> users_count has to be zero at that time. I have no idea how that is
+>>> guaranteed.
+>>
+>> Nevermind, ENOCOFFEE.  This is gfn_to_hva, not gfn_to_pfn.  It only
+>> needs SRCU.
 > 
-> I understand why you implemented it this way, I really do.  It's
-> certainly the quickest way to hack something together and make a
-> standalone piece of code.  But, I don't think it's maintainable.
-> 
-> For instance, this call to sync_direct_mapping() could be entirely
-> replaced by a call to:
-> 
-> 	for_each_keyid(k)...
-> 		remove_pagetable(start + offset_per_keyid * k,
-> 			         end   + offset_per_keyid * k,
-> 				 true, NULL);
-> 
-> No?
+> OK, so just the make sure I follow, the change above is correct?
 
-Yes. But what's the point if we need to have the sync routine anyway for
-the add path?
+Yes.  It's only gfn_to_pfn that calls get_user_pages and therefore can
+sleep.
 
+Thanks,
 
-> >  int __ref arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-> > @@ -1290,6 +1295,7 @@ void mark_rodata_ro(void)
-> >  			(unsigned long) __va(__pa_symbol(rodata_end)),
-> >  			(unsigned long) __va(__pa_symbol(_sdata)));
-> >  
-> > +	sync_direct_mapping();
-> >  	debug_checkwx();
-> 
-> Huh, checking the return code in some cases and not others.  Curious.
-> Why is it that way?
-
-There's no sensible way to handle failure in any of these path. But in
-remove path we don't expect the failure -- no allocation required.
-It can only happen if we missed sync_direct_mapping() somewhere else.
-
--- 
- Kirill A. Shutemov
+Paolo
