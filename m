@@ -1,77 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B05D56B0008
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 06:36:24 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id z11-v6so6977704pfn.1
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 03:36:24 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0114.outbound.protection.outlook.com. [104.47.1.114])
-        by mx.google.com with ESMTPS id j84-v6si13835127pfj.79.2018.06.25.03.36.22
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 88F076B0006
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 07:08:33 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id t25-v6so2226971edq.14
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 04:08:33 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x38-v6si1437426eda.438.2018.06.25.04.08.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 25 Jun 2018 03:36:23 -0700 (PDT)
-Subject: Re: [PATCH 1/3] mm: workingset: remove local_irq_disable() from
- count_shadow_nodes()
-References: <20180622151221.28167-1-bigeasy@linutronix.de>
- <20180622151221.28167-2-bigeasy@linutronix.de>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <0a44a872-eef1-6b4d-0344-7521c4ccc966@virtuozzo.com>
-Date: Mon, 25 Jun 2018 13:36:08 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 25 Jun 2018 04:08:31 -0700 (PDT)
+Date: Mon, 25 Jun 2018 13:08:30 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+Message-ID: <20180625110830.GJ28965@dhcp22.suse.cz>
+References: <20180622150242.16558-1-mhocko@kernel.org>
+ <d617fc1d-28a7-3441-7465-bedf4dc69976@redhat.com>
+ <20180625075715.GA28965@dhcp22.suse.cz>
+ <e7f3289e-3ee3-3f02-1947-9e4327e1a864@redhat.com>
+ <20180625084529.GC28965@dhcp22.suse.cz>
+ <45e1a12c-280b-635a-fc76-716440f084ec@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20180622151221.28167-2-bigeasy@linutronix.de>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <45e1a12c-280b-635a-fc76-716440f084ec@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, linux-mm@kvack.org
-Cc: tglx@linutronix.de, Andrew Morton <akpm@linux-foundation.org>
+To: Paolo Bonzini <pbonzini@redhat.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, kvm@vger.kernel.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
 
-On 22.06.2018 18:12, Sebastian Andrzej Siewior wrote:
-> In commit 0c7c1bed7e13 ("mm: make counting of list_lru_one::nr_items
-> lockless") the
-> 	spin_lock(&nlru->lock);
+On Mon 25-06-18 12:34:43, Paolo Bonzini wrote:
+> On 25/06/2018 10:45, Michal Hocko wrote:
+> > On Mon 25-06-18 10:10:18, Paolo Bonzini wrote:
+> >> On 25/06/2018 09:57, Michal Hocko wrote:
+> >>> On Sun 24-06-18 10:11:21, Paolo Bonzini wrote:
+> >>>> On 22/06/2018 17:02, Michal Hocko wrote:
+> >>>>> @@ -7215,6 +7216,8 @@ void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+> >>>>>  	apic_address = gfn_to_hva(kvm, APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT);
+> >>>>>  	if (start <= apic_address && apic_address < end)
+> >>>>>  		kvm_make_all_cpus_request(kvm, KVM_REQ_APIC_PAGE_RELOAD);
+> >>>>> +
+> >>>>> +	return 0;
+> >>>>
+> >>>> This is wrong, gfn_to_hva can sleep.
+> >>>
+> >>> Hmm, I have tried to crawl the call chain and haven't found any
+> >>> sleepable locks taken. Maybe I am just missing something.
+> >>> __kvm_memslots has a complex locking assert. I do not see we would take
+> >>> slots_lock anywhere from the notifier call path. IIUC that means that
+> >>> users_count has to be zero at that time. I have no idea how that is
+> >>> guaranteed.
+> >>
+> >> Nevermind, ENOCOFFEE.  This is gfn_to_hva, not gfn_to_pfn.  It only
+> >> needs SRCU.
+> > 
+> > OK, so just the make sure I follow, the change above is correct?
 > 
-> statement was replaced with
-> 	rcu_read_lock();
-> 
-> in __list_lru_count_one(). The comment in count_shadow_nodes() says that
-> the local_irq_disable() is required because the lock must be acquired
-> with disabled interrupts and (spin_lock()) does not do so.
-> Since the lock is replaced with rcu_read_lock() the local_irq_disable()
-> is no longer needed. The code path is
->   list_lru_shrink_count()
->     -> list_lru_count_one()
->       -> __list_lru_count_one()
->         -> rcu_read_lock()
->         -> list_lru_from_memcg_idx()
->         -> rcu_read_unlock()
-> 
-> Remove the local_irq_disable() statement.
-> 
-> Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
-> Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+> Yes.  It's only gfn_to_pfn that calls get_user_pages and therefore can
+> sleep.
 
-Looks good for me.
-
-Reviewed-by: Kirill Tkhai <ktkhai@virtuozzo.com>
-
-> ---
->  mm/workingset.c | 3 ---
->  1 file changed, 3 deletions(-)
-> 
-> diff --git a/mm/workingset.c b/mm/workingset.c
-> index 40ee02c83978..ed8151180899 100644
-> --- a/mm/workingset.c
-> +++ b/mm/workingset.c
-> @@ -366,10 +366,7 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
->  	unsigned long nodes;
->  	unsigned long cache;
->  
-> -	/* list_lru lock nests inside the IRQ-safe i_pages lock */
-> -	local_irq_disable();
->  	nodes = list_lru_shrink_count(&shadow_nodes, sc);
-> -	local_irq_enable();
->  
->  	/*
->  	 * Approximate a reasonable limit for the radix tree nodes
-> 
+OK, thanks for the confirmation!
+-- 
+Michal Hocko
+SUSE Labs
