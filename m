@@ -1,70 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 960586B026D
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 12:27:33 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id n10-v6so1135713otl.2
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 09:27:33 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id x124-v6si4437636oix.244.2018.06.25.09.27.32
-        for <linux-mm@kvack.org>;
-        Mon, 25 Jun 2018 09:27:32 -0700 (PDT)
-Date: Mon, 25 Jun 2018 17:27:28 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: Calling vmalloc_to_page() on ioremap memory?
-Message-ID: <20180625162728.qkkbzjgqebgh2fuu@lakrids.cambridge.arm.com>
-References: <CAG_fn=Vc5134sX6JRUoGp=W0to6eg56DuW3YErqeWuR_W_O9gQ@mail.gmail.com>
- <20180625160040.di75264empbcf6xz@lakrids.cambridge.arm.com>
- <CAG_fn=XKo6nDphugt6wJSfA3qXGDkGDzd302kRSW6jdD4XNMvQ@mail.gmail.com>
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A2A946B0003
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 12:36:46 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id bf1-v6so8489737plb.2
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 09:36:46 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id f32-v6si8752851plf.38.2018.06.25.09.36.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Jun 2018 09:36:45 -0700 (PDT)
+Subject: Re: [PATCHv3 15/17] x86/mm: Implement sync_direct_mapping()
+References: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
+ <20180612143915.68065-16-kirill.shutemov@linux.intel.com>
+ <848a6836-1f54-4775-0b87-e926d7b7991d@intel.com>
+ <20180625092937.gmu6m7kwet5s5w6m@black.fi.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <0ac027dd-ca4b-316e-ee2c-64305e633b1b@intel.com>
+Date: Mon, 25 Jun 2018 09:36:43 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAG_fn=XKo6nDphugt6wJSfA3qXGDkGDzd302kRSW6jdD4XNMvQ@mail.gmail.com>
+In-Reply-To: <20180625092937.gmu6m7kwet5s5w6m@black.fi.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jun 25, 2018 at 06:24:57PM +0200, Alexander Potapenko wrote:
-> On Mon, Jun 25, 2018 at 6:00 PM Mark Rutland <mark.rutland@arm.com> wrote:
-> >
-> > On Mon, Jun 25, 2018 at 04:59:23PM +0200, Alexander Potapenko wrote:
-> > > Hi Ard, Mark, Andrew and others,
-> > >
-> > > AFAIU, commit 029c54b09599573015a5c18dbe59cbdf42742237 ("mm/vmalloc.c:
-> > > huge-vmap: fail gracefully on unexpected huge vmap mappings") was
-> > > supposed to make vmalloc_to_page() return NULL for pointers not
-> > > returned by vmalloc().
-> >
-> > It's a little more subtle than that -- avoiding an edge case where we
-> > unexpectedly hit huge mappings, rather than determining whether an
-> > address same from vmalloc().
-> Ok, but anyway, acpi_os_ioremap() creates a huge page mapping via
-> __ioremap_caller() (see
-> https://elixir.bootlin.com/linux/latest/source/arch/x86/mm/ioremap.c#L133)
-> Shouldn't these checks detect that as well?
-
-It should catch such mappings, yes.
-
-> > > For memory error detection purposes I'm trying to map the addresses
-> > > from the vmalloc range to valid struct pages, or at least make sure
-> > > there's no struct page for a given address.
-> > > Looking up the vmap_area_root rbtree isn't an option, as this must be
-> > > done from instrumented code, including interrupt handlers.
-> >
-> > I'm not sure how you can do this without looking at VMAs.
-> >
-> > In general, the vmalloc area can contain addresses which are not memory,
-> > and this cannot be detremined from the address alone.
-> I thought this was exactly what vmalloc_to_page() did, but apparently no.
+On 06/25/2018 02:29 AM, Kirill A. Shutemov wrote:
+> On Mon, Jun 18, 2018 at 04:28:27PM +0000, Dave Hansen wrote:
+>>>  
+>>>  	remove_pagetable(start, end, true, NULL);
+>>> +	ret = sync_direct_mapping();
+>>> +	WARN_ON(ret);
+>>>  }
+>>
+>> I understand why you implemented it this way, I really do.  It's
+>> certainly the quickest way to hack something together and make a
+>> standalone piece of code.  But, I don't think it's maintainable.
+>>
+>> For instance, this call to sync_direct_mapping() could be entirely
+>> replaced by a call to:
+>>
+>> 	for_each_keyid(k)...
+>> 		remove_pagetable(start + offset_per_keyid * k,
+>> 			         end   + offset_per_keyid * k,
+>> 				 true, NULL);
+>>
+>> No?
 > 
-> > You *might* be able to get away with pfn_valid(vmalloc_to_pfn(x)), but
-> > IIRC there's some disagreement on the precise meaning of pfn_valid(), so
-> > that might just tell you that the address happens to fall close to some
-> > valid memory.
-> This appears to work, at least for ACPI mappings. I'll check other cases though.
-> Thank you!
+> Yes. But what's the point if we need to have the sync routine anyway for
+> the add path?
 
-Great!
+Because you are working to remove the sync routine and make an effort to
+share more code with the regular direct map manipulation.  Right?
 
-Thanks,
-Mark.
+My point is that this patch did not even make an _effort_ to reuse code
+where it would have been quite trivial to do so.  I think such an effort
+needs to be put forth before we add 400 more lines of page table
+manipulation.
+
+>>>  int __ref arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
+>>> @@ -1290,6 +1295,7 @@ void mark_rodata_ro(void)
+>>>  			(unsigned long) __va(__pa_symbol(rodata_end)),
+>>>  			(unsigned long) __va(__pa_symbol(_sdata)));
+>>>  
+>>> +	sync_direct_mapping();
+>>>  	debug_checkwx();
+>>
+>> Huh, checking the return code in some cases and not others.  Curious.
+>> Why is it that way?
+> 
+> There's no sensible way to handle failure in any of these path. But in
+> remove path we don't expect the failure -- no allocation required.
+> It can only happen if we missed sync_direct_mapping() somewhere else.
+
+So, should we just silently drop the error?  Or, would it be sensible to
+make this a WARN_ON_ONCE()?
