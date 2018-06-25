@@ -1,82 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BD05E6B026B
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 10:12:48 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id i10-v6so2369593eds.19
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 07:12:48 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D65746B026D
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 10:14:36 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id r7-v6so981727edq.8
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 07:14:36 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c4-v6si891771edf.296.2018.06.25.07.12.47
+        by mx.google.com with ESMTPS id m9-v6si7433142edf.0.2018.06.25.07.14.35
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Jun 2018 07:12:47 -0700 (PDT)
-Date: Mon, 25 Jun 2018 16:12:46 +0200
+        Mon, 25 Jun 2018 07:14:35 -0700 (PDT)
+Date: Mon, 25 Jun 2018 16:14:34 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: Bring OOM notifier callbacks to outside of OOM
- killer.
-Message-ID: <20180625141246.GN28965@dhcp22.suse.cz>
-References: <1529493638-6389-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180620115531.GL13685@dhcp22.suse.cz>
- <3d27f26e-68ba-d3c0-9518-cebeb2689aec@sony.com>
- <20180625130756.GK28965@dhcp22.suse.cz>
- <9a14d554-6470-e0d6-19cc-1ecec17a47c7@sony.com>
+Subject: Re: dm bufio: Reduce dm_bufio_lock contention
+Message-ID: <20180625141434.GO28965@dhcp22.suse.cz>
+References: <alpine.LRH.2.02.1806181003560.4201@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180619104312.GD13685@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806191228110.25656@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180622090151.GS10465@dhcp22.suse.cz>
+ <20180622090935.GT10465@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806220845190.8072@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180622130524.GZ10465@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806221447050.2717@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180625090957.GF28965@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806250941380.11092@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <9a14d554-6470-e0d6-19cc-1ecec17a47c7@sony.com>
+In-Reply-To: <alpine.LRH.2.02.1806250941380.11092@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peter enderborg <peter.enderborg@sony.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: jing xia <jing.xia.mail@gmail.com>, Mike Snitzer <snitzer@redhat.com>, agk@redhat.com, dm-devel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon 25-06-18 16:04:04, peter enderborg wrote:
-> On 06/25/2018 03:07 PM, Michal Hocko wrote:
+On Mon 25-06-18 09:53:34, Mikulas Patocka wrote:
+> y
 > 
-> > On Mon 25-06-18 15:03:40, peter enderborg wrote:
-> >> On 06/20/2018 01:55 PM, Michal Hocko wrote:
-> >>> On Wed 20-06-18 20:20:38, Tetsuo Handa wrote:
-> >>>> Sleeping with oom_lock held can cause AB-BA lockup bug because
-> >>>> __alloc_pages_may_oom() does not wait for oom_lock. Since
-> >>>> blocking_notifier_call_chain() in out_of_memory() might sleep, sleeping
-> >>>> with oom_lock held is currently an unavoidable problem.
-> >>> Could you be more specific about the potential deadlock? Sleeping while
-> >>> holding oom lock is certainly not nice but I do not see how that would
-> >>> result in a deadlock assuming that the sleeping context doesn't sleep on
-> >>> the memory allocation obviously.
-> >> It is a mutex you are supposed to be able to sleep.A  It's even exported.
-> > What do you mean? oom_lock is certainly not exported for general use. It
-> > is not local to oom_killer.c just because it is needed in other _mm_
-> > code.
-> >  
+> On Mon, 25 Jun 2018, Michal Hocko wrote:
 > 
-> ItA  is in the oom.h file include/linux/oom.h, if it that sensitive it should
-> be in mm/ and a documented note about the special rules. It is only used
-> in drivers/tty/sysrq.c and that be replaced by a help function in mm that
-> do theA  oom stuff.
+> > On Fri 22-06-18 14:57:10, Mikulas Patocka wrote:
+> > > 
+> > > 
+> > > On Fri, 22 Jun 2018, Michal Hocko wrote:
+> > > 
+> > > > On Fri 22-06-18 08:52:09, Mikulas Patocka wrote:
+> > > > > 
+> > > > > 
+> > > > > On Fri, 22 Jun 2018, Michal Hocko wrote:
+> > > > > 
+> > > > > > On Fri 22-06-18 11:01:51, Michal Hocko wrote:
+> > > > > > > On Thu 21-06-18 21:17:24, Mikulas Patocka wrote:
+> > > > > > [...]
+> > > > > > > > What about this patch? If __GFP_NORETRY and __GFP_FS is not set (i.e. the 
+> > > > > > > > request comes from a block device driver or a filesystem), we should not 
+> > > > > > > > sleep.
+> > > > > > > 
+> > > > > > > Why? How are you going to audit all the callers that the behavior makes
+> > > > > > > sense and moreover how are you going to ensure that future usage will
+> > > > > > > still make sense. The more subtle side effects gfp flags have the harder
+> > > > > > > they are to maintain.
+> > > > > > 
+> > > > > > So just as an excercise. Try to explain the above semantic to users. We
+> > > > > > currently have the following.
+> > > > > > 
+> > > > > >  * __GFP_NORETRY: The VM implementation will try only very lightweight
+> > > > > >  *   memory direct reclaim to get some memory under memory pressure (thus
+> > > > > >  *   it can sleep). It will avoid disruptive actions like OOM killer. The
+> > > > > >  *   caller must handle the failure which is quite likely to happen under
+> > > > > >  *   heavy memory pressure. The flag is suitable when failure can easily be
+> > > > > >  *   handled at small cost, such as reduced throughput
+> > > > > > 
+> > > > > >  * __GFP_FS can call down to the low-level FS. Clearing the flag avoids the
+> > > > > >  *   allocator recursing into the filesystem which might already be holding
+> > > > > >  *   locks.
+> > > > > > 
+> > > > > > So how are you going to explain gfp & (__GFP_NORETRY | ~__GFP_FS)? What
+> > > > > > is the actual semantic without explaining the whole reclaim or force
+> > > > > > users to look into the code to understand that? What about GFP_NOIO |
+> > > > > > __GFP_NORETRY? What does it mean to that "should not sleep". Do all
+> > > > > > shrinkers have to follow that as well?
+> > > > > 
+> > > > > My reasoning was that there is broken code that uses __GFP_NORETRY and 
+> > > > > assumes that it can't fail - so conditioning the change on !__GFP_FS would 
+> > > > > minimize the diruption to the broken code.
+> > > > > 
+> > > > > Anyway - if you want to test only on __GFP_NORETRY (and fix those 16 
+> > > > > broken cases that assume that __GFP_NORETRY can't fail), I'm OK with that.
+> > > > 
+> > > > As I've already said, this is a subtle change which is really hard to
+> > > > reason about. Throttling on congestion has its meaning and reason. Look
+> > > > at why we are doing that in the first place. You cannot simply say this
+> > > 
+> > > So - explain why is throttling needed. You support throttling, I don't, so 
+> > > you have to explain it :)
+> > > 
+> > > > is ok based on your specific usecase. We do have means to achieve that.
+> > > > It is explicit and thus it will be applied only where it makes sense.
+> > > > You keep repeating that implicit behavior change for everybody is
+> > > > better.
+> > > 
+> > > I don't want to change it for everybody. I want to change it for block 
+> > > device drivers. I don't care what you do with non-block drivers.
+> > 
+> > Well, it is usually onus of the patch submitter to justify any change.
+> > But let me be nice on you, for once. This throttling is triggered only
+> > if we all the pages we have encountered during the reclaim attempt are
+> > dirty and that means that we are rushing through the LRU list quicker
+> > than flushers are able to clean. If we didn't throttle we could hit
+> > stronger reclaim priorities (aka scan more to reclaim memory) and
+> > reclaim more pages as a result.
+> 
+> And the throttling in dm-bufio prevents kswapd from making forward 
+> progress, causing this situation...
 
-Well, there are many things defined in kernel header files and not meant
-for wider use. Using random locks is generally discouraged I would say
-unless you are sure you know what you are doing. We could do some more
-work to hide internals for sure, though.
- 
-> >>>> As a preparation for not to sleep with oom_lock held, this patch brings
-> >>>> OOM notifier callbacks to outside of OOM killer, with two small behavior
-> >>>> changes explained below.
-> >>> Can we just eliminate this ugliness and remove it altogether? We do not
-> >>> have that many notifiers. Is there anything fundamental that would
-> >>> prevent us from moving them to shrinkers instead?
-> >> @Hocko Do you remember the lowmemorykiller from android? Some things
-> >> might not be the right thing for shrinkers.
-> > Just that lmk did it wrong doesn't mean others have to follow.
-> >
-> If all you have is a hammer, everything looks like a nail. (I dona??t argument that it was right)
-> But if you dona??t have a way to interact with the memory system we will get attempts like lmk.A 
-> Oom notifiers and vmpressure is for this task better than shrinkers.
+Which is what we have PF_THROTTLE_LESS for. Geez, do we have to go in
+circles like that? Are you even listening?
 
-A lack of feature should be a trigger for a discussion rather than a
-quick hack that seems to work for a particular usecase and live out of
-tree, then get to staging and hope it will fix itself. Seriously, the
-kernel development is not a nail hammering.
+[...]
+
+> And so what do you want to do to prevent block drivers from sleeping?
+
+use the existing means we have.
 -- 
 Michal Hocko
 SUSE Labs
