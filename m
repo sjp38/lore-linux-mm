@@ -1,64 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B0B866B000A
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 04:08:32 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id 189-v6so6589728ita.1
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 01:08:32 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 92BAB6B000E
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 04:10:23 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id j8-v6so8622671wrh.18
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 01:10:23 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u189-v6sor2701861itd.29.2018.06.25.01.08.31
+        by mx.google.com with SMTPS id x67-v6sor2175516wma.82.2018.06.25.01.10.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 25 Jun 2018 01:08:31 -0700 (PDT)
+        Mon, 25 Jun 2018 01:10:22 -0700 (PDT)
+Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+References: <20180622150242.16558-1-mhocko@kernel.org>
+ <d617fc1d-28a7-3441-7465-bedf4dc69976@redhat.com>
+ <20180625075715.GA28965@dhcp22.suse.cz>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <e7f3289e-3ee3-3f02-1947-9e4327e1a864@redhat.com>
+Date: Mon, 25 Jun 2018 10:10:18 +0200
 MIME-Version: 1.0
-In-Reply-To: <CALZtONBKSVfXe+RHOjgS=4VrDqFsxNRx3OuGctp0o1Hrtix3Ew@mail.gmail.com>
-References: <20180530103936.17812-1-liwang@redhat.com> <CALZtONBKSVfXe+RHOjgS=4VrDqFsxNRx3OuGctp0o1Hrtix3Ew@mail.gmail.com>
-From: Li Wang <wangli.ahau@gmail.com>
-Date: Mon, 25 Jun 2018 16:08:30 +0800
-Message-ID: <CAE1O6mir7Pco=QRBDFTFh7pkVQtXT=PtJ4R-o1RV9PPoY5-nLQ@mail.gmail.com>
-Subject: Re: [PATCH v2] zswap: re-check zswap_is_full after do zswap_shrink
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180625075715.GA28965@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Li Wang <liwang@redhat.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Seth Jennings <sjenning@redhat.com>, Huang Ying <huang.ying.caritas@gmail.com>, Yu Zhao <yuzhao@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, kvm@vger.kernel.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
 
-On 30 May 2018 at 20:53, Dan Streetman <ddstreet@ieee.org> wrote:
-> On Wed, May 30, 2018 at 6:39 AM, Li Wang <liwang@redhat.com> wrote:
->> The '/sys/../zswap/stored_pages:' keep raising in zswap test with
->> "zswap.max_pool_percent=0" parameter. But theoretically, it should
->> not compress or store pages any more since there is no space in
->> compressed pool.
+On 25/06/2018 09:57, Michal Hocko wrote:
+> On Sun 24-06-18 10:11:21, Paolo Bonzini wrote:
+>> On 22/06/2018 17:02, Michal Hocko wrote:
+>>> @@ -7215,6 +7216,8 @@ void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+>>>  	apic_address = gfn_to_hva(kvm, APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT);
+>>>  	if (start <= apic_address && apic_address < end)
+>>>  		kvm_make_all_cpus_request(kvm, KVM_REQ_APIC_PAGE_RELOAD);
+>>> +
+>>> +	return 0;
 >>
->> Reproduce steps:
->>   1. Boot kernel with "zswap.enabled=1"
->>   2. Set the max_pool_percent to 0
->>       # echo 0 > /sys/module/zswap/parameters/max_pool_percent
->>   3. Do memory stress test to see if some pages have been compressed
->>       # stress --vm 1 --vm-bytes $mem_available"M" --timeout 60s
->>   4. Watching the 'stored_pages' number increasing or not
->>
->> The root cause is:
->>   When zswap_max_pool_percent is setting to 0 via kernel parameter, the
->>   zswap_is_full() will always return true to do zswap_shrink(). But if
->>   the shinking is able to reclain a page successful, then proceeds to
->>   compress/store another page, so the value of stored_pages will keep
->>   changing.
->>
->> To solve the issue, this patch adds zswap_is_full() check again after
->> zswap_shrink() to make sure it's now under the max_pool_percent, and
->> not to compress/store if reach its limitaion.
->>
->> Signed-off-by: Li Wang <liwang@redhat.com>
->
-> Acked-by: Dan Streetman <ddstreet@ieee.org>
+>> This is wrong, gfn_to_hva can sleep.
+> 
+> Hmm, I have tried to crawl the call chain and haven't found any
+> sleepable locks taken. Maybe I am just missing something.
+> __kvm_memslots has a complex locking assert. I do not see we would take
+> slots_lock anywhere from the notifier call path. IIUC that means that
+> users_count has to be zero at that time. I have no idea how that is
+> guaranteed.
 
-ping~
+Nevermind, ENOCOFFEE.  This is gfn_to_hva, not gfn_to_pfn.  It only
+needs SRCU.
 
-Any possible to merge this in kernel-4.18-rcX? My zswap test always
-fails on the upstream kernel.
-
-
--- 
-Regards,
-Li Wang
-Email: wangli.ahau@gmail.com
+Paolo
