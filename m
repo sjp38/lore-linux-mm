@@ -1,50 +1,230 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2645B6B026F
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 13:15:31 -0400 (EDT)
-Received: by mail-ua0-f197.google.com with SMTP id e17-v6so4282302uam.21
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 10:15:31 -0700 (PDT)
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id f4-v6sor1961858vkb.171.2018.06.25.10.15.30
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B5A716B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 13:34:47 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id x18-v6so1648093wmc.7
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 10:34:47 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j190-v6sor2560025wmd.78.2018.06.25.10.34.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 25 Jun 2018 10:15:30 -0700 (PDT)
+        Mon, 25 Jun 2018 10:34:46 -0700 (PDT)
+Date: Mon, 25 Jun 2018 19:34:44 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH 3/4] mm/memory_hotplug: Get rid of link_mem_sections
+Message-ID: <20180625173444.GA23268@techadventures.net>
+References: <20180601125321.30652-1-osalvador@techadventures.net>
+ <20180601125321.30652-4-osalvador@techadventures.net>
+ <20180625180436.000049ac@huawei.com>
 MIME-Version: 1.0
-Date: Mon, 25 Jun 2018 10:15:26 -0700
-Message-Id: <20180625171526.173483-1-gthelen@google.com>
-Subject: [PATCH] writeback: update stale account_page_redirty() comment
-From: Greg Thelen <gthelen@google.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180625180436.000049ac@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>
+To: Jonathan Cameron <jonathan.cameron@huawei.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
-commit 93f78d882865 ("writeback: move backing_dev_info->bdi_stat[] into
-bdi_writeback") replaced BDI_DIRTIED with WB_DIRTIED in
-account_page_redirty().  Update comment to track that change.
-  BDI_DIRTIED => WB_DIRTIED
-  BDI_WRITTEN => WB_WRITTEN
+On Mon, Jun 25, 2018 at 06:04:36PM +0100, Jonathan Cameron wrote:
+> On Fri, 1 Jun 2018 14:53:20 +0200
+> <osalvador@techadventures.net> wrote:
+> 
+> > From: Oscar Salvador <osalvador@suse.de>
+> > 
+> > link_mem_sections() and walk_memory_range() share most of the code,
+> > so we can use walk_memory_range() with a callback to register_mem_sect_under_node()
+> > instead of using link_mem_sections().
+> > 
+> > To control whether the node id must be check, two new functions has been added:
+> > 
+> > register_mem_sect_under_node_nocheck_node()
+> > and
+> > register_mem_sect_under_node_check_node()
+> > 
+> > They both call register_mem_sect_under_node_check() with
+> > the parameter check_nid set to true or false.
+> > 
+> > Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> > ---
+> >  drivers/base/node.c  | 47 ++++++++++-------------------------------------
+> >  include/linux/node.h | 21 +++++++++------------
+> >  mm/memory_hotplug.c  |  8 ++++----
+> >  3 files changed, 23 insertions(+), 53 deletions(-)
+> > 
+> > diff --git a/drivers/base/node.c b/drivers/base/node.c
+> > index a5e821d09656..248c712e8de5 100644
+> > --- a/drivers/base/node.c
+> > +++ b/drivers/base/node.c
+> > @@ -398,6 +398,16 @@ static int __ref get_nid_for_pfn(unsigned long pfn)
+> >  	return pfn_to_nid(pfn);
+> >  }
+> >  
+> > +int register_mem_sect_under_node_check_node(struct memory_block *mem_blk, void *nid)
+> > +{
+> > +	return register_mem_sect_under_node (mem_blk, *(int *)nid, true);
+> > +}
+> > +
+> > +int register_mem_sect_under_node_nocheck_node(struct memory_block *mem_blk, void *nid)
+> > +{
+> > +	return register_mem_sect_under_node (mem_blk, *(int *)nid, false);
+> > +}
+> > +
+> >  /* register memory section under specified node if it spans that node */
+> >  int register_mem_sect_under_node(struct memory_block *mem_blk, int nid,
+> >  				 bool check_nid)
+> > @@ -490,43 +500,6 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+> >  	return 0;
+> >  }
+> >  
+> > -int link_mem_sections(int nid, unsigned long start_pfn, unsigned long nr_pages,
+> > -		      bool check_nid)
+> > -{
+> > -	unsigned long end_pfn = start_pfn + nr_pages;
+> > -	unsigned long pfn;
+> > -	struct memory_block *mem_blk = NULL;
+> > -	int err = 0;
+> > -
+> > -	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+> > -		unsigned long section_nr = pfn_to_section_nr(pfn);
+> > -		struct mem_section *mem_sect;
+> > -		int ret;
+> > -
+> > -		if (!present_section_nr(section_nr))
+> > -			continue;
+> > -		mem_sect = __nr_to_section(section_nr);
+> > -
+> > -		/* same memblock ? */
+> > -		if (mem_blk)
+> > -			if ((section_nr >= mem_blk->start_section_nr) &&
+> > -			    (section_nr <= mem_blk->end_section_nr))
+> > -				continue;
+> > -
+> > -		mem_blk = find_memory_block_hinted(mem_sect, mem_blk);
+> > -
+> > -		ret = register_mem_sect_under_node(mem_blk, nid, check_nid);
+> > -		if (!err)
+> > -			err = ret;
+> > -
+> > -		/* discard ref obtained in find_memory_block() */
+> > -	}
+> > -
+> > -	if (mem_blk)
+> > -		kobject_put(&mem_blk->dev.kobj);
+> > -	return err;
+> > -}
+> > -
+> >  #ifdef CONFIG_HUGETLBFS
+> >  /*
+> >   * Handle per node hstate attribute [un]registration on transistions
+> > diff --git a/include/linux/node.h b/include/linux/node.h
+> > index 6d336e38d155..1158bea9be52 100644
+> > --- a/include/linux/node.h
+> > +++ b/include/linux/node.h
+> > @@ -31,19 +31,11 @@ struct memory_block;
+> >  extern struct node *node_devices[];
+> >  typedef  void (*node_registration_func_t)(struct node *);
+> >  
+> > -#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_NUMA)
+> > -extern int link_mem_sections(int nid, unsigned long start_pfn,
+> > -			     unsigned long nr_pages, bool check_nid);
+> > -#else
+> > -static inline int link_mem_sections(int nid, unsigned long start_pfn,
+> > -				    unsigned long nr_pages, bool check_nid)
+> > -{
+> > -	return 0;
+> > -}
+> > -#endif
+> > -
+> >  extern void unregister_node(struct node *node);
+> >  #ifdef CONFIG_NUMA
+> > +#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE)
+> > +extern int register_mem_sect_under_node_check_node(struct memory_block *mem_blk, void *nid);
+> > +#endif
+> >  /* Core of the node registration - only memory hotplug should use this */
+> >  extern int __register_one_node(int nid);
+> >  
+> > @@ -54,12 +46,17 @@ static inline int register_one_node(int nid)
+> >  
+> >  	if (node_online(nid)) {
+> >  		struct pglist_data *pgdat = NODE_DATA(nid);
+> > +		unsigned long start = pgdat->node_start_pfn;
+> > +		unsigned long size = pgdat->node_spanned_pages;
+> >  
+> >  		error = __register_one_node(nid);
+> >  		if (error)
+> >  			return error;
+> >  		/* link memory sections under this node */
+> > -		error = link_mem_sections(nid, pgdat->node_start_pfn, pgdat->node_spanned_pages, true);
+> > +#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE)
+> > +		error = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1),
+> > +					(void *)&nid, register_mem_sect_under_node_check_node);
+> > +#endif
+> Apologies, my previous testing was clearly garbage.
+> 
+> Looks like we take the node pfns then shift them again.  Result on my system is we only get as far as pfn 22
+> which is still in the first memory block so rest of them are never successfully added.
+> Replacing with 
+> 
+> error = walk_memory_range(start, start + size - 1, ...
+> 
+> works much better and lets me test Lorenzo's patch which is what I was really trying to do today.
+> 
+> Sorry again for the incorrect previous tested-by.
 
-Signed-off-by: Greg Thelen <gthelen@google.com>
----
- mm/page-writeback.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+Hi Jonathan,
 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 337c6afb3345..6551d3b0dc30 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -2490,8 +2490,8 @@ EXPORT_SYMBOL(__set_page_dirty_nobuffers);
- 
- /*
-  * Call this whenever redirtying a page, to de-account the dirty counters
-- * (NR_DIRTIED, BDI_DIRTIED, tsk->nr_dirtied), so that they match the written
-- * counters (NR_WRITTEN, BDI_WRITTEN) in long term. The mismatches will lead to
-+ * (NR_DIRTIED, WB_DIRTIED, tsk->nr_dirtied), so that they match the written
-+ * counters (NR_WRITTEN, WB_WRITTEN) in long term. The mismatches will lead to
-  * systematic errors in balanced_dirty_ratelimit and the dirty pages position
-  * control.
-  */
+this was fixed in v2.
+Please, see: <20180622111839.10071-1-osalvador@techadventures.net>
+
+Thanks
+
+Oscar Salvador
+
+> 
+> Thanks,
+> 
+> Jonathan
+> 
+> 
+> >  	}
+> >  
+> >  	return error;
+> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> > index f84ef96175ab..ac21dc506b84 100644
+> > --- a/mm/memory_hotplug.c
+> > +++ b/mm/memory_hotplug.c
+> > @@ -40,6 +40,8 @@
+> >  
+> >  #include "internal.h"
+> >  
+> > +extern int register_mem_sect_under_node_nocheck_node(struct memory_block *mem_blk, void *nid);
+> > +
+> >  /*
+> >   * online_page_callback contains pointer to current page onlining function.
+> >   * Initially it is generic_online_page(). If it is required it could be
+> > @@ -1118,7 +1120,6 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
+> >  	u64 start, size;
+> >  	bool new_node;
+> >  	int ret;
+> > -	unsigned long start_pfn, nr_pages;
+> >  
+> >  	start = res->start;
+> >  	size = resource_size(res);
+> > @@ -1157,9 +1158,8 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
+> >  	}
+> >  
+> >  	/* link memory sections under this node.*/
+> > -	start_pfn = start >> PAGE_SHIFT;
+> > -	nr_pages = size >> PAGE_SHIFT;
+> > -	ret = link_mem_sections(nid, start_pfn, nr_pages, false);
+> > +	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1),
+> > +				(void *)&nid, register_mem_sect_under_node_nocheck_node);
+> >  	if (ret)
+> >  		goto register_fail;
+> >  
+> 
+> 
+
 -- 
-2.18.0.rc2.346.g013aa6912e-goog
+Oscar Salvador
+SUSE L3
