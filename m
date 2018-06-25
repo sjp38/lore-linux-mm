@@ -1,87 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 744A56B0003
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 15:04:10 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id 99-v6so4702579qkr.14
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 12:04:10 -0700 (PDT)
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id f190-v6si56241qke.181.2018.06.25.12.04.08
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D55B6B0003
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 15:44:27 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id w189-v6so5654640oiw.13
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 12:44:27 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g28-v6sor3066823oti.126.2018.06.25.12.44.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jun 2018 12:04:09 -0700 (PDT)
-Subject: Re: [PATCH 2/2] mm: set PG_dma_pinned on get_user_pages*()
-References: <3898ef6b-2fa0-e852-a9ac-d904b47320d5@nvidia.com>
- <CAPcyv4iRBzmwWn_9zDvqdfVmTZL_Gn7uA_26A1T-kJib=84tvA@mail.gmail.com>
- <0e6053b3-b78c-c8be-4fab-e8555810c732@nvidia.com>
- <20180619082949.wzoe42wpxsahuitu@quack2.suse.cz>
- <20180619090255.GA25522@bombadil.infradead.org>
- <20180619104142.lpilc6esz7w3a54i@quack2.suse.cz>
- <70001987-3938-d33e-11e0-de5b19ca3bdf@nvidia.com>
- <20180620120824.bghoklv7qu2z5wgy@quack2.suse.cz>
- <151edbf3-66ff-df0c-c1cc-5998de50111e@nvidia.com>
- <20180621163036.jvdbsv3t2lu34pdl@quack2.suse.cz>
- <20180625152150.jnf5suiubecfppcl@quack2.suse.cz>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <d007873c-4454-4c70-4829-b222155be0ff@nvidia.com>
-Date: Mon, 25 Jun 2018 12:03:37 -0700
+        (Google Transport Security);
+        Mon, 25 Jun 2018 12:44:26 -0700 (PDT)
+Subject: Re: [PATCH] add param that allows bootline control of hardened
+ usercopy
+References: <1529939300-27461-1-git-send-email-crecklin@redhat.com>
+ <d110c9af-cb68-5a3c-bc70-0c7650edb0d4@redhat.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <cfd52ae6-6fea-1a5a-b2dd-4dfdd65acd15@redhat.com>
+Date: Mon, 25 Jun 2018 12:44:22 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180625152150.jnf5suiubecfppcl@quack2.suse.cz>
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <d110c9af-cb68-5a3c-bc70-0c7650edb0d4@redhat.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Matthew Wilcox <willy@infradead.org>, Dan Williams <dan.j.williams@intel.com>, Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgg@ziepe.ca>, John Hubbard <john.hubbard@gmail.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>
+To: Christoph von Recklinghausen <crecklin@redhat.com>, keescook@chromium.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 06/25/2018 08:21 AM, Jan Kara wrote:
-> On Thu 21-06-18 18:30:36, Jan Kara wrote:
->> On Wed 20-06-18 15:55:41, John Hubbard wrote:
->>> On 06/20/2018 05:08 AM, Jan Kara wrote:
->>>> On Tue 19-06-18 11:11:48, John Hubbard wrote:
->>>>> On 06/19/2018 03:41 AM, Jan Kara wrote:
->>>>>> On Tue 19-06-18 02:02:55, Matthew Wilcox wrote:
->>>>>>> On Tue, Jun 19, 2018 at 10:29:49AM +0200, Jan Kara wrote:
->>> [...]
-> I've spent some time on this. There are two obstacles with my approach of
-> putting special entry into inode's VMA tree:
+On 06/25/2018 08:22 AM, Christoph von Recklinghausen wrote:
+> Add correct address for linux-mm
 > 
-> 1) If I want to place this special entry in inode's VMA tree, I either need
-> to allocate full VMA, somehow initiate it so that it's clear it's a special
-> "pinned" range, not a VMA => uses unnecessarily too much memory, it is
-> ugly. Another solution I was hoping for was that I would factor out some
-> common bits of vm_area_struct (pgoff, rb_node, ..) into a structure common
-> for VMA and the locked range => doable but causes a lot of churn as VMAs
-> are accessed (and modified!) at hundreds of places in the kernel. Some
-> accessor functions would help to reduce the churn a bit but then stuff like
-> vma_set_pgoff(vma, pgoff) isn't exactly beautiful either.
+> On 06/25/2018 11:08 AM, Chris von Recklinghausen wrote:
+>> Enabling HARDENED_USER_COPY causes measurable regressions in the
+>> networking performances, up to 8% under UDP flood.
+>>
+>> A generic distro may want to enable HARDENED_USER_COPY in their default
+>> kernel config, but at the same time, such distro may want to be able to
+>> avoid the performance penalties in with the default configuration and
+>> enable the stricter check on a per-boot basis.
+>>
+>> This change adds a config variable and a boot parameter to conditionally
+>> enable HARDENED_USER_COPY at boot time, and switch HUC to off if
+>> HUC_DEFAULT_OFF is set.
+>>
+>> Signed-off-by: Chris von Recklinghausen <crecklin@redhat.com>
+>> ---
+>>   .../admin-guide/kernel-parameters.rst         |  2 ++
+>>   .../admin-guide/kernel-parameters.txt         |  3 ++
+>>   include/linux/thread_info.h                   |  7 +++++
+>>   mm/usercopy.c                                 | 28 +++++++++++++++++++
+>>   security/Kconfig                              | 10 +++++++
+>>   5 files changed, 50 insertions(+)
+>>
+>> diff --git a/Documentation/admin-guide/kernel-parameters.rst b/Documentation/admin-guide/kernel-parameters.rst
+>> index b8d0bc07ed0a..c3035038e3ae 100644
+>> --- a/Documentation/admin-guide/kernel-parameters.rst
+>> +++ b/Documentation/admin-guide/kernel-parameters.rst
+>> @@ -100,6 +100,8 @@ parameter is applicable::
+>>   	FB	The frame buffer device is enabled.
+>>   	FTRACE	Function tracing enabled.
+>>   	GCOV	GCOV profiling is enabled.
+>> +	HUC	Hardened usercopy is enabled
+>> +	HUCF	Hardened usercopy disabled at boot
+>>   	HW	Appropriate hardware is enabled.
+>>   	IA-64	IA-64 architecture is enabled.
+>>   	IMA     Integrity measurement architecture is enabled.
+>> diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+>> index efc7aa7a0670..cd3354bc14d3 100644
+>> --- a/Documentation/admin-guide/kernel-parameters.txt
+>> +++ b/Documentation/admin-guide/kernel-parameters.txt
+>> @@ -816,6 +816,9 @@
+>>   	disable=	[IPV6]
+>>   			See Documentation/networking/ipv6.txt.
+>>   
+>> +	enable_hardened_usercopy [HUC,HUCF]
+>> +			Enable hardened usercopy checks
+>> +
+>>   	disable_radix	[PPC]
+>>   			Disable RADIX MMU mode on POWER9
+>>   
+>> diff --git a/include/linux/thread_info.h b/include/linux/thread_info.h
+>> index 8d8821b3689a..140a36cc1c2c 100644
+>> --- a/include/linux/thread_info.h
+>> +++ b/include/linux/thread_info.h
+>> @@ -109,12 +109,19 @@ static inline int arch_within_stack_frames(const void * const stack,
+>>   #endif
+>>   
+>>   #ifdef CONFIG_HARDENED_USERCOPY
+>> +#include <linux/jump_label.h>
+>> +
+>> +DECLARE_STATIC_KEY_FALSE(bypass_usercopy_checks);
+>> +
+>>   extern void __check_object_size(const void *ptr, unsigned long n,
+>>   					bool to_user);
+>>   
+>>   static __always_inline void check_object_size(const void *ptr, unsigned long n,
+>>   					      bool to_user)
+>>   {
+>> +	if (static_branch_likely(&bypass_usercopy_checks))
+>> +		return;
+>> +
+>>   	if (!__builtin_constant_p(n))
+>>   		__check_object_size(ptr, n, to_user);
+>>   }
+>> diff --git a/mm/usercopy.c b/mm/usercopy.c
+>> index e9e9325f7638..ce3996da1b2e 100644
+>> --- a/mm/usercopy.c
+>> +++ b/mm/usercopy.c
+>> @@ -279,3 +279,31 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
+>>   	check_kernel_text_object((const unsigned long)ptr, n, to_user);
+>>   }
+>>   EXPORT_SYMBOL(__check_object_size);
+>> +
+>> +DEFINE_STATIC_KEY_FALSE(bypass_usercopy_checks);
+>> +EXPORT_SYMBOL(bypass_usercopy_checks);
+>> +
+>> +#ifdef CONFIG_HUC_DEFAULT_OFF
+>> +#define HUC_DEFAULT false
+>> +#else
+>> +#define HUC_DEFAULT true
+>> +#endif
+>> +
+>> +static bool enable_huc_atboot = HUC_DEFAULT;
+>> +
+>> +static int __init parse_enable_usercopy(char *str)
+>> +{
+>> +	enable_huc_atboot = true;
+>> +	return 1;
+>> +}
+>> +
+>> +static int __init set_enable_usercopy(void)
+>> +{
+>> +	if (enable_huc_atboot == false)
+>> +		static_branch_enable(&bypass_usercopy_checks);
+>> +	return 1;
+>> +}
+>> +
+>> +__setup("enable_hardened_usercopy", parse_enable_usercopy);
+>> +
+>> +late_initcall(set_enable_usercopy);
+>> diff --git a/security/Kconfig b/security/Kconfig
+>> index c4302067a3ad..a6173897b85c 100644
+>> --- a/security/Kconfig
+>> +++ b/security/Kconfig
+>> @@ -189,6 +189,16 @@ config HARDENED_USERCOPY_PAGESPAN
+>>   	  been removed. This config is intended to be used only while
+>>   	  trying to find such users.
+>>   
+>> +config HUC_DEFAULT_OFF
+>> +	bool "allow CONFIG_HARDENED_USERCOPY to be configured but disabled"
+>> +	depends on HARDENED_USERCOPY
+>> +	help
+>> +	  When CONFIG_HARDENED_USERCOPY is enabled, disable its
+>> +	  functionality unless it is enabled via at boot time
+>> +	  via the "enable_hardened_usercopy" boot parameter. This allows
+>> +	  the functionality of hardened usercopy to be present but not
+>> +	  impact performance unless it is needed.
+>> +
+>>   config FORTIFY_SOURCE
+>>   	bool "Harden common str/mem functions against buffer overflows"
+>>   	depends on ARCH_HAS_FORTIFY_SOURCE
 > 
-> 2) Some users of GUP (e.g. direct IO) get a block of pages and then put
-> references to these pages at different times and in random order -
-> basically when IO for given page is completed, reference is dropped and one
-> GUP call can acquire page references for pages which end up in multiple
-> different bios (we don't know in advance). This makes is difficult to
-> implement counterpart to GUP to 'unpin' a range of pages - we'd either have
-> to support partial unpins (and splitting of pinned ranges and all such fun)
-> or just have to track internally in how many pages are still pinned in the
-> originally pinned range and release the pin once all individual pages are
-> unpinned but then it's difficult to e.g. get to this internal structure
-> from IO completion callback where we only have the bio.
->
-> So I think the Matthew's idea of removing pinned pages from LRU is
-> definitely worth trying to see how complex that would end up being. Did you
-> get to looking into it? If not, I can probably find some time to try that
-> out.
 > 
 
-OK. Even if we remove the pages from the LRU, we still have to insert a "put_gup_page"
-or similarly named call. But it could be a simple replacement for put_page, with
-that approach, so that does make it much much easier.
- 
-I was (and still am) planning on tackling this today, so let me see how far I
-get before yelling for help. :)
+This seems a bit backwards, I'd much rather see hardened user copy
+default to on with the basic config option and then just have a command
+line option to turn it off.
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+Thanks,
+Laura
