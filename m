@@ -1,212 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 84B826B026A
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 13:05:03 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id x22-v6so4654053wmc.7
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 10:05:03 -0700 (PDT)
-Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id b73-v6si4457081wmf.126.2018.06.25.10.05.01
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AD6FB6B0003
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 13:12:35 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id e1-v6so8438406pld.23
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 10:12:35 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t15-v6sor2698834pgu.388.2018.06.25.10.12.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jun 2018 10:05:01 -0700 (PDT)
-Date: Mon, 25 Jun 2018 18:04:36 +0100
-From: Jonathan Cameron <jonathan.cameron@huawei.com>
-Subject: Re: [PATCH 3/4] mm/memory_hotplug: Get rid of link_mem_sections
-Message-ID: <20180625180436.000049ac@huawei.com>
-In-Reply-To: <20180601125321.30652-4-osalvador@techadventures.net>
-References: <20180601125321.30652-1-osalvador@techadventures.net>
-	<20180601125321.30652-4-osalvador@techadventures.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Mon, 25 Jun 2018 10:12:34 -0700 (PDT)
+From: Athira-Selvan <thisisathi@gmail.com>
+Subject: [PATCH] mm:mempool:fixed coding style errors and warnings.
+Date: Mon, 25 Jun 2018 22:42:17 +0530
+Message-Id: <1529946737-7693-1-git-send-email-thisisathi@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: osalvador@techadventures.net
-Cc: akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: akpm@linux-foundation.org
+Cc: jthumshirn@suse.de, tglx@linutronix.de, kent.overstreet@gmail.com, linux-mm@kvack.org, thisisathi@gmail.com
 
-On Fri, 1 Jun 2018 14:53:20 +0200
-<osalvador@techadventures.net> wrote:
+This patch fixes checkpatch.pl:
+WARNING: Missing a blank line after declarations
+ERROR: missing space brfore ','
 
-> From: Oscar Salvador <osalvador@suse.de>
-> 
-> link_mem_sections() and walk_memory_range() share most of the code,
-> so we can use walk_memory_range() with a callback to register_mem_sect_under_node()
-> instead of using link_mem_sections().
-> 
-> To control whether the node id must be check, two new functions has been added:
-> 
-> register_mem_sect_under_node_nocheck_node()
-> and
-> register_mem_sect_under_node_check_node()
-> 
-> They both call register_mem_sect_under_node_check() with
-> the parameter check_nid set to true or false.
-> 
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
-> ---
->  drivers/base/node.c  | 47 ++++++++++-------------------------------------
->  include/linux/node.h | 21 +++++++++------------
->  mm/memory_hotplug.c  |  8 ++++----
->  3 files changed, 23 insertions(+), 53 deletions(-)
-> 
-> diff --git a/drivers/base/node.c b/drivers/base/node.c
-> index a5e821d09656..248c712e8de5 100644
-> --- a/drivers/base/node.c
-> +++ b/drivers/base/node.c
-> @@ -398,6 +398,16 @@ static int __ref get_nid_for_pfn(unsigned long pfn)
->  	return pfn_to_nid(pfn);
->  }
->  
-> +int register_mem_sect_under_node_check_node(struct memory_block *mem_blk, void *nid)
-> +{
-> +	return register_mem_sect_under_node (mem_blk, *(int *)nid, true);
-> +}
-> +
-> +int register_mem_sect_under_node_nocheck_node(struct memory_block *mem_blk, void *nid)
-> +{
-> +	return register_mem_sect_under_node (mem_blk, *(int *)nid, false);
-> +}
-> +
->  /* register memory section under specified node if it spans that node */
->  int register_mem_sect_under_node(struct memory_block *mem_blk, int nid,
->  				 bool check_nid)
-> @@ -490,43 +500,6 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
->  	return 0;
->  }
->  
-> -int link_mem_sections(int nid, unsigned long start_pfn, unsigned long nr_pages,
-> -		      bool check_nid)
-> -{
-> -	unsigned long end_pfn = start_pfn + nr_pages;
-> -	unsigned long pfn;
-> -	struct memory_block *mem_blk = NULL;
-> -	int err = 0;
-> -
-> -	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-> -		unsigned long section_nr = pfn_to_section_nr(pfn);
-> -		struct mem_section *mem_sect;
-> -		int ret;
-> -
-> -		if (!present_section_nr(section_nr))
-> -			continue;
-> -		mem_sect = __nr_to_section(section_nr);
-> -
-> -		/* same memblock ? */
-> -		if (mem_blk)
-> -			if ((section_nr >= mem_blk->start_section_nr) &&
-> -			    (section_nr <= mem_blk->end_section_nr))
-> -				continue;
-> -
-> -		mem_blk = find_memory_block_hinted(mem_sect, mem_blk);
-> -
-> -		ret = register_mem_sect_under_node(mem_blk, nid, check_nid);
-> -		if (!err)
-> -			err = ret;
-> -
-> -		/* discard ref obtained in find_memory_block() */
-> -	}
-> -
-> -	if (mem_blk)
-> -		kobject_put(&mem_blk->dev.kobj);
-> -	return err;
-> -}
-> -
->  #ifdef CONFIG_HUGETLBFS
->  /*
->   * Handle per node hstate attribute [un]registration on transistions
-> diff --git a/include/linux/node.h b/include/linux/node.h
-> index 6d336e38d155..1158bea9be52 100644
-> --- a/include/linux/node.h
-> +++ b/include/linux/node.h
-> @@ -31,19 +31,11 @@ struct memory_block;
->  extern struct node *node_devices[];
->  typedef  void (*node_registration_func_t)(struct node *);
->  
-> -#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_NUMA)
-> -extern int link_mem_sections(int nid, unsigned long start_pfn,
-> -			     unsigned long nr_pages, bool check_nid);
-> -#else
-> -static inline int link_mem_sections(int nid, unsigned long start_pfn,
-> -				    unsigned long nr_pages, bool check_nid)
-> -{
-> -	return 0;
-> -}
-> -#endif
-> -
->  extern void unregister_node(struct node *node);
->  #ifdef CONFIG_NUMA
-> +#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE)
-> +extern int register_mem_sect_under_node_check_node(struct memory_block *mem_blk, void *nid);
-> +#endif
->  /* Core of the node registration - only memory hotplug should use this */
->  extern int __register_one_node(int nid);
->  
-> @@ -54,12 +46,17 @@ static inline int register_one_node(int nid)
->  
->  	if (node_online(nid)) {
->  		struct pglist_data *pgdat = NODE_DATA(nid);
-> +		unsigned long start = pgdat->node_start_pfn;
-> +		unsigned long size = pgdat->node_spanned_pages;
->  
->  		error = __register_one_node(nid);
->  		if (error)
->  			return error;
->  		/* link memory sections under this node */
-> -		error = link_mem_sections(nid, pgdat->node_start_pfn, pgdat->node_spanned_pages, true);
-> +#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE)
-> +		error = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1),
-> +					(void *)&nid, register_mem_sect_under_node_check_node);
-> +#endif
-Apologies, my previous testing was clearly garbage.
+Signed-off-by: Athira Selvam <thisisathi@gmail.com>
+---
+ mm/mempool.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
 
-Looks like we take the node pfns then shift them again.  Result on my system is we only get as far as pfn 22
-which is still in the first memory block so rest of them are never successfully added.
-Replacing with 
-
-error = walk_memory_range(start, start + size - 1, ...
-
-works much better and lets me test Lorenzo's patch which is what I was really trying to do today.
-
-Sorry again for the incorrect previous tested-by.
-
-Thanks,
-
-Jonathan
-
-
->  	}
->  
->  	return error;
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index f84ef96175ab..ac21dc506b84 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -40,6 +40,8 @@
->  
->  #include "internal.h"
->  
-> +extern int register_mem_sect_under_node_nocheck_node(struct memory_block *mem_blk, void *nid);
-> +
->  /*
->   * online_page_callback contains pointer to current page onlining function.
->   * Initially it is generic_online_page(). If it is required it could be
-> @@ -1118,7 +1120,6 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
->  	u64 start, size;
->  	bool new_node;
->  	int ret;
-> -	unsigned long start_pfn, nr_pages;
->  
->  	start = res->start;
->  	size = resource_size(res);
-> @@ -1157,9 +1158,8 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
->  	}
->  
->  	/* link memory sections under this node.*/
-> -	start_pfn = start >> PAGE_SHIFT;
-> -	nr_pages = size >> PAGE_SHIFT;
-> -	ret = link_mem_sections(nid, start_pfn, nr_pages, false);
-> +	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1),
-> +				(void *)&nid, register_mem_sect_under_node_nocheck_node);
->  	if (ret)
->  		goto register_fail;
->  
+diff --git a/mm/mempool.c b/mm/mempool.c
+index b54f2c2..c3a7b7b 100644
+--- a/mm/mempool.c
++++ b/mm/mempool.c
+@@ -152,6 +152,7 @@ void mempool_exit(mempool_t *pool)
+ {
+ 	while (pool->curr_nr) {
+ 		void *element = remove_element(pool, GFP_KERNEL);
++
+ 		pool->free(element, pool->pool_data);
+ 	}
+ 	kfree(pool->elements);
+@@ -248,7 +249,7 @@ EXPORT_SYMBOL(mempool_init);
+ mempool_t *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
+ 				mempool_free_t *free_fn, void *pool_data)
+ {
+-	return mempool_create_node(min_nr,alloc_fn,free_fn, pool_data,
++	return mempool_create_node(min_nr, alloc_fn, free_fn, pool_data,
+ 				   GFP_KERNEL, NUMA_NO_NODE);
+ }
+ EXPORT_SYMBOL(mempool_create);
+@@ -500,6 +501,7 @@ EXPORT_SYMBOL(mempool_free);
+ void *mempool_alloc_slab(gfp_t gfp_mask, void *pool_data)
+ {
+ 	struct kmem_cache *mem = pool_data;
++
+ 	VM_BUG_ON(mem->ctor);
+ 	return kmem_cache_alloc(mem, gfp_mask);
+ }
+@@ -508,6 +510,7 @@ EXPORT_SYMBOL(mempool_alloc_slab);
+ void mempool_free_slab(void *element, void *pool_data)
+ {
+ 	struct kmem_cache *mem = pool_data;
++
+ 	kmem_cache_free(mem, element);
+ }
+ EXPORT_SYMBOL(mempool_free_slab);
+@@ -519,6 +522,7 @@ EXPORT_SYMBOL(mempool_free_slab);
+ void *mempool_kmalloc(gfp_t gfp_mask, void *pool_data)
+ {
+ 	size_t size = (size_t)pool_data;
++
+ 	return kmalloc(size, gfp_mask);
+ }
+ EXPORT_SYMBOL(mempool_kmalloc);
+@@ -536,6 +540,7 @@ EXPORT_SYMBOL(mempool_kfree);
+ void *mempool_alloc_pages(gfp_t gfp_mask, void *pool_data)
+ {
+ 	int order = (int)(long)pool_data;
++
+ 	return alloc_pages(gfp_mask, order);
+ }
+ EXPORT_SYMBOL(mempool_alloc_pages);
+@@ -543,6 +548,7 @@ EXPORT_SYMBOL(mempool_alloc_pages);
+ void mempool_free_pages(void *element, void *pool_data)
+ {
+ 	int order = (int)(long)pool_data;
++
+ 	__free_pages(element, order);
+ }
+ EXPORT_SYMBOL(mempool_free_pages);
+-- 
+2.7.4
