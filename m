@@ -1,92 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AD6FB6B0003
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 13:12:35 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id e1-v6so8438406pld.23
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 10:12:35 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CF396B026D
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 13:15:25 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id w9-v6so9703417wrl.13
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 10:15:25 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t15-v6sor2698834pgu.388.2018.06.25.10.12.34
+        by mx.google.com with SMTPS id q77-v6sor2609549wmd.57.2018.06.25.10.15.23
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 25 Jun 2018 10:12:34 -0700 (PDT)
-From: Athira-Selvan <thisisathi@gmail.com>
-Subject: [PATCH] mm:mempool:fixed coding style errors and warnings.
-Date: Mon, 25 Jun 2018 22:42:17 +0530
-Message-Id: <1529946737-7693-1-git-send-email-thisisathi@gmail.com>
+        Mon, 25 Jun 2018 10:15:24 -0700 (PDT)
+From: Mathieu Malaterre <malat@debian.org>
+Subject: [PATCH v2] mm/memblock: add missing include <linux/bootmem.h>
+Date: Mon, 25 Jun 2018 19:15:12 +0200
+Message-Id: <20180625171513.31845-1-malat@debian.org>
+In-Reply-To: <20180622210542.2025-1-malat@debian.org>
+References: <20180622210542.2025-1-malat@debian.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: jthumshirn@suse.de, tglx@linutronix.de, kent.overstreet@gmail.com, linux-mm@kvack.org, thisisathi@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tony Luck <tony.luck@intel.com>, Michal Hocko <mhocko@kernel.org>, Mathieu Malaterre <malat@debian.org>, Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Vacek <neelx@redhat.com>, Stefan Agner <stefan@agner.ch>, Joe Perches <joe@perches.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This patch fixes checkpatch.pl:
-WARNING: Missing a blank line after declarations
-ERROR: missing space brfore ','
+Commit 26f09e9b3a06 ("mm/memblock: add memblock memory allocation apis")
+introduced two new function definitions:
 
-Signed-off-by: Athira Selvam <thisisathi@gmail.com>
+  memblock_virt_alloc_try_nid_nopanic()
+  memblock_virt_alloc_try_nid()
+
+Commit ea1f5f3712af ("mm: define memblock_virt_alloc_try_nid_raw")
+introduced the following function definition:
+
+  memblock_virt_alloc_try_nid_raw()
+
+This commit adds an include of header file <linux/bootmem.h> to provide
+the missing function prototypes. Silence the following gcc warning
+(W=1):
+
+  mm/memblock.c:1334:15: warning: no previous prototype for `memblock_virt_alloc_try_nid_raw' [-Wmissing-prototypes]
+  mm/memblock.c:1371:15: warning: no previous prototype for `memblock_virt_alloc_try_nid_nopanic' [-Wmissing-prototypes]
+  mm/memblock.c:1407:15: warning: no previous prototype for `memblock_virt_alloc_try_nid' [-Wmissing-prototypes]
+
+It also adds #ifdef blockers to prevent compilation failure on mips/ia64
+where CONFIG_NO_BOOTMEM=n. Because Makefile already does:
+
+  obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.o
+
+The #ifdef has been simplified from:
+
+  #if defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM)
+
+to simply:
+
+  #if defined(CONFIG_NO_BOOTMEM)
+
+Suggested-by: Tony Luck <tony.luck@intel.com>
+Suggested-by: Michal Hocko <mhocko@kernel.org>
+Signed-off-by: Mathieu Malaterre <malat@debian.org>
 ---
- mm/mempool.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+v2: Simplify #ifdef
 
-diff --git a/mm/mempool.c b/mm/mempool.c
-index b54f2c2..c3a7b7b 100644
---- a/mm/mempool.c
-+++ b/mm/mempool.c
-@@ -152,6 +152,7 @@ void mempool_exit(mempool_t *pool)
- {
- 	while (pool->curr_nr) {
- 		void *element = remove_element(pool, GFP_KERNEL);
-+
- 		pool->free(element, pool->pool_data);
- 	}
- 	kfree(pool->elements);
-@@ -248,7 +249,7 @@ EXPORT_SYMBOL(mempool_init);
- mempool_t *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
- 				mempool_free_t *free_fn, void *pool_data)
- {
--	return mempool_create_node(min_nr,alloc_fn,free_fn, pool_data,
-+	return mempool_create_node(min_nr, alloc_fn, free_fn, pool_data,
- 				   GFP_KERNEL, NUMA_NO_NODE);
+ mm/memblock.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 03d48d8835ba..611a970ac902 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -20,6 +20,7 @@
+ #include <linux/kmemleak.h>
+ #include <linux/seq_file.h>
+ #include <linux/memblock.h>
++#include <linux/bootmem.h>
+ 
+ #include <asm/sections.h>
+ #include <linux/io.h>
+@@ -1224,6 +1225,7 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
+ 	return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
  }
- EXPORT_SYMBOL(mempool_create);
-@@ -500,6 +501,7 @@ EXPORT_SYMBOL(mempool_free);
- void *mempool_alloc_slab(gfp_t gfp_mask, void *pool_data)
- {
- 	struct kmem_cache *mem = pool_data;
-+
- 	VM_BUG_ON(mem->ctor);
- 	return kmem_cache_alloc(mem, gfp_mask);
+ 
++#if defined(CONFIG_NO_BOOTMEM)
+ /**
+  * memblock_virt_alloc_internal - allocate boot memory block
+  * @size: size of memory block to be allocated in bytes
+@@ -1431,6 +1433,7 @@ void * __init memblock_virt_alloc_try_nid(
+ 	      (u64)max_addr);
+ 	return NULL;
  }
-@@ -508,6 +510,7 @@ EXPORT_SYMBOL(mempool_alloc_slab);
- void mempool_free_slab(void *element, void *pool_data)
- {
- 	struct kmem_cache *mem = pool_data;
-+
- 	kmem_cache_free(mem, element);
- }
- EXPORT_SYMBOL(mempool_free_slab);
-@@ -519,6 +522,7 @@ EXPORT_SYMBOL(mempool_free_slab);
- void *mempool_kmalloc(gfp_t gfp_mask, void *pool_data)
- {
- 	size_t size = (size_t)pool_data;
-+
- 	return kmalloc(size, gfp_mask);
- }
- EXPORT_SYMBOL(mempool_kmalloc);
-@@ -536,6 +540,7 @@ EXPORT_SYMBOL(mempool_kfree);
- void *mempool_alloc_pages(gfp_t gfp_mask, void *pool_data)
- {
- 	int order = (int)(long)pool_data;
-+
- 	return alloc_pages(gfp_mask, order);
- }
- EXPORT_SYMBOL(mempool_alloc_pages);
-@@ -543,6 +548,7 @@ EXPORT_SYMBOL(mempool_alloc_pages);
- void mempool_free_pages(void *element, void *pool_data)
- {
- 	int order = (int)(long)pool_data;
-+
- 	__free_pages(element, order);
- }
- EXPORT_SYMBOL(mempool_free_pages);
++#endif
+ 
+ /**
+  * __memblock_free_early - free boot memory block
 -- 
-2.7.4
+2.11.0
