@@ -1,59 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 659866B0003
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 10:56:33 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id 39-v6so8353803ple.6
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 07:56:33 -0700 (PDT)
-Received: from g4t3425.houston.hpe.com (g4t3425.houston.hpe.com. [15.241.140.78])
-        by mx.google.com with ESMTPS id d18-v6si11796317pgp.214.2018.06.25.07.56.31
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C50A16B0010
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 10:57:35 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id i10-v6so2402414eds.19
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 07:57:35 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s21-v6si7365089edd.135.2018.06.25.07.57.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jun 2018 07:56:31 -0700 (PDT)
-From: "Kani, Toshi" <toshi.kani@hpe.com>
-Subject: Re: [PATCH v3 0/3] fix free pmd/pte page handlings on x86
-Date: Mon, 25 Jun 2018 14:56:26 +0000
-Message-ID: <1529938470.14039.134.camel@hpe.com>
-References: <20180516233207.1580-1-toshi.kani@hpe.com>
-	 <alpine.DEB.2.21.1806241516410.8650@nanos.tec.linutronix.de>
-In-Reply-To: <alpine.DEB.2.21.1806241516410.8650@nanos.tec.linutronix.de>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <4246762E255CE349A995678638C71999@NAMPRD84.PROD.OUTLOOK.COM>
-Content-Transfer-Encoding: base64
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 25 Jun 2018 07:57:34 -0700 (PDT)
+Date: Mon, 25 Jun 2018 16:57:33 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: dm bufio: Reduce dm_bufio_lock contention
+Message-ID: <20180625145733.GP28965@dhcp22.suse.cz>
+References: <alpine.LRH.2.02.1806191228110.25656@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180622090151.GS10465@dhcp22.suse.cz>
+ <20180622090935.GT10465@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806220845190.8072@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180622130524.GZ10465@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806221447050.2717@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180625090957.GF28965@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806250941380.11092@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180625141434.GO28965@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806251037250.17405@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1806251037250.17405@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "tglx@linutronix.de" <tglx@linutronix.de>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "Hocko, Michal" <MHocko@suse.com>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: jing xia <jing.xia.mail@gmail.com>, Mike Snitzer <snitzer@redhat.com>, agk@redhat.com, dm-devel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-T24gU3VuLCAyMDE4LTA2LTI0IGF0IDE1OjE5ICswMjAwLCBUaG9tYXMgR2xlaXhuZXIgd3JvdGU6
-DQo+IE9uIFdlZCwgMTYgTWF5IDIwMTgsIFRvc2hpIEthbmkgd3JvdGU6DQo+IA0KPiA+IFRoaXMg
-c2VyaWVzIGZpeGVzIHR3byBpc3N1ZXMgaW4gdGhlIHg4NiBpb3JlbWFwIGZyZWUgcGFnZSBoYW5k
-bGluZ3MNCj4gPiBmb3IgcHVkL3BtZCBtYXBwaW5ncy4NCj4gPiANCj4gPiBQYXRjaCAwMSBmaXhl
-cyBCVUdfT04gb24geDg2LVBBRSByZXBvcnRlZCBieSBKb2VyZy4gIEl0IGRpc2FibGVzDQo+ID4g
-dGhlIGZyZWUgcGFnZSBoYW5kbGluZyBvbiB4ODYtUEFFLg0KPiA+IA0KPiA+IFBhdGNoIDAyLTAz
-IGZpeGVzIGEgcG9zc2libGUgaXNzdWUgd2l0aCBzcGVjdWxhdGlvbiB3aGljaCBjYW4gY2F1c2UN
-Cj4gPiBzdGFsZSBwYWdlLWRpcmVjdG9yeSBjYWNoZS4NCj4gPiAgLSBQYXRjaCAwMiBpcyBmcm9t
-IENoaW50YW4ncyB2OSAwMS8wNCBwYXRjaCBbMV0sIHdoaWNoIGFkZHMgYSBuZXcgYXJnDQo+ID4g
-ICAgJ2FkZHInLCB3aXRoIG15IG1lcmdlIGNoYW5nZSB0byBwYXRjaCAwMS4NCj4gPiAgLSBQYXRj
-aCAwMyBhZGRzIGEgVExCIHB1cmdlIChJTlZMUEcpIHRvIHB1cmdlIHBhZ2Utc3RydWN0dXJlIGNh
-Y2hlcw0KPiA+ICAgIHRoYXQgbWF5IGJlIGNhY2hlZCBieSBzcGVjdWxhdGlvbi4gIFNlZSB0aGUg
-cGF0Y2ggZGVzY3JpcHRpb25zIGZvcg0KPiA+ICAgIG1vcmUgZGV0YWwuDQo+IA0KPiBUb3NoaSwg
-Sm9lcmcsIE1pY2hhbCENCg0KSGkgVGhvbWFzLA0KDQpUaGFua3MgZm9yIGNoZWNraW5nLiBJIHdh
-cyBhYm91dCB0byBwaW5nIGFzIHdlbGwuDQoNCj4gSSdtIGZhaWxpbmcgdG8gZmluZCBhIGNvbmNs
-dXNpb24gb2YgdGhpcyBkaXNjdXNzaW9uLiBDYW4gd2UgZmluYWxseSBtYWtlDQo+IHNvbWUgcHJv
-Z3Jlc3Mgd2l0aCB0aGF0Pw0KDQpJIGhhdmUgbm90IGhlYXJkIGZyb20gSm9lcmcgc2luY2UgSSBs
-YXN0IHJlcGxpZWQgdG8gaGlzIGNvbW1lbnRzIHRvDQpQYXRjaCAzLzMgLS0gSSBkaWQgbXkgYmVz
-dCB0byBleHBsYWluIHRoYXQgdGhlcmUgd2FzIG5vIGlzc3VlIGluIHRoZQ0Kc2luZ2xlIHBhZ2Ug
-YWxsb2NhdGlvbiBpbiBwdWRfZnJlZV9wbWRfcGFnZSgpLiAgRnJvbSBteSBwZXJzcGVjdGl2ZSwg
-dGhlDQogdjMgc2VyaWVzIGlzIGdvb2QgdG8gZ28uDQoNCj4gQ2FuIHNvbWVvbmUgZ2l2ZSBtZSBh
-IGhpbnQgd2hhdCB0byBwaWNrIHVwIHVyZ2VudGx5IHBsZWFzZT8NCg0KSSd2ZSBjb25maXJtZWQg
-dGhhdCB0aGUgdjMgc2VyaWVzIHN0aWxsIGFwcGxpZXMgY2xlYXJseSB0byA0LjE4LXIyDQpsaW51
-cy5naXQuDQoNClBhdGNoIDEvMywgdjMgDQpodHRwczovL3BhdGNod29yay5rZXJuZWwub3JnL3Bh
-dGNoLzEwNDA1MDcxLw0KDQpQYXRjaCAyLzMsIHYzLVVQREFURQ0KaHR0cHM6Ly9wYXRjaHdvcmsu
-a2VybmVsLm9yZy9wYXRjaC8xMDQwNzA2NS8NCg0Kbml0OiBzb3JyeSwgcGxlYXNlIGZpeCBteSBl
-bWFpbCBhZGRyZXNzIGJlbG93Lg0KLSBbdG9zaGlAaHBlLmNvbTogbWVyZ2UgY2hhbmdlcywgcmV3
-cml0ZSBwYXRjaCBkZXNjcmlwdGlvbl0NCisgW3Rvc2hpLmthbmlAaHBlLmNvbTogbWVyZ2UgY2hh
-bmdlcywgcmV3cml0ZSBwYXRjaCBkZXNjcmlwdGlvbl0NCg0KUGF0Y2ggMy8zLCB2Mw0KaHR0cHM6
-Ly9wYXRjaHdvcmsua2VybmVsLm9yZy9wYXRjaC8xMDQwNTA3My8NCg0KVGhhbmtzLA0KLVRvc2hp
-DQo=
+On Mon 25-06-18 10:42:30, Mikulas Patocka wrote:
+> 
+> 
+> On Mon, 25 Jun 2018, Michal Hocko wrote:
+> 
+> > > And the throttling in dm-bufio prevents kswapd from making forward 
+> > > progress, causing this situation...
+> > 
+> > Which is what we have PF_THROTTLE_LESS for. Geez, do we have to go in
+> > circles like that? Are you even listening?
+> > 
+> > [...]
+> > 
+> > > And so what do you want to do to prevent block drivers from sleeping?
+> > 
+> > use the existing means we have.
+> > -- 
+> > Michal Hocko
+> > SUSE Labs
+> 
+> So - do you want this patch?
+> 
+> There is no behavior difference between changing the allocator (so that it 
+> implies PF_THROTTLE_LESS for block drivers) and chaning all the block 
+> drivers to explicitly set PF_THROTTLE_LESS.
+
+As long as you can reliably detect those users. And using gfp_mask is
+about the worst way to achieve that because users tend to be creative
+when it comes to using gfp mask. PF_THROTTLE_LESS in general is a
+way to tell the allocator that _you_ are the one to help the reclaim by
+cleaning data.
+
+> But if you insist that the allocator can't be changed, we have to repeat 
+> the same code over and over again in the block drivers.
+
+I am not familiar with the patched code but mempool change at least
+makes sense (bvec_alloc seems to fallback to mempool which then makes
+sense as well). If others in md/ do the same thing
+
+I would just use current_restore_flags rather than open code it.
+
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
