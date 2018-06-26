@@ -1,119 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C24F76B0290
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 13:03:14 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id 22-v6so4250421oij.10
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 10:03:14 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id u23-v6si684609otj.449.2018.06.26.10.03.13
-        for <linux-mm@kvack.org>;
-        Tue, 26 Jun 2018 10:03:13 -0700 (PDT)
-From: James Morse <james.morse@arm.com>
-Subject: [PATCH v5 20/20] arm64: acpi: Make apei_claim_sea() synchronise with APEI's irq work
-Date: Tue, 26 Jun 2018 18:01:16 +0100
-Message-Id: <20180626170116.25825-21-james.morse@arm.com>
-In-Reply-To: <20180626170116.25825-1-james.morse@arm.com>
-References: <20180626170116.25825-1-james.morse@arm.com>
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 498426B0292
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 13:04:21 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id s3-v6so10341452plp.21
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 10:04:21 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id m12-v6si1914465pll.461.2018.06.26.10.04.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Jun 2018 10:04:18 -0700 (PDT)
+Date: Tue, 26 Jun 2018 10:04:16 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: drop VM_BUG_ON from __get_free_pages
+Message-Id: <20180626100416.a3ff53f5c4aac9fae954e3f6@linux-foundation.org>
+In-Reply-To: <6886dee0-3ac4-ef5d-3597-073196c81d88@suse.cz>
+References: <20180622162841.25114-1-mhocko@kernel.org>
+	<6886dee0-3ac4-ef5d-3597-073196c81d88@suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-acpi@vger.kernel.org
-Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com, James Morse <james.morse@arm.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, JianKang Chen <chenjiankang1@huawei.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com, Michal Hocko <mhocko@suse.com>
 
-APEI is unable to do all of its error handling work in nmi-context, so
-it defers non-fatal work onto the irq_work queue. arch_irq_work_raise()
-sends an IPI to the calling cpu, but we can't guarantee this will be
-taken before we return.
+On Tue, 26 Jun 2018 15:57:39 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
 
-Unless we interrupted a context with irqs-masked, we can call
-irq_work_run() to do the work now. Otherwise return -EINPROGRESS to
-indicate ghes_notify_sea() found some work to do, but it hasn't
-finished yet.
+> On 06/22/2018 06:28 PM, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > There is no real reason to blow up just because the caller doesn't know
+> > that __get_free_pages cannot return highmem pages. Simply fix that up
+> > silently. Even if we have some confused users such a fixup will not be
+> > harmful.
+> > 
+>
+> ...
+>
+> >  /*
+> > - * Common helper functions.
+> > + * Common helper functions. Never use with __GFP_HIGHMEM because the returned
+> > + * address cannot represent highmem pages. Use alloc_pages and then kmap if
+> > + * you need to access high mem.
+> >   */
+> >  unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order)
+> >  {
+> >  	struct page *page;
+> >  
+> > -	/*
+> > -	 * __get_free_pages() returns a virtual address, which cannot represent
+> > -	 * a highmem page
+> > -	 */
+> > -	VM_BUG_ON((gfp_mask & __GFP_HIGHMEM) != 0);
+> > -
+> >  	page = alloc_pages(gfp_mask, order);
+> 
+> The previous version had also replaced the line above with:
+> 
+> +	page = alloc_pages(gfp_mask & ~__GFP_HIGHMEM, order);
+> 
+> This one doesn't, yet you say "fix that up silently". Bug?
+> 
 
-With this we can take apei_claim_sea() returning '0' to mean this
-external-abort was also notification of a firmware-first RAS error,
-and that APEI has processed the CPER records.
+This reminds me what is irritating about the patch.  We're adding
+additional code to a somewhat fast path to handle something which we
+know never happens, thanks to the now-removed check.
 
-Signed-off-by: James Morse <james.morse@arm.com>
-Reviewed-by: Punit Agrawal <punit.agrawal@arm.com>
-Tested-by: Tyler Baicar <tbaicar@codeaurora.org>
-CC: Xie XiuQi <xiexiuqi@huawei.com>
-CC: gengdongjiu <gengdongjiu@huawei.com>
----
-Changes since v2:
- * Removed IS_ENABLED() check, done by the caller unless we have a dummy
-   definition.
----
- arch/arm64/kernel/acpi.c | 19 +++++++++++++++++++
- arch/arm64/mm/fault.c    |  9 ++++-----
- 2 files changed, 23 insertions(+), 5 deletions(-)
+This newly-added code might become functional in the future, if people
+add incorrect callers.  Callers whose incorrectness would have been
+revealed by the now-removed check!
 
-diff --git a/arch/arm64/kernel/acpi.c b/arch/arm64/kernel/acpi.c
-index df2c6bff8c58..9ef2d91f0000 100644
---- a/arch/arm64/kernel/acpi.c
-+++ b/arch/arm64/kernel/acpi.c
-@@ -22,6 +22,7 @@
- #include <linux/init.h>
- #include <linux/irq.h>
- #include <linux/irqdomain.h>
-+#include <linux/irq_work.h>
- #include <linux/memblock.h>
- #include <linux/of_fdt.h>
- #include <linux/smp.h>
-@@ -275,10 +276,14 @@ int apei_claim_sea(struct pt_regs *regs)
- {
- 	int err = -ENOENT;
- 	unsigned long current_flags = arch_local_save_flags();
-+	unsigned long interrupted_flags = current_flags;
- 
- 	if (!IS_ENABLED(CONFIG_ACPI_APEI_SEA))
- 		return err;
- 
-+	if (regs)
-+		interrupted_flags = regs->pstate;
-+
- 	/*
- 	 * SEA can interrupt SError, mask it and describe this as an NMI so
- 	 * that APEI defers the handling.
-@@ -287,6 +292,20 @@ int apei_claim_sea(struct pt_regs *regs)
- 	nmi_enter();
- 	err = ghes_notify_sea();
- 	nmi_exit();
-+
-+	/*
-+	 * APEI NMI-like notifications are deferred to irq_work. Unless
-+	 * we interrupted irqs-masked code, we can do that now.
-+	 */
-+	if (!err) {
-+		if (!arch_irqs_disabled_flags(interrupted_flags)) {
-+			local_daif_restore(DAIF_PROCCTX_NOIRQ);
-+			irq_work_run();
-+		} else {
-+			err = -EINPROGRESS;
-+		}
-+	}
-+
- 	local_daif_restore(current_flags);
- 
- 	return err;
-diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index fb2761172cd4..7e5985559a79 100644
---- a/arch/arm64/mm/fault.c
-+++ b/arch/arm64/mm/fault.c
-@@ -630,11 +630,10 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
- 
- 	inf = esr_to_fault_info(esr);
- 
--	/*
--	 * Return value ignored as we rely on signal merging.
--	 * Future patches will make this more robust.
--	 */
--	apei_claim_sea(regs);
-+	if (apei_claim_sea(regs) == 0) {
-+		/* APEI claimed this as a firmware-first notification */
-+		return 0;
-+	}
- 
- 	clear_siginfo(&info);
- 	info.si_signo = inf->sig;
--- 
-2.17.1
+So.. argh.
+
+Really, the changelog isn't right.  There *is* a real reason to blow
+up.  Effectively the caller is attempting to obtain the virtual address
+of a highmem page without having kmapped it first.  That's an outright
+bug.
+
+
+An alternative might be to just accept the bogus __GFP_HIGHMEM, let
+page_to_virt() return a crap address and wait for the user bug reports
+to come in when someone tries to run the offending code on a highmem
+machine.  That shouldn't take too long - the page allocator will prefer
+to return a highmem page in this case.
+
+And adding a rule to the various static checkers should catch most
+offenders.
+
+Or just leave the ode as it is now.
