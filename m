@@ -1,98 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DCF56B0003
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 14:44:28 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id l4-v6so1283109wmh.0
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 11:44:28 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 9-v6sor870201wml.10.2018.06.26.11.44.25
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C31A6B0008
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 14:55:34 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id o11-v6so667546edr.11
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 11:55:34 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id b11-v6si1124881edd.235.2018.06.26.11.55.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 26 Jun 2018 11:44:26 -0700 (PDT)
-From: Mathieu Malaterre <malat@debian.org>
-Subject: [PATCH v3] mm/memblock: add missing include <linux/bootmem.h>
-Date: Tue, 26 Jun 2018 20:44:20 +0200
-Message-Id: <20180626184422.24974-1-malat@debian.org>
-In-Reply-To: <20180625171513.31845-1-malat@debian.org>
-References: <20180625171513.31845-1-malat@debian.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 26 Jun 2018 11:55:33 -0700 (PDT)
+Date: Tue, 26 Jun 2018 14:57:24 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/2] fs: fsnotify: account fsnotify metadata to kmemcg
+Message-ID: <20180626185724.GA3958@cmpxchg.org>
+References: <20180625230659.139822-1-shakeelb@google.com>
+ <20180625230659.139822-2-shakeelb@google.com>
+ <CAOQ4uxiV75+X3dMLS93iXqwmSU6eKPOUocdkXiR7MQZhEjotQg@mail.gmail.com>
+ <CALvZod5ARMZL+eD8-mrxeBvxJcuVPXaCwWEgUyQw85xXWxHauA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALvZod5ARMZL+eD8-mrxeBvxJcuVPXaCwWEgUyQw85xXWxHauA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tony Luck <tony.luck@intel.com>, Michal Hocko <mhocko@kernel.org>, Mathieu Malaterre <malat@debian.org>, Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Stefan Agner <stefan@agner.ch>, Joe Perches <joe@perches.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Amir Goldstein <amir73il@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.com>, Greg Thelen <gthelen@google.com>, Roman Gushchin <guro@fb.com>, Alexander Viro <viro@zeniv.linux.org.uk>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>
 
-Commit 26f09e9b3a06 ("mm/memblock: add memblock memory allocation apis")
-introduced two new function definitions:
+On Tue, Jun 26, 2018 at 11:00:53AM -0700, Shakeel Butt wrote:
+> On Mon, Jun 25, 2018 at 10:49 PM Amir Goldstein <amir73il@gmail.com> wrote:
+> >
+> ...
+> >
+> > The verb 'unuse' takes an argument memcg and 'uses' it - too weird.
+> > You can use 'override'/'revert' verbs like override_creds or just call
+> > memalloc_use_memcg(old_memcg) since there is no reference taken
+> > anyway in use_memcg and no reference released in unuse_memcg.
+> >
+> > Otherwise looks good to me.
+> >
+> 
+> Thanks for your feedback. Just using memalloc_use_memcg(old_memcg) and
+> ignoring the return seems more simple. I will wait for feedback from
+> other before changing anything.
 
-  memblock_virt_alloc_try_nid_nopanic()
-  memblock_virt_alloc_try_nid()
-
-Commit ea1f5f3712af ("mm: define memblock_virt_alloc_try_nid_raw")
-introduced the following function definition:
-
-  memblock_virt_alloc_try_nid_raw()
-
-This commit adds an include of header file <linux/bootmem.h> to provide
-the missing function prototypes. Silence the following gcc warning
-(W=1):
-
-  mm/memblock.c:1334:15: warning: no previous prototype for `memblock_virt_alloc_try_nid_raw' [-Wmissing-prototypes]
-  mm/memblock.c:1371:15: warning: no previous prototype for `memblock_virt_alloc_try_nid_nopanic' [-Wmissing-prototypes]
-  mm/memblock.c:1407:15: warning: no previous prototype for `memblock_virt_alloc_try_nid' [-Wmissing-prototypes]
-
-Also adds #ifdef blockers to prevent compilation failure on mips/ia64 where
-CONFIG_NO_BOOTMEM=n as could be seen in commit commit 6cc22dc08a24 ("revert
-"mm/memblock: add missing include <linux/bootmem.h>"").
-
-Because Makefile already does:
-
-  obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.o
-
-The #ifdef has been simplified from:
-
-  #if defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM)
-
-to simply:
-
-  #if defined(CONFIG_NO_BOOTMEM)
-
-Suggested-by: Tony Luck <tony.luck@intel.com>
-Suggested-by: Michal Hocko <mhocko@kernel.org>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Signed-off-by: Mathieu Malaterre <malat@debian.org>
----
-v3: Add missing reference to commit 6cc22dc08a24
-v2: Simplify #ifdef
-
- mm/memblock.c | 3 +++
- 1 file changed, 3 insertions(+)
-
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 03d48d8835ba..611a970ac902 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -20,6 +20,7 @@
- #include <linux/kmemleak.h>
- #include <linux/seq_file.h>
- #include <linux/memblock.h>
-+#include <linux/bootmem.h>
- 
- #include <asm/sections.h>
- #include <linux/io.h>
-@@ -1224,6 +1225,7 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
- 	return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
- }
- 
-+#if defined(CONFIG_NO_BOOTMEM)
- /**
-  * memblock_virt_alloc_internal - allocate boot memory block
-  * @size: size of memory block to be allocated in bytes
-@@ -1431,6 +1433,7 @@ void * __init memblock_virt_alloc_try_nid(
- 	      (u64)max_addr);
- 	return NULL;
- }
-+#endif
- 
- /**
-  * __memblock_free_early - free boot memory block
--- 
-2.11.0
+We're not nesting calls to memalloc_use_memcg(), right? So we don't
+have to return old_memcg and don't have to pass anything to unuse, it
+can always set current->active_memcg to NULL.
