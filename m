@@ -1,253 +1,364 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 001A16B000E
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 13:01:48 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id s15-v6so11475071wrn.16
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 10:01:48 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id v99-v6si2011622wrb.261.2018.06.26.10.01.46
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jun 2018 10:01:47 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5QGwmfd002578
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 13:01:45 -0400
-Received: from e11.ny.us.ibm.com (e11.ny.us.ibm.com [129.33.205.201])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2jup4a1tjb-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 13:01:45 -0400
-Received: from localhost
-	by e11.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Tue, 26 Jun 2018 13:01:44 -0400
-Date: Tue, 26 Jun 2018 10:03:45 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm,oom: Bring OOM notifier callbacks to outside of OOM
- killer.
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <1529493638-6389-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.21.1806201528490.16984@chino.kir.corp.google.com>
- <20180621073142.GA10465@dhcp22.suse.cz>
- <2d8c3056-1bc2-9a32-d745-ab328fd587a1@i-love.sakura.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2d8c3056-1bc2-9a32-d745-ab328fd587a1@i-love.sakura.ne.jp>
-Message-Id: <20180626170345.GA3593@linux.vnet.ibm.com>
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 707376B0266
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 13:01:52 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id 9-v6so11744104oin.12
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 10:01:52 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id t192-v6si590752oif.142.2018.06.26.10.01.50
+        for <linux-mm@kvack.org>;
+        Tue, 26 Jun 2018 10:01:50 -0700 (PDT)
+From: James Morse <james.morse@arm.com>
+Subject: [PATCH v5 01/20] ACPI / APEI: Move the estatus queue code up, and under its own ifdef
+Date: Tue, 26 Jun 2018 18:00:57 +0100
+Message-Id: <20180626170116.25825-2-james.morse@arm.com>
+In-Reply-To: <20180626170116.25825-1-james.morse@arm.com>
+References: <20180626170116.25825-1-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: linux-acpi@vger.kernel.org
+Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com, James Morse <james.morse@arm.com>
 
-On Thu, Jun 21, 2018 at 08:27:41PM +0900, Tetsuo Handa wrote:
-> On 2018/06/21 7:36, David Rientjes wrote:
-> >> @@ -1010,6 +1010,33 @@ int unregister_oom_notifier(struct notifier_block *nb)
-> >>  EXPORT_SYMBOL_GPL(unregister_oom_notifier);
-> >>  
-> >>  /**
-> >> + * try_oom_notifier - Try to reclaim memory from OOM notifier list.
-> >> + *
-> >> + * Returns non-zero if notifier callbacks released something, zero otherwise.
-> >> + */
-> >> +unsigned long try_oom_notifier(void)
-> > 
-> > It certainly is tried, but based on its usage it would probably be better 
-> > to describe what is being returned (it's going to set *did_some_progress, 
-> > which is a page count).
-> 
-> Well, it depends on what the callbacks are doing. Currently, we have 5 users.
-> 
->   arch/powerpc/platforms/pseries/cmm.c
->   arch/s390/mm/cmm.c
->   drivers/gpu/drm/i915/i915_gem_shrinker.c
->   drivers/virtio/virtio_balloon.c
->   kernel/rcu/tree_plugin.h
-> 
-> Speak of rcu_oom_notify() in kernel/rcu/tree_plugin.h , we can't tell whether
-> the callback helped releasing memory, for it does not update the "freed" argument.
+To support asynchronous NMI-like notifications on arm64 we need to use
+the estatus-queue. These patches refactor it to allow multiple APEI
+notification types to use it.
 
-It does not immediately release memory, but instead takes steps to
-encourage memory to be released more quickly.
+First we move the estatus-queue code higher in the file so that any
+notify_foo() handler can make use of it.
 
-> >> +{
-> >> +	static DEFINE_MUTEX(oom_notifier_lock);
-> >> +	unsigned long freed = 0;
-> >> +
-> >> +	/*
-> >> +	 * Since OOM notifier callbacks must not depend on __GFP_DIRECT_RECLAIM
-> >> +	 * && !__GFP_NORETRY memory allocation, waiting for mutex here is safe.
-> >> +	 * If lockdep reports possible deadlock dependency, it will be a bug in
-> >> +	 * OOM notifier callbacks.
-> >> +	 *
-> >> +	 * If SIGKILL is pending, it is likely that current thread was selected
-> >> +	 * as an OOM victim. In that case, current thread should return as soon
-> >> +	 * as possible using memory reserves.
-> >> +	 */
-> >> +	if (mutex_lock_killable(&oom_notifier_lock))
-> >> +		return 0;
-> >> +	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
-> >> +	mutex_unlock(&oom_notifier_lock);
-> >> +	return freed;
-> >> +}
-> > 
-> > If __blocking_notifier_call_chain() used down_read_killable(), could we 
-> > eliminate oom_notifier_lock?
-> 
-> I don't think we can eliminate it now, for it is a serialization lock
-> (while trying to respond to SIGKILL as soon as possible) which is currently
-> achieved by mutex_trylock(&oom_lock).
-> 
-> (1) rcu_oom_notify() in kernel/rcu/tree_plugin.h is not prepared for being
->     called concurrently.
-> 
-> ----------
-> static int rcu_oom_notify(struct notifier_block *self,
-> 			  unsigned long notused, void *nfreed)
-> {
-> 	int cpu;
-> 
-> 	/* Wait for callbacks from earlier instance to complete. */
-> 	wait_event(oom_callback_wq, atomic_read(&oom_callback_count) == 0); // <= Multiple threads can pass this line at the same time.
-> 	smp_mb(); /* Ensure callback reuse happens after callback invocation. */
-> 
-> 	/*
-> 	 * Prevent premature wakeup: ensure that all increments happen
-> 	 * before there is a chance of the counter reaching zero.
-> 	 */
-> 	atomic_set(&oom_callback_count, 1); // <= Multiple threads can execute this line at the same time.
-> 
-> 	for_each_online_cpu(cpu) {
-> 		smp_call_function_single(cpu, rcu_oom_notify_cpu, NULL, 1);
-> 		cond_resched_tasks_rcu_qs();
-> 	}
-> 
-> 	/* Unconditionally decrement: no need to wake ourselves up. */
-> 	atomic_dec(&oom_callback_count); // <= Multiple threads can execute this line at the same time, making oom_callback_count < 0 ?
-> 
-> 	return NOTIFY_OK;
-> }
-> ----------
-> 
->     The counter inconsistency problem could be fixed by
-> 
-> -	atomic_set(&oom_callback_count, 1);
-> +	atomic_inc(&oom_callback_count);
-> 
->     but who becomes happy if rcu_oom_notify() became ready to be called
->     concurrently? We want to wait for the callback to complete before
->     proceeding to the OOM killer. I think that we should save CPU resource
->     by serializing concurrent callers.
+This patch moves code around ... and makes the following trivial change:
+Freshen the dated comment above ghes_estatus_llist. printk() is no
+longer the issue, its the helpers like memory_failure_queue() that
+still aren't nmi safe.
 
-There are a lot of ways it could be made concurrency safe.  If you need
-me to do this, please do let me know.
+Signed-off-by: James Morse <james.morse@arm.com>
+Reviewed-by: Punit Agrawal <punit.agrawal@arm.com>
+Reviewed-by: Borislav Petkov <bp@suse.de>
+Tested-by: Tyler Baicar <tbaicar@codeaurora.org>
+---
+ drivers/acpi/apei/ghes.c | 265 ++++++++++++++++++++-------------------
+ 1 file changed, 137 insertions(+), 128 deletions(-)
 
-That said, the way it is now written, if you invoke rcu_oom_notify()
-twice in a row, the second invocation will wait until the memory from
-the first invocation is freed.  What do you want me to do if you invoke
-me concurrently?
-
-1.	One invocation "wins", waits for the earlier callbacks to
-	complete, then encourages any subsequent callbacks to be
-	processed more quickly.  The other invocations return
-	immediately without doing anything.
-
-2.	The invocations serialize, with each invocation waiting for
-	the callbacks from previous invocation (in mutex_lock() order
-	or some such), and then starting a new round.
-
-3.	Something else?
-
-							Thanx, Paul
-
-> (2) i915_gem_shrinker_oom() in drivers/gpu/drm/i915/i915_gem_shrinker.c depends
->     on mutex_trylock() from shrinker_lock() from i915_gem_shrink() from
->     i915_gem_shrink_all() to return 1 (i.e. succeed) before need_resched()
->     becomes true in order to avoid returning without reclaiming memory.
-> 
-> > This patch is certainly an improvement because it does the last 
-> > get_page_from_freelist() call after invoking the oom notifiers that can 
-> > free memory and we've otherwise pointlessly redirected it elsewhere.
-> 
-> Thanks, but this patch might break subtle balance which is currently
-> achieved by mutex_trylock(&oom_lock) serialization/exclusion.
-> 
-> (3) virtballoon_oom_notify() in drivers/virtio/virtio_balloon.c by default
->     tries to release 256 pages. Since this value is configurable, one might
->     set 1048576 pages. If virtballoon_oom_notify() is concurrently called by
->     many threads, it might needlessly deflate the memory balloon.
-> 
-> We might want to remember and reuse the last result among serialized callers
-> (feedback mechanism) like
-> 
-> {
-> 	static DEFINE_MUTEX(oom_notifier_lock);
-> 	static unsigned long last_freed;
-> 	unsigned long freed = 0;
-> 	if (mutex_trylock(&oom_notifier_lock)) {
-> 		blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
-> 		last_freed = freed;
-> 	} else {
-> 		mutex_lock(&oom_notifier_lock);
-> 		freed = last_freed;
-> 	}
-> 	mutex_unlock(&oom_notifier_lock);
-> 	return freed;
-> 
-> }
-> 
-> or
-> 
-> {
-> 	static DEFINE_MUTEX(oom_notifier_lock);
-> 	static unsigned long last_freed;
-> 	unsigned long freed = 0;
-> 	if (mutex_lock_killable(&oom_notifier_lock)) {
-> 		freed = last_freed;
-> 		last_freed >>= 1;
-> 		return freed;
-> 	} else if (last_freed) {
-> 		freed = last_freed;
-> 		last_freed >>= 1;
-> 	} else {
-> 		blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
-> 		last_freed = freed;
-> 	}
-> 	mutex_unlock(&oom_notifier_lock);
-> 	return freed;
-> }
-> 
-> . Without feedback mechanism, mutex_lock_killable(&oom_notifier_lock) serialization
-> could still needlessly deflate the memory balloon compared to mutex_trylock(&oom_lock)
-> serialization/exclusion. Maybe virtballoon_oom_notify() (and two CMM users) would
-> implement feedback mechanism themselves, by examining watermark from OOM notifier
-> hooks.
-> 
-> 
-> 
-> On 2018/06/21 16:31, Michal Hocko wrote:
-> > On Wed 20-06-18 15:36:45, David Rientjes wrote:
-> > [...]
-> >> That makes me think that "oom_notify_list" isn't very intuitive: it can 
-> >> free memory as a last step prior to oom kill.  OOM notify, to me, sounds 
-> >> like its only notifying some callbacks about the condition.  Maybe 
-> >> oom_reclaim_list and then rename this to oom_reclaim_pages()?
-> > 
-> > Yes agreed and that is the reason I keep saying we want to get rid of
-> > this yet-another-reclaim mechanism. We already have shrinkers which are
-> > the main source of non-lru pages reclaim. Why do we even need
-> > oom_reclaim_pages? What is fundamentally different here? Sure those
-> > pages should be reclaimed as the last resort but we already do have
-> > priority for slab shrinking so we know that the system is struggling
-> > when reaching the lowest priority. Isn't that enough to express the need
-> > for current oom notifier implementations?
-> > 
-> 
-> Even if we update OOM notifier users to use shrinker hooks, they will need a
-> subtle balance which is currently achieved by mutex_trylock(&oom_lock).
-> 
-> Removing OOM notifier is not doable right now. It is not suitable as a regression
-> fix for commit 27ae357fa82be5ab ("mm, oom: fix concurrent munlock and oom reaper
-> unmap, v3"). What we could afford for this regression is
-> https://patchwork.kernel.org/patch/9842889/ which is exactly what you suggested
-> in a thread at https://www.spinics.net/lists/linux-mm/msg117896.html .
-> 
+diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
+index 02c6fd9caff7..f5732e6b5be8 100644
+--- a/drivers/acpi/apei/ghes.c
++++ b/drivers/acpi/apei/ghes.c
+@@ -545,6 +545,16 @@ static int ghes_print_estatus(const char *pfx,
+ 	return 0;
+ }
+ 
++static void __ghes_panic(struct ghes *ghes)
++{
++	__ghes_print_estatus(KERN_EMERG, ghes->generic, ghes->estatus);
++
++	/* reboot to log the error! */
++	if (!panic_timeout)
++		panic_timeout = ghes_panic_timeout;
++	panic("Fatal hardware error!");
++}
++
+ /*
+  * GHES error status reporting throttle, to report more kinds of
+  * errors, instead of just most frequently occurred errors.
+@@ -672,6 +682,133 @@ static void ghes_estatus_cache_add(
+ 	rcu_read_unlock();
+ }
+ 
++#ifdef CONFIG_HAVE_ACPI_APEI_NMI
++/*
++ * Handlers for CPER records may not be NMI safe. For example,
++ * memory_failure_queue() takes spinlocks and calls schedule_work_on().
++ * In any NMI-like handler, memory from ghes_estatus_pool is used to save
++ * estatus, and added to the ghes_estatus_llist. irq_work_queue() causes
++ * ghes_proc_in_irq() to run in IRQ context where each estatus in
++ * ghes_estatus_llist is processed. Each NMI-like error source must grow
++ * the ghes_estatus_pool to ensure memory is available.
++ *
++ * Memory from the ghes_estatus_pool is also used with the ghes_estatus_cache
++ * to suppress frequent messages.
++ */
++static struct llist_head ghes_estatus_llist;
++static struct irq_work ghes_proc_irq_work;
++
++static void ghes_print_queued_estatus(void)
++{
++	struct llist_node *llnode;
++	struct ghes_estatus_node *estatus_node;
++	struct acpi_hest_generic *generic;
++	struct acpi_hest_generic_status *estatus;
++
++	llnode = llist_del_all(&ghes_estatus_llist);
++	/*
++	 * Because the time order of estatus in list is reversed,
++	 * revert it back to proper order.
++	 */
++	llnode = llist_reverse_order(llnode);
++	while (llnode) {
++		estatus_node = llist_entry(llnode, struct ghes_estatus_node,
++					   llnode);
++		estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
++		generic = estatus_node->generic;
++		ghes_print_estatus(NULL, generic, estatus);
++		llnode = llnode->next;
++	}
++}
++
++/* Save estatus for further processing in IRQ context */
++static void __process_error(struct ghes *ghes)
++{
++#ifdef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
++	u32 len, node_len;
++	struct ghes_estatus_node *estatus_node;
++	struct acpi_hest_generic_status *estatus;
++
++	if (ghes_estatus_cached(ghes->estatus))
++		return;
++
++	len = cper_estatus_len(ghes->estatus);
++	node_len = GHES_ESTATUS_NODE_LEN(len);
++
++	estatus_node = (void *)gen_pool_alloc(ghes_estatus_pool, node_len);
++	if (!estatus_node)
++		return;
++
++	estatus_node->ghes = ghes;
++	estatus_node->generic = ghes->generic;
++	estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
++	memcpy(estatus, ghes->estatus, len);
++	llist_add(&estatus_node->llnode, &ghes_estatus_llist);
++#endif
++}
++
++static unsigned long ghes_esource_prealloc_size(
++	const struct acpi_hest_generic *generic)
++{
++	unsigned long block_length, prealloc_records, prealloc_size;
++
++	block_length = min_t(unsigned long, generic->error_block_length,
++			     GHES_ESTATUS_MAX_SIZE);
++	prealloc_records = max_t(unsigned long,
++				 generic->records_to_preallocate, 1);
++	prealloc_size = min_t(unsigned long, block_length * prealloc_records,
++			      GHES_ESOURCE_PREALLOC_MAX_SIZE);
++
++	return prealloc_size;
++}
++
++static void ghes_estatus_pool_shrink(unsigned long len)
++{
++	ghes_estatus_pool_size_request -= PAGE_ALIGN(len);
++}
++
++static void ghes_proc_in_irq(struct irq_work *irq_work)
++{
++	struct llist_node *llnode, *next;
++	struct ghes_estatus_node *estatus_node;
++	struct acpi_hest_generic *generic;
++	struct acpi_hest_generic_status *estatus;
++	u32 len, node_len;
++
++	llnode = llist_del_all(&ghes_estatus_llist);
++	/*
++	 * Because the time order of estatus in list is reversed,
++	 * revert it back to proper order.
++	 */
++	llnode = llist_reverse_order(llnode);
++	while (llnode) {
++		next = llnode->next;
++		estatus_node = llist_entry(llnode, struct ghes_estatus_node,
++					   llnode);
++		estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
++		len = cper_estatus_len(estatus);
++		node_len = GHES_ESTATUS_NODE_LEN(len);
++		ghes_do_proc(estatus_node->ghes, estatus);
++		if (!ghes_estatus_cached(estatus)) {
++			generic = estatus_node->generic;
++			if (ghes_print_estatus(NULL, generic, estatus))
++				ghes_estatus_cache_add(generic, estatus);
++		}
++		gen_pool_free(ghes_estatus_pool, (unsigned long)estatus_node,
++			      node_len);
++		llnode = next;
++	}
++}
++
++static void ghes_nmi_init_cxt(void)
++{
++	init_irq_work(&ghes_proc_irq_work, ghes_proc_in_irq);
++}
++
++#else
++static inline void ghes_nmi_init_cxt(void) { }
++#endif /* CONFIG_HAVE_ACPI_APEI_NMI */
++
+ static int ghes_ack_error(struct acpi_hest_generic_v2 *gv2)
+ {
+ 	int rc;
+@@ -687,16 +824,6 @@ static int ghes_ack_error(struct acpi_hest_generic_v2 *gv2)
+ 	return apei_write(val, &gv2->read_ack_register);
+ }
+ 
+-static void __ghes_panic(struct ghes *ghes)
+-{
+-	__ghes_print_estatus(KERN_EMERG, ghes->generic, ghes->estatus);
+-
+-	/* reboot to log the error! */
+-	if (!panic_timeout)
+-		panic_timeout = ghes_panic_timeout;
+-	panic("Fatal hardware error!");
+-}
+-
+ static int ghes_proc(struct ghes *ghes)
+ {
+ 	int rc;
+@@ -828,17 +955,6 @@ static inline void ghes_sea_remove(struct ghes *ghes) { }
+ #endif /* CONFIG_ACPI_APEI_SEA */
+ 
+ #ifdef CONFIG_HAVE_ACPI_APEI_NMI
+-/*
+- * printk is not safe in NMI context.  So in NMI handler, we allocate
+- * required memory from lock-less memory allocator
+- * (ghes_estatus_pool), save estatus into it, put them into lock-less
+- * list (ghes_estatus_llist), then delay printk into IRQ context via
+- * irq_work (ghes_proc_irq_work).  ghes_estatus_size_request record
+- * required pool size by all NMI error source.
+- */
+-static struct llist_head ghes_estatus_llist;
+-static struct irq_work ghes_proc_irq_work;
+-
+ /*
+  * NMI may be triggered on any CPU, so ghes_in_nmi is used for
+  * having only one concurrent reader.
+@@ -847,88 +963,6 @@ static atomic_t ghes_in_nmi = ATOMIC_INIT(0);
+ 
+ static LIST_HEAD(ghes_nmi);
+ 
+-static void ghes_proc_in_irq(struct irq_work *irq_work)
+-{
+-	struct llist_node *llnode, *next;
+-	struct ghes_estatus_node *estatus_node;
+-	struct acpi_hest_generic *generic;
+-	struct acpi_hest_generic_status *estatus;
+-	u32 len, node_len;
+-
+-	llnode = llist_del_all(&ghes_estatus_llist);
+-	/*
+-	 * Because the time order of estatus in list is reversed,
+-	 * revert it back to proper order.
+-	 */
+-	llnode = llist_reverse_order(llnode);
+-	while (llnode) {
+-		next = llnode->next;
+-		estatus_node = llist_entry(llnode, struct ghes_estatus_node,
+-					   llnode);
+-		estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
+-		len = cper_estatus_len(estatus);
+-		node_len = GHES_ESTATUS_NODE_LEN(len);
+-		ghes_do_proc(estatus_node->ghes, estatus);
+-		if (!ghes_estatus_cached(estatus)) {
+-			generic = estatus_node->generic;
+-			if (ghes_print_estatus(NULL, generic, estatus))
+-				ghes_estatus_cache_add(generic, estatus);
+-		}
+-		gen_pool_free(ghes_estatus_pool, (unsigned long)estatus_node,
+-			      node_len);
+-		llnode = next;
+-	}
+-}
+-
+-static void ghes_print_queued_estatus(void)
+-{
+-	struct llist_node *llnode;
+-	struct ghes_estatus_node *estatus_node;
+-	struct acpi_hest_generic *generic;
+-	struct acpi_hest_generic_status *estatus;
+-
+-	llnode = llist_del_all(&ghes_estatus_llist);
+-	/*
+-	 * Because the time order of estatus in list is reversed,
+-	 * revert it back to proper order.
+-	 */
+-	llnode = llist_reverse_order(llnode);
+-	while (llnode) {
+-		estatus_node = llist_entry(llnode, struct ghes_estatus_node,
+-					   llnode);
+-		estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
+-		generic = estatus_node->generic;
+-		ghes_print_estatus(NULL, generic, estatus);
+-		llnode = llnode->next;
+-	}
+-}
+-
+-/* Save estatus for further processing in IRQ context */
+-static void __process_error(struct ghes *ghes)
+-{
+-#ifdef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
+-	u32 len, node_len;
+-	struct ghes_estatus_node *estatus_node;
+-	struct acpi_hest_generic_status *estatus;
+-
+-	if (ghes_estatus_cached(ghes->estatus))
+-		return;
+-
+-	len = cper_estatus_len(ghes->estatus);
+-	node_len = GHES_ESTATUS_NODE_LEN(len);
+-
+-	estatus_node = (void *)gen_pool_alloc(ghes_estatus_pool, node_len);
+-	if (!estatus_node)
+-		return;
+-
+-	estatus_node->ghes = ghes;
+-	estatus_node->generic = ghes->generic;
+-	estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
+-	memcpy(estatus, ghes->estatus, len);
+-	llist_add(&estatus_node->llnode, &ghes_estatus_llist);
+-#endif
+-}
+-
+ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
+ {
+ 	struct ghes *ghes;
+@@ -967,26 +1001,6 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
+ 	return ret;
+ }
+ 
+-static unsigned long ghes_esource_prealloc_size(
+-	const struct acpi_hest_generic *generic)
+-{
+-	unsigned long block_length, prealloc_records, prealloc_size;
+-
+-	block_length = min_t(unsigned long, generic->error_block_length,
+-			     GHES_ESTATUS_MAX_SIZE);
+-	prealloc_records = max_t(unsigned long,
+-				 generic->records_to_preallocate, 1);
+-	prealloc_size = min_t(unsigned long, block_length * prealloc_records,
+-			      GHES_ESOURCE_PREALLOC_MAX_SIZE);
+-
+-	return prealloc_size;
+-}
+-
+-static void ghes_estatus_pool_shrink(unsigned long len)
+-{
+-	ghes_estatus_pool_size_request -= PAGE_ALIGN(len);
+-}
+-
+ static void ghes_nmi_add(struct ghes *ghes)
+ {
+ 	unsigned long len;
+@@ -1018,14 +1032,9 @@ static void ghes_nmi_remove(struct ghes *ghes)
+ 	ghes_estatus_pool_shrink(len);
+ }
+ 
+-static void ghes_nmi_init_cxt(void)
+-{
+-	init_irq_work(&ghes_proc_irq_work, ghes_proc_in_irq);
+-}
+ #else /* CONFIG_HAVE_ACPI_APEI_NMI */
+ static inline void ghes_nmi_add(struct ghes *ghes) { }
+ static inline void ghes_nmi_remove(struct ghes *ghes) { }
+-static inline void ghes_nmi_init_cxt(void) { }
+ #endif /* CONFIG_HAVE_ACPI_APEI_NMI */
+ 
+ static int ghes_probe(struct platform_device *ghes_dev)
+-- 
+2.17.1
