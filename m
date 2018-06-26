@@ -1,65 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AC7926B0007
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 08:06:27 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id n2-v6so357366edr.5
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 05:06:27 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b15-v6si859200edh.66.2018.06.26.05.06.25
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Jun 2018 05:06:26 -0700 (PDT)
-Date: Tue, 26 Jun 2018 14:06:24 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] writeback: update stale account_page_redirty() comment
-Message-ID: <20180626120624.duicgmjjmzhpqao4@quack2.suse.cz>
-References: <20180625171526.173483-1-gthelen@google.com>
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 65D2D6B000A
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 08:10:31 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id c23-v6so11797749oiy.3
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 05:10:31 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id f88-v6si462443otf.158.2018.06.26.05.10.29
+        for <linux-mm@kvack.org>;
+        Tue, 26 Jun 2018 05:10:30 -0700 (PDT)
+Date: Tue, 26 Jun 2018 13:10:26 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: Calling vmalloc_to_page() on ioremap memory?
+Message-ID: <20180626121025.xo2pgskpry2fqrpa@lakrids.cambridge.arm.com>
+References: <CAG_fn=Vc5134sX6JRUoGp=W0to6eg56DuW3YErqeWuR_W_O9gQ@mail.gmail.com>
+ <20180625160040.di75264empbcf6xz@lakrids.cambridge.arm.com>
+ <CAG_fn=XKo6nDphugt6wJSfA3qXGDkGDzd302kRSW6jdD4XNMvQ@mail.gmail.com>
+ <20180625162728.qkkbzjgqebgh2fuu@lakrids.cambridge.arm.com>
+ <CAG_fn=UzUTdAAKUWDtoM_OBzh_vk7NY+XB8eRsuzgcwioNg+Hw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180625171526.173483-1-gthelen@google.com>
+In-Reply-To: <CAG_fn=UzUTdAAKUWDtoM_OBzh_vk7NY+XB8eRsuzgcwioNg+Hw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Alexander Potapenko <glider@google.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Mon 25-06-18 10:15:26, Greg Thelen wrote:
-> commit 93f78d882865 ("writeback: move backing_dev_info->bdi_stat[] into
-> bdi_writeback") replaced BDI_DIRTIED with WB_DIRTIED in
-> account_page_redirty().  Update comment to track that change.
->   BDI_DIRTIED => WB_DIRTIED
->   BDI_WRITTEN => WB_WRITTEN
+On Tue, Jun 26, 2018 at 12:00:00PM +0200, Alexander Potapenko wrote:
+> On Mon, Jun 25, 2018 at 6:27 PM Mark Rutland <mark.rutland@arm.com> wrote:
+> >
+> > On Mon, Jun 25, 2018 at 06:24:57PM +0200, Alexander Potapenko wrote:
+> > > On Mon, Jun 25, 2018 at 6:00 PM Mark Rutland <mark.rutland@arm.com> wrote:
+> > > >
+> > > > On Mon, Jun 25, 2018 at 04:59:23PM +0200, Alexander Potapenko wrote:
+> > > > > Hi Ard, Mark, Andrew and others,
+> > > > >
+> > > > > AFAIU, commit 029c54b09599573015a5c18dbe59cbdf42742237 ("mm/vmalloc.c:
+> > > > > huge-vmap: fail gracefully on unexpected huge vmap mappings") was
+> > > > > supposed to make vmalloc_to_page() return NULL for pointers not
+> > > > > returned by vmalloc().
+> > > >
+> > > > It's a little more subtle than that -- avoiding an edge case where we
+> > > > unexpectedly hit huge mappings, rather than determining whether an
+> > > > address same from vmalloc().
+> > > Ok, but anyway, acpi_os_ioremap() creates a huge page mapping via
+> > > __ioremap_caller() (see
+> > > https://elixir.bootlin.com/linux/latest/source/arch/x86/mm/ioremap.c#L133)
+> > > Shouldn't these checks detect that as well?
+> >
+> > It should catch such mappings, yes.
+> >
+> > > > > For memory error detection purposes I'm trying to map the addresses
+> > > > > from the vmalloc range to valid struct pages, or at least make sure
+> > > > > there's no struct page for a given address.
+> > > > > Looking up the vmap_area_root rbtree isn't an option, as this must be
+> > > > > done from instrumented code, including interrupt handlers.
+> > > >
+> > > > I'm not sure how you can do this without looking at VMAs.
+> > > >
+> > > > In general, the vmalloc area can contain addresses which are not memory,
+> > > > and this cannot be detremined from the address alone.
+> > > I thought this was exactly what vmalloc_to_page() did, but apparently no.
+> > >
+> > > > You *might* be able to get away with pfn_valid(vmalloc_to_pfn(x)), but
+> > > > IIRC there's some disagreement on the precise meaning of pfn_valid(), so
+> > > > that might just tell you that the address happens to fall close to some
+> > > > valid memory.
+> > > This appears to work, at least for ACPI mappings. I'll check other cases though.
+> > > Thank you!
+> pfn_valid(vmalloc_to_pfn(x)) works for me, so I'll stick to this
+> solution for now. Thanks again!
 > 
-> Signed-off-by: Greg Thelen <gthelen@google.com>
+> But just to clarify, should vmalloc_to_page() return NULL for a huge
+> mapping returned by __ioremap_caller()?
 
-Looks good. You can add:
+It will not always do so.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+It *may* return NULL, or it may return a potentially invalid pointer to
+struct page.
 
-								Honza
+> Your answer and that of Ard seem to be contradictory.
+> Maybe it's a good idea to add the pfn_valid() check to
+> vmalloc_to_page() just to be sure?
 
-> ---
->  mm/page-writeback.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 337c6afb3345..6551d3b0dc30 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -2490,8 +2490,8 @@ EXPORT_SYMBOL(__set_page_dirty_nobuffers);
->  
->  /*
->   * Call this whenever redirtying a page, to de-account the dirty counters
-> - * (NR_DIRTIED, BDI_DIRTIED, tsk->nr_dirtied), so that they match the written
-> - * counters (NR_WRITTEN, BDI_WRITTEN) in long term. The mismatches will lead to
-> + * (NR_DIRTIED, WB_DIRTIED, tsk->nr_dirtied), so that they match the written
-> + * counters (NR_WRITTEN, WB_WRITTEN) in long term. The mismatches will lead to
->   * systematic errors in balanced_dirty_ratelimit and the dirty pages position
->   * control.
->   */
-> -- 
-> 2.18.0.rc2.346.g013aa6912e-goog
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Perhaps, though it really depends on the intended use case of
+vmalloc_to_page().
+
+Thanks,
+Mark.
