@@ -1,48 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 770C26B0007
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 08:47:53 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id v142-v6so1090783itb.1
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 05:47:53 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u5-v6sor790273itc.58.2018.06.26.05.47.52
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 391AB6B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 08:53:38 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id 5-v6so3651659qta.1
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 05:53:38 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id r23-v6si1449134qtj.405.2018.06.26.05.53.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 26 Jun 2018 05:47:52 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Jun 2018 05:53:37 -0700 (PDT)
+Subject: Re: [v2 PATCH] add param that allows bootline control of hardened
+ usercopy
+From: Christoph von Recklinghausen <crecklin@redhat.com>
+References: <1530017430-5394-1-git-send-email-crecklin@redhat.com>
+Message-ID: <06bde22f-3e28-e6f3-dab0-9bc8bd5973b8@redhat.com>
+Date: Tue, 26 Jun 2018 08:53:36 -0400
 MIME-Version: 1.0
-In-Reply-To: <cover.1529507994.git.andreyknvl@google.com>
-References: <cover.1529507994.git.andreyknvl@google.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Tue, 26 Jun 2018 14:47:50 +0200
-Message-ID: <CAAeHK+zqtyGzd_CZ7qKZKU-uZjZ1Pkmod5h8zzbN0xCV26nSfg@mail.gmail.com>
-Subject: Re: [PATCH v4 0/7] arm64: untag user pointers passed to the kernel
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <1530017430-5394-1-git-send-email-crecklin@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrey Konovalov <andreyknvl@google.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-doc@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>
+To: keescook@chromium.org, labbott@redhat.com, pabeni@redhat.com, "linux-mm@kvack.org >> Linux-MM" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On Wed, Jun 20, 2018 at 5:24 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-> arm64 has a feature called Top Byte Ignore, which allows to embed pointer
-> tags into the top byte of each pointer. Userspace programs (such as
-> HWASan, a memory debugging tool [1]) might use this feature and pass
-> tagged user pointers to the kernel through syscalls or other interfaces.
+On 06/26/2018 08:50 AM, Chris von Recklinghausen wrote:
+> Enabling HARDENED_USER_COPY causes measurable regressions in the
+> networking performances, up to 8% under UDP flood.
 >
-> This patch makes a few of the kernel interfaces accept tagged user
-> pointers. The kernel is already able to handle user faults with tagged
-> pointers and has the untagged_addr macro, which this patchset reuses.
+> A generic distro may want to enable HARDENED_USER_COPY in their default
+> kernel config, but at the same time, such distro may want to be able to
+> avoid the performance penalties in with the default configuration and
+> disable the stricter check on a per-boot basis.
 >
-> We're not trying to cover all possible ways the kernel accepts user
-> pointers in one patchset, so this one should be considered as a start.
+> This change adds a boot parameter that to conditionally disable
+> HARDENED_USERCOPY at boot time.
 >
-> Thanks!
+> v1->v2:
+> 	remove CONFIG_HUC_DEFAULT_OFF
+> 	default is now enabled, boot param disables
+> 	move check to __check_object_size so as to not break optimization of
+> 		__builtin_constant_p()
+> 	include linux/atomic.h before linux/jump_label.h
 >
-> [1] http://clang.llvm.org/docs/HardwareAssistedAddressSanitizerDesign.html
-
-Hi!
-
-Is there anything I should do to move forward with this?
-
-I've received zero replies to this patch set (v3 and v4) over the last month.
-
-Thanks!
+> Signed-off-by: Chris von Recklinghausen <crecklin@redhat.com>
+> ---
+>  .../admin-guide/kernel-parameters.rst         |  1 +
+>  .../admin-guide/kernel-parameters.txt         |  3 +++
+>  include/linux/thread_info.h                   |  5 ++++
+>  mm/usercopy.c                                 | 27 +++++++++++++++++++
+>  4 files changed, 36 insertions(+)
+>
+> diff --git a/Documentation/admin-guide/kernel-parameters.rst b/Documentation/admin-guide/kernel-parameters.rst
+> index b8d0bc07ed0a..87a1200a1db6 100644
+> --- a/Documentation/admin-guide/kernel-parameters.rst
+> +++ b/Documentation/admin-guide/kernel-parameters.rst
+> @@ -100,6 +100,7 @@ parameter is applicable::
+>  	FB	The frame buffer device is enabled.
+>  	FTRACE	Function tracing enabled.
+>  	GCOV	GCOV profiling is enabled.
+> +	HUC	Hardened usercopy is enabled
+>  	HW	Appropriate hardware is enabled.
+>  	IA-64	IA-64 architecture is enabled.
+>  	IMA     Integrity measurement architecture is enabled.
+> diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+> index efc7aa7a0670..d14be0038aed 100644
+> --- a/Documentation/admin-guide/kernel-parameters.txt
+> +++ b/Documentation/admin-guide/kernel-parameters.txt
+> @@ -816,6 +816,9 @@
+>  	disable=	[IPV6]
+>  			See Documentation/networking/ipv6.txt.
+>  
+> +	disable_hardened_usercopy [HUC]
+> +			Disable hardened usercopy checks
+> +
+>  	disable_radix	[PPC]
+>  			Disable RADIX MMU mode on POWER9
+>  
+> diff --git a/include/linux/thread_info.h b/include/linux/thread_info.h
+> index 8d8821b3689a..ab24fe2d3f87 100644
+> --- a/include/linux/thread_info.h
+> +++ b/include/linux/thread_info.h
+> @@ -109,6 +109,11 @@ static inline int arch_within_stack_frames(const void * const stack,
+>  #endif
+>  
+>  #ifdef CONFIG_HARDENED_USERCOPY
+> +#include <linux/atomic.h>
+> +#include <linux/jump_label.h>
+> +
+> +DECLARE_STATIC_KEY_FALSE(bypass_usercopy_checks);
+> +
+>  extern void __check_object_size(const void *ptr, unsigned long n,
+>  					bool to_user);
+>  
+> diff --git a/mm/usercopy.c b/mm/usercopy.c
+> index e9e9325f7638..6a1265e1a54e 100644
+> --- a/mm/usercopy.c
+> +++ b/mm/usercopy.c
+> @@ -20,6 +20,8 @@
+>  #include <linux/sched/task.h>
+>  #include <linux/sched/task_stack.h>
+>  #include <linux/thread_info.h>
+> +#include <linux/atomic.h>
+> +#include <linux/jump_label.h>
+>  #include <asm/sections.h>
+>  
+>  /*
+> @@ -248,6 +250,9 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
+>   */
+>  void __check_object_size(const void *ptr, unsigned long n, bool to_user)
+>  {
+> +	if (static_branch_likely(&bypass_usercopy_checks))
+> +		return;
+> +
+>  	/* Skip all tests if size is zero. */
+>  	if (!n)
+>  		return;
+> @@ -279,3 +284,25 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
+>  	check_kernel_text_object((const unsigned long)ptr, n, to_user);
+>  }
+>  EXPORT_SYMBOL(__check_object_size);
+> +
+> +DEFINE_STATIC_KEY_FALSE(bypass_usercopy_checks);
+> +EXPORT_SYMBOL(bypass_usercopy_checks);
+> +
+> +static bool disable_huc_atboot = false;
+> +
+> +static int __init parse_disable_usercopy(char *str)
+> +{
+> +	disable_huc_atboot = true;
+> +	return 1;
+> +}
+> +
+> +static int __init set_disable_usercopy(void)
+> +{
+> +	if (disable_huc_atboot == true)
+> +		static_branch_enable(&bypass_usercopy_checks);
+> +	return 1;
+> +}
+> +
+> +__setup("disable_hardened_usercopy", parse_disable_usercopy);
+> +
+> +late_initcall(set_disable_usercopy);
