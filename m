@@ -1,50 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CD7BF6B000A
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 11:00:29 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id l2-v6so8916154pff.3
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 08:00:29 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id q13-v6si1879756plr.220.2018.06.26.08.00.28
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C61CD6B0003
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 11:25:44 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id l11-v6so12217925oth.1
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 08:25:44 -0700 (PDT)
+Received: from g9t5009.houston.hpe.com (g9t5009.houston.hpe.com. [15.241.48.73])
+        by mx.google.com with ESMTPS id o9-v6si531449oti.24.2018.06.26.08.25.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jun 2018 08:00:28 -0700 (PDT)
-Message-ID: <1530025017.27091.1.camel@intel.com>
-Subject: Re: [PATCH 00/10] Control Flow Enforcement - Part (3)
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Date: Tue, 26 Jun 2018 07:56:57 -0700
-In-Reply-To: <CALCETrWYx5nCtwGAqTZBWOB+aw+eEcnQhe6Sn1o+O356g7Km9A@mail.gmail.com>
-References: <20180607143807.3611-1-yu-cheng.yu@intel.com>
-	 <CALCETrWYx5nCtwGAqTZBWOB+aw+eEcnQhe6Sn1o+O356g7Km9A@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Tue, 26 Jun 2018 08:25:43 -0700 (PDT)
+From: "Kani, Toshi" <toshi.kani@hpe.com>
+Subject: Re: [PATCH v3 0/3] fix free pmd/pte page handlings on x86
+Date: Tue, 26 Jun 2018 15:25:39 +0000
+Message-ID: <1530026622.14039.269.camel@hpe.com>
+References: <20180516233207.1580-1-toshi.kani@hpe.com>
+	 <alpine.DEB.2.21.1806241516410.8650@nanos.tec.linutronix.de>
+	 <1529938470.14039.134.camel@hpe.com>
+	 <20180625175225.GQ28965@dhcp22.suse.cz>
+	 <1529961187.14039.206.camel@hpe.com>
+	 <20180626063521.GT28965@dhcp22.suse.cz>
+	 <alpine.DEB.2.21.1806261043080.2204@nanos.tec.linutronix.de>
+	 <20180626085449.GU28965@dhcp22.suse.cz>
+In-Reply-To: <20180626085449.GU28965@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <0CB88FBC3D5B3949B0B56DEB8DAA6C41@NAMPRD84.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>, Linux API <linux-api@vger.kernel.org>, Jann Horn <jannh@google.com>, Florian Weimer <fweimer@redhat.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, mike.kravetz@oracle.com
+To: "tglx@linutronix.de" <tglx@linutronix.de>, "mhocko@kernel.org" <mhocko@kernel.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>
 
-On Mon, 2018-06-25 at 22:26 -0700, Andy Lutomirski wrote:
-> On Thu, Jun 7, 2018 at 7:41 AM Yu-cheng Yu <yu-cheng.yu@intel.com>
-> wrote:
-> > 
-> > 
-> > This series introduces CET - Shadow stack
-> I think you should add some mitigation against sigreturn-oriented
-> programming.A A How about creating some special token on the shadow
-> stack that indicates the presence of a signal frame at a particular
-> address when delivering a signal and verifying and popping that token
-> in sigreturn?A A The token could be literally the address of the signal
-> frame, and you could make this unambiguous by failing sigreturn if
-> CET
-> is on and the signal frame is in executable memory.
-> 
-> IOW, it would be a shame if sigreturn() itself became a convenient
-> CET-bypassing gadget.
-> 
-> --Andy
-
-I will look into that.
-
-Thanks,
-Yu-cheng
+T24gVHVlLCAyMDE4LTA2LTI2IGF0IDEwOjU0ICswMjAwLCBNaWNoYWwgSG9ja28gd3JvdGU6DQo+
+IE9uIFR1ZSAyNi0wNi0xOCAxMDo0NToxMSwgVGhvbWFzIEdsZWl4bmVyIHdyb3RlOg0KPiA+IE9u
+IFR1ZSwgMjYgSnVuIDIwMTgsIE1pY2hhbCBIb2NrbyB3cm90ZToNCj4gPiA+IE9uIE1vbiAyNS0w
+Ni0xOCAyMToxNTowMywgS2FuaSBUb3NoaW1pdHN1IHdyb3RlOg0KPiA+ID4gPiBMYXN0bHksIGZv
+ciB0aGUgY29kZSBtYWludGVuYW5jZSwgSSBiZWxpZXZlIHRoaXMgbWVtb3J5IGFsbG9jYXRpb24g
+a2VlcHMNCj4gPiA+ID4gdGhlIGNvZGUgbXVjaCBzaW1wbGVyIHRoYW4gaXQgd291bGQgb3RoZXJ3
+aXNlIG5lZWQgdG8gbWFuYWdlIGEgc3BlY2lhbA0KPiA+ID4gPiBwYWdlIGxpc3QuDQo+ID4gPiAN
+Cj4gPiA+IFllcywgSSBjYW4gc2VlIGEgc2ltcGxpY2l0eSBhcyBhIHJlYXNvbmFibGUgYXJndW1l
+bnQgZm9yIGEgcXVpY2sgZml4LA0KPiA+ID4gd2hpY2ggdGhlc2UgcGlsZSBpcyBzdXBwb3NlZCB0
+byBiZSBBRkFJVS4gU28gdGhpcyBtaWdodCBiZSBnb29kIHRvIGdvDQo+ID4gPiBmcm9tIHRoYXQg
+cGVyc3BlY3RpdmUsIGJ1dCBJIGJlbGlldmUgdGhhdCB0aGlzIHNob3VsZCBiZSBjaGFuZ2VkIGlu
+DQo+ID4gPiBmdXR1cmUgYXQgbGVhc3QuDQo+ID4gDQo+ID4gU28gdGhlIGNvbmNsdXNpb24gaXMs
+IHRoYXQgd2Ugc2hpcCB0aGlzIHNldCBvZiBwYXRjaGVzIG5vdyB0byBjdXJlIHRoZQ0KPiA+IGV4
+aXN0aW5nIHdyZWNrYWdlLCByaWdodD8NCj4gDQo+IEpvZXJnIHdhcyBzdWdnZXN0aW5nIHNvbWUg
+YWx0ZXJuYXRpdmUgYnV0IEkgZ290IGxvc3QgaW4gdGhlIGRpc2N1c3Npb24NCj4gdG8gYmUgaG9u
+ZXN0IHNvIEkgbWlnaHQgbWlze2ludGVycHJldCxyZW1lbWJlcn0uDQoNCkkndmUgYWRkcmVzc2Vk
+IGhpcyBtdWx0aXBsZSBjb21tZW50cyBpbiB0aGlzIHNlcmllcywgYnV0IGhhZCB0byBkaXNhZ3Jl
+ZQ0Kd2l0aCBoaXMgZm9sbG93aW5nIHN1Z2dlc3Rpb25zOg0KDQoxLiBBcHBseSBoaXMgcmV2ZXJ0
+IHBhdGNoIGZpcnN0IGh0dHBzOi8vbGttbC5vcmcvbGttbC8yMDE4LzQvMjYvNjM2DQoNCkRpc2Fn
+cmVlZCBiZWNhdXNlIHRoaXMgcGF0Y2ggYnJlYWtzIHRoZSBjdXJyZW50IGlvcmVtYXAoKSBjYWxs
+ZXJzIHVzaW5nDQoyTUIgbWFwcGluZ3MgYnkgZmFpbGluZyBwbWRfZnJlZV9wdGVfcGFnZSgpLg0K
+DQoyLiBBZGQgYSBzcGVjaWFsIHBhZ2UgbGlzdCwgaW5zdGVhZCBvZiBtZW1vcnkgYWxsb2MsIGlu
+IHBhdGNoIDMvMw0KDQpRdW90aW5nIGhpcyBjb25jZXJucyBhYm91dCB0aGUgbWVtb3J5IGFsbG9j
+YXRpb246DQo9PT0NCk9uIFR1ZSwgTWF5IDI5LCAyMDE4IGF0IDA0OjEwOjI0UE0gKzAwMDAsIEth
+bmksIFRvc2hpIHdyb3RlOg0KPiBDYW4geW91IGV4cGxhaW4gd2h5IHlvdSB0aGluayBhbGxvY2F0
+aW5nIGEgcGFnZSBoZXJlIGlzIGEgbWFqb3INCnByb2JsZW0/DQoNCkJlY2F1c2UgYSBsYXJnZXIg
+YWxsb2NhdGlvbiBpcyBtb3JlIGxpa2VseSB0byBmYWlsLiBBbmQgaWYgeW91IGZhaWwgdGhlDQph
+bGxvY2F0aW9uLCB5b3UgYWxzbyBmYWlsIHRvIGZyZWUgbW9yZSBwYWdlcywgd2hpY2ggX2lzXyBh
+IHByb2JsZW0uIFNvDQpiZXR0ZXIgYXZvaWQgYW55IGFsbG9jYXRpb25zIGluIGNvZGUgcGF0aHMg
+dGhhdCBhcmUgYWJvdXQgZnJlZWluZw0KbWVtb3J5Lg0KPT09DQoNCldoaWNoIEkgaGFkIHJlcGxp
+ZWQgYXM6DQo9PT09DQpJdCBvbmx5IGFsbG9jYXRlcyBhIHNpbmdsZSBwYWdlLiAgSWYgaXQgZmFp
+bHMgdG8gYWxsb2NhdGUgYSBzaW5nbGUgcGFnZSwNCnRoaXMgcHVkIG1hcHBpbmcgcmVxdWVzdCBz
+aW1wbHkgZmFsbHMgdG8gcG1kIG1hcHBpbmdzLCB3aGljaCBpcyBvbmx5IGFzDQpiYWQgYXMgeW91
+ciBzdWdnZXN0ZWQgcGxhaW4gcmV2ZXJ0IGFsd2F5cyBkb2VzIGZvciBib3RoIHB1ZCBhbmQgcG1k
+DQptYXBwaW5ncy4gIEFsc28sIHRoaXMgZnVuYyBpcyBjYWxsZWQgZnJvbSBpb3JlbWFwKCkgd2hl
+biBhIGRyaXZlcg0KaW5pdGlhbGl6ZXMgaXRzIG1hcHBpbmcuICBJZiB0aGUgc3lzdGVtIGRvZXMg
+bm90IGhhdmUgYSBzaW5nbGUgcGFnZSB0bw0KYWxsb2NhdGUsIHRoZSBkcml2ZXIgaGFzIGEgbXVj
+aCBiaWdnZXIgaXNzdWUgdG8gZGVhbCB3aXRoIHRoYW4gaXRzDQpyZXF1ZXN0IGZhbGxpbmcgYmFj
+ayB0byBwbWQgbWFwcGluZ3MuICBQbGVhc2UgYWxzbyBub3RlIHRoYXQgdGhpcyBmdW5jDQppcyBu
+b3QgY2FsbGVkIGZyb20gZnJlZS1tZW1vcnkgcGF0aC4NCj09PT0NCg0KSSBoYXZlIGZ1cnRoZXIg
+c3VtbWFyaXplZCBteSByZWFzb25zIHRvIGtlZXAgdGhlIG1lbW9yeSBhbGxvY2F0aW9uIGluIG15
+DQpyZXBseSB0byBNaWNoYWwuICBBbm90aGVyIHJlYXNvbiwgd2hpY2ggSSBmb3Jnb3QgdG8gbWVu
+dGlvbiwgaXMgdGhhdA0KaW9yZW1hcCgpIGRvZXMgbm90IGhhdmUgYW4gaW5pdCBpbnRlcmZhY2Ug
+dG8gaW5pdGlhbGl6ZSBhIHNwZWNpYWwgcGFnZQ0KbGlzdCBpbiBhcmNoaXRlY3R1cmUtc3BlY2lm
+aWMgd2F5IChhbmQgdGhlcmUgaXMgYSBnb29kIHJlYXNvbiBub3QgdG8NCmhhdmUgaXQpLg0KDQo+
+ID4gRmluZSB3aXRoIHRoYXQsIGJ1dCB3aG8gd2lsbCB0YWtlIGNhcmUgb2YgcmV3b3JraW5nIGl0
+IHByb3Blcj8gSSdtDQo+ID4gY29uY2VybmVkIHRoYXQgdGhpcyB3aWxsIGp1c3QgZ28gc3RhbGUg
+dGhlIG1vbWVudCB0aGUgZml4ZXMgaGl0IHRoZSB0cmVlLg0KPiANCj4gWWVhaCwgdGhpcyBpcyB3
+aHkgSSB1c3VhbGx5IHRyeSB0byBwdXNoIGJhY2sgaGFyZCBiZWNhdXNlICJ3aWxsIGJlIGZpeGVk
+DQo+IGxhdGVyIiBpcyBzaW1pbGFyIHRvIHNheSAiZG9jdW1lbnRhdGlvbiB3aWxsIGNvbWUgbGF0
+ZXIiIGV0Yy4uLg0KPiANCj4gQSBiaWcgZmF0IFRPRE8gd291bGQgYmUgYXBwcm9wcmlhdGUgc28g
+aXQgd29uJ3QgZ2V0IGZvcmdvdHRlbiBhdCBsZWFzdC4NCg0KSSdkIGJlIGhhcHB5IHRvIHJld29y
+ayBpZiB3ZSBmaW5kIGEgYnVnIGluIHRoZSBjb2RlLiAgQnV0IEkgZG8gbm90IHRoaW5rDQp3ZSBu
+ZWVkIHRvIHJld29yayBmb3IgdGhlIHNha2Ugb2YgcG9zc2libGUgZnV0dXJlIGNhbGxlcnMgdGhh
+dCBub2JvZHkNCmtub3dzIGZvciBzdXJlLiAgU28sIEkgd2lsbCBhZGQgdGhlIE5PVEUgYmxvdyB0
+byBjbGFyaWZ5IHRoZSBwcmUtDQpyZXF1aXNpdGUuDQogDQpOT1RFOg0KIC0gQ2FsbGVycyBtdXN0
+IGFsbG93IGEgc2luZ2xlIHBhZ2UgYWxsb2NhdGlvbi4NCg0KVGhhbmtzLA0KLVRvc2hpDQo=
