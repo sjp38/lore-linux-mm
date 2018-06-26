@@ -1,104 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 971496B0006
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 06:00:14 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id q184-v6so534076vke.23
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 03:00:14 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 200-v6sor394112vkh.248.2018.06.26.03.00.12
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C5B6B6B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 07:03:04 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id d6-v6so9915657plo.15
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 04:03:04 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 1-v6si1336547plw.519.2018.06.26.04.03.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 26 Jun 2018 03:00:13 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Jun 2018 04:03:03 -0700 (PDT)
+Date: Tue, 26 Jun 2018 13:03:00 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm:mempool:fixed coding style errors and warnings.
+Message-ID: <20180626110300.GC29102@dhcp22.suse.cz>
+References: <1529946737-7693-1-git-send-email-thisisathi@gmail.com>
 MIME-Version: 1.0
-References: <CAG_fn=Vc5134sX6JRUoGp=W0to6eg56DuW3YErqeWuR_W_O9gQ@mail.gmail.com>
- <20180625160040.di75264empbcf6xz@lakrids.cambridge.arm.com>
- <CAG_fn=XKo6nDphugt6wJSfA3qXGDkGDzd302kRSW6jdD4XNMvQ@mail.gmail.com> <20180625162728.qkkbzjgqebgh2fuu@lakrids.cambridge.arm.com>
-In-Reply-To: <20180625162728.qkkbzjgqebgh2fuu@lakrids.cambridge.arm.com>
-From: Alexander Potapenko <glider@google.com>
-Date: Tue, 26 Jun 2018 12:00:00 +0200
-Message-ID: <CAG_fn=UzUTdAAKUWDtoM_OBzh_vk7NY+XB8eRsuzgcwioNg+Hw@mail.gmail.com>
-Subject: Re: Calling vmalloc_to_page() on ioremap memory?
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1529946737-7693-1-git-send-email-thisisathi@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Athira-Selvan <thisisathi@gmail.com>
+Cc: akpm@linux-foundation.org, jthumshirn@suse.de, tglx@linutronix.de, kent.overstreet@gmail.com, linux-mm@kvack.org
 
-On Mon, Jun 25, 2018 at 6:27 PM Mark Rutland <mark.rutland@arm.com> wrote:
->
-> On Mon, Jun 25, 2018 at 06:24:57PM +0200, Alexander Potapenko wrote:
-> > On Mon, Jun 25, 2018 at 6:00 PM Mark Rutland <mark.rutland@arm.com> wro=
-te:
-> > >
-> > > On Mon, Jun 25, 2018 at 04:59:23PM +0200, Alexander Potapenko wrote:
-> > > > Hi Ard, Mark, Andrew and others,
-> > > >
-> > > > AFAIU, commit 029c54b09599573015a5c18dbe59cbdf42742237 ("mm/vmalloc=
-.c:
-> > > > huge-vmap: fail gracefully on unexpected huge vmap mappings") was
-> > > > supposed to make vmalloc_to_page() return NULL for pointers not
-> > > > returned by vmalloc().
-> > >
-> > > It's a little more subtle than that -- avoiding an edge case where we
-> > > unexpectedly hit huge mappings, rather than determining whether an
-> > > address same from vmalloc().
-> > Ok, but anyway, acpi_os_ioremap() creates a huge page mapping via
-> > __ioremap_caller() (see
-> > https://elixir.bootlin.com/linux/latest/source/arch/x86/mm/ioremap.c#L1=
-33)
-> > Shouldn't these checks detect that as well?
->
-> It should catch such mappings, yes.
->
-> > > > For memory error detection purposes I'm trying to map the addresses
-> > > > from the vmalloc range to valid struct pages, or at least make sure
-> > > > there's no struct page for a given address.
-> > > > Looking up the vmap_area_root rbtree isn't an option, as this must =
-be
-> > > > done from instrumented code, including interrupt handlers.
-> > >
-> > > I'm not sure how you can do this without looking at VMAs.
-> > >
-> > > In general, the vmalloc area can contain addresses which are not memo=
-ry,
-> > > and this cannot be detremined from the address alone.
-> > I thought this was exactly what vmalloc_to_page() did, but apparently n=
-o.
-> >
-> > > You *might* be able to get away with pfn_valid(vmalloc_to_pfn(x)), bu=
-t
-> > > IIRC there's some disagreement on the precise meaning of pfn_valid(),=
- so
-> > > that might just tell you that the address happens to fall close to so=
-me
-> > > valid memory.
-> > This appears to work, at least for ACPI mappings. I'll check other case=
-s though.
-> > Thank you!
-pfn_valid(vmalloc_to_pfn(x)) works for me, so I'll stick to this
-solution for now. Thanks again!
+On Mon 25-06-18 22:42:17, Athira-Selvan wrote:
+> This patch fixes checkpatch.pl:
+> WARNING: Missing a blank line after declarations
+> ERROR: missing space brfore ','
 
-But just to clarify, should vmalloc_to_page() return NULL for a huge
-mapping returned by __ioremap_caller()?
-Your answer and that of Ard seem to be contradictory.
-Maybe it's a good idea to add the pfn_valid() check to
-vmalloc_to_page() just to be sure?
-> Great!
->
-> Thanks,
-> Mark.
+I am not really sure this improves readability enough to add the churn
+into the code. mempool is not the heaviest modified file but still,
+making style changes without any further changes in the area are usually
+quite weak to justify. They are just adding an additional hop in git
+blame tracking without a good reason. Sure sometimes the end code is so
+much easier to read that the change is worthwhile but I do not see it
+here.
 
+Others might think differently though.
 
+> Signed-off-by: Athira Selvam <thisisathi@gmail.com>
+> ---
+>  mm/mempool.c | 8 +++++++-
+>  1 file changed, 7 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/mempool.c b/mm/mempool.c
+> index b54f2c2..c3a7b7b 100644
+> --- a/mm/mempool.c
+> +++ b/mm/mempool.c
+> @@ -152,6 +152,7 @@ void mempool_exit(mempool_t *pool)
+>  {
+>  	while (pool->curr_nr) {
+>  		void *element = remove_element(pool, GFP_KERNEL);
+> +
+>  		pool->free(element, pool->pool_data);
+>  	}
+>  	kfree(pool->elements);
+> @@ -248,7 +249,7 @@ EXPORT_SYMBOL(mempool_init);
+>  mempool_t *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
+>  				mempool_free_t *free_fn, void *pool_data)
+>  {
+> -	return mempool_create_node(min_nr,alloc_fn,free_fn, pool_data,
+> +	return mempool_create_node(min_nr, alloc_fn, free_fn, pool_data,
+>  				   GFP_KERNEL, NUMA_NO_NODE);
+>  }
+>  EXPORT_SYMBOL(mempool_create);
+> @@ -500,6 +501,7 @@ EXPORT_SYMBOL(mempool_free);
+>  void *mempool_alloc_slab(gfp_t gfp_mask, void *pool_data)
+>  {
+>  	struct kmem_cache *mem = pool_data;
+> +
+>  	VM_BUG_ON(mem->ctor);
+>  	return kmem_cache_alloc(mem, gfp_mask);
+>  }
+> @@ -508,6 +510,7 @@ EXPORT_SYMBOL(mempool_alloc_slab);
+>  void mempool_free_slab(void *element, void *pool_data)
+>  {
+>  	struct kmem_cache *mem = pool_data;
+> +
+>  	kmem_cache_free(mem, element);
+>  }
+>  EXPORT_SYMBOL(mempool_free_slab);
+> @@ -519,6 +522,7 @@ EXPORT_SYMBOL(mempool_free_slab);
+>  void *mempool_kmalloc(gfp_t gfp_mask, void *pool_data)
+>  {
+>  	size_t size = (size_t)pool_data;
+> +
+>  	return kmalloc(size, gfp_mask);
+>  }
+>  EXPORT_SYMBOL(mempool_kmalloc);
+> @@ -536,6 +540,7 @@ EXPORT_SYMBOL(mempool_kfree);
+>  void *mempool_alloc_pages(gfp_t gfp_mask, void *pool_data)
+>  {
+>  	int order = (int)(long)pool_data;
+> +
+>  	return alloc_pages(gfp_mask, order);
+>  }
+>  EXPORT_SYMBOL(mempool_alloc_pages);
+> @@ -543,6 +548,7 @@ EXPORT_SYMBOL(mempool_alloc_pages);
+>  void mempool_free_pages(void *element, void *pool_data)
+>  {
+>  	int order = (int)(long)pool_data;
+> +
+>  	__free_pages(element, order);
+>  }
+>  EXPORT_SYMBOL(mempool_free_pages);
+> -- 
+> 2.7.4
 
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+-- 
+Michal Hocko
+SUSE Labs
