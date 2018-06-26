@@ -1,48 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C31A6B0008
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 14:55:34 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id o11-v6so667546edr.11
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 11:55:34 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 84C356B000D
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 15:03:59 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id r7-v6so651396edq.8
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 12:03:59 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id b11-v6si1124881edd.235.2018.06.26.11.55.33
+        by mx.google.com with ESMTPS id t15-v6si130949edh.240.2018.06.26.12.03.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 26 Jun 2018 11:55:33 -0700 (PDT)
-Date: Tue, 26 Jun 2018 14:57:24 -0400
+        Tue, 26 Jun 2018 12:03:58 -0700 (PDT)
+Date: Tue, 26 Jun 2018 15:06:19 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [PATCH 1/2] fs: fsnotify: account fsnotify metadata to kmemcg
-Message-ID: <20180626185724.GA3958@cmpxchg.org>
+Message-ID: <20180626190619.GB3958@cmpxchg.org>
 References: <20180625230659.139822-1-shakeelb@google.com>
  <20180625230659.139822-2-shakeelb@google.com>
- <CAOQ4uxiV75+X3dMLS93iXqwmSU6eKPOUocdkXiR7MQZhEjotQg@mail.gmail.com>
- <CALvZod5ARMZL+eD8-mrxeBvxJcuVPXaCwWEgUyQw85xXWxHauA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALvZod5ARMZL+eD8-mrxeBvxJcuVPXaCwWEgUyQw85xXWxHauA@mail.gmail.com>
+In-Reply-To: <20180625230659.139822-2-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shakeel Butt <shakeelb@google.com>
-Cc: Amir Goldstein <amir73il@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.com>, Greg Thelen <gthelen@google.com>, Roman Gushchin <guro@fb.com>, Alexander Viro <viro@zeniv.linux.org.uk>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.com>, Greg Thelen <gthelen@google.com>, Amir Goldstein <amir73il@gmail.com>, Roman Gushchin <guro@fb.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
 
-On Tue, Jun 26, 2018 at 11:00:53AM -0700, Shakeel Butt wrote:
-> On Mon, Jun 25, 2018 at 10:49 PM Amir Goldstein <amir73il@gmail.com> wrote:
-> >
-> ...
-> >
-> > The verb 'unuse' takes an argument memcg and 'uses' it - too weird.
-> > You can use 'override'/'revert' verbs like override_creds or just call
-> > memalloc_use_memcg(old_memcg) since there is no reference taken
-> > anyway in use_memcg and no reference released in unuse_memcg.
-> >
-> > Otherwise looks good to me.
-> >
-> 
-> Thanks for your feedback. Just using memalloc_use_memcg(old_memcg) and
-> ignoring the return seems more simple. I will wait for feedback from
-> other before changing anything.
+On Mon, Jun 25, 2018 at 04:06:58PM -0700, Shakeel Butt wrote:
+> @@ -140,8 +141,9 @@ struct fanotify_event_info *fanotify_alloc_event(struct fsnotify_group *group,
+>  						 struct inode *inode, u32 mask,
+>  						 const struct path *path)
+>  {
+> -	struct fanotify_event_info *event;
+> +	struct fanotify_event_info *event = NULL;
+>  	gfp_t gfp = GFP_KERNEL;
+> +	struct mem_cgroup *old_memcg = NULL;
+>  
+>  	/*
+>  	 * For queues with unlimited length lost events are not expected and
+> @@ -151,19 +153,25 @@ struct fanotify_event_info *fanotify_alloc_event(struct fsnotify_group *group,
+>  	if (group->max_events == UINT_MAX)
+>  		gfp |= __GFP_NOFAIL;
+>  
+> +	/* Whoever is interested in the event, pays for the allocation. */
+> +	if (group->memcg) {
+> +		gfp |= __GFP_ACCOUNT;
+> +		old_memcg = memalloc_use_memcg(group->memcg);
+> +	}
 
-We're not nesting calls to memalloc_use_memcg(), right? So we don't
-have to return old_memcg and don't have to pass anything to unuse, it
-can always set current->active_memcg to NULL.
+group->memcg is only NULL when memcg is disabled or there is some
+offlining race. Can you make memalloc_use_memcg(NULL) mean that it
+should charge root_mem_cgroup instead of current->mm->memcg? That way
+we can make this site unconditional while retaining the behavior:
+
+	gfp_t gfp = GFP_KERNEL | __GFP_ACCOUNT;
+
+	memalloc_use_memcg(group->memcg);
+	kmem_cache_alloc(..., gfp);
+out:
+	memalloc_unuse_memcg();
+
+(dropping old_memcg and the unuse parameter as per the other mail)
+
+>  	if (fanotify_is_perm_event(mask)) {
+>  		struct fanotify_perm_event_info *pevent;
+>  
+>  		pevent = kmem_cache_alloc(fanotify_perm_event_cachep, gfp);
+>  		if (!pevent)
+> -			return NULL;
+> +			goto out;
+>  		event = &pevent->fae;
+>  		pevent->response = 0;
+>  		goto init;
+>  	}
+>  	event = kmem_cache_alloc(fanotify_event_cachep, gfp);
+>  	if (!event)
+> -		return NULL;
+> +		goto out;
+>  init: __maybe_unused
+>  	fsnotify_init_event(&event->fse, inode, mask);
+>  	event->tgid = get_pid(task_tgid(current));
+> @@ -174,6 +182,9 @@ init: __maybe_unused
+>  		event->path.mnt = NULL;
+>  		event->path.dentry = NULL;
+>  	}
+> +out:
+> +	if (group->memcg)
+> +		memalloc_unuse_memcg(old_memcg);
+>  	return event;
+>  }
+
+Thanks,
+Johannes
