@@ -1,90 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 65D2D6B000A
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 08:10:31 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id c23-v6so11797749oiy.3
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 05:10:31 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id f88-v6si462443otf.158.2018.06.26.05.10.29
-        for <linux-mm@kvack.org>;
-        Tue, 26 Jun 2018 05:10:30 -0700 (PDT)
-Date: Tue, 26 Jun 2018 13:10:26 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: Calling vmalloc_to_page() on ioremap memory?
-Message-ID: <20180626121025.xo2pgskpry2fqrpa@lakrids.cambridge.arm.com>
-References: <CAG_fn=Vc5134sX6JRUoGp=W0to6eg56DuW3YErqeWuR_W_O9gQ@mail.gmail.com>
- <20180625160040.di75264empbcf6xz@lakrids.cambridge.arm.com>
- <CAG_fn=XKo6nDphugt6wJSfA3qXGDkGDzd302kRSW6jdD4XNMvQ@mail.gmail.com>
- <20180625162728.qkkbzjgqebgh2fuu@lakrids.cambridge.arm.com>
- <CAG_fn=UzUTdAAKUWDtoM_OBzh_vk7NY+XB8eRsuzgcwioNg+Hw@mail.gmail.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E2A0D6B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 08:23:47 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id a12-v6so8638767pfn.12
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 05:23:47 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id 91-v6si1449559ple.308.2018.06.26.05.23.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Jun 2018 05:23:46 -0700 (PDT)
+Message-ID: <5B323140.1000306@intel.com>
+Date: Tue, 26 Jun 2018 20:27:44 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAG_fn=UzUTdAAKUWDtoM_OBzh_vk7NY+XB8eRsuzgcwioNg+Hw@mail.gmail.com>
+Subject: Re: [PATCH v34 2/4] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
+References: <1529928312-30500-1-git-send-email-wei.w.wang@intel.com> <1529928312-30500-3-git-send-email-wei.w.wang@intel.com> <20180626002822-mutt-send-email-mst@kernel.org> <5B31B71B.6080709@intel.com> <20180626064338-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20180626064338-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
 
-On Tue, Jun 26, 2018 at 12:00:00PM +0200, Alexander Potapenko wrote:
-> On Mon, Jun 25, 2018 at 6:27 PM Mark Rutland <mark.rutland@arm.com> wrote:
-> >
-> > On Mon, Jun 25, 2018 at 06:24:57PM +0200, Alexander Potapenko wrote:
-> > > On Mon, Jun 25, 2018 at 6:00 PM Mark Rutland <mark.rutland@arm.com> wrote:
-> > > >
-> > > > On Mon, Jun 25, 2018 at 04:59:23PM +0200, Alexander Potapenko wrote:
-> > > > > Hi Ard, Mark, Andrew and others,
-> > > > >
-> > > > > AFAIU, commit 029c54b09599573015a5c18dbe59cbdf42742237 ("mm/vmalloc.c:
-> > > > > huge-vmap: fail gracefully on unexpected huge vmap mappings") was
-> > > > > supposed to make vmalloc_to_page() return NULL for pointers not
-> > > > > returned by vmalloc().
-> > > >
-> > > > It's a little more subtle than that -- avoiding an edge case where we
-> > > > unexpectedly hit huge mappings, rather than determining whether an
-> > > > address same from vmalloc().
-> > > Ok, but anyway, acpi_os_ioremap() creates a huge page mapping via
-> > > __ioremap_caller() (see
-> > > https://elixir.bootlin.com/linux/latest/source/arch/x86/mm/ioremap.c#L133)
-> > > Shouldn't these checks detect that as well?
-> >
-> > It should catch such mappings, yes.
-> >
-> > > > > For memory error detection purposes I'm trying to map the addresses
-> > > > > from the vmalloc range to valid struct pages, or at least make sure
-> > > > > there's no struct page for a given address.
-> > > > > Looking up the vmap_area_root rbtree isn't an option, as this must be
-> > > > > done from instrumented code, including interrupt handlers.
-> > > >
-> > > > I'm not sure how you can do this without looking at VMAs.
-> > > >
-> > > > In general, the vmalloc area can contain addresses which are not memory,
-> > > > and this cannot be detremined from the address alone.
-> > > I thought this was exactly what vmalloc_to_page() did, but apparently no.
-> > >
-> > > > You *might* be able to get away with pfn_valid(vmalloc_to_pfn(x)), but
-> > > > IIRC there's some disagreement on the precise meaning of pfn_valid(), so
-> > > > that might just tell you that the address happens to fall close to some
-> > > > valid memory.
-> > > This appears to work, at least for ACPI mappings. I'll check other cases though.
-> > > Thank you!
-> pfn_valid(vmalloc_to_pfn(x)) works for me, so I'll stick to this
-> solution for now. Thanks again!
-> 
-> But just to clarify, should vmalloc_to_page() return NULL for a huge
-> mapping returned by __ioremap_caller()?
+On 06/26/2018 11:56 AM, Michael S. Tsirkin wrote:
+> On Tue, Jun 26, 2018 at 11:46:35AM +0800, Wei Wang wrote:
+>
 
-It will not always do so.
+>>
+>>>
+>>>> +	if (!arrays)
+>>>> +		return NULL;
+>>>> +
+>>>> +	for (i = 0; i < max_array_num; i++) {
+>>> So we are getting a ton of memory here just to free it up a bit later.
+>>> Why doesn't get_from_free_page_list get the pages from free list for us?
+>>> We could also avoid the 1st allocation then - just build a list
+>>> of these.
+>> That wouldn't be a good choice for us. If we check how the regular
+>> allocation works, there are many many things we need to consider when pages
+>> are allocated to users.
+>> For example, we need to take care of the nr_free
+>> counter, we need to check the watermark and perform the related actions.
+>> Also the folks working on arch_alloc_page to monitor page allocation
+>> activities would get a surprise..if page allocation is allowed to work in
+>> this way.
+>>
+> mm/ code is well positioned to handle all this correctly.
 
-It *may* return NULL, or it may return a potentially invalid pointer to
-struct page.
+I'm afraid that would be a re-implementation of the alloc functions, and 
+that would be much more complex than what we have. I think your idea of 
+passing a list of pages is better.
 
-> Your answer and that of Ard seem to be contradictory.
-> Maybe it's a good idea to add the pfn_valid() check to
-> vmalloc_to_page() just to be sure?
-
-Perhaps, though it really depends on the intended use case of
-vmalloc_to_page().
-
-Thanks,
-Mark.
+Best,
+Wei
