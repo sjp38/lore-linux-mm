@@ -1,72 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 89A296B0296
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 13:27:16 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id 9-v6so11791705oin.12
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 10:27:16 -0700 (PDT)
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5011D6B0299
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 13:29:09 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id x132-v6so7668114oif.21
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 10:29:09 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id v77-v6si662210oie.31.2018.06.26.10.27.15
+        by mx.google.com with ESMTP id p41-v6si703176oth.68.2018.06.26.10.29.08
         for <linux-mm@kvack.org>;
-        Tue, 26 Jun 2018 10:27:15 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [PATCH 1/2] arm64: avoid alloc memory on offline node
-In-Reply-To: <20180622184223.00007bc3@huawei.com> (Jonathan Cameron's message
-	of "Fri, 22 Jun 2018 18:42:23 +0100")
-References: <20180619120714.GE13685@dhcp22.suse.cz>
-	<874lhz3pmn.fsf@e105922-lin.cambridge.arm.com>
-	<20180619140818.GA16927@e107981-ln.cambridge.arm.com>
-	<87wouu3jz1.fsf@e105922-lin.cambridge.arm.com>
-	<20180619151425.GH13685@dhcp22.suse.cz>
-	<87r2l23i2b.fsf@e105922-lin.cambridge.arm.com>
-	<20180619163256.GA18952@e107981-ln.cambridge.arm.com>
-	<814205eb-ae86-a519-bed0-f09b8e2d3a02@huawei.com>
-	<87602d3ccl.fsf@e105922-lin.cambridge.arm.com>
-	<5c083c9c-473f-f504-848b-48506d0fd380@huawei.com>
-	<20180622091153.GU10465@dhcp22.suse.cz>
-	<87y3f7yv89.fsf@e105922-lin.cambridge.arm.com>
-	<20180622184223.00007bc3@huawei.com>
-Date: Tue, 26 Jun 2018 18:27:13 +0100
-Message-ID: <87lgb1wj9q.fsf@e105922-lin.cambridge.arm.com>
+        Tue, 26 Jun 2018 10:29:08 -0700 (PDT)
+Date: Tue, 26 Jun 2018 18:29:01 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v4 0/7] arm64: untag user pointers passed to the kernel
+Message-ID: <20180626172900.ufclp2pfrhwkxjco@armageddon.cambridge.arm.com>
+References: <cover.1529507994.git.andreyknvl@google.com>
+ <CAAeHK+zqtyGzd_CZ7qKZKU-uZjZ1Pkmod5h8zzbN0xCV26nSfg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAAeHK+zqtyGzd_CZ7qKZKU-uZjZ1Pkmod5h8zzbN0xCV26nSfg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Cameron <jonathan.cameron@huawei.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, tnowicki@caviumnetworks.com, Xie XiuQi <xiexiuqi@huawei.com>, linux-pci@vger.kernel.org, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Will Deacon <will.deacon@arm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Bjorn Helgaas <helgaas@kernel.org>, linux-arm <linux-arm-kernel@lists.infradead.org>, Hanjun Guo <guohanjun@huawei.com>, Bjorn Helgaas <bhelgaas@google.com>, Andrew Morton <akpm@linux-foundation.org>, zhongjiang <zhongjiang@huawei.com>, wanghuiqiang@huawei.com
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-doc@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
 
-Jonathan Cameron <jonathan.cameron@huawei.com> writes:
+Hi Andrey,
 
-[...]
+On Tue, Jun 26, 2018 at 02:47:50PM +0200, Andrey Konovalov wrote:
+> On Wed, Jun 20, 2018 at 5:24 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
+> > arm64 has a feature called Top Byte Ignore, which allows to embed pointer
+> > tags into the top byte of each pointer. Userspace programs (such as
+> > HWASan, a memory debugging tool [1]) might use this feature and pass
+> > tagged user pointers to the kernel through syscalls or other interfaces.
+> >
+> > This patch makes a few of the kernel interfaces accept tagged user
+> > pointers. The kernel is already able to handle user faults with tagged
+> > pointers and has the untagged_addr macro, which this patchset reuses.
+> >
+> > We're not trying to cover all possible ways the kernel accepts user
+> > pointers in one patchset, so this one should be considered as a start.
+> >
+> > Thanks!
+> >
+> > [1] http://clang.llvm.org/docs/HardwareAssistedAddressSanitizerDesign.html
+> 
+> Is there anything I should do to move forward with this?
+> 
+> I've received zero replies to this patch set (v3 and v4) over the last
+> month.
 
->
-> I'll test it when back in the office, but I had a similar issue with
-> memory only nodes when I moved the SRAT listing for cpus from the 4
-> 4th mode to the 3rd node to fake some memory I could hot unplug.
-> This gave a memory only node for the last node on the system.
->
-> When I instead moved cpus from the 3rd node to the 4th (so the node
-> with only memory was now in the middle, everything worked).
->
-> Was odd, and I'd been meaning to chase it down but hadn't gotten to it
-> yet.  If I get time I'll put together some test firmwares as see if there
-> are any other nasty corner cases we aren't handling.
+The patches in this series look fine but my concern is that they are not
+sufficient and we don't have (yet?) a way to identify where such
+annotations are required. You even say in patch 6 that this is "some
+initial work for supporting non-zero address tags passed to the kernel".
+Unfortunately, merging (or relaxing) an ABI without a clear picture is
+not really feasible.
 
-If you get a chance, it'd be really helpful to test reversing the
-ordering of entries in the SRAT and booting with a restricted
-NR_CPUS.
+While I support this work, as a maintainer I'd like to understand
+whether we'd be in a continuous chase of ABI breaks with every kernel
+release or we have a better way to identify potential issues. Is there
+any way to statically analyse conversions from __user ptr to long for
+example? Or, could we get the compiler to do this for us?
 
-This issue was found through code inspection.
+Thanks.
 
-Please make sure to use the updated patch from Lorenzo for your
-tests[0].
-
-[0] https://marc.info/?l=linux-acpi&m=152998665713983&w=2
-
->
-> Jonathan
->
->> 
->> _______________________________________________
->> linux-arm-kernel mailing list
->> linux-arm-kernel@lists.infradead.org
->> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+-- 
+Catalin
