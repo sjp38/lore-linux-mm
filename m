@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B9B66B0007
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A98C86B026A
 	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 10:22:56 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id 70-v6so10179386plc.1
+Received: by mail-pg0-f70.google.com with SMTP id e1-v6so6516007pgp.20
         for <linux-mm@kvack.org>; Tue, 26 Jun 2018 07:22:56 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id b125-v6si1501171pgc.514.2018.06.26.07.22.55
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id x3-v6si1202539pfj.289.2018.06.26.07.22.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 26 Jun 2018 07:22:55 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 06/18] x86/mm: Mask out KeyID bits from page table entry pfn
-Date: Tue, 26 Jun 2018 17:22:33 +0300
-Message-Id: <20180626142245.82850-7-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 05/18] mm/khugepaged: Handle encrypted pages
+Date: Tue, 26 Jun 2018 17:22:32 +0300
+Message-Id: <20180626142245.82850-6-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20180626142245.82850-1-kirill.shutemov@linux.intel.com>
 References: <20180626142245.82850-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,54 +20,38 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-MKTME claims several upper bits of the physical address in a page table
-entry to encode KeyID. It effectively shrinks number of bits for
-physical address. We should exclude KeyID bits from physical addresses.
+khugepaged allocates page in advance, before we found a VMA for
+collapse. We don't yet know which KeyID to use for the allocation.
 
-For instance, if CPU enumerates 52 physical address bits and number of
-bits claimed for KeyID is 6, bits 51:46 must not be threated as part
-physical address.
-
-This patch adjusts __PHYSICAL_MASK during MKTME enumeration.
+The page is allocated with KeyID-0. Once we know that the VMA is
+suitable for collapsing, we prepare the page for KeyID we need, based on
+vma_keyid().
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/kernel/cpu/intel.c | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ mm/khugepaged.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-diff --git a/arch/x86/kernel/cpu/intel.c b/arch/x86/kernel/cpu/intel.c
-index eb75564f2d25..bf2caf9d52dd 100644
---- a/arch/x86/kernel/cpu/intel.c
-+++ b/arch/x86/kernel/cpu/intel.c
-@@ -571,6 +571,29 @@ static void detect_tme(struct cpuinfo_x86 *c)
- 		mktme_status = MKTME_ENABLED;
- 	}
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index d7b2a4bf8671..4dff3c114501 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -1056,6 +1056,16 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	 */
+ 	anon_vma_unlock_write(vma->anon_vma);
  
-+#ifdef CONFIG_X86_INTEL_MKTME
-+	if (mktme_status == MKTME_ENABLED && nr_keyids) {
-+		/*
-+		 * Mask out bits claimed from KeyID from physical address mask.
-+		 *
-+		 * For instance, if a CPU enumerates 52 physical address bits
-+		 * and number of bits claimed for KeyID is 6, bits 51:46 of
-+		 * physical address is unusable.
-+		 */
-+		phys_addr_t keyid_mask;
-+
-+		keyid_mask = GENMASK_ULL(c->x86_phys_bits - 1, c->x86_phys_bits - keyid_bits);
-+		physical_mask &= ~keyid_mask;
-+	} else {
-+		/*
-+		 * Reset __PHYSICAL_MASK.
-+		 * Maybe needed if there's inconsistent configuation
-+		 * between CPUs.
-+		 */
-+		physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
++	/*
++	 * At this point new_page is allocated as non-encrypted.
++	 * If VMA's KeyID is non-zero, we need to prepare it to be encrypted
++	 * before coping data.
++	 */
++	if (vma_keyid(vma)) {
++		prep_encrypted_page(new_page, HPAGE_PMD_ORDER,
++				vma_keyid(vma), false);
 +	}
-+#endif
 +
- 	/*
- 	 * KeyID bits effectively lower the number of physical address
- 	 * bits.  Update cpuinfo_x86::x86_phys_bits accordingly.
+ 	__collapse_huge_page_copy(pte, new_page, vma, address, pte_ptl);
+ 	pte_unmap(pte);
+ 	__SetPageUptodate(new_page);
 -- 
 2.18.0
