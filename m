@@ -1,15 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A4A26B0008
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 13:27:05 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id l20-v6so12429151oii.1
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 10:27:05 -0700 (PDT)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 89A296B0296
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 13:27:16 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id 9-v6so11791705oin.12
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 10:27:16 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id i22-v6si678197ote.96.2018.06.26.10.27.04
+        by mx.google.com with ESMTP id v77-v6si662210oie.31.2018.06.26.10.27.15
         for <linux-mm@kvack.org>;
-        Tue, 26 Jun 2018 10:27:04 -0700 (PDT)
+        Tue, 26 Jun 2018 10:27:15 -0700 (PDT)
 From: Punit Agrawal <punit.agrawal@arm.com>
 Subject: Re: [PATCH 1/2] arm64: avoid alloc memory on offline node
+In-Reply-To: <20180622184223.00007bc3@huawei.com> (Jonathan Cameron's message
+	of "Fri, 22 Jun 2018 18:42:23 +0100")
 References: <20180619120714.GE13685@dhcp22.suse.cz>
 	<874lhz3pmn.fsf@e105922-lin.cambridge.arm.com>
 	<20180619140818.GA16927@e107981-ln.cambridge.arm.com>
@@ -23,10 +25,8 @@ References: <20180619120714.GE13685@dhcp22.suse.cz>
 	<20180622091153.GU10465@dhcp22.suse.cz>
 	<87y3f7yv89.fsf@e105922-lin.cambridge.arm.com>
 	<20180622184223.00007bc3@huawei.com>
-Date: Tue, 26 Jun 2018 18:27:01 +0100
-In-Reply-To: <20180622184223.00007bc3@huawei.com> (Jonathan Cameron's message
-	of "Fri, 22 Jun 2018 18:42:23 +0100")
-Message-ID: <87muvhwja2.fsf@e105922-lin.cambridge.arm.com>
+Date: Tue, 26 Jun 2018 18:27:13 +0100
+Message-ID: <87lgb1wj9q.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
