@@ -1,67 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BF5326B0008
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 12:48:28 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id l23-v6so611128edr.1
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 09:48:28 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y25-v6si941803edq.145.2018.06.26.09.48.27
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 62B176B0006
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 13:00:24 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id k8-v6so4253582qtj.18
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 10:00:24 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id f16-v6si1809933qvo.117.2018.06.26.10.00.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Jun 2018 09:48:27 -0700 (PDT)
-Date: Tue, 26 Jun 2018 18:48:25 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/2] mm: set PG_dma_pinned on get_user_pages*()
-Message-ID: <20180626164825.fz4m2lv6hydbdrds@quack2.suse.cz>
-References: <CAPcyv4i=eky-QrPcLUEqjsASuRUrFEWqf79hWe0mU8xtz6Jk-w@mail.gmail.com>
- <20180617200432.krw36wrcwidb25cj@ziepe.ca>
- <CAPcyv4gayKk_zHDYAvntware12qMXWjnnL_FDJNUQsJS_zNfDw@mail.gmail.com>
- <311eba48-60f1-b6cc-d001-5cc3ed4d76a9@nvidia.com>
- <20180618081258.GB16991@lst.de>
- <d4817192-6db0-2f3f-7c67-6078b69686d3@nvidia.com>
- <CAPcyv4iacHYxGmyWokFrVsmxvLj7=phqp2i0tv8z6AT-mYuEEA@mail.gmail.com>
- <3898ef6b-2fa0-e852-a9ac-d904b47320d5@nvidia.com>
- <CAPcyv4iRBzmwWn_9zDvqdfVmTZL_Gn7uA_26A1T-kJib=84tvA@mail.gmail.com>
- <20180626134757.GY28965@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Jun 2018 10:00:21 -0700 (PDT)
+Subject: Re: [PATCH] userfaultfd: hugetlbfs: Fix userfaultfd_huge_must_wait
+ pte access
+References: <20180626132421.78084-1-frankja@linux.ibm.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <c9c5c76c-23e5-671f-1fdc-8326e42917b9@oracle.com>
+Date: Tue, 26 Jun 2018 10:00:15 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180626134757.GY28965@dhcp22.suse.cz>
+In-Reply-To: <20180626132421.78084-1-frankja@linux.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Dan Williams <dan.j.williams@intel.com>, John Hubbard <jhubbard@nvidia.com>, Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgg@ziepe.ca>, John Hubbard <john.hubbard@gmail.com>, Matthew Wilcox <willy@infradead.org>, Christopher Lameter <cl@linux.com>, Jan Kara <jack@suse.cz>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>
+To: Janosch Frank <frankja@linux.ibm.com>, aarcange@redhat.com
+Cc: linux-kernel@vger.kernel.org, viro@zeniv.linux.org.uk, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue 26-06-18 15:47:57, Michal Hocko wrote:
-> On Mon 18-06-18 12:21:46, Dan Williams wrote:
-> [...]
-> > I do think we should explore a page flag for pages that are "long
-> > term" pinned. Michal asked for something along these lines at LSF / MM
-> > so that the core-mm can give up on pages that the kernel has lost
-> > lifetime control. Michal, did I capture your ask correctly?
+On 06/26/2018 06:24 AM, Janosch Frank wrote:
+> Use huge_ptep_get to translate huge ptes to normal ptes so we can
+> check them with the huge_pte_* functions. Otherwise some architectures
+> will check the wrong values and will not wait for userspace to bring
+> in the memory.
 > 
-> I am sorry to be late. I didn't ask for a page flag exactly. I've asked
-> for a way to query for the pin to be temporal or permanent. How that is
-> achieved is another question. Maybe we have some more spare room after
-> recent struct page reorganization but I dunno, to be honest. Maybe we
-> can have an _count offset for these longterm pins. It is not like we are
-> using the whole ref count space, right?
+> Signed-off-by: Janosch Frank <frankja@linux.ibm.com>
+> Fixes: 369cd2121be4 ("userfaultfd: hugetlbfs: userfaultfd_huge_must_wait for hugepmd ranges")
 
-Matthew had an interesting idea to pull pinned pages completely out from
-any LRU and reuse that space in struct page for pinned refcounts. From some
-initial investigation (read on elsewhere in this thread) it looks doable. I
-was considering offsetting in refcount as well but on 32-bit architectures
-there's not that many bits that I'd be really comfortable with that
-solution...
- 
-> Another thing I was asking for is to actually account those longterm
-> pinned pages and apply some control over those. They are basically mlock
-> like and so their usage should better not be unbound.
+Adding linux-mm and Andrew on Cc:
 
-Agreed here but I'd prefer to keep this discussion separate from 'how to
-identify pinned pages'.
+Thanks for catching and fixing this.
+I think this needs to be fixed in stable as well.  Correct?  Assuming
+userfaultfd is/can be enabled for impacted architectures.
 
-								Honza
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Mike Kravetz
+
+> ---
+>  fs/userfaultfd.c | 12 +++++++-----
+>  1 file changed, 7 insertions(+), 5 deletions(-)
+> 
+> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> index 123bf7d516fc..594d192b2331 100644
+> --- a/fs/userfaultfd.c
+> +++ b/fs/userfaultfd.c
+> @@ -222,24 +222,26 @@ static inline bool userfaultfd_huge_must_wait(struct userfaultfd_ctx *ctx,
+>  					 unsigned long reason)
+>  {
+>  	struct mm_struct *mm = ctx->mm;
+> -	pte_t *pte;
+> +	pte_t *ptep, pte;
+>  	bool ret = true;
+>  
+>  	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
+>  
+> -	pte = huge_pte_offset(mm, address, vma_mmu_pagesize(vma));
+> -	if (!pte)
+> +	ptep = huge_pte_offset(mm, address, vma_mmu_pagesize(vma));
+> +
+> +	if (!ptep)
+>  		goto out;
+>  
+>  	ret = false;
+> +	pte = huge_ptep_get(ptep);
+>  
+>  	/*
+>  	 * Lockless access: we're in a wait_event so it's ok if it
+>  	 * changes under us.
+>  	 */
+> -	if (huge_pte_none(*pte))
+> +	if (huge_pte_none(pte))
+>  		ret = true;
+> -	if (!huge_pte_write(*pte) && (reason & VM_UFFD_WP))
+> +	if (!huge_pte_write(pte) && (reason & VM_UFFD_WP))
+>  		ret = true;
+>  out:
+>  	return ret;
+> 
