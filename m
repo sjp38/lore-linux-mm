@@ -1,111 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FEFB6B027F
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 09:16:06 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id g6-v6so11363901wrp.4
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 06:16:06 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p4-v6sor460962wmb.90.2018.06.26.06.16.04
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F1DD6B0003
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 09:34:35 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id j11-v6so16504768qtf.15
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 06:34:35 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id g5-v6si1491656qtd.359.2018.06.26.06.34.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 26 Jun 2018 06:16:04 -0700 (PDT)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v4 17/17] kasan: add SPDX-License-Identifier mark to source files
-Date: Tue, 26 Jun 2018 15:15:27 +0200
-Message-Id: <436e34964be76c417066f9b14f29d3d87868768d.1530018818.git.andreyknvl@google.com>
-In-Reply-To: <cover.1530018818.git.andreyknvl@google.com>
-References: <cover.1530018818.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Jun 2018 06:34:34 -0700 (PDT)
+Date: Tue, 26 Jun 2018 16:34:27 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v34 2/4] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
+Message-ID: <20180626163139-mutt-send-email-mst@kernel.org>
+References: <1529928312-30500-1-git-send-email-wei.w.wang@intel.com>
+ <1529928312-30500-3-git-send-email-wei.w.wang@intel.com>
+ <20180626002822-mutt-send-email-mst@kernel.org>
+ <5B31B71B.6080709@intel.com>
+ <20180626064338-mutt-send-email-mst@kernel.org>
+ <5B323140.1000306@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5B323140.1000306@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Andrey Konovalov <andreyknvl@google.com>
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
 
-This patch adds a "SPDX-License-Identifier: GPL-2.0" mark to all source
-files under mm/kasan.
+On Tue, Jun 26, 2018 at 08:27:44PM +0800, Wei Wang wrote:
+> On 06/26/2018 11:56 AM, Michael S. Tsirkin wrote:
+> > On Tue, Jun 26, 2018 at 11:46:35AM +0800, Wei Wang wrote:
+> > 
+> 
+> > > 
+> > > > 
+> > > > > +	if (!arrays)
+> > > > > +		return NULL;
+> > > > > +
+> > > > > +	for (i = 0; i < max_array_num; i++) {
+> > > > So we are getting a ton of memory here just to free it up a bit later.
+> > > > Why doesn't get_from_free_page_list get the pages from free list for us?
+> > > > We could also avoid the 1st allocation then - just build a list
+> > > > of these.
+> > > That wouldn't be a good choice for us. If we check how the regular
+> > > allocation works, there are many many things we need to consider when pages
+> > > are allocated to users.
+> > > For example, we need to take care of the nr_free
+> > > counter, we need to check the watermark and perform the related actions.
+> > > Also the folks working on arch_alloc_page to monitor page allocation
+> > > activities would get a surprise..if page allocation is allowed to work in
+> > > this way.
+> > > 
+> > mm/ code is well positioned to handle all this correctly.
+> 
+> I'm afraid that would be a re-implementation of the alloc functions,
 
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- mm/kasan/common.c         | 1 +
- mm/kasan/kasan.c          | 1 +
- mm/kasan/kasan_init.c     | 1 +
- mm/kasan/kasan_report.c   | 1 +
- mm/kasan/khwasan.c        | 1 +
- mm/kasan/khwasan_report.c | 1 +
- mm/kasan/quarantine.c     | 1 +
- mm/kasan/report.c         | 1 +
- 8 files changed, 8 insertions(+)
+A re-factoring - you can share code. The main difference is locking.
 
-diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index 6cf7dec0b765..955e0ebdc644 100644
---- a/mm/kasan/common.c
-+++ b/mm/kasan/common.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains common KASAN and KHWASAN code.
-  *
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 44ec228de0a2..128a865c9e05 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains core KASAN code.
-  *
-diff --git a/mm/kasan/kasan_init.c b/mm/kasan/kasan_init.c
-index f436246ccc79..2dfa730a9d43 100644
---- a/mm/kasan/kasan_init.c
-+++ b/mm/kasan/kasan_init.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains some kasan initialization code.
-  *
-diff --git a/mm/kasan/kasan_report.c b/mm/kasan/kasan_report.c
-index fdf2d77e3125..48da73f4ef7c 100644
---- a/mm/kasan/kasan_report.c
-+++ b/mm/kasan/kasan_report.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains KASAN specific error reporting code.
-  *
-diff --git a/mm/kasan/khwasan.c b/mm/kasan/khwasan.c
-index fd1725022794..f0d528a8c3f3 100644
---- a/mm/kasan/khwasan.c
-+++ b/mm/kasan/khwasan.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains core KHWASAN code.
-  *
-diff --git a/mm/kasan/khwasan_report.c b/mm/kasan/khwasan_report.c
-index 51238b404b08..4e193546d94e 100644
---- a/mm/kasan/khwasan_report.c
-+++ b/mm/kasan/khwasan_report.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains KHWASAN specific error reporting code.
-  *
-diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
-index 3a8ddf8baf7d..0e4dc1a22615 100644
---- a/mm/kasan/quarantine.c
-+++ b/mm/kasan/quarantine.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * KASAN quarantine.
-  *
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index e031c78f2e52..633b4b245798 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains common KASAN and KHWASAN error reporting code.
-  *
+> and
+> that would be much more complex than what we have. I think your idea of
+> passing a list of pages is better.
+> 
+> Best,
+> Wei
+
+How much memory is this allocating anyway?
+
 -- 
-2.18.0.rc2.346.g013aa6912e-goog
+MST
