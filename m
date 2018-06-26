@@ -1,62 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2857F6B000D
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 19:17:19 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id f8-v6so13993954qtb.23
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 16:17:19 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id i63-v6si152256qkc.177.2018.06.25.16.17.18
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 132716B0003
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2018 20:07:05 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id b7-v6so5580205pgv.5
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2018 17:07:05 -0700 (PDT)
+Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
+        by mx.google.com with ESMTPS id a4-v6si205091pfi.353.2018.06.25.17.07.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jun 2018 16:17:18 -0700 (PDT)
-Reply-To: crecklin@redhat.com
-Subject: Re: [PATCH] add param that allows bootline control of hardened
- usercopy
-References: <1529939300-27461-1-git-send-email-crecklin@redhat.com>
- <d110c9af-cb68-5a3c-bc70-0c7650edb0d4@redhat.com>
- <cfd52ae6-6fea-1a5a-b2dd-4dfdd65acd15@redhat.com>
- <2e4d9686-835c-f4be-2647-2344899e3cd4@redhat.com>
- <CAGXu5jJGqxKjcWGyAnbkmFebtPor0PEQ+2qpoMCGtjjdYRTHDw@mail.gmail.com>
-From: Christoph von Recklinghausen <crecklin@redhat.com>
-Message-ID: <53edba5a-1652-d1c2-12c9-7f3cda746f5f@redhat.com>
-Date: Mon, 25 Jun 2018 19:17:16 -0400
+        Mon, 25 Jun 2018 17:07:03 -0700 (PDT)
+Subject: Re: [RFC v2 PATCH 2/2] mm: mmap: zap pages with read mmap_sem for
+ large mapping
+References: <1529364856-49589-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1529364856-49589-3-git-send-email-yang.shi@linux.alibaba.com>
+ <3DDF2672-FCC4-4387-9624-92F33C309CAE@gmail.com>
+ <158a4e4c-d290-77c4-a595-71332ede392b@linux.alibaba.com>
+ <BFD6A249-B1D7-43D5-8D7C-9FAED4A168A1@gmail.com>
+ <20180620071817.GJ13685@dhcp22.suse.cz>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <263935d9-d07c-ab3e-9e42-89f73f57be1e@linux.alibaba.com>
+Date: Mon, 25 Jun 2018 17:06:23 -0700
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jJGqxKjcWGyAnbkmFebtPor0PEQ+2qpoMCGtjjdYRTHDw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180620071817.GJ13685@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Laura Abbott <labbott@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>, Nadav Amit <nadav.amit@gmail.com>
+Cc: Matthew Wilcox <willy@infradead.org>, ldufour@linux.vnet.ibm.com, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On 06/25/2018 06:35 PM, Kees Cook wrote:
-> On Mon, Jun 25, 2018 at 3:29 PM, Christoph von Recklinghausen
-> <crecklin@redhat.com> wrote:
->> I have a small set of customers that want CONFIG_HARDENED_USERCOPY
->> enabled, and a large number of customers who would be impacted by its
->> default behavior (before my change).  The desire was to have the smaller
->> number of users need to change their boot lines to get the behavior they
->> wanted. Adding CONFIG_HUC_DEFAULT_OFF was an attempt to preserve the
->> default behavior of existing users of CONFIG_HARDENED_USERCOPY (default
->> enabled) and allowing that to coexist with the desires of the greater
->> number of my customers (default disabled).
+
+
+On 6/20/18 12:18 AM, Michal Hocko wrote:
+> On Tue 19-06-18 17:31:27, Nadav Amit wrote:
+>> at 4:08 PM, Yang Shi <yang.shi@linux.alibaba.com> wrote:
 >>
->> If folks think that it's better to have it enabled by default and the
->> command line option to turn it off I can do that (it is simpler). Does
->> anyone else have opinions one way or the other?
-> I would prefer to isolate the actual problem case, and fix it if
-> possible. (i.e. try to make the copy fixed-length, etc) Barring that,
-> yes, a kernel command line to disable the protection would be okay.
+>>>
+>>> On 6/19/18 3:17 PM, Nadav Amit wrote:
+>>>> at 4:34 PM, Yang Shi <yang.shi@linux.alibaba.com>
+>>>>   wrote:
+>>>>
+>>>>
+>>>>> When running some mmap/munmap scalability tests with large memory (i.e.
+>>>>>
+>>>>>> 300GB), the below hung task issue may happen occasionally.
+>>>>>>
+>>>>> INFO: task ps:14018 blocked for more than 120 seconds.
+>>>>>        Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
+>>>>> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
+>>>>> message.
+>>>>> ps              D    0 14018      1 0x00000004
+>>>>>
+>>>>>
+>>>> (snip)
+>>>>
+>>>>
+>>>>> Zapping pages is the most time consuming part, according to the
+>>>>> suggestion from Michal Hock [1], zapping pages can be done with holding
+>>>>> read mmap_sem, like what MADV_DONTNEED does. Then re-acquire write
+>>>>> mmap_sem to manipulate vmas.
+>>>>>
+>>>> Does munmap() == MADV_DONTNEED + munmap() ?
+>>> Not exactly the same. So, I basically copied the page zapping used by munmap instead of calling MADV_DONTNEED.
+>>>
+>>>> For example, what happens with userfaultfd in this case? Can you get an
+>>>> extra #PF, which would be visible to userspace, before the munmap is
+>>>> finished?
+>>>>
+>>> userfaultfd is handled by regular munmap path. So, no change to userfaultfd part.
+>> Right. I see it now.
+>>
+>>>> In addition, would it be ok for the user to potentially get a zeroed page in
+>>>> the time window after the MADV_DONTNEED finished removing a PTE and before
+>>>> the munmap() is done?
+>>>>
+>>> This should be undefined behavior according to Michal. This has been discussed in  https://lwn.net/Articles/753269/.
+>> Thanks for the reference.
+>>
+>> Reading the man page I see: "All pages containing a part of the indicated
+>> range are unmapped, and subsequent references to these pages will generate
+>> SIGSEGV.a??
+> Yes, this is true but I guess what Yang Shi meant was that an userspace
+> access racing with munmap is not well defined. You never know whether
+> you get your data, #PTF or SEGV because it depends on timing. The user
+> visible change might be that you lose content and get zero page instead
+> if you hit the race window while we are unmapping which was not possible
+> before. But whouldn't such an access pattern be buggy anyway? You need
+> some form of external synchronization AFAICS.
 >
-> Note that the test needs to be inside __check_object_size() otherwise
-> the inline optimization with __builtin_constant_p() gets broken and
-> makes everyone slower. :)
->
-> -Kees
->
-Thanks Kees,
+> But maybe some userspace depends on "getting right data or get SEGV"
+> semantic. If we have to preserve that then we can come up with a VM_DEAD
+> flag set before we tear it down and force the SEGV on the #PF path.
+> Something similar we already do for MMF_UNSTABLE.
 
-I'll make that change and retest.
+By looking this deeper, we may not be able to cover all the unmapping 
+range for VM_DEAD, for example, if the start addr is in the middle of a 
+vma. We can't set VM_DEAD to that vma since that would trigger SIGSEGV 
+for still mapped area.
 
-Chris
+splitting can't be done with read mmap_sem held, so maybe just set 
+VM_DEAD to non-overlapped vmas. Access to overlapped vmas (first and 
+last) will still have undefined behavior.
+
+Thanks,
+Yang
