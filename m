@@ -1,91 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C61CD6B0003
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 11:25:44 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id l11-v6so12217925oth.1
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 08:25:44 -0700 (PDT)
-Received: from g9t5009.houston.hpe.com (g9t5009.houston.hpe.com. [15.241.48.73])
-        by mx.google.com with ESMTPS id o9-v6si531449oti.24.2018.06.26.08.25.42
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B71916B0006
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 12:38:27 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id y26-v6so9011266pfn.14
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 09:38:27 -0700 (PDT)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id e16-v6si2060986plj.76.2018.06.26.09.38.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jun 2018 08:25:43 -0700 (PDT)
-From: "Kani, Toshi" <toshi.kani@hpe.com>
-Subject: Re: [PATCH v3 0/3] fix free pmd/pte page handlings on x86
-Date: Tue, 26 Jun 2018 15:25:39 +0000
-Message-ID: <1530026622.14039.269.camel@hpe.com>
-References: <20180516233207.1580-1-toshi.kani@hpe.com>
-	 <alpine.DEB.2.21.1806241516410.8650@nanos.tec.linutronix.de>
-	 <1529938470.14039.134.camel@hpe.com>
-	 <20180625175225.GQ28965@dhcp22.suse.cz>
-	 <1529961187.14039.206.camel@hpe.com>
-	 <20180626063521.GT28965@dhcp22.suse.cz>
-	 <alpine.DEB.2.21.1806261043080.2204@nanos.tec.linutronix.de>
-	 <20180626085449.GU28965@dhcp22.suse.cz>
-In-Reply-To: <20180626085449.GU28965@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <0CB88FBC3D5B3949B0B56DEB8DAA6C41@NAMPRD84.PROD.OUTLOOK.COM>
-Content-Transfer-Encoding: base64
+        Tue, 26 Jun 2018 09:38:24 -0700 (PDT)
+Subject: Re: [PATCHv4 17/18] x86/mm: Handle encrypted memory in page_to_virt()
+ and __pa()
+References: <20180626142245.82850-1-kirill.shutemov@linux.intel.com>
+ <20180626142245.82850-18-kirill.shutemov@linux.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <1609f2b4-4638-8b9d-4dc7-fcb3303739cd@intel.com>
+Date: Tue, 26 Jun 2018 09:38:23 -0700
 MIME-Version: 1.0
+In-Reply-To: <20180626142245.82850-18-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "tglx@linutronix.de" <tglx@linutronix.de>, "mhocko@kernel.org" <mhocko@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
+Cc: Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-T24gVHVlLCAyMDE4LTA2LTI2IGF0IDEwOjU0ICswMjAwLCBNaWNoYWwgSG9ja28gd3JvdGU6DQo+
-IE9uIFR1ZSAyNi0wNi0xOCAxMDo0NToxMSwgVGhvbWFzIEdsZWl4bmVyIHdyb3RlOg0KPiA+IE9u
-IFR1ZSwgMjYgSnVuIDIwMTgsIE1pY2hhbCBIb2NrbyB3cm90ZToNCj4gPiA+IE9uIE1vbiAyNS0w
-Ni0xOCAyMToxNTowMywgS2FuaSBUb3NoaW1pdHN1IHdyb3RlOg0KPiA+ID4gPiBMYXN0bHksIGZv
-ciB0aGUgY29kZSBtYWludGVuYW5jZSwgSSBiZWxpZXZlIHRoaXMgbWVtb3J5IGFsbG9jYXRpb24g
-a2VlcHMNCj4gPiA+ID4gdGhlIGNvZGUgbXVjaCBzaW1wbGVyIHRoYW4gaXQgd291bGQgb3RoZXJ3
-aXNlIG5lZWQgdG8gbWFuYWdlIGEgc3BlY2lhbA0KPiA+ID4gPiBwYWdlIGxpc3QuDQo+ID4gPiAN
-Cj4gPiA+IFllcywgSSBjYW4gc2VlIGEgc2ltcGxpY2l0eSBhcyBhIHJlYXNvbmFibGUgYXJndW1l
-bnQgZm9yIGEgcXVpY2sgZml4LA0KPiA+ID4gd2hpY2ggdGhlc2UgcGlsZSBpcyBzdXBwb3NlZCB0
-byBiZSBBRkFJVS4gU28gdGhpcyBtaWdodCBiZSBnb29kIHRvIGdvDQo+ID4gPiBmcm9tIHRoYXQg
-cGVyc3BlY3RpdmUsIGJ1dCBJIGJlbGlldmUgdGhhdCB0aGlzIHNob3VsZCBiZSBjaGFuZ2VkIGlu
-DQo+ID4gPiBmdXR1cmUgYXQgbGVhc3QuDQo+ID4gDQo+ID4gU28gdGhlIGNvbmNsdXNpb24gaXMs
-IHRoYXQgd2Ugc2hpcCB0aGlzIHNldCBvZiBwYXRjaGVzIG5vdyB0byBjdXJlIHRoZQ0KPiA+IGV4
-aXN0aW5nIHdyZWNrYWdlLCByaWdodD8NCj4gDQo+IEpvZXJnIHdhcyBzdWdnZXN0aW5nIHNvbWUg
-YWx0ZXJuYXRpdmUgYnV0IEkgZ290IGxvc3QgaW4gdGhlIGRpc2N1c3Npb24NCj4gdG8gYmUgaG9u
-ZXN0IHNvIEkgbWlnaHQgbWlze2ludGVycHJldCxyZW1lbWJlcn0uDQoNCkkndmUgYWRkcmVzc2Vk
-IGhpcyBtdWx0aXBsZSBjb21tZW50cyBpbiB0aGlzIHNlcmllcywgYnV0IGhhZCB0byBkaXNhZ3Jl
-ZQ0Kd2l0aCBoaXMgZm9sbG93aW5nIHN1Z2dlc3Rpb25zOg0KDQoxLiBBcHBseSBoaXMgcmV2ZXJ0
-IHBhdGNoIGZpcnN0IGh0dHBzOi8vbGttbC5vcmcvbGttbC8yMDE4LzQvMjYvNjM2DQoNCkRpc2Fn
-cmVlZCBiZWNhdXNlIHRoaXMgcGF0Y2ggYnJlYWtzIHRoZSBjdXJyZW50IGlvcmVtYXAoKSBjYWxs
-ZXJzIHVzaW5nDQoyTUIgbWFwcGluZ3MgYnkgZmFpbGluZyBwbWRfZnJlZV9wdGVfcGFnZSgpLg0K
-DQoyLiBBZGQgYSBzcGVjaWFsIHBhZ2UgbGlzdCwgaW5zdGVhZCBvZiBtZW1vcnkgYWxsb2MsIGlu
-IHBhdGNoIDMvMw0KDQpRdW90aW5nIGhpcyBjb25jZXJucyBhYm91dCB0aGUgbWVtb3J5IGFsbG9j
-YXRpb246DQo9PT0NCk9uIFR1ZSwgTWF5IDI5LCAyMDE4IGF0IDA0OjEwOjI0UE0gKzAwMDAsIEth
-bmksIFRvc2hpIHdyb3RlOg0KPiBDYW4geW91IGV4cGxhaW4gd2h5IHlvdSB0aGluayBhbGxvY2F0
-aW5nIGEgcGFnZSBoZXJlIGlzIGEgbWFqb3INCnByb2JsZW0/DQoNCkJlY2F1c2UgYSBsYXJnZXIg
-YWxsb2NhdGlvbiBpcyBtb3JlIGxpa2VseSB0byBmYWlsLiBBbmQgaWYgeW91IGZhaWwgdGhlDQph
-bGxvY2F0aW9uLCB5b3UgYWxzbyBmYWlsIHRvIGZyZWUgbW9yZSBwYWdlcywgd2hpY2ggX2lzXyBh
-IHByb2JsZW0uIFNvDQpiZXR0ZXIgYXZvaWQgYW55IGFsbG9jYXRpb25zIGluIGNvZGUgcGF0aHMg
-dGhhdCBhcmUgYWJvdXQgZnJlZWluZw0KbWVtb3J5Lg0KPT09DQoNCldoaWNoIEkgaGFkIHJlcGxp
-ZWQgYXM6DQo9PT09DQpJdCBvbmx5IGFsbG9jYXRlcyBhIHNpbmdsZSBwYWdlLiAgSWYgaXQgZmFp
-bHMgdG8gYWxsb2NhdGUgYSBzaW5nbGUgcGFnZSwNCnRoaXMgcHVkIG1hcHBpbmcgcmVxdWVzdCBz
-aW1wbHkgZmFsbHMgdG8gcG1kIG1hcHBpbmdzLCB3aGljaCBpcyBvbmx5IGFzDQpiYWQgYXMgeW91
-ciBzdWdnZXN0ZWQgcGxhaW4gcmV2ZXJ0IGFsd2F5cyBkb2VzIGZvciBib3RoIHB1ZCBhbmQgcG1k
-DQptYXBwaW5ncy4gIEFsc28sIHRoaXMgZnVuYyBpcyBjYWxsZWQgZnJvbSBpb3JlbWFwKCkgd2hl
-biBhIGRyaXZlcg0KaW5pdGlhbGl6ZXMgaXRzIG1hcHBpbmcuICBJZiB0aGUgc3lzdGVtIGRvZXMg
-bm90IGhhdmUgYSBzaW5nbGUgcGFnZSB0bw0KYWxsb2NhdGUsIHRoZSBkcml2ZXIgaGFzIGEgbXVj
-aCBiaWdnZXIgaXNzdWUgdG8gZGVhbCB3aXRoIHRoYW4gaXRzDQpyZXF1ZXN0IGZhbGxpbmcgYmFj
-ayB0byBwbWQgbWFwcGluZ3MuICBQbGVhc2UgYWxzbyBub3RlIHRoYXQgdGhpcyBmdW5jDQppcyBu
-b3QgY2FsbGVkIGZyb20gZnJlZS1tZW1vcnkgcGF0aC4NCj09PT0NCg0KSSBoYXZlIGZ1cnRoZXIg
-c3VtbWFyaXplZCBteSByZWFzb25zIHRvIGtlZXAgdGhlIG1lbW9yeSBhbGxvY2F0aW9uIGluIG15
-DQpyZXBseSB0byBNaWNoYWwuICBBbm90aGVyIHJlYXNvbiwgd2hpY2ggSSBmb3Jnb3QgdG8gbWVu
-dGlvbiwgaXMgdGhhdA0KaW9yZW1hcCgpIGRvZXMgbm90IGhhdmUgYW4gaW5pdCBpbnRlcmZhY2Ug
-dG8gaW5pdGlhbGl6ZSBhIHNwZWNpYWwgcGFnZQ0KbGlzdCBpbiBhcmNoaXRlY3R1cmUtc3BlY2lm
-aWMgd2F5IChhbmQgdGhlcmUgaXMgYSBnb29kIHJlYXNvbiBub3QgdG8NCmhhdmUgaXQpLg0KDQo+
-ID4gRmluZSB3aXRoIHRoYXQsIGJ1dCB3aG8gd2lsbCB0YWtlIGNhcmUgb2YgcmV3b3JraW5nIGl0
-IHByb3Blcj8gSSdtDQo+ID4gY29uY2VybmVkIHRoYXQgdGhpcyB3aWxsIGp1c3QgZ28gc3RhbGUg
-dGhlIG1vbWVudCB0aGUgZml4ZXMgaGl0IHRoZSB0cmVlLg0KPiANCj4gWWVhaCwgdGhpcyBpcyB3
-aHkgSSB1c3VhbGx5IHRyeSB0byBwdXNoIGJhY2sgaGFyZCBiZWNhdXNlICJ3aWxsIGJlIGZpeGVk
-DQo+IGxhdGVyIiBpcyBzaW1pbGFyIHRvIHNheSAiZG9jdW1lbnRhdGlvbiB3aWxsIGNvbWUgbGF0
-ZXIiIGV0Yy4uLg0KPiANCj4gQSBiaWcgZmF0IFRPRE8gd291bGQgYmUgYXBwcm9wcmlhdGUgc28g
-aXQgd29uJ3QgZ2V0IGZvcmdvdHRlbiBhdCBsZWFzdC4NCg0KSSdkIGJlIGhhcHB5IHRvIHJld29y
-ayBpZiB3ZSBmaW5kIGEgYnVnIGluIHRoZSBjb2RlLiAgQnV0IEkgZG8gbm90IHRoaW5rDQp3ZSBu
-ZWVkIHRvIHJld29yayBmb3IgdGhlIHNha2Ugb2YgcG9zc2libGUgZnV0dXJlIGNhbGxlcnMgdGhh
-dCBub2JvZHkNCmtub3dzIGZvciBzdXJlLiAgU28sIEkgd2lsbCBhZGQgdGhlIE5PVEUgYmxvdyB0
-byBjbGFyaWZ5IHRoZSBwcmUtDQpyZXF1aXNpdGUuDQogDQpOT1RFOg0KIC0gQ2FsbGVycyBtdXN0
-IGFsbG93IGEgc2luZ2xlIHBhZ2UgYWxsb2NhdGlvbi4NCg0KVGhhbmtzLA0KLVRvc2hpDQo=
+> diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
+> index ba83fba4f9b3..dbfbd955da98 100644
+> --- a/arch/x86/include/asm/mktme.h
+> +++ b/arch/x86/include/asm/mktme.h
+> @@ -29,6 +29,9 @@ void arch_free_page(struct page *page, int order);
+>  
+>  int sync_direct_mapping(void);
+>  
+> +#define page_to_virt(x) \
+> +	(__va(PFN_PHYS(page_to_pfn(x))) + page_keyid(x) * direct_mapping_size)
+
+Please put this in a generic header so that this hunk represents the
+*default* x86 implementation that is used universally on x86.  Then,
+please do
+
+#ifndef CONFIG_MKTME_WHATEVER
+#define page_keyid(x) (0)
+#endif
+
+>  #else
+>  #define mktme_keyid_mask	((phys_addr_t)0)
+>  #define mktme_nr_keyids		0
+> diff --git a/arch/x86/include/asm/page_64.h b/arch/x86/include/asm/page_64.h
+> index 53c32af895ab..ffad496aadad 100644
+> --- a/arch/x86/include/asm/page_64.h
+> +++ b/arch/x86/include/asm/page_64.h
+> @@ -23,7 +23,7 @@ static inline unsigned long __phys_addr_nodebug(unsigned long x)
+>  	/* use the carry flag to determine if x was < __START_KERNEL_map */
+>  	x = y + ((x > y) ? phys_base : (__START_KERNEL_map - PAGE_OFFSET));
+>  
+> -	return x;
+> +	return x % direct_mapping_size;
+
+There are almost *surely* performance implications from this that affect
+anyone with this compile option turned on.  There's now a 64-bit integer
+division operation which is used in places like kfree().
+
+That's a show-stopper for me until we've done some pretty comprehensive
+performance analysis of this, which means much more than one kernel
+compile test on one system.
