@@ -1,57 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 905F86B0294
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 13:14:51 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id d14-v6so17177623qtn.3
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 10:14:51 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id k24-v6si2041567qta.239.2018.06.26.10.14.50
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jun 2018 10:14:50 -0700 (PDT)
-Message-ID: <a8343284adff3c743121a339035d5010347a3038.camel@redhat.com>
-Subject: Re: [PATCH] add param that allows bootline control of hardened
- usercopy
-From: Paolo Abeni <pabeni@redhat.com>
-Date: Tue, 26 Jun 2018 19:14:47 +0200
-In-Reply-To: <CAGXu5jKHz=OaU1ejYEB=t-=Gs6gVoRywFbyQw8ThHk6WYG7Qxg@mail.gmail.com>
-References: 
-	<CAGXu5jL=aEXHKr5ouVdSKwG-y7xSQFLi=x1nwSjFspYiyKL1Pw@mail.gmail.com>
-	 <64bf81fa-0363-4b46-d8da-94285b592caa@redhat.com>
-	 <a48538cf40c1645669326c92d9600fc98a13a260.camel@redhat.com>
-	 <CAGXu5jKHz=OaU1ejYEB=t-=Gs6gVoRywFbyQw8ThHk6WYG7Qxg@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A4A26B0008
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 13:27:05 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id l20-v6so12429151oii.1
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 10:27:05 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id i22-v6si678197ote.96.2018.06.26.10.27.04
+        for <linux-mm@kvack.org>;
+        Tue, 26 Jun 2018 10:27:04 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH 1/2] arm64: avoid alloc memory on offline node
+References: <20180619120714.GE13685@dhcp22.suse.cz>
+	<874lhz3pmn.fsf@e105922-lin.cambridge.arm.com>
+	<20180619140818.GA16927@e107981-ln.cambridge.arm.com>
+	<87wouu3jz1.fsf@e105922-lin.cambridge.arm.com>
+	<20180619151425.GH13685@dhcp22.suse.cz>
+	<87r2l23i2b.fsf@e105922-lin.cambridge.arm.com>
+	<20180619163256.GA18952@e107981-ln.cambridge.arm.com>
+	<814205eb-ae86-a519-bed0-f09b8e2d3a02@huawei.com>
+	<87602d3ccl.fsf@e105922-lin.cambridge.arm.com>
+	<5c083c9c-473f-f504-848b-48506d0fd380@huawei.com>
+	<20180622091153.GU10465@dhcp22.suse.cz>
+	<87y3f7yv89.fsf@e105922-lin.cambridge.arm.com>
+	<20180622184223.00007bc3@huawei.com>
+Date: Tue, 26 Jun 2018 18:27:01 +0100
+In-Reply-To: <20180622184223.00007bc3@huawei.com> (Jonathan Cameron's message
+	of "Fri, 22 Jun 2018 18:42:23 +0100")
+Message-ID: <87muvhwja2.fsf@e105922-lin.cambridge.arm.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Chris von Recklinghausen <crecklin@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Jonathan Cameron <jonathan.cameron@huawei.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, tnowicki@caviumnetworks.com, Xie XiuQi <xiexiuqi@huawei.com>, linux-pci@vger.kernel.org, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Will Deacon <will.deacon@arm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Bjorn Helgaas <helgaas@kernel.org>, linux-arm <linux-arm-kernel@lists.infradead.org>, Hanjun Guo <guohanjun@huawei.com>, Bjorn Helgaas <bhelgaas@google.com>, Andrew Morton <akpm@linux-foundation.org>, zhongjiang <zhongjiang@huawei.com>, wanghuiqiang@huawei.com
 
-[hopefully fixed the 'mm' recipient]
+Jonathan Cameron <jonathan.cameron@huawei.com> writes:
 
-On Tue, 2018-06-26 at 09:54 -0700, Kees Cook wrote:
-> On Tue, Jun 26, 2018 at 2:48 AM, Paolo Abeni <pabeni@redhat.com> wrote:
-> > With CONFIG_HARDENED_USERCOPY=y, perf shows ~6% of CPU time spent
-> > cumulatively in __check_object_size (~4%) and __virt_addr_valid (~2%).
-> 
-> Are you able to see which network functions are making the
-> __check_object_size() calls?
+[...]
 
-The call-chain is:
+>
+> I'll test it when back in the office, but I had a similar issue with
+> memory only nodes when I moved the SRAT listing for cpus from the 4
+> 4th mode to the 3rd node to fake some memory I could hot unplug.
+> This gave a memory only node for the last node on the system.
+>
+> When I instead moved cpus from the 3rd node to the 4th (so the node
+> with only memory was now in the middle, everything worked).
+>
+> Was odd, and I'd been meaning to chase it down but hadn't gotten to it
+> yet.  If I get time I'll put together some test firmwares as see if there
+> are any other nasty corner cases we aren't handling.
 
-__GI___libc_recvfrom                                                   
-entry_SYSCALL_64_after_hwframe                                         
-do_syscall_64                                                          
-__x64_sys_recvfrom                                                     
-__sys_recvfrom                                                         
-inet_recvmsg                                                           
-udp_recvmsg                                                            
-__check_object_size
+If you get a chance, it'd be really helpful to test reversing the
+ordering of entries in the SRAT and booting with a restricted
+NR_CPUS.
 
-udp_recvmsg() actually calls copy_to_iter() (inlined) and the latters
-calls check_copy_size() (again, inlined).
+This issue was found through code inspection.
 
-Cheers,
+Please make sure to use the updated patch from Lorenzo for your
+tests[0].
 
-Paolo
+[0] https://marc.info/?l=linux-acpi&m=152998665713983&w=2
+
+>
+> Jonathan
+>
+>> 
+>> _______________________________________________
+>> linux-arm-kernel mailing list
+>> linux-arm-kernel@lists.infradead.org
+>> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
