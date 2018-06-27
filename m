@@ -1,60 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AEF26B0010
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 03:39:39 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c8-v6so1056071edr.16
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 00:39:39 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 09FB96B0003
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 03:44:26 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id c20-v6so1055238eds.21
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 00:44:25 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f56-v6si1769451edf.435.2018.06.27.00.39.37
+        by mx.google.com with ESMTPS id q8-v6si1802757edk.369.2018.06.27.00.44.23
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Jun 2018 00:39:38 -0700 (PDT)
-Date: Wed, 27 Jun 2018 09:39:36 +0200
+        Wed, 27 Jun 2018 00:44:24 -0700 (PDT)
+Date: Wed, 27 Jun 2018 09:44:21 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: drop VM_BUG_ON from __get_free_pages
-Message-ID: <20180627073936.GE32348@dhcp22.suse.cz>
-References: <20180622162841.25114-1-mhocko@kernel.org>
- <6886dee0-3ac4-ef5d-3597-073196c81d88@suse.cz>
- <20180626100416.a3ff53f5c4aac9fae954e3f6@linux-foundation.org>
- <20180627073420.GD32348@dhcp22.suse.cz>
+Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+Message-ID: <20180627074421.GF32348@dhcp22.suse.cz>
+References: <20180622150242.16558-1-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20180627073420.GD32348@dhcp22.suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180622150242.16558-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, JianKang Chen <chenjiankang1@huawei.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Felix Kuehling <felix.kuehling@amd.com>
 
-On Wed 27-06-18 09:34:20, Michal Hocko wrote:
-> On Tue 26-06-18 10:04:16, Andrew Morton wrote:
-[...]
-> > Really, the changelog isn't right.  There *is* a real reason to blow
-> > up.  Effectively the caller is attempting to obtain the virtual address
-> > of a highmem page without having kmapped it first.  That's an outright
-> > bug.
-> 
-> And as I've argued before the code would be wrong regardless. We would
-> leak the memory or worse touch somebody's else kmap without knowing
-> that.  So we have a choice between a mem leak, data corruption k or a
-> silent fixup. I would prefer the last option. And blowing up on a BUG
-> is not much better on something that is easily fixable. I am not really
-> convinced that & ~__GFP_HIGHMEM is something to lose sleep over.
+This is the v2 of RFC based on the feedback I've received so far. The
+code even compiles as a bonus ;) I haven't runtime tested it yet, mostly
+because I have no idea how.
 
-It's been some time since I've checked that changelog and you are right
-it should contain all the above so the changelog should be:
-
-"
-There is no real reason to blow up just because the caller doesn't know
-that __get_free_pages cannot return highmem pages. Simply fix that up
-silently. Even if we have some confused users such a fixup will not be
-harmful.
-
-On the other hand an incorrect usage can lead to either a memory leak
-or worse a memory corruption when the allocated page hashes to an
-already kmaped page. Most workloads run with CONFIG_DEBUG_VM disabled so
-the assert wouldn't help.
-"
--- 
-Michal Hocko
-SUSE Labs
+Any further feedback is highly appreciated of course.
+---
