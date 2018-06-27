@@ -1,98 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A49876B0008
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 14:13:59 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id t19-v6so1617666plo.9
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 11:13:59 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id k190-v6si4110577pge.276.2018.06.27.11.13.58
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 99A646B0003
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 15:07:09 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id m2-v6so2944651qti.2
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 12:07:09 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id x5-v6si395308qtb.117.2018.06.27.12.07.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 27 Jun 2018 11:13:58 -0700 (PDT)
-Subject: Re: [PATCH V7 24/24] block: document usage of bio iterator helpers
-References: <20180627124548.3456-1-ming.lei@redhat.com>
- <20180627124548.3456-25-ming.lei@redhat.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <98d6ba9d-ec7a-b05b-94bb-e798ad0e0ea7@infradead.org>
-Date: Wed, 27 Jun 2018 11:13:45 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Jun 2018 12:07:08 -0700 (PDT)
+Date: Wed, 27 Jun 2018 22:07:02 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v33 1/4] mm: add a function to get free page blocks
+Message-ID: <20180627220402-mutt-send-email-mst@kernel.org>
+References: <1529037793-35521-1-git-send-email-wei.w.wang@intel.com>
+ <1529037793-35521-2-git-send-email-wei.w.wang@intel.com>
+ <CA+55aFzhuGKinEq5udPsk_uYHShkQxJYqcPO=tLCkT-oxpsgPg@mail.gmail.com>
+ <20180626045118-mutt-send-email-mst@kernel.org>
+ <CA+55aFwFpDPvfL=KPdabO-x1r0FnwpfPk5oN8+e01TKqAPNYbw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180627124548.3456-25-ming.lei@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFwFpDPvfL=KPdabO-x1r0FnwpfPk5oN8+e01TKqAPNYbw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@redhat.com>, Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Kent Overstreet <kent.overstreet@gmail.com>
-Cc: David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, Mike Snitzer <snitzer@redhat.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, virtualization <virtualization@lists.linux-foundation.org>, KVM list <kvm@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, Rik van Riel <riel@redhat.com>, peterx@redhat.com
 
-On 06/27/2018 05:45 AM, Ming Lei wrote:
-> Now multipage bvec is supported, and some helpers may return page by
-> page, and some may return segment by segment, this patch documents the
-> usage for helping us use them correctly.
+On Wed, Jun 27, 2018 at 09:05:39AM -0700, Linus Torvalds wrote:
+> [ Sorry for slow reply, my travels have made a mess of my inbox ]
 > 
-> Signed-off-by: Ming Lei <ming.lei@redhat.com>
-> ---
->  Documentation/block/biovecs.txt | 27 +++++++++++++++++++++++++++
->  1 file changed, 27 insertions(+)
+> On Mon, Jun 25, 2018 at 6:55 PM Michael S. Tsirkin <mst@redhat.com> wrote:
+> >
+> > Linus, do you think it would be ok to have get_from_free_page_list
+> > actually pop entries from the free list and use them as the buffer
+> > to store PAs?
 > 
-> diff --git a/Documentation/block/biovecs.txt b/Documentation/block/biovecs.txt
-> index 25689584e6e0..f63af564ae89 100644
-> --- a/Documentation/block/biovecs.txt
-> +++ b/Documentation/block/biovecs.txt
-> @@ -117,3 +117,30 @@ Other implications:
->     size limitations and the limitations of the underlying devices. Thus
->     there's no need to define ->merge_bvec_fn() callbacks for individual block
->     drivers.
-> +
-> +Usage of helpers:
-> +=================
-> +
-> +* The following helpers which name has suffix of "_all" can only be used on
-
-                   helpers whose names have the suffix of "_all" can only be used on
-
-> +non-BIO_CLONED bio, and ususally they are used by filesystem code, and driver
-
-                           usually
-
-> +shouldn't use them becasue bio may have been splitted before they got to the
-
-                      because                   split
-
-> +driver:
-> +
-> +	bio_for_each_segment_all()
-> +	bio_first_bvec_all()
-> +	bio_first_page_all()
-> +	bio_last_bvec_all()
-> +
-> +* The following helpers iterate over singlepage bvec, and the local
-
-                   preferably:          single-page
-
-> +variable of 'struct bio_vec' or the reference records single page io
-
-                                                                     IO or I/O
-
-> +vector during the itearation:
-> +
-> +	bio_for_each_segment()
-> +	bio_for_each_segment_all()
-> +
-> +* The following helper iterates over multipage bvec, and each bvec may
-
-                          preferably:   multi-page
-
-> +include multiple physically contiguous pages, and the local variable of
-> +'struct bio_vec' or the reference records multi page io vector during the
-
-                                             multi-page IO or I/O
-
-> +itearation:
-> +
-> +	bio_for_each_bvec()
+> Honestly, what I think the best option would be is to get rid of this
+> interface *entirely*, and just have the balloon code do
 > 
+>     #define GFP_MINFLAGS (__GFP_NORETRY | __GFP_NOWARN |
+> __GFP_THISNODE | __GFP_NOMEMALLOC)
+> 
+>     struct page *page =  alloc_pages(GFP_MINFLAGS, MAX_ORDER-1);
+> 
+>  which is not a new interface, and simply removes the max-order page
+> from the list if at all possible.
+> 
+> The above has the advantage of "just working", and not having any races.
+> 
+> Now, because you don't want to necessarily *entirely* deplete the max
+> order, I'd suggest that the *one* new interface you add is just a "how
+> many max-order pages are there" interface. So then you can query
+> (either before or after getting the max-order page) just how many of
+> them there were and whether you want to give that page back.
+> 
+> Notice? No need for any page lists or physical addresses. No races. No
+> complex new functions.
+> 
+> The physical address you can just get from the "struct page" you got.
+> 
+> And if you run out of memory because of getting a page, you get all
+> the usual "hey, we ran out of memory" responses..
+> 
+> Wouldn't the above be sufficient?
+> 
+>             Linus
 
+I think so, thanks!
+
+Wei, to put it in balloon terms, I think there's one thing we missed: if
+you do manage to allocate a page, and you don't have a use for it, then
+hey, you can just give it to the host because you know it's free - you
+are going to return it to the free list.
 
 -- 
-~Randy
+MST
