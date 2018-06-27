@@ -1,53 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CB1216B000A
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 09:58:32 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id z5-v6so1272014pln.20
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 06:58:32 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id n1-v6si3500208pge.263.2018.06.27.06.58.31
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A2F06B000D
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 10:15:48 -0400 (EDT)
+Received: by mail-ot0-f198.google.com with SMTP id h3-v6so1588114otj.15
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 07:15:48 -0700 (PDT)
+Received: from g4t3425.houston.hpe.com (g4t3425.houston.hpe.com. [15.241.140.78])
+        by mx.google.com with ESMTPS id h9-v6si1261440oti.357.2018.06.27.07.15.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 06:58:31 -0700 (PDT)
-Received: from mail-it0-f41.google.com (mail-it0-f41.google.com [209.85.214.41])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 1EA6D265E2
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 13:58:31 +0000 (UTC)
-Received: by mail-it0-f41.google.com with SMTP id 16-v6so7669151itl.5
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 06:58:31 -0700 (PDT)
-MIME-Version: 1.0
-References: <20180625140754.GB29102@dhcp22.suse.cz> <CABGGisyVpfYCz7-5AGB-3Ld9hcuikPVk=19xPc1AwffjhsV+kg@mail.gmail.com>
- <20180627101144.GC4291@rapoport-lnx>
-In-Reply-To: <20180627101144.GC4291@rapoport-lnx>
-From: Rob Herring <robh@kernel.org>
-Date: Wed, 27 Jun 2018 07:58:19 -0600
-Message-ID: <CAL_Jsq+evsgh9Qi6FfG4vUZWtpC0UrFjTWSrzukMxY==TD_mrg@mail.gmail.com>
-Subject: Re: why do we still need bootmem allocator?
-Content-Type: text/plain; charset="UTF-8"
+        Wed, 27 Jun 2018 07:15:46 -0700 (PDT)
+From: Toshi Kani <toshi.kani@hpe.com>
+Subject: [PATCH v4 0/3] fix free pmd/pte page handlings on x86
+Date: Wed, 27 Jun 2018 08:13:45 -0600
+Message-Id: <20180627141348.21777-1-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rppt@linux.vnet.ibm.com
-Cc: mhocko@kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, "open list:GENERIC INCLUDE/ASM HEADER FILES" <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: mhocko@suse.com, akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
+Cc: cpandya@codeaurora.org, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
 
-On Wed, Jun 27, 2018 at 4:11 AM Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
->
-> On Mon, Jun 25, 2018 at 10:09:41AM -0600, Rob Herring wrote:
-> > On Mon, Jun 25, 2018 at 8:08 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > >
-> > > Hi,
-> > > I am wondering why do we still keep mm/bootmem.c when most architectures
-> > > already moved to nobootmem. Is there any fundamental reason why others
-> > > cannot or this is just a matter of work?
-> >
-> > Just because no one has done the work. I did a couple of arches
-> > recently (sh, microblaze, and h8300) mainly because I broke them with
-> > some DT changes.
->
-> I have a patch for alpha nearly ready.
-> That leaves m68k and ia64
+This series fixes two issues in the x86 ioremap free page handlings
+for pud/pmd mappings.
 
-And c6x, hexagon, mips, nios2, unicore32. Those are all the platforms
-which don't select NO_BOOTMEM.
+Patch 01 fixes BUG_ON on x86-PAE reported by Joerg.  It disables
+the free page handling on x86-PAE.
 
-Rob
+Patch 02-03 fixes a possible issue with speculation which can cause
+stale page-directory cache.
+ - Patch 02 is from Chintan's v9 01/04 patch [1], which adds a new arg
+   'addr', with my merge change to patch 01.
+ - Patch 03 adds a TLB purge (INVLPG) to purge page-structure caches
+   that may be cached by speculation.  See the patch descriptions for
+   more detal.
+
+The patches are based off from the tip tree.
+
+[1] https://patchwork.kernel.org/patch/10371015/
+
+v4:
+ - Re-wrote patch 2/3 description. (v3-UPDATE)
+ - Added NOTE to pud_free_pmd_page().
+
+v3:
+ - Fixed a build error in v2.
+
+v2:
+ - Reordered patch-set, so that patch 01 can be applied independently.
+ - Added a NULL pointer check for the page alloc in patch 03. 
+
+---
+Toshi Kani (2):
+  1/3 x86/mm: disable ioremap free page handling on x86-PAE
+  3/3 x86/mm: add TLB purge to free pmd/pte page interfaces
+
+Chintan Pandya (1):
+  2/3 ioremap: Update pgtable free interfaces with addr
+
+---
+ arch/arm64/mm/mmu.c           |  4 +--
+ arch/x86/mm/pgtable.c         | 61 +++++++++++++++++++++++++++++++++++++------
+ include/asm-generic/pgtable.h |  8 +++---
+ lib/ioremap.c                 |  4 +--
+ 4 files changed, 61 insertions(+), 16 deletions(-)
