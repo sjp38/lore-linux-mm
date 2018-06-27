@@ -1,44 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 42DCC6B0003
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 15:40:23 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id p91-v6so1695389plb.12
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 12:40:23 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id z4-v6si3982378pgv.621.2018.06.27.12.40.21
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 064896B0007
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 15:44:41 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id j7-v6so1494624pff.16
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 12:44:40 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id v35-v6si1239527plg.117.2018.06.27.12.44.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 12:40:21 -0700 (PDT)
-Date: Wed, 27 Jun 2018 15:40:18 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH REPOST] Revert mm/vmstat.c: fix vmstat_update()
- preemption BUG
-Message-ID: <20180627194018.6jwkta4eagxiixix@home.goodmis.org>
-References: <20180504104451.20278-1-bigeasy@linutronix.de>
- <513014a0-a149-5141-a5a0-9b0a4ce9a8d8@suse.cz>
- <20180508160257.6e19707ccf1dabe5ec9e8847@linux-foundation.org>
- <20180509223539.43aznhri72ephluc@linutronix.de>
- <524ecef9-e513-fec4-1178-ac1a87452e57@suse.cz>
- <alpine.DEB.2.21.1806132205420.1596@nanos.tec.linutronix.de>
- <20180614142710.8eafb333f6060dc19334ae46@linux-foundation.org>
+        Wed, 27 Jun 2018 12:44:39 -0700 (PDT)
+Date: Wed, 27 Jun 2018 13:44:38 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v14 00/74] Convert page cache to XArray
+Message-ID: <20180627194438.GA20774@linux.intel.com>
+References: <20180617020052.4759-1-willy@infradead.org>
+ <20180619031257.GA12527@linux.intel.com>
+ <20180619092230.GA1438@bombadil.infradead.org>
+ <20180619164037.GA6679@linux.intel.com>
+ <20180619171638.GE1438@bombadil.infradead.org>
+ <20180627110529.GA19606@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180614142710.8eafb333f6060dc19334ae46@linux-foundation.org>
+In-Reply-To: <20180627110529.GA19606@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Steven J . Hill" <steven.hill@cavium.com>, Tejun Heo <htejun@gmail.com>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, stable@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net
 
-On Thu, Jun 14, 2018 at 02:27:10PM -0700, Andrew Morton wrote:
-> On Wed, 13 Jun 2018 23:46:45 +0200 (CEST) Thomas Gleixner <tglx@linutronix.de> wrote:
+On Wed, Jun 27, 2018 at 04:05:29AM -0700, Matthew Wilcox wrote:
+> On Tue, Jun 19, 2018 at 10:16:38AM -0700, Matthew Wilcox wrote:
+> > I think I see a bug.  No idea if it's the one you're hitting ;-)
+> > 
+> > I had been intending to not use the 'entry' to decide whether we were
+> > waiting on a 2MB or 4kB page, but rather the xas.  I shelved that idea,
+> > but not before dropping the DAX_PMD flag being passed from the PMD
+> > pagefault caller.  So if I put that back ...
 > 
-> > Can we please revert that master piece of duct tape engineering and wait
-> > for someone to actually trigger the warning again?
-> 
-> OK.
+> Did you get a chance to test this?
 
-And while we're at it, can we revert it from stable as well. As this is just
-an overly aggressive pulling anything that looks like a fix into stable.
+With this patch it doesn't deadlock, but the test dies with a SIGBUS and we
+hit a WARN_ON in the DAX code:
 
--- Steve
+WARNING: CPU: 5 PID: 1678 at fs/dax.c:226 get_unlocked_entry+0xf7/0x120
+
+I don't have a lot of time this week to debug further.  The quickest path to
+victory is probably for you to get this reproducing in your test setup.  Does
+XFS + DAX + generic/340 pass for you?
