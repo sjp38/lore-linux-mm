@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 80B7C6B028A
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 08:49:36 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id 99-v6so1968116qkr.14
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 05:49:36 -0700 (PDT)
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AB0F6B028C
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 08:49:47 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id n10-v6so1786814qtp.11
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 05:49:47 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id f5-v6si3508749qve.92.2018.06.27.05.49.35
+        by mx.google.com with ESMTPS id x6-v6si1938217qvl.93.2018.06.27.05.49.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 05:49:35 -0700 (PDT)
+        Wed, 27 Jun 2018 05:49:46 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V7 18/24] block: introduce bio_bvecs()
-Date: Wed, 27 Jun 2018 20:45:42 +0800
-Message-Id: <20180627124548.3456-19-ming.lei@redhat.com>
+Subject: [PATCH V7 19/24] block: loop: pass multipage bvec to iov_iter
+Date: Wed, 27 Jun 2018 20:45:43 +0800
+Message-Id: <20180627124548.3456-20-ming.lei@redhat.com>
 In-Reply-To: <20180627124548.3456-1-ming.lei@redhat.com>
 References: <20180627124548.3456-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,64 +20,74 @@ List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Kent Overstreet <kent.overstreet@gmail.com>
 Cc: David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, Mike Snitzer <snitzer@redhat.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>, Randy Dunlap <rdunlap@infradead.org>, Ming Lei <ming.lei@redhat.com>
 
-There are still cases in which we need to use bio_bvecs() for get the
-number of multipage segment, so introduce it.
+iov_iter is implemented with bvec itererator, so it is safe to pass
+multipage bvec to it, and this way is much more efficient than
+passing one page in each bvec.
 
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- include/linux/bio.h | 30 +++++++++++++++++++++++++-----
- 1 file changed, 25 insertions(+), 5 deletions(-)
+ drivers/block/loop.c | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
 
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 551444bd9795..083c1ee9c6c8 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -242,7 +242,6 @@ static inline unsigned bio_segments(struct bio *bio)
- 	 * We special case discard/write same/write zeroes, because they
- 	 * interpret bi_size differently:
- 	 */
--
- 	switch (bio_op(bio)) {
- 	case REQ_OP_DISCARD:
- 	case REQ_OP_SECURE_ERASE:
-@@ -251,13 +250,34 @@ static inline unsigned bio_segments(struct bio *bio)
- 	case REQ_OP_WRITE_SAME:
- 		return 1;
- 	default:
--		break;
-+		bio_for_each_segment(bv, bio, iter)
-+			segs++;
-+		return segs;
+diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+index d6b6f434fd4b..a350b323e891 100644
+--- a/drivers/block/loop.c
++++ b/drivers/block/loop.c
+@@ -515,16 +515,16 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
+ 	struct bio *bio = rq->bio;
+ 	struct file *file = lo->lo_backing_file;
+ 	unsigned int offset;
+-	int segments = 0;
++	int nr_bvec = 0;
+ 	int ret;
+ 
+ 	if (rq->bio != rq->biotail) {
+-		struct req_iterator iter;
++		struct bvec_iter iter;
+ 		struct bio_vec tmp;
+ 
+ 		__rq_for_each_bio(bio, rq)
+-			segments += bio_segments(bio);
+-		bvec = kmalloc_array(segments, sizeof(struct bio_vec),
++			nr_bvec += bio_bvecs(bio);
++		bvec = kmalloc_array(nr_bvec, sizeof(struct bio_vec),
+ 				     GFP_NOIO);
+ 		if (!bvec)
+ 			return -EIO;
+@@ -533,13 +533,14 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
+ 		/*
+ 		 * The bios of the request may be started from the middle of
+ 		 * the 'bvec' because of bio splitting, so we can't directly
+-		 * copy bio->bi_iov_vec to new bvec. The rq_for_each_segment
++		 * copy bio->bi_iov_vec to new bvec. The bio_for_each_bvec
+ 		 * API will take care of all details for us.
+ 		 */
+-		rq_for_each_segment(tmp, rq, iter) {
+-			*bvec = tmp;
+-			bvec++;
+-		}
++		__rq_for_each_bio(bio, rq)
++			bio_for_each_bvec(tmp, bio, iter) {
++				*bvec = tmp;
++				bvec++;
++			}
+ 		bvec = cmd->bvec;
+ 		offset = 0;
+ 	} else {
+@@ -550,12 +551,11 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
+ 		 */
+ 		offset = bio->bi_iter.bi_bvec_done;
+ 		bvec = __bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
+-		segments = bio_segments(bio);
++		nr_bvec = bio_bvecs(bio);
  	}
-+}
+ 	atomic_set(&cmd->ref, 2);
  
--	bio_for_each_segment(bv, bio, iter)
--		segs++;
-+static inline unsigned bio_bvecs(struct bio *bio)
-+{
-+	unsigned bvecs = 0;
-+	struct bio_vec bv;
-+	struct bvec_iter iter;
+-	iov_iter_bvec(&iter, ITER_BVEC | rw, bvec,
+-		      segments, blk_rq_bytes(rq));
++	iov_iter_bvec(&iter, ITER_BVEC | rw, bvec, nr_bvec, blk_rq_bytes(rq));
+ 	iter.iov_offset = offset;
  
--	return segs;
-+	/*
-+	 * We special case discard/write same/write zeroes, because they
-+	 * interpret bi_size differently:
-+	 */
-+	switch (bio_op(bio)) {
-+	case REQ_OP_DISCARD:
-+	case REQ_OP_SECURE_ERASE:
-+	case REQ_OP_WRITE_ZEROES:
-+		return 0;
-+	case REQ_OP_WRITE_SAME:
-+		return 1;
-+	default:
-+		bio_for_each_bvec(bv, bio, iter)
-+			bvecs++;
-+		return bvecs;
-+	}
- }
- 
- /*
+ 	cmd->iocb.ki_pos = pos;
 -- 
 2.9.5
