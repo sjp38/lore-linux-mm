@@ -1,132 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E46426B0003
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 06:05:23 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id i14-v6so990875wrq.1
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 03:05:23 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AAB326B0007
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 06:11:56 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g6-v6so1012407wrp.4
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 03:11:56 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id i193-v6si3629464wmf.175.2018.06.27.03.05.21
+        by mx.google.com with ESMTPS id j85-v6si3834454wmi.219.2018.06.27.03.11.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 03:05:22 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5R9xJ2h063814
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 06:05:20 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2jv8dhgcfe-1
+        Wed, 27 Jun 2018 03:11:55 -0700 (PDT)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5R9xIIf016315
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 06:11:53 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2jv4rmajk6-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 06:05:20 -0400
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 06:11:53 -0400
 Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 27 Jun 2018 11:05:17 +0100
-Date: Wed, 27 Jun 2018 13:05:08 +0300
+	Wed, 27 Jun 2018 11:11:50 +0100
+Date: Wed, 27 Jun 2018 13:11:44 +0300
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2] mm/memblock: add missing include <linux/bootmem.h>
-References: <20180622210542.2025-1-malat@debian.org>
- <20180625171513.31845-1-malat@debian.org>
- <20180625180717.GS28965@dhcp22.suse.cz>
+Subject: Re: why do we still need bootmem allocator?
+References: <20180625140754.GB29102@dhcp22.suse.cz>
+ <CABGGisyVpfYCz7-5AGB-3Ld9hcuikPVk=19xPc1AwffjhsV+kg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180625180717.GS28965@dhcp22.suse.cz>
-Message-Id: <20180627100508.GB4291@rapoport-lnx>
+In-Reply-To: <CABGGisyVpfYCz7-5AGB-3Ld9hcuikPVk=19xPc1AwffjhsV+kg@mail.gmail.com>
+Message-Id: <20180627101144.GC4291@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mathieu Malaterre <malat@debian.org>, Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Vacek <neelx@redhat.com>, Stefan Agner <stefan@agner.ch>, Joe Perches <joe@perches.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rob Herring <robh@kernel.org>
+Cc: mhocko@kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, Andrew Morton <akpm@linux-foundation.org>, linux-arch@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Mon, Jun 25, 2018 at 08:07:17PM +0200, Michal Hocko wrote:
-> On Mon 25-06-18 19:15:12, Mathieu Malaterre wrote:
-> > Commit 26f09e9b3a06 ("mm/memblock: add memblock memory allocation apis")
-> > introduced two new function definitions:
-> > 
-> >   memblock_virt_alloc_try_nid_nopanic()
-> >   memblock_virt_alloc_try_nid()
-> > 
-> > Commit ea1f5f3712af ("mm: define memblock_virt_alloc_try_nid_raw")
-> > introduced the following function definition:
-> > 
-> >   memblock_virt_alloc_try_nid_raw()
-> > 
-> > This commit adds an include of header file <linux/bootmem.h> to provide
-> > the missing function prototypes. Silence the following gcc warning
-> > (W=1):
-> > 
-> >   mm/memblock.c:1334:15: warning: no previous prototype for `memblock_virt_alloc_try_nid_raw' [-Wmissing-prototypes]
-> >   mm/memblock.c:1371:15: warning: no previous prototype for `memblock_virt_alloc_try_nid_nopanic' [-Wmissing-prototypes]
-> >   mm/memblock.c:1407:15: warning: no previous prototype for `memblock_virt_alloc_try_nid' [-Wmissing-prototypes]
-> > 
-> > It also adds #ifdef blockers to prevent compilation failure on mips/ia64
-> > where CONFIG_NO_BOOTMEM=n. Because Makefile already does:
-> > 
-> >   obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.o
-> > 
-> > The #ifdef has been simplified from:
-> > 
-> >   #if defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM)
-> > 
-> > to simply:
-> > 
-> >   #if defined(CONFIG_NO_BOOTMEM)
+On Mon, Jun 25, 2018 at 10:09:41AM -0600, Rob Herring wrote:
+> On Mon, Jun 25, 2018 at 8:08 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > Hi,
+> > I am wondering why do we still keep mm/bootmem.c when most architectures
+> > already moved to nobootmem. Is there any fundamental reason why others
+> > cannot or this is just a matter of work?
 > 
-> Well, I would apreciate an explanation why do we need NO_BOOTMEM guard
-> in the first place rather than why HAVE_MEMBLOCK is not needed.
-> 
-> > Suggested-by: Tony Luck <tony.luck@intel.com>
-> > Suggested-by: Michal Hocko <mhocko@kernel.org>
-> > Signed-off-by: Mathieu Malaterre <malat@debian.org>
-> 
-> Anyway this looks better. I wish we can actually get rid of bootmem
-> allocator which would simplify this as well but that is another topic.
+> Just because no one has done the work. I did a couple of arches
+> recently (sh, microblaze, and h8300) mainly because I broke them with
+> some DT changes.
 
-There only 5 arches with bootmem left :)
-
-I've started looking into it, but it goes slow :(
+I have a patch for alpha nearly ready.
+That leaves m68k and ia64
  
-> Acked-by: Michal Hocko <mhocko@suse.com>
+> > Btw. what really needs to be
+> > done? Btw. is there any documentation telling us what needs to be done
+> > in that regards?
 > 
-> > ---
-> > v2: Simplify #ifdef
-> > 
-> >  mm/memblock.c | 3 +++
-> >  1 file changed, 3 insertions(+)
-> > 
-> > diff --git a/mm/memblock.c b/mm/memblock.c
-> > index 03d48d8835ba..611a970ac902 100644
-> > --- a/mm/memblock.c
-> > +++ b/mm/memblock.c
-> > @@ -20,6 +20,7 @@
-> >  #include <linux/kmemleak.h>
-> >  #include <linux/seq_file.h>
-> >  #include <linux/memblock.h>
-> > +#include <linux/bootmem.h>
-> >  
-> >  #include <asm/sections.h>
-> >  #include <linux/io.h>
-> > @@ -1224,6 +1225,7 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
-> >  	return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
-> >  }
-> >  
-> > +#if defined(CONFIG_NO_BOOTMEM)
-> >  /**
-> >   * memblock_virt_alloc_internal - allocate boot memory block
-> >   * @size: size of memory block to be allocated in bytes
-> > @@ -1431,6 +1433,7 @@ void * __init memblock_virt_alloc_try_nid(
-> >  	      (u64)max_addr);
-> >  	return NULL;
-> >  }
-> > +#endif
-> >  
-> >  /**
-> >   * __memblock_free_early - free boot memory block
-> > -- 
-> > 2.11.0
-> > 
+> No. The commits converting the arches are the only documentation. It's
+> a bit more complicated for platforms that have NUMA support.
 > 
-> -- 
-> Michal Hocko
-> SUSE Labs
+> Rob
 > 
 
 -- 
