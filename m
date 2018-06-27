@@ -1,112 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 58A436B0003
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 01:23:59 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id m2-v6so590395plt.14
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 22:23:59 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id f19-v6si1807984plj.437.2018.06.26.22.23.57
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EF4FC6B0003
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 01:51:01 -0400 (EDT)
+Received: by mail-yb0-f200.google.com with SMTP id l132-v6so789926ybb.18
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 22:51:01 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v7-v6sor743113ywd.416.2018.06.26.22.51.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jun 2018 22:23:57 -0700 (PDT)
-Message-ID: <5B33205B.2040702@intel.com>
-Date: Wed, 27 Jun 2018 13:27:55 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (Google Transport Security);
+        Tue, 26 Jun 2018 22:51:00 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v34 2/4] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
-References: <1529928312-30500-1-git-send-email-wei.w.wang@intel.com> <1529928312-30500-3-git-send-email-wei.w.wang@intel.com> <20180626002822-mutt-send-email-mst@kernel.org> <5B31B71B.6080709@intel.com> <20180626064338-mutt-send-email-mst@kernel.org> <5B323140.1000306@intel.com> <20180626163139-mutt-send-email-mst@kernel.org> <5B32E742.8080902@intel.com> <20180627053952-mutt-send-email-mst@kernel.org> <5B32FDB5.4040506@intel.com> <20180627065637-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20180627065637-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CALvZod5VU0_==ggX82P19v=X7zpKj1xO5qPZ1mep4yRVhr7qaw@mail.gmail.com>
+References: <20180625230659.139822-1-shakeelb@google.com> <20180625230659.139822-2-shakeelb@google.com>
+ <20180626190619.GB3958@cmpxchg.org> <CALvZod5VU0_==ggX82P19v=X7zpKj1xO5qPZ1mep4yRVhr7qaw@mail.gmail.com>
+From: Amir Goldstein <amir73il@gmail.com>
+Date: Wed, 27 Jun 2018 08:50:59 +0300
+Message-ID: <CAOQ4uxhZ81xGucQtZv+koCKCHtJn9yDGSd9MwBaL2Ew+6t0suQ@mail.gmail.com>
+Subject: Re: [PATCH 1/2] fs: fsnotify: account fsnotify metadata to kmemcg
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.com>, Greg Thelen <gthelen@google.com>, Roman Gushchin <guro@fb.com>, Alexander Viro <viro@zeniv.linux.org.uk>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>
 
-On 06/27/2018 11:58 AM, Michael S. Tsirkin wrote:
-> On Wed, Jun 27, 2018 at 11:00:05AM +0800, Wei Wang wrote:
->> On 06/27/2018 10:41 AM, Michael S. Tsirkin wrote:
->>> On Wed, Jun 27, 2018 at 09:24:18AM +0800, Wei Wang wrote:
->>>> On 06/26/2018 09:34 PM, Michael S. Tsirkin wrote:
->>>>> On Tue, Jun 26, 2018 at 08:27:44PM +0800, Wei Wang wrote:
->>>>>> On 06/26/2018 11:56 AM, Michael S. Tsirkin wrote:
->>>>>>> On Tue, Jun 26, 2018 at 11:46:35AM +0800, Wei Wang wrote:
->>>>>>>
->>>>>>>>>> +	if (!arrays)
->>>>>>>>>> +		return NULL;
->>>>>>>>>> +
->>>>>>>>>> +	for (i = 0; i < max_array_num; i++) {
->>>>>>>>> So we are getting a ton of memory here just to free it up a bit later.
->>>>>>>>> Why doesn't get_from_free_page_list get the pages from free list for us?
->>>>>>>>> We could also avoid the 1st allocation then - just build a list
->>>>>>>>> of these.
->>>>>>>> That wouldn't be a good choice for us. If we check how the regular
->>>>>>>> allocation works, there are many many things we need to consider when pages
->>>>>>>> are allocated to users.
->>>>>>>> For example, we need to take care of the nr_free
->>>>>>>> counter, we need to check the watermark and perform the related actions.
->>>>>>>> Also the folks working on arch_alloc_page to monitor page allocation
->>>>>>>> activities would get a surprise..if page allocation is allowed to work in
->>>>>>>> this way.
->>>>>>>>
->>>>>>> mm/ code is well positioned to handle all this correctly.
->>>>>> I'm afraid that would be a re-implementation of the alloc functions,
->>>>> A re-factoring - you can share code. The main difference is locking.
->>>>>
->>>>>> and
->>>>>> that would be much more complex than what we have. I think your idea of
->>>>>> passing a list of pages is better.
->>>>>>
->>>>>> Best,
->>>>>> Wei
->>>>> How much memory is this allocating anyway?
->>>>>
->>>> For every 2TB memory that the guest has, we allocate 4MB.
->>> Hmm I guess I'm missing something, I don't see it:
->>>
->>>
->>> +       max_entries = max_free_page_blocks(ARRAY_ALLOC_ORDER);
->>> +       entries_per_page = PAGE_SIZE / sizeof(__le64);
->>> +       entries_per_array = entries_per_page * (1 << ARRAY_ALLOC_ORDER);
->>> +       max_array_num = max_entries / entries_per_array +
->>> +                       !!(max_entries % entries_per_array);
->>>
->>> Looks like you always allocate the max number?
->> Yes. We allocated the max number and then free what's not used.
->> For example, a 16TB guest, we allocate Four 4MB buffers and pass the 4
->> buffers to get_from_free_page_list. If it uses 3, then the remaining 1 "4MB
->> buffer" will end up being freed.
+On Tue, Jun 26, 2018 at 11:05 PM, Shakeel Butt <shakeelb@google.com> wrote:
+> On Tue, Jun 26, 2018 at 12:03 PM Johannes Weiner <hannes@cmpxchg.org> wrote:
 >>
->> For today's guests, max_array_num is usually 1.
+>> On Mon, Jun 25, 2018 at 04:06:58PM -0700, Shakeel Butt wrote:
+>> > @@ -140,8 +141,9 @@ struct fanotify_event_info *fanotify_alloc_event(struct fsnotify_group *group,
+>> >                                                struct inode *inode, u32 mask,
+>> >                                                const struct path *path)
+>> >  {
+>> > -     struct fanotify_event_info *event;
+>> > +     struct fanotify_event_info *event = NULL;
+>> >       gfp_t gfp = GFP_KERNEL;
+>> > +     struct mem_cgroup *old_memcg = NULL;
+>> >
+>> >       /*
+>> >        * For queues with unlimited length lost events are not expected and
+>> > @@ -151,19 +153,25 @@ struct fanotify_event_info *fanotify_alloc_event(struct fsnotify_group *group,
+>> >       if (group->max_events == UINT_MAX)
+>> >               gfp |= __GFP_NOFAIL;
+>> >
+>> > +     /* Whoever is interested in the event, pays for the allocation. */
+>> > +     if (group->memcg) {
+>> > +             gfp |= __GFP_ACCOUNT;
+>> > +             old_memcg = memalloc_use_memcg(group->memcg);
+>> > +     }
 >>
->> Best,
->> Wei
-> I see, it's based on total ram pages. It's reasonable but might
-> get out of sync if memory is onlined quickly. So you want to
-> detect that there's more free memory than can fit and
-> retry the reporting.
+>> group->memcg is only NULL when memcg is disabled or there is some
+>> offlining race. Can you make memalloc_use_memcg(NULL) mean that it
+>> should charge root_mem_cgroup instead of current->mm->memcg? That way
+>> we can make this site unconditional while retaining the behavior:
+>>
+>>         gfp_t gfp = GFP_KERNEL | __GFP_ACCOUNT;
+>>
+>>         memalloc_use_memcg(group->memcg);
+>>         kmem_cache_alloc(..., gfp);
+>> out:
+>>         memalloc_unuse_memcg();
+>>
+>> (dropping old_memcg and the unuse parameter as per the other mail)
+>>
+>
+> group->memcg is only NULL when memcg is disabled (i.e.
+> get_mem_cgroup_from_mm() returns root_mem_cgroup for offlined
+> mm->memcg). Though group->memcg can point to an offlined memcg.
+>
+> If I understand you correctly this is what we want:
+>
+> 1. If group->memcg is NULL then __GFP_ACCOUNT is a noop i.e. memcg is disabled.
+> 2. If group->memcg is root_mem_cgroup, then __GFP_ACCOUNT again is a
+> kind of noop (charges to root_mem_cgroups are bypassed).
+> 3. If group->memcg is offlined memcg, then make __GFP_ACCOUNT noop by
+> returning root_mem_cgroup from get_mem_cgroup_from_current().
+> 4. Else charge group->memcg.
+>
+> This seems reasonable. After your Ack and Amir's or Jan's answer to
+> the nesting query, I will resend the next version of this patch
+> series.
+>
+> In future if we find any use-cases of memalloc_use_memcg nesting then
+> we can make it work for nesting.
 >
 
+For the fsnotify use case memalloc_use_memcg() certainly doesn't
+need to nest, but I wonder, if that facility becomes popular among different
+subsystems, how exactly do you intend to monitor that it doesn't grow
+nested use cases? I would suggest that you at least leave a
+WARN_ON_ONCE if memalloc_use_memcg() is called and
+active_memcg is already set.
 
-- AFAIK, memory hotplug isn't expected to happen during live migration 
-today. Hypervisors (e.g. QEMU) explicitly forbid this.
-
-- Allocating buffers based on total ram pages already gives some 
-headroom for newly plugged memory if that could happen in any case. 
-Also, we can think about why people plug in more memory - usually 
-because the existing memory isn't enough, which implies that the free 
-page list is very likely to be close to empty.
-
-- This method could be easily scaled if people really need more headroom 
-for hot-plugged memory. For example, calculation based on "X * 
-total_ram_pages", X could be a number passed from the hypervisor.
-
-- This is an optimization feature, and reporting less free memory in 
-that rare case doesn't hurt anything.
-
-So I think it is good to start from a fundamental implementation, which 
-doesn't confuse people, and complexities can be added when there is a 
-real need in the future.
-
-Best,
-Wei
+Thanks,
+Amir.
