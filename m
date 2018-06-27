@@ -1,68 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B4BF6B0008
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 11:58:23 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id a3-v6so1503866wrr.12
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 08:58:23 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id j98-v6si5023928wrj.322.2018.06.27.08.58.22
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EBA1F6B000C
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 12:00:41 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id a13-v6so1238865pfo.22
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 09:00:41 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id b18-v6si4230127pls.292.2018.06.27.09.00.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 08:58:22 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5RFs54Y143069
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 11:58:21 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2jvd219s56-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 11:58:20 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 27 Jun 2018 16:58:18 +0100
-Date: Wed, 27 Jun 2018 18:58:12 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: why do we still need bootmem allocator?
-References: <20180625140754.GB29102@dhcp22.suse.cz>
- <CABGGisyVpfYCz7-5AGB-3Ld9hcuikPVk=19xPc1AwffjhsV+kg@mail.gmail.com>
- <20180627101144.GC4291@rapoport-lnx>
- <CAL_Jsq+evsgh9Qi6FfG4vUZWtpC0UrFjTWSrzukMxY==TD_mrg@mail.gmail.com>
+        Wed, 27 Jun 2018 09:00:40 -0700 (PDT)
+Date: Wed, 27 Jun 2018 23:59:37 +0800
+From: kbuild test robot <lkp@intel.com>
+Subject: Re: [PATCH V7 10/24] block: introduce multipage page bvec helpers
+Message-ID: <201806272319.0p98i2TZ%fengguang.wu@intel.com>
+References: <20180627124548.3456-11-ming.lei@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAL_Jsq+evsgh9Qi6FfG4vUZWtpC0UrFjTWSrzukMxY==TD_mrg@mail.gmail.com>
-Message-Id: <20180627155811.GA19182@rapoport-lnx>
+In-Reply-To: <20180627124548.3456-11-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rob Herring <robh@kernel.org>
-Cc: mhocko@kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, "open list:GENERIC INCLUDE/ASM HEADER FILES" <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Ming Lei <ming.lei@redhat.com>
+Cc: kbuild-all@01.org, Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Kent Overstreet <kent.overstreet@gmail.com>, David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, Mike Snitzer <snitzer@redhat.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>, Randy Dunlap <rdunlap@infradead.org>
 
-On Wed, Jun 27, 2018 at 07:58:19AM -0600, Rob Herring wrote:
-> On Wed, Jun 27, 2018 at 4:11 AM Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
-> >
-> > On Mon, Jun 25, 2018 at 10:09:41AM -0600, Rob Herring wrote:
-> > > On Mon, Jun 25, 2018 at 8:08 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > > >
-> > > > Hi,
-> > > > I am wondering why do we still keep mm/bootmem.c when most architectures
-> > > > already moved to nobootmem. Is there any fundamental reason why others
-> > > > cannot or this is just a matter of work?
-> > >
-> > > Just because no one has done the work. I did a couple of arches
-> > > recently (sh, microblaze, and h8300) mainly because I broke them with
-> > > some DT changes.
-> >
-> > I have a patch for alpha nearly ready.
-> > That leaves m68k and ia64
-> 
-> And c6x, hexagon, mips, nios2, unicore32. Those are all the platforms
-> which don't select NO_BOOTMEM.
+Hi Ming,
 
-Yeah, you are right. I've somehow excluded those that HAVE_MEMBLOCK...
- 
-> Rob
-> 
+Thank you for the patch! Perhaps something to improve:
 
--- 
-Sincerely yours,
-Mike.
+[auto build test WARNING on linus/master]
+[also build test WARNING on v4.18-rc2]
+[cannot apply to next-20180627]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+
+url:    https://github.com/0day-ci/linux/commits/Ming-Lei/block-support-multipage-bvec/20180627-214022
+reproduce:
+        # apt-get install sparse
+        make ARCH=x86_64 allmodconfig
+        make C=1 CF=-D__CHECK_ENDIAN__
+
+
+sparse warnings: (new ones prefixed by >>)
+
+   net/ceph/messenger.c:842:25: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:842:25: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:847:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:847:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:847:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:847:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:847:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:847:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:847:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:847:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:847:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:847:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:847:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:847:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:847:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:847:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:848:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:848:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:848:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:848:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:848:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:848:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:848:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:848:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:848:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:848:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:848:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:848:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:848:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:848:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:855:29: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:855:29: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:855:29: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:855:29: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:855:29: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:855:29: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:855:29: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:855:29: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:855:29: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:855:29: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:855:29: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:855:29: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:855:29: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:855:29: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:869:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:869:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:869:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:869:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:869:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:869:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:869:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:869:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:869:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:869:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:869:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:869:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:869:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:869:9: sparse: expression using sizeof(void)
+   include/linux/bvec.h:139:37: sparse: expression using sizeof(void)
+   include/linux/bvec.h:139:37: sparse: expression using sizeof(void)
+   include/linux/bvec.h:139:37: sparse: expression using sizeof(void)
+   include/linux/bvec.h:139:37: sparse: expression using sizeof(void)
+   include/linux/bvec.h:139:37: sparse: expression using sizeof(void)
+   include/linux/bvec.h:139:37: sparse: expression using sizeof(void)
+   include/linux/bvec.h:139:37: sparse: expression using sizeof(void)
+   include/linux/bvec.h:139:37: sparse: expression using sizeof(void)
+   include/linux/bvec.h:139:37: sparse: expression using sizeof(void)
+   include/linux/bvec.h:139:37: sparse: expression using sizeof(void)
+   include/linux/bvec.h:139:37: sparse: expression using sizeof(void)
+   include/linux/bvec.h:139:37: sparse: expression using sizeof(void)
+   include/linux/bvec.h:139:37: sparse: expression using sizeof(void)
+   include/linux/bvec.h:139:37: sparse: expression using sizeof(void)
+   include/linux/bvec.h:140:32: sparse: expression using sizeof(void)
+   include/linux/bvec.h:140:32: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:889:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:889:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:889:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:889:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:889:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:889:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:889:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:889:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:889:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:889:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:889:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:889:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:889:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:889:9: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:890:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:890:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:890:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:890:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:890:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:890:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:890:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:890:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:890:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:890:47: sparse: expression using sizeof(void)
+   net/ceph/messenger.c:890:47: sparse: expression using sizeof(void)
+>> net/ceph/messenger.c:890:47: sparse: too many warnings
+
+vim +890 net/ceph/messenger.c
+
+6aaa4511 Alex Elder      2013-03-06  862  
+8ae4f4f5 Alex Elder      2013-03-14  863  static bool ceph_msg_data_bio_advance(struct ceph_msg_data_cursor *cursor,
+8ae4f4f5 Alex Elder      2013-03-14  864  					size_t bytes)
+6aaa4511 Alex Elder      2013-03-06  865  {
+5359a17d Ilya Dryomov    2018-01-20  866  	struct ceph_bio_iter *it = &cursor->bio_iter;
+6aaa4511 Alex Elder      2013-03-06  867  
+5359a17d Ilya Dryomov    2018-01-20  868  	BUG_ON(bytes > cursor->resid);
+5359a17d Ilya Dryomov    2018-01-20  869  	BUG_ON(bytes > bio_iter_len(it->bio, it->iter));
+25aff7c5 Alex Elder      2013-03-11  870  	cursor->resid -= bytes;
+5359a17d Ilya Dryomov    2018-01-20  871  	bio_advance_iter(it->bio, &it->iter, bytes);
+f38a5181 Kent Overstreet 2013-08-07  872  
+5359a17d Ilya Dryomov    2018-01-20  873  	if (!cursor->resid) {
+5359a17d Ilya Dryomov    2018-01-20  874  		BUG_ON(!cursor->last_piece);
+5359a17d Ilya Dryomov    2018-01-20  875  		return false;   /* no more data */
+5359a17d Ilya Dryomov    2018-01-20  876  	}
+f38a5181 Kent Overstreet 2013-08-07  877  
+5359a17d Ilya Dryomov    2018-01-20  878  	if (!bytes || (it->iter.bi_size && it->iter.bi_bvec_done))
+6aaa4511 Alex Elder      2013-03-06  879  		return false;	/* more bytes to process in this segment */
+6aaa4511 Alex Elder      2013-03-06  880  
+5359a17d Ilya Dryomov    2018-01-20  881  	if (!it->iter.bi_size) {
+5359a17d Ilya Dryomov    2018-01-20  882  		it->bio = it->bio->bi_next;
+5359a17d Ilya Dryomov    2018-01-20  883  		it->iter = it->bio->bi_iter;
+5359a17d Ilya Dryomov    2018-01-20  884  		if (cursor->resid < it->iter.bi_size)
+5359a17d Ilya Dryomov    2018-01-20  885  			it->iter.bi_size = cursor->resid;
+25aff7c5 Alex Elder      2013-03-11  886  	}
+6aaa4511 Alex Elder      2013-03-06  887  
+5359a17d Ilya Dryomov    2018-01-20  888  	BUG_ON(cursor->last_piece);
+5359a17d Ilya Dryomov    2018-01-20  889  	BUG_ON(cursor->resid < bio_iter_len(it->bio, it->iter));
+5359a17d Ilya Dryomov    2018-01-20 @890  	cursor->last_piece = cursor->resid == bio_iter_len(it->bio, it->iter);
+6aaa4511 Alex Elder      2013-03-06  891  	return true;
+6aaa4511 Alex Elder      2013-03-06  892  }
+ea96571f Alex Elder      2013-04-05  893  #endif /* CONFIG_BLOCK */
+df6ad1f9 Alex Elder      2012-06-11  894  
+
+:::::: The code at line 890 was first introduced by commit
+:::::: 5359a17d2706b86da2af83027343d5eb256f7670 libceph, rbd: new bio handling code (aka don't clone bios)
+
+:::::: TO: Ilya Dryomov <idryomov@gmail.com>
+:::::: CC: Ilya Dryomov <idryomov@gmail.com>
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
