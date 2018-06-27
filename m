@@ -1,59 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E64696B000D
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 17:44:55 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id t11-v6so2660958iog.15
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 14:44:55 -0700 (PDT)
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id b67-v6sor2090264ita.33.2018.06.27.14.44.54
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6ED8A6B0010
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 17:51:19 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id l2-v6so1632664pff.3
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 14:51:19 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b1-v6sor1294928pgb.171.2018.06.27.14.51.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 27 Jun 2018 14:44:55 -0700 (PDT)
+        Wed, 27 Jun 2018 14:51:18 -0700 (PDT)
+Subject: Re: [RFC PATCH] net, mm: account sock objects to kmemcg
+References: <20180627204139.225988-1-shakeelb@google.com>
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Message-ID: <f08b2e2c-d4c6-7a80-10d9-104c0aab593b@gmail.com>
+Date: Wed, 27 Jun 2018 14:51:15 -0700
 MIME-Version: 1.0
-Date: Wed, 27 Jun 2018 14:44:47 -0700
-Message-Id: <20180627214447.260804-1-cannonmatthews@google.com>
-Subject: [PATCH] mm: hugetlb: yield when prepping struct pages
-From: Cannon Matthews <cannonmatthews@google.com>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180627204139.225988-1-shakeelb@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadia Yvette Chambers <nyc@holomorphy.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, andreslc@google.com, pfeiner@google.com, gthelen@google.com, Cannon Matthews <cannonmatthews@google.com>
+To: Shakeel Butt <shakeelb@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Roman Gushchin <guro@fb.com>, "David S . Miller" <davem@davemloft.net>, Eric Dumazet <edumazet@google.com>, Kirill Tkhai <ktkhai@virtuozzo.com>, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org
 
-When booting with very large numbers of gigantic (i.e. 1G) pages, the
-operations in the loop of gather_bootmem_prealloc, and specifically
-prep_compound_gigantic_page, takes a very long time, and can cause a
-softlockup if enough pages are requested at boot.
 
-For example booting with 3844 1G pages requires prepping
-(set_compound_head, init the count) over 1 billion 4K tail pages, which
-takes considerable time. This should also apply to reserving the same
-amount of memory as 2M pages, as the same number of struct pages
-are affected in either case.
 
-Add a cond_resched() to the outer loop in gather_bootmem_prealloc() to
-prevent this lockup.
+On 06/27/2018 01:41 PM, Shakeel Butt wrote:
+> Currently the kernel accounts the memory for network traffic through
+> mem_cgroup_[un]charge_skmem() interface. However the memory accounted
+> only includes the truesize of sk_buff which does not include the size of
+> sock objects. In our production environment, with opt-out kmem
+> accounting, the sock kmem caches (TCP[v6], UDP[v6], RAW[v6], UNIX) are
+> among the top most charged kmem caches and consume a significant amount
+> of memory which can not be left as system overhead. So, this patch
+> converts the kmem caches of more important sock objects to SLAB_ACCOUNT.
+> 
+> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+> ---
+>  net/ipv4/raw.c      | 1 +
+>  net/ipv4/tcp_ipv4.c | 2 +-
+>  net/ipv4/udp.c      | 1 +
+>  net/ipv6/raw.c      | 1 +
+>  net/ipv6/tcp_ipv6.c | 2 +-
+>  net/ipv6/udp.c      | 1 +
+>  net/unix/af_unix.c  | 1 +
+>  7 files changed, 7 insertions(+), 2 deletions(-)
 
-Tested: Booted with softlockup_panic=1 hugepagesz=1G hugepages=3844 and
-no softlockup is reported, and the hugepages are reported as
-successfully setup.
 
-Signed-off-by: Cannon Matthews <cannonmatthews@google.com>
----
- mm/hugetlb.c | 1 +
- 1 file changed, 1 insertion(+)
+Hey, you just disclosed we do not use DCCP ;)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index a963f2034dfc..d38273c32d3b 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2169,6 +2169,7 @@ static void __init gather_bootmem_prealloc(void)
- 		 */
- 		if (hstate_is_gigantic(h))
- 			adjust_managed_page_count(page, 1 << h->order);
-+		cond_resched();
- 	}
- }
+Joke aside, what about simply factorizing this stuff ?
+
+diff --git a/net/core/sock.c b/net/core/sock.c
+index bcc41829a16d50714bdd3c25c976c0b7296fab84..b6714f8d7e9ba313723a6f619799c56230ff5fd4 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -3243,7 +3243,8 @@ static int req_prot_init(const struct proto *prot)
  
--- 
-2.18.0.rc2.346.g013aa6912e-goog
+        rsk_prot->slab = kmem_cache_create(rsk_prot->slab_name,
+                                           rsk_prot->obj_size, 0,
+-                                          prot->slab_flags, NULL);
++                                          SLAB_ACCOUNT | prot->slab_flags,
++                                          NULL);
+ 
+        if (!rsk_prot->slab) {
+                pr_crit("%s: Can't create request sock SLAB cache!\n",
+@@ -3258,7 +3259,8 @@ int proto_register(struct proto *prot, int alloc_slab)
+        if (alloc_slab) {
+                prot->slab = kmem_cache_create_usercopy(prot->name,
+                                        prot->obj_size, 0,
+-                                       SLAB_HWCACHE_ALIGN | prot->slab_flags,
++                                       SLAB_HWCACHE_ALIGN | SLAB_ACCOUNT |
++                                       prot->slab_flags,
+                                        prot->useroffset, prot->usersize,
+                                        NULL);
+ 
