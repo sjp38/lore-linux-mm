@@ -1,58 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 21AC26B026D
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 10:29:28 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id t14-v6so1354633wrr.23
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 07:29:28 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id k17-v6si1802118wrq.216.2018.06.27.07.29.25
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C59356B0003
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 10:57:25 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id b4-v6so1303622wrp.19
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 07:57:25 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 69-v6sor1552591wmr.63.2018.06.27.07.57.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 07:29:26 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5RETC13138824
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 10:29:24 -0400
-Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2jva4qf4n6-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 10:29:23 -0400
-Received: from localhost
-	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Wed, 27 Jun 2018 10:29:22 -0400
-Date: Wed, 27 Jun 2018 07:31:25 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm,oom: Bring OOM notifier callbacks to outside of OOM
- killer.
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <1529493638-6389-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.21.1806201528490.16984@chino.kir.corp.google.com>
- <20180621073142.GA10465@dhcp22.suse.cz>
- <2d8c3056-1bc2-9a32-d745-ab328fd587a1@i-love.sakura.ne.jp>
- <20180626170345.GA3593@linux.vnet.ibm.com>
- <20180627072207.GB32348@dhcp22.suse.cz>
+        (Google Transport Security);
+        Wed, 27 Jun 2018 07:57:24 -0700 (PDT)
+Date: Wed, 27 Jun 2018 08:57:18 -0600
+From: Jason Gunthorpe <jgg@ziepe.ca>
+Subject: Re: [PATCH 2/2] mm: set PG_dma_pinned on get_user_pages*()
+Message-ID: <20180627145718.GB20171@ziepe.ca>
+References: <d4817192-6db0-2f3f-7c67-6078b69686d3@nvidia.com>
+ <CAPcyv4iacHYxGmyWokFrVsmxvLj7=phqp2i0tv8z6AT-mYuEEA@mail.gmail.com>
+ <3898ef6b-2fa0-e852-a9ac-d904b47320d5@nvidia.com>
+ <CAPcyv4iRBzmwWn_9zDvqdfVmTZL_Gn7uA_26A1T-kJib=84tvA@mail.gmail.com>
+ <20180626134757.GY28965@dhcp22.suse.cz>
+ <20180626164825.fz4m2lv6hydbdrds@quack2.suse.cz>
+ <20180627113221.GO32348@dhcp22.suse.cz>
+ <20180627115349.cu2k3ainqqdrrepz@quack2.suse.cz>
+ <20180627115927.GQ32348@dhcp22.suse.cz>
+ <20180627124255.np2a6rxy6rb6v7mm@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180627072207.GB32348@dhcp22.suse.cz>
-Message-Id: <20180627143125.GW3593@linux.vnet.ibm.com>
+In-Reply-To: <20180627124255.np2a6rxy6rb6v7mm@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <jhubbard@nvidia.com>, Christoph Hellwig <hch@lst.de>, John Hubbard <john.hubbard@gmail.com>, Matthew Wilcox <willy@infradead.org>, Christopher Lameter <cl@linux.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>
 
-On Wed, Jun 27, 2018 at 09:22:07AM +0200, Michal Hocko wrote:
-> On Tue 26-06-18 10:03:45, Paul E. McKenney wrote:
-> [...]
-> > 3.	Something else?
+On Wed, Jun 27, 2018 at 02:42:55PM +0200, Jan Kara wrote:
+> On Wed 27-06-18 13:59:27, Michal Hocko wrote:
+> > On Wed 27-06-18 13:53:49, Jan Kara wrote:
+> > > On Wed 27-06-18 13:32:21, Michal Hocko wrote:
+> > [...]
+> > > > Appart from that, do we really care about 32b here? Big DIO, IB users
+> > > > seem to be 64b only AFAIU.
+> > > 
+> > > IMO it is a bad habit to leave unpriviledged-user-triggerable oops in the
+> > > kernel even for uncommon platforms...
+> > 
+> > Absolutely agreed! I didn't mean to keep the blow up for 32b. I just
+> > wanted to say that we can stay with a simple solution for 32b. I thought
+> > the g-u-p-longterm has plugged the most obvious breakage already. But
+> > maybe I just misunderstood.
 > 
-> How hard it would be to use a different API than oom notifiers? E.g. a
-> shrinker which just kicks all the pending callbacks if the reclaim
-> priority reaches low values (e.g. 0)?
+> Most yes, but if you try hard enough, you can still trigger the oops e.g.
+> with appropriately set up direct IO when racing with writeback / reclaim.
 
-Beats me.  What is a shrinker?  ;-)
+gup longterm is only different from normal gup if you have DAX and few
+people do, which really means it doesn't help at all.. AFAIK??
 
-More seriously, could you please point me at an exemplary shrinker
-use case so I can see what is involved?
-
-							Thanx, Paul
+Jason
