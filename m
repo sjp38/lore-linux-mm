@@ -1,85 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BE9D96B0003
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 05:21:02 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id j8-v6so885705wrh.18
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 02:21:02 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 13-v6si3771360wmp.229.2018.06.27.02.21.01
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DDFF6B0008
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 05:54:42 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id t14-v6so933724wrr.23
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 02:54:42 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l11-v6sor1837544wrs.35.2018.06.27.02.54.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Jun 2018 02:21:01 -0700 (PDT)
-Date: Wed, 27 Jun 2018 11:20:59 +0200
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: Re: [PATCH 2/3] mm: workingset: make shadow_lru_isolate() use
- locking suffix
-Message-ID: <20180627092059.temrhpvyc7ggcmxd@linutronix.de>
-References: <20180622151221.28167-1-bigeasy@linutronix.de>
- <20180622151221.28167-3-bigeasy@linutronix.de>
- <20180624195753.2e277k5xhujypwre@esperanza>
- <20180626212534.sp4p76gcvldcai57@linutronix.de>
- <20180627085003.rz3dzzggjxps34wb@esperanza>
+        (Google Transport Security);
+        Wed, 27 Jun 2018 02:54:41 -0700 (PDT)
+Date: Wed, 27 Jun 2018 11:54:39 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH v5 2/4] mm/sparsemem: Defer the ms->section_mem_map
+ clearing
+Message-ID: <20180627095439.GA5924@techadventures.net>
+References: <20180627013116.12411-1-bhe@redhat.com>
+ <20180627013116.12411-3-bhe@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180627085003.rz3dzzggjxps34wb@esperanza>
+In-Reply-To: <20180627013116.12411-3-bhe@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: linux-mm@kvack.org, tglx@linutronix.de, Andrew Morton <akpm@linux-foundation.org>
+To: Baoquan He <bhe@redhat.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dave.hansen@intel.com, pagupta@redhat.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-On 2018-06-27 11:50:03 [+0300], Vladimir Davydov wrote:
-> > it is not asymmetric because a later patch makes it use
-> > spin_lock_irq(), too. If you use local_irq_disable() and a spin_lock()
-> > (like you suggest in 3/3 as well) then you separate the locking
-> > instruction. It works as expected on vanilla but break other locking
-> > implementations like those on RT.
+On Wed, Jun 27, 2018 at 09:31:14AM +0800, Baoquan He wrote:
+> In sparse_init(), if CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER=y, system
+> will allocate one continuous memory chunk for mem maps on one node and
+> populate the relevant page tables to map memory section one by one. If
+> fail to populate for a certain mem section, print warning and its
+> ->section_mem_map will be cleared to cancel the marking of being present.
+> Like this, the number of mem sections marked as present could become
+> less during sparse_init() execution.
 > 
-> As I said earlier, I don't like patch 3 either, because I find the
-> notion of list_lru::lock_irq flag abstruse since it doesn't make all
-> code paths taking the lock disable irq: list_lru_add/del use spin_lock
-> no matter whether the flag is set or not. That is, when you initialize a
-> list_lru and pass lock_irq=true, you'll have to keep in mind that it
-> only protects list_lru_walk, while list_lru_add/del must be called with
-> irq disabled by the caller. Disabling irq before list_lru_walk
-> explicitly looks much more straightforward IMO.
-
-It helps to keep the locking annotation in one place. If it helps I
-could add the _irqsave() suffix to list_lru_add/del like it is already
-done in other places (in this file).
-
-> As for RT, it wouldn't need mm/workingset altogether AFAIU. 
-Why wouldn't it need it?
-
-> Anyway, it's
-> rather unusual to care about out-of-the-tree patches when changing the
-> vanilla kernel code IMO. 
-The plan is not stay out-of-tree forever. And I don't intend to make
-impossible or hard to argue changes just for RT's sake. This is only to
-keep the correct locking context/primitives in one place and not
-scattered around.
-The only reason for the separation is that most users don't disable
-interrupts (one user does) and there a few places which already use
-irqsave() because they can be called from both places. This
-list_lru_walk() is the only which can't do so due to the callback it
-invokes. I could also add a different function (say
-list_lru_walk_one_irq()) which behaves like list_lru_walk_one() but does
-spin_lock_irq() instead.
-
-> Using local_irq_disable + spin_lock instead of
-> spin_lock_irq is a typical pattern, and I don't see how changing this
-> particular place would help RT.
-It is not that typical. It is how the locking primitives work, yes, but
-they are not so many places that do so and those that did got cleaned
-up.
-
-> > Also if the locking changes then the local_irq_disable() part will be
-> > forgotten like you saw in 1/3 of this series.
+> Here just defer the ms->section_mem_map clearing if failed to populate
+> its page tables until the last for_each_present_section_nr() loop. This
+> is in preparation for later optimizing the mem map allocation.
 > 
-> If the locking changes, we'll have to revise all list_lru users anyway.
-> Yeah, we missed it last time, but it didn't break anything, and it was
-> finally found and fixed (by you, thanks BTW).
-You are very welcome. But having the locking primitives in one place you
-would have less things to worry about.
+> Signed-off-by: Baoquan He <bhe@redhat.com>
+> ---
+>  mm/sparse-vmemmap.c |  1 -
+>  mm/sparse.c         | 12 ++++++++----
+>  2 files changed, 8 insertions(+), 5 deletions(-)
+> 
+> diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+> index bd0276d5f66b..640e68f8324b 100644
+> --- a/mm/sparse-vmemmap.c
+> +++ b/mm/sparse-vmemmap.c
+> @@ -303,7 +303,6 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+>  		ms = __nr_to_section(pnum);
+>  		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
+>  		       __func__);
+> -		ms->section_mem_map = 0;
 
-Sebastian
+Since we are deferring the clearing of section_mem_map, I guess we do not need
+
+struct mem_section *ms;
+ms = __nr_to_section(pnum);
+
+anymore, right?
+
+>  	}
+>  
+>  	if (vmemmap_buf_start) {
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 6314303130b0..71ad53da2cd1 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -451,7 +451,6 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+>  		ms = __nr_to_section(pnum);
+>  		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
+>  		       __func__);
+> -		ms->section_mem_map = 0;
+
+The same goes here.
+
+
+
+-- 
+Oscar Salvador
+SUSE L3
