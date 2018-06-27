@@ -1,144 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 53BD36B0003
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 12:54:05 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id 12-v6so2436749qtq.8
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 09:54:05 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id l52-v6si291389qta.241.2018.06.27.09.54.03
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CB73A6B0007
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 13:02:53 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id o7-v6so1522854pll.13
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 10:02:53 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o126-v6si4056571pfo.72.2018.06.27.10.02.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 09:54:03 -0700 (PDT)
-Date: Wed, 27 Jun 2018 19:53:57 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [virtio-dev] Re: [PATCH v34 2/4] virtio-balloon:
- VIRTIO_BALLOON_F_FREE_PAGE_HINT
-Message-ID: <20180627192306-mutt-send-email-mst@kernel.org>
-References: <20180626002822-mutt-send-email-mst@kernel.org>
- <5B31B71B.6080709@intel.com>
- <20180626064338-mutt-send-email-mst@kernel.org>
- <5B323140.1000306@intel.com>
- <20180626163139-mutt-send-email-mst@kernel.org>
- <5B32E742.8080902@intel.com>
- <20180627053952-mutt-send-email-mst@kernel.org>
- <5B32FDB5.4040506@intel.com>
- <20180627065637-mutt-send-email-mst@kernel.org>
- <5B33205B.2040702@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 27 Jun 2018 10:02:51 -0700 (PDT)
+Date: Wed, 27 Jun 2018 19:02:46 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/2] mm: set PG_dma_pinned on get_user_pages*()
+Message-ID: <20180627170246.qfvucs72seqabaef@quack2.suse.cz>
+References: <CAPcyv4iacHYxGmyWokFrVsmxvLj7=phqp2i0tv8z6AT-mYuEEA@mail.gmail.com>
+ <3898ef6b-2fa0-e852-a9ac-d904b47320d5@nvidia.com>
+ <CAPcyv4iRBzmwWn_9zDvqdfVmTZL_Gn7uA_26A1T-kJib=84tvA@mail.gmail.com>
+ <20180626134757.GY28965@dhcp22.suse.cz>
+ <20180626164825.fz4m2lv6hydbdrds@quack2.suse.cz>
+ <20180627113221.GO32348@dhcp22.suse.cz>
+ <20180627115349.cu2k3ainqqdrrepz@quack2.suse.cz>
+ <20180627115927.GQ32348@dhcp22.suse.cz>
+ <20180627124255.np2a6rxy6rb6v7mm@quack2.suse.cz>
+ <20180627145718.GB20171@ziepe.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5B33205B.2040702@intel.com>
+In-Reply-To: <20180627145718.GB20171@ziepe.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@kernel.org>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <jhubbard@nvidia.com>, Christoph Hellwig <hch@lst.de>, John Hubbard <john.hubbard@gmail.com>, Matthew Wilcox <willy@infradead.org>, Christopher Lameter <cl@linux.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>
 
-On Wed, Jun 27, 2018 at 01:27:55PM +0800, Wei Wang wrote:
-> On 06/27/2018 11:58 AM, Michael S. Tsirkin wrote:
-> > On Wed, Jun 27, 2018 at 11:00:05AM +0800, Wei Wang wrote:
-> > > On 06/27/2018 10:41 AM, Michael S. Tsirkin wrote:
-> > > > On Wed, Jun 27, 2018 at 09:24:18AM +0800, Wei Wang wrote:
-> > > > > On 06/26/2018 09:34 PM, Michael S. Tsirkin wrote:
-> > > > > > On Tue, Jun 26, 2018 at 08:27:44PM +0800, Wei Wang wrote:
-> > > > > > > On 06/26/2018 11:56 AM, Michael S. Tsirkin wrote:
-> > > > > > > > On Tue, Jun 26, 2018 at 11:46:35AM +0800, Wei Wang wrote:
-> > > > > > > > 
-> > > > > > > > > > > +	if (!arrays)
-> > > > > > > > > > > +		return NULL;
-> > > > > > > > > > > +
-> > > > > > > > > > > +	for (i = 0; i < max_array_num; i++) {
-> > > > > > > > > > So we are getting a ton of memory here just to free it up a bit later.
-> > > > > > > > > > Why doesn't get_from_free_page_list get the pages from free list for us?
-> > > > > > > > > > We could also avoid the 1st allocation then - just build a list
-> > > > > > > > > > of these.
-> > > > > > > > > That wouldn't be a good choice for us. If we check how the regular
-> > > > > > > > > allocation works, there are many many things we need to consider when pages
-> > > > > > > > > are allocated to users.
-> > > > > > > > > For example, we need to take care of the nr_free
-> > > > > > > > > counter, we need to check the watermark and perform the related actions.
-> > > > > > > > > Also the folks working on arch_alloc_page to monitor page allocation
-> > > > > > > > > activities would get a surprise..if page allocation is allowed to work in
-> > > > > > > > > this way.
-> > > > > > > > > 
-> > > > > > > > mm/ code is well positioned to handle all this correctly.
-> > > > > > > I'm afraid that would be a re-implementation of the alloc functions,
-> > > > > > A re-factoring - you can share code. The main difference is locking.
-> > > > > > 
-> > > > > > > and
-> > > > > > > that would be much more complex than what we have. I think your idea of
-> > > > > > > passing a list of pages is better.
-> > > > > > > 
-> > > > > > > Best,
-> > > > > > > Wei
-> > > > > > How much memory is this allocating anyway?
-> > > > > > 
-> > > > > For every 2TB memory that the guest has, we allocate 4MB.
-> > > > Hmm I guess I'm missing something, I don't see it:
+On Wed 27-06-18 08:57:18, Jason Gunthorpe wrote:
+> On Wed, Jun 27, 2018 at 02:42:55PM +0200, Jan Kara wrote:
+> > On Wed 27-06-18 13:59:27, Michal Hocko wrote:
+> > > On Wed 27-06-18 13:53:49, Jan Kara wrote:
+> > > > On Wed 27-06-18 13:32:21, Michal Hocko wrote:
+> > > [...]
+> > > > > Appart from that, do we really care about 32b here? Big DIO, IB users
+> > > > > seem to be 64b only AFAIU.
 > > > > 
-> > > > 
-> > > > +       max_entries = max_free_page_blocks(ARRAY_ALLOC_ORDER);
-> > > > +       entries_per_page = PAGE_SIZE / sizeof(__le64);
-> > > > +       entries_per_array = entries_per_page * (1 << ARRAY_ALLOC_ORDER);
-> > > > +       max_array_num = max_entries / entries_per_array +
-> > > > +                       !!(max_entries % entries_per_array);
-> > > > 
-> > > > Looks like you always allocate the max number?
-> > > Yes. We allocated the max number and then free what's not used.
-> > > For example, a 16TB guest, we allocate Four 4MB buffers and pass the 4
-> > > buffers to get_from_free_page_list. If it uses 3, then the remaining 1 "4MB
-> > > buffer" will end up being freed.
+> > > > IMO it is a bad habit to leave unpriviledged-user-triggerable oops in the
+> > > > kernel even for uncommon platforms...
 > > > 
-> > > For today's guests, max_array_num is usually 1.
-> > > 
-> > > Best,
-> > > Wei
-> > I see, it's based on total ram pages. It's reasonable but might
-> > get out of sync if memory is onlined quickly. So you want to
-> > detect that there's more free memory than can fit and
-> > retry the reporting.
+> > > Absolutely agreed! I didn't mean to keep the blow up for 32b. I just
+> > > wanted to say that we can stay with a simple solution for 32b. I thought
+> > > the g-u-p-longterm has plugged the most obvious breakage already. But
+> > > maybe I just misunderstood.
 > > 
+> > Most yes, but if you try hard enough, you can still trigger the oops e.g.
+> > with appropriately set up direct IO when racing with writeback / reclaim.
 > 
-> 
-> - AFAIK, memory hotplug isn't expected to happen during live migration
-> today. Hypervisors (e.g. QEMU) explicitly forbid this.
+> gup longterm is only different from normal gup if you have DAX and few
+> people do, which really means it doesn't help at all.. AFAIK??
 
-That's a temporary limitation.
+Right, what I wrote works only for DAX. For non-DAX situation g-u-p
+longterm does not currently help at all. Sorry for confusion.
 
-> - Allocating buffers based on total ram pages already gives some headroom
-> for newly plugged memory if that could happen in any case. Also, we can
-> think about why people plug in more memory - usually because the existing
-> memory isn't enough, which implies that the free page list is very likely to
-> be close to empty.
+								Honza
 
-Or maybe because guest is expected to use more memory.
-
-> - This method could be easily scaled if people really need more headroom for
-> hot-plugged memory. For example, calculation based on "X * total_ram_pages",
-> X could be a number passed from the hypervisor.
-
-All this in place of a simple retry loop within guest?
-
-> - This is an optimization feature, and reporting less free memory in that
-> rare case doesn't hurt anything.
-
-People working on memory hotplug can't be expected to worry about
-balloon. And maintainers have other things to do than debug hard to
-trigger failure reports from the field.
-
-> 
-> So I think it is good to start from a fundamental implementation, which
-> doesn't confuse people, and complexities can be added when there is a real
-> need in the future.
-> 
-> Best,
-> Wei
-
-The usefulness of the whole patchset hasn't been proven in the field yet.
-The more uncovered corner cases there are, the higher the chance that
-it will turn out not to be useful after all.
-
-> 
-> 
-> ---------------------------------------------------------------------
-> To unsubscribe, e-mail: virtio-dev-unsubscribe@lists.oasis-open.org
-> For additional commands, e-mail: virtio-dev-help@lists.oasis-open.org
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
