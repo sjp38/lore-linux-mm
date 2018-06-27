@@ -1,128 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 777136B0003
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 16:41:57 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id b9-v6so1379898pgq.17
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 13:41:57 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 5-v6sor1633562plx.112.2018.06.27.13.41.56
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 56DAC6B0007
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 17:14:16 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id e3-v6so1591177pfn.13
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 14:14:16 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id l21-v6si5148299pfk.321.2018.06.27.14.14.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 27 Jun 2018 13:41:56 -0700 (PDT)
-From: Shakeel Butt <shakeelb@google.com>
-Subject: [RFC PATCH] net, mm: account sock objects to kmemcg
-Date: Wed, 27 Jun 2018 13:41:39 -0700
-Message-Id: <20180627204139.225988-1-shakeelb@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Jun 2018 14:14:14 -0700 (PDT)
+Date: Wed, 27 Jun 2018 14:14:12 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: drop VM_BUG_ON from __get_free_pages
+Message-Id: <20180627141412.00c0b23d2eb5f9475a76d833@linux-foundation.org>
+In-Reply-To: <e0f4426d-1b7c-e590-aae0-e8f7ae3bb948@suse.cz>
+References: <20180622162841.25114-1-mhocko@kernel.org>
+	<6886dee0-3ac4-ef5d-3597-073196c81d88@suse.cz>
+	<20180626100416.a3ff53f5c4aac9fae954e3f6@linux-foundation.org>
+	<20180627073420.GD32348@dhcp22.suse.cz>
+	<e0f4426d-1b7c-e590-aae0-e8f7ae3bb948@suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Roman Gushchin <guro@fb.com>, "David S . Miller" <davem@davemloft.net>, Eric Dumazet <edumazet@google.com>, Kirill Tkhai <ktkhai@virtuozzo.com>, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, Shakeel Butt <shakeelb@google.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, JianKang Chen <chenjiankang1@huawei.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com
 
-Currently the kernel accounts the memory for network traffic through
-mem_cgroup_[un]charge_skmem() interface. However the memory accounted
-only includes the truesize of sk_buff which does not include the size of
-sock objects. In our production environment, with opt-out kmem
-accounting, the sock kmem caches (TCP[v6], UDP[v6], RAW[v6], UNIX) are
-among the top most charged kmem caches and consume a significant amount
-of memory which can not be left as system overhead. So, this patch
-converts the kmem caches of more important sock objects to SLAB_ACCOUNT.
+On Wed, 27 Jun 2018 09:50:01 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
----
- net/ipv4/raw.c      | 1 +
- net/ipv4/tcp_ipv4.c | 2 +-
- net/ipv4/udp.c      | 1 +
- net/ipv6/raw.c      | 1 +
- net/ipv6/tcp_ipv6.c | 2 +-
- net/ipv6/udp.c      | 1 +
- net/unix/af_unix.c  | 1 +
- 7 files changed, 7 insertions(+), 2 deletions(-)
+> On 06/27/2018 09:34 AM, Michal Hocko wrote:
+> > On Tue 26-06-18 10:04:16, Andrew Morton wrote:
+> > 
+> > And as I've argued before the code would be wrong regardless. We would
+> > leak the memory or worse touch somebody's else kmap without knowing
+> > that.  So we have a choice between a mem leak, data corruption k or a
+> > silent fixup. I would prefer the last option. And blowing up on a BUG
+> > is not much better on something that is easily fixable. I am not really
+> > convinced that & ~__GFP_HIGHMEM is something to lose sleep over.
+> 
+> Maybe put the fixup into a "#ifdef CONFIG_HIGHMEM" block and then modern
+> systems won't care? In that case it could even be if (WARN_ON_ONCE(...))
+> so future cases with wrong expectations would become known.
+> 
 
-diff --git a/net/ipv4/raw.c b/net/ipv4/raw.c
-index abb3c9490c55..2c4b04c6461a 100644
---- a/net/ipv4/raw.c
-+++ b/net/ipv4/raw.c
-@@ -988,6 +988,7 @@ struct proto raw_prot = {
- 	.hash		   = raw_hash_sk,
- 	.unhash		   = raw_unhash_sk,
- 	.obj_size	   = sizeof(struct raw_sock),
-+	.slab_flags	   = SLAB_ACCOUNT,
- 	.useroffset	   = offsetof(struct raw_sock, filter),
- 	.usersize	   = sizeof_field(struct raw_sock, filter),
- 	.h.raw_hash	   = &raw_v4_hashinfo,
-diff --git a/net/ipv4/tcp_ipv4.c b/net/ipv4/tcp_ipv4.c
-index fed3f1c66167..9ae31979aefa 100644
---- a/net/ipv4/tcp_ipv4.c
-+++ b/net/ipv4/tcp_ipv4.c
-@@ -2459,7 +2459,7 @@ struct proto tcp_prot = {
- 	.sysctl_rmem_offset	= offsetof(struct net, ipv4.sysctl_tcp_rmem),
- 	.max_header		= MAX_TCP_HEADER,
- 	.obj_size		= sizeof(struct tcp_sock),
--	.slab_flags		= SLAB_TYPESAFE_BY_RCU,
-+	.slab_flags		= SLAB_TYPESAFE_BY_RCU | SLAB_ACCOUNT,
- 	.twsk_prot		= &tcp_timewait_sock_ops,
- 	.rsk_prot		= &tcp_request_sock_ops,
- 	.h.hashinfo		= &tcp_hashinfo,
-diff --git a/net/ipv4/udp.c b/net/ipv4/udp.c
-index 9bb27df4dac5..26e07b8a83cc 100644
---- a/net/ipv4/udp.c
-+++ b/net/ipv4/udp.c
-@@ -2657,6 +2657,7 @@ struct proto udp_prot = {
- 	.sysctl_wmem_offset	= offsetof(struct net, ipv4.sysctl_udp_wmem_min),
- 	.sysctl_rmem_offset	= offsetof(struct net, ipv4.sysctl_udp_rmem_min),
- 	.obj_size		= sizeof(struct udp_sock),
-+	.slab_flags		= SLAB_ACCOUNT,
- 	.h.udp_table		= &udp_table,
- #ifdef CONFIG_COMPAT
- 	.compat_setsockopt	= compat_udp_setsockopt,
-diff --git a/net/ipv6/raw.c b/net/ipv6/raw.c
-index ce6f0d15b5dd..044ed44e7c16 100644
---- a/net/ipv6/raw.c
-+++ b/net/ipv6/raw.c
-@@ -1272,6 +1272,7 @@ struct proto rawv6_prot = {
- 	.hash		   = raw_hash_sk,
- 	.unhash		   = raw_unhash_sk,
- 	.obj_size	   = sizeof(struct raw6_sock),
-+	.slab_flags	   = SLAB_ACCOUNT,
- 	.useroffset	   = offsetof(struct raw6_sock, filter),
- 	.usersize	   = sizeof_field(struct raw6_sock, filter),
- 	.h.raw_hash	   = &raw_v6_hashinfo,
-diff --git a/net/ipv6/tcp_ipv6.c b/net/ipv6/tcp_ipv6.c
-index b620d9b72e59..7187609ca25f 100644
---- a/net/ipv6/tcp_ipv6.c
-+++ b/net/ipv6/tcp_ipv6.c
-@@ -1973,7 +1973,7 @@ struct proto tcpv6_prot = {
- 	.sysctl_rmem_offset	= offsetof(struct net, ipv4.sysctl_tcp_rmem),
- 	.max_header		= MAX_TCP_HEADER,
- 	.obj_size		= sizeof(struct tcp6_sock),
--	.slab_flags		= SLAB_TYPESAFE_BY_RCU,
-+	.slab_flags		= SLAB_TYPESAFE_BY_RCU | SLAB_ACCOUNT,
- 	.twsk_prot		= &tcp6_timewait_sock_ops,
- 	.rsk_prot		= &tcp6_request_sock_ops,
- 	.h.hashinfo		= &tcp_hashinfo,
-diff --git a/net/ipv6/udp.c b/net/ipv6/udp.c
-index e6645cae403e..47c9a3c74981 100644
---- a/net/ipv6/udp.c
-+++ b/net/ipv6/udp.c
-@@ -1582,6 +1582,7 @@ struct proto udpv6_prot = {
- 	.sysctl_wmem_offset     = offsetof(struct net, ipv4.sysctl_udp_wmem_min),
- 	.sysctl_rmem_offset     = offsetof(struct net, ipv4.sysctl_udp_rmem_min),
- 	.obj_size		= sizeof(struct udp6_sock),
-+	.slab_flags		= SLAB_ACCOUNT,
- 	.h.udp_table		= &udp_table,
- #ifdef CONFIG_COMPAT
- 	.compat_setsockopt	= compat_udpv6_setsockopt,
-diff --git a/net/unix/af_unix.c b/net/unix/af_unix.c
-index 95b02a71fd47..5e3e377a7269 100644
---- a/net/unix/af_unix.c
-+++ b/net/unix/af_unix.c
-@@ -742,6 +742,7 @@ static struct proto unix_proto = {
- 	.name			= "UNIX",
- 	.owner			= THIS_MODULE,
- 	.obj_size		= sizeof(struct unix_sock),
-+	.slab_flags		= SLAB_ACCOUNT,
- };
- 
- static struct sock *unix_create1(struct net *net, struct socket *sock, int kern)
--- 
-2.18.0.rc2.346.g013aa6912e-goog
+The more I think about it, the more I like the VM_BUG_ON.
+
+Look, if I was reviewing code which did
+
+	page = alloc_page(__GFP_HIGHMEM);
+	addr = page_to_virt(page);
+
+I would say "that's a bug, you forgot to kmap the page".
+
+And any code which does __get_free_pages(__GFP_HIGHMEM) is just as
+buggy: it's requesting the virtual address of a high page without
+having kmapped it.  Core MM shouldn't be silently kludging around the
+bug by restricting the caller to using lowmem pages.
+
+Maybe the caller really does want to use highmem, in which case the caller
+should be using alloc_page(__GFP_HIGHMEM) and kmap().  Because core MM
+detects and reports this bug, the developer will fix it.
