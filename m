@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F381C6B026B
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 08:46:36 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id i7-v6so1883645qtp.4
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 05:46:36 -0700 (PDT)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 356066B026D
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 08:46:47 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id i7-v6so1884118qtp.4
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 05:46:47 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id z124-v6si3980924qke.27.2018.06.27.05.46.36
+        by mx.google.com with ESMTPS id w1-v6si3823288qvf.185.2018.06.27.05.46.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 05:46:36 -0700 (PDT)
+        Wed, 27 Jun 2018 05:46:46 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V7 03/24] exofs: use bio_clone_fast in _write_mirror
-Date: Wed, 27 Jun 2018 20:45:27 +0800
-Message-Id: <20180627124548.3456-4-ming.lei@redhat.com>
+Subject: [PATCH V7 04/24] block: remove bio_clone_kmalloc
+Date: Wed, 27 Jun 2018 20:45:28 +0800
+Message-Id: <20180627124548.3456-5-ming.lei@redhat.com>
 In-Reply-To: <20180627124548.3456-1-ming.lei@redhat.com>
 References: <20180627124548.3456-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,30 +22,30 @@ Cc: David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, Mike Snit
 
 From: Christoph Hellwig <hch@lst.de>
 
-The mirroring code never changes the bio data or biovecs.  This means
-we can reuse the biovec allocation easily instead of duplicating it.
+Unused now.
 
-Acked-by: Boaz Harrosh <ooo@electrozaur.com>
 Reviewed-by: Ming Lei <ming.lei@redhat.com>
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/exofs/ore.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ include/linux/bio.h | 6 ------
+ 1 file changed, 6 deletions(-)
 
-diff --git a/fs/exofs/ore.c b/fs/exofs/ore.c
-index 1b8b44637e70..5331a15a61f1 100644
---- a/fs/exofs/ore.c
-+++ b/fs/exofs/ore.c
-@@ -873,8 +873,8 @@ static int _write_mirror(struct ore_io_state *ios, int cur_comp)
- 			struct bio *bio;
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index f08f5fe7bd08..430807f9f44b 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -443,12 +443,6 @@ static inline struct bio *bio_kmalloc(gfp_t gfp_mask, unsigned int nr_iovecs)
+ 	return bio_alloc_bioset(gfp_mask, nr_iovecs, NULL);
+ }
  
- 			if (per_dev != master_dev) {
--				bio = bio_clone_kmalloc(master_dev->bio,
--							GFP_KERNEL);
-+				bio = bio_clone_fast(master_dev->bio,
-+						     GFP_KERNEL, NULL);
- 				if (unlikely(!bio)) {
- 					ORE_DBGMSG(
- 					      "Failed to allocate BIO size=%u\n",
+-static inline struct bio *bio_clone_kmalloc(struct bio *bio, gfp_t gfp_mask)
+-{
+-	return bio_clone_bioset(bio, gfp_mask, NULL);
+-
+-}
+-
+ extern blk_qc_t submit_bio(struct bio *);
+ 
+ extern void bio_endio(struct bio *);
 -- 
 2.9.5
