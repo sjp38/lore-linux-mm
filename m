@@ -1,78 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6ED8A6B0010
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 17:51:19 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id l2-v6so1632664pff.3
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 14:51:19 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b1-v6sor1294928pgb.171.2018.06.27.14.51.18
+	by kanga.kvack.org (Postfix) with ESMTP id 528036B0003
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 17:57:01 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id v10-v6so1619036pfm.11
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 14:57:01 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id e1-v6si4863268pfk.198.2018.06.27.14.56.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 27 Jun 2018 14:51:18 -0700 (PDT)
-Subject: Re: [RFC PATCH] net, mm: account sock objects to kmemcg
-References: <20180627204139.225988-1-shakeelb@google.com>
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Message-ID: <f08b2e2c-d4c6-7a80-10d9-104c0aab593b@gmail.com>
-Date: Wed, 27 Jun 2018 14:51:15 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Jun 2018 14:57:00 -0700 (PDT)
+Date: Thu, 28 Jun 2018 00:56:59 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCHv4 17/18] x86/mm: Handle encrypted memory in
+ page_to_virt() and __pa()
+Message-ID: <20180627215658.ol5zq3o5746gizpu@black.fi.intel.com>
+References: <20180626142245.82850-1-kirill.shutemov@linux.intel.com>
+ <20180626142245.82850-18-kirill.shutemov@linux.intel.com>
+ <1609f2b4-4638-8b9d-4dc7-fcb3303739cd@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180627204139.225988-1-shakeelb@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1609f2b4-4638-8b9d-4dc7-fcb3303739cd@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Roman Gushchin <guro@fb.com>, "David S . Miller" <davem@davemloft.net>, Eric Dumazet <edumazet@google.com>, Kirill Tkhai <ktkhai@virtuozzo.com>, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-
-
-On 06/27/2018 01:41 PM, Shakeel Butt wrote:
-> Currently the kernel accounts the memory for network traffic through
-> mem_cgroup_[un]charge_skmem() interface. However the memory accounted
-> only includes the truesize of sk_buff which does not include the size of
-> sock objects. In our production environment, with opt-out kmem
-> accounting, the sock kmem caches (TCP[v6], UDP[v6], RAW[v6], UNIX) are
-> among the top most charged kmem caches and consume a significant amount
-> of memory which can not be left as system overhead. So, this patch
-> converts the kmem caches of more important sock objects to SLAB_ACCOUNT.
+On Tue, Jun 26, 2018 at 04:38:23PM +0000, Dave Hansen wrote:
+> > diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
+> > index ba83fba4f9b3..dbfbd955da98 100644
+> > --- a/arch/x86/include/asm/mktme.h
+> > +++ b/arch/x86/include/asm/mktme.h
+> > @@ -29,6 +29,9 @@ void arch_free_page(struct page *page, int order);
+> >  
+> >  int sync_direct_mapping(void);
+> >  
+> > +#define page_to_virt(x) \
+> > +	(__va(PFN_PHYS(page_to_pfn(x))) + page_keyid(x) * direct_mapping_size)
 > 
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
-> ---
->  net/ipv4/raw.c      | 1 +
->  net/ipv4/tcp_ipv4.c | 2 +-
->  net/ipv4/udp.c      | 1 +
->  net/ipv6/raw.c      | 1 +
->  net/ipv6/tcp_ipv6.c | 2 +-
->  net/ipv6/udp.c      | 1 +
->  net/unix/af_unix.c  | 1 +
->  7 files changed, 7 insertions(+), 2 deletions(-)
+> Please put this in a generic header so that this hunk represents the
+> *default* x86 implementation that is used universally on x86.
 
+As I said, I disagree with you on the style preference.
 
-Hey, you just disclosed we do not use DCCP ;)
+If a maintainer prefers it to be done in your way, I'll move the macros.
 
-Joke aside, what about simply factorizing this stuff ?
+> Then, please do
+> 
+> #ifndef CONFIG_MKTME_WHATEVER
+> #define page_keyid(x) (0)
+> #endif
 
-diff --git a/net/core/sock.c b/net/core/sock.c
-index bcc41829a16d50714bdd3c25c976c0b7296fab84..b6714f8d7e9ba313723a6f619799c56230ff5fd4 100644
---- a/net/core/sock.c
-+++ b/net/core/sock.c
-@@ -3243,7 +3243,8 @@ static int req_prot_init(const struct proto *prot)
- 
-        rsk_prot->slab = kmem_cache_create(rsk_prot->slab_name,
-                                           rsk_prot->obj_size, 0,
--                                          prot->slab_flags, NULL);
-+                                          SLAB_ACCOUNT | prot->slab_flags,
-+                                          NULL);
- 
-        if (!rsk_prot->slab) {
-                pr_crit("%s: Can't create request sock SLAB cache!\n",
-@@ -3258,7 +3259,8 @@ int proto_register(struct proto *prot, int alloc_slab)
-        if (alloc_slab) {
-                prot->slab = kmem_cache_create_usercopy(prot->name,
-                                        prot->obj_size, 0,
--                                       SLAB_HWCACHE_ALIGN | prot->slab_flags,
-+                                       SLAB_HWCACHE_ALIGN | SLAB_ACCOUNT |
-+                                       prot->slab_flags,
-                                        prot->useroffset, prot->usersize,
-                                        NULL);
- 
+Default page_keyid() implementation returns 0.
+
+> >  #else
+> >  #define mktme_keyid_mask	((phys_addr_t)0)
+> >  #define mktme_nr_keyids		0
+> > diff --git a/arch/x86/include/asm/page_64.h b/arch/x86/include/asm/page_64.h
+> > index 53c32af895ab..ffad496aadad 100644
+> > --- a/arch/x86/include/asm/page_64.h
+> > +++ b/arch/x86/include/asm/page_64.h
+> > @@ -23,7 +23,7 @@ static inline unsigned long __phys_addr_nodebug(unsigned long x)
+> >  	/* use the carry flag to determine if x was < __START_KERNEL_map */
+> >  	x = y + ((x > y) ? phys_base : (__START_KERNEL_map - PAGE_OFFSET));
+> >  
+> > -	return x;
+> > +	return x % direct_mapping_size;
+> 
+> There are almost *surely* performance implications from this that affect
+> anyone with this compile option turned on.  There's now a 64-bit integer
+> division operation which is used in places like kfree().
+
+Fair point. Apparently, modern CPU is good enough to hide the overhead.
+I'll look into how to avoid division.
+
+After quick look the only way to get it cheap (near free on my CPU) is to
+have power-of-2 direct_mapping_size and mask address before returning it.
+
+If direct_mapping_size is not power-of-2, the best variant I've come up
+with so far costs a branch for non-encrypted memory.
+
+For encrypted it is branch, 32-bit division and some bit shifting and
+masking.
+
+I'll look into this more.
+
+-- 
+ Kirill A. Shutemov
