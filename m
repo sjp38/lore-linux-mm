@@ -1,86 +1,221 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A30766B0003
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 19:48:17 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id t83-v6so1590854wmt.3
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 16:48:17 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id d65-v6si1528002wmh.159.2018.06.26.16.48.15
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CB99F6B0007
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 20:03:55 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id i203-v6so258216ywg.7
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 17:03:55 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p70-v6sor752082yba.79.2018.06.26.17.03.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jun 2018 16:48:16 -0700 (PDT)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5QNi7tK071896
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 19:48:14 -0400
-Received: from e11.ny.us.ibm.com (e11.ny.us.ibm.com [129.33.205.201])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2juy3f0kbr-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 19:48:14 -0400
-Received: from localhost
-	by e11.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Tue, 26 Jun 2018 19:48:13 -0400
-Date: Tue, 26 Jun 2018 16:50:14 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm,oom: Bring OOM notifier callbacks to outside of OOM
- killer.
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <1529493638-6389-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.21.1806201528490.16984@chino.kir.corp.google.com>
- <20180621073142.GA10465@dhcp22.suse.cz>
- <2d8c3056-1bc2-9a32-d745-ab328fd587a1@i-love.sakura.ne.jp>
- <20180626170345.GA3593@linux.vnet.ibm.com>
- <f40d85e0-1d90-2261-99a4-4db315df4860@i-love.sakura.ne.jp>
+        (Google Transport Security);
+        Tue, 26 Jun 2018 17:03:53 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f40d85e0-1d90-2261-99a4-4db315df4860@i-love.sakura.ne.jp>
-Message-Id: <20180626235014.GS3593@linux.vnet.ibm.com>
+In-Reply-To: <1530017430-5394-1-git-send-email-crecklin@redhat.com>
+References: <1530017430-5394-1-git-send-email-crecklin@redhat.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 26 Jun 2018 17:03:52 -0700
+Message-ID: <CAGXu5j+ELUHuyjkUU358DkQieKhxQ5Z6h5HM7qYE_AQvVr4R3g@mail.gmail.com>
+Subject: Re: [v2 PATCH] add param that allows bootline control of hardened usercopy
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Chris von Recklinghausen <crecklin@redhat.com>
+Cc: Laura Abbott <labbott@redhat.com>, Paolo Abeni <pabeni@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-On Wed, Jun 27, 2018 at 05:10:48AM +0900, Tetsuo Handa wrote:
-> On 2018/06/27 2:03, Paul E. McKenney wrote:
-> > There are a lot of ways it could be made concurrency safe.  If you need
-> > me to do this, please do let me know.
-> > 
-> > That said, the way it is now written, if you invoke rcu_oom_notify()
-> > twice in a row, the second invocation will wait until the memory from
-> > the first invocation is freed.  What do you want me to do if you invoke
-> > me concurrently?
-> > 
-> > 1.	One invocation "wins", waits for the earlier callbacks to
-> > 	complete, then encourages any subsequent callbacks to be
-> > 	processed more quickly.  The other invocations return
-> > 	immediately without doing anything.
-> > 
-> > 2.	The invocations serialize, with each invocation waiting for
-> > 	the callbacks from previous invocation (in mutex_lock() order
-> > 	or some such), and then starting a new round.
-> > 
-> > 3.	Something else?
-> > 
-> > 							Thanx, Paul
-> 
-> As far as I can see,
-> 
-> -	atomic_set(&oom_callback_count, 1);
-> +	atomic_inc(&oom_callback_count);
-> 
-> should be sufficient.
+nit: I would expect the version to trail "PATCH" in the subject, like:
+[PATCH v2]
 
-I don't see how that helps.  For example, suppose that two tasks
-invoked rcu_oom_notify() at about the same time.  Then they could
-both see oom_callback_count equal to zero, both atomically increment
-oom_callback_count, then both do the IPI invoking rcu_oom_notify_cpu()
-on each online CPU.
+On Tue, Jun 26, 2018 at 5:50 AM, Chris von Recklinghausen
+<crecklin@redhat.com> wrote:
+> Enabling HARDENED_USER_COPY causes measurable regressions in the
+> networking performances, up to 8% under UDP flood.
 
-So far, so good.  But rcu_oom_notify_cpu() enqueues a per-CPU RCU
-callback, and enqueuing the same callback twice in quick succession
-would fatally tangle RCU's callback lists.
+Please include the details on the benchmark (from the email in the
+thread), include the backtrace to help other people that might
+discover the same issues. (Also, the name is "HARDENED_USERCOPY".)
 
-What am I missing here?
+> A generic distro may want to enable HARDENED_USER_COPY in their default
+> kernel config, but at the same time, such distro may want to be able to
+> avoid the performance penalties in with the default configuration and
+> disable the stricter check on a per-boot basis.
+>
+> This change adds a boot parameter that to conditionally disable
+> HARDENED_USERCOPY at boot time.
+>
+> v1->v2:
+>         remove CONFIG_HUC_DEFAULT_OFF
+>         default is now enabled, boot param disables
+>         move check to __check_object_size so as to not break optimization of
+>                 __builtin_constant_p()
+>         include linux/atomic.h before linux/jump_label.h
+>
+> Signed-off-by: Chris von Recklinghausen <crecklin@redhat.com>
+> ---
+>  .../admin-guide/kernel-parameters.rst         |  1 +
+>  .../admin-guide/kernel-parameters.txt         |  3 +++
+>  include/linux/thread_info.h                   |  5 ++++
+>  mm/usercopy.c                                 | 27 +++++++++++++++++++
+>  4 files changed, 36 insertions(+)
+>
+> diff --git a/Documentation/admin-guide/kernel-parameters.rst b/Documentation/admin-guide/kernel-parameters.rst
+> index b8d0bc07ed0a..87a1200a1db6 100644
+> --- a/Documentation/admin-guide/kernel-parameters.rst
+> +++ b/Documentation/admin-guide/kernel-parameters.rst
+> @@ -100,6 +100,7 @@ parameter is applicable::
+>         FB      The frame buffer device is enabled.
+>         FTRACE  Function tracing enabled.
+>         GCOV    GCOV profiling is enabled.
+> +       HUC     Hardened usercopy is enabled
 
-							Thanx, Paul
+I'd prefer the new HUC item here was just left off: it isn't a class
+of parameters yet (it's a single item). See below.
+
+>         HW      Appropriate hardware is enabled.
+>         IA-64   IA-64 architecture is enabled.
+>         IMA     Integrity measurement architecture is enabled.
+> diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+> index efc7aa7a0670..d14be0038aed 100644
+> --- a/Documentation/admin-guide/kernel-parameters.txt
+> +++ b/Documentation/admin-guide/kernel-parameters.txt
+> @@ -816,6 +816,9 @@
+>         disable=        [IPV6]
+>                         See Documentation/networking/ipv6.txt.
+>
+> +       disable_hardened_usercopy [HUC]
+> +                       Disable hardened usercopy checks
+> +
+
+Instead of "disable_hardened_usercopy" let's make this a parseable
+item. I would model it after "rodata=" or other things like that.
+Perhaps the following text:
+
+        hardened_usercopy=
+                        [KNL] Under CONFIG_HARDENED_USERCOPY, whether
+                        hardening is enabled for this boot. Hardened
+                        usercopy checking is used to protect the kernel
+                        from reading or writing beyond known memory
+                        allocation boundaries as a proactive defense
+                        against bounds-checking flaws in the kernel's
+                        copy_to_user()/copy_from_user() interface.
+                on      Perform hardened usercopy checks (default).
+                off     Disable hardened usercopy checks.
+
+
+>         disable_radix   [PPC]
+>                         Disable RADIX MMU mode on POWER9
+>
+> diff --git a/include/linux/thread_info.h b/include/linux/thread_info.h
+> index 8d8821b3689a..ab24fe2d3f87 100644
+> --- a/include/linux/thread_info.h
+> +++ b/include/linux/thread_info.h
+> @@ -109,6 +109,11 @@ static inline int arch_within_stack_frames(const void * const stack,
+>  #endif
+>
+>  #ifdef CONFIG_HARDENED_USERCOPY
+> +#include <linux/atomic.h>
+> +#include <linux/jump_label.h>
+> +
+> +DECLARE_STATIC_KEY_FALSE(bypass_usercopy_checks);
+> +
+>  extern void __check_object_size(const void *ptr, unsigned long n,
+>                                         bool to_user);
+>
+> diff --git a/mm/usercopy.c b/mm/usercopy.c
+> index e9e9325f7638..6a1265e1a54e 100644
+> --- a/mm/usercopy.c
+> +++ b/mm/usercopy.c
+> @@ -20,6 +20,8 @@
+>  #include <linux/sched/task.h>
+>  #include <linux/sched/task_stack.h>
+>  #include <linux/thread_info.h>
+> +#include <linux/atomic.h>
+> +#include <linux/jump_label.h>
+>  #include <asm/sections.h>
+>
+>  /*
+> @@ -248,6 +250,9 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
+>   */
+>  void __check_object_size(const void *ptr, unsigned long n, bool to_user)
+>  {
+> +       if (static_branch_likely(&bypass_usercopy_checks))
+> +               return;
+
+This should be unlikely (if CONFIG_HARDENED_USERCOPY is built, we want
+the fast-path to avoid the jmp instruction).
+
+> +
+>         /* Skip all tests if size is zero. */
+>         if (!n)
+>                 return;
+> @@ -279,3 +284,25 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
+>         check_kernel_text_object((const unsigned long)ptr, n, to_user);
+>  }
+>  EXPORT_SYMBOL(__check_object_size);
+> +
+> +DEFINE_STATIC_KEY_FALSE(bypass_usercopy_checks);
+
+This needs to be __ro_after_init otherwise it remains a target for
+attacks. Though it seems unlikely for it to be useful without the call
+to static_branch_enable(), see my thoughts below on non-jump-label
+architectures...
+
+> +EXPORT_SYMBOL(bypass_usercopy_checks);
+> +
+> +static bool disable_huc_atboot = false;
+
+Since this is static, you can just call it "disable_checks". The "huc"
+is redundant since that's the subject of the .c file already, and
+"atboot" will be obvious from the next suggestion: it is never used
+outside of __init, so it can be marked __initdata.
+
+> +
+> +static int __init parse_disable_usercopy(char *str)
+> +{
+> +       disable_huc_atboot = true;
+> +       return 1;
+> +}
+> +
+> +static int __init set_disable_usercopy(void)
+> +{
+> +       if (disable_huc_atboot == true)
+> +               static_branch_enable(&bypass_usercopy_checks);
+> +       return 1;
+> +}
+> +
+> +__setup("disable_hardened_usercopy", parse_disable_usercopy);
+> +
+> +late_initcall(set_disable_usercopy);
+> --
+> 2.17.0
+>
+
+One concern remains:
+
+$ git grep HAVE_ARCH_JUMP_LABEL
+...
+arch/arm/Kconfig:       select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL &&
+!CPU_ENDIAN_BE32 && MMU
+arch/arm64/Kconfig:     select HAVE_ARCH_JUMP_LABEL
+arch/mips/Kconfig:      select HAVE_ARCH_JUMP_LABEL
+arch/powerpc/Kconfig:   select HAVE_ARCH_JUMP_LABEL
+arch/s390/Kconfig:      select HAVE_ARCH_JUMP_LABEL
+arch/sparc/Kconfig:     select HAVE_ARCH_JUMP_LABEL if SPARC64
+arch/x86/Kconfig:       select HAVE_ARCH_JUMP_LABEL
+
+This means for non-jump-label architectures (e.g. old arm, sparc32,
+riscv) this leaves a branch test against a writable target in memory
+(i.e. the fall-back implementation of static keys):
+
+#define static_branch_likely(x)         likely(static_key_enabled(&(x)->key))
+#define static_branch_unlikely(x)       unlikely(static_key_enabled(&(x)->key))
+
+But the earlier __ro_after_init change should, I think, solve my main
+concern there. These architectures, however, will still have a
+memory-load-branch (though marked "unlikely"), but I think I can live
+with that.
+
+-Kees
+
+-- 
+Kees Cook
+Pixel Security
