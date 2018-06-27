@@ -1,78 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 99A646B0003
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 15:07:09 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id m2-v6so2944651qti.2
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 12:07:09 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id x5-v6si395308qtb.117.2018.06.27.12.07.07
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B404C6B0007
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 15:13:00 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id v10-v6so1458707pfm.11
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 12:13:00 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o186-v6sor237691pfb.85.2018.06.27.12.12.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 12:07:08 -0700 (PDT)
-Date: Wed, 27 Jun 2018 22:07:02 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v33 1/4] mm: add a function to get free page blocks
-Message-ID: <20180627220402-mutt-send-email-mst@kernel.org>
-References: <1529037793-35521-1-git-send-email-wei.w.wang@intel.com>
- <1529037793-35521-2-git-send-email-wei.w.wang@intel.com>
- <CA+55aFzhuGKinEq5udPsk_uYHShkQxJYqcPO=tLCkT-oxpsgPg@mail.gmail.com>
- <20180626045118-mutt-send-email-mst@kernel.org>
- <CA+55aFwFpDPvfL=KPdabO-x1r0FnwpfPk5oN8+e01TKqAPNYbw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFwFpDPvfL=KPdabO-x1r0FnwpfPk5oN8+e01TKqAPNYbw@mail.gmail.com>
+        (Google Transport Security);
+        Wed, 27 Jun 2018 12:12:59 -0700 (PDT)
+From: Shakeel Butt <shakeelb@google.com>
+Subject: [PATCH v8 0/2] Directed kmem charging
+Date: Wed, 27 Jun 2018 12:12:48 -0700
+Message-Id: <20180627191250.209150-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, virtualization <virtualization@lists.linux-foundation.org>, KVM list <kvm@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, Rik van Riel <riel@redhat.com>, peterx@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.com>, Greg Thelen <gthelen@google.com>, Amir Goldstein <amir73il@gmail.com>, Roman Gushchin <guro@fb.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Shakeel Butt <shakeelb@google.com>
 
-On Wed, Jun 27, 2018 at 09:05:39AM -0700, Linus Torvalds wrote:
-> [ Sorry for slow reply, my travels have made a mess of my inbox ]
-> 
-> On Mon, Jun 25, 2018 at 6:55 PM Michael S. Tsirkin <mst@redhat.com> wrote:
-> >
-> > Linus, do you think it would be ok to have get_from_free_page_list
-> > actually pop entries from the free list and use them as the buffer
-> > to store PAs?
-> 
-> Honestly, what I think the best option would be is to get rid of this
-> interface *entirely*, and just have the balloon code do
-> 
->     #define GFP_MINFLAGS (__GFP_NORETRY | __GFP_NOWARN |
-> __GFP_THISNODE | __GFP_NOMEMALLOC)
-> 
->     struct page *page =  alloc_pages(GFP_MINFLAGS, MAX_ORDER-1);
-> 
->  which is not a new interface, and simply removes the max-order page
-> from the list if at all possible.
-> 
-> The above has the advantage of "just working", and not having any races.
-> 
-> Now, because you don't want to necessarily *entirely* deplete the max
-> order, I'd suggest that the *one* new interface you add is just a "how
-> many max-order pages are there" interface. So then you can query
-> (either before or after getting the max-order page) just how many of
-> them there were and whether you want to give that page back.
-> 
-> Notice? No need for any page lists or physical addresses. No races. No
-> complex new functions.
-> 
-> The physical address you can just get from the "struct page" you got.
-> 
-> And if you run out of memory because of getting a page, you get all
-> the usual "hey, we ran out of memory" responses..
-> 
-> Wouldn't the above be sufficient?
-> 
->             Linus
+The Linux kernel's memory cgroup allows limiting the memory usage of
+the jobs running on the system to provide isolation between the jobs.
+All the kernel memory allocated in the context of the job and marked
+with __GFP_ACCOUNT will also be included in the memory usage and be
+limited by the job's limit.
 
-I think so, thanks!
+The kernel memory can only be charged to the memcg of the process in
+whose context kernel memory was allocated. However there are cases where
+the allocated kernel memory should be charged to the memcg different
+from the current processes's memcg. This patch series contains two such
+concrete use-cases i.e. fsnotify and buffer_head.
 
-Wei, to put it in balloon terms, I think there's one thing we missed: if
-you do manage to allocate a page, and you don't have a use for it, then
-hey, you can just give it to the host because you know it's free - you
-are going to return it to the free list.
+The fsnotify event objects can consume a lot of system memory for large
+or unlimited queues if there is either no or slow listener. The events
+are allocated in the context of the event producer. However they should
+be charged to the event consumer. Similarly the buffer_head objects can
+be allocated in a memcg different from the memcg of the page for which
+buffer_head objects are being allocated.
+
+To solve this issue, this patch series introduces mechanism to charge
+kernel memory to a given memcg. In case of fsnotify events, the memcg of
+the consumer can be used for charging and for buffer_head, the memcg of
+the page can be charged. For directed charging, the caller can use the
+scope API memalloc_[un]use_memcg() to specify the memcg to charge for
+all the __GFP_ACCOUNT allocations within the scope.
+
+Shakeel Butt (2):
+  fs: fsnotify: account fsnotify metadata to kmemcg
+  fs, mm: account buffer_head to kmemcg
+
+ fs/buffer.c                          | 15 ++++++-
+ fs/notify/dnotify/dnotify.c          |  5 ++-
+ fs/notify/fanotify/fanotify.c        | 17 ++++++--
+ fs/notify/fanotify/fanotify_user.c   |  5 ++-
+ fs/notify/group.c                    |  4 ++
+ fs/notify/inotify/inotify_fsnotify.c | 15 ++++++-
+ fs/notify/inotify/inotify_user.c     |  5 ++-
+ include/linux/fsnotify_backend.h     | 12 ++++--
+ include/linux/memcontrol.h           | 14 +++++++
+ include/linux/sched.h                |  3 ++
+ include/linux/sched/mm.h             | 41 +++++++++++++++++++
+ kernel/fork.c                        |  3 ++
+ mm/memcontrol.c                      | 60 ++++++++++++++++++++++++++--
+ 13 files changed, 182 insertions(+), 17 deletions(-)
 
 -- 
-MST
+2.18.0.rc2.346.g013aa6912e-goog
