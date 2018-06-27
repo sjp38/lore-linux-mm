@@ -1,52 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 30E696B0269
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 09:17:14 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id 5-v6so1968476qta.1
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 06:17:14 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id a17-v6si3860400qtp.143.2018.06.27.06.17.13
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 70D406B026B
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 09:34:11 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id f10-v6so240899pgv.22
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 06:34:11 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id b18-v6si3973412pls.292.2018.06.27.06.34.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 06:17:13 -0700 (PDT)
-Date: Wed, 27 Jun 2018 09:17:11 -0400
-From: Mike Snitzer <snitzer@redhat.com>
-Subject: Re: [PATCH V7 01/24] dm: use bio_split() when splitting out the
- already processed bio
-Message-ID: <20180627131711.GA11531@redhat.com>
-References: <20180627124548.3456-1-ming.lei@redhat.com>
- <20180627124548.3456-2-ming.lei@redhat.com>
+        Wed, 27 Jun 2018 06:34:09 -0700 (PDT)
+Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id EA2EB26331
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 13:34:08 +0000 (UTC)
+Received: by mail-io0-f175.google.com with SMTP id u23-v6so1900669ioc.13
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 06:34:08 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180627124548.3456-2-ming.lei@redhat.com>
+References: <20180625140754.GB29102@dhcp22.suse.cz> <CABGGisyVpfYCz7-5AGB-3Ld9hcuikPVk=19xPc1AwffjhsV+kg@mail.gmail.com>
+ <20180627112655.GD4291@rapoport-lnx>
+In-Reply-To: <20180627112655.GD4291@rapoport-lnx>
+From: Rob Herring <robh@kernel.org>
+Date: Wed, 27 Jun 2018 07:33:55 -0600
+Message-ID: <CAL_JsqL6dV9+tP9CQ7XoCoaf0wUO6NgHZ2-QNUyQMZx2pny+xA@mail.gmail.com>
+Subject: Re: why do we still need bootmem allocator?
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@redhat.com>
-Cc: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Kent Overstreet <kent.overstreet@gmail.com>, David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>, Randy Dunlap <rdunlap@infradead.org>, stable@vger.kernel.org
+To: rppt@linux.vnet.ibm.com
+Cc: mhocko@kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, "open list:GENERIC INCLUDE/ASM HEADER FILES" <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Wed, Jun 27 2018 at  8:45am -0400,
-Ming Lei <ming.lei@redhat.com> wrote:
+On Wed, Jun 27, 2018 at 5:27 AM Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+>
+> Hi,
+>
+> On Mon, Jun 25, 2018 at 10:09:41AM -0600, Rob Herring wrote:
+> > On Mon, Jun 25, 2018 at 8:08 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > >
+> > > Hi,
+> > > I am wondering why do we still keep mm/bootmem.c when most architectures
+> > > already moved to nobootmem. Is there any fundamental reason why others
+> > > cannot or this is just a matter of work?
+> >
+> > Just because no one has done the work. I did a couple of arches
+> > recently (sh, microblaze, and h8300) mainly because I broke them with
+> > some DT changes.
+>
+> I've tried running the current upstream on h8300 gdb simulator and it
+> failed:
 
-> From: Mike Snitzer <snitzer@redhat.com>
-> 
-> Use of bio_clone_bioset() is inefficient if there is no need to clone
-> the original bio's bio_vec array.  Best to use the bio_clone_fast()
-> variant.  Also, just using bio_advance() is only part of what is needed
-> to properly setup the clone -- it doesn't account for the various
-> bio_integrity() related work that also needs to be performed (see
-> bio_split).
-> 
-> Address both of these issues by switching from bio_clone_bioset() to
-> bio_split().
-> 
-> Fixes: 18a25da8 ("dm: ensure bio submission follows a depth-first tree walk")
-> Cc: stable@vger.kernel.org
-> Reported-by: Christoph Hellwig <hch@lst.de>
-> Reviewed-by: NeilBrown <neilb@suse.com>
-> Reviewed-by: Ming Lei <ming.lei@redhat.com>
-> Signed-off-by: Mike Snitzer <snitzer@redhat.com>
+It seems my patch[1] is still not applied. The maintainer said he applied it.
 
-FYI, I'll be sending this to Linus tomorrow.
+> [    0.000000] BUG: Bad page state in process swapper  pfn:00004
+> [    0.000000] page:007ed080 count:0 mapcount:-128 mapping:00000000
+> index:0x0
+> [    0.000000] flags: 0x0()
+> [    0.000000] raw: 00000000 0040bdac 0040bdac 00000000 00000000 00000002
+> ffffff7f 00000000
+> [    0.000000] page dumped because: nonzero mapcount
+> ---Type <return> to continue, or q <return> to quit---
+> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 4.18.0-rc2+ #50
+> [    0.000000] Stack from 00401f2c:
+> [    0.000000]   00401f2c 001116cb 007ed080 00401f40 000e20e6 00401f54
+> 0004df14 00000000
+> [    0.000000]   007ed080 007ed000 00401f5c 0004df8c 00401f90 0004e982
+> 00000044 00401fd1
+> [    0.000000]   007ed000 007ed000 00000000 00000004 00000008 00000000
+> 00000003 00000011
+> [    0.000000]
+> [    0.000000] Call Trace:
+> [    0.000000]         [<000e20e6>] [<0004df14>] [<0004df8c>] [<0004e982>]
+> [    0.000000]         [<00051a28>] [<00001000>] [<00000100>]
+> [    0.000000] Disabling lock debugging due to kernel taint
+>
+> With v4.13 I was able to get to "no valid init found".
+>
+> I had a quick look at h8300 memory initialization and it seems it has
+> starting pfn set to 0 while fdt defines memory start at 4M.
 
-Mike
+Perhaps there's another issue.
+
+Rob
+
+[1] https://patchwork.kernel.org/patch/10290317/
