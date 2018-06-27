@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 63C0B6B027D
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 08:48:10 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id d7-v6so1835912qth.21
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 05:48:10 -0700 (PDT)
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A4BA6B027F
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 08:48:22 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id i127-v6so1849306qkc.22
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 05:48:22 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id t15-v6si767121qth.145.2018.06.27.05.48.09
+        by mx.google.com with ESMTPS id 103-v6si4092606qks.312.2018.06.27.05.48.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 05:48:09 -0700 (PDT)
+        Wed, 27 Jun 2018 05:48:20 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V7 11/24] block: introduce bio_for_each_bvec()
-Date: Wed, 27 Jun 2018 20:45:35 +0800
-Message-Id: <20180627124548.3456-12-ming.lei@redhat.com>
+Subject: [PATCH V7 12/24] block: use bio_for_each_bvec() to compute multipage bvec count
+Date: Wed, 27 Jun 2018 20:45:36 +0800
+Message-Id: <20180627124548.3456-13-ming.lei@redhat.com>
 In-Reply-To: <20180627124548.3456-1-ming.lei@redhat.com>
 References: <20180627124548.3456-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,145 +20,173 @@ List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Kent Overstreet <kent.overstreet@gmail.com>
 Cc: David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, Mike Snitzer <snitzer@redhat.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>, Randy Dunlap <rdunlap@infradead.org>, Ming Lei <ming.lei@redhat.com>
 
-This helper is used for iterating over multipage bvec for bio
-splitting/merge,
+Firstly it is more efficient to use bio_for_each_bvec() in both
+blk_bio_segment_split() and __blk_recalc_rq_segments() to compute how many
+multipage bvecs there are in the bio.
+
+Secondaly once bio_for_each_bvec() is used, the bvec may need to
+be splitted because its length can be very longer than max segment size,
+so we have to split the big bvec into several segments.
+
+Thirdly during splitting multipage bvec into segments, max segment number
+may be reached, then the bio need to be splitted when this happens.
 
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- include/linux/bio.h  | 34 +++++++++++++++++++++++++++++++---
- include/linux/bvec.h | 36 ++++++++++++++++++++++++++++++++----
- 2 files changed, 63 insertions(+), 7 deletions(-)
+ block/blk-merge.c | 90 ++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 76 insertions(+), 14 deletions(-)
 
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 21d07858ddef..551444bd9795 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -80,6 +80,9 @@
- #define bio_data_dir(bio) \
- 	(op_is_write(bio_op(bio)) ? WRITE : READ)
- 
-+#define bio_iter_mp_iovec(bio, iter)				\
-+	mp_bvec_iter_bvec((bio)->bi_io_vec, (iter))
-+
- /*
-  * Check whether this bio carries any data or not. A NULL bio is allowed.
-  */
-@@ -165,8 +168,8 @@ static inline bool bio_full(struct bio *bio)
- #define bio_for_each_segment_all(bvl, bio, i)				\
- 	for (i = 0, bvl = (bio)->bi_io_vec; i < (bio)->bi_vcnt; i++, bvl++)
- 
--static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
--				    unsigned bytes)
-+static inline void __bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
-+				      unsigned bytes, bool mp)
- {
- 	iter->bi_sector += bytes >> 9;
- 
-@@ -174,11 +177,26 @@ static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
- 		iter->bi_size -= bytes;
- 		iter->bi_done += bytes;
- 	} else {
--		bvec_iter_advance(bio->bi_io_vec, iter, bytes);
-+		if (!mp)
-+			bvec_iter_advance(bio->bi_io_vec, iter, bytes);
-+		else
-+			mp_bvec_iter_advance(bio->bi_io_vec, iter, bytes);
- 		/* TODO: It is reasonable to complete bio with error here. */
- 	}
+diff --git a/block/blk-merge.c b/block/blk-merge.c
+index aaec38cc37b8..bf1dceb9656a 100644
+--- a/block/blk-merge.c
++++ b/block/blk-merge.c
+@@ -97,6 +97,62 @@ static inline unsigned get_max_io_size(struct request_queue *q,
+ 	return sectors;
  }
  
-+static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
-+				    unsigned bytes)
++/*
++ * Split the bvec @bv into segments, and update all kinds of
++ * variables.
++ */
++static bool bvec_split_segs(struct request_queue *q, struct bio_vec *bv,
++		unsigned *nsegs, unsigned *last_seg_size,
++		unsigned *front_seg_size, unsigned *sectors)
 +{
-+	__bio_advance_iter(bio, iter, bytes, false);
++	bool need_split = false;
++	unsigned len = bv->bv_len;
++	unsigned total_len = 0;
++	unsigned new_nsegs = 0, seg_size = 0;
++
++	if ((*nsegs >= queue_max_segments(q)) || !len)
++		return need_split;
++
++	/*
++	 * Multipage bvec may be too big to hold in one segment,
++	 * so the current bvec has to be splitted as multiple
++	 * segments.
++	 */
++	while (new_nsegs + *nsegs < queue_max_segments(q)) {
++		seg_size = min(queue_max_segment_size(q), len);
++
++		new_nsegs++;
++		total_len += seg_size;
++		len -= seg_size;
++
++		if ((queue_virt_boundary(q) && ((bv->bv_offset +
++		    total_len) & queue_virt_boundary(q))) || !len)
++			break;
++	}
++
++	/* split in the middle of the bvec */
++	if (len)
++		need_split = true;
++
++	/* update front segment size */
++	if (!*nsegs) {
++		unsigned first_seg_size = seg_size;
++
++		if (new_nsegs > 1)
++			first_seg_size = queue_max_segment_size(q);
++		if (*front_seg_size < first_seg_size)
++			*front_seg_size = first_seg_size;
++	}
++
++	/* update other varibles */
++	*last_seg_size = seg_size;
++	*nsegs += new_nsegs;
++	if (sectors)
++		*sectors += total_len >> 9;
++
++	return need_split;
 +}
 +
-+static inline void bio_advance_mp_iter(struct bio *bio, struct bvec_iter *iter,
-+				       unsigned bytes)
-+{
-+	__bio_advance_iter(bio, iter, bytes, true);
-+}
-+
- static inline bool bio_rewind_iter(struct bio *bio, struct bvec_iter *iter,
- 		unsigned int bytes)
- {
-@@ -202,6 +220,16 @@ static inline bool bio_rewind_iter(struct bio *bio, struct bvec_iter *iter,
- #define bio_for_each_segment(bvl, bio, iter)				\
- 	__bio_for_each_segment(bvl, bio, iter, (bio)->bi_iter)
+ static struct bio *blk_bio_segment_split(struct request_queue *q,
+ 					 struct bio *bio,
+ 					 struct bio_set *bs,
+@@ -110,7 +166,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+ 	struct bio *new = NULL;
+ 	const unsigned max_sectors = get_max_io_size(q, bio);
  
-+#define __bio_for_each_bvec(bvl, bio, iter, start)		\
-+	for (iter = (start);						\
-+	     (iter).bi_size &&						\
-+		((bvl = bio_iter_mp_iovec((bio), (iter))), 1);	\
-+	     bio_advance_mp_iter((bio), &(iter), (bvl).bv_len))
-+
-+/* returns one real segment(multipage bvec) each time */
-+#define bio_for_each_bvec(bvl, bio, iter)			\
-+	__bio_for_each_bvec(bvl, bio, iter, (bio)->bi_iter)
-+
- #define bio_iter_last(bvec, iter) ((iter).bi_size == (bvec).bv_len)
+-	bio_for_each_segment(bv, bio, iter) {
++	bio_for_each_bvec(bv, bio, iter) {
+ 		/*
+ 		 * If the queue doesn't support SG gaps and adding this
+ 		 * offset would create a gap, disallow it.
+@@ -125,8 +181,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+ 			 */
+ 			if (nsegs < queue_max_segments(q) &&
+ 			    sectors < max_sectors) {
+-				nsegs++;
+-				sectors = max_sectors;
++				/* split in the middle of bvec */
++				bv.bv_len = (max_sectors - sectors) << 9;
++				bvec_split_segs(q, &bv, &nsegs,
++						&seg_size,
++						&front_seg_size,
++						&sectors);
+ 			}
+ 			goto split;
+ 		}
+@@ -153,11 +213,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+ 		if (nsegs == 1 && seg_size > front_seg_size)
+ 			front_seg_size = seg_size;
  
- static inline unsigned bio_segments(struct bio *bio)
-diff --git a/include/linux/bvec.h b/include/linux/bvec.h
-index 03a12fbb90d8..417d44cf1e82 100644
---- a/include/linux/bvec.h
-+++ b/include/linux/bvec.h
-@@ -126,8 +126,16 @@ struct bvec_iter {
- 	.bv_offset	= bvec_iter_offset((bvec), (iter)),	\
- })
- 
--static inline bool bvec_iter_advance(const struct bio_vec *bv,
--		struct bvec_iter *iter, unsigned bytes)
-+#define mp_bvec_iter_bvec(bvec, iter)				\
-+((struct bio_vec) {							\
-+	.bv_page	= mp_bvec_iter_page((bvec), (iter)),	\
-+	.bv_len		= mp_bvec_iter_len((bvec), (iter)),	\
-+	.bv_offset	= mp_bvec_iter_offset((bvec), (iter)),	\
-+})
+-		nsegs++;
+ 		bvprv = bv;
+ 		bvprvp = &bvprv;
+-		seg_size = bv.bv_len;
+-		sectors += bv.bv_len >> 9;
 +
-+static inline bool __bvec_iter_advance(const struct bio_vec *bv,
-+				       struct bvec_iter *iter,
-+				       unsigned bytes, bool mp)
- {
- 	if (WARN_ONCE(bytes > iter->bi_size,
- 		     "Attempted to advance past end of bvec iter\n")) {
-@@ -136,8 +144,14 @@ static inline bool bvec_iter_advance(const struct bio_vec *bv,
++		if (bvec_split_segs(q, &bv, &nsegs, &seg_size,
++					&front_seg_size, &sectors))
++			goto split;
+ 
  	}
  
- 	while (bytes) {
--		unsigned iter_len = bvec_iter_len(bv, *iter);
--		unsigned len = min(bytes, iter_len);
-+		unsigned len;
-+
-+		if (mp)
-+			len = mp_bvec_iter_len(bv, *iter);
-+		else
-+			len = bvec_iter_len(bv, *iter);
-+
-+		len = min(bytes, len);
+@@ -235,6 +296,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+ 	struct bio_vec bv, bvprv = { NULL };
+ 	int cluster, prev = 0;
+ 	unsigned int seg_size, nr_phys_segs;
++	unsigned front_seg_size = bio->bi_seg_front_size;
+ 	struct bio *fbio, *bbio;
+ 	struct bvec_iter iter;
  
- 		bytes -= len;
- 		iter->bi_size -= len;
-@@ -176,6 +190,20 @@ static inline bool bvec_iter_rewind(const struct bio_vec *bv,
- 	return true;
- }
+@@ -255,7 +317,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+ 	seg_size = 0;
+ 	nr_phys_segs = 0;
+ 	for_each_bio(bio) {
+-		bio_for_each_segment(bv, bio, iter) {
++		bio_for_each_bvec(bv, bio, iter) {
+ 			/*
+ 			 * If SG merging is disabled, each bio vector is
+ 			 * a segment
+@@ -277,20 +339,20 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+ 				continue;
+ 			}
+ new_segment:
+-			if (nr_phys_segs == 1 && seg_size >
+-			    fbio->bi_seg_front_size)
+-				fbio->bi_seg_front_size = seg_size;
++			if (nr_phys_segs == 1 && seg_size > front_seg_size)
++				front_seg_size = seg_size;
  
-+static inline bool bvec_iter_advance(const struct bio_vec *bv,
-+				     struct bvec_iter *iter,
-+				     unsigned bytes)
-+{
-+	return __bvec_iter_advance(bv, iter, bytes, false);
-+}
-+
-+static inline bool mp_bvec_iter_advance(const struct bio_vec *bv,
-+					struct bvec_iter *iter,
-+					unsigned bytes)
-+{
-+	return __bvec_iter_advance(bv, iter, bytes, true);
-+}
-+
- #define for_each_bvec(bvl, bio_vec, iter, start)			\
- 	for (iter = (start);						\
- 	     (iter).bi_size &&						\
+-			nr_phys_segs++;
+ 			bvprv = bv;
+ 			prev = 1;
+-			seg_size = bv.bv_len;
++			bvec_split_segs(q, &bv, &nr_phys_segs, &seg_size,
++					&front_seg_size, NULL);
+ 		}
+ 		bbio = bio;
+ 	}
+ 
+-	if (nr_phys_segs == 1 && seg_size > fbio->bi_seg_front_size)
+-		fbio->bi_seg_front_size = seg_size;
++	if (nr_phys_segs == 1 && seg_size > front_seg_size)
++		front_seg_size = seg_size;
++	fbio->bi_seg_front_size = front_seg_size;
+ 	if (seg_size > bbio->bi_seg_back_size)
+ 		bbio->bi_seg_back_size = seg_size;
+ 
 -- 
 2.9.5
