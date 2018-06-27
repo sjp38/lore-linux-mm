@@ -1,129 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B65776B0269
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 10:15:53 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id r26-v6so1500737otk.17
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 07:15:53 -0700 (PDT)
-Received: from g4t3426.houston.hpe.com (g4t3426.houston.hpe.com. [15.241.140.75])
-        by mx.google.com with ESMTPS id w204-v6si1358249oig.335.2018.06.27.07.15.52
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id ECD356B000A
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 10:26:22 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l4-v6so2606164wmc.7
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 07:26:22 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id b4-v6si2050615wru.376.2018.06.27.07.26.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 07:15:52 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH v4 3/3] x86/mm: add TLB purge to free pmd/pte page interfaces
-Date: Wed, 27 Jun 2018 08:13:48 -0600
-Message-Id: <20180627141348.21777-4-toshi.kani@hpe.com>
-In-Reply-To: <20180627141348.21777-1-toshi.kani@hpe.com>
-References: <20180627141348.21777-1-toshi.kani@hpe.com>
+        Wed, 27 Jun 2018 07:26:21 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5REJw2Y115920
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 10:26:20 -0400
+Received: from e12.ny.us.ibm.com (e12.ny.us.ibm.com [129.33.205.202])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2jv9h1g77a-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 10:26:19 -0400
+Received: from localhost
+	by e12.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 27 Jun 2018 10:26:19 -0400
+Date: Wed, 27 Jun 2018 07:28:22 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm,oom: Bring OOM notifier callbacks to outside of OOM
+ killer.
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1529493638-6389-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.21.1806201528490.16984@chino.kir.corp.google.com>
+ <20180621073142.GA10465@dhcp22.suse.cz>
+ <2d8c3056-1bc2-9a32-d745-ab328fd587a1@i-love.sakura.ne.jp>
+ <20180626170345.GA3593@linux.vnet.ibm.com>
+ <f40d85e0-1d90-2261-99a4-4db315df4860@i-love.sakura.ne.jp>
+ <20180626235014.GS3593@linux.vnet.ibm.com>
+ <c0aeb719-ccb7-46c7-2ad9-b0630bf4d542@i-love.sakura.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c0aeb719-ccb7-46c7-2ad9-b0630bf4d542@i-love.sakura.ne.jp>
+Message-Id: <20180627142822.GV3593@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
-Cc: cpandya@codeaurora.org, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>, Joerg Roedel <joro@8bytes.org>, stable@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-ioremap() calls pud_free_pmd_page() / pmd_free_pte_page() when it creates
-a pud / pmd map.  The following preconditions are met at their entry.
- - All pte entries for a target pud/pmd address range have been cleared.
- - System-wide TLB purges have been peformed for a target pud/pmd address
-   range.
+On Wed, Jun 27, 2018 at 07:52:23PM +0900, Tetsuo Handa wrote:
+> On 2018/06/27 8:50, Paul E. McKenney wrote:
+> > On Wed, Jun 27, 2018 at 05:10:48AM +0900, Tetsuo Handa wrote:
+> >> As far as I can see,
+> >>
+> >> -	atomic_set(&oom_callback_count, 1);
+> >> +	atomic_inc(&oom_callback_count);
+> >>
+> >> should be sufficient.
+> > 
+> > I don't see how that helps.  For example, suppose that two tasks
+> > invoked rcu_oom_notify() at about the same time.  Then they could
+> > both see oom_callback_count equal to zero, both atomically increment
+> > oom_callback_count, then both do the IPI invoking rcu_oom_notify_cpu()
+> > on each online CPU.
+> > 
+> > So far, so good.  But rcu_oom_notify_cpu() enqueues a per-CPU RCU
+> > callback, and enqueuing the same callback twice in quick succession
+> > would fatally tangle RCU's callback lists.
+> > 
+> > What am I missing here?
+> 
+> You are pointing out that "number of rsp->call() is called" > "number of
+> rcu_oom_callback() is called" can happen if concurrently called, aren't you?
 
-The preconditions assure that there is no stale TLB entry for the range.
-Speculation may not cache TLB entries since it requires all levels of page
-entries, including ptes, to have P & A-bits set for an associated address.
-However, speculation may cache pud/pmd entries (paging-structure caches)
-when they have P-bit set.
+Yes.  Reusing an rcu_head before invocation of the earlier use is
+very bad indeed.  ;-)
 
-Add a system-wide TLB purge (INVLPG) to a single page after clearing
-pud/pmd entry's P-bit.
+> Then, you are not missing anything. You will need to use something equivalent
+> to oom_lock even if you can convert rcu_oom_notify() to use shrinkers.
 
-SDM 4.10.4.1, Operation that Invalidate TLBs and Paging-Structure Caches,
-states that:
-  INVLPG invalidates all paging-structure caches associated with the
-  current PCID regardless of the liner addresses to which they correspond.
+What should I look at to work out whether it makes sense to convert
+rcu_oom_notify() to shrinkers, and if so, how to go about it?
 
-Fixes: 28ee90fe6048 ("x86/mm: implement free pmd/pte page interfaces")
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Joerg Roedel <joro@8bytes.org>
-Cc: <stable@vger.kernel.org>
----
- arch/x86/mm/pgtable.c |   36 ++++++++++++++++++++++++++++++------
- 1 file changed, 30 insertions(+), 6 deletions(-)
+Or are you simply asking me to serialize rcu_oom_notify()?  (Which is
+of course not difficult, so please just let me know.)
 
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index fbd14e506758..e3deefb891da 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -725,24 +725,44 @@ int pmd_clear_huge(pmd_t *pmd)
-  * @pud: Pointer to a PUD.
-  * @addr: Virtual address associated with pud.
-  *
-- * Context: The pud range has been unmaped and TLB purged.
-+ * Context: The pud range has been unmapped and TLB purged.
-  * Return: 1 if clearing the entry succeeded. 0 otherwise.
-+ *
-+ * NOTE: Callers must allow a single page allocation.
-  */
- int pud_free_pmd_page(pud_t *pud, unsigned long addr)
- {
--	pmd_t *pmd;
-+	pmd_t *pmd, *pmd_sv;
-+	pte_t *pte;
- 	int i;
- 
- 	if (pud_none(*pud))
- 		return 1;
- 
- 	pmd = (pmd_t *)pud_page_vaddr(*pud);
-+	pmd_sv = (pmd_t *)__get_free_page(GFP_KERNEL);
-+	if (!pmd_sv)
-+		return 0;
- 
--	for (i = 0; i < PTRS_PER_PMD; i++)
--		if (!pmd_free_pte_page(&pmd[i], addr + (i * PMD_SIZE)))
--			return 0;
-+	for (i = 0; i < PTRS_PER_PMD; i++) {
-+		pmd_sv[i] = pmd[i];
-+		if (!pmd_none(pmd[i]))
-+			pmd_clear(&pmd[i]);
-+	}
- 
- 	pud_clear(pud);
-+
-+	/* INVLPG to clear all paging-structure caches */
-+	flush_tlb_kernel_range(addr, addr + PAGE_SIZE-1);
-+
-+	for (i = 0; i < PTRS_PER_PMD; i++) {
-+		if (!pmd_none(pmd_sv[i])) {
-+			pte = (pte_t *)pmd_page_vaddr(pmd_sv[i]);
-+			free_page((unsigned long)pte);
-+		}
-+	}
-+
-+	free_page((unsigned long)pmd_sv);
- 	free_page((unsigned long)pmd);
- 
- 	return 1;
-@@ -753,7 +773,7 @@ int pud_free_pmd_page(pud_t *pud, unsigned long addr)
-  * @pmd: Pointer to a PMD.
-  * @addr: Virtual address associated with pmd.
-  *
-- * Context: The pmd range has been unmaped and TLB purged.
-+ * Context: The pmd range has been unmapped and TLB purged.
-  * Return: 1 if clearing the entry succeeded. 0 otherwise.
-  */
- int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
-@@ -765,6 +785,10 @@ int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
- 
- 	pte = (pte_t *)pmd_page_vaddr(*pmd);
- 	pmd_clear(pmd);
-+
-+	/* INVLPG to clear all paging-structure caches */
-+	flush_tlb_kernel_range(addr, addr + PAGE_SIZE-1);
-+
- 	free_page((unsigned long)pte);
- 
- 	return 1;
+							Thanx, Paul
