@@ -1,50 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D28746B0269
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 03:54:05 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id j11-v6so1069372edr.15
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 00:54:05 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g18-v6si1780179edh.52.2018.06.27.00.54.04
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Jun 2018 00:54:04 -0700 (PDT)
-Date: Wed, 27 Jun 2018 09:54:03 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: drop VM_BUG_ON from __get_free_pages
-Message-ID: <20180627075403.GG32348@dhcp22.suse.cz>
-References: <20180622162841.25114-1-mhocko@kernel.org>
- <6886dee0-3ac4-ef5d-3597-073196c81d88@suse.cz>
- <20180626100416.a3ff53f5c4aac9fae954e3f6@linux-foundation.org>
- <20180627073420.GD32348@dhcp22.suse.cz>
- <e0f4426d-1b7c-e590-aae0-e8f7ae3bb948@suse.cz>
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4688B6B0003
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 04:40:29 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id 22-v6so1031516oij.10
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 01:40:29 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id p12-v6si1091692otg.226.2018.06.27.01.40.27
+        for <linux-mm@kvack.org>;
+        Wed, 27 Jun 2018 01:40:27 -0700 (PDT)
+Subject: Re: [PATCH v5 12/20] ACPI / APEI: Don't store CPER records physical
+ address in struct ghes
+References: <20180626170116.25825-13-james.morse@arm.com>
+ <201806270332.vrWmASbO%fengguang.wu@intel.com>
+From: James Morse <james.morse@arm.com>
+Message-ID: <5a35a9d3-c536-998d-7a76-e18206305ea6@arm.com>
+Date: Wed, 27 Jun 2018 09:40:21 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e0f4426d-1b7c-e590-aae0-e8f7ae3bb948@suse.cz>
+In-Reply-To: <201806270332.vrWmASbO%fengguang.wu@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, JianKang Chen <chenjiankang1@huawei.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com
+To: linux-acpi@vger.kernel.org
+Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
 
-On Wed 27-06-18 09:50:01, Vlastimil Babka wrote:
-> On 06/27/2018 09:34 AM, Michal Hocko wrote:
-> > On Tue 26-06-18 10:04:16, Andrew Morton wrote:
-> > 
-> > And as I've argued before the code would be wrong regardless. We would
-> > leak the memory or worse touch somebody's else kmap without knowing
-> > that.  So we have a choice between a mem leak, data corruption k or a
-> > silent fixup. I would prefer the last option. And blowing up on a BUG
-> > is not much better on something that is easily fixable. I am not really
-> > convinced that & ~__GFP_HIGHMEM is something to lose sleep over.
+On 26/06/18 21:55, kbuild test robot wrote:
+>         # save the attached .config to linux build tree
+>         make ARCH=i386 
+
+Gah, guess who forgot about 32bit.
+
+
+> All errors (new ones prefixed by >>):
 > 
-> Maybe put the fixup into a "#ifdef CONFIG_HIGHMEM" block and then modern
-> systems won't care? In that case it could even be if (WARN_ON_ONCE(...))
-> so future cases with wrong expectations would become known.
+>    drivers/acpi/apei/ghes.c: In function 'ghes_read_estatus':
+>>> drivers/acpi/apei/ghes.c:300:17: error: passing argument 1 of 'apei_read' from incompatible pointer type [-Werror=incompatible-pointer-types]
+>      rc = apei_read(buf_paddr, &g->error_status_address);
+>                     ^~~~~~~~~
 
-Yes that could be done as well. Or maybe we can make __GFP_HIGHMEM 0 for
-!HIGHMEM systems. Does something really rely on it being non-zero?
+This takes a u64 pointer even on 32bit systems, because that's the size of the
+GAS structure in the spec. (I wonder what it expects you to do if the high bits
+are set...)
 
--- 
-Michal Hocko
-SUSE Labs
+I'll fix this locally[0].
+
+
+Thanks,
+
+James
+
+
+
+[0] phys_addr_t is a good thing, lets not use it:
+diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
+index b7b335450a6b..930adecd87d4 100644
+--- a/drivers/acpi/apei/ghes.c
++++ b/drivers/acpi/apei/ghes.c
+@@ -267,7 +267,7 @@ static inline int ghes_severity(int severity)
+        }
+ }
+
+-static void ghes_copy_tofrom_phys(void *buffer, phys_addr_t paddr, u32 len,
++static void ghes_copy_tofrom_phys(void *buffer, u64 paddr, u32 len,
+                                  int from_phys, int fixmap_idx)
+ {
+        void __iomem *vaddr;
+@@ -292,7 +292,7 @@ static void ghes_copy_tofrom_phys(void *buffer, phys_addr_t
+paddr, u32 len,
+
+ /* read the CPER block returning its address and size */
+ static int ghes_peek_estatus(struct ghes *ghes, int fixmap_idx,
+-                            phys_addr_t *buf_paddr, u32 *buf_len)
++                            u64 *buf_paddr, u32 *buf_len)
+ {
+        struct acpi_hest_generic *g = ghes->generic;
+        struct acpi_hest_generic_status estatus;
+
+@@ -337,7 +337,7 @@ static int ghes_peek_estatus(struct ghes *ghes, int fixmap_idx,
+ }
+
+ static int __ghes_read_estatus(struct acpi_hest_generic_status *estatus,
+-                              phys_addr_t buf_paddr, size_t buf_len,
++                              u64 buf_paddr, size_t buf_len,
+                               int fixmap_idx)
+ {
+        ghes_copy_tofrom_phys(estatus, buf_paddr, buf_len, 1, fixmap_idx);
+@@ -353,7 +353,7 @@ static int __ghes_read_estatus(struct
+acpi_hest_generic_status *estatus,
+
+ static int ghes_read_estatus(struct ghes *ghes,
+                             struct acpi_hest_generic_status *estatus,
+-                            phys_addr_t *buf_paddr, int fixmap_idx)
++                            u64 *buf_paddr, int fixmap_idx)
+ {
+        int rc;
+        u32 buf_len;
+@@ -366,7 +366,7 @@ static int ghes_read_estatus(struct ghes *ghes,
+ }
+
+ static void ghes_clear_estatus(struct acpi_hest_generic_status *estatus,
+-                              phys_addr_t buf_paddr, int fixmap_idx)
++                              u64 buf_paddr, int fixmap_idx)
+ {
+        estatus->block_status = 0;
+        if (buf_paddr)
+@@ -716,9 +716,9 @@ static void ghes_print_queued_estatus(void)
+
+ static int _in_nmi_notify_one(struct ghes *ghes, int fixmap_idx)
+ {
++       u64 buf_paddr;
+        int sev, rc = 0;
+        u32 len, node_len;
+-       phys_addr_t buf_paddr;
+        struct ghes_estatus_node *estatus_node;
+        struct acpi_hest_generic_status *estatus;
+
+@@ -876,8 +876,8 @@ static int ghes_ack_error(struct acpi_hest_generic_v2 *gv2)
+ static int ghes_proc(struct ghes *ghes)
+ {
+        int rc;
++       u64 buf_paddr;
+        unsigned long flags;
+-       phys_addr_t buf_paddr;
+        struct acpi_hest_generic_status *estatus = ghes->estatus;
+
+        spin_lock_irqsave(&ghes_notify_lock_irq, flags);
