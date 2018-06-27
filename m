@@ -1,54 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C49356B026B
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 12:13:44 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id y123-v6so1816951oie.5
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 09:13:44 -0700 (PDT)
-Received: from g9t5008.houston.hpe.com (g9t5008.houston.hpe.com. [15.241.48.72])
-        by mx.google.com with ESMTPS id t17-v6si1519594oij.441.2018.06.27.09.13.43
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 53BD36B0003
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 12:54:05 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id 12-v6so2436749qtq.8
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 09:54:05 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id l52-v6si291389qta.241.2018.06.27.09.54.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 09:13:43 -0700 (PDT)
-From: "Kani, Toshi" <toshi.kani@hpe.com>
-Subject: Re: [PATCH v4 2/3] ioremap: Update pgtable free interfaces with addr
-Date: Wed, 27 Jun 2018 16:13:22 +0000
-Message-ID: <1530115885.14039.295.camel@hpe.com>
-References: <20180627141348.21777-1-toshi.kani@hpe.com>
-	 <20180627141348.21777-3-toshi.kani@hpe.com>
-	 <20180627155632.GH30631@arm.com>
-In-Reply-To: <20180627155632.GH30631@arm.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <397C5A88CFE1164E80BA21374D6CCD34@NAMPRD84.PROD.OUTLOOK.COM>
-Content-Transfer-Encoding: base64
+        Wed, 27 Jun 2018 09:54:03 -0700 (PDT)
+Date: Wed, 27 Jun 2018 19:53:57 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [virtio-dev] Re: [PATCH v34 2/4] virtio-balloon:
+ VIRTIO_BALLOON_F_FREE_PAGE_HINT
+Message-ID: <20180627192306-mutt-send-email-mst@kernel.org>
+References: <20180626002822-mutt-send-email-mst@kernel.org>
+ <5B31B71B.6080709@intel.com>
+ <20180626064338-mutt-send-email-mst@kernel.org>
+ <5B323140.1000306@intel.com>
+ <20180626163139-mutt-send-email-mst@kernel.org>
+ <5B32E742.8080902@intel.com>
+ <20180627053952-mutt-send-email-mst@kernel.org>
+ <5B32FDB5.4040506@intel.com>
+ <20180627065637-mutt-send-email-mst@kernel.org>
+ <5B33205B.2040702@intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5B33205B.2040702@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "will.deacon@arm.com" <will.deacon@arm.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "joro@8bytes.org" <joro@8bytes.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "Hocko, Michal" <MHocko@suse.com>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
 
-T24gV2VkLCAyMDE4LTA2LTI3IGF0IDE2OjU2ICswMTAwLCBXaWxsIERlYWNvbiB3cm90ZToNCj4g
-SGkgVG9zaGksDQo+IA0KPiBPbiBXZWQsIEp1biAyNywgMjAxOCBhdCAwODoxMzo0N0FNIC0wNjAw
-LCBUb3NoaSBLYW5pIHdyb3RlOg0KPiA+IEZyb206IENoaW50YW4gUGFuZHlhIDxjcGFuZHlhQGNv
-ZGVhdXJvcmEub3JnPg0KPiA+IA0KPiA+IFRoZSBmb2xsb3dpbmcga2VybmVsIHBhbmljIHdhcyBv
-YnNlcnZlZCBvbiBBUk02NCBwbGF0Zm9ybSBkdWUgdG8gYSBzdGFsZQ0KPiA+IFRMQiBlbnRyeS4N
-Cj4gPiANCj4gPiAgMS4gaW9yZW1hcCB3aXRoIDRLIHNpemUsIGEgdmFsaWQgcHRlIHBhZ2UgdGFi
-bGUgaXMgc2V0Lg0KPiA+ICAyLiBpb3VubWFwIGl0LCBpdHMgcHRlIGVudHJ5IGlzIHNldCB0byAw
-Lg0KPiA+ICAzLiBpb3JlbWFwIHRoZSBzYW1lIGFkZHJlc3Mgd2l0aCAyTSBzaXplLCB1cGRhdGUg
-aXRzIHBtZCBlbnRyeSB3aXRoDQo+ID4gICAgIGEgbmV3IHZhbHVlLg0KPiA+ICA0LiBDUFUgbWF5
-IGhpdCBhbiBleGNlcHRpb24gYmVjYXVzZSB0aGUgb2xkIHBtZCBlbnRyeSBpcyBzdGlsbCBpbiBU
-TEIsDQo+ID4gICAgIHdoaWNoIGxlYWRzIHRvIGEga2VybmVsIHBhbmljLg0KPiA+IA0KPiA+IENv
-bW1pdCBiNmJkYjc1MTdjM2QgKCJtbS92bWFsbG9jOiBhZGQgaW50ZXJmYWNlcyB0byBmcmVlIHVu
-bWFwcGVkIHBhZ2UNCj4gPiB0YWJsZSIpIGhhcyBhZGRyZXNzZWQgdGhpcyBwYW5pYyBieSBmYWxs
-aW5nIHRvIHB0ZSBtYXBwaW5ncyBpbiB0aGUgYWJvdmUNCj4gPiBjYXNlIG9uIEFSTTY0Lg0KPiA+
-IA0KPiA+IFRvIHN1cHBvcnQgcG1kIG1hcHBpbmdzIGluIGFsbCBjYXNlcywgVExCIHB1cmdlIG5l
-ZWRzIHRvIGJlIHBlcmZvcm1lZA0KPiA+IGluIHRoaXMgY2FzZSBvbiBBUk02NC4NCj4gPiANCj4g
-PiBBZGQgYSBuZXcgYXJnLCAnYWRkcicsIHRvIHB1ZF9mcmVlX3BtZF9wYWdlKCkgYW5kIHBtZF9m
-cmVlX3B0ZV9wYWdlKCkNCj4gPiBzbyB0aGF0IFRMQiBwdXJnZSBjYW4gYmUgYWRkZWQgbGF0ZXIg
-aW4gc2VwcmF0ZSBwYXRjaGVzLg0KPiANCj4gU28gSSBhY2tlZCB2MTMgb2YgQ2hpbnRhbidzIHNl
-cmllcyBwb3N0ZWQgaGVyZToNCj4gDQo+IGh0dHA6Ly9saXN0cy5pbmZyYWRlYWQub3JnL3BpcGVy
-bWFpbC9saW51eC1hcm0ta2VybmVsLzIwMTgtSnVuZS81ODI5NTMuaHRtbA0KPiANCj4gYW55IGNo
-YW5jZSB0aGlzIGxvdCBjb3VsZCBhbGwgYmUgbWVyZ2VkIHRvZ2V0aGVyLCBwbGVhc2U/DQoNCkhp
-IFdpbGwsDQoNCkNoaW50YW4ncyBwYXRjaCAyLzMgYW5kIDMvMyBhcHBseSBjbGVhbmx5IG9uIHRv
-cCBvZiBteSBzZXJpZXMuIENhbiB5b3UNCnBsZWFzZSBjb29yZGluYXRlIHdpdGggVGhvbWFzIG9u
-IHRoZSBsb2dpc3RpY3M/DQoNClRoYW5rcywNCi1Ub3NoaQ0K
+On Wed, Jun 27, 2018 at 01:27:55PM +0800, Wei Wang wrote:
+> On 06/27/2018 11:58 AM, Michael S. Tsirkin wrote:
+> > On Wed, Jun 27, 2018 at 11:00:05AM +0800, Wei Wang wrote:
+> > > On 06/27/2018 10:41 AM, Michael S. Tsirkin wrote:
+> > > > On Wed, Jun 27, 2018 at 09:24:18AM +0800, Wei Wang wrote:
+> > > > > On 06/26/2018 09:34 PM, Michael S. Tsirkin wrote:
+> > > > > > On Tue, Jun 26, 2018 at 08:27:44PM +0800, Wei Wang wrote:
+> > > > > > > On 06/26/2018 11:56 AM, Michael S. Tsirkin wrote:
+> > > > > > > > On Tue, Jun 26, 2018 at 11:46:35AM +0800, Wei Wang wrote:
+> > > > > > > > 
+> > > > > > > > > > > +	if (!arrays)
+> > > > > > > > > > > +		return NULL;
+> > > > > > > > > > > +
+> > > > > > > > > > > +	for (i = 0; i < max_array_num; i++) {
+> > > > > > > > > > So we are getting a ton of memory here just to free it up a bit later.
+> > > > > > > > > > Why doesn't get_from_free_page_list get the pages from free list for us?
+> > > > > > > > > > We could also avoid the 1st allocation then - just build a list
+> > > > > > > > > > of these.
+> > > > > > > > > That wouldn't be a good choice for us. If we check how the regular
+> > > > > > > > > allocation works, there are many many things we need to consider when pages
+> > > > > > > > > are allocated to users.
+> > > > > > > > > For example, we need to take care of the nr_free
+> > > > > > > > > counter, we need to check the watermark and perform the related actions.
+> > > > > > > > > Also the folks working on arch_alloc_page to monitor page allocation
+> > > > > > > > > activities would get a surprise..if page allocation is allowed to work in
+> > > > > > > > > this way.
+> > > > > > > > > 
+> > > > > > > > mm/ code is well positioned to handle all this correctly.
+> > > > > > > I'm afraid that would be a re-implementation of the alloc functions,
+> > > > > > A re-factoring - you can share code. The main difference is locking.
+> > > > > > 
+> > > > > > > and
+> > > > > > > that would be much more complex than what we have. I think your idea of
+> > > > > > > passing a list of pages is better.
+> > > > > > > 
+> > > > > > > Best,
+> > > > > > > Wei
+> > > > > > How much memory is this allocating anyway?
+> > > > > > 
+> > > > > For every 2TB memory that the guest has, we allocate 4MB.
+> > > > Hmm I guess I'm missing something, I don't see it:
+> > > > 
+> > > > 
+> > > > +       max_entries = max_free_page_blocks(ARRAY_ALLOC_ORDER);
+> > > > +       entries_per_page = PAGE_SIZE / sizeof(__le64);
+> > > > +       entries_per_array = entries_per_page * (1 << ARRAY_ALLOC_ORDER);
+> > > > +       max_array_num = max_entries / entries_per_array +
+> > > > +                       !!(max_entries % entries_per_array);
+> > > > 
+> > > > Looks like you always allocate the max number?
+> > > Yes. We allocated the max number and then free what's not used.
+> > > For example, a 16TB guest, we allocate Four 4MB buffers and pass the 4
+> > > buffers to get_from_free_page_list. If it uses 3, then the remaining 1 "4MB
+> > > buffer" will end up being freed.
+> > > 
+> > > For today's guests, max_array_num is usually 1.
+> > > 
+> > > Best,
+> > > Wei
+> > I see, it's based on total ram pages. It's reasonable but might
+> > get out of sync if memory is onlined quickly. So you want to
+> > detect that there's more free memory than can fit and
+> > retry the reporting.
+> > 
+> 
+> 
+> - AFAIK, memory hotplug isn't expected to happen during live migration
+> today. Hypervisors (e.g. QEMU) explicitly forbid this.
+
+That's a temporary limitation.
+
+> - Allocating buffers based on total ram pages already gives some headroom
+> for newly plugged memory if that could happen in any case. Also, we can
+> think about why people plug in more memory - usually because the existing
+> memory isn't enough, which implies that the free page list is very likely to
+> be close to empty.
+
+Or maybe because guest is expected to use more memory.
+
+> - This method could be easily scaled if people really need more headroom for
+> hot-plugged memory. For example, calculation based on "X * total_ram_pages",
+> X could be a number passed from the hypervisor.
+
+All this in place of a simple retry loop within guest?
+
+> - This is an optimization feature, and reporting less free memory in that
+> rare case doesn't hurt anything.
+
+People working on memory hotplug can't be expected to worry about
+balloon. And maintainers have other things to do than debug hard to
+trigger failure reports from the field.
+
+> 
+> So I think it is good to start from a fundamental implementation, which
+> doesn't confuse people, and complexities can be added when there is a real
+> need in the future.
+> 
+> Best,
+> Wei
+
+The usefulness of the whole patchset hasn't been proven in the field yet.
+The more uncovered corner cases there are, the higher the chance that
+it will turn out not to be useful after all.
+
+> 
+> 
+> ---------------------------------------------------------------------
+> To unsubscribe, e-mail: virtio-dev-unsubscribe@lists.oasis-open.org
+> For additional commands, e-mail: virtio-dev-help@lists.oasis-open.org
