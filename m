@@ -1,32 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 09FB96B0003
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 03:44:26 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id c20-v6so1055238eds.21
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 00:44:25 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 93E016B0007
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 03:50:05 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id l23-v6so1072054edr.1
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 00:50:05 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q8-v6si1802757edk.369.2018.06.27.00.44.23
+        by mx.google.com with ESMTPS id h3-v6si1549729edn.439.2018.06.27.00.50.04
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Jun 2018 00:44:24 -0700 (PDT)
-Date: Wed, 27 Jun 2018 09:44:21 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
-Message-ID: <20180627074421.GF32348@dhcp22.suse.cz>
-References: <20180622150242.16558-1-mhocko@kernel.org>
+        Wed, 27 Jun 2018 00:50:04 -0700 (PDT)
+Subject: Re: [PATCH] mm: drop VM_BUG_ON from __get_free_pages
+References: <20180622162841.25114-1-mhocko@kernel.org>
+ <6886dee0-3ac4-ef5d-3597-073196c81d88@suse.cz>
+ <20180626100416.a3ff53f5c4aac9fae954e3f6@linux-foundation.org>
+ <20180627073420.GD32348@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <e0f4426d-1b7c-e590-aae0-e8f7ae3bb948@suse.cz>
+Date: Wed, 27 Jun 2018 09:50:01 +0200
 MIME-Version: 1.0
+In-Reply-To: <20180627073420.GD32348@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180622150242.16558-1-mhocko@kernel.org>
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Felix Kuehling <felix.kuehling@amd.com>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: JianKang Chen <chenjiankang1@huawei.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com
 
-This is the v2 of RFC based on the feedback I've received so far. The
-code even compiles as a bonus ;) I haven't runtime tested it yet, mostly
-because I have no idea how.
+On 06/27/2018 09:34 AM, Michal Hocko wrote:
+> On Tue 26-06-18 10:04:16, Andrew Morton wrote:
+> 
+> And as I've argued before the code would be wrong regardless. We would
+> leak the memory or worse touch somebody's else kmap without knowing
+> that.  So we have a choice between a mem leak, data corruption k or a
+> silent fixup. I would prefer the last option. And blowing up on a BUG
+> is not much better on something that is easily fixable. I am not really
+> convinced that & ~__GFP_HIGHMEM is something to lose sleep over.
 
-Any further feedback is highly appreciated of course.
----
+Maybe put the fixup into a "#ifdef CONFIG_HIGHMEM" block and then modern
+systems won't care? In that case it could even be if (WARN_ON_ONCE(...))
+so future cases with wrong expectations would become known.
+
+Vlastimil
