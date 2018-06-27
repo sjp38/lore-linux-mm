@@ -1,72 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 18E166B0007
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 19:08:05 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id a4-v6so1950002pls.16
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 16:08:05 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i186-v6si5308395pfb.90.2018.06.27.16.08.03
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BF306B000A
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 19:27:31 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id n10-v6so3405886qtp.11
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 16:27:31 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id g6-v6si2447414qth.312.2018.06.27.16.27.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 16:08:03 -0700 (PDT)
-Date: Wed, 27 Jun 2018 16:08:00 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address
- sanitizer
-Message-Id: <20180627160800.3dc7f9ee41c0badbf7342520@linux-foundation.org>
-In-Reply-To: <cover.1530018818.git.andreyknvl@google.com>
-References: <cover.1530018818.git.andreyknvl@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Wed, 27 Jun 2018 16:27:30 -0700 (PDT)
+Subject: Re: [PATCH] mm: hugetlb: yield when prepping struct pages
+References: <20180627214447.260804-1-cannonmatthews@google.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <89c34814-ee1a-6339-1daf-fff02ce947e5@oracle.com>
+Date: Wed, 27 Jun 2018 16:27:24 -0700
+MIME-Version: 1.0
+In-Reply-To: <20180627214447.260804-1-cannonmatthews@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>
+To: Cannon Matthews <cannonmatthews@google.com>, Andrew Morton <akpm@linux-foundation.org>, Nadia Yvette Chambers <nyc@holomorphy.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, andreslc@google.com, pfeiner@google.com, gthelen@google.com
 
-On Tue, 26 Jun 2018 15:15:10 +0200 Andrey Konovalov <andreyknvl@google.com> wrote:
+On 06/27/2018 02:44 PM, Cannon Matthews wrote:
+> When booting with very large numbers of gigantic (i.e. 1G) pages, the
+> operations in the loop of gather_bootmem_prealloc, and specifically
+> prep_compound_gigantic_page, takes a very long time, and can cause a
+> softlockup if enough pages are requested at boot.
+> 
+> For example booting with 3844 1G pages requires prepping
 
-> This patchset adds a new mode to KASAN [1], which is called KHWASAN
-> (Kernel HardWare assisted Address SANitizer).
-> 
-> The plan is to implement HWASan [2] for the kernel with the incentive,
-> that it's going to have comparable to KASAN performance, but in the same
-> time consume much less memory, trading that off for somewhat imprecise
-> bug detection and being supported only for arm64.
+Wow!  I wish I had a system with that much memory to test. :)
 
-Why do we consider this to be a worthwhile change?
+> (set_compound_head, init the count) over 1 billion 4K tail pages, which
+> takes considerable time. This should also apply to reserving the same
+> amount of memory as 2M pages, as the same number of struct pages
+> are affected in either case.
 
-Is KASAN's memory consumption actually a significant problem?  Some
-data regarding that would be very useful.
+Actually, this change would not apply to 2M (on x86) pages.  The hugetlbfs
+initialization code is a bit confusing, but alloc_bootmem_huge_page and
+gather_bootmem_prealloc are only exercised in the case where huge page
+order >= MAX_ORDER.
 
-If it is a large problem then we still have that problem on x86, so the
-problem remains largely unsolved?
+Allocation and initialization of 2M pages happens after the normal memory
+allocators are setup via the routine hugetlb_hstate_alloc_pages.  And,
+there is already a cond_resched in that loop today.
 
-> ====== Benchmarks
-> 
-> The following numbers were collected on Odroid C2 board. Both KASAN and
-> KHWASAN were used in inline instrumentation mode.
-> 
-> Boot time [1]:
-> * ~1.7 sec for clean kernel
-> * ~5.0 sec for KASAN
-> * ~5.0 sec for KHWASAN
-> 
-> Slab memory usage after boot [2]:
-> * ~40 kb for clean kernel
-> * ~105 kb + 1/8th shadow ~= 118 kb for KASAN
-> * ~47 kb + 1/16th shadow ~= 50 kb for KHWASAN
-> 
-> Network performance [3]:
-> * 8.33 Gbits/sec for clean kernel
-> * 3.17 Gbits/sec for KASAN
-> * 2.85 Gbits/sec for KHWASAN
-> 
-> Note, that KHWASAN (compared to KASAN) doesn't require quarantine.
-> 
-> [1] Time before the ext4 driver is initialized.
-> [2] Measured as `cat /proc/meminfo | grep Slab`.
-> [3] Measured as `iperf -s & iperf -c 127.0.0.1 -t 30`.
+Note that 'else if' in the for loop of hugetlb_hstate_alloc_pages.  This
+allows the same routine to be called for early gigantic page allocations
+using the bootmem allocator, and later normal (2M) allocations using the
+normal memory allocators.  To me, this is a source of confusion and is
+something I plan to clean up in the future.
 
-The above doesn't actually demonstrate the whole point of the
-patchset: to reduce KASAN's very high memory consumption?
+> Add a cond_resched() to the outer loop in gather_bootmem_prealloc() to
+> prevent this lockup.
+> 
+> Tested: Booted with softlockup_panic=1 hugepagesz=1G hugepages=3844 and
+> no softlockup is reported, and the hugepages are reported as
+> successfully setup.
+> 
+> Signed-off-by: Cannon Matthews <cannonmatthews@google.com>
+
+My only suggestion would be to remove the mention of 2M pages in the
+commit message.  Thanks for adding this.
+
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+-- 
+Mike Kravetz
+
+> ---
+>  mm/hugetlb.c | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index a963f2034dfc..d38273c32d3b 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -2169,6 +2169,7 @@ static void __init gather_bootmem_prealloc(void)
+>  		 */
+>  		if (hstate_is_gigantic(h))
+>  			adjust_managed_page_count(page, 1 << h->order);
+> +		cond_resched();
+>  	}
+>  }
+>  
+> 
