@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id ACE7E6B0269
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 08:46:26 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id l10-v6so1860359qth.14
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 05:46:26 -0700 (PDT)
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F381C6B026B
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 08:46:36 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id i7-v6so1883645qtp.4
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 05:46:36 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id s10-v6si1176415qvd.106.2018.06.27.05.46.25
+        by mx.google.com with ESMTPS id z124-v6si3980924qke.27.2018.06.27.05.46.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 05:46:25 -0700 (PDT)
+        Wed, 27 Jun 2018 05:46:36 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V7 02/24] bcache: don't clone bio in bch_data_verify
-Date: Wed, 27 Jun 2018 20:45:26 +0800
-Message-Id: <20180627124548.3456-3-ming.lei@redhat.com>
+Subject: [PATCH V7 03/24] exofs: use bio_clone_fast in _write_mirror
+Date: Wed, 27 Jun 2018 20:45:27 +0800
+Message-Id: <20180627124548.3456-4-ming.lei@redhat.com>
 In-Reply-To: <20180627124548.3456-1-ming.lei@redhat.com>
 References: <20180627124548.3456-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,36 +22,30 @@ Cc: David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, Mike Snit
 
 From: Christoph Hellwig <hch@lst.de>
 
-We immediately overwrite the biovec array, so instead just allocate
-a new bio and copy over the disk, setor and size.
+The mirroring code never changes the bio data or biovecs.  This means
+we can reuse the biovec allocation easily instead of duplicating it.
 
-Acked-by: Coly Li <colyli@suse.de>
+Acked-by: Boaz Harrosh <ooo@electrozaur.com>
 Reviewed-by: Ming Lei <ming.lei@redhat.com>
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/md/bcache/debug.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ fs/exofs/ore.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/md/bcache/debug.c b/drivers/md/bcache/debug.c
-index d030ce3025a6..04d146711950 100644
---- a/drivers/md/bcache/debug.c
-+++ b/drivers/md/bcache/debug.c
-@@ -110,11 +110,15 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
- 	struct bio_vec bv, cbv;
- 	struct bvec_iter iter, citer = { 0 };
+diff --git a/fs/exofs/ore.c b/fs/exofs/ore.c
+index 1b8b44637e70..5331a15a61f1 100644
+--- a/fs/exofs/ore.c
++++ b/fs/exofs/ore.c
+@@ -873,8 +873,8 @@ static int _write_mirror(struct ore_io_state *ios, int cur_comp)
+ 			struct bio *bio;
  
--	check = bio_clone_kmalloc(bio, GFP_NOIO);
-+	check = bio_kmalloc(GFP_NOIO, bio_segments(bio));
- 	if (!check)
- 		return;
-+	check->bi_disk = bio->bi_disk;
- 	check->bi_opf = REQ_OP_READ;
-+	check->bi_iter.bi_sector = bio->bi_iter.bi_sector;
-+	check->bi_iter.bi_size = bio->bi_iter.bi_size;
- 
-+	bch_bio_map(check, NULL);
- 	if (bch_bio_alloc_pages(check, GFP_NOIO))
- 		goto out_put;
- 
+ 			if (per_dev != master_dev) {
+-				bio = bio_clone_kmalloc(master_dev->bio,
+-							GFP_KERNEL);
++				bio = bio_clone_fast(master_dev->bio,
++						     GFP_KERNEL, NULL);
+ 				if (unlikely(!bio)) {
+ 					ORE_DBGMSG(
+ 					      "Failed to allocate BIO size=%u\n",
 -- 
 2.9.5
