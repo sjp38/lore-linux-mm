@@ -1,121 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EF9D6B0269
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 08:20:44 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id v13-v6so2499179wmc.1
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 05:20:44 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id k8-v6si1253732wri.65.2018.06.27.05.20.42
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 866986B0007
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 08:37:02 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id e11-v6so907735pgt.19
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 05:37:02 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id v21-v6si3591401pgn.371.2018.06.27.05.37.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 05:20:43 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5RCEmik085459
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 08:20:41 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2jv8ct5qyp-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 08:20:41 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 27 Jun 2018 13:20:39 +0100
-Date: Wed, 27 Jun 2018 15:20:33 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH] c6x: switch to NO_BOOTMEM
-References: <1530101360-5768-1-git-send-email-rppt@linux.vnet.ibm.com>
+        Wed, 27 Jun 2018 05:37:01 -0700 (PDT)
+Date: Wed, 27 Jun 2018 08:36:57 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH] Revert mm/vmstat.c: fix vmstat_update() preemption BUG
+Message-ID: <20180627123657.2hb7ow4szjyhg5aj@home.goodmis.org>
+References: <20180411095757.28585-1-bigeasy@linutronix.de>
+ <ef663b6d-9e9f-65c6-25ec-ffa88347c58d@suse.cz>
+ <20180411140913.GE793541@devbig577.frc2.facebook.com>
+ <20180411144221.o3v73v536tpnc6n3@linutronix.de>
+ <20180411190729.7sbmbsxtkcng7ddx@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1530101360-5768-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <20180627122033.GF4291@rapoport-lnx>
+In-Reply-To: <20180411190729.7sbmbsxtkcng7ddx@linutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Salter <msalter@redhat.com>, Aurelien Jacquiot <jacquiot.aurelien@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-c6x <linux-c6x-dev@linux-c6x.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Cc: Tejun Heo <htejun@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, "Steven J . Hill" <steven.hill@cavium.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
 
-(adding proper linux-c6x-dev list, sorry about the noise)
+On Wed, Apr 11, 2018 at 09:07:30PM +0200, Sebastian Andrzej Siewior wrote:
+> 
+> This already happens:
+> - vmstat_shepherd() does get_online_cpus() and within this block it does
+>   queue_delayed_work_on(). So this has to wait until cpuhotplug
+>   completed before it can schedule something and then it won't schedule
+>   anything on the "off" CPU.
 
-On Wed, Jun 27, 2018 at 03:09:20PM +0300, Mike Rapoport wrote:
-> The c6x is already using memblock and does most of early memory
-> reservations with it, so it was only a matter of removing the bootmem
-> initialization and handover of the memory from memblock to bootmem.
-> 
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> ---
->  arch/c6x/Kconfig        |  1 +
->  arch/c6x/kernel/setup.c | 26 +-------------------------
->  2 files changed, 2 insertions(+), 25 deletions(-)
-> 
-> diff --git a/arch/c6x/Kconfig b/arch/c6x/Kconfig
-> index bf59855628ac..054c7c963180 100644
-> --- a/arch/c6x/Kconfig
-> +++ b/arch/c6x/Kconfig
-> @@ -14,6 +14,7 @@ config C6X
->  	select GENERIC_IRQ_SHOW
->  	select HAVE_ARCH_TRACEHOOK
->  	select HAVE_MEMBLOCK
-> +	select NO_BOOTMEM
->  	select SPARSE_IRQ
->  	select IRQ_DOMAIN
->  	select OF
-> diff --git a/arch/c6x/kernel/setup.c b/arch/c6x/kernel/setup.c
-> index 786e36e2f61d..cc74cb9d349b 100644
-> --- a/arch/c6x/kernel/setup.c
-> +++ b/arch/c6x/kernel/setup.c
-> @@ -296,7 +296,6 @@ notrace void __init machine_init(unsigned long dt_ptr)
-> 
->  void __init setup_arch(char **cmdline_p)
->  {
-> -	int bootmap_size;
->  	struct memblock_region *reg;
-> 
->  	printk(KERN_INFO "Initializing kernel\n");
-> @@ -353,16 +352,6 @@ void __init setup_arch(char **cmdline_p)
->  	init_mm.end_data   = memory_start;
->  	init_mm.brk        = memory_start;
-> 
-> -	/*
-> -	 * Give all the memory to the bootmap allocator,  tell it to put the
-> -	 * boot mem_map at the start of memory
-> -	 */
-> -	bootmap_size = init_bootmem_node(NODE_DATA(0),
-> -					 memory_start >> PAGE_SHIFT,
-> -					 PAGE_OFFSET >> PAGE_SHIFT,
-> -					 memory_end >> PAGE_SHIFT);
-> -	memblock_reserve(memory_start, bootmap_size);
-> -
->  	unflatten_device_tree();
-> 
->  	c6x_cache_init();
-> @@ -397,22 +386,9 @@ void __init setup_arch(char **cmdline_p)
->  	/* Initialize the coherent memory allocator */
->  	coherent_mem_init(dma_start, dma_size);
-> 
-> -	/*
-> -	 * Free all memory as a starting point.
-> -	 */
-> -	free_bootmem(PAGE_OFFSET, memory_end - PAGE_OFFSET);
-> -
-> -	/*
-> -	 * Then reserve memory which is already being used.
-> -	 */
-> -	for_each_memblock(reserved, reg) {
-> -		pr_debug("reserved - 0x%08x-0x%08x\n",
-> -			 (u32) reg->base, (u32) reg->size);
-> -		reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
-> -	}
-> -
->  	max_low_pfn = PFN_DOWN(memory_end);
->  	min_low_pfn = PFN_UP(memory_start);
-> +	max_pfn = max_low_pfn;
->  	max_mapnr = max_low_pfn - min_low_pfn;
-> 
->  	/* Get kmalloc into gear */
-> -- 
-> 2.7.4
-> 
+But can't we have something like this happen: ?
 
--- 
-Sincerely yours,
-Mike.
+	CPU0			CPU1			CPU2
+	----			----			----
+ get_online_cpus()
+ queue_work(vmstat_update, cpu1)
+    wakeup(kworker/1)
+			     High prio task running
+ put_online_cpus()
+ 						     Shutdown CPU 1
+			     migrate kworker/1
+ schedule kworker/1
+ (smp_processor_id() != 1)
+
+-- Steve
