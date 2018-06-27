@@ -1,110 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EAB3A6B0003
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 21:48:02 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id b8-v6so496176qto.13
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 18:48:02 -0700 (PDT)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1197C6B0003
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2018 22:41:44 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id i127-v6so602103qkc.22
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2018 19:41:44 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id n62-v6si2774489qkf.66.2018.06.26.18.48.01
+        by mx.google.com with ESMTPS id f16-v6si2957191qvm.7.2018.06.26.19.41.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jun 2018 18:48:02 -0700 (PDT)
-Date: Wed, 27 Jun 2018 09:47:57 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: [PATCH v5 0/4] mm/sparse: Optimize memmap allocation during
- sparse_init()
-Message-ID: <20180627014757.GC8970@localhost.localdomain>
-References: <20180627013116.12411-1-bhe@redhat.com>
+        Tue, 26 Jun 2018 19:41:42 -0700 (PDT)
+Date: Wed, 27 Jun 2018 05:41:37 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v34 2/4] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
+Message-ID: <20180627053952-mutt-send-email-mst@kernel.org>
+References: <1529928312-30500-1-git-send-email-wei.w.wang@intel.com>
+ <1529928312-30500-3-git-send-email-wei.w.wang@intel.com>
+ <20180626002822-mutt-send-email-mst@kernel.org>
+ <5B31B71B.6080709@intel.com>
+ <20180626064338-mutt-send-email-mst@kernel.org>
+ <5B323140.1000306@intel.com>
+ <20180626163139-mutt-send-email-mst@kernel.org>
+ <5B32E742.8080902@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180627013116.12411-1-bhe@redhat.com>
+In-Reply-To: <5B32E742.8080902@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dave.hansen@intel.com, pagupta@redhat.com
-Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
 
-On 06/27/18 at 09:31am, Baoquan He wrote:
-> This is v4 post. V3 can be found here:
-> https://lkml.org/lkml/2018/2/27/928
+On Wed, Jun 27, 2018 at 09:24:18AM +0800, Wei Wang wrote:
+> On 06/26/2018 09:34 PM, Michael S. Tsirkin wrote:
+> > On Tue, Jun 26, 2018 at 08:27:44PM +0800, Wei Wang wrote:
+> > > On 06/26/2018 11:56 AM, Michael S. Tsirkin wrote:
+> > > > On Tue, Jun 26, 2018 at 11:46:35AM +0800, Wei Wang wrote:
+> > > > 
+> > > > > > > +	if (!arrays)
+> > > > > > > +		return NULL;
+> > > > > > > +
+> > > > > > > +	for (i = 0; i < max_array_num; i++) {
+> > > > > > So we are getting a ton of memory here just to free it up a bit later.
+> > > > > > Why doesn't get_from_free_page_list get the pages from free list for us?
+> > > > > > We could also avoid the 1st allocation then - just build a list
+> > > > > > of these.
+> > > > > That wouldn't be a good choice for us. If we check how the regular
+> > > > > allocation works, there are many many things we need to consider when pages
+> > > > > are allocated to users.
+> > > > > For example, we need to take care of the nr_free
+> > > > > counter, we need to check the watermark and perform the related actions.
+> > > > > Also the folks working on arch_alloc_page to monitor page allocation
+> > > > > activities would get a surprise..if page allocation is allowed to work in
+> > > > > this way.
+> > > > > 
+> > > > mm/ code is well positioned to handle all this correctly.
+> > > I'm afraid that would be a re-implementation of the alloc functions,
+> > A re-factoring - you can share code. The main difference is locking.
+> > 
+> > > and
+> > > that would be much more complex than what we have. I think your idea of
+> > > passing a list of pages is better.
+> > > 
+> > > Best,
+> > > Wei
+> > How much memory is this allocating anyway?
+> > 
+> 
+> For every 2TB memory that the guest has, we allocate 4MB.
 
-Sorry, forgot updating this part.
+Hmm I guess I'm missing something, I don't see it:
 
-This is v5 post, v4 can be found here:
-http://lkml.kernel.org/r/20180521101555.25610-1-bhe@redhat.com
 
++       max_entries = max_free_page_blocks(ARRAY_ALLOC_ORDER);
++       entries_per_page = PAGE_SIZE / sizeof(__le64);
++       entries_per_array = entries_per_page * (1 << ARRAY_ALLOC_ORDER);
++       max_array_num = max_entries / entries_per_array +
++                       !!(max_entries % entries_per_array);
+
+Looks like you always allocate the max number?
+
+
+> This is the same
+> for both cases.
+> For today's guests, usually there will be only one 4MB allocated and passed
+> to get_from_free_page_list.
 > 
-> V1 can be found here:
-> https://www.spinics.net/lists/linux-mm/msg144486.html
+> Best,
+> Wei
 > 
-> In sparse_init(), two temporary pointer arrays, usemap_map and map_map
-> are allocated with the size of NR_MEM_SECTIONS. They are used to store
-> each memory section's usemap and mem map if marked as present. In
-> 5-level paging mode, this will cost 512M memory though they will be
-> released at the end of sparse_init(). System with few memory, like
-> kdump kernel which usually only has about 256M, will fail to boot
-> because of allocation failure if CONFIG_X86_5LEVEL=y.
-> 
-> In this patchset, optimize the memmap allocation code to only use
-> usemap_map and map_map with the size of nr_present_sections. This
-> makes kdump kernel boot up with normal crashkernel='' setting when
-> CONFIG_X86_5LEVEL=y.
-> 
-> Change log:
-> v4->v5:
->   Improve patch 3/4 log according to Dave's suggestion.
-> 
->   Correct the wrong copy&paste of making 'nr_consumed_maps' to
->   'alloc_usemap_and_memmap' mistakenly which is pointed out by
->   Dave in patch 4/4 code comment.
-> 
->   Otherwise, no code change in this version.
-> v3->v4:
->   Improve according to Dave's three concerns which are in patch 0004:
-> 
->   Rename variable 'idx_present' to 'nr_consumed_maps' which used to
->   index the memmap and usemap of present sections.
-> 
->   Add a check if 'nr_consumed_maps' goes beyond nr_present_sections.
-> 
->   Add code comment above the final for_each_present_section_nr() to
->   tell why 'nr_consumed_maps' need be increased in each iteration
->   whether the 'ms->section_mem_map' need cleared or out.
-> 
-> v2->v3:
->   Change nr_present_sections as __initdata and add code comment
->   according to Andrew's suggestion.
-> 
->   Change the local variable 'i' as idx_present which loops over the
->   present sections, and improve the code. These are suggested by
->   Dave and Pankaj.
-> 
->   Add a new patch 0003 which adds a new parameter 'data_unit_size'
->   to function alloc_usemap_and_memmap() in which we will update 'data'
->   to make it point at new position. However its type 'void *' can't give
->   us needed info to do that. Need pass the unit size in. So change code
->   in patch 0004 accordingly. This is a code bug fix found when tested
->   the memory deployed on multiple nodes.
-> 
-> v1-v2:
->   Split out the nr_present_sections adding as a single patch for easier
->   reviewing.
-> 
->   Rewrite patch log according to Dave's suggestion.
-> 
->   Fix code bug in patch 0002 reported by test robot.
-> 
-> Baoquan He (4):
->   mm/sparse: Add a static variable nr_present_sections
->   mm/sparsemem: Defer the ms->section_mem_map clearing
->   mm/sparse: Add a new parameter 'data_unit_size' for
->     alloc_usemap_and_memmap
->   mm/sparse: Optimize memmap allocation during sparse_init()
-> 
->  mm/sparse-vmemmap.c |  6 ++---
->  mm/sparse.c         | 72 +++++++++++++++++++++++++++++++++++++++++------------
->  2 files changed, 59 insertions(+), 19 deletions(-)
-> 
-> -- 
-> 2.13.6
 > 
