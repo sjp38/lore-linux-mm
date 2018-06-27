@@ -1,64 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 54EF96B0269
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 12:05:52 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id s19-v6so1959032iog.0
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 09:05:52 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e6-v6sor1651493ioa.63.2018.06.27.09.05.51
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C49356B026B
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 12:13:44 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id y123-v6so1816951oie.5
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 09:13:44 -0700 (PDT)
+Received: from g9t5008.houston.hpe.com (g9t5008.houston.hpe.com. [15.241.48.72])
+        by mx.google.com with ESMTPS id t17-v6si1519594oij.441.2018.06.27.09.13.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 27 Jun 2018 09:05:51 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Jun 2018 09:13:43 -0700 (PDT)
+From: "Kani, Toshi" <toshi.kani@hpe.com>
+Subject: Re: [PATCH v4 2/3] ioremap: Update pgtable free interfaces with addr
+Date: Wed, 27 Jun 2018 16:13:22 +0000
+Message-ID: <1530115885.14039.295.camel@hpe.com>
+References: <20180627141348.21777-1-toshi.kani@hpe.com>
+	 <20180627141348.21777-3-toshi.kani@hpe.com>
+	 <20180627155632.GH30631@arm.com>
+In-Reply-To: <20180627155632.GH30631@arm.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <397C5A88CFE1164E80BA21374D6CCD34@NAMPRD84.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-References: <1529037793-35521-1-git-send-email-wei.w.wang@intel.com>
- <1529037793-35521-2-git-send-email-wei.w.wang@intel.com> <CA+55aFzhuGKinEq5udPsk_uYHShkQxJYqcPO=tLCkT-oxpsgPg@mail.gmail.com>
- <20180626045118-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20180626045118-mutt-send-email-mst@kernel.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 27 Jun 2018 09:05:39 -0700
-Message-ID: <CA+55aFwFpDPvfL=KPdabO-x1r0FnwpfPk5oN8+e01TKqAPNYbw@mail.gmail.com>
-Subject: Re: [PATCH v33 1/4] mm: add a function to get free page blocks
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, virtualization <virtualization@lists.linux-foundation.org>, KVM list <kvm@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, Rik van Riel <riel@redhat.com>, peterx@redhat.com
+To: "will.deacon@arm.com" <will.deacon@arm.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "joro@8bytes.org" <joro@8bytes.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "Hocko, Michal" <MHocko@suse.com>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-[ Sorry for slow reply, my travels have made a mess of my inbox ]
-
-On Mon, Jun 25, 2018 at 6:55 PM Michael S. Tsirkin <mst@redhat.com> wrote:
->
-> Linus, do you think it would be ok to have get_from_free_page_list
-> actually pop entries from the free list and use them as the buffer
-> to store PAs?
-
-Honestly, what I think the best option would be is to get rid of this
-interface *entirely*, and just have the balloon code do
-
-    #define GFP_MINFLAGS (__GFP_NORETRY | __GFP_NOWARN |
-__GFP_THISNODE | __GFP_NOMEMALLOC)
-
-    struct page *page =  alloc_pages(GFP_MINFLAGS, MAX_ORDER-1);
-
- which is not a new interface, and simply removes the max-order page
-from the list if at all possible.
-
-The above has the advantage of "just working", and not having any races.
-
-Now, because you don't want to necessarily *entirely* deplete the max
-order, I'd suggest that the *one* new interface you add is just a "how
-many max-order pages are there" interface. So then you can query
-(either before or after getting the max-order page) just how many of
-them there were and whether you want to give that page back.
-
-Notice? No need for any page lists or physical addresses. No races. No
-complex new functions.
-
-The physical address you can just get from the "struct page" you got.
-
-And if you run out of memory because of getting a page, you get all
-the usual "hey, we ran out of memory" responses..
-
-Wouldn't the above be sufficient?
-
-            Linus
+T24gV2VkLCAyMDE4LTA2LTI3IGF0IDE2OjU2ICswMTAwLCBXaWxsIERlYWNvbiB3cm90ZToNCj4g
+SGkgVG9zaGksDQo+IA0KPiBPbiBXZWQsIEp1biAyNywgMjAxOCBhdCAwODoxMzo0N0FNIC0wNjAw
+LCBUb3NoaSBLYW5pIHdyb3RlOg0KPiA+IEZyb206IENoaW50YW4gUGFuZHlhIDxjcGFuZHlhQGNv
+ZGVhdXJvcmEub3JnPg0KPiA+IA0KPiA+IFRoZSBmb2xsb3dpbmcga2VybmVsIHBhbmljIHdhcyBv
+YnNlcnZlZCBvbiBBUk02NCBwbGF0Zm9ybSBkdWUgdG8gYSBzdGFsZQ0KPiA+IFRMQiBlbnRyeS4N
+Cj4gPiANCj4gPiAgMS4gaW9yZW1hcCB3aXRoIDRLIHNpemUsIGEgdmFsaWQgcHRlIHBhZ2UgdGFi
+bGUgaXMgc2V0Lg0KPiA+ICAyLiBpb3VubWFwIGl0LCBpdHMgcHRlIGVudHJ5IGlzIHNldCB0byAw
+Lg0KPiA+ICAzLiBpb3JlbWFwIHRoZSBzYW1lIGFkZHJlc3Mgd2l0aCAyTSBzaXplLCB1cGRhdGUg
+aXRzIHBtZCBlbnRyeSB3aXRoDQo+ID4gICAgIGEgbmV3IHZhbHVlLg0KPiA+ICA0LiBDUFUgbWF5
+IGhpdCBhbiBleGNlcHRpb24gYmVjYXVzZSB0aGUgb2xkIHBtZCBlbnRyeSBpcyBzdGlsbCBpbiBU
+TEIsDQo+ID4gICAgIHdoaWNoIGxlYWRzIHRvIGEga2VybmVsIHBhbmljLg0KPiA+IA0KPiA+IENv
+bW1pdCBiNmJkYjc1MTdjM2QgKCJtbS92bWFsbG9jOiBhZGQgaW50ZXJmYWNlcyB0byBmcmVlIHVu
+bWFwcGVkIHBhZ2UNCj4gPiB0YWJsZSIpIGhhcyBhZGRyZXNzZWQgdGhpcyBwYW5pYyBieSBmYWxs
+aW5nIHRvIHB0ZSBtYXBwaW5ncyBpbiB0aGUgYWJvdmUNCj4gPiBjYXNlIG9uIEFSTTY0Lg0KPiA+
+IA0KPiA+IFRvIHN1cHBvcnQgcG1kIG1hcHBpbmdzIGluIGFsbCBjYXNlcywgVExCIHB1cmdlIG5l
+ZWRzIHRvIGJlIHBlcmZvcm1lZA0KPiA+IGluIHRoaXMgY2FzZSBvbiBBUk02NC4NCj4gPiANCj4g
+PiBBZGQgYSBuZXcgYXJnLCAnYWRkcicsIHRvIHB1ZF9mcmVlX3BtZF9wYWdlKCkgYW5kIHBtZF9m
+cmVlX3B0ZV9wYWdlKCkNCj4gPiBzbyB0aGF0IFRMQiBwdXJnZSBjYW4gYmUgYWRkZWQgbGF0ZXIg
+aW4gc2VwcmF0ZSBwYXRjaGVzLg0KPiANCj4gU28gSSBhY2tlZCB2MTMgb2YgQ2hpbnRhbidzIHNl
+cmllcyBwb3N0ZWQgaGVyZToNCj4gDQo+IGh0dHA6Ly9saXN0cy5pbmZyYWRlYWQub3JnL3BpcGVy
+bWFpbC9saW51eC1hcm0ta2VybmVsLzIwMTgtSnVuZS81ODI5NTMuaHRtbA0KPiANCj4gYW55IGNo
+YW5jZSB0aGlzIGxvdCBjb3VsZCBhbGwgYmUgbWVyZ2VkIHRvZ2V0aGVyLCBwbGVhc2U/DQoNCkhp
+IFdpbGwsDQoNCkNoaW50YW4ncyBwYXRjaCAyLzMgYW5kIDMvMyBhcHBseSBjbGVhbmx5IG9uIHRv
+cCBvZiBteSBzZXJpZXMuIENhbiB5b3UNCnBsZWFzZSBjb29yZGluYXRlIHdpdGggVGhvbWFzIG9u
+IHRoZSBsb2dpc3RpY3M/DQoNClRoYW5rcywNCi1Ub3NoaQ0K
