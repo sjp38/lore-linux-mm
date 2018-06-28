@@ -1,76 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 300B06B0005
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 15:03:31 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id c8-v6so2339658edr.16
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 12:03:31 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4027F6B0007
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 15:03:39 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id v19-v6so2355926eds.3
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 12:03:39 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c11-v6si3517702edj.417.2018.06.28.12.03.29
+        by mx.google.com with ESMTPS id l8-v6si3779041edj.379.2018.06.28.12.03.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jun 2018 12:03:30 -0700 (PDT)
-Date: Thu, 28 Jun 2018 12:02:53 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/2] fs: fsnotify: account fsnotify metadata to kmemcg
-Message-ID: <20180628100253.jscxkw2d6vfhnbo5@quack2.suse.cz>
-References: <20180627191250.209150-1-shakeelb@google.com>
- <20180627191250.209150-2-shakeelb@google.com>
+        Thu, 28 Jun 2018 12:03:38 -0700 (PDT)
+Date: Thu, 28 Jun 2018 13:21:39 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: hugetlb: yield when prepping struct pages
+Message-ID: <20180628112139.GC32348@dhcp22.suse.cz>
+References: <20180627214447.260804-1-cannonmatthews@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180627191250.209150-2-shakeelb@google.com>
+In-Reply-To: <20180627214447.260804-1-cannonmatthews@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.com>, Greg Thelen <gthelen@google.com>, Amir Goldstein <amir73il@gmail.com>, Roman Gushchin <guro@fb.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
+To: Cannon Matthews <cannonmatthews@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, andreslc@google.com, pfeiner@google.com, gthelen@google.com
 
-On Wed 27-06-18 12:12:49, Shakeel Butt wrote:
-> A lot of memory can be consumed by the events generated for the huge or
-> unlimited queues if there is either no or slow listener.  This can cause
-> system level memory pressure or OOMs.  So, it's better to account the
-> fsnotify kmem caches to the memcg of the listener.
+On Wed 27-06-18 14:44:47, Cannon Matthews wrote:
+> When booting with very large numbers of gigantic (i.e. 1G) pages, the
+> operations in the loop of gather_bootmem_prealloc, and specifically
+> prep_compound_gigantic_page, takes a very long time, and can cause a
+> softlockup if enough pages are requested at boot.
 > 
-> However the listener can be in a different memcg than the memcg of the
-> producer and these allocations happen in the context of the event
-> producer. This patch introduces remote memcg charging API which the
-> producer can use to charge the allocations to the memcg of the listener.
+> For example booting with 3844 1G pages requires prepping
+> (set_compound_head, init the count) over 1 billion 4K tail pages, which
+> takes considerable time. This should also apply to reserving the same
+> amount of memory as 2M pages, as the same number of struct pages
+> are affected in either case.
 > 
-> There are seven fsnotify kmem caches and among them allocations from
-> dnotify_struct_cache, dnotify_mark_cache, fanotify_mark_cache and
-> inotify_inode_mark_cachep happens in the context of syscall from the
-> listener.  So, SLAB_ACCOUNT is enough for these caches.
+> Add a cond_resched() to the outer loop in gather_bootmem_prealloc() to
+> prevent this lockup.
 > 
-> The objects from fsnotify_mark_connector_cachep are not accounted as they
-> are small compared to the notification mark or events and it is unclear
-> whom to account connector to since it is shared by all events attached to
-> the inode.
+> Tested: Booted with softlockup_panic=1 hugepagesz=1G hugepages=3844 and
+> no softlockup is reported, and the hugepages are reported as
+> successfully setup.
 > 
-> The allocations from the event caches happen in the context of the event
-> producer.  For such caches we will need to remote charge the allocations
-> to the listener's memcg.  Thus we save the memcg reference in the
-> fsnotify_group structure of the listener.
-> 
-> This patch has also moved the members of fsnotify_group to keep the size
-> same, at least for 64 bit build, even with additional member by filling
-> the holes.
+> Signed-off-by: Cannon Matthews <cannonmatthews@google.com>
 
-...
+Acked-by: Michal Hocko <mhocko@suse.com>
 
->  static int __init fanotify_user_setup(void)
->  {
-> -	fanotify_mark_cache = KMEM_CACHE(fsnotify_mark, SLAB_PANIC);
-> +	fanotify_mark_cache = KMEM_CACHE(fsnotify_mark,
-> +					 SLAB_PANIC|SLAB_ACCOUNT);
->  	fanotify_event_cachep = KMEM_CACHE(fanotify_event_info, SLAB_PANIC);
->  	if (IS_ENABLED(CONFIG_FANOTIFY_ACCESS_PERMISSIONS)) {
->  		fanotify_perm_event_cachep =
+Thanks!
 
-Why don't you setup also fanotify_event_cachep and
-fanotify_perm_event_cachep caches with SLAB_ACCOUNT and instead specify
-__GFP_ACCOUNT manually? Otherwise the patch looks good to me.
-
-								Honza
+> ---
+>  mm/hugetlb.c | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index a963f2034dfc..d38273c32d3b 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -2169,6 +2169,7 @@ static void __init gather_bootmem_prealloc(void)
+>  		 */
+>  		if (hstate_is_gigantic(h))
+>  			adjust_managed_page_count(page, 1 << h->order);
+> +		cond_resched();
+>  	}
+>  }
+>  
+> -- 
+> 2.18.0.rc2.346.g013aa6912e-goog
 
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
