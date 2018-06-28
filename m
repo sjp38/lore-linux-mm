@@ -1,65 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 785206B000A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 06:51:22 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id w15-v6so3227120otk.12
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 03:51:22 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id w84-v6si761637oie.274.2018.06.28.03.51.21
-        for <linux-mm@kvack.org>;
-        Thu, 28 Jun 2018 03:51:21 -0700 (PDT)
-Date: Thu, 28 Jun 2018 11:51:06 +0100
-From: Dave Martin <Dave.Martin@arm.com>
-Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address
- sanitizer
-Message-ID: <20180628105057.GA26019@e103592.cambridge.arm.com>
-References: <cover.1530018818.git.andreyknvl@google.com>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 429E86B0005
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 07:19:58 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id t83-v6so3881129wmt.3
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 04:19:58 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y9-v6sor3203274wrh.46.2018.06.28.04.19.56
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 28 Jun 2018 04:19:56 -0700 (PDT)
+Date: Thu, 28 Jun 2018 13:19:54 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH v6 2/5] mm/sparsemem: Defer the ms->section_mem_map
+ clearing
+Message-ID: <20180628111954.GA12956@techadventures.net>
+References: <20180628062857.29658-1-bhe@redhat.com>
+ <20180628062857.29658-3-bhe@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <cover.1530018818.git.andreyknvl@google.com>
+In-Reply-To: <20180628062857.29658-3-bhe@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jann Horn <jannh@google.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Mark Brand <markbrand@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
+To: Baoquan He <bhe@redhat.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dave.hansen@intel.com, pagupta@redhat.com, Pavel Tatashin <pasha.tatashin@oracle.com>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-On Tue, Jun 26, 2018 at 03:15:10PM +0200, Andrey Konovalov wrote:
-> This patchset adds a new mode to KASAN [1], which is called KHWASAN
-> (Kernel HardWare assisted Address SANitizer).
+On Thu, Jun 28, 2018 at 02:28:54PM +0800, Baoquan He wrote:
+> In sparse_init(), if CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER=y, system
+> will allocate one continuous memory chunk for mem maps on one node and
+> populate the relevant page tables to map memory section one by one. If
+> fail to populate for a certain mem section, print warning and its
+> ->section_mem_map will be cleared to cancel the marking of being present.
+> Like this, the number of mem sections marked as present could become
+> less during sparse_init() execution.
 > 
-> The plan is to implement HWASan [2] for the kernel with the incentive,
-> that it's going to have comparable to KASAN performance, but in the same
-> time consume much less memory, trading that off for somewhat imprecise
-> bug detection and being supported only for arm64.
+> Here just defer the ms->section_mem_map clearing if failed to populate
+> its page tables until the last for_each_present_section_nr() loop. This
+> is in preparation for later optimizing the mem map allocation.
 > 
-> The overall idea of the approach used by KHWASAN is the following:
+> Signed-off-by: Baoquan He <bhe@redhat.com>
+> Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+
+Looks good to me.
+
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
+
+> ---
+>  mm/sparse-vmemmap.c |  4 ----
+>  mm/sparse.c         | 15 ++++++++-------
+>  2 files changed, 8 insertions(+), 11 deletions(-)
 > 
-> 1. By using the Top Byte Ignore arm64 CPU feature, we can store pointer
->    tags in the top byte of each kernel pointer.
+> diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+> index bd0276d5f66b..68bb65b2d34d 100644
+> --- a/mm/sparse-vmemmap.c
+> +++ b/mm/sparse-vmemmap.c
+> @@ -292,18 +292,14 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+>  	}
+>  
+>  	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+> -		struct mem_section *ms;
+> -
+>  		if (!present_section_nr(pnum))
+>  			continue;
+>  
+>  		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid, NULL);
+>  		if (map_map[pnum])
+>  			continue;
+> -		ms = __nr_to_section(pnum);
+>  		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
+>  		       __func__);
+> -		ms->section_mem_map = 0;
+>  	}
+>  
+>  	if (vmemmap_buf_start) {
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 6314303130b0..6a706093307d 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -441,17 +441,13 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+>  
+>  	/* fallback */
+>  	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+> -		struct mem_section *ms;
+> -
+>  		if (!present_section_nr(pnum))
+>  			continue;
+>  		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid, NULL);
+>  		if (map_map[pnum])
+>  			continue;
+> -		ms = __nr_to_section(pnum);
+>  		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
+>  		       __func__);
+> -		ms->section_mem_map = 0;
+>  	}
+>  }
+>  #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
+> @@ -479,7 +475,6 @@ static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
+>  
+>  	pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
+>  	       __func__);
+> -	ms->section_mem_map = 0;
+>  	return NULL;
+>  }
+>  #endif
+> @@ -583,17 +578,23 @@ void __init sparse_init(void)
+>  #endif
+>  
+>  	for_each_present_section_nr(0, pnum) {
+> +		struct mem_section *ms;
+> +		ms = __nr_to_section(pnum);
+>  		usemap = usemap_map[pnum];
+> -		if (!usemap)
+> +		if (!usemap) {
+> +			ms->section_mem_map = 0;
+>  			continue;
+> +		}
+>  
+>  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+>  		map = map_map[pnum];
+>  #else
+>  		map = sparse_early_mem_map_alloc(pnum);
+>  #endif
+> -		if (!map)
+> +		if (!map) {
+> +			ms->section_mem_map = 0;
+>  			continue;
+> +		}
+>  
+>  		sparse_init_one_section(__nr_to_section(pnum), pnum, map,
+>  								usemap);
+> -- 
+> 2.13.6
+> 
 
-[...]
-
-This is a change from the current situation, so the kernel may be
-making implicit assumptions about the top byte of kernel addresses.
-
-Randomising the top bits may cause things like address conversions and
-pointer arithmetic to break.
-
-For example, (q - p) will not produce the expected result if q and p
-have different tags.
-
-Conversions, such as between pointer and pfn, may also go wrong if not
-appropriately masked.
-
-There are also potential pointer comparison and aliasing issues if
-the tag bits are ever stripped or modified.
-
-
-What was your approach to tracking down all the points in the code
-where we have a potential issue?
-
-(I haven't dug through the series in detail yet, so this may be
-answered somewhere already...)
-
-Cheers
----Dave
+-- 
+Oscar Salvador
+SUSE L3
