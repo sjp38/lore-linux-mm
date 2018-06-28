@@ -1,72 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4027F6B0007
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 15:03:39 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id v19-v6so2355926eds.3
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 12:03:39 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B03536B0010
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 15:03:44 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id w22-v6so1416515edr.14
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 12:03:44 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l8-v6si3779041edj.379.2018.06.28.12.03.37
+        by mx.google.com with ESMTPS id h2-v6si3600317edr.245.2018.06.28.12.03.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 28 Jun 2018 12:03:38 -0700 (PDT)
-Date: Thu, 28 Jun 2018 13:21:39 +0200
+Date: Thu, 28 Jun 2018 13:39:42 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: hugetlb: yield when prepping struct pages
-Message-ID: <20180628112139.GC32348@dhcp22.suse.cz>
-References: <20180627214447.260804-1-cannonmatthews@google.com>
+Subject: Re: [PATCH] mm,oom: Bring OOM notifier callbacks to outside of OOM
+ killer.
+Message-ID: <20180628113942.GD32348@dhcp22.suse.cz>
+References: <1529493638-6389-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.21.1806201528490.16984@chino.kir.corp.google.com>
+ <20180621073142.GA10465@dhcp22.suse.cz>
+ <2d8c3056-1bc2-9a32-d745-ab328fd587a1@i-love.sakura.ne.jp>
+ <20180626170345.GA3593@linux.vnet.ibm.com>
+ <20180627072207.GB32348@dhcp22.suse.cz>
+ <20180627143125.GW3593@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180627214447.260804-1-cannonmatthews@google.com>
+In-Reply-To: <20180627143125.GW3593@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cannon Matthews <cannonmatthews@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, andreslc@google.com, pfeiner@google.com, gthelen@google.com
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Wed 27-06-18 14:44:47, Cannon Matthews wrote:
-> When booting with very large numbers of gigantic (i.e. 1G) pages, the
-> operations in the loop of gather_bootmem_prealloc, and specifically
-> prep_compound_gigantic_page, takes a very long time, and can cause a
-> softlockup if enough pages are requested at boot.
+On Wed 27-06-18 07:31:25, Paul E. McKenney wrote:
+> On Wed, Jun 27, 2018 at 09:22:07AM +0200, Michal Hocko wrote:
+> > On Tue 26-06-18 10:03:45, Paul E. McKenney wrote:
+> > [...]
+> > > 3.	Something else?
+> > 
+> > How hard it would be to use a different API than oom notifiers? E.g. a
+> > shrinker which just kicks all the pending callbacks if the reclaim
+> > priority reaches low values (e.g. 0)?
 > 
-> For example booting with 3844 1G pages requires prepping
-> (set_compound_head, init the count) over 1 billion 4K tail pages, which
-> takes considerable time. This should also apply to reserving the same
-> amount of memory as 2M pages, as the same number of struct pages
-> are affected in either case.
-> 
-> Add a cond_resched() to the outer loop in gather_bootmem_prealloc() to
-> prevent this lockup.
-> 
-> Tested: Booted with softlockup_panic=1 hugepagesz=1G hugepages=3844 and
-> no softlockup is reported, and the hugepages are reported as
-> successfully setup.
-> 
-> Signed-off-by: Cannon Matthews <cannonmatthews@google.com>
+> Beats me.  What is a shrinker?  ;-)
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+This is a generich mechanism to reclaim memory that is not on standard
+LRU lists. Lwn.net surely has some nice coverage (e.g.
+https://lwn.net/Articles/548092/).
 
-Thanks!
+> More seriously, could you please point me at an exemplary shrinker
+> use case so I can see what is involved?
 
-> ---
->  mm/hugetlb.c | 1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index a963f2034dfc..d38273c32d3b 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2169,6 +2169,7 @@ static void __init gather_bootmem_prealloc(void)
->  		 */
->  		if (hstate_is_gigantic(h))
->  			adjust_managed_page_count(page, 1 << h->order);
-> +		cond_resched();
->  	}
->  }
->  
-> -- 
-> 2.18.0.rc2.346.g013aa6912e-goog
-
+Well, I am not really sure what is the objective of the oom notifier to
+point you to the right direction. IIUC you just want to kick callbacks
+to be handled sooner under a heavy memory pressure, right? How is that
+achieved? Kick a worker?
 -- 
 Michal Hocko
 SUSE Labs
