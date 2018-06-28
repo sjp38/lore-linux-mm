@@ -1,77 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BF8AF6B0005
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 16:21:01 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id q8-v6so4633808wmc.2
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 13:21:01 -0700 (PDT)
-Received: from mx0a-00190b01.pphosted.com (mx0a-00190b01.pphosted.com. [2620:100:9001:583::1])
-        by mx.google.com with ESMTPS id o63-v6si4738083wmd.63.2018.06.28.13.20.59
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4256E6B0005
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 17:29:07 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id w138-v6so5629wmw.4
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 14:29:07 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id j10-v6si914549wrh.398.2018.06.28.14.29.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jun 2018 13:20:59 -0700 (PDT)
-Subject: Re: [PATCH] mm/madvise: allow MADV_DONTNEED to free memory that is
- MLOCK_ONFAULT
-References: <1528484212-7199-1-git-send-email-jbaron@akamai.com>
- <20180611072005.GC13364@dhcp22.suse.cz>
- <4c4de46d-c55a-99a8-469f-e1e634fb8525@akamai.com>
- <20180611150330.GQ13364@dhcp22.suse.cz>
- <775adf2d-140c-1460-857f-2de7b24bafe7@akamai.com>
- <20180612074646.GS13364@dhcp22.suse.cz>
- <5a9398f4-453c-5cb5-6bbc-f20c3affc96a@akamai.com>
- <0daccb7c-f642-c5ce-ca7a-3b3e69025a1e@suse.cz>
- <20180613071552.GD13364@dhcp22.suse.cz>
- <7a671035-92dc-f9c0-aa7b-ff916d556e82@akamai.com>
- <20180620110022.GK13685@dhcp22.suse.cz>
-From: Jason Baron <jbaron@akamai.com>
-Message-ID: <4ab6d77a-3032-3ffb-d556-b736f6b983e6@akamai.com>
-Date: Thu, 28 Jun 2018 16:20:54 -0400
+        Thu, 28 Jun 2018 14:29:05 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5SLT2Cb142616
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 17:29:03 -0400
+Received: from e12.ny.us.ibm.com (e12.ny.us.ibm.com [129.33.205.202])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2jw7ak8nq1-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 17:29:03 -0400
+Received: from localhost
+	by e12.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Thu, 28 Jun 2018 17:29:03 -0400
+Date: Thu, 28 Jun 2018 14:31:05 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm,oom: Bring OOM notifier callbacks to outside of OOM
+ killer.
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1529493638-6389-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.21.1806201528490.16984@chino.kir.corp.google.com>
+ <20180621073142.GA10465@dhcp22.suse.cz>
+ <2d8c3056-1bc2-9a32-d745-ab328fd587a1@i-love.sakura.ne.jp>
+ <20180626170345.GA3593@linux.vnet.ibm.com>
+ <20180627072207.GB32348@dhcp22.suse.cz>
+ <20180627143125.GW3593@linux.vnet.ibm.com>
+ <20180628113942.GD32348@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180620110022.GK13685@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180628113942.GD32348@dhcp22.suse.cz>
+Message-Id: <20180628213105.GP3593@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-api@vger.kernel.org, emunson@mgebm.net
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-
-
-On 06/20/2018 07:00 AM, Michal Hocko wrote:
-> On Fri 15-06-18 15:36:07, Jason Baron wrote:
->>
->>
->> On 06/13/2018 03:15 AM, Michal Hocko wrote:
->>> On Wed 13-06-18 08:32:19, Vlastimil Babka wrote:
-> [...]
->>>> BTW I didn't get why we should allow this for MADV_DONTNEED but not
->>>> MADV_FREE. Can you expand on that?
->>>
->>> Well, I wanted to bring this up as well. I guess this would require some
->>> more hacks to handle the reclaim path correctly because we do rely on
->>> VM_LOCK at many places for the lazy mlock pages culling.
->>>
->>
->> The point of not allowing MADV_FREE on mlock'd pages for me was that
->> with mlock and even MLOCK_ON_FAULT, one can always can always determine
->> if a page is present or not (and thus avoid the major fault). Allowing
->> MADV_FREE on lock'd pages breaks that assumption.
+On Thu, Jun 28, 2018 at 01:39:42PM +0200, Michal Hocko wrote:
+> On Wed 27-06-18 07:31:25, Paul E. McKenney wrote:
+> > On Wed, Jun 27, 2018 at 09:22:07AM +0200, Michal Hocko wrote:
+> > > On Tue 26-06-18 10:03:45, Paul E. McKenney wrote:
+> > > [...]
+> > > > 3.	Something else?
+> > > 
+> > > How hard it would be to use a different API than oom notifiers? E.g. a
+> > > shrinker which just kicks all the pending callbacks if the reclaim
+> > > priority reaches low values (e.g. 0)?
+> > 
+> > Beats me.  What is a shrinker?  ;-)
 > 
-> But once you have called MADV_FREE you cannot assume anything about the
-> content until you touch the memory again. So you can safely assume a
-> major fault for the worst case. Btw. why knowing whether you major fault
-> is important in the first place? What is an application going to do
-> about that information?
+> This is a generich mechanism to reclaim memory that is not on standard
+> LRU lists. Lwn.net surely has some nice coverage (e.g.
+> https://lwn.net/Articles/548092/).
+
+"In addition, there is little agreement over what a call to a shrinker
+really means or how the called subsystem should respond."  ;-)
+
+Is this set up using register_shrinker() in mm/vmscan.c?  I am guessing
+that the many mentions of shrinker in DRM are irrelevant.
+
+If my guess is correct, the API seems a poor fit for RCU.  I can
+produce an approximate number of RCU callbacks for ->count_objects(),
+but a given callback might free a lot of memory or none at all.  Plus,
+to actually have ->scan_objects() free them before returning, I would
+need to use something like rcu_barrier(), which might involve longer
+delays than desired.
+
+Or am I missing something here?
+
+> > More seriously, could you please point me at an exemplary shrinker
+> > use case so I can see what is involved?
 > 
+> Well, I am not really sure what is the objective of the oom notifier to
+> point you to the right direction. IIUC you just want to kick callbacks
+> to be handled sooner under a heavy memory pressure, right? How is that
+> achieved? Kick a worker?
 
-Fair enough, I think that means you end up with a MADV_FREE_FORCE to
-support that case? As I said I worked around this by using tmpfs and
-fallocate(FALLOC_FL_PUNCH_HOLE). However, I still think there is a
-use-case for doing this for anonymous memory, to avoid the unlock() calls.
+That is achieved by enqueuing a non-lazy callback on each CPU's callback
+list, but only for those CPUs having non-empty lists.  This causes
+CPUs with lists containing only lazy callbacks to be more aggressive,
+in particular, it prevents such CPUs from hanging out idle for seconds
+at a time while they have callbacks on their lists.
 
-The use-case I had in mind was simply an application that has a fast
-path for when it knows that the requested item is locked in memory.
+The enqueuing happens via an IPI to the CPU in question.
 
-Thanks,
-
--Jason
+						Thanx, Paul
