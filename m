@@ -1,60 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B42F6B0007
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 21:11:43 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id h14-v6so1855157pfi.19
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 18:11:43 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k9-v6si3340865pgs.681.2018.06.27.18.11.41
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EA976B000A
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 21:28:41 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id d23-v6so3652349qtj.12
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 18:28:41 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id w16-v6si5304500qvf.232.2018.06.27.18.28.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 18:11:41 -0700 (PDT)
-Date: Wed, 27 Jun 2018 18:11:38 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address
- sanitizer
-Message-Id: <20180627181138.14c9b66e13b8778506205f89@linux-foundation.org>
-In-Reply-To: <CAEZpscCcP6=O_OCqSwW8Y6u9Ee99SzWN+hRcgpP2tK=OEBFnNw@mail.gmail.com>
-References: <cover.1530018818.git.andreyknvl@google.com>
-	<20180627160800.3dc7f9ee41c0badbf7342520@linux-foundation.org>
-	<CAN=P9pivApAo76Kjc0TUDE0kvJn0pET=47xU6e=ioZV2VqO0Rg@mail.gmail.com>
-	<CAEZpscCcP6=O_OCqSwW8Y6u9Ee99SzWN+hRcgpP2tK=OEBFnNw@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 27 Jun 2018 18:28:39 -0700 (PDT)
+Date: Thu, 28 Jun 2018 09:28:18 +0800
+From: Ming Lei <ming.lei@redhat.com>
+Subject: Re: [PATCH V7 20/24] bcache: avoid to use bio_for_each_segment_all()
+ in bch_bio_alloc_pages()
+Message-ID: <20180628012816.GH7583@ming.t460p>
+References: <20180627124548.3456-1-ming.lei@redhat.com>
+ <20180627124548.3456-21-ming.lei@redhat.com>
+ <e1499d87-62b8-40a8-75a5-d9d1d81ce9c5@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e1499d87-62b8-40a8-75a5-d9d1d81ce9c5@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vishwath Mohan <vishwath@google.com>
-Cc: Kostya Serebryany <kcc@google.com>, andreyknvl@google.com, aryabinin@virtuozzo.com, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, catalin.marinas@arm.com, will.deacon@arm.com, cl@linux.com, mark.rutland@arm.com, Nick Desaulniers <ndesaulniers@google.com>, marc.zyngier@arm.com, dave.martin@arm.com, ard.biesheuvel@linaro.org, ebiederm@xmission.com, mingo@kernel.org, Paul Lawrence <paullawrence@google.com>, geert@linux-m68k.org, arnd@arndb.de, kirill.shutemov@linux.intel.com, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, rppt@linux.vnet.ibm.com, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Evgenii Stepanov <eugenis@google.com>, Lee.Smith@arm.com, Ramana.Radhakrishnan@arm.com, Jacob.Bramley@arm.com, Ruben.Ayrapetyan@arm.com, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, cpandya@codeaurora.org
+To: Coly Li <colyli@suse.de>
+Cc: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Kent Overstreet <kent.overstreet@gmail.com>, David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, Mike Snitzer <snitzer@redhat.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Filipe Manana <fdmanana@gmail.com>, Randy Dunlap <rdunlap@infradead.org>, linux-bcache@vger.kernel.org
 
-On Wed, 27 Jun 2018 17:59:00 -0700 Vishwath Mohan <vishwath@google.com> wrote:
-
-> > > > time consume much less memory, trading that off for somewhat imprecise
-> > > > bug detection and being supported only for arm64.
-> > >
-> > > Why do we consider this to be a worthwhile change?
-> > >
-> > > Is KASAN's memory consumption actually a significant problem?  Some
-> > > data regarding that would be very useful.
-> >
-> > On mobile, ASAN's and KASAN's memory usage is a significant problem.
-> > Not sure if I can find scientific evidence of that.
-> > CC-ing Vishwath Mohan who deals with KASAN on Android to provide
-> > anecdotal evidence.
-> >
-> Yeah, I can confirm that it's an issue. Like Kostya mentioned, I don't have
-> data on-hand, but anecdotally both ASAN and KASAN have proven problematic
-> to enable for environments that don't tolerate the increased memory
-> pressure well. This includes,
-> (a) Low-memory form factors - Wear, TV, Things, lower-tier phones like Go
-> (c) Connected components like Pixel's visual core
-> <https://www.blog.google/products/pixel/pixel-visual-core-image-processing-and-machine-learning-pixel-2/>
+On Wed, Jun 27, 2018 at 11:55:33PM +0800, Coly Li wrote:
+> On 2018/6/27 8:45 PM, Ming Lei wrote:
+> > bch_bio_alloc_pages() is always called on one new bio, so it is safe
+> > to access the bvec table directly. Given it is the only kind of this
+> > case, open code the bvec table access since bio_for_each_segment_all()
+> > will be changed to support for iterating over multipage bvec.
+> > 
+> > Cc: Coly Li <colyli@suse.de>
+> > Cc: linux-bcache@vger.kernel.org
+> > Signed-off-by: Ming Lei <ming.lei@redhat.com>
+> > ---
+> >  drivers/md/bcache/util.c | 2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > 
+> > diff --git a/drivers/md/bcache/util.c b/drivers/md/bcache/util.c
+> > index fc479b026d6d..9f2a6fd5dfc9 100644
+> > --- a/drivers/md/bcache/util.c
+> > +++ b/drivers/md/bcache/util.c
+> > @@ -268,7 +268,7 @@ int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp_mask)
+> >  	int i;
+> >  	struct bio_vec *bv;
+> > 
+> 
+> Hi Ming,
+> 
+> > -	bio_for_each_segment_all(bv, bio, i) {
+> > +	for (i = 0, bv = bio->bi_io_vec; i < bio->bi_vcnt; bv++) {
 > 
 > 
-> These are both places I'd love to have a low(er) memory footprint option at
-> my disposal.
+> Is it possible to treat this as a special condition of
+> bio_for_each_segement_all() ? I mean only iterate one time in
+> bvec_for_each_segment(). I hope the above change is not our last choice
+> before I reply an Acked-by :-)
 
-Thanks.
+Now the bvec from bio_for_each_segement_all() can't be changed any more
+since the referenced 'bvec' is generated in-flight given we store
+real multipage bvec.
 
-It really is important that such information be captured in the
-changelogs.  In as much detail as can be mustered.
+BTW, this way is actually suggested by Christoph for saving one new
+helper of bio_for_each_bvec_all() as done in V6, and per previous discussion,
+seems both Kent and Christoph agrees to convert bcache into bio_add_page()
+finally.
+
+So I guess this open code style should be fine.
+
+Thanks,
+Ming
