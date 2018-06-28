@@ -1,60 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 164CC6B0007
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 14:29:10 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id x13-v6so4902526iog.16
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 11:29:10 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b195-v6sor2949234itc.138.2018.06.28.11.29.09
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D93F6B000A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 14:52:54 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u1-v6so468589wrs.18
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 11:52:54 -0700 (PDT)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id l132-v6si2610085wmb.65.2018.06.28.11.52.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Jun 2018 11:29:09 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Jun 2018 11:52:52 -0700 (PDT)
+Date: Thu, 28 Jun 2018 20:52:51 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCHv3 00/17] MKTME enabling
+Message-ID: <20180628185251.GB5316@amd>
+References: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180627160800.3dc7f9ee41c0badbf7342520@linux-foundation.org>
-References: <cover.1530018818.git.andreyknvl@google.com> <20180627160800.3dc7f9ee41c0badbf7342520@linux-foundation.org>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Thu, 28 Jun 2018 20:29:07 +0200
-Message-ID: <CAAeHK+xz552VNpZxgWwU-hbTqF5_F6YVDw3fSv=4OT8mNrqPzg@mail.gmail.com>
-Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address sanitizer
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="PmA2V3Z32TCmWXqI"
+Content-Disposition: inline
+In-Reply-To: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Jun 28, 2018 at 1:08 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Tue, 26 Jun 2018 15:15:10 +0200 Andrey Konovalov <andreyknvl@google.com> wrote:
->> ====== Benchmarks
->>
->> The following numbers were collected on Odroid C2 board. Both KASAN and
->> KHWASAN were used in inline instrumentation mode.
->>
->> Boot time [1]:
->> * ~1.7 sec for clean kernel
->> * ~5.0 sec for KASAN
->> * ~5.0 sec for KHWASAN
->>
->> Slab memory usage after boot [2]:
->> * ~40 kb for clean kernel
->> * ~105 kb + 1/8th shadow ~= 118 kb for KASAN
->> * ~47 kb + 1/16th shadow ~= 50 kb for KHWASAN
->>
->> Network performance [3]:
->> * 8.33 Gbits/sec for clean kernel
->> * 3.17 Gbits/sec for KASAN
->> * 2.85 Gbits/sec for KHWASAN
->>
->> Note, that KHWASAN (compared to KASAN) doesn't require quarantine.
->>
->> [1] Time before the ext4 driver is initialized.
->> [2] Measured as `cat /proc/meminfo | grep Slab`.
->> [3] Measured as `iperf -s & iperf -c 127.0.0.1 -t 30`.
->
-> The above doesn't actually demonstrate the whole point of the
-> patchset: to reduce KASAN's very high memory consumption?
 
-You mean that memory usage numbers collected after boot don't give a
-representative picture of actual memory consumption on real workloads?
+--PmA2V3Z32TCmWXqI
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-What kind of memory consumption testing would you like to see?
+Hi!
+
+> MKTME is built on top of TME. TME allows encryption of the entirety of
+> system memory using a single key. MKTME allows to have multiple encryption
+> domains, each having own key -- different memory pages can be encrypted
+> with different keys.
+>=20
+> Key design points of Intel MKTME:
+>=20
+>  - Initial HW implementation would support upto 63 keys (plus one
+> default
+
+"up to"
+
+>    TME key). But the number of keys may be as low as 3, depending to SKU
+>    and BIOS settings
+>=20
+>  - To access encrypted memory you need to use mapping with proper KeyID
+>    int the page table entry. KeyID is encoded in upper bits of PFN in page
+
+"in the"
+
+>    table entry.
+>=20
+>  - CPU does not enforce coherency between mappings of the same physical
+>    page with different KeyIDs or encryption keys. We wound need to take
+
+"would need"
+
+>    care about flushing cache on allocation of encrypted page and on
+>    returning it back to free pool.
+>=20
+>  - For managing keys, there's MKTME_KEY_PROGRAM leaf of the new PCONFIG
+>    (platform configuration) instruction. It allows load and clear keys
+>    associated with a KeyID. You can also ask CPU to generate a key for
+>    you or disable memory encryption when a KeyID is used.
+
+Should this go to Documentation somewhere?
+
+And next question is -- what is it good for? Prevents attack where
+DRAM is frozen by liquid nitrogen and moved to another system to
+extract encryption keys? Does it prevent any attacks that don't
+involve manipulating hardware?
+
+									Pavel
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
+
+--PmA2V3Z32TCmWXqI
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iEYEARECAAYFAls1LoMACgkQMOfwapXb+vJ5mACglt4/cRyb/gt/KHOTiwID1t8V
+NhoAoKR8mceQbY+kMGFkXIOM0SabWH1J
+=JaRN
+-----END PGP SIGNATURE-----
+
+--PmA2V3Z32TCmWXqI--
