@@ -1,55 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2572B6B000A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 08:16:42 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id n21-v6so4164074iob.19
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 05:16:42 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id q25-v6si9346920ith.2.2018.06.28.05.16.40
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AA8D96B0005
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 08:39:27 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id u1-v6so30076wrs.18
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 05:39:27 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 34-v6si9944wri.145.2018.06.28.05.39.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jun 2018 05:16:41 -0700 (PDT)
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w5SCFJma158571
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 12:16:40 GMT
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by userp2130.oracle.com with ESMTP id 2jum5820gy-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 12:16:40 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w5SCGd6l007637
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 12:16:39 GMT
-Received: from abhmp0001.oracle.com (abhmp0001.oracle.com [141.146.116.7])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w5SCGc4s032565
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 12:16:39 GMT
-Received: by mail-ot0-f179.google.com with SMTP id n24-v6so5858729otl.9
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 05:16:16 -0700 (PDT)
+        Thu, 28 Jun 2018 05:39:26 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5SCdFni123460
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 08:39:24 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2jvwppxs74-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 08:39:23 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
+	Thu, 28 Jun 2018 13:39:21 +0100
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+Subject: [PATCH/RFC] mm: do not drop unused pages when userfaultd is running
+Date: Thu, 28 Jun 2018 14:39:16 +0200
+Message-Id: <20180628123916.96106-1-borntraeger@de.ibm.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 8bit
 MIME-Version: 1.0
-References: <20180628062857.29658-1-bhe@redhat.com> <20180628062857.29658-6-bhe@redhat.com>
-In-Reply-To: <20180628062857.29658-6-bhe@redhat.com>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Thu, 28 Jun 2018 08:15:17 -0400
-Message-ID: <CAGM2reb1=f6mhfuLSWGo2BSSdpherEsRB9-u87b2Q5eT11tJUg@mail.gmail.com>
-Subject: Re: [PATCH v6 5/5] mm/sparse: Remove CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bhe@redhat.com
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, dave.hansen@intel.com, pagupta@redhat.com, osalvador@techadventures.net, Linux Memory Management List <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com
+To: linux-mm@kvack.org, linux-s390@vger.kernel.org
+Cc: kvm@vger.kernel.org, Janosch Frank <frankja@linux.ibm.com>, David Hildenbrand <david@redhat.com>, Cornelia Huck <cohuck@redhat.com>, linux-kernel@vger.kernel.org, Christian Borntraeger <borntraeger@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Thu, Jun 28, 2018 at 2:29 AM Baoquan He <bhe@redhat.com> wrote:
->
-> Pavel pointed out that the behaviour of allocating memmap together
-> for one node should be defaulted for all ARCH-es. It won't break
-> anything because it will drop to the fallback action to allocate
-> imemmap for each section at one time if failed on large chunk of
-> memory.
->
-> So remove CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER and clean up the
-> related codes.
->
-> Signed-off-by: Baoquan He <bhe@redhat.com>
-> Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
+KVM guests on s390 can notify the host of unused pages. This can result
+in pte_unused callbacks to be true for KVM guest memory.
 
-Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+If a page is unused (checked with pte_unused) we might drop this page
+instead of paging it. This can have side-effects on userfaultd, when the
+page in question was already migrated:
+
+The next access of that page will trigger a fault and a user fault
+instead of faulting in a new and empty zero page. As QEMU does not
+expect a userfault on an already migrated page this migration will fail.
+
+The most straightforward solution is to ignore the pte_unused hint if a
+userfault context is active for this VMA.
+
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: stable@vger.kernel.org
+Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
+---
+ mm/rmap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 6db729dc4c50..3f3a72aa99f2 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1481,7 +1481,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 				set_pte_at(mm, address, pvmw.pte, pteval);
+ 			}
+ 
+-		} else if (pte_unused(pteval)) {
++		} else if (pte_unused(pteval) && !vma->vm_userfaultfd_ctx.ctx) {
+ 			/*
+ 			 * The guest indicated that the page content is of no
+ 			 * interest anymore. Simply discard the pte, vmscan
+-- 
+2.17.0
