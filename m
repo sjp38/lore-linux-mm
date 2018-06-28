@@ -1,80 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B9C0F6B000A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 15:21:40 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 76-v6so4569166wmw.3
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 12:21:40 -0700 (PDT)
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 868B46B0271
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 15:30:18 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id d70-v6so7634076itd.1
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 12:30:18 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x14-v6sor3680014wrq.66.2018.06.28.12.21.39
+        by mx.google.com with SMTPS id m132-v6sor3029086ita.2.2018.06.28.12.30.17
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 28 Jun 2018 12:21:39 -0700 (PDT)
+        Thu, 28 Jun 2018 12:30:17 -0700 (PDT)
 MIME-Version: 1.0
-References: <20180627191250.209150-1-shakeelb@google.com> <20180627191250.209150-2-shakeelb@google.com>
- <20180628100253.jscxkw2d6vfhnbo5@quack2.suse.cz>
-In-Reply-To: <20180628100253.jscxkw2d6vfhnbo5@quack2.suse.cz>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Thu, 28 Jun 2018 12:21:26 -0700
-Message-ID: <CALvZod5Fy7cUnqMvCqw8M52wm8+wBtGD-bhUibN=Uwdzb+5Kyw@mail.gmail.com>
-Subject: Re: [PATCH 1/2] fs: fsnotify: account fsnotify metadata to kmemcg
+In-Reply-To: <CAAeHK+yqWKTdTG+ymZ2-5XKiDANV+fmUjnQkRy-5tpgphuLJRA@mail.gmail.com>
+References: <cover.1529507994.git.andreyknvl@google.com> <CAAeHK+zqtyGzd_CZ7qKZKU-uZjZ1Pkmod5h8zzbN0xCV26nSfg@mail.gmail.com>
+ <20180626172900.ufclp2pfrhwkxjco@armageddon.cambridge.arm.com> <CAAeHK+yqWKTdTG+ymZ2-5XKiDANV+fmUjnQkRy-5tpgphuLJRA@mail.gmail.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Thu, 28 Jun 2018 21:30:16 +0200
+Message-ID: <CAAeHK+wJbbCZd+-X=9oeJgsqQJiq8h+Aagz3SQMPaAzCD+pvFw@mail.gmail.com>
+Subject: Re: [PATCH v4 0/7] arm64: untag user pointers passed to the kernel
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.com>, Greg Thelen <gthelen@google.com>, Amir Goldstein <amir73il@gmail.com>, Roman Gushchin <guro@fb.com>, Alexander Viro <viro@zeniv.linux.org.uk>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-doc@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
 
-On Thu, Jun 28, 2018 at 12:03 PM Jan Kara <jack@suse.cz> wrote:
+On Wed, Jun 27, 2018 at 5:05 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
+> On Tue, Jun 26, 2018 at 7:29 PM, Catalin Marinas
+> <catalin.marinas@arm.com> wrote:
+>> While I support this work, as a maintainer I'd like to understand
+>> whether we'd be in a continuous chase of ABI breaks with every kernel
+>> release or we have a better way to identify potential issues. Is there
+>> any way to statically analyse conversions from __user ptr to long for
+>> example? Or, could we get the compiler to do this for us?
 >
-> On Wed 27-06-18 12:12:49, Shakeel Butt wrote:
-> > A lot of memory can be consumed by the events generated for the huge or
-> > unlimited queues if there is either no or slow listener.  This can cause
-> > system level memory pressure or OOMs.  So, it's better to account the
-> > fsnotify kmem caches to the memcg of the listener.
-> >
-> > However the listener can be in a different memcg than the memcg of the
-> > producer and these allocations happen in the context of the event
-> > producer. This patch introduces remote memcg charging API which the
-> > producer can use to charge the allocations to the memcg of the listener.
-> >
-> > There are seven fsnotify kmem caches and among them allocations from
-> > dnotify_struct_cache, dnotify_mark_cache, fanotify_mark_cache and
-> > inotify_inode_mark_cachep happens in the context of syscall from the
-> > listener.  So, SLAB_ACCOUNT is enough for these caches.
-> >
-> > The objects from fsnotify_mark_connector_cachep are not accounted as they
-> > are small compared to the notification mark or events and it is unclear
-> > whom to account connector to since it is shared by all events attached to
-> > the inode.
-> >
-> > The allocations from the event caches happen in the context of the event
-> > producer.  For such caches we will need to remote charge the allocations
-> > to the listener's memcg.  Thus we save the memcg reference in the
-> > fsnotify_group structure of the listener.
-> >
-> > This patch has also moved the members of fsnotify_group to keep the size
-> > same, at least for 64 bit build, even with additional member by filling
-> > the holes.
 >
-> ...
->
-> >  static int __init fanotify_user_setup(void)
-> >  {
-> > -     fanotify_mark_cache = KMEM_CACHE(fsnotify_mark, SLAB_PANIC);
-> > +     fanotify_mark_cache = KMEM_CACHE(fsnotify_mark,
-> > +                                      SLAB_PANIC|SLAB_ACCOUNT);
-> >       fanotify_event_cachep = KMEM_CACHE(fanotify_event_info, SLAB_PANIC);
-> >       if (IS_ENABLED(CONFIG_FANOTIFY_ACCESS_PERMISSIONS)) {
-> >               fanotify_perm_event_cachep =
->
-> Why don't you setup also fanotify_event_cachep and
-> fanotify_perm_event_cachep caches with SLAB_ACCOUNT and instead specify
-> __GFP_ACCOUNT manually? Otherwise the patch looks good to me.
->
+> OK, got it, I'll try to figure out a way to find these conversions.
 
-Hi Jan, IMHO having a visible __GFP_ACCOUNT along with
-memalloc_use_memcg() makes the code more explicit and readable that we
-want to targeted/remote memcg charging. However if you think
-otherwise, I will replace __GFP_ACCOUNT with SLAB_ACCOUNT.
+I've prototyped a checker on top of clang static analyzer (initially
+looked at sparse, but couldn't find any documentation or examples).
+The results are here [1], search for "warning: user pointer cast".
+Sharing in case anybody wants to take a look, will look at them myself
+tomorrow.
 
-thanks,
-Shakeel
+[1] https://gist.github.com/xairy/433edd5c86456a64026247cb2fef2115
