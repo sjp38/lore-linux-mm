@@ -1,144 +1,252 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 519BF6B0003
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 20:23:16 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id s3-v6so2037748plp.21
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 17:23:16 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id u8-v6si5158236pfl.87.2018.06.27.17.23.14
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 500936B0003
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 20:59:16 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id 129-v6so2088349itb.2
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 17:59:16 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 6-v6sor2187485jaf.63.2018.06.27.17.59.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 17:23:14 -0700 (PDT)
-Date: Wed, 27 Jun 2018 17:23:13 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 200271] New: BUG: unable to handle kernel paging request
- at fffff1e034000208
-Message-Id: <20180627172313.69bf3803871630aa2d8e8dd0@linux-foundation.org>
-In-Reply-To: <bug-200271-27@https.bugzilla.kernel.org/>
-References: <bug-200271-27@https.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Wed, 27 Jun 2018 17:59:13 -0700 (PDT)
+MIME-Version: 1.0
+References: <cover.1530018818.git.andreyknvl@google.com> <20180627160800.3dc7f9ee41c0badbf7342520@linux-foundation.org>
+ <CAN=P9pivApAo76Kjc0TUDE0kvJn0pET=47xU6e=ioZV2VqO0Rg@mail.gmail.com>
+In-Reply-To: <CAN=P9pivApAo76Kjc0TUDE0kvJn0pET=47xU6e=ioZV2VqO0Rg@mail.gmail.com>
+From: Vishwath Mohan <vishwath@google.com>
+Date: Wed, 27 Jun 2018 17:59:00 -0700
+Message-ID: <CAEZpscCcP6=O_OCqSwW8Y6u9Ee99SzWN+hRcgpP2tK=OEBFnNw@mail.gmail.com>
+Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address sanitizer
+Content-Type: multipart/alternative; boundary="00000000000054e431056fa93d49"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: icytxw@gmail.com
-Cc: bugzilla-daemon@bugzilla.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org
+To: Kostya Serebryany <kcc@google.com>
+Cc: akpm@linux-foundation.org, andreyknvl@google.com, aryabinin@virtuozzo.com, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, catalin.marinas@arm.com, will.deacon@arm.com, cl@linux.com, mark.rutland@arm.com, Nick Desaulniers <ndesaulniers@google.com>, marc.zyngier@arm.com, dave.martin@arm.com, ard.biesheuvel@linaro.org, ebiederm@xmission.com, mingo@kernel.org, Paul Lawrence <paullawrence@google.com>, geert@linux-m68k.org, arnd@arndb.de, kirill.shutemov@linux.intel.com, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, rppt@linux.vnet.ibm.com, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Evgenii Stepanov <eugenis@google.com>, Lee.Smith@arm.com, Ramana.Radhakrishnan@arm.com, Jacob.Bramley@arm.com, Ruben.Ayrapetyan@arm.com, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, cpandya@codeaurora.org
+
+--00000000000054e431056fa93d49
+Content-Type: text/plain; charset="UTF-8"
+
+On Wed, Jun 27, 2018 at 5:04 PM Kostya Serebryany <kcc@google.com> wrote:
+
+> On Wed, Jun 27, 2018 at 4:08 PM Andrew Morton <akpm@linux-foundation.org>
+> wrote:
+> >
+> > On Tue, 26 Jun 2018 15:15:10 +0200 Andrey Konovalov <
+> andreyknvl@google.com> wrote:
+> >
+> > > This patchset adds a new mode to KASAN [1], which is called KHWASAN
+> > > (Kernel HardWare assisted Address SANitizer).
+> > >
+> > > The plan is to implement HWASan [2] for the kernel with the incentive,
+> > > that it's going to have comparable to KASAN performance, but in the
+> same
+> > > time consume much less memory, trading that off for somewhat imprecise
+> > > bug detection and being supported only for arm64.
+> >
+> > Why do we consider this to be a worthwhile change?
+> >
+> > Is KASAN's memory consumption actually a significant problem?  Some
+> > data regarding that would be very useful.
+>
+> On mobile, ASAN's and KASAN's memory usage is a significant problem.
+> Not sure if I can find scientific evidence of that.
+> CC-ing Vishwath Mohan who deals with KASAN on Android to provide
+> anecdotal evidence.
+>
+Yeah, I can confirm that it's an issue. Like Kostya mentioned, I don't have
+data on-hand, but anecdotally both ASAN and KASAN have proven problematic
+to enable for environments that don't tolerate the increased memory
+pressure well. This includes,
+(a) Low-memory form factors - Wear, TV, Things, lower-tier phones like Go
+(c) Connected components like Pixel's visual core
+<https://www.blog.google/products/pixel/pixel-visual-core-image-processing-and-machine-learning-pixel-2/>
 
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
-
-Thanks.  It might be a KASAN issue.  If nobody can spot the bug in the
-next few days, we may ask you to perform a bisection search to identify
-the faulty commit.
+These are both places I'd love to have a low(er) memory footprint option at
+my disposal.
 
 
-On Mon, 25 Jun 2018 13:51:37 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+> There are several other benefits too:
+> * HWASAN more reliably detects non-linear-buffer-overflows compared to
+> ASAN (same for kernel-HWASAN vs kernel-ASAN)
+> * Same for detecting use-after-free (since HWASAN doesn't rely on
+> quarantine).
+> * Much easier to implement stack-use-after-return detection (which
+> IIRC KASAN doesn't have yet, because in KASAN it's too hard)
+>
+> > If it is a large problem then we still have that problem on x86, so the
+> > problem remains largely unsolved?
+>
+> The problem is more significant on mobile devices than on desktop/server.
+> I'd love to have [K]HWASAN on x86_64 as well, but it's less trivial since
+> x86_64
+> doesn't have an analog of aarch64's top-byte-ignore hardware feature.
+>
+>
+> >
+> > > ====== Benchmarks
+> > >
+> > > The following numbers were collected on Odroid C2 board. Both KASAN and
+> > > KHWASAN were used in inline instrumentation mode.
+> > >
+> > > Boot time [1]:
+> > > * ~1.7 sec for clean kernel
+> > > * ~5.0 sec for KASAN
+> > > * ~5.0 sec for KHWASAN
+> > >
+> > > Slab memory usage after boot [2]:
+> > > * ~40 kb for clean kernel
+> > > * ~105 kb + 1/8th shadow ~= 118 kb for KASAN
+> > > * ~47 kb + 1/16th shadow ~= 50 kb for KHWASAN
+> > >
+> > > Network performance [3]:
+> > > * 8.33 Gbits/sec for clean kernel
+> > > * 3.17 Gbits/sec for KASAN
+> > > * 2.85 Gbits/sec for KHWASAN
+> > >
+> > > Note, that KHWASAN (compared to KASAN) doesn't require quarantine.
+> > >
+> > > [1] Time before the ext4 driver is initialized.
+> > > [2] Measured as `cat /proc/meminfo | grep Slab`.
+> > > [3] Measured as `iperf -s & iperf -c 127.0.0.1 -t 30`.
+> >
+> > The above doesn't actually demonstrate the whole point of the
+> > patchset: to reduce KASAN's very high memory consumption?
+> >
+> > --
+> > You received this message because you are subscribed to the Google
+> Groups "kasan-dev" group.
+> > To unsubscribe from this group and stop receiving emails from it, send
+> an email to kasan-dev+unsubscribe@googlegroups.com.
+> > To post to this group, send email to kasan-dev@googlegroups.com.
+> > To view this discussion on the web visit
+> https://groups.google.com/d/msgid/kasan-dev/20180627160800.3dc7f9ee41c0badbf7342520%40linux-foundation.org
+> .
+> > For more options, visit https://groups.google.com/d/optout.
+>
 
-> https://bugzilla.kernel.org/show_bug.cgi?id=200271
-> 
->             Bug ID: 200271
->            Summary: BUG: unable to handle kernel paging request at
->                     fffff1e034000208
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: v4.18-rc2
->           Hardware: All
->                 OS: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: Page Allocator
->           Assignee: akpm@linux-foundation.org
->           Reporter: icytxw@gmail.com
->         Regression: No
-> 
-> Hi, 
-> In linux kernel v4.18-rc2 exists a paging request error.
-> 
-> BUG: unable to handle kernel paging request at fffff1e034000208
-> PGD 0 P4D 0 
-> Oops: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN PTI
-> CPU: 0 PID: 2708 Comm: sshd Not tainted 4.18.0-rc1 #2
-> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
-> rel-1.10.2-0-g5f4c7b1-prebuilt.qemu-project.org 04/01/2014
-> RIP: 0010:__read_once_size include/linux/compiler.h:188 [inline]
-> RIP: 0010:compound_head include/linux/page-flags.h:142 [inline]
-> RIP: 0010:virt_to_head_page include/linux/mm.h:640 [inline]
-> RIP: 0010:qlink_to_cache mm/kasan/quarantine.c:127 [inline]
-> RIP: 0010:qlist_free_all+0xb1/0x190 mm/kasan/quarantine.c:163
-> Code: 75 bf b9 00 00 00 80 4c 89 fa 48 01 c1 48 0f 42 15 f4 68 2a 03 48 01 ca
-> 48 c1 ea 0c 48 c1 e2 06 4e 8d 2c 32 49 83 fd f8 74 71 <49> 8b 4d 08 48 8d 71 ff
-> 83 e1 01 4c 0f 45 ee 4d 85 ed 74 45 49 8b 
-> RSP: 0018:ffff8800692f7570 EFLAGS: 00010293
-> RAX: 0001800d0000800d RBX: 0000000000000000 RCX: 0001800d8000800d
-> RDX: 000007e034000200 RSI: ffffea00019b11c0 RDI: ffff8800695ffb40
-> RBP: ffff8800692f75a8 R08: 0000000080170010 R09: ffffffff8176d6dd
-> R10: ffff8800692f7520 R11: fffffbfff0941800 R12: ffff8800692f75c0
-> R13: fffff1e034000200 R14: ffffea0000000000 R15: 000077ff80000000
-> FS:  00007fa739b147c0(0000) GS:ffff88006c800000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: fffff1e034000208 CR3: 0000000068a74000 CR4: 00000000000006f0
-> Call Trace:
->  quarantine_reduce+0x1e4/0x290 mm/kasan/quarantine.c:259
->  kasan_kmalloc+0xca/0xe0 mm/kasan/kasan.c:538
->  kasan_slab_alloc+0x11/0x20 mm/kasan/kasan.c:490
->  slab_post_alloc_hook mm/slab.h:444 [inline]
->  slab_alloc_node mm/slub.c:2708 [inline]
->  kmem_cache_alloc_node+0x163/0x360 mm/slub.c:2744
->  __alloc_skb+0xe5/0x6d0 net/core/skbuff.c:193
->  alloc_skb_fclone include/linux/skbuff.h:1029 [inline]
->  sk_stream_alloc_skb+0x13d/0x890 net/ipv4/tcp.c:864
->  tcp_sendmsg_locked+0x12c0/0x3ce0 net/ipv4/tcp.c:1279
->  tcp_sendmsg+0x34/0x50 net/ipv4/tcp.c:1436
->  inet_sendmsg+0x103/0x490 net/ipv4/af_inet.c:798
->  sock_sendmsg_nosec net/socket.c:645 [inline]
->  sock_sendmsg+0xf9/0x180 net/socket.c:655
->  sock_write_iter+0x254/0x4a0 net/socket.c:924
->  call_write_iter include/linux/fs.h:1795 [inline]
->  new_sync_write fs/read_write.c:474 [inline]
->  __vfs_write+0x405/0x820 fs/read_write.c:487
->  vfs_write+0x1aa/0x630 fs/read_write.c:549
->  ksys_write+0xde/0x1c0 fs/read_write.c:598
->  __do_sys_write fs/read_write.c:610 [inline]
->  __se_sys_write fs/read_write.c:607 [inline]
->  __x64_sys_write+0x81/0xd0 fs/read_write.c:607
->  do_syscall_64+0xb8/0x3a0 arch/x86/entry/common.c:290
->  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-> RIP: 0033:0x7fa737eae370
-> Code: 73 01 c3 48 8b 0d c8 4a 2b 00 31 d2 48 29 c2 64 89 11 48 83 c8 ff eb ea
-> 90 90 83 3d 85 a2 2b 00 00 75 10 b8 01 00 00 00 0f 05 <48> 3d 01 f0 ff ff 73 31
-> c3 48 83 ec 08 e8 0e 8a 01 00 48 89 04 24 
-> RSP: 002b:00007fffd34e67e8 EFLAGS: 00000246 ORIG_RAX: 0000000000000001
-> RAX: ffffffffffffffda RBX: 0000000000004028 RCX: 00007fa737eae370
-> RDX: 0000000000004028 RSI: 000055ac329d4ea0 RDI: 0000000000000003
-> RBP: 000055ac329d4ea0 R08: 0000000000000001 R09: 0101010101010101
-> R10: 0000000000000008 R11: 0000000000000246 R12: 00007fffd34e684c
-> R13: 000055ac321a8fb4 R14: 0000000000000028 R15: 000055ac321aaca0
-> Modules linked in:
-> Dumping ftrace buffer:
->    (ftrace buffer empty)
-> CR2: fffff1e034000208
-> ---[ end trace 3fb4ab829d4ae198 ]---
-> RIP: 0010:__read_once_size include/linux/compiler.h:188 [inline]
-> RIP: 0010:compound_head include/linux/page-flags.h:142 [inline]
-> RIP: 0010:virt_to_head_page include/linux/mm.h:640 [inline]
-> RIP: 0010:qlink_to_cache mm/kasan/quarantine.c:127 [inline]
-> RIP: 0010:qlist_free_all+0xb1/0x190 mm/kasan/quarantine.c:163
-> Code: 75 bf b9 00 00 00 80 4c 89 fa 48 01 c1 48 0f 42 15 f4 68 2a 03 48 01 ca
-> 48 c1 ea 0c 48 c1 e2 06 4e 8d 2c 32 49 83 fd f8 74 71 <49> 8b 4d 08 48 8d 71 ff
-> 83 e1 01 4c 0f 45 ee 4d 85 ed 74 45 49 8b 
-> RSP: 0018:ffff8800692f7570 EFLAGS: 00010293
-> RAX: 0001800d0000800d RBX: 0000000000000000 RCX: 0001800d8000800d
-> RDX: 000007e034000200 RSI: ffffea00019b11c0 RDI: ffff8800695ffb40
-> RBP: ffff8800692f75a8 R08: 0000000080170010 R09: ffffffff8176d6dd
-> R10: ffff8800692f7520 R11: fffffbfff0941800 R12: ffff8800692f75c0
-> R13: fffff1e034000200 R14: ffffea0000000000 R15: 000077ff80000000
-> FS:  00007fa739b147c0(0000) GS:ffff88006c800000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: fffff1e034000208 CR3: 0000000068a74000 CR4: 00000000000006f0
-> 
-> -- 
-> You are receiving this mail because:
-> You are the assignee for the bug.
+--00000000000054e431056fa93d49
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><br><br><div class=3D"gmail_quote"><div dir=3D"ltr">On Wed=
+, Jun 27, 2018 at 5:04 PM Kostya Serebryany &lt;<a href=3D"mailto:kcc@googl=
+e.com" target=3D"_blank">kcc@google.com</a>&gt; wrote:<br></div><blockquote=
+ class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc soli=
+d;padding-left:1ex">On Wed, Jun 27, 2018 at 4:08 PM Andrew Morton &lt;<a hr=
+ef=3D"mailto:akpm@linux-foundation.org" target=3D"_blank">akpm@linux-founda=
+tion.org</a>&gt; wrote:<br>
+&gt;<br>
+&gt; On Tue, 26 Jun 2018 15:15:10 +0200 Andrey Konovalov &lt;<a href=3D"mai=
+lto:andreyknvl@google.com" target=3D"_blank">andreyknvl@google.com</a>&gt; =
+wrote:<br>
+&gt;<br>
+&gt; &gt; This patchset adds a new mode to KASAN [1], which is called KHWAS=
+AN<br>
+&gt; &gt; (Kernel HardWare assisted Address SANitizer).<br>
+&gt; &gt;<br>
+&gt; &gt; The plan is to implement HWASan [2] for the kernel with the incen=
+tive,<br>
+&gt; &gt; that it&#39;s going to have comparable to KASAN performance, but =
+in the same<br>
+&gt; &gt; time consume much less memory, trading that off for somewhat impr=
+ecise<br>
+&gt; &gt; bug detection and being supported only for arm64.<br>
+&gt;<br>
+&gt; Why do we consider this to be a worthwhile change?<br>
+&gt;<br>
+&gt; Is KASAN&#39;s memory consumption actually a significant problem?=C2=
+=A0 Some<br>
+&gt; data regarding that would be very useful.<br>
+<br>
+On mobile, ASAN&#39;s and KASAN&#39;s memory usage is a significant problem=
+.<br>
+Not sure if I can find scientific evidence of that.<br>
+CC-ing Vishwath Mohan who deals with KASAN on Android to provide<br>
+anecdotal evidence.<br></blockquote><div>Yeah, I can confirm that it&#39;s =
+an issue. Like Kostya mentioned,=C2=A0<span style=3D"background-color:rgb(2=
+55,255,255);text-decoration-style:initial;text-decoration-color:initial;flo=
+at:none;display:inline">I don&#39;t have data on-hand, but anecdotally b</s=
+pan>oth ASAN and KASAN have proven problematic to enable for environments t=
+hat don&#39;t tolerate the increased memory pressure well. This includes,<b=
+r class=3D"m_4206382866232652720gmail-Apple-interchange-newline"></div><div=
+>(a) Low-memory form factors - Wear, TV, Things, lower-tier phones like Go=
+=C2=A0=C2=A0</div><div>(c) Connected components like Pixel&#39;s <a href=3D=
+"https://www.blog.google/products/pixel/pixel-visual-core-image-processing-=
+and-machine-learning-pixel-2/" target=3D"_blank">visual core</a>=C2=A0=C2=
+=A0<br></div><div><br></div><div>These are both places I&#39;d love to have=
+ a low(er) memory footprint option at my disposal.=C2=A0</div><div><br></di=
+v><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:=
+1px #ccc solid;padding-left:1ex">
+<br>
+There are several other benefits too:<br>
+* HWASAN more reliably detects non-linear-buffer-overflows compared to<br>
+ASAN (same for kernel-HWASAN vs kernel-ASAN)<br>
+* Same for detecting use-after-free (since HWASAN doesn&#39;t rely on quara=
+ntine).<br>
+* Much easier to implement stack-use-after-return detection (which<br>
+IIRC KASAN doesn&#39;t have yet, because in KASAN it&#39;s too hard)<br>
+<br>
+&gt; If it is a large problem then we still have that problem on x86, so th=
+e<br>
+&gt; problem remains largely unsolved?<br>
+<br>
+The problem is more significant on mobile devices than on desktop/server.<b=
+r>
+I&#39;d love to have [K]HWASAN on x86_64 as well, but it&#39;s less trivial=
+ since x86_64<br>
+doesn&#39;t have an analog of aarch64&#39;s top-byte-ignore hardware featur=
+e.<br>
+<br>
+<br>
+&gt;<br>
+&gt; &gt; =3D=3D=3D=3D=3D=3D Benchmarks<br>
+&gt; &gt;<br>
+&gt; &gt; The following numbers were collected on Odroid C2 board. Both KAS=
+AN and<br>
+&gt; &gt; KHWASAN were used in inline instrumentation mode.<br>
+&gt; &gt;<br>
+&gt; &gt; Boot time [1]:<br>
+&gt; &gt; * ~1.7 sec for clean kernel<br>
+&gt; &gt; * ~5.0 sec for KASAN<br>
+&gt; &gt; * ~5.0 sec for KHWASAN<br>
+&gt; &gt;<br>
+&gt; &gt; Slab memory usage after boot [2]:<br>
+&gt; &gt; * ~40 kb for clean kernel<br>
+&gt; &gt; * ~105 kb + 1/8th shadow ~=3D 118 kb for KASAN<br>
+&gt; &gt; * ~47 kb + 1/16th shadow ~=3D 50 kb for KHWASAN<br>
+&gt; &gt;<br>
+&gt; &gt; Network performance [3]:<br>
+&gt; &gt; * 8.33 Gbits/sec for clean kernel<br>
+&gt; &gt; * 3.17 Gbits/sec for KASAN<br>
+&gt; &gt; * 2.85 Gbits/sec for KHWASAN<br>
+&gt; &gt;<br>
+&gt; &gt; Note, that KHWASAN (compared to KASAN) doesn&#39;t require quaran=
+tine.<br>
+&gt; &gt;<br>
+&gt; &gt; [1] Time before the ext4 driver is initialized.<br>
+&gt; &gt; [2] Measured as `cat /proc/meminfo | grep Slab`.<br>
+&gt; &gt; [3] Measured as `iperf -s &amp; iperf -c 127.0.0.1 -t 30`.<br>
+&gt;<br>
+&gt; The above doesn&#39;t actually demonstrate the whole point of the<br>
+&gt; patchset: to reduce KASAN&#39;s very high memory consumption?<br>
+&gt;<br>
+&gt; --<br>
+&gt; You received this message because you are subscribed to the Google Gro=
+ups &quot;kasan-dev&quot; group.<br>
+&gt; To unsubscribe from this group and stop receiving emails from it, send=
+ an email to <a href=3D"mailto:kasan-dev%2Bunsubscribe@googlegroups.com" ta=
+rget=3D"_blank">kasan-dev+unsubscribe@googlegroups.com</a>.<br>
+&gt; To post to this group, send email to <a href=3D"mailto:kasan-dev@googl=
+egroups.com" target=3D"_blank">kasan-dev@googlegroups.com</a>.<br>
+&gt; To view this discussion on the web visit <a href=3D"https://groups.goo=
+gle.com/d/msgid/kasan-dev/20180627160800.3dc7f9ee41c0badbf7342520%40linux-f=
+oundation.org" rel=3D"noreferrer" target=3D"_blank">https://groups.google.c=
+om/d/msgid/kasan-dev/20180627160800.3dc7f9ee41c0badbf7342520%40linux-founda=
+tion.org</a>.<br>
+&gt; For more options, visit <a href=3D"https://groups.google.com/d/optout"=
+ rel=3D"noreferrer" target=3D"_blank">https://groups.google.com/d/optout</a=
+>.<br>
+</blockquote></div></div>
+
+--00000000000054e431056fa93d49--
