@@ -1,91 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 64FD36B0003
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 04:35:32 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j8-v6so2425662pfn.6
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 01:35:32 -0700 (PDT)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id 139-v6si5270378pgc.87.2018.06.28.01.35.30
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E91F6B0007
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 04:39:13 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id x6-v6so2130629pgp.9
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 01:39:13 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id k12-v6si5941141pll.319.2018.06.28.01.39.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jun 2018 01:35:30 -0700 (PDT)
-Message-ID: <5B349EC2.80207@intel.com>
-Date: Thu, 28 Jun 2018 16:39:30 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 28 Jun 2018 01:39:12 -0700 (PDT)
+Date: Thu, 28 Jun 2018 01:39:09 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v14 00/74] Convert page cache to XArray
+Message-ID: <20180628083909.GA7646@bombadil.infradead.org>
+References: <20180617020052.4759-1-willy@infradead.org>
+ <20180619031257.GA12527@linux.intel.com>
+ <20180619092230.GA1438@bombadil.infradead.org>
+ <20180619164037.GA6679@linux.intel.com>
+ <20180619171638.GE1438@bombadil.infradead.org>
+ <20180627110529.GA19606@bombadil.infradead.org>
+ <20180627194438.GA20774@linux.intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v33 1/4] mm: add a function to get free page blocks
-References: <1529037793-35521-1-git-send-email-wei.w.wang@intel.com> <1529037793-35521-2-git-send-email-wei.w.wang@intel.com> <CA+55aFzhuGKinEq5udPsk_uYHShkQxJYqcPO=tLCkT-oxpsgPg@mail.gmail.com> <20180626045118-mutt-send-email-mst@kernel.org> <CA+55aFwFpDPvfL=KPdabO-x1r0FnwpfPk5oN8+e01TKqAPNYbw@mail.gmail.com> <20180627220402-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20180627220402-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180627194438.GA20774@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, virtualization <virtualization@lists.linux-foundation.org>, KVM list <kvm@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, Rik van Riel <riel@redhat.com>, peterx@redhat.com
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net
 
-On 06/28/2018 03:07 AM, Michael S. Tsirkin wrote:
-> On Wed, Jun 27, 2018 at 09:05:39AM -0700, Linus Torvalds wrote:
->> [ Sorry for slow reply, my travels have made a mess of my inbox ]
->>
->> On Mon, Jun 25, 2018 at 6:55 PM Michael S. Tsirkin <mst@redhat.com> wrote:
->>> Linus, do you think it would be ok to have get_from_free_page_list
->>> actually pop entries from the free list and use them as the buffer
->>> to store PAs?
->> Honestly, what I think the best option would be is to get rid of this
->> interface *entirely*, and just have the balloon code do
->>
->>      #define GFP_MINFLAGS (__GFP_NORETRY | __GFP_NOWARN |
->> __GFP_THISNODE | __GFP_NOMEMALLOC)
->>
->>      struct page *page =  alloc_pages(GFP_MINFLAGS, MAX_ORDER-1);
->>
->>   which is not a new interface, and simply removes the max-order page
->> from the list if at all possible.
->>
->> The above has the advantage of "just working", and not having any races.
->>
->> Now, because you don't want to necessarily *entirely* deplete the max
->> order, I'd suggest that the *one* new interface you add is just a "how
->> many max-order pages are there" interface. So then you can query
->> (either before or after getting the max-order page) just how many of
->> them there were and whether you want to give that page back.
->>
->> Notice? No need for any page lists or physical addresses. No races. No
->> complex new functions.
->>
->> The physical address you can just get from the "struct page" you got.
->>
->> And if you run out of memory because of getting a page, you get all
->> the usual "hey, we ran out of memory" responses..
->>
->> Wouldn't the above be sufficient?
->>
->>              Linus
+On Wed, Jun 27, 2018 at 01:44:38PM -0600, Ross Zwisler wrote:
+> On Wed, Jun 27, 2018 at 04:05:29AM -0700, Matthew Wilcox wrote:
+> > On Tue, Jun 19, 2018 at 10:16:38AM -0700, Matthew Wilcox wrote:
+> > > I think I see a bug.  No idea if it's the one you're hitting ;-)
+> > > 
+> > > I had been intending to not use the 'entry' to decide whether we were
+> > > waiting on a 2MB or 4kB page, but rather the xas.  I shelved that idea,
+> > > but not before dropping the DAX_PMD flag being passed from the PMD
+> > > pagefault caller.  So if I put that back ...
+> > 
+> > Did you get a chance to test this?
+> 
+> With this patch it doesn't deadlock, but the test dies with a SIGBUS and we
+> hit a WARN_ON in the DAX code:
+> 
+> WARNING: CPU: 5 PID: 1678 at fs/dax.c:226 get_unlocked_entry+0xf7/0x120
+> 
+> I don't have a lot of time this week to debug further.  The quickest path to
+> victory is probably for you to get this reproducing in your test setup.  Does
+> XFS + DAX + generic/340 pass for you?
 
-
-Thanks for the elaboration.
-
-> I think so, thanks!
->
-> Wei, to put it in balloon terms, I think there's one thing we missed: if
-> you do manage to allocate a page, and you don't have a use for it, then
-> hey, you can just give it to the host because you know it's free - you
-> are going to return it to the free list.
->
-
-I'm not sure if this would be better than Linus' previous suggestion, 
-because live migration is expected to be performed without disturbing 
-the guest. If we do allocation to get all the free pages at all 
-possible, then the guest applications would be seriously affected. For 
-example, the network would become very slow as the allocation of sk_buf 
-often triggers OOM during live migration. If live migration happens from 
-time to time, and users try memory related tools like "free -h" on the 
-guest, the reported statistics (e.g. the fee memory becomes very low 
-abruptly due to the balloon allocation) would confuse them.
-
-With the previous suggestion, we only get hints of the free pages (i.e. 
-just report the address of free pages to host without taking them off 
-the list).
-
-Best,
-Wei
+I won't be back in front of my test box until Tuesday, but that test
+does work for me because I couldn't get your instructions to give me a
+2MB aligned DAX setup.  I had to settle for 4k, so none of the 2MB stuff
+has been tested properly.
