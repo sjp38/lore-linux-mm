@@ -1,71 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D933B6B000A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 01:31:40 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k18-v6so2422559wrn.8
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 22:31:40 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id h66-v6si3258962wmg.128.2018.06.27.22.31.39
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A5D16B000D
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 01:35:19 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id w23-v6so1917371pgv.1
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 22:35:19 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id u17-v6si4950919pgv.455.2018.06.27.22.35.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 22:31:39 -0700 (PDT)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5S5Ukea029998
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 01:31:38 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2jvskd8115-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 01:31:37 -0400
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 28 Jun 2018 06:31:36 +0100
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: Freeing page table pages
-Date: Thu, 28 Jun 2018 11:01:30 +0530
+        Wed, 27 Jun 2018 22:35:18 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v4 00/21] mm, THP, swap: Swapout/swapin THP in one piece
+References: <20180622035151.6676-1-ying.huang@intel.com>
+	<20180627215144.73e98b01099191da59bff28c@linux-foundation.org>
+	<87r2krfpi2.fsf@yhuang-dev.intel.com>
+	<20180627223118.dd2f52d87f53e7e002ed0153@linux-foundation.org>
+Date: Thu, 28 Jun 2018 13:35:15 +0800
+In-Reply-To: <20180627223118.dd2f52d87f53e7e002ed0153@linux-foundation.org>
+	(Andrew Morton's message of "Wed, 27 Jun 2018 22:31:18 -0700")
+Message-ID: <87muvffp7w.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Message-Id: <91ea4760-b793-2765-f59a-a09d730c0624@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Memory Management List <linux-mm@kvack.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-Hello,
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-Here is pagetable free function from x86 architecture (arch/x86/mm/init_64.c)
+> On Thu, 28 Jun 2018 13:29:09 +0800 "Huang\, Ying" <ying.huang@intel.com> wrote:
+>
+>> Andrew Morton <akpm@linux-foundation.org> writes:
+>> 
+>> > On Fri, 22 Jun 2018 11:51:30 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
+>> >
+>> >> This is the final step of THP (Transparent Huge Page) swap
+>> >> optimization.  After the first and second step, the splitting huge
+>> >> page is delayed from almost the first step of swapout to after swapout
+>> >> has been finished.  In this step, we avoid splitting THP for swapout
+>> >> and swapout/swapin the THP in one piece.
+>> >
+>> > It's a tremendously good performance improvement.  It's also a
+>> > tremendously large patchset :(
+>> >
+>> > And it depends upon your
+>> > mm-swap-fix-race-between-swapoff-and-some-swap-operations.patch and
+>> > mm-fix-race-between-swapoff-and-mincore.patch, the first of which has
+>> > been floating about since February without adequate review.
+>> >
+>> > I'll give this patchset a spin in -mm to see what happens and will come
+>> > back later to take a closer look.  But the best I can do at this time
+>> > is to hopefully cc some possible reviewers :)
+>> 
+>> Thanks a lot for your help!  Hope more people can review it!
+>
+> I took it out of -mm again, temporarily.  Due to a huge tangle with the
+> xarray conversions in linux-next.
 
-static void __meminit free_pagetable(struct page *page, int order)
-{
-	unsigned long magic;
-	unsigned int nr_pages = 1 << order;
+No problem.  I will rebase the patchset on your latest -mm tree, or the
+next version to be released?
 
-	/* bootmem page has reserved flag */
-	if (PageReserved(page)) {
-		__ClearPageReserved(page);
-
-		magic = (unsigned long)page->freelist;
-		if (magic == SECTION_INFO || magic == MIX_SECTION_INFO) {
-			while (nr_pages--)
-				put_page_bootmem(page++);
-		} else
-			while (nr_pages--)
-				free_reserved_page(page++);
-	} else
-		free_pages((unsigned long)page_address(page), order);
-}
-
-Since all kernel pagetable pages allocated during boot from memblock should
-have been marked with MIX_SECTION_INFO through the following function calls,
-wondering in which case if (magic == SECTION_INFO || magic == MIX_SECTION_INFO)
-will evaluate to be false and will directly call free_reserved_page() instead.
-
-Inside register_page_bootmem_memmap() (arch/x86/mm/init_64.c)
-
-get_page_bootmem(section_nr, pgd_page(*pgd), MIX_SECTION_INFO);
-get_page_bootmem(section_nr, p4d_page(*p4d), MIX_SECTION_INFO);
-get_page_bootmem(section_nr, pud_page(*pud), MIX_SECTION_INFO);
-get_page_bootmem(section_nr, pte_page(*pte), SECTION_INFO);
-
-- Anshuman
+Best Regards,
+Huang, Ying
