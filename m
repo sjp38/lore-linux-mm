@@ -1,57 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7296C6B0005
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 15:40:44 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id a20-v6so1854345pfi.1
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 12:40:44 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id y192-v6si5697221pgd.656.2018.06.28.12.40.42
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BF8AF6B0005
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 16:21:01 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id q8-v6so4633808wmc.2
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 13:21:01 -0700 (PDT)
+Received: from mx0a-00190b01.pphosted.com (mx0a-00190b01.pphosted.com. [2620:100:9001:583::1])
+        by mx.google.com with ESMTPS id o63-v6si4738083wmd.63.2018.06.28.13.20.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jun 2018 12:40:42 -0700 (PDT)
-Date: Thu, 28 Jun 2018 12:40:39 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address
- sanitizer
-Message-Id: <20180628124039.8a42ab5e2994fb2876ff4f75@linux-foundation.org>
-In-Reply-To: <CAAeHK+xz552VNpZxgWwU-hbTqF5_F6YVDw3fSv=4OT8mNrqPzg@mail.gmail.com>
-References: <cover.1530018818.git.andreyknvl@google.com>
-	<20180627160800.3dc7f9ee41c0badbf7342520@linux-foundation.org>
-	<CAAeHK+xz552VNpZxgWwU-hbTqF5_F6YVDw3fSv=4OT8mNrqPzg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Thu, 28 Jun 2018 13:20:59 -0700 (PDT)
+Subject: Re: [PATCH] mm/madvise: allow MADV_DONTNEED to free memory that is
+ MLOCK_ONFAULT
+References: <1528484212-7199-1-git-send-email-jbaron@akamai.com>
+ <20180611072005.GC13364@dhcp22.suse.cz>
+ <4c4de46d-c55a-99a8-469f-e1e634fb8525@akamai.com>
+ <20180611150330.GQ13364@dhcp22.suse.cz>
+ <775adf2d-140c-1460-857f-2de7b24bafe7@akamai.com>
+ <20180612074646.GS13364@dhcp22.suse.cz>
+ <5a9398f4-453c-5cb5-6bbc-f20c3affc96a@akamai.com>
+ <0daccb7c-f642-c5ce-ca7a-3b3e69025a1e@suse.cz>
+ <20180613071552.GD13364@dhcp22.suse.cz>
+ <7a671035-92dc-f9c0-aa7b-ff916d556e82@akamai.com>
+ <20180620110022.GK13685@dhcp22.suse.cz>
+From: Jason Baron <jbaron@akamai.com>
+Message-ID: <4ab6d77a-3032-3ffb-d556-b736f6b983e6@akamai.com>
+Date: Thu, 28 Jun 2018 16:20:54 -0400
+MIME-Version: 1.0
+In-Reply-To: <20180620110022.GK13685@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-api@vger.kernel.org, emunson@mgebm.net
 
-On Thu, 28 Jun 2018 20:29:07 +0200 Andrey Konovalov <andreyknvl@google.com> wrote:
 
-> >> Slab memory usage after boot [2]:
-> >> * ~40 kb for clean kernel
-> >> * ~105 kb + 1/8th shadow ~= 118 kb for KASAN
-> >> * ~47 kb + 1/16th shadow ~= 50 kb for KHWASAN
-> >>
-> >> Network performance [3]:
-> >> * 8.33 Gbits/sec for clean kernel
-> >> * 3.17 Gbits/sec for KASAN
-> >> * 2.85 Gbits/sec for KHWASAN
-> >>
-> >> Note, that KHWASAN (compared to KASAN) doesn't require quarantine.
-> >>
-> >> [1] Time before the ext4 driver is initialized.
-> >> [2] Measured as `cat /proc/meminfo | grep Slab`.
-> >> [3] Measured as `iperf -s & iperf -c 127.0.0.1 -t 30`.
-> >
-> > The above doesn't actually demonstrate the whole point of the
-> > patchset: to reduce KASAN's very high memory consumption?
+
+On 06/20/2018 07:00 AM, Michal Hocko wrote:
+> On Fri 15-06-18 15:36:07, Jason Baron wrote:
+>>
+>>
+>> On 06/13/2018 03:15 AM, Michal Hocko wrote:
+>>> On Wed 13-06-18 08:32:19, Vlastimil Babka wrote:
+> [...]
+>>>> BTW I didn't get why we should allow this for MADV_DONTNEED but not
+>>>> MADV_FREE. Can you expand on that?
+>>>
+>>> Well, I wanted to bring this up as well. I guess this would require some
+>>> more hacks to handle the reclaim path correctly because we do rely on
+>>> VM_LOCK at many places for the lazy mlock pages culling.
+>>>
+>>
+>> The point of not allowing MADV_FREE on mlock'd pages for me was that
+>> with mlock and even MLOCK_ON_FAULT, one can always can always determine
+>> if a page is present or not (and thus avoid the major fault). Allowing
+>> MADV_FREE on lock'd pages breaks that assumption.
 > 
-> You mean that memory usage numbers collected after boot don't give a
-> representative picture of actual memory consumption on real workloads?
+> But once you have called MADV_FREE you cannot assume anything about the
+> content until you touch the memory again. So you can safely assume a
+> major fault for the worst case. Btw. why knowing whether you major fault
+> is important in the first place? What is an application going to do
+> about that information?
 > 
-> What kind of memory consumption testing would you like to see?
 
-Well, 100kb or so is a teeny amount on virtually any machine.  I'm
-assuming the savings are (much) more significant once the machine gets
-loaded up and doing work?
+Fair enough, I think that means you end up with a MADV_FREE_FORCE to
+support that case? As I said I worked around this by using tmpfs and
+fallocate(FALLOC_FL_PUNCH_HOLE). However, I still think there is a
+use-case for doing this for anonymous memory, to avoid the unlock() calls.
+
+The use-case I had in mind was simply an application that has a fast
+path for when it knows that the requested item is locked in memory.
+
+Thanks,
+
+-Jason
