@@ -1,100 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2ABD66B000A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 05:31:03 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id l72-v6so1339737lfl.20
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 02:31:03 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m13-v6sor726371lfi.94.2018.06.28.02.31.00
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Jun 2018 02:31:01 -0700 (PDT)
-Date: Thu, 28 Jun 2018 12:30:57 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH 2/3] mm: workingset: make shadow_lru_isolate() use
- locking suffix
-Message-ID: <20180628093057.4u7ncd42s2wu4oin@esperanza>
-References: <20180622151221.28167-1-bigeasy@linutronix.de>
- <20180622151221.28167-3-bigeasy@linutronix.de>
- <20180624195753.2e277k5xhujypwre@esperanza>
- <20180626212534.sp4p76gcvldcai57@linutronix.de>
- <20180627085003.rz3dzzggjxps34wb@esperanza>
- <20180627092059.temrhpvyc7ggcmxd@linutronix.de>
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AF9426B0005
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 06:27:51 -0400 (EDT)
+Received: by mail-ot0-f199.google.com with SMTP id p13-v6so3179470otl.23
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 03:27:51 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id e52-v6si2315441otc.367.2018.06.28.03.27.49
+        for <linux-mm@kvack.org>;
+        Thu, 28 Jun 2018 03:27:49 -0700 (PDT)
+Date: Thu, 28 Jun 2018 11:27:42 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v4 0/7] arm64: untag user pointers passed to the kernel
+Message-ID: <20180628102741.vk6vphfinlj3lvhv@armageddon.cambridge.arm.com>
+References: <cover.1529507994.git.andreyknvl@google.com>
+ <CAAeHK+zqtyGzd_CZ7qKZKU-uZjZ1Pkmod5h8zzbN0xCV26nSfg@mail.gmail.com>
+ <20180626172900.ufclp2pfrhwkxjco@armageddon.cambridge.arm.com>
+ <CAAeHK+yqWKTdTG+ymZ2-5XKiDANV+fmUjnQkRy-5tpgphuLJRA@mail.gmail.com>
+ <0cef1643-a523-98e7-95e2-9ec595137642@arm.com>
+ <20180627171757.amucnh5znld45cpc@armageddon.cambridge.arm.com>
+ <20180628061758.j6bytsaj5jk4aocg@ltop.local>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180627092059.temrhpvyc7ggcmxd@linutronix.de>
+In-Reply-To: <20180628061758.j6bytsaj5jk4aocg@ltop.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: linux-mm@kvack.org, tglx@linutronix.de, Andrew Morton <akpm@linux-foundation.org>
+To: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Cc: Mark Rutland <Mark.Rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Will Deacon <Will.Deacon@arm.com>, Kostya Serebryany <kcc@google.com>, "linux-kselftest@vger.kernel.org" <linux-kselftest@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Dmitry Vyukov <dvyukov@google.com>, Evgeniy Stepanov <eugenis@google.com>, Kees Cook <keescook@chromium.org>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Andrey Konovalov <andreyknvl@google.com>, Lee Smith <Lee.Smith@arm.com>, Al Viro <viro@zeniv.linux.org.uk>nd <nd@arm.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, Ramana Radhakrishnan <ramana.radhakrishnan@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Robin Murphy <Robin.Murphy@arm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Jun 27, 2018 at 11:20:59AM +0200, Sebastian Andrzej Siewior wrote:
-> On 2018-06-27 11:50:03 [+0300], Vladimir Davydov wrote:
-> > > it is not asymmetric because a later patch makes it use
-> > > spin_lock_irq(), too. If you use local_irq_disable() and a spin_lock()
-> > > (like you suggest in 3/3 as well) then you separate the locking
-> > > instruction. It works as expected on vanilla but break other locking
-> > > implementations like those on RT.
-> > 
-> > As I said earlier, I don't like patch 3 either, because I find the
-> > notion of list_lru::lock_irq flag abstruse since it doesn't make all
-> > code paths taking the lock disable irq: list_lru_add/del use spin_lock
-> > no matter whether the flag is set or not. That is, when you initialize a
-> > list_lru and pass lock_irq=true, you'll have to keep in mind that it
-> > only protects list_lru_walk, while list_lru_add/del must be called with
-> > irq disabled by the caller. Disabling irq before list_lru_walk
-> > explicitly looks much more straightforward IMO.
+On Thu, Jun 28, 2018 at 08:17:59AM +0200, Luc Van Oostenryck wrote:
+> On Wed, Jun 27, 2018 at 06:17:58PM +0100, Catalin Marinas wrote:
+> > sparse is indeed an option. The current implementation doesn't warn on
+> > an explicit cast from (void __user *) to (unsigned long) since that's a
+> > valid thing in the kernel. I couldn't figure out if there's any other
+> > __attribute__ that could be used to warn of such conversion.
 > 
-> It helps to keep the locking annotation in one place. If it helps I
-> could add the _irqsave() suffix to list_lru_add/del like it is already
-> done in other places (in this file).
+> sparse doesn't have such attribute but would an new option that would warn
+> on such cast be a solution for your case?
 
-AFAIK local_irqsave/restore don't come for free so using them just to
-keep the code clean doesn't seem to be reasonable.
+I can't tell for sure whether such sparse option would be the full
+solution but detecting explicit __user pointer casts to long is a good
+starting point. So far this patchset pretty much relies on detecting
+a syscall failure and trying to figure out why, patching the kernel. It
+doesn't really scale.
 
-> 
-> > As for RT, it wouldn't need mm/workingset altogether AFAIU. 
-> Why wouldn't it need it?
+As a side note, we have cases in the user-kernel ABI where the user
+address type is "unsigned long": mmap() and friends. My feedback on an
+early version of this patchset was to always require untagged pointers
+coming from user space on such syscalls, so no need for explicit
+untagging.
 
-I may be wrong, but AFAIU RT kernel doesn't do swapping.
-
-> 
-> > Anyway, it's
-> > rather unusual to care about out-of-the-tree patches when changing the
-> > vanilla kernel code IMO. 
-> The plan is not stay out-of-tree forever. And I don't intend to make
-> impossible or hard to argue changes just for RT's sake. This is only to
-> keep the correct locking context/primitives in one place and not
-> scattered around.
-> The only reason for the separation is that most users don't disable
-> interrupts (one user does) and there a few places which already use
-> irqsave() because they can be called from both places. This
-> list_lru_walk() is the only which can't do so due to the callback it
-> invokes. I could also add a different function (say
-> list_lru_walk_one_irq()) which behaves like list_lru_walk_one() but does
-> spin_lock_irq() instead.
-
-That would look better IMHO. I mean, passing the flag as an argument to
-__list_lru_walk_one and introducing list_lru_shrink_walk_irq.
-
-> 
-> > Using local_irq_disable + spin_lock instead of
-> > spin_lock_irq is a typical pattern, and I don't see how changing this
-> > particular place would help RT.
-> It is not that typical. It is how the locking primitives work, yes, but
-> they are not so many places that do so and those that did got cleaned
-> up.
-
-Missed that. There used to be a lot of places like that in the past.
-I guess things have changed.
-
-> 
-> > > Also if the locking changes then the local_irq_disable() part will be
-> > > forgotten like you saw in 1/3 of this series.
-> > 
-> > If the locking changes, we'll have to revise all list_lru users anyway.
-> > Yeah, we missed it last time, but it didn't break anything, and it was
-> > finally found and fixed (by you, thanks BTW).
-> You are very welcome. But having the locking primitives in one place you
-> would have less things to worry about.
+-- 
+Catalin
