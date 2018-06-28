@@ -1,94 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4256E6B0005
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 17:29:07 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id w138-v6so5629wmw.4
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 14:29:07 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id j10-v6si914549wrh.398.2018.06.28.14.29.04
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EFE176B0005
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 18:17:00 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id x6-v6so3628640wrl.6
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 15:17:00 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f1-v6sor3859690wrp.72.2018.06.28.15.16.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jun 2018 14:29:05 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5SLT2Cb142616
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 17:29:03 -0400
-Received: from e12.ny.us.ibm.com (e12.ny.us.ibm.com [129.33.205.202])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2jw7ak8nq1-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 17:29:03 -0400
-Received: from localhost
-	by e12.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Thu, 28 Jun 2018 17:29:03 -0400
-Date: Thu, 28 Jun 2018 14:31:05 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm,oom: Bring OOM notifier callbacks to outside of OOM
- killer.
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <1529493638-6389-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.21.1806201528490.16984@chino.kir.corp.google.com>
- <20180621073142.GA10465@dhcp22.suse.cz>
- <2d8c3056-1bc2-9a32-d745-ab328fd587a1@i-love.sakura.ne.jp>
- <20180626170345.GA3593@linux.vnet.ibm.com>
- <20180627072207.GB32348@dhcp22.suse.cz>
- <20180627143125.GW3593@linux.vnet.ibm.com>
- <20180628113942.GD32348@dhcp22.suse.cz>
+        (Google Transport Security);
+        Thu, 28 Jun 2018 15:16:58 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180628113942.GD32348@dhcp22.suse.cz>
-Message-Id: <20180628213105.GP3593@linux.vnet.ibm.com>
+References: <20180627214447.260804-1-cannonmatthews@google.com> <20180628112139.GC32348@dhcp22.suse.cz>
+In-Reply-To: <20180628112139.GC32348@dhcp22.suse.cz>
+From: Cannon Matthews <cannonmatthews@google.com>
+Date: Thu, 28 Jun 2018 15:16:46 -0700
+Message-ID: <CAJfu=Uc8zkN1fc73_UtiREW061xakrnMNP27oV5i3AreP1XS+w@mail.gmail.com>
+Subject: Re: [PATCH] mm: hugetlb: yield when prepping struct pages
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org, mike.kravetz@oracle.com
+Cc: akpm@linux-foundation.org, nyc@holomorphy.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andres Lagar-Cavilla <andreslc@google.com>, Peter Feiner <pfeiner@google.com>, Greg Thelen <gthelen@google.com>
 
-On Thu, Jun 28, 2018 at 01:39:42PM +0200, Michal Hocko wrote:
-> On Wed 27-06-18 07:31:25, Paul E. McKenney wrote:
-> > On Wed, Jun 27, 2018 at 09:22:07AM +0200, Michal Hocko wrote:
-> > > On Tue 26-06-18 10:03:45, Paul E. McKenney wrote:
-> > > [...]
-> > > > 3.	Something else?
-> > > 
-> > > How hard it would be to use a different API than oom notifiers? E.g. a
-> > > shrinker which just kicks all the pending callbacks if the reclaim
-> > > priority reaches low values (e.g. 0)?
-> > 
-> > Beats me.  What is a shrinker?  ;-)
-> 
-> This is a generich mechanism to reclaim memory that is not on standard
-> LRU lists. Lwn.net surely has some nice coverage (e.g.
-> https://lwn.net/Articles/548092/).
+Thanks for the quick turnaround.
 
-"In addition, there is little agreement over what a call to a shrinker
-really means or how the called subsystem should respond."  ;-)
+Good to know about the how the 2M code path differs, I have been
+trying to trace through some of this and it's easy to get lost between
+which applies to which size.
 
-Is this set up using register_shrinker() in mm/vmscan.c?  I am guessing
-that the many mentions of shrinker in DRM are irrelevant.
-
-If my guess is correct, the API seems a poor fit for RCU.  I can
-produce an approximate number of RCU callbacks for ->count_objects(),
-but a given callback might free a lot of memory or none at all.  Plus,
-to actually have ->scan_objects() free them before returning, I would
-need to use something like rcu_barrier(), which might involve longer
-delays than desired.
-
-Or am I missing something here?
-
-> > More seriously, could you please point me at an exemplary shrinker
-> > use case so I can see what is involved?
-> 
-> Well, I am not really sure what is the objective of the oom notifier to
-> point you to the right direction. IIUC you just want to kick callbacks
-> to be handled sooner under a heavy memory pressure, right? How is that
-> achieved? Kick a worker?
-
-That is achieved by enqueuing a non-lazy callback on each CPU's callback
-list, but only for those CPUs having non-empty lists.  This causes
-CPUs with lists containing only lazy callbacks to be more aggressive,
-in particular, it prevents such CPUs from hanging out idle for seconds
-at a time while they have callbacks on their lists.
-
-The enqueuing happens via an IPI to the CPU in question.
-
-						Thanx, Paul
+Thanks!
+On Thu, Jun 28, 2018 at 12:03 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Wed 27-06-18 14:44:47, Cannon Matthews wrote:
+> > When booting with very large numbers of gigantic (i.e. 1G) pages, the
+> > operations in the loop of gather_bootmem_prealloc, and specifically
+> > prep_compound_gigantic_page, takes a very long time, and can cause a
+> > softlockup if enough pages are requested at boot.
+> >
+> > For example booting with 3844 1G pages requires prepping
+> > (set_compound_head, init the count) over 1 billion 4K tail pages, which
+> > takes considerable time. This should also apply to reserving the same
+> > amount of memory as 2M pages, as the same number of struct pages
+> > are affected in either case.
+> >
+> > Add a cond_resched() to the outer loop in gather_bootmem_prealloc() to
+> > prevent this lockup.
+> >
+> > Tested: Booted with softlockup_panic=1 hugepagesz=1G hugepages=3844 and
+> > no softlockup is reported, and the hugepages are reported as
+> > successfully setup.
+> >
+> > Signed-off-by: Cannon Matthews <cannonmatthews@google.com>
+>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+>
+> Thanks!
+>
+> > ---
+> >  mm/hugetlb.c | 1 +
+> >  1 file changed, 1 insertion(+)
+> >
+> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > index a963f2034dfc..d38273c32d3b 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -2169,6 +2169,7 @@ static void __init gather_bootmem_prealloc(void)
+> >                */
+> >               if (hstate_is_gigantic(h))
+> >                       adjust_managed_page_count(page, 1 << h->order);
+> > +             cond_resched();
+> >       }
+> >  }
+> >
+> > --
+> > 2.18.0.rc2.346.g013aa6912e-goog
+>
+> --
+> Michal Hocko
+> SUSE Labs
