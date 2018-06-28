@@ -1,60 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DD6BE6B0010
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 22:17:57 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id o7-v6so5625121itf.4
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 19:17:57 -0700 (PDT)
-Received: from sandeen.net (sandeen.net. [63.231.237.45])
-        by mx.google.com with ESMTP id 71-v6si3796183iti.16.2018.06.27.19.17.56
-        for <linux-mm@kvack.org>;
-        Wed, 27 Jun 2018 19:17:57 -0700 (PDT)
-Subject: Re: [PATCH] mm: reject MAP_SHARED_VALIDATE without new flags
-References: <60052659-7b37-cb69-bf9f-1683caa46219@redhat.com>
- <CA+55aFzeA7N3evSF2jKHu8JoTQuKDLCMKx7RiPhmym97-8HY7A@mail.gmail.com>
-From: Eric Sandeen <sandeen@sandeen.net>
-Message-ID: <1e2ad827-6ff4-4b1e-c4d9-79ca4e432a6c@sandeen.net>
-Date: Wed, 27 Jun 2018 21:17:55 -0500
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A0E586B0007
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 22:37:14 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id 13-v6so5378983itl.7
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 19:37:14 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u6-v6sor2310866itd.0.2018.06.27.19.37.12
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 27 Jun 2018 19:37:13 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFzeA7N3evSF2jKHu8JoTQuKDLCMKx7RiPhmym97-8HY7A@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+References: <60052659-7b37-cb69-bf9f-1683caa46219@redhat.com>
+ <CA+55aFzeA7N3evSF2jKHu8JoTQuKDLCMKx7RiPhmym97-8HY7A@mail.gmail.com> <1e2ad827-6ff4-4b1e-c4d9-79ca4e432a6c@sandeen.net>
+In-Reply-To: <1e2ad827-6ff4-4b1e-c4d9-79ca4e432a6c@sandeen.net>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 27 Jun 2018 19:37:01 -0700
+Message-ID: <CA+55aFxs7Cc30fCiENw0R+XDJhUJ-w=z=NLLzYfT5gF2Qh-60Q@mail.gmail.com>
+Subject: Re: [PATCH] mm: reject MAP_SHARED_VALIDATE without new flags
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Eric Sandeen <sandeen@redhat.com>
-Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, linux-ext4@vger.kernel.org, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, zhibli@redhat.com
+To: Eric Sandeen <sandeen@sandeen.net>
+Cc: Eric Sandeen <sandeen@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, linux-ext4@vger.kernel.org, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, zhibli@redhat.com
 
-On 6/27/18 9:10 PM, Linus Torvalds wrote:
-> On Wed, Jun 27, 2018 at 6:45 PM Eric Sandeen <sandeen@redhat.com> wrote:
->>
->> Thus the invalid flag combination of (MAP_SHARED|MAP_PRIVATE) now
->> passes without error, which is a regression.
-> 
-> It's not a regression, it's just new behavior.
-> 
-> "regression" doesn't mean "things changed". It means "something broke".
-> 
-> What broke?
+On Wed, Jun 27, 2018 at 7:17 PM Eric Sandeen <sandeen@sandeen.net> wrote:
+>
+> What broke is that mmap(MAP_SHARED|MAP_PRIVATE) now succeeds without error,
+> whereas before it rightly returned -EINVAL.
 
-My commit log perhaps was not clear enough.
+You're still confusing *behavior* with breakage.
 
-What broke is that mmap(MAP_SHARED|MAP_PRIVATE) now succeeds without error,
-whereas before it rightly returned -EINVAL.
+Yes. New *behavior* is that MAP_SHARED|MAP_PRIVATE is now a valid
+thing. It means "MAP_SHARED_VALIDATE".
 
-What behavior should a user expect from a successful mmap(MAP_SHARED|MAP_PRIVATE)?
+Behavior changed.  That's normal. Every single time we add a system
+call, behavior changes: a system call that used to return -ENOSYS now
+returns something else.
 
--Eric
+That's not breakage, that's just intentional new behavior.
 
-> Because if it's some manual page breakage, just fix the manual. That's
-> what "new behavior" is all about.
-> 
-> There is nothing that says that "MAP_SHARED_VALIDATE" can't work with
-> just the legacy flags.
-> 
-> Because I'd be worried about your patch breaking some actual new user
-> of MAP_SHARED_VALIDATE.
-> 
-> Because it's actual *users* of behavior we care about, not some
-> test-suite or manual pages.
-> 
->               Linus
+> What behavior should a user expect from a successful mmap(MAP_SHARED|MAP_PRIVATE)?
+
+MAP_SHARED|MAP_PRIVATE makes no sense and nobody uses it (because it
+has always returned an error and never done anything interesting).
+
+Nobody uses it, and it used to return an error is *exactly* why it was
+defined to be MAP_SHARED_VALIDATE.
+
+So you should expect MAP_SHARED_VALIDATE behavior - which is
+MAP_SHARED together with "validate that all the flags are things that
+we support".
+
+Actual BREAKAGE is if some application or user workflow no longer
+works. Did LibreOffice stop working? That is breakage.
+
+And by application, I mean exactly that: a real program.  Not some
+manual-page, and not some test-program that people don't actually rely
+on, and that just reports on some particular behavior.
+
+Because I can write a test program that verifies that system call #335
+doesn't exist:
+
+    #define _GNU_SOURCE
+    #include <unistd.h>
+    #include <sys/syscall.h>
+    #include <errno.h>
+    #include <assert.h>
+
+    int main(int argc, char **argv)
+    {
+        assert(syscall(335, 0) == -1 && errno == ENOSYS);
+        return 0;
+    }
+
+and the next system call we add will break that test program on x86-64.
+
+And that's still not a "regression" - it's just a change in behavior.
+
+But if firefox no longer runs, because it depended on that system call
+not existing (or it depended on that MAP_SHARED_VALIDATE returning
+EINVAL) then it's a regression.
+
+See the difference?
+
+One case is "we added new behavior".
+
+The other case is "we have a regression".
+
+                Linus
