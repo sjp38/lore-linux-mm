@@ -1,73 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CA0886B0003
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 21:45:09 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id y20-v6so2740241otk.19
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 18:45:09 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r98-v6si521453ota.354.2018.06.27.18.45.08
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F2F06B0007
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 22:01:53 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id w22-v6so774578edr.14
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 19:01:53 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l56-v6si249372edd.239.2018.06.27.19.01.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 18:45:08 -0700 (PDT)
-From: Eric Sandeen <sandeen@redhat.com>
-Subject: [PATCH] mm: reject MAP_SHARED_VALIDATE without new flags
-Message-ID: <60052659-7b37-cb69-bf9f-1683caa46219@redhat.com>
-Date: Wed, 27 Jun 2018 20:45:00 -0500
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 27 Jun 2018 19:01:51 -0700 (PDT)
+Subject: Re: [PATCH V7 20/24] bcache: avoid to use bio_for_each_segment_all()
+ in bch_bio_alloc_pages()
+References: <20180627124548.3456-1-ming.lei@redhat.com>
+ <20180627124548.3456-21-ming.lei@redhat.com>
+ <e1499d87-62b8-40a8-75a5-d9d1d81ce9c5@suse.de>
+ <20180628012816.GH7583@ming.t460p>
+From: Coly Li <colyli@suse.de>
+Message-ID: <92ae1547-39b1-472c-efbe-c0a6430fc3f6@suse.de>
+Date: Thu, 28 Jun 2018 10:01:39 +0800
 MIME-Version: 1.0
+In-Reply-To: <20180628012816.GH7583@ming.t460p>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, Linux API <linux-api@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>
-Cc: Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Zhibin Li <zhibli@redhat.com>
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Kent Overstreet <kent.overstreet@gmail.com>, David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, Mike Snitzer <snitzer@redhat.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Filipe Manana <fdmanana@gmail.com>, Randy Dunlap <rdunlap@infradead.org>, linux-bcache@vger.kernel.org
 
-mmap(2) says the syscall will return EINVAL if "flags contained neither
-MAP_PRIVATE or MAP_SHARED, or contained both of these values."
-                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-However, commit 
-1c972597 ("mm: introduce MAP_SHARED_VALIDATE ...")
-introduced a new flag, MAP_SHARED_VALIDATE, with a value of 0x3,
-which is indistinguishable from (MAP_SHARED|MAP_PRIVATE).
+On 2018/6/28 9:28 AM, Ming Lei wrote:
+> On Wed, Jun 27, 2018 at 11:55:33PM +0800, Coly Li wrote:
+>> On 2018/6/27 8:45 PM, Ming Lei wrote:
+>>> bch_bio_alloc_pages() is always called on one new bio, so it is safe
+>>> to access the bvec table directly. Given it is the only kind of this
+>>> case, open code the bvec table access since bio_for_each_segment_all()
+>>> will be changed to support for iterating over multipage bvec.
+>>>
+>>> Cc: Coly Li <colyli@suse.de>
+>>> Cc: linux-bcache@vger.kernel.org
+>>> Signed-off-by: Ming Lei <ming.lei@redhat.com>
+>>> ---
+>>>  drivers/md/bcache/util.c | 2 +-
+>>>  1 file changed, 1 insertion(+), 1 deletion(-)
+>>>
+>>> diff --git a/drivers/md/bcache/util.c b/drivers/md/bcache/util.c
+>>> index fc479b026d6d..9f2a6fd5dfc9 100644
+>>> --- a/drivers/md/bcache/util.c
+>>> +++ b/drivers/md/bcache/util.c
+>>> @@ -268,7 +268,7 @@ int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp_mask)
+>>>  	int i;
+>>>  	struct bio_vec *bv;
+>>>
+>>
+>> Hi Ming,
+>>
+>>> -	bio_for_each_segment_all(bv, bio, i) {
+>>> +	for (i = 0, bv = bio->bi_io_vec; i < bio->bi_vcnt; bv++) {
+>>
+>>
+>> Is it possible to treat this as a special condition of
+>> bio_for_each_segement_all() ? I mean only iterate one time in
+>> bvec_for_each_segment(). I hope the above change is not our last choice
+>> before I reply an Acked-by :-)
+> 
+> Now the bvec from bio_for_each_segement_all() can't be changed any more
+> since the referenced 'bvec' is generated in-flight given we store
+> real multipage bvec.
+> 
+> BTW, this way is actually suggested by Christoph for saving one new
+> helper of bio_for_each_bvec_all() as done in V6, and per previous discussion,
+> seems both Kent and Christoph agrees to convert bcache into bio_add_page()
+> finally.
+> 
+> So I guess this open code style should be fine.
 
-Thus the invalid flag combination of (MAP_SHARED|MAP_PRIVATE) now
-passes without error, which is a regression.
+Hi Ming,
 
-I'm not sure of the best way out of this, other than to change the
-API description to say that MAP_SHARED_VALIDATE is only allowed in
-combination with "new" flags, and reject it if it's used only with
-flags contained in LEGACY_MAP_MASK.
+I see, thanks for the hint.
 
-This will require the mmap(2) manpage to enumerate which flags don't
-require validation, as well, so the user knows when to use the
-VALIDATE flag.
+Acked-by: Coly Li <colyli@suse.de>
 
-I'm not super happy with this, because it also means that code
-which explicitly asks for mmap(MAP_SHARED|MAP_PRIVATE|MAP_SYNC) will
-also pass, but I'm not sure there's anything to do about that.
-
-Reported-by: Zhibin Li <zhibli@redhat.com>
-Signed-off-by: Eric Sandeen <sandeen@redhat.com>
----
-
-diff --git a/mm/mmap.c b/mm/mmap.c
-index d1eb87ef4b1a..b1dc84466365 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1440,6 +1440,16 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 
- 		if (!file_mmap_ok(file, inode, pgoff, len))
- 			return -EOVERFLOW;
-+		/*
-+		 * MAP_SHARED_VALIDATE is indistinguishable from
-+		 * (MAP_SHARED|MAP_PRIVATE) which must return -EINVAL.
-+		 * If the flags contain MAP_SHARED_VALIDATE and none of the
-+		 * non-legacy flags, the user gets EINVAL.
-+		 */
-+		if (((flags & MAP_SHARED_VALIDATE) == MAP_SHARED_VALIDATE) &&
-+		    !(flags & ~LEGACY_MAP_MASK)) {
-+			return -EINVAL;
-+		}
- 
- 		flags_mask = LEGACY_MAP_MASK | file->f_op->mmap_supported_flags;
- 
+Coly Li
