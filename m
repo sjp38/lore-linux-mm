@@ -1,121 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BFA396B000D
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 10:51:26 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id w21-v6so4107966wmc.4
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 07:51:26 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id l8-v6si4530999wrg.294.2018.06.28.07.51.24
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F9EE6B0010
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 10:53:05 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id m18-v6so2201014eds.0
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 07:53:05 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0107.outbound.protection.outlook.com. [104.47.0.107])
+        by mx.google.com with ESMTPS id s4-v6si3426192edj.431.2018.06.28.07.53.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jun 2018 07:51:25 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5SEmsvm067125
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 10:51:23 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2jw1c6hjnt-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 10:51:23 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Thu, 28 Jun 2018 15:51:20 +0100
-Subject: Re: [PATCH/RFC] mm: do not drop unused pages when userfaultd is
- running
-References: <20180628123916.96106-1-borntraeger@de.ibm.com>
- <df95ae10-0c78-0d76-d2bb-c91712c145ea@redhat.com>
- <1e470063-d56c-0a76-7a7f-2c0f0e87824b@de.ibm.com>
- <eca5be20-6c3a-5d9b-152a-f4e8b61b810e@redhat.com>
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Thu, 28 Jun 2018 16:51:14 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 28 Jun 2018 07:53:03 -0700 (PDT)
+Subject: Re: [PATCH v2] net, mm: account sock objects to kmemcg
+References: <20180627221642.247448-1-shakeelb@google.com>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <6f15cc1b-c026-6df1-19ba-d2396f71b488@virtuozzo.com>
+Date: Thu, 28 Jun 2018 17:52:57 +0300
 MIME-Version: 1.0
-In-Reply-To: <eca5be20-6c3a-5d9b-152a-f4e8b61b810e@redhat.com>
-Content-Language: en-US
-Message-Id: <eaa540cb-2249-72d1-d4b8-a54c2869d7a3@de.ibm.com>
+In-Reply-To: <20180627221642.247448-1-shakeelb@google.com>
 Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, linux-s390@vger.kernel.org
-Cc: kvm@vger.kernel.org, Janosch Frank <frankja@linux.ibm.com>, Cornelia Huck <cohuck@redhat.com>, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Shakeel Butt <shakeelb@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Roman Gushchin <guro@fb.com>, "David S . Miller" <davem@davemloft.net>, Eric Dumazet <edumazet@google.com>, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org
 
-
-
-On 06/28/2018 04:49 PM, David Hildenbrand wrote:
-> On 28.06.2018 16:39, Christian Borntraeger wrote:
->>
->>
->> On 06/28/2018 03:18 PM, David Hildenbrand wrote:
->>> On 28.06.2018 14:39, Christian Borntraeger wrote:
->>>> KVM guests on s390 can notify the host of unused pages. This can result
->>>> in pte_unused callbacks to be true for KVM guest memory.
->>>>
->>>> If a page is unused (checked with pte_unused) we might drop this page
->>>> instead of paging it. This can have side-effects on userfaultd, when the
->>>> page in question was already migrated:
->>>>
->>>> The next access of that page will trigger a fault and a user fault
->>>> instead of faulting in a new and empty zero page. As QEMU does not
->>>> expect a userfault on an already migrated page this migration will fail.
->>>>
->>>> The most straightforward solution is to ignore the pte_unused hint if a
->>>> userfault context is active for this VMA.
->>>>
->>>> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
->>>> Cc: Andrea Arcangeli <aarcange@redhat.com>
->>>> Cc: stable@vger.kernel.org
->>>> Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
->>>> ---
->>>>  mm/rmap.c | 2 +-
->>>>  1 file changed, 1 insertion(+), 1 deletion(-)
->>>>
->>>> diff --git a/mm/rmap.c b/mm/rmap.c
->>>> index 6db729dc4c50..3f3a72aa99f2 100644
->>>> --- a/mm/rmap.c
->>>> +++ b/mm/rmap.c
->>>> @@ -1481,7 +1481,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->>>>  				set_pte_at(mm, address, pvmw.pte, pteval);
->>>>  			}
->>>>  
->>>> -		} else if (pte_unused(pteval)) {
->>>> +		} else if (pte_unused(pteval) && !vma->vm_userfaultfd_ctx.ctx) {
->>>>  			/*
->>>>  			 * The guest indicated that the page content is of no
->>>>  			 * interest anymore. Simply discard the pte, vmscan
->>>>
->>>
->>> To understand the implications better:
->>>
->>> This is like a MADV_DONTNEED from user space while a userfaultfd
->>> notifier is registered for this vma range.
->>>
->>> While we can block such calls in QEMU ("we registered it, we know it
->>> best"), we can't do the same in the kernel.
->>>
->>> These "intern MADV_DONTNEED" can actually trigger "deferred", so e.g. if
->>> the pte_unused() was set before userfaultfd has been registered, we can
->>> still get the same result, right?>
->> Not sure I understand your last sentence.
+On 28.06.2018 01:16, Shakeel Butt wrote:
+> Currently the kernel accounts the memory for network traffic through
+> mem_cgroup_[un]charge_skmem() interface. However the memory accounted
+> only includes the truesize of sk_buff which does not include the size of
+> sock objects. In our production environment, with opt-out kmem
+> accounting, the sock kmem caches (TCP[v6], UDP[v6], RAW[v6], UNIX) are
+> among the top most charged kmem caches and consume a significant amount
+> of memory which can not be left as system overhead. So, this patch
+> converts the kmem caches of all sock objects to SLAB_ACCOUNT.
 > 
-> Rephrased: Instead trying to stop somebody from setting pte_unused will
-> not work, as we might get a userfaultfd registration at some point and
-> find a previously set pte_unused afterwards.
+> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+> Suggested-by: Eric Dumazet <edumazet@google.com>
 
-Yes, exactly. the unused value can be set before the migration.
+Looks good for me.
 
+Reviewed-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 
+> ---
+> Changelog since v1:
+> - Instead of specific sock kmem_caches, convert all sock kmem_caches to
+>   use SLAB_ACCOUNT.
 > 
->> This place here is called on the unmap, (e.g. when the host tries to page out).
->> The value was transferred before (and always before) during the page table invalidation.
->> So pte_unused was always set before. This is the place where we decide if we page
->> out (ans establish a swap pte) or just drop this page table entry. So if
->> no userfaultd is registered at that point in time we are good.
+>  net/core/sock.c | 7 +++++--
+>  1 file changed, 5 insertions(+), 2 deletions(-)
 > 
-> This certainly applies to ordinary userfaultfd we have right now.
-> userfaultfd WP (write-protect) or other features to come might be
-> different, but it does not seem to do any harm in case we page out
-> instead of dropping it. This way we are on the safe side.
-
-yes.
+> diff --git a/net/core/sock.c b/net/core/sock.c
+> index bcc41829a16d..9e8f65585b81 100644
+> --- a/net/core/sock.c
+> +++ b/net/core/sock.c
+> @@ -3243,7 +3243,8 @@ static int req_prot_init(const struct proto *prot)
+>  
+>  	rsk_prot->slab = kmem_cache_create(rsk_prot->slab_name,
+>  					   rsk_prot->obj_size, 0,
+> -					   prot->slab_flags, NULL);
+> +					   SLAB_ACCOUNT | prot->slab_flags,
+> +					   NULL);
+>  
+>  	if (!rsk_prot->slab) {
+>  		pr_crit("%s: Can't create request sock SLAB cache!\n",
+> @@ -3258,7 +3259,8 @@ int proto_register(struct proto *prot, int alloc_slab)
+>  	if (alloc_slab) {
+>  		prot->slab = kmem_cache_create_usercopy(prot->name,
+>  					prot->obj_size, 0,
+> -					SLAB_HWCACHE_ALIGN | prot->slab_flags,
+> +					SLAB_HWCACHE_ALIGN | SLAB_ACCOUNT |
+> +					prot->slab_flags,
+>  					prot->useroffset, prot->usersize,
+>  					NULL);
+>  
+> @@ -3281,6 +3283,7 @@ int proto_register(struct proto *prot, int alloc_slab)
+>  				kmem_cache_create(prot->twsk_prot->twsk_slab_name,
+>  						  prot->twsk_prot->twsk_obj_size,
+>  						  0,
+> +						  SLAB_ACCOUNT |
+>  						  prot->slab_flags,
+>  						  NULL);
+>  			if (prot->twsk_prot->twsk_slab == NULL)
 > 
-> In other words: I think this is the right approach.
