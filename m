@@ -1,44 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 868B46B0271
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 15:30:18 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id d70-v6so7634076itd.1
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 12:30:18 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m132-v6sor3029086ita.2.2018.06.28.12.30.17
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7296C6B0005
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 15:40:44 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id a20-v6so1854345pfi.1
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 12:40:44 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id y192-v6si5697221pgd.656.2018.06.28.12.40.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Jun 2018 12:30:17 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAAeHK+yqWKTdTG+ymZ2-5XKiDANV+fmUjnQkRy-5tpgphuLJRA@mail.gmail.com>
-References: <cover.1529507994.git.andreyknvl@google.com> <CAAeHK+zqtyGzd_CZ7qKZKU-uZjZ1Pkmod5h8zzbN0xCV26nSfg@mail.gmail.com>
- <20180626172900.ufclp2pfrhwkxjco@armageddon.cambridge.arm.com> <CAAeHK+yqWKTdTG+ymZ2-5XKiDANV+fmUjnQkRy-5tpgphuLJRA@mail.gmail.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Thu, 28 Jun 2018 21:30:16 +0200
-Message-ID: <CAAeHK+wJbbCZd+-X=9oeJgsqQJiq8h+Aagz3SQMPaAzCD+pvFw@mail.gmail.com>
-Subject: Re: [PATCH v4 0/7] arm64: untag user pointers passed to the kernel
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Jun 2018 12:40:42 -0700 (PDT)
+Date: Thu, 28 Jun 2018 12:40:39 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address
+ sanitizer
+Message-Id: <20180628124039.8a42ab5e2994fb2876ff4f75@linux-foundation.org>
+In-Reply-To: <CAAeHK+xz552VNpZxgWwU-hbTqF5_F6YVDw3fSv=4OT8mNrqPzg@mail.gmail.com>
+References: <cover.1530018818.git.andreyknvl@google.com>
+	<20180627160800.3dc7f9ee41c0badbf7342520@linux-foundation.org>
+	<CAAeHK+xz552VNpZxgWwU-hbTqF5_F6YVDw3fSv=4OT8mNrqPzg@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-doc@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>
 
-On Wed, Jun 27, 2018 at 5:05 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-> On Tue, Jun 26, 2018 at 7:29 PM, Catalin Marinas
-> <catalin.marinas@arm.com> wrote:
->> While I support this work, as a maintainer I'd like to understand
->> whether we'd be in a continuous chase of ABI breaks with every kernel
->> release or we have a better way to identify potential issues. Is there
->> any way to statically analyse conversions from __user ptr to long for
->> example? Or, could we get the compiler to do this for us?
->
->
-> OK, got it, I'll try to figure out a way to find these conversions.
+On Thu, 28 Jun 2018 20:29:07 +0200 Andrey Konovalov <andreyknvl@google.com> wrote:
 
-I've prototyped a checker on top of clang static analyzer (initially
-looked at sparse, but couldn't find any documentation or examples).
-The results are here [1], search for "warning: user pointer cast".
-Sharing in case anybody wants to take a look, will look at them myself
-tomorrow.
+> >> Slab memory usage after boot [2]:
+> >> * ~40 kb for clean kernel
+> >> * ~105 kb + 1/8th shadow ~= 118 kb for KASAN
+> >> * ~47 kb + 1/16th shadow ~= 50 kb for KHWASAN
+> >>
+> >> Network performance [3]:
+> >> * 8.33 Gbits/sec for clean kernel
+> >> * 3.17 Gbits/sec for KASAN
+> >> * 2.85 Gbits/sec for KHWASAN
+> >>
+> >> Note, that KHWASAN (compared to KASAN) doesn't require quarantine.
+> >>
+> >> [1] Time before the ext4 driver is initialized.
+> >> [2] Measured as `cat /proc/meminfo | grep Slab`.
+> >> [3] Measured as `iperf -s & iperf -c 127.0.0.1 -t 30`.
+> >
+> > The above doesn't actually demonstrate the whole point of the
+> > patchset: to reduce KASAN's very high memory consumption?
+> 
+> You mean that memory usage numbers collected after boot don't give a
+> representative picture of actual memory consumption on real workloads?
+> 
+> What kind of memory consumption testing would you like to see?
 
-[1] https://gist.github.com/xairy/433edd5c86456a64026247cb2fef2115
+Well, 100kb or so is a teeny amount on virtually any machine.  I'm
+assuming the savings are (much) more significant once the machine gets
+loaded up and doing work?
