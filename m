@@ -1,95 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D93F6B000A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 14:52:54 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id u1-v6so468589wrs.18
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 11:52:54 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id l132-v6si2610085wmb.65.2018.06.28.11.52.52
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E1AAC6B000D
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 14:56:44 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id 7-v6so7387298itv.5
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 11:56:44 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 9-v6sor3037271ita.105.2018.06.28.11.56.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jun 2018 11:52:52 -0700 (PDT)
-Date: Thu, 28 Jun 2018 20:52:51 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCHv3 00/17] MKTME enabling
-Message-ID: <20180628185251.GB5316@amd>
-References: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
+        (Google Transport Security);
+        Thu, 28 Jun 2018 11:56:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="PmA2V3Z32TCmWXqI"
-Content-Disposition: inline
-In-Reply-To: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20180628105057.GA26019@e103592.cambridge.arm.com>
+References: <cover.1530018818.git.andreyknvl@google.com> <20180628105057.GA26019@e103592.cambridge.arm.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Thu, 28 Jun 2018 20:56:41 +0200
+Message-ID: <CAAeHK+w0T43+h3xqU4a-qutxd-qiEhsvk0eaZpmAn-T0hpaLZQ@mail.gmail.com>
+Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address sanitizer
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Martin <Dave.Martin@arm.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jann Horn <jannh@google.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Mark Brand <markbrand@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
 
+On Thu, Jun 28, 2018 at 12:51 PM, Dave Martin <Dave.Martin@arm.com> wrote:
+> On Tue, Jun 26, 2018 at 03:15:10PM +0200, Andrey Konovalov wrote:
+>> 1. By using the Top Byte Ignore arm64 CPU feature, we can store pointer
+>>    tags in the top byte of each kernel pointer.
+>
+> [...]
+>
+> This is a change from the current situation, so the kernel may be
+> making implicit assumptions about the top byte of kernel addresses.
+>
+> Randomising the top bits may cause things like address conversions and
+> pointer arithmetic to break.
+>
+> For example, (q - p) will not produce the expected result if q and p
+> have different tags.
 
---PmA2V3Z32TCmWXqI
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+If q and p have different tags, that means they come from different
+allocations. I don't think it would make sense to calculate pointer
+difference in this case.
 
-Hi!
+>
+> Conversions, such as between pointer and pfn, may also go wrong if not
+> appropriately masked.
+>
+> There are also potential pointer comparison and aliasing issues if
+> the tag bits are ever stripped or modified.
+>
+>
+> What was your approach to tracking down all the points in the code
+> where we have a potential issue?
 
-> MKTME is built on top of TME. TME allows encryption of the entirety of
-> system memory using a single key. MKTME allows to have multiple encryption
-> domains, each having own key -- different memory pages can be encrypted
-> with different keys.
->=20
-> Key design points of Intel MKTME:
->=20
->  - Initial HW implementation would support upto 63 keys (plus one
-> default
-
-"up to"
-
->    TME key). But the number of keys may be as low as 3, depending to SKU
->    and BIOS settings
->=20
->  - To access encrypted memory you need to use mapping with proper KeyID
->    int the page table entry. KeyID is encoded in upper bits of PFN in page
-
-"in the"
-
->    table entry.
->=20
->  - CPU does not enforce coherency between mappings of the same physical
->    page with different KeyIDs or encryption keys. We wound need to take
-
-"would need"
-
->    care about flushing cache on allocation of encrypted page and on
->    returning it back to free pool.
->=20
->  - For managing keys, there's MKTME_KEY_PROGRAM leaf of the new PCONFIG
->    (platform configuration) instruction. It allows load and clear keys
->    associated with a KeyID. You can also ask CPU to generate a key for
->    you or disable memory encryption when a KeyID is used.
-
-Should this go to Documentation somewhere?
-
-And next question is -- what is it good for? Prevents attack where
-DRAM is frozen by liquid nitrogen and moved to another system to
-extract encryption keys? Does it prevent any attacks that don't
-involve manipulating hardware?
-
-									Pavel
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
-
---PmA2V3Z32TCmWXqI
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAls1LoMACgkQMOfwapXb+vJ5mACglt4/cRyb/gt/KHOTiwID1t8V
-NhoAoKR8mceQbY+kMGFkXIOM0SabWH1J
-=JaRN
------END PGP SIGNATURE-----
-
---PmA2V3Z32TCmWXqI--
+I've been fuzzing the kernel built with KWHASAN with syzkaller. This
+gives a decent coverage and I was able to find some places where
+fixups were required this way. Right now the fuzzer is running without
+issues. It doesn't prove that all such places are fixed, but I don't
+know a better way to test this.
