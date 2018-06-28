@@ -1,233 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 44F386B0005
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 08:09:41 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id g6-v6so3004331wrp.4
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 05:09:41 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d6-v6sor3258350wre.89.2018.06.28.05.09.39
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 12F1F6B0007
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 08:12:44 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id y18-v6so6447755itc.2
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 05:12:44 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id 77-v6si4545186jap.32.2018.06.28.05.12.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Jun 2018 05:09:39 -0700 (PDT)
-Date: Thu, 28 Jun 2018 14:09:37 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH v6 4/5] mm/sparse: Optimize memmap allocation during
- sparse_init()
-Message-ID: <20180628120937.GC12956@techadventures.net>
-References: <20180628062857.29658-1-bhe@redhat.com>
- <20180628062857.29658-5-bhe@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Jun 2018 05:12:43 -0700 (PDT)
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w5SC3s0r149564
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 12:12:42 GMT
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by userp2130.oracle.com with ESMTP id 2jum58202n-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 12:12:42 +0000
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w5SCCfIU029084
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 12:12:41 GMT
+Received: from abhmp0017.oracle.com (abhmp0017.oracle.com [141.146.116.23])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w5SCCfhT004123
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 12:12:41 GMT
+Received: by mail-oi0-f46.google.com with SMTP id k81-v6so4941448oib.4
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 05:12:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180628062857.29658-5-bhe@redhat.com>
+References: <20180628062857.29658-1-bhe@redhat.com> <20180628062857.29658-5-bhe@redhat.com>
+ <20180628120937.GC12956@techadventures.net>
+In-Reply-To: <20180628120937.GC12956@techadventures.net>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Thu, 28 Jun 2018 08:12:04 -0400
+Message-ID: <CAGM2reZsZVhhg2=dQZf6D-NmPTFRN-_95+s61pC7Axz5G5mkMQ@mail.gmail.com>
+Subject: Re: [PATCH v6 4/5] mm/sparse: Optimize memmap allocation during sparse_init()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baoquan He <bhe@redhat.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dave.hansen@intel.com, pagupta@redhat.com, Pavel Tatashin <pasha.tatashin@oracle.com>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
+To: osalvador@techadventures.net
+Cc: bhe@redhat.com, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, dave.hansen@intel.com, pagupta@redhat.com, Linux Memory Management List <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com
 
-On Thu, Jun 28, 2018 at 02:28:56PM +0800, Baoquan He wrote:
-> In sparse_init(), two temporary pointer arrays, usemap_map and map_map
-> are allocated with the size of NR_MEM_SECTIONS. They are used to store
-> each memory section's usemap and mem map if marked as present. With
-> the help of these two arrays, continuous memory chunk is allocated for
-> usemap and memmap for memory sections on one node. This avoids too many
-> memory fragmentations. Like below diagram, '1' indicates the present
-> memory section, '0' means absent one. The number 'n' could be much
-> smaller than NR_MEM_SECTIONS on most of systems.
-> 
-> |1|1|1|1|0|0|0|0|1|1|0|0|...|1|0||1|0|...|1||0|1|...|0|
-> -------------------------------------------------------
->  0 1 2 3         4 5         i   i+1     n-1   n
-> 
-> If fail to populate the page tables to map one section's memmap, its
-> ->section_mem_map will be cleared finally to indicate that it's not present.
-> After use, these two arrays will be released at the end of sparse_init().
-> 
-> In 4-level paging mode, each array costs 4M which can be ignorable. While
-> in 5-level paging, they costs 256M each, 512M altogether. Kdump kernel
-> Usually only reserves very few memory, e.g 256M. So, even thouth they are
-> temporarily allocated, still not acceptable.
-> 
-> In fact, there's no need to allocate them with the size of NR_MEM_SECTIONS.
-> Since the ->section_mem_map clearing has been deferred to the last, the
-> number of present memory sections are kept the same during sparse_init()
-> until we finally clear out the memory section's ->section_mem_map if its
-> usemap or memmap is not correctly handled. Thus in the middle whenever
-> for_each_present_section_nr() loop is taken, the i-th present memory
-> section is always the same one.
-> 
-> Here only allocate usemap_map and map_map with the size of
-> 'nr_present_sections'. For the i-th present memory section, install its
-> usemap and memmap to usemap_map[i] and mam_map[i] during allocation. Then
-> in the last for_each_present_section_nr() loop which clears the failed
-> memory section's ->section_mem_map, fetch usemap and memmap from
-> usemap_map[] and map_map[] array and set them into mem_section[]
-> accordingly.
-> 
-> Signed-off-by: Baoquan He <bhe@redhat.com>
-> Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> ---
->  mm/sparse-vmemmap.c |  5 +++--
->  mm/sparse.c         | 43 ++++++++++++++++++++++++++++++++++---------
->  2 files changed, 37 insertions(+), 11 deletions(-)
-> 
-> diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-> index 68bb65b2d34d..e1a54ba411ec 100644
-> --- a/mm/sparse-vmemmap.c
-> +++ b/mm/sparse-vmemmap.c
-> @@ -281,6 +281,7 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
->  	unsigned long pnum;
->  	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
->  	void *vmemmap_buf_start;
-> +	int nr_consumed_maps = 0;
->  
->  	size = ALIGN(size, PMD_SIZE);
->  	vmemmap_buf_start = __earlyonly_bootmem_alloc(nodeid, size * map_count,
-> @@ -295,8 +296,8 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
->  		if (!present_section_nr(pnum))
->  			continue;
->  
-> -		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid, NULL);
-> -		if (map_map[pnum])
-> +		map_map[nr_consumed_maps] = sparse_mem_map_populate(pnum, nodeid, NULL);
-> +		if (map_map[nr_consumed_maps++])
->  			continue;
->  		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
->  		       __func__);
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 4458a23e5293..e1767d9fe4f3 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -386,6 +386,7 @@ static void __init sparse_early_usemaps_alloc_node(void *data,
->  	unsigned long pnum;
->  	unsigned long **usemap_map = (unsigned long **)data;
->  	int size = usemap_size();
-> +	int nr_consumed_maps = 0;
->  
->  	usemap = sparse_early_usemaps_alloc_pgdat_section(NODE_DATA(nodeid),
->  							  size * usemap_count);
-> @@ -397,9 +398,10 @@ static void __init sparse_early_usemaps_alloc_node(void *data,
->  	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
->  		if (!present_section_nr(pnum))
->  			continue;
-> -		usemap_map[pnum] = usemap;
-> +		usemap_map[nr_consumed_maps] = usemap;
->  		usemap += size;
-> -		check_usemap_section_nr(nodeid, usemap_map[pnum]);
-> +		check_usemap_section_nr(nodeid, usemap_map[nr_consumed_maps]);
-> +		nr_consumed_maps++;
->  	}
->  }
->  
-> @@ -424,27 +426,31 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
->  	void *map;
->  	unsigned long pnum;
->  	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
-> +	int nr_consumed_maps;
->  
->  	size = PAGE_ALIGN(size);
->  	map = memblock_virt_alloc_try_nid_raw(size * map_count,
->  					      PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
->  					      BOOTMEM_ALLOC_ACCESSIBLE, nodeid);
->  	if (map) {
-> +		nr_consumed_maps = 0;
->  		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
->  			if (!present_section_nr(pnum))
->  				continue;
-> -			map_map[pnum] = map;
-> +			map_map[nr_consumed_maps] = map;
->  			map += size;
-> +			nr_consumed_maps++;
->  		}
->  		return;
->  	}
->  
->  	/* fallback */
-> +	nr_consumed_maps = 0;
->  	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
->  		if (!present_section_nr(pnum))
->  			continue;
-> -		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid, NULL);
-> -		if (map_map[pnum])
-> +		map_map[nr_consumed_maps] = sparse_mem_map_populate(pnum, nodeid, NULL);
-> +		if (map_map[nr_consumed_maps++])
->  			continue;
->  		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
->  		       __func__);
-> @@ -523,6 +529,7 @@ static void __init alloc_usemap_and_memmap(void (*alloc_func)
->  		/* new start, update count etc*/
->  		nodeid_begin = nodeid;
->  		pnum_begin = pnum;
-> +		data += map_count * data_unit_size;
->  		map_count = 1;
->  	}
->  	/* ok, last chunk */
-> @@ -541,6 +548,7 @@ void __init sparse_init(void)
->  	unsigned long *usemap;
->  	unsigned long **usemap_map;
->  	int size;
-> +	int nr_consumed_maps = 0;
->  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
->  	int size2;
->  	struct page **map_map;
-> @@ -563,7 +571,7 @@ void __init sparse_init(void)
->  	 * powerpc need to call sparse_init_one_section right after each
->  	 * sparse_early_mem_map_alloc, so allocate usemap_map at first.
->  	 */
-> -	size = sizeof(unsigned long *) * NR_MEM_SECTIONS;
-> +	size = sizeof(unsigned long *) * nr_present_sections;
->  	usemap_map = memblock_virt_alloc(size, 0);
->  	if (!usemap_map)
->  		panic("can not allocate usemap_map\n");
-> @@ -572,7 +580,7 @@ void __init sparse_init(void)
->  				sizeof(usemap_map[0]));
->  
->  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
-> -	size2 = sizeof(struct page *) * NR_MEM_SECTIONS;
-> +	size2 = sizeof(struct page *) * nr_present_sections;
->  	map_map = memblock_virt_alloc(size2, 0);
->  	if (!map_map)
->  		panic("can not allocate map_map\n");
-> @@ -581,27 +589,44 @@ void __init sparse_init(void)
->  				sizeof(map_map[0]));
->  #endif
->  
-> +	/* The numner of present sections stored in nr_present_sections
-> +	 * are kept the same since mem sections are marked as present in
-> +	 * memory_present(). In this for loop, we need check which sections
-> +	 * failed to allocate memmap or usemap, then clear its
-> +	 * ->section_mem_map accordingly. During this process, we need
-> +	 * increase 'nr_consumed_maps' whether its allocation of memmap
-> +	 * or usemap failed or not, so that after we handle the i-th
-> +	 * memory section, can get memmap and usemap of (i+1)-th section
-> +	 * correctly. */
->  	for_each_present_section_nr(0, pnum) {
->  		struct mem_section *ms;
-> +
-> +		if (nr_consumed_maps >= nr_present_sections) {
-> +			pr_err("nr_consumed_maps goes beyond nr_present_sections\n");
-> +			break;
-> +		}
+> > +             if (nr_consumed_maps >= nr_present_sections) {
+> > +                     pr_err("nr_consumed_maps goes beyond nr_present_sections\n");
+> > +                     break;
+> > +             }
+>
+> Hi Baoquan,
+>
+> I am sure I am missing something here, but is this check really needed?
+>
+> I mean, for_each_present_section_nr() only returns the section nr if the section
+> has been marked as SECTION_MARKED_PRESENT.
+> That happens in memory_present(), where now we also increment nr_present_sections whenever
+> we find a present section.
+>
+> So, for_each_present_section_nr() should return the same nr of section as nr_present_sections.
+> Since we only increment nr_consumed_maps once in the loop, I am not so sure we can
+> go beyond nr_present_sections.
+>
+> Did I overlook something?
 
-Hi Baoquan,
-
-I am sure I am missing something here, but is this check really needed?
-
-I mean, for_each_present_section_nr() only returns the section nr if the section
-has been marked as SECTION_MARKED_PRESENT.
-That happens in memory_present(), where now we also increment nr_present_sections whenever
-we find a present section.
-
-So, for_each_present_section_nr() should return the same nr of section as nr_present_sections.
-Since we only increment nr_consumed_maps once in the loop, I am not so sure we can
-go beyond nr_present_sections.
-
-Did I overlook something?
-
-Other than that, this looks good to me.
-
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
-
--- 
-Oscar Salvador
-SUSE L3
+You did not, this is basically a safety check. A BUG_ON() would be
+better here. As, this something that should really not happening, and
+would mean a bug in the current project.
