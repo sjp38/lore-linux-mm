@@ -1,81 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B7F26B0003
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 23:48:12 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id p91-v6so2321747plb.12
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 20:48:12 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id d10-v6si4802873pgo.630.2018.06.27.20.48.09
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D50016B0003
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 00:18:34 -0400 (EDT)
+Received: by mail-ot0-f198.google.com with SMTP id i13-v6so801875oth.4
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 21:18:34 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s30-v6si1985139otb.106.2018.06.27.21.18.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 20:48:10 -0700 (PDT)
-Date: Wed, 27 Jun 2018 20:48:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Message-Id: <20180627204808.99988d94180dd144b14aa38b@linux-foundation.org>
-In-Reply-To: <bug-200209-27@https.bugzilla.kernel.org/>
-References: <bug-200209-27@https.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Wed, 27 Jun 2018 21:18:33 -0700 (PDT)
+Subject: Re: [PATCH] mm: reject MAP_SHARED_VALIDATE without new flags
+References: <60052659-7b37-cb69-bf9f-1683caa46219@redhat.com>
+ <CA+55aFzeA7N3evSF2jKHu8JoTQuKDLCMKx7RiPhmym97-8HY7A@mail.gmail.com>
+ <1e2ad827-6ff4-4b1e-c4d9-79ca4e432a6c@sandeen.net>
+ <CA+55aFxs7Cc30fCiENw0R+XDJhUJ-w=z=NLLzYfT5gF2Qh-60Q@mail.gmail.com>
+From: Eric Sandeen <sandeen@redhat.com>
+Message-ID: <52d82353-2746-269a-c1e3-e4aec4fbf0f9@redhat.com>
+Date: Wed, 27 Jun 2018 23:18:30 -0500
+MIME-Version: 1.0
+In-Reply-To: <CA+55aFxs7Cc30fCiENw0R+XDJhUJ-w=z=NLLzYfT5gF2Qh-60Q@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: icytxw@gmail.com
-Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Eric Sandeen <sandeen@sandeen.net>
+Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, linux-ext4@vger.kernel.org, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, zhibli@redhat.com
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
-
-On Fri, 22 Jun 2018 23:37:27 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
-
-> https://bugzilla.kernel.org/show_bug.cgi?id=200209
+On 6/27/18 9:37 PM, Linus Torvalds wrote:
+> On Wed, Jun 27, 2018 at 7:17 PM Eric Sandeen <sandeen@sandeen.net> wrote:
+>>
+>> What broke is that mmap(MAP_SHARED|MAP_PRIVATE) now succeeds without error,
+>> whereas before it rightly returned -EINVAL.
 > 
->             Bug ID: 200209
->            Summary: UBSAN: Undefined behaviour in mm/fadvise.c:LINE
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: v4.18-rc2
->           Hardware: All
->                 OS: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: Page Allocator
->           Assignee: akpm@linux-foundation.org
->           Reporter: icytxw@gmail.com
->         Regression: No
+> You're still confusing *behavior* with breakage.
 > 
-> Hi,
-> This bug was found in Linux Kernel v4.18-rc2
+> Yes. New *behavior* is that MAP_SHARED|MAP_PRIVATE is now a valid
+> thing. It means "MAP_SHARED_VALIDATE".
 > 
-> $ cat report0 
-> ================================================================================
-> UBSAN: Undefined behaviour in mm/fadvise.c:76:10
-> signed integer overflow:
-> 4 + 9223372036854775805 cannot be represented in type 'long long int'
-> CPU: 0 PID: 13477 Comm: syz-executor1 Not tainted 4.18.0-rc1 #2
-> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
-> rel-1.10.2-0-g5f4c7b1-prebuilt.qemu-project.org 04/01/2014
-> Call Trace:
->  __dump_stack lib/dump_stack.c:77 [inline]
->  dump_stack+0x122/0x1c8 lib/dump_stack.c:113
->  ubsan_epilogue+0x12/0x86 lib/ubsan.c:159
->  handle_overflow+0x1c2/0x21f lib/ubsan.c:190
->  __ubsan_handle_add_overflow+0x2a/0x31 lib/ubsan.c:198
->  ksys_fadvise64_64+0xbf0/0xd10 mm/fadvise.c:76
->  __do_sys_fadvise64 mm/fadvise.c:198 [inline]
->  __se_sys_fadvise64 mm/fadvise.c:196 [inline]
->  __x64_sys_fadvise64+0xa9/0x120 mm/fadvise.c:196
->  do_syscall_64+0xb8/0x3a0 arch/x86/entry/common.c:290
+> Behavior changed.  That's normal. Every single time we add a system
+> call, behavior changes: a system call that used to return -ENOSYS now
+> returns something else.
+> 
+> That's not breakage, that's just intentional new behavior.
 
-That overflow is deliberate:
+*shrug* semantics aside, the new behavior is out there in a public
+API, so I guess there's nothing to do at this point other than
+to document the change more clearly.  It's true that my patch could
+possibly break existing users.
 
-	endbyte = offset + len;
-	if (!len || endbyte < len)
-		endbyte = -1;
-	else
-		endbyte--;		/* inclusive */
+The man page is clearly wrong at this point, both in terms of the
+error code section, and the claim that MAP_SHARED and MAP_PRIVATE
+behave as described in POSIX (because POSIX states that these
+two flags may not be specified together.)
 
-Or is there a hole in this logic?
-
-If not, I guess ee can do this another way to keep the checker happy.
+-Eric
