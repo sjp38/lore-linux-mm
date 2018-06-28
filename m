@@ -1,55 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 02B176B000D
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 23:20:02 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id m2-v6so4059898qti.2
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 20:20:01 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id u190-v6si5436294qkf.195.2018.06.27.20.20.01
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B7F26B0003
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2018 23:48:12 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id p91-v6so2321747plb.12
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 20:48:12 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d10-v6si4802873pgo.630.2018.06.27.20.48.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jun 2018 20:20:01 -0700 (PDT)
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w5S3J9qh163141
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 03:20:00 GMT
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by aserp2120.oracle.com with ESMTP id 2jukhsg6td-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 03:20:00 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w5S3Jxm7020307
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 03:19:59 GMT
-Received: from abhmp0009.oracle.com (abhmp0009.oracle.com [141.146.116.15])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w5S3Jxdh018886
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 03:19:59 GMT
-Received: by mail-oi0-f41.google.com with SMTP id r16-v6so3326140oie.3
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2018 20:19:58 -0700 (PDT)
-MIME-Version: 1.0
-References: <20180627013116.12411-1-bhe@redhat.com> <20180627013116.12411-5-bhe@redhat.com>
-In-Reply-To: <20180627013116.12411-5-bhe@redhat.com>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Wed, 27 Jun 2018 23:19:22 -0400
-Message-ID: <CAGM2reaWkmCF_DWY1jETsC=NOPC7TGFq3VX06YrTDLAp+X2+AQ@mail.gmail.com>
-Subject: Re: [PATCH v5 4/4] mm/sparse: Optimize memmap allocation during sparse_init()
-Content-Type: text/plain; charset="UTF-8"
+        Wed, 27 Jun 2018 20:48:10 -0700 (PDT)
+Date: Wed, 27 Jun 2018 20:48:08 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Message-Id: <20180627204808.99988d94180dd144b14aa38b@linux-foundation.org>
+In-Reply-To: <bug-200209-27@https.bugzilla.kernel.org/>
+References: <bug-200209-27@https.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bhe@redhat.com
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, dave.hansen@intel.com, pagupta@redhat.com, Linux Memory Management List <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com
+To: icytxw@gmail.com
+Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
 
-> Signed-off-by: Baoquan He <bhe@redhat.com>
->
-> Signed-off-by: Baoquan He <bhe@redhat.com>
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
 
-Please remove duplicated signed-off
+On Fri, 22 Jun 2018 23:37:27 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
 
->                 if (!usemap) {
->                         ms->section_mem_map = 0;
-> +                       nr_consumed_maps++;
+> https://bugzilla.kernel.org/show_bug.cgi?id=200209
+> 
+>             Bug ID: 200209
+>            Summary: UBSAN: Undefined behaviour in mm/fadvise.c:LINE
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: v4.18-rc2
+>           Hardware: All
+>                 OS: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Page Allocator
+>           Assignee: akpm@linux-foundation.org
+>           Reporter: icytxw@gmail.com
+>         Regression: No
+> 
+> Hi,
+> This bug was found in Linux Kernel v4.18-rc2
+> 
+> $ cat report0 
+> ================================================================================
+> UBSAN: Undefined behaviour in mm/fadvise.c:76:10
+> signed integer overflow:
+> 4 + 9223372036854775805 cannot be represented in type 'long long int'
+> CPU: 0 PID: 13477 Comm: syz-executor1 Not tainted 4.18.0-rc1 #2
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
+> rel-1.10.2-0-g5f4c7b1-prebuilt.qemu-project.org 04/01/2014
+> Call Trace:
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x122/0x1c8 lib/dump_stack.c:113
+>  ubsan_epilogue+0x12/0x86 lib/ubsan.c:159
+>  handle_overflow+0x1c2/0x21f lib/ubsan.c:190
+>  __ubsan_handle_add_overflow+0x2a/0x31 lib/ubsan.c:198
+>  ksys_fadvise64_64+0xbf0/0xd10 mm/fadvise.c:76
+>  __do_sys_fadvise64 mm/fadvise.c:198 [inline]
+>  __se_sys_fadvise64 mm/fadvise.c:196 [inline]
+>  __x64_sys_fadvise64+0xa9/0x120 mm/fadvise.c:196
+>  do_syscall_64+0xb8/0x3a0 arch/x86/entry/common.c:290
 
-Currently, we do not set ms->section_mem_map to 0 when fail to
-allocate usemap, only when fail to allocate mmap we set
-section_mem_map to 0. I think this is an existing bug.
+That overflow is deliberate:
 
-Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+	endbyte = offset + len;
+	if (!len || endbyte < len)
+		endbyte = -1;
+	else
+		endbyte--;		/* inclusive */
+
+Or is there a hole in this logic?
+
+If not, I guess ee can do this another way to keep the checker happy.
