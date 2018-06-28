@@ -1,98 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 383506B0005
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 10:39:22 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id u7-v6so3074061wrr.22
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 07:39:22 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id a23-v6si6040227wmb.21.2018.06.28.07.39.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jun 2018 07:39:20 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5SEd6xG028823
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 10:39:18 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2jw1c6gx9m-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 10:39:17 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Thu, 28 Jun 2018 15:39:14 +0100
-Subject: Re: [PATCH/RFC] mm: do not drop unused pages when userfaultd is
- running
-References: <20180628123916.96106-1-borntraeger@de.ibm.com>
- <df95ae10-0c78-0d76-d2bb-c91712c145ea@redhat.com>
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Thu, 28 Jun 2018 16:39:09 +0200
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CA216B0007
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 10:49:09 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id 9-v6so3552541oin.12
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 07:49:09 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id x126-v6si243805oif.359.2018.06.28.07.49.07
+        for <linux-mm@kvack.org>;
+        Thu, 28 Jun 2018 07:49:07 -0700 (PDT)
+Date: Thu, 28 Jun 2018 15:48:59 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v4 0/7] arm64: untag user pointers passed to the kernel
+Message-ID: <20180628144858.2fu7kq56cxhp2kpg@armageddon.cambridge.arm.com>
+References: <cover.1529507994.git.andreyknvl@google.com>
+ <CAAeHK+zqtyGzd_CZ7qKZKU-uZjZ1Pkmod5h8zzbN0xCV26nSfg@mail.gmail.com>
+ <20180626172900.ufclp2pfrhwkxjco@armageddon.cambridge.arm.com>
+ <CAAeHK+yqWKTdTG+ymZ2-5XKiDANV+fmUjnQkRy-5tpgphuLJRA@mail.gmail.com>
+ <0cef1643-a523-98e7-95e2-9ec595137642@arm.com>
+ <20180627171757.amucnh5znld45cpc@armageddon.cambridge.arm.com>
+ <20180628061758.j6bytsaj5jk4aocg@ltop.local>
+ <20180628102741.vk6vphfinlj3lvhv@armageddon.cambridge.arm.com>
+ <20180628104610.czsnq4w3lfhxrn53@ltop.local>
 MIME-Version: 1.0
-In-Reply-To: <df95ae10-0c78-0d76-d2bb-c91712c145ea@redhat.com>
-Content-Language: en-US
-Message-Id: <1e470063-d56c-0a76-7a7f-2c0f0e87824b@de.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180628104610.czsnq4w3lfhxrn53@ltop.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, linux-s390@vger.kernel.org
-Cc: kvm@vger.kernel.org, Janosch Frank <frankja@linux.ibm.com>, Cornelia Huck <cohuck@redhat.com>, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Cc: Mark Rutland <Mark.Rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Will Deacon <Will.Deacon@arm.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-kselftest@vger.kernel.org" <linux-kselftest@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Dmitry Vyukov <dvyukov@google.com>, Evgeniy Stepanov <eugenis@google.com>, Kees Cook <keescook@chromium.org>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Andrey Konovalov <andreyknvl@google.com>, Ramana Radhakrishnan <ramana.radhakrishnan@arm.com>, Al Viro <viro@zeniv.linux.org.uk>nd <nd@arm.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Kostya Serebryany <kcc@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, Lee Smith <Lee.Smith@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Robin Murphy <Robin.Murphy@arm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
+On Thu, Jun 28, 2018 at 12:46:11PM +0200, Luc Van Oostenryck wrote:
+> On Thu, Jun 28, 2018 at 11:27:42AM +0100, Catalin Marinas wrote:
+> > On Thu, Jun 28, 2018 at 08:17:59AM +0200, Luc Van Oostenryck wrote:
+> > > On Wed, Jun 27, 2018 at 06:17:58PM +0100, Catalin Marinas wrote:
+> > > > sparse is indeed an option. The current implementation doesn't warn on
+> > > > an explicit cast from (void __user *) to (unsigned long) since that's a
+> > > > valid thing in the kernel. I couldn't figure out if there's any other
+> > > > __attribute__ that could be used to warn of such conversion.
+> > > 
+> > > sparse doesn't have such attribute but would an new option that would warn
+> > > on such cast be a solution for your case?
+> > 
+> > I can't tell for sure whether such sparse option would be the full
+> > solution but detecting explicit __user pointer casts to long is a good
+> > starting point. So far this patchset pretty much relies on detecting
+> > a syscall failure and trying to figure out why, patching the kernel. It
+> > doesn't really scale.
+> 
+> OK, I'll add such an option this evening.
 
+That's great, thanks. I think this should cover casting pointers to any
+integer types, not just "unsigned long" (e.g. long long).
 
-On 06/28/2018 03:18 PM, David Hildenbrand wrote:
-> On 28.06.2018 14:39, Christian Borntraeger wrote:
->> KVM guests on s390 can notify the host of unused pages. This can result
->> in pte_unused callbacks to be true for KVM guest memory.
->>
->> If a page is unused (checked with pte_unused) we might drop this page
->> instead of paging it. This can have side-effects on userfaultd, when the
->> page in question was already migrated:
->>
->> The next access of that page will trigger a fault and a user fault
->> instead of faulting in a new and empty zero page. As QEMU does not
->> expect a userfault on an already migrated page this migration will fail.
->>
->> The most straightforward solution is to ignore the pte_unused hint if a
->> userfault context is active for this VMA.
->>
->> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
->> Cc: Andrea Arcangeli <aarcange@redhat.com>
->> Cc: stable@vger.kernel.org
->> Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
->> ---
->>  mm/rmap.c | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
->>
->> diff --git a/mm/rmap.c b/mm/rmap.c
->> index 6db729dc4c50..3f3a72aa99f2 100644
->> --- a/mm/rmap.c
->> +++ b/mm/rmap.c
->> @@ -1481,7 +1481,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->>  				set_pte_at(mm, address, pvmw.pte, pteval);
->>  			}
->>  
->> -		} else if (pte_unused(pteval)) {
->> +		} else if (pte_unused(pteval) && !vma->vm_userfaultfd_ctx.ctx) {
->>  			/*
->>  			 * The guest indicated that the page content is of no
->>  			 * interest anymore. Simply discard the pte, vmscan
->>
-> 
-> To understand the implications better:
-> 
-> This is like a MADV_DONTNEED from user space while a userfaultfd
-> notifier is registered for this vma range.
-> 
-> While we can block such calls in QEMU ("we registered it, we know it
-> best"), we can't do the same in the kernel.
-> 
-> These "intern MADV_DONTNEED" can actually trigger "deferred", so e.g. if
-> the pte_unused() was set before userfaultfd has been registered, we can
-> still get the same result, right?
+The only downside is that with this patchset the untagging can be done
+after the conversion to ulong (get_user_pages()) as that's where the
+problem was noticed. With a new sparse feature, we'd have to annotate
+the conversion sites (not sure how many until we run the tool though).
 
-Not sure I understand your last sentence.
-This place here is called on the unmap, (e.g. when the host tries to page out).
-The value was transferred before (and always before) during the page table invalidation.
-So pte_unused was always set before. This is the place where we decide if we page
-out (ans establish a swap pte) or just drop this page table entry. So if
-no userfaultd is registered at that point in time we are good.
+> > As a side note, we have cases in the user-kernel ABI where the user
+> > address type is "unsigned long": mmap() and friends. My feedback on an
+> > early version of this patchset was to always require untagged pointers
+> > coming from user space on such syscalls, so no need for explicit
+> > untagging.
+> 
+> Mmmm yes.
+> I tend to favor a sort of opposite approach. When we have an address
+> that must not be dereferenced as-such (and sometimes when the address
+> can be from both __user & __kernel space) I prefer to use a ulong
+> which will force the use of the required operation before being
+> able to do any sort of dereferencing and this won't need horrible
+> casts with __force (it, of course, all depends on the full context).
+
+I agree. That's what the kernel uses in functions like get_user_pages()
+which take ulong as an argument. Similarly mmap() and friends don't
+expect the pointer to be dereferenced, hence the ulong argument. The
+interesting part that the man page (and the C library header
+declaration) shows such address argument as void *. We could add a
+syscall wrapper in the arch code, only that it doesn't feel consistent
+with the "rule" that ulong addresses are not actually tagged pointers.
+
+-- 
+Catalin
