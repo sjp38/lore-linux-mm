@@ -1,197 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D0716B0007
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 19:21:24 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id c20-v6so2462188eds.21
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 16:21:24 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m1-v6sor3507703eds.47.2018.06.28.16.21.22
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BA20F6B0005
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2018 20:59:55 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id d4-v6so3568510pfn.9
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 17:59:55 -0700 (PDT)
+Received: from out4438.biz.mail.alibaba.com (out4438.biz.mail.alibaba.com. [47.88.44.38])
+        by mx.google.com with ESMTPS id y124-v6si7061751pgy.228.2018.06.28.17.59.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Jun 2018 16:21:22 -0700 (PDT)
-Date: Fri, 29 Jun 2018 01:21:20 +0200
-From: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: [PATCH] sparse: stricter warning for explicit cast to ulong
-Message-ID: <20180628232119.5jaavhewv5nb6ufb@ltop.local>
-References: <cover.1529507994.git.andreyknvl@google.com>
- <CAAeHK+zqtyGzd_CZ7qKZKU-uZjZ1Pkmod5h8zzbN0xCV26nSfg@mail.gmail.com>
- <20180626172900.ufclp2pfrhwkxjco@armageddon.cambridge.arm.com>
- <CAAeHK+yqWKTdTG+ymZ2-5XKiDANV+fmUjnQkRy-5tpgphuLJRA@mail.gmail.com>
- <0cef1643-a523-98e7-95e2-9ec595137642@arm.com>
- <20180627171757.amucnh5znld45cpc@armageddon.cambridge.arm.com>
- <20180628061758.j6bytsaj5jk4aocg@ltop.local>
- <20180628102741.vk6vphfinlj3lvhv@armageddon.cambridge.arm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Jun 2018 17:59:54 -0700 (PDT)
+Subject: Re: [RFC v2 PATCH 2/2] mm: mmap: zap pages with read mmap_sem for
+ large mapping
+From: Yang Shi <yang.shi@linux.alibaba.com>
+References: <1529364856-49589-3-git-send-email-yang.shi@linux.alibaba.com>
+ <3DDF2672-FCC4-4387-9624-92F33C309CAE@gmail.com>
+ <158a4e4c-d290-77c4-a595-71332ede392b@linux.alibaba.com>
+ <BFD6A249-B1D7-43D5-8D7C-9FAED4A168A1@gmail.com>
+ <20180620071817.GJ13685@dhcp22.suse.cz>
+ <263935d9-d07c-ab3e-9e42-89f73f57be1e@linux.alibaba.com>
+ <20180626074344.GZ2458@hirez.programming.kicks-ass.net>
+ <e54e298d-ef86-19a7-6f6b-07776f9a43e2@linux.alibaba.com>
+ <20180627072432.GC32348@dhcp22.suse.cz>
+ <a52f0585-ebec-d098-2775-f55bde3519a4@linux.alibaba.com>
+ <20180628115101.GE32348@dhcp22.suse.cz>
+ <2ecdb667-f4de-673d-6a5f-ee50df505d0c@linux.alibaba.com>
+Message-ID: <b7b8ed15-183b-9afe-8e72-d2751672e24a@linux.alibaba.com>
+Date: Thu, 28 Jun 2018 17:59:25 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180628102741.vk6vphfinlj3lvhv@armageddon.cambridge.arm.com>
+In-Reply-To: <2ecdb667-f4de-673d-6a5f-ee50df505d0c@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Mark Rutland <Mark.Rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Will Deacon <Will.Deacon@arm.com>, Kostya Serebryany <kcc@google.com>, "linux-kselftest@vger.kernel.org" <linux-kselftest@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Dmitry Vyukov <dvyukov@google.com>, Evgeniy Stepanov <eugenis@google.com>, Kees Cook <keescook@chromium.org>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Andrey Konovalov <andreyknvl@google.com>, Lee Smith <Lee.Smith@arm.com>, Al Viro <viro@zeniv.linux.org.uk>nd <nd@arm.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, Ramana Radhakrishnan <ramana.radhakrishnan@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Robin Murphy <Robin.Murphy@arm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, linux-sparse@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Nadav Amit <nadav.amit@gmail.com>, Matthew Wilcox <willy@infradead.org>, ldufour@linux.vnet.ibm.com, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-sparse issues a warning when user pointers are casted to integer
-types except to unsigned longs which are explicitly allowed.
-However it may happen that we would like to also be warned
-on casts to unsigned long.
 
-Fix this by adding a new warning flag: -Wcast-from-as (to mirrors
--Wcast-to-as) which extends -Waddress-space to all casts that
-remove an address space attribute (without using __force).
 
-References: https://lore.kernel.org/lkml/20180628102741.vk6vphfinlj3lvhv@armageddon.cambridge.arm.com/
-Signed-off-by: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
----
+On 6/28/18 12:10 PM, Yang Shi wrote:
+>
+>
+> On 6/28/18 4:51 AM, Michal Hocko wrote:
+>> On Wed 27-06-18 10:23:39, Yang Shi wrote:
+>>>
+>>> On 6/27/18 12:24 AM, Michal Hocko wrote:
+>>>> On Tue 26-06-18 18:03:34, Yang Shi wrote:
+>>>>> On 6/26/18 12:43 AM, Peter Zijlstra wrote:
+>>>>>> On Mon, Jun 25, 2018 at 05:06:23PM -0700, Yang Shi wrote:
+>>>>>>> By looking this deeper, we may not be able to cover all the 
+>>>>>>> unmapping range
+>>>>>>> for VM_DEAD, for example, if the start addr is in the middle of 
+>>>>>>> a vma. We
+>>>>>>> can't set VM_DEAD to that vma since that would trigger SIGSEGV 
+>>>>>>> for still
+>>>>>>> mapped area.
+>>>>>>>
+>>>>>>> splitting can't be done with read mmap_sem held, so maybe just 
+>>>>>>> set VM_DEAD
+>>>>>>> to non-overlapped vmas. Access to overlapped vmas (first and 
+>>>>>>> last) will
+>>>>>>> still have undefined behavior.
+>>>>>> Acquire mmap_sem for writing, split, mark VM_DEAD, drop mmap_sem. 
+>>>>>> Acquire
+>>>>>> mmap_sem for reading, madv_free drop mmap_sem. Acquire mmap_sem for
+>>>>>> writing, free everything left, drop mmap_sem.
+>>>>>>
+>>>>>> ?
+>>>>>>
+>>>>>> Sure, you acquire the lock 3 times, but both write instances 
+>>>>>> should be
+>>>>>> 'short', and I suppose you can do a demote between 1 and 2 if you 
+>>>>>> care.
+>>>>> Thanks, Peter. Yes, by looking the code and trying two different 
+>>>>> approaches,
+>>>>> it looks this approach is the most straight-forward one.
+>>>> Yes, you just have to be careful about the max vma count limit.
+>>> Yes, we should just need copy what do_munmap does as below:
+>>>
+>>> if (end < vma->vm_end && mm->map_count >= sysctl_max_map_count)
+>>> A A A A  A A A  A A A  return -ENOMEM;
+>>>
+>>> If the mas map count limit has been reached, it will return failure 
+>>> before
+>>> zapping mappings.
+>> Yeah, but as soon as you drop the lock and retake it, somebody might
+>> have changed the adddress space and we might get inconsistency.
+>>
+>> So I am wondering whether we really need upgrade_read (to promote read
+>> to write lock) and do the
+>> A A A A down_write
+>> A A A A split & set up VM_DEAD
+>> A A A A downgrade_write
+>> A A A A unmap
+>> A A A A upgrade_read
+>> A A A A zap ptes
+>> A A A A up_write
 
-This patch is available in the Git repository at:
-  git://github.com/lucvoo/sparse-dev.git warn-cast-from-as
+Promoting to write lock may be a trouble. There might be other users in 
+the critical section with read lock, we have to wait them to finish.
 
-----------------------------------------------------------------
-Luc Van Oostenryck (1):
-      stricter warning for explicit cast to ulong
+>
+> I'm supposed address space changing just can be done by mmap, mremap, 
+> mprotect. If so, we may utilize the new VM_DEAD flag. If the VM_DEAD 
+> flag is set for the vma, just return failure since it is being unmapped.
+>
+> Does it sounds reasonable?
 
- evaluate.c                         |  4 +--
- lib.c                              |  2 ++
- lib.h                              |  1 +
- sparse.1                           |  9 ++++++
- validation/Waddress-space-strict.c | 56 ++++++++++++++++++++++++++++++++++++++
- 5 files changed, 70 insertions(+), 2 deletions(-)
- create mode 100644 validation/Waddress-space-strict.c
+It looks we just need care about MAP_FIXED (mmap) and MREMAP_FIXED 
+(mremap), right?
 
-diff --git a/evaluate.c b/evaluate.c
-index 194b97218..64e1067ce 100644
---- a/evaluate.c
-+++ b/evaluate.c
-@@ -2998,14 +2998,14 @@ static struct symbol *evaluate_cast(struct expression *expr)
- 		}
- 	}
- 
--	if (ttype == &ulong_ctype)
-+	if (ttype == &ulong_ctype && !Wcast_from_as)
- 		tas = -1;
- 	else if (tclass == TYPE_PTR) {
- 		examine_pointer_target(ttype);
- 		tas = ttype->ctype.as;
- 	}
- 
--	if (stype == &ulong_ctype)
-+	if (stype == &ulong_ctype && !Wcast_from_as)
- 		sas = -1;
- 	else if (sclass == TYPE_PTR) {
- 		examine_pointer_target(stype);
-diff --git a/lib.c b/lib.c
-index 308f8f699..0bb5232ab 100644
---- a/lib.c
-+++ b/lib.c
-@@ -248,6 +248,7 @@ static struct token *pre_buffer_end = NULL;
- int Waddress = 0;
- int Waddress_space = 1;
- int Wbitwise = 1;
-+int Wcast_from_as = 0;
- int Wcast_to_as = 0;
- int Wcast_truncate = 1;
- int Wconstexpr_not_const = 0;
-@@ -678,6 +679,7 @@ static const struct flag warnings[] = {
- 	{ "address", &Waddress },
- 	{ "address-space", &Waddress_space },
- 	{ "bitwise", &Wbitwise },
-+	{ "cast-from-as", &Wcast_from_as },
- 	{ "cast-to-as", &Wcast_to_as },
- 	{ "cast-truncate", &Wcast_truncate },
- 	{ "constexpr-not-const", &Wconstexpr_not_const},
-diff --git a/lib.h b/lib.h
-index b0453bb6e..46e685421 100644
---- a/lib.h
-+++ b/lib.h
-@@ -137,6 +137,7 @@ extern int preprocess_only;
- extern int Waddress;
- extern int Waddress_space;
- extern int Wbitwise;
-+extern int Wcast_from_as;
- extern int Wcast_to_as;
- extern int Wcast_truncate;
- extern int Wconstexpr_not_const;
-diff --git a/sparse.1 b/sparse.1
-index 806fb0cf0..62956f18b 100644
---- a/sparse.1
-+++ b/sparse.1
-@@ -77,6 +77,15 @@ Sparse issues these warnings by default.  To turn them off, use
- \fB\-Wno\-bitwise\fR.
- .
- .TP
-+.B \-Wcast\-from\-as
-+Warn about which remove an address space to a pointer type.
-+
-+This is similar to \fB\-Waddress\-space\fR but will also warn
-+on casts to \fBunsigned long\fR.
-+
-+Sparse does not issues these warnings by default.
-+.
-+.TP
- .B \-Wcast\-to\-as
- Warn about casts which add an address space to a pointer type.
- 
-diff --git a/validation/Waddress-space-strict.c b/validation/Waddress-space-strict.c
-new file mode 100644
-index 000000000..ad23f74ae
---- /dev/null
-+++ b/validation/Waddress-space-strict.c
-@@ -0,0 +1,56 @@
-+#define __user __attribute__((address_space(1)))
-+
-+typedef unsigned long ulong;
-+typedef long long llong;
-+typedef struct s obj_t;
-+
-+static void expl(int i, ulong u, llong l, void *v, obj_t *o, obj_t __user *p)
-+{
-+	(obj_t*)(i);
-+	(obj_t __user*)(i);
-+
-+	(obj_t*)(u);
-+	(obj_t __user*)(u);
-+
-+	(obj_t*)(l);
-+	(obj_t __user*)(l);
-+
-+	(obj_t*)(v);
-+	(obj_t __user*)(v);
-+
-+	(int)(o);
-+	(ulong)(o);
-+	(llong)(o);
-+	(void *)(o);
-+	(obj_t*)(o);
-+	(obj_t __user*)(o);
-+
-+	(int)(p);		// w
-+	(ulong)(p);		// w!
-+	(llong)(p);		// w
-+	(void *)(p);		// w
-+	(obj_t*)(p);		// w
-+	(obj_t __user*)(p);	// ok
-+}
-+
-+/*
-+ * check-name: Waddress-space-strict
-+ * check-command: sparse -Wcast-from-as -Wcast-to-as $file
-+ *
-+ * check-error-start
-+Waddress-space-strict.c:10:10: warning: cast adds address space to expression (<asn:1>)
-+Waddress-space-strict.c:13:10: warning: cast adds address space to expression (<asn:1>)
-+Waddress-space-strict.c:16:10: warning: cast adds address space to expression (<asn:1>)
-+Waddress-space-strict.c:19:10: warning: cast adds address space to expression (<asn:1>)
-+Waddress-space-strict.c:26:10: warning: cast adds address space to expression (<asn:1>)
-+Waddress-space-strict.c:28:10: warning: cast removes address space of expression
-+Waddress-space-strict.c:29:10: warning: cast removes address space of expression
-+Waddress-space-strict.c:30:10: warning: cast removes address space of expression
-+Waddress-space-strict.c:31:10: warning: cast removes address space of expression
-+Waddress-space-strict.c:32:10: warning: cast removes address space of expression
-+Waddress-space-strict.c:9:10: warning: non size-preserving integer to pointer cast
-+Waddress-space-strict.c:10:10: warning: non size-preserving integer to pointer cast
-+Waddress-space-strict.c:21:10: warning: non size-preserving pointer to integer cast
-+Waddress-space-strict.c:28:10: warning: non size-preserving pointer to integer cast
-+ * check-error-end
-+ */
--- 
-2.18.0
+How about letting them return -EBUSY or -EAGAIN to notify the 
+application? This changes the behavior a little bit, MAP_FIXED and 
+mremap may fail if they fail the race with munmap (if the mapping is 
+larger than 1GB). I'm not sure if any multi-threaded application uses 
+MAP_FIXED and MREMAP_FIXED very heavily which may run into the race 
+condition. I guess it should be rare to meet all the conditions to 
+trigger the race.
+
+The programmer should be very cautious about MAP_FIXED.MREMAP_FIXED 
+since they may corrupt its own address space as the man page noted.
+
+
+Thanks,
+Yang
+
+>
+> Thanks,
+> Yang
+>
+>>
+>> looks terrible, no question about that, but we won't drop the mmap sem
+>> at any time.
+>
