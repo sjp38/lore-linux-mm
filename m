@@ -1,73 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 40ED46B0007
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 14:26:55 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id c3-v6so10569405qkb.2
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 11:26:55 -0700 (PDT)
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id n85-v6si404751qke.353.2018.06.29.11.26.53
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 690516B0005
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 14:43:15 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id f81-v6so1293895pfd.7
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 11:43:15 -0700 (PDT)
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50106.outbound.protection.outlook.com. [40.107.5.106])
+        by mx.google.com with ESMTPS id x5-v6si192233pgc.210.2018.06.29.11.43.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jun 2018 11:26:53 -0700 (PDT)
-Message-ID: <1530296809.16379.9.camel@surriel.com>
-Subject: Re: [PATCH] mm: thp: passing correct vm_flags to hugepage_vma_check
-From: Rik van Riel <riel@surriel.com>
-Date: Fri, 29 Jun 2018 14:26:49 -0400
-In-Reply-To: <20180629181752.792831-1-songliubraving@fb.com>
-References: <20180629181752.792831-1-songliubraving@fb.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-2/61GnD0D2WWFYIK2zJ9"
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 29 Jun 2018 11:43:14 -0700 (PDT)
+Subject: Re:
+References: <bug-200209-27@https.bugzilla.kernel.org/>
+ <20180627204808.99988d94180dd144b14aa38b@linux-foundation.org>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <61b427f0-978c-fdbf-8b16-226705131220@virtuozzo.com>
+Date: Fri, 29 Jun 2018 21:44:44 +0300
+MIME-Version: 1.0
+In-Reply-To: <20180627204808.99988d94180dd144b14aa38b@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Song Liu <songliubraving@fb.com>, linux-mm@kvack.org
-Cc: kernel-team@fb.com, Yang Shi <yang.shi@linux.alibaba.com>, "Kirill A .
- Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>, icytxw@gmail.com
+Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
 
 
---=-2/61GnD0D2WWFYIK2zJ9
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 
-On Fri, 2018-06-29 at 11:17 -0700, Song Liu wrote:
+On 06/28/2018 06:48 AM, Andrew Morton wrote:
 
-> To my surprise, after I thought we all agreed on v3 of the work.
-> Yang's
-> patch, which is similar to correct looking (but wrong) v1, got
-> applied.
-> So we still have the issue of stale vma->vm_flags. This patch fixes
-> this
-> issue. Please apply.
->=20
-> Fixes: 02b75dc8160d ("mm: thp: register mm for khugepaged when
-> merging vma for shmem")
-> Cc: Yang Shi <yang.shi@linux.alibaba.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Rik van Riel <riel@surriel.com>
-> Signed-off-by: Song Liu <songliubraving@fb.com>
->=20
-Reviewed-by: Rik van Riel <riel@surriel.com>
-
---=20
-All Rights Reversed.
---=-2/61GnD0D2WWFYIK2zJ9
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAls2eekACgkQznnekoTE
-3oOBogf/eqAjqSZK2qrWkZbIBaFF/BcJyak8oF8YTOU1eo4wqQ5xjOkOuSLCdoKe
-9g+6Vpyjnj7vDIIUyC445qc5W5MsKyebMC7N2uON9KIKASLe6/S8Q9JI6YQ/WH+6
-GybU9XIJQ1EMwYdAKBhjY8mpCjukWrnBtm9u3VMNyaOxEUvb2u3UNsUnFxdfRq23
-oatEV9chmREl1DHQDQFAI18+taCwDSTShZC/hQJS3JQzjgtkPqX0lFqbPjeVhpoA
-UI4gGy6EA36pwfqRIC2BVYPFY9NB6XrwpjgreRGqmJE12LiHtMDz+Cu+DXKbr0lM
-xawxPadkCo5ZUCJ39rFopo8d3D4S5Q==
-=qfnh
------END PGP SIGNATURE-----
-
---=-2/61GnD0D2WWFYIK2zJ9--
+>> Hi,
+>> This bug was found in Linux Kernel v4.18-rc2
+>>
+>> $ cat report0 
+>> ================================================================================
+>> UBSAN: Undefined behaviour in mm/fadvise.c:76:10
+>> signed integer overflow:
+>> 4 + 9223372036854775805 cannot be represented in type 'long long int'
+>> CPU: 0 PID: 13477 Comm: syz-executor1 Not tainted 4.18.0-rc1 #2
+>> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
+>> rel-1.10.2-0-g5f4c7b1-prebuilt.qemu-project.org 04/01/2014
+>> Call Trace:
+>>  __dump_stack lib/dump_stack.c:77 [inline]
+>>  dump_stack+0x122/0x1c8 lib/dump_stack.c:113
+>>  ubsan_epilogue+0x12/0x86 lib/ubsan.c:159
+>>  handle_overflow+0x1c2/0x21f lib/ubsan.c:190
+>>  __ubsan_handle_add_overflow+0x2a/0x31 lib/ubsan.c:198
+>>  ksys_fadvise64_64+0xbf0/0xd10 mm/fadvise.c:76
+>>  __do_sys_fadvise64 mm/fadvise.c:198 [inline]
+>>  __se_sys_fadvise64 mm/fadvise.c:196 [inline]
+>>  __x64_sys_fadvise64+0xa9/0x120 mm/fadvise.c:196
+>>  do_syscall_64+0xb8/0x3a0 arch/x86/entry/common.c:290
+> 
+> That overflow is deliberate:
+> 
+> 	endbyte = offset + len;
+> 	if (!len || endbyte < len)
+> 		endbyte = -1;
+> 	else
+> 		endbyte--;		/* inclusive */
+> 
+> Or is there a hole in this logic?
+> 
+> If not, I guess ee can do this another way to keep the checker happy.
+ 
+It should be enough to make overflow unsigned. Unsigned overflow is defined by the C standard.
