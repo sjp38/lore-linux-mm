@@ -1,82 +1,209 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C8A266B0005
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 10:30:49 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id s21-v6so2940697edq.23
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 07:30:49 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f10-v6si4672610edl.132.2018.06.29.07.30.47
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F4836B000A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 10:35:31 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id q8-v6so959445wmc.2
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 07:35:31 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 131-v6sor547560wmi.8.2018.06.29.07.35.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jun 2018 07:30:47 -0700 (PDT)
-Date: Fri, 29 Jun 2018 16:30:44 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] kvm, mm: account shadow page tables to kmemcg
-Message-ID: <20180629143044.GF5963@dhcp22.suse.cz>
-References: <20180629140224.205849-1-shakeelb@google.com>
+        (Google Transport Security);
+        Fri, 29 Jun 2018 07:35:29 -0700 (PDT)
+Date: Fri, 29 Jun 2018 16:35:27 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH v1 1/2] mm/sparse: add sparse_init_nid()
+Message-ID: <20180629143527.GA23545@techadventures.net>
+References: <20180628173010.23849-1-pasha.tatashin@oracle.com>
+ <20180628173010.23849-2-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180629140224.205849-1-shakeelb@google.com>
+In-Reply-To: <20180628173010.23849-2-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Peter Feiner <pfeiner@google.com>, stable@vger.kernel.org
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, bhe@redhat.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org
 
-On Fri 29-06-18 07:02:24, Shakeel Butt wrote:
-> The size of kvm's shadow page tables corresponds to the size of the
-> guest virtual machines on the system. Large VMs can spend a significant
-> amount of memory as shadow page tables which can not be left as system
-> memory overhead. So, account shadow page tables to the kmemcg.
+On Thu, Jun 28, 2018 at 01:30:09PM -0400, Pavel Tatashin wrote:
+> sparse_init() requires to temporary allocate two large buffers:
+> usemap_map and map_map. Baoquan He has identified that these buffers are so
+> large that Linux is not bootable on small memory machines, such as a kdump
+> boot.
 > 
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: Paolo Bonzini <pbonzini@redhat.com>
-> Cc: Greg Thelen <gthelen@google.com>
-> Cc: Radim KrA?mA!A? <rkrcmar@redhat.com>
-> Cc: Peter Feiner <pfeiner@google.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: stable@vger.kernel.org
-
-I am not familiar wtih kvm to judge but if we are going to account this
-memory we will probably want to let oom_badness know how much memory
-to account to a specific process. Is this something that we can do?
-We will probably need a new MM_KERNEL rss_stat stat for that purpose.
-
-Just to make it clear. I am not opposing to this patch but considering
-that shadow page tables might consume a lot of memory it would be good
-to know who is responsible for it from the OOM perspective. Something to
-solve on top of this.
-
-I would also love to see a note how this memory is bound to the owner
-life time in the changelog. That would make the review much more easier.
-
+> Baoquan provided a fix, which reduces these sizes of these buffers, but it
+> is much better to get rid of them entirely.
+> 
+> Add a new way to initialize sparse memory: sparse_init_nid(), which only
+> operates within one memory node, and thus allocates memory either in large
+> contiguous block or allocates section by section. This eliminates the need
+> for use of temporary buffers.
+> 
+> For simplified bisecting and review, the new interface is going to be
+> enabled as well as old code removed in the next patch.
+> 
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 > ---
-> Changelog since v1:
-> - replaced (GFP_KERNEL|__GFP_ACCOUNT) with GFP_KERNEL_ACCOUNT
+>  include/linux/mm.h  |  8 ++++
+>  mm/sparse-vmemmap.c | 49 ++++++++++++++++++++++++
+>  mm/sparse.c         | 90 +++++++++++++++++++++++++++++++++++++++++++++
+>  3 files changed, 147 insertions(+)
 > 
->  arch/x86/kvm/mmu.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-> index d594690d8b95..6b8f11521c41 100644
-> --- a/arch/x86/kvm/mmu.c
-> +++ b/arch/x86/kvm/mmu.c
-> @@ -890,7 +890,7 @@ static int mmu_topup_memory_cache_page(struct kvm_mmu_memory_cache *cache,
->  	if (cache->nobjs >= min)
->  		return 0;
->  	while (cache->nobjs < ARRAY_SIZE(cache->objects)) {
-> -		page = (void *)__get_free_page(GFP_KERNEL);
-> +		page = (void *)__get_free_page(GFP_KERNEL_ACCOUNT);
->  		if (!page)
->  			return -ENOMEM;
->  		cache->objects[cache->nobjs++] = page;
-> -- 
-> 2.18.0.rc2.346.g013aa6912e-goog
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index a0fbb9ffe380..ba200808dd5f 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -2651,6 +2651,14 @@ void sparse_mem_maps_populate_node(struct page **map_map,
+>  				   unsigned long pnum_end,
+>  				   unsigned long map_count,
+>  				   int nodeid);
+> +struct page * sparse_populate_node(unsigned long pnum_begin,
+> +				   unsigned long pnum_end,
+> +				   unsigned long map_count,
+> +				   int nid);
+> +struct page * sprase_populate_node_section(struct page *map_base,
+> +				   unsigned long map_index,
+> +				   unsigned long pnum,
+> +				   int nid);
+>  
+>  struct page *sparse_mem_map_populate(unsigned long pnum, int nid,
+>  		struct vmem_altmap *altmap);
+> diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+> index e1a54ba411ec..4655503bdc66 100644
+> --- a/mm/sparse-vmemmap.c
+> +++ b/mm/sparse-vmemmap.c
+> @@ -311,3 +311,52 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+>  		vmemmap_buf_end = NULL;
+>  	}
+>  }
+> +
+> +struct page * __init sparse_populate_node(unsigned long pnum_begin,
+> +					  unsigned long pnum_end,
+> +					  unsigned long map_count,
+> +					  int nid)
+> +{
+> +	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
+> +	unsigned long pnum, map_index = 0;
+> +	void *vmemmap_buf_start;
+> +
+> +	size = ALIGN(size, PMD_SIZE) * map_count;
+> +	vmemmap_buf_start = __earlyonly_bootmem_alloc(nid, size,
+> +						      PMD_SIZE,
+> +						      __pa(MAX_DMA_ADDRESS));
+> +	if (vmemmap_buf_start) {
+> +		vmemmap_buf = vmemmap_buf_start;
+> +		vmemmap_buf_end = vmemmap_buf_start + size;
+> +	}
+> +
+> +	for (pnum = pnum_begin; map_index < map_count; pnum++) {
+> +		if (!present_section_nr(pnum))
+> +			continue;
+> +		if (!sparse_mem_map_populate(pnum, nid, NULL))
+> +			break;
+> +		map_index++;
+> +		BUG_ON(pnum >= pnum_end);
+> +	}
+
+Besides the typos, I could not find anything wrong in the patch.
+Only cosmetic:
+
+Could not the loop above be converted to a for_each_present_section_nr() or would it be
+less readable?
+
+> +
+> +	if (vmemmap_buf_start) {
+> +		/* need to free left buf */
+> +		memblock_free_early(__pa(vmemmap_buf),
+> +				    vmemmap_buf_end - vmemmap_buf);
+> +		vmemmap_buf = NULL;
+> +		vmemmap_buf_end = NULL;
+> +	}
+> +	return pfn_to_page(section_nr_to_pfn(pnum_begin));
+> +}
+> +
+> +/*
+> + * Return map for pnum section. sparse_populate_node() has populated memory map
+> + * in this node, we simply do pnum to struct page conversion.
+> + */
+> +struct page * __init sprase_populate_node_section(struct page *map_base,
+> +						  unsigned long map_index,
+> +						  unsigned long pnum,
+> +						  int nid)
+> +{
+> +	return pfn_to_page(section_nr_to_pfn(pnum));
+> +}
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index d18e2697a781..60eaa2a4842a 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -456,6 +456,43 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+>  		       __func__);
+>  	}
+>  }
+> +
+> +static unsigned long section_map_size(void)
+> +{
+> +	return PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION);
+> +}
+> +
+> +/*
+> + * Try to allocate all struct pages for this node, if this fails, we will
+> + * be allocating one section at a time in sprase_populate_node_section().
+> + */
+> +struct page * __init sparse_populate_node(unsigned long pnum_begin,
+> +					  unsigned long pnum_end,
+> +					  unsigned long map_count,
+> +					  int nid)
+> +{
+> +	return memblock_virt_alloc_try_nid_raw(section_map_size() * map_count,
+> +					       PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
+> +					       BOOTMEM_ALLOC_ACCESSIBLE, nid);
+> +}
+> +
+> +/*
+> + * Return map for pnum section. map_base is not NULL if we could allocate map
+> + * for this node together. Otherwise we allocate one section at a time.
+> + * map_index is the index of pnum in this node counting only present sections.
+> + */
+> +struct page * __init sprase_populate_node_section(struct page *map_base,
+> +						  unsigned long map_index,
+> +						  unsigned long pnum,
+> +						  int nid)
+> +{
+> +	if (map_base) {
+> +		unsigned long offset = section_map_size() * map_index;
+> +
+> +		return (struct page *)((char *)map_base + offset);
+> +	}
+> +	return sparse_mem_map_populate(pnum, nid, NULL);
+> +}
+>  #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
+>  
+>  static void __init sparse_early_mem_maps_alloc_node(void *data,
+> @@ -520,6 +557,59 @@ static void __init alloc_usemap_and_memmap(void (*alloc_func)
+>  						map_count, nodeid_begin);
+>  }
+>  
+> +/*
+> + * Initialize sparse on a specific node. The node spans [pnum_begin, pnum_end)
+> + * And number of present sections in this node is map_count.
+> + */
+> +void __init sparse_init_nid(int nid, unsigned long pnum_begin,
+> +				   unsigned long pnum_end,
+> +				   unsigned long map_count)
+> +{
+> +	unsigned long pnum, usemap_longs, *usemap, map_index;
+> +	struct page *map, *map_base;
+> +	struct mem_section *ms;
+
+What about moving "struct mem_section" into the second for_each_present_section_nr() loop.
+It is only being used there.
+And we could move "struct page *map" into the first loop as well.
+
+But the patch looks good to me anyway.
+Maybe I am missing something, but so far:
+
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
 
 -- 
-Michal Hocko
-SUSE Labs
+Oscar Salvador
+SUSE L3
