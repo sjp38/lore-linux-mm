@@ -1,43 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CA1C76B0007
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 14:57:05 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id x6-v6so4284942pgp.9
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 11:57:05 -0700 (PDT)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id f15-v6si4197929pgt.37.2018.06.29.11.57.04
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 610736B0010
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 14:59:08 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id k85-v6so2429783ita.0
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 11:59:08 -0700 (PDT)
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id c205-v6sor630150itb.23.2018.06.29.11.59.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jun 2018 11:57:04 -0700 (PDT)
-Subject: Re: [PATCH v5 4/4] mm/sparse: Optimize memmap allocation during
- sparse_init()
-References: <20180627013116.12411-1-bhe@redhat.com>
- <20180627013116.12411-5-bhe@redhat.com>
- <cb67381c-078c-62e6-e4c0-9ecf3de9e84d@intel.com>
- <CAGM2rebsL_fS8XKRvN34NWiFN3Hh63ZOD8jDj8qeSOUPXcZ2fA@mail.gmail.com>
- <88f16247-aea2-f429-600e-4b54555eb736@intel.com>
- <b8d5b9cb-ca09-4bcc-0a31-3db1232fe787@oracle.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <7ad120fb-377b-6963-62cb-a1a5eaa6cad4@intel.com>
-Date: Fri, 29 Jun 2018 11:56:48 -0700
-MIME-Version: 1.0
-In-Reply-To: <b8d5b9cb-ca09-4bcc-0a31-3db1232fe787@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Fri, 29 Jun 2018 11:59:07 -0700 (PDT)
+Date: Fri, 29 Jun 2018 11:59:04 -0700
+In-Reply-To: <20180629072132.GA13860@dhcp22.suse.cz>
+Message-Id: <xr93bmbtju6f.fsf@gthelen.svl.corp.google.com>
+Mime-Version: 1.0
+References: <20180628151101.25307-1-mhocko@kernel.org> <xr93in62jy8k.fsf@gthelen.svl.corp.google.com>
+ <20180629072132.GA13860@dhcp22.suse.cz>
+Subject: Re: [PATCH] memcg, oom: move out_of_memory back to the charge path
+From: Greg Thelen <gthelen@google.com>
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: bhe@redhat.com, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, pagupta@redhat.com, Linux Memory Management List <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 06/29/2018 11:01 AM, Pavel Tatashin wrote:
-> Correct: it should be incremented on every iteration of the loop. No matter if the entries contained valid data or NULLs. So we increment in three places:
-> 
-> if map_map[] has invalid entry, increment, continue
-> if usemap_map[] has invalid entry, increment, continue
-> at the end of the loop, everything was valid we increment it
-> 
-> This is done so nr_consumed_maps does not get out of sync with the
-> current pnum. pnum does not equal to nr_consumed_maps, as there are
-> may be holes in pnums, but there is one-to-one correlation.
-Can this be made more clear in the code?
+Michal Hocko <mhocko@kernel.org> wrote:
+
+> On Thu 28-06-18 16:19:07, Greg Thelen wrote:
+>> Michal Hocko <mhocko@kernel.org> wrote:
+> [...]
+>> > +	if (mem_cgroup_out_of_memory(memcg, mask, order))
+>> > +		return OOM_SUCCESS;
+>> > +
+>> > +	WARN(1,"Memory cgroup charge failed because of no reclaimable memory! "
+>> > +		"This looks like a misconfiguration or a kernel bug.");
+>> 
+>> I'm not sure here if the warning should here or so strongly worded.  It
+>> seems like the current task could be oom reaped with MMF_OOM_SKIP and
+>> thus mem_cgroup_out_of_memory() will return false.  So there's nothing
+>> alarming in that case.
+>
+> If the task is reaped then its charges should be released as well and
+> that means that we should get below the limit. Sure there is some room
+> for races but this should be still unlikely. Maybe I am just
+> underestimating though.
+>
+> What would you suggest instead?
+
+I suggest checking MMF_OOM_SKIP or deleting the warning.  But I don't
+feel strongly.
