@@ -1,46 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AE7B26B0010
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 10:40:22 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id m131-v6so1836886itm.5
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 07:40:22 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d13-v6sor575064itj.17.2018.06.29.07.40.21
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A7B0F6B0269
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 10:40:28 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id l10-v6so9481111qth.14
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 07:40:28 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id t87-v6si2868936qki.107.2018.06.29.07.40.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 29 Jun 2018 07:40:21 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Jun 2018 07:40:27 -0700 (PDT)
+Subject: Re: [PATCH v2] kvm, mm: account shadow page tables to kmemcg
+References: <20180629140224.205849-1-shakeelb@google.com>
+ <20180629143044.GF5963@dhcp22.suse.cz>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <efdb8e40-742e-d120-6589-96b4fdf83cb9@redhat.com>
+Date: Fri, 29 Jun 2018 16:40:23 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180629130155.e7ztz5ikxfl352ff@lakrids.cambridge.arm.com>
-References: <cover.1530018818.git.andreyknvl@google.com> <20180627160800.3dc7f9ee41c0badbf7342520@linux-foundation.org>
- <CAAeHK+xz552VNpZxgWwU-hbTqF5_F6YVDw3fSv=4OT8mNrqPzg@mail.gmail.com>
- <20180628124039.8a42ab5e2994fb2876ff4f75@linux-foundation.org>
- <CAAeHK+xsBOKghUp9XhpfXGqU=gjSYuy3G2GH14zWNEmaLPy8_w@mail.gmail.com> <20180629130155.e7ztz5ikxfl352ff@lakrids.cambridge.arm.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Fri, 29 Jun 2018 16:40:20 +0200
-Message-ID: <CAAeHK+zwmOMgP=Om6TKz8V5_4qgFhDfQSA01CBMnhbBWmHe9sQ@mail.gmail.com>
-Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address sanitizer
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180629143044.GF5963@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>
+To: Michal Hocko <mhocko@kernel.org>, Shakeel Butt <shakeelb@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Peter Feiner <pfeiner@google.com>, stable@vger.kernel.org
 
-On Fri, Jun 29, 2018 at 3:01 PM, Mark Rutland <mark.rutland@arm.com> wrote:
-> On Fri, Jun 29, 2018 at 02:45:08PM +0200, Andrey Konovalov wrote:
->> So with clean kernel after boot we get 40 kb memory usage. With KASAN
->> it is ~120 kb, which is 200% overhead. With KHWASAN it's 50 kb, which
->> is 25% overhead. This should approximately scale to any amounts of
->> used slab memory. For example with 100 mb memory usage we would get
->> +200 mb for KASAN and +25 mb with KHWASAN. (And KASAN also requires
->> quarantine for better use-after-free detection). I can explicitly
->> mention the overhead in %s in the changelog.
->
-> Could you elaborate on where that SLAB overhead comes from?
->
-> IIUC that's not for the shadow itself (since it's allocated up-front and
-> not accounted to SLAB), and that doesn't take into account the
-> quarantine, so what's eating that space?
+On 29/06/2018 16:30, Michal Hocko wrote:
+> I am not familiar wtih kvm to judge but if we are going to account this
+> memory we will probably want to let oom_badness know how much memory
+> to account to a specific process. Is this something that we can do?
+> We will probably need a new MM_KERNEL rss_stat stat for that purpose.
+> 
+> Just to make it clear. I am not opposing to this patch but considering
+> that shadow page tables might consume a lot of memory it would be good
+> to know who is responsible for it from the OOM perspective. Something to
+> solve on top of this.
 
-Redzones. KHWASAN doesn't need them since the next slab object is
-marked with a different tag (with a high probability) and acts as a
-redzone.
+The amount of memory is generally proportional to the size of the
+virtual machine memory, which is reflected directly into RSS.  Because
+KVM processes are usually huge, and will probably dwarf everything else
+in the system (except firefox and chromium of course :)), the general
+order of magnitude of the oom_badness should be okay.
+
+> I would also love to see a note how this memory is bound to the owner
+> life time in the changelog. That would make the review much more easier.
+
+--verbose for people that aren't well versed in linux mm, please...
+
+Paolo
