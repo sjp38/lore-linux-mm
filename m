@@ -1,119 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 14F1C6B026B
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 15:05:35 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id e1-v6so4289030pgp.20
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 12:05:35 -0700 (PDT)
-Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
-        by mx.google.com with ESMTPS id b7-v6si8508195pgt.642.2018.06.29.12.05.33
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A0DD16B0003
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 16:24:33 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id e1-v6so5539273pld.23
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 13:24:33 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id u123-v6si8308472pgb.414.2018.06.29.13.24.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jun 2018 12:05:34 -0700 (PDT)
-Subject: Re: [PATCH] mm: thp: passing correct vm_flags to hugepage_vma_check
-References: <20180629181752.792831-1-songliubraving@fb.com>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <62dec816-b004-a563-bdc7-6fa09b8d2247@linux.alibaba.com>
-Date: Fri, 29 Jun 2018 12:05:15 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 29 Jun 2018 13:24:32 -0700 (PDT)
+Subject: Re: [PATCH] mm: make DEFERRED_STRUCT_PAGE_INIT explicitly depend on
+ SPARSEMEM
+References: <1530279308-24988-1-git-send-email-rppt@linux.vnet.ibm.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <e10d9623-3b66-2853-18c9-9d6eea273270@infradead.org>
+Date: Fri, 29 Jun 2018 13:24:28 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180629181752.792831-1-songliubraving@fb.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1530279308-24988-1-git-send-email-rppt@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Song Liu <songliubraving@fb.com>, linux-mm@kvack.org
-Cc: kernel-team@fb.com, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@surriel.com>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+
+On 06/29/2018 06:35 AM, Mike Rapoport wrote:
+> The deferred memory initialization relies on section definitions, e.g
+> PAGES_PER_SECTION, that are only available when CONFIG_SPARSEMEM=y on most
+> architectures.
+> 
+> Initially DEFERRED_STRUCT_PAGE_INIT depended on explicit
+> ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT configuration option, but since the
+> commit 2e3ca40f03bb13709df4 ("mm: relax deferred struct page requirements")
+> this requirement was relaxed and now it is possible to enable
+> DEFERRED_STRUCT_PAGE_INIT on architectures that support DISCONTINGMEM and
+> NO_BOOTMEM which causes build failures.
+> 
+> For instance, setting SMP=y and DEFERRED_STRUCT_PAGE_INIT=y on arc causes
+> the following build failure:
+> 
+>   CC      mm/page_alloc.o
+> mm/page_alloc.c: In function 'update_defer_init':
+> mm/page_alloc.c:321:14: error: 'PAGES_PER_SECTION'
+> undeclared (first use in this function); did you mean 'USEC_PER_SEC'?
+>       (pfn & (PAGES_PER_SECTION - 1)) == 0) {
+>               ^~~~~~~~~~~~~~~~~
+>               USEC_PER_SEC
+> mm/page_alloc.c:321:14: note: each undeclared
+> identifier is reported only once for each function it appears in
+> In file included from include/linux/cache.h:5:0,
+>                  from include/linux/printk.h:9,
+>                  from include/linux/kernel.h:14,
+>                  from
+> include/asm-generic/bug.h:18,
+>                  from
+> arch/arc/include/asm/bug.h:32,
+>                  from include/linux/bug.h:5,
+>                  from include/linux/mmdebug.h:5,
+>                  from include/linux/mm.h:9,
+>                  from mm/page_alloc.c:18:
+> mm/page_alloc.c: In function 'deferred_grow_zone':
+> mm/page_alloc.c:1624:52: error:
+> 'PAGES_PER_SECTION' undeclared (first use in this function); did you mean
+> 'USEC_PER_SEC'?
+>   unsigned long nr_pages_needed = ALIGN(1 << order, PAGES_PER_SECTION);
+>                                                     ^
+> include/uapi/linux/kernel.h:11:47: note: in
+> definition of macro '__ALIGN_KERNEL_MASK'
+>  #define __ALIGN_KERNEL_MASK(x, mask) (((x) + (mask)) & ~(mask))
+>                                                ^~~~
+> include/linux/kernel.h:58:22: note: in expansion
+> of macro '__ALIGN_KERNEL'
+>  #define ALIGN(x, a)  __ALIGN_KERNEL((x), (a))
+>                       ^~~~~~~~~~~~~~
+> mm/page_alloc.c:1624:34: note: in expansion of
+> macro 'ALIGN'
+>   unsigned long nr_pages_needed = ALIGN(1 << order, PAGES_PER_SECTION);
+>                                   ^~~~~
+> In file included from
+> include/asm-generic/bug.h:18:0,
+>                  from
+> arch/arc/include/asm/bug.h:32,
+>                  from include/linux/bug.h:5,
+>                  from include/linux/mmdebug.h:5,
+>                  from include/linux/mm.h:9,
+>                  from mm/page_alloc.c:18:
+> mm/page_alloc.c: In function
+> 'free_area_init_node':
+> mm/page_alloc.c:6379:50: error:
+> 'PAGES_PER_SECTION' undeclared (first use in this function); did you mean
+> 'USEC_PER_SEC'?
+>   pgdat->static_init_pgcnt = min_t(unsigned long, PAGES_PER_SECTION,
+>                                                   ^
+> include/linux/kernel.h:812:22: note: in definition
+> of macro '__typecheck'
+>    (!!(sizeof((typeof(x) *)1 == (typeof(y) *)1)))
+>                       ^
+> include/linux/kernel.h:836:24: note: in expansion
+> of macro '__safe_cmp'
+>   __builtin_choose_expr(__safe_cmp(x, y), \
+>                         ^~~~~~~~~~
+> include/linux/kernel.h:904:27: note: in expansion
+> of macro '__careful_cmp'
+>  #define min_t(type, x, y) __careful_cmp((type)(x), (type)(y), <)
+>                            ^~~~~~~~~~~~~
+> mm/page_alloc.c:6379:29: note: in expansion of
+> macro 'min_t'
+>   pgdat->static_init_pgcnt = min_t(unsigned long, PAGES_PER_SECTION,
+>                              ^~~~~
+> include/linux/kernel.h:836:2: error: first
+> argument to '__builtin_choose_expr' not a constant
+>   __builtin_choose_expr(__safe_cmp(x, y), \
+>   ^
+> include/linux/kernel.h:904:27: note: in expansion
+> of macro '__careful_cmp'
+>  #define min_t(type, x, y) __careful_cmp((type)(x), (type)(y), <)
+>                            ^~~~~~~~~~~~~
+> mm/page_alloc.c:6379:29: note: in expansion of
+> macro 'min_t'
+>   pgdat->static_init_pgcnt = min_t(unsigned long, PAGES_PER_SECTION,
+>                              ^~~~~
+> scripts/Makefile.build:317: recipe for target
+> 'mm/page_alloc.o' failed
+> 
+> Let's make the DEFERRED_STRUCT_PAGE_INIT explicitly depend on SPARSEMEM as
+> the systems that support DISCONTIGMEM do not seem to have that huge
+> amounts of memory that would make DEFERRED_STRUCT_PAGE_INIT relevant.
+> 
+> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+
+Thanks, I was running into that problem also.
+
+Tested-by: Randy Dunlap <rdunlap@infradead.org>
 
 
-
-On 6/29/18 11:17 AM, Song Liu wrote:
-> Back in May, I sent patch similar to 02b75dc8160d:
->
-> https://patchwork.kernel.org/patch/10416233/  (v1)
->
-> This patch got positive feedback. However, I realized there is a problem,
-> that vma->vm_flags in khugepaged_enter_vma_merge() is stale. The separate
-> argument vm_flags contains the latest value. Therefore, it is
-> necessary to pass this vm_flags into hugepage_vma_check(). To fix this
-> problem,  I resent v2 and v3 of the work:
->
-> https://patchwork.kernel.org/patch/10419527/   (v2)
-> https://patchwork.kernel.org/patch/10433937/   (v3)
->
-> To my surprise, after I thought we all agreed on v3 of the work. Yang's
-> patch, which is similar to correct looking (but wrong) v1, got applied.
-> So we still have the issue of stale vma->vm_flags. This patch fixes this
-> issue. Please apply.
-
-Thanks for catching this.
-
-Reviewed-by: Yang Shi <yang.shi@linux.alibaba.com>
-
->
-> Fixes: 02b75dc8160d ("mm: thp: register mm for khugepaged when merging vma for shmem")
-> Cc: Yang Shi <yang.shi@linux.alibaba.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Rik van Riel <riel@surriel.com>
-> Signed-off-by: Song Liu <songliubraving@fb.com>
 > ---
->   mm/khugepaged.c | 15 ++++++++-------
->   1 file changed, 8 insertions(+), 7 deletions(-)
->
-> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-> index b2c328030aa2..38b7db1933a3 100644
-> --- a/mm/khugepaged.c
-> +++ b/mm/khugepaged.c
-> @@ -397,10 +397,11 @@ static inline int khugepaged_test_exit(struct mm_struct *mm)
->   	return atomic_read(&mm->mm_users) == 0;
->   }
->   
-> -static bool hugepage_vma_check(struct vm_area_struct *vma)
-> +static bool hugepage_vma_check(struct vm_area_struct *vma,
-> +			       unsigned long vm_flags)
->   {
-> -	if ((!(vma->vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
-> -	    (vma->vm_flags & VM_NOHUGEPAGE) ||
-> +	if ((!(vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
-> +	    (vm_flags & VM_NOHUGEPAGE) ||
->   	    test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
->   		return false;
->   	if (shmem_file(vma->vm_file)) {
-> @@ -413,7 +414,7 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
->   		return false;
->   	if (is_vma_temporary_stack(vma))
->   		return false;
-> -	return !(vma->vm_flags & VM_NO_KHUGEPAGED);
-> +	return !(vm_flags & VM_NO_KHUGEPAGED);
->   }
->   
->   int __khugepaged_enter(struct mm_struct *mm)
-> @@ -458,7 +459,7 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
->   	 * khugepaged does not yet work on non-shmem files or special
->   	 * mappings. And file-private shmem THP is not supported.
->   	 */
-> -	if (!hugepage_vma_check(vma))
-> +	if (!hugepage_vma_check(vma, vm_flags))
->   		return 0;
->   
->   	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
-> @@ -861,7 +862,7 @@ static int hugepage_vma_revalidate(struct mm_struct *mm, unsigned long address,
->   	hend = vma->vm_end & HPAGE_PMD_MASK;
->   	if (address < hstart || address + HPAGE_PMD_SIZE > hend)
->   		return SCAN_ADDRESS_RANGE;
-> -	if (!hugepage_vma_check(vma))
-> +	if (!hugepage_vma_check(vma, vma->vm_flags))
->   		return SCAN_VMA_CHECK;
->   	return 0;
->   }
-> @@ -1660,7 +1661,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
->   			progress++;
->   			break;
->   		}
-> -		if (!hugepage_vma_check(vma)) {
-> +		if (!hugepage_vma_check(vma, vma->vm_flags)) {
->   skip:
->   			progress++;
->   			continue;
+>  mm/Kconfig | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index ce95491..94af022 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -635,7 +635,7 @@ config DEFERRED_STRUCT_PAGE_INIT
+>  	bool "Defer initialisation of struct pages to kthreads"
+>  	default n
+>  	depends on NO_BOOTMEM
+> -	depends on !FLATMEM
+> +	depends on SPARSEMEM
+>  	depends on !NEED_PER_CPU_KM
+>  	help
+>  	  Ordinarily all struct pages are initialised during early boot in a
+> 
+
+
+-- 
+~Randy
