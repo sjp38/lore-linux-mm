@@ -1,81 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D1F76B0005
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 02:51:35 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id s15-v6so4111741wrn.16
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2018 23:51:35 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id j125-v6si680705wmb.201.2018.06.28.23.51.33
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 346526B0005
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 03:21:36 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id j22-v6so4552714pll.7
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 00:21:36 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j66-v6si8785379pfc.243.2018.06.29.00.21.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jun 2018 23:51:33 -0700 (PDT)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5T6n5Xr126630
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 02:51:31 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2jwe65c5be-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 02:51:31 -0400
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Fri, 29 Jun 2018 07:51:29 +0100
-Subject: Re: [PATCH/RFC] mm: do not drop unused pages when userfaultd is
- running
-References: <20180628123916.96106-1-borntraeger@de.ibm.com>
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Fri, 29 Jun 2018 08:51:23 +0200
+        Fri, 29 Jun 2018 00:21:35 -0700 (PDT)
+Date: Fri, 29 Jun 2018 09:21:32 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] memcg, oom: move out_of_memory back to the charge path
+Message-ID: <20180629072132.GA13860@dhcp22.suse.cz>
+References: <20180628151101.25307-1-mhocko@kernel.org>
+ <xr93in62jy8k.fsf@gthelen.svl.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20180628123916.96106-1-borntraeger@de.ibm.com>
-Content-Language: en-US
-Message-Id: <a2602470-a2b8-adc5-5057-fc8f489ab949@de.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <xr93in62jy8k.fsf@gthelen.svl.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-s390@vger.kernel.org
-Cc: kvm@vger.kernel.org, Janosch Frank <frankja@linux.ibm.com>, David Hildenbrand <david@redhat.com>, Cornelia Huck <cohuck@redhat.com>, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
+On Thu 28-06-18 16:19:07, Greg Thelen wrote:
+> Michal Hocko <mhocko@kernel.org> wrote:
+[...]
+> > +	if (mem_cgroup_out_of_memory(memcg, mask, order))
+> > +		return OOM_SUCCESS;
+> > +
+> > +	WARN(1,"Memory cgroup charge failed because of no reclaimable memory! "
+> > +		"This looks like a misconfiguration or a kernel bug.");
+> 
+> I'm not sure here if the warning should here or so strongly worded.  It
+> seems like the current task could be oom reaped with MMF_OOM_SKIP and
+> thus mem_cgroup_out_of_memory() will return false.  So there's nothing
+> alarming in that case.
 
+If the task is reaped then its charges should be released as well and
+that means that we should get below the limit. Sure there is some room
+for races but this should be still unlikely. Maybe I am just
+underestimating though.
 
-On 06/28/2018 02:39 PM, Christian Borntraeger wrote:
-> KVM guests on s390 can notify the host of unused pages. This can result
-> in pte_unused callbacks to be true for KVM guest memory.
-> 
-> If a page is unused (checked with pte_unused) we might drop this page
-> instead of paging it. This can have side-effects on userfaultd, when the
-> page in question was already migrated:
-> 
-> The next access of that page will trigger a fault and a user fault
-> instead of faulting in a new and empty zero page. As QEMU does not
-> expect a userfault on an already migrated page this migration will fail.
-> 
-> The most straightforward solution is to ignore the pte_unused hint if a
-> userfault context is active for this VMA.
-> 
-> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
-> ---
->  mm/rmap.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 6db729dc4c50..3f3a72aa99f2 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1481,7 +1481,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->  				set_pte_at(mm, address, pvmw.pte, pteval);
->  			}
->  
-> -		} else if (pte_unused(pteval)) {
-> +		} else if (pte_unused(pteval) && !vma->vm_userfaultfd_ctx.ctx) {
-
-FWIW, this needs a fix for !CONFIG_USERFAULTFD.
-Still: more opinions on the patch itself?
-
->  			/*
->  			 * The guest indicated that the page content is of no
->  			 * interest anymore. Simply discard the pte, vmscan
-> 
+What would you suggest instead?
+-- 
+Michal Hocko
+SUSE Labs
