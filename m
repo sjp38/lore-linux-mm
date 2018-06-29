@@ -1,73 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E0FDC6B0007
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 11:20:44 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id w23-v6so7200276ioa.1
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 08:20:44 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i205-v6sor3590022ioa.235.2018.06.29.08.20.44
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CCF76B000A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 11:26:15 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id z5-v6so4243472wro.15
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 08:26:15 -0700 (PDT)
+Received: from smtp-out4.electric.net (smtp-out4.electric.net. [192.162.216.183])
+        by mx.google.com with ESMTPS id 7-v6si2626912wrh.373.2018.06.29.08.26.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 29 Jun 2018 08:20:44 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAAeHK+x4jaN9w8O+hYJ0835Ln=rQ8VT1=ZrKLNsBOT92+iOwdQ@mail.gmail.com>
-References: <cover.1529507994.git.andreyknvl@google.com> <CAAeHK+zqtyGzd_CZ7qKZKU-uZjZ1Pkmod5h8zzbN0xCV26nSfg@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Jun 2018 08:26:14 -0700 (PDT)
+From: David Laight <David.Laight@ACULAB.COM>
+Subject: RE: [PATCH v4 0/7] arm64: untag user pointers passed to the kernel
+Date: Fri, 29 Jun 2018 15:27:30 +0000
+Message-ID: <a53c13e0cff941aa85f023b0f29346af@AcuMS.aculab.com>
+References: <cover.1529507994.git.andreyknvl@google.com>
+ <CAAeHK+zqtyGzd_CZ7qKZKU-uZjZ1Pkmod5h8zzbN0xCV26nSfg@mail.gmail.com>
  <20180626172900.ufclp2pfrhwkxjco@armageddon.cambridge.arm.com>
  <CAAeHK+yqWKTdTG+ymZ2-5XKiDANV+fmUjnQkRy-5tpgphuLJRA@mail.gmail.com>
- <CAAeHK+wJbbCZd+-X=9oeJgsqQJiq8h+Aagz3SQMPaAzCD+pvFw@mail.gmail.com> <CAAeHK+x4jaN9w8O+hYJ0835Ln=rQ8VT1=ZrKLNsBOT92+iOwdQ@mail.gmail.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Fri, 29 Jun 2018 17:20:42 +0200
-Message-ID: <CAAeHK+yP=oS6EP4g0jqvLSp_=n_Go8WyhJDS-BegJFCWFbAUiw@mail.gmail.com>
-Subject: Re: [PATCH v4 0/7] arm64: untag user pointers passed to the kernel
-Content-Type: text/plain; charset="UTF-8"
+ <0cef1643-a523-98e7-95e2-9ec595137642@arm.com>
+ <20180627171757.amucnh5znld45cpc@armageddon.cambridge.arm.com>
+ <20180628061758.j6bytsaj5jk4aocg@ltop.local>
+ <20180628102741.vk6vphfinlj3lvhv@armageddon.cambridge.arm.com>
+ <20180628104610.czsnq4w3lfhxrn53@ltop.local>
+ <20180628144858.2fu7kq56cxhp2kpg@armageddon.cambridge.arm.com>
+In-Reply-To: <20180628144858.2fu7kq56cxhp2kpg@armageddon.cambridge.arm.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-doc@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
+To: 'Catalin Marinas' <catalin.marinas@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Cc: Mark Rutland <Mark.Rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Will Deacon <Will.Deacon@arm.com>, Linux Memory
+ Management List <linux-mm@kvack.org>, "linux-kselftest@vger.kernel.org" <linux-kselftest@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Dmitry Vyukov <dvyukov@google.com>, Evgeniy Stepanov <eugenis@google.com>, Kees Cook <keescook@chromium.org>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Andrey Konovalov <andreyknvl@google.com>, Ramana
+ Radhakrishnan <ramana.radhakrishnan@arm.com>, Al Viro <viro@zeniv.linux.org.uk>nd <nd@arm.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Kostya Serebryany <kcc@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, Lee Smith <Lee.Smith@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Robin Murphy <Robin.Murphy@arm.com>, "Kirill A .
+ Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Fri, Jun 29, 2018 at 5:19 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-> a bunch of compat
-> a bunch of ioctl that use ptr to stored ints
->
-> ipc/shm.c:1355
-> ipc/shm.c:1566
->
-> mm/process_vm_access.c:178:20
-> mm/process_vm_access.c:180:19
-> substraction => harmless
->
-> mm/process_vm_access.c:221:4
-> ?
->
-> mm/memory.c:4679:14
-> should be __user pointer
->
-> fs/fuse/file.c:1256:9
-> ?
->
-> kernel/kthread.c:73:9
-> ?
->
-> mm/migrate.c:1586:10
-> mm/migrate.c:1660:24
->
-> lib/iov_iter.c
-> ???
->
-> kernel/futex.c:502
-> uses user addr as key
->
-> kernel/futex.c:730
-> gup, fixed
->
-> lib/strncpy_from_user.c:110:13
-> fixed?
->
-> lib/strnlen_user.c:112
-> fixed?
->
-> fs/readdir.c:369
-> ???
+From: Catalin Marinas
+> Sent: 28 June 2018 15:49
+...
+> >
+> > Mmmm yes.
+> > I tend to favor a sort of opposite approach. When we have an address
+> > that must not be dereferenced as-such (and sometimes when the address
+> > can be from both __user & __kernel space) I prefer to use a ulong
+> > which will force the use of the required operation before being
+> > able to do any sort of dereferencing and this won't need horrible
+> > casts with __force (it, of course, all depends on the full context).
+>=20
+> I agree. That's what the kernel uses in functions like get_user_pages()
+> which take ulong as an argument. Similarly mmap() and friends don't
+> expect the pointer to be dereferenced, hence the ulong argument. The
+> interesting part that the man page (and the C library header
+> declaration) shows such address argument as void *. We could add a
+> syscall wrapper in the arch code, only that it doesn't feel consistent
+> with the "rule" that ulong addresses are not actually tagged pointers.
 
-Started looking at the results and accidentally posted my notes.
-Ignore this for now, will post when done.
+For most modern calling conventions it would make sense to put 'user'
+addresses (and physical ones from that matter) into a structure.
+That way you get much stronger typing from C itself.
+
+The patch would, of course, be huge!
+
+	David
