@@ -1,52 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 775076B0269
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 15:00:16 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id k22-v6so7724158iob.3
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 12:00:16 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id m186-v6si1376804itd.127.2018.06.29.12.00.15
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 14F1C6B026B
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 15:05:35 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id e1-v6so4289030pgp.20
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 12:05:35 -0700 (PDT)
+Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
+        by mx.google.com with ESMTPS id b7-v6si8508195pgt.642.2018.06.29.12.05.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jun 2018 12:00:15 -0700 (PDT)
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w5TIwvaU153594
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 19:00:14 GMT
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by aserp2120.oracle.com with ESMTP id 2jukhsqs3t-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 19:00:14 +0000
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w5TJ0CmX019382
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 19:00:13 GMT
-Received: from abhmp0017.oracle.com (abhmp0017.oracle.com [141.146.116.23])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w5TJ0COX003527
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 19:00:12 GMT
-Received: by mail-oi0-f54.google.com with SMTP id y207-v6so9333328oie.13
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 12:00:12 -0700 (PDT)
+        Fri, 29 Jun 2018 12:05:34 -0700 (PDT)
+Subject: Re: [PATCH] mm: thp: passing correct vm_flags to hugepage_vma_check
+References: <20180629181752.792831-1-songliubraving@fb.com>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <62dec816-b004-a563-bdc7-6fa09b8d2247@linux.alibaba.com>
+Date: Fri, 29 Jun 2018 12:05:15 -0700
 MIME-Version: 1.0
-References: <20180627013116.12411-1-bhe@redhat.com> <20180627013116.12411-5-bhe@redhat.com>
- <cb67381c-078c-62e6-e4c0-9ecf3de9e84d@intel.com> <CAGM2rebsL_fS8XKRvN34NWiFN3Hh63ZOD8jDj8qeSOUPXcZ2fA@mail.gmail.com>
- <88f16247-aea2-f429-600e-4b54555eb736@intel.com> <b8d5b9cb-ca09-4bcc-0a31-3db1232fe787@oracle.com>
- <7ad120fb-377b-6963-62cb-a1a5eaa6cad4@intel.com>
-In-Reply-To: <7ad120fb-377b-6963-62cb-a1a5eaa6cad4@intel.com>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Fri, 29 Jun 2018 14:59:35 -0400
-Message-ID: <CAGM2rebmK30_jDyXa60uRC1q1wTAbJkxv3CDaao4JUMOrMTx4A@mail.gmail.com>
-Subject: Re: [PATCH v5 4/4] mm/sparse: Optimize memmap allocation during sparse_init()
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180629181752.792831-1-songliubraving@fb.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dave.hansen@intel.com
-Cc: bhe@redhat.com, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, pagupta@redhat.com, Linux Memory Management List <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com
+To: Song Liu <songliubraving@fb.com>, linux-mm@kvack.org
+Cc: kernel-team@fb.com, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@surriel.com>
 
-> > This is done so nr_consumed_maps does not get out of sync with the
-> > current pnum. pnum does not equal to nr_consumed_maps, as there are
-> > may be holes in pnums, but there is one-to-one correlation.
-> Can this be made more clear in the code?
 
-Absolutely. I've done it here:
-http://lkml.kernel.org/r/20180628173010.23849-1-pasha.tatashin@oracle.com
 
-Pavel
+On 6/29/18 11:17 AM, Song Liu wrote:
+> Back in May, I sent patch similar to 02b75dc8160d:
+>
+> https://patchwork.kernel.org/patch/10416233/  (v1)
+>
+> This patch got positive feedback. However, I realized there is a problem,
+> that vma->vm_flags in khugepaged_enter_vma_merge() is stale. The separate
+> argument vm_flags contains the latest value. Therefore, it is
+> necessary to pass this vm_flags into hugepage_vma_check(). To fix this
+> problem,  I resent v2 and v3 of the work:
+>
+> https://patchwork.kernel.org/patch/10419527/   (v2)
+> https://patchwork.kernel.org/patch/10433937/   (v3)
+>
+> To my surprise, after I thought we all agreed on v3 of the work. Yang's
+> patch, which is similar to correct looking (but wrong) v1, got applied.
+> So we still have the issue of stale vma->vm_flags. This patch fixes this
+> issue. Please apply.
+
+Thanks for catching this.
+
+Reviewed-by: Yang Shi <yang.shi@linux.alibaba.com>
+
+>
+> Fixes: 02b75dc8160d ("mm: thp: register mm for khugepaged when merging vma for shmem")
+> Cc: Yang Shi <yang.shi@linux.alibaba.com>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Rik van Riel <riel@surriel.com>
+> Signed-off-by: Song Liu <songliubraving@fb.com>
+> ---
+>   mm/khugepaged.c | 15 ++++++++-------
+>   1 file changed, 8 insertions(+), 7 deletions(-)
+>
+> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> index b2c328030aa2..38b7db1933a3 100644
+> --- a/mm/khugepaged.c
+> +++ b/mm/khugepaged.c
+> @@ -397,10 +397,11 @@ static inline int khugepaged_test_exit(struct mm_struct *mm)
+>   	return atomic_read(&mm->mm_users) == 0;
+>   }
+>   
+> -static bool hugepage_vma_check(struct vm_area_struct *vma)
+> +static bool hugepage_vma_check(struct vm_area_struct *vma,
+> +			       unsigned long vm_flags)
+>   {
+> -	if ((!(vma->vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
+> -	    (vma->vm_flags & VM_NOHUGEPAGE) ||
+> +	if ((!(vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
+> +	    (vm_flags & VM_NOHUGEPAGE) ||
+>   	    test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
+>   		return false;
+>   	if (shmem_file(vma->vm_file)) {
+> @@ -413,7 +414,7 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
+>   		return false;
+>   	if (is_vma_temporary_stack(vma))
+>   		return false;
+> -	return !(vma->vm_flags & VM_NO_KHUGEPAGED);
+> +	return !(vm_flags & VM_NO_KHUGEPAGED);
+>   }
+>   
+>   int __khugepaged_enter(struct mm_struct *mm)
+> @@ -458,7 +459,7 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
+>   	 * khugepaged does not yet work on non-shmem files or special
+>   	 * mappings. And file-private shmem THP is not supported.
+>   	 */
+> -	if (!hugepage_vma_check(vma))
+> +	if (!hugepage_vma_check(vma, vm_flags))
+>   		return 0;
+>   
+>   	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
+> @@ -861,7 +862,7 @@ static int hugepage_vma_revalidate(struct mm_struct *mm, unsigned long address,
+>   	hend = vma->vm_end & HPAGE_PMD_MASK;
+>   	if (address < hstart || address + HPAGE_PMD_SIZE > hend)
+>   		return SCAN_ADDRESS_RANGE;
+> -	if (!hugepage_vma_check(vma))
+> +	if (!hugepage_vma_check(vma, vma->vm_flags))
+>   		return SCAN_VMA_CHECK;
+>   	return 0;
+>   }
+> @@ -1660,7 +1661,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
+>   			progress++;
+>   			break;
+>   		}
+> -		if (!hugepage_vma_check(vma)) {
+> +		if (!hugepage_vma_check(vma, vma->vm_flags)) {
+>   skip:
+>   			progress++;
+>   			continue;
