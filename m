@@ -1,63 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B92296B000A
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 13:16:59 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id p91-v6so5308203plb.12
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 10:16:59 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DC42E6B0005
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 13:30:58 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id ba8-v6so3147463plb.4
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 10:30:58 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id 6-v6si8849648pgg.366.2018.06.29.10.16.58
+        by mx.google.com with ESMTPS id e9-v6si1317322pgu.636.2018.06.29.10.30.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jun 2018 10:16:58 -0700 (PDT)
-Subject: Re: [PATCH v5 4/4] mm/sparse: Optimize memmap allocation during
- sparse_init()
-References: <20180627013116.12411-1-bhe@redhat.com>
- <20180627013116.12411-5-bhe@redhat.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <cb67381c-078c-62e6-e4c0-9ecf3de9e84d@intel.com>
-Date: Fri, 29 Jun 2018 10:16:56 -0700
+        Fri, 29 Jun 2018 10:30:56 -0700 (PDT)
+Date: Fri, 29 Jun 2018 11:30:55 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v14 68/74] dax: Convert dax_lock_page to XArray
+Message-ID: <20180629173055.GA2973@linux.intel.com>
+References: <20180617020052.4759-1-willy@infradead.org>
+ <20180617020052.4759-69-willy@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20180627013116.12411-5-bhe@redhat.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180617020052.4759-69-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baoquan He <bhe@redhat.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, pagupta@redhat.com
-Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net
 
-> +	/* The numner of present sections stored in nr_present_sections
+On Sat, Jun 16, 2018 at 07:00:46PM -0700, Matthew Wilcox wrote:
+> Signed-off-by: Matthew Wilcox <willy@infradead.org>
+> ---
+<>
+> +static void *dax_make_page_entry(struct page *page, void *entry)
+> +{
+> +	pfn_t pfn = page_to_pfn_t(page);
+> +	return dax_make_entry(pfn, dax_is_pmd_entry(entry));
+> +}
 
-		^ "number", please.
+This function is defined and never used, so we get:
 
-This comment needs CodingStyle love.
-
-> +	 * are kept the same since mem sections are marked as present in
-	
-	   ^ s/are/is/
-
-This sentence is really odd to me.  What is the point?  Just that we are
-not making sections present?  Could we just say that instead of
-referring to functions and variable names?
-
-> +	 * memory_present(). In this for loop, we need check which sections
-> +	 * failed to allocate memmap or usemap, then clear its
-> +	 * ->section_mem_map accordingly.
-
-Rather than referring to the for loop, how about we actually comment the
-code that is doing this operation?
-
->  					   During this process, we need
-
-This is missing a "to": "we need _to_ increase".
-
-> +	 * increase 'nr_consumed_maps' whether its allocation of memmap
-> +	 * or usemap failed or not, so that after we handle the i-th
-> +	 * memory section, can get memmap and usemap of (i+1)-th section
-> +	 * correctly. */
-
-This makes no sense to me.  Why are we incrementing 'nr_consumed_maps'
-when we do not consume one?
-
-You say that we increment it so that things will work, but not how or
-why it makes things work.  I'm confused.
+fs/dax.c:106:14: warning: a??dax_make_page_entrya?? defined but not used [-Wunused-function]
+ static void *dax_make_page_entry(struct page *page, void *entry)
+  ^~~~~~~~~~~~~~~~~~~
