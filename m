@@ -1,49 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 346526B0005
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 03:21:36 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id j22-v6so4552714pll.7
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 00:21:36 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B8CE16B0007
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 03:31:51 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id k5-v6so2724744edq.9
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 00:31:51 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j66-v6si8785379pfc.243.2018.06.29.00.21.34
+        by mx.google.com with ESMTPS id o4-v6si4254587edd.398.2018.06.29.00.31.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jun 2018 00:21:35 -0700 (PDT)
-Date: Fri, 29 Jun 2018 09:21:32 +0200
+        Fri, 29 Jun 2018 00:31:50 -0700 (PDT)
+Date: Fri, 29 Jun 2018 09:31:46 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] memcg, oom: move out_of_memory back to the charge path
-Message-ID: <20180629072132.GA13860@dhcp22.suse.cz>
-References: <20180628151101.25307-1-mhocko@kernel.org>
- <xr93in62jy8k.fsf@gthelen.svl.corp.google.com>
+Subject: Re: [PATCH] mm: hugetlb: yield when prepping struct pages
+Message-ID: <20180629073146.GB13860@dhcp22.suse.cz>
+References: <20180627214447.260804-1-cannonmatthews@google.com>
+ <20180628112139.GC32348@dhcp22.suse.cz>
+ <CAJfu=Uc8zkN1fc73_UtiREW061xakrnMNP27oV5i3AreP1XS+w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <xr93in62jy8k.fsf@gthelen.svl.corp.google.com>
+In-Reply-To: <CAJfu=Uc8zkN1fc73_UtiREW061xakrnMNP27oV5i3AreP1XS+w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Cannon Matthews <cannonmatthews@google.com>
+Cc: mike.kravetz@oracle.com, akpm@linux-foundation.org, nyc@holomorphy.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andres Lagar-Cavilla <andreslc@google.com>, Peter Feiner <pfeiner@google.com>, Greg Thelen <gthelen@google.com>
 
-On Thu 28-06-18 16:19:07, Greg Thelen wrote:
-> Michal Hocko <mhocko@kernel.org> wrote:
-[...]
-> > +	if (mem_cgroup_out_of_memory(memcg, mask, order))
-> > +		return OOM_SUCCESS;
-> > +
-> > +	WARN(1,"Memory cgroup charge failed because of no reclaimable memory! "
-> > +		"This looks like a misconfiguration or a kernel bug.");
+On Thu 28-06-18 15:16:46, Cannon Matthews wrote:
+> Thanks for the quick turnaround.
 > 
-> I'm not sure here if the warning should here or so strongly worded.  It
-> seems like the current task could be oom reaped with MMF_OOM_SKIP and
-> thus mem_cgroup_out_of_memory() will return false.  So there's nothing
-> alarming in that case.
+> Good to know about the how the 2M code path differs, I have been
+> trying to trace through some of this and it's easy to get lost between
+> which applies to which size.
 
-If the task is reaped then its charges should be released as well and
-that means that we should get below the limit. Sure there is some room
-for races but this should be still unlikely. Maybe I am just
-underestimating though.
-
-What would you suggest instead?
+Yeah, GB hugetlb pages implementation has been hacked into the existing
+hugetlb code in a quite ugly way. We have done some cleanups since then
+but there is still a lot of room for improvements.
 -- 
 Michal Hocko
 SUSE Labs
