@@ -1,64 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 490146B026F
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 12:02:01 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id b1-v6so5674990otf.22
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 09:02:01 -0700 (PDT)
-Received: from g4t3425.houston.hpe.com (g4t3425.houston.hpe.com. [15.241.140.78])
-        by mx.google.com with ESMTPS id s3-v6si3140876oif.109.2018.06.29.09.01.57
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E068C6B0270
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 12:03:14 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id d64-v6so9674230qkb.23
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 09:03:14 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id t15-v6si9774268qta.327.2018.06.29.09.03.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jun 2018 09:01:58 -0700 (PDT)
-From: "Kani, Toshi" <toshi.kani@hpe.com>
-Subject: Re: [PATCH v4 2/3] ioremap: Update pgtable free interfaces with addr
-Date: Fri, 29 Jun 2018 16:01:54 +0000
-Message-ID: <1530287995.14039.361.camel@hpe.com>
-References: <20180627141348.21777-1-toshi.kani@hpe.com>
-	 <20180627141348.21777-3-toshi.kani@hpe.com>
-	 <20180627155632.GH30631@arm.com> <1530115885.14039.295.camel@hpe.com>
-	 <20180629122358.GC17859@arm.com>
-In-Reply-To: <20180629122358.GC17859@arm.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <84DC9C22A8370C43990D4CEF85DFAAC7@NAMPRD84.PROD.OUTLOOK.COM>
-Content-Transfer-Encoding: base64
+        Fri, 29 Jun 2018 09:03:13 -0700 (PDT)
+Subject: Re: [PATCH v34 0/4] Virtio-balloon: support free page reporting
+References: <1529928312-30500-1-git-send-email-wei.w.wang@intel.com>
+ <c4dd0a13-91fb-c0f5-b41f-54421fdacca9@redhat.com>
+ <5B35ACD5.4090800@intel.com>
+ <4840cbb7-dd3f-7540-6a7c-13427de2f0d1@redhat.com>
+ <5B36189E.5050204@intel.com>
+ <34bb25eb-97f3-8a9f-8a13-401dfcf39a2c@redhat.com>
+ <286AC319A985734F985F78AFA26841F7396C254C@shsmsx102.ccr.corp.intel.com>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <745eb950-eb52-e32a-b006-5612a026c2dc@redhat.com>
+Date: Fri, 29 Jun 2018 18:03:09 +0200
 MIME-Version: 1.0
+In-Reply-To: <286AC319A985734F985F78AFA26841F7396C254C@shsmsx102.ccr.corp.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "will.deacon@arm.com" <will.deacon@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "joro@8bytes.org" <joro@8bytes.org>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "Hocko, Michal" <MHocko@suse.com>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: "Wang, Wei W" <wei.w.wang@intel.com>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mst@redhat.com" <mst@redhat.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu0@gmail.com" <quan.xu0@gmail.com>, "nilal@redhat.com" <nilal@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "peterx@redhat.com" <peterx@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Luiz Capitulino <lcapitulino@redhat.com>
 
-T24gRnJpLCAyMDE4LTA2LTI5IGF0IDEzOjIzICswMTAwLCBXaWxsIERlYWNvbiB3cm90ZToNCj4g
-SGkgVG9zaGksIFRob21hcywNCj4gDQo+IE9uIFdlZCwgSnVuIDI3LCAyMDE4IGF0IDA0OjEzOjIy
-UE0gKzAwMDAsIEthbmksIFRvc2hpIHdyb3RlOg0KPiA+IE9uIFdlZCwgMjAxOC0wNi0yNyBhdCAx
-Njo1NiArMDEwMCwgV2lsbCBEZWFjb24gd3JvdGU6DQo+ID4gPiBPbiBXZWQsIEp1biAyNywgMjAx
-OCBhdCAwODoxMzo0N0FNIC0wNjAwLCBUb3NoaSBLYW5pIHdyb3RlOg0KPiA+ID4gPiBGcm9tOiBD
-aGludGFuIFBhbmR5YSA8Y3BhbmR5YUBjb2RlYXVyb3JhLm9yZz4NCj4gPiA+ID4gDQo+ID4gPiA+
-IFRoZSBmb2xsb3dpbmcga2VybmVsIHBhbmljIHdhcyBvYnNlcnZlZCBvbiBBUk02NCBwbGF0Zm9y
-bSBkdWUgdG8gYSBzdGFsZQ0KPiA+ID4gPiBUTEIgZW50cnkuDQo+ID4gPiA+IA0KPiA+ID4gPiAg
-MS4gaW9yZW1hcCB3aXRoIDRLIHNpemUsIGEgdmFsaWQgcHRlIHBhZ2UgdGFibGUgaXMgc2V0Lg0K
-PiA+ID4gPiAgMi4gaW91bm1hcCBpdCwgaXRzIHB0ZSBlbnRyeSBpcyBzZXQgdG8gMC4NCj4gPiA+
-ID4gIDMuIGlvcmVtYXAgdGhlIHNhbWUgYWRkcmVzcyB3aXRoIDJNIHNpemUsIHVwZGF0ZSBpdHMg
-cG1kIGVudHJ5IHdpdGgNCj4gPiA+ID4gICAgIGEgbmV3IHZhbHVlLg0KPiA+ID4gPiAgNC4gQ1BV
-IG1heSBoaXQgYW4gZXhjZXB0aW9uIGJlY2F1c2UgdGhlIG9sZCBwbWQgZW50cnkgaXMgc3RpbGwg
-aW4gVExCLA0KPiA+ID4gPiAgICAgd2hpY2ggbGVhZHMgdG8gYSBrZXJuZWwgcGFuaWMuDQo+ID4g
-PiA+IA0KPiA+ID4gPiBDb21taXQgYjZiZGI3NTE3YzNkICgibW0vdm1hbGxvYzogYWRkIGludGVy
-ZmFjZXMgdG8gZnJlZSB1bm1hcHBlZCBwYWdlDQo+ID4gPiA+IHRhYmxlIikgaGFzIGFkZHJlc3Nl
-ZCB0aGlzIHBhbmljIGJ5IGZhbGxpbmcgdG8gcHRlIG1hcHBpbmdzIGluIHRoZSBhYm92ZQ0KPiA+
-ID4gPiBjYXNlIG9uIEFSTTY0Lg0KPiA+ID4gPiANCj4gPiA+ID4gVG8gc3VwcG9ydCBwbWQgbWFw
-cGluZ3MgaW4gYWxsIGNhc2VzLCBUTEIgcHVyZ2UgbmVlZHMgdG8gYmUgcGVyZm9ybWVkDQo+ID4g
-PiA+IGluIHRoaXMgY2FzZSBvbiBBUk02NC4NCj4gPiA+ID4gDQo+ID4gPiA+IEFkZCBhIG5ldyBh
-cmcsICdhZGRyJywgdG8gcHVkX2ZyZWVfcG1kX3BhZ2UoKSBhbmQgcG1kX2ZyZWVfcHRlX3BhZ2Uo
-KQ0KPiA+ID4gPiBzbyB0aGF0IFRMQiBwdXJnZSBjYW4gYmUgYWRkZWQgbGF0ZXIgaW4gc2VwcmF0
-ZSBwYXRjaGVzLg0KPiA+ID4gDQo+ID4gPiBTbyBJIGFja2VkIHYxMyBvZiBDaGludGFuJ3Mgc2Vy
-aWVzIHBvc3RlZCBoZXJlOg0KPiA+ID4gDQo+ID4gPiBodHRwOi8vbGlzdHMuaW5mcmFkZWFkLm9y
-Zy9waXBlcm1haWwvbGludXgtYXJtLWtlcm5lbC8yMDE4LUp1bmUvNTgyOTUzLmh0bWwNCj4gPiA+
-IA0KPiA+ID4gYW55IGNoYW5jZSB0aGlzIGxvdCBjb3VsZCBhbGwgYmUgbWVyZ2VkIHRvZ2V0aGVy
-LCBwbGVhc2U/DQo+ID4gDQo+ID4gQ2hpbnRhbidzIHBhdGNoIDIvMyBhbmQgMy8zIGFwcGx5IGNs
-ZWFubHkgb24gdG9wIG9mIG15IHNlcmllcy4gQ2FuIHlvdQ0KPiA+IHBsZWFzZSBjb29yZGluYXRl
-IHdpdGggVGhvbWFzIG9uIHRoZSBsb2dpc3RpY3M/DQo+IA0KPiBTdXJlLiBJIGd1ZXNzIGhhdmlu
-ZyB0aGlzIHNlcmllcyBvbiBhIGNvbW1vbiBicmFuY2ggdGhhdCBJIGNhbiBwdWxsIGludG8NCj4g
-YXJtNjQgYW5kIGFwcGx5IENoaW50YW4ncyBvdGhlciBwYXRjaGVzIG9uIHRvcCB3b3VsZCB3b3Jr
-Lg0KPiANCj4gSG93IGRvZXMgdGhhdCBzb3VuZD8NCg0KU2hvdWxkIHRoaXMgZ28gdGhydSAtbW0g
-dHJlZSB0aGVuPw0KDQpBbmRyZXcsIFRob21hcywgd2hhdCBkbyB5b3UgdGhpbms/IA0KDQpUaGFu
-a3MsDQotVG9zaGkNCg0KDQoNCg==
+
+>> Why would your suggestion still be applicable?
+>>
+>> Your point for now is "I might not want to have page hinting enabled due to
+>> the overhead, but still a live migration speedup". If that overhead actually
+>> exists (we'll have to see) or there might be another reason to disable page
+>> hinting, then we have to decide if that specific setup is worth it merging your
+>> changes.
+> 
+> All the above "if we have", "assume we have" don't sound like a valid argument to me.
+
+Argument? *confused* And that hinders you from answering the question
+"Why would your suggestion still be applicable?" ? Well, okay.
+
+So I will answer it by myself: Because somebody would want to disable
+page hinting. Maybe there are some people out there.
+
+>  
+>> I am not (and don't want to be) in the position to make any decisions here :) I
+>> just want to understand if two interfaces for free pages actually make sense.
+> 
+> I responded to Nitesh about the differences, you may want to check with him about this.
+> I would suggest you to send out your patches to LKML to get a discussion with the mm folks.
+
+Indeed, Nitesh is trying to solve the problems we found in the RFC, so
+this can take some time.
+
+> 
+> Best,
+> Wei
+> 
+
+
+-- 
+
+Thanks,
+
+David / dhildenb
