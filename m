@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8506A6B0007
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 07:04:33 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id x18-v6so1883302oie.7
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 04:04:33 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id b39-v6si2643465otj.146.2018.06.29.04.04.31
+	by kanga.kvack.org (Postfix) with ESMTP id 29BEC6B0005
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 07:06:34 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id x18-v6so1886622oie.7
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 04:06:34 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id u63-v6si3003555oib.328.2018.06.29.04.06.32
         for <linux-mm@kvack.org>;
-        Fri, 29 Jun 2018 04:04:31 -0700 (PDT)
-Date: Fri, 29 Jun 2018 12:04:22 +0100
-From: Dave Martin <Dave.Martin@arm.com>
+        Fri, 29 Jun 2018 04:06:33 -0700 (PDT)
+Date: Fri, 29 Jun 2018 12:07:10 +0100
+From: Will Deacon <will.deacon@arm.com>
 Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address
  sanitizer
-Message-ID: <20180629110419.GC26019@e103592.cambridge.arm.com>
+Message-ID: <20180629110709.GA17859@arm.com>
 References: <cover.1530018818.git.andreyknvl@google.com>
  <20180628105057.GA26019@e103592.cambridge.arm.com>
  <CAAeHK+w0T43+h3xqU4a-qutxd-qiEhsvk0eaZpmAn-T0hpaLZQ@mail.gmail.com>
@@ -23,7 +23,7 @@ In-Reply-To: <CAAeHK+w0T43+h3xqU4a-qutxd-qiEhsvk0eaZpmAn-T0hpaLZQ@mail.gmail.com
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, linux-doc@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Paul Lawrence <paullawrence@google.com>, Linux Memory Management List <linux-mm@kvack.org>, Alexander Potapenko <glider@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Christoph Lameter <cl@linux.com>, Ingo Molnar <mingo@kernel.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-sparse@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Evgeniy Stepanov <eugenis@google.com>, Arnd Bergmann <arnd@arndb.de>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nick Desaulniers <ndesaulniers@google.com>, LKML <linux-kernel@vger.kernel.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Lee Smith <Lee.Smith@arm.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Dave Martin <Dave.Martin@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jann Horn <jannh@google.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Mark Brand <markbrand@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
 
 On Thu, Jun 28, 2018 at 08:56:41PM +0200, Andrey Konovalov wrote:
 > On Thu, Jun 28, 2018 at 12:51 PM, Dave Martin <Dave.Martin@arm.com> wrote:
@@ -46,37 +46,11 @@ On Thu, Jun 28, 2018 at 08:56:41PM +0200, Andrey Konovalov wrote:
 > allocations. I don't think it would make sense to calculate pointer
 > difference in this case.
 
-It's not strictly valid to subtract pointers from different allocations
-in C, but it's hard to prove statically that two pointers are guaranteed
-to point into the same allocation.
+It might not seen sensible, but we could still be relying on this in the
+kernel and so this change would introduce a regression. I think we need
+a way to identify such pointer usage before these patches can seriously be
+considered for mainline inclusion. For example use of '>' and '<' to
+compare pointers in an rbtree could be affected by the introduction of
+tags.
 
-It's likely that we're getting away with it in some places today.
-
-> > Conversions, such as between pointer and pfn, may also go wrong if not
-> > appropriately masked.
-> >
-> > There are also potential pointer comparison and aliasing issues if
-> > the tag bits are ever stripped or modified.
-> >
-> >
-> > What was your approach to tracking down all the points in the code
-> > where we have a potential issue?
-> 
-> I've been fuzzing the kernel built with KWHASAN with syzkaller. This
-> gives a decent coverage and I was able to find some places where
-> fixups were required this way. Right now the fuzzer is running without
-> issues. It doesn't prove that all such places are fixed, but I don't
-> know a better way to test this.
-
-Can sparse be hacked to identify pointer subtractions where the pointers
-are cannot be statically proved to point into the same allocation?
-
-Maybe the number of hits for this wouldn't be outrageously high, though
-I expect there would be a fair number.
-
-Tracking pointers that have been cast to integer types is harder.
-Ideally we'd want to do that, to flag up potentially problematic
-masking and other similar hacks.
-
-Cheers
----Dave
+Will
