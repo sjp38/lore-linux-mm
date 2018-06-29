@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 29BEC6B0005
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 07:06:34 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id x18-v6so1886622oie.7
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 04:06:34 -0700 (PDT)
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 739D36B000A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 07:07:16 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id q10-v6so5503735otl.13
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 04:07:16 -0700 (PDT)
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id u63-v6si3003555oib.328.2018.06.29.04.06.32
+        by mx.google.com with ESMTP id d72-v6si2814530oih.269.2018.06.29.04.07.15
         for <linux-mm@kvack.org>;
-        Fri, 29 Jun 2018 04:06:33 -0700 (PDT)
-Date: Fri, 29 Jun 2018 12:07:10 +0100
-From: Will Deacon <will.deacon@arm.com>
+        Fri, 29 Jun 2018 04:07:15 -0700 (PDT)
+Date: Fri, 29 Jun 2018 12:07:06 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
 Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address
  sanitizer
-Message-ID: <20180629110709.GA17859@arm.com>
+Message-ID: <20180629110706.37aqq6x4vhnblkb6@armageddon.cambridge.arm.com>
 References: <cover.1530018818.git.andreyknvl@google.com>
  <20180628105057.GA26019@e103592.cambridge.arm.com>
  <CAAeHK+w0T43+h3xqU4a-qutxd-qiEhsvk0eaZpmAn-T0hpaLZQ@mail.gmail.com>
@@ -23,7 +23,7 @@ In-Reply-To: <CAAeHK+w0T43+h3xqU4a-qutxd-qiEhsvk0eaZpmAn-T0hpaLZQ@mail.gmail.com
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Dave Martin <Dave.Martin@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jann Horn <jannh@google.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Mark Brand <markbrand@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
+Cc: Dave Martin <Dave.Martin@arm.com>, Mark Rutland <mark.rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, linux-doc@vger.kernel.org, Will Deacon <will.deacon@arm.com>, Paul Lawrence <paullawrence@google.com>, Linux Memory Management List <linux-mm@kvack.org>, Alexander Potapenko <glider@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Christoph Lameter <cl@linux.com>, Ingo Molnar <mingo@kernel.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-sparse@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Evgeniy Stepanov <eugenis@google.com>, Arnd Bergmann <arnd@arndb.de>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nick Desaulniers <ndesaulniers@google.com>, LKML <linux-kernel@vger.kernel.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Lee Smith <Lee.Smith@arm.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
 On Thu, Jun 28, 2018 at 08:56:41PM +0200, Andrey Konovalov wrote:
 > On Thu, Jun 28, 2018 at 12:51 PM, Dave Martin <Dave.Martin@arm.com> wrote:
@@ -46,11 +46,21 @@ On Thu, Jun 28, 2018 at 08:56:41PM +0200, Andrey Konovalov wrote:
 > allocations. I don't think it would make sense to calculate pointer
 > difference in this case.
 
-It might not seen sensible, but we could still be relying on this in the
-kernel and so this change would introduce a regression. I think we need
-a way to identify such pointer usage before these patches can seriously be
-considered for mainline inclusion. For example use of '>' and '<' to
-compare pointers in an rbtree could be affected by the introduction of
-tags.
+Well, there is a lot of pointer comparison in the kernel which means
+pointer difference. Take is_vmalloc_addr() for example, even if your
+patchset does not cover (IIUC) vmalloc() at the moment, this function
+may be called with slab addresses. Presumably they would all fail the
+check with a non-0xff tag but it's something needs understood. If you
+later add support for vmalloc(), this test would fail (as would the
+rb tree search in find_vmap_area(). Kmemleak would probably break as
+well as it makes heavy use of rb tree.
 
-Will
+Basically you need to be very clear about kernel pointer usage (with an
+associated tag or type) vs address range it refers to and in most cases
+converted to an unsigned long. See the other discussion on sparse, it
+could potentially be useful if we can detect the places where a pointer
+is converted to ulong and maybe hide such conversion behind a macro with
+the arm64 implementation also clearing the tag.
+
+-- 
+Catalin
