@@ -1,55 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B51546B000C
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 14:43:48 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id t10-v6so1671999pfh.0
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 11:43:48 -0700 (PDT)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00135.outbound.protection.outlook.com. [40.107.0.135])
-        by mx.google.com with ESMTPS id f4-v6si9779955plo.226.2018.06.29.11.43.47
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CA1C76B0007
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 14:57:05 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id x6-v6so4284942pgp.9
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 11:57:05 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id f15-v6si4197929pgt.37.2018.06.29.11.57.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 29 Jun 2018 11:43:47 -0700 (PDT)
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH] mm/fadvise: Fix signed overflow UBSAN complaint
-Date: Fri, 29 Jun 2018 21:44:53 +0300
-Message-Id: <20180629184453.7614-1-aryabinin@virtuozzo.com>
-In-Reply-To: <20180627204808.99988d94180dd144b14aa38b@linux-foundation.org>
-References: <20180627204808.99988d94180dd144b14aa38b@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Jun 2018 11:57:04 -0700 (PDT)
+Subject: Re: [PATCH v5 4/4] mm/sparse: Optimize memmap allocation during
+ sparse_init()
+References: <20180627013116.12411-1-bhe@redhat.com>
+ <20180627013116.12411-5-bhe@redhat.com>
+ <cb67381c-078c-62e6-e4c0-9ecf3de9e84d@intel.com>
+ <CAGM2rebsL_fS8XKRvN34NWiFN3Hh63ZOD8jDj8qeSOUPXcZ2fA@mail.gmail.com>
+ <88f16247-aea2-f429-600e-4b54555eb736@intel.com>
+ <b8d5b9cb-ca09-4bcc-0a31-3db1232fe787@oracle.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <7ad120fb-377b-6963-62cb-a1a5eaa6cad4@intel.com>
+Date: Fri, 29 Jun 2018 11:56:48 -0700
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <b8d5b9cb-ca09-4bcc-0a31-3db1232fe787@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: icytxw@gmail.com, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: bhe@redhat.com, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, pagupta@redhat.com, Linux Memory Management List <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com
 
-Signed integer overflow is undefined according to the C standard.
-The overflow in ksys_fadvise64_64() is deliberate, but since it is signed
-overflow, UBSAN complains:
-	UBSAN: Undefined behaviour in mm/fadvise.c:76:10
-	signed integer overflow:
-	4 + 9223372036854775805 cannot be represented in type 'long long int'
-
-Use unsigned types to do math. Unsigned overflow is defined so UBSAN
-will not complain about it. This patch doesn't change generated code.
-
-Reported-by: <icytxw@gmail.com>
-Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
----
- mm/fadvise.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/fadvise.c b/mm/fadvise.c
-index afa41491d324..1eaf2002d79a 100644
---- a/mm/fadvise.c
-+++ b/mm/fadvise.c
-@@ -73,7 +73,7 @@ int ksys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
- 	}
- 
- 	/* Careful about overflows. Len == 0 means "as much as possible" */
--	endbyte = offset + len;
-+	endbyte = (u64)offset + (u64)len;
- 	if (!len || endbyte < len)
- 		endbyte = -1;
- 	else
--- 
-2.16.4
+On 06/29/2018 11:01 AM, Pavel Tatashin wrote:
+> Correct: it should be incremented on every iteration of the loop. No matter if the entries contained valid data or NULLs. So we increment in three places:
+> 
+> if map_map[] has invalid entry, increment, continue
+> if usemap_map[] has invalid entry, increment, continue
+> at the end of the loop, everything was valid we increment it
+> 
+> This is done so nr_consumed_maps does not get out of sync with the
+> current pnum. pnum does not equal to nr_consumed_maps, as there are
+> may be holes in pnums, but there is one-to-one correlation.
+Can this be made more clear in the code?
