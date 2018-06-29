@@ -1,209 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F4836B000A
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 10:35:31 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id q8-v6so959445wmc.2
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 07:35:31 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 131-v6sor547560wmi.8.2018.06.29.07.35.29
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B2CA6B000D
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 10:36:04 -0400 (EDT)
+Received: by mail-ot0-f198.google.com with SMTP id o3-v6so5811419otl.16
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 07:36:04 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id w204-v6si3086861oig.335.2018.06.29.07.36.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 29 Jun 2018 07:35:29 -0700 (PDT)
-Date: Fri, 29 Jun 2018 16:35:27 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH v1 1/2] mm/sparse: add sparse_init_nid()
-Message-ID: <20180629143527.GA23545@techadventures.net>
-References: <20180628173010.23849-1-pasha.tatashin@oracle.com>
- <20180628173010.23849-2-pasha.tatashin@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Jun 2018 07:36:02 -0700 (PDT)
+Subject: Re: [PATCH] mm,oom: Bring OOM notifier callbacks to outside of OOM
+ killer.
+References: <1529493638-6389-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.21.1806201528490.16984@chino.kir.corp.google.com>
+ <20180621073142.GA10465@dhcp22.suse.cz>
+ <2d8c3056-1bc2-9a32-d745-ab328fd587a1@i-love.sakura.ne.jp>
+ <20180626170345.GA3593@linux.vnet.ibm.com>
+ <20180627072207.GB32348@dhcp22.suse.cz>
+ <20180627143125.GW3593@linux.vnet.ibm.com>
+ <20180628113942.GD32348@dhcp22.suse.cz>
+ <20180628213105.GP3593@linux.vnet.ibm.com>
+ <20180629090419.GD13860@dhcp22.suse.cz>
+ <20180629125218.GX3593@linux.vnet.ibm.com>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <bf76c93d-37d6-5f1e-4e5a-122089997fd9@i-love.sakura.ne.jp>
+Date: Fri, 29 Jun 2018 23:35:48 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180628173010.23849-2-pasha.tatashin@oracle.com>
+In-Reply-To: <20180629125218.GX3593@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, bhe@redhat.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org
+To: paulmck@linux.vnet.ibm.com, Michal Hocko <mhocko@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Thu, Jun 28, 2018 at 01:30:09PM -0400, Pavel Tatashin wrote:
-> sparse_init() requires to temporary allocate two large buffers:
-> usemap_map and map_map. Baoquan He has identified that these buffers are so
-> large that Linux is not bootable on small memory machines, such as a kdump
-> boot.
+On 2018/06/29 21:52, Paul E. McKenney wrote:
+> The effect of RCU's current OOM code is to speed up callback invocation
+> by at most a few seconds (assuming no stalled CPUs, in which case
+> it is not possible to speed up callback invocation).
 > 
-> Baoquan provided a fix, which reduces these sizes of these buffers, but it
-> is much better to get rid of them entirely.
-> 
-> Add a new way to initialize sparse memory: sparse_init_nid(), which only
-> operates within one memory node, and thus allocates memory either in large
-> contiguous block or allocates section by section. This eliminates the need
-> for use of temporary buffers.
-> 
-> For simplified bisecting and review, the new interface is going to be
-> enabled as well as old code removed in the next patch.
-> 
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> ---
->  include/linux/mm.h  |  8 ++++
->  mm/sparse-vmemmap.c | 49 ++++++++++++++++++++++++
->  mm/sparse.c         | 90 +++++++++++++++++++++++++++++++++++++++++++++
->  3 files changed, 147 insertions(+)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index a0fbb9ffe380..ba200808dd5f 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2651,6 +2651,14 @@ void sparse_mem_maps_populate_node(struct page **map_map,
->  				   unsigned long pnum_end,
->  				   unsigned long map_count,
->  				   int nodeid);
-> +struct page * sparse_populate_node(unsigned long pnum_begin,
-> +				   unsigned long pnum_end,
-> +				   unsigned long map_count,
-> +				   int nid);
-> +struct page * sprase_populate_node_section(struct page *map_base,
-> +				   unsigned long map_index,
-> +				   unsigned long pnum,
-> +				   int nid);
->  
->  struct page *sparse_mem_map_populate(unsigned long pnum, int nid,
->  		struct vmem_altmap *altmap);
-> diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-> index e1a54ba411ec..4655503bdc66 100644
-> --- a/mm/sparse-vmemmap.c
-> +++ b/mm/sparse-vmemmap.c
-> @@ -311,3 +311,52 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
->  		vmemmap_buf_end = NULL;
->  	}
->  }
-> +
-> +struct page * __init sparse_populate_node(unsigned long pnum_begin,
-> +					  unsigned long pnum_end,
-> +					  unsigned long map_count,
-> +					  int nid)
-> +{
-> +	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
-> +	unsigned long pnum, map_index = 0;
-> +	void *vmemmap_buf_start;
-> +
-> +	size = ALIGN(size, PMD_SIZE) * map_count;
-> +	vmemmap_buf_start = __earlyonly_bootmem_alloc(nid, size,
-> +						      PMD_SIZE,
-> +						      __pa(MAX_DMA_ADDRESS));
-> +	if (vmemmap_buf_start) {
-> +		vmemmap_buf = vmemmap_buf_start;
-> +		vmemmap_buf_end = vmemmap_buf_start + size;
-> +	}
-> +
-> +	for (pnum = pnum_begin; map_index < map_count; pnum++) {
-> +		if (!present_section_nr(pnum))
-> +			continue;
-> +		if (!sparse_mem_map_populate(pnum, nid, NULL))
-> +			break;
-> +		map_index++;
-> +		BUG_ON(pnum >= pnum_end);
-> +	}
+> Given that, I should just remove RCU's OOM code entirely?
 
-Besides the typos, I could not find anything wrong in the patch.
-Only cosmetic:
+out_of_memory() will start selecting an OOM victim without calling
+get_page_from_freelist() since rcu_oom_notify() does not set non-zero
+value to "freed" field.
 
-Could not the loop above be converted to a for_each_present_section_nr() or would it be
-less readable?
+I think that rcu_oom_notify() needs to wait for completion of callback
+invocations (possibly with timeout in case there are stalling CPUs) and
+set non-zero value to "freed" field if pending callbacks did release memory.
 
-> +
-> +	if (vmemmap_buf_start) {
-> +		/* need to free left buf */
-> +		memblock_free_early(__pa(vmemmap_buf),
-> +				    vmemmap_buf_end - vmemmap_buf);
-> +		vmemmap_buf = NULL;
-> +		vmemmap_buf_end = NULL;
-> +	}
-> +	return pfn_to_page(section_nr_to_pfn(pnum_begin));
-> +}
-> +
-> +/*
-> + * Return map for pnum section. sparse_populate_node() has populated memory map
-> + * in this node, we simply do pnum to struct page conversion.
-> + */
-> +struct page * __init sprase_populate_node_section(struct page *map_base,
-> +						  unsigned long map_index,
-> +						  unsigned long pnum,
-> +						  int nid)
-> +{
-> +	return pfn_to_page(section_nr_to_pfn(pnum));
-> +}
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index d18e2697a781..60eaa2a4842a 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -456,6 +456,43 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
->  		       __func__);
->  	}
->  }
-> +
-> +static unsigned long section_map_size(void)
-> +{
-> +	return PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION);
-> +}
-> +
-> +/*
-> + * Try to allocate all struct pages for this node, if this fails, we will
-> + * be allocating one section at a time in sprase_populate_node_section().
-> + */
-> +struct page * __init sparse_populate_node(unsigned long pnum_begin,
-> +					  unsigned long pnum_end,
-> +					  unsigned long map_count,
-> +					  int nid)
-> +{
-> +	return memblock_virt_alloc_try_nid_raw(section_map_size() * map_count,
-> +					       PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
-> +					       BOOTMEM_ALLOC_ACCESSIBLE, nid);
-> +}
-> +
-> +/*
-> + * Return map for pnum section. map_base is not NULL if we could allocate map
-> + * for this node together. Otherwise we allocate one section at a time.
-> + * map_index is the index of pnum in this node counting only present sections.
-> + */
-> +struct page * __init sprase_populate_node_section(struct page *map_base,
-> +						  unsigned long map_index,
-> +						  unsigned long pnum,
-> +						  int nid)
-> +{
-> +	if (map_base) {
-> +		unsigned long offset = section_map_size() * map_index;
-> +
-> +		return (struct page *)((char *)map_base + offset);
-> +	}
-> +	return sparse_mem_map_populate(pnum, nid, NULL);
-> +}
->  #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
->  
->  static void __init sparse_early_mem_maps_alloc_node(void *data,
-> @@ -520,6 +557,59 @@ static void __init alloc_usemap_and_memmap(void (*alloc_func)
->  						map_count, nodeid_begin);
->  }
->  
-> +/*
-> + * Initialize sparse on a specific node. The node spans [pnum_begin, pnum_end)
-> + * And number of present sections in this node is map_count.
-> + */
-> +void __init sparse_init_nid(int nid, unsigned long pnum_begin,
-> +				   unsigned long pnum_end,
-> +				   unsigned long map_count)
-> +{
-> +	unsigned long pnum, usemap_longs, *usemap, map_index;
-> +	struct page *map, *map_base;
-> +	struct mem_section *ms;
+However, what will be difficult to tell is whether invocation of pending callbacks
+did release memory. Lack of last second get_page_from_freelist() call after
+blocking_notifier_call_chain(&oom_notify_list, 0, &freed) forces rcu_oom_notify()
+to set appropriate value (i.e. zero or non-zero) to "freed" field.
 
-What about moving "struct mem_section" into the second for_each_present_section_nr() loop.
-It is only being used there.
-And we could move "struct page *map" into the first loop as well.
+We have tried to move really last second get_page_from_freelist() call to inside
+out_of_memory() after blocking_notifier_call_chain(&oom_notify_list, 0, &freed).
+But that proposal was not accepted...
 
-But the patch looks good to me anyway.
-Maybe I am missing something, but so far:
-
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
-
--- 
-Oscar Salvador
-SUSE L3
+We could move blocking_notifier_call_chain(&oom_notify_list, 0, &freed) to
+before last second get_page_from_freelist() call (and this is what this patch
+is trying to do) which would allow rcu_oom_notify() to always return 0...
+or update rcu_oom_notify() to use shrinker API...
