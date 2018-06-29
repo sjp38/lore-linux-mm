@@ -1,78 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D9B06B000A
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 09:02:13 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id a1-v6so5379085oti.8
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 06:02:13 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id z22-v6si3320688oti.38.2018.06.29.06.02.07
-        for <linux-mm@kvack.org>;
-        Fri, 29 Jun 2018 06:02:07 -0700 (PDT)
-Date: Fri, 29 Jun 2018 14:01:56 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address
- sanitizer
-Message-ID: <20180629130155.e7ztz5ikxfl352ff@lakrids.cambridge.arm.com>
-References: <cover.1530018818.git.andreyknvl@google.com>
- <20180627160800.3dc7f9ee41c0badbf7342520@linux-foundation.org>
- <CAAeHK+xz552VNpZxgWwU-hbTqF5_F6YVDw3fSv=4OT8mNrqPzg@mail.gmail.com>
- <20180628124039.8a42ab5e2994fb2876ff4f75@linux-foundation.org>
- <CAAeHK+xsBOKghUp9XhpfXGqU=gjSYuy3G2GH14zWNEmaLPy8_w@mail.gmail.com>
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DC2DB6B000D
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 09:18:33 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id h195-v6so1814390itb.3
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 06:18:33 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t10-v6sor265754jai.1.2018.06.29.06.18.32
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 29 Jun 2018 06:18:32 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAAeHK+xsBOKghUp9XhpfXGqU=gjSYuy3G2GH14zWNEmaLPy8_w@mail.gmail.com>
+In-Reply-To: <20180629112613.7i4xesjyxolc63gu@ltop.local>
+References: <cover.1530018818.git.andreyknvl@google.com> <20180628105057.GA26019@e103592.cambridge.arm.com>
+ <CAAeHK+w0T43+h3xqU4a-qutxd-qiEhsvk0eaZpmAn-T0hpaLZQ@mail.gmail.com>
+ <20180629110419.GC26019@e103592.cambridge.arm.com> <20180629112613.7i4xesjyxolc63gu@ltop.local>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Fri, 29 Jun 2018 15:18:31 +0200
+Message-ID: <CAAeHK+zXzTEo_DJ5a7KaVDQa06Gx98Oj2O3jMFJo_tNgkq822g@mail.gmail.com>
+Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address sanitizer
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>
+To: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Cc: Dave Martin <Dave.Martin@arm.com>, Mark Rutland <mark.rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, linux-doc@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Paul Lawrence <paullawrence@google.com>, Linux Memory Management List <linux-mm@kvack.org>, Alexander Potapenko <glider@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Christoph Lameter <cl@linux.com>, Ingo Molnar <mingo@kernel.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-sparse@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Evgeniy Stepanov <eugenis@google.com>, Arnd Bergmann <arnd@arndb.de>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nick Desaulniers <ndesaulniers@google.com>, LKML <linux-kernel@vger.kernel.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Lee Smith <Lee.Smith@arm.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, smatch@vger.kernel.org, Dan Carpenter <dan.carpenter@oracle.com>
 
-On Fri, Jun 29, 2018 at 02:45:08PM +0200, Andrey Konovalov wrote:
-> On Thu, Jun 28, 2018 at 9:40 PM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
-> > On Thu, 28 Jun 2018 20:29:07 +0200 Andrey Konovalov <andreyknvl@google.com> wrote:
-> >
-> >> >> Slab memory usage after boot [2]:
-> >> >> * ~40 kb for clean kernel
-> >> >> * ~105 kb + 1/8th shadow ~= 118 kb for KASAN
-> >> >> * ~47 kb + 1/16th shadow ~= 50 kb for KHWASAN
-> >> >>
-> >> >> Network performance [3]:
-> >> >> * 8.33 Gbits/sec for clean kernel
-> >> >> * 3.17 Gbits/sec for KASAN
-> >> >> * 2.85 Gbits/sec for KHWASAN
-> >> >>
-> >> >> Note, that KHWASAN (compared to KASAN) doesn't require quarantine.
-> >> >>
-> >> >> [1] Time before the ext4 driver is initialized.
-> >> >> [2] Measured as `cat /proc/meminfo | grep Slab`.
-> >> >> [3] Measured as `iperf -s & iperf -c 127.0.0.1 -t 30`.
-> >> >
-> >> > The above doesn't actually demonstrate the whole point of the
-> >> > patchset: to reduce KASAN's very high memory consumption?
-> >>
-> >> You mean that memory usage numbers collected after boot don't give a
-> >> representative picture of actual memory consumption on real workloads?
-> >>
-> >> What kind of memory consumption testing would you like to see?
-> >
-> > Well, 100kb or so is a teeny amount on virtually any machine.  I'm
-> > assuming the savings are (much) more significant once the machine gets
-> > loaded up and doing work?
-> 
-> So with clean kernel after boot we get 40 kb memory usage. With KASAN
-> it is ~120 kb, which is 200% overhead. With KHWASAN it's 50 kb, which
-> is 25% overhead. This should approximately scale to any amounts of
-> used slab memory. For example with 100 mb memory usage we would get
-> +200 mb for KASAN and +25 mb with KHWASAN. (And KASAN also requires
-> quarantine for better use-after-free detection). I can explicitly
-> mention the overhead in %s in the changelog.
+On Fri, Jun 29, 2018 at 1:26 PM, Luc Van Oostenryck
+<luc.vanoostenryck@gmail.com> wrote:
+> On Fri, Jun 29, 2018 at 12:04:22PM +0100, Dave Martin wrote:
+>>
+>> Can sparse be hacked to identify pointer subtractions where the pointers
+>> are cannot be statically proved to point into the same allocation?
 
-Could you elaborate on where that SLAB overhead comes from?
+Re all the comments about finding all the places where we do pointer
+subtraction/comparison:
 
-IIUC that's not for the shadow itself (since it's allocated up-front and
-not accounted to SLAB), and that doesn't take into account the
-quarantine, so what's eating that space?
+I might be wrong, but I doubt you can easily do that with static analysis.
 
-Thanks,
-Mark.
+What we could do is to try to detect all such subtractions/comparisons
+dynamically. The idea is to instrument all pointer/ulong
+subtraction/comparison instructions and try to detect tags mismatch.
+And then run some workload (e.g. syzkaller) to trigger more kernel
+code. The question is how much false positives we would get, since I
+imagine there would be a number of cases when we compare some random
+ulongs.
