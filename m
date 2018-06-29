@@ -1,65 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CCF76B000A
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 11:26:15 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z5-v6so4243472wro.15
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 08:26:15 -0700 (PDT)
-Received: from smtp-out4.electric.net (smtp-out4.electric.net. [192.162.216.183])
-        by mx.google.com with ESMTPS id 7-v6si2626912wrh.373.2018.06.29.08.26.13
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A874F6B000D
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 11:29:05 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id b8-v6so9643775qto.13
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 08:29:05 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id e40-v6si498095qta.144.2018.06.29.08.29.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jun 2018 08:26:14 -0700 (PDT)
-From: David Laight <David.Laight@ACULAB.COM>
-Subject: RE: [PATCH v4 0/7] arm64: untag user pointers passed to the kernel
-Date: Fri, 29 Jun 2018 15:27:30 +0000
-Message-ID: <a53c13e0cff941aa85f023b0f29346af@AcuMS.aculab.com>
-References: <cover.1529507994.git.andreyknvl@google.com>
- <CAAeHK+zqtyGzd_CZ7qKZKU-uZjZ1Pkmod5h8zzbN0xCV26nSfg@mail.gmail.com>
- <20180626172900.ufclp2pfrhwkxjco@armageddon.cambridge.arm.com>
- <CAAeHK+yqWKTdTG+ymZ2-5XKiDANV+fmUjnQkRy-5tpgphuLJRA@mail.gmail.com>
- <0cef1643-a523-98e7-95e2-9ec595137642@arm.com>
- <20180627171757.amucnh5znld45cpc@armageddon.cambridge.arm.com>
- <20180628061758.j6bytsaj5jk4aocg@ltop.local>
- <20180628102741.vk6vphfinlj3lvhv@armageddon.cambridge.arm.com>
- <20180628104610.czsnq4w3lfhxrn53@ltop.local>
- <20180628144858.2fu7kq56cxhp2kpg@armageddon.cambridge.arm.com>
-In-Reply-To: <20180628144858.2fu7kq56cxhp2kpg@armageddon.cambridge.arm.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Fri, 29 Jun 2018 08:29:00 -0700 (PDT)
+Subject: Re: [PATCH v34 0/4] Virtio-balloon: support free page reporting
+References: <1529928312-30500-1-git-send-email-wei.w.wang@intel.com>
+ <c4dd0a13-91fb-c0f5-b41f-54421fdacca9@redhat.com>
+ <20180629172216-mutt-send-email-mst@kernel.org>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <909d0983-bb54-25bb-03f5-7a28ded76500@redhat.com>
+Date: Fri, 29 Jun 2018 17:28:56 +0200
 MIME-Version: 1.0
+In-Reply-To: <20180629172216-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Catalin Marinas' <catalin.marinas@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Cc: Mark Rutland <Mark.Rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Will Deacon <Will.Deacon@arm.com>, Linux Memory
- Management List <linux-mm@kvack.org>, "linux-kselftest@vger.kernel.org" <linux-kselftest@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Dmitry Vyukov <dvyukov@google.com>, Evgeniy Stepanov <eugenis@google.com>, Kees Cook <keescook@chromium.org>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Andrey Konovalov <andreyknvl@google.com>, Ramana
- Radhakrishnan <ramana.radhakrishnan@arm.com>, Al Viro <viro@zeniv.linux.org.uk>nd <nd@arm.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Kostya Serebryany <kcc@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, Lee Smith <Lee.Smith@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Robin Murphy <Robin.Murphy@arm.com>, "Kirill A .
- Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
 
-From: Catalin Marinas
-> Sent: 28 June 2018 15:49
-...
-> >
-> > Mmmm yes.
-> > I tend to favor a sort of opposite approach. When we have an address
-> > that must not be dereferenced as-such (and sometimes when the address
-> > can be from both __user & __kernel space) I prefer to use a ulong
-> > which will force the use of the required operation before being
-> > able to do any sort of dereferencing and this won't need horrible
-> > casts with __force (it, of course, all depends on the full context).
->=20
-> I agree. That's what the kernel uses in functions like get_user_pages()
-> which take ulong as an argument. Similarly mmap() and friends don't
-> expect the pointer to be dereferenced, hence the ulong argument. The
-> interesting part that the man page (and the C library header
-> declaration) shows such address argument as void *. We could add a
-> syscall wrapper in the arch code, only that it doesn't feel consistent
-> with the "rule" that ulong addresses are not actually tagged pointers.
+>> And looking at all the discussions and problems that already happened
+>> during the development of this series, I think we should rather look
+>> into how clean free page hinting might solve the same problem.
+> 
+> I'm not sure I follow the logic. We found that neat tricks
+> especially re-using the max order free page for reporting.
 
-For most modern calling conventions it would make sense to put 'user'
-addresses (and physical ones from that matter) into a structure.
-That way you get much stronger typing from C itself.
+Let me rephrase: history of this series showed that this is some really
+complicated stuff. I am asking if this complexity is actually necessary.
 
-The patch would, of course, be huge!
+No question that we had a very valuable outcome so far (that especially
+is also relevant for other projects like Nitesh's proposal - talking
+about virtio requests and locking).
 
-	David
+> 
+>> If it can't be solved using free page hinting, fair enough.
+> 
+> I suspect Nitesh will need to find a way not to have mm code
+> call out to random drivers or subsystems before that code
+> is acceptable.
+> 
+> 
+
+
+-- 
+
+Thanks,
+
+David / dhildenb
