@@ -1,66 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C86D6B026D
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 10:55:19 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id u130-v6so4048193pgc.0
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 07:55:19 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g124-v6si9242966pfb.280.2018.06.29.07.55.18
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3990F6B0005
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 11:19:41 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id l8-v6so2072405ita.4
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 08:19:41 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a80-v6sor614356ita.128.2018.06.29.08.19.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jun 2018 07:55:18 -0700 (PDT)
-Date: Fri, 29 Jun 2018 16:55:13 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] kvm, mm: account shadow page tables to kmemcg
-Message-ID: <20180629145513.GG5963@dhcp22.suse.cz>
-References: <20180629140224.205849-1-shakeelb@google.com>
- <20180629143044.GF5963@dhcp22.suse.cz>
- <efdb8e40-742e-d120-6589-96b4fdf83cb9@redhat.com>
+        (Google Transport Security);
+        Fri, 29 Jun 2018 08:19:38 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <efdb8e40-742e-d120-6589-96b4fdf83cb9@redhat.com>
+In-Reply-To: <CAAeHK+wJbbCZd+-X=9oeJgsqQJiq8h+Aagz3SQMPaAzCD+pvFw@mail.gmail.com>
+References: <cover.1529507994.git.andreyknvl@google.com> <CAAeHK+zqtyGzd_CZ7qKZKU-uZjZ1Pkmod5h8zzbN0xCV26nSfg@mail.gmail.com>
+ <20180626172900.ufclp2pfrhwkxjco@armageddon.cambridge.arm.com>
+ <CAAeHK+yqWKTdTG+ymZ2-5XKiDANV+fmUjnQkRy-5tpgphuLJRA@mail.gmail.com> <CAAeHK+wJbbCZd+-X=9oeJgsqQJiq8h+Aagz3SQMPaAzCD+pvFw@mail.gmail.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Fri, 29 Jun 2018 17:19:36 +0200
+Message-ID: <CAAeHK+x4jaN9w8O+hYJ0835Ln=rQ8VT1=ZrKLNsBOT92+iOwdQ@mail.gmail.com>
+Subject: Re: [PATCH v4 0/7] arm64: untag user pointers passed to the kernel
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paolo Bonzini <pbonzini@redhat.com>
-Cc: Shakeel Butt <shakeelb@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Peter Feiner <pfeiner@google.com>, stable@vger.kernel.org
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-doc@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
 
-On Fri 29-06-18 16:40:23, Paolo Bonzini wrote:
-> On 29/06/2018 16:30, Michal Hocko wrote:
-> > I am not familiar wtih kvm to judge but if we are going to account this
-> > memory we will probably want to let oom_badness know how much memory
-> > to account to a specific process. Is this something that we can do?
-> > We will probably need a new MM_KERNEL rss_stat stat for that purpose.
-> > 
-> > Just to make it clear. I am not opposing to this patch but considering
-> > that shadow page tables might consume a lot of memory it would be good
-> > to know who is responsible for it from the OOM perspective. Something to
-> > solve on top of this.
-> 
-> The amount of memory is generally proportional to the size of the
-> virtual machine memory, which is reflected directly into RSS.  Because
-> KVM processes are usually huge, and will probably dwarf everything else
-> in the system (except firefox and chromium of course :)), the general
-> order of magnitude of the oom_badness should be okay.
+a bunch of compat
+a bunch of ioctl that use ptr to stored ints
 
-I think we will need MM_KERNEL longterm anyway. As I've said this is not
-a must for this patch to go. But it is better to have a fair comparision
-and kill larger processes if at all possible. It seems this should be
-the case here.
- 
-> > I would also love to see a note how this memory is bound to the owner
-> > life time in the changelog. That would make the review much more easier.
-> 
-> --verbose for people that aren't well versed in linux mm, please...
+ipc/shm.c:1355
+ipc/shm.c:1566
 
-Well, if the memory accounted to the memcg hits the hard limit and there
-is no way to reclaim anything to reduce the charged memory then we have
-to kill something. Hopefully the memory hog. If that one dies it would
-be great it releases its charges along the way. My remark was just to
-explain how that would happen for this specific type of memory. Bound to
-a file, has its own tear down etc. Basically make life of reviewers
-easier to understand the lifetime of charged objects without digging
-deep into the specific subsystem.
--- 
-Michal Hocko
-SUSE Labs
+mm/process_vm_access.c:178:20
+mm/process_vm_access.c:180:19
+substraction => harmless
+
+mm/process_vm_access.c:221:4
+?
+
+mm/memory.c:4679:14
+should be __user pointer
+
+fs/fuse/file.c:1256:9
+?
+
+kernel/kthread.c:73:9
+?
+
+mm/migrate.c:1586:10
+mm/migrate.c:1660:24
+
+lib/iov_iter.c
+???
+
+kernel/futex.c:502
+uses user addr as key
+
+kernel/futex.c:730
+gup, fixed
+
+lib/strncpy_from_user.c:110:13
+fixed?
+
+lib/strnlen_user.c:112
+fixed?
+
+fs/readdir.c:369
+???
+
+
+
+On Thu, Jun 28, 2018 at 9:30 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
+> On Wed, Jun 27, 2018 at 5:05 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
+>> On Tue, Jun 26, 2018 at 7:29 PM, Catalin Marinas
+>> <catalin.marinas@arm.com> wrote:
+>>> While I support this work, as a maintainer I'd like to understand
+>>> whether we'd be in a continuous chase of ABI breaks with every kernel
+>>> release or we have a better way to identify potential issues. Is there
+>>> any way to statically analyse conversions from __user ptr to long for
+>>> example? Or, could we get the compiler to do this for us?
+>>
+>>
+>> OK, got it, I'll try to figure out a way to find these conversions.
+>
+> I've prototyped a checker on top of clang static analyzer (initially
+> looked at sparse, but couldn't find any documentation or examples).
+> The results are here [1], search for "warning: user pointer cast".
+> Sharing in case anybody wants to take a look, will look at them myself
+> tomorrow.
+>
+> [1] https://gist.github.com/xairy/433edd5c86456a64026247cb2fef2115
