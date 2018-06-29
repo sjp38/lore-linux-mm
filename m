@@ -1,67 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 690516B0005
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 14:43:15 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id f81-v6so1293895pfd.7
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 11:43:15 -0700 (PDT)
-Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50106.outbound.protection.outlook.com. [40.107.5.106])
-        by mx.google.com with ESMTPS id x5-v6si192233pgc.210.2018.06.29.11.43.13
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B51546B000C
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 14:43:48 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id t10-v6so1671999pfh.0
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 11:43:48 -0700 (PDT)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00135.outbound.protection.outlook.com. [40.107.0.135])
+        by mx.google.com with ESMTPS id f4-v6si9779955plo.226.2018.06.29.11.43.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 29 Jun 2018 11:43:14 -0700 (PDT)
-Subject: Re:
-References: <bug-200209-27@https.bugzilla.kernel.org/>
- <20180627204808.99988d94180dd144b14aa38b@linux-foundation.org>
+        Fri, 29 Jun 2018 11:43:47 -0700 (PDT)
 From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <61b427f0-978c-fdbf-8b16-226705131220@virtuozzo.com>
-Date: Fri, 29 Jun 2018 21:44:44 +0300
-MIME-Version: 1.0
+Subject: [PATCH] mm/fadvise: Fix signed overflow UBSAN complaint
+Date: Fri, 29 Jun 2018 21:44:53 +0300
+Message-Id: <20180629184453.7614-1-aryabinin@virtuozzo.com>
 In-Reply-To: <20180627204808.99988d94180dd144b14aa38b@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <20180627204808.99988d94180dd144b14aa38b@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, icytxw@gmail.com
-Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: icytxw@gmail.com, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
+Signed integer overflow is undefined according to the C standard.
+The overflow in ksys_fadvise64_64() is deliberate, but since it is signed
+overflow, UBSAN complains:
+	UBSAN: Undefined behaviour in mm/fadvise.c:76:10
+	signed integer overflow:
+	4 + 9223372036854775805 cannot be represented in type 'long long int'
 
+Use unsigned types to do math. Unsigned overflow is defined so UBSAN
+will not complain about it. This patch doesn't change generated code.
 
-On 06/28/2018 06:48 AM, Andrew Morton wrote:
+Reported-by: <icytxw@gmail.com>
+Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+---
+ mm/fadvise.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
->> Hi,
->> This bug was found in Linux Kernel v4.18-rc2
->>
->> $ cat report0 
->> ================================================================================
->> UBSAN: Undefined behaviour in mm/fadvise.c:76:10
->> signed integer overflow:
->> 4 + 9223372036854775805 cannot be represented in type 'long long int'
->> CPU: 0 PID: 13477 Comm: syz-executor1 Not tainted 4.18.0-rc1 #2
->> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
->> rel-1.10.2-0-g5f4c7b1-prebuilt.qemu-project.org 04/01/2014
->> Call Trace:
->>  __dump_stack lib/dump_stack.c:77 [inline]
->>  dump_stack+0x122/0x1c8 lib/dump_stack.c:113
->>  ubsan_epilogue+0x12/0x86 lib/ubsan.c:159
->>  handle_overflow+0x1c2/0x21f lib/ubsan.c:190
->>  __ubsan_handle_add_overflow+0x2a/0x31 lib/ubsan.c:198
->>  ksys_fadvise64_64+0xbf0/0xd10 mm/fadvise.c:76
->>  __do_sys_fadvise64 mm/fadvise.c:198 [inline]
->>  __se_sys_fadvise64 mm/fadvise.c:196 [inline]
->>  __x64_sys_fadvise64+0xa9/0x120 mm/fadvise.c:196
->>  do_syscall_64+0xb8/0x3a0 arch/x86/entry/common.c:290
-> 
-> That overflow is deliberate:
-> 
-> 	endbyte = offset + len;
-> 	if (!len || endbyte < len)
-> 		endbyte = -1;
-> 	else
-> 		endbyte--;		/* inclusive */
-> 
-> Or is there a hole in this logic?
-> 
-> If not, I guess ee can do this another way to keep the checker happy.
+diff --git a/mm/fadvise.c b/mm/fadvise.c
+index afa41491d324..1eaf2002d79a 100644
+--- a/mm/fadvise.c
++++ b/mm/fadvise.c
+@@ -73,7 +73,7 @@ int ksys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
+ 	}
  
-It should be enough to make overflow unsigned. Unsigned overflow is defined by the C standard.
+ 	/* Careful about overflows. Len == 0 means "as much as possible" */
+-	endbyte = offset + len;
++	endbyte = (u64)offset + (u64)len;
+ 	if (!len || endbyte < len)
+ 		endbyte = -1;
+ 	else
+-- 
+2.16.4
