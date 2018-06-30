@@ -1,159 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A8DF6B0006
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 12:39:18 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id h14-v6so6157318pfi.19
-        for <linux-mm@kvack.org>; Sat, 30 Jun 2018 09:39:18 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i80-v6sor1097958pfj.25.2018.06.30.09.39.17
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E2526B0008
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 13:03:21 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u1-v6so3291072wrs.18
+        for <linux-mm@kvack.org>; Sat, 30 Jun 2018 10:03:21 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 132-v6si3707141wmi.117.2018.06.30.10.03.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 30 Jun 2018 09:39:17 -0700 (PDT)
-From: ufo19890607@gmail.com
-Subject: [PATCH v11 2/2] Add the missing information in dump_header
-Date: Sun,  1 Jul 2018 00:38:59 +0800
-Message-Id: <1530376739-20459-2-git-send-email-ufo19890607@gmail.com>
-In-Reply-To: <1530376739-20459-1-git-send-email-ufo19890607@gmail.com>
-References: <1530376739-20459-1-git-send-email-ufo19890607@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 30 Jun 2018 10:03:19 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5UGweVl079778
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 13:03:18 -0400
+Received: from e14.ny.us.ibm.com (e14.ny.us.ibm.com [129.33.205.204])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2jx3g713th-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 13:03:17 -0400
+Received: from localhost
+	by e14.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Sat, 30 Jun 2018 13:03:17 -0400
+Date: Sat, 30 Jun 2018 10:05:22 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm,oom: Bring OOM notifier callbacks to outside of OOM
+ killer.
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20180621073142.GA10465@dhcp22.suse.cz>
+ <2d8c3056-1bc2-9a32-d745-ab328fd587a1@i-love.sakura.ne.jp>
+ <20180626170345.GA3593@linux.vnet.ibm.com>
+ <20180627072207.GB32348@dhcp22.suse.cz>
+ <20180627143125.GW3593@linux.vnet.ibm.com>
+ <20180628113942.GD32348@dhcp22.suse.cz>
+ <20180628213105.GP3593@linux.vnet.ibm.com>
+ <20180629090419.GD13860@dhcp22.suse.cz>
+ <20180629125218.GX3593@linux.vnet.ibm.com>
+ <20180629132638.GD5963@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180629132638.GD5963@dhcp22.suse.cz>
+Message-Id: <20180630170522.GZ3593@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, yuzhoujian@didichuxing.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-From: yuzhoujian <yuzhoujian@didichuxing.com>
+On Fri, Jun 29, 2018 at 03:26:38PM +0200, Michal Hocko wrote:
+> On Fri 29-06-18 05:52:18, Paul E. McKenney wrote:
+> > On Fri, Jun 29, 2018 at 11:04:19AM +0200, Michal Hocko wrote:
+> > > On Thu 28-06-18 14:31:05, Paul E. McKenney wrote:
+> > > > On Thu, Jun 28, 2018 at 01:39:42PM +0200, Michal Hocko wrote:
+> [...]
+> > > > > Well, I am not really sure what is the objective of the oom notifier to
+> > > > > point you to the right direction. IIUC you just want to kick callbacks
+> > > > > to be handled sooner under a heavy memory pressure, right? How is that
+> > > > > achieved? Kick a worker?
+> > > > 
+> > > > That is achieved by enqueuing a non-lazy callback on each CPU's callback
+> > > > list, but only for those CPUs having non-empty lists.  This causes
+> > > > CPUs with lists containing only lazy callbacks to be more aggressive,
+> > > > in particular, it prevents such CPUs from hanging out idle for seconds
+> > > > at a time while they have callbacks on their lists.
+> > > > 
+> > > > The enqueuing happens via an IPI to the CPU in question.
+> > > 
+> > > I am afraid this is too low level for my to understand what is going on
+> > > here. What are lazy callbacks and why do they need any specific action
+> > > when we are getting close to OOM? I mean, I do understand that we might
+> > > have many callers of call_rcu and free memory lazily. But there is quite
+> > > a long way before we start the reclaim until we reach the OOM killer path.
+> > > So why don't those callbacks get called during that time period? How are
+> > > their triggered when we are not hitting the OOM path? They surely cannot
+> > > sit there for ever, right? Can we trigger them sooner? Maybe the
+> > > shrinker is not the best fit but we have a retry feedback loop in the page
+> > > allocator, maybe we can kick this processing from there.
+> > 
+> > The effect of RCU's current OOM code is to speed up callback invocation
+> > by at most a few seconds (assuming no stalled CPUs, in which case
+> > it is not possible to speed up callback invocation).
+> > 
+> > Given that, I should just remove RCU's OOM code entirely?
+> 
+> Yeah, it seems so. I do not see how this would really help much. If we
+> really need some way to kick callbacks then we should do so much earlier
+> in the reclaim process - e.g. when we start struggling to reclaim any
+> memory.
 
-Add a new func mem_cgroup_print_oom_context to print missing information
-for the system-wide oom report which includes the oom memcg that has
-reached its limit, task memcg that contains the killed task.
+One approach would be to tell RCU "It is time to trade CPU for memory"
+at the beginning of that struggle and then tell RCU "Go back to optimizing
+for CPU" at the end of that struggle.  Is there already a way to do this?
+If so, RCU should probably just switch to it.
 
-Signed-off-by: yuzhoujian <yuzhoujian@didichuxing.com>
----
- include/linux/memcontrol.h | 15 ++++++++++++---
- mm/memcontrol.c            | 36 ++++++++++++++++++++++--------------
- mm/oom_kill.c              | 10 ++++++----
- 3 files changed, 40 insertions(+), 21 deletions(-)
+But what is the typical duration of such a struggle?  Does this duration
+change with workload?  (I suspect that the answers are "who knows?" and
+"yes", but you tell me!)  Are there other oom handlers that would prefer
+the approach of the previous paragraph?
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 6c6fb116e925..90855880bca2 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -28,6 +28,7 @@
- #include <linux/eventfd.h>
- #include <linux/mm.h>
- #include <linux/vmstat.h>
-+#include <linux/oom.h>
- #include <linux/writeback.h>
- #include <linux/page-flags.h>
- 
-@@ -491,8 +492,10 @@ void mem_cgroup_handle_over_high(void);
- 
- unsigned long mem_cgroup_get_max(struct mem_cgroup *memcg);
- 
--void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
--				struct task_struct *p);
-+void mem_cgroup_print_oom_context(struct mem_cgroup *memcg,
-+		struct task_struct *p);
-+
-+void mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg);
- 
- static inline void mem_cgroup_oom_enable(void)
- {
-@@ -903,7 +906,13 @@ static inline unsigned long mem_cgroup_get_max(struct mem_cgroup *memcg)
- }
- 
- static inline void
--mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
-+mem_cgroup_print_oom_context(struct mem_cgroup *memcg,
-+				struct task_struct *p)
-+{
-+}
-+
-+static inline void
-+mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg)
- {
- }
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e6f0d5ef320a..18deea974cfd 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1119,32 +1119,40 @@ static const char *const memcg1_stat_names[] = {
- 
- #define K(x) ((x) << (PAGE_SHIFT-10))
- /**
-- * mem_cgroup_print_oom_info: Print OOM information relevant to memory controller.
-- * @memcg: The memory cgroup that went over limit
-+ * mem_cgroup_print_oom_context: Print OOM context information relevant to
-+ * memory controller.
-+ * @memcg: The origin memory cgroup that went over limit
-  * @p: Task that is going to be killed
-  *
-  * NOTE: @memcg and @p's mem_cgroup can be different when hierarchy is
-  * enabled
-  */
--void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
-+void mem_cgroup_print_oom_context(struct mem_cgroup *memcg, struct task_struct *p)
- {
--	struct mem_cgroup *iter;
--	unsigned int i;
-+	struct cgroup *origin_cgrp, *kill_cgrp;
- 
- 	rcu_read_lock();
--
-+	if (memcg) {
-+		pr_cont(",oom_memcg=");
-+		pr_cont_cgroup_path(memcg->css.cgroup);
-+	} else
-+		pr_cont(",global_oom");
- 	if (p) {
--		pr_info("Task in ");
-+		pr_cont(",task_memcg=");
- 		pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
--		pr_cont(" killed as a result of limit of ");
--	} else {
--		pr_info("Memory limit reached of cgroup ");
- 	}
--
--	pr_cont_cgroup_path(memcg->css.cgroup);
--	pr_cont("\n");
--
- 	rcu_read_unlock();
-+}
-+
-+/**
-+ * mem_cgroup_print_oom_meminfo: Print OOM memory information relevant to
-+ * memory controller.
-+ * @memcg: The memory cgroup that went over limit
-+ */
-+void mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg)
-+{
-+	struct mem_cgroup *iter;
-+	unsigned int i;
- 
- 	pr_info("memory: usage %llukB, limit %llukB, failcnt %lu\n",
- 		K((u64)page_counter_read(&memcg->memory)),
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index f9b08e455fd1..e990c45d2e7d 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -424,12 +424,14 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
- 	dump_stack();
- 
- 	/* one line summary of the oom killer context. */
--	pr_info("oom-kill:constraint=%s,nodemask=%*pbl,task=%s,pid=%5d,uid=%5d",
-+	pr_info("oom-kill:constraint=%s,nodemask=%*pbl",
- 			oom_constraint_text[oc->constraint],
--			nodemask_pr_args(oc->nodemask),
--			p->comm, p->pid, from_kuid(&init_user_ns, task_uid(p)));
-+			nodemask_pr_args(oc->nodemask));
-+	mem_cgroup_print_oom_context(oc->memcg, p);
-+	pr_cont(",task=%s,pid=%5d,uid=%5d\n", p->comm, p->pid,
-+			from_kuid(&init_user_ns, task_uid(p)));
- 	if (is_memcg_oom(oc))
--		mem_cgroup_print_oom_info(oc->memcg, p);
-+		mem_cgroup_print_oom_meminfo(oc->memcg);
- 	else {
- 		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
- 		if (is_dump_unreclaim_slabs())
--- 
-2.14.1
+> I am curious. Has the notifier been motivated by a real world use case
+> or it was "nice thing to do"?
+
+It was introduced by b626c1b689364 ("rcu: Provide OOM handler to motivate
+lazy RCU callbacks").  The motivation for this commit was a set of changes
+that improved energy efficiency by making CPUs sleep for longer when all
+of their pending callbacks were known to only free memory (as opposed
+to doing a wakeup or some such).  Prior to this set of changes, a CPU
+with callbacks would invoke those callbacks (thus freeing the memory)
+within a jiffy or so of the end of a grace period.  After this set of
+changes, a CPU might wait several seconds.  This was a concern to people
+with small-memory systems, hence commit b626c1b689364.
+
+							Thanx, Paul
