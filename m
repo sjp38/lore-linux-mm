@@ -1,384 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AB8FA6B0008
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 23:10:05 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id m2-v6so11509757qti.2
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 20:10:05 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id l91-v6si3872578qtd.47.2018.06.29.20.10.03
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F90C6B0003
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 23:15:50 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id f5-v6so6007189plf.18
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 20:15:50 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id u11-v6si9777021pgq.480.2018.06.29.20.15.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jun 2018 20:10:04 -0700 (PDT)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v2 2/2] mm/sparse: start using sparse_init_nid(), and remove old code
-Date: Fri, 29 Jun 2018 23:09:44 -0400
-Message-Id: <20180630030944.9335-3-pasha.tatashin@oracle.com>
-In-Reply-To: <20180630030944.9335-1-pasha.tatashin@oracle.com>
-References: <20180630030944.9335-1-pasha.tatashin@oracle.com>
+        Fri, 29 Jun 2018 20:15:49 -0700 (PDT)
+Date: Fri, 29 Jun 2018 20:15:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC v3 PATCH 4/5] mm: mmap: zap pages with read mmap_sem for
+ large mapping
+Message-Id: <20180629201547.5322cfc4b52d19a0443daec2@linux-foundation.org>
+In-Reply-To: <084aeccb-2c54-2299-8bf0-29a10cc0186e@linux.alibaba.com>
+References: <1530311985-31251-1-git-send-email-yang.shi@linux.alibaba.com>
+	<1530311985-31251-5-git-send-email-yang.shi@linux.alibaba.com>
+	<20180629183501.9e30c26135f11853245c56c7@linux-foundation.org>
+	<084aeccb-2c54-2299-8bf0-29a10cc0186e@linux.alibaba.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, bhe@redhat.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net, pasha.tatashin@oracle.com
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, tglx@linutronix.de, hpa@zytor.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org
 
-Change sprase_init() to only find the pnum ranges that belong to a specific
-node and call sprase_init_nid() for that range from sparse_init().
+On Fri, 29 Jun 2018 19:28:15 -0700 Yang Shi <yang.shi@linux.alibaba.com> wrote:
 
-Delete all the code that became obsolete with this change.
+> 
+> 
+> > we're adding a bunch of code to 32-bit kernels which will never be
+> > executed.
+> >
+> > I'm thinking it would be better to be much more explicit with "#ifdef
+> > CONFIG_64BIT" in this code, rather than relying upon the above magic.
+> >
+> > But I tend to think that the fact that we haven't solved anything on
+> > locked vmas or on uprobed mappings is a shostopper for the whole
+> > approach :(
+> 
+> I agree it is not that perfect. But, it still could improve the most use 
+> cases.
 
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
----
- include/linux/mm.h  |   5 -
- mm/sparse-vmemmap.c |  39 --------
- mm/sparse.c         | 223 ++++----------------------------------------
- 3 files changed, 17 insertions(+), 250 deletions(-)
+Well, those unaddressed usecases will need to be fixed at some point. 
+What's our plan for that?
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 85530fdfb1f2..a7438be90658 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2646,11 +2646,6 @@ extern int randomize_va_space;
- const char * arch_vma_name(struct vm_area_struct *vma);
- void print_vma_addr(char *prefix, unsigned long rip);
- 
--void sparse_mem_maps_populate_node(struct page **map_map,
--				   unsigned long pnum_begin,
--				   unsigned long pnum_end,
--				   unsigned long map_count,
--				   int nodeid);
- struct page * sparse_populate_node(unsigned long pnum_begin,
- 				   unsigned long pnum_end,
- 				   unsigned long map_count,
-diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-index b3e325962306..4edc877cfe82 100644
---- a/mm/sparse-vmemmap.c
-+++ b/mm/sparse-vmemmap.c
-@@ -273,45 +273,6 @@ struct page * __meminit sparse_mem_map_populate(unsigned long pnum, int nid,
- 	return map;
- }
- 
--void __init sparse_mem_maps_populate_node(struct page **map_map,
--					  unsigned long pnum_begin,
--					  unsigned long pnum_end,
--					  unsigned long map_count, int nodeid)
--{
--	unsigned long pnum;
--	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
--	void *vmemmap_buf_start;
--	int nr_consumed_maps = 0;
--
--	size = ALIGN(size, PMD_SIZE);
--	vmemmap_buf_start = __earlyonly_bootmem_alloc(nodeid, size * map_count,
--			 PMD_SIZE, __pa(MAX_DMA_ADDRESS));
--
--	if (vmemmap_buf_start) {
--		vmemmap_buf = vmemmap_buf_start;
--		vmemmap_buf_end = vmemmap_buf_start + size * map_count;
--	}
--
--	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
--		if (!present_section_nr(pnum))
--			continue;
--
--		map_map[nr_consumed_maps] = sparse_mem_map_populate(pnum, nodeid, NULL);
--		if (map_map[nr_consumed_maps++])
--			continue;
--		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
--		       __func__);
--	}
--
--	if (vmemmap_buf_start) {
--		/* need to free left buf */
--		memblock_free_early(__pa(vmemmap_buf),
--				    vmemmap_buf_end - vmemmap_buf);
--		vmemmap_buf = NULL;
--		vmemmap_buf_end = NULL;
--	}
--}
--
- struct page * __init sparse_populate_node(unsigned long pnum_begin,
- 					  unsigned long pnum_end,
- 					  unsigned long map_count,
-diff --git a/mm/sparse.c b/mm/sparse.c
-index c18d92b8ab9b..6361b7ff733d 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -200,11 +200,10 @@ static inline int next_present_section_nr(int section_nr)
- 	      (section_nr <= __highest_present_section_nr));	\
- 	     section_nr = next_present_section_nr(section_nr))
- 
--/*
-- * Record how many memory sections are marked as present
-- * during system bootup.
-- */
--static int __initdata nr_present_sections;
-+static inline unsigned long first_present_section_nr(void)
-+{
-+	return next_present_section_nr(-1);
-+}
- 
- /* Record a memory area against a node. */
- void __init memory_present(int nid, unsigned long start, unsigned long end)
-@@ -235,7 +234,6 @@ void __init memory_present(int nid, unsigned long start, unsigned long end)
- 			ms->section_mem_map = sparse_encode_early_nid(nid) |
- 							SECTION_IS_ONLINE;
- 			section_mark_present(ms);
--			nr_present_sections++;
- 		}
- 	}
- }
-@@ -377,34 +375,6 @@ static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
- }
- #endif /* CONFIG_MEMORY_HOTREMOVE */
- 
--static void __init sparse_early_usemaps_alloc_node(void *data,
--				 unsigned long pnum_begin,
--				 unsigned long pnum_end,
--				 unsigned long usemap_count, int nodeid)
--{
--	void *usemap;
--	unsigned long pnum;
--	unsigned long **usemap_map = (unsigned long **)data;
--	int size = usemap_size();
--	int nr_consumed_maps = 0;
--
--	usemap = sparse_early_usemaps_alloc_pgdat_section(NODE_DATA(nodeid),
--							  size * usemap_count);
--	if (!usemap) {
--		pr_warn("%s: allocation failed\n", __func__);
--		return;
--	}
--
--	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
--		if (!present_section_nr(pnum))
--			continue;
--		usemap_map[nr_consumed_maps] = usemap;
--		usemap += size;
--		check_usemap_section_nr(nodeid, usemap_map[nr_consumed_maps]);
--		nr_consumed_maps++;
--	}
--}
--
- #ifndef CONFIG_SPARSEMEM_VMEMMAP
- struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid,
- 		struct vmem_altmap *altmap)
-@@ -418,44 +388,6 @@ struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid,
- 					  BOOTMEM_ALLOC_ACCESSIBLE, nid);
- 	return map;
- }
--void __init sparse_mem_maps_populate_node(struct page **map_map,
--					  unsigned long pnum_begin,
--					  unsigned long pnum_end,
--					  unsigned long map_count, int nodeid)
--{
--	void *map;
--	unsigned long pnum;
--	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
--	int nr_consumed_maps;
--
--	size = PAGE_ALIGN(size);
--	map = memblock_virt_alloc_try_nid_raw(size * map_count,
--					      PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
--					      BOOTMEM_ALLOC_ACCESSIBLE, nodeid);
--	if (map) {
--		nr_consumed_maps = 0;
--		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
--			if (!present_section_nr(pnum))
--				continue;
--			map_map[nr_consumed_maps] = map;
--			map += size;
--			nr_consumed_maps++;
--		}
--		return;
--	}
--
--	/* fallback */
--	nr_consumed_maps = 0;
--	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
--		if (!present_section_nr(pnum))
--			continue;
--		map_map[nr_consumed_maps] = sparse_mem_map_populate(pnum, nodeid, NULL);
--		if (map_map[nr_consumed_maps++])
--			continue;
--		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
--		       __func__);
--	}
--}
- 
- static unsigned long section_map_size(void)
- {
-@@ -495,73 +427,15 @@ struct page * __init sparse_populate_node_section(struct page *map_base,
- }
- #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
- 
--static void __init sparse_early_mem_maps_alloc_node(void *data,
--				 unsigned long pnum_begin,
--				 unsigned long pnum_end,
--				 unsigned long map_count, int nodeid)
--{
--	struct page **map_map = (struct page **)data;
--	sparse_mem_maps_populate_node(map_map, pnum_begin, pnum_end,
--					 map_count, nodeid);
--}
--
- void __weak __meminit vmemmap_populate_print_last(void)
- {
- }
- 
--/**
-- *  alloc_usemap_and_memmap - memory alloction for pageblock flags and vmemmap
-- *  @map: usemap_map for pageblock flags or mmap_map for vmemmap
-- *  @unit_size: size of map unit
-- */
--static void __init alloc_usemap_and_memmap(void (*alloc_func)
--					(void *, unsigned long, unsigned long,
--					unsigned long, int), void *data,
--					int data_unit_size)
--{
--	unsigned long pnum;
--	unsigned long map_count;
--	int nodeid_begin = 0;
--	unsigned long pnum_begin = 0;
--
--	for_each_present_section_nr(0, pnum) {
--		struct mem_section *ms;
--
--		ms = __nr_to_section(pnum);
--		nodeid_begin = sparse_early_nid(ms);
--		pnum_begin = pnum;
--		break;
--	}
--	map_count = 1;
--	for_each_present_section_nr(pnum_begin + 1, pnum) {
--		struct mem_section *ms;
--		int nodeid;
--
--		ms = __nr_to_section(pnum);
--		nodeid = sparse_early_nid(ms);
--		if (nodeid == nodeid_begin) {
--			map_count++;
--			continue;
--		}
--		/* ok, we need to take cake of from pnum_begin to pnum - 1*/
--		alloc_func(data, pnum_begin, pnum,
--						map_count, nodeid_begin);
--		/* new start, update count etc*/
--		nodeid_begin = nodeid;
--		pnum_begin = pnum;
--		data += map_count * data_unit_size;
--		map_count = 1;
--	}
--	/* ok, last chunk */
--	alloc_func(data, pnum_begin, __highest_present_section_nr+1,
--						map_count, nodeid_begin);
--}
--
- /*
-  * Initialize sparse on a specific node. The node spans [pnum_begin, pnum_end)
-  * And number of present sections in this node is map_count.
-  */
--void __init sparse_init_nid(int nid, unsigned long pnum_begin,
-+static void __init sparse_init_nid(int nid, unsigned long pnum_begin,
- 				   unsigned long pnum_end,
- 				   unsigned long map_count)
- {
-@@ -617,87 +491,24 @@ void __init sparse_init_nid(int nid, unsigned long pnum_begin,
-  */
- void __init sparse_init(void)
- {
--	unsigned long pnum;
--	struct page *map;
--	struct page **map_map;
--	unsigned long *usemap;
--	unsigned long **usemap_map;
--	int size, size2;
--	int nr_consumed_maps = 0;
--
--	/* see include/linux/mmzone.h 'struct mem_section' definition */
--	BUILD_BUG_ON(!is_power_of_2(sizeof(struct mem_section)));
-+	unsigned long pnum_begin = first_present_section_nr();
-+	int nid_begin = sparse_early_nid(__nr_to_section(pnum_begin));
-+	unsigned long pnum_end, map_count = 1;
- 
--	/* Setup pageblock_order for HUGETLB_PAGE_SIZE_VARIABLE */
--	set_pageblock_order();
-+	for_each_present_section_nr(pnum_begin + 1, pnum_end) {
-+		int nid = sparse_early_nid(__nr_to_section(pnum_end));
- 
--	/*
--	 * map is using big page (aka 2M in x86 64 bit)
--	 * usemap is less one page (aka 24 bytes)
--	 * so alloc 2M (with 2M align) and 24 bytes in turn will
--	 * make next 2M slip to one more 2M later.
--	 * then in big system, the memory will have a lot of holes...
--	 * here try to allocate 2M pages continuously.
--	 *
--	 * powerpc need to call sparse_init_one_section right after each
--	 * sparse_early_mem_map_alloc, so allocate usemap_map at first.
--	 */
--	size = sizeof(unsigned long *) * nr_present_sections;
--	usemap_map = memblock_virt_alloc(size, 0);
--	if (!usemap_map)
--		panic("can not allocate usemap_map\n");
--	alloc_usemap_and_memmap(sparse_early_usemaps_alloc_node,
--				(void *)usemap_map,
--				sizeof(usemap_map[0]));
--
--	size2 = sizeof(struct page *) * nr_present_sections;
--	map_map = memblock_virt_alloc(size2, 0);
--	if (!map_map)
--		panic("can not allocate map_map\n");
--	alloc_usemap_and_memmap(sparse_early_mem_maps_alloc_node,
--				(void *)map_map,
--				sizeof(map_map[0]));
--
--	/* The numner of present sections stored in nr_present_sections
--	 * are kept the same since mem sections are marked as present in
--	 * memory_present(). In this for loop, we need check which sections
--	 * failed to allocate memmap or usemap, then clear its
--	 * ->section_mem_map accordingly. During this process, we need
--	 * increase 'nr_consumed_maps' whether its allocation of memmap
--	 * or usemap failed or not, so that after we handle the i-th
--	 * memory section, can get memmap and usemap of (i+1)-th section
--	 * correctly. */
--	for_each_present_section_nr(0, pnum) {
--		struct mem_section *ms;
--
--		if (nr_consumed_maps >= nr_present_sections) {
--			pr_err("nr_consumed_maps goes beyond nr_present_sections\n");
--			break;
--		}
--		ms = __nr_to_section(pnum);
--		usemap = usemap_map[nr_consumed_maps];
--		if (!usemap) {
--			ms->section_mem_map = 0;
--			nr_consumed_maps++;
--			continue;
--		}
--
--		map = map_map[nr_consumed_maps];
--		if (!map) {
--			ms->section_mem_map = 0;
--			nr_consumed_maps++;
-+		if (nid == nid_begin) {
-+			map_count++;
- 			continue;
- 		}
--
--		sparse_init_one_section(__nr_to_section(pnum), pnum, map,
--								usemap);
--		nr_consumed_maps++;
-+		sparse_init_nid(nid, pnum_begin, pnum_end, map_count);
-+		nid_begin = nid;
-+		pnum_begin = pnum_end;
-+		map_count = 1;
- 	}
--
-+	sparse_init_nid(nid_begin, pnum_begin, pnum_end, map_count);
- 	vmemmap_populate_print_last();
--
--	memblock_free_early(__pa(map_map), size2);
--	memblock_free_early(__pa(usemap_map), size);
- }
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
--- 
-2.18.0
+Would one of your earlier designs have addressed all usecases?  I
+expect the dumb unmap-a-little-bit-at-a-time approach would have?
+
+> For the locked vmas and hugetlb vmas, unmapping operations need modify 
+> vm_flags. But, I'm wondering we might be able to separate unmap and 
+> vm_flags update. Because we know they will be unmapped right away, the 
+> vm_flags might be able to be updated in write mmap_sem critical section 
+> before the actual unmap is called or after it. This is just off the top 
+> of my head.
+> 
+> For uprobed mappings, I'm not sure how vital it is to this case.
+> 
+> Thanks,
+> Yang
+> 
+> >
