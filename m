@@ -1,432 +1,249 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CCC116B000D
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 11:13:49 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id f16-v6so3696648edq.18
-        for <linux-mm@kvack.org>; Sat, 30 Jun 2018 08:13:49 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id e15-v6si6136784edl.176.2018.06.30.08.13.47
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 824876B0003
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 12:39:14 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id f66-v6so3706229plb.10
+        for <linux-mm@kvack.org>; Sat, 30 Jun 2018 09:39:14 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p1-v6sor3586000pld.61.2018.06.30.09.39.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 30 Jun 2018 08:13:47 -0700 (PDT)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5UF4DTQ038259
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 11:13:45 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2jx4xkc3mt-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 11:13:45 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Sat, 30 Jun 2018 16:13:43 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH v2] alpha: switch to NO_BOOTMEM
-Date: Sat, 30 Jun 2018 18:13:30 +0300
-Message-Id: <1530371610-22174-1-git-send-email-rppt@linux.vnet.ibm.com>
+        (Google Transport Security);
+        Sat, 30 Jun 2018 09:39:12 -0700 (PDT)
+From: ufo19890607@gmail.com
+Subject: [PATCH v11 1/2] Refactor part of the oom report in dump_header
+Date: Sun,  1 Jul 2018 00:38:58 +0800
+Message-Id: <1530376739-20459-1-git-send-email-ufo19890607@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-alpha <linux-alpha@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, yuzhoujian@didichuxing.com
 
-Replace bootmem allocator with memblock and enable use of NO_BOOTMEM like
-on most other architectures.
+From: yuzhoujian <yuzhoujian@didichuxing.com>
 
-Alpha gets the description of the physical memory from the firmware as an
-array of memory clusters. Each cluster that is not reserved by the firmware
-is added to memblock.memory.
+The current system wide oom report prints information about the victim
+and the allocation context and restrictions. It, however, doesn't
+provide any information about memory cgroup the victim belongs to. This
+information can be interesting for container users because they can find
+the victim's container much more easily.
 
-Once the memblock.memory is set up, we reserve the kernel and initrd pages
-with memblock reserve.
+I follow the advices of David Rientjes and Michal Hocko, and refactor
+part of the oom report. After this patch, users can get the memcg's
+path from the oom report and check the certain container more quickly.
 
-Since we don't need the bootmem bitmap anymore, the code that finds an
-appropriate place is removed.
+The oom print info after this patch:
+oom-kill:constraint=<constraint>,nodemask=<nodemask>,oom_memcg=<memcg>,task_memcg=<memcg>,task=<comm>,pid=<pid>,uid=<uid>
 
-The conversion does not take care of NUMA support which is marked broken
-for more than 10 years now.
-
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Signed-off-by: yuzhoujian <yuzhoujian@didichuxing.com>
 ---
-v2: describe the conversion as per Michal's request
+Below is the part of the oom report in the dmesg
+...
+[  126.168182] panic invoked oom-killer: gfp_mask=0x6280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), order=0, oom_score_adj=0
+[  126.169115] panic cpuset=/ mems_allowed=0-1
+[  126.169806] CPU: 23 PID: 8668 Comm: panic Not tainted 4.18.0-rc2+ #36
+[  126.170494] Hardware name: Inspur SA5212M4/YZMB-00370-107, BIOS 4.1.10 11/14/2016
+[  126.171197] Call Trace:
+[  126.171901]  dump_stack+0x5a/0x73
+[  126.172593]  dump_header+0x58/0x2dc
+[  126.173294]  oom_kill_process+0x228/0x420
+[  126.173999]  ? oom_badness+0x2a/0x130
+[  126.174705]  out_of_memory+0x11a/0x4a0
+[  126.175415]  __alloc_pages_slowpath+0x7cc/0xa1e
+[  126.176128]  ? __alloc_pages_slowpath+0x194/0xa1e
+[  126.176853]  ? page_counter_try_charge+0x54/0xc0
+[  126.177580]  __alloc_pages_nodemask+0x277/0x290
+[  126.178319]  alloc_pages_vma+0x73/0x180
+[  126.179058]  do_anonymous_page+0xed/0x5a0
+[  126.179825]  __handle_mm_fault+0xbb3/0xe70
+[  126.180566]  handle_mm_fault+0xfa/0x210
+[  126.181313]  __do_page_fault+0x233/0x4c0
+[  126.182063]  do_page_fault+0x32/0x140
+[  126.182812]  ? page_fault+0x8/0x30
+[  126.183560]  page_fault+0x1e/0x30
+[  126.184311] RIP: 0033:0x7f62c9e65860
+[  126.185059] Code: Bad RIP value.
+[  126.185819] RSP: 002b:00007ffcf7bc9288 EFLAGS: 00010206
+[  126.186589] RAX: 00007f6209bd8000 RBX: 0000000000000000 RCX: 00007f6236914000
+[  126.187383] RDX: 00007f6249bd8000 RSI: 0000000000000000 RDI: 00007f6209bd8000
+[  126.188179] RBP: 00007ffcf7bc92b0 R08: ffffffffffffffff R09: 0000000000000000
+[  126.188981] R10: 0000000000000022 R11: 0000000000000246 R12: 0000000000400490
+[  126.189793] R13: 00007ffcf7bc9390 R14: 0000000000000000 R15: 0000000000000000
+[  126.190619] oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),global_oom,task_memcg=/test/test1/test2,task=panic,pid= 8673,uid=    0
+...
 
-Tested with qemu-system-alpha. I've added some tweaks to sys_dp264 to force
-memory split for testing with CONFIG_DISCONTIGMEM=y
+Changes since v10:
+- divide the patch v8 into two parts. One part is to add the array of const char and put enum
+  oom_constaint into oom.h; the other adds a new func to print the missing information for the system-
+  wide oom report.
 
-The allyesconfig build requires update to DEFERRED_STRUCT_PAGE_INIT
-dependencies [1] which is already in -mm tree.
+Changes since v9:
+- divide the patch v8 into two parts. One part is to move enum oom_constraint into memcontrol.h; the
+  other refactors the output info in the dump_header.
+- replace orgin_memcg and kill_memcg with oom_memcg and task_memcg resptively.
 
-[1] https://lkml.org/lkml/2018/6/29/353
+Changes since v8:
+- add the constraint in the oom_control structure.
+- put enum oom_constraint and constraint array into the oom.h file.
+- simplify the description for mem_cgroup_print_oom_context.
 
- arch/alpha/Kconfig                |   2 +
- arch/alpha/kernel/core_irongate.c |   4 +-
- arch/alpha/kernel/setup.c         |  98 ++++-----------------------------
- arch/alpha/mm/numa.c              | 113 +++++---------------------------------
- 4 files changed, 29 insertions(+), 188 deletions(-)
+Changes since v7:
+- add the constraint parameter to dump_header and oom_kill_process.
+- remove the static char array in the mem_cgroup_print_oom_context, and
+  invoke pr_cont_cgroup_path to print memcg' name.
+- combine the patchset v6 into one.
 
-diff --git a/arch/alpha/Kconfig b/arch/alpha/Kconfig
-index 04a4a138ed13..040692a8d433 100644
---- a/arch/alpha/Kconfig
-+++ b/arch/alpha/Kconfig
-@@ -30,6 +30,8 @@ config ALPHA
- 	select ODD_RT_SIGACTION
- 	select OLD_SIGSUSPEND
- 	select CPU_NO_EFFICIENT_FFS if !ALPHA_EV67
-+	select HAVE_MEMBLOCK
-+	select NO_BOOTMEM
- 	help
- 	  The Alpha is a 64-bit general-purpose processor designed and
- 	  marketed by the Digital Equipment Corporation of blessed memory,
-diff --git a/arch/alpha/kernel/core_irongate.c b/arch/alpha/kernel/core_irongate.c
-index aec757250e07..f70986683fc6 100644
---- a/arch/alpha/kernel/core_irongate.c
-+++ b/arch/alpha/kernel/core_irongate.c
-@@ -21,6 +21,7 @@
- #include <linux/init.h>
- #include <linux/initrd.h>
- #include <linux/bootmem.h>
-+#include <linux/memblock.h>
+Changes since v6:
+- divide the patch v5 into two parts. One part is to add an array of const char and
+  put enum oom_constraint into the memcontrol.h; the other refactors the output
+  in the dump_header.
+- limit the memory usage for the static char array by using NAME_MAX in the mem_cgroup_print_oom_context.
+- eliminate the spurious spaces in the oom's output and fix the spelling of "constrain".
+
+Changes since v5:
+- add an array of const char for each constraint.
+- replace all of the pr_cont with a single line print of the pr_info.
+- put enum oom_constraint into the memcontrol.c file for printing oom constraint.
+
+Changes since v4:
+- rename the helper's name to mem_cgroup_print_oom_context.
+- rename the mem_cgroup_print_oom_info to mem_cgroup_print_oom_meminfo.
+- add the constrain info in the dump_header.
+
+Changes since v3:
+- rename the helper's name to mem_cgroup_print_oom_memcg_name.
+- add the rcu lock held to the helper.
+- remove the print info of memcg's name in mem_cgroup_print_oom_info.
+
+Changes since v2:
+- add the mem_cgroup_print_memcg_name helper to print the memcg's
+  name which contains the task that will be killed by the oom-killer.
+
+Changes since v1:
+- replace adding mem_cgroup_print_oom_info with printing the memcg's
+  name only.
+
+ include/linux/oom.h | 17 +++++++++++++++++
+ mm/oom_kill.c       | 31 ++++++++++++++-----------------
+ 2 files changed, 31 insertions(+), 17 deletions(-)
+
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index 6adac113e96d..5bed78d4bfb8 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -15,6 +15,20 @@ struct notifier_block;
+ struct mem_cgroup;
+ struct task_struct;
  
- #include <asm/ptrace.h>
- #include <asm/cacheflush.h>
-@@ -241,8 +242,7 @@ albacore_init_arch(void)
- 				       size / 1024);
- 		}
- #endif
--		reserve_bootmem_node(NODE_DATA(0), pci_mem, memtop -
--				pci_mem, BOOTMEM_DEFAULT);
-+		memblock_reserve(pci_mem, memtop - pci_mem);
- 		printk("irongate_init_arch: temporarily reserving "
- 			"region %08lx-%08lx for PCI\n", pci_mem, memtop - 1);
- 	}
-diff --git a/arch/alpha/kernel/setup.c b/arch/alpha/kernel/setup.c
-index 5576f7646fb6..4f0d94471bc9 100644
---- a/arch/alpha/kernel/setup.c
-+++ b/arch/alpha/kernel/setup.c
-@@ -30,6 +30,7 @@
- #include <linux/ioport.h>
- #include <linux/platform_device.h>
- #include <linux/bootmem.h>
-+#include <linux/memblock.h>
- #include <linux/pci.h>
- #include <linux/seq_file.h>
- #include <linux/root_dev.h>
-@@ -312,9 +313,7 @@ setup_memory(void *kernel_end)
- {
- 	struct memclust_struct * cluster;
- 	struct memdesc_struct * memdesc;
--	unsigned long start_kernel_pfn, end_kernel_pfn;
--	unsigned long bootmap_size, bootmap_pages, bootmap_start;
--	unsigned long start, end;
-+	unsigned long kernel_size;
- 	unsigned long i;
- 
- 	/* Find free clusters, and init and free the bootmem accordingly.  */
-@@ -322,6 +321,8 @@ setup_memory(void *kernel_end)
- 	  (hwrpb->mddt_offset + (unsigned long) hwrpb);
- 
- 	for_each_mem_cluster(memdesc, cluster, i) {
-+		unsigned long end;
++enum oom_constraint {
++	CONSTRAINT_NONE,
++	CONSTRAINT_CPUSET,
++	CONSTRAINT_MEMORY_POLICY,
++	CONSTRAINT_MEMCG,
++};
 +
- 		printk("memcluster %lu, usage %01lx, start %8lu, end %8lu\n",
- 		       i, cluster->usage, cluster->start_pfn,
- 		       cluster->start_pfn + cluster->numpages);
-@@ -335,6 +336,9 @@ setup_memory(void *kernel_end)
- 		end = cluster->start_pfn + cluster->numpages;
- 		if (end > max_low_pfn)
- 			max_low_pfn = end;
++static const char * const oom_constraint_text[] = {
++	[CONSTRAINT_NONE] = "CONSTRAINT_NONE",
++	[CONSTRAINT_CPUSET] = "CONSTRAINT_CPUSET",
++	[CONSTRAINT_MEMORY_POLICY] = "CONSTRAINT_MEMORY_POLICY",
++	[CONSTRAINT_MEMCG] = "CONSTRAINT_MEMCG",
++};
 +
-+		memblock_add(PFN_PHYS(cluster->start_pfn),
-+			     cluster->numpages << PAGE_SHIFT);
- 	}
+ /*
+  * Details of the page allocation that triggered the oom killer that are used to
+  * determine what should be killed.
+@@ -42,6 +56,9 @@ struct oom_control {
+ 	unsigned long totalpages;
+ 	struct task_struct *chosen;
+ 	unsigned long chosen_points;
++
++	/* Used to print the constraint info. */
++	enum oom_constraint constraint;
+ };
  
- 	/*
-@@ -363,87 +367,9 @@ setup_memory(void *kernel_end)
- 		max_low_pfn = mem_size_limit;
- 	}
- 
--	/* Find the bounds of kernel memory.  */
--	start_kernel_pfn = PFN_DOWN(KERNEL_START_PHYS);
--	end_kernel_pfn = PFN_UP(virt_to_phys(kernel_end));
--	bootmap_start = -1;
--
-- try_again:
--	if (max_low_pfn <= end_kernel_pfn)
--		panic("not enough memory to boot");
--
--	/* We need to know how many physically contiguous pages
--	   we'll need for the bootmap.  */
--	bootmap_pages = bootmem_bootmap_pages(max_low_pfn);
--
--	/* Now find a good region where to allocate the bootmap.  */
--	for_each_mem_cluster(memdesc, cluster, i) {
--		if (cluster->usage & 3)
--			continue;
--
--		start = cluster->start_pfn;
--		end = start + cluster->numpages;
--		if (start >= max_low_pfn)
--			continue;
--		if (end > max_low_pfn)
--			end = max_low_pfn;
--		if (start < start_kernel_pfn) {
--			if (end > end_kernel_pfn
--			    && end - end_kernel_pfn >= bootmap_pages) {
--				bootmap_start = end_kernel_pfn;
--				break;
--			} else if (end > start_kernel_pfn)
--				end = start_kernel_pfn;
--		} else if (start < end_kernel_pfn)
--			start = end_kernel_pfn;
--		if (end - start >= bootmap_pages) {
--			bootmap_start = start;
--			break;
--		}
--	}
--
--	if (bootmap_start == ~0UL) {
--		max_low_pfn >>= 1;
--		goto try_again;
--	}
--
--	/* Allocate the bootmap and mark the whole MM as reserved.  */
--	bootmap_size = init_bootmem(bootmap_start, max_low_pfn);
--
--	/* Mark the free regions.  */
--	for_each_mem_cluster(memdesc, cluster, i) {
--		if (cluster->usage & 3)
--			continue;
--
--		start = cluster->start_pfn;
--		end = cluster->start_pfn + cluster->numpages;
--		if (start >= max_low_pfn)
--			continue;
--		if (end > max_low_pfn)
--			end = max_low_pfn;
--		if (start < start_kernel_pfn) {
--			if (end > end_kernel_pfn) {
--				free_bootmem(PFN_PHYS(start),
--					     (PFN_PHYS(start_kernel_pfn)
--					      - PFN_PHYS(start)));
--				printk("freeing pages %ld:%ld\n",
--				       start, start_kernel_pfn);
--				start = end_kernel_pfn;
--			} else if (end > start_kernel_pfn)
--				end = start_kernel_pfn;
--		} else if (start < end_kernel_pfn)
--			start = end_kernel_pfn;
--		if (start >= end)
--			continue;
--
--		free_bootmem(PFN_PHYS(start), PFN_PHYS(end) - PFN_PHYS(start));
--		printk("freeing pages %ld:%ld\n", start, end);
--	}
--
--	/* Reserve the bootmap memory.  */
--	reserve_bootmem(PFN_PHYS(bootmap_start), bootmap_size,
--			BOOTMEM_DEFAULT);
--	printk("reserving pages %ld:%ld\n", bootmap_start, bootmap_start+PFN_UP(bootmap_size));
-+	/* Reserve the kernel memory. */
-+	kernel_size = virt_to_phys(kernel_end) - KERNEL_START_PHYS;
-+	memblock_reserve(KERNEL_START_PHYS, kernel_size);
- 
- #ifdef CONFIG_BLK_DEV_INITRD
- 	initrd_start = INITRD_START;
-@@ -459,8 +385,8 @@ setup_memory(void *kernel_end)
- 				       initrd_end,
- 				       phys_to_virt(PFN_PHYS(max_low_pfn)));
- 		} else {
--			reserve_bootmem(virt_to_phys((void *)initrd_start),
--					INITRD_SIZE, BOOTMEM_DEFAULT);
-+			memblock_reserve(virt_to_phys((void *)initrd_start),
-+					INITRD_SIZE);
- 		}
- 	}
- #endif /* CONFIG_BLK_DEV_INITRD */
-diff --git a/arch/alpha/mm/numa.c b/arch/alpha/mm/numa.c
-index a9e86475f169..26cd925d19b1 100644
---- a/arch/alpha/mm/numa.c
-+++ b/arch/alpha/mm/numa.c
-@@ -11,6 +11,7 @@
- #include <linux/kernel.h>
- #include <linux/mm.h>
- #include <linux/bootmem.h>
-+#include <linux/memblock.h>
- #include <linux/swap.h>
- #include <linux/initrd.h>
- #include <linux/pfn.h>
-@@ -59,12 +60,10 @@ setup_memory_node(int nid, void *kernel_end)
- 	struct memclust_struct * cluster;
- 	struct memdesc_struct * memdesc;
- 	unsigned long start_kernel_pfn, end_kernel_pfn;
--	unsigned long bootmap_size, bootmap_pages, bootmap_start;
- 	unsigned long start, end;
- 	unsigned long node_pfn_start, node_pfn_end;
- 	unsigned long node_min_pfn, node_max_pfn;
- 	int i;
--	unsigned long node_datasz = PFN_UP(sizeof(pg_data_t));
- 	int show_init = 0;
- 
- 	/* Find the bounds of current node */
-@@ -134,24 +133,14 @@ setup_memory_node(int nid, void *kernel_end)
- 	/* Cute trick to make sure our local node data is on local memory */
- 	node_data[nid] = (pg_data_t *)(__va(node_min_pfn << PAGE_SHIFT));
- #endif
--	/* Quasi-mark the pg_data_t as in-use */
--	node_min_pfn += node_datasz;
--	if (node_min_pfn >= node_max_pfn) {
--		printk(" not enough mem to reserve NODE_DATA");
--		return;
--	}
--	NODE_DATA(nid)->bdata = &bootmem_node_data[nid];
--
- 	printk(" Detected node memory:   start %8lu, end %8lu\n",
- 	       node_min_pfn, node_max_pfn);
- 
- 	DBGDCONT(" DISCONTIG: node_data[%d]   is at 0x%p\n", nid, NODE_DATA(nid));
--	DBGDCONT(" DISCONTIG: NODE_DATA(%d)->bdata is at 0x%p\n", nid, NODE_DATA(nid)->bdata);
- 
- 	/* Find the bounds of kernel memory.  */
- 	start_kernel_pfn = PFN_DOWN(KERNEL_START_PHYS);
- 	end_kernel_pfn = PFN_UP(virt_to_phys(kernel_end));
--	bootmap_start = -1;
- 
- 	if (!nid && (node_max_pfn < end_kernel_pfn || node_min_pfn > start_kernel_pfn))
- 		panic("kernel loaded out of ram");
-@@ -161,89 +150,11 @@ setup_memory_node(int nid, void *kernel_end)
- 	   has much larger alignment than 8Mb, so it's safe. */
- 	node_min_pfn &= ~((1UL << (MAX_ORDER-1))-1);
- 
--	/* We need to know how many physically contiguous pages
--	   we'll need for the bootmap.  */
--	bootmap_pages = bootmem_bootmap_pages(node_max_pfn-node_min_pfn);
--
--	/* Now find a good region where to allocate the bootmap.  */
--	for_each_mem_cluster(memdesc, cluster, i) {
--		if (cluster->usage & 3)
--			continue;
--
--		start = cluster->start_pfn;
--		end = start + cluster->numpages;
--
--		if (start >= node_max_pfn || end <= node_min_pfn)
--			continue;
--
--		if (end > node_max_pfn)
--			end = node_max_pfn;
--		if (start < node_min_pfn)
--			start = node_min_pfn;
--
--		if (start < start_kernel_pfn) {
--			if (end > end_kernel_pfn
--			    && end - end_kernel_pfn >= bootmap_pages) {
--				bootmap_start = end_kernel_pfn;
--				break;
--			} else if (end > start_kernel_pfn)
--				end = start_kernel_pfn;
--		} else if (start < end_kernel_pfn)
--			start = end_kernel_pfn;
--		if (end - start >= bootmap_pages) {
--			bootmap_start = start;
--			break;
--		}
--	}
--
--	if (bootmap_start == -1)
--		panic("couldn't find a contiguous place for the bootmap");
--
--	/* Allocate the bootmap and mark the whole MM as reserved.  */
--	bootmap_size = init_bootmem_node(NODE_DATA(nid), bootmap_start,
--					 node_min_pfn, node_max_pfn);
--	DBGDCONT(" bootmap_start %lu, bootmap_size %lu, bootmap_pages %lu\n",
--		 bootmap_start, bootmap_size, bootmap_pages);
-+	memblock_add(PFN_PHYS(node_min_pfn),
-+		     (node_max_pfn - node_min_pfn) << PAGE_SHIFT);
- 
--	/* Mark the free regions.  */
--	for_each_mem_cluster(memdesc, cluster, i) {
--		if (cluster->usage & 3)
--			continue;
--
--		start = cluster->start_pfn;
--		end = cluster->start_pfn + cluster->numpages;
--
--		if (start >= node_max_pfn || end <= node_min_pfn)
--			continue;
--
--		if (end > node_max_pfn)
--			end = node_max_pfn;
--		if (start < node_min_pfn)
--			start = node_min_pfn;
--
--		if (start < start_kernel_pfn) {
--			if (end > end_kernel_pfn) {
--				free_bootmem_node(NODE_DATA(nid), PFN_PHYS(start),
--					     (PFN_PHYS(start_kernel_pfn)
--					      - PFN_PHYS(start)));
--				printk(" freeing pages %ld:%ld\n",
--				       start, start_kernel_pfn);
--				start = end_kernel_pfn;
--			} else if (end > start_kernel_pfn)
--				end = start_kernel_pfn;
--		} else if (start < end_kernel_pfn)
--			start = end_kernel_pfn;
--		if (start >= end)
--			continue;
--
--		free_bootmem_node(NODE_DATA(nid), PFN_PHYS(start), PFN_PHYS(end) - PFN_PHYS(start));
--		printk(" freeing pages %ld:%ld\n", start, end);
--	}
--
--	/* Reserve the bootmap memory.  */
--	reserve_bootmem_node(NODE_DATA(nid), PFN_PHYS(bootmap_start),
--			bootmap_size, BOOTMEM_DEFAULT);
--	printk(" reserving pages %ld:%ld\n", bootmap_start, bootmap_start+PFN_UP(bootmap_size));
-+	NODE_DATA(nid)->node_start_pfn = node_min_pfn;
-+	NODE_DATA(nid)->node_present_pages = node_max_pfn - node_min_pfn;
- 
- 	node_set_online(nid);
+ extern struct mutex oom_lock;
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 84081e77bc51..f9b08e455fd1 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -237,13 +237,6 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+ 	return points > 0 ? points : 1;
  }
-@@ -251,6 +162,7 @@ setup_memory_node(int nid, void *kernel_end)
- void __init
- setup_memory(void *kernel_end)
+ 
+-enum oom_constraint {
+-	CONSTRAINT_NONE,
+-	CONSTRAINT_CPUSET,
+-	CONSTRAINT_MEMORY_POLICY,
+-	CONSTRAINT_MEMCG,
+-};
+-
+ /*
+  * Determine the type of allocation constraint.
+  */
+@@ -421,15 +414,20 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
+ 
+ static void dump_header(struct oom_control *oc, struct task_struct *p)
  {
-+	unsigned long kernel_size;
- 	int nid;
+-	pr_warn("%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=%*pbl, order=%d, oom_score_adj=%hd\n",
+-		current->comm, oc->gfp_mask, &oc->gfp_mask,
+-		nodemask_pr_args(oc->nodemask), oc->order,
++	pr_warn("%s invoked oom-killer: gfp_mask=%#x(%pGg), order=%d, oom_score_adj=%hd\n",
++		current->comm, oc->gfp_mask, &oc->gfp_mask, oc->order,
+ 			current->signal->oom_score_adj);
+ 	if (!IS_ENABLED(CONFIG_COMPACTION) && oc->order)
+ 		pr_warn("COMPACTION is disabled!!!\n");
  
- 	show_mem_layout();
-@@ -262,6 +174,9 @@ setup_memory(void *kernel_end)
- 	for (nid = 0; nid < MAX_NUMNODES; nid++)
- 		setup_memory_node(nid, kernel_end);
- 
-+	kernel_size = virt_to_phys(kernel_end) - KERNEL_START_PHYS;
-+	memblock_reserve(KERNEL_START_PHYS, kernel_size);
+ 	cpuset_print_current_mems_allowed();
+ 	dump_stack();
 +
- #ifdef CONFIG_BLK_DEV_INITRD
- 	initrd_start = INITRD_START;
- 	if (initrd_start) {
-@@ -279,9 +194,8 @@ setup_memory(void *kernel_end)
- 				       phys_to_virt(PFN_PHYS(max_low_pfn)));
- 		} else {
- 			nid = kvaddr_to_nid(initrd_start);
--			reserve_bootmem_node(NODE_DATA(nid),
--					     virt_to_phys((void *)initrd_start),
--					     INITRD_SIZE, BOOTMEM_DEFAULT);
-+			memblock_reserve(virt_to_phys((void *)initrd_start),
-+					 INITRD_SIZE);
- 		}
++	/* one line summary of the oom killer context. */
++	pr_info("oom-kill:constraint=%s,nodemask=%*pbl,task=%s,pid=%5d,uid=%5d",
++			oom_constraint_text[oc->constraint],
++			nodemask_pr_args(oc->nodemask),
++			p->comm, p->pid, from_kuid(&init_user_ns, task_uid(p)));
+ 	if (is_memcg_oom(oc))
+ 		mem_cgroup_print_oom_info(oc->memcg, p);
+ 	else {
+@@ -973,8 +971,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ /*
+  * Determines whether the kernel must panic because of the panic_on_oom sysctl.
+  */
+-static void check_panic_on_oom(struct oom_control *oc,
+-			       enum oom_constraint constraint)
++static void check_panic_on_oom(struct oom_control *oc)
+ {
+ 	if (likely(!sysctl_panic_on_oom))
+ 		return;
+@@ -984,7 +981,7 @@ static void check_panic_on_oom(struct oom_control *oc,
+ 		 * does not panic for cpuset, mempolicy, or memcg allocation
+ 		 * failures.
+ 		 */
+-		if (constraint != CONSTRAINT_NONE)
++		if (oc->constraint != CONSTRAINT_NONE)
+ 			return;
  	}
- #endif /* CONFIG_BLK_DEV_INITRD */
-@@ -303,9 +217,8 @@ void __init paging_init(void)
- 	dma_local_pfn = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
+ 	/* Do not panic for oom kills triggered by sysrq */
+@@ -1021,8 +1018,8 @@ EXPORT_SYMBOL_GPL(unregister_oom_notifier);
+ bool out_of_memory(struct oom_control *oc)
+ {
+ 	unsigned long freed = 0;
+-	enum oom_constraint constraint = CONSTRAINT_NONE;
  
- 	for_each_online_node(nid) {
--		bootmem_data_t *bdata = &bootmem_node_data[nid];
--		unsigned long start_pfn = bdata->node_min_pfn;
--		unsigned long end_pfn = bdata->node_low_pfn;
-+		unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
-+		unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_present_pages;
++	oc->constraint = CONSTRAINT_NONE;
+ 	if (oom_killer_disabled)
+ 		return false;
  
- 		if (dma_local_pfn >= end_pfn - start_pfn)
- 			zones_size[ZONE_DMA] = end_pfn - start_pfn;
+@@ -1057,10 +1054,10 @@ bool out_of_memory(struct oom_control *oc)
+ 	 * Check if there were limitations on the allocation (only relevant for
+ 	 * NUMA and memcg) that may require different handling.
+ 	 */
+-	constraint = constrained_alloc(oc);
+-	if (constraint != CONSTRAINT_MEMORY_POLICY)
++	oc->constraint = constrained_alloc(oc);
++	if (oc->constraint != CONSTRAINT_MEMORY_POLICY)
+ 		oc->nodemask = NULL;
+-	check_panic_on_oom(oc, constraint);
++	check_panic_on_oom(oc);
+ 
+ 	if (!is_memcg_oom(oc) && sysctl_oom_kill_allocating_task &&
+ 	    current->mm && !oom_unkillable_task(current, NULL, oc->nodemask) &&
 -- 
-2.7.4
+2.14.1
