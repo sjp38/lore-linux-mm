@@ -1,145 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A41C6B0003
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 06:54:19 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id d70-v6so3761099itd.1
-        for <linux-mm@kvack.org>; Sat, 30 Jun 2018 03:54:19 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j12-v6sor639716ioe.241.2018.06.30.03.54.17
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B5366B0003
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 10:55:20 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id l17-v6so3042290edq.11
+        for <linux-mm@kvack.org>; Sat, 30 Jun 2018 07:55:20 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id a64-v6si146809ede.410.2018.06.30.07.55.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 30 Jun 2018 03:54:17 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1530353397-12948-1-git-send-email-laoar.shao@gmail.com>
-References: <1530353397-12948-1-git-send-email-laoar.shao@gmail.com>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Sat, 30 Jun 2018 18:53:36 +0800
-Message-ID: <CALOAHbAXXB=WfG_ibcdbuNPRu8KDUPWurgaEU2yuBBSh386V1w@mail.gmail.com>
-Subject: Re: [PATCH net-next] net, mm: avoid unnecessary memcg charge skmem
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 30 Jun 2018 07:55:18 -0700 (PDT)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5UErV0C010503
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 10:55:16 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2jx4xkbm9r-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 10:55:16 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Sat, 30 Jun 2018 15:55:14 +0100
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH v2 00/11] docs/mm: add boot time memory management docs
+Date: Sat, 30 Jun 2018 17:54:55 +0300
+Message-Id: <1530370506-21751-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Yafang Shao <laoar.shao@gmail.com>
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: Randy Dunlap <rdunlap@infradead.org>, linux-doc <linux-doc@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On Sat, Jun 30, 2018 at 6:09 PM, Yafang Shao <laoar.shao@gmail.com> wrote:
-> In __sk_mem_raise_allocated(), if mem_cgroup_charge_skmem() return
-> false, mem_cgroup_uncharge_skmem will be executed.
->
-> The logic is as bellow,
-> __sk_mem_raise_allocated
->         ret = mem_cgroup_uncharge_skmem
->                 try_charge(memcg, gfp_mask|__GFP_NOFAIL, nr_pages);
->                 return false
->         if (!ret)
->                 mem_cgroup_uncharge_skmem(sk->sk_memcg, amt);
->
-> So it is unnecessary to charge if it is not forced.
->
-> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
-> ---
->  include/linux/memcontrol.h |  3 ++-
->  mm/memcontrol.c            | 12 +++++++++---
->  net/core/sock.c            |  5 +++--
->  net/ipv4/tcp_output.c      |  2 +-
->  4 files changed, 15 insertions(+), 7 deletions(-)
->
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 6c6fb11..56c07c9 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -1160,7 +1160,8 @@ static inline void mem_cgroup_wb_stats(struct bdi_writeback *wb,
->  #endif /* CONFIG_CGROUP_WRITEBACK */
->
->  struct sock;
-> -bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
-> +bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages,
-> +                            bool force);
->  void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
->  #ifdef CONFIG_MEMCG
->  extern struct static_key_false memcg_sockets_enabled_key;
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index e6f0d5e..1122be2 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -5929,7 +5929,8 @@ void mem_cgroup_sk_free(struct sock *sk)
->   * Charges @nr_pages to @memcg. Returns %true if the charge fit within
->   * @memcg's configured limit, %false if the charge had to be forced.
->   */
-> -bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
-> +bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages,
-> +                            bool force)
->  {
->         gfp_t gfp_mask = GFP_KERNEL;
->
-> @@ -5940,7 +5941,10 @@ bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
->                         memcg->tcpmem_pressure = 0;
->                         return true;
->                 }
-> -               page_counter_charge(&memcg->tcpmem, nr_pages);
-> +
-> +               if (force)
-> +                       page_counter_charge(&memcg->tcpmem, nr_pages);
-> +
->                 memcg->tcpmem_pressure = 1;
->                 return false;
->         }
-> @@ -5954,7 +5958,9 @@ bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
->         if (try_charge(memcg, gfp_mask, nr_pages) == 0)
->                 return true;
->
-> -       try_charge(memcg, gfp_mask|__GFP_NOFAIL, nr_pages);
-> +       if (force)
-> +               try_charge(memcg, gfp_mask|__GFP_NOFAIL, nr_pages);
-> +
->         return false;
->  }
->
-> diff --git a/net/core/sock.c b/net/core/sock.c
-> index bcc4182..148a840 100644
-> --- a/net/core/sock.c
-> +++ b/net/core/sock.c
-> @@ -2401,9 +2401,10 @@ int __sk_mem_raise_allocated(struct sock *sk, int size, int amt, int kind)
->  {
->         struct proto *prot = sk->sk_prot;
->         long allocated = sk_memory_allocated_add(sk, amt);
-> +       bool charged = false;
->
->         if (mem_cgroup_sockets_enabled && sk->sk_memcg &&
-> -           !mem_cgroup_charge_skmem(sk->sk_memcg, amt))
-> +           !(charged = mem_cgroup_charge_skmem(sk->sk_memcg, amt, false)))
->                 goto suppress_allocation;
->
->         /* Under limit. */
-> @@ -2465,7 +2466,7 @@ int __sk_mem_raise_allocated(struct sock *sk, int size, int amt, int kind)
->
->         sk_memory_allocated_sub(sk, amt);
->
-> -       if (mem_cgroup_sockets_enabled && sk->sk_memcg)
-> +       if (mem_cgroup_sockets_enabled && sk->sk_memcg && charged)
->                 mem_cgroup_uncharge_skmem(sk->sk_memcg, amt);
->
->         return 0;
-> diff --git a/net/ipv4/tcp_output.c b/net/ipv4/tcp_output.c
-> index f8f6129..9b741d4 100644
-> --- a/net/ipv4/tcp_output.c
-> +++ b/net/ipv4/tcp_output.c
-> @@ -3014,7 +3014,7 @@ void sk_forced_mem_schedule(struct sock *sk, int size)
->         sk_memory_allocated_add(sk, amt);
->
->         if (mem_cgroup_sockets_enabled && sk->sk_memcg)
-> -               mem_cgroup_charge_skmem(sk->sk_memcg, amt);
-> +               mem_cgroup_charge_skmem(sk->sk_memcg, amt, true);
->  }
->
->  /* Send a FIN. The caller locks the socket for us.
-> --
-> 1.8.3.1
->
+Hi,
 
-Pls. ignore this patch.
+Both bootmem and memblock have pretty good documentation coverage. With
+some fixups and additions we get a nice overall description.
 
-Sorry about the noise.
+v2 changes:
+* address Randy's comments
 
-Thanks
-Yafang
+Mike Rapoport (11):
+  mm/bootmem: drop duplicated kernel-doc comments
+  docs/mm: nobootmem: fixup kernel-doc comments
+  docs/mm: bootmem: fix kernel-doc warnings
+  docs/mm: bootmem: add kernel-doc description of 'struct bootmem_data'
+  docs/mm: bootmem: add overview documentation
+  mm/memblock: add a name for memblock flags enumeration
+  docs/mm: memblock: update kernel-doc comments
+  docs/mm: memblock: add kernel-doc comments for memblock_add[_node]
+  docs/mm: memblock: add kernel-doc description for memblock types
+  docs/mm: memblock: add overview documentation
+  docs/mm: add description of boot time memory management
+
+ Documentation/core-api/boot-time-mm.rst |  92 +++++++++++++++
+ Documentation/core-api/index.rst        |   1 +
+ include/linux/bootmem.h                 |  17 ++-
+ include/linux/memblock.h                |  76 ++++++++----
+ mm/bootmem.c                            | 159 +++++++++----------------
+ mm/memblock.c                           | 203 +++++++++++++++++++++++---------
+ mm/nobootmem.c                          |  20 +++-
+ 7 files changed, 380 insertions(+), 188 deletions(-)
+ create mode 100644 Documentation/core-api/boot-time-mm.rst
+
+-- 
+2.7.4
