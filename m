@@ -1,53 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C08356B0003
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 22:41:21 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id m2-v6so6030252plt.14
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 19:41:21 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id f4-v6si9289081pgc.522.2018.06.29.19.41.20
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 813516B0006
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 23:10:02 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id a7-v6so4122421vka.22
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 20:10:02 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id a19-v6si3774417vke.122.2018.06.29.20.09.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jun 2018 19:41:20 -0700 (PDT)
-Date: Fri, 29 Jun 2018 19:41:17 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address
- sanitizer
-Message-Id: <20180629194117.01b2d31e805808eee5c97b4d@linux-foundation.org>
-In-Reply-To: <CAAeHK+xsBOKghUp9XhpfXGqU=gjSYuy3G2GH14zWNEmaLPy8_w@mail.gmail.com>
-References: <cover.1530018818.git.andreyknvl@google.com>
-	<20180627160800.3dc7f9ee41c0badbf7342520@linux-foundation.org>
-	<CAAeHK+xz552VNpZxgWwU-hbTqF5_F6YVDw3fSv=4OT8mNrqPzg@mail.gmail.com>
-	<20180628124039.8a42ab5e2994fb2876ff4f75@linux-foundation.org>
-	<CAAeHK+xsBOKghUp9XhpfXGqU=gjSYuy3G2GH14zWNEmaLPy8_w@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 29 Jun 2018 20:10:00 -0700 (PDT)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [PATCH v2 0/2] sparse_init rewrite
+Date: Fri, 29 Jun 2018 23:09:42 -0400
+Message-Id: <20180630030944.9335-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>
+To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, bhe@redhat.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net, pasha.tatashin@oracle.com
 
-On Fri, 29 Jun 2018 14:45:08 +0200 Andrey Konovalov <andreyknvl@google.com> wrote:
+Changelog:
 
-> >> What kind of memory consumption testing would you like to see?
-> >
-> > Well, 100kb or so is a teeny amount on virtually any machine.  I'm
-> > assuming the savings are (much) more significant once the machine gets
-> > loaded up and doing work?
-> 
-> So with clean kernel after boot we get 40 kb memory usage. With KASAN
-> it is ~120 kb, which is 200% overhead. With KHWASAN it's 50 kb, which
-> is 25% overhead. This should approximately scale to any amounts of
-> used slab memory. For example with 100 mb memory usage we would get
-> +200 mb for KASAN and +25 mb with KHWASAN. (And KASAN also requires
-> quarantine for better use-after-free detection). I can explicitly
-> mention the overhead in %s in the changelog.
-> 
-> If you think it makes sense, I can also make separate measurements
-> with some workload. What kind of workload should I use?
+v1 - v2
+	- Addressed comments from Oscar Salvador
 
-Whatever workload people were running when they encountered problems
-with KASAN memory consumption ;)
+In sparse_init() we allocate two large buffers to temporary hold usemap and
+memmap for the whole machine. However, we can avoid doing that if we
+changed sparse_init() to operated on per-node bases instead of doing it on
+the whole machine beforehand.
 
-I dunno, something simple.  `find / > /dev/null'?
+As shown by Baoquan
+http://lkml.kernel.org/r/20180628062857.29658-1-bhe@redhat.com
+
+The buffers are large enough to cause machine stop to boot on small memory
+systems.
+
+These patches should be applied on top of Baoquan's work, as
+CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER is removed in that work.
+
+For the ease of review, I split this work so the first patch only adds new
+interfaces, the second patch enables them, and removes the old ones.
+
+Pavel Tatashin (2):
+  mm/sparse: add sparse_init_nid()
+  mm/sparse: start using sparse_init_nid(), and remove old code
+
+ include/linux/mm.h  |   9 +-
+ mm/sparse-vmemmap.c |  44 ++++---
+ mm/sparse.c         | 282 +++++++++++++++-----------------------------
+ 3 files changed, 125 insertions(+), 210 deletions(-)
+
+-- 
+2.18.0
