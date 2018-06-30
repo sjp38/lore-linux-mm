@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D3806B0275
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 10:55:40 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id b4-v6so6230935wrm.14
-        for <linux-mm@kvack.org>; Sat, 30 Jun 2018 07:55:40 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id D16D16B0276
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 10:55:42 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id z5-v6so5607119wro.15
+        for <linux-mm@kvack.org>; Sat, 30 Jun 2018 07:55:42 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id a63-v6si3560039wmh.41.2018.06.30.07.55.38
+        by mx.google.com with ESMTPS id r6-v6si229950wro.401.2018.06.30.07.55.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 30 Jun 2018 07:55:38 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5UErVH6124344
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 10:55:37 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2jx5v4t9jt-1
+        Sat, 30 Jun 2018 07:55:41 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5UErVIF038674
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 10:55:40 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2jx5rjtn7u-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 10:55:37 -0400
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 10:55:40 -0400
 Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Sat, 30 Jun 2018 15:55:35 +0100
+	Sat, 30 Jun 2018 15:55:38 +0100
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH v2 09/11] docs/mm: memblock: add kernel-doc description for memblock types
-Date: Sat, 30 Jun 2018 17:55:04 +0300
+Subject: [PATCH v2 10/11] docs/mm: memblock: add overview documentation
+Date: Sat, 30 Jun 2018 17:55:05 +0300
 In-Reply-To: <1530370506-21751-1-git-send-email-rppt@linux.vnet.ibm.com>
 References: <1530370506-21751-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1530370506-21751-10-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1530370506-21751-11-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jonathan Corbet <corbet@lwn.net>
@@ -33,75 +33,74 @@ Cc: Randy Dunlap <rdunlap@infradead.org>, linux-doc <linux-doc@vger.kernel.org>,
 
 Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 ---
- include/linux/memblock.h | 37 +++++++++++++++++++++++++++++++++----
- 1 file changed, 33 insertions(+), 4 deletions(-)
+ mm/memblock.c | 55 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 55 insertions(+)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 63704c6..5169205 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -20,7 +20,13 @@
- #define INIT_MEMBLOCK_REGIONS	128
- #define INIT_PHYSMEM_REGIONS	4
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 3e6be01..084f5f5 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -27,6 +27,61 @@
  
--/* Definition of memblock flags. */
-+/**
-+ * enum memblock_flags - definition of memory region attributes
-+ * @MEMBLOCK_NONE: no special request
-+ * @MEMBLOCK_HOTPLUG: hotpluggable region
-+ * @MEMBLOCK_MIRROR: mirrored region
-+ * @MEMBLOCK_NOMAP: don't add to kernel direct mapping
-+ */
- enum memblock_flags {
- 	MEMBLOCK_NONE		= 0x0,	/* No special request */
- 	MEMBLOCK_HOTPLUG	= 0x1,	/* hotpluggable region */
-@@ -28,6 +34,13 @@ enum memblock_flags {
- 	MEMBLOCK_NOMAP		= 0x4,	/* don't add to kernel direct mapping */
- };
+ #include "internal.h"
  
 +/**
-+ * struct memblock_region - represents a memory region
-+ * @base: physical address of the region
-+ * @size: size of the region
-+ * @flags: memory region attributes
-+ * @nid: NUMA node id
++ * DOC: memblock overview
++ *
++ * Memblock is a method of managing memory regions during the early
++ * boot period when the usual kernel memory allocators are not up and
++ * running.
++ *
++ * Memblock views the system memory as collections of contiguous
++ * regions. There are several types of these collections:
++ *
++ * * ``memory`` - describes the physical memory available to the
++ *   kernel; this may differ from the actual physical memory installed
++ *   in the system, for instance when the memory is restricted with
++ *   ``mem=`` command line parameter
++ * * ``reserved`` - describes the regions that were allocated
++ * * ``physmap`` - describes the actual physical memory regardless of
++ *   the possible restrictions; the ``physmap`` type is only available
++ *   on some architectures.
++ *
++ * Each region is represented by :c:type:`struct memblock_region` that
++ * defines the region extents, its attributes and NUMA node id on NUMA
++ * systems. Every memory type is described by the :c:type:`struct
++ * memblock_type` which contains an array of memory regions along with
++ * the allocator metadata. The memory types are nicely wrapped with
++ * :c:type:`struct memblock`. This structure is statically initialzed
++ * at build time. The region arrays for the "memory" and "reserved"
++ * types are initially sized to %INIT_MEMBLOCK_REGIONS and for the
++ * "physmap" type to %INIT_PHYSMEM_REGIONS.
++ * The :c:func:`memblock_allow_resize` enables automatic resizing of
++ * the region arrays during addition of new regions. This feature
++ * should be used with care so that memory allocated for the region
++ * array will not overlap with areas that should be reserved, for
++ * example initrd.
++ *
++ * The early architecture setup should tell memblock what the physical
++ * memory layout is by using :c:func:`memblock_add` or
++ * :c:func:`memblock_add_node` functions. The first function does not
++ * assign the region to a NUMA node and it is appropriate for UMA
++ * systems. Yet, it is possible to use it on NUMA systems as well and
++ * assign the region to a NUMA node later in the setup process using
++ * :c:func:`memblock_set_node`. The :c:func:`memblock_add_node`
++ * performs such an assignment directly.
++ *
++ * Once memblock is setup the memory can be allocated using either
++ * memblock or bootmem APIs.
++ *
++ * As the system boot progresses, the architecture specific
++ * :c:func:`mem_init` function frees all the memory to the buddy page
++ * allocator.
++ *
++ * If an architecure enables %CONFIG_ARCH_DISCARD_MEMBLOCK, the
++ * memblock data structures will be discarded after the system
++ * initialization compltes.
 + */
- struct memblock_region {
- 	phys_addr_t base;
- 	phys_addr_t size;
-@@ -37,14 +50,30 @@ struct memblock_region {
- #endif
- };
- 
-+/**
-+ * struct memblock_type - collection of memory regions of certain type
-+ * @cnt: number of regions
-+ * @max: size of the allocated array
-+ * @total_size: size of all regions
-+ * @regions: array of regions
-+ * @name: the memory type symbolic name
-+ */
- struct memblock_type {
--	unsigned long cnt;	/* number of regions */
--	unsigned long max;	/* size of the allocated array */
--	phys_addr_t total_size;	/* size of all regions */
-+	unsigned long cnt;
-+	unsigned long max;
-+	phys_addr_t total_size;
- 	struct memblock_region *regions;
- 	char *name;
- };
- 
-+/**
-+ * struct memblock - memblock allocator metadata
-+ * @bottom_up: is bottom up direction?
-+ * @current_limit: physical address of the current allocation limit
-+ * @memory: usabe memory regions
-+ * @reserved: reserved memory regions
-+ * @physmem: all physical memory
-+ */
- struct memblock {
- 	bool bottom_up;  /* is bottom up direction? */
- 	phys_addr_t current_limit;
++
+ static struct memblock_region memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
+ static struct memblock_region memblock_reserved_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
+ #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
 -- 
 2.7.4
