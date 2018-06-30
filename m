@@ -1,46 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BE8C36B0006
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 06:11:43 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id g16-v6so3679783edq.10
-        for <linux-mm@kvack.org>; Sat, 30 Jun 2018 03:11:43 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c31-v6si5059246edf.296.2018.06.30.03.11.42
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 317A96B0008
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 06:27:32 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id q15-v6so100309pgc.23
+        for <linux-mm@kvack.org>; Sat, 30 Jun 2018 03:27:32 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r9-v6sor3664421plo.33.2018.06.30.03.27.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 30 Jun 2018 03:11:42 -0700 (PDT)
-Subject: Re: [PATCH v2 5/7] mm: rename and change semantics of
- nr_indirectly_reclaimable_bytes
-References: <20180618091808.4419-6-vbabka@suse.cz>
- <201806201923.mC5ZpigB%fengguang.wu@intel.com>
- <38c6a6e1-c5e0-fd7d-4baf-1f0f09be5094@suse.cz>
- <20180629211201.GA14897@castle.DHCP.thefacebook.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <ef2dea13-0102-c4bc-a28f-c1b2408f0753@suse.cz>
-Date: Sat, 30 Jun 2018 12:09:27 +0200
+        (Google Transport Security);
+        Sat, 30 Jun 2018 03:27:31 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180629211201.GA14897@castle.DHCP.thefacebook.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <201806301538.bewm1wka%fengguang.wu@intel.com>
+References: <201806301538.bewm1wka%fengguang.wu@intel.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Sat, 30 Jun 2018 12:27:09 +0200
+Message-ID: <CACT4Y+b+7T3M=5EbHSpJmMAkRQnXih2+JZqeAvxht2zzKyjD2A@mail.gmail.com>
+Subject: Re: /tmp/cctnQ1CM.s:35: Error: .err encountered
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-api@vger.kernel.org, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Vijayanand Jitta <vjitta@codeaurora.org>, Laura Abbott <labbott@redhat.com>, Sumit Semwal <sumit.semwal@linaro.org>
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On 06/29/2018 11:12 PM, Roman Gushchin wrote:
->>
->> The vmstat counter NR_INDIRECTLY_RECLAIMABLE_BYTES was introduced by commit
->> eb59254608bc ("mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES") with the goal of
->> accounting objects that can be reclaimed, but cannot be allocated via a
->> SLAB_RECLAIM_ACCOUNT cache. This is now possible via kmalloc() with
->> __GFP_RECLAIMABLE flag, and the dcache external names user is converted.
->>
->> The counter is however still useful for accounting direct page allocations
->> (i.e. not slab) with a shrinker, such as the ION page pool. So keep it, and:
-> 
-> Btw, it looks like I've another example of usefulness of this counter:
-> dynamic per-cpu data.
+On Sat, Jun 30, 2018 at 9:15 AM, kbuild test robot <lkp@intel.com> wrote:
+> Hi Dmitry,
+>
+> FYI, the error/warning still remains.
+>
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+> head:   1904148a361a07fb2d7cba1261d1d2c2f33c8d2e
+> commit: 758517202bd2e427664857c9f2aa59da36848aca arm: port KCOV to arm
+> date:   2 weeks ago
+> config: arm-allmodconfig (attached as .config)
+> compiler: arm-linux-gnueabi-gcc (Debian 7.2.0-11) 7.2.0
+> reproduce:
+>         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+>         chmod +x ~/bin/make.cross
+>         git checkout 758517202bd2e427664857c9f2aa59da36848aca
+>         # save the attached .config to linux build tree
+>         GCC_VERSION=7.2.0 make.cross ARCH=arm
+>
+> All errors (new ones prefixed by >>):
+>
+>    /tmp/cctnQ1CM.s: Assembler messages:
+>>> /tmp/cctnQ1CM.s:35: Error: .err encountered
+>    /tmp/cctnQ1CM.s:36: Error: .err encountered
+>    /tmp/cctnQ1CM.s:37: Error: .err encountered
 
-Hmm, but are those reclaimable? Most likely not in general? Do you have
-examples that are?
+Hi kbuild test robot,
+
+The fix was mailed more than a month ago, but still not merged into
+the tree. That's linux...
