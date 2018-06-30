@@ -1,91 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A928D6B000D
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 22:33:03 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id 70-v6so6038373plc.1
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 19:33:03 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id C08356B0003
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 22:41:21 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id m2-v6so6030252plt.14
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 19:41:21 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 15-v6si7596226pfq.172.2018.06.29.19.33.02
+        by mx.google.com with ESMTPS id f4-v6si9289081pgc.522.2018.06.29.19.41.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jun 2018 19:33:02 -0700 (PDT)
-Date: Fri, 29 Jun 2018 19:33:00 -0700
+        Fri, 29 Jun 2018 19:41:20 -0700 (PDT)
+Date: Fri, 29 Jun 2018 19:41:17 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] kernel/memremap, kasan: Make ZONE_DEVICE with work
- with KASAN
-Message-Id: <20180629193300.0ae0f25880a800bd27952b15@linux-foundation.org>
-In-Reply-To: <20180629164932.740-1-aryabinin@virtuozzo.com>
-References: <20180625170259.30393-1-aryabinin@virtuozzo.com>
-	<20180629164932.740-1-aryabinin@virtuozzo.com>
+Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address
+ sanitizer
+Message-Id: <20180629194117.01b2d31e805808eee5c97b4d@linux-foundation.org>
+In-Reply-To: <CAAeHK+xsBOKghUp9XhpfXGqU=gjSYuy3G2GH14zWNEmaLPy8_w@mail.gmail.com>
+References: <cover.1530018818.git.andreyknvl@google.com>
+	<20180627160800.3dc7f9ee41c0badbf7342520@linux-foundation.org>
+	<CAAeHK+xz552VNpZxgWwU-hbTqF5_F6YVDw3fSv=4OT8mNrqPzg@mail.gmail.com>
+	<20180628124039.8a42ab5e2994fb2876ff4f75@linux-foundation.org>
+	<CAAeHK+xsBOKghUp9XhpfXGqU=gjSYuy3G2GH14zWNEmaLPy8_w@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: david@fromorbit.com, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dan.j.williams@intel.com, dvyukov@google.com, glider@google.com
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>
 
-On Fri, 29 Jun 2018 19:49:32 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+On Fri, 29 Jun 2018 14:45:08 +0200 Andrey Konovalov <andreyknvl@google.com> wrote:
 
-> KASAN learns about hot added memory via the memory hotplug notifier.
-> The devm_memremap_pages() intentionally skips calling memory hotplug
-> notifiers.
-
-Why does it do that?
-
-> So KASAN doesn't know anything about new memory added
-> by devm_memremap_pages(). This causes to crash when KASAN tries to
-> access non-existent shadow memory:
+> >> What kind of memory consumption testing would you like to see?
+> >
+> > Well, 100kb or so is a teeny amount on virtually any machine.  I'm
+> > assuming the savings are (much) more significant once the machine gets
+> > loaded up and doing work?
 > 
->  BUG: unable to handle kernel paging request at ffffed0078000000
->  RIP: 0010:check_memory_region+0x82/0x1e0
->  Call Trace:
->   memcpy+0x1f/0x50
->   pmem_do_bvec+0x163/0x720
->   pmem_make_request+0x305/0xac0
->   generic_make_request+0x54f/0xcf0
->   submit_bio+0x9c/0x370
->   submit_bh_wbc+0x4c7/0x700
->   block_read_full_page+0x5ef/0x870
->   do_read_cache_page+0x2b8/0xb30
->   read_dev_sector+0xbd/0x3f0
->   read_lba.isra.0+0x277/0x670
->   efi_partition+0x41a/0x18f0
->   check_partition+0x30d/0x5e9
->   rescan_partitions+0x18c/0x840
->   __blkdev_get+0x859/0x1060
->   blkdev_get+0x23f/0x810
->   __device_add_disk+0x9c8/0xde0
->   pmem_attach_disk+0x9a8/0xf50
->   nvdimm_bus_probe+0xf3/0x3c0
->   driver_probe_device+0x493/0xbd0
->   bus_for_each_drv+0x118/0x1b0
->   __device_attach+0x1cd/0x2b0
->   bus_probe_device+0x1ac/0x260
->   device_add+0x90d/0x1380
->   nd_async_device_register+0xe/0x50
->   async_run_entry_fn+0xc3/0x5d0
->   process_one_work+0xa0a/0x1810
->   worker_thread+0x87/0xe80
->   kthread+0x2d7/0x390
->   ret_from_fork+0x3a/0x50
+> So with clean kernel after boot we get 40 kb memory usage. With KASAN
+> it is ~120 kb, which is 200% overhead. With KHWASAN it's 50 kb, which
+> is 25% overhead. This should approximately scale to any amounts of
+> used slab memory. For example with 100 mb memory usage we would get
+> +200 mb for KASAN and +25 mb with KHWASAN. (And KASAN also requires
+> quarantine for better use-after-free detection). I can explicitly
+> mention the overhead in %s in the changelog.
 > 
-> Add kasan_add_zero_shadow()/kasan_remove_zero_shadow() - post mm_init()
-> interface to map/unmap kasan_zero_page at requested virtual addresses.
-> And use it to add/remove the shadow memory for hotpluged/unpluged
-> device memory.
-> 
-> Reported-by: Dave Chinner <david@fromorbit.com>
-> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Dmitry Vyukov <dvyukov@google.com>
-> Cc: Alexander Potapenko <glider@google.com>
+> If you think it makes sense, I can also make separate measurements
+> with some workload. What kind of workload should I use?
 
-No cc:stable? Which kernel version(s) do you believe need the fix?
+Whatever workload people were running when they encountered problems
+with KASAN memory consumption ;)
 
->  include/linux/kasan.h |  13 ++-
->  kernel/memremap.c     |  10 ++
->  mm/kasan/kasan_init.c | 316 +++++++++++++++++++++++++++++++++++++++++++++++---
-
-It's a surprisingly large amount of ode to do something which KASAN
-already does for hotplugged memory.  How come?
+I dunno, something simple.  `find / > /dev/null'?
