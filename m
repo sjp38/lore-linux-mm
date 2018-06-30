@@ -1,65 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F90C6B0003
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 23:15:50 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id f5-v6so6007189plf.18
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 20:15:50 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id u11-v6si9777021pgq.480.2018.06.29.20.15.49
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B27136B0010
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 23:19:09 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id x18-v6so3610045oie.7
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 20:19:09 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f190-v6sor4394509oih.60.2018.06.29.20.19.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jun 2018 20:15:49 -0700 (PDT)
-Date: Fri, 29 Jun 2018 20:15:47 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC v3 PATCH 4/5] mm: mmap: zap pages with read mmap_sem for
- large mapping
-Message-Id: <20180629201547.5322cfc4b52d19a0443daec2@linux-foundation.org>
-In-Reply-To: <084aeccb-2c54-2299-8bf0-29a10cc0186e@linux.alibaba.com>
-References: <1530311985-31251-1-git-send-email-yang.shi@linux.alibaba.com>
-	<1530311985-31251-5-git-send-email-yang.shi@linux.alibaba.com>
-	<20180629183501.9e30c26135f11853245c56c7@linux-foundation.org>
-	<084aeccb-2c54-2299-8bf0-29a10cc0186e@linux.alibaba.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Fri, 29 Jun 2018 20:19:08 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20180629193300.0ae0f25880a800bd27952b15@linux-foundation.org>
+References: <20180625170259.30393-1-aryabinin@virtuozzo.com>
+ <20180629164932.740-1-aryabinin@virtuozzo.com> <20180629193300.0ae0f25880a800bd27952b15@linux-foundation.org>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 29 Jun 2018 20:19:07 -0700
+Message-ID: <CAPcyv4hiwTsSdptKFtBYfsbd9L12RfjGdY1PDckkCY980vxXLQ@mail.gmail.com>
+Subject: Re: [PATCH v2] kernel/memremap, kasan: Make ZONE_DEVICE with work
+ with KASAN
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, tglx@linutronix.de, hpa@zytor.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, david <david@fromorbit.com>, kasan-dev@googlegroups.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>
 
-On Fri, 29 Jun 2018 19:28:15 -0700 Yang Shi <yang.shi@linux.alibaba.com> wrote:
+On Fri, Jun 29, 2018 at 7:33 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Fri, 29 Jun 2018 19:49:32 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+>
+>> KASAN learns about hot added memory via the memory hotplug notifier.
+>> The devm_memremap_pages() intentionally skips calling memory hotplug
+>> notifiers.
+>
+> Why does it do that?
 
-> 
-> 
-> > we're adding a bunch of code to 32-bit kernels which will never be
-> > executed.
-> >
-> > I'm thinking it would be better to be much more explicit with "#ifdef
-> > CONFIG_64BIT" in this code, rather than relying upon the above magic.
-> >
-> > But I tend to think that the fact that we haven't solved anything on
-> > locked vmas or on uprobed mappings is a shostopper for the whole
-> > approach :(
-> 
-> I agree it is not that perfect. But, it still could improve the most use 
-> cases.
+devm_memremap_pages() deliberately does only half of memory hotplug.
+Namely it only adds to the linear map and allocates / initializes
+'struct page', but it never onlines the pages, so
+devm_memremap_pages() generates none of the events that the hotplug
+notifiers would publish.
 
-Well, those unaddressed usecases will need to be fixed at some point. 
-What's our plan for that?
+>> So KASAN doesn't know anything about new memory added
+>> by devm_memremap_pages(). This causes to crash when KASAN tries to
+>> access non-existent shadow memory:
+>>
+>>  BUG: unable to handle kernel paging request at ffffed0078000000
+>>  RIP: 0010:check_memory_region+0x82/0x1e0
+>>  Call Trace:
+>>   memcpy+0x1f/0x50
+>>   pmem_do_bvec+0x163/0x720
+>>   pmem_make_request+0x305/0xac0
+>>   generic_make_request+0x54f/0xcf0
+>>   submit_bio+0x9c/0x370
+>>   submit_bh_wbc+0x4c7/0x700
+>>   block_read_full_page+0x5ef/0x870
+>>   do_read_cache_page+0x2b8/0xb30
+>>   read_dev_sector+0xbd/0x3f0
+>>   read_lba.isra.0+0x277/0x670
+>>   efi_partition+0x41a/0x18f0
+>>   check_partition+0x30d/0x5e9
+>>   rescan_partitions+0x18c/0x840
+>>   __blkdev_get+0x859/0x1060
+>>   blkdev_get+0x23f/0x810
+>>   __device_add_disk+0x9c8/0xde0
+>>   pmem_attach_disk+0x9a8/0xf50
+>>   nvdimm_bus_probe+0xf3/0x3c0
+>>   driver_probe_device+0x493/0xbd0
+>>   bus_for_each_drv+0x118/0x1b0
+>>   __device_attach+0x1cd/0x2b0
+>>   bus_probe_device+0x1ac/0x260
+>>   device_add+0x90d/0x1380
+>>   nd_async_device_register+0xe/0x50
+>>   async_run_entry_fn+0xc3/0x5d0
+>>   process_one_work+0xa0a/0x1810
+>>   worker_thread+0x87/0xe80
+>>   kthread+0x2d7/0x390
+>>   ret_from_fork+0x3a/0x50
+>>
+>> Add kasan_add_zero_shadow()/kasan_remove_zero_shadow() - post mm_init()
+>> interface to map/unmap kasan_zero_page at requested virtual addresses.
+>> And use it to add/remove the shadow memory for hotpluged/unpluged
+>> device memory.
+>>
+>> Reported-by: Dave Chinner <david@fromorbit.com>
+>> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+>> Cc: Dan Williams <dan.j.williams@intel.com>
+>> Cc: Dmitry Vyukov <dvyukov@google.com>
+>> Cc: Alexander Potapenko <glider@google.com>
+>
+> No cc:stable? Which kernel version(s) do you believe need the fix?
 
-Would one of your earlier designs have addressed all usecases?  I
-expect the dumb unmap-a-little-bit-at-a-time approach would have?
+I think devm_memremap_pages() was incompatible with KASAN from the
+outset, so I would say:
 
-> For the locked vmas and hugetlb vmas, unmapping operations need modify 
-> vm_flags. But, I'm wondering we might be able to separate unmap and 
-> vm_flags update. Because we know they will be unmapped right away, the 
-> vm_flags might be able to be updated in write mmap_sem critical section 
-> before the actual unmap is called or after it. This is just off the top 
-> of my head.
-> 
-> For uprobed mappings, I'm not sure how vital it is to this case.
-> 
-> Thanks,
-> Yang
-> 
-> >
+Fixes: 41e94a851304 ("add devm_memremap_pages")
+
+>
+>>  include/linux/kasan.h |  13 ++-
+>>  kernel/memremap.c     |  10 ++
+>>  mm/kasan/kasan_init.c | 316 +++++++++++++++++++++++++++++++++++++++++++++++---
+>
+> It's a surprisingly large amount of ode to do something which KASAN
+> already does for hotplugged memory.  How come?
