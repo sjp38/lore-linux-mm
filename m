@@ -1,63 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9207F6B0006
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 21:35:05 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id ba8-v6so3730609plb.4
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 18:35:05 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id D45F56B0008
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2018 21:37:56 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id ba8-v6so3733341plb.4
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 18:37:56 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id l65-v6si10859592pfl.155.2018.06.29.18.35.04
+        by mx.google.com with ESMTPS id 67-v6si9134200pgi.456.2018.06.29.18.37.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jun 2018 18:35:04 -0700 (PDT)
-Date: Fri, 29 Jun 2018 18:35:01 -0700
+        Fri, 29 Jun 2018 18:37:55 -0700 (PDT)
+Date: Fri, 29 Jun 2018 18:37:54 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC v3 PATCH 4/5] mm: mmap: zap pages with read mmap_sem for
- large mapping
-Message-Id: <20180629183501.9e30c26135f11853245c56c7@linux-foundation.org>
-In-Reply-To: <1530311985-31251-5-git-send-email-yang.shi@linux.alibaba.com>
-References: <1530311985-31251-1-git-send-email-yang.shi@linux.alibaba.com>
-	<1530311985-31251-5-git-send-email-yang.shi@linux.alibaba.com>
+Subject: Re: [PATCH] mm/fadvise: Fix signed overflow UBSAN complaint
+Message-Id: <20180629183754.b5accab9f7f6593a39d6f0be@linux-foundation.org>
+In-Reply-To: <20180629184453.7614-1-aryabinin@virtuozzo.com>
+References: <20180627204808.99988d94180dd144b14aa38b@linux-foundation.org>
+	<20180629184453.7614-1-aryabinin@virtuozzo.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, tglx@linutronix.de, hpa@zytor.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: icytxw@gmail.com, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, 30 Jun 2018 06:39:44 +0800 Yang Shi <yang.shi@linux.alibaba.com> wrote:
+On Fri, 29 Jun 2018 21:44:53 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
 
-
-And...
-
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 87dcf83..d61e08b 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2763,6 +2763,128 @@ static int munmap_lookup_vma(struct mm_struct *mm, struct vm_area_struct **vma,
->  	return 1;
->  }
+> Signed integer overflow is undefined according to the C standard.
+> The overflow in ksys_fadvise64_64() is deliberate, but since it is signed
+> overflow, UBSAN complains:
+> 	UBSAN: Undefined behaviour in mm/fadvise.c:76:10
+> 	signed integer overflow:
+> 	4 + 9223372036854775805 cannot be represented in type 'long long int'
+> 
+> Use unsigned types to do math. Unsigned overflow is defined so UBSAN
+> will not complain about it. This patch doesn't change generated code.
+> 
+> ...
+>
+> --- a/mm/fadvise.c
+> +++ b/mm/fadvise.c
+> @@ -73,7 +73,7 @@ int ksys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
+>  	}
 >  
-> +/* Consider PUD size or 1GB mapping as large mapping */
-> +#ifdef HPAGE_PUD_SIZE
-> +#define LARGE_MAP_THRESH	HPAGE_PUD_SIZE
-> +#else
-> +#define LARGE_MAP_THRESH	(1 * 1024 * 1024 * 1024)
-> +#endif
+>  	/* Careful about overflows. Len == 0 means "as much as possible" */
+> -	endbyte = offset + len;
+> +	endbyte = (u64)offset + (u64)len;
+>  	if (!len || endbyte < len)
+>  		endbyte = -1;
+>  	else
 
-So this assumes that 32-bit machines cannot have 1GB mappings (fair
-enough) and this is the sole means by which we avoid falling into the
-"len >= LARGE_MAP_THRESH" codepath, which will behave very badly, at
-least because for such machines, VM_DEAD is zero.
+Readers of this code will wonder "what the heck are those casts for". 
+Therefore:
 
-This is rather ugly and fragile.  And, I guess, explains why we can't
-give all mappings this treatment: 32-bit machines can't do it.  And
-we're adding a bunch of code to 32-bit kernels which will never be
-executed.
-
-I'm thinking it would be better to be much more explicit with "#ifdef
-CONFIG_64BIT" in this code, rather than relying upon the above magic.
-
-But I tend to think that the fact that we haven't solved anything on
-locked vmas or on uprobed mappings is a shostopper for the whole
-approach :(
+--- a/mm/fadvise.c~mm-fadvise-fix-signed-overflow-ubsan-complaint-fix
++++ a/mm/fadvise.c
+@@ -72,7 +72,11 @@ int ksys_fadvise64_64(int fd, loff_t off
+ 		goto out;
+ 	}
+ 
+-	/* Careful about overflows. Len == 0 means "as much as possible" */
++	/*
++	 * Careful about overflows. Len == 0 means "as much as possible".  Use
++	 * unsigned math because signed overflows are undefined and UBSan
++	 * complains.
++	 */
+ 	endbyte = (u64)offset + (u64)len;
+ 	if (!len || endbyte < len)
+ 		endbyte = -1;
+_
