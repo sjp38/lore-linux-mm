@@ -1,83 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DFF556B0003
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 00:26:35 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id f5-v6so6077629plf.18
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 21:26:35 -0700 (PDT)
-Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
-        by mx.google.com with ESMTPS id m3-v6si11277947plt.71.2018.06.29.21.26.33
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 74FD26B0006
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2018 00:27:31 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id a13-v6so5422149pfo.22
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2018 21:27:31 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id w16-v6si12037813plk.79.2018.06.29.21.27.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jun 2018 21:26:34 -0700 (PDT)
-Subject: Re: [RFC v3 PATCH 4/5] mm: mmap: zap pages with read mmap_sem for
- large mapping
-References: <1530311985-31251-1-git-send-email-yang.shi@linux.alibaba.com>
- <1530311985-31251-5-git-send-email-yang.shi@linux.alibaba.com>
- <20180629183501.9e30c26135f11853245c56c7@linux-foundation.org>
- <084aeccb-2c54-2299-8bf0-29a10cc0186e@linux.alibaba.com>
- <20180629201547.5322cfc4b52d19a0443daec2@linux-foundation.org>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <ce2f93d3-fe0e-89c2-5465-94cfa974f1ea@linux.alibaba.com>
-Date: Fri, 29 Jun 2018 21:26:23 -0700
+        Fri, 29 Jun 2018 21:27:30 -0700 (PDT)
+Message-ID: <5B370797.1090700@intel.com>
+Date: Sat, 30 Jun 2018 12:31:19 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180629201547.5322cfc4b52d19a0443daec2@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
+Subject: Re: [PATCH v34 0/4] Virtio-balloon: support free page reporting
+References: <1529928312-30500-1-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <1529928312-30500-1-git-send-email-wei.w.wang@intel.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, tglx@linutronix.de, hpa@zytor.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org
+To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org
+Cc: torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
 
-
-
-On 6/29/18 8:15 PM, Andrew Morton wrote:
-> On Fri, 29 Jun 2018 19:28:15 -0700 Yang Shi <yang.shi@linux.alibaba.com> wrote:
+On 06/25/2018 08:05 PM, Wei Wang wrote:
+> This patch series is separated from the previous "Virtio-balloon
+> Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_HINT,
+> implemented by this series enables the virtio-balloon driver to report
+> hints of guest free pages to the host. It can be used to accelerate live
+> migration of VMs. Here is an introduction of this usage:
 >
->>
->>> we're adding a bunch of code to 32-bit kernels which will never be
->>> executed.
->>>
->>> I'm thinking it would be better to be much more explicit with "#ifdef
->>> CONFIG_64BIT" in this code, rather than relying upon the above magic.
->>>
->>> But I tend to think that the fact that we haven't solved anything on
->>> locked vmas or on uprobed mappings is a shostopper for the whole
->>> approach :(
->> I agree it is not that perfect. But, it still could improve the most use
->> cases.
-> Well, those unaddressed usecases will need to be fixed at some point.
-
-Yes, definitely.
-
-> What's our plan for that?
-
-As I mentioned in the earlier email, locked and hugetlb cases might be 
-able to be solved by separating vm_flags update and actual unmap. I will 
-look into it further later.
-
- From my point of view, uprobe mapping sounds not that vital.
-
+> Live migration needs to transfer the VM's memory from the source machine
+> to the destination round by round. For the 1st round, all the VM's memory
+> is transferred. From the 2nd round, only the pieces of memory that were
+> written by the guest (after the 1st round) are transferred. One method
+> that is popularly used by the hypervisor to track which part of memory is
+> written is to write-protect all the guest memory.
 >
-> Would one of your earlier designs have addressed all usecases?  I
-> expect the dumb unmap-a-little-bit-at-a-time approach would have?
-
-Yes. The v1 design does unmap with holding write map_sem. So, the 
-vm_flags update is not a problem.
-
-Thanks,
-Yang
-
+> This feature enables the optimization by skipping the transfer of guest
+> free pages during VM live migration. It is not concerned that the memory
+> pages are used after they are given to the hypervisor as a hint of the
+> free pages, because they will be tracked by the hypervisor and transferred
+> in the subsequent round if they are used and written.
 >
->> For the locked vmas and hugetlb vmas, unmapping operations need modify
->> vm_flags. But, I'm wondering we might be able to separate unmap and
->> vm_flags update. Because we know they will be unmapped right away, the
->> vm_flags might be able to be updated in write mmap_sem critical section
->> before the actual unmap is called or after it. This is just off the top
->> of my head.
->>
->> For uprobed mappings, I'm not sure how vital it is to this case.
->>
->> Thanks,
->> Yang
->>
+> * Tests
+> - Test Environment
+>      Host: Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz
+>      Guest: 8G RAM, 4 vCPU
+>      Migration setup: migrate_set_speed 100G, migrate_set_downtime 2 second
+>
+> - Test Results
+>      - Idle Guest Live Migration Time (results are averaged over 10 runs):
+>          - Optimization v.s. Legacy = 284ms vs 1757ms --> ~84% reduction
+
+According to Michael's comments, add one more set of data here:
+
+Enabling page poison with value=0, and enable KSM.
+
+The legacy live migration time is 1806ms (averaged across 10 runs), 
+compared to the case with this optimization feature in use (i.e. 284ms), 
+there is still around ~84% reduction.
+
+
+Best,
+Wei
