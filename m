@@ -1,88 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2627E6B0003
-	for <linux-mm@kvack.org>; Sun,  1 Jul 2018 02:46:05 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id c12-v6so7115310wrs.13
-        for <linux-mm@kvack.org>; Sat, 30 Jun 2018 23:46:05 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id o6-v6si3093116wrw.329.2018.06.30.23.46.02
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B9616B0006
+	for <linux-mm@kvack.org>; Sun,  1 Jul 2018 02:57:02 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id e1-v6so7722478pld.23
+        for <linux-mm@kvack.org>; Sat, 30 Jun 2018 23:57:02 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q10-v6sor3148552pgd.18.2018.06.30.23.57.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 30 Jun 2018 23:46:03 -0700 (PDT)
-From: Song Liu <songliubraving@fb.com>
-Subject: Re: [PATCH] mm: thp: passing correct vm_flags to hugepage_vma_check
-Date: Sun, 1 Jul 2018 06:31:36 +0000
-Message-ID: <F6855BF6-20DE-4AC8-8DA8-116F1AF52DBE@fb.com>
-References: <20180629181752.792831-1-songliubraving@fb.com>
- <20180629192503.b41ce9e68d5c267595677a0d@linux-foundation.org>
-In-Reply-To: <20180629192503.b41ce9e68d5c267595677a0d@linux-foundation.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <FF8592FF956B7C43B818F9E997606ECE@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        (Google Transport Security);
+        Sat, 30 Jun 2018 23:57:00 -0700 (PDT)
+From: Will Ziener-Dignazio <wdignazio@gmail.com>
+Subject: [PATCH] Add option to configure default zswap compressor algorithm.
+Date: Sat, 30 Jun 2018 23:56:16 -0700
+Message-Id: <20180701065616.3512-1-wdignazio@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Kernel Team <Kernel-team@fb.com>, Yang Shi <yang.shi@linux.alibaba.com>, "Kirill A .
- Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@surriel.com>
+To: sjenning@redhat.com
+Cc: ddstreet@ieee.org, linux-mm@kvack.org, Will Ziener-Dignazio <wdignazio@gmail.com>
 
+    - Add Kconfig option for default compressor algorithm
+    - Add the deflate and LZ4 algorithms as default options
 
+Signed-off-by: Will Ziener-Dignazio <wdignazio@gmail.com>
+---
+ mm/Kconfig | 35 ++++++++++++++++++++++++++++++++++-
+ mm/zswap.c | 11 ++++++++++-
+ 2 files changed, 44 insertions(+), 2 deletions(-)
 
-> On Jun 29, 2018, at 7:25 PM, Andrew Morton <akpm@linux-foundation.org> wr=
-ote:
->=20
-> On Fri, 29 Jun 2018 11:17:52 -0700 Song Liu <songliubraving@fb.com> wrote=
-:
->=20
->> Back in May, I sent patch similar to 02b75dc8160d:
->>=20
->> https://patchwork.kernel.org/patch/10416233/  (v1)
->>=20
->> This patch got positive feedback. However, I realized there is a problem=
-,
->> that vma->vm_flags in khugepaged_enter_vma_merge() is stale. The separat=
-e
->> argument vm_flags contains the latest value. Therefore, it is
->> necessary to pass this vm_flags into hugepage_vma_check(). To fix this
->> problem,  I resent v2 and v3 of the work:
->>=20
->> https://patchwork.kernel.org/patch/10419527/   (v2)
->> https://patchwork.kernel.org/patch/10433937/   (v3)
->>=20
->> To my surprise, after I thought we all agreed on v3 of the work. Yang's
->> patch, which is similar to correct looking (but wrong) v1, got applied.
->> So we still have the issue of stale vma->vm_flags. This patch fixes this
->> issue. Please apply.
->=20
-> That's a ueful history lesson but most of it isn't relevant to this
-> change.  So I'd suggest this changelog:
->=20
-> : khugepaged_enter_vma_merge() passes a stale vma->vm_flags to
-> : hugepage_vma_check().  The argument vm_flags contains the latest value.=
-=20
-> : Therefore, it is necessary to pass this vm_flags into
-> : hugepage_vma_check().
-
-This looks good. Thanks!
-
-> Also, please (as always) tell us the user-visible runtime effects of
-> this bug so that others can decide which kernel(s) need the fix?
-
-With this bug, madvise(MADV_HUGEPAGE) for mmap files in shmem fails to
-put memory in huge pages. Here is an example of failed madvise():
-
-   /* mount /dev/shm with huge=3Dadvise:
-    *     mount -o remount,huge=3Dadvise /dev/shm */
-   /* create file /dev/shm/huge */
-   #define HUGE_FILE "/dev/shm/huge"
-
-   fd =3D open(HUGE_FILE, O_RDONLY);
-   ptr =3D mmap(NULL, FILE_SIZE, PROT_READ, MAP_PRIVATE, fd, 0);
-   ret =3D madvise(ptr, FILE_SIZE, MADV_HUGEPAGE);
-
-madvise() will return 0, but this memory region is never put in huge
-page (check from /proc/meminfo: ShmemHugePages).
-
-Thanks,
-Song=
+diff --git a/mm/Kconfig b/mm/Kconfig
+index ce95491abd6a..09df6650e96a 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -535,7 +535,6 @@ config MEM_SOFT_DIRTY
+ config ZSWAP
+ 	bool "Compressed cache for swap pages (EXPERIMENTAL)"
+ 	depends on FRONTSWAP && CRYPTO=y
+-	select CRYPTO_LZO
+ 	select ZPOOL
+ 	default n
+ 	help
+@@ -552,6 +551,40 @@ config ZSWAP
+ 	  they have not be fully explored on the large set of potential
+ 	  configurations and workloads that exist.
+ 
++choice
++	prompt "Compressed cache cryptographic compression algorithm"
++	default ZSWAP_COMPRESSOR_DEFAULT_LZO
++	depends on ZSWAP
++	help
++	  The default cyptrographic compression algorithm to use for
++	  compressed swap pages.
++
++config ZSWAP_COMPRESSOR_DEFAULT_LZO
++	bool "lzo"
++	select CRYPTO_LZO
++	help
++	  This option sets the default zswap compression algorithm to LZO,
++	  the Lempel-Ziv-Oberhumer algorithm. This algorthm focuses on
++	  decompression speed, but has a lower compression ratio.
++
++config ZSWAP_COMPRESSOR_DEFAULT_DEFLATE
++	bool "deflate"
++	select CRYPTO_DEFLATE
++	help
++	  This option sets the default zswap compression algorithm to DEFLATE.
++	  This algorithm balances compression and decompression speed to
++	  compresstion ratio.
++
++config ZSWAP_COMPRESSOR_DEFAULT_LZ4
++	bool "lz4"
++	select CRYPTO_LZ4
++	help
++	  This option sets the default zswap compression algorithm to LZ4.
++	  This algorithm focuses on high compression speed, but has a lower
++	  compression ratio and decompression speed.
++
++endchoice
++
+ config ZPOOL
+ 	tristate "Common API for compressed memory storage"
+ 	default n
+diff --git a/mm/zswap.c b/mm/zswap.c
+index 7d34e69507e3..30f9f25da4d0 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -91,7 +91,16 @@ static struct kernel_param_ops zswap_enabled_param_ops = {
+ module_param_cb(enabled, &zswap_enabled_param_ops, &zswap_enabled, 0644);
+ 
+ /* Crypto compressor to use */
+-#define ZSWAP_COMPRESSOR_DEFAULT "lzo"
++#if defined(CONFIG_ZSWAP_COMPRESSOR_DEFAULT_LZO)
++  #define ZSWAP_COMPRESSOR_DEFAULT "lzo"
++#elif defined(CONFIG_ZSWAP_COMPRESSOR_DEFAULT_DEFLATE)
++  #define ZSWAP_COMPRESSOR_DEFAULT "deflate"
++#elif defined(CONFIG_ZSWAP_COMPRESSOR_DEFAULT_LZ4)
++  #define ZSWAP_COMPRESSOR_DEFAULT "lz4"
++#else
++  #error "Default zswap compression algorithm not defined."
++#endif
++
+ static char *zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
+ static int zswap_compressor_param_set(const char *,
+ 				      const struct kernel_param *);
+-- 
+2.18.0
