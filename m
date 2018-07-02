@@ -1,40 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E99716B0003
-	for <linux-mm@kvack.org>; Sun,  1 Jul 2018 23:04:03 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id b129-v6so973925iti.4
-        for <linux-mm@kvack.org>; Sun, 01 Jul 2018 20:04:03 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id k201-v6si4640062ite.141.2018.07.01.20.04.02
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D823D6B026B
+	for <linux-mm@kvack.org>; Sun,  1 Jul 2018 23:05:42 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id 12-v6so16374678qtq.8
+        for <linux-mm@kvack.org>; Sun, 01 Jul 2018 20:05:42 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id g17-v6si893115qtb.402.2018.07.01.20.05.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 01 Jul 2018 20:04:02 -0700 (PDT)
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w62342eR103778
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 03:04:02 GMT
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by userp2130.oracle.com with ESMTP id 2jx19sjp9j-1
+        Sun, 01 Jul 2018 20:05:41 -0700 (PDT)
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6234O2T145425
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 03:05:41 GMT
+Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
+	by aserp2120.oracle.com with ESMTP id 2jx1tntmmy-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Mon, 02 Jul 2018 03:04:02 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w62341Ha017688
+	for <linux-mm@kvack.org>; Mon, 02 Jul 2018 03:05:41 +0000
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w6235eLp032438
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 03:04:01 GMT
-Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w62341hw025419
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 03:04:01 GMT
-Received: by mail-oi0-f50.google.com with SMTP id n84-v6so13683057oib.9
-        for <linux-mm@kvack.org>; Sun, 01 Jul 2018 20:04:00 -0700 (PDT)
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 03:05:40 GMT
+Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w6235dUw000856
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 03:05:40 GMT
+Received: by mail-oi0-f45.google.com with SMTP id s198-v6so9822948oih.11
+        for <linux-mm@kvack.org>; Sun, 01 Jul 2018 20:05:39 -0700 (PDT)
 MIME-Version: 1.0
 References: <20180702020417.21281-1-pasha.tatashin@oracle.com>
- <20180702020417.21281-2-pasha.tatashin@oracle.com> <20180702021121.GL3223@MiWiFi-R3L-srv>
- <CAGM2rebY1_-3hvp_+kqF==nLawC0FN6Q1J5X5pm5qxHdDJzjiQ@mail.gmail.com>
- <20180702023130.GM3223@MiWiFi-R3L-srv> <CAGM2rebUsJ2r-2F38Vv13zbaEPPgTn0w6H3j6fpg0WVa9wB6Uw@mail.gmail.com>
- <20180702025343.GN3223@MiWiFi-R3L-srv>
-In-Reply-To: <20180702025343.GN3223@MiWiFi-R3L-srv>
+ <20180702020417.21281-2-pasha.tatashin@oracle.com> <20180702025632.GO3223@MiWiFi-R3L-srv>
+In-Reply-To: <20180702025632.GO3223@MiWiFi-R3L-srv>
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Sun, 1 Jul 2018 23:03:24 -0400
-Message-ID: <CAGM2reatQzroymAb8kaPKgd8sEehtScH9DAELeWpYCaNNnAU6w@mail.gmail.com>
+Date: Sun, 1 Jul 2018 23:05:03 -0400
+Message-ID: <CAGM2reZhB_J4WECCDcnTSuFrN1mdCshWhmiXNnZ1=Wuyxxjb7w@mail.gmail.com>
 Subject: Re: [PATCH v3 1/2] mm/sparse: add sparse_init_nid()
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
@@ -42,21 +39,20 @@ List-ID: <linux-mm.kvack.org>
 To: bhe@redhat.com
 Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, kirill.shutemov@linux.intel.com, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, Souptick Joarder <jrdr.linux@gmail.com>, gregkh@linuxfoundation.org, Vlastimil Babka <vbabka@suse.cz>, Wei Yang <richard.weiyang@gmail.com>, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net
 
-> Ah, yes, I misunderstood it, sorry for that.
+> > +     if (!usemap) {
+> > +             pr_err("%s: usemap allocation failed", __func__);
 >
-> Then I have only one concern, for vmemmap case, if one section doesn't
-> succeed to populate its memmap, do we need to skip all the remaining
-> sections in that node?
+> Wondering if we can provide more useful information for better debugging
+> if failed. E.g here tell on what nid the usemap allocation failed.
+>
+> > +                                                pnum, nid);
+> > +             if (!map) {
+> > +                     pr_err("%s: memory map backing failed. Some memory will not be available.",
+> > +                            __func__);
+> And here tell nid and the memory section nr failed.
 
-Yes, in sparse_populate_node() we have the following:
+Sure, I will wait for more comments, if any, and add more info to the
+error messages in the next revision.
 
-294         for (pnum = pnum_begin; map_index < map_count; pnum++) {
-295                 if (!present_section_nr(pnum))
-296                         continue;
-297                 if (!sparse_mem_map_populate(pnum, nid, NULL))
-298                         break;
-
-So, on the first failure, we even stop trying to populate other
-sections. No more memory to do so.
-
+Thank you,
 Pavel
