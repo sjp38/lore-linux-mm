@@ -1,91 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A12C6B000D
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 07:39:05 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id r58-v6so12095626otr.0
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 04:39:05 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 195-v6si4030755oia.57.2018.07.02.04.39.04
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D2B036B0010
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 07:40:40 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id v19-v6so5600036eds.3
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 04:40:40 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e26-v6si3513015edq.87.2018.07.02.04.40.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jul 2018 04:39:04 -0700 (PDT)
-Date: Mon, 2 Jul 2018 07:39:03 -0400 (EDT)
-From: Rodrigo Freire <rfreire@redhat.com>
-Message-ID: <1583797106.15227304.1530531543526.JavaMail.zimbra@redhat.com>
-In-Reply-To: <20180702112906.GH19043@dhcp22.suse.cz>
-References: <7de14c6cac4a486c04149f37948e3a76028f3fa5.1530461087.git.rfreire@redhat.com> <20180702093043.GB19043@dhcp22.suse.cz> <1113748807.15224076.1530530533122.JavaMail.zimbra@redhat.com> <20180702112906.GH19043@dhcp22.suse.cz>
-Subject: Re: [PATCH] mm: be more informative in OOM task list
+        Mon, 02 Jul 2018 04:40:39 -0700 (PDT)
+Date: Mon, 2 Jul 2018 13:40:37 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v9 0/6] optimize memblock_next_valid_pfn and
+ early_pfn_valid on arm and arm64
+Message-ID: <20180702114037.GJ19043@dhcp22.suse.cz>
+References: <1530239363-2356-1-git-send-email-hejianet@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1530239363-2356-1-git-send-email-hejianet@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jia He <hejianet@gmail.com>
+Cc: Russell King <linux@armlinux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morse <james.morse@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steve Capper <steve.capper@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, richard.weiyang@gmail.com
 
-Hello Michal!
+On Fri 29-06-18 10:29:17, Jia He wrote:
+> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+> where possible") tried to optimize the loop in memmap_init_zone(). But
+> there is still some room for improvement.
 
------ Original Message ----- 
-> From: "Michal Hocko" <mhocko@kernel.org>
-> To: "Rodrigo Freire" <rfreire@redhat.com>
-> Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-> Sent: Monday, July 2, 2018 8:29:06 AM
-> Subject: Re: [PATCH] mm: be more informative in OOM task list
->
-> On Mon 02-07-18 07:22:13, Rodrigo Freire wrote:
-> > Hello Michal,
-> >
-> > ----- Original Message -----
-> > > From: "Michal Hocko" <mhocko@kernel.org>
-> > > To: "Rodrigo Freire" <rfreire@redhat.com>
-> > > Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-> > > Sent: Monday, July 2, 2018 6:30:43 AM
-> > > Subject: Re: [PATCH] mm: be more informative in OOM task list
-> > >
-> > > On Sun 01-07-18 13:09:40, Rodrigo Freire wrote:
-> > > > The default page memory unit of OOM task dump events might not be
-> > > > intuitive for the non-initiated when debugging OOM events. Add
-> > > > a small printk prior to the task dump informing that the memory
-> > > > units are actually memory _pages_.
-> > >
-> > > Does this really help? I understand the the oom report might be not the
-> > > easiest thing to grasp but wouldn't it be much better to actually add
-> > > documentation with clarification of each part of it?
-> >
-> > That would be great: After a quick grep -ri for oom in Documentation,
-> > I found several other files containing its own OOM behaviour modifier
-> > configurations. But it indeed lacks a central and canonical Doc file
-> > which documents the OOM Killer behavior and workflows.
-> >
-> > However, I still stand by my proposed patch: It is unobtrusive, infers
-> > no performance issue and clarifying: I recently worked in a case (for
-> > full disclosure: I am a far cry from a MM expert) where the sum of the
-> > RSS pages made sense when interpreted as real kB pages. Reason: There
-> > were processes sharing (a good amount of) memory regions, misleading
-> > the interpretation and that misled not only me, but some other
-> > colleagues a well: The pages was only sorted out after actually
-> > inspecting the source code.
-> >
-> > This patch is user-friendly and can be a great time saver to others in
-> > the community.
->
-> Well, all other counters we print are in page units unless explicitly
-> kB. 
+It would be great to shortly describe those optimization from high level
+POV.
 
-Your statement is correct. And I thought about that too. And then the doubt:
-* Maybe someone forgot to state that these values are in kB?
+> 
+> Patch 1 introduce new config to make codes more generic
+> Patch 2 remain the memblock_next_valid_pfn on arm and arm64
+> Patch 3 optimizes the memblock_next_valid_pfn()
+> Patch 4~6 optimizes the early_pfn_valid()
+> 
+> As for the performance improvement, after this set, I can see the time
+> overhead of memmap_init() is reduced from 27956us to 13537us in my
+> armv8a server(QDF2400 with 96G memory, pagesize 64k).
 
-> So I am not sure we really need to do anything but document the
-> output better. Maybe others will find it more important though.
+So this is 13ms saving when booting 96G machine. Is this really worth
+the additional code? Are there any other benefits?
+[...]
+>  arch/arm/Kconfig          |  4 +++
+>  arch/arm/mm/init.c        |  1 +
+>  arch/arm64/Kconfig        |  4 +++
+>  arch/arm64/mm/init.c      |  1 +
+>  include/linux/early_pfn.h | 79 +++++++++++++++++++++++++++++++++++++++++++++++
+>  include/linux/memblock.h  |  2 ++
+>  include/linux/mmzone.h    | 18 ++++++++++-
+>  mm/Kconfig                |  3 ++
+>  mm/memblock.c             |  9 ++++++
+>  mm/page_alloc.c           |  5 ++-
+>  10 files changed, 124 insertions(+), 2 deletions(-)
+>  create mode 100644 include/linux/early_pfn.h
 
-The thing is, it also led some other colleagues (a few!) to think the
-very same as me: That raised the flag and made me write the patch:
-That was indeed misleading.
-And you may not have a MM and OOM-versed specialist available all the 
-time! ;-)
-
-Still ask you to reconsider.
-
-My best regards,
-
-- RF.
+-- 
+Michal Hocko
+SUSE Labs
