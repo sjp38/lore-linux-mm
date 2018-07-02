@@ -1,67 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C483B6B0003
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 10:48:33 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id f6-v6so5848105eds.6
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 07:48:33 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 28-v6si461272eds.137.2018.07.02.07.48.32
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 58B8E6B0003
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 11:27:58 -0400 (EDT)
+Received: by mail-ua0-f198.google.com with SMTP id j5-v6so4688292uap.16
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 08:27:58 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id i1-v6si3829689uai.169.2018.07.02.08.27.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jul 2018 07:48:32 -0700 (PDT)
-Date: Mon, 2 Jul 2018 16:48:27 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm: set PG_dma_pinned on get_user_pages*()
-Message-ID: <20180702144827.GC19043@dhcp22.suse.cz>
-References: <20180627115349.cu2k3ainqqdrrepz@quack2.suse.cz>
- <20180627115927.GQ32348@dhcp22.suse.cz>
- <20180627124255.np2a6rxy6rb6v7mm@quack2.suse.cz>
- <20180627145718.GB20171@ziepe.ca>
- <20180627170246.qfvucs72seqabaef@quack2.suse.cz>
- <1f6e79c5-5801-16d2-18a6-66bd0712b5b8@nvidia.com>
- <20180628091743.khhta7nafuwstd3m@quack2.suse.cz>
- <20180702055251.GV3014@mtr-leonro.mtl.com>
- <235a23e3-6e02-234c-3e20-b2dddc93e568@nvidia.com>
- <20180702070227.jj5udrdk3rxzjj4t@quack2.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180702070227.jj5udrdk3rxzjj4t@quack2.suse.cz>
+        Mon, 02 Jul 2018 08:27:56 -0700 (PDT)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [PATCH] mm: teach dump_page() to correctly output poisoned struct pages
+Date: Mon,  2 Jul 2018 11:27:45 -0400
+Message-Id: <20180702152745.27596-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: John Hubbard <jhubbard@nvidia.com>, Leon Romanovsky <leon@kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Christoph Hellwig <hch@lst.de>, John Hubbard <john.hubbard@gmail.com>, Matthew Wilcox <willy@infradead.org>, Christopher Lameter <cl@linux.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>
+To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, mgorman@techsingularity.net, gregkh@linuxfoundation.org, pasha.tatashin@oracle.com
 
-On Mon 02-07-18 09:02:27, Jan Kara wrote:
-> On Sun 01-07-18 23:10:04, John Hubbard wrote:
-[...]
-> > That is an interesting point. 
-> > 
-> > Holding off page writeback of this region does seem like it could cause
-> > problems under memory pressure. Maybe adjusting the watermarks so that we
-> > tell the writeback  system, "all is well, just ignore this region until
-> > we're done with it" might help? Any ideas here are welcome...
-> > 
-> > Longer term, maybe some additional work could allow the kernel to be able
-> > to writeback the gup-pinned pages (while DMA is happening--snapshots), but
-> > that seems like a pretty big overhaul.
-> 
-> We could use bounce pages to safely writeback pinned pages. However I don't
-> think it would buy us anything. From MM point of view these pages are
-> impossible-to-get-rid-of (page refcount is increased) and pernamently-dirty
-> when GUP was for write (we don't know when dirty data arrives there). So
-> let's not just fool MM by pretending we can make them clean. That's going
-> to lead to just more problems down the road.
+If struct page is poisoned, and uninitialized access is detected via
+PF_POISONED_CHECK(page) dump_page() is called to output the page. But,
+the dump_page() itself accesses struct page to determine how to print
+it, and therefore gets into a recursive loop.
 
-Absolutely agreed! We really need to have means to identify those pages
-first. Only then we can make an educated guess what to do about them.
-Adding kludges here and there is a wrong way about dealing with this
-whole problem. So try to focus on a) a reliable way to detect a longterm
-pin and b) provide an API that would tell the page to be released by its
-current owner (ideally in two modes, async to kick the process in the
-background and continue with something else and sync if there is no
-other way than waiting for the pin.
+For example:
+dump_page()
+ __dump_page()
+  PageSlab(page)
+   PF_POISONED_CHECK(page)
+    VM_BUG_ON_PGFLAGS(PagePoisoned(page), page)
+     dump_page() recursion loop.
 
+Fixes: f165b378bbdf ("mm: uninitialized struct page poisoning sanity checking")
+
+Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+---
+ mm/debug.c | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/mm/debug.c b/mm/debug.c
+index 56e2d9125ea5..469b526e6abc 100644
+--- a/mm/debug.c
++++ b/mm/debug.c
+@@ -43,12 +43,20 @@ const struct trace_print_flags vmaflag_names[] = {
+ 
+ void __dump_page(struct page *page, const char *reason)
+ {
++	bool page_poisoned = PagePoisoned(page);
++	int mapcount;
++
++	if (page_poisoned) {
++		pr_emerg("page:%px is uninitialized and poisoned", page);
++		goto hex_only;
++	}
++
+ 	/*
+ 	 * Avoid VM_BUG_ON() in page_mapcount().
+ 	 * page->_mapcount space in struct page is used by sl[aou]b pages to
+ 	 * encode own info.
+ 	 */
+-	int mapcount = PageSlab(page) ? 0 : page_mapcount(page);
++	mapcount = PageSlab(page) ? 0 : page_mapcount(page);
+ 
+ 	pr_emerg("page:%px count:%d mapcount:%d mapping:%px index:%#lx",
+ 		  page, page_ref_count(page), mapcount,
+@@ -60,6 +68,7 @@ void __dump_page(struct page *page, const char *reason)
+ 
+ 	pr_emerg("flags: %#lx(%pGp)\n", page->flags, &page->flags);
+ 
++hex_only:
+ 	print_hex_dump(KERN_ALERT, "raw: ", DUMP_PREFIX_NONE, 32,
+ 			sizeof(unsigned long), page,
+ 			sizeof(struct page), false);
+@@ -68,7 +77,7 @@ void __dump_page(struct page *page, const char *reason)
+ 		pr_alert("page dumped because: %s\n", reason);
+ 
+ #ifdef CONFIG_MEMCG
+-	if (page->mem_cgroup)
++	if (!page_poisoned && page->mem_cgroup)
+ 		pr_alert("page->mem_cgroup:%px\n", page->mem_cgroup);
+ #endif
+ }
 -- 
-Michal Hocko
-SUSE Labs
+2.18.0
