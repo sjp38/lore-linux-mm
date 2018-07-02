@@ -1,51 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B7ACD6B027B
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 16:48:50 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id 31-v6so10553847plf.19
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 13:48:50 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 3-v6si18163846pff.154.2018.07.02.13.48.49
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D3A16B027D
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 16:54:41 -0400 (EDT)
+Received: by mail-yb0-f200.google.com with SMTP id s14-v6so12895464ybg.7
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 13:54:41 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x76-v6sor4164734ywx.457.2018.07.02.13.54.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jul 2018 13:48:49 -0700 (PDT)
-Date: Mon, 2 Jul 2018 13:48:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC v3 PATCH 4/5] mm: mmap: zap pages with read mmap_sem for
- large mapping
-Message-Id: <20180702134845.c4f536dead5374b443e24270@linux-foundation.org>
-In-Reply-To: <20180702140502.GZ19043@dhcp22.suse.cz>
-References: <1530311985-31251-1-git-send-email-yang.shi@linux.alibaba.com>
-	<1530311985-31251-5-git-send-email-yang.shi@linux.alibaba.com>
-	<20180629183501.9e30c26135f11853245c56c7@linux-foundation.org>
-	<084aeccb-2c54-2299-8bf0-29a10cc0186e@linux.alibaba.com>
-	<20180629201547.5322cfc4b52d19a0443daec2@linux-foundation.org>
-	<20180702140502.GZ19043@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Mon, 02 Jul 2018 13:54:37 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <0076b929-4785-0665-0e08-789c504f6b78@redhat.com>
+References: <1530101255-13988-1-git-send-email-crecklin@redhat.com>
+ <CAGXu5jLDULvf-VBhUfBXtSNaSWpq8irgg56LT3nHDft5gZg5Lw@mail.gmail.com>
+ <5506a72f-99ac-b47c-4ace-86c43b17b5c5@redhat.com> <CAGXu5jL8XDYE+B=a_TBM2K8F-c3f4Jz6zcm3ggacbPNN2wCtpg@mail.gmail.com>
+ <0076b929-4785-0665-0e08-789c504f6b78@redhat.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Mon, 2 Jul 2018 13:54:36 -0700
+Message-ID: <CAGXu5jLXG6YKruuNc3Bnx3tuKZjNfavRwKxk-e4_-Q5mEzy5rw@mail.gmail.com>
+Subject: Re: [PATCH v3] add param that allows bootline control of hardened usercopy
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, willy@infradead.org, ldufour@linux.vnet.ibm.com, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, tglx@linutronix.de, hpa@zytor.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org
+To: Chris von Recklinghausen <crecklin@redhat.com>
+Cc: Laura Abbott <labbott@redhat.com>, Paolo Abeni <pabeni@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Mon, 2 Jul 2018 16:05:02 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+On Mon, Jul 2, 2018 at 11:55 AM, Christoph von Recklinghausen
+<crecklin@redhat.com> wrote:
+> On 07/02/2018 02:43 PM, Kees Cook wrote:
+>> On Sat, Jun 30, 2018 at 1:43 PM, Christoph von Recklinghausen
+>> <crecklin@redhat.com> wrote:
+>>> The last issue I'm chasing is build failures on ARCH=m68k. The error is
+>>> atomic_read and friends needed by the jump label code not being found.
+>>> The config has CONFIG_BROKEN_ON_SMP=y, so the jump label calls I added
+>>> will only be made #ifndef CONFIG_BROKEN_ON_SMP. Do you think that's
+>>> worth a mention in the blurb that's added to
+>>> Documentation/admin-guide/kernel-parameters.txt?
+>> Uhm, that's weird -- I think the configs on m68k need fixing then? I
+>> don't want to have to sprinkle that ifdef in generic code.
+>>
+>> How are other users of static keys and jump labels dealing with m68k weirdness?
+>>
+> There's also CONFIG_JUMP_LABEL which is defined in x86_64 but not
+> defined in the m68k configs. I'll use that instead. In hindsight I
+> should have spotted that but didn't.
 
-> On Fri 29-06-18 20:15:47, Andrew Morton wrote:
-> [...]
-> > Would one of your earlier designs have addressed all usecases?  I
-> > expect the dumb unmap-a-little-bit-at-a-time approach would have?
-> 
-> It has been already pointed out that this will not work.
+I think what I mean is that jump labels should always work. There
+shouldn't be a need to #ifdef the common usercopy code. i.e.
+include/linux/jump_label.h should work on all architectures already. I
+see HAVE_JUMP_LABEL tests there, for example:
 
-I said "one of".  There were others.
+#if defined(CC_HAVE_ASM_GOTO) && defined(CONFIG_JUMP_LABEL)
+# define HAVE_JUMP_LABEL
+#endif
 
-> You simply
-> cannot drop the mmap_sem during unmap because another thread could
-> change the address space under your feet. So you need some form of
-> VM_DEAD and handle concurrent and conflicting address space operations.
+Other core code uses static keys without this; what is the failing combination?
 
-Unclear that this is a problem.  If a thread does an unmap of a range
-of virtual address space, there's no guarantee that upon return some
-other thread has not already mapped new stuff into that address range. 
-So what's changed?
+-Kees
+
+-- 
+Kees Cook
+Pixel Security
