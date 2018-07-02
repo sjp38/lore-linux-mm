@@ -1,81 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B057A6B0006
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 04:11:44 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id j25-v6so8310657pfi.20
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 01:11:44 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a16-v6sor4448577plm.69.2018.07.02.01.11.43
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 867846B0003
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 04:45:15 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id v17-v6so1424934wmc.0
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 01:45:15 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 101-v6si8736247wrk.266.2018.07.02.01.45.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 02 Jul 2018 01:11:43 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Jul 2018 01:45:13 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w628iIiO115931
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 04:45:12 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2jygdhh1w6-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 02 Jul 2018 04:45:11 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Mon, 2 Jul 2018 09:45:10 +0100
+Subject: Re: [RFC v3 PATCH 5/5] x86: check VM_DEAD flag in page fault
+References: <1530311985-31251-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1530311985-31251-6-git-send-email-yang.shi@linux.alibaba.com>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Mon, 2 Jul 2018 10:45:03 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180630110720.c80f060abe6d163eef78e9a6@linux-foundation.org>
-References: <201806301538.bewm1wka%fengguang.wu@intel.com> <CACT4Y+b+7T3M=5EbHSpJmMAkRQnXih2+JZqeAvxht2zzKyjD2A@mail.gmail.com>
- <20180630110720.c80f060abe6d163eef78e9a6@linux-foundation.org>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 2 Jul 2018 10:11:21 +0200
-Message-ID: <CACT4Y+awX=X2-Oc+3jVBO24cYxYJ1mpkE+8KznPM+9qReyxDQA@mail.gmail.com>
-Subject: Re: /tmp/cctnQ1CM.s:35: Error: .err encountered
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <1530311985-31251-6-git-send-email-yang.shi@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <84eba553-2e0b-1a90-d543-6b22c1b3c5f8@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Yang Shi <yang.shi@linux.alibaba.com>, mhocko@kernel.org, willy@infradead.org, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, tglx@linutronix.de, hpa@zytor.com
+Cc: linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org
 
-On Sat, Jun 30, 2018 at 8:07 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Sat, 30 Jun 2018 12:27:09 +0200 Dmitry Vyukov <dvyukov@google.com> wrote:
->
->> > tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
->> > head:   1904148a361a07fb2d7cba1261d1d2c2f33c8d2e
->> > commit: 758517202bd2e427664857c9f2aa59da36848aca arm: port KCOV to arm
->> > date:   2 weeks ago
->> > config: arm-allmodconfig (attached as .config)
->> > compiler: arm-linux-gnueabi-gcc (Debian 7.2.0-11) 7.2.0
->> > reproduce:
->> >         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->> >         chmod +x ~/bin/make.cross
->> >         git checkout 758517202bd2e427664857c9f2aa59da36848aca
->> >         # save the attached .config to linux build tree
->> >         GCC_VERSION=7.2.0 make.cross ARCH=arm
->> >
->> > All errors (new ones prefixed by >>):
->> >
->> >    /tmp/cctnQ1CM.s: Assembler messages:
->> >>> /tmp/cctnQ1CM.s:35: Error: .err encountered
->> >    /tmp/cctnQ1CM.s:36: Error: .err encountered
->> >    /tmp/cctnQ1CM.s:37: Error: .err encountered
->>
->> Hi kbuild test robot,
->>
->> The fix was mailed more than a month ago, but still not merged into
->> the tree. That's linux...
->
-> That was a rather unhelpful email.
->
-> I've just scanned all your lkml emails since the start of May and
-> cannot find anything which looks like a fix for this issue.
->
-> Please resend.   About three weks ago :(
+On 30/06/2018 00:39, Yang Shi wrote:
+> Check VM_DEAD flag of vma in page fault handler, if it is set, trigger
+> SIGSEGV.
+> 
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> ---
+>  arch/x86/mm/fault.c | 4 ++++
+>  1 file changed, 4 insertions(+)
+> 
+> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+> index 9a84a0d..3fd2da5 100644
+> --- a/arch/x86/mm/fault.c
+> +++ b/arch/x86/mm/fault.c
+> @@ -1357,6 +1357,10 @@ static inline bool smap_violation(int error_code, struct pt_regs *regs)
+>  		bad_area(regs, error_code, address);
+>  		return;
+>  	}
+> +	if (unlikely(vma->vm_flags & VM_DEAD)) {
+> +		bad_area(regs, error_code, address);
+> +		return;
+> +	}
 
+This will have to be done for all the supported architectures, what about doing
+this check in handle_mm_fault() and return VM_FAULT_SIGSEGV ?
 
-Sorry. I am just frustrated by kernel development process.
-
-Bugs are untracked and get lost. Patches are untracked and get lost.
-State of patches is nontransparent for most people, including author
-(sic!). I've just got a reply on another patch along the lines of "oh,
-I've already merged some unspecified version of this patch, so please
-resent all changes since that unspecified version in a separate patch"
-(what?). It's unclear what is the designated tree and who is the
-designated responsible merger. Merging a build fixing patch takes
-months (!) whereas most other modern project processes today are
-capable of merging such changes into (the single head) tree within an
-hour provided only a single maintainer from a group is around, and
-they simply need to click a button because all tests, style and
-mergability checks have already run by that time. Resending patches
-thing should not exist unless the patch needs to be updated, condition
-which is detectable automatically.
-
-Andrew, none of this is related to you personally. That's the process
-we have today, and I understand you are doing your best.
+>  	if (error_code & X86_PF_USER) {
+>  		/*
+>  		 * Accessing the stack below %sp is always a bug.
+> 
