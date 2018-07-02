@@ -1,58 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D823D6B026B
-	for <linux-mm@kvack.org>; Sun,  1 Jul 2018 23:05:42 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id 12-v6so16374678qtq.8
-        for <linux-mm@kvack.org>; Sun, 01 Jul 2018 20:05:42 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id g17-v6si893115qtb.402.2018.07.01.20.05.41
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1190E6B0271
+	for <linux-mm@kvack.org>; Sun,  1 Jul 2018 23:12:31 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id m12-v6so2469955wma.9
+        for <linux-mm@kvack.org>; Sun, 01 Jul 2018 20:12:31 -0700 (PDT)
+Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id k7-v6si6747004wrf.130.2018.07.01.20.12.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 01 Jul 2018 20:05:41 -0700 (PDT)
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6234O2T145425
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 03:05:41 GMT
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by aserp2120.oracle.com with ESMTP id 2jx1tntmmy-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Mon, 02 Jul 2018 03:05:41 +0000
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w6235eLp032438
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 03:05:40 GMT
-Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w6235dUw000856
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 03:05:40 GMT
-Received: by mail-oi0-f45.google.com with SMTP id s198-v6so9822948oih.11
-        for <linux-mm@kvack.org>; Sun, 01 Jul 2018 20:05:39 -0700 (PDT)
+        Sun, 01 Jul 2018 20:12:29 -0700 (PDT)
+Subject: Re: [BUG] Swap xarray workingset eviction warning.
+References: <2920a634-0646-1500-7c4d-62c56932fe49@gmail.com>
+ <20180702025059.GA9865@bombadil.infradead.org>
+From: Gao Xiang <gaoxiang25@huawei.com>
+Message-ID: <cb59ba75-61eb-4559-0865-202f6c78d3d0@huawei.com>
+Date: Mon, 2 Jul 2018 11:11:53 +0800
 MIME-Version: 1.0
-References: <20180702020417.21281-1-pasha.tatashin@oracle.com>
- <20180702020417.21281-2-pasha.tatashin@oracle.com> <20180702025632.GO3223@MiWiFi-R3L-srv>
-In-Reply-To: <20180702025632.GO3223@MiWiFi-R3L-srv>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Sun, 1 Jul 2018 23:05:03 -0400
-Message-ID: <CAGM2reZhB_J4WECCDcnTSuFrN1mdCshWhmiXNnZ1=Wuyxxjb7w@mail.gmail.com>
-Subject: Re: [PATCH v3 1/2] mm/sparse: add sparse_init_nid()
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180702025059.GA9865@bombadil.infradead.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bhe@redhat.com
-Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, kirill.shutemov@linux.intel.com, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, Souptick Joarder <jrdr.linux@gmail.com>, gregkh@linuxfoundation.org, Vlastimil Babka <vbabka@suse.cz>, Wei Yang <richard.weiyang@gmail.com>, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net
+To: Matthew Wilcox <willy@infradead.org>, Peter Geis <pgwipeout@gmail.com>
+Cc: linux-fsdevel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
 
-> > +     if (!usemap) {
-> > +             pr_err("%s: usemap allocation failed", __func__);
->
-> Wondering if we can provide more useful information for better debugging
-> if failed. E.g here tell on what nid the usemap allocation failed.
->
-> > +                                                pnum, nid);
-> > +             if (!map) {
-> > +                     pr_err("%s: memory map backing failed. Some memory will not be available.",
-> > +                            __func__);
-> And here tell nid and the memory section nr failed.
+Hi Matthew,
 
-Sure, I will wait for more comments, if any, and add more info to the
-error messages in the next revision.
+On 2018/7/2 10:50, Matthew Wilcox wrote:
+> On Sun, Jul 01, 2018 at 07:09:41PM -0400, Peter Geis wrote:
+>> The warning is as follows:
+>> [10409.408904] ------------[ cut here ]------------
+>> [10409.408912] WARNING: CPU: 0 PID: 38 at ./include/linux/xarray.h:53
+>> workingset_eviction+0x14c/0x154
+> This is interesting.  Here's the code that leads to the warning:
+> 
+> static void *pack_shadow(int memcgid, pg_data_t *pgdat, unsigned long eviction)
+> {
+>         eviction >>= bucket_order;
+>         eviction = (eviction << MEM_CGROUP_ID_SHIFT) | memcgid;
+>         eviction = (eviction << NODES_SHIFT) | pgdat->node_id;
+> 
+>         return xa_mk_value(eviction);
+> }
+> 
+> The warning itself comes from:
+> 
+> static inline void *xa_mk_value(unsigned long v)
+> {
+>         WARN_ON((long)v < 0);
+>         return (void *)((v << 1) | 1);
+> }
 
-Thank you,
-Pavel
+Sorry for breaking in, how do you think about considering
+
+[RFC PATCH v4] <linux/tagptr.h>: Introduce tagged pointer
+https://marc.info/?l=linux-kernel&m=153035209012070&w=2
+
+to replace these masks? It seems boths for the XArray or old radix trees has many hacked code...
+
+or if you think this implmentation is not ok, could you please give some suggestions or alternatives on tagptr...
+
+> 
+> The fact that we haven't seen this on other architectures makes me wonder
+> if NODES_SHIFT or MEM_CGROUP_ID_SHIFT are messed up on Tegra?
+> 
+> Johannes, I wonder if you could help out here?  I'm not terribly familiar
+> with this part of the workingset code.
+Thanks,
+Gao Xiang
