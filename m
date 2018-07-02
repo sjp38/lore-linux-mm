@@ -1,46 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EA006B028F
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 18:02:16 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id g20-v6so9263471pfi.2
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 15:02:16 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c198-v6sor3352805pga.143.2018.07.02.15.02.14
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C56A66B0291
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 18:21:22 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id x2-v6so10658306plv.0
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 15:21:22 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id f17-v6si14896786pgv.383.2018.07.02.15.21.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 02 Jul 2018 15:02:15 -0700 (PDT)
-From: Shakeel Butt <shakeelb@google.com>
-Subject: [PATCH] fs-mm-account-buffer_head-to-kmemcg.patch.fix
-Date: Mon,  2 Jul 2018 15:02:08 -0700
-Message-Id: <20180702220208.213380-1-shakeelb@google.com>
-In-Reply-To: <20180627191250.209150-3-shakeelb@google.com>
-References: <20180627191250.209150-3-shakeelb@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 02 Jul 2018 15:21:21 -0700 (PDT)
+Date: Mon, 2 Jul 2018 15:21:05 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v5 0/6] fs/dcache: Track & limit # of negative dentries
+Message-ID: <20180702222105.GA2438@bombadil.infradead.org>
+References: <1530510723-24814-1-git-send-email-longman@redhat.com>
+ <CA+55aFyH6dHw-7R3364dn32J4p7kxT=TqmnuozCn9_Bz-MHhxQ@mail.gmail.com>
+ <20180702141811.ef027fd7d8087b7fb2ba0cce@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180702141811.ef027fd7d8087b7fb2ba0cce@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Shakeel Butt <shakeelb@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <longman@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>
 
-The patch "fs, mm: account buffer_head to kmemcg" missed to add
-__GFP_ACCOUNT flag into the gfp mask for directed memcg charging. So,
-adding it. Andrew, please squash this into the original patch.
+On Mon, Jul 02, 2018 at 02:18:11PM -0700, Andrew Morton wrote:
+> In the [5/6] changelog it is mentioned that a large number of -ve
+> dentries can lead to oom-killings.  This sounds bad - -ve dentries
+> should be trivially reclaimable and we shouldn't be oom-killing in such
+> a situation.
+> 
+> Dumb question: do we know that negative dentries are actually
+> worthwhile?  Has anyone checked in the past couple of decades?  Perhaps
+> our lookups are so whizzy nowadays that we don't need them?
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
----
- fs/buffer.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+I can't believe that's true.  Have you looked at strace of a typical
+program startup recently?
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index e08863af56f6..405d4723ed3d 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -814,7 +814,7 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
- 		bool retry)
- {
- 	struct buffer_head *bh, *head;
--	gfp_t gfp = GFP_NOFS;
-+	gfp_t gfp = GFP_NOFS | __GFP_ACCOUNT;
- 	long offset;
- 	struct mem_cgroup *memcg;
- 
--- 
-2.18.0.399.gad0ab374a1-goog
+$ strace -o ls.out ls 
+$ grep -c ENOENT ls.out 
+10
+
+There's a few duplicates in there (6 accesses to /etc/ld.so.nohwcap), so
+we definitely want those negative entries.
