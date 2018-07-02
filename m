@@ -1,76 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id ECA1A6B000E
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 16:00:47 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id m1-v6so6858164pgr.3
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 13:00:47 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id q14-v6si16246740pll.324.2018.07.02.13.00.46
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 335D46B0006
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 16:05:43 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id x13-v6so14189799iog.16
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 13:05:43 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id s188-v6si4652732iod.68.2018.07.02.13.05.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jul 2018 13:00:46 -0700 (PDT)
-Subject: Re: [PATCH v3 2/2] mm/sparse: start using sparse_init_nid(), and
- remove old code
-References: <20180702020417.21281-1-pasha.tatashin@oracle.com>
- <20180702020417.21281-3-pasha.tatashin@oracle.com>
- <552d5a9b-0ca9-cc30-d8c2-33dc1cde917f@intel.com>
- <b227cf00-a1dd-5371-aafd-9feb332e9d02@oracle.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <38a2629d-689c-4592-9bd7-a77ab1b2045c@intel.com>
-Date: Mon, 2 Jul 2018 13:00:43 -0700
+        Mon, 02 Jul 2018 13:05:42 -0700 (PDT)
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w62K4bpP102376
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 20:05:41 GMT
+Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
+	by aserp2120.oracle.com with ESMTP id 2jx1tnwvy2-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Mon, 02 Jul 2018 20:05:41 +0000
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w62K5eS3016988
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 20:05:40 GMT
+Received: from abhmp0014.oracle.com (abhmp0014.oracle.com [141.146.116.20])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w62K5eUg011453
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 20:05:40 GMT
+Received: by mail-oi0-f52.google.com with SMTP id d189-v6so9983480oib.6
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 13:05:39 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <b227cf00-a1dd-5371-aafd-9feb332e9d02@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <20180607100256.GA9129@hori1.linux.bs1.fc.nec.co.jp>
+ <20180613054107.GA5329@hori1.linux.bs1.fc.nec.co.jp> <20180613090700.GG13364@dhcp22.suse.cz>
+ <20180614051618.GB17860@hori1.linux.bs1.fc.nec.co.jp> <20180614053859.GA9863@techadventures.net>
+ <20180614063454.GA32419@hori1.linux.bs1.fc.nec.co.jp> <20180614213033.GA19374@techadventures.net>
+ <20180615010927.GC1196@hori1.linux.bs1.fc.nec.co.jp> <20180615072947.GB23273@hori1.linux.bs1.fc.nec.co.jp>
+ <20180615084142.GE24039@dhcp22.suse.cz> <20180615140000.44tht4f3ek3lh2u2@xakep.localdomain>
+ <20180618163616.52645949a8e4a0f73819fd62@linux-foundation.org>
+In-Reply-To: <20180618163616.52645949a8e4a0f73819fd62@linux-foundation.org>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Mon, 2 Jul 2018 16:05:04 -0400
+Message-ID: <CAGM2reZ6PTYw3NivSCO5WMCrYGJH_-piz8TtYgpwLWT=SnBGYA@mail.gmail.com>
+Subject: Re: [PATCH v3] x86/e820: put !E820_TYPE_RAM regions into memblock.reserved
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, bhe@redhat.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: mhocko@kernel.org, n-horiguchi@ah.jp.nec.com, Linux Memory Management List <linux-mm@kvack.org>, osalvador@techadventures.net, osalvador@suse.de, Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, willy@infradead.org, LKML <linux-kernel@vger.kernel.org>, mingo@kernel.org, dan.j.williams@intel.com, ying.huang@intel.com
 
-On 07/02/2018 12:54 PM, Pavel Tatashin wrote:
-> 
-> 
-> On 07/02/2018 03:47 PM, Dave Hansen wrote:
->> On 07/01/2018 07:04 PM, Pavel Tatashin wrote:
->>> +	for_each_present_section_nr(pnum_begin + 1, pnum_end) {
->>> +		int nid = sparse_early_nid(__nr_to_section(pnum_end));
->>>  
->>> +		if (nid == nid_begin) {
->>> +			map_count++;
->>>  			continue;
->>>  		}
->>
->>> +		sparse_init_nid(nid_begin, pnum_begin, pnum_end, map_count);
->>> +		nid_begin = nid;
->>> +		pnum_begin = pnum_end;
->>> +		map_count = 1;
->>>  	}
->>
->> Ugh, this is really hard to read.  Especially because the pnum "counter"
->> is called "pnum_end".
-> 
-> I called it pnum_end, because that is what is passed to
-> sparse_init_nid(), but I see your point, and I can rename pnum_end to
-> simply pnum if that will make things look better.
+> So I expect this patch needs a cc:stable, which I'll add.
+>
+> The optimiation patch seems less important and I'd like to hold that
+> off for 4.19-rc1?
 
-Could you just make it a helper that takes a beginning pnum and returns
-the number of consecutive sections?
+Hi Andrew,
 
->> So, this is basically a loop that collects all of the adjacent sections
->> in a given single nid and then calls sparse_init_nid().  pnum_end in
->> this case is non-inclusive, so the sparse_init_nid() call is actually
->> for the *previous* nid that pnum_end is pointing _past_.
->>
->> This *really* needs commenting.
-> 
-> There is a comment before sparse_init_nid() about inclusiveness:
-> 
-> 434 /*
-> 435  * Initialize sparse on a specific node. The node spans [pnum_begin, pnum_end)
-> 436  * And number of present sections in this node is map_count.
-> 437  */
-> 438 static void __init sparse_init_nid(int nid, unsigned long pnum_begin,
-> 439                                    unsigned long pnum_end,
-> 440                                    unsigned long map_count)
+Should I resend the optimization patch [1] once 4.18 is released, or
+will you include it, and I do not need to do anything?
 
-Which I totally missed.  Could you comment the code, please?
+[1] http://lkml.kernel.org/r/20180615155733.1175-1-pasha.tatashin@oracle.com
+
+Thank you,
+Pavel
