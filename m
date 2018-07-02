@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F1A336B0006
-	for <linux-mm@kvack.org>; Sun,  1 Jul 2018 21:34:08 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id d23-v6so16186385qtj.12
-        for <linux-mm@kvack.org>; Sun, 01 Jul 2018 18:34:08 -0700 (PDT)
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 39B8D6B0008
+	for <linux-mm@kvack.org>; Sun,  1 Jul 2018 21:39:25 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id h67-v6so5336943qke.18
+        for <linux-mm@kvack.org>; Sun, 01 Jul 2018 18:39:25 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id w3-v6si2501648qto.309.2018.07.01.18.34.07
+        by mx.google.com with ESMTPS id w3-v6si2508185qto.309.2018.07.01.18.39.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 01 Jul 2018 18:34:08 -0700 (PDT)
-Date: Mon, 2 Jul 2018 09:34:02 +0800
+        Sun, 01 Jul 2018 18:39:24 -0700 (PDT)
+Date: Mon, 2 Jul 2018 09:39:18 +0800
 From: Baoquan He <bhe@redhat.com>
 Subject: Re: [PATCH v2 2/2] mm/sparse: start using sparse_init_nid(), and
  remove old code
-Message-ID: <20180702013402.GI3223@MiWiFi-R3L-srv>
+Message-ID: <20180702013918.GJ3223@MiWiFi-R3L-srv>
 References: <20180630030944.9335-1-pasha.tatashin@oracle.com>
  <20180630030944.9335-3-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
@@ -25,16 +25,11 @@ List-ID: <linux-mm.kvack.org>
 To: Pavel Tatashin <pasha.tatashin@oracle.com>
 Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net
 
-Hi Pavel,
-
 On 06/29/18 at 11:09pm, Pavel Tatashin wrote:
 > Change sprase_init() to only find the pnum ranges that belong to a specific
 > node and call sprase_init_nid() for that range from sparse_init().
 > 
 > Delete all the code that became obsolete with this change.
-
-> @@ -617,87 +491,24 @@ void __init sparse_init_nid(int nid, unsigned long pnum_begin,
->   */
 >  void __init sparse_init(void)
 >  {
 > -	unsigned long pnum;
@@ -53,14 +48,6 @@ On 06/29/18 at 11:09pm, Pavel Tatashin wrote:
 >  
 > -	/* Setup pageblock_order for HUGETLB_PAGE_SIZE_VARIABLE */
 > -	set_pageblock_order();
-
-Not very sure if removing set_pageblock_order() calling here is OK. What
-if CONFIG_HUGETLB_PAGE_SIZE_VARIABLE is enabled? usemap_size() depends
-on value of 'pageblock_order'.
-
-Thanks
-Baoquan
-
 > +	for_each_present_section_nr(pnum_begin + 1, pnum_end) {
 > +		int nid = sparse_early_nid(__nr_to_section(pnum_end));
 >  
@@ -128,6 +115,12 @@ Baoquan
 > -								usemap);
 > -		nr_consumed_maps++;
 > +		sparse_init_nid(nid, pnum_begin, pnum_end, map_count);
+				~~~
+Here, node id passed to sparse_init_nid() should be 'nid_begin', but not
+'nid'. When you found out the current section's 'nid' is diferent than
+'nid_begin', handle node 'nid_begin', then start to next node 'nid'.
+
+
 > +		nid_begin = nid;
 > +		pnum_begin = pnum_end;
 > +		map_count = 1;
