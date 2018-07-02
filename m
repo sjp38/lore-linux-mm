@@ -1,175 +1,227 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BBF036B027F
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 17:33:42 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id f8-v6so19113310qtb.23
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 14:33:42 -0700 (PDT)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0126.outbound.protection.outlook.com. [104.47.38.126])
-        by mx.google.com with ESMTPS id p1-v6si1741422qvn.128.2018.07.02.14.33.41
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C6E596B0286
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 17:35:09 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id n2-v6so85461edr.5
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 14:35:09 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id i21-v6si9625201edg.70.2018.07.02.14.35.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 02 Jul 2018 14:33:41 -0700 (PDT)
-From: <andy_purcell@keysight.com>
-Subject: need help with slub.c duplicate filename '/kernel/slab/:t-0000048'
- problem
-Date: Mon, 2 Jul 2018 21:33:39 +0000
-Message-ID: <CY4PR17MB1160BFB32620C1DD5646A9839F430@CY4PR17MB1160.namprd17.prod.outlook.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Jul 2018 14:35:08 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w62LTbOS014560
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 17:35:06 -0400
+Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2jyrs8yfk3-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 02 Jul 2018 17:35:05 -0400
+Received: from localhost
+	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Mon, 2 Jul 2018 17:35:04 -0400
+Date: Mon, 2 Jul 2018 14:37:14 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm,oom: Bring OOM notifier callbacks to outside of OOM
+ killer.
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <2d8c3056-1bc2-9a32-d745-ab328fd587a1@i-love.sakura.ne.jp>
+ <20180626170345.GA3593@linux.vnet.ibm.com>
+ <20180627072207.GB32348@dhcp22.suse.cz>
+ <20180627143125.GW3593@linux.vnet.ibm.com>
+ <20180628113942.GD32348@dhcp22.suse.cz>
+ <20180628213105.GP3593@linux.vnet.ibm.com>
+ <20180629090419.GD13860@dhcp22.suse.cz>
+ <20180629125218.GX3593@linux.vnet.ibm.com>
+ <20180629132638.GD5963@dhcp22.suse.cz>
+ <20180630170522.GZ3593@linux.vnet.ibm.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180630170522.GZ3593@linux.vnet.ibm.com>
+Message-Id: <20180702213714.GA7604@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-Hello,
+On Sat, Jun 30, 2018 at 10:05:22AM -0700, Paul E. McKenney wrote:
+> On Fri, Jun 29, 2018 at 03:26:38PM +0200, Michal Hocko wrote:
+> > On Fri 29-06-18 05:52:18, Paul E. McKenney wrote:
+> > > On Fri, Jun 29, 2018 at 11:04:19AM +0200, Michal Hocko wrote:
+> > > > On Thu 28-06-18 14:31:05, Paul E. McKenney wrote:
+> > > > > On Thu, Jun 28, 2018 at 01:39:42PM +0200, Michal Hocko wrote:
+> > [...]
+> > > > > > Well, I am not really sure what is the objective of the oom notifier to
+> > > > > > point you to the right direction. IIUC you just want to kick callbacks
+> > > > > > to be handled sooner under a heavy memory pressure, right? How is that
+> > > > > > achieved? Kick a worker?
+> > > > > 
+> > > > > That is achieved by enqueuing a non-lazy callback on each CPU's callback
+> > > > > list, but only for those CPUs having non-empty lists.  This causes
+> > > > > CPUs with lists containing only lazy callbacks to be more aggressive,
+> > > > > in particular, it prevents such CPUs from hanging out idle for seconds
+> > > > > at a time while they have callbacks on their lists.
+> > > > > 
+> > > > > The enqueuing happens via an IPI to the CPU in question.
+> > > > 
+> > > > I am afraid this is too low level for my to understand what is going on
+> > > > here. What are lazy callbacks and why do they need any specific action
+> > > > when we are getting close to OOM? I mean, I do understand that we might
+> > > > have many callers of call_rcu and free memory lazily. But there is quite
+> > > > a long way before we start the reclaim until we reach the OOM killer path.
+> > > > So why don't those callbacks get called during that time period? How are
+> > > > their triggered when we are not hitting the OOM path? They surely cannot
+> > > > sit there for ever, right? Can we trigger them sooner? Maybe the
+> > > > shrinker is not the best fit but we have a retry feedback loop in the page
+> > > > allocator, maybe we can kick this processing from there.
+> > > 
+> > > The effect of RCU's current OOM code is to speed up callback invocation
+> > > by at most a few seconds (assuming no stalled CPUs, in which case
+> > > it is not possible to speed up callback invocation).
+> > > 
+> > > Given that, I should just remove RCU's OOM code entirely?
+> > 
+> > Yeah, it seems so. I do not see how this would really help much. If we
+> > really need some way to kick callbacks then we should do so much earlier
+> > in the reclaim process - e.g. when we start struggling to reclaim any
+> > memory.
+> 
+> One approach would be to tell RCU "It is time to trade CPU for memory"
+> at the beginning of that struggle and then tell RCU "Go back to optimizing
+> for CPU" at the end of that struggle.  Is there already a way to do this?
+> If so, RCU should probably just switch to it.
+> 
+> But what is the typical duration of such a struggle?  Does this duration
+> change with workload?  (I suspect that the answers are "who knows?" and
+> "yes", but you tell me!)  Are there other oom handlers that would prefer
+> the approach of the previous paragraph?
+> 
+> > I am curious. Has the notifier been motivated by a real world use case
+> > or it was "nice thing to do"?
+> 
+> It was introduced by b626c1b689364 ("rcu: Provide OOM handler to motivate
+> lazy RCU callbacks").  The motivation for this commit was a set of changes
+> that improved energy efficiency by making CPUs sleep for longer when all
+> of their pending callbacks were known to only free memory (as opposed
+> to doing a wakeup or some such).  Prior to this set of changes, a CPU
+> with callbacks would invoke those callbacks (thus freeing the memory)
+> within a jiffy or so of the end of a grace period.  After this set of
+> changes, a CPU might wait several seconds.  This was a concern to people
+> with small-memory systems, hence commit b626c1b689364.
 
-I am using a Linux kernel =3D 4.14.13. Debug.=20
+And here is a commit removing RCU's OOM handler.  Thoughts?
 
-The problem:=20
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-If I attach a USB flash drive and then turn my device power on, then during=
- the boot, I see this: =20
-             sysfs: cannot create duplicate filename '/kernel/slab/:t-00000=
-48'
+							Thanx, Paul
 
-Result: the application does not boot successfully.=20
-This happens about 50% of the time when booting with the USB flash drive at=
-tached.=20
-Flash drive is FAT32, 3.7 GBytes.=20
+------------------------------------------------------------------------
 
-This happens with several different USB flash drives.=20
+commit d2b8d16b97ac2859919713b2d98b8a3ad22943a2
+Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+Date:   Mon Jul 2 14:30:37 2018 -0700
 
----------------- more complete output below --------------------
-ubi0: attaching mtd13
-usb 2-1: new high-speed USB device number 2 using xxx-ehci
-ubi0: scanning is finished
-usb-storage 2-1:1.0: USB Mass Storage device detected
-ubi0: attached mtd13 (name "rootfs", size 104 MiB)
-ubi0: PEB size: 131072 bytes (128 KiB), LEB size: 129024 bytes
-ubi0: min./max. I/O unit sizes: 2048/2048, sub-page size 512
-ubi0: VID header offset: 512 (aligned 512), data offset: 2048
-ubi0: good PEBs: 836, bad PEBs: 0, corrupted PEBs: 0
-ubi0: user volume: 3, internal volumes: 1, max. volumes count: 128
-ubi0: max/mean erase counter: 1/0, WL threshold: 4096, image sequence numbe=
-r: 1705465617
-ubi0: available PEBs: 180, total reserved PEBs: 656, PEBs reserved for bad =
-PEB handling: 40
-ubi1: attaching mtd11
-ubi0: background thread "ubi_bgt0d" started, PID 714
-ubi1: scanning is finished
-ubi1: attached mtd11 (name "system-storage", size 8 MiB)
-ubi1: PEB size: 131072 bytes (128 KiB), LEB size: 129024 bytes
-ubi1: min./max. I/O unit sizes: 2048/2048, sub-page size 512
-ubi1: VID header offset: 512 (aligned 512), data offset: 2048
-ubi1: good PEBs: 64, bad PEBs: 0, corrupted PEBs: 0
-ubi1: user volume: 1, internal volumes: 1, max. volumes count: 128
-ubi1: max/mean erase counter: 2/0, WL threshold: 4096, image sequence numbe=
-r: 945702109
-ubi1: available PEBs: 0, total reserved PEBs: 64, PEBs reserved for bad PEB=
- handling: 40
-ubi2: attaching mtd12
-------------[ cut here ]------------
-WARNING: CPU: 0 PID: 1 at /var/lib/jenkins/workspace/Rocky.Scheduled.Build/=
-bitbake/build/tmp/development/tlo/work-shared/xxx/development/kernel-source=
-/fs/sysfs/dir.c:31 sysfs_warn_dup+0x54/0x74
-sysfs: cannot create duplicate filename '/kernel/slab/:t-0000048'
-Modules linked in:
-CPU: 0 PID: 1 Comm: swapper Not tainted 4.14.13-andyp-development #1 Hardwa=
-re name: xxx (Flattened Device Tree) [<c000f7c4>] (unwind_backtrace) from [=
-<c000d758>] (show_stack+0x10/0x14) [<c000d758>] (show_stack) from [<c00174d=
-8>] (__warn+0xd4/0xfc) [<c00174d8>] (__warn) from [<c0017538>] (warn_slowpa=
-th_fmt+0x38/0x48) [<c0017538>] (warn_slowpath_fmt) from [<c012e5b8>] (sysfs=
-_warn_dup+0x54/0x74) [<c012e5b8>] (sysfs_warn_dup) from [<c012e69c>] (sysfs=
-_create_dir_ns+0x80/0x94) [<c012e69c>] (sysfs_create_dir_ns) from [<c04ea88=
-c>] (kobject_add_internal+0x9c/0x2d8) [<c04ea88c>] (kobject_add_internal) f=
-rom [<c04eace8>] (kobject_init_and_add+0x44/0x6c) [<c04eace8>] (kobject_ini=
-t_and_add) from [<c00c1a6c>] (sysfs_slab_add+0x124/0x230) [<c00c1a6c>] (sys=
-fs_slab_add) from [<c00c2bb8>] (__kmem_cache_create+0x108/0x33c) [<c00c2bb8=
->] (__kmem_cache_create) from [<c009d644>] (kmem_cache_create+0x114/0x22c) =
-[<c009d644>] (kmem_cache_create) from [<c031ca3c>] (ubi_attach+0x94/0x1608)=
- [<c031ca3c>] (ubi_attach) from [<c031130c>] (ubi_attach_mtd_dev+0x3e4/0xb7=
-4) [<c031130c>] (ubi_attach_mtd_dev) from [<c06732b8>] (ubi_init+0x164/0x21=
-c) [<c06732b8>] (ubi_init) from [<c0009978>] (do_one_initcall+0x3c/0x174) [=
-<c0009978>] (do_one_initcall) from [<c065dd60>] (kernel_init_freeable+0x108=
-/0x1bc)
-[<c065dd60>] (kernel_init_freeable) from [<c04fa710>] (kernel_init+0x8/0xf4=
-) [<c04fa710>] (kernel_init) from [<c000a740>] (ret_from_fork+0x14/0x34) --=
--[ end trace ba5c8beef5034fec ]--- ------------[ cut here ]------------
-WARNING: CPU: 0 PID: 1 at /var/lib/jenkins/workspace/Rocky.Scheduled.Build/=
-bitbake/build/tmp/development/tlo/work-shared/xxx/development/kernel-source=
-/lib/kobject.c:240 kobject_add_internal+0x230/0x2d8 kobject_add_internal fa=
-iled for :t-0000048 with -EEXIST, don't try to register things with the sam=
-e name in the same directory.
-Modules linked in:
-CPU: 0 PID: 1 Comm: swapper Tainted: G        W       4.14.13-andyp-develop=
-ment #1
-Hardware name: xxx (Flattened Device Tree) [<c000f7c4>] (unwind_backtrace) =
-from [<c000d758>] (show_stack+0x10/0x14) [<c000d758>] (show_stack) from [<c=
-00174d8>] (__warn+0xd4/0xfc) [<c00174d8>] (__warn) from [<c0017538>] (warn_=
-slowpath_fmt+0x38/0x48) [<c0017538>] (warn_slowpath_fmt) from [<c04eaa20>] =
-(kobject_add_internal+0x230/0x2d8)
-[<c04eaa20>] (kobject_add_internal) from [<c04eace8>] (kobject_init_and_add=
-+0x44/0x6c) [<c04eace8>] (kobject_init_and_add) from [<c00c1a6c>] (sysfs_sl=
-ab_add+0x124/0x230) [<c00c1a6c>] (sysfs_slab_add) from [<c00c2bb8>] (__kmem=
-_cache_create+0x108/0x33c) [<c00c2bb8>] (__kmem_cache_create) from [<c009d6=
-44>] (kmem_cache_create+0x114/0x22c) [<c009d644>] (kmem_cache_create) from =
-[<c031ca3c>] (ubi_attach+0x94/0x1608) [<c031ca3c>] (ubi_attach) from [<c031=
-130c>] (ubi_attach_mtd_dev+0x3e4/0xb74) [<c031130c>] (ubi_attach_mtd_dev) f=
-rom [<c06732b8>] (ubi_init+0x164/0x21c) [<c06732b8>] (ubi_init) from [<c000=
-9978>] (do_one_initcall+0x3c/0x174) [<c0009978>] (do_one_initcall) from [<c=
-065dd60>] (kernel_init_freeable+0x108/0x1bc)
-[<c065dd60>] (kernel_init_freeable) from [<c04fa710>] (kernel_init+0x8/0xf4=
-) [<c04fa710>] (kernel_init) from [<c000a740>] (ret_from_fork+0x14/0x34) --=
--[ end trace ba5c8beef5034fed ]---
-kmem_cache_create(ubi_aeb_slab_cache) failed with error -17
-CPU: 0 PID: 1 Comm: swapper Tainted: G        W       4.14.13-andyp-develop=
-ment #1
- [<c000f7c4>] (unwind_backtrace) from [<c000d758>] (show_stack+0x10/0x14) [=
-<c000d758>] (show_stack) from [<c009d588>] (kmem_cache_create+0x58/0x22c) [=
-<c009d588>] (kmem_cache_create) from [<c031ca3c>] (ubi_attach+0x94/0x1608) =
-[<c031ca3c>] (ubi_attach) from [<c031130c>] (ubi_attach_mtd_dev+0x3e4/0xb74=
-) [<c031130c>] (ubi_attach_mtd_dev) from [<c06732b8>] (ubi_init+0x164/0x21c=
-) [<c06732b8>] (ubi_init) from [<c0009978>] (do_one_initcall+0x3c/0x174) [<=
-c0009978>] (do_one_initcall) from [<c065dd60>] (kernel_init_freeable+0x108/=
-0x1bc)
-[<c065dd60>] (kernel_init_freeable) from [<c04fa710>] (kernel_init+0x8/0xf4=
-) [<c04fa710>] (kernel_init) from [<c000a740>] (ret_from_fork+0x14/0x34)
-ubi2 error: ubi_attach_mtd_dev: failed to attach mtd12, error -12 UBI error=
-: cannot attach mtd12 block ubiblock0_0: created from ubi0:0(rootfs)
-ubi1: background thread "ubi_bgt1d" started, PID 718 bq32k 0-0068: setting =
-system clock to 2018-07-02 09:32:41 UTC (1530523961)
-uart-pl011 d0000000.serial: no DMA platform data scsi host0: usb-storage 2-=
-1:1.0
-VFS: Mounted root (squashfs filesystem) readonly on device 253:0.
-devtmpfs: mounted
+    rcu: Remove OOM code
+    
+    There is reason to believe that RCU's OOM code isn't really helping
+    that much, given that the best it can hope to do is accelerate invoking
+    callbacks by a few seconds, and even then only if some CPUs have no
+    non-lazy callbacks, a condition that has been observed to be rare.
+    This commit therefore removes RCU's OOM code.  If this causes problems,
+    it can easily be reinserted.
+    
+    Reported-by: Michal Hocko <mhocko@kernel.org>
+    Reported-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+    Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-
-Additional observation:=20
-1. if the ubi background thread starts before the next ubi volume attach ge=
-ts started, then the duplicate filename problem does not happen.=20
-
-  Example of PASS
-  ubi0: background thread "ubi_bgt0d" started, PID 721                  ...=
-.. background thread started before next ubi attaching message...=20
-  ubi1: attaching mtd11
-
-2. If the ubi background thread is delayed from starting until after the ne=
-xt ubi volume attach is started, the duplicate filename problem does happen=
-=20
-
-  Example of FAIL:=20
-  ubi0: available PEBs: 180, total reserved PEBs: 656, PEBs reserved for ba=
-d PEB handling: 40
-  ubi1: attaching mtd11
-  ubi0: background thread "ubi_bgt0d" started, PID 714                     =
-..... background thread started after next ubi attaching message...
-  ...=20
-  sysfs: cannot create duplicate filename '/kernel/slab/:t-0000048'
-
-
-I am looking for suggestions on how to fix this.=20
-Any suggestions are greatly appreciated.
-
-
-Andy Purcell
+diff --git a/kernel/rcu/tree_plugin.h b/kernel/rcu/tree_plugin.h
+index 3f3796b10c71..3d7ce73e7309 100644
+--- a/kernel/rcu/tree_plugin.h
++++ b/kernel/rcu/tree_plugin.h
+@@ -1722,87 +1722,6 @@ static void rcu_idle_count_callbacks_posted(void)
+ 	__this_cpu_add(rcu_dynticks.nonlazy_posted, 1);
+ }
+ 
+-/*
+- * Data for flushing lazy RCU callbacks at OOM time.
+- */
+-static atomic_t oom_callback_count;
+-static DECLARE_WAIT_QUEUE_HEAD(oom_callback_wq);
+-
+-/*
+- * RCU OOM callback -- decrement the outstanding count and deliver the
+- * wake-up if we are the last one.
+- */
+-static void rcu_oom_callback(struct rcu_head *rhp)
+-{
+-	if (atomic_dec_and_test(&oom_callback_count))
+-		wake_up(&oom_callback_wq);
+-}
+-
+-/*
+- * Post an rcu_oom_notify callback on the current CPU if it has at
+- * least one lazy callback.  This will unnecessarily post callbacks
+- * to CPUs that already have a non-lazy callback at the end of their
+- * callback list, but this is an infrequent operation, so accept some
+- * extra overhead to keep things simple.
+- */
+-static void rcu_oom_notify_cpu(void *unused)
+-{
+-	struct rcu_state *rsp;
+-	struct rcu_data *rdp;
+-
+-	for_each_rcu_flavor(rsp) {
+-		rdp = raw_cpu_ptr(rsp->rda);
+-		if (rcu_segcblist_n_lazy_cbs(&rdp->cblist)) {
+-			atomic_inc(&oom_callback_count);
+-			rsp->call(&rdp->oom_head, rcu_oom_callback);
+-		}
+-	}
+-}
+-
+-/*
+- * If low on memory, ensure that each CPU has a non-lazy callback.
+- * This will wake up CPUs that have only lazy callbacks, in turn
+- * ensuring that they free up the corresponding memory in a timely manner.
+- * Because an uncertain amount of memory will be freed in some uncertain
+- * timeframe, we do not claim to have freed anything.
+- */
+-static int rcu_oom_notify(struct notifier_block *self,
+-			  unsigned long notused, void *nfreed)
+-{
+-	int cpu;
+-
+-	/* Wait for callbacks from earlier instance to complete. */
+-	wait_event(oom_callback_wq, atomic_read(&oom_callback_count) == 0);
+-	smp_mb(); /* Ensure callback reuse happens after callback invocation. */
+-
+-	/*
+-	 * Prevent premature wakeup: ensure that all increments happen
+-	 * before there is a chance of the counter reaching zero.
+-	 */
+-	atomic_set(&oom_callback_count, 1);
+-
+-	for_each_online_cpu(cpu) {
+-		smp_call_function_single(cpu, rcu_oom_notify_cpu, NULL, 1);
+-		cond_resched_tasks_rcu_qs();
+-	}
+-
+-	/* Unconditionally decrement: no need to wake ourselves up. */
+-	atomic_dec(&oom_callback_count);
+-
+-	return NOTIFY_OK;
+-}
+-
+-static struct notifier_block rcu_oom_nb = {
+-	.notifier_call = rcu_oom_notify
+-};
+-
+-static int __init rcu_register_oom_notifier(void)
+-{
+-	register_oom_notifier(&rcu_oom_nb);
+-	return 0;
+-}
+-early_initcall(rcu_register_oom_notifier);
+-
+ #endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */
+ 
+ #ifdef CONFIG_RCU_FAST_NO_HZ
