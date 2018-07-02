@@ -1,96 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C2C146B026D
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 08:25:04 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id 31-v6so9932408plf.19
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 05:25:04 -0700 (PDT)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0077.outbound.protection.outlook.com. [104.47.41.77])
-        by mx.google.com with ESMTPS id o33-v6si16059602plb.432.2018.07.02.05.25.03
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B55176B0003
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 08:26:20 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l4-v6so3587515wmc.7
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 05:26:20 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id f137-v6si5547174wmg.24.2018.07.02.05.26.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 02 Jul 2018 05:25:03 -0700 (PDT)
-Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
-References: <20180622150242.16558-1-mhocko@kernel.org>
- <20180627074421.GF32348@dhcp22.suse.cz>
- <71f4184c-21ea-5af1-eeb6-bf7787614e2d@amd.com>
- <20180702115423.GK19043@dhcp22.suse.cz>
- <725cb1ad-01b0-42b5-56f0-c08c29804cb4@amd.com>
- <20180702122003.GN19043@dhcp22.suse.cz>
-From: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
-Message-ID: <02d1d52c-f534-f899-a18c-a3169123ac7c@amd.com>
-Date: Mon, 2 Jul 2018 14:24:29 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Jul 2018 05:26:19 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w62COCAl029084
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 08:26:18 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2jyjaxv3cx-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 02 Jul 2018 08:26:17 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Mon, 2 Jul 2018 13:26:16 +0100
+Subject: Re: [RFC v3 PATCH 5/5] x86: check VM_DEAD flag in page fault
+References: <1530311985-31251-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1530311985-31251-6-git-send-email-yang.shi@linux.alibaba.com>
+ <84eba553-2e0b-1a90-d543-6b22c1b3c5f8@linux.vnet.ibm.com>
+ <20180702121528.GM19043@dhcp22.suse.cz>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Mon, 2 Jul 2018 14:26:09 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180702122003.GN19043@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180702121528.GM19043@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <80406cbd-67f4-ca4c-cd54-aeb305579a72@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Felix Kuehling <felix.kuehling@amd.com>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>, willy@infradead.org, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, tglx@linutronix.de, hpa@zytor.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org
 
-Am 02.07.2018 um 14:20 schrieb Michal Hocko:
-> On Mon 02-07-18 14:13:42, Christian KA?nig wrote:
->> Am 02.07.2018 um 13:54 schrieb Michal Hocko:
->>> On Mon 02-07-18 11:14:58, Christian KA?nig wrote:
->>>> Am 27.06.2018 um 09:44 schrieb Michal Hocko:
->>>>> This is the v2 of RFC based on the feedback I've received so far. The
->>>>> code even compiles as a bonus ;) I haven't runtime tested it yet, mostly
->>>>> because I have no idea how.
->>>>>
->>>>> Any further feedback is highly appreciated of course.
->>>> That sounds like it should work and at least the amdgpu changes now look
->>>> good to me on first glance.
->>>>
->>>> Can you split that up further in the usual way? E.g. adding the blockable
->>>> flag in one patch and fixing all implementations of the MMU notifier in
->>>> follow up patches.
->>> But such a code would be broken, no? Ignoring the blockable state will
->>> simply lead to lockups until the fixup parts get applied.
->> Well to still be bisect-able you only need to get the interface change in
->> first with fixing the function signature of the implementations.
-> That would only work if those functions return -AGAIN unconditionally.
-> Otherwise they would pretend to not block while that would be obviously
-> incorrect. This doesn't sound correct to me.
->
->> Then add all the new code to the implementations and last start to actually
->> use the new interface.
+On 02/07/2018 14:15, Michal Hocko wrote:
+> On Mon 02-07-18 10:45:03, Laurent Dufour wrote:
+>> On 30/06/2018 00:39, Yang Shi wrote:
+>>> Check VM_DEAD flag of vma in page fault handler, if it is set, trigger
+>>> SIGSEGV.
+>>>
+>>> Cc: Michal Hocko <mhocko@kernel.org>
+>>> Cc: Thomas Gleixner <tglx@linutronix.de>
+>>> Cc: Ingo Molnar <mingo@redhat.com>
+>>> Cc: "H. Peter Anvin" <hpa@zytor.com>
+>>> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+>>> ---
+>>>  arch/x86/mm/fault.c | 4 ++++
+>>>  1 file changed, 4 insertions(+)
+>>>
+>>> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+>>> index 9a84a0d..3fd2da5 100644
+>>> --- a/arch/x86/mm/fault.c
+>>> +++ b/arch/x86/mm/fault.c
+>>> @@ -1357,6 +1357,10 @@ static inline bool smap_violation(int error_code, struct pt_regs *regs)
+>>>  		bad_area(regs, error_code, address);
+>>>  		return;
+>>>  	}
+>>> +	if (unlikely(vma->vm_flags & VM_DEAD)) {
+>>> +		bad_area(regs, error_code, address);
+>>> +		return;
+>>> +	}
 >>
->> That is a pattern we use regularly and I think it's good practice to do
->> this.
-> But we do rely on the proper blockable handling.
+>> This will have to be done for all the supported architectures, what about doing
+>> this check in handle_mm_fault() and return VM_FAULT_SIGSEGV ?
+> 
+> We already do have a model for that. Have a look at MMF_UNSTABLE.
 
-Yeah, but you could add the handling only after you have all the 
-implementations in place. Don't you?
-
->>> Is the split up really worth it? I was thinking about that but had hard
->>> times to end up with something that would be bisectable. Well, except
->>> for returning -EBUSY until all notifiers are implemented. Which I found
->>> confusing.
->> It at least makes reviewing changes much easier, cause as driver maintainer
->> I can concentrate on the stuff only related to me.
->>
->> Additional to that when you cause some unrelated side effect in a driver we
->> can much easier pinpoint the actual change later on when the patch is
->> smaller.
->>
->>>> This way I'm pretty sure Felix and I can give an rb on the amdgpu/amdkfd
->>>> changes.
->>> If you are worried to give r-b only for those then this can be done even
->>> for larger patches. Just make your Reviewd-by more specific
->>> R-b: name # For BLA BLA
->> Yeah, possible alternative but more work for me when I review it :)
-> I definitely do not want to add more work to reviewers and I completely
-> see how massive "flag days" like these are not popular but I really
-> didn't find a reasonable way around that would be both correct and
-> wouldn't add much more churn on the way. So if you really insist then I
-> would really appreciate a hint on the way to achive the same without any
-> above downsides.
-
-Well, I don't insist on this. It's just from my point of view that this 
-patch doesn't needs to be one patch, but could be split up.
-
-Could be that I just don't know the code or the consequences of adding 
-that well enough to really judge.
-
-Christian.
+MMF_UNSTABLE is a mm's flag, here this is a VMA's flag which is checked.
