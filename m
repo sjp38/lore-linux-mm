@@ -1,127 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 560216B0282
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 17:08:47 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id j189-v6so18101227qkf.0
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 14:08:47 -0700 (PDT)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id f8-v6si10457112qtj.168.2018.07.02.14.08.46
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8293D6B0284
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 17:18:14 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id d6-v6so10587774plo.15
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 14:18:14 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o26-v6si15243620pge.307.2018.07.02.14.18.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jul 2018 14:08:46 -0700 (PDT)
-Subject: Re: [PATCH v2 6/6] mm: page_mkclean, ttu: handle pinned pages
-References: <20180702005654.20369-1-jhubbard@nvidia.com>
- <20180702005654.20369-7-jhubbard@nvidia.com>
- <20180702101542.fi7ndfkg5fpzodey@quack2.suse.cz>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <b64bda3d-903d-c3b9-f315-bf7a7302e425@nvidia.com>
-Date: Mon, 2 Jul 2018 14:07:44 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180702101542.fi7ndfkg5fpzodey@quack2.suse.cz>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
+        Mon, 02 Jul 2018 14:18:13 -0700 (PDT)
+Date: Mon, 2 Jul 2018 14:18:11 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v5 0/6] fs/dcache: Track & limit # of negative dentries
+Message-Id: <20180702141811.ef027fd7d8087b7fb2ba0cce@linux-foundation.org>
+In-Reply-To: <CA+55aFyH6dHw-7R3364dn32J4p7kxT=TqmnuozCn9_Bz-MHhxQ@mail.gmail.com>
+References: <1530510723-24814-1-git-send-email-longman@redhat.com>
+	<CA+55aFyH6dHw-7R3364dn32J4p7kxT=TqmnuozCn9_Bz-MHhxQ@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>, john.hubbard@gmail.com
-Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Waiman Long <longman@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>
 
-On 07/02/2018 03:15 AM, Jan Kara wrote:
-> On Sun 01-07-18 17:56:54, john.hubbard@gmail.com wrote:
->> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
->> index 9d142b9b86dc..c4bc8d216746 100644
->> --- a/mm/memory-failure.c
->> +++ b/mm/memory-failure.c
->> @@ -931,6 +931,7 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
->>  	int kill = 1, forcekill;
->>  	struct page *hpage = *hpagep;
->>  	bool mlocked = PageMlocked(hpage);
->> +	bool skip_pinned_pages = false;
-> 
-> I'm not sure we can afford to wait for page pins when handling page
-> poisoning. In an ideal world we should but... But I guess this is for
-> someone understanding memory poisoning better to judge.
+On Mon, 2 Jul 2018 12:34:00 -0700 Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-
-OK, then until I hear otherwise, in the next version I'll set 
-skipped_pinned_pages = true here, based on the idea that it's probably
-better to be sure we don't hang while trying to remove a bad page. It's
-hard to achieve perfection in the presence of a memory failure.
-
+> On Sun, Jul 1, 2018 at 10:52 PM Waiman Long <longman@redhat.com> wrote:
+> >
+> > A rogue application can potentially create a large number of negative
+> > dentries in the system consuming most of the memory available if it
+> > is not under the direct control of a memory controller that enforce
+> > kernel memory limit.
 > 
->> diff --git a/mm/rmap.c b/mm/rmap.c
->> index 6db729dc4c50..c137c43eb2ad 100644
->> --- a/mm/rmap.c
->> +++ b/mm/rmap.c
->> @@ -879,6 +879,26 @@ int page_referenced(struct page *page,
->>  	return pra.referenced;
->>  }
->>  
->> +/* Must be called with pinned_dma_lock held. */
->> +static void wait_for_dma_pinned_to_clear(struct page *page)
->> +{
->> +	struct zone *zone = page_zone(page);
->> +
->> +	while (PageDmaPinnedFlags(page)) {
->> +		spin_unlock(zone_gup_lock(zone));
->> +
->> +		schedule();
->> +
->> +		spin_lock(zone_gup_lock(zone));
->> +	}
->> +}
+> I certainly don't mind the patch series, but I would like it to be
+> accompanied with some actual example numbers, just to make it all a
+> bit more concrete.
 > 
-> Ouch, we definitely need something better here. Either reuse the
-> page_waitqueue() mechanism or create at least a global wait queue for this
-> (I don't expect too much contention on the waitqueue and even if there
-> eventually is, we can switch to page_waitqueue() when we find it).  But
-> this is a no-go...
-
-Yes, no problem. At one point I had a separate bit waiting queue, which was
-only a few lines of code to do, but I dropped it because I thought that maybe 
-it was overkill. I'll put it back in.
-
-> 
->> +
->> +struct page_mkclean_info {
->> +	int cleaned;
->> +	int skipped;
->> +	bool skip_pinned_pages;
->> +};
->> +
->>  static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
->>  			    unsigned long address, void *arg)
->>  {
->> @@ -889,7 +909,24 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
->>  		.flags = PVMW_SYNC,
->>  	};
->>  	unsigned long start = address, end;
->> -	int *cleaned = arg;
->> +	struct page_mkclean_info *mki = (struct page_mkclean_info *)arg;
->> +	bool is_dma_pinned;
->> +	struct zone *zone = page_zone(page);
->> +
->> +	/* Serialize with get_user_pages: */
->> +	spin_lock(zone_gup_lock(zone));
->> +	is_dma_pinned = PageDmaPinned(page);
-> 
-> Hum, why do you do this for each page table this is mapped in? Also the
-> locking is IMHO going to hurt a lot and we need to avoid it.
-> 
-> What I think needs to happen is that in page_mkclean(), after you've
-> cleared all the page tables, you check PageDmaPinned() and wait if needed.
-> Page cannot be faulted in again as we hold page lock and so races with
-> concurrent GUP are fairly limited. So with some careful ordering & memory
-> barriers you should be able to get away without any locking. Ditto for the
-> unmap path...
+> Maybe even performance numbers showing "look, I've filled the dentry
+> lists with nasty negative dentries, now it's all slower because we
+> walk those less interesting entries".
 > 
 
-I guess I was thinking about this backwards. It would work much better if
-we go ahead and write protect or unmap first, let things drain, and wait later.
-Very nice!
+(Please cc linux-mm@kvack.org on this work)
 
+Yup.  The description of the user-visible impact of current behavior is
+far too vague.
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+In the [5/6] changelog it is mentioned that a large number of -ve
+dentries can lead to oom-killings.  This sounds bad - -ve dentries
+should be trivially reclaimable and we shouldn't be oom-killing in such
+a situation.
+
+Dumb question: do we know that negative dentries are actually
+worthwhile?  Has anyone checked in the past couple of decades?  Perhaps
+our lookups are so whizzy nowadays that we don't need them?
