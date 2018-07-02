@@ -1,100 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 214606B000D
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 11:59:02 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id a22-v6so5920907eds.13
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 08:59:02 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 065046B0006
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 12:05:16 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id v19-v6so5941492eds.3
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 09:05:15 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y22-v6si3440207edr.193.2018.07.02.08.59.00
+        by mx.google.com with ESMTPS id c37-v6si918517eda.459.2018.07.02.09.05.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jul 2018 08:59:00 -0700 (PDT)
-Date: Mon, 2 Jul 2018 17:58:58 +0200
+        Mon, 02 Jul 2018 09:05:14 -0700 (PDT)
+Date: Mon, 2 Jul 2018 18:05:12 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: teach dump_page() to correctly output poisoned
- struct pages
-Message-ID: <20180702155858.GE19043@dhcp22.suse.cz>
-References: <20180702152745.27596-1-pasha.tatashin@oracle.com>
+Subject: Re: [PATCH] mm/sparse: Make sparse_init_one_section void and remove
+ check
+Message-ID: <20180702160512.GF19043@dhcp22.suse.cz>
+References: <20180702154325.12196-1-osalvador@techadventures.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180702152745.27596-1-pasha.tatashin@oracle.com>
+In-Reply-To: <20180702154325.12196-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, mgorman@techsingularity.net, gregkh@linuxfoundation.org
+To: osalvador@techadventures.net
+Cc: akpm@linux-foundation.org, pasha.tatashin@oracle.com, vbabka@suse.cz, bhe@redhat.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
-On Mon 02-07-18 11:27:45, Pavel Tatashin wrote:
-> If struct page is poisoned, and uninitialized access is detected via
-> PF_POISONED_CHECK(page) dump_page() is called to output the page. But,
-> the dump_page() itself accesses struct page to determine how to print
-> it, and therefore gets into a recursive loop.
+On Mon 02-07-18 17:43:25, osalvador@techadventures.net wrote:
+> From: Oscar Salvador <osalvador@suse.de>
 > 
-> For example:
-> dump_page()
->  __dump_page()
->   PageSlab(page)
->    PF_POISONED_CHECK(page)
->     VM_BUG_ON_PGFLAGS(PagePoisoned(page), page)
->      dump_page() recursion loop.
+> sparse_init_one_section() is being called from two sites:
+> sparse_init() and sparse_add_one_section().
+> The former calls it from a for_each_present_section_nr() loop,
+> and the latter marks the section as present before calling it.
+> This means that when sparse_init_one_section() gets called, we already know
+> that the section is present.
+> So there is no point to double check that in the function.
+> 
+> This removes the check and makes the function void.
 
-This deserves a big fat comment in __dump_page. Basically no Page$FOO
-can be used on an HWPoison page.
- 
-> Fixes: f165b378bbdf ("mm: uninitialized struct page poisoning sanity checking")
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Looks good.
+
+> Signed-off-by: Oscar Salvador <osalvador@suse.de>
 
 Acked-by: Michal Hocko <mhocko@suse.com>
 
 > ---
->  mm/debug.c | 13 +++++++++++--
->  1 file changed, 11 insertions(+), 2 deletions(-)
+>  mm/sparse.c | 12 +++---------
+>  1 file changed, 3 insertions(+), 9 deletions(-)
 > 
-> diff --git a/mm/debug.c b/mm/debug.c
-> index 56e2d9125ea5..469b526e6abc 100644
-> --- a/mm/debug.c
-> +++ b/mm/debug.c
-> @@ -43,12 +43,20 @@ const struct trace_print_flags vmaflag_names[] = {
->  
->  void __dump_page(struct page *page, const char *reason)
->  {
-> +	bool page_poisoned = PagePoisoned(page);
-> +	int mapcount;
-> +
-> +	if (page_poisoned) {
-> +		pr_emerg("page:%px is uninitialized and poisoned", page);
-> +		goto hex_only;
-> +	}
-> +
->  	/*
->  	 * Avoid VM_BUG_ON() in page_mapcount().
->  	 * page->_mapcount space in struct page is used by sl[aou]b pages to
->  	 * encode own info.
->  	 */
-> -	int mapcount = PageSlab(page) ? 0 : page_mapcount(page);
-> +	mapcount = PageSlab(page) ? 0 : page_mapcount(page);
->  
->  	pr_emerg("page:%px count:%d mapcount:%d mapping:%px index:%#lx",
->  		  page, page_ref_count(page), mapcount,
-> @@ -60,6 +68,7 @@ void __dump_page(struct page *page, const char *reason)
->  
->  	pr_emerg("flags: %#lx(%pGp)\n", page->flags, &page->flags);
->  
-> +hex_only:
->  	print_hex_dump(KERN_ALERT, "raw: ", DUMP_PREFIX_NONE, 32,
->  			sizeof(unsigned long), page,
->  			sizeof(struct page), false);
-> @@ -68,7 +77,7 @@ void __dump_page(struct page *page, const char *reason)
->  		pr_alert("page dumped because: %s\n", reason);
->  
->  #ifdef CONFIG_MEMCG
-> -	if (page->mem_cgroup)
-> +	if (!page_poisoned && page->mem_cgroup)
->  		pr_alert("page->mem_cgroup:%px\n", page->mem_cgroup);
->  #endif
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index b2848cc6e32a..f55e79fda03e 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -264,19 +264,14 @@ struct page *sparse_decode_mem_map(unsigned long coded_mem_map, unsigned long pn
+>  	return ((struct page *)coded_mem_map) + section_nr_to_pfn(pnum);
 >  }
+>  
+> -static int __meminit sparse_init_one_section(struct mem_section *ms,
+> +static void __meminit sparse_init_one_section(struct mem_section *ms,
+>  		unsigned long pnum, struct page *mem_map,
+>  		unsigned long *pageblock_bitmap)
+>  {
+> -	if (!present_section(ms))
+> -		return -EINVAL;
+> -
+>  	ms->section_mem_map &= ~SECTION_MAP_MASK;
+>  	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum) |
+>  							SECTION_HAS_MEM_MAP;
+>   	ms->pageblock_flags = pageblock_bitmap;
+> -
+> -	return 1;
+>  }
+>  
+>  unsigned long usemap_size(void)
+> @@ -801,12 +796,11 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
+>  #endif
+>  
+>  	section_mark_present(ms);
+> -
+> -	ret = sparse_init_one_section(ms, section_nr, memmap, usemap);
+> +	sparse_init_one_section(ms, section_nr, memmap, usemap);
+>  
+>  out:
+>  	pgdat_resize_unlock(pgdat, &flags);
+> -	if (ret <= 0) {
+> +	if (ret < 0) {
+>  		kfree(usemap);
+>  		__kfree_section_memmap(memmap, altmap);
+>  	}
 > -- 
-> 2.18.0
+> 2.13.6
 > 
 
 -- 
