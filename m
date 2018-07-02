@@ -1,56 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F2D476B0289
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 17:35:51 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id o6-v6so3755156qtp.15
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 14:35:51 -0700 (PDT)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id f3-v6si1383245qvi.172.2018.07.02.14.35.50
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D14C6B028B
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 17:55:01 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id p91-v6so10512199plb.12
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 14:55:01 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t21-v6sor3959028pgn.43.2018.07.02.14.55.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jul 2018 14:35:51 -0700 (PDT)
-Subject: Re: [PATCH v2 1/6] mm: get_user_pages: consolidate error handling
-References: <20180702005654.20369-1-jhubbard@nvidia.com>
- <20180702005654.20369-2-jhubbard@nvidia.com>
- <20180702101725.esnjyo4zp3726i3n@quack2.suse.cz>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <2bb69d70-33c4-3547-823d-4750df237d83@nvidia.com>
-Date: Mon, 2 Jul 2018 14:34:48 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180702101725.esnjyo4zp3726i3n@quack2.suse.cz>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Mon, 02 Jul 2018 14:55:00 -0700 (PDT)
+From: Shakeel Butt <shakeelb@google.com>
+Subject: [PATCH] fs-fsnotify-account-fsnotify-metadata-to-kmemcg.patch.cleanup
+Date: Mon,  2 Jul 2018 14:54:39 -0700
+Message-Id: <20180702215439.211597-1-shakeelb@google.com>
+In-Reply-To: <20180627191250.209150-2-shakeelb@google.com>
+References: <20180627191250.209150-2-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>, john.hubbard@gmail.com
-Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Shakeel Butt <shakeelb@google.com>
 
-On 07/02/2018 03:17 AM, Jan Kara wrote:
-> On Sun 01-07-18 17:56:49, john.hubbard@gmail.com wrote:
->> From: John Hubbard <jhubbard@nvidia.com>
->>
->> An upcoming patch requires a way to operate on each page that
->> any of the get_user_pages_*() variants returns.
->>
->> In preparation for that, consolidate the error handling for
->> __get_user_pages(). This provides a single location (the "out:" label)
->> for operating on the collected set of pages that are about to be returned.
->>
->> As long every use of the "ret" variable is being edited, rename
->> "ret" --> "err", so that its name matches its true role.
->> This also gets rid of two shadowed variable declarations, as a
->> tiny beneficial a side effect.
->>
->> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-> 
-> This looks nice! You can add:
-> 
-> Reviewed-by: Jan Kara <jack@suse.cz>
-> 
+Hi Andres, this is a small cleanup to the patch "fs: fsnotify: account
+fsnotify metadata to kmemcg". Please squash.
 
-Great, thanks for the review!
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
+---
+ fs/notify/fanotify/fanotify.c        | 2 +-
+ fs/notify/inotify/inotify_fsnotify.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
+diff --git a/fs/notify/fanotify/fanotify.c b/fs/notify/fanotify/fanotify.c
+index 6ff1f75d156d..eb4e75175cfb 100644
+--- a/fs/notify/fanotify/fanotify.c
++++ b/fs/notify/fanotify/fanotify.c
+@@ -142,7 +142,7 @@ struct fanotify_event_info *fanotify_alloc_event(struct fsnotify_group *group,
+ 						 const struct path *path)
+ {
+ 	struct fanotify_event_info *event = NULL;
+-	gfp_t gfp = GFP_KERNEL | __GFP_ACCOUNT;
++	gfp_t gfp = GFP_KERNEL_ACCOUNT;
+ 
+ 	/*
+ 	 * For queues with unlimited length lost events are not expected and
+diff --git a/fs/notify/inotify/inotify_fsnotify.c b/fs/notify/inotify/inotify_fsnotify.c
+index 52e167d04b11..f4184b4f3815 100644
+--- a/fs/notify/inotify/inotify_fsnotify.c
++++ b/fs/notify/inotify/inotify_fsnotify.c
+@@ -101,7 +101,7 @@ int inotify_handle_event(struct fsnotify_group *group,
+ 
+ 	/* Whoever is interested in the event, pays for the allocation. */
+ 	memalloc_use_memcg(group->memcg);
+-	event = kmalloc(alloc_len, GFP_KERNEL | __GFP_ACCOUNT);
++	event = kmalloc(alloc_len, GFP_KERNEL_ACCOUNT);
+ 	memalloc_unuse_memcg();
+ 
+ 	if (unlikely(!event)) {
 -- 
-John Hubbard
-NVIDIA
+2.18.0.399.gad0ab374a1-goog
