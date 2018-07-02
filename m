@@ -1,108 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D0186B029D
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 19:19:28 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id h14-v6so38942pfi.19
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 16:19:28 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id e98-v6si17380265plb.150.2018.07.02.16.19.27
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 831686B029E
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 19:28:56 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id t11-v6so83862iog.15
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 16:28:56 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q26-v6sor1068197jaj.8.2018.07.02.16.28.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jul 2018 16:19:27 -0700 (PDT)
-Date: Mon, 2 Jul 2018 16:19:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5 0/6] fs/dcache: Track & limit # of negative dentries
-Message-Id: <20180702161925.1c717283dd2bd4a221bc987c@linux-foundation.org>
-In-Reply-To: <1530570880.3179.9.camel@HansenPartnership.com>
+        (Google Transport Security);
+        Mon, 02 Jul 2018 16:28:55 -0700 (PDT)
+MIME-Version: 1.0
 References: <1530510723-24814-1-git-send-email-longman@redhat.com>
-	<CA+55aFyH6dHw-7R3364dn32J4p7kxT=TqmnuozCn9_Bz-MHhxQ@mail.gmail.com>
-	<20180702141811.ef027fd7d8087b7fb2ba0cce@linux-foundation.org>
-	<1530570880.3179.9.camel@HansenPartnership.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+ <CA+55aFyH6dHw-7R3364dn32J4p7kxT=TqmnuozCn9_Bz-MHhxQ@mail.gmail.com>
+ <20180702141811.ef027fd7d8087b7fb2ba0cce@linux-foundation.org>
+ <1530570880.3179.9.camel@HansenPartnership.com> <20180702161925.1c717283dd2bd4a221bc987c@linux-foundation.org>
+In-Reply-To: <20180702161925.1c717283dd2bd4a221bc987c@linux-foundation.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Mon, 2 Jul 2018 16:28:44 -0700
+Message-ID: <CA+55aFwYsq5OVMVizhfis7Jtepj8xQk1Paz=Tqz-HmfhoZ_mfQ@mail.gmail.com>
+Subject: Re: [PATCH v5 0/6] fs/dcache: Track & limit # of negative dentries
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <longman@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, Waiman Long <longman@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>, linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>
 
-On Mon, 02 Jul 2018 15:34:40 -0700 James Bottomley <James.Bottomley@HansenP=
-artnership.com> wrote:
+On Mon, Jul 2, 2018 at 4:19 PM Andrew Morton <akpm@linux-foundation.org> wrote:
+>
+> Before we go and add a large amount of code to do the shrinker's job
+> for it, we should get a full understanding of what's going wrong.  Is
+> it because the dentry_lru had a mixture of +ve and -ve dentries?
+> Should we have a separate LRU for -ve dentries?  Are we appropriately
+> aging the various dentries?  etc.
+>
+> It could be that tuning/fixing the current code will fix whatever
+> problems inspired this patchset.
 
-> On Mon, 2018-07-02 at 14:18 -0700, Andrew Morton wrote:
-> > On Mon, 2 Jul 2018 12:34:00 -0700 Linus Torvalds <torvalds@linux-foun
-> > dation.org> wrote:
-> >=20
-> > > On Sun, Jul 1, 2018 at 10:52 PM Waiman Long <longman@redhat.com>
-> > > wrote:
-> > > >=20
-> > > > A rogue application can potentially create a large number of
-> > > > negative
-> > > > dentries in the system consuming most of the memory available if
-> > > > it
-> > > > is not under the direct control of a memory controller that
-> > > > enforce
-> > > > kernel memory limit.
-> > >=20
-> > > I certainly don't mind the patch series, but I would like it to be
-> > > accompanied with some actual example numbers, just to make it all a
-> > > bit more concrete.
-> > >=20
-> > > Maybe even performance numbers showing "look, I've filled the
-> > > dentry
-> > > lists with nasty negative dentries, now it's all slower because we
-> > > walk those less interesting entries".
-> > >=20
-> >=20
-> > (Please cc linux-mm@kvack.org on this work)
-> >=20
-> > Yup.=A0=A0The description of the user-visible impact of current behavior
-> > is far too vague.
-> >=20
-> > In the [5/6] changelog it is mentioned that a large number of -ve
-> > dentries can lead to oom-killings.=A0=A0This sounds bad - -ve dentries
-> > should be trivially reclaimable and we shouldn't be oom-killing in
-> > such a situation.
->=20
-> If you're old enough, it's d=E9j=E0 vu; Andrea went on a negative dentry
-> rampage about 15 years ago:
->=20
-> https://lkml.org/lkml/2002/5/24/71
+So I do think that the shrinker is likely the culprit behind the oom
+issues. I think it's likely worse when you try to do some kind of
+containerization, and dentries are shared.
 
-That's kinda funny.
+That said, I think there are likely good reasons to limit excessive
+negative dentries even outside the oom issue. Even if we did a perfect
+job at shrinking them and took no time at all doing so, the fact that
+you can generate an effecitvely infinite amount of negative dentries
+and then polluting the dentry hash chains with them _could_ be a
+performance problem.
 
-> I think the summary of the thread is that it's not worth it because
-> dentries are a clean cache, so they're immediately shrinkable.
+No sane application does that, and we handle the "obvious" cases
+already: ie if you create a lot of files in a deep subdirectory and
+then do "rm -rf dir", we *will* throw the negative dentries away as we
+remove the directories they are in. So it is unlikely to be much of a
+problem in practice. But at least in theory you can generate many
+millions of negative dentries just to mess with the system, and slow
+down good people.
 
-Yes, "should be".  I could understand that the presence of huge
-nunmbers of -ve dentries could result in undesirable reclaim of
-pagecache, etc.  Triggering oom-killings is very bad, and presumably
-has the same cause.
+Probably not even remotely to the point of a DoS attack, but certainly
+to the point of "we're wasting time".
 
-Before we go and add a large amount of code to do the shrinker's job
-for it, we should get a full understanding of what's going wrong.  Is
-it because the dentry_lru had a mixture of +ve and -ve dentries?=20
-Should we have a separate LRU for -ve dentries?  Are we appropriately
-aging the various dentries?  etc.
-
-It could be that tuning/fixing the current code will fix whatever
-problems inspired this patchset.
-
-> > Dumb question: do we know that negative dentries are actually
-> > worthwhile?=A0=A0Has anyone checked in the past couple of
-> > decades?=A0=A0Perhaps our lookups are so whizzy nowadays that we don't
-> > need them?
->=20
-> There are still a lot of applications that keep looking up non-existent=20
-> files, so I think it's still beneficial to keep them.  Apparently
-> apache still looks for a .htaccess file in every directory it
-> traverses, for instance.  Round tripping every one of these to disk
-> instead of caching it as a negative dentry would seem to be a
-> performance loser here.
->=20
-> However, actually measuring this again might be useful.
-
-Yup.  I don't know how hard it would be to disable the -ve dentries
-(the rename thing makes it sounds harder than I expected) but having
-real numbers to justify continuing presence might be a fun project for
-someone.
+So I do think that restricting negative dentries is a fine concept.
+They are useful, but that doesn't mean that it makes sense to fill
+memory with them.
+                 Linus
