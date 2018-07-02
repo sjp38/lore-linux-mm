@@ -1,85 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A3016B0299
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 18:43:14 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id w1-v6so9735plq.8
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 15:43:14 -0700 (PDT)
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTPS id b1-v6si17429567pld.323.2018.07.02.15.34.43
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 06A596B029A
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 18:54:17 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id m131-v6so335035itm.5
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 15:54:17 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z20-v6sor6489529jaa.62.2018.07.02.15.54.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 02 Jul 2018 15:34:43 -0700 (PDT)
-Message-ID: <1530570880.3179.9.camel@HansenPartnership.com>
-Subject: Re: [PATCH v5 0/6] fs/dcache: Track & limit # of negative dentries
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Mon, 02 Jul 2018 15:34:40 -0700
-In-Reply-To: <20180702141811.ef027fd7d8087b7fb2ba0cce@linux-foundation.org>
+        (Google Transport Security);
+        Mon, 02 Jul 2018 15:54:16 -0700 (PDT)
+MIME-Version: 1.0
 References: <1530510723-24814-1-git-send-email-longman@redhat.com>
-	 <CA+55aFyH6dHw-7R3364dn32J4p7kxT=TqmnuozCn9_Bz-MHhxQ@mail.gmail.com>
-	 <20180702141811.ef027fd7d8087b7fb2ba0cce@linux-foundation.org>
+ <CA+55aFyH6dHw-7R3364dn32J4p7kxT=TqmnuozCn9_Bz-MHhxQ@mail.gmail.com>
+ <20180702141811.ef027fd7d8087b7fb2ba0cce@linux-foundation.org> <1530570880.3179.9.camel@HansenPartnership.com>
+In-Reply-To: <1530570880.3179.9.camel@HansenPartnership.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Mon, 2 Jul 2018 15:54:04 -0700
+Message-ID: <CA+55aFzyUb07Lt251bzi4T79oB=M8uypFQ2m__FgnRJUauqd0Q@mail.gmail.com>
+Subject: Re: [PATCH v5 0/6] fs/dcache: Track & limit # of negative dentries
 Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Waiman Long <longman@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>
+To: James Bottomley <James.Bottomley@hansenpartnership.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Waiman Long <longman@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>, linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>
 
-On Mon, 2018-07-02 at 14:18 -0700, Andrew Morton wrote:
-> On Mon, 2 Jul 2018 12:34:00 -0700 Linus Torvalds <torvalds@linux-foun
-> dation.org> wrote:
-> 
-> > On Sun, Jul 1, 2018 at 10:52 PM Waiman Long <longman@redhat.com>
-> > wrote:
-> > > 
-> > > A rogue application can potentially create a large number of
-> > > negative
-> > > dentries in the system consuming most of the memory available if
-> > > it
-> > > is not under the direct control of a memory controller that
-> > > enforce
-> > > kernel memory limit.
-> > 
-> > I certainly don't mind the patch series, but I would like it to be
-> > accompanied with some actual example numbers, just to make it all a
-> > bit more concrete.
-> > 
-> > Maybe even performance numbers showing "look, I've filled the
-> > dentry
-> > lists with nasty negative dentries, now it's all slower because we
-> > walk those less interesting entries".
-> > 
-> 
-> (Please cc linux-mm@kvack.org on this work)
-> 
-> Yup.A A The description of the user-visible impact of current behavior
-> is far too vague.
-> 
-> In the [5/6] changelog it is mentioned that a large number of -ve
-> dentries can lead to oom-killings.A A This sounds bad - -ve dentries
-> should be trivially reclaimable and we shouldn't be oom-killing in
-> such a situation.
+On Mon, Jul 2, 2018 at 3:34 PM James Bottomley
+<James.Bottomley@hansenpartnership.com> wrote:
+>
+> There are still a lot of applications that keep looking up non-existent
+> files, so I think it's still beneficial to keep them.  Apparently
+> apache still looks for a .htaccess file in every directory it
+> traverses, for instance.
 
-If you're old enough, it's dA(C)jA  vu; Andrea went on a negative dentry
-rampage about 15 years ago:
+.. or git looking for ".gitignore" files in every directory, or any
+number of similar things.
 
-https://lkml.org/lkml/2002/5/24/71
+Lookie here, for example:
 
-I think the summary of the thread is that it's not worth it because
-dentries are a clean cache, so they're immediately shrinkable.
+  [torvalds@i7 linux]$ strace -e trace=%file -c git status
+  On branch master
+  Your branch is up to date with 'origin/master'.
 
-> Dumb question: do we know that negative dentries are actually
-> worthwhile?A A Has anyone checked in the past couple of
-> decades?A A Perhaps our lookups are so whizzy nowadays that we don't
-> need them?
+  nothing to commit, working tree clean
+  % time     seconds  usecs/call     calls    errors syscall
+  ------ ----------- ----------- --------- --------- ----------------
+   73.23    0.009066           2      4056         6 open
+   23.33    0.002888           2      1294      1189 openat
+    1.60    0.000198          13        15         8 access
+    0.80    0.000099           2        36        31 lstat
+    0.53    0.000066           1        40         6 stat
+    0.27    0.000033           8         4           getcwd
+    0.11    0.000014          14         1           execve
+    0.11    0.000014          14         1           chdir
+    0.02    0.000003           3         1         1 readlink
+    0.00    0.000000           0         1           unlink
+  ------ ----------- ----------- --------- --------- ----------------
+  100.00    0.012381                  5449      1241 total
 
-There are still a lot of applications that keep looking up non-existent 
-files, so I think it's still beneficial to keep them.  Apparently
-apache still looks for a .htaccess file in every directory it
-traverses, for instance.  Round tripping every one of these to disk
-instead of caching it as a negative dentry would seem to be a
-performance loser here.
+so almost a quarter (1241 of 5449) of the file accesses resulted in
+errors (and I think they are all ENOENT).
 
-However, actually measuring this again might be useful.
+Negative lookups are *not* some unusual thing.
 
-James
+                   Linus
