@@ -1,61 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EFA816B000A
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 13:47:05 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id d70-v6so8323497itd.1
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 10:47:05 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id u77-v6si972906ita.128.2018.07.02.10.47.03
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 608356B000D
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 13:55:09 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id t14-v6so13884466ioj.8
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 10:55:09 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id 186-v6si3095059ith.79.2018.07.02.10.55.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jul 2018 10:47:03 -0700 (PDT)
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w62HiMrY001813
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 17:47:02 GMT
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by aserp2120.oracle.com with ESMTP id 2jx1tnwfea-1
+        Mon, 02 Jul 2018 10:55:08 -0700 (PDT)
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w62Hrdiq171650
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 17:55:07 GMT
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by userp2120.oracle.com with ESMTP id 2jx2gpwexh-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Mon, 02 Jul 2018 17:47:02 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w62Hl1Fl001207
+	for <linux-mm@kvack.org>; Mon, 02 Jul 2018 17:55:07 +0000
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w62Ht6cG018017
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 17:47:02 GMT
-Received: from abhmp0004.oracle.com (abhmp0004.oracle.com [141.146.116.10])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w62Hl1Nv001199
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 17:47:01 GMT
-Received: by mail-oi0-f45.google.com with SMTP id i12-v6so13541422oik.2
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 10:47:01 -0700 (PDT)
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 17:55:06 GMT
+Received: from abhmp0014.oracle.com (abhmp0014.oracle.com [141.146.116.20])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w62Ht6Qr028353
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 17:55:06 GMT
+Received: by mail-oi0-f51.google.com with SMTP id s198-v6so14134718oih.11
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 10:55:06 -0700 (PDT)
 MIME-Version: 1.0
-References: <20180702020417.21281-1-pasha.tatashin@oracle.com> <de99ae79-8d68-e8d6-5243-085fd106e1e5@intel.com>
-In-Reply-To: <de99ae79-8d68-e8d6-5243-085fd106e1e5@intel.com>
+References: <20180702152745.27596-1-pasha.tatashin@oracle.com> <20180702155858.GE19043@dhcp22.suse.cz>
+In-Reply-To: <20180702155858.GE19043@dhcp22.suse.cz>
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Mon, 2 Jul 2018 13:46:25 -0400
-Message-ID: <CAGM2reYVkvVPgj+_upEdpjUL5noS=0ObGxnxXH3gAz+cJosEjA@mail.gmail.com>
-Subject: Re: [PATCH v3 0/2] sparse_init rewrite
+Date: Mon, 2 Jul 2018 13:54:29 -0400
+Message-ID: <CAGM2reYeHhQAqujJwcec_t40pM+9=DO=Ht8HR=yX6rHSUQQXvg@mail.gmail.com>
+Subject: Re: [PATCH] mm: teach dump_page() to correctly output poisoned struct pages
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dave.hansen@intel.com
-Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, kirill.shutemov@linux.intel.com, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, Souptick Joarder <jrdr.linux@gmail.com>, bhe@redhat.com, gregkh@linuxfoundation.org, Vlastimil Babka <vbabka@suse.cz>, Wei Yang <richard.weiyang@gmail.com>, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net
+To: mhocko@kernel.org
+Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, kirill.shutemov@linux.intel.com, Linux Memory Management List <linux-mm@kvack.org>, mgorman@techsingularity.net, gregkh@linuxfoundation.org
 
-On Mon, Jul 2, 2018 at 12:20 PM Dave Hansen <dave.hansen@intel.com> wrote:
+On Mon, Jul 2, 2018 at 11:59 AM Michal Hocko <mhocko@kernel.org> wrote:
 >
-> On 07/01/2018 07:04 PM, Pavel Tatashin wrote:
-> >  include/linux/mm.h  |   9 +-
-> >  mm/sparse-vmemmap.c |  44 ++++---
-> >  mm/sparse.c         | 279 +++++++++++++++-----------------------------
-> >  3 files changed, 125 insertions(+), 207 deletions(-)
+> On Mon 02-07-18 11:27:45, Pavel Tatashin wrote:
+> > If struct page is poisoned, and uninitialized access is detected via
+> > PF_POISONED_CHECK(page) dump_page() is called to output the page. But,
+> > the dump_page() itself accesses struct page to determine how to print
+> > it, and therefore gets into a recursive loop.
+> >
+> > For example:
+> > dump_page()
+> >  __dump_page()
+> >   PageSlab(page)
+> >    PF_POISONED_CHECK(page)
+> >     VM_BUG_ON_PGFLAGS(PagePoisoned(page), page)
+> >      dump_page() recursion loop.
 >
-> FWIW, I'm not a fan of rewrites, but this is an awful lot of code to remove.
+> This deserves a big fat comment in __dump_page. Basically no Page$FOO
+> can be used on an HWPoison page.
 >
-> I assume from all the back-and-forth, you have another version
-> forthcoming.  I'll take a close look through that one.
+> > Fixes: f165b378bbdf ("mm: uninitialized struct page poisoning sanity checking")
+> > Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+>
+> Acked-by: Michal Hocko <mhocko@suse.com>
 
-The removed code is a benefit, but once you review it, you will see
-that it was necessary to re-write in order to get rid of the temporary
-buffers. Please review the current version. The only change that is
-going to be in the next version is added "nid" to pr_err() in
-sparse_init_nid() for more detailed error.
+Thank you, I will send out an updated version with a comment.
 
-Thank you,
 Pavel
+
+>
+> > ---
+> >  mm/debug.c | 13 +++++++++++--
+> >  1 file changed, 11 insertions(+), 2 deletions(-)
+> >
+> > diff --git a/mm/debug.c b/mm/debug.c
+> > index 56e2d9125ea5..469b526e6abc 100644
+> > --- a/mm/debug.c
+> > +++ b/mm/debug.c
+> > @@ -43,12 +43,20 @@ const struct trace_print_flags vmaflag_names[] = {
+> >
+> >  void __dump_page(struct page *page, const char *reason)
+> >  {
+> > +     bool page_poisoned = PagePoisoned(page);
+> > +     int mapcount;
+> > +
+> > +     if (page_poisoned) {
+> > +             pr_emerg("page:%px is uninitialized and poisoned", page);
+> > +             goto hex_only;
+> > +     }
+> > +
+> >       /*
+> >        * Avoid VM_BUG_ON() in page_mapcount().
+> >        * page->_mapcount space in struct page is used by sl[aou]b pages to
+> >        * encode own info.
+> >        */
+> > -     int mapcount = PageSlab(page) ? 0 : page_mapcount(page);
+> > +     mapcount = PageSlab(page) ? 0 : page_mapcount(page);
+> >
+> >       pr_emerg("page:%px count:%d mapcount:%d mapping:%px index:%#lx",
+> >                 page, page_ref_count(page), mapcount,
+> > @@ -60,6 +68,7 @@ void __dump_page(struct page *page, const char *reason)
+> >
+> >       pr_emerg("flags: %#lx(%pGp)\n", page->flags, &page->flags);
+> >
+> > +hex_only:
+> >       print_hex_dump(KERN_ALERT, "raw: ", DUMP_PREFIX_NONE, 32,
+> >                       sizeof(unsigned long), page,
+> >                       sizeof(struct page), false);
+> > @@ -68,7 +77,7 @@ void __dump_page(struct page *page, const char *reason)
+> >               pr_alert("page dumped because: %s\n", reason);
+> >
+> >  #ifdef CONFIG_MEMCG
+> > -     if (page->mem_cgroup)
+> > +     if (!page_poisoned && page->mem_cgroup)
+> >               pr_alert("page->mem_cgroup:%px\n", page->mem_cgroup);
+> >  #endif
+> >  }
+> > --
+> > 2.18.0
+> >
+>
+> --
+> Michal Hocko
+> SUSE Labs
+>
