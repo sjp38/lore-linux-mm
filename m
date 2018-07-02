@@ -1,64 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 831686B029E
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 19:28:56 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id t11-v6so83862iog.15
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 16:28:56 -0700 (PDT)
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FF8F6B02A0
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 19:39:54 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id t13-v6so51661vke.15
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 16:39:54 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q26-v6sor1068197jaj.8.2018.07.02.16.28.55
+        by mx.google.com with SMTPS id j27-v6sor6119500uah.220.2018.07.02.16.39.52
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 02 Jul 2018 16:28:55 -0700 (PDT)
+        Mon, 02 Jul 2018 16:39:52 -0700 (PDT)
 MIME-Version: 1.0
-References: <1530510723-24814-1-git-send-email-longman@redhat.com>
- <CA+55aFyH6dHw-7R3364dn32J4p7kxT=TqmnuozCn9_Bz-MHhxQ@mail.gmail.com>
- <20180702141811.ef027fd7d8087b7fb2ba0cce@linux-foundation.org>
- <1530570880.3179.9.camel@HansenPartnership.com> <20180702161925.1c717283dd2bd4a221bc987c@linux-foundation.org>
-In-Reply-To: <20180702161925.1c717283dd2bd4a221bc987c@linux-foundation.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 2 Jul 2018 16:28:44 -0700
-Message-ID: <CA+55aFwYsq5OVMVizhfis7Jtepj8xQk1Paz=Tqz-HmfhoZ_mfQ@mail.gmail.com>
-Subject: Re: [PATCH v5 0/6] fs/dcache: Track & limit # of negative dentries
+In-Reply-To: <20180702203321.GA8371@bombadil.infradead.org>
+References: <cover.1530018818.git.andreyknvl@google.com> <20180627160800.3dc7f9ee41c0badbf7342520@linux-foundation.org>
+ <CAN=P9pivApAo76Kjc0TUDE0kvJn0pET=47xU6e=ioZV2VqO0Rg@mail.gmail.com> <20180702203321.GA8371@bombadil.infradead.org>
+From: Evgenii Stepanov <eugenis@google.com>
+Date: Mon, 2 Jul 2018 16:39:51 -0700
+Message-ID: <CAFKCwrg=3J-ARaOJgc73oRE7hQxs1VV7YiZEPS7Dt8Gfn6cWQA@mail.gmail.com>
+Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address sanitizer
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, Waiman Long <longman@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>, linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Kostya Serebryany <kcc@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Konovalov <andreyknvl@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg KH <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
 
-On Mon, Jul 2, 2018 at 4:19 PM Andrew Morton <akpm@linux-foundation.org> wrote:
+On Mon, Jul 2, 2018 at 1:33 PM, Matthew Wilcox <willy@infradead.org> wrote:
+> On Wed, Jun 27, 2018 at 05:04:28PM -0700, Kostya Serebryany wrote:
+>> The problem is more significant on mobile devices than on desktop/server.
+>> I'd love to have [K]HWASAN on x86_64 as well, but it's less trivial since x86_64
+>> doesn't have an analog of aarch64's top-byte-ignore hardware feature.
 >
-> Before we go and add a large amount of code to do the shrinker's job
-> for it, we should get a full understanding of what's going wrong.  Is
-> it because the dentry_lru had a mixture of +ve and -ve dentries?
-> Should we have a separate LRU for -ve dentries?  Are we appropriately
-> aging the various dentries?  etc.
+> Well, can we emulate it in software?
 >
-> It could be that tuning/fixing the current code will fix whatever
-> problems inspired this patchset.
+> We've got 48 bits of virtual address space on x86.  If we need all 8
+> bits, then that takes us down to 40 bits (39 bits for user and 39 bits
+> for kernel).  My laptop only has 34 bits of physical memory, so could
+> we come up with a memory layout which works for me?
 
-So I do think that the shrinker is likely the culprit behind the oom
-issues. I think it's likely worse when you try to do some kind of
-containerization, and dentries are shared.
+Yes, probably.
 
-That said, I think there are likely good reasons to limit excessive
-negative dentries even outside the oom issue. Even if we did a perfect
-job at shrinking them and took no time at all doing so, the fact that
-you can generate an effecitvely infinite amount of negative dentries
-and then polluting the dentry hash chains with them _could_ be a
-performance problem.
+We've tried this in userspace by mapping a file multiple times, but
+that's very slow, likely because of the extra TLB pressure.
+It should be possible to achieve better performance in the kernel with
+some page table tricks (i.e. if we take top 8 bits out of 48, then
+there would be only two second-level tables, and the top-level table
+will look like [p1, p2, p1, p2, ...]). I'm not 100% sure if that would
+work.
 
-No sane application does that, and we handle the "obvious" cases
-already: ie if you create a lot of files in a deep subdirectory and
-then do "rm -rf dir", we *will* throw the negative dentries away as we
-remove the directories they are in. So it is unlikely to be much of a
-problem in practice. But at least in theory you can generate many
-millions of negative dentries just to mess with the system, and slow
-down good people.
-
-Probably not even remotely to the point of a DoS attack, but certainly
-to the point of "we're wasting time".
-
-So I do think that restricting negative dentries is a fine concept.
-They are useful, but that doesn't mean that it makes sense to fill
-memory with them.
-                 Linus
+I don't think this should be part of this patchset, but it's good to
+keep this in mind.
