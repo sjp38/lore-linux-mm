@@ -1,227 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C6E596B0286
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 17:35:09 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id n2-v6so85461edr.5
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 14:35:09 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id i21-v6si9625201edg.70.2018.07.02.14.35.07
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F2D476B0289
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 17:35:51 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id o6-v6so3755156qtp.15
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 14:35:51 -0700 (PDT)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id f3-v6si1383245qvi.172.2018.07.02.14.35.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jul 2018 14:35:08 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w62LTbOS014560
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 17:35:06 -0400
-Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2jyrs8yfk3-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 02 Jul 2018 17:35:05 -0400
-Received: from localhost
-	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Mon, 2 Jul 2018 17:35:04 -0400
-Date: Mon, 2 Jul 2018 14:37:14 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm,oom: Bring OOM notifier callbacks to outside of OOM
- killer.
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <2d8c3056-1bc2-9a32-d745-ab328fd587a1@i-love.sakura.ne.jp>
- <20180626170345.GA3593@linux.vnet.ibm.com>
- <20180627072207.GB32348@dhcp22.suse.cz>
- <20180627143125.GW3593@linux.vnet.ibm.com>
- <20180628113942.GD32348@dhcp22.suse.cz>
- <20180628213105.GP3593@linux.vnet.ibm.com>
- <20180629090419.GD13860@dhcp22.suse.cz>
- <20180629125218.GX3593@linux.vnet.ibm.com>
- <20180629132638.GD5963@dhcp22.suse.cz>
- <20180630170522.GZ3593@linux.vnet.ibm.com>
+        Mon, 02 Jul 2018 14:35:51 -0700 (PDT)
+Subject: Re: [PATCH v2 1/6] mm: get_user_pages: consolidate error handling
+References: <20180702005654.20369-1-jhubbard@nvidia.com>
+ <20180702005654.20369-2-jhubbard@nvidia.com>
+ <20180702101725.esnjyo4zp3726i3n@quack2.suse.cz>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <2bb69d70-33c4-3547-823d-4750df237d83@nvidia.com>
+Date: Mon, 2 Jul 2018 14:34:48 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180630170522.GZ3593@linux.vnet.ibm.com>
-Message-Id: <20180702213714.GA7604@linux.vnet.ibm.com>
+In-Reply-To: <20180702101725.esnjyo4zp3726i3n@quack2.suse.cz>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>, john.hubbard@gmail.com
+Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org
 
-On Sat, Jun 30, 2018 at 10:05:22AM -0700, Paul E. McKenney wrote:
-> On Fri, Jun 29, 2018 at 03:26:38PM +0200, Michal Hocko wrote:
-> > On Fri 29-06-18 05:52:18, Paul E. McKenney wrote:
-> > > On Fri, Jun 29, 2018 at 11:04:19AM +0200, Michal Hocko wrote:
-> > > > On Thu 28-06-18 14:31:05, Paul E. McKenney wrote:
-> > > > > On Thu, Jun 28, 2018 at 01:39:42PM +0200, Michal Hocko wrote:
-> > [...]
-> > > > > > Well, I am not really sure what is the objective of the oom notifier to
-> > > > > > point you to the right direction. IIUC you just want to kick callbacks
-> > > > > > to be handled sooner under a heavy memory pressure, right? How is that
-> > > > > > achieved? Kick a worker?
-> > > > > 
-> > > > > That is achieved by enqueuing a non-lazy callback on each CPU's callback
-> > > > > list, but only for those CPUs having non-empty lists.  This causes
-> > > > > CPUs with lists containing only lazy callbacks to be more aggressive,
-> > > > > in particular, it prevents such CPUs from hanging out idle for seconds
-> > > > > at a time while they have callbacks on their lists.
-> > > > > 
-> > > > > The enqueuing happens via an IPI to the CPU in question.
-> > > > 
-> > > > I am afraid this is too low level for my to understand what is going on
-> > > > here. What are lazy callbacks and why do they need any specific action
-> > > > when we are getting close to OOM? I mean, I do understand that we might
-> > > > have many callers of call_rcu and free memory lazily. But there is quite
-> > > > a long way before we start the reclaim until we reach the OOM killer path.
-> > > > So why don't those callbacks get called during that time period? How are
-> > > > their triggered when we are not hitting the OOM path? They surely cannot
-> > > > sit there for ever, right? Can we trigger them sooner? Maybe the
-> > > > shrinker is not the best fit but we have a retry feedback loop in the page
-> > > > allocator, maybe we can kick this processing from there.
-> > > 
-> > > The effect of RCU's current OOM code is to speed up callback invocation
-> > > by at most a few seconds (assuming no stalled CPUs, in which case
-> > > it is not possible to speed up callback invocation).
-> > > 
-> > > Given that, I should just remove RCU's OOM code entirely?
-> > 
-> > Yeah, it seems so. I do not see how this would really help much. If we
-> > really need some way to kick callbacks then we should do so much earlier
-> > in the reclaim process - e.g. when we start struggling to reclaim any
-> > memory.
+On 07/02/2018 03:17 AM, Jan Kara wrote:
+> On Sun 01-07-18 17:56:49, john.hubbard@gmail.com wrote:
+>> From: John Hubbard <jhubbard@nvidia.com>
+>>
+>> An upcoming patch requires a way to operate on each page that
+>> any of the get_user_pages_*() variants returns.
+>>
+>> In preparation for that, consolidate the error handling for
+>> __get_user_pages(). This provides a single location (the "out:" label)
+>> for operating on the collected set of pages that are about to be returned.
+>>
+>> As long every use of the "ret" variable is being edited, rename
+>> "ret" --> "err", so that its name matches its true role.
+>> This also gets rid of two shadowed variable declarations, as a
+>> tiny beneficial a side effect.
+>>
+>> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
 > 
-> One approach would be to tell RCU "It is time to trade CPU for memory"
-> at the beginning of that struggle and then tell RCU "Go back to optimizing
-> for CPU" at the end of that struggle.  Is there already a way to do this?
-> If so, RCU should probably just switch to it.
+> This looks nice! You can add:
 > 
-> But what is the typical duration of such a struggle?  Does this duration
-> change with workload?  (I suspect that the answers are "who knows?" and
-> "yes", but you tell me!)  Are there other oom handlers that would prefer
-> the approach of the previous paragraph?
+> Reviewed-by: Jan Kara <jack@suse.cz>
 > 
-> > I am curious. Has the notifier been motivated by a real world use case
-> > or it was "nice thing to do"?
-> 
-> It was introduced by b626c1b689364 ("rcu: Provide OOM handler to motivate
-> lazy RCU callbacks").  The motivation for this commit was a set of changes
-> that improved energy efficiency by making CPUs sleep for longer when all
-> of their pending callbacks were known to only free memory (as opposed
-> to doing a wakeup or some such).  Prior to this set of changes, a CPU
-> with callbacks would invoke those callbacks (thus freeing the memory)
-> within a jiffy or so of the end of a grace period.  After this set of
-> changes, a CPU might wait several seconds.  This was a concern to people
-> with small-memory systems, hence commit b626c1b689364.
 
-And here is a commit removing RCU's OOM handler.  Thoughts?
+Great, thanks for the review!
 
-							Thanx, Paul
-
-------------------------------------------------------------------------
-
-commit d2b8d16b97ac2859919713b2d98b8a3ad22943a2
-Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-Date:   Mon Jul 2 14:30:37 2018 -0700
-
-    rcu: Remove OOM code
-    
-    There is reason to believe that RCU's OOM code isn't really helping
-    that much, given that the best it can hope to do is accelerate invoking
-    callbacks by a few seconds, and even then only if some CPUs have no
-    non-lazy callbacks, a condition that has been observed to be rare.
-    This commit therefore removes RCU's OOM code.  If this causes problems,
-    it can easily be reinserted.
-    
-    Reported-by: Michal Hocko <mhocko@kernel.org>
-    Reported-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-    Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-
-diff --git a/kernel/rcu/tree_plugin.h b/kernel/rcu/tree_plugin.h
-index 3f3796b10c71..3d7ce73e7309 100644
---- a/kernel/rcu/tree_plugin.h
-+++ b/kernel/rcu/tree_plugin.h
-@@ -1722,87 +1722,6 @@ static void rcu_idle_count_callbacks_posted(void)
- 	__this_cpu_add(rcu_dynticks.nonlazy_posted, 1);
- }
- 
--/*
-- * Data for flushing lazy RCU callbacks at OOM time.
-- */
--static atomic_t oom_callback_count;
--static DECLARE_WAIT_QUEUE_HEAD(oom_callback_wq);
--
--/*
-- * RCU OOM callback -- decrement the outstanding count and deliver the
-- * wake-up if we are the last one.
-- */
--static void rcu_oom_callback(struct rcu_head *rhp)
--{
--	if (atomic_dec_and_test(&oom_callback_count))
--		wake_up(&oom_callback_wq);
--}
--
--/*
-- * Post an rcu_oom_notify callback on the current CPU if it has at
-- * least one lazy callback.  This will unnecessarily post callbacks
-- * to CPUs that already have a non-lazy callback at the end of their
-- * callback list, but this is an infrequent operation, so accept some
-- * extra overhead to keep things simple.
-- */
--static void rcu_oom_notify_cpu(void *unused)
--{
--	struct rcu_state *rsp;
--	struct rcu_data *rdp;
--
--	for_each_rcu_flavor(rsp) {
--		rdp = raw_cpu_ptr(rsp->rda);
--		if (rcu_segcblist_n_lazy_cbs(&rdp->cblist)) {
--			atomic_inc(&oom_callback_count);
--			rsp->call(&rdp->oom_head, rcu_oom_callback);
--		}
--	}
--}
--
--/*
-- * If low on memory, ensure that each CPU has a non-lazy callback.
-- * This will wake up CPUs that have only lazy callbacks, in turn
-- * ensuring that they free up the corresponding memory in a timely manner.
-- * Because an uncertain amount of memory will be freed in some uncertain
-- * timeframe, we do not claim to have freed anything.
-- */
--static int rcu_oom_notify(struct notifier_block *self,
--			  unsigned long notused, void *nfreed)
--{
--	int cpu;
--
--	/* Wait for callbacks from earlier instance to complete. */
--	wait_event(oom_callback_wq, atomic_read(&oom_callback_count) == 0);
--	smp_mb(); /* Ensure callback reuse happens after callback invocation. */
--
--	/*
--	 * Prevent premature wakeup: ensure that all increments happen
--	 * before there is a chance of the counter reaching zero.
--	 */
--	atomic_set(&oom_callback_count, 1);
--
--	for_each_online_cpu(cpu) {
--		smp_call_function_single(cpu, rcu_oom_notify_cpu, NULL, 1);
--		cond_resched_tasks_rcu_qs();
--	}
--
--	/* Unconditionally decrement: no need to wake ourselves up. */
--	atomic_dec(&oom_callback_count);
--
--	return NOTIFY_OK;
--}
--
--static struct notifier_block rcu_oom_nb = {
--	.notifier_call = rcu_oom_notify
--};
--
--static int __init rcu_register_oom_notifier(void)
--{
--	register_oom_notifier(&rcu_oom_nb);
--	return 0;
--}
--early_initcall(rcu_register_oom_notifier);
--
- #endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */
- 
- #ifdef CONFIG_RCU_FAST_NO_HZ
+-- 
+John Hubbard
+NVIDIA
