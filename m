@@ -1,75 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C9C56B026B
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 08:07:33 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id x13-v6so13197608iog.16
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 05:07:33 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id k11-v6si10017345jam.31.2018.07.02.05.07.31
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E4D5F6B0008
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 08:14:03 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id z5-v6so9914483pln.20
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 05:14:03 -0700 (PDT)
+Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0084.outbound.protection.outlook.com. [104.47.42.84])
+        by mx.google.com with ESMTPS id m75-v6si16043112pfj.192.2018.07.02.05.14.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jul 2018 05:07:31 -0700 (PDT)
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w62C3ZcW099054
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 12:07:30 GMT
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by userp2120.oracle.com with ESMTP id 2jx2gpv59g-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Mon, 02 Jul 2018 12:07:30 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w62C7R5F026208
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 12:07:27 GMT
-Received: from abhmp0014.oracle.com (abhmp0014.oracle.com [141.146.116.20])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w62C7RN0002493
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 12:07:27 GMT
-Received: by mail-oi0-f50.google.com with SMTP id r16-v6so15386858oie.3
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 05:07:27 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 02 Jul 2018 05:14:02 -0700 (PDT)
+Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+References: <20180622150242.16558-1-mhocko@kernel.org>
+ <20180627074421.GF32348@dhcp22.suse.cz>
+ <71f4184c-21ea-5af1-eeb6-bf7787614e2d@amd.com>
+ <20180702115423.GK19043@dhcp22.suse.cz>
+From: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
+Message-ID: <725cb1ad-01b0-42b5-56f0-c08c29804cb4@amd.com>
+Date: Mon, 2 Jul 2018 14:13:42 +0200
 MIME-Version: 1.0
-References: <1530239363-2356-1-git-send-email-hejianet@gmail.com> <20180702114037.GJ19043@dhcp22.suse.cz>
-In-Reply-To: <20180702114037.GJ19043@dhcp22.suse.cz>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Mon, 2 Jul 2018 08:06:50 -0400
-Message-ID: <CAGM2reaPhcWNhNW+i7kCysUr2tEMBour-GO_hkr4N-SrEvcx0w@mail.gmail.com>
-Subject: Re: [PATCH v9 0/6] optimize memblock_next_valid_pfn and
- early_pfn_valid on arm and arm64
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180702115423.GK19043@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: Jia He <hejianet@gmail.com>, linux@armlinux.org.uk, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, will.deacon@arm.com, mark.rutland@arm.com, hpa@zytor.com, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, neelx@redhat.com, erosca@de.adit-jv.com, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, james.morse@arm.com, Ard Biesheuvel <ard.biesheuvel@linaro.org>, steve.capper@arm.com, tglx@linutronix.de, mingo@redhat.com, gregkh@linuxfoundation.org, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Johannes Weiner <hannes@cmpxchg.org>, kemi.wang@intel.com, =?UTF-8?B?UGV0ciBUZXNhxZnDrWs=?= <ptesarik@suse.com>, yasu.isimatu@gmail.com, aryabinin@virtuozzo.com, nborisov@suse.com, Wei Yang <richard.weiyang@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Felix Kuehling <felix.kuehling@amd.com>
 
-On Mon, Jul 2, 2018 at 7:40 AM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Fri 29-06-18 10:29:17, Jia He wrote:
-> > Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
-> > where possible") tried to optimize the loop in memmap_init_zone(). But
-> > there is still some room for improvement.
->
-> It would be great to shortly describe those optimization from high level
-> POV.
->
-> >
-> > Patch 1 introduce new config to make codes more generic
-> > Patch 2 remain the memblock_next_valid_pfn on arm and arm64
-> > Patch 3 optimizes the memblock_next_valid_pfn()
-> > Patch 4~6 optimizes the early_pfn_valid()
-> >
-> > As for the performance improvement, after this set, I can see the time
-> > overhead of memmap_init() is reduced from 27956us to 13537us in my
-> > armv8a server(QDF2400 with 96G memory, pagesize 64k).
->
-> So this is 13ms saving when booting 96G machine. Is this really worth
-> the additional code? Are there any other benefits?
+Am 02.07.2018 um 13:54 schrieb Michal Hocko:
+> On Mon 02-07-18 11:14:58, Christian KA?nig wrote:
+>> Am 27.06.2018 um 09:44 schrieb Michal Hocko:
+>>> This is the v2 of RFC based on the feedback I've received so far. The
+>>> code even compiles as a bonus ;) I haven't runtime tested it yet, mostly
+>>> because I have no idea how.
+>>>
+>>> Any further feedback is highly appreciated of course.
+>> That sounds like it should work and at least the amdgpu changes now look
+>> good to me on first glance.
+>>
+>> Can you split that up further in the usual way? E.g. adding the blockable
+>> flag in one patch and fixing all implementations of the MMU notifier in
+>> follow up patches.
+> But such a code would be broken, no? Ignoring the blockable state will
+> simply lead to lockups until the fixup parts get applied.
 
-While 0.0144s for 96G is definitely small, I think the time is
-proportional to the number of pages since memmap_init() loops through
-all the pages. If base pages were changed to 4K, I bet the time would
-increase 16 times: 0.23s on given machine, in other words around 2s
-per 1T of memory.
+Well to still be bisect-able you only need to get the interface change 
+in first with fixing the function signature of the implementations.
 
-I agree, a high level description of optimization is needed, and also
-an explanation of why it would not work on other arches that support
-memblock.
+Then add all the new code to the implementations and last start to 
+actually use the new interface.
 
-Pavel
+That is a pattern we use regularly and I think it's good practice to do 
+this.
+
+> Is the split up really worth it? I was thinking about that but had hard
+> times to end up with something that would be bisectable. Well, except
+> for returning -EBUSY until all notifiers are implemented. Which I found
+> confusing.
+
+It at least makes reviewing changes much easier, cause as driver 
+maintainer I can concentrate on the stuff only related to me.
+
+Additional to that when you cause some unrelated side effect in a driver 
+we can much easier pinpoint the actual change later on when the patch is 
+smaller.
+
+>
+>> This way I'm pretty sure Felix and I can give an rb on the amdgpu/amdkfd
+>> changes.
+> If you are worried to give r-b only for those then this can be done even
+> for larger patches. Just make your Reviewd-by more specific
+> R-b: name # For BLA BLA
+
+Yeah, possible alternative but more work for me when I review it :)
+
+Regards,
+Christian.
