@@ -1,67 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B32C6B0297
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 18:38:33 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id x6-v6so5171wrl.6
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 15:38:33 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id c2-v6si11742627wrr.201.2018.07.02.15.38.31
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A3016B0299
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 18:43:14 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id w1-v6so9735plq.8
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 15:43:14 -0700 (PDT)
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTPS id b1-v6si17429567pld.323.2018.07.02.15.34.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 02 Jul 2018 15:38:31 -0700 (PDT)
-Date: Tue, 3 Jul 2018 00:38:30 +0200
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: Re: [PATCH 2/3] mm: workingset: make shadow_lru_isolate() use
- locking suffix
-Message-ID: <20180702223830.33eeyqjoqy2t5uqe@linutronix.de>
-References: <20180622151221.28167-1-bigeasy@linutronix.de>
- <20180622151221.28167-3-bigeasy@linutronix.de>
- <20180624195753.2e277k5xhujypwre@esperanza>
- <20180626212534.sp4p76gcvldcai57@linutronix.de>
- <20180627085003.rz3dzzggjxps34wb@esperanza>
- <20180627092059.temrhpvyc7ggcmxd@linutronix.de>
- <20180628093057.4u7ncd42s2wu4oin@esperanza>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20180628093057.4u7ncd42s2wu4oin@esperanza>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 02 Jul 2018 15:34:43 -0700 (PDT)
+Message-ID: <1530570880.3179.9.camel@HansenPartnership.com>
+Subject: Re: [PATCH v5 0/6] fs/dcache: Track & limit # of negative dentries
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Mon, 02 Jul 2018 15:34:40 -0700
+In-Reply-To: <20180702141811.ef027fd7d8087b7fb2ba0cce@linux-foundation.org>
+References: <1530510723-24814-1-git-send-email-longman@redhat.com>
+	 <CA+55aFyH6dHw-7R3364dn32J4p7kxT=TqmnuozCn9_Bz-MHhxQ@mail.gmail.com>
+	 <20180702141811.ef027fd7d8087b7fb2ba0cce@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: linux-mm@kvack.org, tglx@linutronix.de, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Waiman Long <longman@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>
 
-On 2018-06-28 12:30:57 [+0300], Vladimir Davydov wrote:
-> > It helps to keep the locking annotation in one place. If it helps I
-> > could add the _irqsave() suffix to list_lru_add/del like it is already
-> > done in other places (in this file).
+On Mon, 2018-07-02 at 14:18 -0700, Andrew Morton wrote:
+> On Mon, 2 Jul 2018 12:34:00 -0700 Linus Torvalds <torvalds@linux-foun
+> dation.org> wrote:
 > 
-> AFAIK local_irqsave/restore don't come for free so using them just to
-> keep the code clean doesn't seem to be reasonable.
-
-exactly. So I kept those two as is since there is no need for it.
-
-> > > As for RT, it wouldn't need mm/workingset altogether AFAIU. 
-> > Why wouldn't it need it?
+> > On Sun, Jul 1, 2018 at 10:52 PM Waiman Long <longman@redhat.com>
+> > wrote:
+> > > 
+> > > A rogue application can potentially create a large number of
+> > > negative
+> > > dentries in the system consuming most of the memory available if
+> > > it
+> > > is not under the direct control of a memory controller that
+> > > enforce
+> > > kernel memory limit.
+> > 
+> > I certainly don't mind the patch series, but I would like it to be
+> > accompanied with some actual example numbers, just to make it all a
+> > bit more concrete.
+> > 
+> > Maybe even performance numbers showing "look, I've filled the
+> > dentry
+> > lists with nasty negative dentries, now it's all slower because we
+> > walk those less interesting entries".
+> > 
 > 
-> I may be wrong, but AFAIU RT kernel doesn't do swapping.
-
-swapping the RT task out would be bad indeed. This does not stop you
-from using it. You can mlock() your RT application (well should because
-you don't want do remove RO-data or code from memory because it is
-unchanged on disk) and everything else that is not essential (say
-SCHED_OTHER) could be swapped out then if memory goes low.
-
-> > invokes. I could also add a different function (say
-> > list_lru_walk_one_irq()) which behaves like list_lru_walk_one() but does
-> > spin_lock_irq() instead.
+> (Please cc linux-mm@kvack.org on this work)
 > 
-> That would look better IMHO. I mean, passing the flag as an argument to
-> __list_lru_walk_one and introducing list_lru_shrink_walk_irq.
+> Yup.A A The description of the user-visible impact of current behavior
+> is far too vague.
+> 
+> In the [5/6] changelog it is mentioned that a large number of -ve
+> dentries can lead to oom-killings.A A This sounds bad - -ve dentries
+> should be trivially reclaimable and we shouldn't be oom-killing in
+> such a situation.
 
-You think so? So I had this earlier and decided to go with what I
-posted. But hey. I will post it later as suggested here and we will see
-how it goes.
-I just wrote this here to let akpm know that I will do as asked here
-(since he Cc: me in other thread on this topic, thank you will act).
+If you're old enough, it's dA(C)jA  vu; Andrea went on a negative dentry
+rampage about 15 years ago:
 
-Sebastian
+https://lkml.org/lkml/2002/5/24/71
+
+I think the summary of the thread is that it's not worth it because
+dentries are a clean cache, so they're immediately shrinkable.
+
+> Dumb question: do we know that negative dentries are actually
+> worthwhile?A A Has anyone checked in the past couple of
+> decades?A A Perhaps our lookups are so whizzy nowadays that we don't
+> need them?
+
+There are still a lot of applications that keep looking up non-existent 
+files, so I think it's still beneficial to keep them.  Apparently
+apache still looks for a .htaccess file in every directory it
+traverses, for instance.  Round tripping every one of these to disk
+instead of caching it as a negative dentry would seem to be a
+performance loser here.
+
+However, actually measuring this again might be useful.
+
+James
