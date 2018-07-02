@@ -1,296 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E2E466B0006
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 08:33:57 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id p91-v6so9832002plb.12
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 05:33:57 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m18-v6sor2897364pgg.198.2018.07.02.05.33.55
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BB066B0269
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 08:35:25 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id i10-v6so5648105eds.19
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 05:35:25 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g5-v6si331007edm.273.2018.07.02.05.35.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 02 Jul 2018 05:33:56 -0700 (PDT)
-Date: Mon, 2 Jul 2018 15:33:50 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC v3 PATCH 4/5] mm: mmap: zap pages with read mmap_sem for
- large mapping
-Message-ID: <20180702123350.dktmzlmztulmtrae@kshutemo-mobl1>
-References: <1530311985-31251-1-git-send-email-yang.shi@linux.alibaba.com>
- <1530311985-31251-5-git-send-email-yang.shi@linux.alibaba.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Jul 2018 05:35:23 -0700 (PDT)
+Date: Mon, 2 Jul 2018 14:35:21 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+Message-ID: <20180702123521.GO19043@dhcp22.suse.cz>
+References: <20180622150242.16558-1-mhocko@kernel.org>
+ <20180627074421.GF32348@dhcp22.suse.cz>
+ <71f4184c-21ea-5af1-eeb6-bf7787614e2d@amd.com>
+ <20180702115423.GK19043@dhcp22.suse.cz>
+ <725cb1ad-01b0-42b5-56f0-c08c29804cb4@amd.com>
+ <20180702122003.GN19043@dhcp22.suse.cz>
+ <02d1d52c-f534-f899-a18c-a3169123ac7c@amd.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1530311985-31251-5-git-send-email-yang.shi@linux.alibaba.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <02d1d52c-f534-f899-a18c-a3169123ac7c@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, tglx@linutronix.de, hpa@zytor.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org
+To: Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Felix Kuehling <felix.kuehling@amd.com>
 
-On Sat, Jun 30, 2018 at 06:39:44AM +0800, Yang Shi wrote:
-> When running some mmap/munmap scalability tests with large memory (i.e.
-> > 300GB), the below hung task issue may happen occasionally.
+On Mon 02-07-18 14:24:29, Christian Konig wrote:
+> Am 02.07.2018 um 14:20 schrieb Michal Hocko:
+> > On Mon 02-07-18 14:13:42, Christian Konig wrote:
+> > > Am 02.07.2018 um 13:54 schrieb Michal Hocko:
+> > > > On Mon 02-07-18 11:14:58, Christian Konig wrote:
+> > > > > Am 27.06.2018 um 09:44 schrieb Michal Hocko:
+> > > > > > This is the v2 of RFC based on the feedback I've received so far. The
+> > > > > > code even compiles as a bonus ;) I haven't runtime tested it yet, mostly
+> > > > > > because I have no idea how.
+> > > > > > 
+> > > > > > Any further feedback is highly appreciated of course.
+> > > > > That sounds like it should work and at least the amdgpu changes now look
+> > > > > good to me on first glance.
+> > > > > 
+> > > > > Can you split that up further in the usual way? E.g. adding the blockable
+> > > > > flag in one patch and fixing all implementations of the MMU notifier in
+> > > > > follow up patches.
+> > > > But such a code would be broken, no? Ignoring the blockable state will
+> > > > simply lead to lockups until the fixup parts get applied.
+> > > Well to still be bisect-able you only need to get the interface change in
+> > > first with fixing the function signature of the implementations.
+> > That would only work if those functions return -AGAIN unconditionally.
+> > Otherwise they would pretend to not block while that would be obviously
+> > incorrect. This doesn't sound correct to me.
+> > 
+> > > Then add all the new code to the implementations and last start to actually
+> > > use the new interface.
+> > > 
+> > > That is a pattern we use regularly and I think it's good practice to do
+> > > this.
+> > But we do rely on the proper blockable handling.
 > 
-> INFO: task ps:14018 blocked for more than 120 seconds.
->        Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
->  "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
-> message.
->  ps              D    0 14018      1 0x00000004
->   ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
->   ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
->   00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
->  Call Trace:
->   [<ffffffff817154d0>] ? __schedule+0x250/0x730
->   [<ffffffff817159e6>] schedule+0x36/0x80
->   [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
->   [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
->   [<ffffffff81717db0>] down_read+0x20/0x40
->   [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
->   [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
->   [<ffffffff81241d87>] __vfs_read+0x37/0x150
->   [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
->   [<ffffffff81242266>] vfs_read+0x96/0x130
->   [<ffffffff812437b5>] SyS_read+0x55/0xc0
->   [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
+> Yeah, but you could add the handling only after you have all the
+> implementations in place. Don't you?
+
+Yeah, but then I would be adding a code with no user. And I really
+prefer to no do so because then the code is harder to argue about.
+
+> > > > Is the split up really worth it? I was thinking about that but had hard
+> > > > times to end up with something that would be bisectable. Well, except
+> > > > for returning -EBUSY until all notifiers are implemented. Which I found
+> > > > confusing.
+> > > It at least makes reviewing changes much easier, cause as driver maintainer
+> > > I can concentrate on the stuff only related to me.
+> > > 
+> > > Additional to that when you cause some unrelated side effect in a driver we
+> > > can much easier pinpoint the actual change later on when the patch is
+> > > smaller.
+> > > 
+> > > > > This way I'm pretty sure Felix and I can give an rb on the amdgpu/amdkfd
+> > > > > changes.
+> > > > If you are worried to give r-b only for those then this can be done even
+> > > > for larger patches. Just make your Reviewd-by more specific
+> > > > R-b: name # For BLA BLA
+> > > Yeah, possible alternative but more work for me when I review it :)
+> > I definitely do not want to add more work to reviewers and I completely
+> > see how massive "flag days" like these are not popular but I really
+> > didn't find a reasonable way around that would be both correct and
+> > wouldn't add much more churn on the way. So if you really insist then I
+> > would really appreciate a hint on the way to achive the same without any
+> > above downsides.
 > 
-> It is because munmap holds mmap_sem from very beginning to all the way
-> down to the end, and doesn't release it in the middle. When unmapping
-> large mapping, it may take long time (take ~18 seconds to unmap 320GB
-> mapping with every single page mapped on an idle machine).
-> 
-> It is because munmap holds mmap_sem from very beginning to all the way
-> down to the end, and doesn't release it in the middle. When unmapping
-> large mapping, it may take long time (take ~18 seconds to unmap 320GB
-> mapping with every single page mapped on an idle machine).
-> 
-> Zapping pages is the most time consuming part, according to the
-> suggestion from Michal Hock [1], zapping pages can be done with holding
-> read mmap_sem, like what MADV_DONTNEED does. Then re-acquire write
-> mmap_sem to cleanup vmas. All zapped vmas will have VM_DEAD flag set,
-> the page fault to VM_DEAD vma will trigger SIGSEGV.
-> 
-> Define large mapping size thresh as PUD size or 1GB, just zap pages with
-> read mmap_sem for mappings which are >= thresh value.
-> 
-> If the vma has VM_LOCKED | VM_HUGETLB | VM_PFNMAP or uprobe, then just
-> fallback to regular path since unmapping those mappings need acquire
-> write mmap_sem.
-> 
-> For the time being, just do this in munmap syscall path. Other
-> vm_munmap() or do_munmap() call sites remain intact for stability
-> reason.
-> 
-> The below is some regression and performance data collected on a machine
-> with 32 cores of E5-2680 @ 2.70GHz and 384GB memory.
-> 
-> With the patched kernel, write mmap_sem hold time is dropped to us level
-> from second.
-> 
-> [1] https://lwn.net/Articles/753269/
-> 
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> ---
->  mm/mmap.c | 136 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
->  1 file changed, 134 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 87dcf83..d61e08b 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2763,6 +2763,128 @@ static int munmap_lookup_vma(struct mm_struct *mm, struct vm_area_struct **vma,
->  	return 1;
->  }
->  
-> +/* Consider PUD size or 1GB mapping as large mapping */
-> +#ifdef HPAGE_PUD_SIZE
-> +#define LARGE_MAP_THRESH	HPAGE_PUD_SIZE
-> +#else
-> +#define LARGE_MAP_THRESH	(1 * 1024 * 1024 * 1024)
-> +#endif
+> Well, I don't insist on this. It's just from my point of view that this
+> patch doesn't needs to be one patch, but could be split up.
 
-PUD_SIZE is defined everywhere.
-
-> +
-> +/* Unmap large mapping early with acquiring read mmap_sem */
-> +static int do_munmap_zap_early(struct mm_struct *mm, unsigned long start,
-> +			       size_t len, struct list_head *uf)
-> +{
-> +	unsigned long end = 0;
-> +	struct vm_area_struct *vma = NULL, *prev, *tmp;
-> +	bool success = false;
-> +	int ret = 0;
-> +
-> +	if (!munmap_addr_sanity(start, len))
-> +		return -EINVAL;
-> +
-> +	len = PAGE_ALIGN(len);
-> +
-> +	end = start + len;
-> +
-> +	/* Just deal with uf in regular path */
-> +	if (unlikely(uf))
-> +		goto regular_path;
-> +
-> +	if (len >= LARGE_MAP_THRESH) {
-> +		/*
-> +		 * need write mmap_sem to split vma and set VM_DEAD flag
-> +		 * splitting vma up-front to save PITA to clean if it is failed
-
-What errors do you talk about? ENOMEM on VMA split? Anything else?
-
-> +		 */
-> +		down_write(&mm->mmap_sem);
-> +		ret = munmap_lookup_vma(mm, &vma, &prev, start, end);
-> +		if (ret != 1) {
-> +			up_write(&mm->mmap_sem);
-> +			return ret;
-> +		}
-> +		/* This ret value might be returned, so reset it */
-> +		ret = 0;
-> +
-> +		/*
-> +		 * Unmapping vmas, which has VM_LOCKED|VM_HUGETLB|VM_PFNMAP
-> +		 * flag set or has uprobes set, need acquire write map_sem,
-> +		 * so skip them in early zap. Just deal with such mapping in
-> +		 * regular path.
-> +		 * Borrow can_madv_dontneed_vma() to check the conditions.
-> +		 */
-> +		tmp = vma;
-> +		while (tmp && tmp->vm_start < end) {
-> +			if (!can_madv_dontneed_vma(tmp) ||
-> +			    vma_has_uprobes(tmp, start, end)) {
-> +				up_write(&mm->mmap_sem);
-> +				goto regular_path;
-> +			}
-> +			tmp = tmp->vm_next;
-> +		}
-> +		/*
-> +		 * set VM_DEAD flag before tear down them.
-> +		 * page fault on VM_DEAD vma will trigger SIGSEGV.
-> +		 */
-> +		tmp = vma;
-> +		for ( ; tmp && tmp->vm_start < end; tmp = tmp->vm_next)
-> +			tmp->vm_flags |= VM_DEAD;
-
-I probably miss the explanation somewhere, but what's wrong with allowing
-other thread to re-populate the VMA?
-
-I would rather allow the VMA to be re-populated by other thread while we
-are zapping the range. And later zap the range again under down_write.
-
-It should also lead to consolidated regular path: take mmap_sem for write
-and call do_munmap().
-
-On the first path we just skip VMA we cannot deal with under
-down_read(mmap_sem), regular path will take care of them.
-
-
-> +		up_write(&mm->mmap_sem);
-> +
-> +		/* zap mappings with read mmap_sem */
-> +		down_read(&mm->mmap_sem);
-
-Yeah. There's race between up_write() and down_read().
-Use downgrade, as Andrew suggested.
-
-> +		zap_page_range(vma, start, len);
-> +		/* indicates early zap is success */
-> +		success = true;
-> +		up_read(&mm->mmap_sem);
-
-And here again.
-
-This race can be avoided if we wouldn't carry vma to regular_path, but
-just go directly to do_munmap().
-
-> +	}
-> +
-> +regular_path:
-> +	/* hold write mmap_sem for vma manipulation or regular path */
-> +	if (down_write_killable(&mm->mmap_sem))
-> +		return -EINTR;
-> +	if (success) {
-> +		/* vmas have been zapped, here clean up pgtable and vmas */
-> +		struct vm_area_struct *next = prev ? prev->vm_next : mm->mmap;
-> +		struct mmu_gather tlb;
-> +		tlb_gather_mmu(&tlb, mm, start, end);
-> +		free_pgtables(&tlb, vma, prev ? prev->vm_end : FIRST_USER_ADDRESS,
-> +			      next ? next->vm_start : USER_PGTABLES_CEILING);
-> +		tlb_finish_mmu(&tlb, start, end);
-> +
-> +		detach_vmas_to_be_unmapped(mm, vma, prev, end);
-> +		arch_unmap(mm, vma, start, end);
-> +		remove_vma_list(mm, vma);
-> +	} else {
-> +		/* vma is VM_LOCKED|VM_HUGETLB|VM_PFNMAP or has uprobe */
-> +		if (vma) {
-> +			if (unlikely(uf)) {
-> +				int ret = userfaultfd_unmap_prep(vma, start,
-> +								 end, uf);
-> +				if (ret)
-> +					goto out;
-> +			}
-> +			if (mm->locked_vm) {
-> +				tmp = vma;
-> +				while (tmp && tmp->vm_start < end) {
-> +					if (tmp->vm_flags & VM_LOCKED) {
-> +						mm->locked_vm -= vma_pages(tmp);
-> +						munlock_vma_pages_all(tmp);
-> +					}
-> +					tmp = tmp->vm_next;
-> +				}
-> +			}
-> +			detach_vmas_to_be_unmapped(mm, vma, prev, end);
-> +			unmap_region(mm, vma, prev, start, end);
-> +			remove_vma_list(mm, vma);
-> +		} else
-> +			/* When mapping size < LARGE_MAP_THRESH */
-> +			ret = do_munmap(mm, start, len, uf);
-> +	}
-> +
-> +out:
-> +	up_write(&mm->mmap_sem);
-> +	return ret;
-> +}
-> +
->  /* Munmap is split into 2 main parts -- this part which finds
->   * what needs doing, and the areas themselves, which do the
->   * work.  This now handles partial unmappings.
-> @@ -2829,6 +2951,17 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
->  	return 0;
->  }
->  
-> +static int vm_munmap_zap_early(unsigned long start, size_t len)
-> +{
-> +	int ret;
-> +	struct mm_struct *mm = current->mm;
-> +	LIST_HEAD(uf);
-> +
-> +	ret = do_munmap_zap_early(mm, start, len, &uf);
-> +	userfaultfd_unmap_complete(mm, &uf);
-> +	return ret;
-> +}
-> +
->  int vm_munmap(unsigned long start, size_t len)
->  {
->  	int ret;
-> @@ -2848,10 +2981,9 @@ int vm_munmap(unsigned long start, size_t len)
->  SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
->  {
->  	profile_munmap(addr);
-> -	return vm_munmap(addr, len);
-> +	return vm_munmap_zap_early(addr, len);
->  }
->  
-> -
->  /*
->   * Emulation of deprecated remap_file_pages() syscall.
->   */
-> -- 
-> 1.8.3.1
-> 
-
+Well, if there are more people with the same concern I can try to do
+that. But if your only concern is to focus on your particular part then
+I guess it would be easier both for you and me to simply apply the patch
+and use git show $files_for_your_subystem on your end. I have put the
+patch to attempts/oom-vs-mmu-notifiers branch to my tree at
+git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
