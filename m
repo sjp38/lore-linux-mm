@@ -1,70 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1190E6B0271
-	for <linux-mm@kvack.org>; Sun,  1 Jul 2018 23:12:31 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id m12-v6so2469955wma.9
-        for <linux-mm@kvack.org>; Sun, 01 Jul 2018 20:12:31 -0700 (PDT)
-Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id k7-v6si6747004wrf.130.2018.07.01.20.12.29
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F15DA6B0273
+	for <linux-mm@kvack.org>; Sun,  1 Jul 2018 23:14:23 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id v137-v6so17725662qka.6
+        for <linux-mm@kvack.org>; Sun, 01 Jul 2018 20:14:23 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id b8-v6si5884424qvo.203.2018.07.01.20.14.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 01 Jul 2018 20:12:29 -0700 (PDT)
-Subject: Re: [BUG] Swap xarray workingset eviction warning.
-References: <2920a634-0646-1500-7c4d-62c56932fe49@gmail.com>
- <20180702025059.GA9865@bombadil.infradead.org>
-From: Gao Xiang <gaoxiang25@huawei.com>
-Message-ID: <cb59ba75-61eb-4559-0865-202f6c78d3d0@huawei.com>
-Date: Mon, 2 Jul 2018 11:11:53 +0800
+        Sun, 01 Jul 2018 20:14:23 -0700 (PDT)
+Date: Mon, 2 Jul 2018 11:14:17 +0800
+From: Baoquan He <bhe@redhat.com>
+Subject: Re: [PATCH v3 1/2] mm/sparse: add sparse_init_nid()
+Message-ID: <20180702031417.GP3223@MiWiFi-R3L-srv>
+References: <20180702020417.21281-1-pasha.tatashin@oracle.com>
+ <20180702020417.21281-2-pasha.tatashin@oracle.com>
+ <20180702021121.GL3223@MiWiFi-R3L-srv>
+ <CAGM2rebY1_-3hvp_+kqF==nLawC0FN6Q1J5X5pm5qxHdDJzjiQ@mail.gmail.com>
+ <20180702023130.GM3223@MiWiFi-R3L-srv>
+ <CAGM2rebUsJ2r-2F38Vv13zbaEPPgTn0w6H3j6fpg0WVa9wB6Uw@mail.gmail.com>
+ <20180702025343.GN3223@MiWiFi-R3L-srv>
+ <CAGM2reatQzroymAb8kaPKgd8sEehtScH9DAELeWpYCaNNnAU6w@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180702025059.GA9865@bombadil.infradead.org>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGM2reatQzroymAb8kaPKgd8sEehtScH9DAELeWpYCaNNnAU6w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, Peter Geis <pgwipeout@gmail.com>
-Cc: linux-fsdevel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, kirill.shutemov@linux.intel.com, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, Souptick Joarder <jrdr.linux@gmail.com>, gregkh@linuxfoundation.org, Vlastimil Babka <vbabka@suse.cz>, Wei Yang <richard.weiyang@gmail.com>, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net
 
-Hi Matthew,
-
-On 2018/7/2 10:50, Matthew Wilcox wrote:
-> On Sun, Jul 01, 2018 at 07:09:41PM -0400, Peter Geis wrote:
->> The warning is as follows:
->> [10409.408904] ------------[ cut here ]------------
->> [10409.408912] WARNING: CPU: 0 PID: 38 at ./include/linux/xarray.h:53
->> workingset_eviction+0x14c/0x154
-> This is interesting.  Here's the code that leads to the warning:
+On 07/01/18 at 11:03pm, Pavel Tatashin wrote:
+> > Ah, yes, I misunderstood it, sorry for that.
+> >
+> > Then I have only one concern, for vmemmap case, if one section doesn't
+> > succeed to populate its memmap, do we need to skip all the remaining
+> > sections in that node?
 > 
-> static void *pack_shadow(int memcgid, pg_data_t *pgdat, unsigned long eviction)
-> {
->         eviction >>= bucket_order;
->         eviction = (eviction << MEM_CGROUP_ID_SHIFT) | memcgid;
->         eviction = (eviction << NODES_SHIFT) | pgdat->node_id;
+> Yes, in sparse_populate_node() we have the following:
 > 
->         return xa_mk_value(eviction);
-> }
+> 294         for (pnum = pnum_begin; map_index < map_count; pnum++) {
+> 295                 if (!present_section_nr(pnum))
+> 296                         continue;
+> 297                 if (!sparse_mem_map_populate(pnum, nid, NULL))
+> 298                         break;
 > 
-> The warning itself comes from:
-> 
-> static inline void *xa_mk_value(unsigned long v)
-> {
->         WARN_ON((long)v < 0);
->         return (void *)((v << 1) | 1);
-> }
+> So, on the first failure, we even stop trying to populate other
+> sections. No more memory to do so.
 
-Sorry for breaking in, how do you think about considering
+This is the thing I worry about. In old sparse_mem_maps_populate_node()
+you can see, when not present or failed to populate, just continue. This
+is the main difference between yours and the old code. The key logic is
+changed here.
 
-[RFC PATCH v4] <linux/tagptr.h>: Introduce tagged pointer
-https://marc.info/?l=linux-kernel&m=153035209012070&w=2
+void __init sparse_mem_maps_populate_node(struct page **map_map,
+                                          unsigned long pnum_begin,
+                                          unsigned long pnum_end,
+                                          unsigned long map_count, int nodeid)
+{
+	...
+	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+                struct mem_section *ms;
 
-to replace these masks? It seems boths for the XArray or old radix trees has many hacked code...
+                if (!present_section_nr(pnum))
+                        continue;
 
-or if you think this implmentation is not ok, could you please give some suggestions or alternatives on tagptr...
-
-> 
-> The fact that we haven't seen this on other architectures makes me wonder
-> if NODES_SHIFT or MEM_CGROUP_ID_SHIFT are messed up on Tegra?
-> 
-> Johannes, I wonder if you could help out here?  I'm not terribly familiar
-> with this part of the workingset code.
-Thanks,
-Gao Xiang
+                map_map[pnum] = sparse_mem_map_populate(pnum, nodeid, NULL);
+                if (map_map[pnum])                                                                                                                
+                        continue;
+                ms = __nr_to_section(pnum);
+                pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
+                       __func__);
+                ms->section_mem_map = 0;
+        }
+	...
+}
