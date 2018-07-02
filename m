@@ -1,103 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 88C6C6B000C
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 03:02:29 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id w22-v6so4341015edr.14
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 00:02:29 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q1-v6si1431541edb.153.2018.07.02.00.02.27
+	by kanga.kvack.org (Postfix) with ESMTP id 29FF66B0003
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 03:51:01 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id w10-v6so5261433eds.7
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 00:51:01 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id o1-v6si9747341edd.161.2018.07.02.00.50.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jul 2018 00:02:28 -0700 (PDT)
-Date: Mon, 2 Jul 2018 09:02:27 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/2] mm: set PG_dma_pinned on get_user_pages*()
-Message-ID: <20180702070227.jj5udrdk3rxzjj4t@quack2.suse.cz>
-References: <20180627113221.GO32348@dhcp22.suse.cz>
- <20180627115349.cu2k3ainqqdrrepz@quack2.suse.cz>
- <20180627115927.GQ32348@dhcp22.suse.cz>
- <20180627124255.np2a6rxy6rb6v7mm@quack2.suse.cz>
- <20180627145718.GB20171@ziepe.ca>
- <20180627170246.qfvucs72seqabaef@quack2.suse.cz>
- <1f6e79c5-5801-16d2-18a6-66bd0712b5b8@nvidia.com>
- <20180628091743.khhta7nafuwstd3m@quack2.suse.cz>
- <20180702055251.GV3014@mtr-leonro.mtl.com>
- <235a23e3-6e02-234c-3e20-b2dddc93e568@nvidia.com>
+        Mon, 02 Jul 2018 00:50:59 -0700 (PDT)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w627i7qK059421
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2018 03:50:57 -0400
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2jy9vvbb7c-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 02 Jul 2018 03:50:57 -0400
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
+	Mon, 2 Jul 2018 08:50:54 +0100
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+Subject: [PATCHi v2] mm: do not drop unused pages when userfaultd is running
+Date: Mon,  2 Jul 2018 09:50:49 +0200
+Message-Id: <20180702075049.9157-1-borntraeger@de.ibm.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 8bit
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <235a23e3-6e02-234c-3e20-b2dddc93e568@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Leon Romanovsky <leon@kernel.org>, Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Christoph Hellwig <hch@lst.de>, John Hubbard <john.hubbard@gmail.com>, Matthew Wilcox <willy@infradead.org>, Christopher Lameter <cl@linux.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>
+To: linux-mm@kvack.org, linux-s390@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: kvm@vger.kernel.org, Janosch Frank <frankja@linux.ibm.com>, David Hildenbrand <david@redhat.com>, Cornelia Huck <cohuck@redhat.com>, linux-kernel@vger.kernel.org, Christian Borntraeger <borntraeger@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On Sun 01-07-18 23:10:04, John Hubbard wrote:
-> On 07/01/2018 10:52 PM, Leon Romanovsky wrote:
-> > On Thu, Jun 28, 2018 at 11:17:43AM +0200, Jan Kara wrote:
-> >> On Wed 27-06-18 19:42:01, John Hubbard wrote:
-> >>> On 06/27/2018 10:02 AM, Jan Kara wrote:
-> >>>> On Wed 27-06-18 08:57:18, Jason Gunthorpe wrote:
-> >>>>> On Wed, Jun 27, 2018 at 02:42:55PM +0200, Jan Kara wrote:
-> >>>>>> On Wed 27-06-18 13:59:27, Michal Hocko wrote:
-> >>>>>>> On Wed 27-06-18 13:53:49, Jan Kara wrote:
-> >>>>>>>> On Wed 27-06-18 13:32:21, Michal Hocko wrote:
-> >>>>>>> [...]
-> >>> One question though: I'm still vague on the best actions to take in the
-> >>> following functions:
-> >>>
-> >>>     page_mkclean_one
-> >>>     try_to_unmap_one
-> >>>
-> >>> At the moment, they are both just doing an evil little early-out:
-> >>>
-> >>> 	if (PageDmaPinned(page))
-> >>> 		return false;
-> >>>
-> >>> ...but we talked about maybe waiting for the condition to clear, instead?
-> >>> Thoughts?
-> >>
-> >> What needs to happen in page_mkclean() depends on the caller. Most of the
-> >> callers really need to be sure the page is write-protected once
-> >> page_mkclean() returns. Those are:
-> >>
-> >>   pagecache_isize_extended()
-> >>   fb_deferred_io_work()
-> >>   clear_page_dirty_for_io() if called for data-integrity writeback - which
-> >>     is currently known only in its caller (e.g. write_cache_pages()) where
-> >>     it can be determined as wbc->sync_mode == WB_SYNC_ALL. Getting this
-> >>     information into page_mkclean() will require some plumbing and
-> >>     clear_page_dirty_for_io() has some 50 callers but it's doable.
-> >>
-> >> clear_page_dirty_for_io() for cleaning writeback (wbc->sync_mode !=
-> >> WB_SYNC_ALL) can just skip pinned pages and we probably need to do that as
-> >> otherwise memory cleaning would get stuck on pinned pages until RDMA
-> >> drivers release its pins.
-> > 
-> > Sorry for naive question, but won't it create too much dirty pages
-> > so writeback will be called "non-stop" to rebalance watermarks without
-> > ability to progress?
-> > 
-> 
-> That is an interesting point. 
-> 
-> Holding off page writeback of this region does seem like it could cause
-> problems under memory pressure. Maybe adjusting the watermarks so that we
-> tell the writeback  system, "all is well, just ignore this region until
-> we're done with it" might help? Any ideas here are welcome...
-> 
-> Longer term, maybe some additional work could allow the kernel to be able
-> to writeback the gup-pinned pages (while DMA is happening--snapshots), but
-> that seems like a pretty big overhaul.
+KVM guests on s390 can notify the host of unused pages. This can result
+in pte_unused callbacks to be true for KVM guest memory.
 
-We could use bounce pages to safely writeback pinned pages. However I don't
-think it would buy us anything. From MM point of view these pages are
-impossible-to-get-rid-of (page refcount is increased) and pernamently-dirty
-when GUP was for write (we don't know when dirty data arrives there). So
-let's not just fool MM by pretending we can make them clean. That's going
-to lead to just more problems down the road.
+If a page is unused (checked with pte_unused) we might drop this page
+instead of paging it. This can have side-effects on userfaultd, when the
+page in question was already migrated:
 
-								Honza
+The next access of that page will trigger a fault and a user fault
+instead of faulting in a new and empty zero page. As QEMU does not
+expect a userfault on an already migrated page this migration will fail.
+
+The most straightforward solution is to ignore the pte_unused hint if a
+userfault context is active for this VMA.
+
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
+---
+rfc->v2: use userfaultfd_armed
+ mm/rmap.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 6db729dc4c50..e8fa564676b6 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -64,6 +64,7 @@
+ #include <linux/backing-dev.h>
+ #include <linux/page_idle.h>
+ #include <linux/memremap.h>
++#include <linux/userfaultfd_k.h>
+ 
+ #include <asm/tlbflush.h>
+ 
+@@ -1481,7 +1482,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 				set_pte_at(mm, address, pvmw.pte, pteval);
+ 			}
+ 
+-		} else if (pte_unused(pteval)) {
++		} else if (pte_unused(pteval) && !userfaultfd_armed(vma)) {
+ 			/*
+ 			 * The guest indicated that the page content is of no
+ 			 * interest anymore. Simply discard the pte, vmscan
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+2.17.0
