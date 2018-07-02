@@ -1,35 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D81616B0003
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 12:20:53 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id w23-v6so6649731pgv.1
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 09:20:53 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id 6-v6si14980060pgg.366.2018.07.02.09.20.50
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DD22F6B0003
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 12:53:26 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id r1-v6so2657367lfi.16
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 09:53:26 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id e13-v6si7113773lfi.29.2018.07.02.09.53.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jul 2018 09:20:50 -0700 (PDT)
-Subject: Re: [PATCH v3 0/2] sparse_init rewrite
-References: <20180702020417.21281-1-pasha.tatashin@oracle.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <de99ae79-8d68-e8d6-5243-085fd106e1e5@intel.com>
-Date: Mon, 2 Jul 2018 09:20:40 -0700
+        Mon, 02 Jul 2018 09:53:24 -0700 (PDT)
+Date: Mon, 2 Jul 2018 09:52:27 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH v2 5/7] mm: rename and change semantics of
+ nr_indirectly_reclaimable_bytes
+Message-ID: <20180702165223.GA17295@castle.DHCP.thefacebook.com>
+References: <20180618091808.4419-6-vbabka@suse.cz>
+ <201806201923.mC5ZpigB%fengguang.wu@intel.com>
+ <38c6a6e1-c5e0-fd7d-4baf-1f0f09be5094@suse.cz>
+ <20180629211201.GA14897@castle.DHCP.thefacebook.com>
+ <ef2dea13-0102-c4bc-a28f-c1b2408f0753@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180702020417.21281-1-pasha.tatashin@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <ef2dea13-0102-c4bc-a28f-c1b2408f0753@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, bhe@redhat.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-api@vger.kernel.org, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Vijayanand Jitta <vjitta@codeaurora.org>, Laura Abbott <labbott@redhat.com>, Sumit Semwal <sumit.semwal@linaro.org>
 
-On 07/01/2018 07:04 PM, Pavel Tatashin wrote:
->  include/linux/mm.h  |   9 +-
->  mm/sparse-vmemmap.c |  44 ++++---
->  mm/sparse.c         | 279 +++++++++++++++-----------------------------
->  3 files changed, 125 insertions(+), 207 deletions(-)
+On Sat, Jun 30, 2018 at 12:09:27PM +0200, Vlastimil Babka wrote:
+> On 06/29/2018 11:12 PM, Roman Gushchin wrote:
+> >>
+> >> The vmstat counter NR_INDIRECTLY_RECLAIMABLE_BYTES was introduced by commit
+> >> eb59254608bc ("mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES") with the goal of
+> >> accounting objects that can be reclaimed, but cannot be allocated via a
+> >> SLAB_RECLAIM_ACCOUNT cache. This is now possible via kmalloc() with
+> >> __GFP_RECLAIMABLE flag, and the dcache external names user is converted.
+> >>
+> >> The counter is however still useful for accounting direct page allocations
+> >> (i.e. not slab) with a shrinker, such as the ION page pool. So keep it, and:
+> > 
+> > Btw, it looks like I've another example of usefulness of this counter:
+> > dynamic per-cpu data.
+> 
+> Hmm, but are those reclaimable? Most likely not in general? Do you have
+> examples that are?
 
-FWIW, I'm not a fan of rewrites, but this is an awful lot of code to remove.
+If these per-cpu data is something like per-cpu refcounters,
+which are using to manage reclaimable objects (e.g. cgroup css objects).
+Of course, they are not always reclaimable, but in certain states.
 
-I assume from all the back-and-forth, you have another version
-forthcoming.  I'll take a close look through that one.
+Thanks!
