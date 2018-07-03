@@ -1,64 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 737AF6B0003
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 11:28:07 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id y16-v6so1108952pgv.23
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 08:28:07 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v6-v6si1323094plp.60.2018.07.03.08.28.06
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 92A1A6B0005
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 11:29:29 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id w23-v6so1129642pgv.1
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 08:29:29 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ba7-v6si1292897plb.490.2018.07.03.08.29.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 03 Jul 2018 08:28:06 -0700 (PDT)
-Date: Tue, 3 Jul 2018 08:27:23 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v8 03/17] mm: Assign id to every memcg-aware shrinker
-Message-ID: <20180703152723.GB21590@bombadil.infradead.org>
-References: <153063036670.1818.16010062622751502.stgit@localhost.localdomain>
- <153063054586.1818.6041047871606697364.stgit@localhost.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Jul 2018 08:29:28 -0700 (PDT)
+Date: Tue, 3 Jul 2018 17:29:22 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/8] OOM killer/reaper changes for avoiding OOM lockup
+ problem.
+Message-ID: <20180703152922.GR16767@dhcp22.suse.cz>
+References: <1530627910-3415-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180703151223.GP16767@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <153063054586.1818.6041047871606697364.stgit@localhost.localdomain>
+In-Reply-To: <20180703151223.GP16767@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lirongqing@baidu.com, aryabinin@virtuozzo.com, akpm@linux-foundation.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 
-On Tue, Jul 03, 2018 at 06:09:05PM +0300, Kirill Tkhai wrote:
-> +++ b/mm/vmscan.c
-> @@ -169,6 +169,49 @@ unsigned long vm_total_pages;
->  static LIST_HEAD(shrinker_list);
->  static DECLARE_RWSEM(shrinker_rwsem);
->  
-> +#ifdef CONFIG_MEMCG_KMEM
-> +static DEFINE_IDR(shrinker_idr);
-> +static int shrinker_nr_max;
+On Tue 03-07-18 17:12:23, Michal Hocko wrote:
+> On Tue 03-07-18 23:25:01, Tetsuo Handa wrote:
+> > This series provides
+> > 
+> >   (1) Mitigation and a fix for CVE-2016-10723.
+> > 
+> >   (2) A mitigation for needlessly selecting next OOM victim reported
+> >       by David Rientjes and rejected by Michal Hocko.
+> > 
+> >   (3) A preparation for handling many concurrent OOM victims which
+> >       could become real by introducing memcg-aware OOM killer.
+> 
+> It would have been great to describe the overal design in the cover
+> letter. So let me summarize just to be sure I understand the proposal.
+> You are removing the oom_reaper and moving the oom victim tear down to
+> the oom path. To handle cases where we cannot get mmap_sem to do that
+> work you simply decay oom_badness over time if there are no changes in
+> the victims oom score.
 
-So ... we've now got a list_head (shrinker_list) which contains all of
-the shrinkers, plus a shrinker_idr which contains the memcg-aware shrinkers?
+Correction. You do not decay oom_badness. You simply increase a stall
+counter anytime oom_badness hasn't changed since the last check (if that
+check happend at least HZ/10 ago) and get the victim out of sight if the
+counter is larger than 30. This is where 3s are coming from. So in fact
+this is the low boundary while it might be considerably larger depending
+on how often we examine the victim.
 
-Why not replace the shrinker_list with the shrinker_idr?  It's only used
-twice in vmscan.c:
-
-void register_shrinker_prepared(struct shrinker *shrinker)
-{
-        down_write(&shrinker_rwsem);
-        list_add_tail(&shrinker->list, &shrinker_list);
-        up_write(&shrinker_rwsem);
-}
-
-        list_for_each_entry(shrinker, &shrinker_list, list) {
-...
-
-The first is simply idr_alloc() and the second is
-
-	idr_for_each_entry(&shrinker_idr, shrinker, id) {
-
-I understand there's a difference between allocating the shrinker's ID and
-adding it to the list.  You can do this by calling idr_alloc with NULL
-as the pointer, and then using idr_replace() when you want to add the
-shrinker to the list.  idr_for_each_entry() skips over NULL entries.
-
-This will actually reduce the size of each shrinker and be more
-cache-efficient when calling the shrinkers.  I think we can also get
-rid of the shrinker_rwsem eventually, but let's leave it for now.
+-- 
+Michal Hocko
+SUSE Labs
