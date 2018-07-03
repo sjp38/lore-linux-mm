@@ -1,91 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 82A406B026E
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 13:19:07 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id k5-v6so1197555edq.9
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 10:19:07 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id x11-v6si1206435edi.316.2018.07.03.10.19.05
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BF1A96B0003
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 13:19:27 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id d23-v6so2658700qtj.12
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 10:19:27 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id f23-v6si1604808qkf.85.2018.07.03.10.19.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jul 2018 10:19:06 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w63HImX4014797
-	for <linux-mm@kvack.org>; Tue, 3 Jul 2018 13:19:04 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2k0a7eskbj-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 03 Jul 2018 13:19:03 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Tue, 3 Jul 2018 18:19:00 +0100
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Subject: [PATCH v3] mm: do not drop unused pages when userfaultd is running
-Date: Tue,  3 Jul 2018 19:18:54 +0200
-Message-Id: <20180703171854.63981-1-borntraeger@de.ibm.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 8bit
+        Tue, 03 Jul 2018 10:19:26 -0700 (PDT)
+Date: Tue, 3 Jul 2018 10:19:20 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: [PATCH 2/2] fs: xfs: use BUG_ON if writepage call comes from
+ direct reclaim
+Message-ID: <20180703171920.GC5711@magnolia>
+References: <1530591079-33813-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1530591079-33813-2-git-send-email-yang.shi@linux.alibaba.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1530591079-33813-2-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-s390@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: kvm@vger.kernel.org, Janosch Frank <frankja@linux.ibm.com>, David Hildenbrand <david@redhat.com>, Cornelia Huck <cohuck@redhat.com>, linux-kernel@vger.kernel.org, Christian Borntraeger <borntraeger@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: mgorman@techsingularity.net, tytso@mit.edu, adilger.kernel@dilger.ca, dchinner@redhat.com, akpm@linux-foundation.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-KVM guests on s390 can notify the host of unused pages. This can result
-in pte_unused callbacks to be true for KVM guest memory.
+On Tue, Jul 03, 2018 at 12:11:19PM +0800, Yang Shi wrote:
+> direct reclaim doesn't write out filesystem page, only kswapd could do
+> this. So, if it is called from direct relaim, it is definitely a bug.
+> 
+> And, Mel Gorman mentioned "Ultimately, this will be a BUG_ON." in commit
+> 94054fa3fca1fd78db02cb3d68d5627120f0a1d4 ("xfs: warn if direct reclaim
+> tries to writeback pages"),
+> 
+> It has been many years since that commit, so it should be safe to
+> elevate WARN_ON to BUG_ON now.
+> 
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Darrick J. Wong <darrick.wong@oracle.com>
+> Cc: Dave Chinner <dchinner@redhat.com>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> ---
+>  fs/xfs/xfs_aops.c | 6 ++----
+>  1 file changed, 2 insertions(+), 4 deletions(-)
+> 
+> diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+> index 8eb3ba3..7efc2d2 100644
+> --- a/fs/xfs/xfs_aops.c
+> +++ b/fs/xfs/xfs_aops.c
+> @@ -1080,11 +1080,9 @@ static inline int xfs_bio_add_buffer(struct bio *bio, struct buffer_head *bh)
+>  	 * allow reclaim from kswapd as the stack usage there is relatively low.
+>  	 *
+>  	 * This should never happen except in the case of a VM regression so
+> -	 * warn about it.
+> +	 * BUG about it.
+>  	 */
+> -	if (WARN_ON_ONCE((current->flags & (PF_MEMALLOC|PF_KSWAPD)) ==
+> -			PF_MEMALLOC))
+> -		goto redirty;
+> +	BUG_ON((current->flags & (PF_MEMALLOC|PF_KSWAPD)) == PF_MEMALLOC);
 
-If a page is unused (checked with pte_unused) we might drop this page
-instead of paging it. This can have side-effects on userfaultd, when the
-page in question was already migrated:
+Ugh, please do not increase the BUG() factor.  Even if this happens due
+to a regression it's /much/ easier to debug if we don't halt the system.
 
-The next access of that page will trigger a fault and a user fault
-instead of faulting in a new and empty zero page. As QEMU does not
-expect a userfault on an already migrated page this migration will fail.
+(IOWs, I decline to take this patch.)
 
-The most straightforward solution is to ignore the pte_unused hint if a
-userfault context is active for this VMA.
+--D
 
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: stable@vger.kernel.org
-Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
----
-v2->v3 : improve comment
-RFC->v2: user userfaultfd_active
- mm/rmap.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
-
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 6db729dc4c50..eb477809a5c0 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -64,6 +64,7 @@
- #include <linux/backing-dev.h>
- #include <linux/page_idle.h>
- #include <linux/memremap.h>
-+#include <linux/userfaultfd_k.h>
- 
- #include <asm/tlbflush.h>
- 
-@@ -1481,11 +1482,16 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 				set_pte_at(mm, address, pvmw.pte, pteval);
- 			}
- 
--		} else if (pte_unused(pteval)) {
-+		} else if (pte_unused(pteval) && !userfaultfd_armed(vma)) {
- 			/*
- 			 * The guest indicated that the page content is of no
- 			 * interest anymore. Simply discard the pte, vmscan
- 			 * will take care of the rest.
-+			 * A future reference will then fault in a new zero
-+			 * page. When userfaultfd is active, we must not drop
-+			 * this page though, as its main user (postcopy
-+			 * migration) will not expect userfaults on already
-+			 * copied pages.
- 			 */
- 			dec_mm_counter(mm, mm_counter(page));
- 			/* We have to invalidate as we cleared the pte */
--- 
-2.17.0
+>  
+>  	/*
+>  	 * Given that we do not allow direct reclaim to call us, we should
+> -- 
+> 1.8.3.1
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
