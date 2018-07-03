@@ -1,190 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 357886B0292
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 11:11:58 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id j22-v6so1355116pll.7
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 08:11:58 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0099.outbound.protection.outlook.com. [104.47.2.99])
-        by mx.google.com with ESMTPS id d41-v6si1260499pla.162.2018.07.03.08.11.55
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 550076B0294
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 11:12:26 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id c2-v6so1056887edi.20
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 08:12:26 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o1-v6si1203358edd.161.2018.07.03.08.12.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 03 Jul 2018 08:11:56 -0700 (PDT)
-Subject: [PATCH v8 17/17] mm: Clear shrinker bit if there are no objects
- related to memcg
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Tue, 03 Jul 2018 18:11:48 +0300
-Message-ID: <153063070859.1818.11870882950920963480.stgit@localhost.localdomain>
-In-Reply-To: <153063036670.1818.16010062622751502.stgit@localhost.localdomain>
-References: <153063036670.1818.16010062622751502.stgit@localhost.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Jul 2018 08:12:24 -0700 (PDT)
+Date: Tue, 3 Jul 2018 17:12:23 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/8] OOM killer/reaper changes for avoiding OOM lockup
+ problem.
+Message-ID: <20180703151223.GP16767@dhcp22.suse.cz>
+References: <1530627910-3415-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1530627910-3415-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com, akpm@linux-foundation.org, ktkhai@virtuozzo.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 
-To avoid further unneed calls of do_shrink_slab()
-for shrinkers, which already do not have any charged
-objects in a memcg, their bits have to be cleared.
+On Tue 03-07-18 23:25:01, Tetsuo Handa wrote:
+> This series provides
+> 
+>   (1) Mitigation and a fix for CVE-2016-10723.
+> 
+>   (2) A mitigation for needlessly selecting next OOM victim reported
+>       by David Rientjes and rejected by Michal Hocko.
+> 
+>   (3) A preparation for handling many concurrent OOM victims which
+>       could become real by introducing memcg-aware OOM killer.
 
-This patch introduces a lockless mechanism to do that
-without races without parallel list lru add. After
-do_shrink_slab() returns SHRINK_EMPTY the first time,
-we clear the bit and call it once again. Then we restore
-the bit, if the new return value is different.
+It would have been great to describe the overal design in the cover
+letter. So let me summarize just to be sure I understand the proposal.
+You are removing the oom_reaper and moving the oom victim tear down to
+the oom path. To handle cases where we cannot get mmap_sem to do that
+work you simply decay oom_badness over time if there are no changes in
+the victims oom score. In order to not block in the oom context for too
+long because the address space might be quite large, you allow to
+direct oom reap from multiple contexts.
 
-Note, that single smp_mb__after_atomic() in shrink_slab_memcg()
-covers two situations:
+You fail to explain why is this approach more appropriate and how you
+have settled with your current tuning with 3s timeout etc...
 
-1)list_lru_add()     shrink_slab_memcg
-    list_add_tail()    for_each_set_bit() <--- read bit
-                         do_shrink_slab() <--- missed list update (no barrier)
-    <MB>                 <MB>
-    set_bit()            do_shrink_slab() <--- seen list update
-
-This situation, when the first do_shrink_slab() sees set bit,
-but it doesn't see list update (i.e., race with the first element
-queueing), is rare. So we don't add <MB> before the first call
-of do_shrink_slab() instead of this to do not slow down generic
-case. Also, it's need the second call as seen in below in (2).
-
-2)list_lru_add()      shrink_slab_memcg()
-    list_add_tail()     ...
-    set_bit()           ...
-  ...                   for_each_set_bit()
-  do_shrink_slab()        do_shrink_slab()
-    clear_bit()           ...
-  ...                     ...
-  list_lru_add()          ...
-    list_add_tail()       clear_bit()
-    <MB>                  <MB>
-    set_bit()             do_shrink_slab()
-
-The barriers guarantees, the second do_shrink_slab()
-in the right side task sees list update if really
-cleared the bit. This case is drawn in the code comment.
-
-[Results/performance of the patchset]
-
-After the whole patchset applied the below test shows signify
-increase of performance:
-
-$echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
-$mkdir /sys/fs/cgroup/memory/ct
-$echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
-    $for i in `seq 0 4000`; do mkdir /sys/fs/cgroup/memory/ct/$i;
-			    echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs;
-			    mkdir -p s/$i; mount -t tmpfs $i s/$i;
-			    touch s/$i/file; done
-
-Then, 5 sequential calls of drop caches:
-$time echo 3 > /proc/sys/vm/drop_caches
-
-1)Before:
-0.00user 13.78system 0:13.78elapsed 99%CPU
-0.00user 5.59system 0:05.60elapsed 99%CPU
-0.00user 5.48system 0:05.48elapsed 99%CPU
-0.00user 8.35system 0:08.35elapsed 99%CPU
-0.00user 8.34system 0:08.35elapsed 99%CPU
-
-2)After
-0.00user 1.10system 0:01.10elapsed 99%CPU
-0.00user 0.00system 0:00.01elapsed 64%CPU
-0.00user 0.01system 0:00.01elapsed 82%CPU
-0.00user 0.00system 0:00.01elapsed 64%CPU
-0.00user 0.01system 0:00.01elapsed 82%CPU
-
-The results show the performance increases at least in 548 times.
-
-Shakeel Butt tested this patchset with fork-bomb on his configuration:
-
- > I created 255 memcgs, 255 ext4 mounts and made each memcg create a
- > file containing few KiBs on corresponding mount. Then in a separate
- > memcg of 200 MiB limit ran a fork-bomb.
- >
- > I ran the "perf record -ag -- sleep 60" and below are the results:
- >
- > Without the patch series:
- > Samples: 4M of event 'cycles', Event count (approx.): 3279403076005
- > +  36.40%            fb.sh  [kernel.kallsyms]    [k] shrink_slab
- > +  18.97%            fb.sh  [kernel.kallsyms]    [k] list_lru_count_one
- > +   6.75%            fb.sh  [kernel.kallsyms]    [k] super_cache_count
- > +   0.49%            fb.sh  [kernel.kallsyms]    [k] down_read_trylock
- > +   0.44%            fb.sh  [kernel.kallsyms]    [k] mem_cgroup_iter
- > +   0.27%            fb.sh  [kernel.kallsyms]    [k] up_read
- > +   0.21%            fb.sh  [kernel.kallsyms]    [k] osq_lock
- > +   0.13%            fb.sh  [kernel.kallsyms]    [k] shmem_unused_huge_count
- > +   0.08%            fb.sh  [kernel.kallsyms]    [k] shrink_node_memcg
- > +   0.08%            fb.sh  [kernel.kallsyms]    [k] shrink_node
- >
- > With the patch series:
- > Samples: 4M of event 'cycles', Event count (approx.): 2756866824946
- > +  47.49%            fb.sh  [kernel.kallsyms]    [k] down_read_trylock
- > +  30.72%            fb.sh  [kernel.kallsyms]    [k] up_read
- > +   9.51%            fb.sh  [kernel.kallsyms]    [k] mem_cgroup_iter
- > +   1.69%            fb.sh  [kernel.kallsyms]    [k] shrink_node_memcg
- > +   1.35%            fb.sh  [kernel.kallsyms]    [k] mem_cgroup_protected
- > +   1.05%            fb.sh  [kernel.kallsyms]    [k] queued_spin_lock_slowpath
- > +   0.85%            fb.sh  [kernel.kallsyms]    [k] _raw_spin_lock
- > +   0.78%            fb.sh  [kernel.kallsyms]    [k] lruvec_lru_size
- > +   0.57%            fb.sh  [kernel.kallsyms]    [k] shrink_node
- > +   0.54%            fb.sh  [kernel.kallsyms]    [k] queue_work_on
- > +   0.46%            fb.sh  [kernel.kallsyms]    [k] shrink_slab_memcg
-
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
-Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
-Tested-by: Shakeel Butt <shakeelb@google.com>
----
- include/linux/memcontrol.h |    2 ++
- mm/vmscan.c                |   25 +++++++++++++++++++++++--
- 2 files changed, 25 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index c6ea182ca54b..c79c4a54c0ee 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -1316,6 +1316,8 @@ static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
+Considering how subtle this whole area is I am not overly happy about
+another rewrite without a really strong reasoning behind. There is none
+here, unfortunately. Well, except for statements how I reject something
+without telling the whole story etc...
  
- 		rcu_read_lock();
- 		map = rcu_dereference(memcg->nodeinfo[nid]->shrinker_map);
-+		/* Pairs with smp mb in shrink_slab() */
-+		smp_mb__before_atomic();
- 		set_bit(shrinker_id, map->map);
- 		rcu_read_unlock();
- 	}
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 96279b5f1f6d..45d153508d1c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -597,8 +597,29 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 			continue;
- 
- 		ret = do_shrink_slab(&sc, shrinker, priority);
--		if (ret == SHRINK_EMPTY)
--			ret = 0;
-+		if (ret == SHRINK_EMPTY) {
-+			clear_bit(i, map->map);
-+			/*
-+			 * After the shrinker reported that it had no objects to free,
-+			 * but before we cleared the corresponding bit in the memcg
-+			 * shrinker map, a new object might have been added. To make
-+			 * sure, we have the bit set in this case, we invoke the
-+			 * shrinker one more time and re-set the bit if it reports that
-+			 * it is not empty anymore. The memory barrier here pairs with
-+			 * the barrier in memcg_set_shrinker_bit():
-+			 *
-+			 * list_lru_add()     shrink_slab_memcg()
-+			 *   list_add_tail()    clear_bit()
-+			 *   <MB>               <MB>
-+			 *   set_bit()          do_shrink_slab()
-+			 */
-+			smp_mb__after_atomic();
-+			ret = do_shrink_slab(&sc, shrinker, priority);
-+			if (ret == SHRINK_EMPTY)
-+				ret = 0;
-+			else
-+				memcg_set_shrinker_bit(memcg, nid, i);
-+		}
- 		freed += ret;
- 
- 		if (rwsem_is_contended(&shrinker_rwsem)) {
+> Tetsuo Handa (7):
+>   mm,oom: Don't call schedule_timeout_killable() with oom_lock held.
+>   mm,oom: Check pending victims earlier in out_of_memory().
+>   mm,oom: Fix unnecessary killing of additional processes.
+>   mm,page_alloc: Make oom_reserves_allowed() even.
+>   mm,oom: Bring OOM notifier to outside of oom_lock.
+>   mm,oom: Make oom_lock static variable.
+>   mm,oom: Do not sleep with oom_lock held.
+> Michal Hocko (1):
+>   mm,page_alloc: Move the short sleep to should_reclaim_retry().
+> 
+>  drivers/tty/sysrq.c        |   2 -
+>  include/linux/memcontrol.h |   9 +-
+>  include/linux/oom.h        |   6 +-
+>  include/linux/sched.h      |   7 +-
+>  include/trace/events/oom.h |  64 -------
+>  kernel/fork.c              |   2 +
+>  mm/memcontrol.c            |  24 +--
+>  mm/mmap.c                  |  17 +-
+>  mm/oom_kill.c              | 439 +++++++++++++++++++++------------------------
+>  mm/page_alloc.c            | 134 ++++++--------
+>  10 files changed, 287 insertions(+), 417 deletions(-)
+> 
+> -- 
+> 1.8.3.1
+
+-- 
+Michal Hocko
+SUSE Labs
