@@ -1,57 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BA7216B02AC
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 21:55:39 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id p91-v6so283778plb.12
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 18:55:39 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0615E6B02AF
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 22:00:58 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id ba8-v6so300124plb.4
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 19:00:57 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k1-v6sor5413370plt.102.2018.07.02.18.55.38
+        by mx.google.com with SMTPS id z9-v6sor4960105pfh.136.2018.07.02.19.00.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 02 Jul 2018 18:55:38 -0700 (PDT)
-Subject: Re: [PATCH v9 2/6] mm: page_alloc: remain memblock_next_valid_pfn()
- on arm/arm64
+        Mon, 02 Jul 2018 19:00:56 -0700 (PDT)
+Subject: Re: [PATCH v9 0/6] optimize memblock_next_valid_pfn and
+ early_pfn_valid on arm and arm64
 References: <1530239363-2356-1-git-send-email-hejianet@gmail.com>
- <1530239363-2356-3-git-send-email-hejianet@gmail.com>
- <CAGM2reYn3ZbdjhcZze8Zt1eLNSdWghy0KwEXfd5xW+1Ba_SMbw@mail.gmail.com>
+ <20180702114037.GJ19043@dhcp22.suse.cz>
 From: Jia He <hejianet@gmail.com>
-Message-ID: <bfe24a3b-c982-9532-c05b-f42ebb77bbba@gmail.com>
-Date: Tue, 3 Jul 2018 09:55:18 +0800
+Message-ID: <1466b490-76f8-86a4-f39a-3bef3bb0501f@gmail.com>
+Date: Tue, 3 Jul 2018 10:00:34 +0800
 MIME-Version: 1.0
-In-Reply-To: <CAGM2reYn3ZbdjhcZze8Zt1eLNSdWghy0KwEXfd5xW+1Ba_SMbw@mail.gmail.com>
+In-Reply-To: <20180702114037.GJ19043@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: linux@armlinux.org.uk, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, will.deacon@arm.com, mark.rutland@arm.com, hpa@zytor.com, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, neelx@redhat.com, erosca@de.adit-jv.com, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, james.morse@arm.com, ard.biesheuvel@linaro.org, steve.capper@arm.com, tglx@linutronix.de, mingo@redhat.com, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, pombredanne@nexb.com, Johannes Weiner <hannes@cmpxchg.org>, kemi.wang@intel.com, ptesarik@suse.com, yasu.isimatu@gmail.com, aryabinin@virtuozzo.com, nborisov@suse.com, Wei Yang <richard.weiyang@gmail.com>, jia.he@hxt-semitech.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Russell King <linux@armlinux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morse <james.morse@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steve Capper <steve.capper@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, richard.weiyang@gmail.com
 
-Hi, Pavel
-Thanks for the comments.
+Hi Michal
+Thanks for the comments
 
-On 6/30/2018 2:13 AM, Pavel Tatashin Wrote:
->> +++ b/include/linux/early_pfn.h
->> @@ -0,0 +1,34 @@
->> +/* SPDX-License-Identifier: GPL-2.0 */
->> +/* Copyright (C) 2018 HXT-semitech Corp. */
->> +#ifndef __EARLY_PFN_H
->> +#define __EARLY_PFN_H
->> +#ifdef CONFIG_HAVE_MEMBLOCK_PFN_VALID
->> +ulong __init_memblock memblock_next_valid_pfn(ulong pfn)
->> +{
->> +       struct memblock_type *type = &memblock.memory;
+On 7/2/2018 7:40 PM, Michal Hocko Wrote:
+> On Fri 29-06-18 10:29:17, Jia He wrote:
+>> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+>> where possible") tried to optimize the loop in memmap_init_zone(). But
+>> there is still some room for improvement.
 > 
-> Why put it in a header file and not in some C file? In my opinion it
-> is confusing to have non-line functions in header files. Basically,
-> you can include this header file in exactly one C file without
-> breaking compilation.
+> It would be great to shortly describe those optimization from high level
+> POV.
+
+Ok
+
 > 
-My original intent is to make this helper memblock_next_valid_pfn
-a common api between arm64 and arm arches since both arches will
-use enable CONFIG_HAVE_MEMBLOCK_PFN_VALID by default.
+>>
+>> Patch 1 introduce new config to make codes more generic
+>> Patch 2 remain the memblock_next_valid_pfn on arm and arm64
+>> Patch 3 optimizes the memblock_next_valid_pfn()
+>> Patch 4~6 optimizes the early_pfn_valid()
+>>
+>> As for the performance improvement, after this set, I can see the time
+>> overhead of memmap_init() is reduced from 27956us to 13537us in my
+>> armv8a server(QDF2400 with 96G memory, pagesize 64k).
+> 
+> So this is 13ms saving when booting 96G machine. Is this really worth
+> the additional code? Are there any other benefits?
 
-Do you think it looks ok if I add the inline prefix?
-
+hmm.. Currently my answer is no.
+But I believe it can shorten the boot time when the memory is larger than n TBs.
 -- 
 Cheers,
 Jia
+
+> [...]
+>>  arch/arm/Kconfig          |  4 +++
+>>  arch/arm/mm/init.c        |  1 +
+>>  arch/arm64/Kconfig        |  4 +++
+>>  arch/arm64/mm/init.c      |  1 +
+>>  include/linux/early_pfn.h | 79 +++++++++++++++++++++++++++++++++++++++++++++++
+>>  include/linux/memblock.h  |  2 ++
+>>  include/linux/mmzone.h    | 18 ++++++++++-
+>>  mm/Kconfig                |  3 ++
+>>  mm/memblock.c             |  9 ++++++
+>>  mm/page_alloc.c           |  5 ++-
+>>  10 files changed, 124 insertions(+), 2 deletions(-)
+>>  create mode 100644 include/linux/early_pfn.h
+> 
