@@ -1,68 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AD076B0007
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 15:54:45 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id g9-v6so1445391wrq.7
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 12:54:45 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 138-v6sor715090wmo.16.2018.07.03.12.54.44
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AC046B000A
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 15:57:25 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e3-v6so1518025pfn.13
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 12:57:25 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id c6-v6si1740991pgn.143.2018.07.03.12.57.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 03 Jul 2018 12:54:44 -0700 (PDT)
-MIME-Version: 1.0
-References: <153063036670.1818.16010062622751502.stgit@localhost.localdomain>
- <153063054586.1818.6041047871606697364.stgit@localhost.localdomain>
- <20180703152723.GB21590@bombadil.infradead.org> <2d845a0d-d147-7250-747e-27e493b6a627@virtuozzo.com>
- <20180703175808.GC4834@bombadil.infradead.org> <94c282fd-1b5a-e959-b344-01a51fd5fc2e@virtuozzo.com>
- <CALvZod7v4n62PVvC50VSNV12ZV0WdsY4GOQt68EmY4u5fc9hfQ@mail.gmail.com> <20180703192517.GA22738@bombadil.infradead.org>
-In-Reply-To: <20180703192517.GA22738@bombadil.infradead.org>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Tue, 3 Jul 2018 12:54:31 -0700
-Message-ID: <CALvZod44__V3=Z45rnVVfFUqJM7_tdbBFjwXXtPOttb7TcMSyg@mail.gmail.com>
-Subject: Re: [PATCH v8 03/17] mm: Assign id to every memcg-aware shrinker
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Jul 2018 12:57:24 -0700 (PDT)
+Date: Tue, 3 Jul 2018 12:57:22 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/memblock: replace u64 with phys_addr_t where
+ appropriate
+Message-Id: <20180703125722.6fd0f02b27c01f5684877354@linux-foundation.org>
+In-Reply-To: <1530637506-1256-1-git-send-email-rppt@linux.vnet.ibm.com>
+References: <1530637506-1256-1-git-send-email-rppt@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, stummala@codeaurora.org, gregkh@linuxfoundation.org, Stephen Rothwell <sfr@canb.auug.org.au>, Roman Gushchin <guro@fb.com>, mka@chromium.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Chris Wilson <chris@chris-wilson.co.uk>, longman@redhat.com, Minchan Kim <minchan@kernel.org>, Huang Ying <ying.huang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, jbacik@fb.com, Guenter Roeck <linux@roeck-us.net>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, lirongqing@baidu.com, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>
 
-On Tue, Jul 3, 2018 at 12:25 PM Matthew Wilcox <willy@infradead.org> wrote:
+On Tue,  3 Jul 2018 20:05:06 +0300 Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+
+> Most functions in memblock already use phys_addr_t to represent a physical
+> address with __memblock_free_late() being an exception.
+> 
+> This patch replaces u64 with phys_addr_t in __memblock_free_late() and
+> switches several format strings from %llx to %pa to avoid casting from
+> phys_addr_t to u64.
 >
-> On Tue, Jul 03, 2018 at 12:19:35PM -0700, Shakeel Butt wrote:
-> > On Tue, Jul 3, 2018 at 12:13 PM Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
-> > > > Do we really have so very many !memcg-aware shrinkers?
-> > > >
-> > > > $ git grep -w register_shrinker |wc
-> > > >      32     119    2221
-> > > > $ git grep -w register_shrinker_prepared |wc
-> > > >       4      13     268
-> > > > (that's an overstatement; one of those is the declaration, one the definition,
-> > > > and one an internal call, so we actually only have one caller of _prepared).
-> > > >
-> > > > So it looks to me like your average system has one shrinker per
-> > > > filesystem, one per graphics card, one per raid5 device, and a few
-> > > > miscellaneous.  I'd be shocked if anybody had more than 100 shrinkers
-> > > > registered on their laptop.
-> > > >
-> > > > I think we should err on the side of simiplicity and just have one IDR for
-> > > > every shrinker instead of playing games to solve a theoretical problem.
-> > >
-> > > It just a standard situation for the systems with many containers. Every mount
-> > > introduce a new shrinker to the system, so it's easy to see a system with
-> > > 100 or ever 1000 shrinkers. AFAIR, Shakeel said he also has the similar
-> > > configurations.
-> > >
-> >
-> > I can say on our production systems, a couple thousand shrinkers is normal.
->
-> But how many are !memcg aware?  It sounds to me like almost all of the
-> shrinkers come through the sget_userns() caller, so the other shrinkers
-> are almost irrelevant.
+> ...
+> 
+> @@ -1343,9 +1343,9 @@ void * __init memblock_virt_alloc_try_nid_raw(
+>  {
+>  	void *ptr;
+>  
+> -	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
+> -		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
+> -		     (u64)max_addr, (void *)_RET_IP_);
+> +	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=%pa max_addr=%pa %pF\n",
+> +		     __func__, (u64)size, (u64)align, nid, &min_addr,
+> +		     &max_addr, (void *)_RET_IP_);
+>  
 
-I would say almost half. Sorry I do not have exact numbers. Basically
-we use ext4 very extensively and majority of shrinkers are related to
-ext4 (again I do not have exact numbers). One ext4 mount typically
-registers three shrinkers, one memcg-aware (sget) and two non-memcg
-aware (ext4_es_register_shrinker, ext4_xattr_create_cache).
+Did you see all this checkpatch noise?
 
-Shakeel
+: WARNING: Deprecated vsprintf pointer extension '%pF' - use %pS instead
+: #54: FILE: mm/memblock.c:1348:
+: +	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=%pa max_addr=%pa %pF\n",
+: +		     __func__, (u64)size, (u64)align, nid, &min_addr,
+: +		     &max_addr, (void *)_RET_IP_);
+: ...
+: 
+
+ * - 'S' For symbolic direct pointers (or function descriptors) with offset
+ * - 's' For symbolic direct pointers (or function descriptors) without offset
+ * - 'F' Same as 'S'
+ * - 'f' Same as 's'
+
+I'm not sure why or when all that happened.
+
+I suppose we should do that as a separate patch sometime.
