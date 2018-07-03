@@ -1,52 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CF3B66B02A5
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 20:08:19 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id h15-v6so245743qkj.17
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 17:08:19 -0700 (PDT)
-Received: from a9-46.smtp-out.amazonses.com (a9-46.smtp-out.amazonses.com. [54.240.9.46])
-        by mx.google.com with ESMTPS id x10-v6si5384298qkx.258.2018.07.02.17.08.18
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 428E96B02A7
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 21:11:38 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id d23-v6so398641qtj.12
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 18:11:38 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id 6-v6si5806748qvd.58.2018.07.02.18.11.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 02 Jul 2018 17:08:18 -0700 (PDT)
-Date: Tue, 3 Jul 2018 00:08:18 +0000
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH v2 5/6] mm: track gup pages with page->dma_pinned_*
- fields
-In-Reply-To: <bb798475-ebf3-7b02-409f-8c4347fa6674@nvidia.com>
-Message-ID: <010001645d77ee2c-de7fedbd-f52d-4b74-9388-e6435973792b-000000@email.amazonses.com>
-References: <20180702005654.20369-1-jhubbard@nvidia.com> <20180702005654.20369-6-jhubbard@nvidia.com> <20180702095331.n5zfz35d3invl5al@quack2.suse.cz> <bb798475-ebf3-7b02-409f-8c4347fa6674@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Jul 2018 18:11:36 -0700 (PDT)
+Subject: Re: [PATCH v5 0/6] fs/dcache: Track & limit # of negative dentries
+References: <1530510723-24814-1-git-send-email-longman@redhat.com>
+ <CA+55aFyH6dHw-7R3364dn32J4p7kxT=TqmnuozCn9_Bz-MHhxQ@mail.gmail.com>
+ <20180702141811.ef027fd7d8087b7fb2ba0cce@linux-foundation.org>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <1561585c-7d4d-da4a-e9f9-948198eaa562@redhat.com>
+Date: Tue, 3 Jul 2018 09:11:28 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20180702141811.ef027fd7d8087b7fb2ba0cce@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Jan Kara <jack@suse.cz>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>
 
-On Mon, 2 Jul 2018, John Hubbard wrote:
-
-> >
-> > These two are just wrong. You cannot make any page reference for
-> > PageDmaPinned() account against a pin count. First, it is just conceptually
-> > wrong as these references need not be long term pins, second, you can
-> > easily race like:
-> >
-> > Pinner				Random process
-> > 				get_page(page)
-> > pin_page_for_dma()
-> > 				put_page(page)
-> > 				 -> oops, page gets unpinned too early
-> >
+On 07/03/2018 05:18 AM, Andrew Morton wrote:
+> On Mon, 2 Jul 2018 12:34:00 -0700 Linus Torvalds <torvalds@linux-foundation.org> wrote:
 >
-> I'll drop this approach, without mentioning any of the locking that is hiding in
-> there, since that was probably breaking other rules anyway. :) Thanks for your
-> patience in reviewing this.
+>> On Sun, Jul 1, 2018 at 10:52 PM Waiman Long <longman@redhat.com> wrote:
+>>> A rogue application can potentially create a large number of negative
+>>> dentries in the system consuming most of the memory available if it
+>>> is not under the direct control of a memory controller that enforce
+>>> kernel memory limit.
+>> I certainly don't mind the patch series, but I would like it to be
+>> accompanied with some actual example numbers, just to make it all a
+>> bit more concrete.
+>>
+>> Maybe even performance numbers showing "look, I've filled the dentry
+>> lists with nasty negative dentries, now it's all slower because we
+>> walk those less interesting entries".
+>>
+> (Please cc linux-mm@kvack.org on this work)
+>
+> Yup.  The description of the user-visible impact of current behavior is
+> far too vague.
+>
+> In the [5/6] changelog it is mentioned that a large number of -ve
+> dentries can lead to oom-killings.  This sounds bad - -ve dentries
+> should be trivially reclaimable and we shouldn't be oom-killing in such
+> a situation.
 
-Mayb the following would work:
+The OOM situation was observed in an older distro kernel. It may not be
+the case with the upstream kernel. I will double check that.
 
-If you establish a reference to a page then increase the page count. If
-the reference is a dma pin action also then increase the pinned count.
-
-That way you know how many of the references to the page are dma
-pins and you can correctly manage the state of the page if the dma pins go
-away.
+Cheers,
+Longman
