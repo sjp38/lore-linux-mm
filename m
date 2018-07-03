@@ -1,97 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CEC916B02AA
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 21:38:41 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id z26-v6so451372qto.17
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 18:38:41 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id k9-v6si4046460qvd.123.2018.07.02.18.38.39
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BA7216B02AC
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 21:55:39 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id p91-v6so283778plb.12
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 18:55:39 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k1-v6sor5413370plt.102.2018.07.02.18.55.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jul 2018 18:38:39 -0700 (PDT)
-Subject: Re: [PATCH v5 0/6] fs/dcache: Track & limit # of negative dentries
-References: <1530510723-24814-1-git-send-email-longman@redhat.com>
- <CA+55aFyH6dHw-7R3364dn32J4p7kxT=TqmnuozCn9_Bz-MHhxQ@mail.gmail.com>
- <20180702141811.ef027fd7d8087b7fb2ba0cce@linux-foundation.org>
- <1530570880.3179.9.camel@HansenPartnership.com>
- <20180702161925.1c717283dd2bd4a221bc987c@linux-foundation.org>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <6e86c673-af14-2111-ea30-dc6cac655414@redhat.com>
-Date: Tue, 3 Jul 2018 09:38:31 +0800
+        (Google Transport Security);
+        Mon, 02 Jul 2018 18:55:38 -0700 (PDT)
+Subject: Re: [PATCH v9 2/6] mm: page_alloc: remain memblock_next_valid_pfn()
+ on arm/arm64
+References: <1530239363-2356-1-git-send-email-hejianet@gmail.com>
+ <1530239363-2356-3-git-send-email-hejianet@gmail.com>
+ <CAGM2reYn3ZbdjhcZze8Zt1eLNSdWghy0KwEXfd5xW+1Ba_SMbw@mail.gmail.com>
+From: Jia He <hejianet@gmail.com>
+Message-ID: <bfe24a3b-c982-9532-c05b-f42ebb77bbba@gmail.com>
+Date: Tue, 3 Jul 2018 09:55:18 +0800
 MIME-Version: 1.0
-In-Reply-To: <20180702161925.1c717283dd2bd4a221bc987c@linux-foundation.org>
+In-Reply-To: <CAGM2reYn3ZbdjhcZze8Zt1eLNSdWghy0KwEXfd5xW+1Ba_SMbw@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: linux@armlinux.org.uk, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, will.deacon@arm.com, mark.rutland@arm.com, hpa@zytor.com, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, neelx@redhat.com, erosca@de.adit-jv.com, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, james.morse@arm.com, ard.biesheuvel@linaro.org, steve.capper@arm.com, tglx@linutronix.de, mingo@redhat.com, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, pombredanne@nexb.com, Johannes Weiner <hannes@cmpxchg.org>, kemi.wang@intel.com, ptesarik@suse.com, yasu.isimatu@gmail.com, aryabinin@virtuozzo.com, nborisov@suse.com, Wei Yang <richard.weiyang@gmail.com>, jia.he@hxt-semitech.com
 
-On 07/03/2018 07:19 AM, Andrew Morton wrote:
-> On Mon, 02 Jul 2018 15:34:40 -0700 James Bottomley <James.Bottomley@Han=
-senPartnership.com> wrote:
->
->> On Mon, 2018-07-02 at 14:18 -0700, Andrew Morton wrote:
->>> On Mon, 2 Jul 2018 12:34:00 -0700 Linus Torvalds <torvalds@linux-foun=
+Hi, Pavel
+Thanks for the comments.
 
->>> dation.org> wrote:
->>>
->>>> On Sun, Jul 1, 2018 at 10:52 PM Waiman Long <longman@redhat.com>
->>>> wrote:
->>>>> A rogue application can potentially create a large number of
->>>>> negative
->>>>> dentries in the system consuming most of the memory available if
->>>>> it
->>>>> is not under the direct control of a memory controller that
->>>>> enforce
->>>>> kernel memory limit.
->>>> I certainly don't mind the patch series, but I would like it to be
->>>> accompanied with some actual example numbers, just to make it all a
->>>> bit more concrete.
->>>>
->>>> Maybe even performance numbers showing "look, I've filled the
->>>> dentry
->>>> lists with nasty negative dentries, now it's all slower because we
->>>> walk those less interesting entries".
->>>>
->>> (Please cc linux-mm@kvack.org on this work)
->>>
->>> Yup.  The description of the user-visible impact of current behavior
->>> is far too vague.
->>>
->>> In the [5/6] changelog it is mentioned that a large number of -ve
->>> dentries can lead to oom-killings.  This sounds bad - -ve dentries
->>> should be trivially reclaimable and we shouldn't be oom-killing in
->>> such a situation.
->> If you're old enough, it's d=C3=A9j=C3=A0 vu; Andrea went on a negativ=
-e dentry
->> rampage about 15 years ago:
->>
->> https://lkml.org/lkml/2002/5/24/71
-> That's kinda funny.
->
->> I think the summary of the thread is that it's not worth it because
->> dentries are a clean cache, so they're immediately shrinkable.
-> Yes, "should be".  I could understand that the presence of huge
-> nunmbers of -ve dentries could result in undesirable reclaim of
-> pagecache, etc.  Triggering oom-killings is very bad, and presumably
-> has the same cause.
->
-> Before we go and add a large amount of code to do the shrinker's job
-> for it, we should get a full understanding of what's going wrong.  Is
-> it because the dentry_lru had a mixture of +ve and -ve dentries?=20
-> Should we have a separate LRU for -ve dentries?  Are we appropriately
-> aging the various dentries?  etc.
+On 6/30/2018 2:13 AM, Pavel Tatashin Wrote:
+>> +++ b/include/linux/early_pfn.h
+>> @@ -0,0 +1,34 @@
+>> +/* SPDX-License-Identifier: GPL-2.0 */
+>> +/* Copyright (C) 2018 HXT-semitech Corp. */
+>> +#ifndef __EARLY_PFN_H
+>> +#define __EARLY_PFN_H
+>> +#ifdef CONFIG_HAVE_MEMBLOCK_PFN_VALID
+>> +ulong __init_memblock memblock_next_valid_pfn(ulong pfn)
+>> +{
+>> +       struct memblock_type *type = &memblock.memory;
+> 
+> Why put it in a header file and not in some C file? In my opinion it
+> is confusing to have non-line functions in header files. Basically,
+> you can include this header file in exactly one C file without
+> breaking compilation.
+> 
+My original intent is to make this helper memblock_next_valid_pfn
+a common api between arm64 and arm arches since both arches will
+use enable CONFIG_HAVE_MEMBLOCK_PFN_VALID by default.
 
-I have actually investigated having a separate LRU for negative
-dentries. That will result in a far more invasive patch that will be
-more disruptive.
+Do you think it looks ok if I add the inline prefix?
 
-Another change that was suggested by a colleague is to put a newly
-created -ve dentry to the tail (LRU end) of the LRU and move it to the
-head only if it is accessed a second time. That will put most of the
-negative dentries at the tail that will be more easily trimmed away.
-
+-- 
 Cheers,
-Longman
+Jia
