@@ -1,56 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D72236B0003
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 10:20:59 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id f6-v6so1012813eds.6
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 07:20:59 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u17-v6si1190831edf.182.2018.07.03.07.20.57
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E8E86B0006
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 10:25:58 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id j5-v6so1397257oiw.13
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 07:25:58 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id p14-v6si437269oic.106.2018.07.03.07.25.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jul 2018 07:20:58 -0700 (PDT)
-Date: Tue, 3 Jul 2018 16:20:54 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/3] m68k/page_no.h: force __va argument to be unsigned
- long
-Message-ID: <20180703142054.GL16767@dhcp22.suse.cz>
-References: <1530613795-6956-1-git-send-email-rppt@linux.vnet.ibm.com>
- <1530613795-6956-3-git-send-email-rppt@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1530613795-6956-3-git-send-email-rppt@linux.vnet.ibm.com>
+        Tue, 03 Jul 2018 07:25:57 -0700 (PDT)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH 0/8] OOM killer/reaper changes for avoiding OOM lockup problem.
+Date: Tue,  3 Jul 2018 23:25:01 +0900
+Message-Id: <1530627910-3415-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Greg Ungerer <gerg@linux-m68k.org>, Sam Creasey <sammy@sammy.net>, linux-m68k@lists.linux-m68k.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: torvalds@linux-foundation.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-On Tue 03-07-18 13:29:54, Mike Rapoport wrote:
-> Add explicit casting to unsigned long to the __va() parameter
+This series provides
 
-Why is this needed?
+  (1) Mitigation and a fix for CVE-2016-10723.
 
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> ---
->  arch/m68k/include/asm/page_no.h | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/arch/m68k/include/asm/page_no.h b/arch/m68k/include/asm/page_no.h
-> index e644c4d..6bbe520 100644
-> --- a/arch/m68k/include/asm/page_no.h
-> +++ b/arch/m68k/include/asm/page_no.h
-> @@ -18,7 +18,7 @@ extern unsigned long memory_end;
->  #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
->  
->  #define __pa(vaddr)		((unsigned long)(vaddr))
-> -#define __va(paddr)		((void *)(paddr))
-> +#define __va(paddr)		((void *)((unsigned long)(paddr)))
->  
->  #define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
->  #define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)
-> -- 
-> 2.7.4
+  (2) A mitigation for needlessly selecting next OOM victim reported
+      by David Rientjes and rejected by Michal Hocko.
+
+  (3) A preparation for handling many concurrent OOM victims which
+      could become real by introducing memcg-aware OOM killer.
+
+Tetsuo Handa (7):
+  mm,oom: Don't call schedule_timeout_killable() with oom_lock held.
+  mm,oom: Check pending victims earlier in out_of_memory().
+  mm,oom: Fix unnecessary killing of additional processes.
+  mm,page_alloc: Make oom_reserves_allowed() even.
+  mm,oom: Bring OOM notifier to outside of oom_lock.
+  mm,oom: Make oom_lock static variable.
+  mm,oom: Do not sleep with oom_lock held.
+Michal Hocko (1):
+  mm,page_alloc: Move the short sleep to should_reclaim_retry().
+
+ drivers/tty/sysrq.c        |   2 -
+ include/linux/memcontrol.h |   9 +-
+ include/linux/oom.h        |   6 +-
+ include/linux/sched.h      |   7 +-
+ include/trace/events/oom.h |  64 -------
+ kernel/fork.c              |   2 +
+ mm/memcontrol.c            |  24 +--
+ mm/mmap.c                  |  17 +-
+ mm/oom_kill.c              | 439 +++++++++++++++++++++------------------------
+ mm/page_alloc.c            | 134 ++++++--------
+ 10 files changed, 287 insertions(+), 417 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
