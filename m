@@ -1,67 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 186556B0006
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 13:23:33 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id y130-v6so3024633qka.1
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 10:23:33 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id x33-v6si835284qtd.174.2018.07.03.10.23.31
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 967AC6B0008
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 13:25:37 -0400 (EDT)
+Received: by mail-ua0-f199.google.com with SMTP id o16-v6so790158ual.14
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 10:25:37 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v7-v6sor610151uak.81.2018.07.03.10.25.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jul 2018 10:23:31 -0700 (PDT)
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w63HNUNC184987
-	for <linux-mm@kvack.org>; Tue, 3 Jul 2018 17:23:30 GMT
-Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
-	by userp2120.oracle.com with ESMTP id 2jx2gq1fq1-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Tue, 03 Jul 2018 17:23:30 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w63HNTGr030902
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Tue, 3 Jul 2018 17:23:29 GMT
-Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w63HNSIX016612
-	for <linux-mm@kvack.org>; Tue, 3 Jul 2018 17:23:29 GMT
-Received: by mail-oi0-f44.google.com with SMTP id m2-v6so5346999oim.12
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 10:23:28 -0700 (PDT)
+        (Google Transport Security);
+        Tue, 03 Jul 2018 10:25:36 -0700 (PDT)
 MIME-Version: 1.0
-References: <1530637506-1256-1-git-send-email-rppt@linux.vnet.ibm.com>
-In-Reply-To: <1530637506-1256-1-git-send-email-rppt@linux.vnet.ibm.com>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Tue, 3 Jul 2018 13:22:52 -0400
-Message-ID: <CAGM2reZ1RWcUT67cTGcyB6UzUftyMyG7GTfp=XjNo5CN2=c_bg@mail.gmail.com>
-Subject: Re: [PATCH] mm/memblock: replace u64 with phys_addr_t where appropriate
+In-Reply-To: <1530376739-20459-1-git-send-email-ufo19890607@gmail.com>
+References: <1530376739-20459-1-git-send-email-ufo19890607@gmail.com>
+From: Andy Shevchenko <andy.shevchenko@gmail.com>
+Date: Tue, 3 Jul 2018 20:25:33 +0300
+Message-ID: <CAHp75VdaEJgYFUX_MkthFPhimVtJStcinm1P4S-iGfJHvSeiyA@mail.gmail.com>
+Subject: Re: [PATCH v11 1/2] Refactor part of the oom report in dump_header
 Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rppt@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, mhocko@kernel.org, willy@infradead.org
+To: ufo19890607@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, aarcange@redhat.com, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, guro@fb.com, yang.s@alibaba-inc.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, yuzhoujian@didichuxing.com
 
-On Tue, Jul 3, 2018 at 1:05 PM Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+On Sat, Jun 30, 2018 at 7:38 PM,  <ufo19890607@gmail.com> wrote:
+> From: yuzhoujian <yuzhoujian@didichuxing.com>
 >
-> Most functions in memblock already use phys_addr_t to represent a physical
-> address with __memblock_free_late() being an exception.
+> The current system wide oom report prints information about the victim
+> and the allocation context and restrictions. It, however, doesn't
+> provide any information about memory cgroup the victim belongs to. This
+> information can be interesting for container users because they can find
+> the victim's container much more easily.
 >
-> This patch replaces u64 with phys_addr_t in __memblock_free_late() and
-> switches several format strings from %llx to %pa to avoid casting from
-> phys_addr_t to u64.
+> I follow the advices of David Rientjes and Michal Hocko, and refactor
+> part of the oom report. After this patch, users can get the memcg's
+> path from the oom report and check the certain container more quickly.
 >
-> CC: Michal Hocko <mhocko@kernel.org>
-> CC: Matthew Wilcox <willy@infradead.org>
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> The oom print info after this patch:
+> oom-kill:constraint=3D<constraint>,nodemask=3D<nodemask>,oom_memcg=3D<mem=
+cg>,task_memcg=3D<memcg>,task=3D<comm>,pid=3D<pid>,uid=3D<uid>
 
-Looks good.
 
-Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> +static const char * const oom_constraint_text[] =3D {
+> +       [CONSTRAINT_NONE] =3D "CONSTRAINT_NONE",
+> +       [CONSTRAINT_CPUSET] =3D "CONSTRAINT_CPUSET",
+> +       [CONSTRAINT_MEMORY_POLICY] =3D "CONSTRAINT_MEMORY_POLICY",
+> +       [CONSTRAINT_MEMCG] =3D "CONSTRAINT_MEMCG",
+> +};
 
-One minor thing that I would like to change in memblock.c is the
-useage phys_addr_t for size. I understand the reasoning behind this
-choice, but could we do something like:
+I'm not sure why we have this in the header.
 
-typedef phys_addr_t phys_size_t;
-It would be similar to resource_size_t. I just think the code and
-function prototypes would look better with proper typing.
+This produces a lot of noise when W=3D1.
 
-Thank you,
-Pavel
+In file included from
+/home/andy/prj/linux-topic-mfld/include/linux/memcontrol.h:31:0,
+                from /home/andy/prj/linux-topic-mfld/include/net/sock.h:58,
+                from /home/andy/prj/linux-topic-mfld/include/linux/tcp.h:23=
+,
+                from /home/andy/prj/linux-topic-mfld/include/linux/ipv6.h:8=
+7,
+                from /home/andy/prj/linux-topic-mfld/include/net/ipv6.h:16,
+                from
+/home/andy/prj/linux-topic-mfld/net/ipv4/netfilter/nf_log_ipv4.c:17:
+/home/andy/prj/linux-topic-mfld/include/linux/oom.h:32:27: warning:
+=E2=80=98oom_constraint_text=E2=80=99 defined but not used [-W
+unused-const-variable=3D]
+static const char * const oom_constraint_text[] =3D {
+                          ^~~~~~~~~~~~~~~~~~~
+ CC [M]  net/ipv4/netfilter/iptable_nat.o
+
+
+If you need (but looking at the code you actually don't if I didn't
+miss anything) it in several places, just export.
+Otherwise put it back to memcontrol.c.
+
+--=20
+With Best Regards,
+Andy Shevchenko
