@@ -1,75 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DB176B0006
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 04:27:23 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id e1-v6so837856pld.23
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 01:27:23 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 5-v6si602361plx.517.2018.07.03.01.27.22
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 046296B000E
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 04:28:17 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id f3-v6so642781wre.11
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 01:28:16 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 132-v6sor258125wmd.20.2018.07.03.01.28.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jul 2018 01:27:22 -0700 (PDT)
-Date: Tue, 3 Jul 2018 10:27:18 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC v3 PATCH 4/5] mm: mmap: zap pages with read mmap_sem for
- large mapping
-Message-ID: <20180703082718.GF16767@dhcp22.suse.cz>
-References: <1530311985-31251-1-git-send-email-yang.shi@linux.alibaba.com>
- <1530311985-31251-5-git-send-email-yang.shi@linux.alibaba.com>
- <20180702123350.dktmzlmztulmtrae@kshutemo-mobl1>
- <20180702124928.GQ19043@dhcp22.suse.cz>
- <20180703081205.3ue5722pb3ko4g2w@kshutemo-mobl1>
+        (Google Transport Security);
+        Tue, 03 Jul 2018 01:28:15 -0700 (PDT)
+Date: Tue, 3 Jul 2018 10:28:12 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH] x86: make Memory Management options more visible
+Message-ID: <20180703082812.GA971@gmail.com>
+References: <af12c83d-2533-ae00-b53c-1fc1a9d8e9ce@infradead.org>
+ <20180702140612.GA7333@infradead.org>
+ <afcb4a42-891a-d732-f072-79c0a1fc49f0@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180703081205.3ue5722pb3ko4g2w@kshutemo-mobl1>
+In-Reply-To: <afcb4a42-891a-d732-f072-79c0a1fc49f0@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, willy@infradead.org, ldufour@linux.vnet.ibm.com, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, tglx@linutronix.de, hpa@zytor.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: Christoph Hellwig <hch@infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
 
-On Tue 03-07-18 11:12:05, Kirill A. Shutemov wrote:
-> On Mon, Jul 02, 2018 at 02:49:28PM +0200, Michal Hocko wrote:
-> > On Mon 02-07-18 15:33:50, Kirill A. Shutemov wrote:
-> > [...]
-> > > I probably miss the explanation somewhere, but what's wrong with allowing
-> > > other thread to re-populate the VMA?
+
+* Randy Dunlap <rdunlap@infradead.org> wrote:
+
+> On 07/02/2018 07:06 AM, Christoph Hellwig wrote:
+> > On Sun, Jul 01, 2018 at 07:48:38PM -0700, Randy Dunlap wrote:
+> >> From: Randy Dunlap <rdunlap@infradead.org>
+> >>
+> >> Currently for x86, the "Memory Management" kconfig options are
+> >> displayed under "Processor type and features."  This tends to
+> >> make them hidden or difficult to find.
+> >>
+> >> This patch makes Memory Managment options a first-class menu by moving
+> >> it away from "Processor type and features" and into the main menu.
+> >>
+> >> Also clarify "endmenu" lines with '#' comments of their respective
+> >> menu names, just to help people who are reading or editing the
+> >> Kconfig file.
+> >>
+> >> Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
 > > 
-> > We have discussed that earlier and it boils down to how is racy access
-> > to munmap supposed to behave. Right now we have either the original
-> > content or SEGV. If we allow to simply madvise_dontneed before real
-> > unmap we could get a new page as well. There might be (quite broken I
-> > would say) user space code that would simply corrupt data silently that
-> > way.
+> > Hmm, can you take off from this for now and/or rebase it on top of
+> > this series:
+> > 
+> > 	http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/kconfig-cleanups
+> > 
 > 
-> Okay, so we add a lot of complexity to accommodate broken userspace that
-> may or may not exist. Is it right? :)
+> Sure, no problem.
 
-I would really love to do the most simple and obious thing
+Also:
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 336bee8c4e25..86ffb179c3b5 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2811,6 +2811,8 @@ EXPORT_SYMBOL(vm_munmap);
- SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
- {
- 	profile_munmap(addr);
-+	if (len > LARGE_NUMBER)
-+		do_madvise(addr, len, MADV_DONTNEED);
- 	return vm_munmap(addr, len);
- }
- 
-but the argument that current semantic of good data or SEGV on
-racing threads is no longer preserved sounds valid to me. Remember
-optimizations shouldn't eat your data. How do we ensure that we won't
-corrupt data silently?
+Acked-by: Ingo Molnar <mingo@kernel.org>
 
-Besides that if this was so simple then we do not even need any kernel
-code. You could do that from glibc resp. any munmap wrapper. So maybe
-the proper answer is, if you do care then just help the system and
-DONTNEED your data before you munmap as an optimization for large
-mappings.
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+
+	Ingo
