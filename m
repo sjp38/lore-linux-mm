@@ -1,154 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 97A986B026A
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 13:05:54 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id c2-v6so1169969edi.20
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 10:05:54 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id n12-v6si1432217edr.216.2018.07.03.10.05.52
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AD4296B026C
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 13:08:13 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id 99-v6so2958218qkr.14
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 10:08:13 -0700 (PDT)
+Received: from a9-92.smtp-out.amazonses.com (a9-92.smtp-out.amazonses.com. [54.240.9.92])
+        by mx.google.com with ESMTPS id n33-v6si1467232qvg.190.2018.07.03.10.08.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jul 2018 10:05:52 -0700 (PDT)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w63H5hk2000669
-	for <linux-mm@kvack.org>; Tue, 3 Jul 2018 13:05:50 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2k0bhq4mn4-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 03 Jul 2018 13:05:49 -0400
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Tue, 3 Jul 2018 18:05:14 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH] mm/memblock: replace u64 with phys_addr_t where appropriate
-Date: Tue,  3 Jul 2018 20:05:06 +0300
-Message-Id: <1530637506-1256-1-git-send-email-rppt@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 03 Jul 2018 10:08:12 -0700 (PDT)
+Date: Tue, 3 Jul 2018 17:08:12 +0000
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH v2 5/6] mm: track gup pages with page->dma_pinned_*
+ fields
+In-Reply-To: <f01666d5-8da1-7bea-adfb-c3571a54587a@nvidia.com>
+Message-ID: <01000164611dacae-5ac25e48-b845-43ef-9992-fc1047d8e0a0-000000@email.amazonses.com>
+References: <20180702005654.20369-1-jhubbard@nvidia.com> <20180702005654.20369-6-jhubbard@nvidia.com> <20180702095331.n5zfz35d3invl5al@quack2.suse.cz> <bb798475-ebf3-7b02-409f-8c4347fa6674@nvidia.com> <010001645d77ee2c-de7fedbd-f52d-4b74-9388-e6435973792b-000000@email.amazonses.com>
+ <f01666d5-8da1-7bea-adfb-c3571a54587a@nvidia.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Jan Kara <jack@suse.cz>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org
 
-Most functions in memblock already use phys_addr_t to represent a physical
-address with __memblock_free_late() being an exception.
+On Mon, 2 Jul 2018, John Hubbard wrote:
 
-This patch replaces u64 with phys_addr_t in __memblock_free_late() and
-switches several format strings from %llx to %pa to avoid casting from
-phys_addr_t to u64.
+> > If you establish a reference to a page then increase the page count. If
+> > the reference is a dma pin action also then increase the pinned count.
+> >
+> > That way you know how many of the references to the page are dma
+> > pins and you can correctly manage the state of the page if the dma pins go
+> > away.
+> >
+>
+> I think this sounds like what this patch already does, right? See:
+> __put_page_for_pinned_dma(), __get_page_for_pinned_dma(), and
+> pin_page_for_dma(). The locking seems correct to me, but I suspect it's
+> too heavyweight for such a hot path. But without adding a new put_user_page()
+> call, that was the best I could come up with.
 
-CC: Michal Hocko <mhocko@kernel.org>
-CC: Matthew Wilcox <willy@infradead.org>
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
- mm/memblock.c | 46 +++++++++++++++++++++++-----------------------
- 1 file changed, 23 insertions(+), 23 deletions(-)
+When I saw the patch it looked like you were avoiding to increment the
+page->count field.
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 03d48d8..20ad8e9 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -330,7 +330,7 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
- {
- 	struct memblock_region *new_array, *old_array;
- 	phys_addr_t old_alloc_size, new_alloc_size;
--	phys_addr_t old_size, new_size, addr;
-+	phys_addr_t old_size, new_size, addr, new_end;
- 	int use_slab = slab_is_available();
- 	int *in_slab;
- 
-@@ -391,9 +391,9 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
- 		return -1;
- 	}
- 
--	memblock_dbg("memblock: %s is doubled to %ld at [%#010llx-%#010llx]",
--			type->name, type->max * 2, (u64)addr,
--			(u64)addr + new_size - 1);
-+	new_end = addr + new_size - 1;
-+	memblock_dbg("memblock: %s is doubled to %ld at [%pa-%pa]",
-+			type->name, type->max * 2, &addr, &new_end);
- 
- 	/*
- 	 * Found space, we now need to move the array over before we add the
-@@ -1343,9 +1343,9 @@ void * __init memblock_virt_alloc_try_nid_raw(
- {
- 	void *ptr;
- 
--	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
--		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
--		     (u64)max_addr, (void *)_RET_IP_);
-+	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=%pa max_addr=%pa %pF\n",
-+		     __func__, (u64)size, (u64)align, nid, &min_addr,
-+		     &max_addr, (void *)_RET_IP_);
- 
- 	ptr = memblock_virt_alloc_internal(size, align,
- 					   min_addr, max_addr, nid);
-@@ -1380,9 +1380,9 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
- {
- 	void *ptr;
- 
--	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
--		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
--		     (u64)max_addr, (void *)_RET_IP_);
-+	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=%pa max_addr=%pa %pF\n",
-+		     __func__, (u64)size, (u64)align, nid, &min_addr,
-+		     &max_addr, (void *)_RET_IP_);
- 
- 	ptr = memblock_virt_alloc_internal(size, align,
- 					   min_addr, max_addr, nid);
-@@ -1416,9 +1416,9 @@ void * __init memblock_virt_alloc_try_nid(
- {
- 	void *ptr;
- 
--	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
--		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
--		     (u64)max_addr, (void *)_RET_IP_);
-+	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=%pa max_addr=%pa %pF\n",
-+		     __func__, (u64)size, (u64)align, nid, &min_addr,
-+		     &max_addr, (void *)_RET_IP_);
- 	ptr = memblock_virt_alloc_internal(size, align,
- 					   min_addr, max_addr, nid);
- 	if (ptr) {
-@@ -1426,9 +1426,8 @@ void * __init memblock_virt_alloc_try_nid(
- 		return ptr;
- 	}
- 
--	panic("%s: Failed to allocate %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx\n",
--	      __func__, (u64)size, (u64)align, nid, (u64)min_addr,
--	      (u64)max_addr);
-+	panic("%s: Failed to allocate %llu bytes align=0x%llx nid=%d from=%pa max_addr=%pa\n",
-+	      __func__, (u64)size, (u64)align, nid, &min_addr, &max_addr);
- 	return NULL;
- }
- 
-@@ -1442,9 +1441,10 @@ void * __init memblock_virt_alloc_try_nid(
-  */
- void __init __memblock_free_early(phys_addr_t base, phys_addr_t size)
- {
--	memblock_dbg("%s: [%#016llx-%#016llx] %pF\n",
--		     __func__, (u64)base, (u64)base + size - 1,
--		     (void *)_RET_IP_);
-+	phys_addr_t end = base + size - 1;
-+
-+	memblock_dbg("%s: [%pa-%pa] %pF\n",
-+		     __func__, &base, &end, (void *)_RET_IP_);
- 	kmemleak_free_part_phys(base, size);
- 	memblock_remove_range(&memblock.reserved, base, size);
- }
-@@ -1460,11 +1460,11 @@ void __init __memblock_free_early(phys_addr_t base, phys_addr_t size)
-  */
- void __init __memblock_free_late(phys_addr_t base, phys_addr_t size)
- {
--	u64 cursor, end;
-+	phys_addr_t cursor, end;
- 
--	memblock_dbg("%s: [%#016llx-%#016llx] %pF\n",
--		     __func__, (u64)base, (u64)base + size - 1,
--		     (void *)_RET_IP_);
-+	end = base + size - 1;
-+	memblock_dbg("%s: [%pa-%pa] %pF\n",
-+		     __func__, &base, &end, (void *)_RET_IP_);
- 	kmemleak_free_part_phys(base, size);
- 	cursor = PFN_UP(base);
- 	end = PFN_DOWN(base + size);
--- 
-2.7.4
+> What I'm hearing now from Jan and Michal is that the desired end result is
+> a separate API call, put_user_pages(), so that we can explicitly manage
+> these pinned pages.
+
+Certainly a good approach.
