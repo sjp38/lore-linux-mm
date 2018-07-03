@@ -1,74 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 850536B0006
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 07:03:45 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id o5-v6so799972edq.15
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 04:03:45 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id BB4AF6B0003
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 07:34:58 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id v19-v6so836505eds.3
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 04:34:58 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i26-v6si941120eds.215.2018.07.03.04.03.44
+        by mx.google.com with ESMTPS id o34-v6si939011edb.336.2018.07.03.04.34.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jul 2018 04:03:44 -0700 (PDT)
-Date: Tue, 3 Jul 2018 13:03:35 +0200
+        Tue, 03 Jul 2018 04:34:56 -0700 (PDT)
+Date: Tue, 3 Jul 2018 13:34:53 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v11 1/2] Refactor part of the oom report in dump_header
-Message-ID: <20180703110335.GH16767@dhcp22.suse.cz>
-References: <1530376739-20459-1-git-send-email-ufo19890607@gmail.com>
- <20180702101732.GD19043@dhcp22.suse.cz>
- <CAHCio2h1G5UDRv_veWbzRAMtM+NheyVfsghoC3G80BJgOtuW7g@mail.gmail.com>
+Subject: Re: [RFC v3 PATCH 4/5] mm: mmap: zap pages with read mmap_sem for
+ large mapping
+Message-ID: <20180703113453.GJ16767@dhcp22.suse.cz>
+References: <1530311985-31251-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1530311985-31251-5-git-send-email-yang.shi@linux.alibaba.com>
+ <20180702123350.dktmzlmztulmtrae@kshutemo-mobl1>
+ <20180702124928.GQ19043@dhcp22.suse.cz>
+ <20180703081205.3ue5722pb3ko4g2w@kshutemo-mobl1>
+ <20180703082718.GF16767@dhcp22.suse.cz>
+ <20180703091911.hhxhnqpeqb2kn42x@kshutemo-mobl1>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAHCio2h1G5UDRv_veWbzRAMtM+NheyVfsghoC3G80BJgOtuW7g@mail.gmail.com>
+In-Reply-To: <20180703091911.hhxhnqpeqb2kn42x@kshutemo-mobl1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>
-Cc: akpm@linux-foundation.org, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>, willy@infradead.org, ldufour@linux.vnet.ibm.com, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, tglx@linutronix.de, hpa@zytor.com, linux-mm@kvack.org, x86@kernel.org
 
-On Tue 03-07-18 18:57:14, c|1e??e?(R) wrote:
-> Hi Michal
-> cpuset_print_current_mems_allowed is also invoked by
-> warn_alloc(page_alloc.c). So, can I remove the current->comm output in
-> the pr_info ?
+On Tue 03-07-18 12:19:11, Kirill A. Shutemov wrote:
+> On Tue, Jul 03, 2018 at 10:27:18AM +0200, Michal Hocko wrote:
+> > On Tue 03-07-18 11:12:05, Kirill A. Shutemov wrote:
+> > > On Mon, Jul 02, 2018 at 02:49:28PM +0200, Michal Hocko wrote:
+> > > > On Mon 02-07-18 15:33:50, Kirill A. Shutemov wrote:
+> > > > [...]
+> > > > > I probably miss the explanation somewhere, but what's wrong with allowing
+> > > > > other thread to re-populate the VMA?
+> > > > 
+> > > > We have discussed that earlier and it boils down to how is racy access
+> > > > to munmap supposed to behave. Right now we have either the original
+> > > > content or SEGV. If we allow to simply madvise_dontneed before real
+> > > > unmap we could get a new page as well. There might be (quite broken I
+> > > > would say) user space code that would simply corrupt data silently that
+> > > > way.
+> > > 
+> > > Okay, so we add a lot of complexity to accommodate broken userspace that
+> > > may or may not exist. Is it right? :)
+> > 
+> > I would really love to do the most simple and obious thing
+> > 
+> > diff --git a/mm/mmap.c b/mm/mmap.c
+> > index 336bee8c4e25..86ffb179c3b5 100644
+> > --- a/mm/mmap.c
+> > +++ b/mm/mmap.c
+> > @@ -2811,6 +2811,8 @@ EXPORT_SYMBOL(vm_munmap);
+> >  SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
+> >  {
+> >  	profile_munmap(addr);
+> > +	if (len > LARGE_NUMBER)
+> > +		do_madvise(addr, len, MADV_DONTNEED);
+> >  	return vm_munmap(addr, len);
+> >  }
+> >  
+> > but the argument that current semantic of good data or SEGV on
+> > racing threads is no longer preserved sounds valid to me. Remember
+> > optimizations shouldn't eat your data. How do we ensure that we won't
+> > corrupt data silently?
 > 
-> diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
-> index d8b12e0d39cd..09b8ef6186c6 100644
-> --- a/kernel/cgroup/cpuset.c
-> +++ b/kernel/cgroup/cpuset.c
-> @@ -2666,9 +2666,9 @@ void cpuset_print_current_mems_allowed(void)
->         rcu_read_lock();
+> +linux-api
 > 
->         cgrp = task_cs(current)->css.cgroup;
-> -       pr_info("%s cpuset=", current->comm);
-> +       pr_info(",cpuset=");
->         pr_cont_cgroup_name(cgrp);
-> -       pr_cont(" mems_allowed=%*pbl\n",
-> +       pr_cont(",mems_allowed=%*pbl",
->                 nodemask_pr_args(&current->mems_allowed));
+> Frankly, I don't see change in semantics here.
+> 
+> Code that has race between munmap() and page fault would get intermittent
+> SIGSEGV before and after the approach with simple MADV_DONTNEED.
 
-Yes, I think so. Just jam the cpuset info to the allocation context
-warning like this
+prior to this patch you would either get an expected content (if you
+win the race) or SEGV otherwise. With the above change you would get a
+third state - a fresh new page (zero page) if you lost the race half
+way. That sounds like a change of a long term semantic.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1521100f1e63..6bc7d5d4007a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3416,12 +3416,13 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 	va_start(args, fmt);
- 	vaf.fmt = fmt;
- 	vaf.va = &args;
--	pr_warn("%s: %pV, mode:%#x(%pGg), nodemask=%*pbl\n",
-+	pr_warn("%s: %pV, mode:%#x(%pGg), nodemask=%*pbl",
- 			current->comm, &vaf, gfp_mask, &gfp_mask,
- 			nodemask_pr_args(nodemask));
- 	va_end(args);
- 
- 	cpuset_print_current_mems_allowed();
-+	pr_cont("\n");
- 
- 	dump_stack();
- 	warn_alloc_show_mem(gfp_mask, nodemask);
+How much that matters is of course a question. Userspace is known to do
+the most unexpected things you never even dreamed of.
 -- 
 Michal Hocko
 SUSE Labs
