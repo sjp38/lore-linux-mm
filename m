@@ -1,89 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4803F6B0005
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 05:25:58 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j8-v6so819523pfn.6
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 02:25:58 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i13-v6sor171709pgt.420.2018.07.03.02.25.56
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F2E1E6B0003
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 06:00:42 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id h15-v6so1579501qkj.17
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 03:00:42 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id 42-v6si716543qvf.139.2018.07.03.03.00.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 03 Jul 2018 02:25:56 -0700 (PDT)
-Date: Tue, 3 Jul 2018 12:19:11 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC v3 PATCH 4/5] mm: mmap: zap pages with read mmap_sem for
- large mapping
-Message-ID: <20180703091911.hhxhnqpeqb2kn42x@kshutemo-mobl1>
-References: <1530311985-31251-1-git-send-email-yang.shi@linux.alibaba.com>
- <1530311985-31251-5-git-send-email-yang.shi@linux.alibaba.com>
- <20180702123350.dktmzlmztulmtrae@kshutemo-mobl1>
- <20180702124928.GQ19043@dhcp22.suse.cz>
- <20180703081205.3ue5722pb3ko4g2w@kshutemo-mobl1>
- <20180703082718.GF16767@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180703082718.GF16767@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Jul 2018 03:00:40 -0700 (PDT)
+From: Chris von Recklinghausen <crecklin@redhat.com>
+Subject: [PATCH v6] add param that allows bootline control of hardened usercopy
+Date: Tue,  3 Jul 2018 06:00:37 -0400
+Message-Id: <1530612037-32512-1-git-send-email-crecklin@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, willy@infradead.org, ldufour@linux.vnet.ibm.com, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, tglx@linutronix.de, hpa@zytor.com, linux-mm@kvack.org, x86@kernel.org
+To: keescook@chromium.org, labbott@redhat.com, pabeni@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-On Tue, Jul 03, 2018 at 10:27:18AM +0200, Michal Hocko wrote:
-> On Tue 03-07-18 11:12:05, Kirill A. Shutemov wrote:
-> > On Mon, Jul 02, 2018 at 02:49:28PM +0200, Michal Hocko wrote:
-> > > On Mon 02-07-18 15:33:50, Kirill A. Shutemov wrote:
-> > > [...]
-> > > > I probably miss the explanation somewhere, but what's wrong with allowing
-> > > > other thread to re-populate the VMA?
-> > > 
-> > > We have discussed that earlier and it boils down to how is racy access
-> > > to munmap supposed to behave. Right now we have either the original
-> > > content or SEGV. If we allow to simply madvise_dontneed before real
-> > > unmap we could get a new page as well. There might be (quite broken I
-> > > would say) user space code that would simply corrupt data silently that
-> > > way.
-> > 
-> > Okay, so we add a lot of complexity to accommodate broken userspace that
-> > may or may not exist. Is it right? :)
-> 
-> I would really love to do the most simple and obious thing
-> 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 336bee8c4e25..86ffb179c3b5 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2811,6 +2811,8 @@ EXPORT_SYMBOL(vm_munmap);
->  SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
->  {
->  	profile_munmap(addr);
-> +	if (len > LARGE_NUMBER)
-> +		do_madvise(addr, len, MADV_DONTNEED);
->  	return vm_munmap(addr, len);
->  }
->  
-> but the argument that current semantic of good data or SEGV on
-> racing threads is no longer preserved sounds valid to me. Remember
-> optimizations shouldn't eat your data. How do we ensure that we won't
-> corrupt data silently?
+Enabling HARDENED_USERCOPY causes measurable regressions in
+ networking performance, up to 8% under UDP flood.
 
-+linux-api
+I'm running an a small packet UDP flood using pktgen vs. a host b2b
+connected. On the receiver side the UDP packets are processed by a
+simple user space process that just reads and drops them:
 
-Frankly, I don't see change in semantics here.
+https://github.com/netoptimizer/network-testing/blob/master/src/udp_sink.c
 
-Code that has race between munmap() and page fault would get intermittent
-SIGSEGV before and after the approach with simple MADV_DONTNEED.
+Not very useful from a functional PoV, but it helps to pin-point
+bottlenecks in the networking stack.
 
-To be safe, I wouldn't go with the optimization if the process has custom
-SIGSEGV handler.
+When running a kernel with CONFIG_HARDENED_USERCOPY=y, I see a 5-8%
+regression in the receive tput, compared to the same kernel without
+this option enabled.
 
-> Besides that if this was so simple then we do not even need any kernel
-> code. You could do that from glibc resp. any munmap wrapper. So maybe
-> the proper answer is, if you do care then just help the system and
-> DONTNEED your data before you munmap as an optimization for large
-> mappings.
+With CONFIG_HARDENED_USERCOPY=y, perf shows ~6% of CPU time spent
+cumulatively in __check_object_size (~4%) and __virt_addr_valid (~2%).
 
-Kernel latency problems have to be handled by kernel.
+The call-chain is:
 
+__GI___libc_recvfrom
+entry_SYSCALL_64_after_hwframe
+do_syscall_64
+__x64_sys_recvfrom
+__sys_recvfrom
+inet_recvmsg
+udp_recvmsg
+__check_object_size
+
+udp_recvmsg() actually calls copy_to_iter() (inlined) and the latters
+calls check_copy_size() (again, inlined).
+
+A generic distro may want to enable HARDENED_USERCOPY in their default
+kernel config, but at the same time, such distro may want to be able to
+avoid the performance penalties in with the default configuration and
+disable the stricter check on a per-boot basis.
+
+This change adds a boot parameter that conditionally disables
+HARDENED_USERCOPY at boot time.
+
+This feature is not available on platforms that don't have CONFIG_JUMP_LABEL
+set.
+
+v5->v6:
+	m68k build issue was when changes were in include/linux/thread_info.h.
+		mm/usercopy.c builds just fine without CONFIG_JUMP_LABEL or
+		CONFIG_SMP_BROKEN.
+v4->v5:
+	key off of CONFIG_JUMP_LABEL, not CONFIG_SMP_BROKEN.
+
+v3->v4:
+	fix a couple of nits in commit comments
+	declaration of bypass_usercopy_checks moved inside mm/usercopy.c and
+		made static
+	add blurb to commit comments about not enabling this functionality on
+		platforms with CONFIG_BROKEN_ON_SMP set.
+v2->v3:
+	add benchmark details to commit comments
+	Don't add new item to Documentation/admin-guide/kernel-parameters.rst
+	rename boot param to "hardened_usercopy="
+	update description in Documentation/admin-guide/kernel-parameters.txt
+	static_branch_likely -> static_branch_unlikely
+	add __ro_after_init versions of DEFINE_STATIC_KEY_FALSE,
+		DEFINE_STATIC_KEY_TRUE
+	disable_huc_atboot -> enable_checks (strtobool "on" == true)
+
+v1->v2:
+	remove CONFIG_HUC_DEFAULT_OFF
+	default is now enabled, boot param disables
+	move check to __check_object_size so as to not break optimization of
+		__builtin_constant_p()
+	include linux/atomic.h before linux/jump_label.h
+
+Signed-off-by: Chris von Recklinghausen <crecklin@redhat.com>
+---
+ Documentation/admin-guide/kernel-parameters.txt | 11 ++++++++++
+ include/linux/jump_label.h                      |  6 ++++++
+ mm/usercopy.c                                   | 27 +++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+)
+
+diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+index efc7aa7..560d4dc 100644
+--- a/Documentation/admin-guide/kernel-parameters.txt
++++ b/Documentation/admin-guide/kernel-parameters.txt
+@@ -816,6 +816,17 @@
+ 	disable=	[IPV6]
+ 			See Documentation/networking/ipv6.txt.
+ 
++	hardened_usercopy=
++                        [KNL] Under CONFIG_HARDENED_USERCOPY, whether
++                        hardening is enabled for this boot. Hardened
++                        usercopy checking is used to protect the kernel
++                        from reading or writing beyond known memory
++                        allocation boundaries as a proactive defense
++                        against bounds-checking flaws in the kernel's
++                        copy_to_user()/copy_from_user() interface.
++                on      Perform hardened usercopy checks (default).
++                off     Disable hardened usercopy checks.
++
+ 	disable_radix	[PPC]
+ 			Disable RADIX MMU mode on POWER9
+ 
+diff --git a/include/linux/jump_label.h b/include/linux/jump_label.h
+index b46b541..1a0b6f1 100644
+--- a/include/linux/jump_label.h
++++ b/include/linux/jump_label.h
+@@ -299,12 +299,18 @@ struct static_key_false {
+ #define DEFINE_STATIC_KEY_TRUE(name)	\
+ 	struct static_key_true name = STATIC_KEY_TRUE_INIT
+ 
++#define DEFINE_STATIC_KEY_TRUE_RO(name)	\
++	struct static_key_true name __ro_after_init = STATIC_KEY_TRUE_INIT
++
+ #define DECLARE_STATIC_KEY_TRUE(name)	\
+ 	extern struct static_key_true name
+ 
+ #define DEFINE_STATIC_KEY_FALSE(name)	\
+ 	struct static_key_false name = STATIC_KEY_FALSE_INIT
+ 
++#define DEFINE_STATIC_KEY_FALSE_RO(name)	\
++	struct static_key_false name __ro_after_init = STATIC_KEY_FALSE_INIT
++
+ #define DECLARE_STATIC_KEY_FALSE(name)	\
+ 	extern struct static_key_false name
+ 
+diff --git a/mm/usercopy.c b/mm/usercopy.c
+index e9e9325..7c8a1e9 100644
+--- a/mm/usercopy.c
++++ b/mm/usercopy.c
+@@ -20,6 +20,8 @@
+ #include <linux/sched/task.h>
+ #include <linux/sched/task_stack.h>
+ #include <linux/thread_info.h>
++#include <linux/atomic.h>
++#include <linux/jump_label.h>
+ #include <asm/sections.h>
+ 
+ /*
+@@ -240,6 +242,8 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
+ 	}
+ }
+ 
++static DEFINE_STATIC_KEY_FALSE_RO(bypass_usercopy_checks);
++
+ /*
+  * Validates that the given object is:
+  * - not bogus address
+@@ -248,6 +252,9 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
+  */
+ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
+ {
++	if (static_branch_unlikely(&bypass_usercopy_checks))
++		return;
++
+ 	/* Skip all tests if size is zero. */
+ 	if (!n)
+ 		return;
+@@ -279,3 +286,23 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
+ 	check_kernel_text_object((const unsigned long)ptr, n, to_user);
+ }
+ EXPORT_SYMBOL(__check_object_size);
++
++EXPORT_SYMBOL(bypass_usercopy_checks);
++
++static bool enable_checks __initdata = true;
++
++static int __init parse_hardened_usercopy(char *str)
++{
++	return strtobool(str, &enable_checks);
++}
++
++__setup("hardened_usercopy=", parse_hardened_usercopy);
++
++static int __init set_hardened_usercopy(void)
++{
++	if (enable_checks == false)
++		static_branch_enable(&bypass_usercopy_checks);
++	return 1;
++}
++
++late_initcall(set_hardened_usercopy);
 -- 
- Kirill A. Shutemov
+1.8.3.1
