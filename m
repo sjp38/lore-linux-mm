@@ -1,77 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 688616B0010
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 17:02:24 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id g9-v6so1514089wrq.7
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 14:02:24 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id p6-v6si1336108wrj.355.2018.07.03.14.02.21
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AFD176B0269
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 17:10:56 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h14-v6so1596471pfi.19
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 14:10:56 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id a1-v6si1893157plp.247.2018.07.03.14.10.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Jul 2018 14:02:22 -0700 (PDT)
-Date: Tue, 3 Jul 2018 23:02:15 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v4 2/3] ioremap: Update pgtable free interfaces with
- addr
-In-Reply-To: <1530287995.14039.361.camel@hpe.com>
-Message-ID: <alpine.DEB.2.21.1807032301140.1816@nanos.tec.linutronix.de>
-References: <20180627141348.21777-1-toshi.kani@hpe.com>  <20180627141348.21777-3-toshi.kani@hpe.com>  <20180627155632.GH30631@arm.com> <1530115885.14039.295.camel@hpe.com>  <20180629122358.GC17859@arm.com> <1530287995.14039.361.camel@hpe.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Jul 2018 14:10:55 -0700 (PDT)
+Subject: [PATCH] x86/numa_emulation: Fix uniform size build failure
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 03 Jul 2018 14:00:57 -0700
+Message-ID: <153065162801.12250.4860144566061573514.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kani, Toshi" <toshi.kani@hpe.com>
-Cc: "will.deacon@arm.com" <will.deacon@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "joro@8bytes.org" <joro@8bytes.org>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "Hocko, Michal" <MHocko@suse.com>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: mingo@kernel.org
+Cc: David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Wei Yang <richard.weiyang@gmail.com>, kbuild test robot <lkp@intel.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 29 Jun 2018, Kani, Toshi wrote:
-> On Fri, 2018-06-29 at 13:23 +0100, Will Deacon wrote:
-> > Hi Toshi, Thomas,
-> > 
-> > On Wed, Jun 27, 2018 at 04:13:22PM +0000, Kani, Toshi wrote:
-> > > On Wed, 2018-06-27 at 16:56 +0100, Will Deacon wrote:
-> > > > On Wed, Jun 27, 2018 at 08:13:47AM -0600, Toshi Kani wrote:
-> > > > > From: Chintan Pandya <cpandya@codeaurora.org>
-> > > > > 
-> > > > > The following kernel panic was observed on ARM64 platform due to a stale
-> > > > > TLB entry.
-> > > > > 
-> > > > >  1. ioremap with 4K size, a valid pte page table is set.
-> > > > >  2. iounmap it, its pte entry is set to 0.
-> > > > >  3. ioremap the same address with 2M size, update its pmd entry with
-> > > > >     a new value.
-> > > > >  4. CPU may hit an exception because the old pmd entry is still in TLB,
-> > > > >     which leads to a kernel panic.
-> > > > > 
-> > > > > Commit b6bdb7517c3d ("mm/vmalloc: add interfaces to free unmapped page
-> > > > > table") has addressed this panic by falling to pte mappings in the above
-> > > > > case on ARM64.
-> > > > > 
-> > > > > To support pmd mappings in all cases, TLB purge needs to be performed
-> > > > > in this case on ARM64.
-> > > > > 
-> > > > > Add a new arg, 'addr', to pud_free_pmd_page() and pmd_free_pte_page()
-> > > > > so that TLB purge can be added later in seprate patches.
-> > > > 
-> > > > So I acked v13 of Chintan's series posted here:
-> > > > 
-> > > > http://lists.infradead.org/pipermail/linux-arm-kernel/2018-June/582953.html
-> > > > 
-> > > > any chance this lot could all be merged together, please?
-> > > 
-> > > Chintan's patch 2/3 and 3/3 apply cleanly on top of my series. Can you
-> > > please coordinate with Thomas on the logistics?
-> > 
-> > Sure. I guess having this series on a common branch that I can pull into
-> > arm64 and apply Chintan's other patches on top would work.
-> > 
-> > How does that sound?
-> 
-> Should this go thru -mm tree then?
-> 
-> Andrew, Thomas, what do you think? 
+The calculation of a uniform numa-node size attempted to perform
+division with a 64-bit diviser leading to the following failure on
+32-bit:
 
-I just pick it up and provide Will a branch to pull that lot from.
+    arch/x86/mm/numa_emulation.o: In function `split_nodes_size_interleave_uniform':
+    arch/x86/mm/numa_emulation.c:239: undefined reference to `__udivdi3'
 
-Thanks,
+Convert the implementation to do the division in terms of pages and then
+shift the result back to an absolute physical address.
 
-	tglx
+Fixes: 93e738834fcc ("x86/numa_emulation: Introduce uniform split capability")
+Cc: David Rientjes <rientjes@google.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Wei Yang <richard.weiyang@gmail.com>
+Reported-by: kbuild test robot <lkp@intel.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+---
+
+    Applies to tip/x86/cpu for 4.19.
+
+ arch/x86/mm/numa_emulation.c |   10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/arch/x86/mm/numa_emulation.c b/arch/x86/mm/numa_emulation.c
+index 039db00541b7..cc7523e45926 100644
+--- a/arch/x86/mm/numa_emulation.c
++++ b/arch/x86/mm/numa_emulation.c
+@@ -198,6 +198,14 @@ static u64 __init find_end_of_node(u64 start, u64 max_addr, u64 size)
+ 	return end;
+ }
+ 
++static u64 uniform_size(u64 max_addr, u64 base, int nr_nodes)
++{
++	unsigned long max_pfn = PHYS_PFN(max_addr);
++	unsigned long base_pfn = PHYS_PFN(base);
++
++	return PFN_PHYS((max_pfn - base_pfn) / nr_nodes);
++}
++
+ /*
+  * Sets up fake nodes of `size' interleaved over physical nodes ranging from
+  * `addr' to `max_addr'.
+@@ -236,7 +244,7 @@ static int __init split_nodes_size_interleave_uniform(struct numa_meminfo *ei,
+ 	}
+ 
+ 	if (uniform) {
+-		min_size = (max_addr - addr) / nr_nodes;
++		min_size = uniform_size(max_addr, addr, nr_nodes);
+ 		size = min_size;
+ 	} else {
+ 		/*
