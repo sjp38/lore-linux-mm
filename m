@@ -1,144 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E08886B000E
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 10:52:56 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id w21-v6so960324wmc.4
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 07:52:56 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id n18-v6si1123241wrh.315.2018.07.03.07.52.54
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 137D56B0269
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 10:58:12 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id o5-v6so1046905edq.15
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 07:58:12 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 93-v6si870107edl.219.2018.07.03.07.58.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Jul 2018 07:52:54 -0700 (PDT)
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: [PATCH 4/4] mm/list_lru: Introduce list_lru_shrink_walk_irq()
-Date: Tue,  3 Jul 2018 16:52:35 +0200
-Message-Id: <20180703145235.28050-5-bigeasy@linutronix.de>
-In-Reply-To: <20180703145235.28050-1-bigeasy@linutronix.de>
-References: <20180624200907.ufjxk6l2biz6xcm2@esperanza>
- <20180703145235.28050-1-bigeasy@linutronix.de>
-Reply-To: "[PATCH 0/4]"@kvack.org, "mm/list_lru:add"@kvack.org,
-	list_lru_shrink_walk_irq@kvack.org, and@kvack.org (), use@kvack.org,
-	it@kvack.org
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Jul 2018 07:58:10 -0700 (PDT)
+Date: Tue, 3 Jul 2018 16:58:08 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 3/8] mm,oom: Fix unnecessary killing of additional
+ processes.
+Message-ID: <20180703145808.GN16767@dhcp22.suse.cz>
+References: <1530627910-3415-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <1530627910-3415-4-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1530627910-3415-4-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: linux-mm@kvack.org, tglx@linutronix.de, Andrew Morton <akpm@linux-foundation.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-Provide list_lru_shrink_walk_irq() and let it behave like
-list_lru_walk_one() except that it locks the spinlock with
-spin_lock_irq(). This is used by scan_shadow_nodes() because its lock
-nests within the i_pages lock which is acquired with IRQ.
-This change allows to use proper locking promitives instead hand crafted
-lock_irq_disable() plus spin_lock().
-There is no EXPORT_SYMBOL provided because the current user is in-KERNEL
-only.
+On Tue 03-07-18 23:25:04, Tetsuo Handa wrote:
+> David Rientjes is complaining that memcg OOM events needlessly select
+> more OOM victims when the OOM reaper was unable to reclaim memory. This
+> is because exit_mmap() is setting MMF_OOM_SKIP before calling
+> free_pgtables(). While David is trying to introduce timeout based hold
+> off approach, Michal Hocko is rejecting plain timeout based approaches.
+> 
+> Therefore, this patch gets rid of the OOM reaper kernel thread and
+> introduces OOM-badness-score based hold off approach. The reason for
+> getting rid of the OOM reaper kernel thread is explained below.
+> 
+>     We are about to start getting a lot of OOM victim processes by
+>     introducing "mm, oom: cgroup-aware OOM killer" patchset.
+> 
+>     When there are multiple OOM victims, we should try reclaiming memory
+>     in parallel rather than sequentially wait until conditions to be able
+>     to reclaim memory are met. Also, we should preferentially reclaim from
+>     OOM domains where currently allocating threads belong to. Also, we
+>     want to get rid of schedule_timeout_*(1) heuristic which is used for
+>     trying to give CPU resource to the owner of oom_lock. Therefire,
+>     direct OOM reaping by allocating threads can do the job better than
+>     the OOM reaper kernel thread.
+> 
+> This patch changes the OOM killer to wait until either __mmput()
+> completes or OOM badness score did not decrease for 3 seconds.
 
-Add list_lru_shrink_walk_irq() which acquires the spinlock with the
-proper locking primitives.
+So this is yet another timeout based thing... I am really getting tired
+of this coming back and forth. I will get ignored most probably again,
+but let me repeat. Once you make this timeout based you will really have
+to make it tunable by userspace because one timeout never fits all
+needs. And that would be quite stupid. Because what we have now is a
+feedback based approach. So we retry as long as we can make progress and
+fail eventually because we cannot retry for ever. How many times we
+retry is an implementation detail so we do not have to expose that.
 
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
----
- include/linux/list_lru.h | 25 +++++++++++++++++++++++++
- mm/list_lru.c            | 15 +++++++++++++++
- mm/workingset.c          |  8 ++------
- 3 files changed, 42 insertions(+), 6 deletions(-)
+Anyway, You failed to explain whether there is any fundamental problem
+that the current approach has and won't be able to handle or this new
+approach would handle much better. So what are sound reasons to rewrite
+the whole thing?
 
-diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
-index 96def9d15b1b..798c41743657 100644
---- a/include/linux/list_lru.h
-+++ b/include/linux/list_lru.h
-@@ -162,6 +162,23 @@ unsigned long list_lru_walk_one(struct list_lru *lru,
- 				int nid, struct mem_cgroup *memcg,
- 				list_lru_walk_cb isolate, void *cb_arg,
- 				unsigned long *nr_to_walk);
-+/**
-+ * list_lru_walk_one_irq: walk a list_lru, isolating and disposing freeabl=
-e items.
-+ * @lru: the lru pointer.
-+ * @nid: the node id to scan from.
-+ * @memcg: the cgroup to scan from.
-+ * @isolate: callback function that is resposible for deciding what to do =
-with
-+ *  the item currently being scanned
-+ * @cb_arg: opaque type that will be passed to @isolate
-+ * @nr_to_walk: how many items to scan.
-+ *
-+ * Same as @list_lru_walk_one except that the spinlock is acquired with
-+ * spin_lock_irq().
-+ */
-+unsigned long list_lru_walk_one_irq(struct list_lru *lru,
-+				    int nid, struct mem_cgroup *memcg,
-+				    list_lru_walk_cb isolate, void *cb_arg,
-+				    unsigned long *nr_to_walk);
- unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
- 				 list_lru_walk_cb isolate, void *cb_arg,
- 				 unsigned long *nr_to_walk);
-@@ -174,6 +191,14 @@ list_lru_shrink_walk(struct list_lru *lru, struct shri=
-nk_control *sc,
- 				 &sc->nr_to_scan);
- }
-=20
-+static inline unsigned long
-+list_lru_shrink_walk_irq(struct list_lru *lru, struct shrink_control *sc,
-+			 list_lru_walk_cb isolate, void *cb_arg)
-+{
-+	return list_lru_walk_one_irq(lru, sc->nid, sc->memcg, isolate, cb_arg,
-+				     &sc->nr_to_scan);
-+}
-+
- static inline unsigned long
- list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
- 	      void *cb_arg, unsigned long nr_to_walk)
-diff --git a/mm/list_lru.c b/mm/list_lru.c
-index 4d7f981e6144..1bf53a08cda8 100644
---- a/mm/list_lru.c
-+++ b/mm/list_lru.c
-@@ -267,6 +267,21 @@ list_lru_walk_one(struct list_lru *lru, int nid, struc=
-t mem_cgroup *memcg,
- }
- EXPORT_SYMBOL_GPL(list_lru_walk_one);
-=20
-+unsigned long
-+list_lru_walk_one_irq(struct list_lru *lru, int nid, struct mem_cgroup *me=
-mcg,
-+		      list_lru_walk_cb isolate, void *cb_arg,
-+		      unsigned long *nr_to_walk)
-+{
-+	struct list_lru_node *nlru =3D &lru->node[nid];
-+	unsigned long ret;
-+
-+	spin_lock_irq(&nlru->lock);
-+	ret =3D __list_lru_walk_one(nlru, memcg_cache_id(memcg), isolate, cb_arg,
-+				  nr_to_walk);
-+	spin_unlock_irq(&nlru->lock);
-+	return ret;
-+}
-+
- unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
- 				 list_lru_walk_cb isolate, void *cb_arg,
- 				 unsigned long *nr_to_walk)
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 529480c21f93..aa75c0027079 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -480,13 +480,9 @@ static enum lru_status shadow_lru_isolate(struct list_=
-head *item,
- static unsigned long scan_shadow_nodes(struct shrinker *shrinker,
- 				       struct shrink_control *sc)
- {
--	unsigned long ret;
--
- 	/* list_lru lock nests inside the IRQ-safe i_pages lock */
--	local_irq_disable();
--	ret =3D list_lru_shrink_walk(&shadow_nodes, sc, shadow_lru_isolate, NULL);
--	local_irq_enable();
--	return ret;
-+	return list_lru_shrink_walk_irq(&shadow_nodes, sc, shadow_lru_isolate,
-+					NULL);
- }
-=20
- static struct shrinker workingset_shadow_shrinker =3D {
---=20
-2.18.0
+Why do you think that pulling the memory reaping into the oom context is
+any better?
+
+So color me unconvinced
+-- 
+Michal Hocko
+SUSE Labs
