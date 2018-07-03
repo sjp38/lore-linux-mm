@@ -1,125 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5190F6B000A
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 17:15:02 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id l6-v6so1419117otj.3
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 14:15:02 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p133-v6sor1431482oih.28.2018.07.03.14.15.01
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 61F7B6B0003
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 17:30:04 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id k85-v6so3011333ita.0
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 14:30:04 -0700 (PDT)
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id 193-v6sor652963itx.112.2018.07.03.14.30.02
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 03 Jul 2018 14:15:01 -0700 (PDT)
+        Tue, 03 Jul 2018 14:30:02 -0700 (PDT)
 MIME-Version: 1.0
-From: Petros Angelatos <petrosagg@resin.io>
-Date: Wed, 4 Jul 2018 00:14:39 +0300
-Message-ID: <CAM1WBjLv4tBm2nJTVo_aUrf3BkpkHrH3UpJv=C8r3V9-RO94vQ@mail.gmail.com>
-Subject: Memory cgroup invokes OOM killer when there are a lot of dirty pages
-Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 03 Jul 2018 14:30:02 -0700
+In-Reply-To: <000000000000e46d0a056d4c70ce@google.com>
+Message-ID: <00000000000056285005701f0414@google.com>
+Subject: Re: BUG: unable to handle kernel (3)
+From: syzbot <syzbot+adfeaaee641dd4fdac43@syzkaller.appspotmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, cgroups@vger.kernel.org
-Cc: Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, lstoakes@gmail.com
+To: akpm@linux-foundation.org, bridge@lists.linux-foundation.org, coreteam@netfilter.org, davem@davemloft.net, fw@strlen.de, gregkh@linuxfoundation.org, hmclauchlan@fb.com, kadlec@blackhole.kfki.hu, kstewart@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, netfilter-devel@vger.kernel.org, pablo@netfilter.org, pombredanne@nexb.com, stephen@networkplumber.org, syzkaller-bugs@googlegroups.com, tglx@linutronix.de
 
-Hello,
+syzbot has found a reproducer for the following crash on:
 
-I'm facing a strange problem when I constrain an IO intensive
-application that generates a lot of dirty pages inside a v1 cgroup
-with a memory controller. After a while the OOM killer kicks in and
-kills the processes instead of throttling the allocations while dirty
-pages are being flushed. Here is a test program that reproduces the
-issue:
+HEAD commit:    4ca559bbdeaf kmsan: fix assertions in IRQ entry/exit hooks.
+git tree:       https://github.com/google/kmsan.git/master
+console output: https://syzkaller.appspot.com/x/log.txt?x=13dafb20400000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=848e40757852af3e
+dashboard link: https://syzkaller.appspot.com/bug?extid=adfeaaee641dd4fdac43
+compiler:       clang version 7.0.0 (trunk 334104)
+syzkaller repro:https://syzkaller.appspot.com/x/repro.syz?x=15497384400000
+C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=123a42a4400000
 
-  cd /sys/fs/cgroup/memory/
-  mkdir dirty-test
-  echo 10485760 > dirty-test/memory.limit_in_bytes
+IMPORTANT: if you fix the bug, please add the following tag to the commit:
+Reported-by: syzbot+adfeaaee641dd4fdac43@syzkaller.appspotmail.com
 
-  echo $$ > dirty-test/cgroup.procs
-
-  rm /mnt/file_*
-  for i in $(seq 500); do
-    dd if=/dev/urandom count=2048 of="/mnt/file_$i"
-  done
-
-When a process gets killed I get the following trace in dmesg:
-
-> foo.sh invoked oom-killer: gfp_mask=0x14000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=0
-> foo.sh cpuset=/ mems_allowed=0
-> CPU: 0 PID: 18415 Comm: foo.sh Tainted: P           O      4.17.2-1-ARCH #1
-> Hardware name: LENOVO 20F9CTO1WW/20F9CTO1WW, BIOS N1CET52W (1.20 ) 11/30/2016
-> Call Trace:
->  dump_stack+0x5c/0x80
->  dump_header+0x6b/0x2a1
->  ? preempt_count_add+0x68/0xa0
->  ? _raw_spin_trylock+0x13/0x50
->  oom_kill_process.cold.5+0xb/0x43b
->  out_of_memory+0x1a1/0x470
->  mem_cgroup_out_of_memory+0x49/0x80
->  mem_cgroup_oom_synchronize+0x329/0x360
->  ? __mem_cgroup_insert_exceeded+0x90/0x90
->  pagefault_out_of_memory+0x32/0x77
->  __do_page_fault+0x518/0x570
->  ? __se_sys_rt_sigaction+0x9f/0xd0
->  do_page_fault+0x32/0x130
->  ? page_fault+0x8/0x30
->  page_fault+0x1e/0x30
-> RIP: 0033:0x56079824e134
-> RSP: 002b:00007ffeac088fd0 EFLAGS: 00010246
-> RAX: 0000000000000000 RBX: 0000000000000001 RCX: 0000000000000000
-> RDX: 0000000000000000 RSI: 00007ffeac088be0 RDI: 000056079824e720
-> RBP: 00005607984ce5e0 R08: 00007ffeac088dd0 R09: 0000000000000001
-> R10: 0000000000000008 R11: 0000000000000202 R12: 00005607984c9040
-> R13: 000056079824e720 R14: 00005607984ce3c0 R15: 0000000000000000
-> Task in /dirty-test killed as a result of limit of /dirty-test
-> memory: usage 10240kB, limit 10240kB, failcnt 13073
-> memory+swap: usage 10240kB, limit 9007199254740988kB, failcnt 0
-> kmem: usage 1308kB, limit 9007199254740988kB, failcnt 0
-> Memory cgroup stats for /dirty-test: cache:8848KB rss:180KB rss_huge:0KB shmem:0KB mapped_file:0KB dirty:8580KB writeback:0KB swap:0KB inactive_anon:0KB active_anon:200KB inactive_file:4364KB active_file:4364KB unevictable:0KB
-> [ pid ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name
-> [18160]     0 18160     3468      652    73728        0             0 foo.sh
-> [18415]     0 18415     3468      118    61440        0             0 foo.sh
-> Memory cgroup out of memory: Kill process 18160 (foo.sh) score 261 or sacrifice child
-> Killed process 18415 (foo.sh) total-vm:13872kB, anon-rss:472kB, file-rss:0kB, shmem-rss:0kB
-> oom_reaper: reaped process 18415 (foo.sh), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
-
-The cgroup v2 documentation mentions that the OOM killer will be only
-be invoked when the out of memory situation happens inside a page
-fault, and this problem is always happening during a page fault so
-that's not surprising but I'm not sure why the process ends up in a
-fatal page fault.
-
-This is an old problem and from searching online I found that an
-initial solution was implemented by Michal Hocko and Hugh Dickins in
-e62e384 ("memcg:prevent OOM with too many dirty pages") and c3b94f4
-("memcg: further prevent OOM with too many dirty pages") respectively
-and then further tweaked by Michal to avoid possible deadlocks in
-ecf5fc6 ("mm, vmscan: Do not wait for page writeback for GFP_NOFS
-allocations").
-
-This initial ad-hoc implementation was later improved by Tejun Heo in
-c2aa723 ("writeback: implement memcg writeback domain based
-throttling") and 97c9341 ("mm: vmscan: disable memcg direct reclaim
-stalling if cgroup writeback support is in use"). According to the
-commit log that change "makes the dirty throttling mechanism
-operational for memcg domains including
-writeback-bandwidth-proportional dirty page distribution inside them".
-
-I verified that my kernel has cgroup writeback support enabled but
-it's unclear if this is used for legacy hierarchies. But even if it's
-not according to Tejun's commit the old ad-hoc method should still be
-activated to throttle the process. The reason I'm using the legacy
-hierarchy is because I'm running the workload in a container and
-docker doesn't yet support cgroups v2
-(https://github.com/moby/moby/issues/25868).
-
-So my question is, is there a way with the current state of affairs to
-constrain an IO intensive process with the goal of preventing page
-cache eviction of useful pages using a memory cgroup or is the only
-solution altering the application to use fsync() and
-posix_fadvise(POSIX_FADV_DONTNEED)?
-
-Best,
-
--- 
-Petros Angelatos
-CTO & Founder, Resin.io
-BA81 DC1C D900 9B24 2F88  6FDD 4404 DDEE 92BF 1079
+RDX: 0000000020000140 RSI: 0000000020000100 RDI: 00000000200000c0
+RBP: 0000000000000000 R08: 00000000fffffffc R09: 0000000000000039
+R10: 0000000000000311 R11: 0000000000000246 R12: 00007f00bc56bd80
+R13: 00000000006dbc38 R14: 0000000000000006 R15: 0079656b5f676962
+CPU: 1 PID: 4528 Comm: syz-executor237 Not tainted 4.17.0+ #17
+BUG: unable to handle kernel
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+NULL pointer dereference at 0000000000000008
+Call Trace:
+PGD 800000019f3d5067 P4D 800000019f3d5067
+  __dump_stack lib/dump_stack.c:77 [inline]
+  dump_stack+0x185/0x1d0 lib/dump_stack.c:113
+PUD 19ce9d067
+  fail_dump lib/fault-inject.c:51 [inline]
+  should_fail+0x87b/0xab0 lib/fault-inject.c:149
+PMD 0
+  __should_failslab+0x278/0x2a0 mm/failslab.c:32
+Oops: 0000 [#1] SMP PTI
+  should_failslab+0x29/0x70 mm/slab_common.c:1522
+Dumping ftrace buffer:
+  slab_pre_alloc_hook mm/slab.h:423 [inline]
+  slab_alloc_node mm/slub.c:2679 [inline]
+  __kmalloc_node+0x22f/0x1200 mm/slub.c:3859
+    (ftrace buffer empty)
+Modules linked in:
+CPU: 0 PID: 4533 Comm: syz-executor237 Not tainted 4.17.0+ #17
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+RIP: 0010:map_vm_area+0x69/0x1f0 mm/vmalloc.c:1353
+RSP: 0018:ffff8801c07df8b8 EFLAGS: 00010046
+  kmalloc_node include/linux/slab.h:554 [inline]
+  alloc_vmap_area+0x1e6/0x15a0 mm/vmalloc.c:420
+RAX: ffffffff81b1e4bc RBX: 0000000000000000 RCX: ffff8801a8e58000
+RDX: 0000000000000000 RSI: 8000000000000063 RDI: 0000000000000000
+  __get_vm_area_node+0x3a6/0x810 mm/vmalloc.c:1410
+RBP: ffff8801c07df930 R08: 0000000000000000 R09: 0000000000000000
+R10: ffffc900019fffff R11: 0000000000000000 R12: ffffffff8b58d000
+  get_vm_area_caller+0xdb/0xf0 mm/vmalloc.c:1456
+R13: 0000000000000000 R14: 0000000000000008 R15: 0000000000000000
+FS:  00007f00bc56c700(0000) GS:ffff88021fc00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 0000000000000008 CR3: 000000019e7d2000 CR4: 00000000001406f0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+  kmsan_vmap+0x79/0x1e0 mm/kmsan/kmsan.c:875
+Call Trace:
+  vmap+0x3b2/0x4b0 mm/vmalloc.c:1661
+  kmsan_vmap+0x137/0x1e0 mm/kmsan/kmsan.c:888
+  vmap+0x3b2/0x4b0 mm/vmalloc.c:1661
+  big_key_alloc_buffer+0x638/0xa30 security/keys/big_key.c:188
+  big_key_preparse+0x20a/0xed0 security/keys/big_key.c:228
+  big_key_alloc_buffer+0x638/0xa30 security/keys/big_key.c:188
+  big_key_preparse+0x20a/0xed0 security/keys/big_key.c:228
+  key_create_or_update+0x7a6/0x1a80 security/keys/key.c:849
+  __do_sys_add_key security/keys/keyctl.c:122 [inline]
+  __se_sys_add_key+0x741/0x980 security/keys/keyctl.c:62
+  key_create_or_update+0x7a6/0x1a80 security/keys/key.c:849
+  __do_sys_add_key security/keys/keyctl.c:122 [inline]
+  __se_sys_add_key+0x741/0x980 security/keys/keyctl.c:62
+  __x64_sys_add_key+0x15d/0x1b0 security/keys/keyctl.c:62
+  __x64_sys_add_key+0x15d/0x1b0 security/keys/keyctl.c:62
+  do_syscall_64+0x15b/0x230 arch/x86/entry/common.c:287
+  entry_SYSCALL_64_after_hwframe+0x63/0xe7
+  do_syscall_64+0x15b/0x230 arch/x86/entry/common.c:287
+RIP: 0033:0x445dc9
+  entry_SYSCALL_64_after_hwframe+0x63/0xe7
+RSP: 002b:00007f00bc58cd78 EFLAGS: 00000246
+RIP: 0033:0x445dc9
+RSP: 002b:00007f00bc56bd78 EFLAGS: 00000246
+  ORIG_RAX: 00000000000000f8
+  ORIG_RAX: 00000000000000f8
+RAX: ffffffffffffffda RBX: 00000000006dbc24 RCX: 0000000000445dc9
+RAX: ffffffffffffffda RBX: 00000000006dbc3c RCX: 0000000000445dc9
+RDX: 0000000020000140 RSI: 0000000020000100 RDI: 00000000200000c0
+RDX: 0000000020000140 RSI: 0000000020000100 RDI: 00000000200000c0
+RBP: 0000000000000000 R08: 00000000fffffffc R09: 0000000000000039
+RBP: 0000000000000000 R08: 00000000fffffffc R09: 0000000000000039
+R10: 0000000000000311 R11: 0000000000000246 R12: 00007f00bc56bd80
+R13: 00000000006dbc38 R14: 0000000000000006 R15: 0079656b5f676962
+R10: 0000000000000311 R11: 0000000000000246 R12: 00007f00bc58cd80
+Code:
+R13: 00000000006dbc20 R14: 0000000000000005 R15: 0079656b5f676962
+24
+FAULT_INJECTION: forcing a failure.
+name failslab, interval 1, probability 0, space 0, times 0
+08 48 89 45 a0 41 8b 84 24 90 0c 00 00 89 45 cc 45 8b bc 24 88 0c 00 00 e8  
+54 fa b3 ff 4d 8d 75 08 48 85 db 0f 85 5b 01 00 00 <49> 8b 45 08 48 89 45
+CPU: 1 PID: 4530 Comm: syz-executor237 Not tainted 4.17.0+ #17
+a8 4c
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+89
+Call Trace:
+f7 e8
+  __dump_stack lib/dump_stack.c:77 [inline]
+  dump_stack+0x185/0x1d0 lib/dump_stack.c:113
+57
+  fail_dump lib/fault-inject.c:51 [inline]
+  should_fail+0x87b/0xab0 lib/fault-inject.c:149
+bd
+  __should_failslab+0x278/0x2a0 mm/failslab.c:32
+0e 00
+  should_failslab+0x29/0x70 mm/slab_common.c:1522
+4d
+  slab_pre_alloc_hook mm/slab.h:423 [inline]
+  slab_alloc_node mm/slub.c:2679 [inline]
+  __kmalloc_node+0x22f/0x1200 mm/slub.c:3859
+8d
+75 18
+48
+RIP: map_vm_area+0x69/0x1f0 mm/vmalloc.c:1353 RSP: ffff8801c07df8b8
+  kmalloc_node include/linux/slab.h:554 [inline]
+  alloc_vmap_area+0x1e6/0x15a0 mm/vmalloc.c:420
+CR2: 0000000000000008
+---[ end trace 6c00f5bb0b95940c ]---
+  __get_vm_area_node+0x3a6/0x810 mm/vmalloc.c:1410
