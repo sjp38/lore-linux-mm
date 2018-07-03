@@ -1,70 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BE96F6B0005
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 09:48:07 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id g16-v6so971412edq.10
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 06:48:07 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id D72236B0003
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 10:20:59 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id f6-v6so1012813eds.6
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 07:20:59 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p7-v6si1106937edr.357.2018.07.03.06.48.05
+        by mx.google.com with ESMTPS id u17-v6si1190831edf.182.2018.07.03.07.20.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jul 2018 06:48:05 -0700 (PDT)
-Subject: Re: [PATCH v5 0/6] fs/dcache: Track & limit # of negative dentries
-References: <1530510723-24814-1-git-send-email-longman@redhat.com>
- <CA+55aFyH6dHw-7R3364dn32J4p7kxT=TqmnuozCn9_Bz-MHhxQ@mail.gmail.com>
- <20180702141811.ef027fd7d8087b7fb2ba0cce@linux-foundation.org>
- <1561585c-7d4d-da4a-e9f9-948198eaa562@redhat.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <727ecac4-7745-a933-455d-8997656611d3@suse.cz>
-Date: Tue, 3 Jul 2018 15:48:01 +0200
+        Tue, 03 Jul 2018 07:20:58 -0700 (PDT)
+Date: Tue, 3 Jul 2018 16:20:54 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/3] m68k/page_no.h: force __va argument to be unsigned
+ long
+Message-ID: <20180703142054.GL16767@dhcp22.suse.cz>
+References: <1530613795-6956-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1530613795-6956-3-git-send-email-rppt@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <1561585c-7d4d-da4a-e9f9-948198eaa562@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1530613795-6956-3-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Greg Ungerer <gerg@linux-m68k.org>, Sam Creasey <sammy@sammy.net>, linux-m68k@lists.linux-m68k.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 07/03/2018 03:11 AM, Waiman Long wrote:
-> On 07/03/2018 05:18 AM, Andrew Morton wrote:
->> On Mon, 2 Jul 2018 12:34:00 -0700 Linus Torvalds <torvalds@linux-foundation.org> wrote:
->>
->>> On Sun, Jul 1, 2018 at 10:52 PM Waiman Long <longman@redhat.com> wrote:
->>>> A rogue application can potentially create a large number of negative
->>>> dentries in the system consuming most of the memory available if it
->>>> is not under the direct control of a memory controller that enforce
->>>> kernel memory limit.
->>> I certainly don't mind the patch series, but I would like it to be
->>> accompanied with some actual example numbers, just to make it all a
->>> bit more concrete.
->>>
->>> Maybe even performance numbers showing "look, I've filled the dentry
->>> lists with nasty negative dentries, now it's all slower because we
->>> walk those less interesting entries".
->>>
->> (Please cc linux-mm@kvack.org on this work)
->>
->> Yup.  The description of the user-visible impact of current behavior is
->> far too vague.
->>
->> In the [5/6] changelog it is mentioned that a large number of -ve
->> dentries can lead to oom-killings.  This sounds bad - -ve dentries
->> should be trivially reclaimable and we shouldn't be oom-killing in such
->> a situation.
+On Tue 03-07-18 13:29:54, Mike Rapoport wrote:
+> Add explicit casting to unsigned long to the __va() parameter
+
+Why is this needed?
+
+> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> ---
+>  arch/m68k/include/asm/page_no.h | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> The OOM situation was observed in an older distro kernel. It may not be
-> the case with the upstream kernel. I will double check that.
+> diff --git a/arch/m68k/include/asm/page_no.h b/arch/m68k/include/asm/page_no.h
+> index e644c4d..6bbe520 100644
+> --- a/arch/m68k/include/asm/page_no.h
+> +++ b/arch/m68k/include/asm/page_no.h
+> @@ -18,7 +18,7 @@ extern unsigned long memory_end;
+>  #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+>  
+>  #define __pa(vaddr)		((unsigned long)(vaddr))
+> -#define __va(paddr)		((void *)(paddr))
+> +#define __va(paddr)		((void *)((unsigned long)(paddr)))
+>  
+>  #define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
+>  #define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)
+> -- 
+> 2.7.4
 
-Note that dentries with externally allocated (long) names might have
-been the factor here, until recent commits f1782c9bc547 ("dcache:
-account external names as indirectly reclaimable memory") and
-d79f7aa496fc ("mm: treat indirectly reclaimable memory as free in
-overcommit logic").
-
-Vlastimil
-
-> Cheers,
-> Longman
-> 
+-- 
+Michal Hocko
+SUSE Labs
