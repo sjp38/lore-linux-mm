@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 20F716B0277
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 11:09:19 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id v3-v6so1186188pfd.18
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 08:09:19 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0137.outbound.protection.outlook.com. [104.47.1.137])
-        by mx.google.com with ESMTPS id v6-v6si1317450ply.300.2018.07.03.08.09.17
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6898B6B0279
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 11:09:26 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id h67-v6so2421790qke.18
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 08:09:26 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0136.outbound.protection.outlook.com. [104.47.0.136])
+        by mx.google.com with ESMTPS id d19-v6si1305919qtm.9.2018.07.03.08.09.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 03 Jul 2018 08:09:17 -0700 (PDT)
-Subject: [PATCH v8 03/17] mm: Assign id to every memcg-aware shrinker
+        Tue, 03 Jul 2018 08:09:25 -0700 (PDT)
+Subject: [PATCH v8 04/17] memcg: Move up for_each_mem_cgroup{, _tree} defines
 From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Tue, 03 Jul 2018 18:09:05 +0300
-Message-ID: <153063054586.1818.6041047871606697364.stgit@localhost.localdomain>
+Date: Tue, 03 Jul 2018 18:09:16 +0300
+Message-ID: <153063055665.1818.5200425793649695598.stgit@localhost.localdomain>
 In-Reply-To: <153063036670.1818.16010062622751502.stgit@localhost.localdomain>
 References: <153063036670.1818.16010062622751502.stgit@localhost.localdomain>
 MIME-Version: 1.0
@@ -22,131 +22,61 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com, akpm@linux-foundation.org, ktkhai@virtuozzo.com
 
-The patch introduces shrinker::id number, which is used to enumerate
-memcg-aware shrinkers. The number start from 0, and the code tries
-to maintain it as small as possible.
-
-This will be used as to represent a memcg-aware shrinkers in memcg
-shrinkers map.
-
-Since all memcg-aware shrinkers are based on list_lru, which is per-memcg
-in case of !CONFIG_MEMCG_KMEM only, the new functionality will be under
-this config option.
+Next patch requires these defines are above their current
+position, so here they are moved to declarations.
 
 Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
 Tested-by: Shakeel Butt <shakeelb@google.com>
 ---
- include/linux/shrinker.h |    4 +++
- mm/vmscan.c              |   62 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 66 insertions(+)
+ mm/memcontrol.c |   30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)
 
-diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-index 6794490f25b2..7ca9c18cf130 100644
---- a/include/linux/shrinker.h
-+++ b/include/linux/shrinker.h
-@@ -66,6 +66,10 @@ struct shrinker {
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 31d203099af8..74247a580cdd 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -233,6 +233,21 @@ enum res_type {
+ /* Used for OOM nofiier */
+ #define OOM_CONTROL		(0)
  
- 	/* These are for internal use */
- 	struct list_head list;
-+#ifdef CONFIG_MEMCG_KMEM
-+	/* ID in shrinker_idr */
-+	int id;
-+#endif
- 	/* objs pending delete, per node */
- 	atomic_long_t *nr_deferred;
- };
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8d2ffae4db28..f9ca6b57d72f 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -169,6 +169,49 @@ unsigned long vm_total_pages;
- static LIST_HEAD(shrinker_list);
- static DECLARE_RWSEM(shrinker_rwsem);
- 
-+#ifdef CONFIG_MEMCG_KMEM
-+static DEFINE_IDR(shrinker_idr);
-+static int shrinker_nr_max;
++/*
++ * Iteration constructs for visiting all cgroups (under a tree).  If
++ * loops are exited prematurely (break), mem_cgroup_iter_break() must
++ * be used for reference counting.
++ */
++#define for_each_mem_cgroup_tree(iter, root)		\
++	for (iter = mem_cgroup_iter(root, NULL, NULL);	\
++	     iter != NULL;				\
++	     iter = mem_cgroup_iter(root, iter, NULL))
 +
-+static int prealloc_memcg_shrinker(struct shrinker *shrinker)
-+{
-+	int id, ret = -ENOMEM;
++#define for_each_mem_cgroup(iter)			\
++	for (iter = mem_cgroup_iter(NULL, NULL, NULL);	\
++	     iter != NULL;				\
++	     iter = mem_cgroup_iter(NULL, iter, NULL))
 +
-+	down_write(&shrinker_rwsem);
-+	id = idr_alloc(&shrinker_idr, shrinker, 0, 0, GFP_KERNEL);
-+	if (id < 0)
-+		goto unlock;
-+
-+	if (id >= shrinker_nr_max)
-+		shrinker_nr_max = id + 1;
-+	shrinker->id = id;
-+	ret = 0;
-+unlock:
-+	up_write(&shrinker_rwsem);
-+	return ret;
-+}
-+
-+static void unregister_memcg_shrinker(struct shrinker *shrinker)
-+{
-+	int id = shrinker->id;
-+
-+	BUG_ON(id < 0);
-+
-+	down_write(&shrinker_rwsem);
-+	idr_remove(&shrinker_idr, id);
-+	up_write(&shrinker_rwsem);
-+}
-+#else /* CONFIG_MEMCG_KMEM */
-+static int prealloc_memcg_shrinker(struct shrinker *shrinker)
-+{
-+	return 0;
-+}
-+
-+static void unregister_memcg_shrinker(struct shrinker *shrinker)
-+{
-+}
-+#endif /* CONFIG_MEMCG_KMEM */
-+
- #ifdef CONFIG_MEMCG
- static bool global_reclaim(struct scan_control *sc)
+ /* Some nice accessors for the vmpressure. */
+ struct vmpressure *memcg_to_vmpressure(struct mem_cgroup *memcg)
  {
-@@ -313,13 +356,30 @@ int prealloc_shrinker(struct shrinker *shrinker)
- 	shrinker->nr_deferred = kzalloc(size, GFP_KERNEL);
- 	if (!shrinker->nr_deferred)
- 		return -ENOMEM;
-+
-+	if (shrinker->flags & SHRINKER_MEMCG_AWARE) {
-+		if (prealloc_memcg_shrinker(shrinker))
-+			goto free_deferred;
-+	}
-+
- 	return 0;
-+
-+free_deferred:
-+	kfree(shrinker->nr_deferred);
-+	shrinker->nr_deferred = NULL;
-+	return -ENOMEM;
+@@ -913,21 +928,6 @@ static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
+ 	}
  }
  
- void free_prealloced_shrinker(struct shrinker *shrinker)
- {
-+	if (!shrinker->nr_deferred)
-+		return;
-+
- 	kfree(shrinker->nr_deferred);
- 	shrinker->nr_deferred = NULL;
-+
-+	if (shrinker->flags & SHRINKER_MEMCG_AWARE)
-+		unregister_memcg_shrinker(shrinker);
- }
- 
- void register_shrinker_prepared(struct shrinker *shrinker)
-@@ -347,6 +407,8 @@ void unregister_shrinker(struct shrinker *shrinker)
- {
- 	if (!shrinker->nr_deferred)
- 		return;
-+	if (shrinker->flags & SHRINKER_MEMCG_AWARE)
-+		unregister_memcg_shrinker(shrinker);
- 	down_write(&shrinker_rwsem);
- 	list_del(&shrinker->list);
- 	up_write(&shrinker_rwsem);
+-/*
+- * Iteration constructs for visiting all cgroups (under a tree).  If
+- * loops are exited prematurely (break), mem_cgroup_iter_break() must
+- * be used for reference counting.
+- */
+-#define for_each_mem_cgroup_tree(iter, root)		\
+-	for (iter = mem_cgroup_iter(root, NULL, NULL);	\
+-	     iter != NULL;				\
+-	     iter = mem_cgroup_iter(root, iter, NULL))
+-
+-#define for_each_mem_cgroup(iter)			\
+-	for (iter = mem_cgroup_iter(NULL, NULL, NULL);	\
+-	     iter != NULL;				\
+-	     iter = mem_cgroup_iter(NULL, iter, NULL))
+-
+ /**
+  * mem_cgroup_scan_tasks - iterate over tasks of a memory cgroup hierarchy
+  * @memcg: hierarchy root
