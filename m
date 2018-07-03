@@ -1,50 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FF8F6B02A0
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 19:39:54 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id t13-v6so51661vke.15
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 16:39:54 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j27-v6sor6119500uah.220.2018.07.02.16.39.52
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AF08A6B02A3
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 20:01:27 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id f10-v6so73792pgv.22
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 17:01:27 -0700 (PDT)
+Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
+        by mx.google.com with ESMTPS id w1-v6si13461506pgw.546.2018.07.02.17.01.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 02 Jul 2018 16:39:52 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Jul 2018 17:01:25 -0700 (PDT)
+Subject: Re: [RFC v3 PATCH 4/5] mm: mmap: zap pages with read mmap_sem for
+ large mapping
+From: Yang Shi <yang.shi@linux.alibaba.com>
+References: <1530311985-31251-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1530311985-31251-5-git-send-email-yang.shi@linux.alibaba.com>
+ <20180629183501.9e30c26135f11853245c56c7@linux-foundation.org>
+ <084aeccb-2c54-2299-8bf0-29a10cc0186e@linux.alibaba.com>
+ <20180629201547.5322cfc4b52d19a0443daec2@linux-foundation.org>
+ <ce2f93d3-fe0e-89c2-5465-94cfa974f1ea@linux.alibaba.com>
+Message-ID: <06df816f-b8b7-f6c0-3710-baad99fb3213@linux.alibaba.com>
+Date: Mon, 2 Jul 2018 17:01:12 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180702203321.GA8371@bombadil.infradead.org>
-References: <cover.1530018818.git.andreyknvl@google.com> <20180627160800.3dc7f9ee41c0badbf7342520@linux-foundation.org>
- <CAN=P9pivApAo76Kjc0TUDE0kvJn0pET=47xU6e=ioZV2VqO0Rg@mail.gmail.com> <20180702203321.GA8371@bombadil.infradead.org>
-From: Evgenii Stepanov <eugenis@google.com>
-Date: Mon, 2 Jul 2018 16:39:51 -0700
-Message-ID: <CAFKCwrg=3J-ARaOJgc73oRE7hQxs1VV7YiZEPS7Dt8Gfn6cWQA@mail.gmail.com>
-Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address sanitizer
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <ce2f93d3-fe0e-89c2-5465-94cfa974f1ea@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Kostya Serebryany <kcc@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Konovalov <andreyknvl@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg KH <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, tglx@linutronix.de, hpa@zytor.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Jul 2, 2018 at 1:33 PM, Matthew Wilcox <willy@infradead.org> wrote:
-> On Wed, Jun 27, 2018 at 05:04:28PM -0700, Kostya Serebryany wrote:
->> The problem is more significant on mobile devices than on desktop/server.
->> I'd love to have [K]HWASAN on x86_64 as well, but it's less trivial since x86_64
->> doesn't have an analog of aarch64's top-byte-ignore hardware feature.
+
+
+On 6/29/18 9:26 PM, Yang Shi wrote:
 >
-> Well, can we emulate it in software?
 >
-> We've got 48 bits of virtual address space on x86.  If we need all 8
-> bits, then that takes us down to 40 bits (39 bits for user and 39 bits
-> for kernel).  My laptop only has 34 bits of physical memory, so could
-> we come up with a memory layout which works for me?
+> On 6/29/18 8:15 PM, Andrew Morton wrote:
+>> On Fri, 29 Jun 2018 19:28:15 -0700 Yang Shi 
+>> <yang.shi@linux.alibaba.com> wrote:
+>>
+>>>
+>>>> we're adding a bunch of code to 32-bit kernels which will never be
+>>>> executed.
+>>>>
+>>>> I'm thinking it would be better to be much more explicit with "#ifdef
+>>>> CONFIG_64BIT" in this code, rather than relying upon the above magic.
+>>>>
+>>>> But I tend to think that the fact that we haven't solved anything on
+>>>> locked vmas or on uprobed mappings is a shostopper for the whole
+>>>> approach :(
+>>> I agree it is not that perfect. But, it still could improve the most 
+>>> use
+>>> cases.
+>> Well, those unaddressed usecases will need to be fixed at some point.
+>
+> Yes, definitely.
+>
+>> What's our plan for that?
+>
+> As I mentioned in the earlier email, locked and hugetlb cases might be 
+> able to be solved by separating vm_flags update and actual unmap. I 
+> will look into it further later.
 
-Yes, probably.
+By looking into this furtheri 1/4 ? I think both mlocked and hugetlb vmas can 
+be handled.
 
-We've tried this in userspace by mapping a file multiple times, but
-that's very slow, likely because of the extra TLB pressure.
-It should be possible to achieve better performance in the kernel with
-some page table tricks (i.e. if we take top 8 bits out of 48, then
-there would be only two second-level tables, and the top-level table
-will look like [p1, p2, p1, p2, ...]). I'm not 100% sure if that would
-work.
+For mlocked vmas, it is easy since we acquires write mmap_sem before 
+unmapping, so VM_LOCK flags can be cleared here then unmap, just like 
+what the regular path does.
 
-I don't think this should be part of this patchset, but it's good to
-keep this in mind.
+For hugetlb vmas, the VM_MAYSHARE flag is just checked by 
+huge_pmd_share() in hugetlb_fault()->huge_pte_alloc(), another call site 
+is dup_mm()->copy_page_range()->copy_hugetlb_page_range(), we don't care 
+this call chain in this case.
+
+So we may expand VM_DEAD to hugetlb_fault().A  Michal suggested to check 
+VM_DEAD in check_stable_address_space(), so it would be called in 
+hugetlb_fault() too (not in current code), then the page fault handler 
+would bail out before huge_pte_alloc() is called.
+
+With this trick, we don't have to care about when the vm_flags is 
+updated, we can unmap hugetlb vmas in read mmap_sem critical section, 
+then update the vm_flags with write mmap_sem held or before the unmap.
+
+Yang
+
+>
+> From my point of view, uprobe mapping sounds not that vital.
+>
+>>
+>> Would one of your earlier designs have addressed all usecases? I
+>> expect the dumb unmap-a-little-bit-at-a-time approach would have?
+>
+> Yes. The v1 design does unmap with holding write map_sem. So, the 
+> vm_flags update is not a problem.
+>
+> Thanks,
+> Yang
+>
+>>
+>>> For the locked vmas and hugetlb vmas, unmapping operations need modify
+>>> vm_flags. But, I'm wondering we might be able to separate unmap and
+>>> vm_flags update. Because we know they will be unmapped right away, the
+>>> vm_flags might be able to be updated in write mmap_sem critical section
+>>> before the actual unmap is called or after it. This is just off the top
+>>> of my head.
+>>>
+>>> For uprobed mappings, I'm not sure how vital it is to this case.
+>>>
+>>> Thanks,
+>>> Yang
+>>>
+>
