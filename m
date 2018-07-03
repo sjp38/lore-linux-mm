@@ -1,72 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0481D6B0006
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 14:49:32 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id z26-v6so2901911qto.17
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 11:49:31 -0700 (PDT)
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id t67-v6si1725025qkd.147.2018.07.03.11.49.30
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EFFD6B0003
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 15:13:06 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id p184-v6so3346777qkc.15
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 12:13:06 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0095.outbound.protection.outlook.com. [104.47.0.95])
+        by mx.google.com with ESMTPS id l87-v6si667279qki.360.2018.07.03.12.13.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jul 2018 11:49:31 -0700 (PDT)
-Subject: Re: [PATCH v2 5/6] mm: track gup pages with page->dma_pinned_* fields
-References: <20180702005654.20369-1-jhubbard@nvidia.com>
- <20180702005654.20369-6-jhubbard@nvidia.com>
- <20180702095331.n5zfz35d3invl5al@quack2.suse.cz>
- <bb798475-ebf3-7b02-409f-8c4347fa6674@nvidia.com>
- <010001645d77ee2c-de7fedbd-f52d-4b74-9388-e6435973792b-000000@email.amazonses.com>
- <f01666d5-8da1-7bea-adfb-c3571a54587a@nvidia.com>
- <01000164611dacae-5ac25e48-b845-43ef-9992-fc1047d8e0a0-000000@email.amazonses.com>
- <3c71556f-1d71-873a-6f74-121865568bf7@nvidia.com>
- <0100016461425062-724aa9d3-d7c1-4fa2-a87b-dc59cc5f7800-000000@email.amazonses.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <2e18c1a3-08a3-abaf-1721-89bc527579ab@nvidia.com>
-Date: Tue, 3 Jul 2018 11:48:28 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 03 Jul 2018 12:13:04 -0700 (PDT)
+Subject: Re: [PATCH v8 03/17] mm: Assign id to every memcg-aware shrinker
+References: <153063036670.1818.16010062622751502.stgit@localhost.localdomain>
+ <153063054586.1818.6041047871606697364.stgit@localhost.localdomain>
+ <20180703152723.GB21590@bombadil.infradead.org>
+ <2d845a0d-d147-7250-747e-27e493b6a627@virtuozzo.com>
+ <20180703175808.GC4834@bombadil.infradead.org>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <94c282fd-1b5a-e959-b344-01a51fd5fc2e@virtuozzo.com>
+Date: Tue, 3 Jul 2018 22:12:47 +0300
 MIME-Version: 1.0
-In-Reply-To: <0100016461425062-724aa9d3-d7c1-4fa2-a87b-dc59cc5f7800-000000@email.amazonses.com>
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <20180703175808.GC4834@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Jan Kara <jack@suse.cz>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lirongqing@baidu.com, aryabinin@virtuozzo.com, akpm@linux-foundation.org
 
-On 07/03/2018 10:48 AM, Christopher Lameter wrote:
-> On Tue, 3 Jul 2018, John Hubbard wrote:
+On 03.07.2018 20:58, Matthew Wilcox wrote:
+> On Tue, Jul 03, 2018 at 06:46:57PM +0300, Kirill Tkhai wrote:
+>> shrinker_idr now contains only memcg-aware shrinkers, so all bits from memcg map
+>> may be potentially populated. In case of memcg-aware shrinkers and !memcg-aware
+>> shrinkers share the same numbers like you suggest, this will lead to increasing
+>> size of memcg maps, which is bad for memory consumption. So, memcg-aware shrinkers
+>> should to have its own IDR and its own numbers. The tricks like allocation big
+>> IDs for !memcg-aware shrinkers seem bad for me, since they make the code more
+>> complicated.
 > 
->> The page->_refcount field is used normally, in addition to the dma_pinned_count.
->> But the problem is that, unless the caller knows what kind of page it is,
->> the page->dma_pinned_count cannot be looked at, because it is unioned with
->> page->lru.prev.  page->dma_pinned_flags, at least starting at bit 1, are
->> safe to look at due to pointer alignment, but now you cannot atomically
->> count...
+> Do we really have so very many !memcg-aware shrinkers?
+> 
+> $ git grep -w register_shrinker |wc
+>      32     119    2221
+> $ git grep -w register_shrinker_prepared |wc
+>       4      13     268
+> (that's an overstatement; one of those is the declaration, one the definition,
+> and one an internal call, so we actually only have one caller of _prepared).
+> 
+> So it looks to me like your average system has one shrinker per
+> filesystem, one per graphics card, one per raid5 device, and a few
+> miscellaneous.  I'd be shocked if anybody had more than 100 shrinkers
+> registered on their laptop.
+> 
+> I think we should err on the side of simiplicity and just have one IDR for
+> every shrinker instead of playing games to solve a theoretical problem.
+
+It just a standard situation for the systems with many containers. Every mount
+introduce a new shrinker to the system, so it's easy to see a system with
+100 or ever 1000 shrinkers. AFAIR, Shakeel said he also has the similar
+configurations.
+
+So, this problem is not theoretical, it's just a standard situation
+for active consumer or Docker/etc.
+
+>>> This will actually reduce the size of each shrinker and be more
+>>> cache-efficient when calling the shrinkers.  I think we can also get
+>>> rid of the shrinker_rwsem eventually, but let's leave it for now.
 >>
->> So this seems unsolvable without having the caller specify that it knows the
->> page type, and that it is therefore safe to decrement page->dma_pinned_count.
->> I was hoping I'd found a way, but clearly I haven't. :)
+>> This patchset does not make the cache-efficient bad, since without the patchset the situation
+>> is so bad, that it's just impossible to talk about the cache efficiently,
+>> so let's leave lockless iteration/etc for the future works.
 > 
-> Try to find some way to indicate that the page is pinned by using some of
-> the existing page flags? There is already an MLOCK flag. Maybe some
-> creativity with that can lead to something (but then the MLOCKed pages are
-> on the unevictable LRU....). cgroups used to have something called struct
-> page_ext. Oh its there in linux/mm/page_ext.c.
-> 
+> The situation is that bad /for your use case/.  Not so much for others.
+> You're introducing additional complexity here, and it'd be nice if we
+> can remove some of the complexity that's already there.
 
-Yes, that would provide just a touch more cabability: we could both read and
-write a dma-pinned page(_ext) flag safely, instead of only being able to just 
-read.  I'm doubt that that's enough additional information, though. The general
-problem of allowing random put_page() calls to decrement the dma-pinned count (see
-Jan's diagram at the beginning of this thread) cannot be solved by anything less
-than some sort of "who (or which special type of caller, at least) owns this page"
-approach, as far as I can see. The put_user_pages() provides arguably the simplest 
-version of that kind of solution.
-
-Also, even just using a single bit from page extensions would cost some extra memory, 
-because for example on 64-bit systems many configurations do not need the additional 
-flags that page_ext.h provides, so they return "false" from the page_ext_operations.need() 
-callback. Changing get_user_pages to require page extensions would lead to
-*every* configuration requiring page extensions, so 64-bit users would lose some memory
-for sure. On the other hand, it avoids the "take page off of the LRU" complexity that 
-I've got here. But again, I don't think a single flag, or even a count, would actually 
-solve the problem.
+You started from cache-efficienty, and now you moved to existing complexity.
+I did some cleanups in this patchset, also there is Vladimir's patch, which
+simplifies shrinker logic. Also there is already 17 patches.
+Which already existing complexity you want to remove? I don't think there is
+existing complexity directly connected to this patchset.
