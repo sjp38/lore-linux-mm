@@ -1,44 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CF4F96B000E
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 13:48:14 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id f132-v6so2947803qkb.12
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 10:48:14 -0700 (PDT)
-Received: from a9-46.smtp-out.amazonses.com (a9-46.smtp-out.amazonses.com. [54.240.9.46])
-        by mx.google.com with ESMTPS id e7-v6si1599240qkf.217.2018.07.03.10.48.13
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C29056B0266
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 13:48:39 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id t20-v6so1268988pgu.9
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 10:48:39 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id d41-v6si1506997pla.162.2018.07.03.10.48.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 03 Jul 2018 10:48:13 -0700 (PDT)
-Date: Tue, 3 Jul 2018 17:48:13 +0000
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH v2 5/6] mm: track gup pages with page->dma_pinned_*
- fields
-In-Reply-To: <3c71556f-1d71-873a-6f74-121865568bf7@nvidia.com>
-Message-ID: <0100016461425062-724aa9d3-d7c1-4fa2-a87b-dc59cc5f7800-000000@email.amazonses.com>
-References: <20180702005654.20369-1-jhubbard@nvidia.com> <20180702005654.20369-6-jhubbard@nvidia.com> <20180702095331.n5zfz35d3invl5al@quack2.suse.cz> <bb798475-ebf3-7b02-409f-8c4347fa6674@nvidia.com> <010001645d77ee2c-de7fedbd-f52d-4b74-9388-e6435973792b-000000@email.amazonses.com>
- <f01666d5-8da1-7bea-adfb-c3571a54587a@nvidia.com> <01000164611dacae-5ac25e48-b845-43ef-9992-fc1047d8e0a0-000000@email.amazonses.com> <3c71556f-1d71-873a-6f74-121865568bf7@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 03 Jul 2018 10:48:38 -0700 (PDT)
+Date: Tue, 3 Jul 2018 10:47:44 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v8 03/17] mm: Assign id to every memcg-aware shrinker
+Message-ID: <20180703174744.GB4834@bombadil.infradead.org>
+References: <153063036670.1818.16010062622751502.stgit@localhost.localdomain>
+ <153063054586.1818.6041047871606697364.stgit@localhost.localdomain>
+ <20180703152723.GB21590@bombadil.infradead.org>
+ <CALvZod7xAP9AjRWp2XX1uJBkuOprYKCf7hzAXNTdw89dc-n4OA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALvZod7xAP9AjRWp2XX1uJBkuOprYKCf7hzAXNTdw89dc-n4OA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Jan Kara <jack@suse.cz>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, stummala@codeaurora.org, gregkh@linuxfoundation.org, Stephen Rothwell <sfr@canb.auug.org.au>, Roman Gushchin <guro@fb.com>, mka@chromium.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Chris Wilson <chris@chris-wilson.co.uk>, longman@redhat.com, Minchan Kim <minchan@kernel.org>, Huang Ying <ying.huang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, jbacik@fb.com, Guenter Roeck <linux@roeck-us.net>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, lirongqing@baidu.com, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, 3 Jul 2018, John Hubbard wrote:
+On Tue, Jul 03, 2018 at 08:46:28AM -0700, Shakeel Butt wrote:
+> On Tue, Jul 3, 2018 at 8:27 AM Matthew Wilcox <willy@infradead.org> wrote:
+> > This will actually reduce the size of each shrinker and be more
+> > cache-efficient when calling the shrinkers.  I think we can also get
+> > rid of the shrinker_rwsem eventually, but let's leave it for now.
+> 
+> Can you explain how you envision shrinker_rwsem can be removed? I am
+> very much interested in doing that.
 
-> The page->_refcount field is used normally, in addition to the dma_pinned_count.
-> But the problem is that, unless the caller knows what kind of page it is,
-> the page->dma_pinned_count cannot be looked at, because it is unioned with
-> page->lru.prev.  page->dma_pinned_flags, at least starting at bit 1, are
-> safe to look at due to pointer alignment, but now you cannot atomically
-> count...
->
-> So this seems unsolvable without having the caller specify that it knows the
-> page type, and that it is therefore safe to decrement page->dma_pinned_count.
-> I was hoping I'd found a way, but clearly I haven't. :)
+Sure.  Right now we have 3 uses of shrinker_rwsem -- two for adding and
+removing shrinkers to the list and one for walking the list.  If we switch
+to an IDR then we can use a spinlock for adding/removing shrinkers and
+the RCU read lock for looking up an entry in the IDR each iteration of
+the loop.
 
-Try to find some way to indicate that the page is pinned by using some of
-the existing page flags? There is already an MLOCK flag. Maybe some
-creativity with that can lead to something (but then the MLOCKed pages are
-on the unevictable LRU....). cgroups used to have something called struct
-page_ext. Oh its there in linux/mm/page_ext.c.
+We'd need to stop the shrinker from disappearing underneath us while we
+drop the RCU lock, so we'd need a refcount in the shrinker, and to free
+the shrinkers using RCU.  We do similar things for other data structures,
+so this is all pretty well understood.
