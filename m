@@ -1,114 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AF08A6B02A3
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 20:01:27 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id f10-v6so73792pgv.22
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 17:01:27 -0700 (PDT)
-Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
-        by mx.google.com with ESMTPS id w1-v6si13461506pgw.546.2018.07.02.17.01.25
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CF3B66B02A5
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 20:08:19 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id h15-v6so245743qkj.17
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 17:08:19 -0700 (PDT)
+Received: from a9-46.smtp-out.amazonses.com (a9-46.smtp-out.amazonses.com. [54.240.9.46])
+        by mx.google.com with ESMTPS id x10-v6si5384298qkx.258.2018.07.02.17.08.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jul 2018 17:01:25 -0700 (PDT)
-Subject: Re: [RFC v3 PATCH 4/5] mm: mmap: zap pages with read mmap_sem for
- large mapping
-From: Yang Shi <yang.shi@linux.alibaba.com>
-References: <1530311985-31251-1-git-send-email-yang.shi@linux.alibaba.com>
- <1530311985-31251-5-git-send-email-yang.shi@linux.alibaba.com>
- <20180629183501.9e30c26135f11853245c56c7@linux-foundation.org>
- <084aeccb-2c54-2299-8bf0-29a10cc0186e@linux.alibaba.com>
- <20180629201547.5322cfc4b52d19a0443daec2@linux-foundation.org>
- <ce2f93d3-fe0e-89c2-5465-94cfa974f1ea@linux.alibaba.com>
-Message-ID: <06df816f-b8b7-f6c0-3710-baad99fb3213@linux.alibaba.com>
-Date: Mon, 2 Jul 2018 17:01:12 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 02 Jul 2018 17:08:18 -0700 (PDT)
+Date: Tue, 3 Jul 2018 00:08:18 +0000
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH v2 5/6] mm: track gup pages with page->dma_pinned_*
+ fields
+In-Reply-To: <bb798475-ebf3-7b02-409f-8c4347fa6674@nvidia.com>
+Message-ID: <010001645d77ee2c-de7fedbd-f52d-4b74-9388-e6435973792b-000000@email.amazonses.com>
+References: <20180702005654.20369-1-jhubbard@nvidia.com> <20180702005654.20369-6-jhubbard@nvidia.com> <20180702095331.n5zfz35d3invl5al@quack2.suse.cz> <bb798475-ebf3-7b02-409f-8c4347fa6674@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <ce2f93d3-fe0e-89c2-5465-94cfa974f1ea@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, tglx@linutronix.de, hpa@zytor.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Jan Kara <jack@suse.cz>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org
 
+On Mon, 2 Jul 2018, John Hubbard wrote:
 
+> >
+> > These two are just wrong. You cannot make any page reference for
+> > PageDmaPinned() account against a pin count. First, it is just conceptually
+> > wrong as these references need not be long term pins, second, you can
+> > easily race like:
+> >
+> > Pinner				Random process
+> > 				get_page(page)
+> > pin_page_for_dma()
+> > 				put_page(page)
+> > 				 -> oops, page gets unpinned too early
+> >
+>
+> I'll drop this approach, without mentioning any of the locking that is hiding in
+> there, since that was probably breaking other rules anyway. :) Thanks for your
+> patience in reviewing this.
 
-On 6/29/18 9:26 PM, Yang Shi wrote:
->
->
-> On 6/29/18 8:15 PM, Andrew Morton wrote:
->> On Fri, 29 Jun 2018 19:28:15 -0700 Yang Shi 
->> <yang.shi@linux.alibaba.com> wrote:
->>
->>>
->>>> we're adding a bunch of code to 32-bit kernels which will never be
->>>> executed.
->>>>
->>>> I'm thinking it would be better to be much more explicit with "#ifdef
->>>> CONFIG_64BIT" in this code, rather than relying upon the above magic.
->>>>
->>>> But I tend to think that the fact that we haven't solved anything on
->>>> locked vmas or on uprobed mappings is a shostopper for the whole
->>>> approach :(
->>> I agree it is not that perfect. But, it still could improve the most 
->>> use
->>> cases.
->> Well, those unaddressed usecases will need to be fixed at some point.
->
-> Yes, definitely.
->
->> What's our plan for that?
->
-> As I mentioned in the earlier email, locked and hugetlb cases might be 
-> able to be solved by separating vm_flags update and actual unmap. I 
-> will look into it further later.
+Mayb the following would work:
 
-By looking into this furtheri 1/4 ? I think both mlocked and hugetlb vmas can 
-be handled.
+If you establish a reference to a page then increase the page count. If
+the reference is a dma pin action also then increase the pinned count.
 
-For mlocked vmas, it is easy since we acquires write mmap_sem before 
-unmapping, so VM_LOCK flags can be cleared here then unmap, just like 
-what the regular path does.
-
-For hugetlb vmas, the VM_MAYSHARE flag is just checked by 
-huge_pmd_share() in hugetlb_fault()->huge_pte_alloc(), another call site 
-is dup_mm()->copy_page_range()->copy_hugetlb_page_range(), we don't care 
-this call chain in this case.
-
-So we may expand VM_DEAD to hugetlb_fault().A  Michal suggested to check 
-VM_DEAD in check_stable_address_space(), so it would be called in 
-hugetlb_fault() too (not in current code), then the page fault handler 
-would bail out before huge_pte_alloc() is called.
-
-With this trick, we don't have to care about when the vm_flags is 
-updated, we can unmap hugetlb vmas in read mmap_sem critical section, 
-then update the vm_flags with write mmap_sem held or before the unmap.
-
-Yang
-
->
-> From my point of view, uprobe mapping sounds not that vital.
->
->>
->> Would one of your earlier designs have addressed all usecases? I
->> expect the dumb unmap-a-little-bit-at-a-time approach would have?
->
-> Yes. The v1 design does unmap with holding write map_sem. So, the 
-> vm_flags update is not a problem.
->
-> Thanks,
-> Yang
->
->>
->>> For the locked vmas and hugetlb vmas, unmapping operations need modify
->>> vm_flags. But, I'm wondering we might be able to separate unmap and
->>> vm_flags update. Because we know they will be unmapped right away, the
->>> vm_flags might be able to be updated in write mmap_sem critical section
->>> before the actual unmap is called or after it. This is just off the top
->>> of my head.
->>>
->>> For uprobed mappings, I'm not sure how vital it is to this case.
->>>
->>> Thanks,
->>> Yang
->>>
->
+That way you know how many of the references to the page are dma
+pins and you can correctly manage the state of the page if the dma pins go
+away.
