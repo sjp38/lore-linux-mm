@@ -1,75 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A4526B0005
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 19:11:26 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id q21-v6so1729823pff.4
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 16:11:26 -0700 (PDT)
-Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id n21-v6si1993239plp.31.2018.07.03.16.11.23
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DC2A6B0007
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 19:29:04 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id i127-v6so3858225qkc.22
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 16:29:04 -0700 (PDT)
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id v21-v6sor1212657qvf.16.2018.07.03.16.29.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jul 2018 16:11:24 -0700 (PDT)
-Subject: Re: [PATCH 1/2] fs: ext4: use BUG_ON if writepage call comes from
- direct reclaim
-From: Yang Shi <yang.shi@linux.alibaba.com>
-References: <1530591079-33813-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180703103948.GB27426@thunk.org>
- <6c305241-d502-b8ea-a187-54c33e4ca692@linux.alibaba.com>
-Message-ID: <f15b7474-66bd-515b-9c0e-16909bb2255d@linux.alibaba.com>
-Date: Tue, 3 Jul 2018 16:10:51 -0700
-MIME-Version: 1.0
-In-Reply-To: <6c305241-d502-b8ea-a187-54c33e4ca692@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+        (Google Transport Security);
+        Tue, 03 Jul 2018 16:29:03 -0700 (PDT)
+Date: Tue, 03 Jul 2018 16:29:00 -0700
+In-Reply-To: <20180703071658.GC16767@dhcp22.suse.cz>
+Message-Id: <xr93woubj3ur.fsf@gthelen.svl.corp.google.com>
+Mime-Version: 1.0
+References: <20180628151101.25307-1-mhocko@kernel.org> <xr93in62jy8k.fsf@gthelen.svl.corp.google.com>
+ <20180629072132.GA13860@dhcp22.suse.cz> <xr93bmbtju6f.fsf@gthelen.svl.corp.google.com>
+ <20180702100301.GC19043@dhcp22.suse.cz> <xr938t6skd9m.fsf@gthelen.svl.corp.google.com>
+ <20180703071658.GC16767@dhcp22.suse.cz>
+Subject: Re: [PATCH] memcg, oom: move out_of_memory back to the charge path
+From: Greg Thelen <gthelen@google.com>
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Theodore Y. Ts'o" <tytso@mit.edu>, mgorman@techsingularity.net, adilger.kernel@dilger.ca, akpm@linux-foundation.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+
+Michal Hocko <mhocko@kernel.org> wrote:
+
+> On Tue 03-07-18 00:08:05, Greg Thelen wrote:
+>> Michal Hocko <mhocko@kernel.org> wrote:
+>> 
+>> > On Fri 29-06-18 11:59:04, Greg Thelen wrote:
+>> >> Michal Hocko <mhocko@kernel.org> wrote:
+>> >> 
+>> >> > On Thu 28-06-18 16:19:07, Greg Thelen wrote:
+>> >> >> Michal Hocko <mhocko@kernel.org> wrote:
+>> >> > [...]
+>> >> >> > +	if (mem_cgroup_out_of_memory(memcg, mask, order))
+>> >> >> > +		return OOM_SUCCESS;
+>> >> >> > +
+>> >> >> > +	WARN(1,"Memory cgroup charge failed because of no reclaimable memory! "
+>> >> >> > +		"This looks like a misconfiguration or a kernel bug.");
+>> >> >> 
+>> >> >> I'm not sure here if the warning should here or so strongly worded.  It
+>> >> >> seems like the current task could be oom reaped with MMF_OOM_SKIP and
+>> >> >> thus mem_cgroup_out_of_memory() will return false.  So there's nothing
+>> >> >> alarming in that case.
+>> >> >
+>> >> > If the task is reaped then its charges should be released as well and
+>> >> > that means that we should get below the limit. Sure there is some room
+>> >> > for races but this should be still unlikely. Maybe I am just
+>> >> > underestimating though.
+>> >> >
+>> >> > What would you suggest instead?
+>> >> 
+>> >> I suggest checking MMF_OOM_SKIP or deleting the warning.
+>> >
+>> > So what do you do when you have MMF_OOM_SKIP task? Do not warn? Checking
+>> > for all the tasks would be quite expensive and remembering that from the
+>> > task selection not nice either. Why do you think it would help much?
+>> 
+>> I assume we could just check current's MMF_OOM_SKIP - no need to check
+>> all tasks.
+>
+> I still do not follow. If you are after a single task memcg then we
+> should be ok. try_charge has a runaway for oom victims
+> 	if (unlikely(tsk_is_oom_victim(current) ||
+> 		     fatal_signal_pending(current) ||
+> 		     current->flags & PF_EXITING))
+> 		goto force;
+>
+> regardless of MMF_OOM_SKIP. So if there is a single process in the
+> memcg, we kill it and the oom reaper kicks in and sets MMF_OOM_SKIP then
+> we should bail out there. Or do I miss your intention?
+
+For a single task memcg it seems that racing process cgroup migration
+could trigger the new warning (I have attempted to reproduce this):
+
+Processes A,B in memcg M1,M2.  M1 is oom.
+
+  Process A[M1]               Process B[M2]
+
+  M1 is oom
+  try_charge(M1)
+                              Move A M1=>M2
+  mem_cgroup_oom()
+  mem_cgroup_out_of_memory()
+    out_of_memory()
+      select_bad_process()
+        sees nothing in M1
+      return 0
+    return 0
+  WARN()
 
 
+Another variant might be possible, this time with global oom:
 
-On 7/3/18 10:05 AM, Yang Shi wrote:
->
->
-> On 7/3/18 3:39 AM, Theodore Y. Ts'o wrote:
->> On Tue, Jul 03, 2018 at 12:11:18PM +0800, Yang Shi wrote:
->>> direct reclaim doesn't write out filesystem page, only kswapd could do
->>> it. So, if the call comes from direct reclaim, it is definitely a bug.
->>>
->>> And, Mel Gormane also mentioned "Ultimately, this will be a BUG_ON." In
->>> commit 94054fa3fca1fd78db02cb3d68d5627120f0a1d4 ("xfs: warn if direct
->>> reclaim tries to writeback pages").
->>>
->>> Although it is for xfs, ext4 has the similar behavior, so elevate
->>> WARN_ON to BUG_ON.
->>>
->>> And, correct the comment accordingly.
->>>
->>> Cc: Mel Gorman <mgorman@techsingularity.net>
->>> Cc: "Theodore Ts'o" <tytso@mit.edu>
->>> Cc: Andreas Dilger <adilger.kernel@dilger.ca>
->>> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
->> What's the upside of crashing the kernel if the file sytsem can 
->> handle it?
+Processes A,B in memcg M1,M2.  M1 is oom.
 
-BTW, the comment does sound misleading. Direct reclaim is not a 
-legitimate context to call writepage. I'd like to correct at least.
+  Process A[M1]               Process B[M2]
 
-Thanks,
-Yang
+  try_charge()
+                              trigger global oom
+                              reaper sets A.MMF_OOM_SKIP
+  mem_cgroup_oom()
+  mem_cgroup_out_of_memory()
+    out_of_memory()
+      select_bad_process()
+        sees nothing in M1
+      return 0
+    return 0
+  WARN()
 
->
-> I'm not sure if it is a good choice to let filesystem handle such 
-> vital VM regression. IMHO, writing out filesystem page from direct 
-> reclaim context is a vital VM bug. It means something is definitely 
-> wrong in VM. It should never happen.
->
-> It sounds ok to have filesystem throw out warning and handle it, but 
-> I'm not sure if someone will just ignore the warning, but it should 
-> *never* be ignored.
->
-> Yang
->
->>
->> A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  - Ted
->
+
+These seem unlikely, so I'm fine with taking a wait-and-see approach.
