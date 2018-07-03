@@ -1,55 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D71D46B02B4
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2018 23:03:43 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id u23-v6so424286iol.22
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 20:03:43 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id x9-v6si55775jae.78.2018.07.02.20.03.42
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C78F16B0003
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 00:11:32 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id g20-v6so422106pfi.2
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 21:11:32 -0700 (PDT)
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id v127-v6si184060pgv.212.2018.07.02.21.11.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jul 2018 20:03:42 -0700 (PDT)
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w632xa2l140441
-	for <linux-mm@kvack.org>; Tue, 3 Jul 2018 03:03:42 GMT
-Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
-	by userp2120.oracle.com with ESMTP id 2jx2gpxnde-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Tue, 03 Jul 2018 03:03:41 +0000
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w6333cXe011951
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Tue, 3 Jul 2018 03:03:38 GMT
-Received: from abhmp0004.oracle.com (abhmp0004.oracle.com [141.146.116.10])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w6333bto014619
-	for <linux-mm@kvack.org>; Tue, 3 Jul 2018 03:03:38 GMT
-Received: by mail-oi0-f41.google.com with SMTP id m2-v6so874168oim.12
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2018 20:03:37 -0700 (PDT)
-MIME-Version: 1.0
-References: <1530239363-2356-1-git-send-email-hejianet@gmail.com>
- <1530239363-2356-3-git-send-email-hejianet@gmail.com> <CAGM2reYn3ZbdjhcZze8Zt1eLNSdWghy0KwEXfd5xW+1Ba_SMbw@mail.gmail.com>
- <bfe24a3b-c982-9532-c05b-f42ebb77bbba@gmail.com>
-In-Reply-To: <bfe24a3b-c982-9532-c05b-f42ebb77bbba@gmail.com>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Mon, 2 Jul 2018 23:03:01 -0400
-Message-ID: <CAGM2rebfdacH5imNtU+6bEOCGLhgpp=Kc9o9ooJx-os6keNkDw@mail.gmail.com>
-Subject: Re: [PATCH v9 2/6] mm: page_alloc: remain memblock_next_valid_pfn()
- on arm/arm64
-Content-Type: text/plain; charset="UTF-8"
+        Mon, 02 Jul 2018 21:11:31 -0700 (PDT)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [PATCH 1/2] fs: ext4: use BUG_ON if writepage call comes from direct reclaim
+Date: Tue,  3 Jul 2018 12:11:18 +0800
+Message-Id: <1530591079-33813-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jia He <hejianet@gmail.com>
-Cc: linux@armlinux.org.uk, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, will.deacon@arm.com, mark.rutland@arm.com, hpa@zytor.com, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, neelx@redhat.com, erosca@de.adit-jv.com, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, james.morse@arm.com, Ard Biesheuvel <ard.biesheuvel@linaro.org>, steve.capper@arm.com, tglx@linutronix.de, mingo@redhat.com, gregkh@linuxfoundation.org, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Johannes Weiner <hannes@cmpxchg.org>, kemi.wang@intel.com, =?UTF-8?B?UGV0ciBUZXNhxZnDrWs=?= <ptesarik@suse.com>, yasu.isimatu@gmail.com, aryabinin@virtuozzo.com, nborisov@suse.com, Wei Yang <richard.weiyang@gmail.com>, jia.he@hxt-semitech.com
+To: mgorman@techsingularity.net, tytso@mit.edu, adilger.kernel@dilger.ca, darrick.wong@oracle.com, dchinner@redhat.com, akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Can you put it into memblock.c
+direct reclaim doesn't write out filesystem page, only kswapd could do
+it. So, if the call comes from direct reclaim, it is definitely a bug.
 
-> Do you think it looks ok if I add the inline prefix?
+And, Mel Gormane also mentioned "Ultimately, this will be a BUG_ON." In
+commit 94054fa3fca1fd78db02cb3d68d5627120f0a1d4 ("xfs: warn if direct
+reclaim tries to writeback pages").
 
-I would say no, this function is a too complex, and is not in some
-critical path to be always inlined.
+Although it is for xfs, ext4 has the similar behavior, so elevate
+WARN_ON to BUG_ON.
 
- I would put it into memblock.c, and have #ifdef
-CONFIG_HAVE_MEMBLOCK_PFN_VALID around it.
+And, correct the comment accordingly.
 
-Thank you,
-Pavel
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: "Theodore Ts'o" <tytso@mit.edu>
+Cc: Andreas Dilger <adilger.kernel@dilger.ca>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+ fs/ext4/inode.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index 2ea07ef..089e388 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -2071,7 +2071,7 @@ static int __ext4_journalled_writepage(struct page *page,
+  * This function can get called via...
+  *   - ext4_writepages after taking page lock (have journal handle)
+  *   - journal_submit_inode_data_buffers (no journal handle)
+- *   - shrink_page_list via the kswapd/direct reclaim (no journal handle)
++ *   - shrink_page_list via the kswapd (no journal handle)
+  *   - grab_page_cache when doing write_begin (have journal handle)
+  *
+  * We don't do any block allocation in this function. If we have page with
+@@ -2148,10 +2148,10 @@ static int ext4_writepage(struct page *page,
+ 		    (inode->i_sb->s_blocksize == PAGE_SIZE)) {
+ 			/*
+ 			 * For memory cleaning there's no point in writing only
+-			 * some buffers. So just bail out. Warn if we came here
+-			 * from direct reclaim.
++			 * some buffers. So just bail out. It is a bug if we
++			 * came here from direct reclaim.
+ 			 */
+-			WARN_ON_ONCE((current->flags & (PF_MEMALLOC|PF_KSWAPD))
++			BUG_ON((current->flags & (PF_MEMALLOC|PF_KSWAPD))
+ 							== PF_MEMALLOC);
+ 			unlock_page(page);
+ 			return 0;
+-- 
+1.8.3.1
