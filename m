@@ -1,55 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E8E86B0006
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 10:25:58 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id j5-v6so1397257oiw.13
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 07:25:58 -0700 (PDT)
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BED56B000A
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 10:26:14 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id v142-v6so1992608itb.1
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 07:26:14 -0700 (PDT)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id p14-v6si437269oic.106.2018.07.03.07.25.56
+        by mx.google.com with ESMTPS id a124-v6si1162383ite.38.2018.07.03.07.26.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jul 2018 07:25:57 -0700 (PDT)
+        Tue, 03 Jul 2018 07:26:13 -0700 (PDT)
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH 0/8] OOM killer/reaper changes for avoiding OOM lockup problem.
-Date: Tue,  3 Jul 2018 23:25:01 +0900
-Message-Id: <1530627910-3415-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH 8/8] mm,page_alloc: Move the short sleep to should_reclaim_retry().
+Date: Tue,  3 Jul 2018 23:25:09 +0900
+Message-Id: <1530627910-3415-9-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <1530627910-3415-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1530627910-3415-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: torvalds@linux-foundation.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: torvalds@linux-foundation.org, Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-This series provides
+From: Michal Hocko <mhocko@suse.com>
 
-  (1) Mitigation and a fix for CVE-2016-10723.
+Since the page allocator can now spend CPU resource for oom_reap_mm()
+for their interested OOM domains, the short sleep for waiting for the
+owner of oom_lock no longer makes sense.
 
-  (2) A mitigation for needlessly selecting next OOM victim reported
-      by David Rientjes and rejected by Michal Hocko.
+should_reclaim_retry() should be a natural reschedule point. PF_WQ_WORKER
+is a special case which needs a stronger rescheduling policy. Doing that
+unconditionally seems more straightforward than depending on a zone being
+a good candidate for a further reclaim.
 
-  (3) A preparation for handling many concurrent OOM victims which
-      could become real by introducing memcg-aware OOM killer.
+Thus, move the short sleep for waiting for the owner of oom_lock (which
+coincidentally also serves as a guaranteed sleep for PF_WQ_WORKER threads)
+to should_reclaim_retry().
 
-Tetsuo Handa (7):
-  mm,oom: Don't call schedule_timeout_killable() with oom_lock held.
-  mm,oom: Check pending victims earlier in out_of_memory().
-  mm,oom: Fix unnecessary killing of additional processes.
-  mm,page_alloc: Make oom_reserves_allowed() even.
-  mm,oom: Bring OOM notifier to outside of oom_lock.
-  mm,oom: Make oom_lock static variable.
-  mm,oom: Do not sleep with oom_lock held.
-Michal Hocko (1):
-  mm,page_alloc: Move the short sleep to should_reclaim_retry().
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Roman Gushchin <guro@fb.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Tejun Heo <tj@kernel.org>
+---
+ mm/page_alloc.c | 40 ++++++++++++++++++----------------------
+ 1 file changed, 18 insertions(+), 22 deletions(-)
 
- drivers/tty/sysrq.c        |   2 -
- include/linux/memcontrol.h |   9 +-
- include/linux/oom.h        |   6 +-
- include/linux/sched.h      |   7 +-
- include/trace/events/oom.h |  64 -------
- kernel/fork.c              |   2 +
- mm/memcontrol.c            |  24 +--
- mm/mmap.c                  |  17 +-
- mm/oom_kill.c              | 439 +++++++++++++++++++++------------------------
- mm/page_alloc.c            | 134 ++++++--------
- 10 files changed, 287 insertions(+), 417 deletions(-)
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 4c648f7..010b536 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3904,6 +3904,7 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ {
+ 	struct zone *zone;
+ 	struct zoneref *z;
++	bool ret = false;
+ 
+ 	/*
+ 	 * Costly allocations might have made a progress but this doesn't mean
+@@ -3967,25 +3968,26 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 				}
+ 			}
+ 
+-			/*
+-			 * Memory allocation/reclaim might be called from a WQ
+-			 * context and the current implementation of the WQ
+-			 * concurrency control doesn't recognize that
+-			 * a particular WQ is congested if the worker thread is
+-			 * looping without ever sleeping. Therefore we have to
+-			 * do a short sleep here rather than calling
+-			 * cond_resched().
+-			 */
+-			if (current->flags & PF_WQ_WORKER)
+-				schedule_timeout_uninterruptible(1);
+-			else
+-				cond_resched();
+-
+-			return true;
++			ret = true;
++			goto out;
+ 		}
+ 	}
+ 
+-	return false;
++out:
++	/*
++	 * Memory allocation/reclaim might be called from a WQ
++	 * context and the current implementation of the WQ
++	 * concurrency control doesn't recognize that
++	 * a particular WQ is congested if the worker thread is
++	 * looping without ever sleeping. Therefore we have to
++	 * do a short sleep here rather than calling
++	 * cond_resched().
++	 */
++	if (current->flags & PF_WQ_WORKER)
++		schedule_timeout_uninterruptible(1);
++	else
++		cond_resched();
++	return ret;
+ }
+ 
+ static inline bool
+@@ -4226,12 +4228,6 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 	/* Retry as long as the OOM killer is making progress */
+ 	if (did_some_progress) {
+ 		no_progress_loops = 0;
+-		/*
+-		 * This schedule_timeout_*() serves as a guaranteed sleep for
+-		 * PF_WQ_WORKER threads when __zone_watermark_ok() == false.
+-		 */
+-		if (!tsk_is_oom_victim(current))
+-			schedule_timeout_uninterruptible(1);
+ 		goto retry;
+ 	}
+ 
 -- 
 1.8.3.1
