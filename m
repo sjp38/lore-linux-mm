@@ -1,79 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BF1A96B0003
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 13:19:27 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id d23-v6so2658700qtj.12
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 10:19:27 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id f23-v6si1604808qkf.85.2018.07.03.10.19.26
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 186556B0006
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 13:23:33 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id y130-v6so3024633qka.1
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 10:23:33 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id x33-v6si835284qtd.174.2018.07.03.10.23.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jul 2018 10:19:26 -0700 (PDT)
-Date: Tue, 3 Jul 2018 10:19:20 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH 2/2] fs: xfs: use BUG_ON if writepage call comes from
- direct reclaim
-Message-ID: <20180703171920.GC5711@magnolia>
-References: <1530591079-33813-1-git-send-email-yang.shi@linux.alibaba.com>
- <1530591079-33813-2-git-send-email-yang.shi@linux.alibaba.com>
+        Tue, 03 Jul 2018 10:23:31 -0700 (PDT)
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w63HNUNC184987
+	for <linux-mm@kvack.org>; Tue, 3 Jul 2018 17:23:30 GMT
+Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
+	by userp2120.oracle.com with ESMTP id 2jx2gq1fq1-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Tue, 03 Jul 2018 17:23:30 +0000
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w63HNTGr030902
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Tue, 3 Jul 2018 17:23:29 GMT
+Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w63HNSIX016612
+	for <linux-mm@kvack.org>; Tue, 3 Jul 2018 17:23:29 GMT
+Received: by mail-oi0-f44.google.com with SMTP id m2-v6so5346999oim.12
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 10:23:28 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1530591079-33813-2-git-send-email-yang.shi@linux.alibaba.com>
+References: <1530637506-1256-1-git-send-email-rppt@linux.vnet.ibm.com>
+In-Reply-To: <1530637506-1256-1-git-send-email-rppt@linux.vnet.ibm.com>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Tue, 3 Jul 2018 13:22:52 -0400
+Message-ID: <CAGM2reZ1RWcUT67cTGcyB6UzUftyMyG7GTfp=XjNo5CN2=c_bg@mail.gmail.com>
+Subject: Re: [PATCH] mm/memblock: replace u64 with phys_addr_t where appropriate
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: mgorman@techsingularity.net, tytso@mit.edu, adilger.kernel@dilger.ca, dchinner@redhat.com, akpm@linux-foundation.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: rppt@linux.vnet.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, mhocko@kernel.org, willy@infradead.org
 
-On Tue, Jul 03, 2018 at 12:11:19PM +0800, Yang Shi wrote:
-> direct reclaim doesn't write out filesystem page, only kswapd could do
-> this. So, if it is called from direct relaim, it is definitely a bug.
-> 
-> And, Mel Gorman mentioned "Ultimately, this will be a BUG_ON." in commit
-> 94054fa3fca1fd78db02cb3d68d5627120f0a1d4 ("xfs: warn if direct reclaim
-> tries to writeback pages"),
-> 
-> It has been many years since that commit, so it should be safe to
-> elevate WARN_ON to BUG_ON now.
-> 
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Darrick J. Wong <darrick.wong@oracle.com>
-> Cc: Dave Chinner <dchinner@redhat.com>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> ---
->  fs/xfs/xfs_aops.c | 6 ++----
->  1 file changed, 2 insertions(+), 4 deletions(-)
-> 
-> diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-> index 8eb3ba3..7efc2d2 100644
-> --- a/fs/xfs/xfs_aops.c
-> +++ b/fs/xfs/xfs_aops.c
-> @@ -1080,11 +1080,9 @@ static inline int xfs_bio_add_buffer(struct bio *bio, struct buffer_head *bh)
->  	 * allow reclaim from kswapd as the stack usage there is relatively low.
->  	 *
->  	 * This should never happen except in the case of a VM regression so
-> -	 * warn about it.
-> +	 * BUG about it.
->  	 */
-> -	if (WARN_ON_ONCE((current->flags & (PF_MEMALLOC|PF_KSWAPD)) ==
-> -			PF_MEMALLOC))
-> -		goto redirty;
-> +	BUG_ON((current->flags & (PF_MEMALLOC|PF_KSWAPD)) == PF_MEMALLOC);
+On Tue, Jul 3, 2018 at 1:05 PM Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+>
+> Most functions in memblock already use phys_addr_t to represent a physical
+> address with __memblock_free_late() being an exception.
+>
+> This patch replaces u64 with phys_addr_t in __memblock_free_late() and
+> switches several format strings from %llx to %pa to avoid casting from
+> phys_addr_t to u64.
+>
+> CC: Michal Hocko <mhocko@kernel.org>
+> CC: Matthew Wilcox <willy@infradead.org>
+> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-Ugh, please do not increase the BUG() factor.  Even if this happens due
-to a regression it's /much/ easier to debug if we don't halt the system.
+Looks good.
 
-(IOWs, I decline to take this patch.)
+Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 
---D
+One minor thing that I would like to change in memblock.c is the
+useage phys_addr_t for size. I understand the reasoning behind this
+choice, but could we do something like:
 
->  
->  	/*
->  	 * Given that we do not allow direct reclaim to call us, we should
-> -- 
-> 1.8.3.1
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+typedef phys_addr_t phys_size_t;
+It would be similar to resource_size_t. I just think the code and
+function prototypes would look better with proper typing.
+
+Thank you,
+Pavel
