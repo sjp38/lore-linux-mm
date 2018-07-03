@@ -1,107 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 501806B0003
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 16:58:17 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id n20-v6so1415562pgv.14
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 13:58:17 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id p5-v6si1688647pgq.126.2018.07.03.13.58.15
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 688616B0010
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 17:02:24 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id g9-v6so1514089wrq.7
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 14:02:24 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id p6-v6si1336108wrj.355.2018.07.03.14.02.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jul 2018 13:58:15 -0700 (PDT)
-Date: Tue, 3 Jul 2018 13:58:13 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v8 14/17] mm: Iterate only over charged shrinkers during
- memcg shrink_slab()
-Message-Id: <20180703135813.ed4eef6a4a2df32fa1085e4c@linux-foundation.org>
-In-Reply-To: <153063066653.1818.976035462801487910.stgit@localhost.localdomain>
-References: <153063036670.1818.16010062622751502.stgit@localhost.localdomain>
-	<153063066653.1818.976035462801487910.stgit@localhost.localdomain>
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 03 Jul 2018 14:02:22 -0700 (PDT)
+Date: Tue, 3 Jul 2018 23:02:15 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v4 2/3] ioremap: Update pgtable free interfaces with
+ addr
+In-Reply-To: <1530287995.14039.361.camel@hpe.com>
+Message-ID: <alpine.DEB.2.21.1807032301140.1816@nanos.tec.linutronix.de>
+References: <20180627141348.21777-1-toshi.kani@hpe.com>  <20180627141348.21777-3-toshi.kani@hpe.com>  <20180627155632.GH30631@arm.com> <1530115885.14039.295.camel@hpe.com>  <20180629122358.GC17859@arm.com> <1530287995.14039.361.camel@hpe.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: "Kani, Toshi" <toshi.kani@hpe.com>
+Cc: "will.deacon@arm.com" <will.deacon@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "joro@8bytes.org" <joro@8bytes.org>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "Hocko, Michal" <MHocko@suse.com>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Tue, 03 Jul 2018 18:11:06 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
-
-> Using the preparations made in previous patches, in case of memcg
-> shrink, we may avoid shrinkers, which are not set in memcg's shrinkers
-> bitmap. To do that, we separate iterations over memcg-aware and
-> !memcg-aware shrinkers, and memcg-aware shrinkers are chosen
-> via for_each_set_bit() from the bitmap. In case of big nodes,
-> having many isolated environments, this gives significant
-> performance growth. See next patches for the details.
+On Fri, 29 Jun 2018, Kani, Toshi wrote:
+> On Fri, 2018-06-29 at 13:23 +0100, Will Deacon wrote:
+> > Hi Toshi, Thomas,
+> > 
+> > On Wed, Jun 27, 2018 at 04:13:22PM +0000, Kani, Toshi wrote:
+> > > On Wed, 2018-06-27 at 16:56 +0100, Will Deacon wrote:
+> > > > On Wed, Jun 27, 2018 at 08:13:47AM -0600, Toshi Kani wrote:
+> > > > > From: Chintan Pandya <cpandya@codeaurora.org>
+> > > > > 
+> > > > > The following kernel panic was observed on ARM64 platform due to a stale
+> > > > > TLB entry.
+> > > > > 
+> > > > >  1. ioremap with 4K size, a valid pte page table is set.
+> > > > >  2. iounmap it, its pte entry is set to 0.
+> > > > >  3. ioremap the same address with 2M size, update its pmd entry with
+> > > > >     a new value.
+> > > > >  4. CPU may hit an exception because the old pmd entry is still in TLB,
+> > > > >     which leads to a kernel panic.
+> > > > > 
+> > > > > Commit b6bdb7517c3d ("mm/vmalloc: add interfaces to free unmapped page
+> > > > > table") has addressed this panic by falling to pte mappings in the above
+> > > > > case on ARM64.
+> > > > > 
+> > > > > To support pmd mappings in all cases, TLB purge needs to be performed
+> > > > > in this case on ARM64.
+> > > > > 
+> > > > > Add a new arg, 'addr', to pud_free_pmd_page() and pmd_free_pte_page()
+> > > > > so that TLB purge can be added later in seprate patches.
+> > > > 
+> > > > So I acked v13 of Chintan's series posted here:
+> > > > 
+> > > > http://lists.infradead.org/pipermail/linux-arm-kernel/2018-June/582953.html
+> > > > 
+> > > > any chance this lot could all be merged together, please?
+> > > 
+> > > Chintan's patch 2/3 and 3/3 apply cleanly on top of my series. Can you
+> > > please coordinate with Thomas on the logistics?
+> > 
+> > Sure. I guess having this series on a common branch that I can pull into
+> > arm64 and apply Chintan's other patches on top would work.
+> > 
+> > How does that sound?
 > 
-> Note, that the patch does not respect to empty memcg shrinkers,
-> since we never clear the bitmap bits after we set it once.
-> Their shrinkers will be called again, with no shrinked objects
-> as result. This functionality is provided by next patches.
+> Should this go thru -mm tree then?
 > 
-> ...
->
-> @@ -541,6 +555,67 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
->  	return freed;
->  }
->  
-> +#ifdef CONFIG_MEMCG_KMEM
-> +static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
-> +			struct mem_cgroup *memcg, int priority)
-> +{
-> +	struct memcg_shrinker_map *map;
-> +	unsigned long freed = 0;
-> +	int ret, i;
-> +
-> +	if (!memcg_kmem_enabled() || !mem_cgroup_online(memcg))
-> +		return 0;
-> +
-> +	if (!down_read_trylock(&shrinker_rwsem))
-> +		return 0;
+> Andrew, Thomas, what do you think? 
 
-Why trylock?  Presumably some other code path is known to hold the lock
-for long periods?  Dunno.  Comment it, please.
+I just pick it up and provide Will a branch to pull that lot from.
 
-> +	/*
-> +	 * 1) Caller passes only alive memcg, so map can't be NULL.
-> +	 * 2) shrinker_rwsem protects from maps expanding.
-> +	 */
-> +	map = rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_map,
-> +					true);
-> +	BUG_ON(!map);
-> +
-> +	for_each_set_bit(i, map->map, shrinker_nr_max) {
-> +		struct shrink_control sc = {
-> +			.gfp_mask = gfp_mask,
-> +			.nid = nid,
-> +			.memcg = memcg,
-> +		};
-> +		struct shrinker *shrinker;
-> +
-> +		shrinker = idr_find(&shrinker_idr, i);
-> +		if (unlikely(!shrinker)) {
-> +			clear_bit(i, map->map);
-> +			continue;
-> +		}
-> +		BUG_ON(!(shrinker->flags & SHRINKER_MEMCG_AWARE));
+Thanks,
 
-Fair enough as a development-time sanity check but we shouldn't need
-this in production code.  Or make it VM_BUG_ON(), at least.
-
-> +		/* See comment in prealloc_shrinker() */
-> +		if (unlikely(list_empty(&shrinker->list)))
-> +			continue;
-> +
-> +		ret = do_shrink_slab(&sc, shrinker, priority);
-> +		freed += ret;
-> +
-> +		if (rwsem_is_contended(&shrinker_rwsem)) {
-> +			freed = freed ? : 1;
-> +			break;
-> +		}
-> +	}
-> +
-> +	up_read(&shrinker_rwsem);
-> +	return freed;
-> +}
+	tglx
