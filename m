@@ -1,107 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D898E6B026A
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 13:50:50 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id a131-v6so670616lfe.1
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 10:50:50 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v18-v6sor414303lja.110.2018.07.03.10.50.48
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D5F76B0005
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 13:58:44 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id f10-v6so1263319pgv.22
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 10:58:44 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id f18-v6si1491694pgd.16.2018.07.03.10.58.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 03 Jul 2018 10:50:48 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 03 Jul 2018 10:58:43 -0700 (PDT)
+Date: Tue, 3 Jul 2018 10:58:08 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v8 03/17] mm: Assign id to every memcg-aware shrinker
+Message-ID: <20180703175808.GC4834@bombadil.infradead.org>
+References: <153063036670.1818.16010062622751502.stgit@localhost.localdomain>
+ <153063054586.1818.6041047871606697364.stgit@localhost.localdomain>
+ <20180703152723.GB21590@bombadil.infradead.org>
+ <2d845a0d-d147-7250-747e-27e493b6a627@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <CAOesGMh6yVYKQ+dJbAsJWU=7wrfwW1cBwVbGoKNiG96_Mh6ebA@mail.gmail.com>
-References: <201806301538.bewm1wka%fengguang.wu@intel.com> <CACT4Y+b+7T3M=5EbHSpJmMAkRQnXih2+JZqeAvxht2zzKyjD2A@mail.gmail.com>
- <20180630110720.c80f060abe6d163eef78e9a6@linux-foundation.org>
- <20180630111210.ec9de2c2923a0c58b1357965@linux-foundation.org> <CAOesGMh6yVYKQ+dJbAsJWU=7wrfwW1cBwVbGoKNiG96_Mh6ebA@mail.gmail.com>
-From: Olof Johansson <olof@lixom.net>
-Date: Tue, 3 Jul 2018 10:50:46 -0700
-Message-ID: <CAOesGMgGmr4o92subyJMGGbv7CxFYH_zKV01aWK4TwnEgzHTUQ@mail.gmail.com>
-Subject: Re: /tmp/cctnQ1CM.s:35: Error: .err encountered
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2d845a0d-d147-7250-747e-27e493b6a627@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dmitry Vyukov <dvyukov@google.com>, kbuild test robot <lkp@intel.com>, kbuild-all@01.org, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lirongqing@baidu.com, aryabinin@virtuozzo.com, akpm@linux-foundation.org
 
-Hi Andrew,
+On Tue, Jul 03, 2018 at 06:46:57PM +0300, Kirill Tkhai wrote:
+> shrinker_idr now contains only memcg-aware shrinkers, so all bits from memcg map
+> may be potentially populated. In case of memcg-aware shrinkers and !memcg-aware
+> shrinkers share the same numbers like you suggest, this will lead to increasing
+> size of memcg maps, which is bad for memory consumption. So, memcg-aware shrinkers
+> should to have its own IDR and its own numbers. The tricks like allocation big
+> IDs for !memcg-aware shrinkers seem bad for me, since they make the code more
+> complicated.
 
-On Sat, Jun 30, 2018 at 1:30 PM, Olof Johansson <olof@lixom.net> wrote:
-> On Sat, Jun 30, 2018 at 11:12 AM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
->> On Sat, 30 Jun 2018 11:07:20 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
->>
->>> On Sat, 30 Jun 2018 12:27:09 +0200 Dmitry Vyukov <dvyukov@google.com> wrote:
->>>
->>> > > tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
->>> > > head:   1904148a361a07fb2d7cba1261d1d2c2f33c8d2e
->>> > > commit: 758517202bd2e427664857c9f2aa59da36848aca arm: port KCOV to arm
->>> > > date:   2 weeks ago
->>> > > config: arm-allmodconfig (attached as .config)
->>> > > compiler: arm-linux-gnueabi-gcc (Debian 7.2.0-11) 7.2.0
->>> > > reproduce:
->>> > >         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->>> > >         chmod +x ~/bin/make.cross
->>> > >         git checkout 758517202bd2e427664857c9f2aa59da36848aca
->>> > >         # save the attached .config to linux build tree
->>> > >         GCC_VERSION=7.2.0 make.cross ARCH=arm
->>> > >
->>> > > All errors (new ones prefixed by >>):
->>> > >
->>> > >    /tmp/cctnQ1CM.s: Assembler messages:
->>> > >>> /tmp/cctnQ1CM.s:35: Error: .err encountered
->>> > >    /tmp/cctnQ1CM.s:36: Error: .err encountered
->>> > >    /tmp/cctnQ1CM.s:37: Error: .err encountered
->>> >
->>> > Hi kbuild test robot,
->>> >
->>> > The fix was mailed more than a month ago, but still not merged into
->>> > the tree. That's linux...
->>>
->>> That was a rather unhelpful email.
->>>
->>> I've just scanned all your lkml emails since the start of May and
->>> cannot find anything which looks like a fix for this issue.
->>>
->>> Please resend.   About three weks ago :(
->>
->> OK, with a bi of amazing sleuthing I found this from Arnd, which is what
->> I presume you're referring to?
->>
->>
->>
->> From: Arnd Bergmann <arnd@arndb.de>
->> Subject: ARM: disable KCOV for trusted foundations code
->>
->> The ARM trusted foundations code is currently broken in linux-next when
->> CONFIG_KCOV_INSTRUMENT_ALL is set:
->>
->> /tmp/ccHdQsCI.s: Assembler messages:
->> /tmp/ccHdQsCI.s:37: Error: .err encountered
->> /tmp/ccHdQsCI.s:38: Error: .err encountered
->> /tmp/ccHdQsCI.s:39: Error: .err encountered
->> scripts/Makefile.build:311: recipe for target 'arch/arm/firmware/trusted_foundations.o' failed
->>
->> I could not find a function attribute that lets me disable
->> -fsanitize-coverage=trace-pc for just one function, so this turns it off
->> for the entire file instead.
->>
->> Link: http://lkml.kernel.org/r/20180529103636.1535457-1-arnd@arndb.de
->> Fixes: 758517202bd2e4 ("arm: port KCOV to arm")
->> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
->> Cc: Dmitry Vyukov <dvyukov@google.com>
->> Cc: Mark Rutland <mark.rutland@arm.com>
->> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
->
-> Solves it on my builder at least. Would be good to get this in.
->
-> Acked-by: Olof Johansson <olof@lixom.net>
+Do we really have so very many !memcg-aware shrinkers?
 
-Since this doesn't seem to be in your queue at the moment, I've
-applied it to our set of fixes for 4.18 in arm-soc, I'll send to Linus
-at end of week and it'll be in -next as of now through there.
+$ git grep -w register_shrinker |wc
+     32     119    2221
+$ git grep -w register_shrinker_prepared |wc
+      4      13     268
+(that's an overstatement; one of those is the declaration, one the definition,
+and one an internal call, so we actually only have one caller of _prepared).
 
+So it looks to me like your average system has one shrinker per
+filesystem, one per graphics card, one per raid5 device, and a few
+miscellaneous.  I'd be shocked if anybody had more than 100 shrinkers
+registered on their laptop.
 
-Thanks,
+I think we should err on the side of simiplicity and just have one IDR for
+every shrinker instead of playing games to solve a theoretical problem.
 
--Olof
+> > This will actually reduce the size of each shrinker and be more
+> > cache-efficient when calling the shrinkers.  I think we can also get
+> > rid of the shrinker_rwsem eventually, but let's leave it for now.
+> 
+> This patchset does not make the cache-efficient bad, since without the patchset the situation
+> is so bad, that it's just impossible to talk about the cache efficiently,
+> so let's leave lockless iteration/etc for the future works.
+
+The situation is that bad /for your use case/.  Not so much for others.
+You're introducing additional complexity here, and it'd be nice if we
+can remove some of the complexity that's already there.
