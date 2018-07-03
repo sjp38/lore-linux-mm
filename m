@@ -1,94 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 09A8E6B0008
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 12:53:57 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id d6-v6so1489353plo.15
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 09:53:57 -0700 (PDT)
-Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
-        by mx.google.com with ESMTPS id x3-v6si1404810plo.185.2018.07.03.09.53.54
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 799BB6B000C
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 13:00:46 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id v13-v6so1013818wmc.1
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 10:00:46 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 125-v6sor608886wmk.50.2018.07.03.10.00.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jul 2018 09:53:55 -0700 (PDT)
-Subject: Re: [RFC v3 PATCH 4/5] mm: mmap: zap pages with read mmap_sem for
- large mapping
-References: <1530311985-31251-1-git-send-email-yang.shi@linux.alibaba.com>
- <1530311985-31251-5-git-send-email-yang.shi@linux.alibaba.com>
- <20180629183501.9e30c26135f11853245c56c7@linux-foundation.org>
- <084aeccb-2c54-2299-8bf0-29a10cc0186e@linux.alibaba.com>
- <20180629201547.5322cfc4b52d19a0443daec2@linux-foundation.org>
- <20180702140502.GZ19043@dhcp22.suse.cz>
- <20180702134845.c4f536dead5374b443e24270@linux-foundation.org>
- <20180703060921.GA16767@dhcp22.suse.cz>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <efe8302c-1409-19fe-e8b4-0b910a9931a7@linux.alibaba.com>
-Date: Tue, 3 Jul 2018 09:53:29 -0700
+        (Google Transport Security);
+        Tue, 03 Jul 2018 10:00:44 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180703060921.GA16767@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+References: <153063036670.1818.16010062622751502.stgit@localhost.localdomain>
+ <153063054586.1818.6041047871606697364.stgit@localhost.localdomain>
+ <20180703152723.GB21590@bombadil.infradead.org> <CALvZod7xAP9AjRWp2XX1uJBkuOprYKCf7hzAXNTdw89dc-n4OA@mail.gmail.com>
+ <a9fe3e9e-a1b7-ee19-35e6-af32b5f25a37@virtuozzo.com>
+In-Reply-To: <a9fe3e9e-a1b7-ee19-35e6-af32b5f25a37@virtuozzo.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Tue, 3 Jul 2018 10:00:32 -0700
+Message-ID: <CALvZod6eomn1Mt5r28tMthq4b+3MWuWJKgishf_N4UjortzvHw@mail.gmail.com>
+Subject: Re: [PATCH v8 03/17] mm: Assign id to every memcg-aware shrinker
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: willy@infradead.org, ldufour@linux.vnet.ibm.com, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, tglx@linutronix.de, hpa@zytor.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, stummala@codeaurora.org, gregkh@linuxfoundation.org, Stephen Rothwell <sfr@canb.auug.org.au>, Roman Gushchin <guro@fb.com>, mka@chromium.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Chris Wilson <chris@chris-wilson.co.uk>, longman@redhat.com, Minchan Kim <minchan@kernel.org>, Huang Ying <ying.huang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, jbacik@fb.com, Guenter Roeck <linux@roeck-us.net>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, lirongqing@baidu.com, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>
 
+On Tue, Jul 3, 2018 at 9:17 AM Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+>
+> Hi, Shakeel,
+>
+> On 03.07.2018 18:46, Shakeel Butt wrote:
+> > On Tue, Jul 3, 2018 at 8:27 AM Matthew Wilcox <willy@infradead.org> wrote:
+> >>
+> >> On Tue, Jul 03, 2018 at 06:09:05PM +0300, Kirill Tkhai wrote:
+> >>> +++ b/mm/vmscan.c
+> >>> @@ -169,6 +169,49 @@ unsigned long vm_total_pages;
+> >>>  static LIST_HEAD(shrinker_list);
+> >>>  static DECLARE_RWSEM(shrinker_rwsem);
+> >>>
+> >>> +#ifdef CONFIG_MEMCG_KMEM
+> >>> +static DEFINE_IDR(shrinker_idr);
+> >>> +static int shrinker_nr_max;
+> >>
+> >> So ... we've now got a list_head (shrinker_list) which contains all of
+> >> the shrinkers, plus a shrinker_idr which contains the memcg-aware shrinkers?
+> >>
+> >> Why not replace the shrinker_list with the shrinker_idr?  It's only used
+> >> twice in vmscan.c:
+> >>
+> >> void register_shrinker_prepared(struct shrinker *shrinker)
+> >> {
+> >>         down_write(&shrinker_rwsem);
+> >>         list_add_tail(&shrinker->list, &shrinker_list);
+> >>         up_write(&shrinker_rwsem);
+> >> }
+> >>
+> >>         list_for_each_entry(shrinker, &shrinker_list, list) {
+> >> ...
+> >>
+> >> The first is simply idr_alloc() and the second is
+> >>
+> >>         idr_for_each_entry(&shrinker_idr, shrinker, id) {
+> >>
+> >> I understand there's a difference between allocating the shrinker's ID and
+> >> adding it to the list.  You can do this by calling idr_alloc with NULL
+> >> as the pointer, and then using idr_replace() when you want to add the
+> >> shrinker to the list.  idr_for_each_entry() skips over NULL entries.
+> >>
+> >> This will actually reduce the size of each shrinker and be more
+> >> cache-efficient when calling the shrinkers.  I think we can also get
+> >> rid of the shrinker_rwsem eventually, but let's leave it for now.
+> >
+> > Can you explain how you envision shrinker_rwsem can be removed? I am
+> > very much interested in doing that.
+>
+> Have you tried to do some games with SRCU? It looks like we just need to
+> teach count_objects() and scan_objects() to work with semi-destructed
+> shrinkers. Though, this looks this will make impossible to introduce
+> shrinkers, which do synchronize_srcu() in scan_objects() for example.
+> Not sure, someone will actually use this, and this is possible to consider
+> as limitation.
+>
 
+Hi Kirill, I tried SRCU and the discussion is at
+https://lore.kernel.org/lkml/20171117173521.GA21692@infradead.org/T/#u
 
-On 7/2/18 11:09 PM, Michal Hocko wrote:
-> On Mon 02-07-18 13:48:45, Andrew Morton wrote:
->> On Mon, 2 Jul 2018 16:05:02 +0200 Michal Hocko <mhocko@kernel.org> wrote:
->>
->>> On Fri 29-06-18 20:15:47, Andrew Morton wrote:
->>> [...]
->>>> Would one of your earlier designs have addressed all usecases?  I
->>>> expect the dumb unmap-a-little-bit-at-a-time approach would have?
->>> It has been already pointed out that this will not work.
->> I said "one of".  There were others.
-> Well, I was aware only about two potential solutions. Either do the
-> heavy lifting under the shared lock and do the rest with the exlusive
-> one and this, drop the lock per parts. Maybe I have missed others?
+Paul E. McKenney suggested to enable SRCU unconditionally. So, to use
+SRCU for shrinkers, we first have to push unconditional SRCU.
 
-There is the other one which I presented on LSFMM summit. But, actually 
-it turns out that one looks very similar to the current under review one.
+Tetsuo had another lockless solution which was a bit involved but does
+not depend on SRCU.
 
-Yang
-
->
->>> You simply
->>> cannot drop the mmap_sem during unmap because another thread could
->>> change the address space under your feet. So you need some form of
->>> VM_DEAD and handle concurrent and conflicting address space operations.
->> Unclear that this is a problem.  If a thread does an unmap of a range
->> of virtual address space, there's no guarantee that upon return some
->> other thread has not already mapped new stuff into that address range.
->> So what's changed?
-> Well, consider the following scenario:
-> Thread A = calling mmap(NULL, sizeA)
-> Thread B = calling munmap(addr, sizeB)
->
-> They do not use any external synchronization and rely on the atomic
-> munmap. Thread B only munmaps range that it knows belongs to it (e.g.
-> called mmap in the past). It should be clear that ThreadA should not
-> get an address from the addr, sizeB range, right? In the most simple case
-> it will not happen. But let's say that the addr, sizeB range has
-> unmapped holes for what ever reasons. Now anytime munmap drops the
-> exclusive lock after handling one VMA, Thread A might find its sizeA
-> range and use it. ThreadB then might remove this new range as soon as it
-> gets its exclusive lock again.
->
-> Is such a code safe? No it is not and I would call it fragile at best
-> but people tend to do weird things and atomic munmap behavior is
-> something they can easily depend on.
->
-> Another example would be an atomic address range probing by
-> MAP_FIXED_NOREPLACE. It would simply break for similar reasons.
->
-> I remember my attempt to make MAP_LOCKED consistent with mlock (if the
-> population fails then return -ENOMEM) and that required to drop the
-> shared mmap_sem and take it in exclusive mode (because we do not
-> have upgrade_read) and Linus was strongly against [1][2] for very
-> similar reasons. If you drop the lock you simply do not know what
-> happened under your feet.
->
-> [1] http://lkml.kernel.org/r/CA+55aFydkG-BgZzry5DrTzueVh9VvEcVJdLV8iOyUphQk=0vpw@mail.gmail.com
-> [2] http://lkml.kernel.org/r/CA+55aFyajquhGhw59qNWKGK4dBV0TPmDD7-1XqPo7DZWvO_hPg@mail.gmail.com
+thanks,
+Shakeel
