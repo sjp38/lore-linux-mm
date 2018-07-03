@@ -1,116 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DC2A6B0007
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 19:29:04 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id i127-v6so3858225qkc.22
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 16:29:04 -0700 (PDT)
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id v21-v6sor1212657qvf.16.2018.07.03.16.29.03
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 009936B0005
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 19:52:17 -0400 (EDT)
+Received: by mail-yb0-f199.google.com with SMTP id 128-v6so3089708ybd.21
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 16:52:16 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id p124-v6si501665ywc.104.2018.07.03.16.52.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 03 Jul 2018 16:29:03 -0700 (PDT)
-Date: Tue, 03 Jul 2018 16:29:00 -0700
-In-Reply-To: <20180703071658.GC16767@dhcp22.suse.cz>
-Message-Id: <xr93woubj3ur.fsf@gthelen.svl.corp.google.com>
-Mime-Version: 1.0
-References: <20180628151101.25307-1-mhocko@kernel.org> <xr93in62jy8k.fsf@gthelen.svl.corp.google.com>
- <20180629072132.GA13860@dhcp22.suse.cz> <xr93bmbtju6f.fsf@gthelen.svl.corp.google.com>
- <20180702100301.GC19043@dhcp22.suse.cz> <xr938t6skd9m.fsf@gthelen.svl.corp.google.com>
- <20180703071658.GC16767@dhcp22.suse.cz>
-Subject: Re: [PATCH] memcg, oom: move out_of_memory back to the charge path
-From: Greg Thelen <gthelen@google.com>
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 03 Jul 2018 16:52:15 -0700 (PDT)
+Date: Tue, 3 Jul 2018 19:43:31 -0400
+From: "Theodore Y. Ts'o" <tytso@mit.edu>
+Subject: Re: [PATCH 1/2] fs: ext4: use BUG_ON if writepage call comes from
+ direct reclaim
+Message-ID: <20180703234331.GA5104@thunk.org>
+References: <1530591079-33813-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20180703103948.GB27426@thunk.org>
+ <6c305241-d502-b8ea-a187-54c33e4ca692@linux.alibaba.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6c305241-d502-b8ea-a187-54c33e4ca692@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: mgorman@techsingularity.net, adilger.kernel@dilger.ca, darrick.wong@oracle.com, dchinner@redhat.com, akpm@linux-foundation.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Michal Hocko <mhocko@kernel.org> wrote:
+On Tue, Jul 03, 2018 at 10:05:04AM -0700, Yang Shi wrote:
+> I'm not sure if it is a good choice to let filesystem handle such vital VM
+> regression. IMHO, writing out filesystem page from direct reclaim context is
+> a vital VM bug. It means something is definitely wrong in VM. It should
+> never happen.
 
-> On Tue 03-07-18 00:08:05, Greg Thelen wrote:
->> Michal Hocko <mhocko@kernel.org> wrote:
->> 
->> > On Fri 29-06-18 11:59:04, Greg Thelen wrote:
->> >> Michal Hocko <mhocko@kernel.org> wrote:
->> >> 
->> >> > On Thu 28-06-18 16:19:07, Greg Thelen wrote:
->> >> >> Michal Hocko <mhocko@kernel.org> wrote:
->> >> > [...]
->> >> >> > +	if (mem_cgroup_out_of_memory(memcg, mask, order))
->> >> >> > +		return OOM_SUCCESS;
->> >> >> > +
->> >> >> > +	WARN(1,"Memory cgroup charge failed because of no reclaimable memory! "
->> >> >> > +		"This looks like a misconfiguration or a kernel bug.");
->> >> >> 
->> >> >> I'm not sure here if the warning should here or so strongly worded.  It
->> >> >> seems like the current task could be oom reaped with MMF_OOM_SKIP and
->> >> >> thus mem_cgroup_out_of_memory() will return false.  So there's nothing
->> >> >> alarming in that case.
->> >> >
->> >> > If the task is reaped then its charges should be released as well and
->> >> > that means that we should get below the limit. Sure there is some room
->> >> > for races but this should be still unlikely. Maybe I am just
->> >> > underestimating though.
->> >> >
->> >> > What would you suggest instead?
->> >> 
->> >> I suggest checking MMF_OOM_SKIP or deleting the warning.
->> >
->> > So what do you do when you have MMF_OOM_SKIP task? Do not warn? Checking
->> > for all the tasks would be quite expensive and remembering that from the
->> > task selection not nice either. Why do you think it would help much?
->> 
->> I assume we could just check current's MMF_OOM_SKIP - no need to check
->> all tasks.
->
-> I still do not follow. If you are after a single task memcg then we
-> should be ok. try_charge has a runaway for oom victims
-> 	if (unlikely(tsk_is_oom_victim(current) ||
-> 		     fatal_signal_pending(current) ||
-> 		     current->flags & PF_EXITING))
-> 		goto force;
->
-> regardless of MMF_OOM_SKIP. So if there is a single process in the
-> memcg, we kill it and the oom reaper kicks in and sets MMF_OOM_SKIP then
-> we should bail out there. Or do I miss your intention?
+If it does happen, it should happen reliably; this isn't the sort of
+thing where some linked list had gotten corrupted.  This would be a
+structural problem in the VM code.
 
-For a single task memcg it seems that racing process cgroup migration
-could trigger the new warning (I have attempted to reproduce this):
+So presumably, if the WARN_ON triggered, it should be be noticed by VM
+developers, and they should fix it.
 
-Processes A,B in memcg M1,M2.  M1 is oom.
+In general, though, BUG_ON's should be avoided unless there really is
+no way to recover.
 
-  Process A[M1]               Process B[M2]
+> It sounds ok to have filesystem throw out warning and handle it, but I'm not
+> sure if someone will just ignore the warning, but it should *never* be
+> ignored.
 
-  M1 is oom
-  try_charge(M1)
-                              Move A M1=>M2
-  mem_cgroup_oom()
-  mem_cgroup_out_of_memory()
-    out_of_memory()
-      select_bad_process()
-        sees nothing in M1
-      return 0
-    return 0
-  WARN()
+If a kernel develper (a VM developer in this case) ignores a warning,
+that's just simply professional malpractice.  In general WARN_ON's
+should only be used as a sign of a kernel bug.  So they should never
+be ignored.
 
-
-Another variant might be possible, this time with global oom:
-
-Processes A,B in memcg M1,M2.  M1 is oom.
-
-  Process A[M1]               Process B[M2]
-
-  try_charge()
-                              trigger global oom
-                              reaper sets A.MMF_OOM_SKIP
-  mem_cgroup_oom()
-  mem_cgroup_out_of_memory()
-    out_of_memory()
-      select_bad_process()
-        sees nothing in M1
-      return 0
-    return 0
-  WARN()
-
-
-These seem unlikely, so I'm fine with taking a wait-and-see approach.
+						- Ted
