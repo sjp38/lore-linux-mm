@@ -1,217 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BBA76B0007
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 00:51:02 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id c19-v6so1717093edt.4
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 21:51:02 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id y8-v6si2572896edk.335.2018.07.03.21.51.00
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B8F096B0005
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 01:42:41 -0400 (EDT)
+Received: by mail-yb0-f200.google.com with SMTP id g6-v6so3779067ybc.5
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 22:42:41 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y14-v6sor773830ybq.108.2018.07.03.22.42.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jul 2018 21:51:00 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w644miv5080655
-	for <linux-mm@kvack.org>; Wed, 4 Jul 2018 00:50:58 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2k0k43ry9q-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 04 Jul 2018 00:50:58 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 4 Jul 2018 05:50:56 +0100
-Date: Wed, 4 Jul 2018 07:50:48 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH 3/3] m68k: switch to MEMBLOCK + NO_BOOTMEM
-References: <1530613795-6956-1-git-send-email-rppt@linux.vnet.ibm.com>
- <1530613795-6956-4-git-send-email-rppt@linux.vnet.ibm.com>
- <5388c6eb-2159-b103-51f9-2a211c54b4bc@linux-m68k.org>
- <0614f397-d9c9-cc99-69bc-25b7d0361af4@linux-m68k.org>
- <20180704042221.GG4809@rapoport-lnx>
- <6403bb73-2c86-cf44-180e-58019b776ca3@linux-m68k.org>
+        (Google Transport Security);
+        Tue, 03 Jul 2018 22:42:40 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <6403bb73-2c86-cf44-180e-58019b776ca3@linux-m68k.org>
-Message-Id: <20180704045047.GH4809@rapoport-lnx>
+In-Reply-To: <1530646988-25546-1-git-send-email-crecklin@redhat.com>
+References: <1530646988-25546-1-git-send-email-crecklin@redhat.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 3 Jul 2018 22:42:38 -0700
+Message-ID: <CAGXu5jL9wZ=04h+iRkJLUkqhT70yv+tLPNqPNobaZXNB2Y8T9w@mail.gmail.com>
+Subject: Re: [PATCH v7] add param that allows bootline control of hardened usercopy
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Ungerer <gerg@linux-m68k.org>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Sam Creasey <sammy@sammy.net>, Michal Hocko <mhocko@kernel.org>, linux-m68k@lists.linux-m68k.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Chris von Recklinghausen <crecklin@redhat.com>
+Cc: Laura Abbott <labbott@redhat.com>, Paolo Abeni <pabeni@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, Al Viro <viro@zeniv.linux.org.uk>
 
-Hi Greg,
+On Tue, Jul 3, 2018 at 12:43 PM, Chris von Recklinghausen
+<crecklin@redhat.com> wrote:
+> Enabling HARDENED_USERCOPY causes measurable regressions in
+>  networking performance, up to 8% under UDP flood.
+>
+> I'm running an a small packet UDP flood using pktgen vs. a host b2b
+> connected. On the receiver side the UDP packets are processed by a
+> simple user space process that just reads and drops them:
+>
+> https://github.com/netoptimizer/network-testing/blob/master/src/udp_sink.c
+>
+> Not very useful from a functional PoV, but it helps to pin-point
+> bottlenecks in the networking stack.
+>
+> When running a kernel with CONFIG_HARDENED_USERCOPY=y, I see a 5-8%
+> regression in the receive tput, compared to the same kernel without
+> this option enabled.
+>
+> With CONFIG_HARDENED_USERCOPY=y, perf shows ~6% of CPU time spent
+> cumulatively in __check_object_size (~4%) and __virt_addr_valid (~2%).
+>
+> The call-chain is:
+>
+> __GI___libc_recvfrom
+> entry_SYSCALL_64_after_hwframe
+> do_syscall_64
+> __x64_sys_recvfrom
+> __sys_recvfrom
+> inet_recvmsg
+> udp_recvmsg
+> __check_object_size
+>
+> udp_recvmsg() actually calls copy_to_iter() (inlined) and the latters
+> calls check_copy_size() (again, inlined).
+>
+> A generic distro may want to enable HARDENED_USERCOPY in their default
+> kernel config, but at the same time, such distro may want to be able to
+> avoid the performance penalties in with the default configuration and
+> disable the stricter check on a per-boot basis.
+>
+> This change adds a boot parameter that conditionally disables
+> HARDENED_USERCOPY at boot time.
+>
+> v6->v7:
+>         remove EXPORT_SYMBOL(bypass_usercopy_checks);
+>         remove mention of CONFIG_JUMP_LABEL from commit comments
+> v5->v6:
+>         no need to key off of anything - build errors were when jump label
+>                 code was in include/linux/thread_info.h.
+> v4->v5:
+>         key off of CONFIG_JUMP_LABEL, not CONFIG_SMP_BROKEN.
+>
+> v3->v4:
+>         fix a couple of nits in commit comments
+>         declaration of bypass_usercopy_checks moved inside mm/usercopy.c and
+>                 made static
+>         add blurb to commit comments about not enabling this functionality on
+>                 platforms with CONFIG_BROKEN_ON_SMP set.
+> v2->v3:
+>         add benchmark details to commit comments
+>         Don't add new item to Documentation/admin-guide/kernel-parameters.rst
+>         rename boot param to "hardened_usercopy="
+>         update description in Documentation/admin-guide/kernel-parameters.txt
+>         static_branch_likely -> static_branch_unlikely
+>         add __ro_after_init versions of DEFINE_STATIC_KEY_FALSE,
+>                 DEFINE_STATIC_KEY_TRUE
+>         disable_huc_atboot -> enable_checks (strtobool "on" == true)
+>
+> v1->v2:
+>         remove CONFIG_HUC_DEFAULT_OFF
+>         default is now enabled, boot param disables
+>         move check to __check_object_size so as to not break optimization of
+>                 __builtin_constant_p()
+>         include linux/atomic.h before linux/jump_label.h
+>
+> Signed-off-by: Chris von Recklinghausen <crecklin@redhat.com>
 
-On Wed, Jul 04, 2018 at 02:39:05PM +1000, Greg Ungerer wrote:
-> Hi Mike,
-> 
-> On 04/07/18 14:22, Mike Rapoport wrote:
-> >On Wed, Jul 04, 2018 at 12:02:52PM +1000, Greg Ungerer wrote:
-> >>On 04/07/18 11:39, Greg Ungerer wrote:
-> >>>On 03/07/18 20:29, Mike Rapoport wrote:
-> >>>>In m68k the physical memory is described by [memory_start, memory_end] for
-> >>>>!MMU variant and by m68k_memory array of memory ranges for the MMU version.
-> >>>>This information is directly used to register the physical memory with
-> >>>>memblock.
-> >>>>
-> >>>>The reserve_bootmem() calls are replaced with memblock_reserve() and the
-> >>>>bootmap bitmap allocation is simply dropped.
-> >>>>
-> >>>>Since the MMU variant creates early mappings only for the small part of the
-> >>>>memory we force bottom-up allocations in memblock because otherwise we will
-> >>>>attempt to access memory that not yet mapped
-> >>>>
-> >>>>Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> >>>
-> >>>This builds cleanly for me with a m5475_defconfig, but it fails
-> >>>to boot on real hardware. No console, no nothing on startup.
-> >>>I haven't debugged any further yet.
-> >>>
-> >>>The M5475 is a ColdFire with MMU enabled target.
-> >>
-> >>With some early serial debug trace I see:
-> >>
-> >>Linux version 4.18.0-rc3-00003-g109f5e551b18-dirty (gerg@goober) (gcc version 5.4.0 (GCC)) #5 Wed Jul 4 12:00:03 AEST 2018
-> >>On node 0 totalpages: 4096
-> >>   DMA zone: 18 pages used for memmap
-> >>   DMA zone: 0 pages reserved
-> >>   DMA zone: 4096 pages, LIFO batch:0
-> >>pcpu-alloc: s0 r0 d32768 u32768 alloc=1*32768
-> >>pcpu-alloc: [0] 0
-> >>Built 1 zonelists, mobility grouping off.  Total pages: 4078
-> >>Kernel command line: root=/dev/mtdblock0
-> >>Dentry cache hash table entries: 4096 (order: 1, 16384 bytes)
-> >>Inode-cache hash table entries: 2048 (order: 0, 8192 bytes)
-> >>Sorting __ex_table...
-> >>Memory: 3032K/32768K available (1489K kernel code, 96K rwdata, 240K rodata, 56K init, 77K bss, 29736K reserved, 0K cma-reserved)
-> >                                                                                                  ^^^^^^
-> >It seems I was over enthusiastic when I reserved the memory for the kernel.
-> >Can you please try with the below patch:
-> >
-> >diff --git a/arch/m68k/mm/mcfmmu.c b/arch/m68k/mm/mcfmmu.c
-> >index e9e60e1..18c7bf6 100644
-> >--- a/arch/m68k/mm/mcfmmu.c
-> >+++ b/arch/m68k/mm/mcfmmu.c
-> >@@ -174,7 +174,7 @@ void __init cf_bootmem_alloc(void)
-> >  	high_memory = (void *)_ramend;
-> >  	/* Reserve kernel text/data/bss */
-> >-	memblock_reserve(memstart, _ramend - memstart);
-> >+	memblock_reserve(memstart, memstart - _rambase);
-> >  	m68k_virt_to_node_shift = fls(_ramend - 1) - 6;
-> >  	module_fixup(NULL, __start_fixup, __stop_fixup);
-> >diff --git a/mm/memblock.c b/mm/memblock.c
-> >index 03d48d8..98661be 100644
-> >--- a/mm/memblock.c
-> >+++ b/mm/memblock.c
-> >@@ -54,7 +54,7 @@ struct memblock memblock __initdata_memblock = {
-> >  	.current_limit		= MEMBLOCK_ALLOC_ANYWHERE,
-> >  };
-> >-int memblock_debug __initdata_memblock;
-> >+int memblock_debug __initdata_memblock = 1;
-> >  static bool system_has_some_mirror __initdata_memblock = false;
-> >  static int memblock_can_resize __initdata_memblock;
-> >  static int memblock_memory_in_slab __initdata_memblock = 0;
-> >
-> >
-> >The memblock hunk is needed to see early memblock debug messages as all the
-> >setup happens before parsing of the command line.
-> 
-> Ok, that works, boots all the way up now.
+Thanks, this looks good! I'll get this added to the usercopy tree.
 
-Thanks for testing. 
-I'll send v2 later on today.
- 
-> Linux version 4.18.0-rc3-00003-g109f5e551b18-dirty (gerg@goober) (gcc version 5.4.0 (GCC)) #7 Wed Jul 4 14:34:48 AEST 2018
-> memblock_add: [0x00000000-0x01ffffff] 0x001ebaa0
-> memblock_reserve: [0x00332000-0x00663fff] 0x001ebafa
-> memblock_reserve: [0x01ffe000-0x01ffffff] 0x001efd38
-> memblock_reserve: [0x01ff8000-0x01ffdfff] 0x001efd38
-> memblock_virt_alloc_try_nid_nopanic: 147456 bytes align=0x0 nid=0 from=0x0 max_addr=0x0 0x00190dea
-> memblock_reserve: [0x01fd4000-0x01ff7fff] 0x001f0466
-> memblock_virt_alloc_try_nid_nopanic: 4 bytes align=0x0 nid=0 from=0x0 max_addr=0x0 0x001ee234
-> memblock_reserve: [0x01fd3ff0-0x01fd3ff3] 0x001f0466
-> memblock_virt_alloc_try_nid: 20 bytes align=0x0 nid=-1 from=0x0 max_addr=0x0 0x001ea488
-> memblock_reserve: [0x01fd3fd0-0x01fd3fe3] 0x001f0466
-> memblock_virt_alloc_try_nid: 20 bytes align=0x0 nid=-1 from=0x0 max_addr=0x0 0x001ea4a8
-> memblock_reserve: [0x01fd3fb0-0x01fd3fc3] 0x001f0466
-> memblock_virt_alloc_try_nid: 20 bytes align=0x0 nid=-1 from=0x0 max_addr=0x0 0x001ea4c0
-> memblock_reserve: [0x01fd3f90-0x01fd3fa3] 0x001f0466
-> memblock_virt_alloc_try_nid_nopanic: 8192 bytes align=0x2000 nid=-1 from=0x0 max_addr=0x0 0x001eef30
-> memblock_reserve: [0x01fd0000-0x01fd1fff] 0x001f0466
-> memblock_virt_alloc_try_nid_nopanic: 32768 bytes align=0x2000 nid=-1 from=0x0 max_addr=0x0 0x001ef5d6
-> memblock_reserve: [0x01fc8000-0x01fcffff] 0x001f0466
-> memblock_virt_alloc_try_nid: 4 bytes align=0x0 nid=-1 from=0x0 max_addr=0x0 0x001ef2ac
-> memblock_reserve: [0x01fd3f80-0x01fd3f83] 0x001f0466
-> memblock_virt_alloc_try_nid: 4 bytes align=0x0 nid=-1 from=0x0 max_addr=0x0 0x001ef2c2
-> memblock_reserve: [0x01fd3f70-0x01fd3f73] 0x001f0466
-> memblock_virt_alloc_try_nid: 4 bytes align=0x0 nid=-1 from=0x0 max_addr=0x0 0x001ef2d6
-> memblock_reserve: [0x01fd3f60-0x01fd3f63] 0x001f0466
-> memblock_virt_alloc_try_nid: 4 bytes align=0x0 nid=-1 from=0x0 max_addr=0x0 0x001ef2e6
-> memblock_reserve: [0x01fd3f50-0x01fd3f53] 0x001f0466
-> memblock_virt_alloc_try_nid: 120 bytes align=0x0 nid=-1 from=0x0 max_addr=0x0 0x001ef506
-> memblock_reserve: [0x01fd3ed0-0x01fd3f47] 0x001f0466
-> memblock_virt_alloc_try_nid: 67 bytes align=0x0 nid=-1 from=0x0 max_addr=0x0 0x001eece0
-> memblock_reserve: [0x01fd3e80-0x01fd3ec2] 0x001f0466
-> memblock_virt_alloc_try_nid: 1024 bytes align=0x0 nid=-1 from=0x0 max_addr=0x0 0x001eed0e
-> memblock_reserve: [0x01fd3a80-0x01fd3e7f] 0x001f0466
-> memblock_virt_alloc_try_nid: 1028 bytes align=0x0 nid=-1 from=0x0 max_addr=0x0 0x001eed2c
-> memblock_reserve: [0x01fd3670-0x01fd3a73] 0x001f0466
-> memblock_virt_alloc_try_nid: 80 bytes align=0x0 nid=-1 from=0x0 max_addr=0x0 0x001eed4e
-> memblock_reserve: [0x01fd3620-0x01fd366f] 0x001f0466
-> __memblock_free_early: [0x00000001fd0000-0x00000001fd1fff] 0x001eef80
-> Built 1 zonelists, mobility grouping off.  Total pages: 4078
-> Kernel command line: root=/dev/mtdblock0
-> memblock_virt_alloc_try_nid_nopanic: 16384 bytes align=0x0 nid=-1 from=0x0 max_addr=0x0 0x001ee828
-> memblock_reserve: [0x01fc4000-0x01fc7fff] 0x001f0466
-> Dentry cache hash table entries: 4096 (order: 1, 16384 bytes)
-> memblock_virt_alloc_try_nid_nopanic: 8192 bytes align=0x0 nid=-1 from=0x0 max_addr=0x0 0x001ee828
-> memblock_reserve: [0x01fd1620-0x01fd361f] 0x001f0466
-> Inode-cache hash table entries: 2048 (order: 0, 8192 bytes)
-> Sorting __ex_table...
-> Memory: 29256K/32768K available (1489K kernel code, 96K rwdata, 240K rodata, 56K init, 77K bss, 3512K reserved, 0K cma-reserved)
-> SLUB: HWalign=16, Order=0-3, MinObjects=0, CPUs=1, Nodes=8
-> NR_IRQS: 256
-> clocksource: slt: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 14370379300 ns
-> Calibrating delay loop... 264.19 BogoMIPS (lpj=1320960)
-> pid_max: default: 32768 minimum: 301
-> Mount-cache hash table entries: 2048 (order: 0, 8192 bytes)
-> Mountpoint-cache hash table entries: 2048 (order: 0, 8192 bytes)
-> clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
-> ColdFire: PCI bus initialization...
-> Coldfire: PCI IO/config window mapped to 0xe0000000
-> PCI host bridge to bus 0000:00
-> pci_bus 0000:00: root bus resource [io  0x0000-0xffff]
-> pci_bus 0000:00: root bus resource [mem 0x00000000-0xffffffff]
-> pci_bus 0000:00: root bus resource [bus 00-ff]
-> pci 0000:00:14.0: BAR 2: assigned [mem 0xf0000000-0xf00fffff]
-> pci 0000:00:14.0: BAR 6: assigned [mem 0xf0100000-0xf01fffff pref]
-> pci 0000:00:14.0: BAR 0: assigned [mem 0xf0200000-0xf0200fff]
-> pci 0000:00:14.0: BAR 1: assigned [io  0x0400-0x043f]
-> vgaarb: loaded
-> clocksource: Switched to clocksource slt
-> workingset: timestamp_bits=27 max_order=12 bucket_order=0
-> romfs: ROMFS MTD (C) 2007 Red Hat, Inc.
-> io scheduler noop registered (default)
-> io scheduler mq-deadline registered
-> io scheduler kyber registered
-> ColdFire internal UART serial driver
-> mcfuart.0: ttyS0 at MMIO 0xff008600 (irq = 99, base_baud = 8312500) is a ColdFire UART
-> console [ttyS0] enabled
-> mcfuart.0: ttyS1 at MMIO 0xff008700 (irq = 98, base_baud = 8312500) is a ColdFire UART
-> mcfuart.0: ttyS2 at MMIO 0xff008800 (irq = 97, base_baud = 8312500) is a ColdFire UART
-> mcfuart.0: ttyS3 at MMIO 0xff008900 (irq = 96, base_baud = 8312500) is a ColdFire UART
-> brd: module loaded
-> uclinux[mtd]: probe address=0x20bb84 size=0x126000
-> Creating 1 MTD partitions on "ram":
-> 0x000000000000-0x000000126000 : "ROMfs"
-> random: get_random_bytes called from 0x000283b6 with crng_init=0
-> VFS: Mounted root (romfs filesystem) readonly on device 31:0.
-> Freeing unused kernel memory: 56K
-> This architecture does not have kernel memory protection.
-> 
-> Regards
-> Greg
-> 
+(FYI, the version->version changes normally go under the "---" line.
+I'll remove them when I apply this patch, so no need to resend.)
+
+-Kees
+
+> ---
+>  .../admin-guide/kernel-parameters.txt         | 11 ++++++++
+>  include/linux/jump_label.h                    |  6 +++++
+>  mm/usercopy.c                                 | 25 +++++++++++++++++++
+>  3 files changed, 42 insertions(+)
+>
+> diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+> index efc7aa7a0670..560d4dc66f02 100644
+> --- a/Documentation/admin-guide/kernel-parameters.txt
+> +++ b/Documentation/admin-guide/kernel-parameters.txt
+> @@ -816,6 +816,17 @@
+>         disable=        [IPV6]
+>                         See Documentation/networking/ipv6.txt.
+>
+> +       hardened_usercopy=
+> +                        [KNL] Under CONFIG_HARDENED_USERCOPY, whether
+> +                        hardening is enabled for this boot. Hardened
+> +                        usercopy checking is used to protect the kernel
+> +                        from reading or writing beyond known memory
+> +                        allocation boundaries as a proactive defense
+> +                        against bounds-checking flaws in the kernel's
+> +                        copy_to_user()/copy_from_user() interface.
+> +                on      Perform hardened usercopy checks (default).
+> +                off     Disable hardened usercopy checks.
+> +
+>         disable_radix   [PPC]
+>                         Disable RADIX MMU mode on POWER9
+>
+> diff --git a/include/linux/jump_label.h b/include/linux/jump_label.h
+> index b46b541c67c4..1a0b6f17a5d6 100644
+> --- a/include/linux/jump_label.h
+> +++ b/include/linux/jump_label.h
+> @@ -299,12 +299,18 @@ struct static_key_false {
+>  #define DEFINE_STATIC_KEY_TRUE(name)   \
+>         struct static_key_true name = STATIC_KEY_TRUE_INIT
+>
+> +#define DEFINE_STATIC_KEY_TRUE_RO(name)        \
+> +       struct static_key_true name __ro_after_init = STATIC_KEY_TRUE_INIT
+> +
+>  #define DECLARE_STATIC_KEY_TRUE(name)  \
+>         extern struct static_key_true name
+>
+>  #define DEFINE_STATIC_KEY_FALSE(name)  \
+>         struct static_key_false name = STATIC_KEY_FALSE_INIT
+>
+> +#define DEFINE_STATIC_KEY_FALSE_RO(name)       \
+> +       struct static_key_false name __ro_after_init = STATIC_KEY_FALSE_INIT
+> +
+>  #define DECLARE_STATIC_KEY_FALSE(name) \
+>         extern struct static_key_false name
+>
+> diff --git a/mm/usercopy.c b/mm/usercopy.c
+> index e9e9325f7638..852eb4e53f06 100644
+> --- a/mm/usercopy.c
+> +++ b/mm/usercopy.c
+> @@ -20,6 +20,8 @@
+>  #include <linux/sched/task.h>
+>  #include <linux/sched/task_stack.h>
+>  #include <linux/thread_info.h>
+> +#include <linux/atomic.h>
+> +#include <linux/jump_label.h>
+>  #include <asm/sections.h>
+>
+>  /*
+> @@ -240,6 +242,8 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
+>         }
+>  }
+>
+> +static DEFINE_STATIC_KEY_FALSE_RO(bypass_usercopy_checks);
+> +
+>  /*
+>   * Validates that the given object is:
+>   * - not bogus address
+> @@ -248,6 +252,9 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
+>   */
+>  void __check_object_size(const void *ptr, unsigned long n, bool to_user)
+>  {
+> +       if (static_branch_unlikely(&bypass_usercopy_checks))
+> +               return;
+> +
+>         /* Skip all tests if size is zero. */
+>         if (!n)
+>                 return;
+> @@ -279,3 +286,21 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
+>         check_kernel_text_object((const unsigned long)ptr, n, to_user);
+>  }
+>  EXPORT_SYMBOL(__check_object_size);
+> +
+> +static bool enable_checks __initdata = true;
+> +
+> +static int __init parse_hardened_usercopy(char *str)
+> +{
+> +       return strtobool(str, &enable_checks);
+> +}
+> +
+> +__setup("hardened_usercopy=", parse_hardened_usercopy);
+> +
+> +static int __init set_hardened_usercopy(void)
+> +{
+> +       if (enable_checks == false)
+> +               static_branch_enable(&bypass_usercopy_checks);
+> +       return 1;
+> +}
+> +
+> +late_initcall(set_hardened_usercopy);
+> --
+> 2.17.0
+>
+
+
 
 -- 
-Sincerely yours,
-Mike.
+Kees Cook
+Pixel Security
