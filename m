@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F4566B0269
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 02:52:04 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id f9-v6so1217583pfn.22
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 23:52:04 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id a7-v6si3071668pfg.200.2018.07.03.23.52.02
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EF7736B026B
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 02:52:09 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id n3-v6so2019449pgp.21
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 23:52:09 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id b17-v6si2731581pls.467.2018.07.03.23.52.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jul 2018 23:52:03 -0700 (PDT)
+        Tue, 03 Jul 2018 23:52:08 -0700 (PDT)
 From: Zhang Yi <yi.z.zhang@linux.intel.com>
-Subject: [PATCH 2/3] mm: introduce memory type MEMORY_DEVICE_DEV_DAX
-Date: Wed,  4 Jul 2018 23:30:19 +0800
-Message-Id: <5c7996b8e6d31541f3185f8e4064ff97582c86f8.1530716899.git.yi.z.zhang@linux.intel.com>
+Subject: [PATCH 1/3] kvm: remove redundant reserved page check
+Date: Wed,  4 Jul 2018 23:30:11 +0800
+Message-Id: <3266d45a10db6d22e3978eacbe2683d43aec3100.1530716899.git.yi.z.zhang@linux.intel.com>
 In-Reply-To: <cover.1530716899.git.yi.z.zhang@linux.intel.com>
 References: <cover.1530716899.git.yi.z.zhang@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,43 +20,33 @@ List-ID: <linux-mm.kvack.org>
 To: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pbonzini@redhat.com, dan.j.williams@intel.com, jack@suse.cz, hch@lst.de, yu.c.zhang@intel.com
 Cc: linux-mm@kvack.org, rkrcmar@redhat.com, yi.z.zhang@intel.com, Zhang Yi <yi.z.zhang@linux.intel.com>
 
-Currently, NVDIMM pages will be marked 'PageReserved'. However, unlike
-other reserved PFNs, pages on NVDIMM shall still behave like normal ones
-in many cases, i.e. when used as backend memory of KVM guest. This patch
-introduces a new memory type, MEMORY_DEVICE_DEV_DAX. Together with the
-existing type MEMORY_DEVICE_FS_DAX, we can differentiate the pages on
-NVDIMM with the normal reserved pages.
+PageReserved() is already checked inside kvm_is_reserved_pfn(),
+remove it from kvm_set_pfn_dirty().
 
 Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
 Signed-off-by: Zhang Yu <yu.c.zhang@linux.intel.com>
 ---
- drivers/dax/pmem.c       | 1 +
- include/linux/memremap.h | 1 +
- 2 files changed, 2 insertions(+)
+ virt/kvm/kvm_main.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/dax/pmem.c b/drivers/dax/pmem.c
-index fd49b24..fb3f363 100644
---- a/drivers/dax/pmem.c
-+++ b/drivers/dax/pmem.c
-@@ -111,6 +111,7 @@ static int dax_pmem_probe(struct device *dev)
- 		return rc;
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index c7b2e92..afb2e6e 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -1673,12 +1673,8 @@ EXPORT_SYMBOL_GPL(kvm_release_pfn_dirty);
  
- 	dax_pmem->pgmap.ref = &dax_pmem->ref;
-+	dax_pmem->pgmap.type = MEMORY_DEVICE_DEV_DAX;
- 	addr = devm_memremap_pages(dev, &dax_pmem->pgmap);
- 	if (IS_ERR(addr))
- 		return PTR_ERR(addr);
-diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-index 5ebfff6..4127bf7 100644
---- a/include/linux/memremap.h
-+++ b/include/linux/memremap.h
-@@ -58,6 +58,7 @@ enum memory_type {
- 	MEMORY_DEVICE_PRIVATE = 1,
- 	MEMORY_DEVICE_PUBLIC,
- 	MEMORY_DEVICE_FS_DAX,
-+	MEMORY_DEVICE_DEV_DAX,
- };
+ void kvm_set_pfn_dirty(kvm_pfn_t pfn)
+ {
+-	if (!kvm_is_reserved_pfn(pfn)) {
+-		struct page *page = pfn_to_page(pfn);
+-
+-		if (!PageReserved(page))
+-			SetPageDirty(page);
+-	}
++	if (!kvm_is_reserved_pfn(pfn))
++		SetPageDirty(pfn_to_page(pfn));
+ }
+ EXPORT_SYMBOL_GPL(kvm_set_pfn_dirty);
  
- /*
 -- 
 2.7.4
