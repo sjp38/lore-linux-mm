@@ -1,63 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EDCBA6B0275
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 10:50:19 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id 61-v6so430793otj.11
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 07:50:19 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p186-v6sor2469449oia.99.2018.07.04.07.50.18
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 89FA06B0277
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 10:56:14 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id j189-v6so6490211qkf.0
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 07:56:14 -0700 (PDT)
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30136.outbound.protection.outlook.com. [40.107.3.136])
+        by mx.google.com with ESMTPS id e6-v6si555624qvj.61.2018.07.04.07.56.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 04 Jul 2018 07:50:18 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 04 Jul 2018 07:56:13 -0700 (PDT)
+Subject: Re: [PATCH v8 14/17] mm: Iterate only over charged shrinkers during
+ memcg shrink_slab()
+References: <153063036670.1818.16010062622751502.stgit@localhost.localdomain>
+ <153063066653.1818.976035462801487910.stgit@localhost.localdomain>
+ <20180703135813.ed4eef6a4a2df32fa1085e4c@linux-foundation.org>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <3fca0622-6f70-25eb-b023-2046c52734b7@virtuozzo.com>
+Date: Wed, 4 Jul 2018 17:56:04 +0300
 MIME-Version: 1.0
-In-Reply-To: <5c7996b8e6d31541f3185f8e4064ff97582c86f8.1530716899.git.yi.z.zhang@linux.intel.com>
-References: <cover.1530716899.git.yi.z.zhang@linux.intel.com> <5c7996b8e6d31541f3185f8e4064ff97582c86f8.1530716899.git.yi.z.zhang@linux.intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 4 Jul 2018 07:50:18 -0700
-Message-ID: <CAPcyv4gjFVG7tHv65Z=FsZ9=5wXDxNWawFJqO8MkyMudch4zDw@mail.gmail.com>
-Subject: Re: [PATCH 2/3] mm: introduce memory type MEMORY_DEVICE_DEV_DAX
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180703135813.ed4eef6a4a2df32fa1085e4c@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yi <yi.z.zhang@linux.intel.com>
-Cc: KVM list <kvm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Paolo Bonzini <pbonzini@redhat.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, "Zhang, Yu C" <yu.c.zhang@intel.com>, Linux MM <linux-mm@kvack.org>, rkrcmar@redhat.com, "Zhang, Yi Z" <yi.z.zhang@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-On Wed, Jul 4, 2018 at 8:30 AM, Zhang Yi <yi.z.zhang@linux.intel.com> wrote:
-> Currently, NVDIMM pages will be marked 'PageReserved'. However, unlike
-> other reserved PFNs, pages on NVDIMM shall still behave like normal ones
-> in many cases, i.e. when used as backend memory of KVM guest. This patch
-> introduces a new memory type, MEMORY_DEVICE_DEV_DAX. Together with the
-> existing type MEMORY_DEVICE_FS_DAX, we can differentiate the pages on
-> NVDIMM with the normal reserved pages.
->
-> Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
-> Signed-off-by: Zhang Yu <yu.c.zhang@linux.intel.com>
-> ---
->  drivers/dax/pmem.c       | 1 +
->  include/linux/memremap.h | 1 +
->  2 files changed, 2 insertions(+)
->
-> diff --git a/drivers/dax/pmem.c b/drivers/dax/pmem.c
-> index fd49b24..fb3f363 100644
-> --- a/drivers/dax/pmem.c
-> +++ b/drivers/dax/pmem.c
-> @@ -111,6 +111,7 @@ static int dax_pmem_probe(struct device *dev)
->                 return rc;
->
->         dax_pmem->pgmap.ref = &dax_pmem->ref;
-> +       dax_pmem->pgmap.type = MEMORY_DEVICE_DEV_DAX;
->         addr = devm_memremap_pages(dev, &dax_pmem->pgmap);
->         if (IS_ERR(addr))
->                 return PTR_ERR(addr);
-> diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-> index 5ebfff6..4127bf7 100644
-> --- a/include/linux/memremap.h
-> +++ b/include/linux/memremap.h
-> @@ -58,6 +58,7 @@ enum memory_type {
->         MEMORY_DEVICE_PRIVATE = 1,
->         MEMORY_DEVICE_PUBLIC,
->         MEMORY_DEVICE_FS_DAX,
-> +       MEMORY_DEVICE_DEV_DAX,
+On 03.07.2018 23:58, Andrew Morton wrote:
+> On Tue, 03 Jul 2018 18:11:06 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+> 
+>> Using the preparations made in previous patches, in case of memcg
+>> shrink, we may avoid shrinkers, which are not set in memcg's shrinkers
+>> bitmap. To do that, we separate iterations over memcg-aware and
+>> !memcg-aware shrinkers, and memcg-aware shrinkers are chosen
+>> via for_each_set_bit() from the bitmap. In case of big nodes,
+>> having many isolated environments, this gives significant
+>> performance growth. See next patches for the details.
+>>
+>> Note, that the patch does not respect to empty memcg shrinkers,
+>> since we never clear the bitmap bits after we set it once.
+>> Their shrinkers will be called again, with no shrinked objects
+>> as result. This functionality is provided by next patches.
+>>
+>> ...
+>>
+>> @@ -541,6 +555,67 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+>>  	return freed;
+>>  }
+>>  
+>> +#ifdef CONFIG_MEMCG_KMEM
+>> +static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+>> +			struct mem_cgroup *memcg, int priority)
+>> +{
+>> +	struct memcg_shrinker_map *map;
+>> +	unsigned long freed = 0;
+>> +	int ret, i;
+>> +
+>> +	if (!memcg_kmem_enabled() || !mem_cgroup_online(memcg))
+>> +		return 0;
+>> +
+>> +	if (!down_read_trylock(&shrinker_rwsem))
+>> +		return 0;
+> 
+> Why trylock?  Presumably some other code path is known to hold the lock
+> for long periods?  Dunno.
 
-Please add documentation for this new type to the comment block about
-this definition.
+We take shrinker_rwsem in prealloc_memcg_shrinker() and do memory allocation
+there. It may result in reclaim under shrinker_rwsem write locked, so we use
+down_read_trylock() to avoid deadlocks. The first versions of the patchset
+contained different lock for this function, but it has gone in the process
+of review.
+
+>Comment it, please.
+
+OK
+
+>> +	/*
+>> +	 * 1) Caller passes only alive memcg, so map can't be NULL.
+>> +	 * 2) shrinker_rwsem protects from maps expanding.
+>> +	 */
+>> +	map = rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_map,
+>> +					true);
+>> +	BUG_ON(!map);
+>> +
+>> +	for_each_set_bit(i, map->map, shrinker_nr_max) {
+>> +		struct shrink_control sc = {
+>> +			.gfp_mask = gfp_mask,
+>> +			.nid = nid,
+>> +			.memcg = memcg,
+>> +		};
+>> +		struct shrinker *shrinker;
+>> +
+>> +		shrinker = idr_find(&shrinker_idr, i);
+>> +		if (unlikely(!shrinker)) {
+>> +			clear_bit(i, map->map);
+>> +			continue;
+>> +		}
+>> +		BUG_ON(!(shrinker->flags & SHRINKER_MEMCG_AWARE));
+> 
+> Fair enough as a development-time sanity check but we shouldn't need
+> this in production code.  Or make it VM_BUG_ON(), at least.
+
+OK
+
+>> +		/* See comment in prealloc_shrinker() */
+>> +		if (unlikely(list_empty(&shrinker->list)))
+>> +			continue;
+>> +
+>> +		ret = do_shrink_slab(&sc, shrinker, priority);
+>> +		freed += ret;
+>> +
+>> +		if (rwsem_is_contended(&shrinker_rwsem)) {
+>> +			freed = freed ? : 1;
+>> +			break;
+>> +		}
+>> +	}
+>> +
+>> +	up_read(&shrinker_rwsem);
+>> +	return freed;
+>> +}
+> 
