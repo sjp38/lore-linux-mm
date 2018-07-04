@@ -1,56 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 59E7E6B0010
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 22:25:00 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id u16-v6so1954170pfm.15
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 19:25:00 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id h3-v6si2563613plk.47.2018.07.03.19.24.58
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8293A6B0269
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 22:25:44 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id q192-v6so171598lfe.3
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 19:25:44 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i20-v6sor661380lfe.76.2018.07.03.19.25.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jul 2018 19:24:59 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -v4 08/21] mm, THP, swap: Support to read a huge swap cluster for swapin a THP
-References: <20180622035151.6676-1-ying.huang@intel.com>
-	<20180622035151.6676-9-ying.huang@intel.com>
-	<20180704001235.w7xexi3jp6ostas5@ca-dmjordan1.us.oracle.com>
-Date: Wed, 04 Jul 2018 10:24:46 +0800
-In-Reply-To: <20180704001235.w7xexi3jp6ostas5@ca-dmjordan1.us.oracle.com>
-	(Daniel Jordan's message of "Tue, 3 Jul 2018 17:12:35 -0700")
-Message-ID: <874lhfvitt.fsf@yhuang-dev.intel.com>
+        (Google Transport Security);
+        Tue, 03 Jul 2018 19:25:42 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+References: <1530376739-20459-1-git-send-email-ufo19890607@gmail.com> <CAHp75VdaEJgYFUX_MkthFPhimVtJStcinm1P4S-iGfJHvSeiyA@mail.gmail.com>
+In-Reply-To: <CAHp75VdaEJgYFUX_MkthFPhimVtJStcinm1P4S-iGfJHvSeiyA@mail.gmail.com>
+From: =?UTF-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>
+Date: Wed, 4 Jul 2018 10:25:30 +0800
+Message-ID: <CAHCio2jv-xtnNbJ8beokueh-VQ6zZgF1hAFBJKHCNyuOuz2KxA@mail.gmail.com>
+Subject: Re: [PATCH v11 1/2] Refactor part of the oom report in dump_header
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
+To: andy.shevchenko@gmail.com
+Cc: akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
 
-Daniel Jordan <daniel.m.jordan@oracle.com> writes:
+Hi Andy
+The const char array need to be used by the new func
+mem_cgroup_print_oom_context and some funcs in oom_kill.c in the
+second patch.
 
-> On Fri, Jun 22, 2018 at 11:51:38AM +0800, Huang, Ying wrote:
->> @@ -411,14 +414,32 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
-> ...
->> +			if (thp_swap_supported() && huge_cluster) {
->> +				gfp_t gfp = alloc_hugepage_direct_gfpmask(vma);
->> +
->> +				new_page = alloc_hugepage_vma(gfp, vma,
->> +						addr, HPAGE_PMD_ORDER);
->
-> When allocating a huge page, we ignore the gfp_mask argument.
->
-> That doesn't matter right now since AFAICT we're not losing any flags: gfp_mask
-> from existing callers of __read_swap_cache_async seems to always be a subset of
-> GFP_HIGHUSER_MOVABLE and alloc_hugepage_direct_gfpmask always returns a
-> superset of that.
->
-> But maybe we should warn here in case we end up violating a restriction from a
-> future caller.  Something like this?:
->
->> +				gfp_t gfp = alloc_hugepage_direct_gfpmask(vma);
->                                 VM_WARN_ONCE((gfp | gfp_mask) != gfp,
-> 					     "ignoring gfp_mask bits");
+Thanks
 
-This looks good!  Thanks!  Will add this.
-
-Best Regards,
-Huang, Ying
+>
+> On Sat, Jun 30, 2018 at 7:38 PM,  <ufo19890607@gmail.com> wrote:
+> > From: yuzhoujian <yuzhoujian@didichuxing.com>
+> >
+> > The current system wide oom report prints information about the victim
+> > and the allocation context and restrictions. It, however, doesn't
+> > provide any information about memory cgroup the victim belongs to. This
+> > information can be interesting for container users because they can fin=
+d
+> > the victim's container much more easily.
+> >
+> > I follow the advices of David Rientjes and Michal Hocko, and refactor
+> > part of the oom report. After this patch, users can get the memcg's
+> > path from the oom report and check the certain container more quickly.
+> >
+> > The oom print info after this patch:
+> > oom-kill:constraint=3D<constraint>,nodemask=3D<nodemask>,oom_memcg=3D<m=
+emcg>,task_memcg=3D<memcg>,task=3D<comm>,pid=3D<pid>,uid=3D<uid>
+>
+>
+> > +static const char * const oom_constraint_text[] =3D {
+> > +       [CONSTRAINT_NONE] =3D "CONSTRAINT_NONE",
+> > +       [CONSTRAINT_CPUSET] =3D "CONSTRAINT_CPUSET",
+> > +       [CONSTRAINT_MEMORY_POLICY] =3D "CONSTRAINT_MEMORY_POLICY",
+> > +       [CONSTRAINT_MEMCG] =3D "CONSTRAINT_MEMCG",
+> > +};
+>
+> I'm not sure why we have this in the header.
+>
+> This produces a lot of noise when W=3D1.
+>
+> In file included from
+> /home/andy/prj/linux-topic-mfld/include/linux/memcontrol.h:31:0,
+>                 from /home/andy/prj/linux-topic-mfld/include/net/sock.h:5=
+8,
+>                 from /home/andy/prj/linux-topic-mfld/include/linux/tcp.h:=
+23,
+>                 from /home/andy/prj/linux-topic-mfld/include/linux/ipv6.h=
+:87,
+>                 from /home/andy/prj/linux-topic-mfld/include/net/ipv6.h:1=
+6,
+>                 from
+> /home/andy/prj/linux-topic-mfld/net/ipv4/netfilter/nf_log_ipv4.c:17:
+> /home/andy/prj/linux-topic-mfld/include/linux/oom.h:32:27: warning:
+> =E2=80=98oom_constraint_text=E2=80=99 defined but not used [-W
+> unused-const-variable=3D]
+> static const char * const oom_constraint_text[] =3D {
+>                           ^~~~~~~~~~~~~~~~~~~
+>  CC [M]  net/ipv4/netfilter/iptable_nat.o
+>
+>
+> If you need (but looking at the code you actually don't if I didn't
+> miss anything) it in several places, just export.
+> Otherwise put it back to memcontrol.c.
+>
+> --
+> With Best Regards,
+> Andy Shevchenko
