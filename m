@@ -1,68 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CB91B6B026E
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 10:36:55 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id r58-v6so3814007otr.0
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 07:36:55 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y57-v6si1079941oty.399.2018.07.04.07.36.54
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C1C4D6B0270
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 10:44:26 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id g82-v6so1331540lfg.4
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 07:44:26 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h7-v6sor1027670lfl.100.2018.07.04.07.44.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jul 2018 07:36:54 -0700 (PDT)
-Date: Wed, 4 Jul 2018 10:36:49 -0400
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH] mm: be more informative in OOM task list
-Message-ID: <20180704143649.GE31826@xps>
-References: <7de14c6cac4a486c04149f37948e3a76028f3fa5.1530461087.git.rfreire@redhat.com>
- <alpine.DEB.2.21.1807031832540.110853@chino.kir.corp.google.com>
+        (Google Transport Security);
+        Wed, 04 Jul 2018 07:44:25 -0700 (PDT)
+Date: Wed, 4 Jul 2018 17:44:22 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re:
+Message-ID: <20180704144422.geugzjycujftwwd7@esperanza>
+References: <20180624200907.ufjxk6l2biz6xcm2@esperanza>
+ <20180703145235.28050-1-bigeasy@linutronix.de>
+ <20180703141429.c752e3342426b9f8d48ef255@linux-foundation.org>
+ <20180703214429.tntoxzb66zikhukc@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1807031832540.110853@chino.kir.corp.google.com>
+In-Reply-To: <20180703214429.tntoxzb66zikhukc@linutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Rodrigo Freire <rfreire@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, tglx@linutronix.de, Kirill Tkhai <ktkhai@virtuozzo.com>
 
-On Tue, Jul 03, 2018 at 06:34:48PM -0700, David Rientjes wrote:
-> On Sun, 1 Jul 2018, Rodrigo Freire wrote:
-> 
-> > The default page memory unit of OOM task dump events might not be
-> > intuitive for the non-initiated when debugging OOM events. Add
-> > a small printk prior to the task dump informing that the memory
-> > units are actually memory _pages_.
+On Tue, Jul 03, 2018 at 11:44:29PM +0200, Sebastian Andrzej Siewior wrote:
+> On 2018-07-03 14:14:29 [-0700], Andrew Morton wrote:
 > > 
-> > Signed-off-by: Rodrigo Freire <rfreire@redhat.com>
-> > ---
-> >  mm/oom_kill.c | 1 +
-> >  1 file changed, 1 insertion(+)
+> > > Reply-To: "[PATCH 0/4] mm/list_lru": add.list_lru_shrink_walk_irq@mail.linuxfoundation.org.and.use.it ()
 > > 
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > index 84081e7..b4d9557 100644
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -392,6 +392,7 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
-> >  	struct task_struct *p;
-> >  	struct task_struct *task;
-> >  
-> > +	pr_info("Tasks state (memory values in pages):\n");
-> >  	pr_info("[ pid ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name\n");
-> >  	rcu_read_lock();
-> >  	for_each_process(p) {
+> > Well that's messed up.
 > 
-> As the author of dump_tasks(), and having seen these values misinterpreted 
-> on more than one occassion, I think this is a valuable addition.
+> indeed it is. This should get into Subject:
 > 
-> Could you also expand out the "pid" field to allow for seven digits 
-> instead of five?  I think everything else is aligned.
+> > On Tue,  3 Jul 2018 16:52:31 +0200 Sebastian Andrzej Siewior <bigeasy@linutronix.de> wrote:
+> > 
+> > > My intepretation of situtation is that Vladimir Davydon is fine patch #1
+> > > and #2 of the series [0] but dislikes the irq argument and struct
+> > > member. It has been suggested to use list_lru_shrink_walk_irq() instead
+> > > the approach I went on in "mm: list_lru: Add lock_irq member to
+> > > __list_lru_init()".
+> > > 
+> > > This series is based on the former two patches and introduces
+> > > list_lru_shrink_walk_irq() (and makes the third patch of series
+> > > obsolete).
+> > > In patch 1-3 I tried a tiny cleanup so the different locking
+> > > (spin_lock() vs spin_lock_irq()) is simply lifted to the caller of the
+> > > function.
+> > > 
+> > > [0] The patch
+> > >       mm: workingset: remove local_irq_disable() from count_shadow_nodes() 
+> > >    and
+> > >       mm: workingset: make shadow_lru_isolate() use locking suffix
+> > > 
+> > 
+> > This isn't a very informative [0/n] changelog.  Some overall summary of
+> > the patchset's objective, behaviour, use cases, testing results, etc.
 > 
-> Feel free to add
+> The patches should be threaded as a reply to 3/3 of the series so I
+> assumed it was enough. And while Vladimir complained about 2/3 and 3/3
+> the discussion went on in 2/3 where he suggested to go on with the _irq
+> function. And testing, well with and without RT the function was invoked
+> as part of swapping (allocating memory until OOM) without complains.
 > 
-> Acked-by: David Rientjes <rientjes@google.com>
+> > I'm seeing significant conflicts with Kirill's "Improve shrink_slab()
+> > scalability (old complexity was O(n^2), new is O(n))" series, which I
+> > merged eight milliseconds ago.  Kirill's patchset is large but fairly
+> > straightforward so I expect it's good for 4.18.  So I suggest we leave
+> > things a week or more then please take a look at redoing this patchset
+> > on top of that work?  
 > 
-> to a v2.
->
+> If Vladimir is okay with to redo and nobody else complains then I could
+> rebase these four patches on top of your tree next week.
 
-Same here, for a v2:
- 
-Acked-by: Rafael Aquini <aquini@redhat.com>
+IMHO this approach is more straightforward than the one with the per
+list_lru flag. For all patches,
+
+Reviewed-by: Vladimir Davydov <vdavydov.dev@gmail.com>
