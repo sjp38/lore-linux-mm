@@ -1,86 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7ED286B000D
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 03:22:30 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id c2-v6so1835673edi.20
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 00:22:30 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f20-v6si365781edt.166.2018.07.04.00.22.28
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 57AE06B0010
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 03:23:14 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id b17-v6so892065pff.17
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 00:23:14 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x32-v6sor976438pld.141.2018.07.04.00.23.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jul 2018 00:22:29 -0700 (PDT)
-Date: Wed, 4 Jul 2018 09:22:28 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/8] OOM killer/reaper changes for avoiding OOM lockup
- problem.
-Message-ID: <20180704072228.GC22503@dhcp22.suse.cz>
-References: <20180703151223.GP16767@dhcp22.suse.cz>
- <20180703152922.GR16767@dhcp22.suse.cz>
- <201807040222.w642Mtlr099513@www262.sakura.ne.jp>
- <20180704071632.GB22503@dhcp22.suse.cz>
+        (Google Transport Security);
+        Wed, 04 Jul 2018 00:23:13 -0700 (PDT)
+Date: Wed, 4 Jul 2018 16:23:08 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] mm/memblock: replace u64 with phys_addr_t where
+ appropriate
+Message-ID: <20180704072308.GA458@jagdpanzerIV>
+References: <1530637506-1256-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <20180703125722.6fd0f02b27c01f5684877354@linux-foundation.org>
+ <063c785caa11b8e1c421c656b2a030d45d6eb68f.camel@perches.com>
+ <20180704070305.GB4352@rapoport-lnx>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180704071632.GB22503@dhcp22.suse.cz>
+In-Reply-To: <20180704070305.GB4352@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: penguin-kernel@i-love.sakura.ne.jp
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Joe Perches <joe@perches.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Wed 04-07-18 09:16:32, Michal Hocko wrote:
-> On Wed 04-07-18 11:22:55, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > > On Tue 03-07-18 23:25:01, Tetsuo Handa wrote:
-> > > > > This series provides
-> > > > > 
-> > > > >   (1) Mitigation and a fix for CVE-2016-10723.
-> > > > > 
-> > > > >   (2) A mitigation for needlessly selecting next OOM victim reported
-> > > > >       by David Rientjes and rejected by Michal Hocko.
-> > > > > 
-> > > > >   (3) A preparation for handling many concurrent OOM victims which
-> > > > >       could become real by introducing memcg-aware OOM killer.
-> > > > 
-> > > > It would have been great to describe the overal design in the cover
-> > > > letter. So let me summarize just to be sure I understand the proposal.
+On (07/04/18 10:03), Mike Rapoport wrote:
+> > %p[Ff] got deprecated by commit 04b8eb7a4ccd9ef9343e2720ccf2a5db8cfe2f67
 > > 
-> > You understood the proposal correctly.
+> > I think it'd be simplest to just convert
+> > all the %pF and %pf uses all at once.
 > > 
-> > > > You are removing the oom_reaper and moving the oom victim tear down to
-> > > > the oom path.
+> > $ git grep --name-only "%p[Ff]" | \
+> >   xargs sed -i -e 's/%pF/%pS/' -e 's/%pf/%ps/'
 > > 
-> > Yes. This is for getting rid of the lie
+> > and remove the appropriate Documentation bit.
 > > 
-> > 	/*
-> > 	 * Acquire the oom lock.  If that fails, somebody else is
-> > 	 * making progress for us.
-> > 	 */
-> > 	if (!mutex_trylock(&oom_lock)) {
-> > 		*did_some_progress = 1;
-> > 		schedule_timeout_uninterruptible(1);
-> > 		return NULL;
-> > 	}
-> > 
-> > which is leading to CVE-2016-10723. By reclaiming from the OOM killer path,
-> > we can eliminate this heuristic.
-> > 
-> > Of course, we don't have to remove the OOM reaper kernel thread.
 > 
-> The thing is that the current design uses the oom_reaper only as a
-> backup to get situation unstuck. Once you move all that heavy lifting
-> into the oom path directly then you will have to handle all sorts of
-> issues. E.g. how do you handle that a random process hitting OOM path
-> has to pay the full price to tear down multi TB process? This is a lot
-> of time.
+> Something like this:
+> 
+> From 0d3e7cf494123c2640b9a892160d2e2430787004 Mon Sep 17 00:00:00 2001
+> From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> Date: Wed, 4 Jul 2018 09:55:50 +0300
+> Subject: [PATCH] treewide: retire '%pF/%pf'
+> 
+> %p[Ff] got deprecated by commit 04b8eb7a4ccd9ef9343e2720ccf2a5db8cfe2f67
+> ("symbol lookup: introduce dereference_symbol_descriptor()")
+> 
+> Replace their uses with %p[Ss] with
+> 
+> $ git grep --name-only "%p[Ff]" | \
+>   xargs sed -i -e 's/%pF/%pS/' -e 's/%pf/%ps/'
 
-And one more thing. Your current design doesn't solve any of the current
-shortcomings. mlocked pages are still not reclaimable from the direct
-oom tear down. Blockable mmu notifiers still prevent the direct tear
-down. So the only thing that you achieve with a large and disruptive
-patch is that the exit vs. oom locking protocol got simplified and that
-you can handle oom domains from tasks belonging to them. This is not bad
-but it has its own downsides which either fail to see or reluctant to
-describe and explain.
--- 
-Michal Hocko
-SUSE Labs
+
+Sorry, NACK on lib/vsprintf.c part
+
+I definitely didn't want to do this tree-wide pf->ps conversion when
+I introduced my patch set. pf/pF should have never existed, true,
+but I think we must support pf/pF in vsprintf(). Simply because it
+has been around for *far* too long. People tend to develop "habits",
+you know, I'm quite sure ppc/hppa/etc folks still do [and will] use
+pf/pF occasionally.
+
+	-ss
