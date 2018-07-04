@@ -1,90 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8293A6B0269
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 22:25:44 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id q192-v6so171598lfe.3
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 19:25:44 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6044F6B026B
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 22:27:40 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id z5-v6so2200949pln.20
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 19:27:40 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i20-v6sor661380lfe.76.2018.07.03.19.25.42
+        by mx.google.com with SMTPS id w2-v6sor892632plp.121.2018.07.03.19.27.39
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 03 Jul 2018 19:25:42 -0700 (PDT)
+        Tue, 03 Jul 2018 19:27:39 -0700 (PDT)
+Date: Wed, 4 Jul 2018 11:27:34 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH -mm -v4 00/21] mm, THP, swap: Swapout/swapin THP in one
+ piece
+Message-ID: <20180704022734.GB3346@jagdpanzerIV>
+References: <20180622035151.6676-1-ying.huang@intel.com>
+ <20180627215144.73e98b01099191da59bff28c@linux-foundation.org>
+ <20180704021153.GA3346@jagdpanzerIV>
+ <878t6rvj12.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-References: <1530376739-20459-1-git-send-email-ufo19890607@gmail.com> <CAHp75VdaEJgYFUX_MkthFPhimVtJStcinm1P4S-iGfJHvSeiyA@mail.gmail.com>
-In-Reply-To: <CAHp75VdaEJgYFUX_MkthFPhimVtJStcinm1P4S-iGfJHvSeiyA@mail.gmail.com>
-From: =?UTF-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>
-Date: Wed, 4 Jul 2018 10:25:30 +0800
-Message-ID: <CAHCio2jv-xtnNbJ8beokueh-VQ6zZgF1hAFBJKHCNyuOuz2KxA@mail.gmail.com>
-Subject: Re: [PATCH v11 1/2] Refactor part of the oom report in dump_header
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <878t6rvj12.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: andy.shevchenko@gmail.com
-Cc: akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-Hi Andy
-The const char array need to be used by the new func
-mem_cgroup_print_oom_context and some funcs in oom_kill.c in the
-second patch.
+On (07/04/18 10:20), Huang, Ying wrote:
+> > On (06/27/18 21:51), Andrew Morton wrote:
+> >> On Fri, 22 Jun 2018 11:51:30 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
+> >> 
+> >> > This is the final step of THP (Transparent Huge Page) swap
+> >> > optimization.  After the first and second step, the splitting huge
+> >> > page is delayed from almost the first step of swapout to after swapout
+> >> > has been finished.  In this step, we avoid splitting THP for swapout
+> >> > and swapout/swapin the THP in one piece.
+> >> 
+> >> It's a tremendously good performance improvement.  It's also a
+> >> tremendously large patchset :(
+> >
+> > Will zswap gain a THP swap out/in support at some point?
+> >
+> >
+> > mm/zswap.c: static int zswap_frontswap_store(...)
+> > ...
+> > 	/* THP isn't supported */
+> > 	if (PageTransHuge(page)) {
+> > 		ret = -EINVAL;
+> > 		goto reject;
+> > 	}
+> 
+> That's not on my TODO list.  Do you have interest to work on this?
 
-Thanks
+I'd say I'm interested. Can't promise that I'll have enough spare time
+any time soon, tho.
 
->
-> On Sat, Jun 30, 2018 at 7:38 PM,  <ufo19890607@gmail.com> wrote:
-> > From: yuzhoujian <yuzhoujian@didichuxing.com>
-> >
-> > The current system wide oom report prints information about the victim
-> > and the allocation context and restrictions. It, however, doesn't
-> > provide any information about memory cgroup the victim belongs to. This
-> > information can be interesting for container users because they can fin=
-d
-> > the victim's container much more easily.
-> >
-> > I follow the advices of David Rientjes and Michal Hocko, and refactor
-> > part of the oom report. After this patch, users can get the memcg's
-> > path from the oom report and check the certain container more quickly.
-> >
-> > The oom print info after this patch:
-> > oom-kill:constraint=3D<constraint>,nodemask=3D<nodemask>,oom_memcg=3D<m=
-emcg>,task_memcg=3D<memcg>,task=3D<comm>,pid=3D<pid>,uid=3D<uid>
->
->
-> > +static const char * const oom_constraint_text[] =3D {
-> > +       [CONSTRAINT_NONE] =3D "CONSTRAINT_NONE",
-> > +       [CONSTRAINT_CPUSET] =3D "CONSTRAINT_CPUSET",
-> > +       [CONSTRAINT_MEMORY_POLICY] =3D "CONSTRAINT_MEMORY_POLICY",
-> > +       [CONSTRAINT_MEMCG] =3D "CONSTRAINT_MEMCG",
-> > +};
->
-> I'm not sure why we have this in the header.
->
-> This produces a lot of noise when W=3D1.
->
-> In file included from
-> /home/andy/prj/linux-topic-mfld/include/linux/memcontrol.h:31:0,
->                 from /home/andy/prj/linux-topic-mfld/include/net/sock.h:5=
-8,
->                 from /home/andy/prj/linux-topic-mfld/include/linux/tcp.h:=
-23,
->                 from /home/andy/prj/linux-topic-mfld/include/linux/ipv6.h=
-:87,
->                 from /home/andy/prj/linux-topic-mfld/include/net/ipv6.h:1=
-6,
->                 from
-> /home/andy/prj/linux-topic-mfld/net/ipv4/netfilter/nf_log_ipv4.c:17:
-> /home/andy/prj/linux-topic-mfld/include/linux/oom.h:32:27: warning:
-> =E2=80=98oom_constraint_text=E2=80=99 defined but not used [-W
-> unused-const-variable=3D]
-> static const char * const oom_constraint_text[] =3D {
->                           ^~~~~~~~~~~~~~~~~~~
->  CC [M]  net/ipv4/netfilter/iptable_nat.o
->
->
-> If you need (but looking at the code you actually don't if I didn't
-> miss anything) it in several places, just export.
-> Otherwise put it back to memcontrol.c.
->
-> --
-> With Best Regards,
-> Andy Shevchenko
+The numbers you posted do look fantastic indeed, embedded devices
+[which normally use zswap/zram quite heavily] _probably_ should see
+some performance improvement as well once zswap [and may be zram] can
+handle THP.
+
+	-ss
