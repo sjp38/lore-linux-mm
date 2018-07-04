@@ -1,81 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 465CD6B0006
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 13:35:29 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id h21-v6so4062490otl.10
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 10:35:29 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 1-v6si1097144oij.363.2018.07.04.10.35.27
-        for <linux-mm@kvack.org>;
-        Wed, 04 Jul 2018 10:35:27 -0700 (PDT)
-Date: Wed, 4 Jul 2018 18:36:06 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v4 2/3] ioremap: Update pgtable free interfaces with addr
-Message-ID: <20180704173605.GB9668@arm.com>
-References: <20180627141348.21777-1-toshi.kani@hpe.com>
- <20180627141348.21777-3-toshi.kani@hpe.com>
- <20180627155632.GH30631@arm.com>
- <1530115885.14039.295.camel@hpe.com>
- <20180629122358.GC17859@arm.com>
- <1530287995.14039.361.camel@hpe.com>
- <alpine.DEB.2.21.1807032301140.1816@nanos.tec.linutronix.de>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C1F66B0003
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 13:49:57 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id y26-v6so3189239pfn.14
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 10:49:57 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n9-v6si3772793plk.310.2018.07.04.10.49.54
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Jul 2018 10:49:55 -0700 (PDT)
+Subject: Re: [PATCH v7] add param that allows bootline control of hardened
+ usercopy
+References: <1530646988-25546-1-git-send-email-crecklin@redhat.com>
+ <b1bfe507-3dda-fccb-5355-26f6cce9fa6a@suse.cz>
+ <CAGXu5jJa=jEZmRQa6TYuOFORHs_nYvQAO3Q3Hv5vz4tsHd00nQ@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <0bf9be39-82bb-ad3a-a3c3-e41bebedba7e@suse.cz>
+Date: Wed, 4 Jul 2018 19:47:38 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1807032301140.1816@nanos.tec.linutronix.de>
+In-Reply-To: <CAGXu5jJa=jEZmRQa6TYuOFORHs_nYvQAO3Q3Hv5vz4tsHd00nQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: "Kani, Toshi" <toshi.kani@hpe.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "joro@8bytes.org" <joro@8bytes.org>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "Hocko, Michal" <MHocko@suse.com>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Kees Cook <keescook@chromium.org>
+Cc: Chris von Recklinghausen <crecklin@redhat.com>, Laura Abbott <labbott@redhat.com>, Paolo Abeni <pabeni@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-On Tue, Jul 03, 2018 at 11:02:15PM +0200, Thomas Gleixner wrote:
-> On Fri, 29 Jun 2018, Kani, Toshi wrote:
-> > On Fri, 2018-06-29 at 13:23 +0100, Will Deacon wrote:
-> > > On Wed, Jun 27, 2018 at 04:13:22PM +0000, Kani, Toshi wrote:
-> > > > On Wed, 2018-06-27 at 16:56 +0100, Will Deacon wrote:
-> > > > > On Wed, Jun 27, 2018 at 08:13:47AM -0600, Toshi Kani wrote:
-> > > > > > From: Chintan Pandya <cpandya@codeaurora.org>
-> > > > > > 
-> > > > > > The following kernel panic was observed on ARM64 platform due to a stale
-> > > > > > TLB entry.
-> > > > > > 
-> > > > > >  1. ioremap with 4K size, a valid pte page table is set.
-> > > > > >  2. iounmap it, its pte entry is set to 0.
-> > > > > >  3. ioremap the same address with 2M size, update its pmd entry with
-> > > > > >     a new value.
-> > > > > >  4. CPU may hit an exception because the old pmd entry is still in TLB,
-> > > > > >     which leads to a kernel panic.
-> > > > > > 
-> > > > > > Commit b6bdb7517c3d ("mm/vmalloc: add interfaces to free unmapped page
-> > > > > > table") has addressed this panic by falling to pte mappings in the above
-> > > > > > case on ARM64.
-> > > > > > 
-> > > > > > To support pmd mappings in all cases, TLB purge needs to be performed
-> > > > > > in this case on ARM64.
-> > > > > > 
-> > > > > > Add a new arg, 'addr', to pud_free_pmd_page() and pmd_free_pte_page()
-> > > > > > so that TLB purge can be added later in seprate patches.
-> > > > > 
-> > > > > So I acked v13 of Chintan's series posted here:
-> > > > > 
-> > > > > http://lists.infradead.org/pipermail/linux-arm-kernel/2018-June/582953.html
-> > > > > 
-> > > > > any chance this lot could all be merged together, please?
-> > > > 
-> > > > Chintan's patch 2/3 and 3/3 apply cleanly on top of my series. Can you
-> > > > please coordinate with Thomas on the logistics?
-> > > 
-> > > Sure. I guess having this series on a common branch that I can pull into
-> > > arm64 and apply Chintan's other patches on top would work.
-> > > 
-> > > How does that sound?
-> > 
-> > Should this go thru -mm tree then?
-> > 
-> > Andrew, Thomas, what do you think? 
+On 07/04/2018 06:52 PM, Kees Cook wrote:
+> On Wed, Jul 4, 2018 at 6:43 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>> On 07/03/2018 09:43 PM, Chris von Recklinghausen wrote:
+>>
+>> Subject: [PATCH v7] add param that allows bootline control of hardened
+>> usercopy
+>>
+>> s/bootline/boot time/ ?
+>>
+>>> v1->v2:
+>>>       remove CONFIG_HUC_DEFAULT_OFF
+>>>       default is now enabled, boot param disables
+>>>       move check to __check_object_size so as to not break optimization of
+>>>               __builtin_constant_p()
+>>
+>> Sorry for late and drive-by suggestion, but I think the change above is
+>> kind of a waste because there's a function call overhead only to return
+>> immediately.
+>>
+>> Something like this should work and keep benefits of both the built-in
+>> check and avoiding function call?
+>>
+>> static __always_inline void check_object_size(const void *ptr, unsigned
+>> long n, bool to_user)
+>> {
+>>         if (!__builtin_constant_p(n) &&
+>>                         static_branch_likely(&bypass_usercopy_checks))
+>>                 __check_object_size(ptr, n, to_user);
+>> }
 > 
-> I just pick it up and provide Will a branch to pull that lot from.
+> This produces less efficient code in the general case, and I'd like to
+> keep the general case (hardening enabled) as fast as possible.
 
-Thanks, Thomas. Please let me know once you've pushed something out.
+How specifically is the code less efficient? It should be always a
+static key check (no-op thanks to the code patching involved) and a
+function call in the "hardening enabled" case, just in different order.
+And in either case compiled out if it's a constant.
 
-Will
+> -Kees
+> 
