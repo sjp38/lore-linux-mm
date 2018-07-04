@@ -1,68 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CA64B6B0283
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 11:22:00 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id f16-v6so2210411edq.18
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 08:22:00 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id q15-v6si4060975edd.134.2018.07.04.08.21.59
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 771D26B0284
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 11:23:36 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id m197-v6so3703851oig.18
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 08:23:36 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j22-v6si1296897oiy.162.2018.07.04.08.23.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jul 2018 08:21:59 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w64FIhD2006077
-	for <linux-mm@kvack.org>; Wed, 4 Jul 2018 11:21:57 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2k0xh0x594-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 04 Jul 2018 11:21:57 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 4 Jul 2018 16:21:55 +0100
-Date: Wed, 4 Jul 2018 18:21:49 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/memblock: replace u64 with phys_addr_t where
- appropriate
-References: <1530637506-1256-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20180703125722.6fd0f02b27c01f5684877354@linux-foundation.org>
- <063c785caa11b8e1c421c656b2a030d45d6eb68f.camel@perches.com>
- <20180704070305.GB4352@rapoport-lnx>
- <20180704075449.GB458@jagdpanzerIV>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180704075449.GB458@jagdpanzerIV>
-Message-Id: <20180704152148.GK4352@rapoport-lnx>
+        Wed, 04 Jul 2018 08:23:35 -0700 (PDT)
+From: Rodrigo Freire <rfreire@redhat.com>
+Subject: [PATCH v2] mm, oom: Describe task memory unit, larger PID pad
+Date: Wed,  4 Jul 2018 12:23:18 -0300
+Message-Id: <c795eb5129149ed8a6345c273aba167ff1bbd388.1530715938.git.rfreire@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Joe Perches <joe@perches.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, aquini@redhat.com, rientjes@google.com
 
-On Wed, Jul 04, 2018 at 04:54:49PM +0900, Sergey Senozhatsky wrote:
-> On (07/04/18 10:03), Mike Rapoport wrote:
-> >  arch/alpha/kernel/pci_iommu.c             | 20 ++++++++++----------
-> >  arch/arm/mm/alignment.c                   |  2 +-
-> >  arch/arm/nwfpe/fpmodule.c                 |  2 +-
-> >  arch/microblaze/mm/pgtable.c              |  2 +-
-> >  arch/sparc/kernel/ds.c                    |  2 +-
-> >  arch/um/kernel/sysrq.c                    |  2 +-
-> >  arch/x86/include/asm/trace/exceptions.h   |  2 +-
-> >  arch/x86/kernel/irq_64.c                  |  2 +-
-> >  arch/x86/mm/extable.c                     |  4 ++--
-> >  arch/x86/xen/multicalls.c                 |  2 +-
-> 
-> Isn't it "funny" that parisc, ia64, powerpc don't use pf/pF in arch code,
-> but x86, arm, etc. do use pf/pF in arch code?
-> 
-> Surely, I do understand why we have pf/pF in mm, drivers and all over the
-> place. But still, I'm surprised.
+The default page memory unit of OOM task dump events might not be
+intuitive and potentially misleading for the non-initiated when
+debugging OOM events: These are pages and not kBs. Add a small
+printk prior to the task dump informing that the memory units are
+actually memory _pages_.
 
-That's because somebody (including you) did the conversion ;-)
+Also extends PID field to align on up to 7 characters.
+References: https://lkml.org/lkml/2018/7/3/1201
+
+Signed-off-by: Rodrigo Freire <rfreire@redhat.com>
+Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Rafael Aquini <aquini@redhat.com>
+---
+ mm/oom_kill.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 84081e7..520a483 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -392,7 +392,8 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
+ 	struct task_struct *p;
+ 	struct task_struct *task;
  
-> 	-ss
-> 
-
+-	pr_info("[ pid ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name\n");
++	pr_info("Tasks state (memory values in pages):\n");
++	pr_info("[  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name\n");
+ 	rcu_read_lock();
+ 	for_each_process(p) {
+ 		if (oom_unkillable_task(p, memcg, nodemask))
+@@ -408,7 +409,7 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
+ 			continue;
+ 		}
+ 
+-		pr_info("[%5d] %5d %5d %8lu %8lu %8ld %8lu         %5hd %s\n",
++		pr_info("[%7d] %5d %5d %8lu %8lu %8ld %8lu         %5hd %s\n",
+ 			task->pid, from_kuid(&init_user_ns, task_uid(task)),
+ 			task->tgid, task->mm->total_vm, get_mm_rss(task->mm),
+ 			mm_pgtables_bytes(task->mm),
 -- 
-Sincerely yours,
-Mike.
+1.8.3.1
