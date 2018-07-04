@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 91D1D6B0010
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 17:50:47 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id s3-v6so460767plp.21
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 14:50:47 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id i66-v6si4770331pfb.149.2018.07.04.14.50.46
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6633C6B0269
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 17:50:49 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id u18-v6so3457621pfh.21
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 14:50:49 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id 59-v6si4391678plp.496.2018.07.04.14.50.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jul 2018 14:50:46 -0700 (PDT)
-Subject: [PATCH v5 03/11] device-dax: Set page->index
+        Wed, 04 Jul 2018 14:50:48 -0700 (PDT)
+Subject: [PATCH v5 05/11] mm,
+ madvise_inject_error: Let memory_failure() optionally take a page
+ reference
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 04 Jul 2018 14:40:39 -0700
-Message-ID: <153074043918.27838.10612469015732111514.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Wed, 04 Jul 2018 14:40:49 -0700
+Message-ID: <153074044986.27838.16910122305490506387.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <153074042316.27838.17319837331947007626.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <153074042316.27838.17319837331947007626.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -21,49 +23,76 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Jan Kara <jack@suse.cz>, hch@lst.dehch@lst.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.orgjack@suse.cz, ross.zwisler@linux.intel.com
+Cc: Michal Hocko <mhocko@suse.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, hch@lst.dehch@lst.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jack@suse.cz, ross.zwisler@linux.intel.com
 
-In support of enabling memory_failure() handling for device-dax
-mappings, set ->index to the pgoff of the page. The rmap implementation
-requires ->index to bound the search through the vma interval tree.
+The madvise_inject_error() routine uses get_user_pages() to lookup the
+pfn and other information for injected error, but it does not release
+that pin. The assumption is that failed pages should be taken out of
+circulation.
 
-The ->index value is never cleared. There is no possibility for the
-page to become associated with another pgoff while the device is
-enabled. When the device is disabled the 'struct page' array for the
-device is destroyed and ->index is reinitialized to zero.
+However, for dax mappings it is not possible to take pages out of
+circulation since they are 1:1 physically mapped as filesystem blocks,
+or device-dax capacity. They also typically represent persistent memory
+which has an error clearing capability.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+In preparation for adding a special handler for dax mappings, shift the
+responsibility of taking the page reference to memory_failure(). I.e.
+drop the page reference and do not specify MF_COUNT_INCREASED to
+memory_failure().
+
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/dax/device.c |    4 ++++
- 1 file changed, 4 insertions(+)
+ mm/madvise.c |   18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/dax/device.c b/drivers/dax/device.c
-index 95cfcfd612df..361a11089591 100644
---- a/drivers/dax/device.c
-+++ b/drivers/dax/device.c
-@@ -416,6 +416,7 @@ static vm_fault_t dev_dax_huge_fault(struct vm_fault *vmf,
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 4d3c922ea1a1..b731933dddae 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -631,11 +631,13 @@ static int madvise_inject_error(int behavior,
  
- 	if (rc == VM_FAULT_NOPAGE) {
- 		unsigned long i;
-+		pgoff_t pgoff;
+ 
+ 	for (; start < end; start += PAGE_SIZE << order) {
++		unsigned long pfn;
+ 		int ret;
+ 
+ 		ret = get_user_pages_fast(start, 1, 0, &page);
+ 		if (ret != 1)
+ 			return ret;
++		pfn = page_to_pfn(page);
  
  		/*
- 		 * In the device-dax case the only possibility for a
-@@ -423,6 +424,8 @@ static vm_fault_t dev_dax_huge_fault(struct vm_fault *vmf,
- 		 * mapped. No need to consider the zero page, or racing
- 		 * conflicting mappings.
- 		 */
-+		pgoff = linear_page_index(vmf->vma, vmf->address
-+				& ~(fault_size - 1));
- 		for (i = 0; i < fault_size / PAGE_SIZE; i++) {
- 			struct page *page;
+ 		 * When soft offlining hugepages, after migrating the page
+@@ -651,17 +653,27 @@ static int madvise_inject_error(int behavior,
  
-@@ -430,6 +433,7 @@ static vm_fault_t dev_dax_huge_fault(struct vm_fault *vmf,
- 			if (page->mapping)
- 				continue;
- 			page->mapping = filp->f_mapping;
-+			page->index = pgoff + i;
+ 		if (behavior == MADV_SOFT_OFFLINE) {
+ 			pr_info("Soft offlining pfn %#lx at process virtual address %#lx\n",
+-						page_to_pfn(page), start);
++					pfn, start);
+ 
+ 			ret = soft_offline_page(page, MF_COUNT_INCREASED);
+ 			if (ret)
+ 				return ret;
+ 			continue;
  		}
++
+ 		pr_info("Injecting memory failure for pfn %#lx at process virtual address %#lx\n",
+-						page_to_pfn(page), start);
++				pfn, start);
++
++		ret = memory_failure(pfn, 0);
++
++		/*
++		 * Drop the page reference taken by get_user_pages_fast(). In
++		 * the absence of MF_COUNT_INCREASED the memory_failure()
++		 * routine is responsible for pinning the page to prevent it
++		 * from being released back to the page allocator.
++		 */
++		put_page(page);
+ 
+-		ret = memory_failure(page_to_pfn(page), MF_COUNT_INCREASED);
+ 		if (ret)
+ 			return ret;
  	}
- 	dax_read_unlock(id);
