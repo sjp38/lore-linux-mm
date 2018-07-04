@@ -1,157 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EF7C26B0269
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 10:04:21 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id r9-v6so1933518edo.16
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 07:04:21 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z102-v6si769828ede.58.2018.07.04.07.04.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jul 2018 07:04:20 -0700 (PDT)
-Date: Wed, 4 Jul 2018 16:04:19 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/memblock: replace u64 with phys_addr_t where
- appropriate
-Message-ID: <20180704140419.GU22503@dhcp22.suse.cz>
-References: <1530637506-1256-1-git-send-email-rppt@linux.vnet.ibm.com>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F8286B0003
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 10:36:50 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id c23-v6so3858189oiy.3
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 07:36:50 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id d187-v6si1284010oib.199.2018.07.04.07.36.48
+        for <linux-mm@kvack.org>;
+        Wed, 04 Jul 2018 07:36:49 -0700 (PDT)
+Date: Wed, 4 Jul 2018 15:37:28 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v5 00/20] APEI in_nmi() rework and arm64 SDEI wire-up
+Message-ID: <20180704143727.GI4828@arm.com>
+References: <20180626170116.25825-1-james.morse@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1530637506-1256-1-git-send-email-rppt@linux.vnet.ibm.com>
+In-Reply-To: <20180626170116.25825-1-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>
+To: James Morse <james.morse@arm.com>
+Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
 
-On Tue 03-07-18 20:05:06, Mike Rapoport wrote:
-> Most functions in memblock already use phys_addr_t to represent a physical
-> address with __memblock_free_late() being an exception.
+Hi James,
+
+On Tue, Jun 26, 2018 at 06:00:56PM +0100, James Morse wrote:
+> The aim of this series is to wire arm64's SDEI into APEI.
 > 
-> This patch replaces u64 with phys_addr_t in __memblock_free_late() and
-> switches several format strings from %llx to %pa to avoid casting from
-> phys_addr_t to u64.
+> On arm64 we have three APEI notifications that are NMI-like, and
+> in the unlikely event that all three are supported by a platform,
+> they can interrupt each other.
+> The GHES driver shouldn't have to deal with this, so this series aims
+> to make it re-entrant.
 > 
-> CC: Michal Hocko <mhocko@kernel.org>
-> CC: Matthew Wilcox <willy@infradead.org>
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/memblock.c | 46 +++++++++++++++++++++++-----------------------
->  1 file changed, 23 insertions(+), 23 deletions(-)
+> To do that, we refactor the estatus queue to allow multiple notifications
+> to use it, then convert NOTIFY_SEA to always be described as NMI-like,
+> and to use the estatus queue.
 > 
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 03d48d8..20ad8e9 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -330,7 +330,7 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
->  {
->  	struct memblock_region *new_array, *old_array;
->  	phys_addr_t old_alloc_size, new_alloc_size;
-> -	phys_addr_t old_size, new_size, addr;
-> +	phys_addr_t old_size, new_size, addr, new_end;
->  	int use_slab = slab_is_available();
->  	int *in_slab;
->  
-> @@ -391,9 +391,9 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
->  		return -1;
->  	}
->  
-> -	memblock_dbg("memblock: %s is doubled to %ld at [%#010llx-%#010llx]",
-> -			type->name, type->max * 2, (u64)addr,
-> -			(u64)addr + new_size - 1);
-> +	new_end = addr + new_size - 1;
-> +	memblock_dbg("memblock: %s is doubled to %ld at [%pa-%pa]",
-> +			type->name, type->max * 2, &addr, &new_end);
->  
->  	/*
->  	 * Found space, we now need to move the array over before we add the
-> @@ -1343,9 +1343,9 @@ void * __init memblock_virt_alloc_try_nid_raw(
->  {
->  	void *ptr;
->  
-> -	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
-> -		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
-> -		     (u64)max_addr, (void *)_RET_IP_);
-> +	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=%pa max_addr=%pa %pF\n",
-> +		     __func__, (u64)size, (u64)align, nid, &min_addr,
-> +		     &max_addr, (void *)_RET_IP_);
->  
->  	ptr = memblock_virt_alloc_internal(size, align,
->  					   min_addr, max_addr, nid);
-> @@ -1380,9 +1380,9 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
->  {
->  	void *ptr;
->  
-> -	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
-> -		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
-> -		     (u64)max_addr, (void *)_RET_IP_);
-> +	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=%pa max_addr=%pa %pF\n",
-> +		     __func__, (u64)size, (u64)align, nid, &min_addr,
-> +		     &max_addr, (void *)_RET_IP_);
->  
->  	ptr = memblock_virt_alloc_internal(size, align,
->  					   min_addr, max_addr, nid);
-> @@ -1416,9 +1416,9 @@ void * __init memblock_virt_alloc_try_nid(
->  {
->  	void *ptr;
->  
-> -	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
-> -		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
-> -		     (u64)max_addr, (void *)_RET_IP_);
-> +	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=%pa max_addr=%pa %pF\n",
-> +		     __func__, (u64)size, (u64)align, nid, &min_addr,
-> +		     &max_addr, (void *)_RET_IP_);
->  	ptr = memblock_virt_alloc_internal(size, align,
->  					   min_addr, max_addr, nid);
->  	if (ptr) {
-> @@ -1426,9 +1426,8 @@ void * __init memblock_virt_alloc_try_nid(
->  		return ptr;
->  	}
->  
-> -	panic("%s: Failed to allocate %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx\n",
-> -	      __func__, (u64)size, (u64)align, nid, (u64)min_addr,
-> -	      (u64)max_addr);
-> +	panic("%s: Failed to allocate %llu bytes align=0x%llx nid=%d from=%pa max_addr=%pa\n",
-> +	      __func__, (u64)size, (u64)align, nid, &min_addr, &max_addr);
->  	return NULL;
->  }
->  
-> @@ -1442,9 +1441,10 @@ void * __init memblock_virt_alloc_try_nid(
->   */
->  void __init __memblock_free_early(phys_addr_t base, phys_addr_t size)
->  {
-> -	memblock_dbg("%s: [%#016llx-%#016llx] %pF\n",
-> -		     __func__, (u64)base, (u64)base + size - 1,
-> -		     (void *)_RET_IP_);
-> +	phys_addr_t end = base + size - 1;
-> +
-> +	memblock_dbg("%s: [%pa-%pa] %pF\n",
-> +		     __func__, &base, &end, (void *)_RET_IP_);
->  	kmemleak_free_part_phys(base, size);
->  	memblock_remove_range(&memblock.reserved, base, size);
->  }
-> @@ -1460,11 +1460,11 @@ void __init __memblock_free_early(phys_addr_t base, phys_addr_t size)
->   */
->  void __init __memblock_free_late(phys_addr_t base, phys_addr_t size)
->  {
-> -	u64 cursor, end;
-> +	phys_addr_t cursor, end;
->  
-> -	memblock_dbg("%s: [%#016llx-%#016llx] %pF\n",
-> -		     __func__, (u64)base, (u64)base + size - 1,
-> -		     (void *)_RET_IP_);
-> +	end = base + size - 1;
-> +	memblock_dbg("%s: [%pa-%pa] %pF\n",
-> +		     __func__, &base, &end, (void *)_RET_IP_);
->  	kmemleak_free_part_phys(base, size);
->  	cursor = PFN_UP(base);
->  	end = PFN_DOWN(base + size);
-> -- 
-> 2.7.4
+> From here we push the locking and fixmap choices out to the notification
+> functions, and remove the use of per-ghes estatus and flags. This removes
+> the in_nmi() 'timebomb' in ghes_copy_tofrom_phys().
+> 
+> Things get sticky when an NMI notification needs to know how big the
+> CPER records might be, before reading it. This series splits
+> ghes_estatus_read() to let us peek at the buffer. A side effect of this
+> is the 20byte header will get read twice. (how does it work today? it
+> reads the records into a per-ghes worst-case sized buffer, allocates
+> the correct size and copies the records. in_nmi() use of this per-ghes
+> buffer needs eliminating).
+> 
+> One alternative was to trust firmware's 'max raw data length' and use
+> that to allocate 'enough' memory. We don't use this value today, so its
+> probably wrong on some sytem somewhere.
+> 
+> Since v4 patches 5,8-15 are new, otherwise changes are noted in the patch.
 
--- 
-Michal Hocko
-SUSE Labs
+The little bits touching arch/arm64/ all look fine to me here, but it looks
+like other patches need review separately and ultimately I suspect you're
+going to route it via some other tree.
+
+Let me know if you need me to help with anything.
+
+Will
