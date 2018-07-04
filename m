@@ -1,71 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C0DCB6B0005
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 22:59:59 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id v8-v6so1775042pgs.19
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 19:59:59 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id 79-v6si2576202pfs.40.2018.07.03.19.59.57
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 238E56B0006
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2018 23:10:36 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id t19-v6so2267686plo.9
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2018 20:10:36 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id a11-v6si2434941pfo.68.2018.07.03.20.10.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jul 2018 19:59:58 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -v4 00/21] mm, THP, swap: Swapout/swapin THP in one piece
-References: <20180622035151.6676-1-ying.huang@intel.com>
-	<20180627215144.73e98b01099191da59bff28c@linux-foundation.org>
-	<20180704021153.GA3346@jagdpanzerIV>
-	<878t6rvj12.fsf@yhuang-dev.intel.com>
-	<20180704022734.GB3346@jagdpanzerIV>
-Date: Wed, 04 Jul 2018 10:59:55 +0800
-In-Reply-To: <20180704022734.GB3346@jagdpanzerIV> (Sergey Senozhatsky's
-	message of "Wed, 4 Jul 2018 11:27:34 +0900")
-Message-ID: <87zhz7u2ms.fsf@yhuang-dev.intel.com>
+        Tue, 03 Jul 2018 20:10:34 -0700 (PDT)
+Message-Id: <201807040226.w642Qk6k001082@www262.sakura.ne.jp>
+Subject: Re: [patch v3] mm, oom: fix unnecessary killing of additional processes
+From: penguin-kernel@i-love.sakura.ne.jp
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Date: Wed, 04 Jul 2018 11:26:46 +0900
+References: <alpine.DEB.2.21.1806211434420.51095@chino.kir.corp.google.com> <alpine.DEB.2.21.1807031841220.110853@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.21.1807031841220.110853@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Daniel Jordan <daniel.m.jordan@oracle.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com> writes:
+David Rientjes wrote:
+> Ping?
+> 
+> This can be something that can easily be removed if it becomes obsoleted 
+> because the oom reaper is always able to free memory to the extent of 
+> exit_mmap().  I argue that it cannot, because it cannot do free_pgtables() 
+> for large amounts of virtual memory, but am fine to be proved wrong.
 
-> On (07/04/18 10:20), Huang, Ying wrote:
->> > On (06/27/18 21:51), Andrew Morton wrote:
->> >> On Fri, 22 Jun 2018 11:51:30 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
->> >> 
->> >> > This is the final step of THP (Transparent Huge Page) swap
->> >> > optimization.  After the first and second step, the splitting huge
->> >> > page is delayed from almost the first step of swapout to after swapout
->> >> > has been finished.  In this step, we avoid splitting THP for swapout
->> >> > and swapout/swapin the THP in one piece.
->> >> 
->> >> It's a tremendously good performance improvement.  It's also a
->> >> tremendously large patchset :(
->> >
->> > Will zswap gain a THP swap out/in support at some point?
->> >
->> >
->> > mm/zswap.c: static int zswap_frontswap_store(...)
->> > ...
->> > 	/* THP isn't supported */
->> > 	if (PageTransHuge(page)) {
->> > 		ret = -EINVAL;
->> > 		goto reject;
->> > 	}
->> 
->> That's not on my TODO list.  Do you have interest to work on this?
->
-> I'd say I'm interested. Can't promise that I'll have enough spare time
-> any time soon, tho.
+This is "[PATCH 3/8] mm,oom: Fix unnecessary killing of additional processes." in my series.
 
-Thanks!
-
-> The numbers you posted do look fantastic indeed, embedded devices
-> [which normally use zswap/zram quite heavily] _probably_ should see
-> some performance improvement as well once zswap [and may be zram] can
-> handle THP.
-
-Yes.  I think so too.
-
-Best Regards,
-Huang, Ying
+> 
+> In the meantime, however, this patch should introduce no significant 
+> change in functionality and the only interface it is added is in debugfs 
+> and can easily be removed if it is obsoleted.
+> 
+> The work to make the oom reaper more effective or realible can still 
+> continue with this patch.
+> 
