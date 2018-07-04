@@ -1,71 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A7426B0007
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 04:22:00 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id t18-v6so1404101uaj.2
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 01:22:00 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f96-v6sor1140984vki.199.2018.07.04.01.21.57
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 46C036B0005
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 04:46:55 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id z11-v6so1919068edq.17
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 01:46:55 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t22-v6si3037802eda.7.2018.07.04.01.46.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 04 Jul 2018 01:21:58 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Jul 2018 01:46:53 -0700 (PDT)
+Subject: Re: [REGRESSION] "Locked" and "Pss" in /proc/*/smaps are the same
+References: <69eb77f7-c8cc-fdee-b44f-ad7e522b8467@gmail.com>
+ <ebf6c7fb-fec3-6a26-544f-710ed193c154@suse.cz>
+ <CAKOZuev9K0EMpqBoie4H7XduB63KayORxO=JEZvS9rv_4PVsqQ@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <f31b26d0-b94e-b545-8776-a4494179149d@suse.cz>
+Date: Wed, 4 Jul 2018 10:46:52 +0200
 MIME-Version: 1.0
-References: <1530685696-14672-1-git-send-email-rppt@linux.vnet.ibm.com>
- <1530685696-14672-4-git-send-email-rppt@linux.vnet.ibm.com>
- <CAMuHMdWEHSz34bN-U3gHW972w13f_Jrx_ObEsP3w8XZ1Gx65OA@mail.gmail.com> <20180704075410.GF22503@dhcp22.suse.cz>
-In-Reply-To: <20180704075410.GF22503@dhcp22.suse.cz>
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Date: Wed, 4 Jul 2018 10:21:45 +0200
-Message-ID: <CAMuHMdU_m0+BeTnCwU0qm-3G+-9apa41dTcZDV9cGT84W8x=fA@mail.gmail.com>
-Subject: Re: [PATCH v2 3/3] m68k: switch to MEMBLOCK + NO_BOOTMEM
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CAKOZuev9K0EMpqBoie4H7XduB63KayORxO=JEZvS9rv_4PVsqQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, Greg Ungerer <gerg@linux-m68k.org>, Sam Creasey <sammy@sammy.net>, linux-m68k <linux-m68k@lists.linux-m68k.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Daniel Colascione <dancol@google.com>
+Cc: Thomas Lindroth <thomas.lindroth@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-Hi Michael,
+On 07/03/2018 06:20 PM, Daniel Colascione wrote:
+> On Tue, Jul 3, 2018 at 12:36 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>> +CC
+>>
+>> On 07/01/2018 08:31 PM, Thomas Lindroth wrote:
+>>> While looking around in /proc on my v4.14.52 system I noticed that
+>>> all processes got a lot of "Locked" memory in /proc/*/smaps. A lot
+>>> more memory than a regular user can usually lock with mlock().
+>>>
+>>> commit 493b0e9d945fa9dfe96be93ae41b4ca4b6fdb317 (v4.14-rc1) seems
+>>> to have changed the behavior of "Locked".
+> 
+> Thanks for fixing that. I submitted a patch [1] for this bug and some
+> others a while ago, but the patch didn't make it into the tree because
+> or wasn't split up correctly or something, and I had to do other work.
 
-On Wed, Jul 4, 2018 at 9:54 AM Michal Hocko <mhocko@kernel.org> wrote:
-> On Wed 04-07-18 09:44:14, Geert Uytterhoeven wrote:
-> [...]
-> > ------------[ cut here ]------------
-> > WARNING: CPU: 0 PID: 0 at mm/memblock.c:230
-> > memblock_find_in_range_node+0x11c/0x1be
-> > memblock: bottom-up allocation failed, memory hotunplug may be affected
->
-> This only means that hotplugable memory might contain non-movable memory
-> now. But does your system even support memory hotplug. I would be really
+Hmm I see. I pondered about the patch and wondered if the scenarios it
+fixes are really possible for smaps_rollup. Did you observe them in
+practice? Namely:
+- when seq_file starts and stops multiple times on a single open file
+description
+- when it issues multiple show calls for the same iterator value
 
-No it doesn't.
+I don't think it can happen when all positions but the last one just
+return SEQ_SKIP.
 
-> surprised. So I guess we just want this instead
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index cc16d70b8333..c0dde95593fd 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -228,7 +228,8 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
->                  * so we use WARN_ONCE() here to see the stack trace if
->                  * fail happens.
->                  */
-> -               WARN_ONCE(1, "memblock: bottom-up allocation failed, memory hotunplug may be affected\n");
-> +               WARN_ONCE(IS_ENABLED(CONFIG_MEMORY_HOTREMOVE),
-> +                                       "memblock: bottom-up allocvation failed, memory hotunplug may be affected\n");
->         }
->
->         return __memblock_find_range_top_down(start, end, size, align, nid,
+Anyway I think the seq_file iterator API usage for smaps_rollup is
+unnecessary. Semantically the file shows only one "element" and that's
+the set of rollup values for all vmas. Letting seq_file do the iteration
+over vmas brings only complications?
 
-Thanks, that does the trick!
-
-Tested-by: Geert Uytterhoeven <geert@linux-m68k.org>
-
-Gr{oetje,eeting}s,
-
-                        Geert
-
--- 
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+> [1] https://marc.info/?l=linux-mm&m=151927723128134&w=2
+> 
