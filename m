@@ -1,61 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 771D26B0284
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 11:23:36 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id m197-v6so3703851oig.18
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 08:23:36 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j22-v6si1296897oiy.162.2018.07.04.08.23.35
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6861D6B0287
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 11:25:50 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id d23-v6so5777444qtj.12
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 08:25:50 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id a17-v6si3696719qtg.290.2018.07.04.08.25.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jul 2018 08:23:35 -0700 (PDT)
-From: Rodrigo Freire <rfreire@redhat.com>
-Subject: [PATCH v2] mm, oom: Describe task memory unit, larger PID pad
-Date: Wed,  4 Jul 2018 12:23:18 -0300
-Message-Id: <c795eb5129149ed8a6345c273aba167ff1bbd388.1530715938.git.rfreire@redhat.com>
+        Wed, 04 Jul 2018 08:25:49 -0700 (PDT)
+Subject: Re: [PATCH 3/3] kvm: add a function to check if page is from NVDIMM
+ pmem.
+References: <cover.1530716899.git.yi.z.zhang@linux.intel.com>
+ <359fdf0103b61014bf811d88d4ce36bc793d18f2.1530716899.git.yi.z.zhang@linux.intel.com>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <1efab832-8782-38f3-9fd5-7a8b45bde153@redhat.com>
+Date: Wed, 4 Jul 2018 17:25:44 +0200
+MIME-Version: 1.0
+In-Reply-To: <359fdf0103b61014bf811d88d4ce36bc793d18f2.1530716899.git.yi.z.zhang@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, aquini@redhat.com, rientjes@google.com
+To: Zhang Yi <yi.z.zhang@linux.intel.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, dan.j.williams@intel.com, jack@suse.cz, hch@lst.de, yu.c.zhang@intel.com
+Cc: linux-mm@kvack.org, rkrcmar@redhat.com, yi.z.zhang@intel.com
 
-The default page memory unit of OOM task dump events might not be
-intuitive and potentially misleading for the non-initiated when
-debugging OOM events: These are pages and not kBs. Add a small
-printk prior to the task dump informing that the memory units are
-actually memory _pages_.
+On 04/07/2018 17:30, Zhang Yi wrote:
+> For device specific memory space, when we move these area of pfn to
+> memory zone, we will set the page reserved flag at that time, some of
+> these reserved for device mmio, and some of these are not, such as
+> NVDIMM pmem.
+> 
+> Now, we map these dev_dax or fs_dax pages to kvm for DIMM/NVDIMM
+> backend, since these pages are reserved. the check of
+> kvm_is_reserved_pfn() misconceives those pages as MMIO. Therefor, we
+> introduce 2 page map types, MEMORY_DEVICE_FS_DAX/MEMORY_DEVICE_DEV_DAX,
+> to indentify these pages are from NVDIMM pmem. and let kvm treat these
+> as normal pages.
+> 
+> Without this patch, Many operations will be missed due to this
+> mistreatment to pmem pages. For example, a page may not have chance to
+> be unpinned for KVM guest(in kvm_release_pfn_clean); not able to be
+> marked as dirty/accessed(in kvm_set_pfn_dirty/accessed) etc.
+> 
+> Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
+> Signed-off-by: Zhang Yu <yu.c.zhang@linux.intel.com>
+> ---
+>  virt/kvm/kvm_main.c | 17 +++++++++++++++--
+>  1 file changed, 15 insertions(+), 2 deletions(-)
+> 
+> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+> index afb2e6e..1365d18 100644
+> --- a/virt/kvm/kvm_main.c
+> +++ b/virt/kvm/kvm_main.c
+> @@ -140,10 +140,23 @@ __weak void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+>  {
+>  }
+>  
+> +static bool kvm_is_nd_pfn(kvm_pfn_t pfn)
+> +{
+> +	struct page *page = pfn_to_page(pfn);
+> +
+> +	return is_zone_device_page(page) &&
+> +		((page->pgmap->type == MEMORY_DEVICE_FS_DAX) ||
+> +		 (page->pgmap->type == MEMORY_DEVICE_DEV_DAX));
+> +}
 
-Also extends PID field to align on up to 7 characters.
-References: https://lkml.org/lkml/2018/7/3/1201
+If the mm people agree, I'd prefer something that takes a struct page *
+and is exported by include/linux/mm.h.  Then KVM can just do something like
 
-Signed-off-by: Rodrigo Freire <rfreire@redhat.com>
-Acked-by: David Rientjes <rientjes@google.com>
-Acked-by: Rafael Aquini <aquini@redhat.com>
----
- mm/oom_kill.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+	struct page *page;
+	if (!pfn_valid(pfn))
+		return true;
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 84081e7..520a483 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -392,7 +392,8 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
- 	struct task_struct *p;
- 	struct task_struct *task;
- 
--	pr_info("[ pid ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name\n");
-+	pr_info("Tasks state (memory values in pages):\n");
-+	pr_info("[  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name\n");
- 	rcu_read_lock();
- 	for_each_process(p) {
- 		if (oom_unkillable_task(p, memcg, nodemask))
-@@ -408,7 +409,7 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
- 			continue;
- 		}
- 
--		pr_info("[%5d] %5d %5d %8lu %8lu %8ld %8lu         %5hd %s\n",
-+		pr_info("[%7d] %5d %5d %8lu %8lu %8ld %8lu         %5hd %s\n",
- 			task->pid, from_kuid(&init_user_ns, task_uid(task)),
- 			task->tgid, task->mm->total_vm, get_mm_rss(task->mm),
- 			mm_pgtables_bytes(task->mm),
--- 
-1.8.3.1
+	page = pfn_to_page(pfn);
+	return PageReserved(page) && !is_dax_page(page);
+
+Thanks,
+
+Paolo
