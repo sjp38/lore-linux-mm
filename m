@@ -1,71 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F5E56B0007
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 09:05:04 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id c2-v6so2186088edi.20
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 06:05:04 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o18-v6si1433980edf.261.2018.07.04.06.05.02
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7725A6B026B
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 09:05:21 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id h81-v6so310836vke.13
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 06:05:21 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 124-v6sor1324299vkc.222.2018.07.04.06.05.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jul 2018 06:05:02 -0700 (PDT)
-Date: Wed, 4 Jul 2018 15:05:00 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/memblock: replace u64 with phys_addr_t where
- appropriate
-Message-ID: <20180704130500.GP22503@dhcp22.suse.cz>
-References: <1530637506-1256-1-git-send-email-rppt@linux.vnet.ibm.com>
+        (Google Transport Security);
+        Wed, 04 Jul 2018 06:05:20 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1530637506-1256-1-git-send-email-rppt@linux.vnet.ibm.com>
+References: <1530685696-14672-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1530685696-14672-4-git-send-email-rppt@linux.vnet.ibm.com>
+ <CAMuHMdWEHSz34bN-U3gHW972w13f_Jrx_ObEsP3w8XZ1Gx65OA@mail.gmail.com>
+ <20180704075410.GF22503@dhcp22.suse.cz> <89f48f7a-6cbf-ac9a-cacc-cd3ca79f8c66@suse.cz>
+ <20180704123627.GM22503@dhcp22.suse.cz>
+In-Reply-To: <20180704123627.GM22503@dhcp22.suse.cz>
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Date: Wed, 4 Jul 2018 15:05:08 +0200
+Message-ID: <CAMuHMdVuLd=y4Wk6ghFZ8YV_1Z9kvh588VkwBMwxScxateMu1g@mail.gmail.com>
+Subject: Re: [PATCH v2 3/3] m68k: switch to MEMBLOCK + NO_BOOTMEM
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Greg Ungerer <gerg@linux-m68k.org>, Sam Creasey <sammy@sammy.net>, linux-m68k <linux-m68k@lists.linux-m68k.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Tue 03-07-18 20:05:06, Mike Rapoport wrote:
-> Most functions in memblock already use phys_addr_t to represent a physical
-> address with __memblock_free_late() being an exception.
-> 
-> This patch replaces u64 with phys_addr_t in __memblock_free_late() and
-> switches several format strings from %llx to %pa to avoid casting from
-> phys_addr_t to u64.
-> 
-> CC: Michal Hocko <mhocko@kernel.org>
-> CC: Matthew Wilcox <willy@infradead.org>
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> ---
->  mm/memblock.c | 46 +++++++++++++++++++++++-----------------------
->  1 file changed, 23 insertions(+), 23 deletions(-)
-> 
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 03d48d8..20ad8e9 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -330,7 +330,7 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
->  {
->  	struct memblock_region *new_array, *old_array;
->  	phys_addr_t old_alloc_size, new_alloc_size;
-> -	phys_addr_t old_size, new_size, addr;
-> +	phys_addr_t old_size, new_size, addr, new_end;
->  	int use_slab = slab_is_available();
->  	int *in_slab;
->  
-> @@ -391,9 +391,9 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
->  		return -1;
->  	}
->  
-> -	memblock_dbg("memblock: %s is doubled to %ld at [%#010llx-%#010llx]",
-> -			type->name, type->max * 2, (u64)addr,
-> -			(u64)addr + new_size - 1);
-> +	new_end = addr + new_size - 1;
-> +	memblock_dbg("memblock: %s is doubled to %ld at [%pa-%pa]",
-> +			type->name, type->max * 2, &addr, &new_end);
+Hi Michal,
 
-I didn't get to check this carefully but this surely looks suspicious. I
-am pretty sure you wanted to print the value here rather than address of
-the local variable, right?
+On Wed, Jul 4, 2018 at 2:36 PM Michal Hocko <mhocko@kernel.org> wrote:
+> [CC Andrew - email thread starts
+> http://lkml.kernel.org/r/1530685696-14672-1-git-send-email-rppt@linux.vnet.ibm.com]
+>
+> OK, so here we go with the full patch.
+>
+> From 0e8432b875d98a7a0d3f757fce2caa8d16a8de15 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Wed, 4 Jul 2018 14:31:46 +0200
+> Subject: [PATCH] memblock: do not complain about top-down allocations for
+>  !MEMORY_HOTREMOVE
+>
+> Mike Rapoport is converting architectures from bootmem to noboodmem
+
+nobootmem
+
+> allocator. While doing so for m68k Geert has noticed that he gets
+> a scary looking warning
+> WARNING: CPU: 0 PID: 0 at mm/memblock.c:230
+> memblock_find_in_range_node+0x11c/0x1be
+> memblock: bottom-up allocation failed, memory hotunplug may be affected
+
+> The warning is basically saying that a top-down allocation can break
+> memory hotremove because memblock allocation is not movable. But m68k
+> doesn't even support MEMORY_HOTREMOVE is there is no point to warn
+
+so there is
+
+> about it.
+>
+> Make the warning conditional only to configurations that care.
+
+Still, I'm wondering if the warning is really that unlikely on systems
+that support
+hotremove. Or is it due to the low amount of RAM on m68k boxes?
+
+Gr{oetje,eeting}s,
+
+                        Geert
+
 -- 
-Michal Hocko
-SUSE Labs
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
