@@ -1,123 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 89FA06B0277
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 10:56:14 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id j189-v6so6490211qkf.0
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 07:56:14 -0700 (PDT)
-Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30136.outbound.protection.outlook.com. [40.107.3.136])
-        by mx.google.com with ESMTPS id e6-v6si555624qvj.61.2018.07.04.07.56.13
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 282B56B0279
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 11:11:18 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id 18-v6so3928464oix.4
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 08:11:18 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r84-v6sor2530181oig.185.2018.07.04.08.11.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 04 Jul 2018 07:56:13 -0700 (PDT)
-Subject: Re: [PATCH v8 14/17] mm: Iterate only over charged shrinkers during
- memcg shrink_slab()
-References: <153063036670.1818.16010062622751502.stgit@localhost.localdomain>
- <153063066653.1818.976035462801487910.stgit@localhost.localdomain>
- <20180703135813.ed4eef6a4a2df32fa1085e4c@linux-foundation.org>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <3fca0622-6f70-25eb-b023-2046c52734b7@virtuozzo.com>
-Date: Wed, 4 Jul 2018 17:56:04 +0300
+        (Google Transport Security);
+        Wed, 04 Jul 2018 08:11:16 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180703135813.ed4eef6a4a2df32fa1085e4c@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180612181542.GB28436@linux.intel.com>
+References: <152850182079.38390.8280340535691965744.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152850187437.38390.2257981090761438811.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180612181542.GB28436@linux.intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 4 Jul 2018 08:11:14 -0700
+Message-ID: <CAPcyv4i9kK6e6aWVJWyhdW+WKGVuujmBZXyCQvQ7s-JpAdY_9Q@mail.gmail.com>
+Subject: Re: [PATCH v4 10/12] filesystem-dax: Introduce dax_lock_page()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>
 
-On 03.07.2018 23:58, Andrew Morton wrote:
-> On Tue, 03 Jul 2018 18:11:06 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
-> 
->> Using the preparations made in previous patches, in case of memcg
->> shrink, we may avoid shrinkers, which are not set in memcg's shrinkers
->> bitmap. To do that, we separate iterations over memcg-aware and
->> !memcg-aware shrinkers, and memcg-aware shrinkers are chosen
->> via for_each_set_bit() from the bitmap. In case of big nodes,
->> having many isolated environments, this gives significant
->> performance growth. See next patches for the details.
+On Tue, Jun 12, 2018 at 11:15 AM, Ross Zwisler
+<ross.zwisler@linux.intel.com> wrote:
+> On Fri, Jun 08, 2018 at 04:51:14PM -0700, Dan Williams wrote:
+>> In preparation for implementing support for memory poison (media error)
+>> handling via dax mappings, implement a lock_page() equivalent. Poison
+>> error handling requires rmap and needs guarantees that the page->mapping
+>> association is maintained / valid (inode not freed) for the duration of
+>> the lookup.
 >>
->> Note, that the patch does not respect to empty memcg shrinkers,
->> since we never clear the bitmap bits after we set it once.
->> Their shrinkers will be called again, with no shrinked objects
->> as result. This functionality is provided by next patches.
+>> In the device-dax case it is sufficient to simply hold a dev_pagemap
+>> reference. In the filesystem-dax case we need to use the entry lock.
 >>
->> ...
+>> Export the entry lock via dax_lock_page() that uses rcu_read_lock() to
+>> protect against the inode being freed, and revalidates the page->mapping
+>> association under xa_lock().
 >>
->> @@ -541,6 +555,67 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
->>  	return freed;
+>> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+>> ---
+>>  fs/dax.c            |   76 +++++++++++++++++++++++++++++++++++++++++++++++++++
+>>  include/linux/dax.h |   15 ++++++++++
+>>  2 files changed, 91 insertions(+)
+>>
+>> diff --git a/fs/dax.c b/fs/dax.c
+>> index cccf6cad1a7a..b7e71b108fcf 100644
+>> --- a/fs/dax.c
+>> +++ b/fs/dax.c
+>> @@ -361,6 +361,82 @@ static void dax_disassociate_entry(void *entry, struct address_space *mapping,
+>>       }
 >>  }
->>  
->> +#ifdef CONFIG_MEMCG_KMEM
->> +static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
->> +			struct mem_cgroup *memcg, int priority)
+>>
+>> +struct page *dax_lock_page(unsigned long pfn)
 >> +{
->> +	struct memcg_shrinker_map *map;
->> +	unsigned long freed = 0;
->> +	int ret, i;
+>> +     pgoff_t index;
+>> +     struct inode *inode;
+>> +     wait_queue_head_t *wq;
+>> +     void *entry = NULL, **slot;
+>> +     struct address_space *mapping;
+>> +     struct wait_exceptional_entry_queue ewait;
+>> +     struct page *ret = NULL, *page = pfn_to_page(pfn);
 >> +
->> +	if (!memcg_kmem_enabled() || !mem_cgroup_online(memcg))
->> +		return 0;
->> +
->> +	if (!down_read_trylock(&shrinker_rwsem))
->> +		return 0;
-> 
-> Why trylock?  Presumably some other code path is known to hold the lock
-> for long periods?  Dunno.
+>> +     rcu_read_lock();
+>> +     for (;;) {
+>> +             mapping = READ_ONCE(page->mapping);
+>
+> Why the READ_ONCE()?
 
-We take shrinker_rwsem in prealloc_memcg_shrinker() and do memory allocation
-there. It may result in reclaim under shrinker_rwsem write locked, so we use
-down_read_trylock() to avoid deadlocks. The first versions of the patchset
-contained different lock for this function, but it has gone in the process
-of review.
+We're potentially racing inode teardown, so the READ_ONCE() prevents
+the compiler from trying to de-reference page->mapping twice and
+getting inconsistent answers.
 
->Comment it, please.
+>
+>> +
+>> +             if (!mapping || !IS_DAX(mapping->host))
+>
+> Might read better using the dax_mapping() helper.
 
-OK
+Sure.
 
->> +	/*
->> +	 * 1) Caller passes only alive memcg, so map can't be NULL.
->> +	 * 2) shrinker_rwsem protects from maps expanding.
->> +	 */
->> +	map = rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_map,
->> +					true);
->> +	BUG_ON(!map);
->> +
->> +	for_each_set_bit(i, map->map, shrinker_nr_max) {
->> +		struct shrink_control sc = {
->> +			.gfp_mask = gfp_mask,
->> +			.nid = nid,
->> +			.memcg = memcg,
->> +		};
->> +		struct shrinker *shrinker;
->> +
->> +		shrinker = idr_find(&shrinker_idr, i);
->> +		if (unlikely(!shrinker)) {
->> +			clear_bit(i, map->map);
->> +			continue;
->> +		}
->> +		BUG_ON(!(shrinker->flags & SHRINKER_MEMCG_AWARE));
-> 
-> Fair enough as a development-time sanity check but we shouldn't need
-> this in production code.  Or make it VM_BUG_ON(), at least.
+>
+> Also, forgive my ignorance, but this implies that dev dax has page->mapping
+> set up and that that inode will have IS_DAX set, right?  This will let us get
+> past this point for device DAX, and we'll bail out at the S_ISCHR() check?
 
-OK
+Yes.
 
->> +		/* See comment in prealloc_shrinker() */
->> +		if (unlikely(list_empty(&shrinker->list)))
->> +			continue;
+>
+>> +                     break;
 >> +
->> +		ret = do_shrink_slab(&sc, shrinker, priority);
->> +		freed += ret;
+>> +             /*
+>> +              * In the device-dax case there's no need to lock, a
+>> +              * struct dev_pagemap pin is sufficient to keep the
+>> +              * inode alive.
+>> +              */
+>> +             inode = mapping->host;
+>> +             if (S_ISCHR(inode->i_mode)) {
+>> +                     ret = page;
+>
+> 'ret' isn't actually used for anything in this function, we just
+> unconditionally return 'page'.
+>
+
+Yes, bug.
+
+>> +                     break;
+>> +             }
 >> +
->> +		if (rwsem_is_contended(&shrinker_rwsem)) {
->> +			freed = freed ? : 1;
->> +			break;
->> +		}
->> +	}
+>> +             xa_lock_irq(&mapping->i_pages);
+>> +             if (mapping != page->mapping) {
+>> +                     xa_unlock_irq(&mapping->i_pages);
+>> +                     continue;
+>> +             }
+>> +             index = page->index;
 >> +
->> +	up_read(&shrinker_rwsem);
->> +	return freed;
->> +}
-> 
+>> +             init_wait(&ewait.wait);
+>> +             ewait.wait.func = wake_exceptional_entry_func;
+>> +
+>> +             entry = __radix_tree_lookup(&mapping->i_pages, index, NULL,
+>> +                             &slot);
+>> +             if (!entry ||
+>
+> So if we do a lookup and there is no entry in the tree, we won't add an empty
+> entry and lock it, we'll just return with no entry in the tree and nothing
+> locked.
+>
+> Then, when we call dax_unlock_page(), we'll eventually hit a WARN_ON_ONCE() in
+> dax_unlock_mapping_entry() when we see entry is 0.  And, in that gap we've got
+> nothing locked so page faults could have happened, etc... (which would mean
+> that instead of WARN_ON_ONCE() for an empty entry, we'd hit it instead for an
+> unlocked entry).
+>
+> Is that okay?  Or do we need to insert a locked empty entry here?
+
+No, the intent was to return NULL and fail the lock, but I messed up
+and unconditionally returned the page.
