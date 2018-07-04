@@ -1,81 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C1C4D6B0270
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 10:44:26 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id g82-v6so1331540lfg.4
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 07:44:26 -0700 (PDT)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C3006B0273
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 10:50:17 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id j5-v6so3877083oiw.13
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 07:50:17 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h7-v6sor1027670lfl.100.2018.07.04.07.44.24
+        by mx.google.com with SMTPS id c184-v6sor2614100oih.272.2018.07.04.07.50.16
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 04 Jul 2018 07:44:25 -0700 (PDT)
-Date: Wed, 4 Jul 2018 17:44:22 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re:
-Message-ID: <20180704144422.geugzjycujftwwd7@esperanza>
-References: <20180624200907.ufjxk6l2biz6xcm2@esperanza>
- <20180703145235.28050-1-bigeasy@linutronix.de>
- <20180703141429.c752e3342426b9f8d48ef255@linux-foundation.org>
- <20180703214429.tntoxzb66zikhukc@linutronix.de>
+        Wed, 04 Jul 2018 07:50:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180703214429.tntoxzb66zikhukc@linutronix.de>
+In-Reply-To: <359fdf0103b61014bf811d88d4ce36bc793d18f2.1530716899.git.yi.z.zhang@linux.intel.com>
+References: <cover.1530716899.git.yi.z.zhang@linux.intel.com> <359fdf0103b61014bf811d88d4ce36bc793d18f2.1530716899.git.yi.z.zhang@linux.intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 4 Jul 2018 07:50:15 -0700
+Message-ID: <CAPcyv4is0T1SjsaC4Z80ND9Q_032_Tsa0hQwkO84T0FCRj5MkA@mail.gmail.com>
+Subject: Re: [PATCH 3/3] kvm: add a function to check if page is from NVDIMM pmem.
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, tglx@linutronix.de, Kirill Tkhai <ktkhai@virtuozzo.com>
+To: Zhang Yi <yi.z.zhang@linux.intel.com>
+Cc: KVM list <kvm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Paolo Bonzini <pbonzini@redhat.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, "Zhang, Yu C" <yu.c.zhang@intel.com>, Linux MM <linux-mm@kvack.org>, rkrcmar@redhat.com, "Zhang, Yi Z" <yi.z.zhang@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
 
-On Tue, Jul 03, 2018 at 11:44:29PM +0200, Sebastian Andrzej Siewior wrote:
-> On 2018-07-03 14:14:29 [-0700], Andrew Morton wrote:
-> > 
-> > > Reply-To: "[PATCH 0/4] mm/list_lru": add.list_lru_shrink_walk_irq@mail.linuxfoundation.org.and.use.it ()
-> > 
-> > Well that's messed up.
-> 
-> indeed it is. This should get into Subject:
-> 
-> > On Tue,  3 Jul 2018 16:52:31 +0200 Sebastian Andrzej Siewior <bigeasy@linutronix.de> wrote:
-> > 
-> > > My intepretation of situtation is that Vladimir Davydon is fine patch #1
-> > > and #2 of the series [0] but dislikes the irq argument and struct
-> > > member. It has been suggested to use list_lru_shrink_walk_irq() instead
-> > > the approach I went on in "mm: list_lru: Add lock_irq member to
-> > > __list_lru_init()".
-> > > 
-> > > This series is based on the former two patches and introduces
-> > > list_lru_shrink_walk_irq() (and makes the third patch of series
-> > > obsolete).
-> > > In patch 1-3 I tried a tiny cleanup so the different locking
-> > > (spin_lock() vs spin_lock_irq()) is simply lifted to the caller of the
-> > > function.
-> > > 
-> > > [0] The patch
-> > >       mm: workingset: remove local_irq_disable() from count_shadow_nodes() 
-> > >    and
-> > >       mm: workingset: make shadow_lru_isolate() use locking suffix
-> > > 
-> > 
-> > This isn't a very informative [0/n] changelog.  Some overall summary of
-> > the patchset's objective, behaviour, use cases, testing results, etc.
-> 
-> The patches should be threaded as a reply to 3/3 of the series so I
-> assumed it was enough. And while Vladimir complained about 2/3 and 3/3
-> the discussion went on in 2/3 where he suggested to go on with the _irq
-> function. And testing, well with and without RT the function was invoked
-> as part of swapping (allocating memory until OOM) without complains.
-> 
-> > I'm seeing significant conflicts with Kirill's "Improve shrink_slab()
-> > scalability (old complexity was O(n^2), new is O(n))" series, which I
-> > merged eight milliseconds ago.  Kirill's patchset is large but fairly
-> > straightforward so I expect it's good for 4.18.  So I suggest we leave
-> > things a week or more then please take a look at redoing this patchset
-> > on top of that work?  
-> 
-> If Vladimir is okay with to redo and nobody else complains then I could
-> rebase these four patches on top of your tree next week.
+[ adding Jerome ]
 
-IMHO this approach is more straightforward than the one with the per
-list_lru flag. For all patches,
+On Wed, Jul 4, 2018 at 8:30 AM, Zhang Yi <yi.z.zhang@linux.intel.com> wrote:
+> For device specific memory space, when we move these area of pfn to
+> memory zone, we will set the page reserved flag at that time, some of
+> these reserved for device mmio, and some of these are not, such as
+> NVDIMM pmem.
+>
+> Now, we map these dev_dax or fs_dax pages to kvm for DIMM/NVDIMM
+> backend, since these pages are reserved. the check of
+> kvm_is_reserved_pfn() misconceives those pages as MMIO. Therefor, we
+> introduce 2 page map types, MEMORY_DEVICE_FS_DAX/MEMORY_DEVICE_DEV_DAX,
+> to indentify these pages are from NVDIMM pmem. and let kvm treat these
+> as normal pages.
+>
+> Without this patch, Many operations will be missed due to this
+> mistreatment to pmem pages. For example, a page may not have chance to
+> be unpinned for KVM guest(in kvm_release_pfn_clean); not able to be
+> marked as dirty/accessed(in kvm_set_pfn_dirty/accessed) etc.
+>
+> Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
+> Signed-off-by: Zhang Yu <yu.c.zhang@linux.intel.com>
+> ---
+>  virt/kvm/kvm_main.c | 17 +++++++++++++++--
+>  1 file changed, 15 insertions(+), 2 deletions(-)
+>
+> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+> index afb2e6e..1365d18 100644
+> --- a/virt/kvm/kvm_main.c
+> +++ b/virt/kvm/kvm_main.c
+> @@ -140,10 +140,23 @@ __weak void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+>  {
+>  }
+>
+> +static bool kvm_is_nd_pfn(kvm_pfn_t pfn)
+> +{
+> +       struct page *page = pfn_to_page(pfn);
+> +
+> +       return is_zone_device_page(page) &&
+> +               ((page->pgmap->type == MEMORY_DEVICE_FS_DAX) ||
+> +                (page->pgmap->type == MEMORY_DEVICE_DEV_DAX));
 
-Reviewed-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+Jerome, might there be any use case to pass MEMORY_DEVICE_PUBLIC
+memory to a guest vm?
+
+> +}
+> +
+>  bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
+>  {
+> -       if (pfn_valid(pfn))
+> -               return PageReserved(pfn_to_page(pfn));
+> +       struct page *page;
+> +
+> +       if (pfn_valid(pfn)) {
+> +               page = pfn_to_page(pfn);
+> +               return kvm_is_nd_pfn(pfn) ? false : PageReserved(page);
+> +       }
+>
+>         return true;
+>  }
+> --
+> 2.7.4
+>
