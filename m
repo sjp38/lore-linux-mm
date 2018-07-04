@@ -1,80 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CC6686B0005
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 06:43:22 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id a4-v6so2873880pls.16
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 03:43:22 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6567C6B0005
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 07:17:35 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id h17-v6so1730575edq.14
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 04:17:35 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y22-v6si3133626plp.489.2018.07.04.03.43.21
+        by mx.google.com with ESMTPS id d5-v6si2309928edd.19.2018.07.04.04.17.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jul 2018 03:43:21 -0700 (PDT)
-Date: Wed, 4 Jul 2018 12:43:18 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v2 5/6] mm: track gup pages with page->dma_pinned_* fields
-Message-ID: <20180704104318.f5pnqtnn3unkwauw@quack2.suse.cz>
-References: <20180702005654.20369-1-jhubbard@nvidia.com>
- <20180702005654.20369-6-jhubbard@nvidia.com>
- <20180702095331.n5zfz35d3invl5al@quack2.suse.cz>
- <bb798475-ebf3-7b02-409f-8c4347fa6674@nvidia.com>
- <010001645d77ee2c-de7fedbd-f52d-4b74-9388-e6435973792b-000000@email.amazonses.com>
- <f01666d5-8da1-7bea-adfb-c3571a54587a@nvidia.com>
- <01000164611dacae-5ac25e48-b845-43ef-9992-fc1047d8e0a0-000000@email.amazonses.com>
- <3c71556f-1d71-873a-6f74-121865568bf7@nvidia.com>
+        Wed, 04 Jul 2018 04:17:33 -0700 (PDT)
+Date: Wed, 4 Jul 2018 13:17:31 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: kernel BUG at mm/gup.c:LINE!
+Message-ID: <20180704111731.GJ22503@dhcp22.suse.cz>
+References: <000000000000fe4b15057024bacd@google.com>
+ <da0f4abb-9401-cfac-6332-9086aadf67eb@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <3c71556f-1d71-873a-6f74-121865568bf7@nvidia.com>
+In-Reply-To: <da0f4abb-9401-cfac-6332-9086aadf67eb@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Christopher Lameter <cl@linux.com>, Jan Kara <jack@suse.cz>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: syzbot <syzbot+5dcb560fe12aa5091c06@syzkaller.appspotmail.com>, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, mst@redhat.com, syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk, ying.huang@intel.com, zi.yan@cs.rutgers.edu
 
-On Tue 03-07-18 10:36:05, John Hubbard wrote:
-> On 07/03/2018 10:08 AM, Christopher Lameter wrote:
-> > On Mon, 2 Jul 2018, John Hubbard wrote:
+On Wed 04-07-18 19:01:51, Tetsuo Handa wrote:
+> +Michal Hocko
+> 
+> On 2018/07/04 13:19, syzbot wrote:
+> > Hello,
 > > 
-> >>> If you establish a reference to a page then increase the page count. If
-> >>> the reference is a dma pin action also then increase the pinned count.
-> >>>
-> >>> That way you know how many of the references to the page are dma
-> >>> pins and you can correctly manage the state of the page if the dma pins go
-> >>> away.
-> >>>
-> >>
-> >> I think this sounds like what this patch already does, right? See:
-> >> __put_page_for_pinned_dma(), __get_page_for_pinned_dma(), and
-> >> pin_page_for_dma(). The locking seems correct to me, but I suspect it's
-> >> too heavyweight for such a hot path. But without adding a new put_user_page()
-> >> call, that was the best I could come up with.
+> > syzbot found the following crash on:
 > > 
-> > When I saw the patch it looked like you were avoiding to increment the
-> > page->count field.
+> > HEAD commit:    d3bc0e67f852 Merge tag 'for-4.18-rc2-tag' of git://git.ker..
+> > git tree:       upstream
+> > console output: https://syzkaller.appspot.com/x/log.txt?x=1000077c400000
+> > kernel config:  https://syzkaller.appspot.com/x/.config?x=a63be0c83e84d370
+> > dashboard link: https://syzkaller.appspot.com/bug?extid=5dcb560fe12aa5091c06
+> > compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+> > userspace arch: i386
+> > syzkaller repro:https://syzkaller.appspot.com/x/repro.syz?x=158577a2400000
 > 
-> Looking at it again, this patch is definitely susceptible to Jan's "page gets
-> dma-unpinnned too soon" problem.  That leaves a window in which the original
-> problem can occur.
+> Here is C reproducer made from syz reproducer. mlockall(MCL_FUTURE) is involved.
 > 
-> The page->_refcount field is used normally, in addition to the dma_pinned_count.
-> But the problem is that, unless the caller knows what kind of page it is,
-> the page->dma_pinned_count cannot be looked at, because it is unioned with
-> page->lru.prev.  page->dma_pinned_flags, at least starting at bit 1, are 
-> safe to look at due to pointer alignment, but now you cannot atomically 
-> count...
+> This problem is triggerable by an unprivileged user.
+> Shows different result on x86_64 (crash) and x86_32 (stall).
 > 
-> So this seems unsolvable without having the caller specify that it knows the
-> page type, and that it is therefore safe to decrement page->dma_pinned_count.
-> I was hoping I'd found a way, but clearly I haven't. :)
+> ------------------------------------------------------------
+> /* Need to compile using "-m32" option if host is 64bit. */
+> #include <sys/types.h>
+> #include <sys/stat.h>
+> #include <fcntl.h>
+> #include <unistd.h>
+> #include <sys/mman.h>
+> int uselib(const char *library);
+> 
+> int main(int argc, char *argv[])
+> {
+> 	int fd = open("file", O_WRONLY | O_CREAT, 0644);
+> 	write(fd, "\x7f\x45\x4c\x46\x00\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02"
+> 	      "\x00\x06\x00\xca\x3f\x8b\xca\x00\x00\x00\x00\x38\x00\x00\x00\x00\x00"
+> 	      "\x00\xf7\xff\xff\xff\xff\xff\xff\x1f\x00\x02\x00\x00\x00\x00\x00\x00"
+> 	      "\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf8\x7b"
+> 	      "\x66\xff\x00\x00\x05\x00\x00\x00\x76\x86\x00\x00\x00\x00\x00\x00\x00"
+> 	      "\x00\x00\x00\x31\x0f\xf3\xee\xc1\xb0\x00\x0c\x08\x53\x55\xbe\x88\x47"
+> 	      "\xc2\x2e\x30\xf5\x62\x82\xc6\x2c\x95\x72\x3f\x06\x8f\xe4\x2d\x27\x96"
+> 	      "\xcc", 120);
+> 	fchmod(fd, 0755);
+> 	close(fd);
+> 	mlockall(MCL_FUTURE); /* Removing this line avoids the bug. */
+> 	uselib("file");
+> 	return 0;
+> }
+> ------------------------------------------------------------
+> 
+> ------------------------------------------------------------
+> CentOS Linux 7 (Core)
+> Kernel 4.18.0-rc3 on an x86_64
+> 
+> localhost login: [   81.210241] emacs (9634) used greatest stack depth: 10416 bytes left
+> [  140.099935] ------------[ cut here ]------------
+> [  140.101904] kernel BUG at mm/gup.c:1242!
 
-Well, I think the misconception is that "pinned" is a fundamental property
-of a page. It is not. "pinned" is a property of a page reference (i.e., a
-kind of reference that can be used for DMA access) and page gets into
-"pinned" state if it has any reference of "pinned" type. And when you
-realize this, it is obvious that you just have to have a special api for
-getting and dropping references of this "pinned" type. For getting we
-already have get_user_pages(), for putting we have to create the api...
-
-								Honza
+Is this 
+	VM_BUG_ON(len != PAGE_ALIGN(len));
+in __mm_populate? I do not really get why we should VM_BUG_ON when the
+len is not page aligned to be honest. The library is probably containing
+some funky setup but if we simply cannot round up to the next PAGE_SIZE
+boundary then we should probably just error out and fail. This is an
+area I am really familiar with so I cannot really judge.
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
