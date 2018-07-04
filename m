@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 21ED26B0273
+	by kanga.kvack.org (Postfix) with ESMTP id 3EB1C6B0274
 	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 17:51:21 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id b17-v6so2051379pff.17
+Received: by mail-pf0-f198.google.com with SMTP id q21-v6so3472192pff.4
         for <linux-mm@kvack.org>; Wed, 04 Jul 2018 14:51:21 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id b2-v6si4322526plz.118.2018.07.04.14.51.19
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id n18-v6si4014369pgg.225.2018.07.04.14.51.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 04 Jul 2018 14:51:19 -0700 (PDT)
-Subject: [PATCH v5 11/11] libnvdimm,
- pmem: Restore page attributes when clearing errors
+Subject: [PATCH v5 10/11] x86/memory_failure: Introduce {set,
+ clear}_mce_nospec()
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 04 Jul 2018 14:41:21 -0700
-Message-ID: <153074048162.27838.14847952115074744540.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Wed, 04 Jul 2018 14:41:16 -0700
+Message-ID: <153074047636.27838.13848197451694569563.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <153074042316.27838.17319837331947007626.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <153074042316.27838.17319837331947007626.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -22,98 +22,218 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: hch@lst.dehch@lst.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jack@suse.cz, ross.zwisler@linux.intel.com
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, linux-edac@vger.kernel.org, x86@kernel.org, Tony Luck <tony.luck@intel.com>, hch@lst.dehch@lst.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jack@suse.cz, ross.zwisler@linux.intel.com
 
-Use clear_mce_nospec() to restore WB mode for the kernel linear mapping
-of a pmem page that was marked 'HWPoison'. A page with 'HWPoison' set
-has also been marked UC in PAT (page attribute table) via
-set_mce_nospec() to prevent speculative retrievals of poison.
+Currently memory_failure() returns zero if the error was handled. On
+that result mce_unmap_kpfn() is called to zap the page out of the kernel
+linear mapping to prevent speculative fetches of potentially poisoned
+memory. However, in the case of dax mapped devmap pages the page may be
+in active permanent use by the device driver, so it cannot be unmapped
+from the kernel.
 
-The 'HWPoison' flag is only cleared when overwriting an entire page.
+Instead of marking the page not present, marking the page UC should
+be sufficient for preventing poison from being pre-fetched into the
+cache. Convert mce_unmap_pfn() to set_mce_nospec() remapping the page as
+UC, to hide it from speculative accesses.
 
+Given that that persistent memory errors can be cleared by the driver,
+include a facility to restore the page to cacheable operation,
+clear_mce_nospec().
+
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: <linux-edac@vger.kernel.org>
+Cc: <x86@kernel.org>
+Acked-by: Tony Luck <tony.luck@intel.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/nvdimm/pmem.c |   26 ++++++++++++++++++++++++++
- drivers/nvdimm/pmem.h |   13 +++++++++++++
- 2 files changed, 39 insertions(+)
+ arch/x86/include/asm/set_memory.h         |   42 +++++++++++++++++++++++++++++
+ arch/x86/kernel/cpu/mcheck/mce-internal.h |   15 ----------
+ arch/x86/kernel/cpu/mcheck/mce.c          |   38 ++------------------------
+ include/linux/set_memory.h                |   14 ++++++++++
+ 4 files changed, 59 insertions(+), 50 deletions(-)
 
-diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index 8b1fd7f1a224..55c7a69751d3 100644
---- a/drivers/nvdimm/pmem.c
-+++ b/drivers/nvdimm/pmem.c
-@@ -20,6 +20,7 @@
- #include <linux/hdreg.h>
- #include <linux/init.h>
- #include <linux/platform_device.h>
+diff --git a/arch/x86/include/asm/set_memory.h b/arch/x86/include/asm/set_memory.h
+index bd090367236c..cf5e9124b45e 100644
+--- a/arch/x86/include/asm/set_memory.h
++++ b/arch/x86/include/asm/set_memory.h
+@@ -88,4 +88,46 @@ extern int kernel_set_to_readonly;
+ void set_kernel_text_rw(void);
+ void set_kernel_text_ro(void);
+ 
++#ifdef CONFIG_X86_64
++static inline int set_mce_nospec(unsigned long pfn)
++{
++	unsigned long decoy_addr;
++	int rc;
++
++	/*
++	 * Mark the linear address as UC to make sure we don't log more
++	 * errors because of speculative access to the page.
++	 * We would like to just call:
++	 *      set_memory_uc((unsigned long)pfn_to_kaddr(pfn), 1);
++	 * but doing that would radically increase the odds of a
++	 * speculative access to the poison page because we'd have
++	 * the virtual address of the kernel 1:1 mapping sitting
++	 * around in registers.
++	 * Instead we get tricky.  We create a non-canonical address
++	 * that looks just like the one we want, but has bit 63 flipped.
++	 * This relies on set_memory_uc() properly sanitizing any __pa()
++	 * results with __PHYSICAL_MASK or PTE_PFN_MASK.
++	 */
++	decoy_addr = (pfn << PAGE_SHIFT) + (PAGE_OFFSET ^ BIT(63));
++
++	rc = set_memory_uc(decoy_addr, 1);
++	if (rc)
++		pr_warn("Could not invalidate pfn=0x%lx from 1:1 map\n", pfn);
++	return rc;
++}
++#define set_mce_nospec set_mce_nospec
++
++/* Restore full speculative operation to the pfn. */
++static inline int clear_mce_nospec(unsigned long pfn)
++{
++	return set_memory_wb((unsigned long) pfn_to_kaddr(pfn), 1);
++}
++#define clear_mce_nospec clear_mce_nospec
++#else
++/*
++ * Few people would run a 32-bit kernel on a machine that supports
++ * recoverable errors because they have too much memory to boot 32-bit.
++ */
++#endif
++
+ #endif /* _ASM_X86_SET_MEMORY_H */
+diff --git a/arch/x86/kernel/cpu/mcheck/mce-internal.h b/arch/x86/kernel/cpu/mcheck/mce-internal.h
+index 374d1aa66952..ceb67cd5918f 100644
+--- a/arch/x86/kernel/cpu/mcheck/mce-internal.h
++++ b/arch/x86/kernel/cpu/mcheck/mce-internal.h
+@@ -113,21 +113,6 @@ static inline void mce_register_injector_chain(struct notifier_block *nb)	{ }
+ static inline void mce_unregister_injector_chain(struct notifier_block *nb)	{ }
+ #endif
+ 
+-#ifndef CONFIG_X86_64
+-/*
+- * On 32-bit systems it would be difficult to safely unmap a poison page
+- * from the kernel 1:1 map because there are no non-canonical addresses that
+- * we can use to refer to the address without risking a speculative access.
+- * However, this isn't much of an issue because:
+- * 1) Few unmappable pages are in the 1:1 map. Most are in HIGHMEM which
+- *    are only mapped into the kernel as needed
+- * 2) Few people would run a 32-bit kernel on a machine that supports
+- *    recoverable errors because they have too much memory to boot 32-bit.
+- */
+-static inline void mce_unmap_kpfn(unsigned long pfn) {}
+-#define mce_unmap_kpfn mce_unmap_kpfn
+-#endif
+-
+ struct mca_config {
+ 	bool dont_log_ce;
+ 	bool cmci_disabled;
+diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
+index c102ad51025e..42a061ce1f5d 100644
+--- a/arch/x86/kernel/cpu/mcheck/mce.c
++++ b/arch/x86/kernel/cpu/mcheck/mce.c
+@@ -42,6 +42,7 @@
+ #include <linux/irq_work.h>
+ #include <linux/export.h>
+ #include <linux/jump_label.h>
 +#include <linux/set_memory.h>
- #include <linux/module.h>
- #include <linux/moduleparam.h>
- #include <linux/badblocks.h>
-@@ -51,6 +52,30 @@ static struct nd_region *to_region(struct pmem_device *pmem)
- 	return to_nd_region(to_dev(pmem)->parent);
+ 
+ #include <asm/intel-family.h>
+ #include <asm/processor.h>
+@@ -50,7 +51,6 @@
+ #include <asm/mce.h>
+ #include <asm/msr.h>
+ #include <asm/reboot.h>
+-#include <asm/set_memory.h>
+ 
+ #include "mce-internal.h"
+ 
+@@ -108,10 +108,6 @@ static struct irq_work mce_irq_work;
+ 
+ static void (*quirk_no_way_out)(int bank, struct mce *m, struct pt_regs *regs);
+ 
+-#ifndef mce_unmap_kpfn
+-static void mce_unmap_kpfn(unsigned long pfn);
+-#endif
+-
+ /*
+  * CPU/chipset specific EDAC code can register a notifier call here to print
+  * MCE errors in a human-readable form.
+@@ -602,7 +598,7 @@ static int srao_decode_notifier(struct notifier_block *nb, unsigned long val,
+ 	if (mce_usable_address(mce) && (mce->severity == MCE_AO_SEVERITY)) {
+ 		pfn = mce->addr >> PAGE_SHIFT;
+ 		if (!memory_failure(pfn, 0))
+-			mce_unmap_kpfn(pfn);
++			set_mce_nospec(pfn);
+ 	}
+ 
+ 	return NOTIFY_OK;
+@@ -1072,38 +1068,10 @@ static int do_memory_failure(struct mce *m)
+ 	if (ret)
+ 		pr_err("Memory error not recovered");
+ 	else
+-		mce_unmap_kpfn(m->addr >> PAGE_SHIFT);
++		set_mce_nospec(m->addr >> PAGE_SHIFT);
+ 	return ret;
  }
  
-+static void hwpoison_clear(struct pmem_device *pmem,
-+		phys_addr_t phys, unsigned int len)
-+{
-+	unsigned long pfn_start, pfn_end, pfn;
-+
-+	/* only pmem in the linear map supports HWPoison */
-+	if (is_vmalloc_addr(pmem->virt_addr))
-+		return;
-+
-+	pfn_start = PHYS_PFN(phys);
-+	pfn_end = pfn_start + PHYS_PFN(len);
-+	for (pfn = pfn_start; pfn < pfn_end; pfn++) {
-+		struct page *page = pfn_to_page(pfn);
-+
-+		/*
-+		 * Note, no need to hold a get_dev_pagemap() reference
-+		 * here since we're in the driver I/O path and
-+		 * outstanding I/O requests pin the dev_pagemap.
-+		 */
-+		if (test_and_clear_pmem_poison(page))
-+			clear_mce_nospec(pfn);
-+	}
-+}
-+
- static blk_status_t pmem_clear_poison(struct pmem_device *pmem,
- 		phys_addr_t offset, unsigned int len)
- {
-@@ -65,6 +90,7 @@ static blk_status_t pmem_clear_poison(struct pmem_device *pmem,
- 	if (cleared < len)
- 		rc = BLK_STS_IOERR;
- 	if (cleared > 0 && cleared / 512) {
-+		hwpoison_clear(pmem, pmem->phys_addr + offset, cleared);
- 		cleared /= 512;
- 		dev_dbg(dev, "%#llx clear %ld sector%s\n",
- 				(unsigned long long) sector, cleared,
-diff --git a/drivers/nvdimm/pmem.h b/drivers/nvdimm/pmem.h
-index a64ebc78b5df..59cfe13ea8a8 100644
---- a/drivers/nvdimm/pmem.h
-+++ b/drivers/nvdimm/pmem.h
-@@ -1,6 +1,7 @@
- /* SPDX-License-Identifier: GPL-2.0 */
- #ifndef __NVDIMM_PMEM_H__
- #define __NVDIMM_PMEM_H__
-+#include <linux/page-flags.h>
- #include <linux/badblocks.h>
- #include <linux/types.h>
- #include <linux/pfn_t.h>
-@@ -27,4 +28,16 @@ struct pmem_device {
+-#ifndef mce_unmap_kpfn
+-static void mce_unmap_kpfn(unsigned long pfn)
+-{
+-	unsigned long decoy_addr;
+-
+-	/*
+-	 * Unmap this page from the kernel 1:1 mappings to make sure
+-	 * we don't log more errors because of speculative access to
+-	 * the page.
+-	 * We would like to just call:
+-	 *	set_memory_np((unsigned long)pfn_to_kaddr(pfn), 1);
+-	 * but doing that would radically increase the odds of a
+-	 * speculative access to the poison page because we'd have
+-	 * the virtual address of the kernel 1:1 mapping sitting
+-	 * around in registers.
+-	 * Instead we get tricky.  We create a non-canonical address
+-	 * that looks just like the one we want, but has bit 63 flipped.
+-	 * This relies on set_memory_np() not checking whether we passed
+-	 * a legal address.
+-	 */
+-
+-	decoy_addr = (pfn << PAGE_SHIFT) + (PAGE_OFFSET ^ BIT(63));
+-
+-	if (set_memory_np(decoy_addr, 1))
+-		pr_warn("Could not invalidate pfn=0x%lx from 1:1 map\n", pfn);
+-}
+-#endif
+-
+ /*
+  * The actual machine check handler. This only handles real
+  * exceptions when something got corrupted coming in through int 18.
+diff --git a/include/linux/set_memory.h b/include/linux/set_memory.h
+index da5178216da5..2a986d282a97 100644
+--- a/include/linux/set_memory.h
++++ b/include/linux/set_memory.h
+@@ -17,6 +17,20 @@ static inline int set_memory_x(unsigned long addr,  int numpages) { return 0; }
+ static inline int set_memory_nx(unsigned long addr, int numpages) { return 0; }
+ #endif
  
- long __pmem_direct_access(struct pmem_device *pmem, pgoff_t pgoff,
- 		long nr_pages, void **kaddr, pfn_t *pfn);
-+
-+#ifdef CONFIG_MEMORY_FAILURE
-+static inline bool test_and_clear_pmem_poison(struct page *page)
++#ifndef set_mce_nospec
++static inline int set_mce_nospec(unsigned long pfn)
 +{
-+	return TestClearPageHWPoison(page);
-+}
-+#else
-+static inline bool test_and_clear_pmem_poison(struct page *page)
-+{
-+	return false;
++	return 0;
 +}
 +#endif
- #endif /* __NVDIMM_PMEM_H__ */
++
++#ifndef clear_mce_nospec
++static inline int clear_mce_nospec(unsigned long pfn)
++{
++	return 0;
++}
++#endif
++
+ #ifndef CONFIG_ARCH_HAS_MEM_ENCRYPT
+ static inline int set_memory_encrypted(unsigned long addr, int numpages)
+ {
