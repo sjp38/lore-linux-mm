@@ -1,82 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E78A6B0007
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 07:40:46 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id t83-v6so4473914wmt.3
-        for <linux-mm@kvack.org>; Thu, 05 Jul 2018 04:40:46 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 66-v6sor1891600wmg.58.2018.07.05.04.40.45
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 05 Jul 2018 04:40:45 -0700 (PDT)
-Date: Thu, 5 Jul 2018 13:40:43 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: kernel BUG at mm/gup.c:LINE!
-Message-ID: <20180705114043.GC30187@techadventures.net>
-References: <20180704121107.GL22503@dhcp22.suse.cz>
- <20180704151529.GA23317@techadventures.net>
- <201807050035.w650Z4RT018631@www262.sakura.ne.jp>
- <20180705071808.GA30187@techadventures.net>
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CC56B6B0005
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 08:14:00 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id b65-v6so1985434plb.5
+        for <linux-mm@kvack.org>; Thu, 05 Jul 2018 05:14:00 -0700 (PDT)
+Received: from icp-osb-irony-out7.external.iinet.net.au (icp-osb-irony-out7.external.iinet.net.au. [203.59.1.107])
+        by mx.google.com with ESMTP id m37-v6si6108934pla.148.2018.07.05.05.13.56
+        for <linux-mm@kvack.org>;
+        Thu, 05 Jul 2018 05:13:57 -0700 (PDT)
+Subject: Re: [PATCH v2 0/3] m68k: switch to MEMBLOCK + NO_BOOTMEM
+References: <1530685696-14672-1-git-send-email-rppt@linux.vnet.ibm.com>
+From: Greg Ungerer <gerg@linux-m68k.org>
+Message-ID: <4c08ad85-95f8-7001-5429-eaaf36d061de@linux-m68k.org>
+Date: Thu, 5 Jul 2018 22:13:52 +1000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180705071808.GA30187@techadventures.net>
+In-Reply-To: <1530685696-14672-1-git-send-email-rppt@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: viro@zeniv.linux.org.uk, Michal Hocko <mhocko@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, syzbot <syzbot+5dcb560fe12aa5091c06@syzkaller.appspotmail.com>, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, mst@redhat.com, syzkaller-bugs@googlegroups.com, ying.huang@intel.com
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Sam Creasey <sammy@sammy.net>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-m68k@lists.linux-m68k.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jul 05, 2018 at 09:18:08AM +0200, Oscar Salvador wrote:
-> > So, indeed "bss" needs to be aligned.
-> > But ELF_PAGESTART() or ELF_PAGEALIGN(), which one to use?
-> > 
-> > #define ELF_PAGESTART(_v) ((_v) & ~(unsigned long)(ELF_MIN_ALIGN-1))
-> > #define ELF_PAGEALIGN(_v) (((_v) + ELF_MIN_ALIGN - 1) & ~(ELF_MIN_ALIGN - 1))
-> > 
-> > Is
-> > 
-> > -	len = ELF_PAGESTART(eppnt->p_filesz + eppnt->p_vaddr +
-> > -			    ELF_MIN_ALIGN - 1);
-> > +	len = ELF_PAGEALIGN(eppnt->p_filesz + eppnt->p_vaddr);
-> > 
-> > suggesting that
-> > 
-> > -	bss = eppnt->p_memsz + eppnt->p_vaddr;
-> > +	bss = ELF_PAGEALIGN(eppnt->p_memsz + eppnt->p_vaddr);
-> > 
-> > is the right choice? I don't know...
+Hi Mike,
+
+On 04/07/18 16:28, Mike Rapoport wrote:
+> These patches switch m68k boot time memory allocators from bootmem to
+> memblock + no_bootmem.
 > 
-> Yes, I think that ELF_PAGEALIGN is the right choice here.
-> Given that bss is 0x7bf88676, using ELF_PAGESTART aligns it but backwards, while ELF_PAGEALIGN does
-> the right thing:
+> The first two patches update __ffs() and __va() definitions to be inline
+> with other arches and asm-generic. This is required to avoid compilation
+> warnings in mm/memblock.c and mm/nobootmem.c.
 > 
-> bss = 0x7bf88676
-> ELF_PAGESTART (bss) = 0x7bf88000
-> ELF_PAGEALIGN (bss) = 0x7bf89000
+> The third patch performs the actual switch of the boot time mm. Its
+> changelog has detailed description of the changes.
+> 
+> I've tested the !MMU version with qemu-system-m68k -M mcf5208evb
+> and the MMU version with q800 using qemu from [1].
+> 
+> I've also build tested allyesconfig and *_defconfig.
+> 
+> [1] https://github.com/vivier/qemu-m68k.git
+> 
+> v2:
+> * fix reservation of the kernel text/data/bss for ColdFire MMU
 
-I think this should do the trick:
+I am happy with all of these, so for me:
 
-diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
-index 0ac456b52bdd..6c7e005ae12d 100644
---- a/fs/binfmt_elf.c
-+++ b/fs/binfmt_elf.c
-@@ -1259,9 +1259,9 @@ static int load_elf_library(struct file *file)
-                goto out_free_ph;
-        }
- 
--       len = ELF_PAGESTART(eppnt->p_filesz + eppnt->p_vaddr +
--                           ELF_MIN_ALIGN - 1);
--       bss = eppnt->p_memsz + eppnt->p_vaddr;
-+
-+       len = ELF_PAGEALIGN(eppnt->p_filesz + eppnt->p_vaddr);
-+       bss = ELF_PAGEALIGN(eppnt->p_memsz + eppnt->p_vaddr);
-        if (bss > len) {
-                error = vm_brk(len, bss - len);
-                if (error)
+Acked-by: Greg Ungerer <gerg@linux-m68k.org>
 
-I could only test it in x86_64 (with -m32).
-Could you test it on x86_32? 
+Regards
+Greg
 
--- 
-Oscar Salvador
-SUSE L3
+
+
+> Mike Rapoport (3):
+>    m68k/bitops: convert __ffs to match generic declaration
+>    m68k/page_no.h: force __va argument to be unsigned long
+>    m68k: switch to MEMBLOCK + NO_BOOTMEM
+> 
+>   arch/m68k/Kconfig               |  3 +++
+>   arch/m68k/include/asm/bitops.h  |  8 ++++++--
+>   arch/m68k/include/asm/page_no.h |  2 +-
+>   arch/m68k/kernel/setup_mm.c     | 14 ++++----------
+>   arch/m68k/kernel/setup_no.c     | 20 ++++----------------
+>   arch/m68k/mm/init.c             |  1 -
+>   arch/m68k/mm/mcfmmu.c           | 13 +++++++------
+>   arch/m68k/mm/motorola.c         | 35 +++++++++++------------------------
+>   arch/m68k/sun3/config.c         |  4 ----
+>   9 files changed, 36 insertions(+), 64 deletions(-)
+> 
