@@ -1,91 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 05A2C6B0005
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 01:33:29 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id 70-v6so1260149plc.1
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 22:33:28 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id e17-v6si4531536pgv.160.2018.07.04.22.33.27
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 345B06B0007
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 01:34:34 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id b5-v6so1258062ple.20
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 22:34:34 -0700 (PDT)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id a21-v6si4907535pgm.417.2018.07.04.22.34.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jul 2018 22:33:27 -0700 (PDT)
-Subject: Re: [PATCH 3/3] kvm: add a function to check if page is from NVDIMM
- pmem.
+        Wed, 04 Jul 2018 22:34:33 -0700 (PDT)
+Subject: Re: [PATCH 2/3] mm: introduce memory type MEMORY_DEVICE_DEV_DAX
 References: <cover.1530716899.git.yi.z.zhang@linux.intel.com>
- <359fdf0103b61014bf811d88d4ce36bc793d18f2.1530716899.git.yi.z.zhang@linux.intel.com>
- <1efab832-8782-38f3-9fd5-7a8b45bde153@redhat.com>
-From: "Zhang,Yi" <yi.z.zhang@linux.intel.com>
-Message-ID: <a6049ab7-19f4-3cdb-a954-c8ad7a05ed37@linux.intel.com>
-Date: Thu, 5 Jul 2018 21:19:30 +0800
+ <5c7996b8e6d31541f3185f8e4064ff97582c86f8.1530716899.git.yi.z.zhang@linux.intel.com>
+ <CAPcyv4gjFVG7tHv65Z=FsZ9=5wXDxNWawFJqO8MkyMudch4zDw@mail.gmail.com>
+From: zhangyi6 <yi.z.zhang@intel.com>
+Message-ID: <c5fad961-05ea-73da-7fda-f48c910136d9@intel.com>
+Date: Thu, 5 Jul 2018 21:20:35 +0800
 MIME-Version: 1.0
-In-Reply-To: <1efab832-8782-38f3-9fd5-7a8b45bde153@redhat.com>
+In-Reply-To: <CAPcyv4gjFVG7tHv65Z=FsZ9=5wXDxNWawFJqO8MkyMudch4zDw@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 8bit
 Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paolo Bonzini <pbonzini@redhat.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, dan.j.williams@intel.com, jack@suse.cz, hch@lst.de, yu.c.zhang@intel.com
-Cc: linux-mm@kvack.org, rkrcmar@redhat.com, yi.z.zhang@intel.com
+To: Dan Williams <dan.j.williams@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>
+Cc: KVM list <kvm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Paolo Bonzini <pbonzini@redhat.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, "Zhang, Yu C" <yu.c.zhang@intel.com>, Linux MM <linux-mm@kvack.org>, rkrcmar@redhat.com
 
 
 
-On 2018a1'07ae??04ae?JPY 23:25, Paolo Bonzini wrote:
-> On 04/07/2018 17:30, Zhang Yi wrote:
->> For device specific memory space, when we move these area of pfn to
->> memory zone, we will set the page reserved flag at that time, some of
->> these reserved for device mmio, and some of these are not, such as
->> NVDIMM pmem.
->>
->> Now, we map these dev_dax or fs_dax pages to kvm for DIMM/NVDIMM
->> backend, since these pages are reserved. the check of
->> kvm_is_reserved_pfn() misconceives those pages as MMIO. Therefor, we
->> introduce 2 page map types, MEMORY_DEVICE_FS_DAX/MEMORY_DEVICE_DEV_DAX,
->> to indentify these pages are from NVDIMM pmem. and let kvm treat these
->> as normal pages.
->>
->> Without this patch, Many operations will be missed due to this
->> mistreatment to pmem pages. For example, a page may not have chance to
->> be unpinned for KVM guest(in kvm_release_pfn_clean); not able to be
->> marked as dirty/accessed(in kvm_set_pfn_dirty/accessed) etc.
+On 2018a1'07ae??04ae?JPY 22:50, Dan Williams wrote:
+> On Wed, Jul 4, 2018 at 8:30 AM, Zhang Yi <yi.z.zhang@linux.intel.com> wrote:
+>> Currently, NVDIMM pages will be marked 'PageReserved'. However, unlike
+>> other reserved PFNs, pages on NVDIMM shall still behave like normal ones
+>> in many cases, i.e. when used as backend memory of KVM guest. This patch
+>> introduces a new memory type, MEMORY_DEVICE_DEV_DAX. Together with the
+>> existing type MEMORY_DEVICE_FS_DAX, we can differentiate the pages on
+>> NVDIMM with the normal reserved pages.
 >>
 >> Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
 >> Signed-off-by: Zhang Yu <yu.c.zhang@linux.intel.com>
 >> ---
->>  virt/kvm/kvm_main.c | 17 +++++++++++++++--
->>  1 file changed, 15 insertions(+), 2 deletions(-)
+>>  drivers/dax/pmem.c       | 1 +
+>>  include/linux/memremap.h | 1 +
+>>  2 files changed, 2 insertions(+)
 >>
->> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
->> index afb2e6e..1365d18 100644
->> --- a/virt/kvm/kvm_main.c
->> +++ b/virt/kvm/kvm_main.c
->> @@ -140,10 +140,23 @@ __weak void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
->>  {
->>  }
->>  
->> +static bool kvm_is_nd_pfn(kvm_pfn_t pfn)
->> +{
->> +	struct page *page = pfn_to_page(pfn);
->> +
->> +	return is_zone_device_page(page) &&
->> +		((page->pgmap->type == MEMORY_DEVICE_FS_DAX) ||
->> +		 (page->pgmap->type == MEMORY_DEVICE_DEV_DAX));
->> +}
-> If the mm people agree, I'd prefer something that takes a struct page *
-> and is exported by include/linux/mm.h.  Then KVM can just do something like
->
-> 	struct page *page;
-> 	if (!pfn_valid(pfn))
-> 		return true;
->
-> 	page = pfn_to_page(pfn);
-> 	return PageReserved(page) && !is_dax_page(page);
->
-> Thanks,
->
-> Paolo
-Yeah, that could be much better. Thanks for your comments Paolo.
-
-Hi Kara, Do u have Any opinions/ideas to add such definition in mm?
-
-Regards,
-Yi
+>> diff --git a/drivers/dax/pmem.c b/drivers/dax/pmem.c
+>> index fd49b24..fb3f363 100644
+>> --- a/drivers/dax/pmem.c
+>> +++ b/drivers/dax/pmem.c
+>> @@ -111,6 +111,7 @@ static int dax_pmem_probe(struct device *dev)
+>>                 return rc;
+>>
+>>         dax_pmem->pgmap.ref = &dax_pmem->ref;
+>> +       dax_pmem->pgmap.type = MEMORY_DEVICE_DEV_DAX;
+>>         addr = devm_memremap_pages(dev, &dax_pmem->pgmap);
+>>         if (IS_ERR(addr))
+>>                 return PTR_ERR(addr);
+>> diff --git a/include/linux/memremap.h b/include/linux/memremap.h
+>> index 5ebfff6..4127bf7 100644
+>> --- a/include/linux/memremap.h
+>> +++ b/include/linux/memremap.h
+>> @@ -58,6 +58,7 @@ enum memory_type {
+>>         MEMORY_DEVICE_PRIVATE = 1,
+>>         MEMORY_DEVICE_PUBLIC,
+>>         MEMORY_DEVICE_FS_DAX,
+>> +       MEMORY_DEVICE_DEV_DAX,
+> Please add documentation for this new type to the comment block about
+> this definition.
+Thanks for your comments Dan, Will add it in next version,
+Regards
+Yi.
