@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 710316B0273
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 02:59:45 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id a12-v6so4261482pfn.12
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 23:59:45 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id j135-v6si6084553pfd.207.2018.07.04.23.59.43
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B8D666B0275
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 02:59:49 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id d4-v6so4311431pfn.9
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 23:59:49 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id m67-v6si5208675pgm.517.2018.07.04.23.59.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jul 2018 23:59:43 -0700 (PDT)
-Subject: [PATCH 08/13] s390/block/dcssblk: check the validity of the pointer
- pfn
+        Wed, 04 Jul 2018 23:59:48 -0700 (PDT)
+Subject: [PATCH 09/13] fs/dax: Assign NULL to pfn of dax_direct_access if
+ useless
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 04 Jul 2018 23:49:45 -0700
-Message-ID: <153077338570.40830.10517740093746798315.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Wed, 04 Jul 2018 23:49:50 -0700
+Message-ID: <153077339083.40830.7002878534903996422.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <153077334130.40830.2714147692560185329.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <153077334130.40830.2714147692560185329.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -26,29 +26,69 @@ Cc: Huaisheng Ye <yehs1@lenovo.com>, Jan Kara <jack@suse.cz>, vishal.l.verma@int
 
 From: Huaisheng Ye <yehs1@lenovo.com>
 
-direct_access needs to check the validity of pointer pfn for NULL
-assignment. If pfn equals to NULL, it doesn't need to calculate the value.
+Some functions within fs/dax don't need to get pfn from direct_access.
+Assigning NULL to pfn of dax_direct_access is more intuitive and simple
+than offering a useless local variable.
 
 Signed-off-by: Huaisheng Ye <yehs1@lenovo.com>
 Reviewed-by: Jan Kara <jack@suse.cz>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/s390/block/dcssblk.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ fs/dax.c |   10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)
 
-diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
-index ed607288e696..a645b2c93c34 100644
---- a/drivers/s390/block/dcssblk.c
-+++ b/drivers/s390/block/dcssblk.c
-@@ -923,8 +923,9 @@ __dcssblk_direct_access(struct dcssblk_dev_info *dev_info, pgoff_t pgoff,
+diff --git a/fs/dax.c b/fs/dax.c
+index 641192808bb6..28264ff4e343 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -647,7 +647,6 @@ static int copy_user_dax(struct block_device *bdev, struct dax_device *dax_dev,
+ {
+ 	void *vto, *kaddr;
+ 	pgoff_t pgoff;
+-	pfn_t pfn;
+ 	long rc;
+ 	int id;
  
- 	dev_sz = dev_info->end - dev_info->start + 1;
- 	*kaddr = (void *) dev_info->start + offset;
--	*pfn = __pfn_to_pfn_t(PFN_DOWN(dev_info->start + offset),
--			PFN_DEV|PFN_SPECIAL);
-+	if (pfn)
-+		*pfn = __pfn_to_pfn_t(PFN_DOWN(dev_info->start + offset),
-+				PFN_DEV|PFN_SPECIAL);
+@@ -656,7 +655,7 @@ static int copy_user_dax(struct block_device *bdev, struct dax_device *dax_dev,
+ 		return rc;
  
- 	return (dev_sz - offset) / PAGE_SIZE;
- }
+ 	id = dax_read_lock();
+-	rc = dax_direct_access(dax_dev, pgoff, PHYS_PFN(size), &kaddr, &pfn);
++	rc = dax_direct_access(dax_dev, pgoff, PHYS_PFN(size), &kaddr, NULL);
+ 	if (rc < 0) {
+ 		dax_read_unlock(id);
+ 		return rc;
+@@ -1052,15 +1051,13 @@ int __dax_zero_page_range(struct block_device *bdev,
+ 		pgoff_t pgoff;
+ 		long rc, id;
+ 		void *kaddr;
+-		pfn_t pfn;
+ 
+ 		rc = bdev_dax_pgoff(bdev, sector, PAGE_SIZE, &pgoff);
+ 		if (rc)
+ 			return rc;
+ 
+ 		id = dax_read_lock();
+-		rc = dax_direct_access(dax_dev, pgoff, 1, &kaddr,
+-				&pfn);
++		rc = dax_direct_access(dax_dev, pgoff, 1, &kaddr, NULL);
+ 		if (rc < 0) {
+ 			dax_read_unlock(id);
+ 			return rc;
+@@ -1116,7 +1113,6 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
+ 		ssize_t map_len;
+ 		pgoff_t pgoff;
+ 		void *kaddr;
+-		pfn_t pfn;
+ 
+ 		if (fatal_signal_pending(current)) {
+ 			ret = -EINTR;
+@@ -1128,7 +1124,7 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
+ 			break;
+ 
+ 		map_len = dax_direct_access(dax_dev, pgoff, PHYS_PFN(size),
+-				&kaddr, &pfn);
++				&kaddr, NULL);
+ 		if (map_len < 0) {
+ 			ret = map_len;
+ 			break;
