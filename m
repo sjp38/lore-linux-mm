@@ -1,43 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E7BC06B0005
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 07:23:35 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id g21-v6so705358ljj.15
-        for <linux-mm@kvack.org>; Thu, 05 Jul 2018 04:23:35 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E78A6B0007
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 07:40:46 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id t83-v6so4473914wmt.3
+        for <linux-mm@kvack.org>; Thu, 05 Jul 2018 04:40:46 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r3-v6sor1323238ljc.75.2018.07.05.04.23.33
+        by mx.google.com with SMTPS id 66-v6sor1891600wmg.58.2018.07.05.04.40.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 05 Jul 2018 04:23:33 -0700 (PDT)
+        Thu, 05 Jul 2018 04:40:45 -0700 (PDT)
+Date: Thu, 5 Jul 2018 13:40:43 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: kernel BUG at mm/gup.c:LINE!
+Message-ID: <20180705114043.GC30187@techadventures.net>
+References: <20180704121107.GL22503@dhcp22.suse.cz>
+ <20180704151529.GA23317@techadventures.net>
+ <201807050035.w650Z4RT018631@www262.sakura.ne.jp>
+ <20180705071808.GA30187@techadventures.net>
 MIME-Version: 1.0
-References: <1530376739-20459-1-git-send-email-ufo19890607@gmail.com>
- <CAHp75VdaEJgYFUX_MkthFPhimVtJStcinm1P4S-iGfJHvSeiyA@mail.gmail.com>
- <CAHCio2jv-xtnNbJ8beokueh-VQ6zZgF1hAFBJKHCNyuOuz2KxA@mail.gmail.com> <20180704081710.GH22503@dhcp22.suse.cz>
-In-Reply-To: <20180704081710.GH22503@dhcp22.suse.cz>
-From: =?UTF-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>
-Date: Thu, 5 Jul 2018 19:23:22 +0800
-Message-ID: <CAHCio2hf-kfmVgz=KCvE9L4nPZxEVcFrxv2R1Y11etG=KvyBwg@mail.gmail.com>
-Subject: Re: [PATCH v11 1/2] Refactor part of the oom report in dump_header
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180705071808.GA30187@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: Andy Shevchenko <andy.shevchenko@gmail.com>, akpm@linux-foundation.org, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: viro@zeniv.linux.org.uk, Michal Hocko <mhocko@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, syzbot <syzbot+5dcb560fe12aa5091c06@syzkaller.appspotmail.com>, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, mst@redhat.com, syzkaller-bugs@googlegroups.com, ying.huang@intel.com
 
-Hi Michal and Andy
-The enum oom_constraint  will be added in the struct oom_control.  So
-I still think I should define it in oom.h.
-Michal Hocko <mhocko@kernel.org> =E4=BA=8E2018=E5=B9=B47=E6=9C=884=E6=97=A5=
-=E5=91=A8=E4=B8=89 =E4=B8=8B=E5=8D=884:17=E5=86=99=E9=81=93=EF=BC=9A
->
-> On Wed 04-07-18 10:25:30, =E7=A6=B9=E8=88=9F=E9=94=AE wrote:
-> > Hi Andy
-> > The const char array need to be used by the new func
-> > mem_cgroup_print_oom_context and some funcs in oom_kill.c in the
-> > second patch.
->
-> Just declare it in oom.h and define in oom.c
-> --
-> Michal Hocko
-> SUSE Labs
+On Thu, Jul 05, 2018 at 09:18:08AM +0200, Oscar Salvador wrote:
+> > So, indeed "bss" needs to be aligned.
+> > But ELF_PAGESTART() or ELF_PAGEALIGN(), which one to use?
+> > 
+> > #define ELF_PAGESTART(_v) ((_v) & ~(unsigned long)(ELF_MIN_ALIGN-1))
+> > #define ELF_PAGEALIGN(_v) (((_v) + ELF_MIN_ALIGN - 1) & ~(ELF_MIN_ALIGN - 1))
+> > 
+> > Is
+> > 
+> > -	len = ELF_PAGESTART(eppnt->p_filesz + eppnt->p_vaddr +
+> > -			    ELF_MIN_ALIGN - 1);
+> > +	len = ELF_PAGEALIGN(eppnt->p_filesz + eppnt->p_vaddr);
+> > 
+> > suggesting that
+> > 
+> > -	bss = eppnt->p_memsz + eppnt->p_vaddr;
+> > +	bss = ELF_PAGEALIGN(eppnt->p_memsz + eppnt->p_vaddr);
+> > 
+> > is the right choice? I don't know...
+> 
+> Yes, I think that ELF_PAGEALIGN is the right choice here.
+> Given that bss is 0x7bf88676, using ELF_PAGESTART aligns it but backwards, while ELF_PAGEALIGN does
+> the right thing:
+> 
+> bss = 0x7bf88676
+> ELF_PAGESTART (bss) = 0x7bf88000
+> ELF_PAGEALIGN (bss) = 0x7bf89000
+
+I think this should do the trick:
+
+diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+index 0ac456b52bdd..6c7e005ae12d 100644
+--- a/fs/binfmt_elf.c
++++ b/fs/binfmt_elf.c
+@@ -1259,9 +1259,9 @@ static int load_elf_library(struct file *file)
+                goto out_free_ph;
+        }
+ 
+-       len = ELF_PAGESTART(eppnt->p_filesz + eppnt->p_vaddr +
+-                           ELF_MIN_ALIGN - 1);
+-       bss = eppnt->p_memsz + eppnt->p_vaddr;
++
++       len = ELF_PAGEALIGN(eppnt->p_filesz + eppnt->p_vaddr);
++       bss = ELF_PAGEALIGN(eppnt->p_memsz + eppnt->p_vaddr);
+        if (bss > len) {
+                error = vm_brk(len, bss - len);
+                if (error)
+
+I could only test it in x86_64 (with -m32).
+Could you test it on x86_32? 
+
+-- 
+Oscar Salvador
+SUSE L3
