@@ -1,44 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id ECA0D6B0007
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 10:49:44 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id f13-v6so4616870wmb.4
-        for <linux-mm@kvack.org>; Thu, 05 Jul 2018 07:49:44 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u10-v6si291630edj.407.2018.07.05.07.49.43
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A59C6B000A
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 10:52:00 -0400 (EDT)
+Received: by mail-yb0-f199.google.com with SMTP id s124-v6so7928036ybf.3
+        for <linux-mm@kvack.org>; Thu, 05 Jul 2018 07:52:00 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z127-v6sor1487528ywf.36.2018.07.05.07.51.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Jul 2018 07:49:43 -0700 (PDT)
-Date: Thu, 5 Jul 2018 16:49:41 +0200
-From: Johannes Thumshirn <jthumshirn@suse.de>
-Subject: Re: [PATCH 13/13] libnvdimm, namespace: Publish page structure init
- state / control
-Message-ID: <20180705144941.drfiwhqcnqqorqu3@linux-x5ow.site>
-References: <153077334130.40830.2714147692560185329.stgit@dwillia2-desk3.amr.corp.intel.com>
- <153077341292.40830.11333232703318633087.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180705082931.echvdqipgvwhghf2@linux-x5ow.site>
- <CAPcyv4h1L6ZMCqWXhWD_ZJ=sH7SVzuUGMG2Ln=6Cy6sR4S=VUw@mail.gmail.com>
+        (Google Transport Security);
+        Thu, 05 Jul 2018 07:51:58 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAPcyv4h1L6ZMCqWXhWD_ZJ=sH7SVzuUGMG2Ln=6Cy6sR4S=VUw@mail.gmail.com>
+In-Reply-To: <3f7833bf-99ad-f36c-1e95-36bf78b60d50@nvidia.com>
+References: <152938827880.17797.439879736804291936.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152938832086.17797.4538943238207602944.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <3f7833bf-99ad-f36c-1e95-36bf78b60d50@nvidia.com>
+From: Joe Gorse <jhgorse@gmail.com>
+Date: Thu, 5 Jul 2018 10:51:37 -0400
+Message-ID: <CAFhSwD8KDQDEFiDUxJ5+iY8MtUqzgKEu+xMpRS4Nb8d3-TqADg@mail.gmail.com>
+Subject: Re: [PATCH v3 8/8] mm: Fix exports that inadvertently make put_page() EXPORT_SYMBOL_GPL
+Content-Type: multipart/alternative; boundary="00000000000068238e057041b0fb"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Vishal Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>, Jeff Moyer <jmoyer@redhat.com>, Christoph Hellwig <hch@lst.de>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org, hch@lst.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jul 05, 2018 at 07:46:05AM -0700, Dan Williams wrote:
-> ...but that also allows 'echo "syncAndThenSomeGarbage" >
-> /sys/.../memmap_state' to succeed.
+--00000000000068238e057041b0fb
+Content-Type: text/plain; charset="UTF-8"
 
-Yep it does :-(.
+Thank you! OpenAFS is good now as well.
 
-Damn
--- 
-Johannes Thumshirn                                          Storage
-jthumshirn@suse.de                                +49 911 74053 689
-SUSE LINUX GmbH, Maxfeldstr. 5, 90409 Nurnberg
-GF: Felix Imendorffer, Jane Smithard, Graham Norton
-HRB 21284 (AG Nurnberg)
-Key fingerprint = EC38 9CAB C2C4 F25D 8600 D0D0 0393 969D 2D76 0850
+In terms of schedule, when do you think this will make it upsteam? Will we
+make the 4.18 kernel release?
+
+Cheers,
+Joe Gorse
+
+
+On Tue, Jun 19, 2018 at 2:59 AM, John Hubbard <jhubbard@nvidia.com> wrote:
+
+> On 06/18/2018 11:05 PM, Dan Williams wrote:
+> > Now that all producers of dev_pagemap instances in the kernel are
+> > properly converted to EXPORT_SYMBOL_GPL, fix up implicit consumers that
+> > interact with dev_pagemap owners via put_page(). To reiterate,
+> > dev_pagemap producers are EXPORT_SYMBOL_GPL because they adopt and
+> > modify core memory management interfaces such that the dev_pagemap owner
+> > can interact with all other kernel infrastructure and sub-systems
+> > (drivers, filesystems, etc...) that consume page structures.
+> >
+> > Fixes: e76384884344 ("mm: introduce MEMORY_DEVICE_FS_DAX and
+> CONFIG_DEV_PAGEMAP_OPS")
+> > Reported-by: Joe Gorse <jhgorse@gmail.com>
+> > Reported-by: John Hubbard <jhubbard@nvidia.com>
+> > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> > ---
+> >  kernel/memremap.c |    4 ++--
+> >  1 file changed, 2 insertions(+), 2 deletions(-)
+> >
+> > diff --git a/kernel/memremap.c b/kernel/memremap.c
+> > index 16141b608b63..ecee37b44aa1 100644
+> > --- a/kernel/memremap.c
+> > +++ b/kernel/memremap.c
+> > @@ -330,7 +330,7 @@ EXPORT_SYMBOL_GPL(get_dev_pagemap);
+> >
+> >  #ifdef CONFIG_DEV_PAGEMAP_OPS
+> >  DEFINE_STATIC_KEY_FALSE(devmap_managed_key);
+> > -EXPORT_SYMBOL_GPL(devmap_managed_key);
+> > +EXPORT_SYMBOL(devmap_managed_key);
+> >  static atomic_t devmap_enable;
+> >
+> >  /*
+> > @@ -371,5 +371,5 @@ void __put_devmap_managed_page(struct page *page)
+> >       } else if (!count)
+> >               __put_page(page);
+> >  }
+> > -EXPORT_SYMBOL_GPL(__put_devmap_managed_page);
+> > +EXPORT_SYMBOL(__put_devmap_managed_page);
+> >  #endif /* CONFIG_DEV_PAGEMAP_OPS */
+> >
+>
+> Yep, that fixes everything I was seeing.
+>
+> thanks,
+> --
+> John Hubbard
+> NVIDIA
+>
+
+--00000000000068238e057041b0fb
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div>Thank you! OpenAFS is good now as well.</div><div><br=
+></div><div>In terms of schedule, when do you think this will make it upste=
+am? Will we make the 4.18 kernel release?</div><div><br></div><div>Cheers,<=
+/div><div>Joe Gorse</div><div><br></div></div><div class=3D"gmail_extra"><b=
+r><div class=3D"gmail_quote">On Tue, Jun 19, 2018 at 2:59 AM, John Hubbard =
+<span dir=3D"ltr">&lt;<a href=3D"mailto:jhubbard@nvidia.com" target=3D"_bla=
+nk">jhubbard@nvidia.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmail=
+_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:=
+1ex"><div class=3D"HOEnZb"><div class=3D"h5">On 06/18/2018 11:05 PM, Dan Wi=
+lliams wrote:<br>
+&gt; Now that all producers of dev_pagemap instances in the kernel are<br>
+&gt; properly converted to EXPORT_SYMBOL_GPL, fix up implicit consumers tha=
+t<br>
+&gt; interact with dev_pagemap owners via put_page(). To reiterate,<br>
+&gt; dev_pagemap producers are EXPORT_SYMBOL_GPL because they adopt and<br>
+&gt; modify core memory management interfaces such that the dev_pagemap own=
+er<br>
+&gt; can interact with all other kernel infrastructure and sub-systems<br>
+&gt; (drivers, filesystems, etc...) that consume page structures.<br>
+&gt; <br>
+&gt; Fixes: e76384884344 (&quot;mm: introduce MEMORY_DEVICE_FS_DAX and CONF=
+IG_DEV_PAGEMAP_OPS&quot;)<br>
+&gt; Reported-by: Joe Gorse &lt;<a href=3D"mailto:jhgorse@gmail.com">jhgors=
+e@gmail.com</a>&gt;<br>
+&gt; Reported-by: John Hubbard &lt;<a href=3D"mailto:jhubbard@nvidia.com">j=
+hubbard@nvidia.com</a>&gt;<br>
+&gt; Signed-off-by: Dan Williams &lt;<a href=3D"mailto:dan.j.williams@intel=
+.com">dan.j.williams@intel.com</a>&gt;<br>
+&gt; ---<br>
+&gt;=C2=A0 kernel/memremap.c |=C2=A0 =C2=A0 4 ++--<br>
+&gt;=C2=A0 1 file changed, 2 insertions(+), 2 deletions(-)<br>
+&gt; <br>
+&gt; diff --git a/kernel/memremap.c b/kernel/memremap.c<br>
+&gt; index 16141b608b63..ecee37b44aa1 100644<br>
+&gt; --- a/kernel/memremap.c<br>
+&gt; +++ b/kernel/memremap.c<br>
+&gt; @@ -330,7 +330,7 @@ EXPORT_SYMBOL_GPL(get_dev_<wbr>pagemap);<br>
+&gt;=C2=A0 <br>
+&gt;=C2=A0 #ifdef CONFIG_DEV_PAGEMAP_OPS<br>
+&gt;=C2=A0 DEFINE_STATIC_KEY_FALSE(<wbr>devmap_managed_key);<br>
+&gt; -EXPORT_SYMBOL_GPL(devmap_<wbr>managed_key);<br>
+&gt; +EXPORT_SYMBOL(devmap_managed_<wbr>key);<br>
+&gt;=C2=A0 static atomic_t devmap_enable;<br>
+&gt;=C2=A0 <br>
+&gt;=C2=A0 /*<br>
+&gt; @@ -371,5 +371,5 @@ void __put_devmap_managed_page(<wbr>struct page *p=
+age)<br>
+&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0} else if (!count)<br>
+&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0__put_page(page)=
+;<br>
+&gt;=C2=A0 }<br>
+&gt; -EXPORT_SYMBOL_GPL(__put_<wbr>devmap_managed_page);<br>
+&gt; +EXPORT_SYMBOL(__put_devmap_<wbr>managed_page);<br>
+&gt;=C2=A0 #endif /* CONFIG_DEV_PAGEMAP_OPS */<br>
+&gt; <br>
+<br>
+</div></div>Yep, that fixes everything I was seeing.<br>
+<br>
+thanks,<br>
+<span class=3D"HOEnZb"><font color=3D"#888888">-- <br>
+John Hubbard<br>
+NVIDIA<br>
+</font></span></blockquote></div><br></div>
+
+--00000000000068238e057041b0fb--
