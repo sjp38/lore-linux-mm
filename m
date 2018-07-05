@@ -1,51 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C79BD6B0005
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 18:54:34 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id 39-v6so543940ple.6
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 15:54:34 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e125-v6si4209831pgc.424.2018.07.04.15.54.33
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 713416B0005
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 20:35:51 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id q11-v6so5240759oih.15
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 17:35:51 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id 189-v6si1651470oid.384.2018.07.04.17.35.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 04 Jul 2018 15:54:33 -0700 (PDT)
-Date: Wed, 4 Jul 2018 15:54:31 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: XArray -next inclusion request
-Message-ID: <20180704225431.GA16309@bombadil.infradead.org>
-References: <20180617021521.GA18455@bombadil.infradead.org>
- <20180617134104.68c24ffc@canb.auug.org.au>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Jul 2018 17:35:49 -0700 (PDT)
+Message-Id: <201807050035.w650Z4RT018631@www262.sakura.ne.jp>
+Subject: Re: kernel BUG at mm/gup.c:LINE!
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180617134104.68c24ffc@canb.auug.org.au>
+Date: Thu, 05 Jul 2018 09:35:04 +0900
+References: <20180704121107.GL22503@dhcp22.suse.cz> <20180704151529.GA23317@techadventures.net>
+In-Reply-To: <20180704151529.GA23317@techadventures.net>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Oscar Salvador <osalvador@techadventures.net>, viro@zeniv.linux.org.uk
+Cc: Michal Hocko <mhocko@kernel.org>, Zi Yan <zi.yan@cs.rutgers.edu>, syzbot <syzbot+5dcb560fe12aa5091c06@syzkaller.appspotmail.com>, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, mst@redhat.com, syzkaller-bugs@googlegroups.com, ying.huang@intel.com
 
-On Sun, Jun 17, 2018 at 01:41:04PM +1000, Stephen Rothwell wrote:
-> Hi Willy,
+Oscar Salvador wrote:
+> Anyway, I just gave it a try, and making sure that bss gets page aligned seems to
+> "fix" the issue (at the process doesn't hang anymore):
 > 
-> On Sat, 16 Jun 2018 19:15:22 -0700 Matthew Wilcox <willy@infradead.org> wrote:
-> >
-> > Please add
-> > 
-> > git://git.infradead.org/users/willy/linux-dax.git xarray
-> > 
-> > to linux-next.  It is based on -rc1.  You will find some conflicts
-> > against Dan's current patches to DAX; these are all resolved correctly
-> > in the xarray-20180615 branch which is based on next-20180615.
+> -       bss = eppnt->p_memsz + eppnt->p_vaddr;
+> +       bss = ELF_PAGESTART(eppnt->p_memsz + eppnt->p_vaddr);
+> 	if (bss > len) {
+>                 error = vm_brk(len, bss - len);
 > 
-> Added from tomorrow.
+> Although I'm not sure about the correctness of this.
 
-Thanks!  I have some additional patches for the IDA that I'd like to
-send to Linus as a separate pull request.  Unfortunately, they conflict with
-the XArray patches, so I've done them as a separate branch in the same tree:
+static int set_brk(unsigned long start, unsigned long end, int prot)
+{
+        start = ELF_PAGEALIGN(start);
+        end = ELF_PAGEALIGN(end);
+        if (end > start) {
+                /*
+                 * Map the last of the bss segment.
+                 * If the header is requesting these pages to be
+                 * executable, honour that (ppc32 needs this).
+                 */
+                int error = vm_brk_flags(start, end - start,
+                                prot & PROT_EXEC ? VM_EXEC : 0);
+                if (error)
+                        return error;
+        }
+        current->mm->start_brk = current->mm->brk = end;
+        return 0;
+}
 
-git://git.infradead.org/users/willy/linux-dax.git ida
+static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
+                struct file *interpreter, unsigned long *interp_map_addr,
+                unsigned long no_base, struct elf_phdr *interp_elf_phdata)
+{
+(...snipped...)
+        /*
+         * Next, align both the file and mem bss up to the page size,
+         * since this is where elf_bss was just zeroed up to, and where
+         * last_bss will end after the vm_brk_flags() below.
+         */
+        elf_bss = ELF_PAGEALIGN(elf_bss);
+        last_bss = ELF_PAGEALIGN(last_bss);
+        /* Finally, if there is still more bss to allocate, do it. */
+        if (last_bss > elf_bss) {
+                error = vm_brk_flags(elf_bss, last_bss - elf_bss,
+                                bss_prot & PROT_EXEC ? VM_EXEC : 0);
+                if (error)
+                        goto out;
+        }
+(...snipped...)
+}
 
-Would you prefer to add them as a separate branch to linux-next (to be
-pulled after xarray), or would you prefer to replace the xarray pull
-with the ida pull?  Either way, you'll get the same commits as the ida
-branch is based off the xarray branch.
+static int load_elf_library(struct file *file)
+{
+(...snipped...)
+        len = ELF_PAGESTART(eppnt->p_filesz + eppnt->p_vaddr +
+                            ELF_MIN_ALIGN - 1);
+        bss = eppnt->p_memsz + eppnt->p_vaddr;
+        if (bss > len) {
+                error = vm_brk(len, bss - len);
+                if (error)
+                        goto out_free_ph;
+        }
+(...snipped...)
+}
+
+So, indeed "bss" needs to be aligned.
+But ELF_PAGESTART() or ELF_PAGEALIGN(), which one to use?
+
+#define ELF_PAGESTART(_v) ((_v) & ~(unsigned long)(ELF_MIN_ALIGN-1))
+#define ELF_PAGEALIGN(_v) (((_v) + ELF_MIN_ALIGN - 1) & ~(ELF_MIN_ALIGN - 1))
+
+Is
+
+-	len = ELF_PAGESTART(eppnt->p_filesz + eppnt->p_vaddr +
+-			    ELF_MIN_ALIGN - 1);
++	len = ELF_PAGEALIGN(eppnt->p_filesz + eppnt->p_vaddr);
+
+suggesting that
+
+-	bss = eppnt->p_memsz + eppnt->p_vaddr;
++	bss = ELF_PAGEALIGN(eppnt->p_memsz + eppnt->p_vaddr);
+
+is the right choice? I don't know...
