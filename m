@@ -1,54 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 464496B0005
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 13:53:56 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id f5-v6so2554678plf.18
-        for <linux-mm@kvack.org>; Thu, 05 Jul 2018 10:53:56 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id k18-v6si6241136pll.404.2018.07.05.10.53.54
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 56FF16B0005
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 14:33:35 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id q184-v6so3632266vke.23
+        for <linux-mm@kvack.org>; Thu, 05 Jul 2018 11:33:35 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id c195-v6si2472638vkd.55.2018.07.05.11.33.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 05 Jul 2018 10:53:54 -0700 (PDT)
-Date: Thu, 5 Jul 2018 10:53:52 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [BUG] Swap xarray workingset eviction warning.
-Message-ID: <20180705175352.GA21635@bombadil.infradead.org>
-References: <2920a634-0646-1500-7c4d-62c56932fe49@gmail.com>
- <20180702025059.GA9865@bombadil.infradead.org>
- <20180705170019.GA14929@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Jul 2018 11:33:34 -0700 (PDT)
+Date: Thu, 5 Jul 2018 11:33:18 -0700
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Re: [PATCH -mm -v4 05/21] mm, THP, swap: Support PMD swap mapping in
+ free_swap_and_cache()/swap_free()
+Message-ID: <20180705183318.je4gd32awgh2tnb5@ca-dmjordan1.us.oracle.com>
+References: <20180622035151.6676-1-ying.huang@intel.com>
+ <20180622035151.6676-6-ying.huang@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180705170019.GA14929@cmpxchg.org>
+In-Reply-To: <20180622035151.6676-6-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Peter Geis <pgwipeout@gmail.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
 
-On Thu, Jul 05, 2018 at 01:00:19PM -0400, Johannes Weiner wrote:
-> This could be a matter of uptime, but the warning triggers on a thing
-> that is supposed to happen everywhere eventually. Let's fix it.
+On Fri, Jun 22, 2018 at 11:51:35AM +0800, Huang, Ying wrote:
+> +static unsigned char swap_free_cluster(struct swap_info_struct *si,
+> +				       swp_entry_t entry)
+...
+> +	/* Cluster has been split, free each swap entries in cluster */
+> +	if (!cluster_is_huge(ci)) {
+> +		unlock_cluster(ci);
+> +		for (i = 0; i < SWAPFILE_CLUSTER; i++, entry.val++) {
+> +			if (!__swap_entry_free(si, entry, 1)) {
+> +				free_entries++;
+> +				free_swap_slot(entry);
+> +			}
+> +		}
 
-Ahh!  Thank you!
+Is is better on average to use __swap_entry_free_locked instead of
+__swap_entry_free here?  I'm not sure myself, just asking.
 
-> xa_mk_value() doesn't understand that we're okay with it chopping off
-> our upper-most bit. We shouldn't make this an API behavior, either, so
-> let's fix the workingset code to always clear those bits before hand.
+As it's written, if the cluster's been split, we always take and drop the
+cluster lock 512 times, but if we don't expect to call free_swap_slot that
+often, then we could just drop and retake the cluster lock inside the innermost
+'if' against the possibility that free_swap_slot eventually makes us take the
+cluster lock again.
 
-Makes sense.  I'll just fold this in, if that's OK with you?
+...
+> +		return !(free_entries == SWAPFILE_CLUSTER);
 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
-> 
-> diff --git a/mm/workingset.c b/mm/workingset.c
-> index a466e731231d..1da19c04b6f7 100644
-> --- a/mm/workingset.c
-> +++ b/mm/workingset.c
-> @@ -173,6 +173,7 @@ static unsigned int bucket_order __read_mostly;
->  static void *pack_shadow(int memcgid, pg_data_t *pgdat, unsigned long eviction)
->  {
->  	eviction >>= bucket_order;
-> +	eviction &= EVICTION_MASK;
->  	eviction = (eviction << MEM_CGROUP_ID_SHIFT) | memcgid;
->  	eviction = (eviction << NODES_SHIFT) | pgdat->node_id;
->  
+                return free_entries != SWAPFILE_CLUSTER;
