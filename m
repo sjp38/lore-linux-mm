@@ -1,230 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B97D6B0007
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2018 23:44:02 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id a12-v6so3949358pfn.12
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 20:44:02 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id q124-v6si5769984pfc.93.2018.07.04.20.44.00
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 15EF26B0005
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 00:37:33 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id 39-v6so1154741ple.6
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2018 21:37:33 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
+        by mx.google.com with ESMTPS id y71-v6si4692855pgd.223.2018.07.04.21.37.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jul 2018 20:44:00 -0700 (PDT)
-Subject: [PATCH v6] filesystem-dax: Introduce dax_lock_mapping_entry()
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 04 Jul 2018 20:33:52 -0700
-Message-ID: <153076161392.9314.16967170107658011515.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <153074046078.27838.5465590228767136915.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <153074046078.27838.5465590228767136915.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 04 Jul 2018 21:37:31 -0700 (PDT)
+Date: Thu, 5 Jul 2018 14:37:26 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: XArray -next inclusion request
+Message-ID: <20180705143726.3ec5e77a@canb.auug.org.au>
+In-Reply-To: <20180704225431.GA16309@bombadil.infradead.org>
+References: <20180617021521.GA18455@bombadil.infradead.org>
+	<20180617134104.68c24ffc@canb.auug.org.au>
+	<20180704225431.GA16309@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/2u+J8f_.TkC=Al/t6PlP1PA"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-nvdimm@lists.01.org
-Cc: jack@suse.cz, hch@lst.de, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-In preparation for implementing support for memory poison (media error)
-handling via dax mappings, implement a lock_page() equivalent. Poison
-error handling requires rmap and needs guarantees that the page->mapping
-association is maintained / valid (inode not freed) for the duration of
-the lookup.
+--Sig_/2u+J8f_.TkC=Al/t6PlP1PA
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-In the device-dax case it is sufficient to simply hold a dev_pagemap
-reference. In the filesystem-dax case we need to use the entry lock.
+Hi Willy,
 
-Export the entry lock via dax_lock_mapping_entry() that uses
-rcu_read_lock() to protect against the inode being freed, and
-revalidates the page->mapping association under xa_lock().
+On Wed, 4 Jul 2018 15:54:31 -0700 Matthew Wilcox <willy@infradead.org> wrot=
+e:
+>
+> I have some additional patches for the IDA that I'd like to
+> send to Linus as a separate pull request.  Unfortunately, they conflict w=
+ith
+> the XArray patches, so I've done them as a separate branch in the same tr=
+ee:
+>=20
+> git://git.infradead.org/users/willy/linux-dax.git ida
+>=20
+> Would you prefer to add them as a separate branch to linux-next (to be
+> pulled after xarray), or would you prefer to replace the xarray pull
+> with the ida pull?  Either way, you'll get the same commits as the ida
+> branch is based off the xarray branch.
 
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
-Changes since v5, fixup kbuild robot reports.
+I have added that as a new tree from today.
 
- fs/dax.c            |  109 ++++++++++++++++++++++++++++++++++++++++++++++++---
- include/linux/dax.h |   13 ++++++
- 2 files changed, 116 insertions(+), 6 deletions(-)
+Thanks for adding your subsystem tree as a participant of linux-next.  As
+you may know, this is not a judgement of your code.  The purpose of
+linux-next is for integration testing and to lower the impact of
+conflicts between subsystems in the next merge window.=20
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 4de11ed463ce..57ec272038da 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -226,8 +226,8 @@ static inline void *unlock_slot(struct address_space *mapping, void **slot)
-  *
-  * Must be called with the i_pages lock held.
-  */
--static void *get_unlocked_mapping_entry(struct address_space *mapping,
--					pgoff_t index, void ***slotp)
-+static void *__get_unlocked_mapping_entry(struct address_space *mapping,
-+		pgoff_t index, void ***slotp, bool (*wait_fn)(void))
- {
- 	void *entry, **slot;
- 	struct wait_exceptional_entry_queue ewait;
-@@ -237,6 +237,8 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
- 	ewait.wait.func = wake_exceptional_entry_func;
- 
- 	for (;;) {
-+		bool revalidate;
-+
- 		entry = __radix_tree_lookup(&mapping->i_pages, index, NULL,
- 					  &slot);
- 		if (!entry ||
-@@ -251,14 +253,31 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
- 		prepare_to_wait_exclusive(wq, &ewait.wait,
- 					  TASK_UNINTERRUPTIBLE);
- 		xa_unlock_irq(&mapping->i_pages);
--		schedule();
-+		revalidate = wait_fn();
- 		finish_wait(wq, &ewait.wait);
- 		xa_lock_irq(&mapping->i_pages);
-+		if (revalidate)
-+			return ERR_PTR(-EAGAIN);
- 	}
- }
- 
--static void dax_unlock_mapping_entry(struct address_space *mapping,
--				     pgoff_t index)
-+static bool entry_wait(void)
-+{
-+	schedule();
-+	/*
-+	 * Never return an ERR_PTR() from
-+	 * __get_unlocked_mapping_entry(), just keep looping.
-+	 */
-+	return false;
-+}
-+
-+static void *get_unlocked_mapping_entry(struct address_space *mapping,
-+		pgoff_t index, void ***slotp)
-+{
-+	return __get_unlocked_mapping_entry(mapping, index, slotp, entry_wait);
-+}
-+
-+static void unlock_mapping_entry(struct address_space *mapping, pgoff_t index)
- {
- 	void *entry, **slot;
- 
-@@ -277,7 +296,7 @@ static void dax_unlock_mapping_entry(struct address_space *mapping,
- static void put_locked_mapping_entry(struct address_space *mapping,
- 		pgoff_t index)
- {
--	dax_unlock_mapping_entry(mapping, index);
-+	unlock_mapping_entry(mapping, index);
- }
- 
- /*
-@@ -374,6 +393,84 @@ static struct page *dax_busy_page(void *entry)
- 	return NULL;
- }
- 
-+static bool entry_wait_revalidate(void)
-+{
-+	rcu_read_unlock();
-+	schedule();
-+	rcu_read_lock();
-+
-+	/*
-+	 * Tell __get_unlocked_mapping_entry() to take a break, we need
-+	 * to revalidate page->mapping after dropping locks
-+	 */
-+	return true;
-+}
-+
-+bool dax_lock_mapping_entry(struct page *page)
-+{
-+	pgoff_t index;
-+	struct inode *inode;
-+	bool did_lock = false;
-+	void *entry = NULL, **slot;
-+	struct address_space *mapping;
-+
-+	rcu_read_lock();
-+	for (;;) {
-+		mapping = READ_ONCE(page->mapping);
-+
-+		if (!dax_mapping(mapping))
-+			break;
-+
-+		/*
-+		 * In the device-dax case there's no need to lock, a
-+		 * struct dev_pagemap pin is sufficient to keep the
-+		 * inode alive, and we assume we have dev_pagemap pin
-+		 * otherwise we would not have a valid pfn_to_page()
-+		 * translation.
-+		 */
-+		inode = mapping->host;
-+		if (S_ISCHR(inode->i_mode)) {
-+			did_lock = true;
-+			break;
-+		}
-+
-+		xa_lock_irq(&mapping->i_pages);
-+		if (mapping != page->mapping) {
-+			xa_unlock_irq(&mapping->i_pages);
-+			continue;
-+		}
-+		index = page->index;
-+
-+		entry = __get_unlocked_mapping_entry(mapping, index, &slot,
-+				entry_wait_revalidate);
-+		if (!entry) {
-+			xa_unlock_irq(&mapping->i_pages);
-+			break;
-+		} else if (IS_ERR(entry)) {
-+			WARN_ON_ONCE(PTR_ERR(entry) != -EAGAIN);
-+			continue;
-+		}
-+		lock_slot(mapping, slot);
-+		did_lock = true;
-+		xa_unlock_irq(&mapping->i_pages);
-+		break;
-+	}
-+	rcu_read_unlock();
-+
-+	return did_lock;
-+}
-+
-+void dax_unlock_mapping_entry(struct page *page)
-+{
-+	struct address_space *mapping = page->mapping;
-+	struct inode *inode = mapping->host;
-+
-+	if (S_ISCHR(inode->i_mode))
-+		return;
-+
-+	unlock_mapping_entry(mapping, page->index);
-+}
-+
- /*
-  * Find radix tree entry at given index. If it points to an exceptional entry,
-  * return it with the radix tree entry locked. If the radix tree doesn't
-diff --git a/include/linux/dax.h b/include/linux/dax.h
-index deb0f663252f..450b28db9533 100644
---- a/include/linux/dax.h
-+++ b/include/linux/dax.h
-@@ -88,6 +88,8 @@ int dax_writeback_mapping_range(struct address_space *mapping,
- 		struct block_device *bdev, struct writeback_control *wbc);
- 
- struct page *dax_layout_busy_page(struct address_space *mapping);
-+bool dax_lock_mapping_entry(struct page *page);
-+void dax_unlock_mapping_entry(struct page *page);
- #else
- static inline bool bdev_dax_supported(struct block_device *bdev,
- 		int blocksize)
-@@ -119,6 +121,17 @@ static inline int dax_writeback_mapping_range(struct address_space *mapping,
- {
- 	return -EOPNOTSUPP;
- }
-+
-+static inline bool dax_lock_mapping_entry(struct page *page)
-+{
-+	if (IS_DAX(page->mapping->host))
-+		return true;
-+	return false;
-+}
-+
-+static inline void dax_unlock_mapping_entry(struct page *page)
-+{
-+}
- #endif
- 
- int dax_read_lock(void);
+You will need to ensure that the patches/commits in your tree/series have
+been:
+     * submitted under GPL v2 (or later) and include the Contributor's
+        Signed-off-by,
+     * posted to the relevant mailing list,
+     * reviewed by you (or another maintainer of your subsystem tree),
+     * successfully unit tested, and=20
+     * destined for the current or next Linux merge window.
+
+Basically, this should be just what you would send to Linus (or ask him
+to fetch).  It is allowed to be rebased if you deem it necessary.
+
+--=20
+Cheers,
+Stephen Rothwell=20
+sfr@canb.auug.org.au
+
+--Sig_/2u+J8f_.TkC=Al/t6PlP1PA
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAls9oIYACgkQAVBC80lX
+0GyA6Qf9E96YAJqveWQemXWqUNd++DgTtmwPWP5y/5w4Oh95tM5IT2iVjLnvqKLE
+F3a8NX4jpqWezgdOJAb5r9IPbosGRabgGNLvluET82kVfcs2KIsK4ITsAmuqmjt0
+5Hf1zynH/GOXXhGqOfkbfr3xyQqFTETyOYv67Jy4l6NCWNO8HP0lNb9qfbUZcOH2
+y4ARndfMobDYXpGOlGHPIiHz6TzOH+epEI5Vtl1kW91TvqfM0FMyuIsMQptZE+es
+DyaQ7VTmhTP55tZE/RAwX5rNgrfXMYE1jUTZqs9lw7v3OnVZzxbDIVnVXvCL+gxl
+4sY69QdBR2EVykYmD9KVeAMbC4IqUA==
+=XVdQ
+-----END PGP SIGNATURE-----
+
+--Sig_/2u+J8f_.TkC=Al/t6PlP1PA--
