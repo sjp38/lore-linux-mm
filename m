@@ -1,73 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CC56B6B0005
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 08:14:00 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id b65-v6so1985434plb.5
-        for <linux-mm@kvack.org>; Thu, 05 Jul 2018 05:14:00 -0700 (PDT)
-Received: from icp-osb-irony-out7.external.iinet.net.au (icp-osb-irony-out7.external.iinet.net.au. [203.59.1.107])
-        by mx.google.com with ESMTP id m37-v6si6108934pla.148.2018.07.05.05.13.56
-        for <linux-mm@kvack.org>;
-        Thu, 05 Jul 2018 05:13:57 -0700 (PDT)
-Subject: Re: [PATCH v2 0/3] m68k: switch to MEMBLOCK + NO_BOOTMEM
-References: <1530685696-14672-1-git-send-email-rppt@linux.vnet.ibm.com>
-From: Greg Ungerer <gerg@linux-m68k.org>
-Message-ID: <4c08ad85-95f8-7001-5429-eaaf36d061de@linux-m68k.org>
-Date: Thu, 5 Jul 2018 22:13:52 +1000
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CC6D6B0007
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 08:24:39 -0400 (EDT)
+Received: by mail-ua0-f198.google.com with SMTP id z1-v6so2325033ual.15
+        for <linux-mm@kvack.org>; Thu, 05 Jul 2018 05:24:39 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i61-v6sor1349326uad.77.2018.07.05.05.24.38
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 05 Jul 2018 05:24:38 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1530685696-14672-1-git-send-email-rppt@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAHCio2hf-kfmVgz=KCvE9L4nPZxEVcFrxv2R1Y11etG=KvyBwg@mail.gmail.com>
+References: <1530376739-20459-1-git-send-email-ufo19890607@gmail.com>
+ <CAHp75VdaEJgYFUX_MkthFPhimVtJStcinm1P4S-iGfJHvSeiyA@mail.gmail.com>
+ <CAHCio2jv-xtnNbJ8beokueh-VQ6zZgF1hAFBJKHCNyuOuz2KxA@mail.gmail.com>
+ <20180704081710.GH22503@dhcp22.suse.cz> <CAHCio2hf-kfmVgz=KCvE9L4nPZxEVcFrxv2R1Y11etG=KvyBwg@mail.gmail.com>
+From: Andy Shevchenko <andy.shevchenko@gmail.com>
+Date: Thu, 5 Jul 2018 15:24:37 +0300
+Message-ID: <CAHp75Vecv43Q6_LPaLd4YR3OowVKgpR7YJe2Od2Hj_KU7=kEGw@mail.gmail.com>
+Subject: Re: [PATCH v11 1/2] Refactor part of the oom report in dump_header
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Sam Creasey <sammy@sammy.net>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-m68k@lists.linux-m68k.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: =?UTF-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>
+Cc: mhocko@kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, aarcange@redhat.com, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, guro@fb.com, yang.s@alibaba-inc.com, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Wind Yu <yuzhoujian@didichuxing.com>
 
-Hi Mike,
+On Thu, Jul 5, 2018 at 2:23 PM, =E7=A6=B9=E8=88=9F=E9=94=AE <ufo19890607@gm=
+ail.com> wrote:
+> Hi Michal and Andy
 
-On 04/07/18 16:28, Mike Rapoport wrote:
-> These patches switch m68k boot time memory allocators from bootmem to
-> memblock + no_bootmem.
-> 
-> The first two patches update __ffs() and __va() definitions to be inline
-> with other arches and asm-generic. This is required to avoid compilation
-> warnings in mm/memblock.c and mm/nobootmem.c.
-> 
-> The third patch performs the actual switch of the boot time mm. Its
-> changelog has detailed description of the changes.
-> 
-> I've tested the !MMU version with qemu-system-m68k -M mcf5208evb
-> and the MMU version with q800 using qemu from [1].
-> 
-> I've also build tested allyesconfig and *_defconfig.
-> 
-> [1] https://github.com/vivier/qemu-m68k.git
-> 
-> v2:
-> * fix reservation of the kernel text/data/bss for ColdFire MMU
+> The enum oom_constraint  will be added in the struct oom_control.  So
+> I still think I should define it in oom.h.
 
-I am happy with all of these, so for me:
+You missed the point. I'm talking about an array of string literals.
+Please, check what the warning I got from the compiler.
 
-Acked-by: Greg Ungerer <gerg@linux-m68k.org>
-
-Regards
-Greg
+> Michal Hocko <mhocko@kernel.org> =E4=BA=8E2018=E5=B9=B47=E6=9C=884=E6=97=
+=A5=E5=91=A8=E4=B8=89 =E4=B8=8B=E5=8D=884:17=E5=86=99=E9=81=93=EF=BC=9A
+>>
+>> On Wed 04-07-18 10:25:30, =E7=A6=B9=E8=88=9F=E9=94=AE wrote:
+>> > Hi Andy
+>> > The const char array need to be used by the new func
+>> > mem_cgroup_print_oom_context and some funcs in oom_kill.c in the
+>> > second patch.
+>>
+>> Just declare it in oom.h and define in oom.c
+>> --
+>> Michal Hocko
+>> SUSE Labs
 
 
 
-> Mike Rapoport (3):
->    m68k/bitops: convert __ffs to match generic declaration
->    m68k/page_no.h: force __va argument to be unsigned long
->    m68k: switch to MEMBLOCK + NO_BOOTMEM
-> 
->   arch/m68k/Kconfig               |  3 +++
->   arch/m68k/include/asm/bitops.h  |  8 ++++++--
->   arch/m68k/include/asm/page_no.h |  2 +-
->   arch/m68k/kernel/setup_mm.c     | 14 ++++----------
->   arch/m68k/kernel/setup_no.c     | 20 ++++----------------
->   arch/m68k/mm/init.c             |  1 -
->   arch/m68k/mm/mcfmmu.c           | 13 +++++++------
->   arch/m68k/mm/motorola.c         | 35 +++++++++++------------------------
->   arch/m68k/sun3/config.c         |  4 ----
->   9 files changed, 36 insertions(+), 64 deletions(-)
-> 
+--=20
+With Best Regards,
+Andy Shevchenko
