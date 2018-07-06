@@ -1,32 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CF2B6B0003
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 17:23:31 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id w21-v6so8136268wmc.4
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 14:23:31 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t7-v6sor2210766wrp.50.2018.07.06.14.23.29
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 432746B0006
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 17:32:28 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id g26-v6so5096359pfo.7
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 14:32:28 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id n34-v6si8939070pld.91.2018.07.06.14.32.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 06 Jul 2018 14:23:29 -0700 (PDT)
-Date: Fri, 6 Jul 2018 23:23:27 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Jul 2018 14:32:27 -0700 (PDT)
+Date: Fri, 6 Jul 2018 14:32:25 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] mm/sparse.c: fix error path in sparse_add_one_section
-Message-ID: <20180706212327.GA10824@techadventures.net>
-References: <CAOxpaSVkLh23jN_=0GpZ77EhKdAYaiWKkppnxWwf_MRa5FvopA@mail.gmail.com>
- <20180706190658.6873-1-ross.zwisler@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-Id: <20180706143225.1cf9569f240dccf91bdc3788@linux-foundation.org>
 In-Reply-To: <20180706190658.6873-1-ross.zwisler@linux.intel.com>
+References: <CAOxpaSVkLh23jN_=0GpZ77EhKdAYaiWKkppnxWwf_MRa5FvopA@mail.gmail.com>
+	<20180706190658.6873-1-ross.zwisler@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: pasha.tatashin@oracle.com, linux-nvdimm@lists.01.org, bhe@redhat.com, Dave Hansen <dave.hansen@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, osalvador@suse.de
+Cc: pasha.tatashin@oracle.com, linux-nvdimm@lists.01.org, osalvador@techadventures.net, bhe@redhat.com, Dave Hansen <dave.hansen@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, osalvador@suse.de
 
-On Fri, Jul 06, 2018 at 01:06:58PM -0600, Ross Zwisler wrote:
-> The following commit in -next:
-> 
+On Fri,  6 Jul 2018 13:06:58 -0600 Ross Zwisler <ross.zwisler@linux.intel.com> wrote:
+
 > commit 054620849110 ("mm/sparse.c: make sparse_init_one_section void and
 > remove check")
 > 
@@ -36,43 +35,21 @@ On Fri, Jul 06, 2018 at 01:06:58PM -0600, Ross Zwisler wrote:
 > continue on happily.  'ret' would get unconditionally overwritten by the
 > result from sparse_init_one_section() and the error code after the 'out:'
 > label wouldn't be triggered.
+> 
+> With the above referenced commit, though, an -EEXIST error return from
+> sparse_index_init() now takes us through the function and into the error
+> case after 'out:'.  This eventually causes a kernel BUG, probably because
+> we've just freed a memory section that we successfully set up and marked as
+> present:
 
-My bad, I missed that.
+Thanks.
 
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 9574113fc745..d254bd2d3289 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -753,8 +753,12 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
->  	 * plus, it does a kmalloc
->  	 */
->  	ret = sparse_index_init(section_nr, pgdat->node_id);
-> -	if (ret < 0 && ret != -EEXIST)
-> -		return ret;
-> +	if (ret < 0) {
-> +		if (ret == -EEXIST)
-> +			ret = 0;
-> +		else
-> +			return ret;
-> +	}
+And gee it would be nice if some of this code was commented.  I
+*assume* what's happening with that -EEXIST is that
+sparse_add_one_section() is discovering that the root mem_section was
+already initialized so things are OK.  Maybe.  My mind-reading skills
+aren't so good on Fridays.
 
-sparse_index_init() can return:
-
--ENOMEM, -EEXIST or 0.
-
-So what about this?:
-
-diff --git a/mm/sparse.c b/mm/sparse.c
-index f55e79fda03e..eb188eb6b82d 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -770,6 +770,7 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
-        ret = sparse_index_init(section_nr, pgdat->node_id);
-        if (ret < 0 && ret != -EEXIST)
-                return ret;
-+       ret = 0;
-
-Does this look more clean?
--- 
-Oscar Salvador
-SUSE L3
+And sparse_index_init() sure looks like it needs locking to avoid races
+around mem_section[root].  Or perhaps we're known to be single-threaded
+here.
