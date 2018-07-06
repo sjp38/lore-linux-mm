@@ -1,52 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 145586B0007
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 22:50:11 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id p82-v6so28177itc.0
-        for <linux-mm@kvack.org>; Thu, 05 Jul 2018 19:50:11 -0700 (PDT)
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BEDBB6B000A
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 22:55:41 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id 13-v6so10433411oiq.1
+        for <linux-mm@kvack.org>; Thu, 05 Jul 2018 19:55:41 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m6-v6sor2969921itb.76.2018.07.05.19.50.09
+        by mx.google.com with SMTPS id o11-v6sor5278475oib.108.2018.07.05.19.55.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 05 Jul 2018 19:50:10 -0700 (PDT)
+        Thu, 05 Jul 2018 19:55:40 -0700 (PDT)
 MIME-Version: 1.0
-References: <201807050305.w653594Q081552@www262.sakura.ne.jp>
- <20180705071740.GC32658@dhcp22.suse.cz> <201807060240.w662e7Q1016058@www262.sakura.ne.jp>
-In-Reply-To: <201807060240.w662e7Q1016058@www262.sakura.ne.jp>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 5 Jul 2018 19:49:58 -0700
-Message-ID: <CA+55aFz87+iXZ_N5jYgo9UFFJ2Tc9dkMLPxwscriAdDKoyF0CA@mail.gmail.com>
-Subject: Re: [PATCH 0/8] OOM killer/reaper changes for avoiding OOM lockup problem.
+In-Reply-To: <20180705082435.GA29656@gmail.com>
+References: <153065162801.12250.4860144566061573514.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180705082435.GA29656@gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 5 Jul 2018 19:55:40 -0700
+Message-ID: <CAPcyv4hw1a8+wwTYaQ0G0jWQzBCDaZ8zxYXw6gXtuWBYGX1LeQ@mail.gmail.com>
+Subject: Re: [PATCH] x86/numa_emulation: Fix uniform size build failure
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Wei Yang <richard.weiyang@gmail.com>, kbuild test robot <lkp@intel.com>, X86 ML <x86@kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu, Jul 5, 2018 at 7:40 PM Tetsuo Handa
-<penguin-kernel@i-love.sakura.ne.jp> wrote:
+On Thu, Jul 5, 2018 at 1:24 AM, Ingo Molnar <mingo@kernel.org> wrote:
 >
-> >
-> > No, direct reclaim is a way to throttle allocations to the reclaim
-> > speed. You would have to achive the same by other means.
+> * Dan Williams <dan.j.williams@intel.com> wrote:
 >
-> No. Direct reclaim is a way to lockup the system to unusable level, by not giving
-> enough CPU resources to memory reclaim activities including the owner of oom_lock.
+>> The calculation of a uniform numa-node size attempted to perform
+>> division with a 64-bit diviser leading to the following failure on
+>> 32-bit:
+>>
+>>     arch/x86/mm/numa_emulation.o: In function `split_nodes_size_interleave_uniform':
+>>     arch/x86/mm/numa_emulation.c:239: undefined reference to `__udivdi3'
+>>
+>> Convert the implementation to do the division in terms of pages and then
+>> shift the result back to an absolute physical address.
+>>
+>> Fixes: 93e738834fcc ("x86/numa_emulation: Introduce uniform split capability")
+>> Cc: David Rientjes <rientjes@google.com>
+>> Cc: Thomas Gleixner <tglx@linutronix.de>
+>> Cc: Wei Yang <richard.weiyang@gmail.com>
+>> Reported-by: kbuild test robot <lkp@intel.com>
+>> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+>
+> I'm still getting this link failure on 32-bit kernels:
+>
+>  arch/x86/mm/numa_emulation.o: In function `split_nodes_size_interleave_uniform.constprop.1':
+>  numa_emulation.c:(.init.text+0x669): undefined reference to `__udivdi3'
+>  Makefile:1005: recipe for target 'vmlinux' failed
+>
+> config attached.
+>
+> These numa_emulation changes are a bit of a trainwreck - I'm removing both
+> num_emulation commits from -tip for now, could you please resubmit a fixed/tested
+> combo version?
+>
 
-No. Really.
-
-Direct reclaim really really does what Michal claims. Yes, it has
-other effects too, and it can be problematic, but direct reclaim is
-important.
-
-People have tried to remove it many times, but it's always been a
-disaster. You need to synchronize with _something_ to make sure that
-the thread that is causing a lot of allocations actually pays the
-price, and slows down.
-
-You want to have a balance between direct and indirect reclaim.
-
-If you think direct reclaim is only a way to lock up the system to
-unusable levels, you should stop doing VM development.
-
-                   Linus
+So I squashed the fix and let the 0day robot chew on it all day with
+no reports as of yet. I just recompiled it here and am not seeing the
+link failure, can you send me the details of the kernel config + gcc
+version that is failing?
