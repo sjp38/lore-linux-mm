@@ -1,59 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 794446B027B
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 15:38:24 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id b8-v6so4026900oib.4
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 12:38:24 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CF2B6B0003
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 17:23:31 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id w21-v6so8136268wmc.4
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 14:23:31 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q20-v6sor6791125oic.223.2018.07.06.12.38.23
+        by mx.google.com with SMTPS id t7-v6sor2210766wrp.50.2018.07.06.14.23.29
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 06 Jul 2018 12:38:23 -0700 (PDT)
+        Fri, 06 Jul 2018 14:23:29 -0700 (PDT)
+Date: Fri, 6 Jul 2018 23:23:27 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH] mm/sparse.c: fix error path in sparse_add_one_section
+Message-ID: <20180706212327.GA10824@techadventures.net>
+References: <CAOxpaSVkLh23jN_=0GpZ77EhKdAYaiWKkppnxWwf_MRa5FvopA@mail.gmail.com>
+ <20180706190658.6873-1-ross.zwisler@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180706082911.13405-2-aneesh.kumar@linux.ibm.com>
-References: <20180706082911.13405-1-aneesh.kumar@linux.ibm.com> <20180706082911.13405-2-aneesh.kumar@linux.ibm.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 6 Jul 2018 12:38:22 -0700
-Message-ID: <CAPcyv4gjrsswcakSog7jxT+agH7NrBEvwxe9jT0ycU3RZV5sWA@mail.gmail.com>
-Subject: Re: [RFC PATCH 2/2] mm/pmem: Add memblock based e820 platform driver
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180706190658.6873-1-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oliver <oohall@gmail.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: pasha.tatashin@oracle.com, linux-nvdimm@lists.01.org, bhe@redhat.com, Dave Hansen <dave.hansen@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, osalvador@suse.de
 
-On Fri, Jul 6, 2018 at 1:29 AM, Aneesh Kumar K.V
-<aneesh.kumar@linux.ibm.com> wrote:
-> This patch steal system RAM and use that to emulate pmem device using the
-> e820 platform driver.
->
-> This adds a new kernel command line 'pmemmap' which takes the format <size[KMG]>
-> to allocate memory early in the boot. This memory is later registered as
-> persistent memory range.
->
-> Based on original patch from Oliver OHalloran <oliveroh@au1.ibm.com>
->
-> Not-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-> ---
->  drivers/nvdimm/Kconfig        |  13 ++++
->  drivers/nvdimm/Makefile       |   1 +
->  drivers/nvdimm/memblockpmem.c | 115 ++++++++++++++++++++++++++++++++++
->  3 files changed, 129 insertions(+)
->  create mode 100644 drivers/nvdimm/memblockpmem.c
->
-[..]
-> +/*
-> + * pmemmap=ss[KMG]
-> + *
-> + * This is similar to the memremap=offset[KMG]!size[KMG] paramater
-> + * for adding a legacy pmem range to the e820 map on x86, but it's
-> + * platform agnostic.
+On Fri, Jul 06, 2018 at 01:06:58PM -0600, Ross Zwisler wrote:
+> The following commit in -next:
+> 
+> commit 054620849110 ("mm/sparse.c: make sparse_init_one_section void and
+> remove check")
+> 
+> changed how the error handling in sparse_add_one_section() works.
+> 
+> Previously sparse_index_init() could return -EEXIST, and the function would
+> continue on happily.  'ret' would get unconditionally overwritten by the
+> result from sparse_init_one_section() and the error code after the 'out:'
+> label wouldn't be triggered.
 
-The current memmap=ss!nn option is a non-stop source of bugs and
-fragility. The fact that this lets the kernel specify the base address
-helps, but then this is purely just a debug facility because
-memmap=ss!nn is there to cover platform firmware implementations that
-fail to mark a given address range as persistent.
+My bad, I missed that.
 
-If this is just for debug, why not use qemu? If this is not for debug
-what are these systems that don't have proper firmware support?
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 9574113fc745..d254bd2d3289 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -753,8 +753,12 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
+>  	 * plus, it does a kmalloc
+>  	 */
+>  	ret = sparse_index_init(section_nr, pgdat->node_id);
+> -	if (ret < 0 && ret != -EEXIST)
+> -		return ret;
+> +	if (ret < 0) {
+> +		if (ret == -EEXIST)
+> +			ret = 0;
+> +		else
+> +			return ret;
+> +	}
+
+sparse_index_init() can return:
+
+-ENOMEM, -EEXIST or 0.
+
+So what about this?:
+
+diff --git a/mm/sparse.c b/mm/sparse.c
+index f55e79fda03e..eb188eb6b82d 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -770,6 +770,7 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
+        ret = sparse_index_init(section_nr, pgdat->node_id);
+        if (ret < 0 && ret != -EEXIST)
+                return ret;
++       ret = 0;
+
+Does this look more clean?
+-- 
+Oscar Salvador
+SUSE L3
