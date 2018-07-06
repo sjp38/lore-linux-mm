@@ -1,127 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DDEBE6B0005
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 19:46:24 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id w1-v6so3113849plq.8
-        for <linux-mm@kvack.org>; Thu, 05 Jul 2018 16:46:24 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b184-v6si7036940pfa.167.2018.07.05.16.46.23
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D37A6B0005
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2018 21:38:50 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id t78-v6so5962859pfa.8
+        for <linux-mm@kvack.org>; Thu, 05 Jul 2018 18:38:50 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h2-v6sor2104974pfh.88.2018.07.05.18.38.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Jul 2018 16:46:23 -0700 (PDT)
-Date: Thu, 5 Jul 2018 16:46:21 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch v3] mm, oom: fix unnecessary killing of additional
- processes
-Message-Id: <20180705164621.0a4fe6ab3af27a1d387eecc9@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.21.1806211434420.51095@chino.kir.corp.google.com>
-References: <alpine.DEB.2.21.1806211434420.51095@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (Google Transport Security);
+        Thu, 05 Jul 2018 18:38:48 -0700 (PDT)
+From: Jia He <hejianet@gmail.com>
+Subject: Re: [PATCH v9 2/6] mm: page_alloc: remain memblock_next_valid_pfn()
+ on arm/arm64
+References: <1530239363-2356-1-git-send-email-hejianet@gmail.com>
+ <1530239363-2356-3-git-send-email-hejianet@gmail.com>
+ <CAGM2reZ3zYdrYBEGTdy+LLm_HPREyqYeUqqQnU1GCPd3k98z3Q@mail.gmail.com>
+Message-ID: <f3de1c65-c706-710f-4088-48f4b711bac5@gmail.com>
+Date: Fri, 6 Jul 2018 09:38:29 +0800
+MIME-Version: 1.0
+In-Reply-To: <CAGM2reZ3zYdrYBEGTdy+LLm_HPREyqYeUqqQnU1GCPd3k98z3Q@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: kbuild test robot <fengguang.wu@intel.com>, Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: linux@armlinux.org.uk, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, will.deacon@arm.com, mark.rutland@arm.com, hpa@zytor.com, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, neelx@redhat.com, erosca@de.adit-jv.com, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, james.morse@arm.com, ard.biesheuvel@linaro.org, steve.capper@arm.com, tglx@linutronix.de, mingo@redhat.com, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, pombredanne@nexb.com, Johannes Weiner <hannes@cmpxchg.org>, kemi.wang@intel.com, ptesarik@suse.com, yasu.isimatu@gmail.com, aryabinin@virtuozzo.com, nborisov@suse.com, Wei Yang <richard.weiyang@gmail.com>, jia.he@hxt-semitech.com
 
-On Thu, 21 Jun 2018 14:35:20 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
 
-> The oom reaper ensures forward progress by setting MMF_OOM_SKIP itself if
-> it cannot reap an mm.  This can happen for a variety of reasons,
-> including:
-> 
->  - the inability to grab mm->mmap_sem in a sufficient amount of time,
-> 
->  - when the mm has blockable mmu notifiers that could cause the oom reaper
->    to stall indefinitely,
-> 
-> but we can also add a third when the oom reaper can "reap" an mm but doing
-> so is unlikely to free any amount of memory:
-> 
->  - when the mm's memory is mostly mlocked.
+Hi Pavel, sorry for the late reply
 
-Michal has been talking about making the oom-reaper handle mlocked
-memory.  Where are we at with that?
+On 6/30/2018 1:07 AM, Pavel Tatashin Wrote:
+> On Thu, Jun 28, 2018 at 10:30 PM Jia He <hejianet@gmail.com> wrote:
+>>
+>> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+>> where possible") optimized the loop in memmap_init_zone(). But it causes
+>> possible panic bug. So Daniel Vacek reverted it later.
+>>
+>> But as suggested by Daniel Vacek, it is fine to using memblock to skip
+>> gaps and finding next valid frame with CONFIG_HAVE_ARCH_PFN_VALID.
+>>
+>> On arm and arm64, memblock is used by default. But generic version of
+>> pfn_valid() is based on mem sections and memblock_next_valid_pfn() does
+>> not always return the next valid one but skips more resulting in some
+>> valid frames to be skipped (as if they were invalid). And that's why
+>> kernel was eventually crashing on some !arm machines.
+> 
+> Hi Jia,
+> 
+> Is this a bug? Should we make other arches that support memblock to
+> use memblock_is_map_memory() ? it is more expensive, but if the
+> default is broken, maybe it makes sense to change?
+> 
+IIUC, the bug is in memblock_next_valid_pfn instead of pfn_valid.
+memblock_next_valid_pfn will return the incorrect next valid pfn on
+!arm arches (e.g. X86). Please refer to b92df1de5.
 
-> When all memory is mlocked, the oom reaper will not be able to free any
-> substantial amount of memory.  It sets MMF_OOM_SKIP before the victim can
-> unmap and free its memory in exit_mmap() and subsequent oom victims are
-> chosen unnecessarily.  This is trivial to reproduce if all eligible
-> processes on the system have mlocked their memory: the oom killer calls
-> panic() even though forward progress can be made.
-> 
-> This is the same issue where the exit path sets MMF_OOM_SKIP before
-> unmapping memory and additional processes can be chosen unnecessarily
-> because the oom killer is racing with exit_mmap() and is separate from
-> the oom reaper setting MMF_OOM_SKIP prematurely.
-> 
-> We can't simply defer setting MMF_OOM_SKIP, however, because if there is
-> a true oom livelock in progress, it never gets set and no additional
-> killing is possible.
-> 
-> To fix this, this patch introduces a per-mm reaping period, which is
-> configurable through the new oom_free_timeout_ms file in debugfs and
-> defaults to one second to match the current heuristics.  This support
-> requires that the oom reaper's list becomes a proper linked list so that
-> other mm's may be reaped while waiting for an mm's timeout to expire.
-> 
-> This replaces the current timeouts in the oom reaper: (1) when trying to
-> grab mm->mmap_sem 10 times in a row with HZ/10 sleeps in between and (2)
-> a HZ sleep if there are blockable mmu notifiers.  It extends it with
-> timeout to allow an oom victim to reach exit_mmap() before choosing
-> additional processes unnecessarily.
-> 
-> The exit path will now set MMF_OOM_SKIP only after all memory has been
-> freed, so additional oom killing is justified, and rely on MMF_UNSTABLE to
-> determine when it can race with the oom reaper.
-> 
-> The oom reaper will now set MMF_OOM_SKIP only after the reap timeout has
-> lapsed because it can no longer guarantee forward progress.  Since the
-> default oom_free_timeout_ms is one second, the same as current heuristics,
-> there should be no functional change with this patch for users who do not
-> tune it to be longer other than MMF_OOM_SKIP is set by exit_mmap() after
-> free_pgtables(), which is the preferred behavior.
-> 
-> The reaping timeout can intentionally be set for a substantial amount of
-> time, such as 10s, since oom livelock is a very rare occurrence and it's
-> better to optimize for preventing additional (unnecessary) oom killing
-> than a scenario that is much more unlikely.
-> 
-> ..
->
-> +#ifdef CONFIG_DEBUG_FS
-> +static int oom_free_timeout_ms_read(void *data, u64 *val)
-> +{
-> +	*val = oom_free_timeout_ms;
-> +	return 0;
-> +}
-> +
-> +static int oom_free_timeout_ms_write(void *data, u64 val)
-> +{
-> +	if (val > 60 * 1000)
-> +		return -EINVAL;
-> +
-> +	oom_free_timeout_ms = val;
-> +	return 0;
-> +}
-> +DEFINE_SIMPLE_ATTRIBUTE(oom_free_timeout_ms_fops, oom_free_timeout_ms_read,
-> +			oom_free_timeout_ms_write, "%llu\n");
-> +#endif /* CONFIG_DEBUG_FS */
+Currently only arm/arm64 use MEMBLOCK_NOMAP, it is really beyond my
+power to implement it on all other arches ;-)
 
-One of the several things I dislike about debugfs is that nobody
-bothers documenting it anywhere.  But this should really be documented.
-I'm not sure where, but the documentation will find itself alongside a
-bunch of procfs things which prompts the question "why it *this* one in
-debugfs"?
 
->  static int __init oom_init(void)
->  {
->  	oom_reaper_th = kthread_run(oom_reaper, NULL, "oom_reaper");
-> +#ifdef CONFIG_DEBUG_FS
-> +	if (!IS_ERR(oom_reaper_th))
-> +		debugfs_create_file("oom_free_timeout_ms", 0200, NULL, NULL,
-> +				    &oom_free_timeout_ms_fops);
-> +#endif
->  	return 0;
->  }
->  subsys_initcall(oom_init)
+-- 
+Cheers,
+Jia
