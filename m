@@ -1,34 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 90ADE6B0003
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 10:44:06 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id t10-v6so7241171pfh.0
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 07:44:06 -0700 (PDT)
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E57C36B0003
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 12:07:06 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id e29-v6so12987081oiy.2
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 09:07:06 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d64-v6sor2164199pgc.202.2018.07.06.07.44.03
+        by mx.google.com with SMTPS id d89-v6sor5404010oic.136.2018.07.06.09.07.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 06 Jul 2018 07:44:04 -0700 (PDT)
-Date: Fri, 6 Jul 2018 23:44:00 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH] zmalloc: hide unused lock_zspage
-Message-ID: <20180706144400.GB411@tigerII.localdomain>
-References: <20180706130924.3891230-1-arnd@arndb.de>
+        Fri, 06 Jul 2018 09:07:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180706130924.3891230-1-arnd@arndb.de>
+In-Reply-To: <20180706100310.GB3483@gmail.com>
+References: <153065162801.12250.4860144566061573514.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180705082435.GA29656@gmail.com> <CAPcyv4hw1a8+wwTYaQ0G0jWQzBCDaZ8zxYXw6gXtuWBYGX1LeQ@mail.gmail.com>
+ <20180706100310.GB3483@gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 6 Jul 2018 09:06:59 -0700
+Message-ID: <CAPcyv4gTVr7wiN5t4wUsqoWYpNajjj=77SEHC0Ew_gw0eDs93Q@mail.gmail.com>
+Subject: Re: [PATCH] x86/numa_emulation: Fix uniform size build failure
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Colin Ian King <colin.king@canonical.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Desaulniers <nick.desaulniers@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Wei Yang <richard.weiyang@gmail.com>, kbuild test robot <lkp@intel.com>, X86 ML <x86@kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On (07/06/18 15:09), Arnd Bergmann wrote:
-> 
-> 
-> Fixes: 0de664ada6b6 ("mm/zsmalloc.c: make several functions and a struct static")
+On Fri, Jul 6, 2018 at 3:03 AM, Ingo Molnar <mingo@kernel.org> wrote:
+>
+> * Dan Williams <dan.j.williams@intel.com> wrote:
+>
+>> > config attached.
+>
+> Doh, I intended to attach the config - attached now.
+>
+>> > These numa_emulation changes are a bit of a trainwreck - I'm removing both
+>> > num_emulation commits from -tip for now, could you please resubmit a fixed/tested
+>> > combo version?
+>>
+>> So I squashed the fix and let the 0day robot chew on it all day with no reports
+>> as of yet. I just recompiled it here and am not seeing the link failure, can you
+>> send me the details of the kernel config + gcc version that is failing?
+>
+> My guess: it's some weird Kconfig combination in this 32-bit config.
+>
+> Can you reproduce it with this config?
 
-This one is still in mmotm/linux-next. Do you mind if we just squash
-them?
+Yup, got it, thanks!
 
-	-ss
+Turning on debuginfo I get:
+
+arch/x86/mm/numa_emulation.o: In function `split_nodes_size_interleave_uniform':
+arch/x86/mm/numa_emulation.c:257: undefined reference to `__udivdi3'
+
+Previously we were dividing by a power-of-2 constant MAX_NUM_NODES,
+and I believe in my builds the compiler was still deducing the
+constant from the "nr_nodes = MAX_NUM_NODES" assignment. Fix inbound,
+and I believe it will make it even clearer the difference between the
+typical split and the new uniform split capability.
