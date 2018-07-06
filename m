@@ -1,88 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 998F86B0003
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 08:20:26 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id r9-v6so4266964edo.16
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 05:20:26 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 47-v6si4883829edz.8.2018.07.06.05.20.24
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 57AF56B0007
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 08:49:19 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id w11-v6so962008pfk.14
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 05:49:19 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id n9-v6si7514234pgp.558.2018.07.06.05.49.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jul 2018 05:20:24 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w66CE8rP126461
-	for <linux-mm@kvack.org>; Fri, 6 Jul 2018 08:20:23 -0400
-Received: from e12.ny.us.ibm.com (e12.ny.us.ibm.com [129.33.205.202])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2k26r5kya5-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 06 Jul 2018 08:20:23 -0400
-Received: from localhost
-	by e12.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Fri, 6 Jul 2018 08:20:22 -0400
-Date: Fri, 6 Jul 2018 05:22:36 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm,oom: Bring OOM notifier callbacks to outside of OOM
- killer.
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20180628113942.GD32348@dhcp22.suse.cz>
- <20180628213105.GP3593@linux.vnet.ibm.com>
- <20180629090419.GD13860@dhcp22.suse.cz>
- <20180629125218.GX3593@linux.vnet.ibm.com>
- <20180629132638.GD5963@dhcp22.suse.cz>
- <20180630170522.GZ3593@linux.vnet.ibm.com>
- <20180702213714.GA7604@linux.vnet.ibm.com>
- <20180703072413.GD16767@dhcp22.suse.cz>
- <20180703160101.GC3593@linux.vnet.ibm.com>
- <20180706053942.GF32658@dhcp22.suse.cz>
+        Fri, 06 Jul 2018 05:49:18 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v4 05/21] mm, THP, swap: Support PMD swap mapping in free_swap_and_cache()/swap_free()
+References: <20180622035151.6676-1-ying.huang@intel.com>
+	<20180622035151.6676-6-ying.huang@intel.com>
+	<20180705183318.je4gd32awgh2tnb5@ca-dmjordan1.us.oracle.com>
+Date: Fri, 06 Jul 2018 20:49:05 +0800
+In-Reply-To: <20180705183318.je4gd32awgh2tnb5@ca-dmjordan1.us.oracle.com>
+	(Daniel Jordan's message of "Thu, 5 Jul 2018 11:33:18 -0700")
+Message-ID: <877em8msvy.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180706053942.GF32658@dhcp22.suse.cz>
-Message-Id: <20180706122236.GB3593@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
 
-On Fri, Jul 06, 2018 at 07:39:42AM +0200, Michal Hocko wrote:
-> On Tue 03-07-18 09:01:01, Paul E. McKenney wrote:
-> > On Tue, Jul 03, 2018 at 09:24:13AM +0200, Michal Hocko wrote:
-> > > On Mon 02-07-18 14:37:14, Paul E. McKenney wrote:
-> > > [...]
-> > > > commit d2b8d16b97ac2859919713b2d98b8a3ad22943a2
-> > > > Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-> > > > Date:   Mon Jul 2 14:30:37 2018 -0700
-> > > > 
-> > > >     rcu: Remove OOM code
-> > > >     
-> > > >     There is reason to believe that RCU's OOM code isn't really helping
-> > > >     that much, given that the best it can hope to do is accelerate invoking
-> > > >     callbacks by a few seconds, and even then only if some CPUs have no
-> > > >     non-lazy callbacks, a condition that has been observed to be rare.
-> > > >     This commit therefore removes RCU's OOM code.  If this causes problems,
-> > > >     it can easily be reinserted.
-> > > >     
-> > > >     Reported-by: Michal Hocko <mhocko@kernel.org>
-> > > >     Reported-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-> > > >     Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-> > > 
-> > > I would also note that waiting in the notifier might be a problem on its
-> > > own because we are holding the oom_lock and the system cannot trigger
-> > > the OOM killer while we are holding it and waiting for oom_callback_wq
-> > > event. I am not familiar with the code to tell whether this can deadlock
-> > > but from a quick glance I _suspect_ that we might depend on __rcu_reclaim
-> > > and basically an arbitrary callback so no good.
-> > > 
-> > > Acked-by: Michal Hocko <mhocko@suse.com>
-> > > 
-> > > Thanks!
-> > 
-> > Like this?
-> 
-> Thanks!
+Daniel Jordan <daniel.m.jordan@oracle.com> writes:
 
-Very good, queued for the merge window after next, that is, whatever
-number after v4.19.  ;-)
+> On Fri, Jun 22, 2018 at 11:51:35AM +0800, Huang, Ying wrote:
+>> +static unsigned char swap_free_cluster(struct swap_info_struct *si,
+>> +				       swp_entry_t entry)
+> ...
+>> +	/* Cluster has been split, free each swap entries in cluster */
+>> +	if (!cluster_is_huge(ci)) {
+>> +		unlock_cluster(ci);
+>> +		for (i = 0; i < SWAPFILE_CLUSTER; i++, entry.val++) {
+>> +			if (!__swap_entry_free(si, entry, 1)) {
+>> +				free_entries++;
+>> +				free_swap_slot(entry);
+>> +			}
+>> +		}
+>
+> Is is better on average to use __swap_entry_free_locked instead of
+> __swap_entry_free here?  I'm not sure myself, just asking.
+>
+> As it's written, if the cluster's been split, we always take and drop the
+> cluster lock 512 times, but if we don't expect to call free_swap_slot that
+> often, then we could just drop and retake the cluster lock inside the innermost
+> 'if' against the possibility that free_swap_slot eventually makes us take the
+> cluster lock again.
 
-							Thanx, Paul
+Yes.  This is a good idea.  Thanks for your suggestion!  I will change
+this in the next version.
+
+Best Regards,
+Huang, Ying
+
+> ...
+>> +		return !(free_entries == SWAPFILE_CLUSTER);
+>
+>                 return free_entries != SWAPFILE_CLUSTER;
