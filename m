@@ -1,47 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D696F6B0003
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 18:55:19 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id t10-v6so7891865pfh.0
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 15:55:19 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id r12-v6si8169467pgv.285.2018.07.06.15.55.17
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EABC6B0003
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 19:53:13 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id u11-v6so13731135oif.22
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 16:53:13 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m67-v6sor6573613oif.314.2018.07.06.16.53.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jul 2018 15:55:17 -0700 (PDT)
-Date: Fri, 6 Jul 2018 15:55:15 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] fs, elf: Make sure to page align bss in
- load_elf_library
-Message-Id: <20180706155515.f86d8394f8aae8bb841e2572@linux-foundation.org>
-In-Reply-To: <CAGXu5jL4O_qwwAHmW1C8q77Jv1fe_1JCq6iFxC73VySBkvHSQw@mail.gmail.com>
-References: <20180705145539.9627-1-osalvador@techadventures.net>
-	<CAGXu5jL4O_qwwAHmW1C8q77Jv1fe_1JCq6iFxC73VySBkvHSQw@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Fri, 06 Jul 2018 16:53:12 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <152938831573.17797.15264540938029137916.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <152938827880.17797.439879736804291936.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152938831573.17797.15264540938029137916.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 6 Jul 2018 16:53:11 -0700
+Message-ID: <CAPcyv4hCZ6jJkB=BLfoEn6146k7FG32=3J8ussZDXmAScQJkAg@mail.gmail.com>
+Subject: Re: [PATCH v3 7/8] mm, hmm: Mark hmm_devmem_{add, add_resource} EXPORT_SYMBOL_GPL
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: osalvador@techadventures.net, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Nicolas Pitre <nicolas.pitre@linaro.org>, Oscar Salvador <osalvador@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu, 5 Jul 2018 08:44:18 -0700 Kees Cook <keescook@chromium.org> wrote:
+On Mon, Jun 18, 2018 at 11:05 PM, Dan Williams <dan.j.williams@intel.com> w=
+rote:
+> The routines hmm_devmem_add(), and hmm_devmem_add_resource() are
+> now wrappers around the functionality provided by devm_memremap_pages() t=
+o
+> inject a dev_pagemap instance and hook page-idle events. The
+> devm_memremap_pages() interface is base infrastructure for HMM which has
+> more and deeper ties into the kernel memory management implementation
+> than base ZONE_DEVICE.
+>
+> Originally, the HMM page structure creation routines copied the
+> devm_memremap_pages() code and reused ZONE_DEVICE. A cleanup to unify
+> the implementations was discussed during the initial review:
+> http://lkml.iu.edu/hypermail/linux/kernel/1701.2/00812.html
+>
+> Given that devm_memremap_pages() is marked EXPORT_SYMBOL_GPL by its
+> authors and the hmm_devmem_{add,add_resource} routines are simple
+> wrappers around that base, mark these routines as EXPORT_SYMBOL_GPL as
+> well.
+>
+> Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
+> Cc: Logan Gunthorpe <logang@deltatee.com>
+> Reviewed-by: Christoph Hellwig <hch@lst.de>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-> On Thu, Jul 5, 2018 at 7:55 AM,  <osalvador@techadventures.net> wrote:
-> > From: Oscar Salvador <osalvador@suse.de>
-> >
-> > The current code does not make sure to page align bss before calling
-> > vm_brk(), and this can lead to a VM_BUG_ON() in __mm_populate()
-> > due to the requested lenght not being correctly aligned.
-> >
-> > Let us make sure to align it properly.
-> >
-> > Signed-off-by: Oscar Salvador <osalvador@suse.de>
-> > Tested-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-> > Reported-by: syzbot+5dcb560fe12aa5091c06@syzkaller.appspotmail.com
-> 
-> Wow. CONFIG_USELIB? I'm surprised distros are still using this. 32-bit
-> only, and libc5 and earlier only.
+Currently OpenAFS is blocked from compiling with the 4.18 series due
+to the current state of put_page() inadvertently pulling in GPL-only
+symbols. This series, "PATCH v3 0/8] mm: Rework hmm to use
+devm_memremap_pages and other fixes" corrects that situation and
+corrects HMM's usage of EXPORT_SYMBOL_GPL.
 
-Presumably doesn't happen much, but people who *are* enabling this will
-want the fix, so I added the cc:stable.
+If HMM wants to export functionality to out-of-tree proprietary
+drivers it should do so without consuming GPL-only exports, or
+consuming internal-only public functions in its exports.
+
+In addition to duplicating devm_memremap_pages(), that should have
+been EXPORT_SYMBOL_GPL from the beginning, it is also exporting /
+consuming these GPL-only symbols via HMM's EXPORT_SYMBOL entry points.
+
+    mmu_notifier_unregister_no_release
+    percpu_ref
+    region_intersects
+    __class_create
+
+Those entry points also consume / export functionality that is
+currently not exported to any other driver.
+
+    alloc_pages_vma
+    walk_page_range
+
+Andrew, please consider applying this v3 series to fix this up (let me
+know if you need a resend).
