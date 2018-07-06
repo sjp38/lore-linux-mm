@@ -1,66 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 55DD66B026D
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 04:16:06 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id e93-v6so1920888plb.5
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 01:16:06 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v11-v6sor2088622pgo.128.2018.07.06.01.16.05
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 32B3B6B026F
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 04:19:01 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id bf1-v6so4105814plb.2
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 01:19:01 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w123-v6si8021781pfb.362.2018.07.06.01.18.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 06 Jul 2018 01:16:05 -0700 (PDT)
-From: Jia He <hejianet@gmail.com>
-Subject: [PATCH v10 6/6] mm: page_alloc: reduce unnecessary binary search in early_pfn_valid()
-Date: Fri,  6 Jul 2018 16:14:20 +0800
-Message-Id: <1530864860-7671-7-git-send-email-hejianet@gmail.com>
-In-Reply-To: <1530864860-7671-1-git-send-email-hejianet@gmail.com>
-References: <1530864860-7671-1-git-send-email-hejianet@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Jul 2018 01:19:00 -0700 (PDT)
+Date: Fri, 6 Jul 2018 10:18:56 +0200
+From: Johannes Thumshirn <jthumshirn@suse.de>
+Subject: Re: [PATCH 13/13] libnvdimm, namespace: Publish page structure init
+ state / control
+Message-ID: <20180706081856.uj4jozwxahibrmui@linux-x5ow.site>
+References: <153077334130.40830.2714147692560185329.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <153077341292.40830.11333232703318633087.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180705082931.echvdqipgvwhghf2@linux-x5ow.site>
+ <CAPcyv4h1L6ZMCqWXhWD_ZJ=sH7SVzuUGMG2Ln=6Cy6sR4S=VUw@mail.gmail.com>
+ <20180705144941.drfiwhqcnqqorqu3@linux-x5ow.site>
+ <20180705132455.2a40de08dbe3a9bb384fb870@linux-foundation.org>
+ <CAPcyv4h973nANXOUFe9rE7pn0tKxy=Csh=XYsyA6V_bPF0eRAw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAPcyv4h973nANXOUFe9rE7pn0tKxy=Csh=XYsyA6V_bPF0eRAw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King <linux@armlinux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morse <james.morse@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steve Capper <steve.capper@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, richard.weiyang@gmail.com, Jia He <hejianet@gmail.com>, Jia He <jia.he@hxt-semitech.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Vishal Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>, Jeff Moyer <jmoyer@redhat.com>, Christoph Hellwig <hch@lst.de>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
-where possible") optimized the loop in memmap_init_zone(). But there is
-still some room for improvement. E.g. in early_pfn_valid(), if pfn and
-pfn+1 are in the same memblock region, we can record the last returned
-memblock region index and check whether pfn++ is still in the same
-region.
+On Thu, Jul 05, 2018 at 01:34:01PM -0700, Dan Williams wrote:
+> >
+> > sysfs_streq()
+> 
+> Nice... /me stares down a long list of needed cleanups in the
+> libnvdimm sysfs implementation with that gem.
 
-Currently it only improve the performance on arm/arm64 and will have no
-impact on other arches.
+Cool. I think not only libnvdimm would profit from this. /me looks
+into scsi and nvme now.
 
-For the performance improvement, after this set, I can see the time
-overhead of memmap_init() is reduced from 27956us to 13537us in my
-armv8a server(QDF2400 with 96G memory, pagesize 64k).
-
-Signed-off-by: Jia He <jia.he@hxt-semitech.com>
----
- include/linux/mmzone.h | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 57cdc42..83b1d11 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -1267,11 +1267,16 @@ static inline int pfn_present(unsigned long pfn)
- #define pfn_to_nid(pfn)		(0)
- #endif
- 
--#define early_pfn_valid(pfn)	pfn_valid(pfn)
- #ifdef CONFIG_HAVE_MEMBLOCK_PFN_VALID
- extern ulong memblock_next_valid_pfn(ulong pfn);
- #define next_valid_pfn(pfn)	memblock_next_valid_pfn(pfn)
--#endif
-+
-+extern int pfn_valid_region(ulong pfn);
-+#define early_pfn_valid(pfn)	pfn_valid_region(pfn)
-+#else
-+#define early_pfn_valid(pfn)	pfn_valid(pfn)
-+#endif /*CONFIG_HAVE_ARCH_PFN_VALID*/
-+
- void sparse_init(void);
- #else
- #define sparse_init()	do {} while (0)
 -- 
-1.8.3.1
+Johannes Thumshirn                                          Storage
+jthumshirn@suse.de                                +49 911 74053 689
+SUSE LINUX GmbH, Maxfeldstr. 5, 90409 Nurnberg
+GF: Felix Imendorffer, Jane Smithard, Graham Norton
+HRB 21284 (AG Nurnberg)
+Key fingerprint = EC38 9CAB C2C4 F25D 8600 D0D0 0393 969D 2D76 0850
