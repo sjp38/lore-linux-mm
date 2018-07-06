@@ -1,58 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E57C36B0003
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 12:07:06 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id e29-v6so12987081oiy.2
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 09:07:06 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d89-v6sor5404010oic.136.2018.07.06.09.07.00
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F09C6B0007
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 12:18:00 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id f5-v6so4879757plf.18
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 09:18:00 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id l3-v6si7988687pld.223.2018.07.06.09.17.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 06 Jul 2018 09:07:00 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20180706100310.GB3483@gmail.com>
-References: <153065162801.12250.4860144566061573514.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180705082435.GA29656@gmail.com> <CAPcyv4hw1a8+wwTYaQ0G0jWQzBCDaZ8zxYXw6gXtuWBYGX1LeQ@mail.gmail.com>
- <20180706100310.GB3483@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Jul 2018 09:17:59 -0700 (PDT)
+Subject: [PATCH v2 1/2] x86/numa_emulation: Fix emulated-to-physical node
+ mapping
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 6 Jul 2018 09:06:59 -0700
-Message-ID: <CAPcyv4gTVr7wiN5t4wUsqoWYpNajjj=77SEHC0Ew_gw0eDs93Q@mail.gmail.com>
-Subject: Re: [PATCH] x86/numa_emulation: Fix uniform size build failure
-Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 06 Jul 2018 09:08:01 -0700
+Message-ID: <153089328103.27680.14778434392225818887.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <153089327581.27680.11402583130804677094.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <153089327581.27680.11402583130804677094.stgit@dwillia2-desk3.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Wei Yang <richard.weiyang@gmail.com>, kbuild test robot <lkp@intel.com>, X86 ML <x86@kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: mingo@kernel.org
+Cc: Wei Yang <richard.weiyang@gmail.com>, David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.orgx86@kernel.org
 
-On Fri, Jul 6, 2018 at 3:03 AM, Ingo Molnar <mingo@kernel.org> wrote:
->
-> * Dan Williams <dan.j.williams@intel.com> wrote:
->
->> > config attached.
->
-> Doh, I intended to attach the config - attached now.
->
->> > These numa_emulation changes are a bit of a trainwreck - I'm removing both
->> > num_emulation commits from -tip for now, could you please resubmit a fixed/tested
->> > combo version?
->>
->> So I squashed the fix and let the 0day robot chew on it all day with no reports
->> as of yet. I just recompiled it here and am not seeing the link failure, can you
->> send me the details of the kernel config + gcc version that is failing?
->
-> My guess: it's some weird Kconfig combination in this 32-bit config.
->
-> Can you reproduce it with this config?
+Without this change the distance table calculation for emulated nodes
+may use the wrong numa node and report an incorrect distance.
 
-Yup, got it, thanks!
+Cc: Wei Yang <richard.weiyang@gmail.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: <x86@kernel.org>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+---
+ arch/x86/mm/numa_emulation.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Turning on debuginfo I get:
-
-arch/x86/mm/numa_emulation.o: In function `split_nodes_size_interleave_uniform':
-arch/x86/mm/numa_emulation.c:257: undefined reference to `__udivdi3'
-
-Previously we were dividing by a power-of-2 constant MAX_NUM_NODES,
-and I believe in my builds the compiler was still deducing the
-constant from the "nr_nodes = MAX_NUM_NODES" assignment. Fix inbound,
-and I believe it will make it even clearer the difference between the
-typical split and the new uniform split capability.
+diff --git a/arch/x86/mm/numa_emulation.c b/arch/x86/mm/numa_emulation.c
+index 34a2a3bfde9c..22cbad56acab 100644
+--- a/arch/x86/mm/numa_emulation.c
++++ b/arch/x86/mm/numa_emulation.c
+@@ -61,7 +61,7 @@ static int __init emu_setup_memblk(struct numa_meminfo *ei,
+ 	eb->nid = nid;
+ 
+ 	if (emu_nid_to_phys[nid] == NUMA_NO_NODE)
+-		emu_nid_to_phys[nid] = nid;
++		emu_nid_to_phys[nid] = pb->nid;
+ 
+ 	pb->start += size;
+ 	if (pb->start >= pb->end) {
