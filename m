@@ -1,35 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 721746B0005
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 02:17:54 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id r9-v6so472966edh.14
-        for <linux-mm@kvack.org>; Thu, 05 Jul 2018 23:17:54 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m2-v6si2108278eds.184.2018.07.05.23.17.53
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CDB76B0005
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 03:13:27 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id w145-v6so6414386wmw.1
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 00:13:27 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v17-v6sor2455034wmh.68.2018.07.06.00.13.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Jul 2018 23:17:53 -0700 (PDT)
-Date: Fri, 6 Jul 2018 08:17:50 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 3/3] m68k: switch to MEMBLOCK + NO_BOOTMEM
-Message-ID: <20180706061750.GH32658@dhcp22.suse.cz>
-References: <1530685696-14672-1-git-send-email-rppt@linux.vnet.ibm.com>
- <1530685696-14672-4-git-send-email-rppt@linux.vnet.ibm.com>
- <CAMuHMdWEHSz34bN-U3gHW972w13f_Jrx_ObEsP3w8XZ1Gx65OA@mail.gmail.com>
- <20180704075410.GF22503@dhcp22.suse.cz>
- <89f48f7a-6cbf-ac9a-cacc-cd3ca79f8c66@suse.cz>
- <20180704123627.GM22503@dhcp22.suse.cz>
+        (Google Transport Security);
+        Fri, 06 Jul 2018 00:13:25 -0700 (PDT)
+Date: Fri, 6 Jul 2018 09:13:23 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH] fs, elf: Make sure to page align bss in load_elf_library
+Message-ID: <20180706071323.GA7959@techadventures.net>
+References: <20180705145539.9627-1-osalvador@techadventures.net>
+ <CAGXu5jL4O_qwwAHmW1C8q77Jv1fe_1JCq6iFxC73VySBkvHSQw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180704123627.GM22503@dhcp22.suse.cz>
+In-Reply-To: <CAGXu5jL4O_qwwAHmW1C8q77Jv1fe_1JCq6iFxC73VySBkvHSQw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Geert Uytterhoeven <geert@linux-m68k.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Greg Ungerer <gerg@linux-m68k.org>, Sam Creasey <sammy@sammy.net>, linux-m68k <linux-m68k@lists.linux-m68k.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Kees Cook <keescook@chromium.org>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Nicolas Pitre <nicolas.pitre@linaro.org>, Oscar Salvador <osalvador@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed 04-07-18 14:36:27, Michal Hocko wrote:
-> [CC Andrew - email thread starts
-> http://lkml.kernel.org/r/1530685696-14672-1-git-send-email-rppt@linux.vnet.ibm.com]
+On Thu, Jul 05, 2018 at 08:44:18AM -0700, Kees Cook wrote:
+> On Thu, Jul 5, 2018 at 7:55 AM,  <osalvador@techadventures.net> wrote:
+> > From: Oscar Salvador <osalvador@suse.de>
+> >
+> > The current code does not make sure to page align bss before calling
+> > vm_brk(), and this can lead to a VM_BUG_ON() in __mm_populate()
+> > due to the requested lenght not being correctly aligned.
+> >
+> > Let us make sure to align it properly.
+> >
+> > Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> > Tested-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+> > Reported-by: syzbot+5dcb560fe12aa5091c06@syzkaller.appspotmail.com
+> 
+> Wow. CONFIG_USELIB? I'm surprised distros are still using this. 32-bit
+> only, and libc5 and earlier only.
+> 
+> Regardless, this appears to match the current bss alignment logic in
+> the main elf loader, so:
+> 
+> Acked-by: Kees Cook <keescook@chromium.org>
+> 
+> -Kees
+> 
+> > ---
+> >  fs/binfmt_elf.c | 5 ++---
+> >  1 file changed, 2 insertions(+), 3 deletions(-)
+> >
+> > diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+> > index 0ac456b52bdd..816cc921cf36 100644
+> > --- a/fs/binfmt_elf.c
+> > +++ b/fs/binfmt_elf.c
+> > @@ -1259,9 +1259,8 @@ static int load_elf_library(struct file *file)
+> >                 goto out_free_ph;
+> >         }
+> >
+> > -       len = ELF_PAGESTART(eppnt->p_filesz + eppnt->p_vaddr +
+> > -                           ELF_MIN_ALIGN - 1);
+> > -       bss = eppnt->p_memsz + eppnt->p_vaddr;
+> > +       len = ELF_PAGEALIGN(eppnt->p_filesz + eppnt->p_vaddr);
+> > +       bss = ELF_PAGEALIGN(eppnt->p_memsz + eppnt->p_vaddr);
+> >         if (bss > len) {
+> >                 error = vm_brk(len, bss - len);
+> >                 if (error)
+> > --
+> > 2.13.6
+> >
+CC Andrew
 
-And updated version with typos fixed
+Hi Andrew,
+
+in case this patch gets accepted, does it have to go through your tree?
+Or is it for someone else to take it?
+
+Thanks
+-- 
+Oscar Salvador
+SUSE L3
