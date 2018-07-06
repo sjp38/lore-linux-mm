@@ -1,60 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 916B16B0010
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 05:02:21 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id r9-v6so642853edh.14
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 02:02:21 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p21-v6si8192193edm.136.2018.07.06.02.02.20
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E06A56B0269
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 05:02:28 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id 39-v6so4185437ple.6
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 02:02:28 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p128-v6sor2223634pga.26.2018.07.06.02.02.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jul 2018 02:02:20 -0700 (PDT)
-Date: Fri, 6 Jul 2018 11:02:17 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: do not bug_on on incorrect lenght in __mm_populate
-Message-ID: <20180706090217.GI32658@dhcp22.suse.cz>
-References: <20180706053545.GD32658@dhcp22.suse.cz>
- <201807061427.cYcp5ef9%fengguang.wu@intel.com>
- <20180706082348.GB8235@techadventures.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180706082348.GB8235@techadventures.net>
+        (Google Transport Security);
+        Fri, 06 Jul 2018 02:02:27 -0700 (PDT)
+From: Jia He <hejianet@gmail.com>
+Subject: [RESEND PATCH v10 4/6] mm/memblock: introduce memblock_search_pfn_regions()
+Date: Fri,  6 Jul 2018 17:01:13 +0800
+Message-Id: <1530867675-9018-5-git-send-email-hejianet@gmail.com>
+In-Reply-To: <1530867675-9018-1-git-send-email-hejianet@gmail.com>
+References: <1530867675-9018-1-git-send-email-hejianet@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>
-Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org, Zi Yan <zi.yan@cs.rutgers.edu>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, syzbot <syzbot+5dcb560fe12aa5091c06@syzkaller.appspotmail.com>, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, mst@redhat.com, syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk, ying.huang@intel.com
+To: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jia He <hejianet@gmail.com>, Jia He <jia.he@hxt-semitech.com>
 
-On Fri 06-07-18 10:23:48, Oscar Salvador wrote:
-> On Fri, Jul 06, 2018 at 03:50:53PM +0800, kbuild test robot wrote:
-> > Hi Michal,
-> > 
-> > I love your patch! Yet something to improve:
-> > 
-> > [auto build test ERROR on linus/master]
-> > [also build test ERROR on v4.18-rc3 next-20180705]
-> > [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
-> > 
-> > url:    https://github.com/0day-ci/linux/commits/Michal-Hocko/mm-do-not-bug_on-on-incorrect-lenght-in-__mm_populate/20180706-134850
-> > config: x86_64-randconfig-x015-201826 (attached as .config)
-> > compiler: gcc-7 (Debian 7.3.0-16) 7.3.0
-> > reproduce:
-> >         # save the attached .config to linux build tree
-> >         make ARCH=x86_64 
-> > 
-> > All errors (new ones prefixed by >>):
-> > 
-> >    mm/mmap.c: In function 'do_brk_flags':
-> > >> mm/mmap.c:2936:16: error: 'len' redeclared as different kind of symbol
-> >      unsigned long len;
-> >                    ^~~
-> >    mm/mmap.c:2932:59: note: previous definition of 'len' was here
-> >     static int do_brk_flags(unsigned long addr, unsigned long len, unsigned long flags, struct list_head *uf)
-> 
-> Somehow I missed that.
-> Maybe some remains from yesterday.
-> 
-> The local variable "len" must be dropped.
+This helper is to find the memory region index of input pfn.
 
-Of course. This is what it looks like when you post patches in hurry
-before leaving. Mea culpa. Sorry about that. Refreshed
+Signed-off-by: Jia He <jia.he@hxt-semitech.com>
+---
+ include/linux/memblock.h | 2 ++
+ mm/memblock.c            | 9 +++++++++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index ca59883..b0f0307 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -203,6 +203,8 @@ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
+ 	     i >= 0; __next_mem_pfn_range(&i, nid, p_start, p_end, p_nid))
+ #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+ 
++int memblock_search_pfn_regions(unsigned long pfn);
++
+ /**
+  * for_each_free_mem_range - iterate through free memblock areas
+  * @i: u64 used as loop variable
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 84f7fa7..c783b1a 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1676,6 +1676,15 @@ static int __init_memblock memblock_search(struct memblock_type *type, phys_addr
+ 	return -1;
+ }
+ 
++/* search memblock with the input pfn, return the region idx */
++int __init_memblock memblock_search_pfn_regions(unsigned long pfn)
++{
++	struct memblock_type *type = &memblock.memory;
++	int mid = memblock_search(type, PFN_PHYS(pfn));
++
++	return mid;
++}
++
+ bool __init memblock_is_reserved(phys_addr_t addr)
+ {
+ 	return memblock_search(&memblock.reserved, addr) != -1;
+-- 
+1.8.3.1
