@@ -1,57 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AF2A6B000D
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 12:18:25 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id l21-v6so3036579pff.3
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 09:18:25 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id e1-v6si8988867pfg.257.2018.07.06.09.18.24
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E86C6B0005
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 13:04:10 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id b8-v6so9069128qto.16
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 10:04:10 -0700 (PDT)
+Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
+        by mx.google.com with ESMTPS id f36-v6si3014333qtf.100.2018.07.06.10.04.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jul 2018 09:18:24 -0700 (PDT)
-Subject: [PATCH v2 0/2] x86/numa_emulation: Introduce uniform split
- capability
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 06 Jul 2018 09:07:55 -0700
-Message-ID: <153089327581.27680.11402583130804677094.stgit@dwillia2-desk3.amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+        Fri, 06 Jul 2018 10:04:09 -0700 (PDT)
+Message-ID: <1530896635.5350.25.camel@surriel.com>
+Subject: mm,tlb: revert 4647706ebeee?
+From: Rik van Riel <riel@surriel.com>
+Date: Fri, 06 Jul 2018 13:03:55 -0400
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-zb/vom+066eg5F7hihUM"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mingo@kernel.org
-Cc: Wei Yang <richard.weiyang@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.orgx86@kernel.org
-
-Changes since v1 [1]:
-* Fix a pair of compile errors in 32-bit builds for 64-bit divides.
-
-[1]: https://lkml.org/lkml/2018/5/26/190
-
----
-
-The current numa emulation capabilities for splitting System RAM by a
-fixed size or by a set number of nodes may result in some nodes being
-larger than others. The implementation prioritizes establishing a
-minimum usable memory size over satisfying the requested number of numa
-nodes.
-
-Introduce a uniform split capability that evenly partitions each
-physical numa node into N emulated nodes. For example numa=fake=3U
-creates 6 emulated nodes total on a system that has 2 physical nodes.
-
-This capability is useful for debugging and evaluating platform
-memory-side-cache capabilities as described by the ACPI HMAT (see
-5.2.27.5 Memory Side Cache Information Structure in ACPI 6.2a)
-
-See more details in patch2.
-
----
-
-Dan Williams (2):
-      x86/numa_emulation: Fix emulated-to-physical node mapping
-      x86/numa_emulation: Introduce uniform split capability
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "kirill.shutemov" <kirill.shutemov@linux.intel.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, kernel-team <kernel-team@fb.com>
 
 
- Documentation/x86/x86_64/boot-options.txt |    4 +
- arch/x86/mm/numa_emulation.c              |  107 ++++++++++++++++++++++++-----
- 2 files changed, 91 insertions(+), 20 deletions(-)
+--=-zb/vom+066eg5F7hihUM
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+Hello,
+
+It looks like last summer, there were 2 sets of patches
+in flight to fix the issue of simultaneous mprotect/madvise
+calls unmapping PTEs, and some pages not being flushed from
+the TLB before returning to userspace.
+
+Minchan posted these patches:
+56236a59556c ("mm: refactor TLB gathering API")
+99baac21e458 ("mm: fix MADV_[FREE|DONTNEED] TLB flush miss problem")
+
+Around the same time, Mel posted:
+4647706ebeee ("mm: always flush VMA ranges affected by zap_page_range")
+
+They both appear to solve the same bug.
+
+Only one of the two solutions is needed.
+
+However, 4647706ebeee appears to introduce extra TLB
+flushes - one per VMA, instead of one over the entire
+range unmapped, and also extra flushes when there are
+no simultaneous unmappers of the same mm.
+
+For that reason, it seems like we should revert
+4647706ebeee and keep only Minchan's solution in
+the kernel.
+
+Am I overlooking any reason why we should not revert
+4647706ebeee?
+
+kind regards,
+
+Rik
+--=20
+All Rights Reversed.
+--=-zb/vom+066eg5F7hihUM
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAls/oPsACgkQznnekoTE
+3oOwCQf/fCp6/SmsfPwk5QdUpaiKb9p4zW3RmAuc3LZ3DPkduCTH1SPlJeW/5bDj
+1n2bKWKRPF7oAbxc3gpcgLpraEteJIEB8uCibo3KB7pGlqm1ItQPg1Fme5FNZpOy
+tTAcgvjiwKMkVNwQhpbjEoR0mYZ1GtuNe9waTIRSwYvMKGijVMTeQAhuty4mxY7Y
+fGYrhNcw8YDfoa9iBmnG7mXVGNl7g2gDSJDfmijr9aCaAHNKwpnKo74A5Hj65gTy
+nEuV64dz6WWpT9w00MTSORUVAYVfb9CHaZfTsigUc5MvcaI0Q6L+LDL2nx21Yqyb
+h4nD+F21Gf2PQSQ2uZjWHdtwqVSBNw==
+=/P1I
+-----END PGP SIGNATURE-----
+
+--=-zb/vom+066eg5F7hihUM--
