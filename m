@@ -1,89 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DD0B6B0006
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 18:34:02 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id p91-v6so5429210plb.12
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 15:34:02 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id r1-v6si10385563plj.474.2018.07.06.15.34.01
+	by kanga.kvack.org (Postfix) with ESMTP id E7EEC6B0008
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 18:37:12 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id f66-v6so5466017plb.10
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 15:37:12 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id t89-v6si9750544pfe.59.2018.07.06.15.37.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jul 2018 15:34:01 -0700 (PDT)
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v2] mm/sparse.c: fix error path in sparse_add_one_section
-Date: Fri,  6 Jul 2018 16:33:58 -0600
-Message-Id: <20180706223358.742-1-ross.zwisler@linux.intel.com>
-in-reply-to: <20180706190658.6873-1-ross.zwisler@linux.intel.com>
+        Fri, 06 Jul 2018 15:37:11 -0700 (PDT)
+Date: Fri, 6 Jul 2018 15:37:09 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RESEND PATCH v10 2/6] mm: page_alloc: remain
+ memblock_next_valid_pfn() on arm/arm64
+Message-Id: <20180706153709.6bcc76b0245f239f1d1dcc8a@linux-foundation.org>
+In-Reply-To: <1530867675-9018-3-git-send-email-hejianet@gmail.com>
+References: <1530867675-9018-1-git-send-email-hejianet@gmail.com>
+	<1530867675-9018-3-git-send-email-hejianet@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: pasha.tatashin@oracle.com, linux-nvdimm@lists.01.org
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, osalvador@techadventures.net, bhe@redhat.com, Dave Hansen <dave.hansen@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, osalvador@suse.de
+To: Jia He <hejianet@gmail.com>
+Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jia He <jia.he@hxt-semitech.com>
 
-The following commit in -next:
+On Fri,  6 Jul 2018 17:01:11 +0800 Jia He <hejianet@gmail.com> wrote:
 
-commit 054620849110 ("mm/sparse.c: make sparse_init_one_section void and
-remove check")
+> From: Jia He <jia.he@hxt-semitech.com>
+> 
+> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+> where possible") optimized the loop in memmap_init_zone(). But it causes
+> possible panic bug. So Daniel Vacek reverted it later.
+> 
+> But as suggested by Daniel Vacek, it is fine to using memblock to skip
+> gaps and finding next valid frame with CONFIG_HAVE_ARCH_PFN_VALID.
+> Daniel said:
+> "On arm and arm64, memblock is used by default. But generic version of
+> pfn_valid() is based on mem sections and memblock_next_valid_pfn() does
+> not always return the next valid one but skips more resulting in some
+> valid frames to be skipped (as if they were invalid). And that's why
+> kernel was eventually crashing on some !arm machines."
+> 
+> About the performance consideration:
+> As said by James in b92df1de5,
+> "I have tested this patch on a virtual model of a Samurai CPU
+> with a sparse memory map.  The kernel boot time drops from 109 to
+> 62 seconds."
+> 
+> Thus it would be better if we remain memblock_next_valid_pfn on arm/arm64.
+> 
 
-changed how the error handling in sparse_add_one_section() works.
+We're making a bit of a mess here.  mmzone.h:
 
-Previously sparse_index_init() could return -EEXIST, and the function would
-continue on happily.  'ret' would get unconditionally overwritten by the
-result from sparse_init_one_section() and the error code after the 'out:'
-label wouldn't be triggered.
+...
+#ifndef CONFIG_HAVE_ARCH_PFN_VALID
+...
+#define next_valid_pfn(pfn)	(pfn + 1)
+#endif
+...
+#ifdef CONFIG_HAVE_MEMBLOCK_PFN_VALID
+#define next_valid_pfn(pfn)	memblock_next_valid_pfn(pfn)
+...
+#else
+...
+#ifndef next_valid_pfn
+#define next_valid_pfn(pfn)	(pfn + 1)
+#endif
 
-With the above referenced commit, though, an -EEXIST error return from
-sparse_index_init() now takes us through the function and into the error
-case after 'out:'.  This eventually causes a kernel BUG, probably because
-we've just freed a memory section that we successfully set up and marked as
-present:
+I guess it works OK, since CONFIG_HAVE_MEMBLOCK_PFN_VALID depends on
+CONFIG_HAVE_ARCH_PFN_VALID.  But it could all do with some cleanup and
+modernization.
 
-  BUG: unable to handle kernel paging request at ffffea0005000080
-  RIP: 0010:memmap_init_zone+0x154/0x1cf
+- Perhaps memblock_next_valid_pfn() should just be called
+  pfn_valid().  So the header file's responsibility is to provide
+  pfn_valid() and next_valid_pfn().
 
-  Call Trace:
-   move_pfn_range_to_zone+0x168/0x180
-   devm_memremap_pages+0x29b/0x480
-   pmem_attach_disk+0x1ae/0x6c0 [nd_pmem]
-   ? devm_memremap+0x79/0xb0
-   nd_pmem_probe+0x7e/0xa0 [nd_pmem]
-   nvdimm_bus_probe+0x6e/0x160 [libnvdimm]
-   driver_probe_device+0x310/0x480
-   __device_attach_driver+0x86/0x100
-   ? __driver_attach+0x110/0x110
-   bus_for_each_drv+0x6e/0xb0
-   __device_attach+0xe2/0x160
-   device_initial_probe+0x13/0x20
-   bus_probe_device+0xa6/0xc0
-   device_add+0x41b/0x660
-   ? lock_acquire+0xa3/0x210
-   nd_async_device_register+0x12/0x40 [libnvdimm]
-   async_run_entry_fn+0x3e/0x170
-   process_one_work+0x230/0x680
-   worker_thread+0x3f/0x3b0
-   kthread+0x12f/0x150
-   ? process_one_work+0x680/0x680
-   ? kthread_create_worker_on_cpu+0x70/0x70
-   ret_from_fork+0x3a/0x50
+- CONFIG_HAVE_ARCH_PFN_VALID should go away.  The current way of
+  doing such thnigs is for the arch (or some Kconfig combination) to
+  define pfn_valid() and next_valid_pfn() in some fashion and to then
+  ensure that one of them is #defined to something, to indicate that
+  both of these have been set up.  Or something like that.
 
-Fix this by clearing 'ret' back to 0 if sparse_index_init() returns
--EEXIST.  This restores the previous behavior.
 
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
----
- mm/sparse.c | 1 +
- 1 file changed, 1 insertion(+)
+Secondly, in memmap_init_zone()
 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index f55e79fda03e..eb188eb6b82d 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -770,6 +770,7 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
- 	ret = sparse_index_init(section_nr, pgdat->node_id);
- 	if (ret < 0 && ret != -EEXIST)
- 		return ret;
-+	ret = 0;
- 	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, altmap);
- 	if (!memmap)
- 		return -ENOMEM;
--- 
-2.14.4
+> -		if (!early_pfn_valid(pfn))
+> +		if (!early_pfn_valid(pfn)) {
+> +			pfn = next_valid_pfn(pfn) - 1;
+> 			continue;
+> +		}
+> +
+
+This is weird-looking.  next_valid_pfn(pfn) is usually (pfn+1) so it's
+a no-op.  Sometimes we're calling memblock_next_valid_pfn() and then
+backing up one, presumably because the `for' loop ends in `pfn++'.  Or
+something.  Can this please be fully commented or cleaned up?
