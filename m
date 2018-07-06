@@ -1,47 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 80A1A6B0003
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 09:04:12 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id l21-v6so2738385pff.3
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 06:04:12 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e1-v6si8661647pfg.257.2018.07.06.06.04.10
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F82B6B000A
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 09:14:38 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id o1-v6so6939391wmc.6
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 06:14:38 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.131])
+        by mx.google.com with ESMTPS id 52-v6si8100234wrb.354.2018.07.06.06.14.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 06 Jul 2018 06:04:11 -0700 (PDT)
-Date: Fri, 6 Jul 2018 06:04:07 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v14 68/74] dax: Convert dax_lock_page to XArray
-Message-ID: <20180706130407.GA18395@bombadil.infradead.org>
-References: <20180617020052.4759-1-willy@infradead.org>
- <20180617020052.4759-69-willy@infradead.org>
- <20180629173055.GA2973@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180629173055.GA2973@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Jul 2018 06:14:37 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] zmalloc: hide unused lock_zspage
+Date: Fri,  6 Jul 2018 15:09:02 +0200
+Message-Id: <20180706130924.3891230-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net
+To: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>
+Cc: Colin Ian King <colin.king@canonical.com>, Arnd Bergmann <arnd@arndb.de>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Desaulniers <nick.desaulniers@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jun 29, 2018 at 11:30:55AM -0600, Ross Zwisler wrote:
-> On Sat, Jun 16, 2018 at 07:00:46PM -0700, Matthew Wilcox wrote:
-> > Signed-off-by: Matthew Wilcox <willy@infradead.org>
-> > ---
-> <>
-> > +static void *dax_make_page_entry(struct page *page, void *entry)
-> > +{
-> > +	pfn_t pfn = page_to_pfn_t(page);
-> > +	return dax_make_entry(pfn, dax_is_pmd_entry(entry));
-> > +}
-> 
-> This function is defined and never used, so we get:
-> 
-> fs/dax.c:106:14: warning: a??dax_make_page_entrya?? defined but not used [-Wunused-function]
->  static void *dax_make_page_entry(struct page *page, void *entry)
->   ^~~~~~~~~~~~~~~~~~~
+Making lock_zspage() static revealed that it is unused in some confiurations:
 
-Yeah, it was used in one of the functions Dan added, then removed.
-I understand he's planning on bringing that back before 4.19 and I'm
-going to rebase on top of that, so I've left it there for now.
+mm/zsmalloc.c:931:13: error: 'lock_zspage' defined but not used [-Werror=unused-function]
+
+I considered moving it into the same #ifdef that hides its user, but
+it seems better to keep it close to trylock_zspage() etc, so this
+marks it __maybe_unused() to let the compiler drop it without warning
+about it.
+
+Fixes: 0de664ada6b6 ("mm/zsmalloc.c: make several functions and a struct static")
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+ mm/zsmalloc.c | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 900bea99452a..58886d40786b 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -924,19 +924,6 @@ static void reset_page(struct page *page)
+ 	page->freelist = NULL;
+ }
+ 
+-/*
+- * To prevent zspage destroy during migration, zspage freeing should
+- * hold locks of all pages in the zspage.
+- */
+-static void lock_zspage(struct zspage *zspage)
+-{
+-	struct page *page = get_first_page(zspage);
+-
+-	do {
+-		lock_page(page);
+-	} while ((page = get_next_page(page)) != NULL);
+-}
+-
+ static int trylock_zspage(struct zspage *zspage)
+ {
+ 	struct page *cursor, *fail;
+@@ -1814,6 +1801,19 @@ static enum fullness_group putback_zspage(struct size_class *class,
+ }
+ 
+ #ifdef CONFIG_COMPACTION
++/*
++ * To prevent zspage destroy during migration, zspage freeing should
++ * hold locks of all pages in the zspage.
++ */
++static void lock_zspage(struct zspage *zspage)
++{
++	struct page *page = get_first_page(zspage);
++
++	do {
++		lock_page(page);
++	} while ((page = get_next_page(page)) != NULL);
++}
++
+ static struct dentry *zs_mount(struct file_system_type *fs_type,
+ 			       int flags, const char *dev_name,
+ 			       void *data, size_t data_size)
+-- 
+2.9.0
