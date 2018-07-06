@@ -1,138 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 730D36B0273
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 04:29:29 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id l17-v6so4317825edq.11
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 01:29:29 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DCC7F6B0274
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 04:29:30 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id n2-v6so4349146edr.5
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 01:29:30 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id y95-v6si5771221ede.17.2018.07.06.01.29.27
+        by mx.google.com with ESMTPS id r16-v6si6857195eds.213.2018.07.06.01.29.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jul 2018 01:29:28 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w668SvjQ137125
-	for <linux-mm@kvack.org>; Fri, 6 Jul 2018 04:29:26 -0400
-Received: from e14.ny.us.ibm.com (e14.ny.us.ibm.com [129.33.205.204])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2k21j3ysqp-1
+        Fri, 06 Jul 2018 01:29:29 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w668SvgI106880
+	for <linux-mm@kvack.org>; Fri, 6 Jul 2018 04:29:28 -0400
+Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2k24m58vyc-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 06 Jul 2018 04:29:26 -0400
+	for <linux-mm@kvack.org>; Fri, 06 Jul 2018 04:29:27 -0400
 Received: from localhost
-	by e14.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Fri, 6 Jul 2018 04:29:25 -0400
+	Fri, 6 Jul 2018 04:29:27 -0400
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [RFC PATCH 1/2] mm/nvidmm: Drop x86 dependency on nvdimm e820 device
-Date: Fri,  6 Jul 2018 13:59:10 +0530
-Message-Id: <20180706082911.13405-1-aneesh.kumar@linux.ibm.com>
+Subject: [RFC PATCH 2/2] mm/pmem: Add memblock based e820 platform driver
+Date: Fri,  6 Jul 2018 13:59:11 +0530
+In-Reply-To: <20180706082911.13405-1-aneesh.kumar@linux.ibm.com>
+References: <20180706082911.13405-1-aneesh.kumar@linux.ibm.com>
+Message-Id: <20180706082911.13405-2-aneesh.kumar@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, Dan Williams <dan.j.williams@intel.com>, Oliver <oohall@gmail.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
 
-This patch adds new Kconfig variable PMEM_PLATFORM_DEVICE and use that to select
-the nvdimm e820 device. The x86 config is now named X86_PMEM_LEGACY_DEVICE.
+This patch steal system RAM and use that to emulate pmem device using the
+e820 platform driver.
+
+This adds a new kernel command line 'pmemmap' which takes the format <size[KMG]>
+to allocate memory early in the boot. This memory is later registered as
+persistent memory range.
+
+Based on original patch from Oliver OHalloran <oliveroh@au1.ibm.com>
 
 Not-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
 ---
- arch/x86/Kconfig                  | 5 +----
- arch/x86/include/asm/e820/types.h | 2 +-
- arch/x86/include/uapi/asm/e820.h  | 2 +-
- drivers/nvdimm/Kconfig            | 5 ++++-
- drivers/nvdimm/Makefile           | 2 +-
- tools/testing/nvdimm/Kbuild       | 2 +-
- 6 files changed, 9 insertions(+), 9 deletions(-)
+ drivers/nvdimm/Kconfig        |  13 ++++
+ drivers/nvdimm/Makefile       |   1 +
+ drivers/nvdimm/memblockpmem.c | 115 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 129 insertions(+)
+ create mode 100644 drivers/nvdimm/memblockpmem.c
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index f1dbb4ee19d7..1186e1330876 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1641,13 +1641,10 @@ config ILLEGAL_POINTER_VALUE
- source "mm/Kconfig"
- 
- config X86_PMEM_LEGACY_DEVICE
--	bool
--
--config X86_PMEM_LEGACY
- 	tristate "Support non-standard NVDIMMs and ADR protected memory"
- 	depends on PHYS_ADDR_T_64BIT
- 	depends on BLK_DEV
--	select X86_PMEM_LEGACY_DEVICE
-+	select PMEM_PLATFORM_DEVICE
- 	select LIBNVDIMM
- 	help
- 	  Treat memory marked using the non-standard e820 type of 12 as used
-diff --git a/arch/x86/include/asm/e820/types.h b/arch/x86/include/asm/e820/types.h
-index c3aa4b5e49e2..0fb25d04dd26 100644
---- a/arch/x86/include/asm/e820/types.h
-+++ b/arch/x86/include/asm/e820/types.h
-@@ -20,7 +20,7 @@ enum e820_type {
- 	 * NVDIMM regions that persist over a reboot.
- 	 *
- 	 * The kernel will ignore their special capabilities
--	 * unless the CONFIG_X86_PMEM_LEGACY=y option is set.
-+	 * unless the CONFIG_X86_PMEM_LEGACY_DEVICE=y option is set.
- 	 *
- 	 * ( Note that older platforms also used 6 for the same
- 	 *   type of memory, but newer versions switched to 12 as
-diff --git a/arch/x86/include/uapi/asm/e820.h b/arch/x86/include/uapi/asm/e820.h
-index 2f491efe3a12..b8ae7c221269 100644
---- a/arch/x86/include/uapi/asm/e820.h
-+++ b/arch/x86/include/uapi/asm/e820.h
-@@ -38,7 +38,7 @@
- /*
-  * This is a non-standardized way to represent ADR or NVDIMM regions that
-  * persist over a reboot.  The kernel will ignore their special capabilities
-- * unless the CONFIG_X86_PMEM_LEGACY option is set.
-+ * unless the CONFIG_X86_PMEM_LEGACY_DEVICE option is set.
-  *
-  * ( Note that older platforms also used 6 for the same type of memory,
-  *   but newer versions switched to 12 as 6 was assigned differently.  Some
 diff --git a/drivers/nvdimm/Kconfig b/drivers/nvdimm/Kconfig
-index 9d36473dc2a2..50d2a33de441 100644
+index 50d2a33de441..cbbbcbd4506b 100644
 --- a/drivers/nvdimm/Kconfig
 +++ b/drivers/nvdimm/Kconfig
-@@ -27,7 +27,7 @@ config BLK_DEV_PMEM
- 	  Memory ranges for PMEM are described by either an NFIT
- 	  (NVDIMM Firmware Interface Table, see CONFIG_NFIT_ACPI), a
- 	  non-standard OEM-specific E820 memory type (type-12, see
--	  CONFIG_X86_PMEM_LEGACY), or it is manually specified by the
-+	  CONFIG_X86_PMEM_LEGACY_DEVICE), or it is manually specified by the
- 	  'memmap=nn[KMG]!ss[KMG]' kernel command line (see
- 	  Documentation/admin-guide/kernel-parameters.rst).  This driver converts
- 	  these persistent memory ranges into block devices that are
-@@ -112,4 +112,7 @@ config OF_PMEM
+@@ -115,4 +115,17 @@ config OF_PMEM
+ config PMEM_PLATFORM_DEVICE
+        bool
  
- 	  Select Y if unsure.
- 
-+config PMEM_PLATFORM_DEVICE
-+       bool
++config MEMBLOCK_PMEM
++	bool "pmemmap= parameter support"
++	default y
++	depends on HAVE_MEMBLOCK
++	select PMEM_PLATFORM_DEVICE
++	help
++	  Add support for the pmemmap= kernel command line parameter. This is similar
++	  to the memmap= parameter available on ACPI platforms, but it uses generic
++	  kernel facilities (the memblock allocator) to reserve memory rather than adding
++	  to the e820 table.
++
++	  Select Y if unsure.
 +
  endif
 diff --git a/drivers/nvdimm/Makefile b/drivers/nvdimm/Makefile
-index e8847045dac0..94f7f29146ce 100644
+index 94f7f29146ce..0215ce0182e9 100644
 --- a/drivers/nvdimm/Makefile
 +++ b/drivers/nvdimm/Makefile
-@@ -3,7 +3,7 @@ obj-$(CONFIG_LIBNVDIMM) += libnvdimm.o
- obj-$(CONFIG_BLK_DEV_PMEM) += nd_pmem.o
- obj-$(CONFIG_ND_BTT) += nd_btt.o
+@@ -5,6 +5,7 @@ obj-$(CONFIG_ND_BTT) += nd_btt.o
  obj-$(CONFIG_ND_BLK) += nd_blk.o
--obj-$(CONFIG_X86_PMEM_LEGACY) += nd_e820.o
-+obj-$(CONFIG_PMEM_PLATFORM_DEVICE) += nd_e820.o
+ obj-$(CONFIG_PMEM_PLATFORM_DEVICE) += nd_e820.o
  obj-$(CONFIG_OF_PMEM) += of_pmem.o
++obj-$(CONFIG_MEMBLOCK_PMEM) += memblockpmem.o
  
  nd_pmem-y := pmem.o
-diff --git a/tools/testing/nvdimm/Kbuild b/tools/testing/nvdimm/Kbuild
-index 0392153a0009..82e84253a6ae 100644
---- a/tools/testing/nvdimm/Kbuild
-+++ b/tools/testing/nvdimm/Kbuild
-@@ -27,7 +27,7 @@ obj-$(CONFIG_LIBNVDIMM) += libnvdimm.o
- obj-$(CONFIG_BLK_DEV_PMEM) += nd_pmem.o
- obj-$(CONFIG_ND_BTT) += nd_btt.o
- obj-$(CONFIG_ND_BLK) += nd_blk.o
--obj-$(CONFIG_X86_PMEM_LEGACY) += nd_e820.o
-+obj-$(CONFIG_PMEM_PLATFORM_DEVICE) += nd_e820.o
- obj-$(CONFIG_ACPI_NFIT) += nfit.o
- ifeq ($(CONFIG_DAX),m)
- obj-$(CONFIG_DAX) += dax.o
+ 
+diff --git a/drivers/nvdimm/memblockpmem.c b/drivers/nvdimm/memblockpmem.c
+new file mode 100644
+index 000000000000..d39772b75fcd
+--- /dev/null
++++ b/drivers/nvdimm/memblockpmem.c
+@@ -0,0 +1,115 @@
++// SPDX-License-Identifier: GPL-2.0+
++/*
++ * Copyright (c) 2018 IBM Corporation
++ */
++
++#define pr_fmt(fmt) "memblock pmem: " fmt
++
++#include <linux/libnvdimm.h>
++#include <linux/bootmem.h>
++#include <linux/memblock.h>
++#include <linux/mmzone.h>
++#include <linux/cpu.h>
++#include <linux/platform_device.h>
++#include <linux/init.h>
++#include <linux/ioport.h>
++#include <linux/ctype.h>
++#include <linux/slab.h>
++
++/*
++ * Align pmem reservations to the section size so we don't have issues with
++ * memory hotplug
++ */
++#ifdef CONFIG_SPARSEMEM
++#define BOOTPMEM_ALIGN (1UL << SECTION_SIZE_BITS)
++#else
++#define BOOTPMEM_ALIGN PFN_DEFAULT_ALIGNMENT
++#endif
++
++static __initdata u64 pmem_size;
++static __initdata phys_addr_t pmem_stolen_memory;
++
++static void alloc_pmem_from_memblock(void)
++{
++
++	pmem_stolen_memory = memblock_alloc_base(pmem_size,
++						 BOOTPMEM_ALIGN,
++						 MEMBLOCK_ALLOC_ACCESSIBLE);
++	if (!pmem_stolen_memory) {
++		pr_err("Failed to allocate memory for PMEM from memblock\n");
++		return;
++	}
++
++	/*
++	 * Remove from the memblock reserved range
++	 */
++	memblock_free(pmem_stolen_memory, pmem_size);
++
++	/*
++	 * Remove from the memblock memory range.
++	 */
++	memblock_remove(pmem_stolen_memory, pmem_size);
++	pr_info("Allocated %ld memory at 0x%lx\n", (unsigned long)pmem_size,
++		(unsigned long)pmem_stolen_memory);
++	return;
++}
++
++/*
++ * pmemmap=ss[KMG]
++ *
++ * This is similar to the memremap=offset[KMG]!size[KMG] paramater
++ * for adding a legacy pmem range to the e820 map on x86, but it's
++ * platform agnostic.
++ *
++ * e.g. pmemmap=16G allocates 16G pmem region
++ */
++static int __init parse_pmemmap(char *p)
++{
++	char *old_p = p;
++
++	if (!p)
++		return -EINVAL;
++
++	pmem_size = memparse(p, &p);
++	if (p == old_p)
++		return -EINVAL;
++
++	alloc_pmem_from_memblock();
++	return 0;
++}
++early_param("pmemmap", parse_pmemmap);
++
++static __init int register_e820_pmem(void)
++{
++	struct resource *res, *conflict;
++        struct platform_device *pdev;
++
++	if (!pmem_stolen_memory)
++		return 0;
++
++	res = kzalloc(sizeof(*res), GFP_KERNEL);
++	if (!res)
++		return -1;
++
++	memset(res, 0, sizeof(*res));
++	res->start = pmem_stolen_memory;
++	res->end = pmem_stolen_memory + pmem_size - 1;
++	res->name = "Persistent Memory (legacy)";
++	res->desc = IORES_DESC_PERSISTENT_MEMORY_LEGACY;
++	res->flags = IORESOURCE_MEM;
++
++	conflict = insert_resource_conflict(&iomem_resource, res);
++	if (conflict) {
++		pr_err("%pR conflicts, try insert below %pR\n", res, conflict);
++		kfree(res);
++		return -1;
++	}
++	/*
++	 * See drivers/nvdimm/e820.c for the implementation, this is
++	 * simply here to trigger the module to load on demand.
++	 */
++	pdev = platform_device_alloc("e820_pmem", -1);
++
++	return platform_device_add(pdev);
++}
++device_initcall(register_e820_pmem);
 -- 
 2.17.1
