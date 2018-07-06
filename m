@@ -1,62 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 57AF56B0007
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 08:49:19 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id w11-v6so962008pfk.14
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 05:49:19 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id n9-v6si7514234pgp.558.2018.07.06.05.49.17
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 80A1A6B0003
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 09:04:12 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id l21-v6so2738385pff.3
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 06:04:12 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id e1-v6si8661647pfg.257.2018.07.06.06.04.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jul 2018 05:49:18 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -v4 05/21] mm, THP, swap: Support PMD swap mapping in free_swap_and_cache()/swap_free()
-References: <20180622035151.6676-1-ying.huang@intel.com>
-	<20180622035151.6676-6-ying.huang@intel.com>
-	<20180705183318.je4gd32awgh2tnb5@ca-dmjordan1.us.oracle.com>
-Date: Fri, 06 Jul 2018 20:49:05 +0800
-In-Reply-To: <20180705183318.je4gd32awgh2tnb5@ca-dmjordan1.us.oracle.com>
-	(Daniel Jordan's message of "Thu, 5 Jul 2018 11:33:18 -0700")
-Message-ID: <877em8msvy.fsf@yhuang-dev.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 06 Jul 2018 06:04:11 -0700 (PDT)
+Date: Fri, 6 Jul 2018 06:04:07 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v14 68/74] dax: Convert dax_lock_page to XArray
+Message-ID: <20180706130407.GA18395@bombadil.infradead.org>
+References: <20180617020052.4759-1-willy@infradead.org>
+ <20180617020052.4759-69-willy@infradead.org>
+ <20180629173055.GA2973@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180629173055.GA2973@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net
 
-Daniel Jordan <daniel.m.jordan@oracle.com> writes:
+On Fri, Jun 29, 2018 at 11:30:55AM -0600, Ross Zwisler wrote:
+> On Sat, Jun 16, 2018 at 07:00:46PM -0700, Matthew Wilcox wrote:
+> > Signed-off-by: Matthew Wilcox <willy@infradead.org>
+> > ---
+> <>
+> > +static void *dax_make_page_entry(struct page *page, void *entry)
+> > +{
+> > +	pfn_t pfn = page_to_pfn_t(page);
+> > +	return dax_make_entry(pfn, dax_is_pmd_entry(entry));
+> > +}
+> 
+> This function is defined and never used, so we get:
+> 
+> fs/dax.c:106:14: warning: a??dax_make_page_entrya?? defined but not used [-Wunused-function]
+>  static void *dax_make_page_entry(struct page *page, void *entry)
+>   ^~~~~~~~~~~~~~~~~~~
 
-> On Fri, Jun 22, 2018 at 11:51:35AM +0800, Huang, Ying wrote:
->> +static unsigned char swap_free_cluster(struct swap_info_struct *si,
->> +				       swp_entry_t entry)
-> ...
->> +	/* Cluster has been split, free each swap entries in cluster */
->> +	if (!cluster_is_huge(ci)) {
->> +		unlock_cluster(ci);
->> +		for (i = 0; i < SWAPFILE_CLUSTER; i++, entry.val++) {
->> +			if (!__swap_entry_free(si, entry, 1)) {
->> +				free_entries++;
->> +				free_swap_slot(entry);
->> +			}
->> +		}
->
-> Is is better on average to use __swap_entry_free_locked instead of
-> __swap_entry_free here?  I'm not sure myself, just asking.
->
-> As it's written, if the cluster's been split, we always take and drop the
-> cluster lock 512 times, but if we don't expect to call free_swap_slot that
-> often, then we could just drop and retake the cluster lock inside the innermost
-> 'if' against the possibility that free_swap_slot eventually makes us take the
-> cluster lock again.
-
-Yes.  This is a good idea.  Thanks for your suggestion!  I will change
-this in the next version.
-
-Best Regards,
-Huang, Ying
-
-> ...
->> +		return !(free_entries == SWAPFILE_CLUSTER);
->
->                 return free_entries != SWAPFILE_CLUSTER;
+Yeah, it was used in one of the functions Dan added, then removed.
+I understand he's planning on bringing that back before 4.19 and I'm
+going to rebase on top of that, so I've left it there for now.
