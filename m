@@ -1,207 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DCC7F6B0274
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 04:29:30 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id n2-v6so4349146edr.5
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 01:29:30 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id r16-v6si6857195eds.213.2018.07.06.01.29.29
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E5BFB6B0005
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 05:01:39 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id x23-v6so4172797pln.11
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 02:01:39 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w123-v6sor2250401pgw.79.2018.07.06.02.01.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jul 2018 01:29:29 -0700 (PDT)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w668SvgI106880
-	for <linux-mm@kvack.org>; Fri, 6 Jul 2018 04:29:28 -0400
-Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2k24m58vyc-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 06 Jul 2018 04:29:27 -0400
-Received: from localhost
-	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Fri, 6 Jul 2018 04:29:27 -0400
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [RFC PATCH 2/2] mm/pmem: Add memblock based e820 platform driver
-Date: Fri,  6 Jul 2018 13:59:11 +0530
-In-Reply-To: <20180706082911.13405-1-aneesh.kumar@linux.ibm.com>
-References: <20180706082911.13405-1-aneesh.kumar@linux.ibm.com>
-Message-Id: <20180706082911.13405-2-aneesh.kumar@linux.ibm.com>
+        (Google Transport Security);
+        Fri, 06 Jul 2018 02:01:38 -0700 (PDT)
+From: Jia He <hejianet@gmail.com>
+Subject: [RESEND PATCH v10 0/6] optimize memblock_next_valid_pfn and early_pfn_valid on arm and arm64
+Date: Fri,  6 Jul 2018 17:01:09 +0800
+Message-Id: <1530867675-9018-1-git-send-email-hejianet@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, Dan Williams <dan.j.williams@intel.com>, Oliver <oohall@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jia He <hejianet@gmail.com>
 
-This patch steal system RAM and use that to emulate pmem device using the
-e820 platform driver.
+Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+where possible") optimized the loop in memmap_init_zone(). But it causes
+possible panic bug. So Daniel Vacek reverted it later.
 
-This adds a new kernel command line 'pmemmap' which takes the format <size[KMG]>
-to allocate memory early in the boot. This memory is later registered as
-persistent memory range.
+But as suggested by Daniel Vacek, it is fine to using memblock to skip
+gaps and finding next valid frame with CONFIG_HAVE_ARCH_PFN_VALID.
 
-Based on original patch from Oliver OHalloran <oliveroh@au1.ibm.com>
+More from what Daniel said:
+"On arm and arm64, memblock is used by default. But generic version of
+pfn_valid() is based on mem sections and memblock_next_valid_pfn() does
+not always return the next valid one but skips more resulting in some
+valid frames to be skipped (as if they were invalid). And that's why
+kernel was eventually crashing on some !arm machines."
 
-Not-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
----
- drivers/nvdimm/Kconfig        |  13 ++++
- drivers/nvdimm/Makefile       |   1 +
- drivers/nvdimm/memblockpmem.c | 115 ++++++++++++++++++++++++++++++++++
- 3 files changed, 129 insertions(+)
- create mode 100644 drivers/nvdimm/memblockpmem.c
+About the performance consideration:
+As said by James in b92df1de5,
+"I have tested this patch on a virtual model of a Samurai CPU with a
+sparse memory map.  The kernel boot time drops from 109 to 62 seconds."
+Thus it would be better if we remain memblock_next_valid_pfn on arm/arm64.
 
-diff --git a/drivers/nvdimm/Kconfig b/drivers/nvdimm/Kconfig
-index 50d2a33de441..cbbbcbd4506b 100644
---- a/drivers/nvdimm/Kconfig
-+++ b/drivers/nvdimm/Kconfig
-@@ -115,4 +115,17 @@ config OF_PMEM
- config PMEM_PLATFORM_DEVICE
-        bool
- 
-+config MEMBLOCK_PMEM
-+	bool "pmemmap= parameter support"
-+	default y
-+	depends on HAVE_MEMBLOCK
-+	select PMEM_PLATFORM_DEVICE
-+	help
-+	  Add support for the pmemmap= kernel command line parameter. This is similar
-+	  to the memmap= parameter available on ACPI platforms, but it uses generic
-+	  kernel facilities (the memblock allocator) to reserve memory rather than adding
-+	  to the e820 table.
-+
-+	  Select Y if unsure.
-+
- endif
-diff --git a/drivers/nvdimm/Makefile b/drivers/nvdimm/Makefile
-index 94f7f29146ce..0215ce0182e9 100644
---- a/drivers/nvdimm/Makefile
-+++ b/drivers/nvdimm/Makefile
-@@ -5,6 +5,7 @@ obj-$(CONFIG_ND_BTT) += nd_btt.o
- obj-$(CONFIG_ND_BLK) += nd_blk.o
- obj-$(CONFIG_PMEM_PLATFORM_DEVICE) += nd_e820.o
- obj-$(CONFIG_OF_PMEM) += of_pmem.o
-+obj-$(CONFIG_MEMBLOCK_PMEM) += memblockpmem.o
- 
- nd_pmem-y := pmem.o
- 
-diff --git a/drivers/nvdimm/memblockpmem.c b/drivers/nvdimm/memblockpmem.c
-new file mode 100644
-index 000000000000..d39772b75fcd
---- /dev/null
-+++ b/drivers/nvdimm/memblockpmem.c
-@@ -0,0 +1,115 @@
-+// SPDX-License-Identifier: GPL-2.0+
-+/*
-+ * Copyright (c) 2018 IBM Corporation
-+ */
-+
-+#define pr_fmt(fmt) "memblock pmem: " fmt
-+
-+#include <linux/libnvdimm.h>
-+#include <linux/bootmem.h>
-+#include <linux/memblock.h>
-+#include <linux/mmzone.h>
-+#include <linux/cpu.h>
-+#include <linux/platform_device.h>
-+#include <linux/init.h>
-+#include <linux/ioport.h>
-+#include <linux/ctype.h>
-+#include <linux/slab.h>
-+
-+/*
-+ * Align pmem reservations to the section size so we don't have issues with
-+ * memory hotplug
-+ */
-+#ifdef CONFIG_SPARSEMEM
-+#define BOOTPMEM_ALIGN (1UL << SECTION_SIZE_BITS)
-+#else
-+#define BOOTPMEM_ALIGN PFN_DEFAULT_ALIGNMENT
-+#endif
-+
-+static __initdata u64 pmem_size;
-+static __initdata phys_addr_t pmem_stolen_memory;
-+
-+static void alloc_pmem_from_memblock(void)
-+{
-+
-+	pmem_stolen_memory = memblock_alloc_base(pmem_size,
-+						 BOOTPMEM_ALIGN,
-+						 MEMBLOCK_ALLOC_ACCESSIBLE);
-+	if (!pmem_stolen_memory) {
-+		pr_err("Failed to allocate memory for PMEM from memblock\n");
-+		return;
-+	}
-+
-+	/*
-+	 * Remove from the memblock reserved range
-+	 */
-+	memblock_free(pmem_stolen_memory, pmem_size);
-+
-+	/*
-+	 * Remove from the memblock memory range.
-+	 */
-+	memblock_remove(pmem_stolen_memory, pmem_size);
-+	pr_info("Allocated %ld memory at 0x%lx\n", (unsigned long)pmem_size,
-+		(unsigned long)pmem_stolen_memory);
-+	return;
-+}
-+
-+/*
-+ * pmemmap=ss[KMG]
-+ *
-+ * This is similar to the memremap=offset[KMG]!size[KMG] paramater
-+ * for adding a legacy pmem range to the e820 map on x86, but it's
-+ * platform agnostic.
-+ *
-+ * e.g. pmemmap=16G allocates 16G pmem region
-+ */
-+static int __init parse_pmemmap(char *p)
-+{
-+	char *old_p = p;
-+
-+	if (!p)
-+		return -EINVAL;
-+
-+	pmem_size = memparse(p, &p);
-+	if (p == old_p)
-+		return -EINVAL;
-+
-+	alloc_pmem_from_memblock();
-+	return 0;
-+}
-+early_param("pmemmap", parse_pmemmap);
-+
-+static __init int register_e820_pmem(void)
-+{
-+	struct resource *res, *conflict;
-+        struct platform_device *pdev;
-+
-+	if (!pmem_stolen_memory)
-+		return 0;
-+
-+	res = kzalloc(sizeof(*res), GFP_KERNEL);
-+	if (!res)
-+		return -1;
-+
-+	memset(res, 0, sizeof(*res));
-+	res->start = pmem_stolen_memory;
-+	res->end = pmem_stolen_memory + pmem_size - 1;
-+	res->name = "Persistent Memory (legacy)";
-+	res->desc = IORES_DESC_PERSISTENT_MEMORY_LEGACY;
-+	res->flags = IORESOURCE_MEM;
-+
-+	conflict = insert_resource_conflict(&iomem_resource, res);
-+	if (conflict) {
-+		pr_err("%pR conflicts, try insert below %pR\n", res, conflict);
-+		kfree(res);
-+		return -1;
-+	}
-+	/*
-+	 * See drivers/nvdimm/e820.c for the implementation, this is
-+	 * simply here to trigger the module to load on demand.
-+	 */
-+	pdev = platform_device_alloc("e820_pmem", -1);
-+
-+	return platform_device_add(pdev);
-+}
-+device_initcall(register_e820_pmem);
+Besides we can remain memblock_next_valid_pfn, there is still some room
+for improvement. After this set, I can see the time overhead of memmap_init
+is reduced from 27956us to 13537us in my armv8a server(QDF2400 with 96G
+memory, pagesize 64k). I believe arm server will benefit more if memory is
+larger than TBs
+
+Patch 1 introduces new config to make codes more generic
+Patch 2 remains the memblock_next_valid_pfn on arm and arm64,this patch is
+        originated from b92df1de5
+Patch 3 optimizes the memblock_next_valid_pfn()
+Patch 4~6 optimizes the early_pfn_valid()
+
+Changelog:
+V10:- move codes to memblock.c, refine the performance consideration
+V9: - rebase to mmotm master, refine the log description. No major changes
+V8: - introduce new config and move generic code to early_pfn.h
+    - optimize memblock_next_valid_pfn as suggested by Matthew Wilcox
+V7: - fix i386 compilation error. refine the commit description
+V6: - simplify the codes, move arm/arm64 common codes to one file.
+    - refine patches as suggested by Danial Vacek and Ard Biesheuvel
+V5: - further refining as suggested by Danial Vacek. Make codes
+      arm/arm64 more arch specific
+V4: - refine patches as suggested by Danial Vacek and Wei Yang
+    - optimized on arm besides arm64
+V3: - fix 2 issues reported by kbuild test robot
+V2: - rebase to mmotm latest
+    - remain memblock_next_valid_pfn on arm64
+    - refine memblock_search_pfn_regions and pfn_valid_region
+
+Jia He (6):
+  arm: arm64: introduce CONFIG_HAVE_MEMBLOCK_PFN_VALID
+  mm: page_alloc: remain memblock_next_valid_pfn() on arm/arm64
+  mm: page_alloc: reduce unnecessary binary search in
+    memblock_next_valid_pfn()
+  mm/memblock: introduce memblock_search_pfn_regions()
+  mm/memblock: introduce pfn_valid_region()
+  mm: page_alloc: reduce unnecessary binary search in early_pfn_valid()
+
+ arch/arm/Kconfig         |  4 +++
+ arch/arm64/Kconfig       |  4 +++
+ include/linux/memblock.h |  2 ++
+ include/linux/mmzone.h   | 16 +++++++++
+ mm/Kconfig               |  3 ++
+ mm/memblock.c            | 84 ++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/page_alloc.c          |  5 ++-
+ 7 files changed, 117 insertions(+), 1 deletion(-)
+
 -- 
-2.17.1
+1.8.3.1
