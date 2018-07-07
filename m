@@ -1,78 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EABC6B0003
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 19:53:13 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id u11-v6so13731135oif.22
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 16:53:13 -0700 (PDT)
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 539656B0006
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 20:05:42 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id e93-v6so3412885plb.5
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 17:05:42 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m67-v6sor6573613oif.314.2018.07.06.16.53.12
+        by mx.google.com with SMTPS id d31-v6sor3134936pla.48.2018.07.06.17.05.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 06 Jul 2018 16:53:12 -0700 (PDT)
+        Fri, 06 Jul 2018 17:05:41 -0700 (PDT)
+Date: Fri, 6 Jul 2018 17:05:39 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v3] mm, oom: fix unnecessary killing of additional
+ processes
+In-Reply-To: <20180705164621.0a4fe6ab3af27a1d387eecc9@linux-foundation.org>
+Message-ID: <alpine.DEB.2.21.1807061652430.71359@chino.kir.corp.google.com>
+References: <alpine.DEB.2.21.1806211434420.51095@chino.kir.corp.google.com> <20180705164621.0a4fe6ab3af27a1d387eecc9@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <152938831573.17797.15264540938029137916.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <152938827880.17797.439879736804291936.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152938831573.17797.15264540938029137916.stgit@dwillia2-desk3.amr.corp.intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 6 Jul 2018 16:53:11 -0700
-Message-ID: <CAPcyv4hCZ6jJkB=BLfoEn6146k7FG32=3J8ussZDXmAScQJkAg@mail.gmail.com>
-Subject: Re: [PATCH v3 7/8] mm, hmm: Mark hmm_devmem_{add, add_resource} EXPORT_SYMBOL_GPL
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: kbuild test robot <fengguang.wu@intel.com>, Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jun 18, 2018 at 11:05 PM, Dan Williams <dan.j.williams@intel.com> w=
-rote:
-> The routines hmm_devmem_add(), and hmm_devmem_add_resource() are
-> now wrappers around the functionality provided by devm_memremap_pages() t=
-o
-> inject a dev_pagemap instance and hook page-idle events. The
-> devm_memremap_pages() interface is base infrastructure for HMM which has
-> more and deeper ties into the kernel memory management implementation
-> than base ZONE_DEVICE.
->
-> Originally, the HMM page structure creation routines copied the
-> devm_memremap_pages() code and reused ZONE_DEVICE. A cleanup to unify
-> the implementations was discussed during the initial review:
-> http://lkml.iu.edu/hypermail/linux/kernel/1701.2/00812.html
->
-> Given that devm_memremap_pages() is marked EXPORT_SYMBOL_GPL by its
-> authors and the hmm_devmem_{add,add_resource} routines are simple
-> wrappers around that base, mark these routines as EXPORT_SYMBOL_GPL as
-> well.
->
-> Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
-> Cc: Logan Gunthorpe <logang@deltatee.com>
-> Reviewed-by: Christoph Hellwig <hch@lst.de>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+On Thu, 5 Jul 2018, Andrew Morton wrote:
 
-Currently OpenAFS is blocked from compiling with the 4.18 series due
-to the current state of put_page() inadvertently pulling in GPL-only
-symbols. This series, "PATCH v3 0/8] mm: Rework hmm to use
-devm_memremap_pages and other fixes" corrects that situation and
-corrects HMM's usage of EXPORT_SYMBOL_GPL.
+> > +#ifdef CONFIG_DEBUG_FS
+> > +static int oom_free_timeout_ms_read(void *data, u64 *val)
+> > +{
+> > +	*val = oom_free_timeout_ms;
+> > +	return 0;
+> > +}
+> > +
+> > +static int oom_free_timeout_ms_write(void *data, u64 val)
+> > +{
+> > +	if (val > 60 * 1000)
+> > +		return -EINVAL;
+> > +
+> > +	oom_free_timeout_ms = val;
+> > +	return 0;
+> > +}
+> > +DEFINE_SIMPLE_ATTRIBUTE(oom_free_timeout_ms_fops, oom_free_timeout_ms_read,
+> > +			oom_free_timeout_ms_write, "%llu\n");
+> > +#endif /* CONFIG_DEBUG_FS */
+> 
+> One of the several things I dislike about debugfs is that nobody
+> bothers documenting it anywhere.  But this should really be documented.
+> I'm not sure where, but the documentation will find itself alongside a
+> bunch of procfs things which prompts the question "why it *this* one in
+> debugfs"?
+> 
 
-If HMM wants to export functionality to out-of-tree proprietary
-drivers it should do so without consuming GPL-only exports, or
-consuming internal-only public functions in its exports.
+The only reason I have placed it in debugfs, or making it tunable at all, 
+is to appease others.  I know the non-default value we need to use to stop 
+millions of processes being oom killed unnecessarily.  Michal suggested a 
+tunable to disable the oom reaper entirely, which is not what we want, so 
+I found this to be the best alternative.
 
-In addition to duplicating devm_memremap_pages(), that should have
-been EXPORT_SYMBOL_GPL from the beginning, it is also exporting /
-consuming these GPL-only symbols via HMM's EXPORT_SYMBOL entry points.
+I'd like to say that it is purposefully undocumented since it's not a 
+sysctl and nobody can suggest that it is becoming a permanent API that we 
+must maintain for backwards compatibility.  Having it be configurable is 
+kind of ridiculous, but such is the nature of trying to get patches merged 
+these days to prevent millions of processes being oom killed 
+unnecessarily.
 
-    mmu_notifier_unregister_no_release
-    percpu_ref
-    region_intersects
-    __class_create
+Blockable mmu notifiers and mlocked memory is not the extent of the 
+problem, if a process has a lot of virtual memory we must wait until 
+free_pgtables() completes in exit_mmap() to prevent unnecessary oom 
+killing.  For implementations such as tcmalloc, which does not release 
+virtual memory, this is important because, well, it releases this only at 
+exit_mmap().  Of course we cannot do that with only the protection of 
+mm->mmap_sem for read.
 
-Those entry points also consume / export functionality that is
-currently not exported to any other driver.
+This is a patch that we'll always need if we continue with the current 
+implementation of the oom reaper.  I wouldn't suggest it as a configurable 
+value, but, owell.
 
-    alloc_pages_vma
-    walk_page_range
+I'll document the tunable and purposefully repeat myself that this is 
+addresses millions of processes being oom killed unnecessarily so the 
+rather important motivation of the change is clear to anyone who reads 
+this thread now or in the future.  Nobody can guess an appropriate value 
+until they have been hit by the issue themselves and need to deal with the 
+loss of work from important processes being oom killed when some best 
+effort logging cron job uses too much memory.  Or, of course, pissed off 
+users who have their jobs killed off and you find yourself in the rather 
+unfortunate situation of explaining why the Linux kernel in 2018 needs to 
+immediately SIGKILL processes because of an arbitrary nack related to a 
+timestamp.
 
-Andrew, please consider applying this v3 series to fix this up (let me
-know if you need a resend).
+Thanks.
