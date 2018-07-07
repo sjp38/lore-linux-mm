@@ -1,121 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C023F6B0003
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 21:13:11 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id t138-v6so14923009oih.5
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 18:13:11 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id a143-v6si5580548oih.126.2018.07.06.18.13.09
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F188E6B0006
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 21:19:03 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id i18-v6so10909638iog.12
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 18:19:03 -0700 (PDT)
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id l24-v6sor3685884ioj.240.2018.07.06.18.19.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jul 2018 18:13:10 -0700 (PDT)
-Subject: Re: [PATCH 0/8] OOM killer/reaper changes for avoiding OOM lockup
- problem.
-References: <201807050305.w653594Q081552@www262.sakura.ne.jp>
- <20180705071740.GC32658@dhcp22.suse.cz>
- <201807060240.w662e7Q1016058@www262.sakura.ne.jp>
- <CA+55aFz87+iXZ_N5jYgo9UFFJ2Tc9dkMLPxwscriAdDKoyF0CA@mail.gmail.com>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <b1b81935-1a71-8742-a04f-5c81e1deace0@i-love.sakura.ne.jp>
-Date: Sat, 7 Jul 2018 10:12:57 +0900
+        (Google Transport Security);
+        Fri, 06 Jul 2018 18:19:02 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFz87+iXZ_N5jYgo9UFFJ2Tc9dkMLPxwscriAdDKoyF0CA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Date: Fri, 06 Jul 2018 18:19:02 -0700
+Message-ID: <000000000000d624c605705e9010@google.com>
+Subject: kernel BUG at mm/shmem.c:LINE!
+From: syzbot <syzbot+b8e0dfee3fd8c9012771@syzkaller.appspotmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
+To: hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
 
-On 2018/07/06 11:49, Linus Torvalds wrote:
-> On Thu, Jul 5, 2018 at 7:40 PM Tetsuo Handa
-> <penguin-kernel@i-love.sakura.ne.jp> wrote:
->>
->>>
->>> No, direct reclaim is a way to throttle allocations to the reclaim
->>> speed. You would have to achive the same by other means.
->>
->> No. Direct reclaim is a way to lockup the system to unusable level, by not giving
->> enough CPU resources to memory reclaim activities including the owner of oom_lock.
-> 
-> No. Really.
-> 
-> Direct reclaim really really does what Michal claims. Yes, it has
-> other effects too, and it can be problematic, but direct reclaim is
-> important.
+Hello,
 
-I'm saying that even an unprivileged user can make the reclaim speed to
-"0 pages per minute".
+syzbot found the following crash on:
 
-[PATCH 1/8] is for reducing possibility of hitting "0 pages per minute" whereas
-[PATCH 8/8] is for increasing possibility of hitting "0 pages per minute".
-They are contradicting directions which should not be made in one patch.
+HEAD commit:    526674536360 Add linux-next specific files for 20180706
+git tree:       linux-next
+console output: https://syzkaller.appspot.com/x/log.txt?x=116d16fc400000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=c8d1cfc0cb798e48
+dashboard link: https://syzkaller.appspot.com/bug?extid=b8e0dfee3fd8c9012771
+compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+syzkaller repro:https://syzkaller.appspot.com/x/repro.syz?x=170e462c400000
+C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=15f1ba2c400000
 
-> 
-> People have tried to remove it many times, but it's always been a
-> disaster. You need to synchronize with _something_ to make sure that
-> the thread that is causing a lot of allocations actually pays the
-> price, and slows down.
+IMPORTANT: if you fix the bug, please add the following tag to the commit:
+Reported-by: syzbot+b8e0dfee3fd8c9012771@syzkaller.appspotmail.com
 
-[PATCH 3/8] is for reducing possibility of hitting "0 pages per minute"
-by making sure that allocating threads pay some price for reclaiming memory
-via doing direct OOM reaping.
+raw: 02fffc0000001028 ffffea0007011dc8 ffffea0007058b48 ffff8801a7576ab8
+raw: 000000000000016e ffff8801a7588930 00000003ffffffff ffff8801d9a44c80
+page dumped because: VM_BUG_ON_PAGE(page_to_pgoff(page) != index)
+page->mem_cgroup:ffff8801d9a44c80
+------------[ cut here ]------------
+kernel BUG at mm/shmem.c:815!
+invalid opcode: 0000 [#1] SMP KASAN
+CPU: 0 PID: 4429 Comm: syz-executor697 Not tainted  
+4.18.0-rc3-next-20180706+ #1
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+RIP: 0010:shmem_undo_range+0xdaa/0x29a0 mm/shmem.c:815
+Code: 00 0f 85 bd 19 00 00 48 8d 65 d8 5b 41 5c 41 5d 41 5e 41 5f 5d c3 e8  
+a5 f0 d6 ff 48 c7 c6 e0 32 f1 87 4c 89 e7 e8 16 10 05 00 <0f> 0b e8 8f f0  
+d6 ff 49 8d 7c 24 20 48 89 f8 48 c1 e8 03 80 3c 18
+RSP: 0018:ffff8801ab88e158 EFLAGS: 00010246
+RAX: 0000000000000000 RBX: dffffc0000000000 RCX: 0000000000000000
+RDX: 0000000000000000 RSI: ffffffff81aaab95 RDI: ffffed0035711c18
+RBP: ffff8801ab88e8d0 R08: ffff8801a7af04c0 R09: ffffed003b5c4fc0
+R10: ffffed003b5c4fc0 R11: ffff8801dae27e07 R12: ffffea0007058b00
+R13: ffff8801ab88e8a8 R14: 0000000000000001 R15: 000000000000016e
+FS:  0000000000000000(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 00000000004b625c CR3: 0000000008e6a000 CR4: 00000000001406f0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+Call Trace:
+  shmem_truncate_range+0x27/0xa0 mm/shmem.c:971
+  shmem_evict_inode+0x3b2/0xcb0 mm/shmem.c:1071
+  evict+0x4ae/0x990 fs/inode.c:558
+  iput_final fs/inode.c:1508 [inline]
+  iput+0x635/0xaa0 fs/inode.c:1534
+  dentry_unlink_inode+0x4ae/0x640 fs/dcache.c:377
+  __dentry_kill+0x44c/0x7a0 fs/dcache.c:569
+  dentry_kill+0xc9/0x5a0 fs/dcache.c:688
+  dput.part.26+0x66b/0x7a0 fs/dcache.c:849
+  dput+0x15/0x20 fs/dcache.c:831
+  __fput+0x558/0x930 fs/file_table.c:235
+  ____fput+0x15/0x20 fs/file_table.c:251
+  task_work_run+0x1ec/0x2a0 kernel/task_work.c:113
+  exit_task_work include/linux/task_work.h:22 [inline]
+  do_exit+0x1b08/0x2750 kernel/exit.c:869
+  do_group_exit+0x177/0x440 kernel/exit.c:972
+  get_signal+0x88e/0x1970 kernel/signal.c:2467
+  do_signal+0x9c/0x21c0 arch/x86/kernel/signal.c:816
+  exit_to_usermode_loop+0x2e0/0x370 arch/x86/entry/common.c:162
+  prepare_exit_to_usermode arch/x86/entry/common.c:197 [inline]
+  syscall_return_slowpath arch/x86/entry/common.c:268 [inline]
+  do_syscall_64+0x6be/0x820 arch/x86/entry/common.c:293
+  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+RIP: 0033:0x441c29
+Code: Bad RIP value.
+RSP: 002b:00007fff6e973338 EFLAGS: 00000246 ORIG_RAX: 0000000000000028
+RAX: ffffffffffffffe0 RBX: 0000000000000000 RCX: 0000000000441c29
+RDX: 0000000020000180 RSI: 0000000000000004 RDI: 0000000000000003
+RBP: 00007fff6e973350 R08: 0000000000000001 R09: 0000000000000000
+R10: 0a00004000000002 R11: 0000000000000246 R12: ffffffffffffffff
+R13: 0000000000000005 R14: 0000000000000000 R15: 0000000000000000
+Modules linked in:
+Dumping ftrace buffer:
+    (ftrace buffer empty)
+---[ end trace 68c2f261fd3bbf54 ]---
+RIP: 0010:shmem_undo_range+0xdaa/0x29a0 mm/shmem.c:815
+Code: 00 0f 85 bd 19 00 00 48 8d 65 d8 5b 41 5c 41 5d 41 5e 41 5f 5d c3 e8  
+a5 f0 d6 ff 48 c7 c6 e0 32 f1 87 4c 89 e7 e8 16 10 05 00 <0f> 0b e8 8f f0  
+d6 ff 49 8d 7c 24 20 48 89 f8 48 c1 e8 03 80 3c 18
+RSP: 0018:ffff8801ab88e158 EFLAGS: 00010246
+RAX: 0000000000000000 RBX: dffffc0000000000 RCX: 0000000000000000
+RDX: 0000000000000000 RSI: ffffffff81aaab95 RDI: ffffed0035711c18
+RBP: ffff8801ab88e8d0 R08: ffff8801a7af04c0 R09: ffffed003b5c4fc0
+R10: ffffed003b5c4fc0 R11: ffff8801dae27e07 R12: ffffea0007058b00
+R13: ffff8801ab88e8a8 R14: 0000000000000001 R15: 000000000000016e
+FS:  0000000000000000(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 0000000000441bff CR3: 0000000008e6a000 CR4: 00000000001406f0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
 
-> 
-> You want to have a balance between direct and indirect reclaim.
 
-While [PATCH 3/8] currently pays the full price, we can improve [PATCH 3/8] to
-pay only some price by changing direct OOM reaping to use some threshold.
+---
+This bug is generated by a bot. It may contain errors.
+See https://goo.gl/tpsmEJ for more information about syzbot.
+syzbot engineers can be reached at syzkaller@googlegroups.com.
 
-That is the direction towards the balance between "direct reclaim (by direct
-OOM reap by allocating threads)" and "indirect reclaim (by the OOM reaper kernel
-thread and exit_mmap())".
-
-> 
-> If you think direct reclaim is only a way to lock up the system to
-> unusable levels, you should stop doing VM development.
-
-Locking up the system to unusable levels due to things outside of the page
-allocator is a different bug.
-
-The page allocator chokes themselves by lack of "direct reclaim" when we are
-waiting for the owner of oom_lock to make progress. This series is for getting
-rid of the lie
-
-	/*
-	 * Acquire the oom lock.  If that fails, somebody else is
-	 * making progress for us.
-	 */
-	if (!mutex_trylock(&oom_lock)) {
-		*did_some_progress = 1;
-		schedule_timeout_uninterruptible(1);
-		return NULL;
-	}
-
-caused by lack of "direct reclaim".
-
-> 
->                    Linus
-> 
-
-On 2018/07/06 14:56, Michal Hocko wrote:
->>> Yes, there is no need to reclaim all pages. OOM is after freeing _some_
->>> memory after all. But that means further complications down the unmap
->>> path. I do not really see any reason for that.
->>
->> "I do not see reason for that" cannot become a reason direct OOM reaping has to
->> reclaim all pages at once.
-> 
-> We are not going to polute deep mm guts for unlikely events like oom.
-
-And since Michal is refusing to make changes for having the balance between
-"direct reclaim by threads waiting for oom_lock" and "indirect reclaim by
-a thread holding oom_lock", we will keep increasing possibility of hitting
-"0 pages per minute". Therefore,
-
-> If you are afraid of
-> regression and do not want to have your name on the patch then fine. I
-> will post the patch myself and also handle any fallouts.
-
-PLEASE PLEASE PLEASE DO SO IMMEDIATELY!!!
+syzbot will keep track of this bug report. See:
+https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
+syzbot.
+syzbot can test patches for this bug, for details see:
+https://goo.gl/tpsmEJ#testing-patches
