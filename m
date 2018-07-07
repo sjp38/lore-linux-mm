@@ -1,188 +1,233 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 806746B0003
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BC51C6B0005
 	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 20:35:29 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j8-v6so7998986pfn.6
+Received: by mail-pl0-f72.google.com with SMTP id o7-v6so5642614pll.13
         for <linux-mm@kvack.org>; Fri, 06 Jul 2018 17:35:29 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id 1-v6si9618339pla.509.2018.07.06.17.35.27
+        by mx.google.com with ESMTPS id 1-v6si9618339pla.509.2018.07.06.17.35.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 06 Jul 2018 17:35:28 -0700 (PDT)
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH RFC V2 0/3] KASLR feature to randomize each loadable module
-Date: Fri,  6 Jul 2018 17:35:41 -0700
-Message-Id: <1530923744-25687-1-git-send-email-rick.p.edgecombe@intel.com>
+Subject: [PATCH 1/3] vmalloc: Add __vmalloc_node_try_addr function
+Date: Fri,  6 Jul 2018 17:35:42 -0700
+Message-Id: <1530923744-25687-2-git-send-email-rick.p.edgecombe@intel.com>
+In-Reply-To: <1530923744-25687-1-git-send-email-rick.p.edgecombe@intel.com>
+References: <1530923744-25687-1-git-send-email-rick.p.edgecombe@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 Cc: kristen@linux.intel.com, dave.hansen@intel.com, arjan@linux.intel.com, Rick Edgecombe <rick.p.edgecombe@intel.com>
 
-Hi,
+Create __vmalloc_node_try_addr function that tries to allocate at a specific
+address and supports caller specified behavior for whether any lazy purging
+happens if there is a collision.
 
-This is v2 of the "KASLR feature to randomize each loadable module" patchset.
-The purpose is to increase the randomization and makes the modules randomized
-in relation to each other instead of just the base, so that if one module leaks,
-the location of the others can't be inferred.
+Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
+---
+ include/linux/vmalloc.h |   3 +
+ mm/vmalloc.c            | 174 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 177 insertions(+)
 
-This code needs some refactoring and simplification, but I was hoping to get
-some feedback on the benchmarks and provide an update.
-
-V2 brings the TLB flushes down to close to the existing algorithm and increases
-the modules that get high randomness based on the concerns raised by Jann Horn
-about the BPF JIT use case. It also tries to address Kees Cook's comments about
-possible minimal boot time regression by measuring the average allocation time
-to be below the existing allocator. It also addresses Mathew Wilcox's comment
-on the GFP_NOWARN not being needed. There is also some data on PTE memory use
-which is higher than the original algorithm, as suggested by Jann.
-
-This is off of 4.18-RC3.
-
-Changes since v1:
- - New implementation of __vmalloc_node_try_addr based on the
-   __vmalloc_node_range implementation, that only flushes TLB when needed.
- - Modified module loading algorithm to try to reduce the TLB flushes further.
- - Increase "random area" tries in order to increase the number of modules that
-   can get high randomness.
- - Increase "random area" size to 2/3 of module area in order to increase the
-   number of modules that can get high randomness.
- - Fix for 0day failures on other architectures.
- - Fix for wrong debugfs permissions. (thanks to Jann)
- - Spelling fix .(thanks to Jann)
- - Data on module_alloc performance and TLB flushes. (brought up by Kees and
-   Jann)
- - Data on memory usage. (suggested by Jann)
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 398e9c9..c7712c8 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -82,6 +82,9 @@ extern void *__vmalloc_node_range(unsigned long size, unsigned long align,
+ 			unsigned long start, unsigned long end, gfp_t gfp_mask,
+ 			pgprot_t prot, unsigned long vm_flags, int node,
+ 			const void *caller);
++extern void *__vmalloc_node_try_addr(unsigned long addr, unsigned long size,
++			gfp_t gfp_mask,	pgprot_t prot, unsigned long vm_flags,
++			int node, int try_purge, const void *caller);
+ #ifndef CONFIG_MMU
+ extern void *__vmalloc_node_flags(unsigned long size, int node, gfp_t flags);
+ static inline void *__vmalloc_node_flags_caller(unsigned long size, int node,
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index cfea25b..b6f2449 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1710,6 +1710,180 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ }
  
-Todo:
- - Refactor __vmalloc_node_try_addr to be smaller and share more code with the
-   normal vmalloc path, and misc cleanup
- - More real world testing other than the synthetic micro benchmarks described
-   below. BPF kselftest brought up by Daniel Borkman.
-
-New Algorithm
-=============
-In addition to __vmalloc_node_try_addr only purging the lazy free areas when it
-needs to, it also now supports a mode where it will fail to allocate instead of
-doing any purge. In this case it reports when the allocation would have
-succeeded if it was allowed to purge. It returns this information via an
-ERR_PTR.
-
-The logic for the selection of a location in the random ara is changed as well.
-The number of tries is increased from 10 to 10000, which actually still gives
-good performance. At a high level, the vmalloc algorithm quickly traverses an
-RB-Tree to find a start position and then more slowly traverses a link list to
-look for an open spot. Since this new algorithm randomly picks a spot, it
-mostly just needs to traverse the RB-Tree, and as a result the "tries" are fast
-enough that the number can be high and still be faster than traversing the
-linked list. In the data below you can see that the random algorithm is on
-average actually faster than the existing one.
-
-The increase in number of tries is also to support the BPF JIT use case, by
-increasing the number of modules that can get high randomness.
-
-Since the __vmalloc_node_try_addr now can optionally fail instead of purging,
-for the first half of the tries, the algorithm tries to find a spot where it
-doesn't need to do a purge. For the second half it allows purges. The 50:50
-split is to try to be a happy medium between reducing TLB flushes and reducing
-average allocation time.
-
-Randomness
-==========
-In the last patchset the size of the random area used in the calculations was
-incorrect. The entropy should have been closer to 17 bits, not 18, which is why
-its lower here even though the number of random area tries is cranked up. 17.3
-bits is likely maintained to much higher number of allocations than shown here
-in reality, since it seems that the BPF JIT allocations are usually smaller than
-modules. If you assume the majority of allocations are 1 page, 17 bits is
-maintained to 8000 modules.
-
-Modules		Min Info
-1000		17.3
-2000		17.3
-3000		17.3
-4000		17.3
-5000		17.08
-6000		16.30
-7000		15.67
-8000		14.92
-
-Allocation Time
-===============
-The average module_alloc time over N modules was actually always faster with the
-random algorithm:
-
-Modules	Existing(ns)	New(ns)
-1000	4,761		1,134
-2000	9,730		1,149
-3000	15,572		1,396
-4000	20,723		2,161
-5000	26,206		4,349
-6000	31,374		8,615
-7000	36,123		14,009
-8000	40,174		23,396
-
-Average Nth Allocation time was usually better than the existing algorithm,
-until the modules get very high.
-
-Module	Original(ns)	New(ns)
-1000	8,800		1,288
-2000	20,949		1,477
-3000	31,980		2,583
-4000	44,539		9,250
-5000	55,212		25,986
-6000	65,968		39,540
-7000	74,883		57,798
-8000	85,392		97,319
-
-TLB Flushes Per Allocation
-==========================
-The new algorithm flushes the TLB a little bit more than the existing algorithm.
-For the sake of comparison to the old simpler __vmalloc_node_try_addr
-implementation, this is about a 238x improvement in some cases.
-
-Modules	Existing	New
-1000	0.0014		0.001407
-2000	0.001746	0.0018155
-3000	0.0018186667	0.0021186667
-4000	0.00187525	0.00249675
-5000	0.001897	0.0025334
-6000	0.0019066667	0.0025228333
-7000	0.001925	0.0025315714
-8000	0.0019325	0.002553
-
-Memory Usage
-============
-A downside is that since the random area is fragmented, it uses extra PTE pages.
-It first approaches 1.3 MB of PTEs as the random area fills. After that it
-increases more slowly. I am not sure this can be improved without reducing
-randomness.
-
-Modules	Existing(pages)	New(pages)
-100	6		159
-200	11		240
-300	15		285
-400	20		307
-500	23		315
-1000	41		330
-2000	80		335
-3000	118		338
-
-Module Capacity
-===============
-The estimate of module capacity also now goes back up to ~17000, so the real
-value should be close to the existing algorithm.
-
-
-Rick Edgecombe (3):
-  vmalloc: Add __vmalloc_node_try_addr function
-  x86/modules: Increase randomization for modules
-  vmalloc: Add debugfs modfraginfo
-
- arch/x86/include/asm/pgtable_64_types.h |   1 +
- arch/x86/kernel/module.c                | 103 +++++++++++-
- include/linux/vmalloc.h                 |   3 +
- mm/vmalloc.c                            | 275 +++++++++++++++++++++++++++++++-
- 4 files changed, 375 insertions(+), 7 deletions(-)
-
+ /**
++ *	__vmalloc_try_addr  -  try to alloc at a specific address
++ *	@addr:		address to try
++ *	@size:		size to try
++ *	@gfp_mask:	flags for the page level allocator
++ *	@prot:		protection mask for the allocated pages
++ *	@vm_flags:	additional vm area flags (e.g. %VM_NO_GUARD)
++ *	@node:		node to use for allocation or NUMA_NO_NODE
++ *	@try_purge:	try to purge if needed to fulfill and allocation
++ *	@caller:	caller's return address
++ *
++ *	Try to allocate at the specific address. If it succeeds the address is
++ *	returned. If it fails NULL is returned. If try_purge is zero, it will
++ *	return an EBUSY ERR_PTR if it could have allocated if it was allowed to
++ *	purge. It may trigger TLB flushes if a purge is needed, and try_purge is
++ *	set.
++ */
++void *__vmalloc_node_try_addr(unsigned long addr, unsigned long size,
++			gfp_t gfp_mask,	pgprot_t prot, unsigned long vm_flags,
++			int node, int try_purge, const void *caller)
++{
++	struct vmap_area *va;
++	struct vm_struct *area;
++	struct rb_node *n;
++	struct vmap_area *cur_va = NULL;
++	struct vmap_area *first_before = NULL;
++
++	int not_at_end = 0;
++	int need_purge = 0;
++	int blocked = 0;
++	int purged = 0;
++
++	unsigned long real_size = size;
++	unsigned long addr_end;
++
++	size = PAGE_ALIGN(size);
++	if (!size || (size >> PAGE_SHIFT) > totalram_pages)
++		return NULL;
++
++	WARN_ON(in_interrupt());
++
++	va = kmalloc_node(sizeof(struct vmap_area),
++			gfp_mask & GFP_RECLAIM_MASK, node);
++	if (unlikely(!va)) {
++		warn_alloc(gfp_mask, NULL,
++			"kmalloc: allocation failure");
++		return NULL;
++	}
++
++	area = kzalloc_node(sizeof(*area), gfp_mask & GFP_RECLAIM_MASK, node);
++	if (unlikely(!area)) {
++		warn_alloc(gfp_mask, NULL,
++			"kmalloc: allocation failure");
++		goto failva;
++	}
++	/*
++	 * Only scan the relevant parts containing pointers to other objects
++	 * to avoid false negatives.
++	 */
++	kmemleak_scan_area(&va->rb_node, SIZE_MAX, gfp_mask & GFP_RECLAIM_MASK);
++
++	if (!(vm_flags & VM_NO_GUARD))
++		size += PAGE_SIZE;
++
++	addr_end = addr + size;
++	if (addr > addr_end)
++		return NULL;
++
++retry:
++	spin_lock(&vmap_area_lock);
++
++	n = vmap_area_root.rb_node;
++	while (n) {
++		cur_va = rb_entry(n, struct vmap_area, rb_node);
++		if (addr < cur_va->va_end) {
++			not_at_end = 1;
++			if (cur_va->va_start == addr) {
++				first_before = cur_va;
++				break;
++			}
++			n = n->rb_left;
++		} else {
++			first_before = cur_va;
++			n = n->rb_right;
++		}
++	}
++
++	/*
++	 * Linearly search through to make sure there is a hole, unless we are
++	 * at the end of the VA list.
++	 */
++	if (not_at_end) {
++		/*
++		 * If there is no VA that starts before the
++		 * target address, start the check from the closest VA.
++		 */
++		if (first_before)
++			cur_va = first_before;
++
++		while (cur_va->va_start < addr_end) {
++			if (cur_va->va_end > addr) {
++				if (cur_va->flags & VM_LAZY_FREE) {
++					need_purge = 1;
++				} else {
++					blocked = 1;
++					break;
++				}
++			}
++
++			if (list_is_last(&cur_va->list, &vmap_area_list))
++				break;
++
++			cur_va = list_next_entry(cur_va, list);
++		}
++
++		if (blocked || (!try_purge && need_purge)) {
++			/*
++			 * If a non-lazy free va blocks the allocation, or
++			 * we are not supposed to purge, but we need to the
++			 * allocation fails.
++			 */
++			goto fail;
++		}
++		if (try_purge && need_purge) {
++			if (purged) {
++				/* if purged once before, give up */
++				goto fail;
++			} else {
++				/*
++				 * If the va blocking the allocation is set to
++				 * be purged then purge all vmap_areas that are
++				 * set to purged since this will flush the TLBs
++				 * anyway.
++				 */
++				spin_unlock(&vmap_area_lock);
++				purge_vmap_area_lazy();
++				need_purge = 0;
++				purged = 1;
++				goto retry;
++			}
++		}
++	}
++
++	va->va_start = addr;
++	va->va_end = addr_end;
++	va->flags = 0;
++	__insert_vmap_area(va);
++
++	spin_unlock(&vmap_area_lock);
++
++	setup_vmalloc_vm(area, va, vm_flags, caller);
++
++	addr = (unsigned long)__vmalloc_area_node(area, gfp_mask, prot, node);
++	if (!addr) {
++		warn_alloc(gfp_mask, NULL,
++			"vmalloc: allocation failure: %lu bytes", real_size);
++		return NULL;
++	}
++
++	clear_vm_uninitialized_flag(area);
++
++	kmemleak_vmalloc(area, size, gfp_mask);
++
++	return (void *)addr;
++fail:
++	kfree(area);
++	spin_unlock(&vmap_area_lock);
++failva:
++	kfree(va);
++	if (need_purge && !blocked)
++		return ERR_PTR(-EBUSY);
++	return NULL;
++}
++
++/**
+  *	__vmalloc_node_range  -  allocate virtually contiguous memory
+  *	@size:		allocation size
+  *	@align:		desired alignment
 -- 
 2.7.4
