@@ -1,44 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 22EF46B0003
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 22:57:56 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id m2-v6so5790051plt.14
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 19:57:56 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id n123-v6si9814111pfn.9.2018.07.06.19.57.54
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B7C436B0006
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2018 23:02:26 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id c3-v6so15681348qkb.2
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2018 20:02:26 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id l35-v6si9414132qvg.30.2018.07.06.20.02.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 06 Jul 2018 19:57:54 -0700 (PDT)
-Date: Fri, 6 Jul 2018 19:57:51 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: kernel BUG at mm/shmem.c:LINE!
-Message-ID: <20180707025751.GA18609@bombadil.infradead.org>
-References: <000000000000d624c605705e9010@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Jul 2018 20:02:25 -0700 (PDT)
+Subject: Re: [PATCH v6 0/7] fs/dcache: Track & limit # of negative dentries
+References: <1530905572-817-1-git-send-email-longman@redhat.com>
+ <20180706222814.GE30522@ZenIV.linux.org.uk>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <56b1d7ee-d362-f915-34fb-92173d512cbe@redhat.com>
+Date: Fri, 6 Jul 2018 23:02:23 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <000000000000d624c605705e9010@google.com>
+In-Reply-To: <20180706222814.GE30522@ZenIV.linux.org.uk>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: syzbot <syzbot+b8e0dfee3fd8c9012771@syzkaller.appspotmail.com>
-Cc: hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>
 
-On Fri, Jul 06, 2018 at 06:19:02PM -0700, syzbot wrote:
-> IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> Reported-by: syzbot+b8e0dfee3fd8c9012771@syzkaller.appspotmail.com
-> 
-> raw: 02fffc0000001028 ffffea0007011dc8 ffffea0007058b48 ffff8801a7576ab8
-> raw: 000000000000016e ffff8801a7588930 00000003ffffffff ffff8801d9a44c80
-> page dumped because: VM_BUG_ON_PAGE(page_to_pgoff(page) != index)
-> page->mem_cgroup:ffff8801d9a44c80
-> ------------[ cut here ]------------
-> kernel BUG at mm/shmem.c:815!
-> invalid opcode: 0000 [#1] SMP KASAN
-> CPU: 0 PID: 4429 Comm: syz-executor697 Not tainted 4.18.0-rc3-next-20180706+
-> #1
-> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> Google 01/01/2011
-> RIP: 0010:shmem_undo_range+0xdaa/0x29a0 mm/shmem.c:815
+On 07/06/2018 06:28 PM, Al Viro wrote:
+> On Fri, Jul 06, 2018 at 03:32:45PM -0400, Waiman Long wrote:
+>
+>> With a 4.18 based kernel, the positive & negative dentries lookup rates
+>> (lookups per second) after initial boot on a 2-socket 24-core 48-thread
+>> 64GB memory system with and without the patch were as follows: `
+>>
+>>   Metric                    w/o patch  neg_dentry_pc=0  neg_dentry_pc=1
+>>   ------                    ---------  ---------------  ---------------
+>>   Positive dentry lookup      584299       586749	   582670
+>>   Negative dentry lookup     1422204      1439994	  1438440
+>>   Negative dentry creation    643535       652194	   641841
+>>
+>> For the lookup rate, there isn't any signifcant difference with or
+>> without the patch or with a zero or non-zero value of neg_dentry_pc.
+> Sigh...  What I *still* don't see (after all the iterations of the patchset)
+> is any performance data on workloads that would be likely to feel the impact.
+> Anything that seriously hits INCLUDE_PATH, for starters...
 
-Pretty sure this one's mine.  At least I spotted a codepath earlier
-today which could lead to it.  I'll fix it in the morning.
+I wrote a simple microbenchmark that does a lot of open() system calls
+to create positive or negative dentries. I was not seeing any noticeable
+performance difference as long as not too many negative dentries were
+created.
+
+Please enlighten me on how kind of performance benchmark that you would
+like me to run.
+
+Thanks,
+Longman
