@@ -1,154 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AAD06B0003
-	for <linux-mm@kvack.org>; Sat,  7 Jul 2018 19:23:08 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id i18-v6so12852831iog.12
-        for <linux-mm@kvack.org>; Sat, 07 Jul 2018 16:23:08 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e99-v6sor4589503iod.185.2018.07.07.16.23.06
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EFDC6B0003
+	for <linux-mm@kvack.org>; Sat,  7 Jul 2018 22:09:23 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id 99-v6so18648364qkr.14
+        for <linux-mm@kvack.org>; Sat, 07 Jul 2018 19:09:23 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id l3-v6si1031621qte.81.2018.07.07.19.09.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 07 Jul 2018 16:23:06 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 07 Jul 2018 19:09:21 -0700 (PDT)
+Date: Sun, 8 Jul 2018 10:09:16 +0800
+From: Baoquan He <bhe@redhat.com>
+Subject: Re: [PATCH v6 0/5] mm/sparse: Optimize memmap allocation during
+ sparse_init()
+Message-ID: <20180708020916.GH3047@MiWiFi-R3L-srv>
+References: <20180628062857.29658-1-bhe@redhat.com>
 MIME-Version: 1.0
-References: <20180622035151.6676-1-ying.huang@intel.com> <20180622035151.6676-4-ying.huang@intel.com>
-In-Reply-To: <20180622035151.6676-4-ying.huang@intel.com>
-From: Dan Williams <dan.j.williams@gmail.com>
-Date: Sat, 7 Jul 2018 16:22:54 -0700
-Message-ID: <CAA9_cmc2YteXBhrLOFN0rAZ4UFDRPcXaE1OPNv06P+Fu9e+zeA@mail.gmail.com>
-Subject: Re: [PATCH -mm -v4 03/21] mm, THP, swap: Support PMD swap mapping in swap_duplicate()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180628062857.29658-1-bhe@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ying.huang@intel.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, hughd@google.com, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, n-horiguchi@ah.jp.nec.com, zi.yan@cs.rutgers.edu, daniel.m.jordan@oracle.com
+To: linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+Cc: Oscar Salvador <osalvador@techadventures.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, dave.hansen@intel.com, pagupta@redhat.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-On Thu, Jun 21, 2018 at 8:55 PM Huang, Ying <ying.huang@intel.com> wrote:
->
-> From: Huang Ying <ying.huang@intel.com>
->
-> To support to swapin the THP as a whole, we need to create PMD swap
-> mapping during swapout, and maintain PMD swap mapping count.  This
-> patch implements the support to increase the PMD swap mapping
-> count (for swapout, fork, etc.)  and set SWAP_HAS_CACHE flag (for
-> swapin, etc.) for a huge swap cluster in swap_duplicate() function
-> family.  Although it only implements a part of the design of the swap
-> reference count with PMD swap mapping, the whole design is described
-> as follow to make it easy to understand the patch and the whole
-> picture.
->
-> A huge swap cluster is used to hold the contents of a swapouted THP.
-> After swapout, a PMD page mapping to the THP will become a PMD
-> swap mapping to the huge swap cluster via a swap entry in PMD.  While
-> a PTE page mapping to a subpage of the THP will become the PTE swap
-> mapping to a swap slot in the huge swap cluster via a swap entry in
-> PTE.
->
-> If there is no PMD swap mapping and the corresponding THP is removed
-> from the page cache (reclaimed), the huge swap cluster will be split
-> and become a normal swap cluster.
->
-> The count (cluster_count()) of the huge swap cluster is
-> SWAPFILE_CLUSTER (= HPAGE_PMD_NR) + PMD swap mapping count.  Because
-> all swap slots in the huge swap cluster are mapped by PTE or PMD, or
-> has SWAP_HAS_CACHE bit set, the usage count of the swap cluster is
-> HPAGE_PMD_NR.  And the PMD swap mapping count is recorded too to make
-> it easy to determine whether there are remaining PMD swap mappings.
->
-> The count in swap_map[offset] is the sum of PTE and PMD swap mapping
-> count.  This means when we increase the PMD swap mapping count, we
-> need to increase swap_map[offset] for all swap slots inside the swap
-> cluster.  An alternative choice is to make swap_map[offset] to record
-> PTE swap map count only, given we have recorded PMD swap mapping count
-> in the count of the huge swap cluster.  But this need to increase
-> swap_map[offset] when splitting the PMD swap mapping, that may fail
-> because of memory allocation for swap count continuation.  That is
-> hard to dealt with.  So we choose current solution.
->
-> The PMD swap mapping to a huge swap cluster may be split when unmap a
-> part of PMD mapping etc.  That is easy because only the count of the
-> huge swap cluster need to be changed.  When the last PMD swap mapping
-> is gone and SWAP_HAS_CACHE is unset, we will split the huge swap
-> cluster (clear the huge flag).  This makes it easy to reason the
-> cluster state.
->
-> A huge swap cluster will be split when splitting the THP in swap
-> cache, or failing to allocate THP during swapin, etc.  But when
-> splitting the huge swap cluster, we will not try to split all PMD swap
-> mappings, because we haven't enough information available for that
-> sometimes.  Later, when the PMD swap mapping is duplicated or swapin,
-> etc, the PMD swap mapping will be split and fallback to the PTE
-> operation.
->
-> When a THP is added into swap cache, the SWAP_HAS_CACHE flag will be
-> set in the swap_map[offset] of all swap slots inside the huge swap
-> cluster backing the THP.  This huge swap cluster will not be split
-> unless the THP is split even if its PMD swap mapping count dropped to
-> 0.  Later, when the THP is removed from swap cache, the SWAP_HAS_CACHE
-> flag will be cleared in the swap_map[offset] of all swap slots inside
-> the huge swap cluster.  And this huge swap cluster will be split if
-> its PMD swap mapping count is 0.
->
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Shaohua Li <shli@kernel.org>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Zi Yan <zi.yan@cs.rutgers.edu>
-> Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
-> ---
->  include/linux/huge_mm.h |   5 +
->  include/linux/swap.h    |   9 +-
->  mm/memory.c             |   2 +-
->  mm/rmap.c               |   2 +-
->  mm/swap_state.c         |   2 +-
->  mm/swapfile.c           | 287 +++++++++++++++++++++++++++++++++---------------
->  6 files changed, 214 insertions(+), 93 deletions(-)
+Hi Andrew,
 
-I'm probably missing some background, but I find the patch hard to
-read. Can you disseminate some of this patch changelog into kernel-doc
-commentary so it's easier to follow which helpers do what relative to
-THP swap.
+Could you pick this series into mm tree so that it can catch 4.18i 1/4 ?
 
->
-> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> index d3bbf6bea9e9..213d32e57c39 100644
-> --- a/include/linux/huge_mm.h
-> +++ b/include/linux/huge_mm.h
-> @@ -80,6 +80,11 @@ extern struct kobj_attribute shmem_enabled_attr;
->  #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
->  #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
->
-> +static inline bool thp_swap_supported(void)
-> +{
-> +       return IS_ENABLED(CONFIG_THP_SWAP);
-> +}
-> +
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  #define HPAGE_PMD_SHIFT PMD_SHIFT
->  #define HPAGE_PMD_SIZE ((1UL) << HPAGE_PMD_SHIFT)
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index f73eafcaf4e9..57aa655ab27d 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -451,8 +451,8 @@ extern swp_entry_t get_swap_page_of_type(int);
->  extern int get_swap_pages(int n, bool cluster, swp_entry_t swp_entries[]);
->  extern int add_swap_count_continuation(swp_entry_t, gfp_t);
->  extern void swap_shmem_alloc(swp_entry_t);
-> -extern int swap_duplicate(swp_entry_t);
-> -extern int swapcache_prepare(swp_entry_t);
-> +extern int swap_duplicate(swp_entry_t *entry, bool cluster);
+Thanks
+Baoquan
 
-This patch introduces a new flag to swap_duplicate(), but then all all
-usages still pass 'false' so why does this patch change the argument.
-Seems this change belongs to another patch?
-
-> +extern int swapcache_prepare(swp_entry_t entry, bool cluster);
-
-Rather than add a cluster flag to these helpers can the swp_entry_t
-carry the cluster flag directly?
+On 06/28/18 at 02:28pm, Baoquan He wrote:
+> This is v6 post.
+> 
+> In sparse_init(), two temporary pointer arrays, usemap_map and map_map
+> are allocated with the size of NR_MEM_SECTIONS. They are used to store
+> each memory section's usemap and mem map if marked as present. In
+> 5-level paging mode, this will cost 512M memory though they will be
+> released at the end of sparse_init(). System with few memory, like
+> kdump kernel which usually only has about 256M, will fail to boot
+> because of allocation failure if CONFIG_X86_5LEVEL=y.
+> 
+> In this patchset, optimize the memmap allocation code to only use
+> usemap_map and map_map with the size of nr_present_sections. This
+> makes kdump kernel boot up with normal crashkernel='' setting when
+> CONFIG_X86_5LEVEL=y.
+> 
+> The old version can be found below:
+> 
+> v5:
+> http://lkml.kernel.org/r/20180627013116.12411-1-bhe@redhat.com
+> v4:
+> http://lkml.kernel.org/r/20180521101555.25610-1-bhe@redhat.com
+> 
+> v3:
+> https://lkml.org/lkml/2018/2/27/928
+> 
+> V1 can be found here:
+> https://www.spinics.net/lists/linux-mm/msg144486.html
+> 
+> Change log:
+> v5->v6:
+>   Oscar found the redundant "struct mem_section *ms" definition and
+>   in the old patch 2/4, after deferring the clearing of section_mem_map.
+>   Clean them up in this version.
+> 
+>   Pavel pointed out that allocating memmap together for one node at
+>   one time should be a default behaviour for all ARCH-es. And if failed
+>   on large memory, it will drop to the fallback to allocate memmap
+>   for one section at one time, it shoult not break anything. Add
+>   patch 5/5 to remove CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER and clean
+>   up the related codes.
+> v4->v5:
+>   Improve patch 3/4 log according to Dave's suggestion.
+> 
+>   Correct the wrong copy&paste of making 'nr_consumed_maps' to
+>   'alloc_usemap_and_memmap' mistakenly which is pointed out by
+>   Dave in patch 4/4 code comment.
+> 
+>   Otherwise, no code change in this version.
+> v3->v4:
+>   Improve according to Dave's three concerns which are in patch 0004:
+> 
+>   Rename variable 'idx_present' to 'nr_consumed_maps' which used to
+>   index the memmap and usemap of present sections.
+> 
+>   Add a check if 'nr_consumed_maps' goes beyond nr_present_sections.
+> 
+>   Add code comment above the final for_each_present_section_nr() to
+>   tell why 'nr_consumed_maps' need be increased in each iteration
+>   whether the 'ms->section_mem_map' need cleared or out.
+> 
+> v2->v3:
+>   Change nr_present_sections as __initdata and add code comment
+>   according to Andrew's suggestion.
+> 
+>   Change the local variable 'i' as idx_present which loops over the
+>   present sections, and improve the code. These are suggested by
+>   Dave and Pankaj.
+> 
+>   Add a new patch 0003 which adds a new parameter 'data_unit_size'
+>   to function alloc_usemap_and_memmap() in which we will update 'data'
+>   to make it point at new position. However its type 'void *' can't give
+>   us needed info to do that. Need pass the unit size in. So change code
+>   in patch 0004 accordingly. This is a code bug fix found when tested
+>   the memory deployed on multiple nodes.
+> 
+> v1-v2:
+>   Split out the nr_present_sections adding as a single patch for easier
+>   reviewing.
+> 
+>   Rewrite patch log according to Dave's suggestion.
+> 
+>   Fix code bug in patch 0002 reported by test robot.
+> 
+> Baoquan He (5):
+>   mm/sparse: Add a static variable nr_present_sections
+>   mm/sparsemem: Defer the ms->section_mem_map clearing
+>   mm/sparse: Add a new parameter 'data_unit_size' for
+>     alloc_usemap_and_memmap
+>   mm/sparse: Optimize memmap allocation during sparse_init()
+>   mm/sparse: Remove CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+> 
+>  mm/Kconfig          |   4 --
+>  mm/sparse-vmemmap.c |   9 ++---
+>  mm/sparse.c         | 109 ++++++++++++++++++++++++++++------------------------
+>  3 files changed, 62 insertions(+), 60 deletions(-)
+> 
+> -- 
+> 2.13.6
+> 
