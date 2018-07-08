@@ -1,134 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EFDC6B0003
-	for <linux-mm@kvack.org>; Sat,  7 Jul 2018 22:09:23 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id 99-v6so18648364qkr.14
-        for <linux-mm@kvack.org>; Sat, 07 Jul 2018 19:09:23 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id l3-v6si1031621qte.81.2018.07.07.19.09.21
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4222E6B0006
+	for <linux-mm@kvack.org>; Sun,  8 Jul 2018 06:33:47 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id z9-v6so9686059pfe.23
+        for <linux-mm@kvack.org>; Sun, 08 Jul 2018 03:33:47 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
+        by mx.google.com with ESMTPS id o10-v6si11017312pgp.153.2018.07.08.03.33.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 07 Jul 2018 19:09:21 -0700 (PDT)
-Date: Sun, 8 Jul 2018 10:09:16 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: [PATCH v6 0/5] mm/sparse: Optimize memmap allocation during
- sparse_init()
-Message-ID: <20180708020916.GH3047@MiWiFi-R3L-srv>
-References: <20180628062857.29658-1-bhe@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 08 Jul 2018 03:33:45 -0700 (PDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH 4.16 234/279] x86/pkeys/selftests: Adjust the self-test to fresh distros that export the pkeys ABI
+In-Reply-To: <20180705071937.GA2636@gmail.com>
+References: <20180618080608.851973560@linuxfoundation.org> <20180618080618.495174114@linuxfoundation.org> <fa4b973b-6037-eaef-3a63-09e8ca638527@suse.cz> <20180703114241.GA19730@kroah.com> <877emakynf.fsf@concordia.ellerman.id.au> <20180705071937.GA2636@gmail.com>
+Date: Sun, 08 Jul 2018 20:33:37 +1000
+Message-ID: <87va9qj9tq.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180628062857.29658-1-bhe@redhat.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, akpm@linux-foundation.org
-Cc: Oscar Salvador <osalvador@techadventures.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, dave.hansen@intel.com, pagupta@redhat.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, akpm@linux-foundation.org, dave.hansen@intel.com, linux-mm@kvack.org, linuxram@us.ibm.com, shakeelb@google.com, shuah@kernel.org, Sasha Levin <alexander.levin@microsoft.com>
 
-Hi Andrew,
+Ingo Molnar <mingo@kernel.org> writes:
+> * Michael Ellerman <mpe@ellerman.id.au> wrote:
+>> Greg Kroah-Hartman <gregkh@linuxfoundation.org> writes:
+>> > On Tue, Jul 03, 2018 at 01:36:43PM +0200, Vlastimil Babka wrote:
+>> >> On 06/18/2018 10:13 AM, Greg Kroah-Hartman wrote:
+>> >> > 4.16-stable review patch.  If anyone has any objections, please let me know.
+>> >> 
+>> >> So I was wondering, why backport such a considerable number of
+>> >> *selftests* to stable, given the stable policy? Surely selftests don't
+>> >> affect the kernel itself breaking for users?
+>> >
+>> > These came in as part of Sasha's "backport fixes" tool.  It can't hurt
+>> > to add selftest fixes/updates to stable kernels, as for some people,
+>> > they only run the selftests for the specific kernel they are building.
+>> > While others run selftests for the latest kernel on older kernels, both
+>> > of which are valid ways of testing.
+>> 
+>> I don't have a problem with these sort of patches being backported, but
+>> it seems like Documentation/process/stable-kernel-rules.txt could use an
+>> update?
+>> 
+>> I honestly don't know what the rules are anymore.
+>
+> Self-tests are standalone tooling which help the testing of the kernel, and it 
+> makes sense to either update all of them, or none of them.
 
-Could you pick this series into mm tree so that it can catch 4.18i 1/4 ?
+Yes I know what selftests are.
 
-Thanks
-Baoquan
+> Here it makes sense to update all of them, because if a self-test on a stable 
+> kernel shows a failure then a fix is probably missing from -stable, right?
 
-On 06/28/18 at 02:28pm, Baoquan He wrote:
-> This is v6 post.
-> 
-> In sparse_init(), two temporary pointer arrays, usemap_map and map_map
-> are allocated with the size of NR_MEM_SECTIONS. They are used to store
-> each memory section's usemap and mem map if marked as present. In
-> 5-level paging mode, this will cost 512M memory though they will be
-> released at the end of sparse_init(). System with few memory, like
-> kdump kernel which usually only has about 256M, will fail to boot
-> because of allocation failure if CONFIG_X86_5LEVEL=y.
-> 
-> In this patchset, optimize the memmap allocation code to only use
-> usemap_map and map_map with the size of nr_present_sections. This
-> makes kdump kernel boot up with normal crashkernel='' setting when
-> CONFIG_X86_5LEVEL=y.
-> 
-> The old version can be found below:
-> 
-> v5:
-> http://lkml.kernel.org/r/20180627013116.12411-1-bhe@redhat.com
-> v4:
-> http://lkml.kernel.org/r/20180521101555.25610-1-bhe@redhat.com
-> 
-> v3:
-> https://lkml.org/lkml/2018/2/27/928
-> 
-> V1 can be found here:
-> https://www.spinics.net/lists/linux-mm/msg144486.html
-> 
-> Change log:
-> v5->v6:
->   Oscar found the redundant "struct mem_section *ms" definition and
->   in the old patch 2/4, after deferring the clearing of section_mem_map.
->   Clean them up in this version.
-> 
->   Pavel pointed out that allocating memmap together for one node at
->   one time should be a default behaviour for all ARCH-es. And if failed
->   on large memory, it will drop to the fallback to allocate memmap
->   for one section at one time, it shoult not break anything. Add
->   patch 5/5 to remove CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER and clean
->   up the related codes.
-> v4->v5:
->   Improve patch 3/4 log according to Dave's suggestion.
-> 
->   Correct the wrong copy&paste of making 'nr_consumed_maps' to
->   'alloc_usemap_and_memmap' mistakenly which is pointed out by
->   Dave in patch 4/4 code comment.
-> 
->   Otherwise, no code change in this version.
-> v3->v4:
->   Improve according to Dave's three concerns which are in patch 0004:
-> 
->   Rename variable 'idx_present' to 'nr_consumed_maps' which used to
->   index the memmap and usemap of present sections.
-> 
->   Add a check if 'nr_consumed_maps' goes beyond nr_present_sections.
-> 
->   Add code comment above the final for_each_present_section_nr() to
->   tell why 'nr_consumed_maps' need be increased in each iteration
->   whether the 'ms->section_mem_map' need cleared or out.
-> 
-> v2->v3:
->   Change nr_present_sections as __initdata and add code comment
->   according to Andrew's suggestion.
-> 
->   Change the local variable 'i' as idx_present which loops over the
->   present sections, and improve the code. These are suggested by
->   Dave and Pankaj.
-> 
->   Add a new patch 0003 which adds a new parameter 'data_unit_size'
->   to function alloc_usemap_and_memmap() in which we will update 'data'
->   to make it point at new position. However its type 'void *' can't give
->   us needed info to do that. Need pass the unit size in. So change code
->   in patch 0004 accordingly. This is a code bug fix found when tested
->   the memory deployed on multiple nodes.
-> 
-> v1-v2:
->   Split out the nr_present_sections adding as a single patch for easier
->   reviewing.
-> 
->   Rewrite patch log according to Dave's suggestion.
-> 
->   Fix code bug in patch 0002 reported by test robot.
-> 
-> Baoquan He (5):
->   mm/sparse: Add a static variable nr_present_sections
->   mm/sparsemem: Defer the ms->section_mem_map clearing
->   mm/sparse: Add a new parameter 'data_unit_size' for
->     alloc_usemap_and_memmap
->   mm/sparse: Optimize memmap allocation during sparse_init()
->   mm/sparse: Remove CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
-> 
->  mm/Kconfig          |   4 --
->  mm/sparse-vmemmap.c |   9 ++---
->  mm/sparse.c         | 109 ++++++++++++++++++++++++++++------------------------
->  3 files changed, 62 insertions(+), 60 deletions(-)
-> 
-> -- 
-> 2.13.6
-> 
+Usually, though it's not always that simple IME.
+
+But sure, I don't have a problem with updating selftests, I said that before.
+
+> Also note that self-test tooling *cannot possibly break the kernel*, because they 
+> are not used in the kernel build process, so the normally conservative backporting 
+> rules do not apply.
+
+Right. So stable-kernel-rules.txt could use an update to mention that.
+
+
+My comment was less about this actual patch and more about the new
+reality of patches being backported to stable based on Sasha's tooling,
+which seems to be much more liberal than anything we've done previously.
+
+I don't generally have any objection to that process, though it possibly
+could have been more widely announced. But, it would be good if
+stable-kernel-rules.txt was updated to mention it.
+
+I've had several people ask me "hey my patch got backported to stable
+but I didn't ask for it - is that OK, what's going on?" etc.
+
+I guess I should just send a patch to update it, but I don't really know
+what it should say.
+
+cheers
