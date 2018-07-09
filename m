@@ -1,132 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ECD26B0279
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 03:57:37 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id r21-v6so1837435edp.23
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 00:57:37 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i63-v6si11321588edi.139.2018.07.09.00.57.35
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 60CBC6B027B
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 04:06:33 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id r144-v6so8297556ywg.9
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 01:06:33 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n125-v6sor1167974ybb.59.2018.07.09.01.06.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jul 2018 00:57:35 -0700 (PDT)
-Date: Mon, 9 Jul 2018 09:57:31 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm,page_alloc: PF_WQ_WORKER should always sleep at
- should_reclaim_retry().
-Message-ID: <20180709075731.GB22049@dhcp22.suse.cz>
-References: <1531046158-4010-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1531046158-4010-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (Google Transport Security);
+        Mon, 09 Jul 2018 01:06:32 -0700 (PDT)
+From: john.hubbard@gmail.com
+Subject: [PATCH 0/2] mm/fs: put_user_page() proposal
+Date: Mon,  9 Jul 2018 01:05:52 -0700
+Message-Id: <20180709080554.21931-1-jhubbard@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <js1304@gmail.com>, Mel Gorman <mgorman@suse.de>, Vladimir Davydov <vdavydov@virtuozzo.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>
 
-On Sun 08-07-18 19:35:58, Tetsuo Handa wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> should_reclaim_retry() should be a natural reschedule point. PF_WQ_WORKER
-> is a special case which needs a stronger rescheduling policy. However,
-> since schedule_timeout_uninterruptible(1) for PF_WQ_WORKER depends on
-> __zone_watermark_ok() == true, PF_WQ_WORKER is currently counting on
-> mutex_trylock(&oom_lock) == 0 in __alloc_pages_may_oom() which is a bad
-> expectation.
+From: John Hubbard <jhubbard@nvidia.com>
 
-I think your reference to the oom_lock is more confusing than helpful
-actually. I would simply use the following from your previous [1]
-changelog:
-: should_reclaim_retry() should be a natural reschedule point. PF_WQ_WORKER
-: is a special case which needs a stronger rescheduling policy. Doing that
-: unconditionally seems more straightforward than depending on a zone being
-: a good candidate for a further reclaim.
-: 
-: Thus, move the short sleep when we are waiting for the owner of oom_lock
-: (which coincidentally also serves as a guaranteed sleep for PF_WQ_WORKER
-: threads) to should_reclaim_retry().
+Hi,
 
-> unconditionally seems more straightforward than depending on a zone being
-> a good candidate for a further reclaim.
+With respect to tracking get_user_pages*() pages with page->dma_pinned*
+fields [1], I spent a few days retrofitting most of the get_user_pages*()
+call sites, by adding calls to a new put_user_page() function, in place
+of put_page(), where appropriate. This will work, but it's a large effort.
 
-[1] http://lkml.kernel.org/r/1528369223-7571-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
+Design note: I didn't see anything that hinted at a way to fix this
+problem, without actually changing all of the get_user_pages*() call sites,
+so I think it's reasonable to start with that.
 
-[Tetsuo: changelog]
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Joonsoo Kim <js1304@gmail.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
+Anyway, it's still incomplete, but because this is a large, tree-wide
+change (that will take some time and testing), I'd like to propose a plan,
+before spamming zillions of people with put_user_page() conversion patches.
+So I picked out the first two patches to show where this is going.
 
-Your s-o-b is still missing.
+Proposed steps:
 
-> ---
->  mm/page_alloc.c | 34 ++++++++++++++++++----------------
->  1 file changed, 18 insertions(+), 16 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 1521100..f56cc09 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3922,6 +3922,7 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
->  {
->  	struct zone *zone;
->  	struct zoneref *z;
-> +	bool ret = false;
->  
->  	/*
->  	 * Costly allocations might have made a progress but this doesn't mean
-> @@ -3985,25 +3986,26 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
->  				}
->  			}
->  
-> -			/*
-> -			 * Memory allocation/reclaim might be called from a WQ
-> -			 * context and the current implementation of the WQ
-> -			 * concurrency control doesn't recognize that
-> -			 * a particular WQ is congested if the worker thread is
-> -			 * looping without ever sleeping. Therefore we have to
-> -			 * do a short sleep here rather than calling
-> -			 * cond_resched().
-> -			 */
-> -			if (current->flags & PF_WQ_WORKER)
-> -				schedule_timeout_uninterruptible(1);
-> -			else
-> -				cond_resched();
-> -
-> -			return true;
-> +			ret = true;
-> +			goto out;
->  		}
->  	}
->  
-> -	return false;
-> +out:
-> +	/*
-> +	 * Memory allocation/reclaim might be called from a WQ
-> +	 * context and the current implementation of the WQ
-> +	 * concurrency control doesn't recognize that
-> +	 * a particular WQ is congested if the worker thread is
-> +	 * looping without ever sleeping. Therefore we have to
-> +	 * do a short sleep here rather than calling
-> +	 * cond_resched().
-> +	 */
-> +	if (current->flags & PF_WQ_WORKER)
-> +		schedule_timeout_uninterruptible(1);
-> +	else
-> +		cond_resched();
-> +	return ret;
->  }
->  
->  static inline bool
-> -- 
-> 1.8.3.1
-> 
+Step 1:
+
+Start with the patches here, then continue with...dozens more.
+This will eventually convert all of the call sites to use put_user_page().
+This is easy in some places, but complex in others, such as:
+
+    -- drivers/gpu/drm/amd
+    -- bio
+    -- fuse
+    -- cifs
+    -- anything from:
+           git grep  iov_iter_get_pages | cut -f1 -d ':' | sort | uniq
+
+The easy ones can be grouped into a single patchset, perhaps, and the
+complex ones probably each need a patchset, in order to get the in-depth
+review they'll need.
+
+Furthermore, some of these areas I hope to attract some help on, once
+this starts going.
+
+Step 2:
+
+In parallel, tidy up the core patchset that was discussed in [1], (version
+2 has already been reviewed, so I know what to do), and get it perfected
+and reviewed. Don't apply it until step 1 is all done, though.
+
+Step 3:
+
+Activate refcounting of dma-pinned pages (essentially, patch #5, which is
+[1]), but don't use it yet. Place a few WARN_ON_ONCE calls to start
+mopping up any missed call sites.
+
+Step 4:
+
+After some soak time, actually connect it up (patch #6 of [1]) and start
+taking action based on the new page->dma_pinned* fields.
+
+[1] https://www.spinics.net/lists/linux-mm/msg156409.html
+
+  or, the same thread on LKML if it's working for you:
+
+    https://lkml.org/lkml/2018/7/4/368
+
+John Hubbard (2):
+  mm: introduce put_user_page(), placeholder version
+  goldfish_pipe/mm: convert to the new put_user_page() call
+
+ drivers/platform/goldfish/goldfish_pipe.c |  6 +++---
+ include/linux/mm.h                        | 14 ++++++++++++++
+ 2 files changed, 17 insertions(+), 3 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+2.18.0
