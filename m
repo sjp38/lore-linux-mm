@@ -1,60 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D3D86B0003
-	for <linux-mm@kvack.org>; Sun,  8 Jul 2018 23:28:21 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id u16-v6so10881869pfm.15
-        for <linux-mm@kvack.org>; Sun, 08 Jul 2018 20:28:21 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
-        by mx.google.com with ESMTPS id b80-v6si14895395pfm.230.2018.07.08.20.28.19
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 191226B0007
+	for <linux-mm@kvack.org>; Sun,  8 Jul 2018 23:32:00 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id 39-v6so9127776ple.6
+        for <linux-mm@kvack.org>; Sun, 08 Jul 2018 20:32:00 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t35-v6sor3383317pga.201.2018.07.08.20.31.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 08 Jul 2018 20:28:19 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH 4.16 234/279] x86/pkeys/selftests: Adjust the self-test to fresh distros that export the pkeys ABI
-In-Reply-To: <20180708132519.GA29528@kroah.com>
-References: <20180618080608.851973560@linuxfoundation.org> <20180618080618.495174114@linuxfoundation.org> <fa4b973b-6037-eaef-3a63-09e8ca638527@suse.cz> <20180703114241.GA19730@kroah.com> <877emakynf.fsf@concordia.ellerman.id.au> <20180705071937.GA2636@gmail.com> <87va9qj9tq.fsf@concordia.ellerman.id.au> <20180708132519.GA29528@kroah.com>
-Date: Mon, 09 Jul 2018 13:28:09 +1000
-Message-ID: <87a7r19jg6.fsf@concordia.ellerman.id.au>
+        (Google Transport Security);
+        Sun, 08 Jul 2018 20:31:58 -0700 (PDT)
+Subject: Re: [RESEND PATCH v10 2/6] mm: page_alloc: remain
+ memblock_next_valid_pfn() on arm/arm64
+References: <1530867675-9018-1-git-send-email-hejianet@gmail.com>
+ <1530867675-9018-3-git-send-email-hejianet@gmail.com>
+ <20180706153709.6bcc76b0245f239f1d1dcc8a@linux-foundation.org>
+From: Jia He <hejianet@gmail.com>
+Message-ID: <4895a92f-f4c2-b200-3c7c-4fe8c4596f32@gmail.com>
+Date: Mon, 9 Jul 2018 11:30:58 +0800
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20180706153709.6bcc76b0245f239f1d1dcc8a@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, akpm@linux-foundation.org, dave.hansen@intel.com, linux-mm@kvack.org, linuxram@us.ibm.com, shakeelb@google.com, shuah@kernel.org, Sasha Levin <alexander.levin@microsoft.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Daniel Vacek <neelx@redhat.com>
+Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jia He <jia.he@hxt-semitech.com>
 
-Greg Kroah-Hartman <gregkh@linuxfoundation.org> writes:
-> On Sun, Jul 08, 2018 at 08:33:37PM +1000, Michael Ellerman wrote:
-...
->> 
->> My comment was less about this actual patch and more about the new
->> reality of patches being backported to stable based on Sasha's tooling,
->> which seems to be much more liberal than anything we've done previously.
->> 
->> I don't generally have any objection to that process, though it possibly
->> could have been more widely announced. But, it would be good if
->> stable-kernel-rules.txt was updated to mention it.
->> 
->> I've had several people ask me "hey my patch got backported to stable
->> but I didn't ask for it - is that OK, what's going on?" etc.
->
-> Why didn't those people just ask us?  To not do so is very strange, it's
-> not like we are hard to find :)
+Hi Andew
+Thanks for the comments
 
-It's not very strange, it's completely normal behaviour. People are
-afraid of asking dumb questions in public, so they ask someone
-privately.
+On 7/7/2018 6:37 AM, Andrew Morton Wrote:
+> On Fri,  6 Jul 2018 17:01:11 +0800 Jia He <hejianet@gmail.com> wrote:
+> 
+>> From: Jia He <jia.he@hxt-semitech.com>
+>>
+>> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+>> where possible") optimized the loop in memmap_init_zone(). But it causes
+>> possible panic bug. So Daniel Vacek reverted it later.
+>>
+>> But as suggested by Daniel Vacek, it is fine to using memblock to skip
+>> gaps and finding next valid frame with CONFIG_HAVE_ARCH_PFN_VALID.
+>> Daniel said:
+>> "On arm and arm64, memblock is used by default. But generic version of
+>> pfn_valid() is based on mem sections and memblock_next_valid_pfn() does
+>> not always return the next valid one but skips more resulting in some
+>> valid frames to be skipped (as if they were invalid). And that's why
+>> kernel was eventually crashing on some !arm machines."
+>>
+>> About the performance consideration:
+>> As said by James in b92df1de5,
+>> "I have tested this patch on a virtual model of a Samurai CPU
+>> with a sparse memory map.  The kernel boot time drops from 109 to
+>> 62 seconds."
+>>
+>> Thus it would be better if we remain memblock_next_valid_pfn on arm/arm64.
+>>
+> 
+> We're making a bit of a mess here.  mmzone.h:
+> 
+> ...
+> #ifndef CONFIG_HAVE_ARCH_PFN_VALID
+> ...
+> #define next_valid_pfn(pfn)	(pfn + 1)
 
-And the general sentiment has been "I didn't think that patch met the
-stable rules, but I'm happy for it to be backported".
+Yes, ^ this line can be removed.
 
->> I guess I should just send a patch to update it, but I don't really know
->> what it should say.
->
-> I don't think it really needs any changes, as the selftests is just a
-> corner case that is easily explained if anyone cares enough to actually
-> ask :)
+> #endif
+> ...
+> #ifdef CONFIG_HAVE_MEMBLOCK_PFN_VALID
+> #define next_valid_pfn(pfn)	memblock_next_valid_pfn(pfn)
+> ...
+> #else
+> ...
+> #ifndef next_valid_pfn
+> #define next_valid_pfn(pfn)	(pfn + 1)
+> #endif
+> 
+> I guess it works OK, since CONFIG_HAVE_MEMBLOCK_PFN_VALID depends on
+> CONFIG_HAVE_ARCH_PFN_VALID.  But it could all do with some cleanup and
+> modernization.
+> 
+> - Perhaps memblock_next_valid_pfn() should just be called
+>   pfn_valid().  So the header file's responsibility is to provide
+>   pfn_valid() and next_valid_pfn().
+> 
+> - CONFIG_HAVE_ARCH_PFN_VALID should go away.  The current way of
+>   doing such thnigs is for the arch (or some Kconfig combination) to
+>   define pfn_valid() and next_valid_pfn() in some fashion and to then
+>   ensure that one of them is #defined to something, to indicate that
+>   both of these have been set up.  Or something like that.
 
-Yeah again I'm not really concerned about selftests, I should have
-replied to a different patch to start this discussion. My bad.
+This is what I did in Patch v2, please see [1]. But Daniel opposed it [2]
 
-cheers
+As he said:
+Now, if any other architecture defines CONFIG_HAVE_ARCH_PFN_VALID and
+implements it's own version of pfn_valid(), there is no guarantee that
+it will be based on memblock data or somehow equivalent to the arm
+implementation, right?
+I think it make sense, so I introduced the new config
+CONFIG_HAVE_MEMBLOCK_PFN_VALID instead of using CONFIG_HAVE_ARCH_PFN_VALID
+how about you ? :-)
+
+[1] https://lkml.org/lkml/2018/3/24/71
+[2] https://lkml.org/lkml/2018/3/28/231
+
+> 
+> 
+> Secondly, in memmap_init_zone()
+> 
+>> -		if (!early_pfn_valid(pfn))
+>> +		if (!early_pfn_valid(pfn)) {
+>> +			pfn = next_valid_pfn(pfn) - 1;
+>> 			continue;
+>> +		}
+>> +
+> 
+> This is weird-looking.  next_valid_pfn(pfn) is usually (pfn+1) so it's
+> a no-op.  Sometimes we're calling memblock_next_valid_pfn() and then
+> backing up one, presumably because the `for' loop ends in `pfn++'.  Or
+> something.  Can this please be fully commented or cleaned up?
+To clean it up, maybe below is not acceptable for you and other experts ?
+		if (!early_pfn_valid(pfn)) {
+#ifndef XXX
+			continue;
+		}
+#else
+		pfn = next_valid_pfn(pfn) - 1;
+			continue;
+		}
+#endif
+
+Another way which was suggested by Ard Biesheuvel
+something like:
+	for (pfn = start_pfn; pfn < end_pfn; pfn = next_valid_pfn(pfn))
+	...
+But it might have impact on memmap_init_zone loop.
+
+E.g. context != MEMMAP_EARLY, pfn will not be checked by early_pfn_valid, thus
+it will change the mem hotplug logic.
+
+Sure, as you suggested, I can give more comments in all the cases of different
+configs/arches for this line.
+
+-- 
+Cheers,
+Jia
