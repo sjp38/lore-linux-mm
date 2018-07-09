@@ -1,196 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id ADFB56B02A8
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 04:43:37 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id 70-v6so9681160plc.1
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 01:43:37 -0700 (PDT)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00096.outbound.protection.outlook.com. [40.107.0.96])
-        by mx.google.com with ESMTPS id f40-v6si14475044plb.504.2018.07.09.01.43.35
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C68F16B02AA
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 04:49:49 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id x23-v6so9646771pln.11
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 01:49:49 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a15-v6sor596586pgh.229.2018.07.09.01.49.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 09 Jul 2018 01:43:36 -0700 (PDT)
-Subject: Re: [PATCH v9 00/17] Improve shrink_slab() scalability (old
- complexity was O(n^2), new is O(n))
-References: <153112469064.4097.2581798353485457328.stgit@localhost.localdomain>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <d7fd6feb-4269-1d04-3ec5-ae4487b59d65@virtuozzo.com>
-Date: Mon, 9 Jul 2018 11:43:27 +0300
+        (Google Transport Security);
+        Mon, 09 Jul 2018 01:49:48 -0700 (PDT)
+Date: Mon, 9 Jul 2018 18:49:37 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH 0/2] mm/fs: put_user_page() proposal
+Message-ID: <20180709184937.7a70c3aa@roar.ozlabs.ibm.com>
+In-Reply-To: <20180709080554.21931-1-jhubbard@nvidia.com>
+References: <20180709080554.21931-1-jhubbard@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <153112469064.4097.2581798353485457328.stgit@localhost.localdomain>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com, akpm@linux-foundation.org
+To: john.hubbard@gmail.com
+Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>
 
-On 09.07.2018 11:37, Kirill Tkhai wrote:
-> [ Vladimir, Shakeel, I didn't removed your signs since changes ]
-> [ are not signigicant. Please, say if they should not be here. ]
+On Mon,  9 Jul 2018 01:05:52 -0700
+john.hubbard@gmail.com wrote:
+
+> From: John Hubbard <jhubbard@nvidia.com>
 > 
 > Hi,
 > 
-> this patches solves the problem with slow shrink_slab() occuring
-> on the machines having many shrinkers and memory cgroups (i.e.,
-> with many containers). The problem is complexity of shrink_slab()
-> is O(n^2) and it grows too fast with the growth of containers
-> numbers.
+> With respect to tracking get_user_pages*() pages with page->dma_pinned*
+> fields [1], I spent a few days retrofitting most of the get_user_pages*()
+> call sites, by adding calls to a new put_user_page() function, in place
+> of put_page(), where appropriate. This will work, but it's a large effort.
 > 
-> Let we have 200 containers, and every container has 10 mounts
-> and 10 cgroups. All container tasks are isolated, and they don't
-> touch foreign containers mounts.
+> Design note: I didn't see anything that hinted at a way to fix this
+> problem, without actually changing all of the get_user_pages*() call sites,
+> so I think it's reasonable to start with that.
 > 
-> In case of global reclaim, a task has to iterate all over the memcgs
-> and to call all the memcg-aware shrinkers for all of them. This means,
-> the task has to visit 200 * 10 = 2000 shrinkers for every memcg,
-> and since there are 2000 memcgs, the total calls of do_shrink_slab()
-> are 2000 * 2000 = 4000000.
+> Anyway, it's still incomplete, but because this is a large, tree-wide
+> change (that will take some time and testing), I'd like to propose a plan,
+> before spamming zillions of people with put_user_page() conversion patches.
+> So I picked out the first two patches to show where this is going.
 > 
-> 4 million calls are not a number operations, which can takes 1 cpu cycle.
-> E.g., super_cache_count() accesses at least two lists, and makes arifmetical
-> calculations. Even, if there are no charged objects, we do these calculations,
-> and replaces cpu caches by read memory. I observed nodes spending almost 100%
-> time in kernel, in case of intensive writing and global reclaim. The writer
-> consumes pages fast, but it's need to shrink_slab() before the reclaimer
-> reached shrink pages function (and frees SWAP_CLUSTER_MAX pages). Even if
-> there is no writing, the iterations just waste the time, and slows reclaim down.
+> Proposed steps:
 > 
-> Let's see the small test below:
+> Step 1:
 > 
-> $echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
-> $mkdir /sys/fs/cgroup/memory/ct
-> $echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
-> $for i in `seq 0 4000`;
->         do mkdir /sys/fs/cgroup/memory/ct/$i;
->         echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs;
->         mkdir -p s/$i; mount -t tmpfs $i s/$i; touch s/$i/file;
-> done
+> Start with the patches here, then continue with...dozens more.
+> This will eventually convert all of the call sites to use put_user_page().
+> This is easy in some places, but complex in others, such as:
 > 
-> Then, let's see drop caches time (5 sequential calls):
-> $time echo 3 > /proc/sys/vm/drop_caches
+>     -- drivers/gpu/drm/amd
+>     -- bio
+>     -- fuse
+>     -- cifs
+>     -- anything from:
+>            git grep  iov_iter_get_pages | cut -f1 -d ':' | sort | uniq
 > 
-> 0.00user 13.78system 0:13.78elapsed 99%CPU
-> 0.00user 5.59system 0:05.60elapsed 99%CPU
-> 0.00user 5.48system 0:05.48elapsed 99%CPU
-> 0.00user 8.35system 0:08.35elapsed 99%CPU
-> 0.00user 8.34system 0:08.35elapsed 99%CPU
+> The easy ones can be grouped into a single patchset, perhaps, and the
+> complex ones probably each need a patchset, in order to get the in-depth
+> review they'll need.
 > 
-> Last four calls don't actually shrink something. So, the iterations
-> over slab shrinkers take 5.48 seconds. Not so good for scalability.
+> Furthermore, some of these areas I hope to attract some help on, once
+> this starts going.
 > 
-> The patchset solves the problem by making shrink_slab() of O(n)
-> complexity. There are following functional actions:
+> Step 2:
 > 
-> 1)Assign id to every registered memcg-aware shrinker.
-> 2)Maintain per-memcgroup bitmap of memcg-aware shrinkers,
->   and set a shrinker-related bit after the first element
->   is added to lru list (also, when removed child memcg
->   elements are reparanted).
-> 3)Split memcg-aware shrinkers and !memcg-aware shrinkers,
->   and call a shrinker if its bit is set in memcg's shrinker
->   bitmap.
->   (Also, there is a functionality to clear the bit, after
->   last element is shrinked).
+> In parallel, tidy up the core patchset that was discussed in [1], (version
+> 2 has already been reviewed, so I know what to do), and get it perfected
+> and reviewed. Don't apply it until step 1 is all done, though.
 > 
-> This gives signify performance increase. The result after patchset is applied:
+> Step 3:
 > 
-> $time echo 3 > /proc/sys/vm/drop_caches
+> Activate refcounting of dma-pinned pages (essentially, patch #5, which is
+> [1]), but don't use it yet. Place a few WARN_ON_ONCE calls to start
+> mopping up any missed call sites.
 > 
-> 0.00user 1.10system 0:01.10elapsed 99%CPU
-> 0.00user 0.00system 0:00.01elapsed 64%CPU
-> 0.00user 0.01system 0:00.01elapsed 82%CPU
-> 0.00user 0.00system 0:00.01elapsed 64%CPU
-> 0.00user 0.01system 0:00.01elapsed 82%CPU
+> Step 4:
 > 
-> The results show the performance increases at least in 548 times.
-> 
-> So, the patchset makes shrink_slab() of less complexity and improves
-> the performance in such types of load I pointed. This will give a profit
-> in case of !global reclaim case, since there also will be less
-> do_shrink_slab() calls.
-> 
-> v9: Uninline memcg_set_shrinker_bit().
->     Add comment to prealloc_memcg_shrinker().
->     Make memcg_expand_shrinker_maps() be called only
->     in case of id >= shrinker_max.
->     Allocate maps unsigned long aligned as found by KASAN.
->     Reorder two hunks in prealloc_shrinker() and two hunks
->     in free_prealloced_shrinker(), which may be related
->     to KASAN-found use-after-free.
+> After some soak time, actually connect it up (patch #6 of [1]) and start
+> taking action based on the new page->dma_pinned* fields.
 
-Also, remove BUG_ONs nearly map dereference in shrink_slab_memcg().
+You can use my decade old patch!
 
-> v8: REBASED on akpm tree of 20180703
-> 
-> v7: Refactorings and readability improvements.
->     REBASED on 4.18-rc1
-> 
-> v6: Added missed rcu_dereference() to memcg_set_shrinker_bit().
->     Use different functions for allocation and expanding map.
->     Use new memcg_shrinker_map_size variable in memcontrol.c.
->     Refactorings.
-> 
-> v5: Make the optimizing logic under CONFIG_MEMCG_SHRINKER instead of MEMCG && !SLOB
-> 
-> v4: Do not use memcg mem_cgroup_idr for iteration over mem cgroups
-> 
-> v3: Many changes requested in commentaries to v2:
-> 
-> 1)rebase on prealloc_shrinker() code base
-> 2)root_mem_cgroup is made out of memcg maps
-> 3)rwsem replaced with shrinkers_nr_max_mutex
-> 4)changes around assignment of shrinker id to list lru
-> 5)everything renamed
-> 
-> v2: Many changes requested in commentaries to v1:
-> 
-> 1)the code mostly moved to mm/memcontrol.c;
-> 2)using IDR instead of array of shrinkers;
-> 3)added a possibility to assign list_lru shrinker id
->   at the time of shrinker registering;
-> 4)reorginized locking and renamed functions and variables.
-> 
-> ---
-> 
-> Kirill Tkhai (16):
->       list_lru: Combine code under the same define
->       mm: Introduce CONFIG_MEMCG_KMEM as combination of CONFIG_MEMCG && !CONFIG_SLOB
->       mm: Assign id to every memcg-aware shrinker
->       memcg: Move up for_each_mem_cgroup{,_tree} defines
->       mm: Assign memcg-aware shrinkers bitmap to memcg
->       mm: Refactoring in workingset_init()
->       fs: Refactoring in alloc_super()
->       From: Kirill Tkhai <ktkhai@virtuozzo.com>
->       list_lru: Add memcg argument to list_lru_from_kmem()
->       From: Kirill Tkhai <ktkhai@virtuozzo.com>
->       list_lru: Pass lru argument to memcg_drain_list_lru_node()
->       mm: Export mem_cgroup_is_root()
->       mm: Set bit in memcg shrinker bitmap on first list_lru item apearance
->       mm: Iterate only over charged shrinkers during memcg shrink_slab()
->       From: Kirill Tkhai <ktkhai@virtuozzo.com>
->       mm: Clear shrinker bit if there are no objects related to memcg
-> 
-> Vladimir Davydov (1):
->       mm: Generalize shrink_slab() calls in shrink_node()
-> 
-> 
->  fs/super.c                 |   11 ++
->  include/linux/list_lru.h   |   18 ++--
->  include/linux/memcontrol.h |   34 +++++++
->  include/linux/sched.h      |    2 
->  include/linux/shrinker.h   |   11 ++
->  include/linux/slab.h       |    2 
->  init/Kconfig               |    5 +
->  mm/list_lru.c              |   90 ++++++++++++++-----
->  mm/memcontrol.c            |  187 ++++++++++++++++++++++++++++++++++------
->  mm/slab.h                  |    6 +
->  mm/slab_common.c           |    8 +-
->  mm/vmscan.c                |  204 +++++++++++++++++++++++++++++++++++++++-----
->  mm/workingset.c            |   11 ++
->  13 files changed, 480 insertions(+), 109 deletions(-)
-> 
-> --
-> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
-> Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Tested-by: Shakeel Butt <shakeelb@google.com>
-> 
+https://lkml.org/lkml/2009/2/17/113
+
+The problem with blocking in clear_page_dirty_for_io is that the fs is
+holding the page lock (or locks) and possibly others too. If you
+expect to have a bunch of long term references hanging around on the
+page, then there will be hangs and deadlocks everywhere. And if you do
+not have such log term references, then page lock (or some similar lock
+bit) for the duration of the DMA should be about enough?
+
+I think it has to be more fundamental to the filesystem. Filesystem
+would get callbacks to register such long term dirtying on its files.
+Then it can do locking, resource allocation, -ENOTSUPP, etc.
+
+Thanks,
+Nick
