@@ -1,79 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EB2066B02EF
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 11:54:00 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id t78-v6so11911894pfa.8
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 08:54:00 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y12-v6sor4826749plt.115.2018.07.09.08.53.59
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A0E1D6B02F0
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 11:59:24 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id n17-v6so12010109pff.10
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 08:59:24 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id y78-v6si16647488pfj.159.2018.07.09.08.59.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 09 Jul 2018 08:53:59 -0700 (PDT)
-Date: Mon, 9 Jul 2018 09:53:57 -0600
-From: Jason Gunthorpe <jgg@ziepe.ca>
-Subject: Re: [PATCH 1/2] mm: introduce put_user_page(), placeholder version
-Message-ID: <20180709155357.GA13496@ziepe.ca>
-References: <20180709080554.21931-1-jhubbard@nvidia.com>
- <20180709080554.21931-2-jhubbard@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Jul 2018 08:59:23 -0700 (PDT)
+Subject: Re: [PATCH -mm -v4 01/21] mm, THP, swap: Enable PMD swap operations
+ for CONFIG_THP_SWAP
+References: <20180622035151.6676-1-ying.huang@intel.com>
+ <20180622035151.6676-2-ying.huang@intel.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <11735e2e-781f-492f-7a1a-71b91e0876dc@linux.intel.com>
+Date: Mon, 9 Jul 2018 08:59:20 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180709080554.21931-2-jhubbard@nvidia.com>
+In-Reply-To: <20180622035151.6676-2-ying.huang@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john.hubbard@gmail.com
-Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>
+To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-On Mon, Jul 09, 2018 at 01:05:53AM -0700, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
+On 06/21/2018 08:51 PM, Huang, Ying wrote:
+> From: Huang Ying <ying.huang@intel.com>
 > 
-> Introduces put_user_page(), which simply calls put_page().
-> This provides a safe way to update all get_user_pages*() callers,
-> so that they call put_user_page(), instead of put_page().
-> 
-> Also adds release_user_pages(), a drop-in replacement for
-> release_pages(). This is intended to be easily grep-able,
-> for later performance improvements, since release_user_pages
-> is not batched like release_pages is, and is significantly
-> slower.
-> 
-> Subsequent patches will add functionality to put_user_page().
-> 
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
->  include/linux/mm.h | 14 ++++++++++++++
->  1 file changed, 14 insertions(+)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index a0fbb9ffe380..db4a211aad79 100644
-> +++ b/include/linux/mm.h
-> @@ -923,6 +923,20 @@ static inline void put_page(struct page *page)
->  		__put_page(page);
->  }
->  
-> +/* Placeholder version, until all get_user_pages*() callers are updated. */
-> +static inline void put_user_page(struct page *page)
-> +{
-> +	put_page(page);
-> +}
-> +
-> +/* A drop-in replacement for release_pages(): */
-> +static inline void release_user_pages(struct page **pages,
-> +				      unsigned long npages)
-> +{
-> +	while (npages)
-> +		put_user_page(pages[--npages]);
-> +}
-> +
->  #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
->  #define SECTION_IN_PAGE_FLAGS
->  #endif
+> Previously, the PMD swap operations are only enabled for
+> CONFIG_ARCH_ENABLE_THP_MIGRATION.  Because they are only used by the
+> THP migration support.  We will support PMD swap mapping to the huge
+> swap cluster and swapin the THP as a whole.  That will be enabled via
+> CONFIG_THP_SWAP and needs these PMD swap operations.  So enable the
+> PMD swap operations for CONFIG_THP_SWAP too.
 
-Just as question: Do you think it is worthwhile to have a
-release_user_page_dirtied() helper as well?
+This commit message kinda skirts around the real reasons for this patch.
+ Shouldn't we just say something like:
 
-Ie to indicate that a pages that were grabbed under GUP FOLL_WRITE
-were actually written too?
+	Currently, "swap entries" in the page tables are used for a
+	number of things outside of actual swap, like page migration.
+	We support THP/PMD "swap entries" for page migration currently
+	and the functions behind this are tied to page migration's
+	config option (CONFIG_ARCH_ENABLE_THP_MIGRATION).
 
-Keeps more of these unimportant details out of the drivers..
+	But, we also need them for THP swap.
+	...
 
-Jason
+It would also be nice to explain a bit why you are moving code around.
+
+Would this look any better if we made a Kconfig option:
+
+	config HAVE_THP_SWAP_ENTRIES
+		def_bool n
+		# "Swap entries" in the page tables are used
+		# both for migration and actual swap.
+		depends on THP_SWAP || ARCH_ENABLE_THP_MIGRATION
+
+You logically talked about this need for PMD swap operations in your
+commit message, so I think it makes sense to codify that in a single
+place where it can be coherently explained.
