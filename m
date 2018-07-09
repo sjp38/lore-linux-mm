@@ -1,43 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DD246B02C7
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 08:35:27 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id i10-v6so7233805eds.19
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 05:35:27 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 07BB86B02C7
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 08:36:30 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id y17-v6so773883eds.22
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 05:36:29 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g10-v6si1340872edr.341.2018.07.09.05.35.26
+        by mx.google.com with ESMTPS id e18-v6si2161447edb.332.2018.07.09.05.36.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jul 2018 05:35:26 -0700 (PDT)
-Date: Mon, 9 Jul 2018 14:35:24 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch v3] mm, oom: fix unnecessary killing of additional
- processes
-Message-ID: <20180709123524.GK22049@dhcp22.suse.cz>
-References: <alpine.DEB.2.21.1806211434420.51095@chino.kir.corp.google.com>
- <20180705164621.0a4fe6ab3af27a1d387eecc9@linux-foundation.org>
- <alpine.DEB.2.21.1807061652430.71359@chino.kir.corp.google.com>
+        Mon, 09 Jul 2018 05:36:28 -0700 (PDT)
+Date: Mon, 9 Jul 2018 14:36:27 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 3/3] kvm: add a function to check if page is from NVDIMM
+ pmem.
+Message-ID: <20180709123627.wtbrsrfgqwuq7x65@quack2.suse.cz>
+References: <cover.1530716899.git.yi.z.zhang@linux.intel.com>
+ <359fdf0103b61014bf811d88d4ce36bc793d18f2.1530716899.git.yi.z.zhang@linux.intel.com>
+ <1efab832-8782-38f3-9fd5-7a8b45bde153@redhat.com>
+ <a6049ab7-19f4-3cdb-a954-c8ad7a05ed37@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1807061652430.71359@chino.kir.corp.google.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <a6049ab7-19f4-3cdb-a954-c8ad7a05ed37@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kbuild test robot <fengguang.wu@intel.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Zhang,Yi" <yi.z.zhang@linux.intel.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, dan.j.williams@intel.com, jack@suse.cz, hch@lst.de, yu.c.zhang@intel.com, linux-mm@kvack.org, rkrcmar@redhat.com, yi.z.zhang@intel.com
 
-On Fri 06-07-18 17:05:39, David Rientjes wrote:
-[...]
-> Blockable mmu notifiers and mlocked memory is not the extent of the 
-> problem, if a process has a lot of virtual memory we must wait until 
-> free_pgtables() completes in exit_mmap() to prevent unnecessary oom 
-> killing.  For implementations such as tcmalloc, which does not release 
-> virtual memory, this is important because, well, it releases this only at 
-> exit_mmap().  Of course we cannot do that with only the protection of 
-> mm->mmap_sem for read.
+On Thu 05-07-18 21:19:30, Zhang,Yi wrote:
+> 
+> 
+> On 2018a1'07ae??04ae?JPY 23:25, Paolo Bonzini wrote:
+> > On 04/07/2018 17:30, Zhang Yi wrote:
+> >> For device specific memory space, when we move these area of pfn to
+> >> memory zone, we will set the page reserved flag at that time, some of
+> >> these reserved for device mmio, and some of these are not, such as
+> >> NVDIMM pmem.
+> >>
+> >> Now, we map these dev_dax or fs_dax pages to kvm for DIMM/NVDIMM
+> >> backend, since these pages are reserved. the check of
+> >> kvm_is_reserved_pfn() misconceives those pages as MMIO. Therefor, we
+> >> introduce 2 page map types, MEMORY_DEVICE_FS_DAX/MEMORY_DEVICE_DEV_DAX,
+> >> to indentify these pages are from NVDIMM pmem. and let kvm treat these
+> >> as normal pages.
+> >>
+> >> Without this patch, Many operations will be missed due to this
+> >> mistreatment to pmem pages. For example, a page may not have chance to
+> >> be unpinned for KVM guest(in kvm_release_pfn_clean); not able to be
+> >> marked as dirty/accessed(in kvm_set_pfn_dirty/accessed) etc.
+> >>
+> >> Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
+> >> Signed-off-by: Zhang Yu <yu.c.zhang@linux.intel.com>
+> >> ---
+> >>  virt/kvm/kvm_main.c | 17 +++++++++++++++--
+> >>  1 file changed, 15 insertions(+), 2 deletions(-)
+> >>
+> >> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+> >> index afb2e6e..1365d18 100644
+> >> --- a/virt/kvm/kvm_main.c
+> >> +++ b/virt/kvm/kvm_main.c
+> >> @@ -140,10 +140,23 @@ __weak void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+> >>  {
+> >>  }
+> >>  
+> >> +static bool kvm_is_nd_pfn(kvm_pfn_t pfn)
+> >> +{
+> >> +	struct page *page = pfn_to_page(pfn);
+> >> +
+> >> +	return is_zone_device_page(page) &&
+> >> +		((page->pgmap->type == MEMORY_DEVICE_FS_DAX) ||
+> >> +		 (page->pgmap->type == MEMORY_DEVICE_DEV_DAX));
+> >> +}
+> > If the mm people agree, I'd prefer something that takes a struct page *
+> > and is exported by include/linux/mm.h.  Then KVM can just do something like
+> >
+> > 	struct page *page;
+> > 	if (!pfn_valid(pfn))
+> > 		return true;
+> >
+> > 	page = pfn_to_page(pfn);
+> > 	return PageReserved(page) && !is_dax_page(page);
+> >
+> > Thanks,
+> >
+> > Paolo
+> Yeah, that could be much better. Thanks for your comments Paolo.
+> 
+> Hi Kara, Do u have Any opinions/ideas to add such definition in mm?
 
-And how exactly a timeout helps to prevent from "unnecessary killing" in
-that case?
+What Paolo suggests sounds good to me.
+
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
