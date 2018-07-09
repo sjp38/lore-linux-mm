@@ -1,191 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 055416B02A6
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 04:40:27 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id l186-v6so16156851qkc.22
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 01:40:27 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0112.outbound.protection.outlook.com. [104.47.2.112])
-        by mx.google.com with ESMTPS id a132-v6si4275452qkg.106.2018.07.09.01.40.25
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id ADFB56B02A8
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 04:43:37 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id 70-v6so9681160plc.1
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 01:43:37 -0700 (PDT)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00096.outbound.protection.outlook.com. [40.107.0.96])
+        by mx.google.com with ESMTPS id f40-v6si14475044plb.504.2018.07.09.01.43.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 09 Jul 2018 01:40:25 -0700 (PDT)
-Subject: [PATCH v9 17/17] mm: Clear shrinker bit if there are no objects
- related to memcg
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Mon, 09 Jul 2018 11:40:17 +0300
-Message-ID: <153112561772.4097.11011071937553113003.stgit@localhost.localdomain>
-In-Reply-To: <153112469064.4097.2581798353485457328.stgit@localhost.localdomain>
+        Mon, 09 Jul 2018 01:43:36 -0700 (PDT)
+Subject: Re: [PATCH v9 00/17] Improve shrink_slab() scalability (old
+ complexity was O(n^2), new is O(n))
 References: <153112469064.4097.2581798353485457328.stgit@localhost.localdomain>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <d7fd6feb-4269-1d04-3ec5-ae4487b59d65@virtuozzo.com>
+Date: Mon, 9 Jul 2018 11:43:27 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <153112469064.4097.2581798353485457328.stgit@localhost.localdomain>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com, akpm@linux-foundation.org, ktkhai@virtuozzo.com
+To: vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com, akpm@linux-foundation.org
 
-To avoid further unneed calls of do_shrink_slab()
-for shrinkers, which already do not have any charged
-objects in a memcg, their bits have to be cleared.
+On 09.07.2018 11:37, Kirill Tkhai wrote:
+> [ Vladimir, Shakeel, I didn't removed your signs since changes ]
+> [ are not signigicant. Please, say if they should not be here. ]
+> 
+> Hi,
+> 
+> this patches solves the problem with slow shrink_slab() occuring
+> on the machines having many shrinkers and memory cgroups (i.e.,
+> with many containers). The problem is complexity of shrink_slab()
+> is O(n^2) and it grows too fast with the growth of containers
+> numbers.
+> 
+> Let we have 200 containers, and every container has 10 mounts
+> and 10 cgroups. All container tasks are isolated, and they don't
+> touch foreign containers mounts.
+> 
+> In case of global reclaim, a task has to iterate all over the memcgs
+> and to call all the memcg-aware shrinkers for all of them. This means,
+> the task has to visit 200 * 10 = 2000 shrinkers for every memcg,
+> and since there are 2000 memcgs, the total calls of do_shrink_slab()
+> are 2000 * 2000 = 4000000.
+> 
+> 4 million calls are not a number operations, which can takes 1 cpu cycle.
+> E.g., super_cache_count() accesses at least two lists, and makes arifmetical
+> calculations. Even, if there are no charged objects, we do these calculations,
+> and replaces cpu caches by read memory. I observed nodes spending almost 100%
+> time in kernel, in case of intensive writing and global reclaim. The writer
+> consumes pages fast, but it's need to shrink_slab() before the reclaimer
+> reached shrink pages function (and frees SWAP_CLUSTER_MAX pages). Even if
+> there is no writing, the iterations just waste the time, and slows reclaim down.
+> 
+> Let's see the small test below:
+> 
+> $echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
+> $mkdir /sys/fs/cgroup/memory/ct
+> $echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
+> $for i in `seq 0 4000`;
+>         do mkdir /sys/fs/cgroup/memory/ct/$i;
+>         echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs;
+>         mkdir -p s/$i; mount -t tmpfs $i s/$i; touch s/$i/file;
+> done
+> 
+> Then, let's see drop caches time (5 sequential calls):
+> $time echo 3 > /proc/sys/vm/drop_caches
+> 
+> 0.00user 13.78system 0:13.78elapsed 99%CPU
+> 0.00user 5.59system 0:05.60elapsed 99%CPU
+> 0.00user 5.48system 0:05.48elapsed 99%CPU
+> 0.00user 8.35system 0:08.35elapsed 99%CPU
+> 0.00user 8.34system 0:08.35elapsed 99%CPU
+> 
+> Last four calls don't actually shrink something. So, the iterations
+> over slab shrinkers take 5.48 seconds. Not so good for scalability.
+> 
+> The patchset solves the problem by making shrink_slab() of O(n)
+> complexity. There are following functional actions:
+> 
+> 1)Assign id to every registered memcg-aware shrinker.
+> 2)Maintain per-memcgroup bitmap of memcg-aware shrinkers,
+>   and set a shrinker-related bit after the first element
+>   is added to lru list (also, when removed child memcg
+>   elements are reparanted).
+> 3)Split memcg-aware shrinkers and !memcg-aware shrinkers,
+>   and call a shrinker if its bit is set in memcg's shrinker
+>   bitmap.
+>   (Also, there is a functionality to clear the bit, after
+>   last element is shrinked).
+> 
+> This gives signify performance increase. The result after patchset is applied:
+> 
+> $time echo 3 > /proc/sys/vm/drop_caches
+> 
+> 0.00user 1.10system 0:01.10elapsed 99%CPU
+> 0.00user 0.00system 0:00.01elapsed 64%CPU
+> 0.00user 0.01system 0:00.01elapsed 82%CPU
+> 0.00user 0.00system 0:00.01elapsed 64%CPU
+> 0.00user 0.01system 0:00.01elapsed 82%CPU
+> 
+> The results show the performance increases at least in 548 times.
+> 
+> So, the patchset makes shrink_slab() of less complexity and improves
+> the performance in such types of load I pointed. This will give a profit
+> in case of !global reclaim case, since there also will be less
+> do_shrink_slab() calls.
+> 
+> v9: Uninline memcg_set_shrinker_bit().
+>     Add comment to prealloc_memcg_shrinker().
+>     Make memcg_expand_shrinker_maps() be called only
+>     in case of id >= shrinker_max.
+>     Allocate maps unsigned long aligned as found by KASAN.
+>     Reorder two hunks in prealloc_shrinker() and two hunks
+>     in free_prealloced_shrinker(), which may be related
+>     to KASAN-found use-after-free.
 
-This patch introduces a lockless mechanism to do that
-without races without parallel list lru add. After
-do_shrink_slab() returns SHRINK_EMPTY the first time,
-we clear the bit and call it once again. Then we restore
-the bit, if the new return value is different.
+Also, remove BUG_ONs nearly map dereference in shrink_slab_memcg().
 
-Note, that single smp_mb__after_atomic() in shrink_slab_memcg()
-covers two situations:
-
-1)list_lru_add()     shrink_slab_memcg
-    list_add_tail()    for_each_set_bit() <--- read bit
-                         do_shrink_slab() <--- missed list update (no barrier)
-    <MB>                 <MB>
-    set_bit()            do_shrink_slab() <--- seen list update
-
-This situation, when the first do_shrink_slab() sees set bit,
-but it doesn't see list update (i.e., race with the first element
-queueing), is rare. So we don't add <MB> before the first call
-of do_shrink_slab() instead of this to do not slow down generic
-case. Also, it's need the second call as seen in below in (2).
-
-2)list_lru_add()      shrink_slab_memcg()
-    list_add_tail()     ...
-    set_bit()           ...
-  ...                   for_each_set_bit()
-  do_shrink_slab()        do_shrink_slab()
-    clear_bit()           ...
-  ...                     ...
-  list_lru_add()          ...
-    list_add_tail()       clear_bit()
-    <MB>                  <MB>
-    set_bit()             do_shrink_slab()
-
-The barriers guarantees, the second do_shrink_slab()
-in the right side task sees list update if really
-cleared the bit. This case is drawn in the code comment.
-
-[Results/performance of the patchset]
-
-After the whole patchset applied the below test shows signify
-increase of performance:
-
-$echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
-$mkdir /sys/fs/cgroup/memory/ct
-$echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
-    $for i in `seq 0 4000`; do mkdir /sys/fs/cgroup/memory/ct/$i;
-			    echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs;
-			    mkdir -p s/$i; mount -t tmpfs $i s/$i;
-			    touch s/$i/file; done
-
-Then, 5 sequential calls of drop caches:
-$time echo 3 > /proc/sys/vm/drop_caches
-
-1)Before:
-0.00user 13.78system 0:13.78elapsed 99%CPU
-0.00user 5.59system 0:05.60elapsed 99%CPU
-0.00user 5.48system 0:05.48elapsed 99%CPU
-0.00user 8.35system 0:08.35elapsed 99%CPU
-0.00user 8.34system 0:08.35elapsed 99%CPU
-
-2)After
-0.00user 1.10system 0:01.10elapsed 99%CPU
-0.00user 0.00system 0:00.01elapsed 64%CPU
-0.00user 0.01system 0:00.01elapsed 82%CPU
-0.00user 0.00system 0:00.01elapsed 64%CPU
-0.00user 0.01system 0:00.01elapsed 82%CPU
-
-The results show the performance increases at least in 548 times.
-
-Shakeel Butt tested this patchset with fork-bomb on his configuration:
-
- > I created 255 memcgs, 255 ext4 mounts and made each memcg create a
- > file containing few KiBs on corresponding mount. Then in a separate
- > memcg of 200 MiB limit ran a fork-bomb.
- >
- > I ran the "perf record -ag -- sleep 60" and below are the results:
- >
- > Without the patch series:
- > Samples: 4M of event 'cycles', Event count (approx.): 3279403076005
- > +  36.40%            fb.sh  [kernel.kallsyms]    [k] shrink_slab
- > +  18.97%            fb.sh  [kernel.kallsyms]    [k] list_lru_count_one
- > +   6.75%            fb.sh  [kernel.kallsyms]    [k] super_cache_count
- > +   0.49%            fb.sh  [kernel.kallsyms]    [k] down_read_trylock
- > +   0.44%            fb.sh  [kernel.kallsyms]    [k] mem_cgroup_iter
- > +   0.27%            fb.sh  [kernel.kallsyms]    [k] up_read
- > +   0.21%            fb.sh  [kernel.kallsyms]    [k] osq_lock
- > +   0.13%            fb.sh  [kernel.kallsyms]    [k] shmem_unused_huge_count
- > +   0.08%            fb.sh  [kernel.kallsyms]    [k] shrink_node_memcg
- > +   0.08%            fb.sh  [kernel.kallsyms]    [k] shrink_node
- >
- > With the patch series:
- > Samples: 4M of event 'cycles', Event count (approx.): 2756866824946
- > +  47.49%            fb.sh  [kernel.kallsyms]    [k] down_read_trylock
- > +  30.72%            fb.sh  [kernel.kallsyms]    [k] up_read
- > +   9.51%            fb.sh  [kernel.kallsyms]    [k] mem_cgroup_iter
- > +   1.69%            fb.sh  [kernel.kallsyms]    [k] shrink_node_memcg
- > +   1.35%            fb.sh  [kernel.kallsyms]    [k] mem_cgroup_protected
- > +   1.05%            fb.sh  [kernel.kallsyms]    [k] queued_spin_lock_slowpath
- > +   0.85%            fb.sh  [kernel.kallsyms]    [k] _raw_spin_lock
- > +   0.78%            fb.sh  [kernel.kallsyms]    [k] lruvec_lru_size
- > +   0.57%            fb.sh  [kernel.kallsyms]    [k] shrink_node
- > +   0.54%            fb.sh  [kernel.kallsyms]    [k] queue_work_on
- > +   0.46%            fb.sh  [kernel.kallsyms]    [k] shrink_slab_memcg
-
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
-Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
-Tested-by: Shakeel Butt <shakeelb@google.com>
----
- mm/memcontrol.c |    2 ++
- mm/vmscan.c     |   26 ++++++++++++++++++++++++--
- 2 files changed, 26 insertions(+), 2 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 70881f04775d..bd1e3823236f 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -430,6 +430,8 @@ void memcg_set_shrinker_bit(struct mem_cgroup *memcg, int nid, int shrinker_id)
- 
- 		rcu_read_lock();
- 		map = rcu_dereference(memcg->nodeinfo[nid]->shrinker_map);
-+		/* Pairs with smp mb in shrink_slab() */
-+		smp_mb__before_atomic();
- 		set_bit(shrinker_id, map->map);
- 		rcu_read_unlock();
- 	}
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8199e1b9a204..93fdd0375b64 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -596,8 +596,30 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 			continue;
- 
- 		ret = do_shrink_slab(&sc, shrinker, priority);
--		if (ret == SHRINK_EMPTY)
--			ret = 0;
-+		if (ret == SHRINK_EMPTY) {
-+			clear_bit(i, map->map);
-+			/*
-+			 * After the shrinker reported that it had no objects to
-+			 * free, but before we cleared the corresponding bit in
-+			 * the memcg shrinker map, a new object might have been
-+			 * added. To make sure, we have the bit set in this
-+			 * case, we invoke the shrinker one more time and reset
-+			 * the bit if it reports that it is not empty anymore.
-+			 * The memory barrier here pairs with the barrier in
-+			 * memcg_set_shrinker_bit():
-+			 *
-+			 * list_lru_add()     shrink_slab_memcg()
-+			 *   list_add_tail()    clear_bit()
-+			 *   <MB>               <MB>
-+			 *   set_bit()          do_shrink_slab()
-+			 */
-+			smp_mb__after_atomic();
-+			ret = do_shrink_slab(&sc, shrinker, priority);
-+			if (ret == SHRINK_EMPTY)
-+				ret = 0;
-+			else
-+				memcg_set_shrinker_bit(memcg, nid, i);
-+		}
- 		freed += ret;
- 
- 		if (rwsem_is_contended(&shrinker_rwsem)) {
+> v8: REBASED on akpm tree of 20180703
+> 
+> v7: Refactorings and readability improvements.
+>     REBASED on 4.18-rc1
+> 
+> v6: Added missed rcu_dereference() to memcg_set_shrinker_bit().
+>     Use different functions for allocation and expanding map.
+>     Use new memcg_shrinker_map_size variable in memcontrol.c.
+>     Refactorings.
+> 
+> v5: Make the optimizing logic under CONFIG_MEMCG_SHRINKER instead of MEMCG && !SLOB
+> 
+> v4: Do not use memcg mem_cgroup_idr for iteration over mem cgroups
+> 
+> v3: Many changes requested in commentaries to v2:
+> 
+> 1)rebase on prealloc_shrinker() code base
+> 2)root_mem_cgroup is made out of memcg maps
+> 3)rwsem replaced with shrinkers_nr_max_mutex
+> 4)changes around assignment of shrinker id to list lru
+> 5)everything renamed
+> 
+> v2: Many changes requested in commentaries to v1:
+> 
+> 1)the code mostly moved to mm/memcontrol.c;
+> 2)using IDR instead of array of shrinkers;
+> 3)added a possibility to assign list_lru shrinker id
+>   at the time of shrinker registering;
+> 4)reorginized locking and renamed functions and variables.
+> 
+> ---
+> 
+> Kirill Tkhai (16):
+>       list_lru: Combine code under the same define
+>       mm: Introduce CONFIG_MEMCG_KMEM as combination of CONFIG_MEMCG && !CONFIG_SLOB
+>       mm: Assign id to every memcg-aware shrinker
+>       memcg: Move up for_each_mem_cgroup{,_tree} defines
+>       mm: Assign memcg-aware shrinkers bitmap to memcg
+>       mm: Refactoring in workingset_init()
+>       fs: Refactoring in alloc_super()
+>       From: Kirill Tkhai <ktkhai@virtuozzo.com>
+>       list_lru: Add memcg argument to list_lru_from_kmem()
+>       From: Kirill Tkhai <ktkhai@virtuozzo.com>
+>       list_lru: Pass lru argument to memcg_drain_list_lru_node()
+>       mm: Export mem_cgroup_is_root()
+>       mm: Set bit in memcg shrinker bitmap on first list_lru item apearance
+>       mm: Iterate only over charged shrinkers during memcg shrink_slab()
+>       From: Kirill Tkhai <ktkhai@virtuozzo.com>
+>       mm: Clear shrinker bit if there are no objects related to memcg
+> 
+> Vladimir Davydov (1):
+>       mm: Generalize shrink_slab() calls in shrink_node()
+> 
+> 
+>  fs/super.c                 |   11 ++
+>  include/linux/list_lru.h   |   18 ++--
+>  include/linux/memcontrol.h |   34 +++++++
+>  include/linux/sched.h      |    2 
+>  include/linux/shrinker.h   |   11 ++
+>  include/linux/slab.h       |    2 
+>  init/Kconfig               |    5 +
+>  mm/list_lru.c              |   90 ++++++++++++++-----
+>  mm/memcontrol.c            |  187 ++++++++++++++++++++++++++++++++++------
+>  mm/slab.h                  |    6 +
+>  mm/slab_common.c           |    8 +-
+>  mm/vmscan.c                |  204 +++++++++++++++++++++++++++++++++++++++-----
+>  mm/workingset.c            |   11 ++
+>  13 files changed, 480 insertions(+), 109 deletions(-)
+> 
+> --
+> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+> Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Tested-by: Shakeel Butt <shakeelb@google.com>
+> 
