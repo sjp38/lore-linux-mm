@@ -1,46 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 160626B02E8
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 10:34:29 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id y16-v6so7593669pfe.16
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 07:34:29 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id m39-v6si14861326plg.371.2018.07.09.07.34.27
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DF026B02EA
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 10:36:13 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id p91-v6so10173009plb.12
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 07:36:13 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id p3-v6si14583716plr.131.2018.07.09.07.36.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jul 2018 07:34:28 -0700 (PDT)
-Subject: Re: BUG: corrupted list in cpu_stop_queue_work
-References: <00000000000032412205706753b5@google.com>
- <000000000000693c7d057087caf3@google.com>
- <1271c58e-876b-0df3-3224-319d82634663@I-love.SAKURA.ne.jp>
- <20180709133212.GA2662@bombadil.infradead.org>
- <8b258017-8817-8050-14a5-5e55c56bbf18@i-love.sakura.ne.jp>
- <20180709142445.GC2662@bombadil.infradead.org>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <877e8bf0-be4c-c481-64a7-1e793b2c4d4b@i-love.sakura.ne.jp>
-Date: Mon, 9 Jul 2018 23:34:07 +0900
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 09 Jul 2018 07:36:11 -0700 (PDT)
+Date: Mon, 9 Jul 2018 07:36:10 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: kernel BUG at mm/shmem.c:LINE!
+Message-ID: <20180709143610.GD2662@bombadil.infradead.org>
+References: <000000000000d624c605705e9010@google.com>
 MIME-Version: 1.0
-In-Reply-To: <20180709142445.GC2662@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <000000000000d624c605705e9010@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: syzbot <syzbot+d8a8e42dfba0454286ff@syzkaller.appspotmail.com>, bigeasy@linutronix.de, linux-kernel@vger.kernel.org, matt@codeblueprint.co.uk, mingo@kernel.org, peterz@infradead.org, syzkaller-bugs@googlegroups.com, tglx@linutronix.de, linux-mm <linux-mm@kvack.org>
+To: syzbot <syzbot+b8e0dfee3fd8c9012771@syzkaller.appspotmail.com>
+Cc: hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
 
-On 2018/07/09 23:24, Matthew Wilcox wrote:
->> Anyway, linux-next-20180709 still does not have this fix.
->> What is the title of your fix you pushed on Saturday?
+On Fri, Jul 06, 2018 at 06:19:02PM -0700, syzbot wrote:
+> Hello,
 > 
-> I folded it into shmem: Convert shmem_add_to_page_cache to XArray.
-> I can see it's fixed in today's linux-next.  I fixed it differently
-> from the way you fixed it, so if you're looking for an xas_error check
-> after xas_store, you won't find it.
+> syzbot found the following crash on:
 > 
-
-OK. linux-next-20180709 should no longer hit this bug. Closing with
+> HEAD commit:    526674536360 Add linux-next specific files for 20180706
+> git tree:       linux-next
+> console output: https://syzkaller.appspot.com/x/log.txt?x=116d16fc400000
+> kernel config:  https://syzkaller.appspot.com/x/.config?x=c8d1cfc0cb798e48
+> dashboard link: https://syzkaller.appspot.com/bug?extid=b8e0dfee3fd8c9012771
+> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+> syzkaller repro:https://syzkaller.appspot.com/x/repro.syz?x=170e462c400000
+> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=15f1ba2c400000
+> 
+> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> Reported-by: syzbot+b8e0dfee3fd8c9012771@syzkaller.appspotmail.com
 
 #syz fix: shmem: Convert shmem_add_to_page_cache to XArray
-
-Thanks.
