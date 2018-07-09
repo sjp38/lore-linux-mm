@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2884F6B027D
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 04:06:35 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id d4-v6so5515570ybl.3
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 01:06:35 -0700 (PDT)
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 663E96B027F
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 04:06:37 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id u1-v6so18853936ywg.6
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 01:06:37 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d123-v6sor3548013ybh.80.2018.07.09.01.06.34
+        by mx.google.com with SMTPS id s144-v6sor4311351ybc.58.2018.07.09.01.06.36
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 09 Jul 2018 01:06:34 -0700 (PDT)
+        Mon, 09 Jul 2018 01:06:36 -0700 (PDT)
 From: john.hubbard@gmail.com
-Subject: [PATCH 1/2] mm: introduce put_user_page(), placeholder version
-Date: Mon,  9 Jul 2018 01:05:53 -0700
-Message-Id: <20180709080554.21931-2-jhubbard@nvidia.com>
+Subject: [PATCH 2/2] goldfish_pipe/mm: convert to the new put_user_page() call
+Date: Mon,  9 Jul 2018 01:05:54 -0700
+Message-Id: <20180709080554.21931-3-jhubbard@nvidia.com>
 In-Reply-To: <20180709080554.21931-1-jhubbard@nvidia.com>
 References: <20180709080554.21931-1-jhubbard@nvidia.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,47 +22,49 @@ Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-r
 
 From: John Hubbard <jhubbard@nvidia.com>
 
-Introduces put_user_page(), which simply calls put_page().
-This provides a safe way to update all get_user_pages*() callers,
-so that they call put_user_page(), instead of put_page().
+For code that retains pages via get_user_pages*(),
+release those pages via the new put_user_page(),
+instead of put_page().
 
-Also adds release_user_pages(), a drop-in replacement for
-release_pages(). This is intended to be easily grep-able,
-for later performance improvements, since release_user_pages
-is not batched like release_pages is, and is significantly
-slower.
+Also: rename release_user_pages(), to avoid a naming
+conflict with the new external function of the same name.
 
-Subsequent patches will add functionality to put_user_page().
-
+CC: Al Viro <viro@zeniv.linux.org.uk>
 Signed-off-by: John Hubbard <jhubbard@nvidia.com>
 ---
- include/linux/mm.h | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ drivers/platform/goldfish/goldfish_pipe.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a0fbb9ffe380..db4a211aad79 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -923,6 +923,20 @@ static inline void put_page(struct page *page)
- 		__put_page(page);
+diff --git a/drivers/platform/goldfish/goldfish_pipe.c b/drivers/platform/goldfish/goldfish_pipe.c
+index 3e32a4c14d5f..3ab871c22a88 100644
+--- a/drivers/platform/goldfish/goldfish_pipe.c
++++ b/drivers/platform/goldfish/goldfish_pipe.c
+@@ -331,7 +331,7 @@ static int pin_user_pages(unsigned long first_page, unsigned long last_page,
+ 
  }
  
-+/* Placeholder version, until all get_user_pages*() callers are updated. */
-+static inline void put_user_page(struct page *page)
-+{
-+	put_page(page);
-+}
-+
-+/* A drop-in replacement for release_pages(): */
-+static inline void release_user_pages(struct page **pages,
-+				      unsigned long npages)
-+{
-+	while (npages)
-+		put_user_page(pages[--npages]);
-+}
-+
- #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
- #define SECTION_IN_PAGE_FLAGS
- #endif
+-static void release_user_pages(struct page **pages, int pages_count,
++static void __release_user_pages(struct page **pages, int pages_count,
+ 	int is_write, s32 consumed_size)
+ {
+ 	int i;
+@@ -339,7 +339,7 @@ static void release_user_pages(struct page **pages, int pages_count,
+ 	for (i = 0; i < pages_count; i++) {
+ 		if (!is_write && consumed_size > 0)
+ 			set_page_dirty(pages[i]);
+-		put_page(pages[i]);
++		put_user_page(pages[i]);
+ 	}
+ }
+ 
+@@ -409,7 +409,7 @@ static int transfer_max_buffers(struct goldfish_pipe *pipe,
+ 
+ 	*consumed_size = pipe->command_buffer->rw_params.consumed_size;
+ 
+-	release_user_pages(pages, pages_count, is_write, *consumed_size);
++	__release_user_pages(pages, pages_count, is_write, *consumed_size);
+ 
+ 	mutex_unlock(&pipe->lock);
+ 
 -- 
 2.18.0
