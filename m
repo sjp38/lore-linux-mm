@@ -1,56 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C25A6B02AF
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 06:26:25 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id ba8-v6so9864230plb.4
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 03:26:25 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c198-v6sor3259007pga.143.2018.07.09.03.26.23
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5563B6B02B1
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 06:29:32 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id u16-v6so11552657pfm.15
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 03:29:32 -0700 (PDT)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id p84-v6si9105636pfl.17.2018.07.09.03.29.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 09 Jul 2018 03:26:23 -0700 (PDT)
-Date: Mon, 9 Jul 2018 13:15:58 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: kernel BUG at mm/memory.c:LINE!
-Message-ID: <20180709101558.63vkwppwcgzcv3dg@kshutemo-mobl1>
-References: <0000000000004a7da505708a9915@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Jul 2018 03:29:30 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: =?gb2312?B?UmU6IFJlo7pbUkZDXSBhIHF1ZXN0aW9uIGFib3V0IHJldXNlIGh3cG9pc29u?=
+ =?gb2312?B?IHBhZ2UgaW4gc29mdF9vZmZsaW5lX3BhZ2UoKQ==?=
+Date: Mon, 9 Jul 2018 10:28:26 +0000
+Message-ID: <20180709102825.GA21147@hori1.linux.bs1.fc.nec.co.jp>
+References: <518e6b02-47ef-4ba8-ab98-8d807e2de7d5.xishi.qiuxishi@alibaba-inc.com>
+In-Reply-To: <518e6b02-47ef-4ba8-ab98-8d807e2de7d5.xishi.qiuxishi@alibaba-inc.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="gb2312"
+Content-ID: <54A481ED597FFA4AB56F18403A665E18@gisp.nec.co.jp>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0000000000004a7da505708a9915@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: syzbot <syzbot+3f84280d52be9b7083cc@syzkaller.appspotmail.com>
-Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, jglisse@redhat.com, kirill.shutemov@linux.intel.com, ldufour@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, minchan@kernel.org, ross.zwisler@linux.intel.com, syzkaller-bugs@googlegroups.com, willy@infradead.org, ying.huang@intel.com
+To: =?gb2312?B?9MPPocqvKM+hyq8p?= <xishi.qiuxishi@alibaba-inc.com>
+Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, =?gb2312?B?s8LS5cir?= <zy.zhengyi@alibaba-inc.com>
 
-On Sun, Jul 08, 2018 at 10:51:03PM -0700, syzbot wrote:
-> Hello,
-> 
-> syzbot found the following crash on:
-> 
-> HEAD commit:    b2d44d145d2a Merge tag '4.18-rc3-smb3fixes' of git://git.s..
-> git tree:       upstream
-> console output: https://syzkaller.appspot.com/x/log.txt?x=11d07748400000
-> kernel config:  https://syzkaller.appspot.com/x/.config?x=2ca6c7a31d407f86
-> dashboard link: https://syzkaller.appspot.com/bug?extid=3f84280d52be9b7083cc
-> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
-> 
-> Unfortunately, I don't have any reproducer for this crash yet.
-> 
-> IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> Reported-by: syzbot+3f84280d52be9b7083cc@syzkaller.appspotmail.com
-> 
-> next ffff8801ce5e7040 prev ffff8801d20eca50 mm ffff88019c1e13c0
-> prot 27 anon_vma ffff88019680cdd8 vm_ops 0000000000000000
-> pgoff 0 file ffff8801b2ec2d00 private_data 0000000000000000
-> flags: 0xff(read|write|exec|shared|mayread|maywrite|mayexec|mayshare)
-> ------------[ cut here ]------------
-> kernel BUG at mm/memory.c:1422!
-
-Looks like vma_is_anonymous() false-positive.
-
-Any clues what file is it? I would guess some kind of socket, but it's not
-clear from log which exactly.
-
--- 
- Kirill A. Shutemov
+T24gTW9uLCBKdWwgMDksIDIwMTggYXQgMDE6NDM6MzVQTSArMDgwMCwg9MPPocqvKM+hyq8pIHdy
+b3RlOg0KPiBIaSBOYW95YSwNCj4gDQo+IFNoYWxsIHdlIGZpeCB0aGlzIHBhdGggdG9vPyBJdCBh
+bHNvIHdpbGwgc2V0IGh3cG9pc29uIGJlZm9yZSANCj4gZGlzc29sdmVfZnJlZV9odWdlX3BhZ2Uo
+KS4NCj4gDQo+IHNvZnRfb2ZmbGluZV9odWdlX3BhZ2UNCj4gICAgIG1pZ3JhdGVfcGFnZXMNCj4g
+ICAgICAgICB1bm1hcF9hbmRfbW92ZV9odWdlX3BhZ2UNCj4gICAgICAgICAgICAgaWYgKHJlYXNv
+biA9PSBNUl9NRU1PUllfRkFJTFVSRSAmJiAhdGVzdF9zZXRfcGFnZV9od3BvaXNvbihocGFnZSkp
+DQo+ICAgICBkaXNzb2x2ZV9mcmVlX2h1Z2VfcGFnZQ0KDQpUaGFuayB5b3UgWGlzaGksIEkgYWRk
+ZWQgaXQgdG8gdGhlIGN1cnJlbnQgKHN0aWxsIGRyYWZ0KSB2ZXJzaW9uIGJlbG93Lg0KDQpJIHN0
+YXJ0IGZlZWxpbmcgdGhhdCBjdXJyZW50IGNvZGUgaXMgYnJva2VuIGFib3V0IGJlaGF2aW9yIG9m
+IFBhZ2VIV1BvaXNvbg0KKGF0IGxlYXN0KSBpbiBzb2Z0IG9mZmxpbmUuIEFuZCB0aGlzIHBhdGNo
+IG1pZ2h0IG5vdCBjb3ZlciBhbGwgb2YgdGhlIGlzc3Vlcy4NCk15IGN1cnJlbnQgcXVlc3Rpb25z
+L2NvbmNlcm5zIGFyZToNCg0KICAtIGRvZXMgdGhlIHNhbWUgaXNzdWUgaGFwcGVucyBvbiBzb2Z0
+IG9mZmxpbmluZyBvZiBub3JtYWwgcGFnZXM/DQogIC0gZG9lcyBoYXJkIG9mZmxpbmcgb2YgZnJl
+ZSAoaHVnZSkgcGFnZSBoYXZlIHRoZSBzaW1pbGFyIGlzc3VlPw0KDQpJJ2xsIHRyeSB0byBjbGFy
+aWZ5IHRoZXNlIG5leHQgYW5kIHdpbGwgdXBkYXRlIHRoZSBwYXRjaCBpZiBuZWNlc3NhcnkuDQpJ
+J20gaGFwcHkgaWYgSSBnZXQgc29tZSBjb21tZW50IGFyb3VuZCB0aGVzZS4NCg0KVGhhbmtzLA0K
+TmFveWEgSG9yaWd1Y2hpDQotLS0NCkZyb20gOWNlNGRmODk5ZjRjODU5MDAxNTcxOTU4YmU2YTI4
+MWNkYWY1YTU4ZiBNb24gU2VwIDE3IDAwOjAwOjAwIDIwMDENCkZyb206IE5hb3lhIEhvcmlndWNo
+aSA8bi1ob3JpZ3VjaGlAYWguanAubmVjLmNvbT4NCkRhdGU6IE1vbiwgOSBKdWwgMjAxOCAxMzow
+Nzo0NiArMDkwMA0KU3ViamVjdDogW1BBVENIXSBtbTogZml4IHJhY2Ugb24gc29mdC1vZmZsaW5p
+bmcgZnJlZSBodWdlIHBhZ2VzDQoNClRoZXJlJ3MgYSByYWNlIGNvbmRpdGlvbiBiZXR3ZWVuIHNv
+ZnQgb2ZmbGluZSBhbmQgaHVnZXRsYl9mYXVsdCB3aGljaA0KY2F1c2VzIHVuZXhwZWN0ZWQgcHJv
+Y2VzcyBraWxsaW5nIGFuZC9vciBodWdldGxiIGFsbG9jYXRpb24gZmFpbHVyZS4NCg0KVGhlIHBy
+b2Nlc3Mga2lsbGluZyBpcyBjYXVzZWQgYnkgdGhlIGZvbGxvd2luZyBmbG93Og0KDQogIENQVSAw
+ICAgICAgICAgICAgICAgQ1BVIDEgICAgICAgICAgICAgIENQVSAyDQoNCiAgc29mdCBvZmZsaW5l
+DQogICAgZ2V0X2FueV9wYWdlDQogICAgLy8gZmluZCB0aGUgaHVnZXRsYiBpcyBmcmVlDQogICAg
+ICAgICAgICAgICAgICAgICAgbW1hcCBhIGh1Z2V0bGIgZmlsZQ0KICAgICAgICAgICAgICAgICAg
+ICAgIHBhZ2UgZmF1bHQNCiAgICAgICAgICAgICAgICAgICAgICAgIC4uLg0KICAgICAgICAgICAg
+ICAgICAgICAgICAgICBodWdldGxiX2ZhdWx0DQogICAgICAgICAgICAgICAgICAgICAgICAgICAg
+aHVnZXRsYl9ub19wYWdlDQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICBhbGxvY19odWdl
+X3BhZ2UNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC8vIHN1Y2NlZWQNCiAgICAgIHNv
+ZnRfb2ZmbGluZV9mcmVlX3BhZ2UNCiAgICAgIC8vIHNldCBod3BvaXNvbiBmbGFnDQogICAgICAg
+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG1tYXAgdGhlIGh1Z2V0bGIgZmlsZQ0K
+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBwYWdlIGZhdWx0DQogICAg
+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgLi4uDQogICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBodWdldGxiX2ZhdWx0DQogICAgICAgICAg
+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGh1Z2V0bGJfbm9fcGFnZQ0KICAg
+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGZpbmRfbG9ja19w
+YWdlDQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBy
+ZXR1cm4gVk1fRkFVTFRfSFdQT0lTT04NCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICBtbV9mYXVsdF9lcnJvcg0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgZG9fc2lnYnVzDQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAvLyBraWxsIHRoZSBwcm9jZXNzDQoNCg0KVGhlIGh1Z2V0bGIgYWxsb2Nh
+dGlvbiBmYWlsdXJlIGNvbWVzIGZyb20gdGhlIGZvbGxvd2luZyBmbG93Og0KDQogIENQVSAwICAg
+ICAgICAgICAgICAgICAgICAgICAgICBDUFUgMQ0KDQogICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgICBtbWFwIGEgaHVnZXRsYiBmaWxlDQogICAgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAvLyByZXNlcnZlIGFsbCBmcmVlIHBhZ2UgYnV0IGRvbid0IGZhdWx0LWluDQogIHNvZnQg
+b2ZmbGluZQ0KICAgIGdldF9hbnlfcGFnZQ0KICAgIC8vIGZpbmQgdGhlIGh1Z2V0bGIgaXMgZnJl
+ZQ0KICAgICAgc29mdF9vZmZsaW5lX2ZyZWVfcGFnZQ0KICAgICAgLy8gc2V0IGh3cG9pc29uIGZs
+YWcNCiAgICAgICAgZGlzc29sdmVfZnJlZV9odWdlX3BhZ2UNCiAgICAgICAgLy8gZmFpbCBiZWNh
+dXNlIGFsbCBmcmVlIGh1Z2VwYWdlcyBhcmUgcmVzZXJ2ZWQNCiAgICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICAgIHBhZ2UgZmF1bHQNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgLi4uDQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgaHVnZXRsYl9mYXVs
+dA0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgaHVnZXRsYl9ub19wYWdl
+DQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGFsbG9jX2h1Z2VfcGFn
+ZQ0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC4uLg0KICAgICAg
+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgZGVxdWV1ZV9odWdlX3BhZ2Vf
+bm9kZV9leGFjdA0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+Ly8gaWdub3JlIGh3cG9pc29uZWQgaHVnZXBhZ2UNCiAgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgICAgIC8vIGFuZCBmaW5hbGx5IGZhaWwgZHVlIHRvIG5vLW1lbQ0KDQpU
+aGUgcm9vdCBjYXVzZSBvZiB0aGlzIGlzIHRoYXQgY3VycmVudCBzb2Z0LW9mZmxpbmUgY29kZSBp
+cyB3cml0dGVuDQpiYXNlZCBvbiBhbiBhc3N1bXB0aW9uIHRoYXQgUGFnZUhXUG9pc29uIGZsYWcg
+c2hvdWxkIGJlc2V0IGF0IGZpcnN0IHRvDQphdm9pZCBhY2Nlc3NpbmcgdGhlIGNvcnJ1cHRlZCBk
+YXRhLiAgVGhpcyBtYWtlcyBzZW5zZSBmb3IgbWVtb3J5X2ZhaWx1cmUoKQ0Kb3IgaGFyZCBvZmZs
+aW5lLCBidXQgZG9lcyBub3QgZm9yIHNvZnQgb2ZmbGluZSBiZWNhdXNlIHNvZnQgb2ZmbGluZSBp
+cw0Kbm90IGFib3V0IGNvcnJlY3RlZCBlcnJvciBhbmQgaXMgc2FmZSBmcm9tIGRhdGEgbG9zdC4N
+ClRoaXMgcGF0Y2ggY2hhbmdlcyBzb2Z0IG9mZmxpbmUgc2VtYW50aWNzIHdoZXJlIGl0IHNldHMg
+UGFnZUhXUG9pc29uIGZsYWcNCm9ubHkgYWZ0ZXIgY29udGFpbm1lbnQgb2YgdGhlIGVycm9yIHBh
+Z2UgY29tcGxldGVzIHN1Y2Nlc2Z1bGx5Lg0KDQpSZXBvcnRlZC1ieTogWGlzaGkgUWl1IDx4aXNo
+aS5xaXV4aXNoaUBhbGliYWJhLWluYy5jb20+DQpTdWdnZXN0ZWQtYnk6IFhpc2hpIFFpdSA8eGlz
+aGkucWl1eGlzaGlAYWxpYmFiYS1pbmMuY29tPg0KU2lnbmVkLW9mZi1ieTogTmFveWEgSG9yaWd1
+Y2hpIDxuLWhvcmlndWNoaUBhaC5qcC5uZWMuY29tPg0KLS0tDQogbW0vaHVnZXRsYi5jICAgICAg
+ICB8IDExICsrKysrLS0tLS0tDQogbW0vbWVtb3J5LWZhaWx1cmUuYyB8IDEzICsrKysrKystLS0t
+LS0NCiBtbS9taWdyYXRlLmMgICAgICAgIHwgIDIgLS0NCiAzIGZpbGVzIGNoYW5nZWQsIDEyIGlu
+c2VydGlvbnMoKyksIDE0IGRlbGV0aW9ucygtKQ0KDQpkaWZmIC0tZ2l0IGEvbW0vaHVnZXRsYi5j
+IGIvbW0vaHVnZXRsYi5jDQppbmRleCBkMzQyMjVjMWNiNWIuLjNjOWNlNGMwNWYxYiAxMDA2NDQN
+Ci0tLSBhL21tL2h1Z2V0bGIuYw0KKysrIGIvbW0vaHVnZXRsYi5jDQpAQCAtMTQ3OSwyMiArMTQ3
+OSwyMCBAQCBzdGF0aWMgaW50IGZyZWVfcG9vbF9odWdlX3BhZ2Uoc3RydWN0IGhzdGF0ZSAqaCwg
+bm9kZW1hc2tfdCAqbm9kZXNfYWxsb3dlZCwNCiAvKg0KICAqIERpc3NvbHZlIGEgZ2l2ZW4gZnJl
+ZSBodWdlcGFnZSBpbnRvIGZyZWUgYnVkZHkgcGFnZXMuIFRoaXMgZnVuY3Rpb24gZG9lcw0KICAq
+IG5vdGhpbmcgZm9yIGluLXVzZSAoaW5jbHVkaW5nIHN1cnBsdXMpIGh1Z2VwYWdlcy4gUmV0dXJu
+cyAtRUJVU1kgaWYgdGhlDQotICogbnVtYmVyIG9mIGZyZWUgaHVnZXBhZ2VzIHdvdWxkIGJlIHJl
+ZHVjZWQgYmVsb3cgdGhlIG51bWJlciBvZiByZXNlcnZlZA0KLSAqIGh1Z2VwYWdlcy4NCisgKiBk
+aXNzb2x1dGlvbiBmYWlscyBiZWNhdXNlIGEgZ2l2ZSBwYWdlIGlzIG5vdCBhIGZyZWUgaHVnZXBh
+Z2UsIG9yIGJlY2F1c2UNCisgKiBmcmVlIGh1Z2VwYWdlcyBhcmUgZnVsbHkgcmVzZXJ2ZWQuDQog
+ICovDQogaW50IGRpc3NvbHZlX2ZyZWVfaHVnZV9wYWdlKHN0cnVjdCBwYWdlICpwYWdlKQ0KIHsN
+Ci0JaW50IHJjID0gMDsNCisJaW50IHJjID0gLUVCVVNZOw0KIA0KIAlzcGluX2xvY2soJmh1Z2V0
+bGJfbG9jayk7DQogCWlmIChQYWdlSHVnZShwYWdlKSAmJiAhcGFnZV9jb3VudChwYWdlKSkgew0K
+IAkJc3RydWN0IHBhZ2UgKmhlYWQgPSBjb21wb3VuZF9oZWFkKHBhZ2UpOw0KIAkJc3RydWN0IGhz
+dGF0ZSAqaCA9IHBhZ2VfaHN0YXRlKGhlYWQpOw0KIAkJaW50IG5pZCA9IHBhZ2VfdG9fbmlkKGhl
+YWQpOw0KLQkJaWYgKGgtPmZyZWVfaHVnZV9wYWdlcyAtIGgtPnJlc3ZfaHVnZV9wYWdlcyA9PSAw
+KSB7DQotCQkJcmMgPSAtRUJVU1k7DQorCQlpZiAoaC0+ZnJlZV9odWdlX3BhZ2VzIC0gaC0+cmVz
+dl9odWdlX3BhZ2VzID09IDApDQogCQkJZ290byBvdXQ7DQotCQl9DQogCQkvKg0KIAkJICogTW92
+ZSBQYWdlSFdQb2lzb24gZmxhZyBmcm9tIGhlYWQgcGFnZSB0byB0aGUgcmF3IGVycm9yIHBhZ2Us
+DQogCQkgKiB3aGljaCBtYWtlcyBhbnkgc3VicGFnZXMgcmF0aGVyIHRoYW4gdGhlIGVycm9yIHBh
+Z2UgcmV1c2FibGUuDQpAQCAtMTUwOCw2ICsxNTA2LDcgQEAgaW50IGRpc3NvbHZlX2ZyZWVfaHVn
+ZV9wYWdlKHN0cnVjdCBwYWdlICpwYWdlKQ0KIAkJaC0+ZnJlZV9odWdlX3BhZ2VzX25vZGVbbmlk
+XS0tOw0KIAkJaC0+bWF4X2h1Z2VfcGFnZXMtLTsNCiAJCXVwZGF0ZV9hbmRfZnJlZV9wYWdlKGgs
+IGhlYWQpOw0KKwkJcmMgPSAwOw0KIAl9DQogb3V0Og0KIAlzcGluX3VubG9jaygmaHVnZXRsYl9s
+b2NrKTsNCmRpZmYgLS1naXQgYS9tbS9tZW1vcnktZmFpbHVyZS5jIGIvbW0vbWVtb3J5LWZhaWx1
+cmUuYw0KaW5kZXggOWQxNDJiOWI4NmRjLi43YTUxOWQ5NDc0MDggMTAwNjQ0DQotLS0gYS9tbS9t
+ZW1vcnktZmFpbHVyZS5jDQorKysgYi9tbS9tZW1vcnktZmFpbHVyZS5jDQpAQCAtMTU5OCw4ICsx
+NTk4LDkgQEAgc3RhdGljIGludCBzb2Z0X29mZmxpbmVfaHVnZV9wYWdlKHN0cnVjdCBwYWdlICpw
+YWdlLCBpbnQgZmxhZ3MpDQogCQlpZiAocmV0ID4gMCkNCiAJCQlyZXQgPSAtRUlPOw0KIAl9IGVs
+c2Ugew0KLQkJaWYgKFBhZ2VIdWdlKHBhZ2UpKQ0KLQkJCWRpc3NvbHZlX2ZyZWVfaHVnZV9wYWdl
+KHBhZ2UpOw0KKwkJcmV0ID0gZGlzc29sdmVfZnJlZV9odWdlX3BhZ2UocGFnZSk7DQorCQlpZiAo
+IXJldCkNCisJCQludW1fcG9pc29uZWRfcGFnZXNfaW5jKCk7DQogCX0NCiAJcmV0dXJuIHJldDsN
+CiB9DQpAQCAtMTcxNSwxMyArMTcxNiwxMyBAQCBzdGF0aWMgaW50IHNvZnRfb2ZmbGluZV9pbl91
+c2VfcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSwgaW50IGZsYWdzKQ0KIA0KIHN0YXRpYyB2b2lkIHNv
+ZnRfb2ZmbGluZV9mcmVlX3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UpDQogew0KKwlpbnQgcmMgPSAw
+Ow0KIAlzdHJ1Y3QgcGFnZSAqaGVhZCA9IGNvbXBvdW5kX2hlYWQocGFnZSk7DQogDQotCWlmICgh
+VGVzdFNldFBhZ2VIV1BvaXNvbihoZWFkKSkgew0KKwlpZiAoUGFnZUh1Z2UoaGVhZCkpDQorCQly
+YyA9IGRpc3NvbHZlX2ZyZWVfaHVnZV9wYWdlKHBhZ2UpOw0KKwlpZiAoIXJjICYmICFUZXN0U2V0
+UGFnZUhXUG9pc29uKHBhZ2UpKQ0KIAkJbnVtX3BvaXNvbmVkX3BhZ2VzX2luYygpOw0KLQkJaWYg
+KFBhZ2VIdWdlKGhlYWQpKQ0KLQkJCWRpc3NvbHZlX2ZyZWVfaHVnZV9wYWdlKHBhZ2UpOw0KLQl9
+DQogfQ0KIA0KIC8qKg0KZGlmZiAtLWdpdCBhL21tL21pZ3JhdGUuYyBiL21tL21pZ3JhdGUuYw0K
+aW5kZXggMTk4YWY0Mjg5ZjliLi4zYWUyMTNiNzk5YTEgMTAwNjQ0DQotLS0gYS9tbS9taWdyYXRl
+LmMNCisrKyBiL21tL21pZ3JhdGUuYw0KQEAgLTEzMTgsOCArMTMxOCw2IEBAIHN0YXRpYyBpbnQg
+dW5tYXBfYW5kX21vdmVfaHVnZV9wYWdlKG5ld19wYWdlX3QgZ2V0X25ld19wYWdlLA0KIG91dDoN
+CiAJaWYgKHJjICE9IC1FQUdBSU4pDQogCQlwdXRiYWNrX2FjdGl2ZV9odWdlcGFnZShocGFnZSk7
+DQotCWlmIChyZWFzb24gPT0gTVJfTUVNT1JZX0ZBSUxVUkUgJiYgIXRlc3Rfc2V0X3BhZ2VfaHdw
+b2lzb24oaHBhZ2UpKQ0KLQkJbnVtX3BvaXNvbmVkX3BhZ2VzX2luYygpOw0KIA0KIAkvKg0KIAkg
+KiBJZiBtaWdyYXRpb24gd2FzIG5vdCBzdWNjZXNzZnVsIGFuZCB0aGVyZSdzIGEgZnJlZWluZyBj
+YWxsYmFjaywgdXNlDQotLSANCjIuNy40DQo=
