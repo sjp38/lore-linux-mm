@@ -1,152 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5563B6B02B1
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 06:29:32 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id u16-v6so11552657pfm.15
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 03:29:32 -0700 (PDT)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id p84-v6si9105636pfl.17.2018.07.09.03.29.30
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 451316B02B3
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 06:32:08 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id y16-v6so513563pgv.23
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 03:32:08 -0700 (PDT)
+Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
+        by mx.google.com with ESMTPS id i184-v6si13610383pge.405.2018.07.09.03.32.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jul 2018 03:29:30 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: =?gb2312?B?UmU6IFJlo7pbUkZDXSBhIHF1ZXN0aW9uIGFib3V0IHJldXNlIGh3cG9pc29u?=
- =?gb2312?B?IHBhZ2UgaW4gc29mdF9vZmZsaW5lX3BhZ2UoKQ==?=
-Date: Mon, 9 Jul 2018 10:28:26 +0000
-Message-ID: <20180709102825.GA21147@hori1.linux.bs1.fc.nec.co.jp>
-References: <518e6b02-47ef-4ba8-ab98-8d807e2de7d5.xishi.qiuxishi@alibaba-inc.com>
-In-Reply-To: <518e6b02-47ef-4ba8-ab98-8d807e2de7d5.xishi.qiuxishi@alibaba-inc.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="gb2312"
-Content-ID: <54A481ED597FFA4AB56F18403A665E18@gisp.nec.co.jp>
-Content-Transfer-Encoding: base64
+        Mon, 09 Jul 2018 03:32:06 -0700 (PDT)
+Received: from eucas1p2.samsung.com (unknown [182.198.249.207])
+	by mailout1.w1.samsung.com (KnoxPortal) with ESMTP id 20180709103201euoutp01a70a3541aeb9d40ac56218f92a44ed51~-rLvnIn_j2460524605euoutp01_
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 10:32:01 +0000 (GMT)
+Subject: Re: [PATCH] mm: cma: honor __GFP_ZERO flag in cma_alloc()
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Date: Mon, 9 Jul 2018 12:31:57 +0200
 MIME-Version: 1.0
+In-Reply-To: <20180702133247.GT19043@dhcp22.suse.cz>
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+Message-Id: <20180709103159eucas1p1e72d940f6c947769ff7b55cd5bfb4b61~-rLtaSiDM3047830478eucas1p14@eucas1p1.samsung.com>
+Content-Type: text/plain; charset="utf-8"
+References: <CGME20180613085851eucas1p20337d050face8ff8ea87674e16a9ccd2@eucas1p2.samsung.com>
+	<20180613085851eucas1p20337d050face8ff8ea87674e16a9ccd2~3rI_9nj8b0455904559eucas1p2C@eucas1p2.samsung.com>
+	<20180613122359.GA8695@bombadil.infradead.org>
+	<20180613124001eucas1p2422f7916367ce19fecd40d6131990383~3uKFrT3ML1977219772eucas1p2G@eucas1p2.samsung.com>
+	<20180613125546.GB32016@infradead.org>
+	<20180613133913.GD20315@dhcp22.suse.cz>
+	<20180702132335eucas1p1323fbf51cd5e82a59939d72097acee04~9kAizDyji0466904669eucas1p1w@eucas1p1.samsung.com>
+	<20180702133247.GT19043@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?gb2312?B?9MPPocqvKM+hyq8p?= <xishi.qiuxishi@alibaba-inc.com>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, =?gb2312?B?s8LS5cir?= <zy.zhengyi@alibaba-inc.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>
 
-T24gTW9uLCBKdWwgMDksIDIwMTggYXQgMDE6NDM6MzVQTSArMDgwMCwg9MPPocqvKM+hyq8pIHdy
-b3RlOg0KPiBIaSBOYW95YSwNCj4gDQo+IFNoYWxsIHdlIGZpeCB0aGlzIHBhdGggdG9vPyBJdCBh
-bHNvIHdpbGwgc2V0IGh3cG9pc29uIGJlZm9yZSANCj4gZGlzc29sdmVfZnJlZV9odWdlX3BhZ2Uo
-KS4NCj4gDQo+IHNvZnRfb2ZmbGluZV9odWdlX3BhZ2UNCj4gICAgIG1pZ3JhdGVfcGFnZXMNCj4g
-ICAgICAgICB1bm1hcF9hbmRfbW92ZV9odWdlX3BhZ2UNCj4gICAgICAgICAgICAgaWYgKHJlYXNv
-biA9PSBNUl9NRU1PUllfRkFJTFVSRSAmJiAhdGVzdF9zZXRfcGFnZV9od3BvaXNvbihocGFnZSkp
-DQo+ICAgICBkaXNzb2x2ZV9mcmVlX2h1Z2VfcGFnZQ0KDQpUaGFuayB5b3UgWGlzaGksIEkgYWRk
-ZWQgaXQgdG8gdGhlIGN1cnJlbnQgKHN0aWxsIGRyYWZ0KSB2ZXJzaW9uIGJlbG93Lg0KDQpJIHN0
-YXJ0IGZlZWxpbmcgdGhhdCBjdXJyZW50IGNvZGUgaXMgYnJva2VuIGFib3V0IGJlaGF2aW9yIG9m
-IFBhZ2VIV1BvaXNvbg0KKGF0IGxlYXN0KSBpbiBzb2Z0IG9mZmxpbmUuIEFuZCB0aGlzIHBhdGNo
-IG1pZ2h0IG5vdCBjb3ZlciBhbGwgb2YgdGhlIGlzc3Vlcy4NCk15IGN1cnJlbnQgcXVlc3Rpb25z
-L2NvbmNlcm5zIGFyZToNCg0KICAtIGRvZXMgdGhlIHNhbWUgaXNzdWUgaGFwcGVucyBvbiBzb2Z0
-IG9mZmxpbmluZyBvZiBub3JtYWwgcGFnZXM/DQogIC0gZG9lcyBoYXJkIG9mZmxpbmcgb2YgZnJl
-ZSAoaHVnZSkgcGFnZSBoYXZlIHRoZSBzaW1pbGFyIGlzc3VlPw0KDQpJJ2xsIHRyeSB0byBjbGFy
-aWZ5IHRoZXNlIG5leHQgYW5kIHdpbGwgdXBkYXRlIHRoZSBwYXRjaCBpZiBuZWNlc3NhcnkuDQpJ
-J20gaGFwcHkgaWYgSSBnZXQgc29tZSBjb21tZW50IGFyb3VuZCB0aGVzZS4NCg0KVGhhbmtzLA0K
-TmFveWEgSG9yaWd1Y2hpDQotLS0NCkZyb20gOWNlNGRmODk5ZjRjODU5MDAxNTcxOTU4YmU2YTI4
-MWNkYWY1YTU4ZiBNb24gU2VwIDE3IDAwOjAwOjAwIDIwMDENCkZyb206IE5hb3lhIEhvcmlndWNo
-aSA8bi1ob3JpZ3VjaGlAYWguanAubmVjLmNvbT4NCkRhdGU6IE1vbiwgOSBKdWwgMjAxOCAxMzow
-Nzo0NiArMDkwMA0KU3ViamVjdDogW1BBVENIXSBtbTogZml4IHJhY2Ugb24gc29mdC1vZmZsaW5p
-bmcgZnJlZSBodWdlIHBhZ2VzDQoNClRoZXJlJ3MgYSByYWNlIGNvbmRpdGlvbiBiZXR3ZWVuIHNv
-ZnQgb2ZmbGluZSBhbmQgaHVnZXRsYl9mYXVsdCB3aGljaA0KY2F1c2VzIHVuZXhwZWN0ZWQgcHJv
-Y2VzcyBraWxsaW5nIGFuZC9vciBodWdldGxiIGFsbG9jYXRpb24gZmFpbHVyZS4NCg0KVGhlIHBy
-b2Nlc3Mga2lsbGluZyBpcyBjYXVzZWQgYnkgdGhlIGZvbGxvd2luZyBmbG93Og0KDQogIENQVSAw
-ICAgICAgICAgICAgICAgQ1BVIDEgICAgICAgICAgICAgIENQVSAyDQoNCiAgc29mdCBvZmZsaW5l
-DQogICAgZ2V0X2FueV9wYWdlDQogICAgLy8gZmluZCB0aGUgaHVnZXRsYiBpcyBmcmVlDQogICAg
-ICAgICAgICAgICAgICAgICAgbW1hcCBhIGh1Z2V0bGIgZmlsZQ0KICAgICAgICAgICAgICAgICAg
-ICAgIHBhZ2UgZmF1bHQNCiAgICAgICAgICAgICAgICAgICAgICAgIC4uLg0KICAgICAgICAgICAg
-ICAgICAgICAgICAgICBodWdldGxiX2ZhdWx0DQogICAgICAgICAgICAgICAgICAgICAgICAgICAg
-aHVnZXRsYl9ub19wYWdlDQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICBhbGxvY19odWdl
-X3BhZ2UNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC8vIHN1Y2NlZWQNCiAgICAgIHNv
-ZnRfb2ZmbGluZV9mcmVlX3BhZ2UNCiAgICAgIC8vIHNldCBod3BvaXNvbiBmbGFnDQogICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG1tYXAgdGhlIGh1Z2V0bGIgZmlsZQ0K
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBwYWdlIGZhdWx0DQogICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgLi4uDQogICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBodWdldGxiX2ZhdWx0DQogICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGh1Z2V0bGJfbm9fcGFnZQ0KICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGZpbmRfbG9ja19w
-YWdlDQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBy
-ZXR1cm4gVk1fRkFVTFRfSFdQT0lTT04NCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICBtbV9mYXVsdF9lcnJvcg0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgZG9fc2lnYnVzDQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAvLyBraWxsIHRoZSBwcm9jZXNzDQoNCg0KVGhlIGh1Z2V0bGIgYWxsb2Nh
-dGlvbiBmYWlsdXJlIGNvbWVzIGZyb20gdGhlIGZvbGxvd2luZyBmbG93Og0KDQogIENQVSAwICAg
-ICAgICAgICAgICAgICAgICAgICAgICBDUFUgMQ0KDQogICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICBtbWFwIGEgaHVnZXRsYiBmaWxlDQogICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAvLyByZXNlcnZlIGFsbCBmcmVlIHBhZ2UgYnV0IGRvbid0IGZhdWx0LWluDQogIHNvZnQg
-b2ZmbGluZQ0KICAgIGdldF9hbnlfcGFnZQ0KICAgIC8vIGZpbmQgdGhlIGh1Z2V0bGIgaXMgZnJl
-ZQ0KICAgICAgc29mdF9vZmZsaW5lX2ZyZWVfcGFnZQ0KICAgICAgLy8gc2V0IGh3cG9pc29uIGZs
-YWcNCiAgICAgICAgZGlzc29sdmVfZnJlZV9odWdlX3BhZ2UNCiAgICAgICAgLy8gZmFpbCBiZWNh
-dXNlIGFsbCBmcmVlIGh1Z2VwYWdlcyBhcmUgcmVzZXJ2ZWQNCiAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgIHBhZ2UgZmF1bHQNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgLi4uDQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgaHVnZXRsYl9mYXVs
-dA0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgaHVnZXRsYl9ub19wYWdl
-DQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGFsbG9jX2h1Z2VfcGFn
-ZQ0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC4uLg0KICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgZGVxdWV1ZV9odWdlX3BhZ2Vf
-bm9kZV9leGFjdA0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-Ly8gaWdub3JlIGh3cG9pc29uZWQgaHVnZXBhZ2UNCiAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgIC8vIGFuZCBmaW5hbGx5IGZhaWwgZHVlIHRvIG5vLW1lbQ0KDQpU
-aGUgcm9vdCBjYXVzZSBvZiB0aGlzIGlzIHRoYXQgY3VycmVudCBzb2Z0LW9mZmxpbmUgY29kZSBp
-cyB3cml0dGVuDQpiYXNlZCBvbiBhbiBhc3N1bXB0aW9uIHRoYXQgUGFnZUhXUG9pc29uIGZsYWcg
-c2hvdWxkIGJlc2V0IGF0IGZpcnN0IHRvDQphdm9pZCBhY2Nlc3NpbmcgdGhlIGNvcnJ1cHRlZCBk
-YXRhLiAgVGhpcyBtYWtlcyBzZW5zZSBmb3IgbWVtb3J5X2ZhaWx1cmUoKQ0Kb3IgaGFyZCBvZmZs
-aW5lLCBidXQgZG9lcyBub3QgZm9yIHNvZnQgb2ZmbGluZSBiZWNhdXNlIHNvZnQgb2ZmbGluZSBp
-cw0Kbm90IGFib3V0IGNvcnJlY3RlZCBlcnJvciBhbmQgaXMgc2FmZSBmcm9tIGRhdGEgbG9zdC4N
-ClRoaXMgcGF0Y2ggY2hhbmdlcyBzb2Z0IG9mZmxpbmUgc2VtYW50aWNzIHdoZXJlIGl0IHNldHMg
-UGFnZUhXUG9pc29uIGZsYWcNCm9ubHkgYWZ0ZXIgY29udGFpbm1lbnQgb2YgdGhlIGVycm9yIHBh
-Z2UgY29tcGxldGVzIHN1Y2Nlc2Z1bGx5Lg0KDQpSZXBvcnRlZC1ieTogWGlzaGkgUWl1IDx4aXNo
-aS5xaXV4aXNoaUBhbGliYWJhLWluYy5jb20+DQpTdWdnZXN0ZWQtYnk6IFhpc2hpIFFpdSA8eGlz
-aGkucWl1eGlzaGlAYWxpYmFiYS1pbmMuY29tPg0KU2lnbmVkLW9mZi1ieTogTmFveWEgSG9yaWd1
-Y2hpIDxuLWhvcmlndWNoaUBhaC5qcC5uZWMuY29tPg0KLS0tDQogbW0vaHVnZXRsYi5jICAgICAg
-ICB8IDExICsrKysrLS0tLS0tDQogbW0vbWVtb3J5LWZhaWx1cmUuYyB8IDEzICsrKysrKystLS0t
-LS0NCiBtbS9taWdyYXRlLmMgICAgICAgIHwgIDIgLS0NCiAzIGZpbGVzIGNoYW5nZWQsIDEyIGlu
-c2VydGlvbnMoKyksIDE0IGRlbGV0aW9ucygtKQ0KDQpkaWZmIC0tZ2l0IGEvbW0vaHVnZXRsYi5j
-IGIvbW0vaHVnZXRsYi5jDQppbmRleCBkMzQyMjVjMWNiNWIuLjNjOWNlNGMwNWYxYiAxMDA2NDQN
-Ci0tLSBhL21tL2h1Z2V0bGIuYw0KKysrIGIvbW0vaHVnZXRsYi5jDQpAQCAtMTQ3OSwyMiArMTQ3
-OSwyMCBAQCBzdGF0aWMgaW50IGZyZWVfcG9vbF9odWdlX3BhZ2Uoc3RydWN0IGhzdGF0ZSAqaCwg
-bm9kZW1hc2tfdCAqbm9kZXNfYWxsb3dlZCwNCiAvKg0KICAqIERpc3NvbHZlIGEgZ2l2ZW4gZnJl
-ZSBodWdlcGFnZSBpbnRvIGZyZWUgYnVkZHkgcGFnZXMuIFRoaXMgZnVuY3Rpb24gZG9lcw0KICAq
-IG5vdGhpbmcgZm9yIGluLXVzZSAoaW5jbHVkaW5nIHN1cnBsdXMpIGh1Z2VwYWdlcy4gUmV0dXJu
-cyAtRUJVU1kgaWYgdGhlDQotICogbnVtYmVyIG9mIGZyZWUgaHVnZXBhZ2VzIHdvdWxkIGJlIHJl
-ZHVjZWQgYmVsb3cgdGhlIG51bWJlciBvZiByZXNlcnZlZA0KLSAqIGh1Z2VwYWdlcy4NCisgKiBk
-aXNzb2x1dGlvbiBmYWlscyBiZWNhdXNlIGEgZ2l2ZSBwYWdlIGlzIG5vdCBhIGZyZWUgaHVnZXBh
-Z2UsIG9yIGJlY2F1c2UNCisgKiBmcmVlIGh1Z2VwYWdlcyBhcmUgZnVsbHkgcmVzZXJ2ZWQuDQog
-ICovDQogaW50IGRpc3NvbHZlX2ZyZWVfaHVnZV9wYWdlKHN0cnVjdCBwYWdlICpwYWdlKQ0KIHsN
-Ci0JaW50IHJjID0gMDsNCisJaW50IHJjID0gLUVCVVNZOw0KIA0KIAlzcGluX2xvY2soJmh1Z2V0
-bGJfbG9jayk7DQogCWlmIChQYWdlSHVnZShwYWdlKSAmJiAhcGFnZV9jb3VudChwYWdlKSkgew0K
-IAkJc3RydWN0IHBhZ2UgKmhlYWQgPSBjb21wb3VuZF9oZWFkKHBhZ2UpOw0KIAkJc3RydWN0IGhz
-dGF0ZSAqaCA9IHBhZ2VfaHN0YXRlKGhlYWQpOw0KIAkJaW50IG5pZCA9IHBhZ2VfdG9fbmlkKGhl
-YWQpOw0KLQkJaWYgKGgtPmZyZWVfaHVnZV9wYWdlcyAtIGgtPnJlc3ZfaHVnZV9wYWdlcyA9PSAw
-KSB7DQotCQkJcmMgPSAtRUJVU1k7DQorCQlpZiAoaC0+ZnJlZV9odWdlX3BhZ2VzIC0gaC0+cmVz
-dl9odWdlX3BhZ2VzID09IDApDQogCQkJZ290byBvdXQ7DQotCQl9DQogCQkvKg0KIAkJICogTW92
-ZSBQYWdlSFdQb2lzb24gZmxhZyBmcm9tIGhlYWQgcGFnZSB0byB0aGUgcmF3IGVycm9yIHBhZ2Us
-DQogCQkgKiB3aGljaCBtYWtlcyBhbnkgc3VicGFnZXMgcmF0aGVyIHRoYW4gdGhlIGVycm9yIHBh
-Z2UgcmV1c2FibGUuDQpAQCAtMTUwOCw2ICsxNTA2LDcgQEAgaW50IGRpc3NvbHZlX2ZyZWVfaHVn
-ZV9wYWdlKHN0cnVjdCBwYWdlICpwYWdlKQ0KIAkJaC0+ZnJlZV9odWdlX3BhZ2VzX25vZGVbbmlk
-XS0tOw0KIAkJaC0+bWF4X2h1Z2VfcGFnZXMtLTsNCiAJCXVwZGF0ZV9hbmRfZnJlZV9wYWdlKGgs
-IGhlYWQpOw0KKwkJcmMgPSAwOw0KIAl9DQogb3V0Og0KIAlzcGluX3VubG9jaygmaHVnZXRsYl9s
-b2NrKTsNCmRpZmYgLS1naXQgYS9tbS9tZW1vcnktZmFpbHVyZS5jIGIvbW0vbWVtb3J5LWZhaWx1
-cmUuYw0KaW5kZXggOWQxNDJiOWI4NmRjLi43YTUxOWQ5NDc0MDggMTAwNjQ0DQotLS0gYS9tbS9t
-ZW1vcnktZmFpbHVyZS5jDQorKysgYi9tbS9tZW1vcnktZmFpbHVyZS5jDQpAQCAtMTU5OCw4ICsx
-NTk4LDkgQEAgc3RhdGljIGludCBzb2Z0X29mZmxpbmVfaHVnZV9wYWdlKHN0cnVjdCBwYWdlICpw
-YWdlLCBpbnQgZmxhZ3MpDQogCQlpZiAocmV0ID4gMCkNCiAJCQlyZXQgPSAtRUlPOw0KIAl9IGVs
-c2Ugew0KLQkJaWYgKFBhZ2VIdWdlKHBhZ2UpKQ0KLQkJCWRpc3NvbHZlX2ZyZWVfaHVnZV9wYWdl
-KHBhZ2UpOw0KKwkJcmV0ID0gZGlzc29sdmVfZnJlZV9odWdlX3BhZ2UocGFnZSk7DQorCQlpZiAo
-IXJldCkNCisJCQludW1fcG9pc29uZWRfcGFnZXNfaW5jKCk7DQogCX0NCiAJcmV0dXJuIHJldDsN
-CiB9DQpAQCAtMTcxNSwxMyArMTcxNiwxMyBAQCBzdGF0aWMgaW50IHNvZnRfb2ZmbGluZV9pbl91
-c2VfcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSwgaW50IGZsYWdzKQ0KIA0KIHN0YXRpYyB2b2lkIHNv
-ZnRfb2ZmbGluZV9mcmVlX3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UpDQogew0KKwlpbnQgcmMgPSAw
-Ow0KIAlzdHJ1Y3QgcGFnZSAqaGVhZCA9IGNvbXBvdW5kX2hlYWQocGFnZSk7DQogDQotCWlmICgh
-VGVzdFNldFBhZ2VIV1BvaXNvbihoZWFkKSkgew0KKwlpZiAoUGFnZUh1Z2UoaGVhZCkpDQorCQly
-YyA9IGRpc3NvbHZlX2ZyZWVfaHVnZV9wYWdlKHBhZ2UpOw0KKwlpZiAoIXJjICYmICFUZXN0U2V0
-UGFnZUhXUG9pc29uKHBhZ2UpKQ0KIAkJbnVtX3BvaXNvbmVkX3BhZ2VzX2luYygpOw0KLQkJaWYg
-KFBhZ2VIdWdlKGhlYWQpKQ0KLQkJCWRpc3NvbHZlX2ZyZWVfaHVnZV9wYWdlKHBhZ2UpOw0KLQl9
-DQogfQ0KIA0KIC8qKg0KZGlmZiAtLWdpdCBhL21tL21pZ3JhdGUuYyBiL21tL21pZ3JhdGUuYw0K
-aW5kZXggMTk4YWY0Mjg5ZjliLi4zYWUyMTNiNzk5YTEgMTAwNjQ0DQotLS0gYS9tbS9taWdyYXRl
-LmMNCisrKyBiL21tL21pZ3JhdGUuYw0KQEAgLTEzMTgsOCArMTMxOCw2IEBAIHN0YXRpYyBpbnQg
-dW5tYXBfYW5kX21vdmVfaHVnZV9wYWdlKG5ld19wYWdlX3QgZ2V0X25ld19wYWdlLA0KIG91dDoN
-CiAJaWYgKHJjICE9IC1FQUdBSU4pDQogCQlwdXRiYWNrX2FjdGl2ZV9odWdlcGFnZShocGFnZSk7
-DQotCWlmIChyZWFzb24gPT0gTVJfTUVNT1JZX0ZBSUxVUkUgJiYgIXRlc3Rfc2V0X3BhZ2VfaHdw
-b2lzb24oaHBhZ2UpKQ0KLQkJbnVtX3BvaXNvbmVkX3BhZ2VzX2luYygpOw0KIA0KIAkvKg0KIAkg
-KiBJZiBtaWdyYXRpb24gd2FzIG5vdCBzdWNjZXNzZnVsIGFuZCB0aGVyZSdzIGEgZnJlZWluZyBj
-YWxsYmFjaywgdXNlDQotLSANCjIuNy40DQo=
+Hi Michal,
+
+On 2018-07-02 15:32, Michal Hocko wrote:
+> On Mon 02-07-18 15:23:34, Marek Szyprowski wrote:
+>> On 2018-06-13 15:39, Michal Hocko wrote:
+>>> On Wed 13-06-18 05:55:46, Christoph Hellwig wrote:
+>>>> On Wed, Jun 13, 2018 at 02:40:00PM +0200, Marek Szyprowski wrote:
+>>>>> It is not only the matter of the spinlocks. GFP_ATOMIC is not supported
+>>>>> by the
+>>>>> memory compaction code, which is used in alloc_contig_range(). Right, this
+>>>>> should be also noted in the documentation.
+>>>> Documentation is good, asserts are better.  The code should reject any
+>>>> flag not explicitly supported, or even better have its own flags type
+>>>> with the few actually supported flags.
+>>> Agreed. Is the cma allocator used for anything other than GFP_KERNEL
+>>> btw.? If not then, shouldn't we simply drop the gfp argument altogether
+>>> rather than give users a false hope for differen gfp modes that are not
+>>> really supported and grow broken code?
+>> Nope, all cma_alloc() callers are expected to use it with GFP_KERNEL gfp
+>> mask.
+>> The only flag which is now checked is __GFP_NOWARN. I can change the
+>> function
+>> signature of cma_alloc to:
+>> struct page *cma_alloc(struct cma *cma, size_t count, unsigned int
+>> align, bool no_warn);
+> Are there any __GFP_NOWARN users? I have quickly hit the indirection
+> trap and searching for alloc callback didn't tell me really much.
+
+They might be via dma_alloc_from_contiguous() and dma_alloc_*() path.
+
+>> What about clearing the allocated buffer? Should it be another bool
+>> parameter, done unconditionally or moved to the callers?
+> That really depends on callers. I have no idea what they actually ask
+> for.
+
+Best regards
+-- 
+Marek Szyprowski, PhD
+Samsung R&D Institute Poland
