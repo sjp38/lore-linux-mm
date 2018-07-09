@@ -1,198 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EA616B000D
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 01:43:52 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id b17-v6so9601225pff.17
-        for <linux-mm@kvack.org>; Sun, 08 Jul 2018 22:43:52 -0700 (PDT)
-Received: from out4433.biz.mail.alibaba.com (out4433.biz.mail.alibaba.com. [47.88.44.33])
-        by mx.google.com with ESMTPS id t19-v6si661590plo.350.2018.07.08.22.43.49
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 79EA36B0006
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 01:51:04 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id y13-v6so3658364iop.3
+        for <linux-mm@kvack.org>; Sun, 08 Jul 2018 22:51:04 -0700 (PDT)
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id a82-v6sor4894241ioe.262.2018.07.08.22.51.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 08 Jul 2018 22:43:50 -0700 (PDT)
-Date: Mon, 09 Jul 2018 13:43:35 +0800
-From: "=?UTF-8?B?6KOY56iA55+zKOeogOefsyk=?=" <xishi.qiuxishi@alibaba-inc.com>
-Reply-To: "=?UTF-8?B?6KOY56iA55+zKOeogOefsyk=?=" <xishi.qiuxishi@alibaba-inc.com>
-Message-ID: <518e6b02-47ef-4ba8-ab98-8d807e2de7d5.xishi.qiuxishi@alibaba-inc.com>
-Subject: =?UTF-8?B?UmXvvJpbUkZDXSBhIHF1ZXN0aW9uIGFib3V0IHJldXNlIGh3cG9pc29uIHBhZ2UgaW4gc29m?=
-  =?UTF-8?B?dF9vZmZsaW5lX3BhZ2UoKQ==?=
+        (Google Transport Security);
+        Sun, 08 Jul 2018 22:51:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-  boundary="----=ALIBOUNDARY_69164_54744940_5b42f607_193550"
+Date: Sun, 08 Jul 2018 22:51:03 -0700
+Message-ID: <0000000000004a7da505708a9915@google.com>
+Subject: kernel BUG at mm/memory.c:LINE!
+From: syzbot <syzbot+3f84280d52be9b7083cc@syzkaller.appspotmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, =?UTF-8?B?6ZmI5LmJ5YWo?= <zy.zhengyi@alibaba-inc.com>
+To: akpm@linux-foundation.org, dan.j.williams@intel.com, jglisse@redhat.com, kirill.shutemov@linux.intel.com, ldufour@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, minchan@kernel.org, ross.zwisler@linux.intel.com, syzkaller-bugs@googlegroups.com, willy@infradead.org, ying.huang@intel.com
 
-------=ALIBOUNDARY_69164_54744940_5b42f607_193550
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: base64
+Hello,
 
-CkhpIE5hb3lhLAoKU2hhbGwgd2UgZml4IHRoaXMgcGF0aCB0b28/IEl0IGFsc28gd2lsbCBzZXQg
-aHdwb2lzb24gYmVmb3JlIGRpc3NvbHZlX2ZyZWVfaHVnZV9wYWdlKCkuCgpzb2Z0X29mZmxpbmVf
-aHVnZV9wYWdlCiAgICBtaWdyYXRlX3BhZ2VzCiAgICAgICAgdW5tYXBfYW5kX21vdmVfaHVnZV9w
-YWdlCiAgICAgICAgICAgIGlmIChyZWFzb24gPT0gTVJfTUVNT1JZX0ZBSUxVUkUgJiYgIXRlc3Rf
-c2V0X3BhZ2VfaHdwb2lzb24oaHBhZ2UpKQogICAgZGlzc29sdmVfZnJlZV9odWdlX3BhZ2UKClRo
-YW5rcywKWGlzaGkgUWl1T24gTW9uLCBKdWwgMDksIDIwMTggYXQgMTA6MzE6MjVBTSArMDgwMCwg
-6KOY56iA55+zKOeogOefsykgd3JvdGU6Cj4gSGkgTmFveWEsCj4gCj4gSSB0aGluayB0aGUgZG91
-YmxlIGNoZWNrIGNhbiBub3QgZml4IHRoZSBwcm9ibGVtIGFzIEkgc2FpZCBpbiBhbm90aGVyIGVt
-YWlsLgo+IElmIHNvbWVvbmUgbW1hcCBiZWZvcmUgc29mdCBvZmZsaW5lLCBzbyB0aGUgcGFnZV9j
-b3VudChoZWFkKSBpcyBzdGlsbCB6ZXJvCj4gaW4gc29mdCBvZmZsaW5lLCB0aGVuIGh3cG9pc29u
-IGZsYWcgc2V0IGFuZCBpdCBjYW4gbm90IGJlIGFsbG9jZWQgYWdhaW4gaW4KPiBkZXF1ZXVlX2h1
-Z2VfcGFnZV9ub2RlX2V4YWN0KCkgZHVyaW5nIHBhZ2UgZmF1bHQsIHNvIHBhZ2UgZmF1bHQgcmV0
-dXJuCj4gbm8tbWVtLCBhbmQgc29tZW9uZSB3aWxsIGJlIGtpbGxlZCAobm90IG1jZSBraWxsKS4K
-PiAKPiBIb3cgYWJvdXQganVzdCBzZXQgaHdwb2lzb24gZmxhZyBhZnRlciBzb2Z0X29mZmxpbmVf
-ZnJlZV9wYWdlIC0gCj4gZGlzc29sdmVfZnJlZV9odWdlX3BhZ2UKPiBzdWNjZXNzZnVsbHk/IEl0
-IHdpbGwgZml4IHRoZSBib3RoIHR3byBwcm9ibGVtcyAobWNlIGtpbGwgYW5kIG5vLW1lbSBraWxs
-KS4KClRoYW5rIHlvdSBmb3IgZWxhYm9yYXRpbmcsIHlvdSdyZSByaWdodC4KU28gZG8geW91IGxp
-a2UgYSBmaXggbGlrZSB0aGlzPwoKLS0tCmRpZmYgLS1naXQgYS9tbS9odWdldGxiLmMgYi9tbS9o
-dWdldGxiLmMKaW5kZXggZDM0MjI1YzFjYjViLi4zYzljZTRjMDVmMWIgMTAwNjQ0Ci0tLSBhL21t
-L2h1Z2V0bGIuYworKysgYi9tbS9odWdldGxiLmMKQEAgLTE0NzksMjIgKzE0NzksMjAgQEAgc3Rh
-dGljIGludCBmcmVlX3Bvb2xfaHVnZV9wYWdlKHN0cnVjdCBoc3RhdGUgKmgsIG5vZGVtYXNrX3Qg
-Km5vZGVzX2FsbG93ZWQsCiAvKgogICogRGlzc29sdmUgYSBnaXZlbiBmcmVlIGh1Z2VwYWdlIGlu
-dG8gZnJlZSBidWRkeSBwYWdlcy4gVGhpcyBmdW5jdGlvbiBkb2VzCiAgKiBub3RoaW5nIGZvciBp
-bi11c2UgKGluY2x1ZGluZyBzdXJwbHVzKSBodWdlcGFnZXMuIFJldHVybnMgLUVCVVNZIGlmIHRo
-ZQotICogbnVtYmVyIG9mIGZyZWUgaHVnZXBhZ2VzIHdvdWxkIGJlIHJlZHVjZWQgYmVsb3cgdGhl
-IG51bWJlciBvZiByZXNlcnZlZAotICogaHVnZXBhZ2VzLgorICogZGlzc29sdXRpb24gZmFpbHMg
-YmVjYXVzZSBhIGdpdmUgcGFnZSBpcyBub3QgYSBmcmVlIGh1Z2VwYWdlLCBvciBiZWNhdXNlCisg
-KiBmcmVlIGh1Z2VwYWdlcyBhcmUgZnVsbHkgcmVzZXJ2ZWQuCiAgKi8KIGludCBkaXNzb2x2ZV9m
-cmVlX2h1Z2VfcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSkKIHsKLSBpbnQgcmMgPSAwOworIGludCBy
-YyA9IC1FQlVTWTsKCiAgc3Bpbl9sb2NrKCZodWdldGxiX2xvY2spOwogIGlmIChQYWdlSHVnZShw
-YWdlKSAmJiAhcGFnZV9jb3VudChwYWdlKSkgewogICBzdHJ1Y3QgcGFnZSAqaGVhZCA9IGNvbXBv
-dW5kX2hlYWQocGFnZSk7CiAgIHN0cnVjdCBoc3RhdGUgKmggPSBwYWdlX2hzdGF0ZShoZWFkKTsK
-ICAgaW50IG5pZCA9IHBhZ2VfdG9fbmlkKGhlYWQpOwotICBpZiAoaC0+ZnJlZV9odWdlX3BhZ2Vz
-IC0gaC0+cmVzdl9odWdlX3BhZ2VzID09IDApIHsKLSAgIHJjID0gLUVCVVNZOworICBpZiAoaC0+
-ZnJlZV9odWdlX3BhZ2VzIC0gaC0+cmVzdl9odWdlX3BhZ2VzID09IDApCiAgICBnb3RvIG91dDsK
-LSAgfQogICAvKgogICAgKiBNb3ZlIFBhZ2VIV1BvaXNvbiBmbGFnIGZyb20gaGVhZCBwYWdlIHRv
-IHRoZSByYXcgZXJyb3IgcGFnZSwKICAgICogd2hpY2ggbWFrZXMgYW55IHN1YnBhZ2VzIHJhdGhl
-ciB0aGFuIHRoZSBlcnJvciBwYWdlIHJldXNhYmxlLgpAQCAtMTUwOCw2ICsxNTA2LDcgQEAgaW50
-IGRpc3NvbHZlX2ZyZWVfaHVnZV9wYWdlKHN0cnVjdCBwYWdlICpwYWdlKQogICBoLT5mcmVlX2h1
-Z2VfcGFnZXNfbm9kZVtuaWRdLS07CiAgIGgtPm1heF9odWdlX3BhZ2VzLS07CiAgIHVwZGF0ZV9h
-bmRfZnJlZV9wYWdlKGgsIGhlYWQpOworICByYyA9IDA7CiAgfQogb3V0OgogIHNwaW5fdW5sb2Nr
-KCZodWdldGxiX2xvY2spOwpkaWZmIC0tZ2l0IGEvbW0vbWVtb3J5LWZhaWx1cmUuYyBiL21tL21l
-bW9yeS1mYWlsdXJlLmMKaW5kZXggOWQxNDJiOWI4NmRjLi5lNGM3ZTNlYzdiMTAgMTAwNjQ0Ci0t
-LSBhL21tL21lbW9yeS1mYWlsdXJlLmMKKysrIGIvbW0vbWVtb3J5LWZhaWx1cmUuYwpAQCAtMTcx
-NSwxMyArMTcxNSwxMyBAQCBzdGF0aWMgaW50IHNvZnRfb2ZmbGluZV9pbl91c2VfcGFnZShzdHJ1
-Y3QgcGFnZSAqcGFnZSwgaW50IGZsYWdzKQoKIHN0YXRpYyB2b2lkIHNvZnRfb2ZmbGluZV9mcmVl
-X3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UpCiB7CisgaW50IHJjID0gMDsKICBzdHJ1Y3QgcGFnZSAq
-aGVhZCA9IGNvbXBvdW5kX2hlYWQocGFnZSk7CgotIGlmICghVGVzdFNldFBhZ2VIV1BvaXNvbiho
-ZWFkKSkgeworIGlmIChQYWdlSHVnZShoZWFkKSkKKyAgcmMgPSBkaXNzb2x2ZV9mcmVlX2h1Z2Vf
-cGFnZShwYWdlKTsKKyBpZiAoIXJjICYmICFUZXN0U2V0UGFnZUhXUG9pc29uKGhlYWQpKQogICBu
-dW1fcG9pc29uZWRfcGFnZXNfaW5jKCk7Ci0gIGlmIChQYWdlSHVnZShoZWFkKSkKLSAgIGRpc3Nv
-bHZlX2ZyZWVfaHVnZV9wYWdlKHBhZ2UpOwotIH0KIH0KCiAvKioKCg==
-------=ALIBOUNDARY_69164_54744940_5b42f607_193550
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: base64
+syzbot found the following crash on:
 
-PGRpdiBjbGFzcz0iX19hbGl5dW5fZW1haWxfYm9keV9ibG9jayI+PGRpdiAgc3R5bGU9ImxpbmUt
-aGVpZ2h0OjEuNztmb250LWZhbWlseTpUYWhvbWEsQXJpYWwsU1RIZWl0aSxTaW1TdW47Zm9udC1z
-aXplOjE0LjBweDtjb2xvcjojMDAwMDAwOyI+PGRpdiBjbGFzcz0iY2xlYXI6IGJvdGgiPkhpIE5h
-b3lhLDxiciA+PC9kaXY+PGRpdiBjbGFzcz0iY2xlYXI6IGJvdGgiPjxiciA+PC9kaXY+PGRpdiBj
-bGFzcz0iY2xlYXI6IGJvdGgiPlNoYWxsIHdlIGZpeCB0aGlzIHBhdGggdG9vPyBJdCBhbHNvIHdp
-bGwgc2V0IGh3cG9pc29uIGJlZm9yZSZuYnNwOzxzcGFuICBzdHlsZT0iY29sb3I6IzAwMDAwMDtm
-b250LWZhbWlseTpUYWhvbWEsQXJpYWwsU1RIZWl0aSxTaW1TdW47Zm9udC1zaXplOjE0LjBweDtm
-b250LXN0eWxlOm5vcm1hbDtmb250LXZhcmlhbnQtbGlnYXR1cmVzOm5vcm1hbDtmb250LXZhcmlh
-bnQtY2Fwczpub3JtYWw7Zm9udC13ZWlnaHQ6NDAwO3RleHQtYWxpZ246c3RhcnQ7dGV4dC1pbmRl
-bnQ6LjBweDt0ZXh0LXRyYW5zZm9ybTpub25lO2JhY2tncm91bmQtY29sb3I6I2ZmZmZmZjt0ZXh0
-LWRlY29yYXRpb24tc3R5bGU6aW5pdGlhbDt0ZXh0LWRlY29yYXRpb24tY29sb3I6aW5pdGlhbDtm
-bG9hdDpub25lO2Rpc3BsYXk6aW5saW5lOyI+ZGlzc29sdmVfZnJlZV9odWdlX3BhZ2UoKS48L3Nw
-YW4+PC9kaXY+PGRpdiBjbGFzcz0iY2xlYXI6IGJvdGgiPjxiciA+PC9kaXY+PGRpdiBjbGFzcz0i
-Y2xlYXI6IGJvdGgiPnNvZnRfb2ZmbGluZV9odWdlX3BhZ2U8L2Rpdj48ZGl2IGNsYXNzPSJjbGVh
-cjogYm90aCI+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7bWlncmF0ZV9wYWdlczwvZGl2PjxkaXYg
-Y2xhc3M9ImNsZWFyOiBib3RoIj4mbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsm
-bmJzcDsmbmJzcDt1bm1hcF9hbmRfbW92ZV9odWdlX3BhZ2U8L2Rpdj48ZGl2IGNsYXNzPSJjbGVh
-cjogYm90aCI+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
-Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7aWYmbmJzcDsocmVhc29uJm5ic3A7PT0mbmJzcDtNUl9N
-RU1PUllfRkFJTFVSRSZuYnNwOyZhbXA7JmFtcDsmbmJzcDshdGVzdF9zZXRfcGFnZV9od3BvaXNv
-bihocGFnZSkpPC9kaXY+PGRpdiBjbGFzcz0iY2xlYXI6IGJvdGgiPiZuYnNwOyZuYnNwOyZuYnNw
-OyZuYnNwO2Rpc3NvbHZlX2ZyZWVfaHVnZV9wYWdlPC9kaXY+PGRpdiBjbGFzcz0iY2xlYXI6IGJv
-dGgiPjxiciA+PC9kaXY+PGRpdiBjbGFzcz0iY2xlYXI6IGJvdGgiPlRoYW5rcyw8L2Rpdj48ZGl2
-IGNsYXNzPSJjbGVhcjogYm90aCI+WGlzaGkgUWl1PC9kaXY+T24mbmJzcDtNb24sJm5ic3A7SnVs
-Jm5ic3A7MDksJm5ic3A7MjAxOCZuYnNwO2F0Jm5ic3A7MTA6MzE6MjVBTSZuYnNwOyswODAwLCZu
-YnNwO+ijmOeogOefsyjnqIDnn7MpJm5ic3A7d3JvdGU6PGJyID4mZ3Q7Jm5ic3A7SGkmbmJzcDtO
-YW95YSw8YnIgPiZndDsmbmJzcDs8YnIgPiZndDsmbmJzcDtJJm5ic3A7dGhpbmsmbmJzcDt0aGUm
-bmJzcDtkb3VibGUmbmJzcDtjaGVjayZuYnNwO2NhbiZuYnNwO25vdCZuYnNwO2ZpeCZuYnNwO3Ro
-ZSZuYnNwO3Byb2JsZW0mbmJzcDthcyZuYnNwO0kmbmJzcDtzYWlkJm5ic3A7aW4mbmJzcDthbm90
-aGVyJm5ic3A7ZW1haWwuPGJyID4mZ3Q7Jm5ic3A7SWYmbmJzcDtzb21lb25lJm5ic3A7bW1hcCZu
-YnNwO2JlZm9yZSZuYnNwO3NvZnQmbmJzcDtvZmZsaW5lLCZuYnNwO3NvJm5ic3A7dGhlJm5ic3A7
-cGFnZV9jb3VudChoZWFkKSZuYnNwO2lzJm5ic3A7c3RpbGwmbmJzcDt6ZXJvPGJyID4mZ3Q7Jm5i
-c3A7aW4mbmJzcDtzb2Z0Jm5ic3A7b2ZmbGluZSwmbmJzcDt0aGVuJm5ic3A7aHdwb2lzb24mbmJz
-cDtmbGFnJm5ic3A7c2V0Jm5ic3A7YW5kJm5ic3A7aXQmbmJzcDtjYW4mbmJzcDtub3QmbmJzcDti
-ZSZuYnNwO2FsbG9jZWQmbmJzcDthZ2FpbiZuYnNwO2luPGJyID4mZ3Q7Jm5ic3A7ZGVxdWV1ZV9o
-dWdlX3BhZ2Vfbm9kZV9leGFjdCgpJm5ic3A7ZHVyaW5nJm5ic3A7cGFnZSZuYnNwO2ZhdWx0LCZu
-YnNwO3NvJm5ic3A7cGFnZSZuYnNwO2ZhdWx0Jm5ic3A7cmV0dXJuPGJyID4mZ3Q7Jm5ic3A7bm8t
-bWVtLCZuYnNwO2FuZCZuYnNwO3NvbWVvbmUmbmJzcDt3aWxsJm5ic3A7YmUmbmJzcDtraWxsZWQm
-bmJzcDsobm90Jm5ic3A7bWNlJm5ic3A7a2lsbCkuPGJyID4mZ3Q7Jm5ic3A7PGJyID4mZ3Q7Jm5i
-c3A7SG93Jm5ic3A7YWJvdXQmbmJzcDtqdXN0Jm5ic3A7c2V0Jm5ic3A7aHdwb2lzb24mbmJzcDtm
-bGFnJm5ic3A7YWZ0ZXImbmJzcDtzb2Z0X29mZmxpbmVfZnJlZV9wYWdlJm5ic3A7LSZuYnNwOzxi
-ciA+Jmd0OyZuYnNwO2Rpc3NvbHZlX2ZyZWVfaHVnZV9wYWdlPGJyID4mZ3Q7Jm5ic3A7c3VjY2Vz
-c2Z1bGx5PyZuYnNwO0l0Jm5ic3A7d2lsbCZuYnNwO2ZpeCZuYnNwO3RoZSZuYnNwO2JvdGgmbmJz
-cDt0d28mbmJzcDtwcm9ibGVtcyZuYnNwOyhtY2UmbmJzcDtraWxsJm5ic3A7YW5kJm5ic3A7bm8t
-bWVtJm5ic3A7a2lsbCkuPGJyID48YnIgPlRoYW5rJm5ic3A7eW91Jm5ic3A7Zm9yJm5ic3A7ZWxh
-Ym9yYXRpbmcsJm5ic3A7eW91J3JlJm5ic3A7cmlnaHQuPGJyID5TbyZuYnNwO2RvJm5ic3A7eW91
-Jm5ic3A7bGlrZSZuYnNwO2EmbmJzcDtmaXgmbmJzcDtsaWtlJm5ic3A7dGhpcz88YnIgPjxiciA+
-LS0tPGJyID5kaWZmJm5ic3A7LS1naXQmbmJzcDthL21tL2h1Z2V0bGIuYyZuYnNwO2IvbW0vaHVn
-ZXRsYi5jPGJyID5pbmRleCZuYnNwO2QzNDIyNWMxY2I1Yi4uM2M5Y2U0YzA1ZjFiJm5ic3A7MTAw
-NjQ0PGJyID4tLS0mbmJzcDthL21tL2h1Z2V0bGIuYzxiciA+KysrJm5ic3A7Yi9tbS9odWdldGxi
-LmM8YnIgPkBAJm5ic3A7LTE0NzksMjImbmJzcDsrMTQ3OSwyMCZuYnNwO0BAJm5ic3A7c3RhdGlj
-Jm5ic3A7aW50Jm5ic3A7ZnJlZV9wb29sX2h1Z2VfcGFnZShzdHJ1Y3QmbmJzcDtoc3RhdGUmbmJz
-cDsqaCwmbmJzcDtub2RlbWFza190Jm5ic3A7Km5vZGVzX2FsbG93ZWQsPGJyID4mbmJzcDsvKjxi
-ciA+Jm5ic3A7Jm5ic3A7KiZuYnNwO0Rpc3NvbHZlJm5ic3A7YSZuYnNwO2dpdmVuJm5ic3A7ZnJl
-ZSZuYnNwO2h1Z2VwYWdlJm5ic3A7aW50byZuYnNwO2ZyZWUmbmJzcDtidWRkeSZuYnNwO3BhZ2Vz
-LiZuYnNwO1RoaXMmbmJzcDtmdW5jdGlvbiZuYnNwO2RvZXM8YnIgPiZuYnNwOyZuYnNwOyombmJz
-cDtub3RoaW5nJm5ic3A7Zm9yJm5ic3A7aW4tdXNlJm5ic3A7KGluY2x1ZGluZyZuYnNwO3N1cnBs
-dXMpJm5ic3A7aHVnZXBhZ2VzLiZuYnNwO1JldHVybnMmbmJzcDstRUJVU1kmbmJzcDtpZiZuYnNw
-O3RoZTxiciA+LSZuYnNwOyombmJzcDtudW1iZXImbmJzcDtvZiZuYnNwO2ZyZWUmbmJzcDtodWdl
-cGFnZXMmbmJzcDt3b3VsZCZuYnNwO2JlJm5ic3A7cmVkdWNlZCZuYnNwO2JlbG93Jm5ic3A7dGhl
-Jm5ic3A7bnVtYmVyJm5ic3A7b2YmbmJzcDtyZXNlcnZlZDxiciA+LSZuYnNwOyombmJzcDtodWdl
-cGFnZXMuPGJyID4rJm5ic3A7KiZuYnNwO2Rpc3NvbHV0aW9uJm5ic3A7ZmFpbHMmbmJzcDtiZWNh
-dXNlJm5ic3A7YSZuYnNwO2dpdmUmbmJzcDtwYWdlJm5ic3A7aXMmbmJzcDtub3QmbmJzcDthJm5i
-c3A7ZnJlZSZuYnNwO2h1Z2VwYWdlLCZuYnNwO29yJm5ic3A7YmVjYXVzZTxiciA+KyZuYnNwOyom
-bmJzcDtmcmVlJm5ic3A7aHVnZXBhZ2VzJm5ic3A7YXJlJm5ic3A7ZnVsbHkmbmJzcDtyZXNlcnZl
-ZC48YnIgPiZuYnNwOyZuYnNwOyovPGJyID4mbmJzcDtpbnQmbmJzcDtkaXNzb2x2ZV9mcmVlX2h1
-Z2VfcGFnZShzdHJ1Y3QmbmJzcDtwYWdlJm5ic3A7KnBhZ2UpPGJyID4mbmJzcDt7PGJyID4tJm5i
-c3A7aW50Jm5ic3A7cmMmbmJzcDs9Jm5ic3A7MDs8YnIgPismbmJzcDtpbnQmbmJzcDtyYyZuYnNw
-Oz0mbmJzcDstRUJVU1k7PGJyID4mbmJzcDs8YnIgPiZuYnNwOyZuYnNwO3NwaW5fbG9jaygmYW1w
-O2h1Z2V0bGJfbG9jayk7PGJyID4mbmJzcDsmbmJzcDtpZiZuYnNwOyhQYWdlSHVnZShwYWdlKSZu
-YnNwOyZhbXA7JmFtcDsmbmJzcDshcGFnZV9jb3VudChwYWdlKSkmbmJzcDt7PGJyID4mbmJzcDsm
-bmJzcDsmbmJzcDtzdHJ1Y3QmbmJzcDtwYWdlJm5ic3A7KmhlYWQmbmJzcDs9Jm5ic3A7Y29tcG91
-bmRfaGVhZChwYWdlKTs8YnIgPiZuYnNwOyZuYnNwOyZuYnNwO3N0cnVjdCZuYnNwO2hzdGF0ZSZu
-YnNwOypoJm5ic3A7PSZuYnNwO3BhZ2VfaHN0YXRlKGhlYWQpOzxiciA+Jm5ic3A7Jm5ic3A7Jm5i
-c3A7aW50Jm5ic3A7bmlkJm5ic3A7PSZuYnNwO3BhZ2VfdG9fbmlkKGhlYWQpOzxiciA+LSZuYnNw
-OyZuYnNwO2lmJm5ic3A7KGgtJmd0O2ZyZWVfaHVnZV9wYWdlcyZuYnNwOy0mbmJzcDtoLSZndDty
-ZXN2X2h1Z2VfcGFnZXMmbmJzcDs9PSZuYnNwOzApJm5ic3A7ezxiciA+LSZuYnNwOyZuYnNwOyZu
-YnNwO3JjJm5ic3A7PSZuYnNwOy1FQlVTWTs8YnIgPismbmJzcDsmbmJzcDtpZiZuYnNwOyhoLSZn
-dDtmcmVlX2h1Z2VfcGFnZXMmbmJzcDstJm5ic3A7aC0mZ3Q7cmVzdl9odWdlX3BhZ2VzJm5ic3A7
-PT0mbmJzcDswKTxiciA+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Z290byZuYnNwO291dDs8YnIg
-Pi0mbmJzcDsmbmJzcDt9PGJyID4mbmJzcDsmbmJzcDsmbmJzcDsvKjxiciA+Jm5ic3A7Jm5ic3A7
-Jm5ic3A7Jm5ic3A7KiZuYnNwO01vdmUmbmJzcDtQYWdlSFdQb2lzb24mbmJzcDtmbGFnJm5ic3A7
-ZnJvbSZuYnNwO2hlYWQmbmJzcDtwYWdlJm5ic3A7dG8mbmJzcDt0aGUmbmJzcDtyYXcmbmJzcDtl
-cnJvciZuYnNwO3BhZ2UsPGJyID4mbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsqJm5ic3A7d2hpY2gm
-bmJzcDttYWtlcyZuYnNwO2FueSZuYnNwO3N1YnBhZ2VzJm5ic3A7cmF0aGVyJm5ic3A7dGhhbiZu
-YnNwO3RoZSZuYnNwO2Vycm9yJm5ic3A7cGFnZSZuYnNwO3JldXNhYmxlLjxiciA+QEAmbmJzcDst
-MTUwOCw2Jm5ic3A7KzE1MDYsNyZuYnNwO0BAJm5ic3A7aW50Jm5ic3A7ZGlzc29sdmVfZnJlZV9o
-dWdlX3BhZ2Uoc3RydWN0Jm5ic3A7cGFnZSZuYnNwOypwYWdlKTxiciA+Jm5ic3A7Jm5ic3A7Jm5i
-c3A7aC0mZ3Q7ZnJlZV9odWdlX3BhZ2VzX25vZGVbbmlkXS0tOzxiciA+Jm5ic3A7Jm5ic3A7Jm5i
-c3A7aC0mZ3Q7bWF4X2h1Z2VfcGFnZXMtLTs8YnIgPiZuYnNwOyZuYnNwOyZuYnNwO3VwZGF0ZV9h
-bmRfZnJlZV9wYWdlKGgsJm5ic3A7aGVhZCk7PGJyID4rJm5ic3A7Jm5ic3A7cmMmbmJzcDs9Jm5i
-c3A7MDs8YnIgPiZuYnNwOyZuYnNwO308YnIgPiZuYnNwO291dDo8YnIgPiZuYnNwOyZuYnNwO3Nw
-aW5fdW5sb2NrKCZhbXA7aHVnZXRsYl9sb2NrKTs8YnIgPmRpZmYmbmJzcDstLWdpdCZuYnNwO2Ev
-bW0vbWVtb3J5LWZhaWx1cmUuYyZuYnNwO2IvbW0vbWVtb3J5LWZhaWx1cmUuYzxiciA+aW5kZXgm
-bmJzcDs5ZDE0MmI5Yjg2ZGMuLmU0YzdlM2VjN2IxMCZuYnNwOzEwMDY0NDxiciA+LS0tJm5ic3A7
-YS9tbS9tZW1vcnktZmFpbHVyZS5jPGJyID4rKysmbmJzcDtiL21tL21lbW9yeS1mYWlsdXJlLmM8
-YnIgPkBAJm5ic3A7LTE3MTUsMTMmbmJzcDsrMTcxNSwxMyZuYnNwO0BAJm5ic3A7c3RhdGljJm5i
-c3A7aW50Jm5ic3A7c29mdF9vZmZsaW5lX2luX3VzZV9wYWdlKHN0cnVjdCZuYnNwO3BhZ2UmbmJz
-cDsqcGFnZSwmbmJzcDtpbnQmbmJzcDtmbGFncyk8YnIgPiZuYnNwOzxiciA+Jm5ic3A7c3RhdGlj
-Jm5ic3A7dm9pZCZuYnNwO3NvZnRfb2ZmbGluZV9mcmVlX3BhZ2Uoc3RydWN0Jm5ic3A7cGFnZSZu
-YnNwOypwYWdlKTxiciA+Jm5ic3A7ezxiciA+KyZuYnNwO2ludCZuYnNwO3JjJm5ic3A7PSZuYnNw
-OzA7PGJyID4mbmJzcDsmbmJzcDtzdHJ1Y3QmbmJzcDtwYWdlJm5ic3A7KmhlYWQmbmJzcDs9Jm5i
-c3A7Y29tcG91bmRfaGVhZChwYWdlKTs8YnIgPiZuYnNwOzxiciA+LSZuYnNwO2lmJm5ic3A7KCFU
-ZXN0U2V0UGFnZUhXUG9pc29uKGhlYWQpKSZuYnNwO3s8YnIgPismbmJzcDtpZiZuYnNwOyhQYWdl
-SHVnZShoZWFkKSk8YnIgPismbmJzcDsmbmJzcDtyYyZuYnNwOz0mbmJzcDtkaXNzb2x2ZV9mcmVl
-X2h1Z2VfcGFnZShwYWdlKTs8YnIgPismbmJzcDtpZiZuYnNwOyghcmMmbmJzcDsmYW1wOyZhbXA7
-Jm5ic3A7IVRlc3RTZXRQYWdlSFdQb2lzb24oaGVhZCkpPGJyID4mbmJzcDsmbmJzcDsmbmJzcDtu
-dW1fcG9pc29uZWRfcGFnZXNfaW5jKCk7PGJyID4tJm5ic3A7Jm5ic3A7aWYmbmJzcDsoUGFnZUh1
-Z2UoaGVhZCkpPGJyID4tJm5ic3A7Jm5ic3A7Jm5ic3A7ZGlzc29sdmVfZnJlZV9odWdlX3BhZ2Uo
-cGFnZSk7PGJyID4tJm5ic3A7fTxiciA+Jm5ic3A7fTxiciA+Jm5ic3A7PGJyID4mbmJzcDsvKio8
-YnIgPjxkaXYgIHN0eWxlPSJsaW5lLWhlaWdodDoyMC4wcHg7Y2xlYXI6Ym90aDsiPjxiciA+PC9k
-aXY+PC9kaXY+PC9kaXY+
-------=ALIBOUNDARY_69164_54744940_5b42f607_193550--
+HEAD commit:    b2d44d145d2a Merge tag '4.18-rc3-smb3fixes' of git://git.s..
+git tree:       upstream
+console output: https://syzkaller.appspot.com/x/log.txt?x=11d07748400000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=2ca6c7a31d407f86
+dashboard link: https://syzkaller.appspot.com/bug?extid=3f84280d52be9b7083cc
+compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+
+Unfortunately, I don't have any reproducer for this crash yet.
+
+IMPORTANT: if you fix the bug, please add the following tag to the commit:
+Reported-by: syzbot+3f84280d52be9b7083cc@syzkaller.appspotmail.com
+
+next ffff8801ce5e7040 prev ffff8801d20eca50 mm ffff88019c1e13c0
+prot 27 anon_vma ffff88019680cdd8 vm_ops 0000000000000000
+pgoff 0 file ffff8801b2ec2d00 private_data 0000000000000000
+flags: 0xff(read|write|exec|shared|mayread|maywrite|mayexec|mayshare)
+------------[ cut here ]------------
+kernel BUG at mm/memory.c:1422!
+invalid opcode: 0000 [#1] SMP KASAN
+CPU: 0 PID: 18486 Comm: syz-executor3 Not tainted 4.18.0-rc3+ #136
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+RIP: 0010:zap_pmd_range mm/memory.c:1421 [inline]
+RIP: 0010:zap_pud_range mm/memory.c:1466 [inline]
+RIP: 0010:zap_p4d_range mm/memory.c:1487 [inline]
+RIP: 0010:unmap_page_range+0x1c18/0x2220 mm/memory.c:1508
+Code: ff 31 ff 4c 89 e6 42 c6 04 33 f8 e8 92 dd d0 ff 4d 85 e4 0f 85 4a eb  
+ff ff e8 54 dc d0 ff 48 8b bd 10 fc ff ff e8 82 95 fe ff <0f> 0b e8 41 dc  
+d0 ff 0f 0b 4c 89 ad 18 fc ff ff c7 85 7c fb ff ff
+RSP: 0018:ffff8801b0587330 EFLAGS: 00010286
+RAX: 000000000000013c RBX: 1ffff100360b0e9c RCX: ffffc90002620000
+RDX: 0000000000000000 RSI: ffffffff81631851 RDI: 0000000000000001
+RBP: ffff8801b05877c8 R08: ffff880199d40300 R09: ffffed003b5c4fc0
+R10: ffffed003b5c4fc0 R11: ffff8801dae27e07 R12: 0000000000000000
+R13: ffff88019c1e13c0 R14: dffffc0000000000 R15: 0000000020e01000
+FS:  00007fca32251700(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 00007f04c540d000 CR3: 00000001ac1f0000 CR4: 00000000001426f0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+Call Trace:
+  unmap_single_vma+0x1a0/0x310 mm/memory.c:1553
+  zap_page_range_single+0x3cc/0x580 mm/memory.c:1644
+  unmap_mapping_range_vma mm/memory.c:2792 [inline]
+  unmap_mapping_range_tree mm/memory.c:2813 [inline]
+  unmap_mapping_pages+0x3a7/0x5b0 mm/memory.c:2845
+  unmap_mapping_range+0x48/0x60 mm/memory.c:2880
+  truncate_pagecache+0x54/0x90 mm/truncate.c:800
+  truncate_setsize+0x70/0xb0 mm/truncate.c:826
+  simple_setattr+0xe9/0x110 fs/libfs.c:409
+  notify_change+0xf13/0x10f0 fs/attr.c:335
+  do_truncate+0x1ac/0x2b0 fs/open.c:63
+  do_sys_ftruncate+0x492/0x560 fs/open.c:205
+  __do_sys_ftruncate fs/open.c:215 [inline]
+  __se_sys_ftruncate fs/open.c:213 [inline]
+  __x64_sys_ftruncate+0x59/0x80 fs/open.c:213
+  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+RIP: 0033:0x455ba9
+Code: 1d ba fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7  
+48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff  
+ff 0f 83 eb b9 fb ff c3 66 2e 0f 1f 84 00 00 00 00
+RSP: 002b:00007fca32250c68 EFLAGS: 00000246 ORIG_RAX: 000000000000004d
+RAX: ffffffffffffffda RBX: 00007fca322516d4 RCX: 0000000000455ba9
+RDX: 0000000000000000 RSI: 0000000000000006 RDI: 0000000000000010
+RBP: 000000000072bea0 R08: 0000000000000000 R09: 0000000000000000
+R10: 0000000000000000 R11: 0000000000000246 R12: 00000000ffffffff
+R13: 00000000004bbd22 R14: 00000000004c90e8 R15: 0000000000000000
+Modules linked in:
+Dumping ftrace buffer:
+    (ftrace buffer empty)
+---[ end trace a92a1c818e9b1620 ]---
+RIP: 0010:zap_pmd_range mm/memory.c:1421 [inline]
+RIP: 0010:zap_pud_range mm/memory.c:1466 [inline]
+RIP: 0010:zap_p4d_range mm/memory.c:1487 [inline]
+RIP: 0010:unmap_page_range+0x1c18/0x2220 mm/memory.c:1508
+Code: ff 31 ff 4c 89 e6 42 c6 04 33 f8 e8 92 dd d0 ff 4d 85 e4 0f 85 4a eb  
+ff ff e8 54 dc d0 ff 48 8b bd 10 fc ff ff e8 82 95 fe ff <0f> 0b e8 41 dc  
+d0 ff 0f 0b 4c 89 ad 18 fc ff ff c7 85 7c fb ff ff
+RSP: 0018:ffff8801b0587330 EFLAGS: 00010286
+RAX: 000000000000013c RBX: 1ffff100360b0e9c RCX: ffffc90002620000
+RDX: 0000000000000000 RSI: ffffffff81631851 RDI: 0000000000000001
+RBP: ffff8801b05877c8 R08: ffff880199d40300 R09: ffffed003b5c4fc0
+R10: ffffed003b5c4fc0 R11: ffff8801dae27e07 R12: 0000000000000000
+R13: ffff88019c1e13c0 R14: dffffc0000000000 R15: 0000000020e01000
+FS:  00007fca32251700(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 00007f04c540d000 CR3: 00000001ac1f0000 CR4: 00000000001426f0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+
+
+---
+This bug is generated by a bot. It may contain errors.
+See https://goo.gl/tpsmEJ for more information about syzbot.
+syzbot engineers can be reached at syzkaller@googlegroups.com.
+
+syzbot will keep track of this bug report. See:
+https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
+syzbot.
