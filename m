@@ -1,93 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 573116B0307
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 13:12:06 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id m2-v6so10519442plt.14
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 10:12:06 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id l4-v6si14997401plb.213.2018.07.09.10.12.04
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AE446B0304
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 13:17:00 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id ba8-v6so10522203plb.4
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 10:17:00 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id f3-v6si14328017plr.214.2018.07.09.10.16.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jul 2018 10:12:05 -0700 (PDT)
-Subject: Re: [PATCH -mm -v4 04/21] mm, THP, swap: Support PMD swap mapping in
- swapcache_free_cluster()
-References: <20180622035151.6676-1-ying.huang@intel.com>
- <20180622035151.6676-5-ying.huang@intel.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <dd7b3dd7-9e10-4b9f-b931-915298bfd627@linux.intel.com>
-Date: Mon, 9 Jul 2018 10:11:57 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 09 Jul 2018 10:16:59 -0700 (PDT)
+Date: Mon, 9 Jul 2018 10:16:51 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 0/2] mm/fs: put_user_page() proposal
+Message-ID: <20180709171651.GE2662@bombadil.infradead.org>
+References: <20180709080554.21931-1-jhubbard@nvidia.com>
+ <20180709184937.7a70c3aa@roar.ozlabs.ibm.com>
+ <20180709160806.xjt2l2pbmyiutbyi@quack2.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180622035151.6676-5-ying.huang@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180709160806.xjt2l2pbmyiutbyi@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Nicholas Piggin <npiggin@gmail.com>, john.hubbard@gmail.com, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>
 
-> +#ifdef CONFIG_THP_SWAP
-> +static inline int cluster_swapcount(struct swap_cluster_info *ci)
-> +{
-> +	if (!ci || !cluster_is_huge(ci))
-> +		return 0;
-> +
-> +	return cluster_count(ci) - SWAPFILE_CLUSTER;
-> +}
-> +#else
-> +#define cluster_swapcount(ci)			0
-> +#endif
+On Mon, Jul 09, 2018 at 06:08:06PM +0200, Jan Kara wrote:
+> On Mon 09-07-18 18:49:37, Nicholas Piggin wrote:
+> > The problem with blocking in clear_page_dirty_for_io is that the fs is
+> > holding the page lock (or locks) and possibly others too. If you
+> > expect to have a bunch of long term references hanging around on the
+> > page, then there will be hangs and deadlocks everywhere. And if you do
+> > not have such log term references, then page lock (or some similar lock
+> > bit) for the duration of the DMA should be about enough?
+> 
+> There are two separate questions:
+> 
+> 1) How to identify pages pinned for DMA? We have no bit in struct page to
+> use and we cannot reuse page lock as that immediately creates lock
+> inversions e.g. in direct IO code (which could be fixed but then good luck
+> with auditing all the other GUP users). Matthew had an idea and John
+> implemented it based on removing page from LRU and using that space in
+> struct page. So we at least have a way to identify pages that are pinned
+> and can track their pin count.
+> 
+> 2) What to do when some page is pinned but we need to do e.g.
+> clear_page_dirty_for_io(). After some more thinking I agree with you that
+> just blocking waiting for page to unpin will create deadlocks like:
 
-Dumb questions, round 2:  On a CONFIG_THP_SWAP=n build, presumably,
-cluster_is_huge()=0 always, so cluster_swapout() always returns 0.  Right?
+Why are we trying to writeback a page that is pinned?  It's presumed to
+be continuously redirtied by its pinner.  We can't evict it.
 
-So, why the #ifdef?
+> ext4_writepages()				ext4_direct_IO_write()
+> 						  __blockdev_direct_IO()
+> 						    iov_iter_get_pages()
+> 						      - pins page
+>   handle = ext4_journal_start_with_reserve(inode, ...)
+>     - starts transaction
+>   ...
+>     lock_page(page)
+>     mpage_submit_page()
+>       clear_page_dirty_for_io(page) -> blocks on pin
 
->  /*
->   * It's possible scan_swap_map() uses a free cluster in the middle of free
->   * cluster list. Avoiding such abuse to avoid list corruption.
-> @@ -905,6 +917,7 @@ static void swap_free_cluster(struct swap_info_struct *si, unsigned long idx)
->  	struct swap_cluster_info *ci;
->  
->  	ci = lock_cluster(si, offset);
-> +	memset(si->swap_map + offset, 0, SWAPFILE_CLUSTER);
->  	cluster_set_count_flag(ci, 0, 0);
->  	free_cluster(si, idx);
->  	unlock_cluster(ci);
-
-This is another case of gloriously comment-free code, but stuff that
-_was_ covered in the changelog.  I'd much rather have code comments than
-changelog comments.  Could we fix that?
-
-I'm generally finding it quite hard to review this because I keep having
-to refer back to the changelog to see if what you are doing matches what
-you said you were doing.
-
-> @@ -1288,24 +1301,30 @@ static void swapcache_free_cluster(swp_entry_t entry)
->  
->  	ci = lock_cluster(si, offset);
->  	VM_BUG_ON(!cluster_is_huge(ci));
-> +	VM_BUG_ON(!is_cluster_offset(offset));
-> +	VM_BUG_ON(cluster_count(ci) < SWAPFILE_CLUSTER);
->  	map = si->swap_map + offset;
-> -	for (i = 0; i < SWAPFILE_CLUSTER; i++) {
-> -		val = map[i];
-> -		VM_BUG_ON(!(val & SWAP_HAS_CACHE));
-> -		if (val == SWAP_HAS_CACHE)
-> -			free_entries++;
-> +	if (!cluster_swapcount(ci)) {
-> +		for (i = 0; i < SWAPFILE_CLUSTER; i++) {
-> +			val = map[i];
-> +			VM_BUG_ON(!(val & SWAP_HAS_CACHE));
-> +			if (val == SWAP_HAS_CACHE)
-> +				free_entries++;
-> +		}
-> +		if (free_entries != SWAPFILE_CLUSTER)
-> +			cluster_clear_huge(ci);
->  	}
-
-Also, I'll point out that cluster_swapcount() continues the horrific
-naming of cluster_couunt(), not saying what the count is *of*.  The
-return value doesn't help much:
-
-	return cluster_count(ci) - SWAPFILE_CLUSTER;
+I don't think it should block.  It should fail.
