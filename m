@@ -1,106 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DBDF36B02E3
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 10:23:51 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id w21-v6so7074644wmc.6
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 07:23:51 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 89-v6sor1000491wra.75.2018.07.09.07.23.50
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BF9C06B02E5
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 10:24:50 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id b5-v6so11891876pfi.5
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 07:24:50 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id a190-v6si14307307pgc.241.2018.07.09.07.24.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 09 Jul 2018 07:23:50 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 09 Jul 2018 07:24:49 -0700 (PDT)
+Date: Mon, 9 Jul 2018 07:24:45 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: BUG: corrupted list in cpu_stop_queue_work
+Message-ID: <20180709142445.GC2662@bombadil.infradead.org>
+References: <00000000000032412205706753b5@google.com>
+ <000000000000693c7d057087caf3@google.com>
+ <1271c58e-876b-0df3-3224-319d82634663@I-love.SAKURA.ne.jp>
+ <20180709133212.GA2662@bombadil.infradead.org>
+ <8b258017-8817-8050-14a5-5e55c56bbf18@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-References: <CGME20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29@eucas1p2.samsung.com>
- <20180709121956.20200-1-m.szyprowski@samsung.com> <20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29~-sqTPJKij2939229392eucas1p2j@eucas1p2.samsung.com>
-In-Reply-To: <20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29~-sqTPJKij2939229392eucas1p2j@eucas1p2.samsung.com>
-From: =?UTF-8?Q?Micha=C5=82_Nazarewicz?= <mina86@mina86.com>
-Date: Mon, 9 Jul 2018 15:23:38 +0100
-Message-ID: <CA+pa1O2H-rbTqgKgtSzD9jdnyxkD5w62b0Q=o5FX5Y85hCGVnA@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm/cma: remove unsupported gfp_mask parameter from cma_alloc()
-Content-Type: multipart/alternative; boundary="000000000000277366057091c3be"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <8b258017-8817-8050-14a5-5e55c56bbf18@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org, iommu@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Paul Mackerras <paulus@ozlabs.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Chris Zankel <chris@zankel.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Joerg Roedel <joro@8bytes.org>, Sumit Semwal <sumit.semwal@linaro.org>, Robin Murphy <robin.murphy@arm.com>, Laura Abbott <labbott@redhat.com>, linaro-mm-sig@lists.linaro.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: syzbot <syzbot+d8a8e42dfba0454286ff@syzkaller.appspotmail.com>, bigeasy@linutronix.de, linux-kernel@vger.kernel.org, matt@codeblueprint.co.uk, mingo@kernel.org, peterz@infradead.org, syzkaller-bugs@googlegroups.com, tglx@linutronix.de, linux-mm <linux-mm@kvack.org>
 
---000000000000277366057091c3be
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+On Mon, Jul 09, 2018 at 11:15:54PM +0900, Tetsuo Handa wrote:
+> On 2018/07/09 22:32, Matthew Wilcox wrote:
+> >> >From d6f24d6eecd79836502527624f8086f4e3e4c331 Mon Sep 17 00:00:00 2001
+> >> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> >> Date: Mon, 9 Jul 2018 15:58:44 +0900
+> >> Subject: [PATCH] shmem: Fix crash upon xas_store() failure.
+> >>
+> >> syzbot is reporting list corruption [1]. This is because xas_store() from
+> >> shmem_add_to_page_cache() is not handling memory allocation failure. Fix
+> >> this by checking xas_error() after xas_store().
+> > 
+> > I have no idea why you wrote this patch on Monday when I already said
+> > I knew what the problem was on Friday, fixed the problem and pushed it
+> > out to my git tree on Saturday.
+> > 
+> 
+> Because syzbot found a C reproducer on 2018/07/09 02:29 UTC, and your fix was
+> not in time for a kernel version syzbot was testing, and you were not listed
+> as a recipient of this bug, and I didn't know you already fixed this bug.
+> 
+> Anyway, linux-next-20180709 still does not have this fix.
+> What is the title of your fix you pushed on Saturday?
 
-On Mon, 9 Jul 2018 13:20 Marek Szyprowski, <m.szyprowski@samsung.com> wrote=
-:
-
-> cma_alloc() function doesn't really support gfp flags other than
-> __GFP_NOWARN, so convert gfp_mask parameter to boolean no_warn parameter.
->
-> This will help to avoid giving false feeling that this function supports
-> standard gfp flags and callers can pass __GFP_ZERO to get zeroed buffer,
-> what has already been an issue: see commit dd65a941f6ba ("arm64:
-> dma-mapping: clear buffers allocated with FORCE_CONTIGUOUS flag").
->
-> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
->
-
-Acked-by: Micha=C5=82 Nazarewicz <mina86@mina86.com>
-
-(Adding Acked-by on a phone is surprisingly hard).
-
----
->  arch/powerpc/kvm/book3s_hv_builtin.c       | 2 +-
->  drivers/s390/char/vmcp.c                   | 2 +-
->  drivers/staging/android/ion/ion_cma_heap.c | 2 +-
->  include/linux/cma.h                        | 2 +-
->  kernel/dma/contiguous.c                    | 3 ++-
->  mm/cma.c                                   | 8 ++++----
->  mm/cma_debug.c                             | 2 +-
->  7 files changed, 11 insertions(+), 10 deletions(-)
->
-
---000000000000277366057091c3be
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"auto"><div><div class=3D"gmail_quote"><div dir=3D"ltr">On Mon, =
-9 Jul 2018 13:20 Marek Szyprowski, &lt;<a href=3D"mailto:m.szyprowski@samsu=
-ng.com" target=3D"_blank" rel=3D"noreferrer">m.szyprowski@samsung.com</a>&g=
-t; wrote:<br></div><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 =
-.8ex;border-left:1px #ccc solid;padding-left:1ex">cma_alloc() function does=
-n&#39;t really support gfp flags other than<br>
-__GFP_NOWARN, so convert gfp_mask parameter to boolean no_warn parameter.<b=
-r>
-<br>
-This will help to avoid giving false feeling that this function supports<br=
->
-standard gfp flags and callers can pass __GFP_ZERO to get zeroed buffer,<br=
->
-what has already been an issue: see commit dd65a941f6ba (&quot;arm64:<br>
-dma-mapping: clear buffers allocated with FORCE_CONTIGUOUS flag&quot;).<br>
-<br>
-Signed-off-by: Marek Szyprowski &lt;<a href=3D"mailto:m.szyprowski@samsung.=
-com" rel=3D"noreferrer noreferrer" target=3D"_blank">m.szyprowski@samsung.c=
-om</a>&gt;<br></blockquote></div></div><div dir=3D"auto"><br></div><div dir=
-=3D"auto">Acked-by: Micha=C5=82 Nazarewicz &lt;<a href=3D"mailto:mina86@min=
-a86.com" target=3D"_blank" rel=3D"noreferrer">mina86@mina86.com</a>&gt;</di=
-v><div dir=3D"auto"><br></div><div dir=3D"auto">(Adding Acked-by on a phone=
- is surprisingly hard).=C2=A0</div><div dir=3D"auto"><br></div><div dir=3D"=
-auto"><div class=3D"gmail_quote"><blockquote class=3D"gmail_quote" style=3D=
-"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
----<br>
-=C2=A0arch/powerpc/kvm/book3s_hv_builtin.c=C2=A0 =C2=A0 =C2=A0 =C2=A0| 2 +-=
-<br>
-=C2=A0drivers/s390/char/vmcp.c=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0| 2 +-<br>
-=C2=A0drivers/staging/android/ion/ion_cma_heap.c | 2 +-<br>
-=C2=A0include/linux/cma.h=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 | 2 +-<br>
-=C2=A0kernel/dma/contiguous.c=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 | 3 ++-<br>
-=C2=A0mm/cma.c=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| 8 ++++-=
----<br>
-=C2=A0mm/cma_debug.c=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| 2 +-<br>
-=C2=A07 files changed, 11 insertions(+), 10 deletions(-)<br></blockquote></=
-div></div></div>
-
---000000000000277366057091c3be--
+I folded it into shmem: Convert shmem_add_to_page_cache to XArray.
+I can see it's fixed in today's linux-next.  I fixed it differently
+from the way you fixed it, so if you're looking for an xas_error check
+after xas_store, you won't find it.
