@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 068F26B0339
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 15:57:05 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id q8-v6so16631807wmc.2
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 12:57:04 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o4-v6sor6954929wra.58.2018.07.09.12.57.03
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 96B1C6B0006
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 16:00:59 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id w11-v6so6256635pfk.14
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 13:00:59 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id c11-v6si14722718plo.271.2018.07.09.13.00.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 09 Jul 2018 12:57:03 -0700 (PDT)
-Date: Mon, 9 Jul 2018 13:56:57 -0600
-From: Jason Gunthorpe <jgg@ziepe.ca>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 09 Jul 2018 13:00:57 -0700 (PDT)
+Date: Mon, 9 Jul 2018 13:00:49 -0700
+From: Matthew Wilcox <willy@infradead.org>
 Subject: Re: [PATCH 0/2] mm/fs: put_user_page() proposal
-Message-ID: <20180709195657.GA29026@ziepe.ca>
+Message-ID: <20180709200049.GA5335@bombadil.infradead.org>
 References: <20180709080554.21931-1-jhubbard@nvidia.com>
  <20180709184937.7a70c3aa@roar.ozlabs.ibm.com>
  <20180709160806.xjt2l2pbmyiutbyi@quack2.suse.cz>
@@ -25,29 +25,10 @@ In-Reply-To: <20180709194740.rymbt2fzohbdmpye@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jan Kara <jack@suse.cz>
-Cc: Matthew Wilcox <willy@infradead.org>, Nicholas Piggin <npiggin@gmail.com>, john.hubbard@gmail.com, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>
+Cc: Nicholas Piggin <npiggin@gmail.com>, john.hubbard@gmail.com, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>
 
 On Mon, Jul 09, 2018 at 09:47:40PM +0200, Jan Kara wrote:
 > On Mon 09-07-18 10:16:51, Matthew Wilcox wrote:
-> > On Mon, Jul 09, 2018 at 06:08:06PM +0200, Jan Kara wrote:
-> > > On Mon 09-07-18 18:49:37, Nicholas Piggin wrote:
-> > > > The problem with blocking in clear_page_dirty_for_io is that the fs is
-> > > > holding the page lock (or locks) and possibly others too. If you
-> > > > expect to have a bunch of long term references hanging around on the
-> > > > page, then there will be hangs and deadlocks everywhere. And if you do
-> > > > not have such log term references, then page lock (or some similar lock
-> > > > bit) for the duration of the DMA should be about enough?
-> > > 
-> > > There are two separate questions:
-> > > 
-> > > 1) How to identify pages pinned for DMA? We have no bit in struct page to
-> > > use and we cannot reuse page lock as that immediately creates lock
-> > > inversions e.g. in direct IO code (which could be fixed but then good luck
-> > > with auditing all the other GUP users). Matthew had an idea and John
-> > > implemented it based on removing page from LRU and using that space in
-> > > struct page. So we at least have a way to identify pages that are pinned
-> > > and can track their pin count.
-> > > 
 > > > 2) What to do when some page is pinned but we need to do e.g.
 > > > clear_page_dirty_for_io(). After some more thinking I agree with you that
 > > > just blocking waiting for page to unpin will create deadlocks like:
@@ -64,11 +45,7 @@ On Mon, Jul 09, 2018 at 09:47:40PM +0200, Jan Kara wrote:
 > apps will just not handle that correctly. So what else can you do than
 > block?
 
-I think as a userspace I would expect the 'current content' to be
-flushed without waiting..
-
-If you block fsync() then anyone using a RDMA MR with it will just
-dead lock. What happens if two processes open the same file and
-one makes a MR and the other calls fsync()? Sounds bad.
-
-Jason
+I was thinking about writeback, and neglected the fsync case.  For fsync,
+we could copy the "current" contents of the page to a freshly-allocated
+page and write _that_ to disc?  As long as we redirty the real page after
+the pin is dropped, I think we're fine.
