@@ -1,52 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D51196B02DD
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 09:58:27 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id e1-v6so10108211pld.23
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 06:58:27 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v12-v6si13901922pgk.523.2018.07.09.06.58.26
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 064B26B02DE
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 10:16:43 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id w1-v6so10133619plq.8
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 07:16:42 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id y23-v6si15938128pfb.284.2018.07.09.07.16.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 09 Jul 2018 06:58:26 -0700 (PDT)
-Date: Mon, 9 Jul 2018 06:58:20 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] mm,page_alloc: PF_WQ_WORKER should always sleep at
- should_reclaim_retry().
-Message-ID: <20180709135820.GB2662@bombadil.infradead.org>
-References: <1531046158-4010-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180709075731.GB22049@dhcp22.suse.cz>
- <5a5ddca9-95fd-1035-b304-a9c6d50238b2@i-love.sakura.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Jul 2018 07:16:39 -0700 (PDT)
+Subject: Re: BUG: corrupted list in cpu_stop_queue_work
+References: <00000000000032412205706753b5@google.com>
+ <000000000000693c7d057087caf3@google.com>
+ <1271c58e-876b-0df3-3224-319d82634663@I-love.SAKURA.ne.jp>
+ <20180709133212.GA2662@bombadil.infradead.org>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <8b258017-8817-8050-14a5-5e55c56bbf18@i-love.sakura.ne.jp>
+Date: Mon, 9 Jul 2018 23:15:54 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5a5ddca9-95fd-1035-b304-a9c6d50238b2@i-love.sakura.ne.jp>
+In-Reply-To: <20180709133212.GA2662@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Michal Hocko <mhocko@suse.com>, akpm@linux-foundation.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <js1304@gmail.com>, Mel Gorman <mgorman@suse.de>, Vladimir Davydov <vdavydov@virtuozzo.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: syzbot <syzbot+d8a8e42dfba0454286ff@syzkaller.appspotmail.com>, bigeasy@linutronix.de, linux-kernel@vger.kernel.org, matt@codeblueprint.co.uk, mingo@kernel.org, peterz@infradead.org, syzkaller-bugs@googlegroups.com, tglx@linutronix.de, linux-mm <linux-mm@kvack.org>
 
-On Mon, Jul 09, 2018 at 10:08:04PM +0900, Tetsuo Handa wrote:
-> > [Tetsuo: changelog]
-> >> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> >> Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
-> >> Cc: David Rientjes <rientjes@google.com>
-> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> >> Cc: Joonsoo Kim <js1304@gmail.com>
-> >> Cc: Mel Gorman <mgorman@suse.de>
-> >> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> >> Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
-> >> Cc: Vlastimil Babka <vbabka@suse.cz>
-> > 
-> > Your s-o-b is still missing.
+On 2018/07/09 22:32, Matthew Wilcox wrote:
+>> >From d6f24d6eecd79836502527624f8086f4e3e4c331 Mon Sep 17 00:00:00 2001
+>> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+>> Date: Mon, 9 Jul 2018 15:58:44 +0900
+>> Subject: [PATCH] shmem: Fix crash upon xas_store() failure.
+>>
+>> syzbot is reporting list corruption [1]. This is because xas_store() from
+>> shmem_add_to_page_cache() is not handling memory allocation failure. Fix
+>> this by checking xas_error() after xas_store().
 > 
-> all code changes in this patch is from you. That is, my s-o-b is not missing.
+> I have no idea why you wrote this patch on Monday when I already said
+> I knew what the problem was on Friday, fixed the problem and pushed it
+> out to my git tree on Saturday.
+> 
 
-   12) When to use Acked-by:, Cc:, and Co-Developed-by:
-   -------------------------------------------------------
+Because syzbot found a C reproducer on 2018/07/09 02:29 UTC, and your fix was
+not in time for a kernel version syzbot was testing, and you were not listed
+as a recipient of this bug, and I didn't know you already fixed this bug.
 
-   The Signed-off-by: tag indicates that the signer was involved in the
-   development of the patch, or that he/she was in the patch's delivery path.
-
-That is, if you're submitting it, it needs your S-o-b line.  That's
-written down in Documentation/process/submitting-patches.rst.
+Anyway, linux-next-20180709 still does not have this fix.
+What is the title of your fix you pushed on Saturday?
