@@ -1,191 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C270A6B0006
-	for <linux-mm@kvack.org>; Sun,  8 Jul 2018 10:51:00 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id o16-v6so200090pgv.21
-        for <linux-mm@kvack.org>; Sun, 08 Jul 2018 07:51:00 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0121.outbound.protection.outlook.com. [104.47.1.121])
-        by mx.google.com with ESMTPS id g4-v6si12198121pgl.139.2018.07.08.07.50.58
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 70C976B0003
+	for <linux-mm@kvack.org>; Sun,  8 Jul 2018 20:47:14 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id s16-v6so8794314plr.22
+        for <linux-mm@kvack.org>; Sun, 08 Jul 2018 17:47:14 -0700 (PDT)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id t16-v6si12465821pga.442.2018.07.08.17.47.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 08 Jul 2018 07:50:59 -0700 (PDT)
-Subject: Re: kernel BUG at mm/vmscan.c:LINE!
-References: <0000000000008b09c20570638d45@google.com>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <eaa5aba7-439b-6c59-0ba3-b70438d03e00@virtuozzo.com>
-Date: Sun, 8 Jul 2018 17:50:47 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 08 Jul 2018 17:47:12 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: =?utf-8?B?UmU6IFJl77yaW1JGQ10gYSBxdWVzdGlvbiBhYm91dCByZXVzZSBod3BvaXNv?=
+ =?utf-8?B?biBwYWdlIGluIHNvZnRfb2ZmbGluZV9wYWdlKCk=?=
+Date: Mon, 9 Jul 2018 00:38:02 +0000
+Message-ID: <20180709003802.GA11404@hori1.linux.bs1.fc.nec.co.jp>
+References: <ac6e703d-b0df-40d2-8918-63a63f3c5d68.xishi.qiuxishi@alibaba-inc.com>
+In-Reply-To: <ac6e703d-b0df-40d2-8918-63a63f3c5d68.xishi.qiuxishi@alibaba-inc.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <B3D83C10B11C104C899866172B5F4122@gisp.nec.co.jp>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <0000000000008b09c20570638d45@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: syzbot <syzbot+93c67806397421af04d5@syzkaller.appspotmail.com>, akpm@linux-foundation.org, aryabinin@virtuozzo.com, guro@fb.com, hannes@cmpxchg.org, jbacik@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, penguin-kernel@I-love.SAKURA.ne.jp, rientjes@google.com, sfr@canb.auug.org.au, shakeelb@google.com, syzkaller-bugs@googlegroups.com, vdavydov.dev@gmail.com, willy@infradead.org, ying.huang@intel.com
+To: =?utf-8?B?6KOY56iA55+zKOeogOefsyk=?= <xishi.qiuxishi@alibaba-inc.com>
+Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, =?utf-8?B?6ZmI5LmJ5YWo?= <zy.zhengyi@alibaba-inc.com>
 
-On 07.07.2018 10:16, syzbot wrote:
-> Hello,
-> 
-> syzbot found the following crash on:
-> 
-> HEAD commit:A A A  526674536360 Add linux-next specific files for 20180706
-> git tree:A A A A A A  linux-next
-> console output: https://syzkaller.appspot.com/x/log.txt?x=13853f48400000
-> kernel config:A  https://syzkaller.appspot.com/x/.config?x=c8d1cfc0cb798e48
-> dashboard link: https://syzkaller.appspot.com/bug?extid=93c67806397421af04d5
-> compiler:A A A A A A  gcc (GCC) 8.0.1 20180413 (experimental)
-> 
-> Unfortunately, I don't have any reproducer for this crash yet.
-> 
-> IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> Reported-by: syzbot+93c67806397421af04d5@syzkaller.appspotmail.com
-> 
-> ------------[ cut here ]------------
-> kernel BUG at mm/vmscan.c:593!
-> invalid opcode: 0000 [#1] SMP KASAN
-> CPU: 0 PID: 5039 Comm: syz-executor5 Not tainted 4.18.0-rc3-next-20180706+ #1
-> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
-> RIP: 0010:shrink_slab_memcg mm/vmscan.c:593 [inline]
-> RIP: 0010:shrink_slab+0xb3e/0xdb0 mm/vmscan.c:672
-> Code: 8d a8 fd ff ff f0 48 0f b3 08 e8 3d b8 da ff 48 8b 85 c0 fd ff ff c7 00 f8 f8 f8 f8 c6 40 04 f8 e9 5d fb ff ff e8 22 b8 da ff <0f> 0b e8 1b b8 da ff 48 8b 9d d8 fd ff ff 31 ff 48 89 de e8 3a b9
-> RSP: 0018:ffff88019aa0eb50 EFLAGS: 00010212
-> RAX: 0000000000040000 RBX: ffff88019aa0eda0 RCX: ffffc90001e24000
-> RDX: 0000000000000b7a RSI: ffffffff81a1c23e RDI: 0000000000000007
-> RBP: ffff88019aa0edc8 R08: ffff88019ed86340 R09: ffffed00399ff4b8
-> R10: ffffed00399ff4b8 R11: ffff8801ccffa5c7 R12: dffffc0000000000
-> R13: ffff8801cc3231f0 R14: 0000000000000000 R15: ffff88019aa0ebe0
-> FS:A  00007fa51a834700(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
-> CS:A  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 00007fa51a803008 CR3: 00000001ad011000 CR4: 00000000001406f0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> Call Trace:
-> A shrink_node+0x429/0x16a0 mm/vmscan.c:2736
-> A shrink_zones mm/vmscan.c:2965 [inline]
-> A do_try_to_free_pages+0x3e7/0x1290 mm/vmscan.c:3027
-> A try_to_free_mem_cgroup_pages+0x49d/0xc90 mm/vmscan.c:3325
-> A memory_high_write+0x283/0x310 mm/memcontrol.c:5597
-> A cgroup_file_write+0x31f/0x840 kernel/cgroup/cgroup.c:3500
-> A kernfs_fop_write+0x2ba/0x480 fs/kernfs/file.c:316
-> A __vfs_write+0x117/0x9f0 fs/read_write.c:485
-> A __kernel_write+0x10c/0x370 fs/read_write.c:506
-> A write_pipe_buf+0x181/0x240 fs/splice.c:798
-> A splice_from_pipe_feed fs/splice.c:503 [inline]
-> A __splice_from_pipe+0x38e/0x7c0 fs/splice.c:627
-> A splice_from_pipe+0x1ea/0x340 fs/splice.c:662
-> A default_file_splice_write+0x3c/0x90 fs/splice.c:810
-> A do_splice_from fs/splice.c:852 [inline]
-> A direct_splice_actor+0x128/0x190 fs/splice.c:1019
-> A splice_direct_to_actor+0x318/0x8f0 fs/splice.c:974
-> A do_splice_direct+0x2d4/0x420 fs/splice.c:1062
-> A do_sendfile+0x62a/0xe20 fs/read_write.c:1440
-> A __do_sys_sendfile64 fs/read_write.c:1495 [inline]
-> A __se_sys_sendfile64 fs/read_write.c:1487 [inline]
-> A __x64_sys_sendfile64+0x15d/0x250 fs/read_write.c:1487
-> A do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
-> A entry_SYSCALL_64_after_hwframe+0x49/0xbe
-> RIP: 0033:0x455ba9
-> Code: 1d ba fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff ff 0f 83 eb b9 fb ff c3 66 2e 0f 1f 84 00 00 00 00
-> RSP: 002b:00007fa51a833c68 EFLAGS: 00000246 ORIG_RAX: 0000000000000028
-> RAX: ffffffffffffffda RBX: 00007fa51a8346d4 RCX: 0000000000455ba9
-> RDX: 0000000020000040 RSI: 0000000000000015 RDI: 0000000000000015
-> RBP: 000000000072bea0 R08: 0000000000000000 R09: 0000000000000000
-> R10: 0000000000000001 R11: 0000000000000246 R12: 00000000ffffffff
-> R13: 00000000004c0dc5 R14: 00000000004d0e78 R15: 0000000000000000
-> Modules linked in:
-> Dumping ftrace buffer:
-> A A  (ftrace buffer empty)
-> ---[ end trace 607c0e9f278af1e6 ]---
-> RIP: 0010:shrink_slab_memcg mm/vmscan.c:593 [inline]
-> RIP: 0010:shrink_slab+0xb3e/0xdb0 mm/vmscan.c:672
-> Code: 8d a8 fd ff ff f0 48 0f b3 08 e8 3d b8 da ff 48 8b 85 c0 fd ff ff c7 00 f8 f8 f8 f8 c6 40 04 f8 e9 5d fb ff ff e8 22 b8 da ff <0f> 0b e8 1b b8 da ff 48 8b 9d d8 fd ff ff 31 ff 48 89 de e8 3a b9
-> RSP: 0018:ffff88019aa0eb50 EFLAGS: 00010212
-> RAX: 0000000000040000 RBX: ffff88019aa0eda0 RCX: ffffc90001e24000
-> RDX: 0000000000000b7a RSI: ffffffff81a1c23e RDI: 0000000000000007
-> RBP: ffff88019aa0edc8 R08: ffff88019ed86340 R09: ffffed00399ff4b8
-> R10: ffffed00399ff4b8 R11: ffff8801ccffa5c7 R12: dffffc0000000000
-> R13: ffff8801cc3231f0 R14: 0000000000000000 R15: ffff88019aa0ebe0
-> FS:A  00007fa51a834700(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
-> CS:A  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 00007fa51a803008 CR3: 00000001ad011000 CR4: 00000000001406f0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-
-I've found two potential places, which may result in memory problems.
-We need to do INIT_LIST_HEAD() before preallocation of memcg shrinker
-to prevent shrinker to pick it before register_shrinker_prepared()
-is finished.
-
-Also, nr_deffered has to be freed after the shrinker is unregistered,
-not before.
-
----
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e385dcb278c9..f8a3b7f99132 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -362,11 +363,6 @@ int prealloc_shrinker(struct shrinker *shrinker)
- 	if (!shrinker->nr_deferred)
- 		return -ENOMEM;
- 
--	if (shrinker->flags & SHRINKER_MEMCG_AWARE) {
--		if (prealloc_memcg_shrinker(shrinker))
--			goto free_deferred;
--	}
--
- 	/*
- 	 * There is a window between prealloc_shrinker()
- 	 * and register_shrinker_prepared(). We don't want
-@@ -381,6 +377,12 @@ int prealloc_shrinker(struct shrinker *shrinker)
- 	 * is not registered (id is not assigned).
- 	 */
- 	INIT_LIST_HEAD(&shrinker->list);
-+
-+	if (shrinker->flags & SHRINKER_MEMCG_AWARE) {
-+		if (prealloc_memcg_shrinker(shrinker))
-+			goto free_deferred;
-+	}
-+
- 	return 0;
- 
- free_deferred:
-@@ -394,11 +396,11 @@ void free_prealloced_shrinker(struct shrinker *shrinker)
- 	if (!shrinker->nr_deferred)
- 		return;
- 
--	kfree(shrinker->nr_deferred);
--	shrinker->nr_deferred = NULL;
--
- 	if (shrinker->flags & SHRINKER_MEMCG_AWARE)
- 		unregister_memcg_shrinker(shrinker);
-+
-+	kfree(shrinker->nr_deferred);
-+	shrinker->nr_deferred = NULL;
- }
- 
- void register_shrinker_prepared(struct shrinker *shrinker)
-@@ -569,13 +571,10 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 	if (!down_read_trylock(&shrinker_rwsem))
- 		return 0;
- 
--	/*
--	 * 1) Caller passes only alive memcg, so map can't be NULL.
--	 * 2) shrinker_rwsem protects from maps expanding.
--	 */
- 	map = rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_map,
- 					true);
--	BUG_ON(!map);
-+	if (unlikely(!map))
-+		goto unlock;
- 
- 	for_each_set_bit(i, map->map, shrinker_nr_max) {
- 		struct shrink_control sc = {
-@@ -628,7 +626,7 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 			break;
- 		}
- 	}
--
-+unlock:
- 	up_read(&shrinker_rwsem);
- 	return freed;
- }
+T24gRnJpLCBKdWwgMDYsIDIwMTggYXQgMDU6NTk6MTVQTSArMDgwMCwg6KOY56iA55+zKOeogOef
+sykgd3JvdGU6DQo+IA0KPiBIaSBOYW95YSwNCj4gDQo+IEhvdyBhYm91dCB0aGlzIGNhc2UsIHdl
+IG9ubHkgdHJpZ2dlciBzb2Z0IG9mZmxpbmUgcGFnZSwgYnV0IHNvbWVvbmUga2lsbGVkDQo+IGxh
+dGVyLg0KPiBBcyB0aGUgcmFjZSBJIHNhaWQgYmVmb3JlLCB0aGVuIHNvbWVvbmUgbWF5IHVzZSB0
+aGUgaHdwb2lzb25lZCBodWdldGxiIHBhZ2UNCj4gYWdhaW4uDQo+IFBsZWFzZSBzZWUgdGhlIGZv
+bGxvd2luZy4NCj4gDQo+IHNvZnQgb2ZmbGluZTogDQo+ICAgICBnZXRfYW55X3BhZ2UgLSBmaW5k
+IHRoZSBodWdldGxiIGlzIGZyZWUNCj4gcHJvY2VzcyBBOg0KPiAgICAgZG9fcGFnZV9mYXVsdCAt
+IGhhbmRsZV9tbV9mYXVsdCAtIGh1Z2V0bGJfZmF1bHQgLSBodWdldGxiX25vX3BhZ2UNCj4gLSBh
+bGxvY19odWdlX3BhZ2UNCj4gc29mdCBvZmZsaW5lOg0KPiAgICAgc29mdF9vZmZsaW5lX2ZyZWVf
+cGFnZSAtIHNldCBod3BvaXNvbiBmbGFnDQo+IHByb2Nlc3MgQjoNCj4gICAgIG1tYXAgdGhlIGh1
+Z2V0bGIgZmlsZSBmcm9tIEEsIGh1Z2V0bGJfZmF1bHQgLSBodWdldGxiX25vX3BhZ2UNCj4gLSBm
+aW5kX2xvY2tfcGFnZQ0KPiAgICAgaXQgZmluZCBod3BvaXNvbiBmbGFnIGlzIGFscmVhZHkgc2V0
+LCBzbyByZXQgPSBWTV9GQVVMVF9IV1BPSVNPTg0KPiAgICAgdGhlbiBtbV9mYXVsdF9lcnJvciAt
+IGRvX3NpZ2J1cyAtIG1jZSBraWxsDQo+IHByb2Nlc3MgQiB3YXMga2lsbGVkIGJ5IHNvZnQgb2Zm
+bGluZSwgcmlnaHQ/DQoNClJpZ2h0LCB0aGlzIGFuZCB5b3VyIGFub3RoZXIgZW1haWwgc2hvd3Mg
+aG93IHRoaW5ncyBnbyBiYWQuDQpTb2Z0IG9mZmxpbmUgaGFuZGxlciBpcyBzaW1wbHkgcmFjeSBu
+b3csIHNvIHdlIGhhZCBiZXR0ZXIgY2FuY2VsIGl0IGlmDQp0aGUgdGFyZ2V0IHBhZ2Ugd2FzIGFs
+bG9jYXRlZCBkdXJpbmcgc29mdCBvZmZsaW5lIGhhbmRsaW5nIGJ5IGRvdWJsZQ0KY2hlY2tpbmcg
+YXMgSSBtZW50aW9uZWQuDQoNClRoYW5rcywNCk5hb3lhIEhvcmlndWNoaQ0KDQoNCj4gDQo+IFRo
+YW5rcywNCj4gWGlzaGkgUWl1IA0KPiANCj4gICAgIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQ0KPiAgICAg5Y+R5Lu25Lq6
+77yaTmFveWEgSG9yaWd1Y2hpIDxuLWhvcmlndWNoaUBhaC5qcC5uZWMuY29tPg0KPiAgICAg5Y+R
+6YCB5pe26Ze077yaMjAxOOW5tDfmnIg25pelKOaYn+acn+S6lCkgMTY6MTkNCj4gICAgIOaUtuS7
+tuS6uu+8muijmOeogOefsyjnqIDnn7MpIDx4aXNoaS5xaXV4aXNoaUBhbGliYWJhLWluYy5jb20+
+DQo+ICAgICDmioTjgIDpgIHvvJpsaW51eC1tbSA8bGludXgtbW1Aa3ZhY2sub3JnPjsgbGludXgt
+a2VybmVsDQo+ICAgICA8bGludXgta2VybmVsQHZnZXIua2VybmVsLm9yZz47IOmZiOS5ieWFqCA8
+enkuemhlbmd5aUBhbGliYWJhLWluYy5jb20+DQo+ICAgICDkuLvjgIDpopjvvJpSZTogW1JGQ10g
+YSBxdWVzdGlvbiBhYm91dCByZXVzZSBod3BvaXNvbiBwYWdlIGluIHNvZnRfb2ZmbGluZV9wYWdl
+DQo+ICAgICAoKQ0KPiANCj4gICAgIE9uIEZyaSwgSnVsIDA2LCAyMDE4IGF0IDExOjM3OjQxQU0g
+KzA4MDAsIOijmOeogOefsyjnqIDnn7MpIHdyb3RlOg0KPiAgICAgPiBUaGlzIHBhdGNoIGFkZDA1
+Y2VjDQo+ICAgICA+IChtbTogc29mdC1vZmZsaW5lOiBkb24ndCBmcmVlIHRhcmdldCBwYWdlIGlu
+IHN1Y2Nlc3NmdWwgcGFnZSBtaWdyYXRpb24pDQo+ICAgICAgcmVtb3Zlcw0KPiAgICAgPiBzZXRf
+bWlncmF0ZXR5cGVfaXNvbGF0ZSgpIGFuZCB1bnNldF9taWdyYXRldHlwZV9pc29sYXRlKCkNCj4g
+ICAgICBpbiBzb2Z0X29mZmxpbmVfcGFnZQ0KPiAgICAgPiAoKS4NCj4gICAgID4gDQo+ICAgICA+
+IEFuZCB0aGlzIHBhdGNoIDI0M2FiZDViDQo+ICAgICA+IChtbTogaHVnZXRsYjogcHJldmVudCBy
+ZXVzZSBvZiBod3BvaXNvbmVkIGZyZWUgaHVnZXBhZ2VzKSBjaGFuZ2VzDQo+ICAgICA+IGlmICgh
+aXNfbWlncmF0ZV9pc29sYXRlX3BhZ2UocGFnZSkpIHRvIGlmICghUGFnZUhXUG9pc29uDQo+ICAg
+ICAocGFnZSkpLCBzbyBpdCBjb3VsZA0KPiAgICAgPiBwcmV2ZW50IHNvbWVvbmUNCj4gICAgID4g
+cmV1c2UgdGhlIGZyZWUgaHVnZXRsYiBhZ2FpbiBhZnRlciBzZXQgdGhlIGh3cG9pc29uIGZsYWcN
+Cj4gICAgID4gaW4gc29mdF9vZmZsaW5lX2ZyZWVfcGFnZSgpDQo+ICAgICA+IA0KPiAgICAgPiBN
+eSBxdWVzdGlvbiBpcyB0aGF0IGlmIHNvbWVvbmUgcmV1c2UgdGhlIGZyZWUgaHVnZXRsYiBhZ2Fp
+biBiZWZvcmUgDQo+ICAgICA+IHNvZnRfb2ZmbGluZV9mcmVlX3BhZ2UoKSBhbmQNCj4gICAgID4g
+YWZ0ZXIgZ2V0X2FueV9wYWdlDQo+ICAgICAoKSwgdGhlbiBpdCB1c2VzIHRoZSBob3BvaXNvbiBw
+YWdlLCBhbmQgdGhpcyBtYXkgdHJpZ2dlciBtY2UNCj4gICAgID4ga2lsbCBsYXRlciwgcmlnaHQ/
+DQo+IA0KPiAgICAgSGkgWGlzaGksDQo+IA0KPiAgICAgVGhhbmsgeW91IGZvciBwb2ludGluZyBv
+dXQgdGhlIGlzc3VlLiBUaGF0J3MgbmljZSBjYXRjaC4NCj4gDQo+ICAgICBJIHRoaW5rIHRoYXQg
+dGhlIHJhY2UgY29uZGl0aW9uIGl0c2VsZiBjb3VsZCBoYXBwZW4sIGJ1dCBpdCBkb2Vzbid0IGxl
+YWQNCj4gICAgIHRvIE1DRSBraWxsIGJlY2F1c2UgUGFnZUhXUG9pc29uIGlzIG5vdCB2aXNpYmxl
+IHRvIEhXIHdoaWNoIHRyaWdnZXJzIE1DRS4NCj4gICAgIFBhZ2VIV1BvaXNvbiBmbGFnIGlzIGp1
+c3QgYSBmbGFnIGluIHN0cnVjdCBwYWdlIHRvIHJlcG9ydCB0aGUgbWVtb3J5IGVycm9yDQo+ICAg
+ICBmcm9tIGtlcm5lbCB0byB1c2Vyc3BhY2UuIFNvIGV2ZW4gaWYgYSBDUFUgaXMgYWNjZXNzaW5n
+IHRvIHRoZSBwYWdlIHdob3NlDQo+ICAgICBzdHJ1Y3QgcGFnZSBoYXMgUGFnZUhXUG9pc29uIHNl
+dCwgdGhhdCBkb2Vzbid0IGNhdXNlIGEgTUNFIHVubGVzcyB0aGUgcGFnZQ0KPiAgICAgaXMgcGh5
+c2ljYWxseSBicm9rZW4uDQo+ICAgICBUaGUgdHlwZSBvZiBtZW1vcnkgZXJyb3IgdGhhdCBzb2Z0
+IG9mZmxpbmUgdHJpZXMgdG8gaGFuZGxlIGlzIGNvcnJlY3RlZA0KPiAgICAgb25lIHdoaWNoIGlz
+IG5vdCBhIGZhaWx1cmUgeWV0IGFsdGhvdWdoIGl0J3Mgc3RhcnRpbmcgdG8gd2Vhci4NCj4gICAg
+IFNvIHN1Y2ggUGFnZUhXUG9pc29uIHBhZ2UgY2FuIGJlIHJldXNlZCwgYnV0IHRoYXQncyBub3Qg
+Y3JpdGljYWwgYmVjYXVzZQ0KPiAgICAgdGhlIHBhZ2UgaXMgZnJlZWQgYXQgc29tZSBwb2ludCBh
+ZnRlcndvcmQgYW5kIGVycm9yIGNvbnRhaW5tZW50IGNvbXBsZXRlcy4NCj4gDQo+ICAgICBIb3dl
+dmVyLCBJIG5vdGljZWQgdGhhdCB0aGVyZSdzIGEgc21hbGwgcGFpbiBpbiBmcmVlIGh1Z2V0bGIg
+Y2FzZS4NCj4gICAgIFdlIGNhbGwgZGlzc29sdmVfZnJlZV9odWdlX3BhZ2UoKSBpbiBzb2Z0X29m
+ZmxpbmVfZnJlZV9wYWdlKCkgd2hpY2ggbW92ZXMNCj4gICAgIHRoZSBQYWdlSFdQb2lzb24gZmxh
+ZyBmcm9tIHRoZSBoZWFkIHBhZ2UgdG8gdGhlIHJhdyBlcnJvciBwYWdlLg0KPiAgICAgSWYgdGhl
+IHJlcG9ydGVkIHJhY2UgaGFwcGVucywgZGlzc29sdmVfZnJlZV9odWdlX3BhZ2UoKSBqdXN0IHJl
+dHVybiB3aXRob3V0DQo+ICAgICBkb2luZyBhbnkgZGlzc29sdmUgd29yayBiZWNhdXNlICJpZiAo
+UGFnZUh1Z2UocGFnZSkgJiYgIXBhZ2VfY291bnQocGFnZSkpIg0KPiAgICAgYmxvY2sgaXMgc2tp
+cHBlZC4NCj4gICAgIFRoZSBodWdlcGFnZSBpcyBhbGxvY2F0ZWQgYW5kIHVzZWQgYXMgdXN1YWws
+IGJ1dCB0aGUgY29udGFpbWVudCBkb2Vzbid0DQo+ICAgICBjb21wbGV0ZSBhcyBleHBlY3RlZCBp
+biB0aGUgbm9ybWFsIHBhZ2UsIGJlY2F1c2UgZnJlZV9odWdlX3BhZ2VzKCkgZG9lc24ndA0KPiAg
+ICAgY2FsbCBkaXNzb2x2ZV9mcmVlX2h1Z2VfcGFnZSgpIGZvciBod3BvaXNvbiBodWdlcGFnZS4g
+VGhpcyBpcyBub3QgY3JpdGljYWwNCj4gICAgIGJlY2F1c2Ugc3VjaCBlcnJvciBodWdlcGFnZSBq
+dXN0IHJlc2lkZSBpbiBmcmVlIGh1Z2VwYWdlIGxpc3QuIEJ1dCB0aGlzDQo+ICAgICBtaWdodCBs
+b29rcyBsaWtlIGEga2luZCBvZiBtZW1vcnkgbGVhay4gQW5kIGV2ZW4gd29yc2Ugd2hlbiBodWdl
+cGFnZSBwb29sDQo+ICAgICBpcyBzaHJpbmtlZCBhbmQgdGhlIGh3cG9pc29uIGh1Z2VwYWdlIGlz
+IGZyZWVkLCB0aGUgUGFnZUhXUG9pc29uIGZsYWcgaXMNCj4gICAgIHN0aWxsIG9uIHRoZSBoZWFk
+IHBhZ2Ugd2hpY2ggaXMgdW5saWtlbHkgdG8gYmUgYW4gYWN0dWFsIGVycm9yIHBhZ2UuDQo+IA0K
+PiAgICAgU28gSSB0aGluayB3ZSBuZWVkIGltcHJvdmVtZW50IGhlcmUsIGhvdyBhYm91dCB0aGUg
+Zml4IGxpa2UgYmVsb3c/DQo+IA0KPiAgICAgICAobm90IHRlc3RlZCB5ZXQsIHNvcnJ5KQ0KPiAN
+Cj4gICAgICAgZGlmZiAtLWdpdCBhL21tL21lbW9yeS1mYWlsdXJlLmMgYi9tbS9tZW1vcnktZmFp
+bHVyZS5jDQo+ICAgICAgIC0tLSBhL21tL21lbW9yeS1mYWlsdXJlLmMNCj4gICAgICAgKysrIGIv
+bW0vbWVtb3J5LWZhaWx1cmUuYw0KPiAgICAgICBAQCAtMTg4Myw2ICsxODgzLDExIEBAIHN0YXRp
+YyB2b2lkIHNvZnRfb2ZmbGluZV9mcmVlX3BhZ2UNCj4gICAgIChzdHJ1Y3QgcGFnZSAqcGFnZSkN
+Cj4gICAgICAgICAgICAgICBzdHJ1Y3QgcGFnZSAqaGVhZCA9IGNvbXBvdW5kX2hlYWQocGFnZSk7
+DQo+ICAgICAgIA0KPiAgICAgICAgICAgICAgIGlmICghVGVzdFNldFBhZ2VIV1BvaXNvbihoZWFk
+KSkgew0KPiAgICAgICArICAgICAgICAgICAgICAgaWYgKHBhZ2VfY291bnQoaGVhZCkpIHsNCj4g
+ICAgICAgKyAgICAgICAgICAgICAgICAgICAgICAgQ2xlYXJQYWdlSFdQb2lzb24oaGVhZCk7DQo+
+ICAgICAgICsgICAgICAgICAgICAgICAgICAgICAgIHJldHVybjsNCj4gICAgICAgKyAgICAgICAg
+ICAgICAgIH0NCj4gICAgICAgKw0KPiAgICAgICAgICAgICAgICAgICAgICAgbnVtX3BvaXNvbmVk
+X3BhZ2VzX2luYygpOw0KPiAgICAgICAgICAgICAgICAgICAgICAgaWYgKFBhZ2VIdWdlKGhlYWQp
+KQ0KPiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBkaXNzb2x2ZV9mcmVlX2h1Z2VfcGFn
+ZShwYWdlKTsNCj4gDQo+ICAgICBUaGFua3MsDQo+ICAgICBOYW95YSBIb3JpZ3VjaGkNCj4g
