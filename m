@@ -1,69 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 228266B0305
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 12:53:42 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id c23-v6so25875577oiy.3
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 09:53:42 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i9-v6sor8220547oik.98.2018.07.09.09.53.40
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 573116B0307
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 13:12:06 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id m2-v6so10519442plt.14
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 10:12:06 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id l4-v6si14997401plb.213.2018.07.09.10.12.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 09 Jul 2018 09:53:41 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Jul 2018 10:12:05 -0700 (PDT)
+Subject: Re: [PATCH -mm -v4 04/21] mm, THP, swap: Support PMD swap mapping in
+ swapcache_free_cluster()
+References: <20180622035151.6676-1-ying.huang@intel.com>
+ <20180622035151.6676-5-ying.huang@intel.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <dd7b3dd7-9e10-4b9f-b931-915298bfd627@linux.intel.com>
+Date: Mon, 9 Jul 2018 10:11:57 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180709125641.xpoq66p4r7dzsgyj@quack2.suse.cz>
-References: <153077334130.40830.2714147692560185329.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180709125641.xpoq66p4r7dzsgyj@quack2.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 9 Jul 2018 09:53:40 -0700
-Message-ID: <CAPcyv4j3X7vQb0t3FzN0c6yEicZC6LDCPyJVJud1y+vusMUBbw@mail.gmail.com>
-Subject: Re: [PATCH 00/13] mm: Asynchronous + multithreaded memmap init for ZONE_DEVICE
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180622035151.6676-5-ying.huang@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Huaisheng Ye <yehs1@lenovo.com>, Vishal Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Rich Felker <dalias@libc.org>, Fenghua Yu <fenghua.yu@intel.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michal Hocko <mhocko@suse.com>, Paul Mackerras <paulus@samba.org>, Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Ingo Molnar <mingo@redhat.com>, Johannes Thumshirn <jthumshirn@suse.de>, Michael Ellerman <mpe@ellerman.id.au>, Heiko Carstens <heiko.carstens@de.ibm.com>, X86 ML <x86@kernel.org>, Logan Gunthorpe <logang@deltatee.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jeff Moyer <jmoyer@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-On Mon, Jul 9, 2018 at 5:56 AM, Jan Kara <jack@suse.cz> wrote:
-> On Wed 04-07-18 23:49:02, Dan Williams wrote:
->> In order to keep pfn_to_page() a simple offset calculation the 'struct
->> page' memmap needs to be mapped and initialized in advance of any usage
->> of a page. This poses a problem for large memory systems as it delays
->> full availability of memory resources for 10s to 100s of seconds.
->>
->> For typical 'System RAM' the problem is mitigated by the fact that large
->> memory allocations tend to happen after the kernel has fully initialized
->> and userspace services / applications are launched. A small amount, 2GB
->> of memory, is initialized up front. The remainder is initialized in the
->> background and freed to the page allocator over time.
->>
->> Unfortunately, that scheme is not directly reusable for persistent
->> memory and dax because userspace has visibility to the entire resource
->> pool and can choose to access any offset directly at its choosing. In
->> other words there is no allocator indirection where the kernel can
->> satisfy requests with arbitrary pages as they become initialized.
->>
->> That said, we can approximate the optimization by performing the
->> initialization in the background, allow the kernel to fully boot the
->> platform, start up pmem block devices, mount filesystems in dax mode,
->> and only incur the delay at the first userspace dax fault.
->>
->> With this change an 8 socket system was observed to initialize pmem
->> namespaces in ~4 seconds whereas it was previously taking ~4 minutes.
->>
->> These patches apply on top of the HMM + devm_memremap_pages() reworks
->> [1]. Andrew, once the reviews come back, please consider this series for
->> -mm as well.
->>
->> [1]: https://lkml.org/lkml/2018/6/19/108
->
-> One question: Why not (in addition to background initialization) have
-> ->direct_access() initialize a block of struct pages around the pfn it
-> needs if it finds it's not initialized yet? That would make devices usable
-> immediately without waiting for init to complete...
+> +#ifdef CONFIG_THP_SWAP
+> +static inline int cluster_swapcount(struct swap_cluster_info *ci)
+> +{
+> +	if (!ci || !cluster_is_huge(ci))
+> +		return 0;
+> +
+> +	return cluster_count(ci) - SWAPFILE_CLUSTER;
+> +}
+> +#else
+> +#define cluster_swapcount(ci)			0
+> +#endif
 
-Hmm, yes, relatively immediately... it would depend on the granularity
-of the tracking where we can reliably steal initialization work from
-the background thread. I'll give it a shot, I'm thinking dividing each
-thread's work into 64 sub-units and track those units with a bitmap.
-The worst case init time then becomes the time to initialize the pages
-for a range that is namespace-size / (NR_MEMMAP_THREADS * 64).
+Dumb questions, round 2:  On a CONFIG_THP_SWAP=n build, presumably,
+cluster_is_huge()=0 always, so cluster_swapout() always returns 0.  Right?
+
+So, why the #ifdef?
+
+>  /*
+>   * It's possible scan_swap_map() uses a free cluster in the middle of free
+>   * cluster list. Avoiding such abuse to avoid list corruption.
+> @@ -905,6 +917,7 @@ static void swap_free_cluster(struct swap_info_struct *si, unsigned long idx)
+>  	struct swap_cluster_info *ci;
+>  
+>  	ci = lock_cluster(si, offset);
+> +	memset(si->swap_map + offset, 0, SWAPFILE_CLUSTER);
+>  	cluster_set_count_flag(ci, 0, 0);
+>  	free_cluster(si, idx);
+>  	unlock_cluster(ci);
+
+This is another case of gloriously comment-free code, but stuff that
+_was_ covered in the changelog.  I'd much rather have code comments than
+changelog comments.  Could we fix that?
+
+I'm generally finding it quite hard to review this because I keep having
+to refer back to the changelog to see if what you are doing matches what
+you said you were doing.
+
+> @@ -1288,24 +1301,30 @@ static void swapcache_free_cluster(swp_entry_t entry)
+>  
+>  	ci = lock_cluster(si, offset);
+>  	VM_BUG_ON(!cluster_is_huge(ci));
+> +	VM_BUG_ON(!is_cluster_offset(offset));
+> +	VM_BUG_ON(cluster_count(ci) < SWAPFILE_CLUSTER);
+>  	map = si->swap_map + offset;
+> -	for (i = 0; i < SWAPFILE_CLUSTER; i++) {
+> -		val = map[i];
+> -		VM_BUG_ON(!(val & SWAP_HAS_CACHE));
+> -		if (val == SWAP_HAS_CACHE)
+> -			free_entries++;
+> +	if (!cluster_swapcount(ci)) {
+> +		for (i = 0; i < SWAPFILE_CLUSTER; i++) {
+> +			val = map[i];
+> +			VM_BUG_ON(!(val & SWAP_HAS_CACHE));
+> +			if (val == SWAP_HAS_CACHE)
+> +				free_entries++;
+> +		}
+> +		if (free_entries != SWAPFILE_CLUSTER)
+> +			cluster_clear_huge(ci);
+>  	}
+
+Also, I'll point out that cluster_swapcount() continues the horrific
+naming of cluster_couunt(), not saying what the count is *of*.  The
+return value doesn't help much:
+
+	return cluster_count(ci) - SWAPFILE_CLUSTER;
