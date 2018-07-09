@@ -1,117 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C7E766B02CF
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 08:56:52 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id r9-v6so6935503edo.16
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 05:56:52 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 296896B02D1
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 09:09:39 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id r9-v6so3527936edh.14
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 06:09:39 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q11-v6si2668741eds.67.2018.07.09.05.56.50
+        by mx.google.com with ESMTPS id d8-v6si833541edb.244.2018.07.09.06.09.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jul 2018 05:56:50 -0700 (PDT)
-Date: Mon, 9 Jul 2018 14:56:41 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 00/13] mm: Asynchronous + multithreaded memmap init for
- ZONE_DEVICE
-Message-ID: <20180709125641.xpoq66p4r7dzsgyj@quack2.suse.cz>
-References: <153077334130.40830.2714147692560185329.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Mon, 09 Jul 2018 06:09:37 -0700 (PDT)
+Date: Mon, 9 Jul 2018 15:09:31 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm/cma: remove unsupported gfp_mask parameter from
+ cma_alloc()
+Message-ID: <20180709130931.GL22049@dhcp22.suse.cz>
+References: <20180709121956.20200-1-m.szyprowski@samsung.com>
+ <CGME20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29@eucas1p2.samsung.com>
+ <20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29~-sqTPJKij2939229392eucas1p2j@eucas1p2.samsung.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <153077334130.40830.2714147692560185329.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29~-sqTPJKij2939229392eucas1p2j@eucas1p2.samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Tony Luck <tony.luck@intel.com>, Huaisheng Ye <yehs1@lenovo.com>, Vishal Verma <vishal.l.verma@intel.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Rich Felker <dalias@libc.org>, Fenghua Yu <fenghua.yu@intel.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michal Hocko <mhocko@suse.com>, Paul Mackerras <paulus@samba.org>, Christoph Hellwig <hch@lst.de>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Ingo Molnar <mingo@redhat.com>, Johannes Thumshirn <jthumshirn@suse.de>, Michael Ellerman <mpe@ellerman.id.au>, Heiko Carstens <heiko.carstens@de.ibm.com>, x86@kernel.org, Logan Gunthorpe <logang@deltatee.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jeff Moyer <jmoyer@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org, iommu@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Hellwig <hch@lst.de>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Paul Mackerras <paulus@ozlabs.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Chris Zankel <chris@zankel.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Joerg Roedel <joro@8bytes.org>, Sumit Semwal <sumit.semwal@linaro.org>, Robin Murphy <robin.murphy@arm.com>, Laura Abbott <labbott@redhat.com>, linaro-mm-sig@lists.linaro.org
 
-On Wed 04-07-18 23:49:02, Dan Williams wrote:
-> In order to keep pfn_to_page() a simple offset calculation the 'struct
-> page' memmap needs to be mapped and initialized in advance of any usage
-> of a page. This poses a problem for large memory systems as it delays
-> full availability of memory resources for 10s to 100s of seconds.
+On Mon 09-07-18 14:19:55, Marek Szyprowski wrote:
+> cma_alloc() function doesn't really support gfp flags other than
+> __GFP_NOWARN, so convert gfp_mask parameter to boolean no_warn parameter.
 > 
-> For typical 'System RAM' the problem is mitigated by the fact that large
-> memory allocations tend to happen after the kernel has fully initialized
-> and userspace services / applications are launched. A small amount, 2GB
-> of memory, is initialized up front. The remainder is initialized in the
-> background and freed to the page allocator over time.
+> This will help to avoid giving false feeling that this function supports
+> standard gfp flags and callers can pass __GFP_ZERO to get zeroed buffer,
+> what has already been an issue: see commit dd65a941f6ba ("arm64:
+> dma-mapping: clear buffers allocated with FORCE_CONTIGUOUS flag").
 > 
-> Unfortunately, that scheme is not directly reusable for persistent
-> memory and dax because userspace has visibility to the entire resource
-> pool and can choose to access any offset directly at its choosing. In
-> other words there is no allocator indirection where the kernel can
-> satisfy requests with arbitrary pages as they become initialized.
-> 
-> That said, we can approximate the optimization by performing the
-> initialization in the background, allow the kernel to fully boot the
-> platform, start up pmem block devices, mount filesystems in dax mode,
-> and only incur the delay at the first userspace dax fault.
-> 
-> With this change an 8 socket system was observed to initialize pmem
-> namespaces in ~4 seconds whereas it was previously taking ~4 minutes.
-> 
-> These patches apply on top of the HMM + devm_memremap_pages() reworks
-> [1]. Andrew, once the reviews come back, please consider this series for
-> -mm as well.
-> 
-> [1]: https://lkml.org/lkml/2018/6/19/108
+> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
 
-One question: Why not (in addition to background initialization) have
-->direct_access() initialize a block of struct pages around the pfn it
-needs if it finds it's not initialized yet? That would make devices usable
-immediately without waiting for init to complete...
+Thanks! This makes perfect sense to me. If there is a real need for the
+gfp_mask then we should start by defining the semantic first.
 
-								Honza
-> 
+Acked-by: Michal Hocko <mhocko@suse.com>
+
 > ---
+>  arch/powerpc/kvm/book3s_hv_builtin.c       | 2 +-
+>  drivers/s390/char/vmcp.c                   | 2 +-
+>  drivers/staging/android/ion/ion_cma_heap.c | 2 +-
+>  include/linux/cma.h                        | 2 +-
+>  kernel/dma/contiguous.c                    | 3 ++-
+>  mm/cma.c                                   | 8 ++++----
+>  mm/cma_debug.c                             | 2 +-
+>  7 files changed, 11 insertions(+), 10 deletions(-)
 > 
-> Dan Williams (9):
->       mm: Plumb dev_pagemap instead of vmem_altmap to memmap_init_zone()
->       mm: Enable asynchronous __add_pages() and vmemmap_populate_hugepages()
->       mm: Teach memmap_init_zone() to initialize ZONE_DEVICE pages
->       mm: Multithread ZONE_DEVICE initialization
->       mm: Allow an external agent to wait for memmap initialization
->       filesystem-dax: Make mount time pfn validation a debug check
->       libnvdimm, pmem: Initialize the memmap in the background
->       device-dax: Initialize the memmap in the background
->       libnvdimm, namespace: Publish page structure init state / control
+> diff --git a/arch/powerpc/kvm/book3s_hv_builtin.c b/arch/powerpc/kvm/book3s_hv_builtin.c
+> index d4a3f4da409b..fc6bb9630a9c 100644
+> --- a/arch/powerpc/kvm/book3s_hv_builtin.c
+> +++ b/arch/powerpc/kvm/book3s_hv_builtin.c
+> @@ -77,7 +77,7 @@ struct page *kvm_alloc_hpt_cma(unsigned long nr_pages)
+>  	VM_BUG_ON(order_base_2(nr_pages) < KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
+>  
+>  	return cma_alloc(kvm_cma, nr_pages, order_base_2(HPT_ALIGN_PAGES),
+> -			 GFP_KERNEL);
+> +			 false);
+>  }
+>  EXPORT_SYMBOL_GPL(kvm_alloc_hpt_cma);
+>  
+> diff --git a/drivers/s390/char/vmcp.c b/drivers/s390/char/vmcp.c
+> index 948ce82a7725..0fa1b6b1491a 100644
+> --- a/drivers/s390/char/vmcp.c
+> +++ b/drivers/s390/char/vmcp.c
+> @@ -68,7 +68,7 @@ static void vmcp_response_alloc(struct vmcp_session *session)
+>  	 * anymore the system won't work anyway.
+>  	 */
+>  	if (order > 2)
+> -		page = cma_alloc(vmcp_cma, nr_pages, 0, GFP_KERNEL);
+> +		page = cma_alloc(vmcp_cma, nr_pages, 0, false);
+>  	if (page) {
+>  		session->response = (char *)page_to_phys(page);
+>  		session->cma_alloc = 1;
+> diff --git a/drivers/staging/android/ion/ion_cma_heap.c b/drivers/staging/android/ion/ion_cma_heap.c
+> index 49718c96bf9e..3fafd013d80a 100644
+> --- a/drivers/staging/android/ion/ion_cma_heap.c
+> +++ b/drivers/staging/android/ion/ion_cma_heap.c
+> @@ -39,7 +39,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
+>  	if (align > CONFIG_CMA_ALIGNMENT)
+>  		align = CONFIG_CMA_ALIGNMENT;
+>  
+> -	pages = cma_alloc(cma_heap->cma, nr_pages, align, GFP_KERNEL);
+> +	pages = cma_alloc(cma_heap->cma, nr_pages, align, false);
+>  	if (!pages)
+>  		return -ENOMEM;
+>  
+> diff --git a/include/linux/cma.h b/include/linux/cma.h
+> index bf90f0bb42bd..190184b5ff32 100644
+> --- a/include/linux/cma.h
+> +++ b/include/linux/cma.h
+> @@ -33,7 +33,7 @@ extern int cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
+>  					const char *name,
+>  					struct cma **res_cma);
+>  extern struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
+> -			      gfp_t gfp_mask);
+> +			      bool no_warn);
+>  extern bool cma_release(struct cma *cma, const struct page *pages, unsigned int count);
+>  
+>  extern int cma_for_each_area(int (*it)(struct cma *cma, void *data), void *data);
+> diff --git a/kernel/dma/contiguous.c b/kernel/dma/contiguous.c
+> index d987dcd1bd56..19ea5d70150c 100644
+> --- a/kernel/dma/contiguous.c
+> +++ b/kernel/dma/contiguous.c
+> @@ -191,7 +191,8 @@ struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
+>  	if (align > CONFIG_CMA_ALIGNMENT)
+>  		align = CONFIG_CMA_ALIGNMENT;
+>  
+> -	return cma_alloc(dev_get_cma_area(dev), count, align, gfp_mask);
+> +	return cma_alloc(dev_get_cma_area(dev), count, align,
+> +			 gfp_mask & __GFP_NOWARN);
+>  }
+>  
+>  /**
+> diff --git a/mm/cma.c b/mm/cma.c
+> index 5809bbe360d7..4cb76121a3ab 100644
+> --- a/mm/cma.c
+> +++ b/mm/cma.c
+> @@ -395,13 +395,13 @@ static inline void cma_debug_show_areas(struct cma *cma) { }
+>   * @cma:   Contiguous memory region for which the allocation is performed.
+>   * @count: Requested number of pages.
+>   * @align: Requested alignment of pages (in PAGE_SIZE order).
+> - * @gfp_mask:  GFP mask to use during compaction
+> + * @no_warn: Avoid printing message about failed allocation
+>   *
+>   * This function allocates part of contiguous memory on specific
+>   * contiguous memory area.
+>   */
+>  struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
+> -		       gfp_t gfp_mask)
+> +		       bool no_warn)
+>  {
+>  	unsigned long mask, offset;
+>  	unsigned long pfn = -1;
+> @@ -447,7 +447,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
+>  		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
+>  		mutex_lock(&cma_mutex);
+>  		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA,
+> -					 gfp_mask);
+> +				     GFP_KERNEL | (no_warn ? __GFP_NOWARN : 0));
+>  		mutex_unlock(&cma_mutex);
+>  		if (ret == 0) {
+>  			page = pfn_to_page(pfn);
+> @@ -466,7 +466,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
+>  
+>  	trace_cma_alloc(pfn, page, count, align)>  
+> -	if (ret && !(gfp_mask & __GFP_NOWARN)) {
+> +	if (ret && !no_warn) {
+>  		pr_err("%s: alloc failed, req-size: %zu pages, ret: %d\n",
+>  			__func__, count, ret);
+>  		cma_debug_show_areas(cma);
+> diff --git a/mm/cma_debug.c b/mm/cma_debug.c
+> index f23467291cfb..ad6723e9d110 100644
+> --- a/mm/cma_debug.c
+> +++ b/mm/cma_debug.c
+> @@ -139,7 +139,7 @@ static int cma_alloc_mem(struct cma *cma, int count)
+>  	if (!mem)
+>  		return -ENOMEM;
+>  
+> -	p = cma_alloc(cma, count, 0, GFP_KERNEL);
+> +	p = cma_alloc(cma, count, 0, false);
+>  	if (!p) {
+>  		kfree(mem);
+>  		return -ENOMEM;
+> -- 
+> 2.17.1
 > 
-> Huaisheng Ye (4):
->       nvdimm/pmem: check the validity of the pointer pfn
->       nvdimm/pmem-dax: check the validity of the pointer pfn
->       s390/block/dcssblk: check the validity of the pointer pfn
->       fs/dax: Assign NULL to pfn of dax_direct_access if useless
-> 
-> 
->  arch/ia64/mm/init.c             |    5 +
->  arch/powerpc/mm/mem.c           |    5 +
->  arch/s390/mm/init.c             |    8 +
->  arch/sh/mm/init.c               |    5 +
->  arch/x86/mm/init_32.c           |    8 +
->  arch/x86/mm/init_64.c           |   27 +++--
->  drivers/dax/Kconfig             |   10 ++
->  drivers/dax/dax-private.h       |    2 
->  drivers/dax/device-dax.h        |    2 
->  drivers/dax/device.c            |   16 +++
->  drivers/dax/pmem.c              |    5 +
->  drivers/dax/super.c             |   64 +++++++-----
->  drivers/nvdimm/nd.h             |    2 
->  drivers/nvdimm/pfn_devs.c       |   54 ++++++++--
->  drivers/nvdimm/pmem.c           |   17 ++-
->  drivers/nvdimm/pmem.h           |    1 
->  drivers/s390/block/dcssblk.c    |    5 +
->  fs/dax.c                        |   10 +-
->  include/linux/memmap_async.h    |   55 ++++++++++
->  include/linux/memory_hotplug.h  |   18 ++-
->  include/linux/memremap.h        |   31 ++++++
->  include/linux/mm.h              |    8 +
->  kernel/memremap.c               |   85 ++++++++-------
->  mm/memory_hotplug.c             |   73 ++++++++++---
->  mm/page_alloc.c                 |  215 +++++++++++++++++++++++++++++++++------
->  mm/sparse-vmemmap.c             |   56 ++++++++--
->  tools/testing/nvdimm/pmem-dax.c |   11 ++
->  27 files changed, 610 insertions(+), 188 deletions(-)
->  create mode 100644 include/linux/memmap_async.h
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
