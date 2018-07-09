@@ -1,64 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 028766B02D7
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 09:32:22 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id y2-v6so297473pll.16
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 06:32:21 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.133])
-        by mx.google.com with ESMTPS id x63-v6si12471101pfb.352.2018.07.09.06.32.19
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 54B386B02D8
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 09:40:37 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id f31-v6so2341540plb.10
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 06:40:37 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id n11-v6si13332446plk.225.2018.07.09.06.40.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 09 Jul 2018 06:32:20 -0700 (PDT)
-Date: Mon, 9 Jul 2018 06:32:12 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: BUG: corrupted list in cpu_stop_queue_work
-Message-ID: <20180709133212.GA2662@bombadil.infradead.org>
-References: <00000000000032412205706753b5@google.com>
- <000000000000693c7d057087caf3@google.com>
- <1271c58e-876b-0df3-3224-319d82634663@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Jul 2018 06:40:35 -0700 (PDT)
+Subject: Re: [PATCH] mm,page_alloc: PF_WQ_WORKER should always sleep at
+ should_reclaim_retry().
+References: <1531046158-4010-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180709075731.GB22049@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <5a5ddca9-95fd-1035-b304-a9c6d50238b2@i-love.sakura.ne.jp>
+Date: Mon, 9 Jul 2018 22:08:04 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1271c58e-876b-0df3-3224-319d82634663@I-love.SAKURA.ne.jp>
+In-Reply-To: <20180709075731.GB22049@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: syzbot <syzbot+d8a8e42dfba0454286ff@syzkaller.appspotmail.com>, bigeasy@linutronix.de, linux-kernel@vger.kernel.org, matt@codeblueprint.co.uk, mingo@kernel.org, peterz@infradead.org, syzkaller-bugs@googlegroups.com, tglx@linutronix.de, linux-mm <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@suse.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <js1304@gmail.com>, Mel Gorman <mgorman@suse.de>, Vladimir Davydov <vdavydov@virtuozzo.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Mon, Jul 09, 2018 at 09:55:17PM +0900, Tetsuo Handa wrote:
-> Hello Matthew,
+On 2018/07/09 16:57, Michal Hocko wrote:
+> On Sun 08-07-18 19:35:58, Tetsuo Handa wrote:
+>> From: Michal Hocko <mhocko@suse.com>
+>>
+>> should_reclaim_retry() should be a natural reschedule point. PF_WQ_WORKER
+>> is a special case which needs a stronger rescheduling policy. However,
+>> since schedule_timeout_uninterruptible(1) for PF_WQ_WORKER depends on
+>> __zone_watermark_ok() == true, PF_WQ_WORKER is currently counting on
+>> mutex_trylock(&oom_lock) == 0 in __alloc_pages_may_oom() which is a bad
+>> expectation.
 > 
-> It seems to me that there are other locations which do not check xas_store()
-> failure. Is that really OK? If they are OK, I think we want a comment like
-> /* This never fails. */ or /* Failure is OK because ... */
-> for each call without failure check.
+> I think your reference to the oom_lock is more confusing than helpful
+> actually. I would simply use the following from your previous [1]
+> changelog:
 
-Good grief, no, I'm not adding a comment to all 50 calls to
-xas_store().  Here are some rules:
+Then, you can post yourself because
 
- - xas_store(NULL) cannot fail.
- - xas_store(p) cannot fail if we know something was already in
-   that slot beforehand (ie a replace operation).
- - xas_store(p) cannot fail if xas_create_range() was previously
-   successful.
- - xas_store(p) can fail, but it's OK if the only things after that are
-   other xas_*() calls.  Because every xas_*() call checks xas_error().
-   So this is fine:
-
-	do {
-		xas_store(&xas, p);
-		xas_set_tag(&xas, XA_TAG_0);
-	} while (xas_nomem(&xas, GFP_KERNEL));
-
-> >From d6f24d6eecd79836502527624f8086f4e3e4c331 Mon Sep 17 00:00:00 2001
-> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Mon, 9 Jul 2018 15:58:44 +0900
-> Subject: [PATCH] shmem: Fix crash upon xas_store() failure.
+> : should_reclaim_retry() should be a natural reschedule point. PF_WQ_WORKER
+> : is a special case which needs a stronger rescheduling policy. Doing that
+> : unconditionally seems more straightforward than depending on a zone being
+> : a good candidate for a further reclaim.
+> : 
+> : Thus, move the short sleep when we are waiting for the owner of oom_lock
+> : (which coincidentally also serves as a guaranteed sleep for PF_WQ_WORKER
+> : threads) to should_reclaim_retry().
 > 
-> syzbot is reporting list corruption [1]. This is because xas_store() from
-> shmem_add_to_page_cache() is not handling memory allocation failure. Fix
-> this by checking xas_error() after xas_store().
+>> unconditionally seems more straightforward than depending on a zone being
+>> a good candidate for a further reclaim.
+> 
+> [1] http://lkml.kernel.org/r/1528369223-7571-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
+> 
+> [Tetsuo: changelog]
+>> Signed-off-by: Michal Hocko <mhocko@suse.com>
+>> Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
+>> Cc: David Rientjes <rientjes@google.com>
+>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> Cc: Joonsoo Kim <js1304@gmail.com>
+>> Cc: Mel Gorman <mgorman@suse.de>
+>> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+>> Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
+>> Cc: Vlastimil Babka <vbabka@suse.cz>
+> 
+> Your s-o-b is still missing.
 
-I have no idea why you wrote this patch on Monday when I already said
-I knew what the problem was on Friday, fixed the problem and pushed it
-out to my git tree on Saturday.
+all code changes in this patch is from you. That is, my s-o-b is not missing.
