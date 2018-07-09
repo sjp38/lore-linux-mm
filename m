@@ -1,52 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E35426B026C
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 06:33:07 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id e1-v6so9796819pld.23
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 03:33:07 -0700 (PDT)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id r3-v6si14103012plb.336.2018.07.09.03.33.06
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DA8B36B02B7
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 06:48:59 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id t5-v6so516708pgt.18
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 03:48:59 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n13-v6sor1192856pgp.297.2018.07.09.03.48.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jul 2018 03:33:06 -0700 (PDT)
-Received: from eucas1p1.samsung.com (unknown [182.198.249.206])
-	by mailout2.w1.samsung.com (KnoxPortal) with ESMTP id 20180709103301euoutp028a6c909cd77964a7dc80463ebed81d2f~-rMnioL_f1086410864euoutp02H
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 10:33:01 +0000 (GMT)
-Subject: Re: [PATCH] mm: cma: honor __GFP_ZERO flag in cma_alloc()
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Date: Mon, 9 Jul 2018 12:32:58 +0200
+        (Google Transport Security);
+        Mon, 09 Jul 2018 03:48:58 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180702133016.GA16909@infradead.org>
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-Message-Id: <20180709103259eucas1p1fc03f1da5e8964f903d09c5573923c10~-rMmDLdF-0476504765eucas1p12@eucas1p1.samsung.com>
-Content-Type: text/plain; charset="utf-8"
-References: <CGME20180613085851eucas1p20337d050face8ff8ea87674e16a9ccd2@eucas1p2.samsung.com>
-	<20180613085851eucas1p20337d050face8ff8ea87674e16a9ccd2~3rI_9nj8b0455904559eucas1p2C@eucas1p2.samsung.com>
-	<20180613122359.GA8695@bombadil.infradead.org>
-	<20180613124001eucas1p2422f7916367ce19fecd40d6131990383~3uKFrT3ML1977219772eucas1p2G@eucas1p2.samsung.com>
-	<20180613125546.GB32016@infradead.org>
-	<20180613133913.GD20315@dhcp22.suse.cz>
-	<20180702132335eucas1p1323fbf51cd5e82a59939d72097acee04~9kAizDyji0466904669eucas1p1w@eucas1p1.samsung.com>
-	<20180702133016.GA16909@infradead.org>
+In-Reply-To: <20180709101558.63vkwppwcgzcv3dg@kshutemo-mobl1>
+References: <0000000000004a7da505708a9915@google.com> <20180709101558.63vkwppwcgzcv3dg@kshutemo-mobl1>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 9 Jul 2018 12:48:37 +0200
+Message-ID: <CACT4Y+a=8NOg+h6fBzpmVHiZ-vNUiG7SW4QgQvK3vD=KBqQ3_Q@mail.gmail.com>
+Subject: Re: kernel BUG at mm/memory.c:LINE!
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: syzbot <syzbot+3f84280d52be9b7083cc@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Jerome Glisse <jglisse@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, ldufour@linux.vnet.ibm.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Matthew Wilcox <willy@infradead.org>, ying.huang@intel.com
 
-Hi Christoph,
+On Mon, Jul 9, 2018 at 12:15 PM, Kirill A. Shutemov
+<kirill@shutemov.name> wrote:
+> On Sun, Jul 08, 2018 at 10:51:03PM -0700, syzbot wrote:
+>> Hello,
+>>
+>> syzbot found the following crash on:
+>>
+>> HEAD commit:    b2d44d145d2a Merge tag '4.18-rc3-smb3fixes' of git://git.s..
+>> git tree:       upstream
+>> console output: https://syzkaller.appspot.com/x/log.txt?x=11d07748400000
+>> kernel config:  https://syzkaller.appspot.com/x/.config?x=2ca6c7a31d407f86
+>> dashboard link: https://syzkaller.appspot.com/bug?extid=3f84280d52be9b7083cc
+>> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+>>
+>> Unfortunately, I don't have any reproducer for this crash yet.
+>>
+>> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+>> Reported-by: syzbot+3f84280d52be9b7083cc@syzkaller.appspotmail.com
+>>
+>> next ffff8801ce5e7040 prev ffff8801d20eca50 mm ffff88019c1e13c0
+>> prot 27 anon_vma ffff88019680cdd8 vm_ops 0000000000000000
+>> pgoff 0 file ffff8801b2ec2d00 private_data 0000000000000000
+>> flags: 0xff(read|write|exec|shared|mayread|maywrite|mayexec|mayshare)
+>> ------------[ cut here ]------------
+>> kernel BUG at mm/memory.c:1422!
+>
+> Looks like vma_is_anonymous() false-positive.
+>
+> Any clues what file is it? I would guess some kind of socket, but it's not
+> clear from log which exactly.
 
-On 2018-07-02 15:30, Christoph Hellwig wrote:
-> On Mon, Jul 02, 2018 at 03:23:34PM +0200, Marek Szyprowski wrote:
->> What about clearing the allocated buffer? Should it be another bool
->> parameter,
->> done unconditionally or moved to the callers?
-> Please keep it in the callers.  I plan to push it up even higher
-> from the current callers short to midterm.
 
-Okay, I will post a patch with this approach then.
+>From the log it looks like it was this program (number 3 matches Comm:
+syz-executor3):
 
-Best regards
--- 
-Marek Szyprowski, PhD
-Samsung R&D Institute Poland
+08:39:32 executing program 3:
+r0 = socket$nl_route(0x10, 0x3, 0x0)
+bind$netlink(r0, &(0x7f00000002c0)={0x10, 0x0, 0x0, 0x100000}, 0xc)
+getsockname(r0, &(0x7f0000000000)=@pppol2tpv3in6={0x0, 0x0, {0x0,
+<r1=>0xffffffffffffffff, 0x0, 0x0, 0x0, 0x0, {0x0, 0x0, 0x0,
+@loopback}}}, &(0x7f00000000c0)=0x3a)
+mmap(&(0x7f0000e00000/0x200000)=nil, 0x200000, 0x7fdff, 0x11, r1, 0x0)
+ioctl$FIBMAP(r0, 0x1, &(0x7f0000000100)=0x9)
+r2 = socket$inet6(0xa, 0x1000000000002, 0x0)
+ioctl(r2, 0x8912, &(0x7f00000001c0)="796d05ad441e829115ac7fd77200")
+r3 = syz_open_dev$vcsa(&(0x7f0000000140)='/dev/vcsa#\x00', 0x3, 0x2)
+ioctl$VHOST_SET_VRING_ENDIAN(r3, 0x4008af13, &(0x7f0000000180)={0x0, 0x8})
+sendto$inet(0xffffffffffffffff, &(0x7f0000a88f88), 0xffffffffffffff31,
+0x0, &(0x7f0000e68000)={0x2, 0x0, @multicast2=0xe0000002},
+0xfffffffffffffeb3)
+ftruncate(r1, 0x6)
+mmap(&(0x7f0000e00000/0x200000)=nil, 0x200000, 0x0, 0x11, r0, 0x0)
+setsockopt$SO_TIMESTAMPING(r1, 0x1, 0x25, &(0x7f0000000080)=0x804, 0x4)
+
+But take what happens here with a grain of salt, it can pretend that
+it's doing one thing, but actually do something different.
+So that r1 passed to ftruncate is something that getsockname returned
+somewhere in the middle of address. And since the socket is not
+actually ppp, it can be just some bytes in the middle of netlink
+address, that than happened to be small and match some existing fd...
