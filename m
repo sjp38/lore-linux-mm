@@ -1,414 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 36EFC6B0302
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 12:51:48 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id i123-v6so4043114pfc.13
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 09:51:48 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id h66-v6si16243592pfa.238.2018.07.09.09.51.46
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 228266B0305
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 12:53:42 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id c23-v6so25875577oiy.3
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 09:53:42 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i9-v6sor8220547oik.98.2018.07.09.09.53.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jul 2018 09:51:46 -0700 (PDT)
-Subject: Re: [PATCH -mm -v4 03/21] mm, THP, swap: Support PMD swap mapping in
- swap_duplicate()
-References: <20180622035151.6676-1-ying.huang@intel.com>
- <20180622035151.6676-4-ying.huang@intel.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <92b86ab6-6f51-97b0-337c-b7e98a30b6cb@linux.intel.com>
-Date: Mon, 9 Jul 2018 09:51:42 -0700
+        (Google Transport Security);
+        Mon, 09 Jul 2018 09:53:41 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180622035151.6676-4-ying.huang@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180709125641.xpoq66p4r7dzsgyj@quack2.suse.cz>
+References: <153077334130.40830.2714147692560185329.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180709125641.xpoq66p4r7dzsgyj@quack2.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 9 Jul 2018 09:53:40 -0700
+Message-ID: <CAPcyv4j3X7vQb0t3FzN0c6yEicZC6LDCPyJVJud1y+vusMUBbw@mail.gmail.com>
+Subject: Re: [PATCH 00/13] mm: Asynchronous + multithreaded memmap init for ZONE_DEVICE
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Huaisheng Ye <yehs1@lenovo.com>, Vishal Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Rich Felker <dalias@libc.org>, Fenghua Yu <fenghua.yu@intel.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michal Hocko <mhocko@suse.com>, Paul Mackerras <paulus@samba.org>, Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Ingo Molnar <mingo@redhat.com>, Johannes Thumshirn <jthumshirn@suse.de>, Michael Ellerman <mpe@ellerman.id.au>, Heiko Carstens <heiko.carstens@de.ibm.com>, X86 ML <x86@kernel.org>, Logan Gunthorpe <logang@deltatee.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jeff Moyer <jmoyer@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-> +static inline bool thp_swap_supported(void)
-> +{
-> +	return IS_ENABLED(CONFIG_THP_SWAP);
-> +}
+On Mon, Jul 9, 2018 at 5:56 AM, Jan Kara <jack@suse.cz> wrote:
+> On Wed 04-07-18 23:49:02, Dan Williams wrote:
+>> In order to keep pfn_to_page() a simple offset calculation the 'struct
+>> page' memmap needs to be mapped and initialized in advance of any usage
+>> of a page. This poses a problem for large memory systems as it delays
+>> full availability of memory resources for 10s to 100s of seconds.
+>>
+>> For typical 'System RAM' the problem is mitigated by the fact that large
+>> memory allocations tend to happen after the kernel has fully initialized
+>> and userspace services / applications are launched. A small amount, 2GB
+>> of memory, is initialized up front. The remainder is initialized in the
+>> background and freed to the page allocator over time.
+>>
+>> Unfortunately, that scheme is not directly reusable for persistent
+>> memory and dax because userspace has visibility to the entire resource
+>> pool and can choose to access any offset directly at its choosing. In
+>> other words there is no allocator indirection where the kernel can
+>> satisfy requests with arbitrary pages as they become initialized.
+>>
+>> That said, we can approximate the optimization by performing the
+>> initialization in the background, allow the kernel to fully boot the
+>> platform, start up pmem block devices, mount filesystems in dax mode,
+>> and only incur the delay at the first userspace dax fault.
+>>
+>> With this change an 8 socket system was observed to initialize pmem
+>> namespaces in ~4 seconds whereas it was previously taking ~4 minutes.
+>>
+>> These patches apply on top of the HMM + devm_memremap_pages() reworks
+>> [1]. Andrew, once the reviews come back, please consider this series for
+>> -mm as well.
+>>
+>> [1]: https://lkml.org/lkml/2018/6/19/108
+>
+> One question: Why not (in addition to background initialization) have
+> ->direct_access() initialize a block of struct pages around the pfn it
+> needs if it finds it's not initialized yet? That would make devices usable
+> immediately without waiting for init to complete...
 
-This seems like rather useless abstraction.  Why do we need it?
-
-...
-> -static inline int swap_duplicate(swp_entry_t swp)
-> +static inline int swap_duplicate(swp_entry_t *swp, bool cluster)
->  {
->  	return 0;
->  }
-
-FWIW, I despise true/false function arguments like this.  When I see
-this in code:
-
-	swap_duplicate(&entry, false);
-
-I have no idea what false does.  I'd much rather see:
-
-enum do_swap_cluster {
-	SWP_DO_CLUSTER,
-	SWP_NO_CLUSTER
-};
-
-So you see:
-
-	swap_duplicate(&entry, SWP_NO_CLUSTER);
-
-vs.
-
-	swap_duplicate(&entry, SWP_DO_CLUSTER);
-
-
-> diff --git a/mm/memory.c b/mm/memory.c
-> index e9cac1c4fa69..f3900282e3da 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -951,7 +951,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->  		swp_entry_t entry = pte_to_swp_entry(pte);
->  
->  		if (likely(!non_swap_entry(entry))) {
-> -			if (swap_duplicate(entry) < 0)
-> +			if (swap_duplicate(&entry, false) < 0)
->  				return entry.val;
->  
->  			/* make sure dst_mm is on swapoff's mmlist. */
-
-I'll also point out that in a multi-hundred-line patch, adding arguments
-to a existing function would not be something I'd try to include in the
-patch.  I'd break it out separately unless absolutely necessary.
-
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index f42b1b0cdc58..48e2c54385ee 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -49,6 +49,9 @@ static bool swap_count_continued(struct swap_info_struct *, pgoff_t,
->  				 unsigned char);
->  static void free_swap_count_continuations(struct swap_info_struct *);
->  static sector_t map_swap_entry(swp_entry_t, struct block_device**);
-> +static int add_swap_count_continuation_locked(struct swap_info_struct *si,
-> +					      unsigned long offset,
-> +					      struct page *page);
->  
->  DEFINE_SPINLOCK(swap_lock);
->  static unsigned int nr_swapfiles;
-> @@ -319,6 +322,11 @@ static inline void unlock_cluster_or_swap_info(struct swap_info_struct *si,
->  		spin_unlock(&si->lock);
->  }
->  
-> +static inline bool is_cluster_offset(unsigned long offset)
-> +{
-> +	return !(offset % SWAPFILE_CLUSTER);
-> +}
-> +
->  static inline bool cluster_list_empty(struct swap_cluster_list *list)
->  {
->  	return cluster_is_null(&list->head);
-> @@ -1166,16 +1174,14 @@ struct swap_info_struct *get_swap_device(swp_entry_t entry)
->  	return NULL;
->  }
->  
-> -static unsigned char __swap_entry_free(struct swap_info_struct *p,
-> -				       swp_entry_t entry, unsigned char usage)
-> +static unsigned char __swap_entry_free_locked(struct swap_info_struct *p,
-> +					      struct swap_cluster_info *ci,
-> +					      unsigned long offset,
-> +					      unsigned char usage)
->  {
-> -	struct swap_cluster_info *ci;
-> -	unsigned long offset = swp_offset(entry);
->  	unsigned char count;
->  	unsigned char has_cache;
->  
-> -	ci = lock_cluster_or_swap_info(p, offset);
-> -
->  	count = p->swap_map[offset];
->  
->  	has_cache = count & SWAP_HAS_CACHE;
-> @@ -1203,6 +1209,17 @@ static unsigned char __swap_entry_free(struct swap_info_struct *p,
->  	usage = count | has_cache;
->  	p->swap_map[offset] = usage ? : SWAP_HAS_CACHE;
->  
-> +	return usage;
-> +}
-> +
-> +static unsigned char __swap_entry_free(struct swap_info_struct *p,
-> +				       swp_entry_t entry, unsigned char usage)
-> +{
-> +	struct swap_cluster_info *ci;
-> +	unsigned long offset = swp_offset(entry);
-> +
-> +	ci = lock_cluster_or_swap_info(p, offset);
-> +	usage = __swap_entry_free_locked(p, ci, offset, usage);
->  	unlock_cluster_or_swap_info(p, ci);
->  
->  	return usage;
-> @@ -3450,32 +3467,12 @@ void si_swapinfo(struct sysinfo *val)
->  	spin_unlock(&swap_lock);
->  }
->  
-> -/*
-> - * Verify that a swap entry is valid and increment its swap map count.
-> - *
-> - * Returns error code in following case.
-> - * - success -> 0
-> - * - swp_entry is invalid -> EINVAL
-> - * - swp_entry is migration entry -> EINVAL
-> - * - swap-cache reference is requested but there is already one. -> EEXIST
-> - * - swap-cache reference is requested but the entry is not used. -> ENOENT
-> - * - swap-mapped reference requested but needs continued swap count. -> ENOMEM
-> - */
-> -static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
-> +static int __swap_duplicate_locked(struct swap_info_struct *p,
-> +				   unsigned long offset, unsigned char usage)
->  {
-> -	struct swap_info_struct *p;
-> -	struct swap_cluster_info *ci;
-> -	unsigned long offset;
->  	unsigned char count;
->  	unsigned char has_cache;
-> -	int err = -EINVAL;
-> -
-> -	p = get_swap_device(entry);
-> -	if (!p)
-> -		goto out;
-> -
-> -	offset = swp_offset(entry);
-> -	ci = lock_cluster_or_swap_info(p, offset);
-> +	int err = 0;
->  
->  	count = p->swap_map[offset];
->  
-> @@ -3485,12 +3482,11 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
->  	 */
->  	if (unlikely(swap_count(count) == SWAP_MAP_BAD)) {
->  		err = -ENOENT;
-> -		goto unlock_out;
-> +		goto out;
->  	}
->  
->  	has_cache = count & SWAP_HAS_CACHE;
->  	count &= ~SWAP_HAS_CACHE;
-> -	err = 0;
->  
->  	if (usage == SWAP_HAS_CACHE) {
->  
-> @@ -3517,11 +3513,39 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
->  
->  	p->swap_map[offset] = count | has_cache;
->  
-> -unlock_out:
-> +out:
-> +	return err;
-> +}
-
-... and that all looks like refactoring, not actively implementing PMD
-swap support.  That's unfortunate.
-
-> +/*
-> + * Verify that a swap entry is valid and increment its swap map count.
-> + *
-> + * Returns error code in following case.
-> + * - success -> 0
-> + * - swp_entry is invalid -> EINVAL
-> + * - swp_entry is migration entry -> EINVAL
-> + * - swap-cache reference is requested but there is already one. -> EEXIST
-> + * - swap-cache reference is requested but the entry is not used. -> ENOENT
-> + * - swap-mapped reference requested but needs continued swap count. -> ENOMEM
-> + */
-> +static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
-> +{
-> +	struct swap_info_struct *p;
-> +	struct swap_cluster_info *ci;
-> +	unsigned long offset;
-> +	int err = -EINVAL;
-> +
-> +	p = get_swap_device(entry);
-> +	if (!p)
-> +		goto out;
-
-Is this an error, or just for running into something like a migration
-entry?  Comments please.
-
-> +	offset = swp_offset(entry);
-> +	ci = lock_cluster_or_swap_info(p, offset);
-> +	err = __swap_duplicate_locked(p, offset, usage);
->  	unlock_cluster_or_swap_info(p, ci);
-> +
-> +	put_swap_device(p);
->  out:
-> -	if (p)
-> -		put_swap_device(p);
->  	return err;
->  }
-
-Not a comment on this patch, but lock_cluster_or_swap_info() is woefully
-uncommented.
-
-> @@ -3534,6 +3558,81 @@ void swap_shmem_alloc(swp_entry_t entry)
->  	__swap_duplicate(entry, SWAP_MAP_SHMEM);
->  }
->  
-> +#ifdef CONFIG_THP_SWAP
-> +static int __swap_duplicate_cluster(swp_entry_t *entry, unsigned char usage)
-> +{
-> +	struct swap_info_struct *si;
-> +	struct swap_cluster_info *ci;
-> +	unsigned long offset;
-> +	unsigned char *map;
-> +	int i, err = 0;
-
-Instead of an #ifdef, is there a reason we can't just do:
-
-	if (!IS_ENABLED(THP_SWAP))
-		return 0;
-
-?
-
-> +	si = get_swap_device(*entry);
-> +	if (!si) {
-> +		err = -EINVAL;
-> +		goto out;
-> +	}
-> +	offset = swp_offset(*entry);
-> +	ci = lock_cluster(si, offset);
-
-Could you explain a bit why we do lock_cluster() and not
-lock_cluster_or_swap_info() here?
-
-> +	if (cluster_is_free(ci)) {
-> +		err = -ENOENT;
-> +		goto unlock;
-> +	}
-
-Needs comments on how this could happen.  We just took the lock, so I
-assume this is some kind of race, but can you elaborate?
-
-> +	if (!cluster_is_huge(ci)) {
-> +		err = -ENOTDIR;
-> +		goto unlock;
-> +	}
-
-Yikes!  This function is the core of the new functionality and its
-comment count is exactly 0.  There was quite a long patch description,
-which will be surely lost to the ages, but nothing in the code that
-folks _will_ be looking at for decades to come.
-
-Can we fix that?
-
-> +	VM_BUG_ON(!is_cluster_offset(offset));
-> +	VM_BUG_ON(cluster_count(ci) < SWAPFILE_CLUSTER);
-
-So, by this point, we know we are looking at (or supposed to be looking
-at) a cluster on the device?
-
-> +	map = si->swap_map + offset;
-> +	if (usage == SWAP_HAS_CACHE) {
-> +		if (map[0] & SWAP_HAS_CACHE) {
-> +			err = -EEXIST;
-> +			goto unlock;
-> +		}
-> +		for (i = 0; i < SWAPFILE_CLUSTER; i++) {
-> +			VM_BUG_ON(map[i] & SWAP_HAS_CACHE);
-> +			map[i] |= SWAP_HAS_CACHE;
-> +		}
-
-So, it's OK to race with the first entry, but after that it's a bug
-because the tail pages should agree with the head page's state?
-
-> +	} else {
-> +		for (i = 0; i < SWAPFILE_CLUSTER; i++) {
-> +retry:
-> +			err = __swap_duplicate_locked(si, offset + i, usage);
-> +			if (err == -ENOMEM) {
-> +				struct page *page;
-> +
-> +				page = alloc_page(GFP_ATOMIC | __GFP_HIGHMEM);
-
-I noticed that the non-clustering analog of this function takes a GFP
-mask.  Why not this one?
-
-> +				err = add_swap_count_continuation_locked(
-> +					si, offset + i, page);
-> +				if (err) {
-> +					*entry = swp_entry(si->type, offset+i);
-> +					goto undup;
-> +				}
-> +				goto retry;
-> +			} else if (err)
-> +				goto undup;
-> +		}
-> +		cluster_set_count(ci, cluster_count(ci) + usage);
-> +	}
-> +unlock:
-> +	unlock_cluster(ci);
-> +	put_swap_device(si);
-> +out:
-> +	return err;
-> +undup:
-> +	for (i--; i >= 0; i--)
-> +		__swap_entry_free_locked(
-> +			si, ci, offset + i, usage);
-> +	goto unlock;
-> +}
-
-So, we've basically created a fork of the __swap_duplicate() code for
-huge pages, along with a presumably new set of bugs and a second code
-path to update.  Was this unavoidable?  Can we unify this any more with
-the small pages path?
-
->  /*
->   * Increase reference count of swap entry by 1.
->   * Returns 0 for success, or -ENOMEM if a swap_count_continuation is required
-> @@ -3541,12 +3640,15 @@ void swap_shmem_alloc(swp_entry_t entry)
->   * if __swap_duplicate() fails for another reason (-EINVAL or -ENOENT), which
->   * might occur if a page table entry has got corrupted.
->   */
-> -int swap_duplicate(swp_entry_t entry)
-> +int swap_duplicate(swp_entry_t *entry, bool cluster)
->  {
->  	int err = 0;
->  
-> -	while (!err && __swap_duplicate(entry, 1) == -ENOMEM)
-> -		err = add_swap_count_continuation(entry, GFP_ATOMIC);
-> +	if (thp_swap_supported() && cluster)
-> +		return __swap_duplicate_cluster(entry, 1);
-> +
-> +	while (!err && __swap_duplicate(*entry, 1) == -ENOMEM)
-> +		err = add_swap_count_continuation(*entry, GFP_ATOMIC);
->  	return err;
->  }
-
-Reading this, I wonder whether this has been refactored as much as
-possible.  Both add_swap_count_continuation() and
-__swap_duplciate_cluster() start off with the same get_swap_device() dance.
-
-> @@ -3558,9 +3660,12 @@ int swap_duplicate(swp_entry_t entry)
->   * -EBUSY means there is a swap cache.
->   * Note: return code is different from swap_duplicate().
->   */
-> -int swapcache_prepare(swp_entry_t entry)
-> +int swapcache_prepare(swp_entry_t entry, bool cluster)
->  {
-> -	return __swap_duplicate(entry, SWAP_HAS_CACHE);
-> +	if (thp_swap_supported() && cluster)
-> +		return __swap_duplicate_cluster(&entry, SWAP_HAS_CACHE);
-> +	else
-> +		return __swap_duplicate(entry, SWAP_HAS_CACHE);
->  }
->  
->  struct swap_info_struct *swp_swap_info(swp_entry_t entry)
-> @@ -3590,51 +3695,13 @@ pgoff_t __page_file_index(struct page *page)
->  }
->  EXPORT_SYMBOL_GPL(__page_file_index);
->  
-> -/*
-> - * add_swap_count_continuation - called when a swap count is duplicated
-> - * beyond SWAP_MAP_MAX, it allocates a new page and links that to the entry's
-> - * page of the original vmalloc'ed swap_map, to hold the continuation count
-> - * (for that entry and for its neighbouring PAGE_SIZE swap entries).  Called
-> - * again when count is duplicated beyond SWAP_MAP_MAX * SWAP_CONT_MAX, etc.
-
-This closes out with a lot of refactoring noise.  Any chance that can be
-isolated into another patch?
+Hmm, yes, relatively immediately... it would depend on the granularity
+of the tracking where we can reliably steal initialization work from
+the background thread. I'll give it a shot, I'm thinking dividing each
+thread's work into 64 sub-units and track those units with a bitmap.
+The worst case init time then becomes the time to initialize the pages
+for a range that is namespace-size / (NR_MEMMAP_THREADS * 64).
