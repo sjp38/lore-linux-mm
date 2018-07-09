@@ -1,65 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AE446B0304
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 13:17:00 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id ba8-v6so10522203plb.4
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 10:17:00 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id f3-v6si14328017plr.214.2018.07.09.10.16.58
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B0C56B030B
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 13:19:30 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id 39-v6so10523292ple.6
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 10:19:30 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id k23-v6si15065893pls.134.2018.07.09.10.19.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 09 Jul 2018 10:16:59 -0700 (PDT)
-Date: Mon, 9 Jul 2018 10:16:51 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 0/2] mm/fs: put_user_page() proposal
-Message-ID: <20180709171651.GE2662@bombadil.infradead.org>
-References: <20180709080554.21931-1-jhubbard@nvidia.com>
- <20180709184937.7a70c3aa@roar.ozlabs.ibm.com>
- <20180709160806.xjt2l2pbmyiutbyi@quack2.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Jul 2018 10:19:29 -0700 (PDT)
+Subject: Re: [PATCH -mm -v4 05/21] mm, THP, swap: Support PMD swap mapping in
+ free_swap_and_cache()/swap_free()
+References: <20180622035151.6676-1-ying.huang@intel.com>
+ <20180622035151.6676-6-ying.huang@intel.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <49178f48-6635-353c-678d-3db436d3f9c3@linux.intel.com>
+Date: Mon, 9 Jul 2018 10:19:25 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180709160806.xjt2l2pbmyiutbyi@quack2.suse.cz>
+In-Reply-To: <20180622035151.6676-6-ying.huang@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Nicholas Piggin <npiggin@gmail.com>, john.hubbard@gmail.com, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>
+To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-On Mon, Jul 09, 2018 at 06:08:06PM +0200, Jan Kara wrote:
-> On Mon 09-07-18 18:49:37, Nicholas Piggin wrote:
-> > The problem with blocking in clear_page_dirty_for_io is that the fs is
-> > holding the page lock (or locks) and possibly others too. If you
-> > expect to have a bunch of long term references hanging around on the
-> > page, then there will be hangs and deadlocks everywhere. And if you do
-> > not have such log term references, then page lock (or some similar lock
-> > bit) for the duration of the DMA should be about enough?
-> 
-> There are two separate questions:
-> 
-> 1) How to identify pages pinned for DMA? We have no bit in struct page to
-> use and we cannot reuse page lock as that immediately creates lock
-> inversions e.g. in direct IO code (which could be fixed but then good luck
-> with auditing all the other GUP users). Matthew had an idea and John
-> implemented it based on removing page from LRU and using that space in
-> struct page. So we at least have a way to identify pages that are pinned
-> and can track their pin count.
-> 
-> 2) What to do when some page is pinned but we need to do e.g.
-> clear_page_dirty_for_io(). After some more thinking I agree with you that
-> just blocking waiting for page to unpin will create deadlocks like:
+I'm seeing a pattern here.
 
-Why are we trying to writeback a page that is pinned?  It's presumed to
-be continuously redirtied by its pinner.  We can't evict it.
+old code:
 
-> ext4_writepages()				ext4_direct_IO_write()
-> 						  __blockdev_direct_IO()
-> 						    iov_iter_get_pages()
-> 						      - pins page
->   handle = ext4_journal_start_with_reserve(inode, ...)
->     - starts transaction
->   ...
->     lock_page(page)
->     mpage_submit_page()
->       clear_page_dirty_for_io(page) -> blocks on pin
+foo()
+{
+	do_swap_something()
+}
 
-I don't think it should block.  It should fail.
+new code:
+
+foo(bool cluster)
+{
+	if (cluster)
+		do_swap_cluster_something();
+	else
+		do_swap_something();
+}
+
+That make me fear that we have:
+1. Created a new, wholly untested code path
+2. Created two places to patch bugs
+3. Are not reusing code when possible
+
+The code non-resuse was, and continues to be, IMNHO, one of the largest
+sources of bugs with the original THP implementation.  It might be
+infeasible to do here, but let's at least give it as much of a go as we can.
+
+Can I ask that you take another round through this set and:
+
+1. Consolidate code refactoring into separate patches
+2. Add comments to code, and avoid doing it solely in changelogs
+3. Make an effort to share more code between the old code and new
+   code.  Where code can not be shared, call that out in the changelog.
+
+This is a *really* hard-to-review set at the moment.  Doing those things
+will make it much easier to review and hopefully give us more
+maintainable code going forward.
+
+My apologies for not having done this review sooner.
