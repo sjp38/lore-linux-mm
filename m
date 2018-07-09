@@ -1,125 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 79EA36B0006
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 01:51:04 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id y13-v6so3658364iop.3
-        for <linux-mm@kvack.org>; Sun, 08 Jul 2018 22:51:04 -0700 (PDT)
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id a82-v6sor4894241ioe.262.2018.07.08.22.51.03
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A87E46B000C
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 02:06:14 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id v205-v6so23679573oie.20
+        for <linux-mm@kvack.org>; Sun, 08 Jul 2018 23:06:14 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t80-v6sor9814983oij.32.2018.07.08.23.06.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 08 Jul 2018 22:51:03 -0700 (PDT)
+        Sun, 08 Jul 2018 23:06:13 -0700 (PDT)
 MIME-Version: 1.0
-Date: Sun, 08 Jul 2018 22:51:03 -0700
-Message-ID: <0000000000004a7da505708a9915@google.com>
-Subject: kernel BUG at mm/memory.c:LINE!
-From: syzbot <syzbot+3f84280d52be9b7083cc@syzkaller.appspotmail.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+In-Reply-To: <2581eec7-ad1e-578b-d0cd-7076a4f88776@linux.ibm.com>
+References: <20180706082911.13405-1-aneesh.kumar@linux.ibm.com>
+ <20180706082911.13405-2-aneesh.kumar@linux.ibm.com> <CAPcyv4gjrsswcakSog7jxT+agH7NrBEvwxe9jT0ycU3RZV5sWA@mail.gmail.com>
+ <CAOSf1CFuxga8BAbnvPdZvutgpAxmzgjiqxzHFuVTVLOkMwKO+A@mail.gmail.com>
+ <CAPcyv4ihixEN9LV6TMqax3Qa2huiPnR-kFyhtO0H51GvGu2C2Q@mail.gmail.com> <2581eec7-ad1e-578b-d0cd-7076a4f88776@linux.ibm.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Sun, 8 Jul 2018 23:06:12 -0700
+Message-ID: <CAPcyv4hbPTYkvzOjM7zYXgZ_7NnW4UJ0sUxP-fbCx4mjHDy1FA@mail.gmail.com>
+Subject: Re: [RFC PATCH 2/2] mm/pmem: Add memblock based e820 platform driver
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, dan.j.williams@intel.com, jglisse@redhat.com, kirill.shutemov@linux.intel.com, ldufour@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, minchan@kernel.org, ross.zwisler@linux.intel.com, syzkaller-bugs@googlegroups.com, willy@infradead.org, ying.huang@intel.com
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: Oliver <oohall@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Hello,
+On Sun, Jul 8, 2018 at 10:17 PM, Aneesh Kumar K.V
+<aneesh.kumar@linux.ibm.com> wrote:
+> On 07/07/2018 11:06 PM, Dan Williams wrote:
+[..]
+> What we need is the ability to run with fsdax on hypervisor other than KVM.
 
-syzbot found the following crash on:
-
-HEAD commit:    b2d44d145d2a Merge tag '4.18-rc3-smb3fixes' of git://git.s..
-git tree:       upstream
-console output: https://syzkaller.appspot.com/x/log.txt?x=11d07748400000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=2ca6c7a31d407f86
-dashboard link: https://syzkaller.appspot.com/bug?extid=3f84280d52be9b7083cc
-compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
-
-Unfortunately, I don't have any reproducer for this crash yet.
-
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+3f84280d52be9b7083cc@syzkaller.appspotmail.com
-
-next ffff8801ce5e7040 prev ffff8801d20eca50 mm ffff88019c1e13c0
-prot 27 anon_vma ffff88019680cdd8 vm_ops 0000000000000000
-pgoff 0 file ffff8801b2ec2d00 private_data 0000000000000000
-flags: 0xff(read|write|exec|shared|mayread|maywrite|mayexec|mayshare)
-------------[ cut here ]------------
-kernel BUG at mm/memory.c:1422!
-invalid opcode: 0000 [#1] SMP KASAN
-CPU: 0 PID: 18486 Comm: syz-executor3 Not tainted 4.18.0-rc3+ #136
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-RIP: 0010:zap_pmd_range mm/memory.c:1421 [inline]
-RIP: 0010:zap_pud_range mm/memory.c:1466 [inline]
-RIP: 0010:zap_p4d_range mm/memory.c:1487 [inline]
-RIP: 0010:unmap_page_range+0x1c18/0x2220 mm/memory.c:1508
-Code: ff 31 ff 4c 89 e6 42 c6 04 33 f8 e8 92 dd d0 ff 4d 85 e4 0f 85 4a eb  
-ff ff e8 54 dc d0 ff 48 8b bd 10 fc ff ff e8 82 95 fe ff <0f> 0b e8 41 dc  
-d0 ff 0f 0b 4c 89 ad 18 fc ff ff c7 85 7c fb ff ff
-RSP: 0018:ffff8801b0587330 EFLAGS: 00010286
-RAX: 000000000000013c RBX: 1ffff100360b0e9c RCX: ffffc90002620000
-RDX: 0000000000000000 RSI: ffffffff81631851 RDI: 0000000000000001
-RBP: ffff8801b05877c8 R08: ffff880199d40300 R09: ffffed003b5c4fc0
-R10: ffffed003b5c4fc0 R11: ffff8801dae27e07 R12: 0000000000000000
-R13: ffff88019c1e13c0 R14: dffffc0000000000 R15: 0000000020e01000
-FS:  00007fca32251700(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 00007f04c540d000 CR3: 00000001ac1f0000 CR4: 00000000001426f0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-Call Trace:
-  unmap_single_vma+0x1a0/0x310 mm/memory.c:1553
-  zap_page_range_single+0x3cc/0x580 mm/memory.c:1644
-  unmap_mapping_range_vma mm/memory.c:2792 [inline]
-  unmap_mapping_range_tree mm/memory.c:2813 [inline]
-  unmap_mapping_pages+0x3a7/0x5b0 mm/memory.c:2845
-  unmap_mapping_range+0x48/0x60 mm/memory.c:2880
-  truncate_pagecache+0x54/0x90 mm/truncate.c:800
-  truncate_setsize+0x70/0xb0 mm/truncate.c:826
-  simple_setattr+0xe9/0x110 fs/libfs.c:409
-  notify_change+0xf13/0x10f0 fs/attr.c:335
-  do_truncate+0x1ac/0x2b0 fs/open.c:63
-  do_sys_ftruncate+0x492/0x560 fs/open.c:205
-  __do_sys_ftruncate fs/open.c:215 [inline]
-  __se_sys_ftruncate fs/open.c:213 [inline]
-  __x64_sys_ftruncate+0x59/0x80 fs/open.c:213
-  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x455ba9
-Code: 1d ba fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7  
-48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff  
-ff 0f 83 eb b9 fb ff c3 66 2e 0f 1f 84 00 00 00 00
-RSP: 002b:00007fca32250c68 EFLAGS: 00000246 ORIG_RAX: 000000000000004d
-RAX: ffffffffffffffda RBX: 00007fca322516d4 RCX: 0000000000455ba9
-RDX: 0000000000000000 RSI: 0000000000000006 RDI: 0000000000000010
-RBP: 000000000072bea0 R08: 0000000000000000 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000246 R12: 00000000ffffffff
-R13: 00000000004bbd22 R14: 00000000004c90e8 R15: 0000000000000000
-Modules linked in:
-Dumping ftrace buffer:
-    (ftrace buffer empty)
----[ end trace a92a1c818e9b1620 ]---
-RIP: 0010:zap_pmd_range mm/memory.c:1421 [inline]
-RIP: 0010:zap_pud_range mm/memory.c:1466 [inline]
-RIP: 0010:zap_p4d_range mm/memory.c:1487 [inline]
-RIP: 0010:unmap_page_range+0x1c18/0x2220 mm/memory.c:1508
-Code: ff 31 ff 4c 89 e6 42 c6 04 33 f8 e8 92 dd d0 ff 4d 85 e4 0f 85 4a eb  
-ff ff e8 54 dc d0 ff 48 8b bd 10 fc ff ff e8 82 95 fe ff <0f> 0b e8 41 dc  
-d0 ff 0f 0b 4c 89 ad 18 fc ff ff c7 85 7c fb ff ff
-RSP: 0018:ffff8801b0587330 EFLAGS: 00010286
-RAX: 000000000000013c RBX: 1ffff100360b0e9c RCX: ffffc90002620000
-RDX: 0000000000000000 RSI: ffffffff81631851 RDI: 0000000000000001
-RBP: ffff8801b05877c8 R08: ffff880199d40300 R09: ffffed003b5c4fc0
-R10: ffffed003b5c4fc0 R11: ffff8801dae27e07 R12: 0000000000000000
-R13: ffff88019c1e13c0 R14: dffffc0000000000 R15: 0000000020e01000
-FS:  00007fca32251700(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 00007f04c540d000 CR3: 00000001ac1f0000 CR4: 00000000001426f0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-
-
----
-This bug is generated by a bot. It may contain errors.
-See https://goo.gl/tpsmEJ for more information about syzbot.
-syzbot engineers can be reached at syzkaller@googlegroups.com.
-
-syzbot will keep track of this bug report. See:
-https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
-syzbot.
+That sounds like a production use case? How can it be actual
+persistent memory if the kernel is picking the physical address
+backing the range?
