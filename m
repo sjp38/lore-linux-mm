@@ -1,85 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 659606B0007
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 10:07:53 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id n17-v6so14058063pff.10
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 07:07:53 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id h9-v6si16588770pgi.502.2018.07.10.07.07.52
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F29336B026B
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 10:14:14 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id d30-v6so3370475edd.0
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 07:14:14 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s4-v6si3785958edh.359.2018.07.10.07.14.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jul 2018 07:07:52 -0700 (PDT)
-Subject: Re: [PATCH -mm -v4 05/21] mm, THP, swap: Support PMD swap mapping in
- free_swap_and_cache()/swap_free()
-References: <20180622035151.6676-1-ying.huang@intel.com>
- <20180622035151.6676-6-ying.huang@intel.com>
- <49178f48-6635-353c-678d-3db436d3f9c3@linux.intel.com>
- <87y3ejh8ax.fsf@yhuang-dev.intel.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <836c95a7-5f03-6d9e-6f0a-839b5fb8ba99@linux.intel.com>
-Date: Tue, 10 Jul 2018 07:07:39 -0700
+        Tue, 10 Jul 2018 07:14:13 -0700 (PDT)
+Date: Tue, 10 Jul 2018 16:14:10 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+Message-ID: <20180710141410.GP14284@dhcp22.suse.cz>
+References: <20180622150242.16558-1-mhocko@kernel.org>
+ <20180627074421.GF32348@dhcp22.suse.cz>
+ <20180709122908.GJ22049@dhcp22.suse.cz>
+ <20180710134040.GG3014@mtr-leonro.mtl.com>
 MIME-Version: 1.0
-In-Reply-To: <87y3ejh8ax.fsf@yhuang-dev.intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180710134040.GG3014@mtr-leonro.mtl.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Leon Romanovsky <leon@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Felix Kuehling <felix.kuehling@amd.com>
 
-On 07/10/2018 12:13 AM, Huang, Ying wrote:
-> Dave Hansen <dave.hansen@linux.intel.com> writes:
->> The code non-resuse was, and continues to be, IMNHO, one of the largest
->> sources of bugs with the original THP implementation.  It might be
->> infeasible to do here, but let's at least give it as much of a go as we can.
+On Tue 10-07-18 16:40:40, Leon Romanovsky wrote:
+> On Mon, Jul 09, 2018 at 02:29:08PM +0200, Michal Hocko wrote:
+> > On Wed 27-06-18 09:44:21, Michal Hocko wrote:
+> > > This is the v2 of RFC based on the feedback I've received so far. The
+> > > code even compiles as a bonus ;) I haven't runtime tested it yet, mostly
+> > > because I have no idea how.
+> > >
+> > > Any further feedback is highly appreciated of course.
+> >
+> > Any other feedback before I post this as non-RFC?
 > 
-> I totally agree that we should unify the code path for huge and normal
-> page/swap if possible.  One concern is code size for !CONFIG_THP_SWAP.
+> From mlx5 perspective, who is primary user of umem_odp.c your change looks ok.
 
-I've honestly never heard that as an argument before.  In general, our
-.c files implement *full* functionality: the most complex case.  The
-headers #ifdef that functionality down because of our .config or
-architecture.
+Can I assume your Acked-by?
 
-The thing that matters here is debugging and reviewing the _complicated_
-case, IMNHO.
-
-> The original method is good for that.  The new method may introduce some
-> huge swap related code that is hard to be eliminated for
-> !CONFIG_THP_SWAP.  Andrew Morton pointed this out for the patchset of
-> the first step of the THP swap optimization.
-> 
-> This may be mitigated at least partly via,
-> 
-> `
-> #ifdef CONFIG_THP_SWAP
-> #define nr_swap_entries(nr)          (nr)
-> #else
-> #define nr_swap_entries(nr)          1
-> #endif
-> 
-> void do_something(swp_entry_t entry, int __nr_entries)
-> {
->         int i, nr_entries = nr_swap_entries(__nr_entries);
-> 
->         if (nr_entries = SWAPFILE_CLUSTER)
->                 ; /* huge swap specific */
->         else
->                 ; /* normal swap specific */
-> 
->         for (i = 0; i < nr_entries; i++) {
->                 ; /* do something for each entry */
->         }
-> 
->         /* ... */
-> }
-> `
-
-While that isn't perfect, it's better than the current state of things.
-
-While you are refactoring things, I think you also need to take a good
-look at roughly chopping this series in half by finding another stopping
-point.  You've done a great job so far of trickling this functionality
-in so far, but 21 patches is quite a bit, and the set is only going to
-get larger.
+Thanks for your review!
+-- 
+Michal Hocko
+SUSE Labs
