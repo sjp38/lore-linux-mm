@@ -1,293 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 731C06B026E
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 19:35:21 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g26-v6so12205493pfo.7
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 16:35:21 -0700 (PDT)
-Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
-        by mx.google.com with ESMTPS id 7-v6si17937241plc.179.2018.07.10.16.35.19
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B17946B0270
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 19:37:45 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id s3-v6so13465205plp.21
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 16:37:45 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id r25-v6si16926959pge.104.2018.07.10.16.37.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jul 2018 16:35:19 -0700 (PDT)
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [RFC v4 PATCH 3/3] mm: mmap: zap pages with read mmap_sem for large mapping
-Date: Wed, 11 Jul 2018 07:34:09 +0800
-Message-Id: <1531265649-93433-4-git-send-email-yang.shi@linux.alibaba.com>
-In-Reply-To: <1531265649-93433-1-git-send-email-yang.shi@linux.alibaba.com>
-References: <1531265649-93433-1-git-send-email-yang.shi@linux.alibaba.com>
+        Tue, 10 Jul 2018 16:37:44 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 16/27] mm: Modify can_follow_write_pte/pmd for
+ shadow stack
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+ <20180710222639.8241-17-yu-cheng.yu@intel.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <de510df6-7ea9-edc6-9c49-2f80f16472b4@linux.intel.com>
+Date: Tue, 10 Jul 2018 16:37:43 -0700
+MIME-Version: 1.0
+In-Reply-To: <20180710222639.8241-17-yu-cheng.yu@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-When running some mmap/munmap scalability tests with large memory (i.e.
-> 300GB), the below hung task issue may happen occasionally.
+On 07/10/2018 03:26 PM, Yu-cheng Yu wrote:
+> There are three possible shadow stack PTE settings:
+> 
+>   Normal SHSTK PTE: (R/O + DIRTY_HW)
+>   SHSTK PTE COW'ed: (R/O + DIRTY_HW)
+>   SHSTK PTE shared as R/O data: (R/O + DIRTY_SW)
+> 
+> Update can_follow_write_pte/pmd for the shadow stack.
 
-INFO: task ps:14018 blocked for more than 120 seconds.
-       Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
- "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
-message.
- ps              D    0 14018      1 0x00000004
-  ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
-  ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
-  00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
- Call Trace:
-  [<ffffffff817154d0>] ? __schedule+0x250/0x730
-  [<ffffffff817159e6>] schedule+0x36/0x80
-  [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
-  [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
-  [<ffffffff81717db0>] down_read+0x20/0x40
-  [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
-  [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
-  [<ffffffff81241d87>] __vfs_read+0x37/0x150
-  [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
-  [<ffffffff81242266>] vfs_read+0x96/0x130
-  [<ffffffff812437b5>] SyS_read+0x55/0xc0
-  [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
+First of all, thanks for the excellent patch headers.  It's nice to have
+that reference every time even though it's repeated.
 
-It is because munmap holds mmap_sem exclusively from very beginning to
-all the way down to the end, and doesn't release it in the middle. When
-unmapping large mapping, it may take long time (take ~18 seconds to unmap
-320GB mapping with every single page mapped on an idle machine).
+> -static inline bool can_follow_write_pte(pte_t pte, unsigned int flags)
+> +static inline bool can_follow_write_pte(pte_t pte, unsigned int flags,
+> +					bool shstk)
+>  {
+> +	bool pte_cowed = shstk ? is_shstk_pte(pte):pte_dirty(pte);
+> +
+>  	return pte_write(pte) ||
+> -		((flags & FOLL_FORCE) && (flags & FOLL_COW) && pte_dirty(pte));
+> +		((flags & FOLL_FORCE) && (flags & FOLL_COW) && pte_cowed);
+>  }
 
-Zapping pages is the most time consuming part, according to the
-suggestion from Michal Hocko [1], zapping pages can be done with holding
-read mmap_sem, like what MADV_DONTNEED does. Then re-acquire write
-mmap_sem to cleanup vmas.
+Can we just pass the VMA in here?  This use is OK-ish, but I generally
+detest true/false function arguments because you can't tell what they
+are when they show up without a named variable.
 
-But, some part may need write mmap_sem, for example, vma splitting. So,
-the design is as follows:
-	acquire write mmap_sem
-	lookup vmas (find and split vmas)
-	set VM_DEAD flags
-	deal with special mappings
-	downgrade_write
+But...  Why does this even matter?  Your own example showed that all
+shadowstack PTEs have either DIRTY_HW or DIRTY_SW set, and pte_dirty()
+checks both.
 
-	zap pages
-	release mmap_sem
-
-	retake mmap_sem exclusively
-	cleanup vmas
-	release mmap_sem
-
-Define large mapping size thresh as PUD size, just zap pages with read
-mmap_sem for mappings which are >= PUD_SIZE. So, unmapping less than
-PUD_SIZE area still goes with the regular path.
-
-All vmas which will be zapped soon will have VM_DEAD flag set. Since PF
-may race with munmap, may just return the right content or SIGSEGV before
-the optimization, but with the optimization, it may return a zero page.
-Here use this flag to mark PF to this area is unstable, will trigger
-SIGSEGV, in order to prevent from the unexpected 3rd state.
-
-If the vma has VM_LOCKED | VM_HUGETLB | VM_PFNMAP or uprobe, they are
-considered as special mappings. They will be dealt with before zapping
-pages with write mmap_sem held. Basically, just update vm_flags.
-
-And, since they are also manipulated by unmap_single_vma() which is
-called by zap_page_range() with read mmap_sem held in this case, to
-prevent from updating vm_flags in read critical section and considering
-the complexity of coding, just check if VM_DEAD is set, then skip any
-VM_DEAD area since they should be handled before.
-
-When cleaning up vmas, just call do_munmap() without carrying vmas from
-the above to avoid race condition, since the address space might be
-already changed under our feet after retaking exclusive lock.
-
-For the time being, just do this in munmap syscall path. Other
-vm_munmap() or do_munmap() call sites (i.e mmap, mremap, etc) remain intact
-for stability reason. And, this optimization is 64 bit only.
-
-With the patches, exclusive mmap_sem hold time when munmap a 80GB
-address space on a machine with 32 cores of E5-2680 @ 2.70GHz dropped to us
-level from second.
-
-		w/o		w/
-do_munmap    2165433 us      35148.923 us
-SyS_munmap   2165369 us      2166535 us
-
-Here the excution time of do_munmap is used to evaluate the time of
-holding exclusive lock.
-
-[1] https://lwn.net/Articles/753269/
-
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Kirill A. Shutemov <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
----
- mm/memory.c |  18 +++++++++--
- mm/mmap.c   | 101 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 115 insertions(+), 4 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index 250547f..d343130 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1556,10 +1556,10 @@ static void unmap_single_vma(struct mmu_gather *tlb,
- 	if (end <= vma->vm_start)
- 		return;
- 
--	if (vma->vm_file)
-+	if (vma->vm_file && !(vma->vm_flags & VM_DEAD))
- 		uprobe_munmap(vma, start, end);
- 
--	if (unlikely(vma->vm_flags & VM_PFNMAP))
-+	if (unlikely(vma->vm_flags & VM_PFNMAP) && !(vma->vm_flags & VM_DEAD))
- 		untrack_pfn(vma, 0, 0);
- 
- 	if (start != end) {
-@@ -1577,7 +1577,19 @@ static void unmap_single_vma(struct mmu_gather *tlb,
- 			 */
- 			if (vma->vm_file) {
- 				i_mmap_lock_write(vma->vm_file->f_mapping);
--				__unmap_hugepage_range_final(tlb, vma, start, end, NULL);
-+				if (vma->vm_flags & VM_DEAD)
-+					/*
-+					 * The vma is being unmapped with read
-+					 * mmap_sem.
-+					 * Can't update vm_flags, it has been
-+					 * updated before with exclusive lock
-+					 * held.
-+					 */
-+					__unmap_hugepage_range(tlb, vma, start,
-+							       end, NULL);
-+				else
-+					__unmap_hugepage_range_final(tlb, vma,
-+							start, end, NULL);
- 				i_mmap_unlock_write(vma->vm_file->f_mapping);
- 			}
- 		} else
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 2504094..169b143 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2778,6 +2778,91 @@ static inline void munmap_mlock_vma(struct vm_area_struct *vma,
- 	}
- }
- 
-+/*
-+ * Unmap large mapping early with acquiring read mmap_sem
-+ *
-+ * uf is the list for userfaultfd
-+ */
-+static int do_munmap_zap_early(struct mm_struct *mm, unsigned long start,
-+			       size_t len, struct list_head *uf)
-+{
-+	unsigned long end = 0;
-+	struct vm_area_struct *start_vma = NULL, *prev, *vma;
-+	int ret = 0;
-+
-+	if (!munmap_addr_sanity(start, len))
-+		return -EINVAL;
-+
-+	len = PAGE_ALIGN(len);
-+
-+	end = start + len;
-+
-+	if (len >= PUD_SIZE) {
-+		/*
-+		 * need write mmap_sem to split vma and set VM_DEAD flag
-+		 * splitting vma up-front to save PITA to clean if it is failed
-+		 */
-+		if (down_write_killable(&mm->mmap_sem))
-+			return -EINTR;
-+
-+		ret = munmap_lookup_vma(mm, &start_vma, &prev, start, end);
-+		if (ret != 1)
-+			goto out;
-+
-+		/* This ret value might be returned, so reset it */
-+		ret = 0;
-+
-+		if (unlikely(uf)) {
-+			ret = userfaultfd_unmap_prep(start_vma, start, end, uf);
-+			if (ret)
-+				goto out;
-+		}
-+
-+		/* Handle mlocked vmas */
-+		if (mm->locked_vm)
-+			munmap_mlock_vma(start_vma, end);
-+
-+		/*
-+		 * set VM_DEAD flag before tear down them.
-+		 * page fault on VM_DEAD vma will trigger SIGSEGV.
-+		 *
-+		 * And, clear uprobe, VM_PFNMAP and hugetlb mapping in advance.
-+		 */
-+		vma = start_vma;
-+		for ( ; vma && vma->vm_start < end; vma = vma->vm_next) {
-+			vma->vm_flags |= VM_DEAD;
-+
-+			if (vma->vm_file)
-+				uprobe_munmap(vma, vma->vm_start, vma->vm_end);
-+			if (unlikely(vma->vm_flags & VM_PFNMAP))
-+				untrack_pfn(vma, 0, 0);
-+			if (is_vm_hugetlb_page(vma))
-+				vma->vm_flags &= ~VM_MAYSHARE;
-+		}
-+
-+		downgrade_write(&mm->mmap_sem);
-+
-+		/* zap mappings with read mmap_sem */
-+		zap_page_range(start_vma, start, len);
-+		/* indicates early zap is success */
-+		up_read(&mm->mmap_sem);
-+	}
-+
-+	/* hold write mmap_sem for vma cleanup or regular path */
-+	if (down_write_killable(&mm->mmap_sem))
-+		return -EINTR;
-+	/*
-+	 * call do_munmap() for vma cleanup too in order to not carry vma
-+	 * to here since the address space might be changed under our
-+	 * feet before we retake the exclusive lock.
-+	 */
-+	ret = do_munmap(mm, start, len, uf);
-+
-+out:
-+	up_write(&mm->mmap_sem);
-+	return ret;
-+}
-+
- /* Munmap is split into 2 main parts -- this part which finds
-  * what needs doing, and the areas themselves, which do the
-  * work.  This now handles partial unmappings.
-@@ -2836,6 +2921,17 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
- 	return 0;
- }
- 
-+static int vm_munmap_zap_early(unsigned long start, size_t len)
-+{
-+	int ret;
-+	struct mm_struct *mm = current->mm;
-+	LIST_HEAD(uf);
-+
-+	ret = do_munmap_zap_early(mm, start, len, &uf);
-+	userfaultfd_unmap_complete(mm, &uf);
-+	return ret;
-+}
-+
- int vm_munmap(unsigned long start, size_t len)
- {
- 	int ret;
-@@ -2855,10 +2951,13 @@ int vm_munmap(unsigned long start, size_t len)
- SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
- {
- 	profile_munmap(addr);
-+#ifdef CONFIG_64BIT
-+	return vm_munmap_zap_early(addr, len);
-+#else
- 	return vm_munmap(addr, len);
-+#endif
- }
- 
--
- /*
-  * Emulation of deprecated remap_file_pages() syscall.
-  */
--- 
-1.8.3.1
+That makes this check seem a bit superfluous.
