@@ -1,83 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B1EBC6B0270
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EE76E6B0275
 	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 18:31:19 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id 31-v6so13407715plf.19
+Received: by mail-pf0-f199.google.com with SMTP id a20-v6so14870337pfi.1
         for <linux-mm@kvack.org>; Tue, 10 Jul 2018 15:31:19 -0700 (PDT)
 Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id h1-v6si16605731pgs.221.2018.07.10.15.31.18
+        by mx.google.com with ESMTPS id e6-v6si18699657pfa.217.2018.07.10.15.31.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 10 Jul 2018 15:31:18 -0700 (PDT)
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [RFC PATCH v2 23/27] mm/mmap: Add IBT bitmap size to address space limit check
-Date: Tue, 10 Jul 2018 15:26:35 -0700
-Message-Id: <20180710222639.8241-24-yu-cheng.yu@intel.com>
+Subject: [RFC PATCH v2 24/27] x86: Insert endbr32/endbr64 to vDSO
+Date: Tue, 10 Jul 2018 15:26:36 -0700
+Message-Id: <20180710222639.8241-25-yu-cheng.yu@intel.com>
 In-Reply-To: <20180710222639.8241-1-yu-cheng.yu@intel.com>
 References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
-Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
 
-The indirect branch tracking legacy bitmap takes a large address
-space.  This causes may_expand_vm() failure on the address limit
-check.  For a IBT-enabled task, add the bitmap size to the
-address limit.
+From: "H.J. Lu" <hjl.tools@gmail.com>
 
-Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+When Intel indirect branch tracking is enabled, functions in vDSO which
+may be called indirectly must have endbr32 or endbr64 as the first
+instruction.  Compiler must support -fcf-protection=branch so that it
+can be used to compile vDSO.
+
+Signed-off-by: H.J. Lu <hjl.tools@gmail.com>
 ---
- arch/x86/include/uapi/asm/resource.h |  5 +++++
- include/uapi/asm-generic/resource.h  |  3 +++
- mm/mmap.c                            | 12 +++++++++++-
- 3 files changed, 19 insertions(+), 1 deletion(-)
+ arch/x86/entry/vdso/.gitignore        |  4 ++++
+ arch/x86/entry/vdso/Makefile          | 12 +++++++++++-
+ arch/x86/entry/vdso/vdso-layout.lds.S |  1 +
+ 3 files changed, 16 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/include/uapi/asm/resource.h b/arch/x86/include/uapi/asm/resource.h
-index 04bc4db8921b..0741b2a6101a 100644
---- a/arch/x86/include/uapi/asm/resource.h
-+++ b/arch/x86/include/uapi/asm/resource.h
-@@ -1 +1,6 @@
-+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
-+#ifdef CONFIG_X86_INTEL_CET
-+#define rlimit_as_extra() current->thread.cet.ibt_bitmap_size
-+#endif
-+
- #include <asm-generic/resource.h>
-diff --git a/include/uapi/asm-generic/resource.h b/include/uapi/asm-generic/resource.h
-index f12db7a0da64..8a7608a09700 100644
---- a/include/uapi/asm-generic/resource.h
-+++ b/include/uapi/asm-generic/resource.h
-@@ -58,5 +58,8 @@
- # define RLIM_INFINITY		(~0UL)
- #endif
+diff --git a/arch/x86/entry/vdso/.gitignore b/arch/x86/entry/vdso/.gitignore
+index aae8ffdd5880..552941fdfae0 100644
+--- a/arch/x86/entry/vdso/.gitignore
++++ b/arch/x86/entry/vdso/.gitignore
+@@ -5,3 +5,7 @@ vdso32-sysenter-syms.lds
+ vdso32-int80-syms.lds
+ vdso-image-*.c
+ vdso2c
++vclock_gettime.S
++vgetcpu.S
++vclock_gettime.asm
++vgetcpu.asm
+diff --git a/arch/x86/entry/vdso/Makefile b/arch/x86/entry/vdso/Makefile
+index 261802b1cc50..d49548ebec6f 100644
+--- a/arch/x86/entry/vdso/Makefile
++++ b/arch/x86/entry/vdso/Makefile
+@@ -108,13 +108,17 @@ vobjx32s := $(foreach F,$(vobjx32s-y),$(obj)/$F)
  
-+#ifndef rlimit_as_extra
-+#define rlimit_as_extra() 0
-+#endif
+ # Convert 64bit object file to x32 for x32 vDSO.
+ quiet_cmd_x32 = X32     $@
+-      cmd_x32 = $(OBJCOPY) -O elf32-x86-64 $< $@
++      cmd_x32 = $(OBJCOPY) -R .note.gnu.property -O elf32-x86-64 $< $@
  
- #endif /* _UAPI_ASM_GENERIC_RESOURCE_H */
-diff --git a/mm/mmap.c b/mm/mmap.c
-index d1eb87ef4b1a..fad41b291ae1 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3242,7 +3242,17 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
-  */
- bool may_expand_vm(struct mm_struct *mm, vm_flags_t flags, unsigned long npages)
- {
--	if (mm->total_vm + npages > rlimit(RLIMIT_AS) >> PAGE_SHIFT)
-+	unsigned long as_limit = rlimit(RLIMIT_AS);
-+	unsigned long as_limit_plus = as_limit + rlimit_as_extra();
-+
-+	/* as_limit_plus overflowed */
-+	if (as_limit_plus < as_limit)
-+		as_limit_plus = RLIM_INFINITY;
-+
-+	if (as_limit_plus > as_limit)
-+		as_limit = as_limit_plus;
-+
-+	if (mm->total_vm + npages > as_limit >> PAGE_SHIFT)
- 		return false;
+ $(obj)/%-x32.o: $(obj)/%.o FORCE
+ 	$(call if_changed,x32)
  
- 	if (is_data_mapping(flags) &&
+ targets += vdsox32.lds $(vobjx32s-y)
+ 
++ifdef CONFIG_X86_INTEL_BRANCH_TRACKING_USER
++    $(obj)/vclock_gettime.o $(obj)/vgetcpu.o $(obj)/vdso32/vclock_gettime.o: KBUILD_CFLAGS += -fcf-protection=branch
++endif
++
+ $(obj)/%.so: OBJCOPYFLAGS := -S
+ $(obj)/%.so: $(obj)/%.so.dbg
+ 	$(call if_changed,objcopy)
+@@ -164,6 +168,12 @@ quiet_cmd_vdso = VDSO    $@
+ 
+ VDSO_LDFLAGS = -fPIC -shared $(call cc-ldoption, -Wl$(comma)--hash-style=both) \
+ 	$(call cc-ldoption, -Wl$(comma)--build-id) -Wl,-Bsymbolic $(LTO_CFLAGS)
++ifdef CONFIG_X86_INTEL_BRANCH_TRACKING_USER
++  VDSO_LDFLAGS += $(call cc-ldoption, -Wl$(comma)-z$(comma)ibt)
++endif
++ifdef CONFIG_X86_INTEL_SHADOW_STACK_USER
++  VDSO_LDFLAGS += $(call cc-ldoption, -Wl$(comma)-z$(comma)shstk)
++endif
+ GCOV_PROFILE := n
+ 
+ #
+diff --git a/arch/x86/entry/vdso/vdso-layout.lds.S b/arch/x86/entry/vdso/vdso-layout.lds.S
+index acfd5ba7d943..cabaeedfed78 100644
+--- a/arch/x86/entry/vdso/vdso-layout.lds.S
++++ b/arch/x86/entry/vdso/vdso-layout.lds.S
+@@ -74,6 +74,7 @@ SECTIONS
+ 	.fake_shstrtab	: { *(.fake_shstrtab) }		:text
+ 
+ 
++	.note.gnu.property : { *(.note.gnu.property) }	:text	:note
+ 	.note		: { *(.note.*) }		:text	:note
+ 
+ 	.eh_frame_hdr	: { *(.eh_frame_hdr) }		:text	:eh_frame_hdr
 -- 
 2.17.1
