@@ -1,37 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C58B6B000D
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 03:19:35 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id z16-v6so2209335wrs.22
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 00:19:35 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id w195-v6sor2513525wmd.46.2018.07.10.00.19.33
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7568D6B0005
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 03:50:04 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id w1-v6so11823987plq.8
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 00:50:04 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id t9-v6si1821270pgo.42.2018.07.10.00.50.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 10 Jul 2018 00:19:33 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Jul 2018 00:50:02 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v4 14/21] mm, cgroup, THP, swap: Support to move swap account for PMD swap mapping
+References: <20180622035151.6676-1-ying.huang@intel.com>
+	<20180622035151.6676-15-ying.huang@intel.com>
+	<20180709172037.254zyuadep2hj5po@ca-dmjordan1.us.oracle.com>
+Date: Tue, 10 Jul 2018 15:49:58 +0800
+In-Reply-To: <20180709172037.254zyuadep2hj5po@ca-dmjordan1.us.oracle.com>
+	(Daniel Jordan's message of "Mon, 9 Jul 2018 10:20:37 -0700")
+Message-ID: <87tvp7h6mx.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29~-sqTPJKij2939229392eucas1p2j@eucas1p2.samsung.com>
-References: <CGME20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29@eucas1p2.samsung.com>
- <20180709121956.20200-1-m.szyprowski@samsung.com> <20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29~-sqTPJKij2939229392eucas1p2j@eucas1p2.samsung.com>
-From: Joonsoo Kim <js1304@gmail.com>
-Date: Tue, 10 Jul 2018 16:19:32 +0900
-Message-ID: <CAAmzW4PPNYhUj_MeZox+ddq8MjXqnJs_AJ3xkayf710udD1pSg@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm/cma: remove unsupported gfp_mask parameter from cma_alloc()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, iommu@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Paul Mackerras <paulus@ozlabs.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Chris Zankel <chris@zankel.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Joerg Roedel <joro@8bytes.org>, Sumit Semwal <sumit.semwal@linaro.org>, Robin Murphy <robin.murphy@arm.com>, Laura Abbott <labbott@redhat.com>, linaro-mm-sig@lists.linaro.org
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
 
-Hello, Marek.
+Daniel Jordan <daniel.m.jordan@oracle.com> writes:
 
-2018-07-09 21:19 GMT+09:00 Marek Szyprowski <m.szyprowski@samsung.com>:
-> cma_alloc() function doesn't really support gfp flags other than
-> __GFP_NOWARN, so convert gfp_mask parameter to boolean no_warn parameter.
+> On Fri, Jun 22, 2018 at 11:51:44AM +0800, Huang, Ying wrote:
+>> Because there is no way to prevent a huge swap cluster from being
+>> split except when it has SWAP_HAS_CACHE flag set.
+>
+> What about making get_mctgt_type_thp take the cluster lock?  That function
+> would be the first lock_cluster user outside of swapfile.c, but it would
+> serialize with split_swap_cluster.
+>
+>> It is possible for
+>> the huge swap cluster to be split and the charge for the swap slots
+>> inside to be changed, after we check the PMD swap mapping and the huge
+>> swap cluster before we commit the charge moving.  But the race window
+>> is so small, that we will just ignore the race.
+>
+> Moving the charges is a slow path, so can't we just be correct here and not
+> leak?
 
-Although gfp_mask isn't used in cma_alloc() except no_warn, it can be used
-in alloc_contig_range(). For example, if passed gfp mask has no __GFP_FS,
-compaction(isolation) would work differently. Do you have considered
-such a case?
+Check the code and thought about this again, found the race may not
+exist.  Because the PMD is locked when get_mctgt_type_thp() is called
+until charge is completed for the PMD.  So the charge of the huge swap
+cluster cannot be changed at the same time even if the huge swap cluster
+is split by other processes.  Right?
 
-Thanks.
+Will update the comments for this.
+
+Best Regards,
+Huang, Ying
