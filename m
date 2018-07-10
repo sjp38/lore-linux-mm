@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 435F16B000A
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 21:09:08 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id u16-v6so12814418pfm.15
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 18:09:08 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id x190-v6si14440101pgb.158.2018.07.09.18.09.06
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B49F46B0005
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 21:19:38 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id e93-v6so9080335plb.5
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 18:19:38 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id e125-v6si849371pgc.424.2018.07.09.18.19.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jul 2018 18:09:07 -0700 (PDT)
+        Mon, 09 Jul 2018 18:19:37 -0700 (PDT)
 From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -v4 01/21] mm, THP, swap: Enable PMD swap operations for CONFIG_THP_SWAP
+Subject: Re: [PATCH -mm -v4 02/21] mm, THP, swap: Make CONFIG_THP_SWAP depends on CONFIG_SWAP
 References: <20180622035151.6676-1-ying.huang@intel.com>
-	<20180622035151.6676-2-ying.huang@intel.com>
-	<11735e2e-781f-492f-7a1a-71b91e0876dc@linux.intel.com>
-Date: Tue, 10 Jul 2018 09:08:42 +0800
-In-Reply-To: <11735e2e-781f-492f-7a1a-71b91e0876dc@linux.intel.com> (Dave
-	Hansen's message of "Mon, 9 Jul 2018 08:59:20 -0700")
-Message-ID: <871scbkicl.fsf@yhuang-dev.intel.com>
+	<20180622035151.6676-3-ying.huang@intel.com>
+	<4a56313b-1184-56d0-e269-30d5f2ffa706@linux.intel.com>
+Date: Tue, 10 Jul 2018 09:19:26 +0800
+In-Reply-To: <4a56313b-1184-56d0-e269-30d5f2ffa706@linux.intel.com> (Dave
+	Hansen's message of "Mon, 9 Jul 2018 09:00:53 -0700")
+Message-ID: <87wou3j3a9.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
@@ -27,46 +27,23 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@
 
 Dave Hansen <dave.hansen@linux.intel.com> writes:
 
-> On 06/21/2018 08:51 PM, Huang, Ying wrote:
->> From: Huang Ying <ying.huang@intel.com>
->> 
->> Previously, the PMD swap operations are only enabled for
->> CONFIG_ARCH_ENABLE_THP_MIGRATION.  Because they are only used by the
->> THP migration support.  We will support PMD swap mapping to the huge
->> swap cluster and swapin the THP as a whole.  That will be enabled via
->> CONFIG_THP_SWAP and needs these PMD swap operations.  So enable the
->> PMD swap operations for CONFIG_THP_SWAP too.
+>>  config THP_SWAP
+>>  	def_bool y
+>> -	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP
+>> +	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP && SWAP
+>>  	help
 >
-> This commit message kinda skirts around the real reasons for this patch.
->  Shouldn't we just say something like:
 >
-> 	Currently, "swap entries" in the page tables are used for a
-> 	number of things outside of actual swap, like page migration.
-> 	We support THP/PMD "swap entries" for page migration currently
-> 	and the functions behind this are tied to page migration's
-> 	config option (CONFIG_ARCH_ENABLE_THP_MIGRATION).
->
-> 	But, we also need them for THP swap.
-> 	...
->
-> It would also be nice to explain a bit why you are moving code around.
+> This seems like a bug-fix.  Is there a reason this didn't cause problems
+> up to now?
 
-This looks much better than my original words.  Thanks for help!
+Yes.  The original code has some problem in theory, but not in practice
+because all code enclosed by
 
-> Would this look any better if we made a Kconfig option:
->
-> 	config HAVE_THP_SWAP_ENTRIES
-> 		def_bool n
-> 		# "Swap entries" in the page tables are used
-> 		# both for migration and actual swap.
-> 		depends on THP_SWAP || ARCH_ENABLE_THP_MIGRATION
->
-> You logically talked about this need for PMD swap operations in your
-> commit message, so I think it makes sense to codify that in a single
-> place where it can be coherently explained.
+#ifdef CONFIG_THP_SWAP
+#endif
 
-Because both you and Dan thinks it's better to add new Kconfig option, I
-will do that.
+are in swapfile.c.  But that will be not true in this patchset.
 
 Best Regards,
 Huang, Ying
