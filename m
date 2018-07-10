@@ -1,56 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 13EB96B0005
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 01:27:00 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id y7-v6so11615609plt.17
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 22:27:00 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id j17-v6si17024491pfk.203.2018.07.09.22.26.58
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B8AA76B0005
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 02:00:01 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id d17-v6so17719517wmb.5
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 23:00:01 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b11-v6sor6298193wro.72.2018.07.09.22.59.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jul 2018 22:26:58 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -v4 02/21] mm, THP, swap: Make CONFIG_THP_SWAP depends on CONFIG_SWAP
-References: <20180622035151.6676-1-ying.huang@intel.com>
-	<20180622035151.6676-3-ying.huang@intel.com>
-	<4a56313b-1184-56d0-e269-30d5f2ffa706@linux.intel.com>
-	<87wou3j3a9.fsf@yhuang-dev.intel.com>
-	<66d12d39-5079-c836-744c-ee97ce40d553@linux.intel.com>
-Date: Tue, 10 Jul 2018 13:26:55 +0800
-In-Reply-To: <66d12d39-5079-c836-744c-ee97ce40d553@linux.intel.com> (Dave
-	Hansen's message of "Mon, 9 Jul 2018 18:59:14 -0700")
-Message-ID: <87d0vvirts.fsf@yhuang-dev.intel.com>
+        (Google Transport Security);
+        Mon, 09 Jul 2018 23:00:00 -0700 (PDT)
+Date: Tue, 10 Jul 2018 07:59:57 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH v4 0/3] sparse_init rewrite
+Message-ID: <20180710055957.GA7380@techadventures.net>
+References: <20180709175312.11155-1-pasha.tatashin@oracle.com>
+ <20180709142928.c8af4a1ddf80c407fe66b224@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180709142928.c8af4a1ddf80c407fe66b224@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, bhe@redhat.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org
 
-Dave Hansen <dave.hansen@linux.intel.com> writes:
+On Mon, Jul 09, 2018 at 02:29:28PM -0700, Andrew Morton wrote:
+> On Mon,  9 Jul 2018 13:53:09 -0400 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
+> 
+> > In sparse_init() we allocate two large buffers to temporary hold usemap and
+> > memmap for the whole machine. However, we can avoid doing that if we
+> > changed sparse_init() to operated on per-node bases instead of doing it on
+> > the whole machine beforehand.
+> > 
+> > As shown by Baoquan
+> > http://lkml.kernel.org/r/20180628062857.29658-1-bhe@redhat.com
+> > 
+> > The buffers are large enough to cause machine stop to boot on small memory
+> > systems.
+> > 
+> > These patches should be applied on top of Baoquan's work, as
+> > CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER is removed in that work.
+> > 
+> > For the ease of review, I split this work so the first patch only adds new
+> > interfaces, the second patch enables them, and removes the old ones.
+> 
+> This clashes pretty significantly with patches from Baoquan and Oscar:
+> 
+> mm-sparse-make-sparse_init_one_section-void-and-remove-check.patch
+> mm-sparse-make-sparse_init_one_section-void-and-remove-check-fix.patch
+> mm-sparse-make-sparse_init_one_section-void-and-remove-check-fix-2.patch
 
-> On 07/09/2018 06:19 PM, Huang, Ying wrote:
->> Dave Hansen <dave.hansen@linux.intel.com> writes:
->> 
->>>>  config THP_SWAP
->>>>  	def_bool y
->>>> -	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP
->>>> +	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP && SWAP
->>>>  	help
->>>
->>> This seems like a bug-fix.  Is there a reason this didn't cause problems
->>> up to now?
->> Yes.  The original code has some problem in theory, but not in practice
->> because all code enclosed by
->> 
->> #ifdef CONFIG_THP_SWAP
->> #endif
->> 
->> are in swapfile.c.  But that will be not true in this patchset.
->
-> That's great info for the changelog.
+Does this patchset still clash with those patches?
+If so, since those patches are already in the -mm tree, would it be better to re-base the patchset on top of that?
 
-Sure.  Will add it.
-
-Best Regards,
-Huang, Ying
+Thanks
+-- 
+Oscar Salvador
+SUSE L3
