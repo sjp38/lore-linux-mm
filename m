@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D5C0D6B027F
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 19:08:32 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id a23-v6so3324754pfo.23
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 16:08:32 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id w13-v6si13211422ply.454.2018.07.10.16.08.31
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 50BE36B0281
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 19:10:11 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id n19-v6so1024286pgv.14
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 16:10:11 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id h5-v6si17816374plr.268.2018.07.10.16.10.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jul 2018 16:08:31 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 14/27] mm: Handle THP/HugeTLB shadow stack page
- fault
+        Tue, 10 Jul 2018 16:10:10 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 15/27] mm/mprotect: Prevent mprotect from changing
+ shadow stack
 References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
- <20180710222639.8241-15-yu-cheng.yu@intel.com>
+ <20180710222639.8241-16-yu-cheng.yu@intel.com>
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <4ba0410c-eadf-19f7-1931-ee7f9e38fde8@linux.intel.com>
-Date: Tue, 10 Jul 2018 16:08:30 -0700
+Message-ID: <04800c52-1f86-c485-ba7c-2216d8c4966f@linux.intel.com>
+Date: Tue, 10 Jul 2018 16:10:08 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180710222639.8241-15-yu-cheng.yu@intel.com>
+In-Reply-To: <20180710222639.8241-16-yu-cheng.yu@intel.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -26,15 +26,24 @@ List-ID: <linux-mm.kvack.org>
 To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
 On 07/10/2018 03:26 PM, Yu-cheng Yu wrote:
-> @@ -1347,6 +1353,8 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
->  		pmd_t entry;
->  		entry = mk_huge_pmd(new_page, vma->vm_page_prot);
->  		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-> +		if (is_shstk_mapping(vma->vm_flags))
-> +			entry = pmd_mkdirty_shstk(entry);
+> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 
-This pattern is repeated enough that it makes me wonder if we should
-just be doing the shadowstack PTE creation in mk_huge_pmd() itself.
+This still needs a changelog, even if you think it's simple.
+> --- a/mm/mprotect.c
+> +++ b/mm/mprotect.c
+> @@ -446,6 +446,15 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
+>  	error = -ENOMEM;
+>  	if (!vma)
+>  		goto out;
+> +
+> +	/*
+> +	 * Do not allow changing shadow stack memory.
+> +	 */
+> +	if (vma->vm_flags & VM_SHSTK) {
+> +		error = -EINVAL;
+> +		goto out;
+> +	}
+> +
 
-Or, should we just be setting the shadowstack pte bit combination in
-vma->vm_page_prot so we don't have to go set it explicitly every time?
+I think this is a _bit_ draconian.  Why shouldn't we be able to use
+protection keys with a shadow stack?  Or, set it to PROT_NONE?
