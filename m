@@ -1,298 +1,339 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 71C956B0005
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 08:03:20 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id f5-v6so12252958plf.18
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 05:03:20 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o23-v6si16093084pgm.170.2018.07.10.05.03.14
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 10FA96B0007
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 08:08:00 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id w21-v6so9498003wmc.6
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 05:08:00 -0700 (PDT)
+Received: from mail.nethype.de (mail.nethype.de. [5.9.56.24])
+        by mx.google.com with ESMTPS id t11-v6si17309058wre.25.2018.07.10.05.07.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jul 2018 05:03:15 -0700 (PDT)
-Date: Tue, 10 Jul 2018 14:03:12 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v13 1/2] Reorganize the oom report in dump_header
-Message-ID: <20180710120312.GI14284@dhcp22.suse.cz>
-References: <1531217988-33940-1-git-send-email-ufo19890607@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 10 Jul 2018 05:07:57 -0700 (PDT)
+Date: Tue, 10 Jul 2018 14:07:56 +0200
+From: Marc Lehmann <schmorp@schmorp.de>
+Subject: post linux 4.4 vm oom kill, lockup and thrashing woes
+Message-ID: <20180710120755.3gmin4rogheqb3u5@schmorp.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1531217988-33940-1-git-send-email-ufo19890607@gmail.com>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ufo19890607@gmail.com
-Cc: akpm@linux-foundation.org, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yuzhoujian@didichuxing.com
+To: linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@kernel.org>
 
-On Tue 10-07-18 18:19:47, ufo19890607@gmail.com wrote:
-> From: yuzhoujian <yuzhoujian@didichuxing.com>
-> 
-> OOM report contains several sections. The first one is the allocation
-> context that has triggered the OOM. Then we have cpuset context
-> followed by the stack trace of the OOM path. Followed by the oom
-> eligible tasks and the information about the chosen oom victim.
-> 
-> One thing that makes parsing more awkward than necessary is that we do
-> not have a single and easily parsable line about the oom context. This
-> patch is reorganizing the oom report to
-> 1) who invoked oom and what was the allocation request
->         [  126.168182] panic invoked oom-killer: gfp_mask=0x6280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), order=0, oom_score_adj=0
-> 
-> 2) OOM stack trace
->         [  126.169806] CPU: 23 PID: 8668 Comm: panic Not tainted 4.18.0-rc4+ #44
->         [  126.170494] Hardware name: Inspur SA5212M4/YZMB-00370-107, BIOS 4.1.10 11/14/2016
->         [  126.171197] Call Trace:
->         [  126.171901]  dump_stack+0x5a/0x73
->         [  126.172593]  dump_header+0x58/0x2dc
->         [  126.173294]  oom_kill_process+0x228/0x420
->         [  126.173999]  ? oom_badness+0x2a/0x130
->         [  126.174705]  out_of_memory+0x11a/0x4a0
->         [  126.175415]  __alloc_pages_slowpath+0x7cc/0xa1e
->         [  126.176128]  ? __alloc_pages_slowpath+0x194/0xa1e
->         [  126.176853]  ? page_counter_try_charge+0x54/0xc0
->         [  126.177580]  __alloc_pages_nodemask+0x277/0x290
->         [  126.178319]  alloc_pages_vma+0x73/0x180
->         [  126.179058]  do_anonymous_page+0xed/0x5a0
->         [  126.179825]  __handle_mm_fault+0xbb3/0xe70
->         [  126.180566]  handle_mm_fault+0xfa/0x210
->         [  126.181313]  __do_page_fault+0x233/0x4c0
->         [  126.182063]  do_page_fault+0x32/0x140
->         [  126.182812]  ? page_fault+0x8/0x30
->         [  126.183560]  page_fault+0x1e/0x30
-> 
-> 3) oom context (contrains and the chosen victim).
->         [  126.190619] oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=/,mems_allowed=0-1,task=panic,pid=10235,uid=    0
-> 
-> An admin can easily get the full oom context at a single line which
-> makes parsing much easier.
-> 
-> Signed-off-by: yuzhoujian <yuzhoujian@didichuxing.com>
+(I am not subscribed)
 
-OK, this looks better
-Acked-by: Michal Hocko <mhocko@suse.com>
+Hi!
 
-> ---
-> Changes since v12:
-> - print the cpuset and memory allocation information after oom victim comm, pid.
-> 
-> Changes since v11:
-> - move the array of const char oom_constraint_text to oom_kill.c
-> - add the cpuset information in the one line output.
-> 
-> Changes since v10:
-> - divide the patch v8 into two parts. One part is to add the array of const char and put enum
->   oom_constaint into oom.h; the other adds a new func to print the missing information for the system-
->   wide oom report.
-> 
-> Changes since v9:
-> - divide the patch v8 into two parts. One part is to move enum oom_constraint into memcontrol.h; the
->   other refactors the output info in the dump_header.
-> - replace orgin_memcg and kill_memcg with oom_memcg and task_memcg resptively.
-> 
-> Changes since v8:
-> - add the constraint in the oom_control structure.
-> - put enum oom_constraint and constraint array into the oom.h file.
-> - simplify the description for mem_cgroup_print_oom_context.
-> 
-> Changes since v7:
-> - add the constraint parameter to dump_header and oom_kill_process.
-> - remove the static char array in the mem_cgroup_print_oom_context, and
->   invoke pr_cont_cgroup_path to print memcg' name.
-> - combine the patchset v6 into one.
-> 
-> Changes since v6:
-> - divide the patch v5 into two parts. One part is to add an array of const char and
->   put enum oom_constraint into the memcontrol.h; the other refactors the output
->   in the dump_header.
-> - limit the memory usage for the static char array by using NAME_MAX in the mem_cgroup_print_oom_context.
-> - eliminate the spurious spaces in the oom's output and fix the spelling of "constrain".
-> 
-> Changes since v5:
-> - add an array of const char for each constraint.
-> - replace all of the pr_cont with a single line print of the pr_info.
-> - put enum oom_constraint into the memcontrol.c file for printing oom constraint.
-> 
-> Changes since v4:
-> - rename the helper's name to mem_cgroup_print_oom_context.
-> - rename the mem_cgroup_print_oom_info to mem_cgroup_print_oom_meminfo.
-> - add the constrain info in the dump_header.
-> 
-> Changes since v3:
-> - rename the helper's name to mem_cgroup_print_oom_memcg_name.
-> - add the rcu lock held to the helper.
-> - remove the print info of memcg's name in mem_cgroup_print_oom_info.
-> 
-> Changes since v2:
-> - add the mem_cgroup_print_memcg_name helper to print the memcg's
->   name which contains the task that will be killed by the oom-killer.
-> 
-> Changes since v1:
-> - replace adding mem_cgroup_print_oom_info with printing the memcg's
->   name only.
-> 
->  include/linux/oom.h    | 10 ++++++++++
->  kernel/cgroup/cpuset.c |  4 ++--
->  mm/oom_kill.c          | 37 +++++++++++++++++++++----------------
->  mm/page_alloc.c        |  4 ++--
->  4 files changed, 35 insertions(+), 20 deletions(-)
-> 
-> diff --git a/include/linux/oom.h b/include/linux/oom.h
-> index 6adac113e96d..3e5e01619bc8 100644
-> --- a/include/linux/oom.h
-> +++ b/include/linux/oom.h
-> @@ -15,6 +15,13 @@ struct notifier_block;
->  struct mem_cgroup;
->  struct task_struct;
->  
-> +enum oom_constraint {
-> +	CONSTRAINT_NONE,
-> +	CONSTRAINT_CPUSET,
-> +	CONSTRAINT_MEMORY_POLICY,
-> +	CONSTRAINT_MEMCG,
-> +};
-> +
->  /*
->   * Details of the page allocation that triggered the oom killer that are used to
->   * determine what should be killed.
-> @@ -42,6 +49,9 @@ struct oom_control {
->  	unsigned long totalpages;
->  	struct task_struct *chosen;
->  	unsigned long chosen_points;
-> +
-> +	/* Used to print the constraint info. */
-> +	enum oom_constraint constraint;
->  };
->  
->  extern struct mutex oom_lock;
-> diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
-> index 266f10cb7222..9510a5b32eaf 100644
-> --- a/kernel/cgroup/cpuset.c
-> +++ b/kernel/cgroup/cpuset.c
-> @@ -2666,9 +2666,9 @@ void cpuset_print_current_mems_allowed(void)
->  	rcu_read_lock();
->  
->  	cgrp = task_cs(current)->css.cgroup;
-> -	pr_info("%s cpuset=", current->comm);
-> +	pr_cont(",cpuset=");
->  	pr_cont_cgroup_name(cgrp);
-> -	pr_cont(" mems_allowed=%*pbl\n",
-> +	pr_cont(",mems_allowed=%*pbl",
->  		nodemask_pr_args(&current->mems_allowed));
->  
->  	rcu_read_unlock();
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 84081e77bc51..531b2c86d4db 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -237,11 +237,11 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
->  	return points > 0 ? points : 1;
->  }
->  
-> -enum oom_constraint {
-> -	CONSTRAINT_NONE,
-> -	CONSTRAINT_CPUSET,
-> -	CONSTRAINT_MEMORY_POLICY,
-> -	CONSTRAINT_MEMCG,
-> +static const char * const oom_constraint_text[] = {
-> +	[CONSTRAINT_NONE] = "CONSTRAINT_NONE",
-> +	[CONSTRAINT_CPUSET] = "CONSTRAINT_CPUSET",
-> +	[CONSTRAINT_MEMORY_POLICY] = "CONSTRAINT_MEMORY_POLICY",
-> +	[CONSTRAINT_MEMCG] = "CONSTRAINT_MEMCG",
->  };
->  
->  /*
-> @@ -421,15 +421,21 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
->  
->  static void dump_header(struct oom_control *oc, struct task_struct *p)
->  {
-> -	pr_warn("%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=%*pbl, order=%d, oom_score_adj=%hd\n",
-> -		current->comm, oc->gfp_mask, &oc->gfp_mask,
-> -		nodemask_pr_args(oc->nodemask), oc->order,
-> +	pr_warn("%s invoked oom-killer: gfp_mask=%#x(%pGg), order=%d, oom_score_adj=%hd\n",
-> +		current->comm, oc->gfp_mask, &oc->gfp_mask, oc->order,
->  			current->signal->oom_score_adj);
->  	if (!IS_ENABLED(CONFIG_COMPACTION) && oc->order)
->  		pr_warn("COMPACTION is disabled!!!\n");
->  
-> -	cpuset_print_current_mems_allowed();
->  	dump_stack();
-> +
-> +	/* one line summary of the oom killer context. */
-> +	pr_info("oom-kill:constraint=%s,nodemask=%*pbl",
-> +			oom_constraint_text[oc->constraint],
-> +			nodemask_pr_args(oc->nodemask));
-> +	cpuset_print_current_mems_allowed();
-> +	pr_cont(",task=%s,pid=%5d,uid=%5d\n", p->comm, p->pid,
-> +		from_kuid(&init_user_ns, task_uid(p)));
->  	if (is_memcg_oom(oc))
->  		mem_cgroup_print_oom_info(oc->memcg, p);
->  	else {
-> @@ -973,8 +979,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
->  /*
->   * Determines whether the kernel must panic because of the panic_on_oom sysctl.
->   */
-> -static void check_panic_on_oom(struct oom_control *oc,
-> -			       enum oom_constraint constraint)
-> +static void check_panic_on_oom(struct oom_control *oc)
->  {
->  	if (likely(!sysctl_panic_on_oom))
->  		return;
-> @@ -984,7 +989,7 @@ static void check_panic_on_oom(struct oom_control *oc,
->  		 * does not panic for cpuset, mempolicy, or memcg allocation
->  		 * failures.
->  		 */
-> -		if (constraint != CONSTRAINT_NONE)
-> +		if (oc->constraint != CONSTRAINT_NONE)
->  			return;
->  	}
->  	/* Do not panic for oom kills triggered by sysrq */
-> @@ -1021,8 +1026,8 @@ EXPORT_SYMBOL_GPL(unregister_oom_notifier);
->  bool out_of_memory(struct oom_control *oc)
->  {
->  	unsigned long freed = 0;
-> -	enum oom_constraint constraint = CONSTRAINT_NONE;
->  
-> +	oc->constraint = CONSTRAINT_NONE;
->  	if (oom_killer_disabled)
->  		return false;
->  
-> @@ -1057,10 +1062,10 @@ bool out_of_memory(struct oom_control *oc)
->  	 * Check if there were limitations on the allocation (only relevant for
->  	 * NUMA and memcg) that may require different handling.
->  	 */
-> -	constraint = constrained_alloc(oc);
-> -	if (constraint != CONSTRAINT_MEMORY_POLICY)
-> +	oc->constraint = constrained_alloc(oc);
-> +	if (oc->constraint != CONSTRAINT_MEMORY_POLICY)
->  		oc->nodemask = NULL;
-> -	check_panic_on_oom(oc, constraint);
-> +	check_panic_on_oom(oc);
->  
->  	if (!is_memcg_oom(oc) && sysctl_oom_kill_allocating_task &&
->  	    current->mm && !oom_unkillable_task(current, NULL, oc->nodemask) &&
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 1521100f1e63..194e0763fd5f 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3416,13 +3416,13 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
->  	va_start(args, fmt);
->  	vaf.fmt = fmt;
->  	vaf.va = &args;
-> -	pr_warn("%s: %pV, mode:%#x(%pGg), nodemask=%*pbl\n",
-> +	pr_warn("%s: %pV,mode:%#x(%pGg),nodemask=%*pbl",
->  			current->comm, &vaf, gfp_mask, &gfp_mask,
->  			nodemask_pr_args(nodemask));
->  	va_end(args);
->  
->  	cpuset_print_current_mems_allowed();
-> -
-> +	pr_cont("\n");
->  	dump_stack();
->  	warn_alloc_show_mem(gfp_mask, nodemask);
->  }
-> -- 
-> 2.14.1
-> 
+While reporting another (not strictly related) kernel bug
+(https://bugzilla.kernel.org/show_bug.cgi?id=3D199931) I was encouraged to
+report my problem here, even though, in my opinion, I don't have enough
+hard data for a good bug report, so bear with me, please.
 
--- 
-Michal Hocko
-SUSE Labs
+Basically, the post 4.4 VM system (I think my troubles started around 4.6
+or 4.7) is nearly unusable on all of my (very different) systems that
+actually do some work, with symptoms being frequent OOM kills with many
+gigabytes of available memory, extended periods of semi-freezing with
+thrashing, and apparent hard lockups, almost certainly related to memory
+usage.
+
+I have experienced this with both debians and ubuntus precompiled kernels
+(4.9 being the most unstable for me) as well as with my own. Booting 4.4
+makes the problems go away in all cases.
+
+Since I kept losing my logs due to the other kernel bug caused by my
+workaround, I don't have a lot of good logs, so this is mostly anecdotal,
+but I hope this is of some use, especially since I found a workaround for
+each case that reduces or alleviates the problem, and so might shed some
+light on the underlying issue(s).
+
+I present three "case studies" of how I can create/trigger these problems
+on three very different systems, a server, a desktop, and a very old
+memory-starved laptop, all of which becomes close to unusable for daily
+work under post 4.4 kernels.
+
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D
+Case #1, the home server, frequent unexpected oom kills
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D
+
+The first system is a server which does a lot of heavy lifting with a lot
+of data (>60TB of disk, a lot of activity). It has 32GB of RAM, and almost
+never uses more than 8GB of it, the rest usually being disk cache, e.g.:
+
+		  total        used        free      shared  buff/cache   available
+    Mem:       32888772     1461060      813500       13740    30614212    =
+30956016
+    Swap:       4194300       54016     4140284
+
+Under 4.4, it runs "mostly" rock stable. With debian's 4.9, mysql usually
+is killed within a single night. 4.14 is much better, but when doing
+backups or other memory intensive jobs, it usually gets killed. Many
+times. Usually with >>16GB of "available" memory that linux could use
+instead, if it weren't so fragmented or it could free some of it.
+
+Here are some oom reports, all happened during my nightly backup, under
+4.14.33:
+
+    http://data.plan9.de/oom-mysql-4.14-201806.txt
+
+This specific OOM kill series happened during backup, which mainly does a
+lot of stat() calls (as in, a hundred million+), but while this helps
+triggering oom killls, it is by no means the required trigger.
+
+I lost all of the previous OOM kill reports, but AFAICR, they are
+invariably caused by higher order allocations, often by the nvidia driver,
+which just loves higher order allocations, but they do happen with other
+subsystems (such as btrfs) too, and were often triggered by measly order 1
+allocations as well.
+
+I have tried various workarounds, and under 4.14, I found that doing this
+every hour or so greatly reduced the oom kills (and unfortunately also
+causes file corruptiopn, but that's unrelated :):
+
+    echo 1 > /proc/sys/vm/drop_caches
+
+I have tried various other things that didn't work: "echo 1
+>/proc/sys/vm/compact_memory", every minute, increasing min_free_kbytes,
+setting swappiness to 1 or 100, setting vfs_cache_pressure to 50 or 150
+reducing extfrag_threshold.
+
+Clearly, the server has enough memory, but linux has enourmous troubles
+making use of it under 4.6+ (or so), while it works fine under
+4.4. Naively speaking, linux should obviously drop some cache rather than
+drop dead some processes, although I am aware that things are not as
+simple as that especially when fragmentation is involved.
+
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D
+Case #2, my work desktop, frequent unexpected oom kills, frequent lockups
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D
+
+My work desktop (16GB RAM) also suffers from the same problems as my home
+server, with chromium usually being the thing that gets killed first, due
+to it's increased oom_score_adjust value, which made me run chromium more
+often as a sacrifice process. Clearly a bad thing.
+
+However, under post-4.4 kernels, I also have frequent freezes, which seem
+to be hard lockups (I did let it run for 5 to 15 minutes a few times, and
+it didn't sem to recover - maybe it's thrashing to the SSD, but I can't
+hear that :).
+
+I found a pretty reliable way to get OOM kills or freezes (but they
+happen on their own as well, just not as reproducible): mmap a large
+file. I have written a simple nbd-based caching program that writes dirty
+write data to a separate log file, to be applied later. While it lets
+me reproduce the freezes, I don't know if that is the only cause, as I
+don't run this cache program very often, but get a lockup every few days
+regardless, depending on how heavy I use this machine.
+
+This is a simple simulation of what the cache program does to cause the
+problem:
+
+    http://data.plan9.de/mmap-problem-testcase
+
+What this does is create a large 35GB file, mmap it, and then read through
+the mappped region, i.e. page it into memory.
+
+Situation before:
+
+		  total        used        free      shared  buff/cache   available
+    Mem:       16426820     2455612     1872868       11200    12098340    =
+13623920
+    Swap:       8388604       26368     8362236
+
+Situation after starting the problem, when it hangs in sleep 9999:
+
+    7ff72e8e2000-7fffee8e2000 rw-s 00000000 00:17 3746909                  =
+  /cryptroot/test
+    Size:           36700160 kB
+    KernelPageSize:        4 kB
+    MMUPageSize:           4 kB
+    Rss:             7886400 kB
+    Pss:             7886400 kB
+    Shared_Clean:          0 kB
+    Shared_Dirty:          0 kB
+    Private_Clean:   7886400 kB
+    Private_Dirty:         0 kB
+    Referenced:      7886400 kB
+    Anonymous:             0 kB
+    LazyFree:              0 kB
+    AnonHugePages:         0 kB
+    ShmemPmdMapped:        0 kB
+    Shared_Hugetlb:        0 kB
+    Private_Hugetlb:       0 kB
+    Swap:                  0 kB
+    SwapPss:               0 kB
+    Locked:          7886400 kB
+    VmFlags: rd wr sh mr mw me ms sd
+
+		  total        used        free      shared  buff/cache   available
+    Mem:       16426820     2391784     5845592        7888     8189444    =
+13734508
+    Swap:       8388604       26368     8362236
+
+So, not much changed here one would think, just a bunch of clean pages
+that could be freed when memory is needed. Maybe it's notworthy that
+I have 8GB buff/cache despite issueing a drop_caches, most of which I
+suspect is the non-dirty mmap area.
+
+However, starting kvm with a 8GB memory size in this situation instantly
+freezes my box, when it should just work:
+
+   kvm -m 8000 ...
+
+Which is unexpected, with 13GB of "available" memory.
+
+(don't get confused by the Locked: value, since change
+493b0e9d945fa9dfe96be93ae41b4ca4b6fdb317, linux always reports Locked
+=3D=3D Pss. I've emailed dancol@google.com about this but never got a
+response. There is no mlocking involved, and this confused the heck out of
+me for a while).
+
+There is an easy way to make it not freeze: unmap the file, and
+immediately mmap it again, which makes all those Private_Clean pages go
+away and makes my actual caching program usable, which only has to scan
+through the file once during start up and afterwards only has to touch
+random pages within.
+
+So, linux 4.14 has trouble freeing these pages, even though they are not
+dirty, and instead effectively freezes.
+
+This happens with the mmapped file both on XFS-on-lvm and
+BTRFS-on-dmcrypt-on-dmcache-on-lvm, so doesn't seem to be a specific fs
+issue.
+
+Another workaround is to create smaller but increasingly sized processes,
+e.g.:
+
+   perl -e '1 x 1_000_000_000'
+   perl -e '1 x 2_000_000_000'
+   perl -e '1 x 4_000_000_000'
+   perl -e '1 x 6_000_000_000'
+   perl -e '1 x 8_000_000_000'
+
+This manages to recover the "lost" memory somewhat, after which I am able
+to start my 8GB vm without causing a freeze:
+
+    7ff72e8e2000-7fffee8e2000 rw-s 00000000 00:17 3746909                  =
+  /cryptroot/test
+    Size:           36700160 kB
+    Rss:             5583036 kB
+    Pss:             5583036 kB
+    Private_Clean:   5583036 kB
+    Referenced:      5583036 kB
+
+The Pss size also reduces slowly over time during normal activity, so
+it's clearly not locked by the kernel. The kernel is merely setting its
+priorities to freeze rather than free it quickly :)
+
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D
+Case #3, the 10 year old laptop, thrashing semi freezes
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D
+
+The last case I present is the laptop at my bed with 2GB of RAM and
+8GB of swap. It's used for image/movie viewing, e-book-reading and
+firefoxing. The root filesystem is sometimes on a 4GB USB stick and
+sometimes on a 16GB SD card, and it has a somewhat broken 32GB SSD used
+exclusively for swapping and a dmcache. I know it's weird, but it works.
+
+It's not doing any heavy work, but it uses a lot more memory than it has
+RAM for. Its quite amazing: under 4.4, despite constantly using 2+GB
+of swap (typically 3.5GB swap is in use), it works _very well_ indeed,
+with only occasional split-second pauses due to swapping when switching
+desktops for example.
+
+Under 4.14, it freezes for 5-10 minutes every few minutes, but always
+recovers. Mouse pointer moves a bit every minuite or so when I am
+lucky. So not fun to use when all you wanted to do is to flip pages in
+fbreader and suddenly have to pause for 10 minutes. And no, I am not
+exaggerating, I stopped it a few times and it really hangs for this long
+every few minutes.
+
+While it freezes, there is heavy disk activity. Looking at dstat output
+afterwards, it is clear that there is little to no write activity, and all
+read activity is to the root filesystem, not swap. swap almost doesn't get
+used under 4.14 on this box.
+
+=46rom the little data I have, I would guess that linux runs out of
+memory and then throws away code pages, just to immediatelly read them
+again. This would explain the heavy read-only disk activity and also why
+the box is more or less frozen during these episodes, it's in classic full
+thrashing mode.
+
+No amount of tinkering with /proc/sys/vm seems to make a difference (I
+owuld have hoped setting swappiness to 100 to help, but nope), but I did
+find a workaround that almost completely fixes the problem... wait for
+it...
+
+   while sleep 10; do perl -e '1 x 300_000_000';done
+
+i.e., create a dummy 300MB process every 10 seconds. I have no clue why
+this works, but it changes the behaviour drastically:
+
+    1. swap gets used, not as aggressively as under 4.4, but it does get us=
+ed
+    2. the box thrash-freezes much less often
+    3. if it freezes, it usually recovers after 1-2 minutes, and the mouse
+       pointer sometimes moves as well during this time. yay.
+
+It also is very similar to my workaround on my desktop box, although the
+mix of programs I run is very different and the memory situation is very
+different. Still, I feel linux on my other boxes is just as reluctant to
+use swap and rather oom kills or freezes instead.
+
+4.4 in the same box with exactly the same root filesystem has none of
+these problems, it simply swaps out stuff when memory gets tight.
+
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D
+Summary
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D
+
+So, while this is mostly anecdotal, I think there is a real issue with
+post 4.4 kernels. Given the wide range of configurations I run into memory
+issues, I think this is not an isolated hardware or config issue, some of
+these problems I can reproduce with a debian boot cd as well, so it's not
+anything in my config.
+
+I found that around 4.8-4.9 the behaviour was worst - 4.9 makes trouble on
+most of my boxes, not just these three, while 4.14 is greatly improved and
+works fine on a lot of much more idle servers I have.
+
+I hope this is somewhat useful in finding this issue. Thanks for staying
+with me and reading this :)
+
+If requested, I can try to produce more info and do more experimenting,
+although maybe not in a very timely matter.
+
+Greetings,
+
+--=20
+                The choice of a       Deliantra, the free code+content MORPG
+      -----=3D=3D-     _GNU_              http://www.deliantra.net
+      ----=3D=3D-- _       generation
+      ---=3D=3D---(_)__  __ ____  __      Marc Lehmann
+      --=3D=3D---/ / _ \/ // /\ \/ /      schmorp@schmorp.de
+      -=3D=3D=3D=3D=3D/_/_//_/\_,_/ /_/\_\
