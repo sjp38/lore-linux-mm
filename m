@@ -1,65 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A2A186B0298
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 18:49:37 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id 17-v6so5982380qkz.15
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 15:49:37 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id z62-v6si4201186qke.230.2018.07.10.15.49.35
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 29ECC6B029B
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 18:52:58 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id e1-v6so13298936pld.23
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 15:52:58 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id v203-v6si16741080pgb.333.2018.07.10.15.52.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jul 2018 15:49:36 -0700 (PDT)
-Date: Tue, 10 Jul 2018 15:49:23 -0700
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: Re: [PATCH -mm -v4 14/21] mm, cgroup, THP, swap: Support to move
- swap account for PMD swap mapping
-Message-ID: <20180710224923.lm5n7d2jot6pggw2@ca-dmjordan1.us.oracle.com>
-References: <20180622035151.6676-1-ying.huang@intel.com>
- <20180622035151.6676-15-ying.huang@intel.com>
- <20180709172037.254zyuadep2hj5po@ca-dmjordan1.us.oracle.com>
- <87tvp7h6mx.fsf@yhuang-dev.intel.com>
+        Tue, 10 Jul 2018 15:52:57 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 12/27] x86/mm: Shadow stack page fault error
+ checking
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+ <20180710222639.8241-13-yu-cheng.yu@intel.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <61793360-f37c-ec19-c390-abe3c76a5f5c@linux.intel.com>
+Date: Tue, 10 Jul 2018 15:52:55 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87tvp7h6mx.fsf@yhuang-dev.intel.com>
+In-Reply-To: <20180710222639.8241-13-yu-cheng.yu@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-On Tue, Jul 10, 2018 at 03:49:58PM +0800, Huang, Ying wrote:
-> Daniel Jordan <daniel.m.jordan@oracle.com> writes:
-> 
-> > On Fri, Jun 22, 2018 at 11:51:44AM +0800, Huang, Ying wrote:
-> >> Because there is no way to prevent a huge swap cluster from being
-> >> split except when it has SWAP_HAS_CACHE flag set.
-> >
-> > What about making get_mctgt_type_thp take the cluster lock?  That function
-> > would be the first lock_cluster user outside of swapfile.c, but it would
-> > serialize with split_swap_cluster.
-> >
-> >> It is possible for
-> >> the huge swap cluster to be split and the charge for the swap slots
-> >> inside to be changed, after we check the PMD swap mapping and the huge
-> >> swap cluster before we commit the charge moving.  But the race window
-> >> is so small, that we will just ignore the race.
-> >
-> > Moving the charges is a slow path, so can't we just be correct here and not
-> > leak?
-> 
-> Check the code and thought about this again, found the race may not
-> exist.  Because the PMD is locked when get_mctgt_type_thp() is called
-> until charge is completed for the PMD.  So the charge of the huge swap
-> cluster cannot be changed at the same time even if the huge swap cluster
-> is split by other processes.
+On 07/10/2018 03:26 PM, Yu-cheng Yu wrote:
+> +++ b/arch/x86/include/asm/traps.h
+> @@ -157,6 +157,7 @@ enum {
+>   *   bit 3 ==				1: use of reserved bit detected
+>   *   bit 4 ==				1: fault was an instruction fetch
+>   *   bit 5 ==				1: protection keys block access
+> + *   bit 6 ==				1: shadow stack access fault
+>   */
 
-That's true, the PMD lock does prevent the swap charge from going stale between
-the time mem_cgroup_move_charge_pte_range identifies a huge swap entry in
-get_mctgt_type_thp and the time it moves the charge in mem_cgroup_move_account,
-at least for some events like swapping in pages.
+Could we document this bit better?
 
-> Right?
-
-I'm not sure the PMD lock covers everything, but after looking a while longer
-at this, the charge moving seems to be a best-effort feature in other respects,
-so the accounting doesn't need to be completely accurate.
+Is this a fault where the *processor* thought it should be a shadow
+stack fault?  Or is it also set on faults to valid shadow stack PTEs
+that just happen to fault for other reasons, say protection keys?
