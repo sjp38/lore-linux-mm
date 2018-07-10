@@ -1,47 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F29336B026B
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 10:14:14 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id d30-v6so3370475edd.0
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 07:14:14 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 373AA6B0005
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 10:27:45 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id n2-v6so8725732edr.5
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 07:27:45 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s4-v6si3785958edh.359.2018.07.10.07.14.13
+        by mx.google.com with ESMTPS id d89-v6si129414edd.249.2018.07.10.07.27.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jul 2018 07:14:13 -0700 (PDT)
-Date: Tue, 10 Jul 2018 16:14:10 +0200
+        Tue, 10 Jul 2018 07:27:43 -0700 (PDT)
+Date: Tue, 10 Jul 2018 16:27:40 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
-Message-ID: <20180710141410.GP14284@dhcp22.suse.cz>
-References: <20180622150242.16558-1-mhocko@kernel.org>
- <20180627074421.GF32348@dhcp22.suse.cz>
- <20180709122908.GJ22049@dhcp22.suse.cz>
- <20180710134040.GG3014@mtr-leonro.mtl.com>
+Subject: Re: [PATCH v6 0/7] fs/dcache: Track & limit # of negative dentries
+Message-ID: <20180710142740.GQ14284@dhcp22.suse.cz>
+References: <1530905572-817-1-git-send-email-longman@redhat.com>
+ <20180709081920.GD22049@dhcp22.suse.cz>
+ <62275711-e01d-7dbe-06f1-bf094b618195@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180710134040.GG3014@mtr-leonro.mtl.com>
+In-Reply-To: <62275711-e01d-7dbe-06f1-bf094b618195@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Leon Romanovsky <leon@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Felix Kuehling <felix.kuehling@amd.com>
+To: Waiman Long <longman@redhat.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>
 
-On Tue 10-07-18 16:40:40, Leon Romanovsky wrote:
-> On Mon, Jul 09, 2018 at 02:29:08PM +0200, Michal Hocko wrote:
-> > On Wed 27-06-18 09:44:21, Michal Hocko wrote:
-> > > This is the v2 of RFC based on the feedback I've received so far. The
-> > > code even compiles as a bonus ;) I haven't runtime tested it yet, mostly
-> > > because I have no idea how.
-> > >
-> > > Any further feedback is highly appreciated of course.
-> >
-> > Any other feedback before I post this as non-RFC?
+On Mon 09-07-18 12:01:04, Waiman Long wrote:
+> On 07/09/2018 04:19 AM, Michal Hocko wrote:
+[...]
+> > later needs a special treatment while the first one is ok? There are
+> > quite some resources which allow a non privileged user to consume a lot
+> > of memory and the memory controller is the only reliable way to mitigate
+> > the risk.
 > 
-> From mlx5 perspective, who is primary user of umem_odp.c your change looks ok.
+> Yes, memory controller is the only reliable way to mitigate the risk,
+> but not all tasks are under the control of a memory controller with
+> kernel memory limit.
 
-Can I assume your Acked-by?
+But those which you do not trust should. So why do we need yet another
+mechanism for the reclaim?
 
-Thanks for your review!
+[...]
+> >> Patch 1 tracks the number of negative dentries present in the LRU
+> >> lists and reports it in /proc/sys/fs/dentry-state.
+> > If anything I _think_ vmstat would benefit from this because behavior of
+> > the memory reclaim does depend on the amount of neg. dentries.
+> >
+> >> Patch 2 adds a "neg-dentry-pc" sysctl parameter that can be used to to
+> >> specify a soft limit on the number of negative allowed as a percentage
+> >> of total system memory. This parameter is 0 by default which means no
+> >> negative dentry limiting will be performed.
+> > percentage has turned out to be a really wrong unit for many tunables
+> > over time. Even 1% can be just too much on really large machines.
+> 
+> Yes, that is true. Do you have any suggestion of what kind of unit
+> should be used? I can scale down the unit to 0.1% of the system memory.
+> Alternatively, one unit can be 10k/cpu thread, so a 20-thread system
+> corresponds to 200k, etc.
+
+I simply think this is a strange user interface. How much is a
+reasonable number? How can any admin figure that out?
+
+> >> Patch 3 enables automatic pruning of least recently used negative
+> >> dentries when the total number is close to the preset limit.
+> > Please explain why this cannot be done in a standard dcache shrinking
+> > way. I strongly suspect that you are developing yet another reclaim with
+> > its own sets of tunable and bypassing the existing infrastructure. I
+> > haven't read patches yet but the cover letter doesn't really explain
+> > design much so I am only guessing.
+> 
+> The standard dcache shrinking happens when the system is almost running
+> out of free memory.
+
+Well, the standard reclaim happens when somebody needs memory. We are
+usually quite far away from "almost running out of memory". We do
+reclaim fs metadata including dentries so I really do not see why
+negative ones should be any special here.
+
+> This new shrinker will be turned on when the number
+> of negative dentries is closed to the limit even when there are still
+> plenty of free memory left. It will stop when the number of negative
+> dentries is lowered to a safe level. The new shrinker is designed to
+> impose as little overhead to the currently running tasks. That is not
+> true for the standard shrinker which will have a rather significant
+> performance impact to the currently running tasks.
+
+Do you have any numbers to back your claim? The memory reclaim is
+usually quite lightweight. Especially when we have a lot of clean
+fs {meta}data
+
+> I can remove the new shrinker if people really don't want to add a new
+> one as long as I can keep the option to kill off newly created negative
+> dentries when the limit is exceeded.
+
+Please let's not add yet another memory reclaim mechanism. It will just
+backfire sooner or later.
 -- 
 Michal Hocko
 SUSE Labs
