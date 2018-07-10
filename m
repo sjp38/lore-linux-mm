@@ -1,84 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C22876B0007
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 12:20:25 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id j25-v6so14307506pfi.20
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 09:20:25 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 4-v6si16604788pgn.90.2018.07.10.09.20.24
+	by kanga.kvack.org (Postfix) with ESMTP id 2D7656B0005
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 12:53:49 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id h14-v6so14373802pfi.19
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 09:53:49 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id f12-v6si15760657pgq.559.2018.07.10.09.53.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jul 2018 09:20:24 -0700 (PDT)
-Date: Tue, 10 Jul 2018 19:20:20 +0300
-From: Leon Romanovsky <leon@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
-Message-ID: <20180710162020.GJ3014@mtr-leonro.mtl.com>
-References: <20180622150242.16558-1-mhocko@kernel.org>
- <20180627074421.GF32348@dhcp22.suse.cz>
- <20180709122908.GJ22049@dhcp22.suse.cz>
- <20180710134040.GG3014@mtr-leonro.mtl.com>
- <20180710141410.GP14284@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="0EphSjNCSB1asamE"
-Content-Disposition: inline
-In-Reply-To: <20180710141410.GP14284@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 10 Jul 2018 09:53:47 -0700 (PDT)
+From: Matthew Wilcox <willy@infradead.org>
+Subject: [PATCH v7] mm: Distinguish VMalloc pages
+Date: Tue, 10 Jul 2018 09:53:26 -0700
+Message-Id: <20180710165326.9378-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Felix Kuehling <felix.kuehling@amd.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <willy@infradead.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
+For diagnosing various performance and memory-leak problems, it is helpful
+to be able to distinguish pages which are in use as VMalloc pages.
+Unfortunately, we cannot use the page_type field in struct page, as
+this is in use for mapcount by some drivers which map vmalloced pages
+to userspace.
 
---0EphSjNCSB1asamE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Use a special page->mapping value to distinguish VMalloc pages from
+other kinds of pages.  Also record a pointer to the vm_struct and the
+offset within the area in struct page to help reconstruct exactly what
+this page is being used for.
 
-On Tue, Jul 10, 2018 at 04:14:10PM +0200, Michal Hocko wrote:
-> On Tue 10-07-18 16:40:40, Leon Romanovsky wrote:
-> > On Mon, Jul 09, 2018 at 02:29:08PM +0200, Michal Hocko wrote:
-> > > On Wed 27-06-18 09:44:21, Michal Hocko wrote:
-> > > > This is the v2 of RFC based on the feedback I've received so far. The
-> > > > code even compiles as a bonus ;) I haven't runtime tested it yet, mostly
-> > > > because I have no idea how.
-> > > >
-> > > > Any further feedback is highly appreciated of course.
-> > >
-> > > Any other feedback before I post this as non-RFC?
-> >
-> > From mlx5 perspective, who is primary user of umem_odp.c your change looks ok.
->
-> Can I assume your Acked-by?
+Signed-off-by: Matthew Wilcox <willy@infradead.org>
+---
+v7: Use a value which has the bottom bit set so that page_mapping()
+returns NULL.  Comments updated to note this bit of "cleverness".
 
-I didn't have a chance to test it because it applies on our rdma-next, but
-fails to compile.
+ fs/proc/page.c                         |  2 ++
+ include/linux/mm_types.h               |  5 +++++
+ include/linux/page-flags.h             | 26 ++++++++++++++++++++++++++
+ include/uapi/linux/kernel-page-flags.h |  1 +
+ mm/vmalloc.c                           |  5 ++++-
+ tools/vm/page-types.c                  |  1 +
+ 6 files changed, 39 insertions(+), 1 deletion(-)
 
-Thanks
-
->
-> Thanks for your review!
-> --
-> Michal Hocko
-> SUSE Labs
->
-
---0EphSjNCSB1asamE
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIcBAEBAgAGBQJbRNzEAAoJEORje4g2clinTRAP/3xbJ66iDSwdQCcVd+3SPmwJ
-NYt2S+UqK7m5inKXFtDVKC9BNIb6WKX5gVPyLMKfr6d+Ru6XVd/TmavJyDTHbBzC
-B5a13HTOqAMPLoRdcU/HqN0yHWXsRtekZ5jnnxLt+mXVq+34Vk6MNFO2OL8opaeP
-1Dznd0rY8jrA9Y3Z6gXBkog9xIFE5h7NouLdApinAqoP8D4/M1quGSGsmSqlkY0z
-NHviSlRW8/cRSgSeS5SQEyj3jz6gsZCYRWwskONf+VWy848aAoessVXzNVgtuLbR
-4eIkAHhb1DTPdIPIZyzxrQ4e7QCaFOb/AFAt6K0E2YmTgmnntKLrpXf76p8GIXFW
-xmxji8Z6R+/124cH67/+GpgSvAFSoqyHsjv8IJkB8XPsLnfN4vqxH6U0U7lO4Z5l
-Pex8wMFs55GgrDsI99dEczCglFesam5u9RRnHLGY1nYYofDoNKTbWiKEAAIQJK7R
-P0fCVmW921et6rtnsPOIM40O/94vJPLP0Wam76GXSCtQFw22xK90XCIvrYLuZIcs
-q7nDB6HzfKUL0Ai1KAhhcqzn785E9xtAxLy6CilgmB4nTqXhaP5cM5RZZiD86jEr
-N8GMXABgUjwgwxV4AFHGY2qeawlN+l2yLNl6r05KNyKTWWyhM2rt0HNnRkLRP51G
-xxL8y7wxClLAZl6dTXFz
-=ETz1
------END PGP SIGNATURE-----
-
---0EphSjNCSB1asamE--
+diff --git a/fs/proc/page.c b/fs/proc/page.c
+index 792c78a49174..fc83dae1af7b 100644
+--- a/fs/proc/page.c
++++ b/fs/proc/page.c
+@@ -156,6 +156,8 @@ u64 stable_page_flags(struct page *page)
+ 		u |= 1 << KPF_BALLOON;
+ 	if (PageTable(page))
+ 		u |= 1 << KPF_PGTABLE;
++	if (PageVMalloc(page))
++		u |= 1 << KPF_VMALLOC;
+ 
+ 	if (page_is_idle(page))
+ 		u |= 1 << KPF_IDLE;
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 21e1b6a9f113..8a4698b368de 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -153,6 +153,11 @@ struct page {
+ 			spinlock_t ptl;
+ #endif
+ 		};
++		struct {	/* VMalloc pages */
++			struct vm_struct *vm_area;
++			unsigned long vm_offset;
++			unsigned long _vm_id;	/* MAPPING_VMalloc */
++		};
+ 		struct {	/* ZONE_DEVICE pages */
+ 			/** @pgmap: Points to the hosting device page map. */
+ 			struct dev_pagemap *pgmap;
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 901943e4754b..588b8dd28a85 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -699,6 +699,32 @@ PAGE_TYPE_OPS(Kmemcg, kmemcg)
+  */
+ PAGE_TYPE_OPS(Table, table)
+ 
++/*
++ * vmalloc pages may be mapped to userspace, so we need some other way
++ * to distinguish them from other kinds of pages.  Use page->mapping for
++ * this purpose.  Values below 0x1000 cannot be real pointers.  Setting
++ * the bottom bit makes page_mapping() return NULL, which is what we want.
++ */
++#define MAPPING_VMalloc		(void *)0x441
++
++#define PAGE_MAPPING_OPS(name)						\
++static __always_inline int Page##name(struct page *page)		\
++{									\
++	return page->mapping == MAPPING_##name;				\
++}									\
++static __always_inline void __SetPage##name(struct page *page)		\
++{									\
++	VM_BUG_ON_PAGE(page->mapping != NULL, page);			\
++	page->mapping = MAPPING_##name;					\
++}									\
++static __always_inline void __ClearPage##name(struct page *page)	\
++{									\
++	VM_BUG_ON_PAGE(page->mapping != MAPPING_##name, page);		\
++	page->mapping = NULL;						\
++}
++
++PAGE_MAPPING_OPS(VMalloc)
++
+ extern bool is_free_buddy_page(struct page *page);
+ 
+ __PAGEFLAG(Isolated, isolated, PF_ANY);
+diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
+index 21b9113c69da..6800968b8f47 100644
+--- a/include/uapi/linux/kernel-page-flags.h
++++ b/include/uapi/linux/kernel-page-flags.h
+@@ -36,5 +36,6 @@
+ #define KPF_ZERO_PAGE		24
+ #define KPF_IDLE		25
+ #define KPF_PGTABLE		26
++#define KPF_VMALLOC		27
+ 
+ #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 1863390fa09c..99331453e114 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1522,7 +1522,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
+ 		for (i = 0; i < area->nr_pages; i++) {
+ 			struct page *page = area->pages[i];
+ 
+-			BUG_ON(!page);
++			__ClearPageVMalloc(page);
+ 			__free_pages(page, 0);
+ 		}
+ 
+@@ -1691,6 +1691,9 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 			area->nr_pages = i;
+ 			goto fail;
+ 		}
++		__SetPageVMalloc(page);
++		page->vm_area = area;
++		page->vm_offset = i;
+ 		area->pages[i] = page;
+ 		if (gfpflags_allow_blocking(gfp_mask))
+ 			cond_resched();
+diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
+index cce853dca691..25cc21855be4 100644
+--- a/tools/vm/page-types.c
++++ b/tools/vm/page-types.c
+@@ -132,6 +132,7 @@ static const char * const page_flag_names[] = {
+ 	[KPF_THP]		= "t:thp",
+ 	[KPF_BALLOON]		= "o:balloon",
+ 	[KPF_PGTABLE]		= "g:pgtable",
++	[KPF_VMALLOC]		= "V:vmalloc",
+ 	[KPF_ZERO_PAGE]		= "z:zero_page",
+ 	[KPF_IDLE]              = "i:idle_page",
+ 
+-- 
+2.18.0
