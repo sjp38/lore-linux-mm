@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 48DC06B0278
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BE9256B0276
 	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 18:31:20 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id b5-v6so13378811ple.20
+Received: by mail-pf0-f200.google.com with SMTP id t78-v6so14736454pfa.8
         for <linux-mm@kvack.org>; Tue, 10 Jul 2018 15:31:20 -0700 (PDT)
 Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id h1-v6si16605731pgs.221.2018.07.10.15.31.18
+        by mx.google.com with ESMTPS id e6-v6si18699657pfa.217.2018.07.10.15.31.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 10 Jul 2018 15:31:19 -0700 (PDT)
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [RFC PATCH v2 25/27] x86/cet: Add PTRACE interface for CET
-Date: Tue, 10 Jul 2018 15:26:37 -0700
-Message-Id: <20180710222639.8241-26-yu-cheng.yu@intel.com>
+Subject: [RFC PATCH v2 26/27] x86/cet/shstk: Handle thread shadow stack
+Date: Tue, 10 Jul 2018 15:26:38 -0700
+Message-Id: <20180710222639.8241-27-yu-cheng.yu@intel.com>
 In-Reply-To: <20180710222639.8241-1-yu-cheng.yu@intel.com>
 References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,141 +20,151 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
 
-Add PTRACE interface for CET MSRs.
+The shadow stack for clone/fork is handled as the following:
+
+(1) If ((clone_flags & (CLONE_VFORK | CLONE_VM)) == CLONE_VM),
+    the kernel allocates (and frees on thread exit) a new SHSTK
+    for the child.
+
+    It is possible for the kernel to complete the clone syscall
+    and set the child's SHSTK pointer to NULL and let the child
+    thread allocate a SHSTK for itself.  There are two issues
+    in this approach: It is not compatible with existing code
+    that does inline syscall and it cannot handle signals before
+    the child can successfully allocate a SHSTK.
+
+(2) For (clone_flags & CLONE_VFORK), the child uses the existing
+    SHSTK.
+
+(3) For all other cases, the SHSTK is copied/reused whenever the
+    parent or the child does a call/ret.
+
+This patch handles cases (1) & (2).  Case (3) is handled in
+the SHSTK page fault patches.
 
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/include/asm/fpu/regset.h |  7 +++---
- arch/x86/kernel/fpu/regset.c      | 41 +++++++++++++++++++++++++++++++
- arch/x86/kernel/ptrace.c          | 16 ++++++++++++
- include/uapi/linux/elf.h          |  1 +
- 4 files changed, 62 insertions(+), 3 deletions(-)
+ arch/x86/include/asm/cet.h         |  2 ++
+ arch/x86/include/asm/mmu_context.h |  3 +++
+ arch/x86/kernel/cet.c              | 33 ++++++++++++++++++++++++++++++
+ arch/x86/kernel/process.c          |  1 +
+ arch/x86/kernel/process_64.c       |  7 +++++++
+ 5 files changed, 46 insertions(+)
 
-diff --git a/arch/x86/include/asm/fpu/regset.h b/arch/x86/include/asm/fpu/regset.h
-index d5bdffb9d27f..edad0d889084 100644
---- a/arch/x86/include/asm/fpu/regset.h
-+++ b/arch/x86/include/asm/fpu/regset.h
-@@ -7,11 +7,12 @@
+diff --git a/arch/x86/include/asm/cet.h b/arch/x86/include/asm/cet.h
+index 71da2cccba16..d5737f3346f2 100644
+--- a/arch/x86/include/asm/cet.h
++++ b/arch/x86/include/asm/cet.h
+@@ -20,6 +20,7 @@ struct cet_status {
  
- #include <linux/regset.h>
+ #ifdef CONFIG_X86_INTEL_CET
+ int cet_setup_shstk(void);
++int cet_setup_thread_shstk(struct task_struct *p);
+ void cet_disable_shstk(void);
+ void cet_disable_free_shstk(struct task_struct *p);
+ int cet_restore_signal(unsigned long ssp);
+@@ -29,6 +30,7 @@ int cet_setup_ibt_bitmap(void);
+ void cet_disable_ibt(void);
+ #else
+ static inline int cet_setup_shstk(void) { return 0; }
++static inline int cet_setup_thread_shstk(struct task_struct *p) { return 0; }
+ static inline void cet_disable_shstk(void) {}
+ static inline void cet_disable_free_shstk(struct task_struct *p) {}
+ static inline int cet_restore_signal(unsigned long ssp) { return 0; }
+diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
+index bbc796eb0a3b..662755048598 100644
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -13,6 +13,7 @@
+ #include <asm/tlbflush.h>
+ #include <asm/paravirt.h>
+ #include <asm/mpx.h>
++#include <asm/cet.h>
  
--extern user_regset_active_fn regset_fpregs_active, regset_xregset_fpregs_active;
-+extern user_regset_active_fn regset_fpregs_active, regset_xregset_fpregs_active,
-+				cetregs_active;
- extern user_regset_get_fn fpregs_get, xfpregs_get, fpregs_soft_get,
--				xstateregs_get;
-+				xstateregs_get, cetregs_get;
- extern user_regset_set_fn fpregs_set, xfpregs_set, fpregs_soft_set,
--				 xstateregs_set;
-+				 xstateregs_set, cetregs_set;
+ extern atomic64_t last_mm_ctx_id;
  
- /*
-  * xstateregs_active == regset_fpregs_active. Please refer to the comment
-diff --git a/arch/x86/kernel/fpu/regset.c b/arch/x86/kernel/fpu/regset.c
-index bc02f5144b95..7008eb084d36 100644
---- a/arch/x86/kernel/fpu/regset.c
-+++ b/arch/x86/kernel/fpu/regset.c
-@@ -160,6 +160,47 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
- 	return ret;
+@@ -228,6 +229,8 @@ do {						\
+ #else
+ #define deactivate_mm(tsk, mm)			\
+ do {						\
++	if (!tsk->vfork_done)			\
++		cet_disable_free_shstk(tsk);	\
+ 	load_gs_index(0);			\
+ 	loadsegment(fs, 0);			\
+ } while (0)
+diff --git a/arch/x86/kernel/cet.c b/arch/x86/kernel/cet.c
+index 8bbd63e1a2ba..2a366a5ccf20 100644
+--- a/arch/x86/kernel/cet.c
++++ b/arch/x86/kernel/cet.c
+@@ -155,6 +155,39 @@ int cet_setup_shstk(void)
+ 	return 0;
  }
  
-+int cetregs_active(struct task_struct *target, const struct user_regset *regset)
++int cet_setup_thread_shstk(struct task_struct *tsk)
 +{
-+#ifdef CONFIG_X86_INTEL_CET
-+	if (target->thread.cet.shstk_enabled || target->thread.cet.ibt_enabled)
-+		return regset->n;
-+#endif
++	unsigned long addr, size;
++	struct cet_user_state *state;
++
++	if (!current->thread.cet.shstk_enabled)
++		return 0;
++
++	state = get_xsave_addr(&tsk->thread.fpu.state.xsave,
++			       XFEATURE_MASK_SHSTK_USER);
++
++	if (!state)
++		return -EINVAL;
++
++	size = tsk->thread.cet.shstk_size;
++	if (size == 0)
++		size = in_ia32_syscall() ? SHSTK_SIZE_32:SHSTK_SIZE_64;
++
++	addr = shstk_mmap(0, size);
++
++	if (addr >= TASK_SIZE_MAX) {
++		tsk->thread.cet.shstk_base = 0;
++		tsk->thread.cet.shstk_size = 0;
++		tsk->thread.cet.shstk_enabled = 0;
++		return -ENOMEM;
++	}
++
++	state->user_ssp = (u64)(addr + size - sizeof(u64));
++	tsk->thread.cet.shstk_base = addr;
++	tsk->thread.cet.shstk_size = size;
 +	return 0;
 +}
 +
-+int cetregs_get(struct task_struct *target, const struct user_regset *regset,
-+		unsigned int pos, unsigned int count,
-+		void *kbuf, void __user *ubuf)
-+{
-+	struct fpu *fpu = &target->thread.fpu;
-+	struct cet_user_state *cetregs;
-+
-+	if (!boot_cpu_has(X86_FEATURE_SHSTK))
-+		return -ENODEV;
-+
-+	cetregs = get_xsave_addr(&fpu->state.xsave, XFEATURE_MASK_SHSTK_USER);
-+
-+	fpu__prepare_read(fpu);
-+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, cetregs, 0, -1);
-+}
-+
-+int cetregs_set(struct task_struct *target, const struct user_regset *regset,
-+		  unsigned int pos, unsigned int count,
-+		  const void *kbuf, const void __user *ubuf)
-+{
-+	struct fpu *fpu = &target->thread.fpu;
-+	struct cet_user_state *cetregs;
-+
-+	if (!boot_cpu_has(X86_FEATURE_SHSTK))
-+		return -ENODEV;
-+
-+	cetregs = get_xsave_addr(&fpu->state.xsave, XFEATURE_MASK_SHSTK_USER);
-+
-+	fpu__prepare_write(fpu);
-+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf, cetregs, 0, -1);
-+}
-+
- #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
+ void cet_disable_shstk(void)
+ {
+ 	u64 r;
+diff --git a/arch/x86/kernel/process.c b/arch/x86/kernel/process.c
+index 309ebb7f9d8d..43a57d284a22 100644
+--- a/arch/x86/kernel/process.c
++++ b/arch/x86/kernel/process.c
+@@ -127,6 +127,7 @@ void exit_thread(struct task_struct *tsk)
  
- /*
-diff --git a/arch/x86/kernel/ptrace.c b/arch/x86/kernel/ptrace.c
-index e2ee403865eb..ac2bc3a18427 100644
---- a/arch/x86/kernel/ptrace.c
-+++ b/arch/x86/kernel/ptrace.c
-@@ -49,7 +49,9 @@ enum x86_regset {
- 	REGSET_IOPERM64 = REGSET_XFP,
- 	REGSET_XSTATE,
- 	REGSET_TLS,
-+	REGSET_CET64 = REGSET_TLS,
- 	REGSET_IOPERM32,
-+	REGSET_CET32,
- };
+ 	free_vm86(t);
  
- struct pt_regs_offset {
-@@ -1276,6 +1278,13 @@ static struct user_regset x86_64_regsets[] __ro_after_init = {
- 		.size = sizeof(long), .align = sizeof(long),
- 		.active = ioperm_active, .get = ioperm_get
- 	},
-+	[REGSET_CET64] = {
-+		.core_note_type = NT_X86_CET,
-+		.n = sizeof(struct cet_user_state) / sizeof(u64),
-+		.size = sizeof(u64), .align = sizeof(u64),
-+		.active = cetregs_active, .get = cetregs_get,
-+		.set = cetregs_set
-+	},
- };
++	cet_disable_free_shstk(tsk);
+ 	fpu__drop(fpu);
+ }
  
- static const struct user_regset_view user_x86_64_view = {
-@@ -1331,6 +1340,13 @@ static struct user_regset x86_32_regsets[] __ro_after_init = {
- 		.size = sizeof(u32), .align = sizeof(u32),
- 		.active = ioperm_active, .get = ioperm_get
- 	},
-+	[REGSET_CET32] = {
-+		.core_note_type = NT_X86_CET,
-+		.n = sizeof(struct cet_user_state) / sizeof(u64),
-+		.size = sizeof(u64), .align = sizeof(u64),
-+		.active = cetregs_active, .get = cetregs_get,
-+		.set = cetregs_set
-+	},
- };
+diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
+index 12bb445fb98d..6e493b0bcedd 100644
+--- a/arch/x86/kernel/process_64.c
++++ b/arch/x86/kernel/process_64.c
+@@ -317,6 +317,13 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
+ 	if (sp)
+ 		childregs->sp = sp;
  
- static const struct user_regset_view user_x86_32_view = {
-diff --git a/include/uapi/linux/elf.h b/include/uapi/linux/elf.h
-index dc93982b9664..0898ba719fd7 100644
---- a/include/uapi/linux/elf.h
-+++ b/include/uapi/linux/elf.h
-@@ -401,6 +401,7 @@ typedef struct elf64_shdr {
- #define NT_386_TLS	0x200		/* i386 TLS slots (struct user_desc) */
- #define NT_386_IOPERM	0x201		/* x86 io permission bitmap (1=deny) */
- #define NT_X86_XSTATE	0x202		/* x86 extended state using xsave */
-+#define NT_X86_CET	0x203		/* x86 cet state */
- #define NT_S390_HIGH_GPRS	0x300	/* s390 upper register halves */
- #define NT_S390_TIMER	0x301		/* s390 timer register */
- #define NT_S390_TODCMP	0x302		/* s390 TOD clock comparator register */
++	/* Allocate a new shadow stack for pthread */
++	if ((clone_flags & (CLONE_VFORK | CLONE_VM)) == CLONE_VM) {
++		err = cet_setup_thread_shstk(p);
++		if (err)
++			goto out;
++	}
++
+ 	err = -ENOMEM;
+ 	if (unlikely(test_tsk_thread_flag(me, TIF_IO_BITMAP))) {
+ 		p->thread.io_bitmap_ptr = kmemdup(me->thread.io_bitmap_ptr,
 -- 
 2.17.1
