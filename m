@@ -1,52 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F4036B0007
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 14:55:24 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id 39-v6so13039943ple.6
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 11:55:24 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h1-v6sor4467247pgf.292.2018.07.10.11.55.22
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D79246B0003
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 16:47:06 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id j4-v6so10088216vke.12
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 13:47:06 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id j49-v6si7353079uaa.306.2018.07.10.13.47.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 10 Jul 2018 11:55:22 -0700 (PDT)
-Date: Tue, 10 Jul 2018 11:55:21 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm, oom: remove sleep from under oom_lock
-In-Reply-To: <20180710094341.GD14284@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.21.1807101152410.9234@chino.kir.corp.google.com>
-References: <20180709074706.30635-1-mhocko@kernel.org> <alpine.DEB.2.21.1807091548280.125566@chino.kir.corp.google.com> <20180710094341.GD14284@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Jul 2018 13:47:04 -0700 (PDT)
+Subject: Re: [PATCH] mm: hugetlb: don't zero 1GiB bootmem pages.
+References: <20180710184903.68239-1-cannonmatthews@google.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <ad083425-c861-1a77-069d-23b0aa1c84c6@oracle.com>
+Date: Tue, 10 Jul 2018 13:46:57 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20180710184903.68239-1-cannonmatthews@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Cannon Matthews <cannonmatthews@google.com>, Andrew Morton <akpm@linux-foundation.org>, Nadia Yvette Chambers <nyc@holomorphy.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, andreslc@google.com, pfeiner@google.com, dmatlack@google.com, gthelen@google.com
 
-On Tue, 10 Jul 2018, Michal Hocko wrote:
-
-> What do you think about the following?
+On 07/10/2018 11:49 AM, Cannon Matthews wrote:
+> When using 1GiB pages during early boot, use the new
+> memblock_virt_alloc_try_nid_raw() function to allocate memory without
+> zeroing it.  Zeroing out hundreds or thousands of GiB in a single core
+> memset() call is very slow, and can make early boot last upwards of
+> 20-30 minutes on multi TiB machines.
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index ed9d473c571e..32e6f7becb40 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -53,6 +53,14 @@ int sysctl_panic_on_oom;
->  int sysctl_oom_kill_allocating_task;
->  int sysctl_oom_dump_tasks = 1;
->  
-> +/*
-> + * Serializes oom killer invocations (out_of_memory()) from all contexts to
-> + * prevent from over eager oom killing (e.g. when the oom killer is invoked
-> + * from different domains).
-> + *
-> + * oom_killer_disable() relies on this lock to stabilize oom_killer_disabled
-> + * and mark_oom_victim
-> + */
->  DEFINE_MUTEX(oom_lock);
->  
->  #ifdef CONFIG_NUMA
+> To be safe, still zero the first sizeof(struct boomem_huge_page) bytes
+> since this is used a temporary storage place for this info until
+> gather_bootmem_prealloc() processes them later.
+> 
+> The rest of the memory does not need to be zero'd as the hugetlb pages
+> are always zero'd on page fault.
+> 
+> Tested: Booted with ~3800 1G pages, and it booted successfully in
+> roughly the same amount of time as with 0, as opposed to the 25+
+> minutes it would take before.
+> 
 
-I think it's better, thanks.  However, does it address the question about 
-why __oom_reap_task_mm() needs oom_lock protection?  Perhaps it would be 
-helpful to mention synchronization between reaping triggered from 
-oom_reaper and by exit_mmap().
+Nice improvement!
+
+> Signed-off-by: Cannon Matthews <cannonmatthews@google.com>
+> ---
+>  mm/hugetlb.c | 7 ++++++-
+>  1 file changed, 6 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 3612fbb32e9d..c93a2c77e881 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -2101,7 +2101,7 @@ int __alloc_bootmem_huge_page(struct hstate *h)
+>  	for_each_node_mask_to_alloc(h, nr_nodes, node, &node_states[N_MEMORY]) {
+>  		void *addr;
+> 
+> -		addr = memblock_virt_alloc_try_nid_nopanic(
+> +		addr = memblock_virt_alloc_try_nid_raw(
+>  				huge_page_size(h), huge_page_size(h),
+>  				0, BOOTMEM_ALLOC_ACCESSIBLE, node);
+>  		if (addr) {
+> @@ -2109,7 +2109,12 @@ int __alloc_bootmem_huge_page(struct hstate *h)
+>  			 * Use the beginning of the huge page to store the
+>  			 * huge_bootmem_page struct (until gather_bootmem
+>  			 * puts them into the mem_map).
+> +			 *
+> +			 * memblock_virt_alloc_try_nid_raw returns non-zero'd
+> +			 * memory so zero out just enough for this struct, the
+> +			 * rest will be zero'd on page fault.
+>  			 */
+> +			memset(addr, 0, sizeof(struct huge_bootmem_page));
+
+This forced me to look at the usage of huge_bootmem_page.  It is defined as:
+struct huge_bootmem_page {
+	struct list_head list;
+	struct hstate *hstate;
+#ifdef CONFIG_HIGHMEM
+	phys_addr_t phys;
+#endif
+};
+
+The list and hstate fields are set immediately after allocating the memory
+block here and elsewhere.  However, I can't find any code that sets phys.
+Although, it is potentially used in gather_bootmem_prealloc().  It appears
+powerpc used this field at one time, but no longer does.
+
+Am I missing something?
+
+Not an issue with this patch, rather existing code.  I'd prefer not to do
+the memset() "just to be safe".  Unless I am missing something, I would
+like to remove phys field and supporting code first.  Then, this patch
+without the memset.
+
+-- 
+Mike Kravetz
+
+>  			m = addr;
+>  			goto found;
+>  		}
+> --
+> 2.18.0.203.gfac676dfb9-goog
+> 
