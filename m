@@ -1,66 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 92A636B000D
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 20:08:09 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id p91-v6so11020700plb.12
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 17:08:09 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ACFAF6B0005
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 20:13:59 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id v25-v6so4544868pfm.11
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 17:13:59 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k4-v6si14457853pgo.77.2018.07.09.17.08.08
+        by mx.google.com with ESMTPS id u1-v6si5376235plk.97.2018.07.09.17.13.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jul 2018 17:08:08 -0700 (PDT)
-Date: Mon, 9 Jul 2018 17:08:06 -0700
+        Mon, 09 Jul 2018 17:13:58 -0700 (PDT)
+Date: Mon, 9 Jul 2018 17:13:56 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 0/3] sparse_init rewrite
-Message-Id: <20180709170806.bc28d2affba0e903e946e057@linux-foundation.org>
-In-Reply-To: <20180709235604.GA2070@MiWiFi-R3L-srv>
-References: <20180709175312.11155-1-pasha.tatashin@oracle.com>
-	<20180709142928.c8af4a1ddf80c407fe66b224@linux-foundation.org>
-	<20180709235604.GA2070@MiWiFi-R3L-srv>
+Subject: Re: mm,tlb: revert 4647706ebeee?
+Message-Id: <20180709171356.87d834e125f06e0cdaa72f85@linux-foundation.org>
+In-Reply-To: <20180708012538.51b2c672@roar.ozlabs.ibm.com>
+References: <1530896635.5350.25.camel@surriel.com>
+	<20180708012538.51b2c672@roar.ozlabs.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baoquan He <bhe@redhat.com>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net
+To: Nicholas Piggin <npiggin@gmail.com>
+Cc: Rik van Riel <riel@surriel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>, "kirill.shutemov" <kirill.shutemov@linux.intel.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, kernel-team <kernel-team@fb.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Nadav Amit <nadav.amit@gmail.com>
 
-On Tue, 10 Jul 2018 07:56:04 +0800 Baoquan He <bhe@redhat.com> wrote:
+On Sun, 8 Jul 2018 01:25:38 +1000 Nicholas Piggin <npiggin@gmail.com> wrote:
 
-> Hi Andrew,
+> On Fri, 06 Jul 2018 13:03:55 -0400
+> Rik van Riel <riel@surriel.com> wrote:
 > 
-> On 07/09/18 at 02:29pm, Andrew Morton wrote:
-> > On Mon,  9 Jul 2018 13:53:09 -0400 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
-> > > For the ease of review, I split this work so the first patch only adds new
-> > > interfaces, the second patch enables them, and removes the old ones.
+> > Hello,
 > > 
-> > This clashes pretty significantly with patches from Baoquan and Oscar:
+> > It looks like last summer, there were 2 sets of patches
+> > in flight to fix the issue of simultaneous mprotect/madvise
+> > calls unmapping PTEs, and some pages not being flushed from
+> > the TLB before returning to userspace.
 > > 
-> > mm-sparse-make-sparse_init_one_section-void-and-remove-check.patch
-> > mm-sparse-make-sparse_init_one_section-void-and-remove-check-fix.patch
-> > mm-sparse-make-sparse_init_one_section-void-and-remove-check-fix-2.patch
-> > mm-sparse-add-a-static-variable-nr_present_sections.patch
-> > mm-sparsemem-defer-the-ms-section_mem_map-clearing.patch
-> > mm-sparse-add-a-new-parameter-data_unit_size-for-alloc_usemap_and_memmap.patch
+> > Minchan posted these patches:
+> > 56236a59556c ("mm: refactor TLB gathering API")
+> > 99baac21e458 ("mm: fix MADV_[FREE|DONTNEED] TLB flush miss problem")
+> > 
+> > Around the same time, Mel posted:
+> > 4647706ebeee ("mm: always flush VMA ranges affected by zap_page_range")
+> > 
+> > They both appear to solve the same bug.
+> > 
+> > Only one of the two solutions is needed.
+> > 
+> > However, 4647706ebeee appears to introduce extra TLB
+> > flushes - one per VMA, instead of one over the entire
+> > range unmapped, and also extra flushes when there are
+> > no simultaneous unmappers of the same mm.
+> > 
+> > For that reason, it seems like we should revert
+> > 4647706ebeee and keep only Minchan's solution in
+> > the kernel.
+> > 
+> > Am I overlooking any reason why we should not revert
+> > 4647706ebeee?
 > 
-> > Is there duplication of intent here?  Any thoughts on the
-> > prioritization of these efforts?
+> Yes I think so. Discussed here recently:
 > 
-> The final version of my patches was posted here:
-> http://lkml.kernel.org/r/20180628062857.29658-1-bhe@redhat.com
-> 
-> Currently, only the first three patches are merged. 
-> 
-> mm-sparse-add-a-static-variable-nr_present_sections.patch
-> mm-sparsemem-defer-the-ms-section_mem_map-clearing.patch
-> mm-sparse-add-a-new-parameter-data_unit_size-for-alloc_usemap_and_memmap.patch
-> 
-> They are preparation patches, and the 4th patch is the formal fix patch:
-> [PATCH v6 4/5] mm/sparse: Optimize memmap allocation during sparse_init()
-> 
-> The 5th patch is a clean up patch according to reviewer's suggestion:
-> [PATCH v6 5/5] mm/sparse: Remove CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
-> 
-> I think Pavel's patches sits on top of all above five patches.
+> https://marc.info/?l=linux-mm&m=152878780528037&w=2
 
-OK, thanks, I've just moved to the v6 series.
+Unclear if that was an ack ;)
+
+> Actually we realized that powerpc does not implement the mmu
+> gather flushing quite right so it needs a fix before this
+> revert. But I propose the revert for next merge window.
+
+Yes, I have Rik's patch for 4.19-rc1.  I added yourself, Aneesh and
+Nadav to cc so you'll see it fly past.  If poss, please do get this all
+tested before the time comes and let me know?
