@@ -1,64 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C73646B0007
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 19:56:11 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id c3-v6so25296000qkb.2
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 16:56:11 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id u46-v6si6044859qvc.146.2018.07.09.16.56.10
+	by kanga.kvack.org (Postfix) with ESMTP id 0DE3F6B000A
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 20:08:04 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id b185-v6so25325007qkg.19
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 17:08:04 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id w5-v6sor8404561qvw.105.2018.07.09.17.08.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jul 2018 16:56:10 -0700 (PDT)
-Date: Tue, 10 Jul 2018 07:56:04 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: [PATCH v4 0/3] sparse_init rewrite
-Message-ID: <20180709235604.GA2070@MiWiFi-R3L-srv>
-References: <20180709175312.11155-1-pasha.tatashin@oracle.com>
- <20180709142928.c8af4a1ddf80c407fe66b224@linux-foundation.org>
+        (Google Transport Security);
+        Mon, 09 Jul 2018 17:08:03 -0700 (PDT)
+Subject: Re: [4.18-rc4] kernel BUG at mm/page_alloc.c:2016!
+References: <20180709233656.nzwzsyyomrxqobwk@codemonkey.org.uk>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <8d62cf07-0cc9-4de3-953a-2203c82b4879@redhat.com>
+Date: Mon, 9 Jul 2018 17:07:59 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180709142928.c8af4a1ddf80c407fe66b224@linux-foundation.org>
+In-Reply-To: <20180709233656.nzwzsyyomrxqobwk@codemonkey.org.uk>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net
+To: Dave Jones <davej@codemonkey.org.uk>, linux-mm@kvack.org
 
-Hi Andrew,
-
-On 07/09/18 at 02:29pm, Andrew Morton wrote:
-> On Mon,  9 Jul 2018 13:53:09 -0400 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
-> > For the ease of review, I split this work so the first patch only adds new
-> > interfaces, the second patch enables them, and removes the old ones.
+On 07/09/2018 04:36 PM, Dave Jones wrote:
+> When I ran an rsync on my machine I use for backups, it eventually
+> hits this trace..
 > 
-> This clashes pretty significantly with patches from Baoquan and Oscar:
+> kernel BUG at mm/page_alloc.c:2016!
+> invalid opcode: 0000 [#1] SMP RIP: move_freepages_block+0x120/0x2d0
+> CPU: 3 PID: 0 Comm: swapper/3 Not tainted 4.18.0-rc4-backup+ #1
+> Hardware name: ASUS All Series/Z97-DELUXE, BIOS 2602 08/18/2015
+> RIP: 0010:move_freepages_block+0x120/0x2d0
+> Code: 05 48 01 c8 74 3b f6 00 02 74 36 48 8b 03 48 c1 e8 3e 48 8d 0c 40 48 8b 86 c0 7f 00 00 48 c1 e8 3e 48 8d 04 40 48 39 c8 74 17 <0f> 0b 45 31 f6 48 83 c4 28 44 89 f0 5b 5d 41 5c 41 5d 41 5e 41 5f
+> RSP: 0018:ffff88043fac3af8 EFLAGS: 00010093
+> RAX: 0000000000000000 RBX: ffffea0002e20000 RCX: 0000000000000003
+> RDX: 0000000000000000 RSI: ffffea0002e20000 RDI: 0000000000000000
+> RBP: 0000000000000000 R08: ffff88043fac3b5c R09: ffffffff9295e110
+> R10: ffff88043fdf4000 R11: ffffea0002e20008 R12: ffffea0002e20000
+> R13: ffffffff9295dd40 R14: 0000000000000008 R15: ffffea0002e27fc0
+> FS:  0000000000000000(0000) GS:ffff88043fac0000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00007f2a75f71fe8 CR3: 00000001e380f006 CR4: 00000000001606e0
+> Call Trace:
+>   <IRQ>
+>   ? lock_acquire+0xe6/0x1dc
+>   steal_suitable_fallback+0x152/0x1a0
+>   get_page_from_freelist+0x1029/0x1650
+>   ? free_debug_processing+0x271/0x410
+>   __alloc_pages_nodemask+0x111/0x310
+>   page_frag_alloc+0x74/0x120
+>   __netdev_alloc_skb+0x95/0x110
+>   e1000_alloc_rx_buffers+0x225/0x2b0
+>   e1000_clean_rx_irq+0x2ee/0x450
+>   e1000e_poll+0x7c/0x2e0
+>   net_rx_action+0x273/0x4d0
+>   __do_softirq+0xc6/0x4d6
+>   irq_exit+0xbb/0xc0
+>   do_IRQ+0x60/0x110
+>   common_interrupt+0xf/0xf
+>   </IRQ>
+> RIP: 0010:cpuidle_enter_state+0xb5/0x390
+> Code: 89 04 24 0f 1f 44 00 00 31 ff e8 86 26 64 ff 80 7c 24 0f 00 0f 85 fb 01 00 00 e8 66 02 66 ff fb 48 ba cf f7 53 e3 a5 9b c4 20 <48> 8b 0c 24 4c 29 f9 48 89 c8 48 c1 f9 3f 48 f7 ea b8 ff ff ff 7f
+> RSP: 0018:ffffc900000abe70 EFLAGS: 00000202
+>   ORIG_RAX: ffffffffffffffdc
+> RAX: ffff880107fe8040 RBX: 0000000000000003 RCX: 0000000000000001
+> RDX: 20c49ba5e353f7cf RSI: 0000000000000001 RDI: ffff880107fe8040
+> RBP: ffff88043fae8c20 R08: 0000000000000001 R09: 0000000000000018
+> R10: 0000000000000000 R11: 0000000000000000 R12: ffffffff928fb7d8
+> R13: 0000000000000003 R14: 0000000000000003 R15: 0000015e55aecf23
+>   do_idle+0x128/0x230
+>   cpu_startup_entry+0x6f/0x80
+>   start_secondary+0x192/0x1f0
+>   secondary_startup_64+0xa5/0xb0
+> NMI watchdog: Watchdog detected hard LOCKUP on cpu 4
 > 
-> mm-sparse-make-sparse_init_one_section-void-and-remove-check.patch
-> mm-sparse-make-sparse_init_one_section-void-and-remove-check-fix.patch
-> mm-sparse-make-sparse_init_one_section-void-and-remove-check-fix-2.patch
-> mm-sparse-add-a-static-variable-nr_present_sections.patch
-> mm-sparsemem-defer-the-ms-section_mem_map-clearing.patch
-> mm-sparse-add-a-new-parameter-data_unit_size-for-alloc_usemap_and_memmap.patch
+> Everything then locks up & rebooots.
+> 
+> It's fairly reproduceable, though every time I run it my rsync gets further, and eventually I suspect it
+> won't create enough load to reproduce.
+> 
+> 2006 #ifndef CONFIG_HOLES_IN_ZONE
+> 2007         /*
+> 2008          * page_zone is not safe to call in this context when
+> 2009          * CONFIG_HOLES_IN_ZONE is set. This bug check is probably redundant
+> 2010          * anyway as we check zone boundaries in move_freepages_block().
+> 2011          * Remove at a later date when no bug reports exist related to
+> 2012          * grouping pages by mobility
+> 2013          */
+> 2014         VM_BUG_ON(pfn_valid(page_to_pfn(start_page)) &&
+> 2015                   pfn_valid(page_to_pfn(end_page)) &&
+> 2016                   page_zone(start_page) != page_zone(end_page));
+> 2017 #endif
+> 2018
+> 
+> 
+> 
+> 	Dave
+> 
 
-> Is there duplication of intent here?  Any thoughts on the
-> prioritization of these efforts?
+Fedora is hitting this as well on 4.17.x, reporter said it started
+with 4.17.4, 4.17.3 was fine. I asked the reporter to bisect
+and was going to send after they got back to me.
 
-The final version of my patches was posted here:
-http://lkml.kernel.org/r/20180628062857.29658-1-bhe@redhat.com
+https://bugzilla.redhat.com/show_bug.cgi?id=1598462
 
-Currently, only the first three patches are merged. 
-
-mm-sparse-add-a-static-variable-nr_present_sections.patch
-mm-sparsemem-defer-the-ms-section_mem_map-clearing.patch
-mm-sparse-add-a-new-parameter-data_unit_size-for-alloc_usemap_and_memmap.patch
-
-They are preparation patches, and the 4th patch is the formal fix patch:
-[PATCH v6 4/5] mm/sparse: Optimize memmap allocation during sparse_init()
-
-The 5th patch is a clean up patch according to reviewer's suggestion:
-[PATCH v6 5/5] mm/sparse: Remove CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
-
-I think Pavel's patches sits on top of all above five patches.
-
-Thanks
-Baoquan
+Thanks,
+Laura
