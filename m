@@ -1,158 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D7656B0005
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 12:53:49 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id h14-v6so14373802pfi.19
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 09:53:49 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id f12-v6si15760657pgq.559.2018.07.10.09.53.47
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A1526B0007
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 13:11:26 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id 99-v6so28070980qkr.14
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 10:11:26 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id x16-v6si3556667qvd.173.2018.07.10.10.11.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 10 Jul 2018 09:53:47 -0700 (PDT)
-From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v7] mm: Distinguish VMalloc pages
-Date: Tue, 10 Jul 2018 09:53:26 -0700
-Message-Id: <20180710165326.9378-1-willy@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Jul 2018 10:11:23 -0700 (PDT)
+Date: Tue, 10 Jul 2018 13:11:20 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH v3 7/8] mm, hmm: Mark hmm_devmem_{add, add_resource}
+ EXPORT_SYMBOL_GPL
+Message-ID: <20180710171119.GE3505@redhat.com>
+References: <152938827880.17797.439879736804291936.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152938831573.17797.15264540938029137916.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <CAPcyv4hCZ6jJkB=BLfoEn6146k7FG32=3J8ussZDXmAScQJkAg@mail.gmail.com>
+ <20180709173417.171c0d75ac3fd55b45881d3f@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180709173417.171c0d75ac3fd55b45881d3f@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-For diagnosing various performance and memory-leak problems, it is helpful
-to be able to distinguish pages which are in use as VMalloc pages.
-Unfortunately, we cannot use the page_type field in struct page, as
-this is in use for mapcount by some drivers which map vmalloced pages
-to userspace.
+On Mon, Jul 09, 2018 at 05:34:17PM -0700, Andrew Morton wrote:
+> On Fri, 6 Jul 2018 16:53:11 -0700 Dan Williams <dan.j.williams@intel.com> wrote:
+> 
+> > On Mon, Jun 18, 2018 at 11:05 PM, Dan Williams <dan.j.williams@intel.com> wrote:
+> > > The routines hmm_devmem_add(), and hmm_devmem_add_resource() are
+> > > now wrappers around the functionality provided by devm_memremap_pages() to
+> > > inject a dev_pagemap instance and hook page-idle events. The
+> > > devm_memremap_pages() interface is base infrastructure for HMM which has
+> > > more and deeper ties into the kernel memory management implementation
+> > > than base ZONE_DEVICE.
+> > >
+> > > Originally, the HMM page structure creation routines copied the
+> > > devm_memremap_pages() code and reused ZONE_DEVICE. A cleanup to unify
+> > > the implementations was discussed during the initial review:
+> > > http://lkml.iu.edu/hypermail/linux/kernel/1701.2/00812.html
+> > >
+> > > Given that devm_memremap_pages() is marked EXPORT_SYMBOL_GPL by its
+> > > authors and the hmm_devmem_{add,add_resource} routines are simple
+> > > wrappers around that base, mark these routines as EXPORT_SYMBOL_GPL as
+> > > well.
+> > >
+> > > Cc: "Jerome Glisse" <jglisse@redhat.com>
+> > > Cc: Logan Gunthorpe <logang@deltatee.com>
+> > > Reviewed-by: Christoph Hellwig <hch@lst.de>
+> > > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> > 
+> > Currently OpenAFS is blocked from compiling with the 4.18 series due
+> > to the current state of put_page() inadvertently pulling in GPL-only
+> > symbols. This series, "PATCH v3 0/8] mm: Rework hmm to use
+> > devm_memremap_pages and other fixes" corrects that situation and
+> > corrects HMM's usage of EXPORT_SYMBOL_GPL.
+> > 
+> > If HMM wants to export functionality to out-of-tree proprietary
+> > drivers it should do so without consuming GPL-only exports, or
+> > consuming internal-only public functions in its exports.
+> > 
+> > In addition to duplicating devm_memremap_pages(), that should have
+> > been EXPORT_SYMBOL_GPL from the beginning, it is also exporting /
+> > consuming these GPL-only symbols via HMM's EXPORT_SYMBOL entry points.
+> > 
+> >     mmu_notifier_unregister_no_release
+> >     percpu_ref
+> >     region_intersects
+> >     __class_create
+> > 
+> > Those entry points also consume / export functionality that is
+> > currently not exported to any other driver.
+> > 
+> >     alloc_pages_vma
+> >     walk_page_range
+> > 
+> > Andrew, please consider applying this v3 series to fix this up (let me
+> > know if you need a resend).
+> 
+> A resend would be good.  And include the above info in the changelog.
+> 
+> I can't say I'm terribly happy with the HMM situation.  I was under the
+> impression that a significant number of significant in-tree drivers
+> would be using HMM but I've heard nothing since, apart from ongoing
+> nouveau work, which will be perfectly happy with GPL-only exports.
+> 
+> So yes, we should revisit the licensing situation and, if only nouveau
+> will be using HMM we should revisit HMM's overall usefulness.
 
-Use a special page->mapping value to distinguish VMalloc pages from
-other kinds of pages.  Also record a pointer to the vm_struct and the
-offset within the area in struct page to help reconstruct exactly what
-this page is being used for.
+So right now i am working on finishing another version of nouveau
+patchset. Then i will be working on radeon driver, then on Intel.
+I also have been in talk with Mellanox to bring back to life my
+mlx5 patchset which converted ODP to use HMM. So this is also on
+the radar. AMD GPU will come next.
 
-Signed-off-by: Matthew Wilcox <willy@infradead.org>
----
-v7: Use a value which has the bottom bit set so that page_mapping()
-returns NULL.  Comments updated to note this bit of "cleverness".
 
- fs/proc/page.c                         |  2 ++
- include/linux/mm_types.h               |  5 +++++
- include/linux/page-flags.h             | 26 ++++++++++++++++++++++++++
- include/uapi/linux/kernel-page-flags.h |  1 +
- mm/vmalloc.c                           |  5 ++++-
- tools/vm/page-types.c                  |  1 +
- 6 files changed, 39 insertions(+), 1 deletion(-)
+The nouveau patchset is taking so long because nouveau have under
+gone massive rewrite of how it manages channel (commands queue) and
+memory. Which was a pre-requisite for doing HMM. This rework has
+started going upstream since 4.14, piece by piece and it is still
+not finish in 4.18. So work have been going steadily, if people
+wants i can point to all the patches.
 
-diff --git a/fs/proc/page.c b/fs/proc/page.c
-index 792c78a49174..fc83dae1af7b 100644
---- a/fs/proc/page.c
-+++ b/fs/proc/page.c
-@@ -156,6 +156,8 @@ u64 stable_page_flags(struct page *page)
- 		u |= 1 << KPF_BALLOON;
- 	if (PageTable(page))
- 		u |= 1 << KPF_PGTABLE;
-+	if (PageVMalloc(page))
-+		u |= 1 << KPF_VMALLOC;
- 
- 	if (page_is_idle(page))
- 		u |= 1 << KPF_IDLE;
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 21e1b6a9f113..8a4698b368de 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -153,6 +153,11 @@ struct page {
- 			spinlock_t ptl;
- #endif
- 		};
-+		struct {	/* VMalloc pages */
-+			struct vm_struct *vm_area;
-+			unsigned long vm_offset;
-+			unsigned long _vm_id;	/* MAPPING_VMalloc */
-+		};
- 		struct {	/* ZONE_DEVICE pages */
- 			/** @pgmap: Points to the hosting device page map. */
- 			struct dev_pagemap *pgmap;
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 901943e4754b..588b8dd28a85 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -699,6 +699,32 @@ PAGE_TYPE_OPS(Kmemcg, kmemcg)
-  */
- PAGE_TYPE_OPS(Table, table)
- 
-+/*
-+ * vmalloc pages may be mapped to userspace, so we need some other way
-+ * to distinguish them from other kinds of pages.  Use page->mapping for
-+ * this purpose.  Values below 0x1000 cannot be real pointers.  Setting
-+ * the bottom bit makes page_mapping() return NULL, which is what we want.
-+ */
-+#define MAPPING_VMalloc		(void *)0x441
-+
-+#define PAGE_MAPPING_OPS(name)						\
-+static __always_inline int Page##name(struct page *page)		\
-+{									\
-+	return page->mapping == MAPPING_##name;				\
-+}									\
-+static __always_inline void __SetPage##name(struct page *page)		\
-+{									\
-+	VM_BUG_ON_PAGE(page->mapping != NULL, page);			\
-+	page->mapping = MAPPING_##name;					\
-+}									\
-+static __always_inline void __ClearPage##name(struct page *page)	\
-+{									\
-+	VM_BUG_ON_PAGE(page->mapping != MAPPING_##name, page);		\
-+	page->mapping = NULL;						\
-+}
-+
-+PAGE_MAPPING_OPS(VMalloc)
-+
- extern bool is_free_buddy_page(struct page *page);
- 
- __PAGEFLAG(Isolated, isolated, PF_ANY);
-diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
-index 21b9113c69da..6800968b8f47 100644
---- a/include/uapi/linux/kernel-page-flags.h
-+++ b/include/uapi/linux/kernel-page-flags.h
-@@ -36,5 +36,6 @@
- #define KPF_ZERO_PAGE		24
- #define KPF_IDLE		25
- #define KPF_PGTABLE		26
-+#define KPF_VMALLOC		27
- 
- #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 1863390fa09c..99331453e114 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1522,7 +1522,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
- 		for (i = 0; i < area->nr_pages; i++) {
- 			struct page *page = area->pages[i];
- 
--			BUG_ON(!page);
-+			__ClearPageVMalloc(page);
- 			__free_pages(page, 0);
- 		}
- 
-@@ -1691,6 +1691,9 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
- 			area->nr_pages = i;
- 			goto fail;
- 		}
-+		__SetPageVMalloc(page);
-+		page->vm_area = area;
-+		page->vm_offset = i;
- 		area->pages[i] = page;
- 		if (gfpflags_allow_blocking(gfp_mask))
- 			cond_resched();
-diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
-index cce853dca691..25cc21855be4 100644
---- a/tools/vm/page-types.c
-+++ b/tools/vm/page-types.c
-@@ -132,6 +132,7 @@ static const char * const page_flag_names[] = {
- 	[KPF_THP]		= "t:thp",
- 	[KPF_BALLOON]		= "o:balloon",
- 	[KPF_PGTABLE]		= "g:pgtable",
-+	[KPF_VMALLOC]		= "V:vmalloc",
- 	[KPF_ZERO_PAGE]		= "z:zero_page",
- 	[KPF_IDLE]              = "i:idle_page",
- 
--- 
-2.18.0
+As this is the DRM subsystem we also need open source userspaca and
+again we have been working on this since last year and this takes
+time to. Lot of work have been done. I understand that it is not
+necessarily obvious to people who do not follow mesa, dri-devel or
+nouveau mailing list.
+
+I am sorry this is taking so long but resources to work on this are
+scarce. Yet this is important work as new standard develop inside the
+C++ committee (everybody love C++ here right ;)) and in other high
+level language will rely on features HMM provides to those drivers.
+
+Cheers,
+Jerome
