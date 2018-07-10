@@ -1,106 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D79246B0003
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 16:47:06 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id j4-v6so10088216vke.12
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 13:47:06 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id j49-v6si7353079uaa.306.2018.07.10.13.47.04
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E93B66B0007
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 16:49:00 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id u18-v6so14692621pfh.21
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 13:49:00 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id r1-v6si17701264plb.172.2018.07.10.13.48.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jul 2018 13:47:04 -0700 (PDT)
-Subject: Re: [PATCH] mm: hugetlb: don't zero 1GiB bootmem pages.
-References: <20180710184903.68239-1-cannonmatthews@google.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <ad083425-c861-1a77-069d-23b0aa1c84c6@oracle.com>
-Date: Tue, 10 Jul 2018 13:46:57 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180710184903.68239-1-cannonmatthews@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+        Tue, 10 Jul 2018 13:48:59 -0700 (PDT)
+Date: Tue, 10 Jul 2018 13:48:58 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] mm: Fix vma_is_anonymous() false-positives
+Message-Id: <20180710134858.3506f097104859b533c81bf3@linux-foundation.org>
+In-Reply-To: <20180710134821.84709-2-kirill.shutemov@linux.intel.com>
+References: <20180710134821.84709-1-kirill.shutemov@linux.intel.com>
+	<20180710134821.84709-2-kirill.shutemov@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cannon Matthews <cannonmatthews@google.com>, Andrew Morton <akpm@linux-foundation.org>, Nadia Yvette Chambers <nyc@holomorphy.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, andreslc@google.com, pfeiner@google.com, dmatlack@google.com, gthelen@google.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-On 07/10/2018 11:49 AM, Cannon Matthews wrote:
-> When using 1GiB pages during early boot, use the new
-> memblock_virt_alloc_try_nid_raw() function to allocate memory without
-> zeroing it.  Zeroing out hundreds or thousands of GiB in a single core
-> memset() call is very slow, and can make early boot last upwards of
-> 20-30 minutes on multi TiB machines.
+On Tue, 10 Jul 2018 16:48:20 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+
+> vma_is_anonymous() relies on ->vm_ops being NULL to detect anonymous
+> VMA. This is unreliable as ->mmap may not set ->vm_ops.
 > 
-> To be safe, still zero the first sizeof(struct boomem_huge_page) bytes
-> since this is used a temporary storage place for this info until
-> gather_bootmem_prealloc() processes them later.
+> False-positive vma_is_anonymous() may lead to crashes:
 > 
-> The rest of the memory does not need to be zero'd as the hugetlb pages
-> are always zero'd on page fault.
+> ...
 > 
-> Tested: Booted with ~3800 1G pages, and it booted successfully in
-> roughly the same amount of time as with 0, as opposed to the 25+
-> minutes it would take before.
+> This can be fixed by assigning anonymous VMAs own vm_ops and not relying
+> on it being NULL.
 > 
+> If ->mmap() failed to set ->vm_ops, mmap_region() will set it to
+> dummy_vm_ops. This way we will have non-NULL ->vm_ops for all VMAs.
 
-Nice improvement!
+Is there a smaller, simpler fix which we can use for backporting
+purposes and save the larger rework for development kernels?
 
-> Signed-off-by: Cannon Matthews <cannonmatthews@google.com>
-> ---
->  mm/hugetlb.c | 7 ++++++-
->  1 file changed, 6 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 3612fbb32e9d..c93a2c77e881 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2101,7 +2101,7 @@ int __alloc_bootmem_huge_page(struct hstate *h)
->  	for_each_node_mask_to_alloc(h, nr_nodes, node, &node_states[N_MEMORY]) {
->  		void *addr;
-> 
-> -		addr = memblock_virt_alloc_try_nid_nopanic(
-> +		addr = memblock_virt_alloc_try_nid_raw(
->  				huge_page_size(h), huge_page_size(h),
->  				0, BOOTMEM_ALLOC_ACCESSIBLE, node);
->  		if (addr) {
-> @@ -2109,7 +2109,12 @@ int __alloc_bootmem_huge_page(struct hstate *h)
->  			 * Use the beginning of the huge page to store the
->  			 * huge_bootmem_page struct (until gather_bootmem
->  			 * puts them into the mem_map).
-> +			 *
-> +			 * memblock_virt_alloc_try_nid_raw returns non-zero'd
-> +			 * memory so zero out just enough for this struct, the
-> +			 * rest will be zero'd on page fault.
->  			 */
-> +			memset(addr, 0, sizeof(struct huge_bootmem_page));
+>
+> ...
+>
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -71,6 +71,9 @@ int mmap_rnd_compat_bits __read_mostly = CONFIG_ARCH_MMAP_RND_COMPAT_BITS;
+>  static bool ignore_rlimit_data;
+>  core_param(ignore_rlimit_data, ignore_rlimit_data, bool, 0644);
+>  
+> +const struct vm_operations_struct anon_vm_ops = {};
+> +const struct vm_operations_struct dummy_vm_ops = {};
 
-This forced me to look at the usage of huge_bootmem_page.  It is defined as:
-struct huge_bootmem_page {
-	struct list_head list;
-	struct hstate *hstate;
-#ifdef CONFIG_HIGHMEM
-	phys_addr_t phys;
-#endif
-};
+Some nice comments here would be useful.  Especially for dummy_vm_ops. 
+Why does it exist, what is its role, etc.
 
-The list and hstate fields are set immediately after allocating the memory
-block here and elsewhere.  However, I can't find any code that sets phys.
-Although, it is potentially used in gather_bootmem_prealloc().  It appears
-powerpc used this field at one time, but no longer does.
+>  static void unmap_region(struct mm_struct *mm,
+>  		struct vm_area_struct *vma, struct vm_area_struct *prev,
+>  		unsigned long start, unsigned long end);
+> @@ -561,6 +564,8 @@ static unsigned long count_vma_pages_range(struct mm_struct *mm,
+>  void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
+>  		struct rb_node **rb_link, struct rb_node *rb_parent)
+>  {
+> +	WARN_ONCE(!vma->vm_ops, "missing vma->vm_ops");
+> +
+>  	/* Update tracking information for the gap following the new vma. */
+>  	if (vma->vm_next)
+>  		vma_gap_update(vma->vm_next);
+> @@ -1774,12 +1779,19 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+>  		 */
+>  		WARN_ON_ONCE(addr != vma->vm_start);
+>  
+> +		/* All mappings must have ->vm_ops set */
+> +		if (!vma->vm_ops)
+> +			vma->vm_ops = &dummy_vm_ops;
 
-Am I missing something?
+Can this happen?  Can we make it a rule that file_operations.mmap(vma)
+must initialize vma->vm_ops?  Should we have a WARN here to detect when
+the fs implementation failed to do that?
 
-Not an issue with this patch, rather existing code.  I'd prefer not to do
-the memset() "just to be safe".  Unless I am missing something, I would
-like to remove phys field and supporting code first.  Then, this patch
-without the memset.
-
--- 
-Mike Kravetz
-
->  			m = addr;
->  			goto found;
->  		}
-> --
-> 2.18.0.203.gfac676dfb9-goog
-> 
+>  		addr = vma->vm_start;
+>  		vm_flags = vma->vm_flags;
+>  	} else if (vm_flags & VM_SHARED) {
+>  		error = shmem_zero_setup(vma);
+>  		if (error)
+>  			goto free_vma;
+> +	} else {
+> +		/* vma_is_anonymous() relies on this. */
+> +		vma->vm_ops = &anon_vm_ops;
+>  	}
+>  
+>  	vma_link(mm, vma, prev, rb_link, rb_parent);
+> ...
+>
