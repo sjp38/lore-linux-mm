@@ -1,93 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3696B6B0007
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 20:34:20 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id y7-v6so11092380plt.17
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 17:34:20 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id h66-v6si16992591pfa.238.2018.07.09.17.34.18
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BF20E6B0005
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2018 20:50:06 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id f9-v6so11655586pfn.22
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2018 17:50:06 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f34-v6sor5123347ple.122.2018.07.09.17.50.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jul 2018 17:34:18 -0700 (PDT)
-Date: Mon, 9 Jul 2018 17:34:17 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 7/8] mm, hmm: Mark hmm_devmem_{add, add_resource}
- EXPORT_SYMBOL_GPL
-Message-Id: <20180709173417.171c0d75ac3fd55b45881d3f@linux-foundation.org>
-In-Reply-To: <CAPcyv4hCZ6jJkB=BLfoEn6146k7FG32=3J8ussZDXmAScQJkAg@mail.gmail.com>
-References: <152938827880.17797.439879736804291936.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<152938831573.17797.15264540938029137916.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<CAPcyv4hCZ6jJkB=BLfoEn6146k7FG32=3J8ussZDXmAScQJkAg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Mon, 09 Jul 2018 17:50:05 -0700 (PDT)
+Date: Mon, 9 Jul 2018 17:50:03 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, vmacache: hash addresses based on pmd
+Message-ID: <alpine.DEB.2.21.1807091749150.114630@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>, Alexey Dobriyan <adobriyan@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 6 Jul 2018 16:53:11 -0700 Dan Williams <dan.j.williams@intel.com> w=
-rote:
+When perf profiling a wide variety of different workloads, it was found
+that vmacache_find() had higher than expected cost: up to 0.08% of cpu
+utilization in some cases.  This was found to rival other core VM
+functions such as alloc_pages_vma() with thp enabled and default
+mempolicy, and the conditionals in __get_vma_policy().
 
-> On Mon, Jun 18, 2018 at 11:05 PM, Dan Williams <dan.j.williams@intel.com>=
- wrote:
-> > The routines hmm_devmem_add(), and hmm_devmem_add_resource() are
-> > now wrappers around the functionality provided by devm_memremap_pages()=
- to
-> > inject a dev_pagemap instance and hook page-idle events. The
-> > devm_memremap_pages() interface is base infrastructure for HMM which has
-> > more and deeper ties into the kernel memory management implementation
-> > than base ZONE_DEVICE.
-> >
-> > Originally, the HMM page structure creation routines copied the
-> > devm_memremap_pages() code and reused ZONE_DEVICE. A cleanup to unify
-> > the implementations was discussed during the initial review:
-> > http://lkml.iu.edu/hypermail/linux/kernel/1701.2/00812.html
-> >
-> > Given that devm_memremap_pages() is marked EXPORT_SYMBOL_GPL by its
-> > authors and the hmm_devmem_{add,add_resource} routines are simple
-> > wrappers around that base, mark these routines as EXPORT_SYMBOL_GPL as
-> > well.
-> >
-> > Cc: "J=E9r=F4me Glisse" <jglisse@redhat.com>
-> > Cc: Logan Gunthorpe <logang@deltatee.com>
-> > Reviewed-by: Christoph Hellwig <hch@lst.de>
-> > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
->=20
-> Currently OpenAFS is blocked from compiling with the 4.18 series due
-> to the current state of put_page() inadvertently pulling in GPL-only
-> symbols. This series, "PATCH v3 0/8] mm: Rework hmm to use
-> devm_memremap_pages and other fixes" corrects that situation and
-> corrects HMM's usage of EXPORT_SYMBOL_GPL.
->=20
-> If HMM wants to export functionality to out-of-tree proprietary
-> drivers it should do so without consuming GPL-only exports, or
-> consuming internal-only public functions in its exports.
->=20
-> In addition to duplicating devm_memremap_pages(), that should have
-> been EXPORT_SYMBOL_GPL from the beginning, it is also exporting /
-> consuming these GPL-only symbols via HMM's EXPORT_SYMBOL entry points.
->=20
->     mmu_notifier_unregister_no_release
->     percpu_ref
->     region_intersects
->     __class_create
->=20
-> Those entry points also consume / export functionality that is
-> currently not exported to any other driver.
->=20
->     alloc_pages_vma
->     walk_page_range
->=20
-> Andrew, please consider applying this v3 series to fix this up (let me
-> know if you need a resend).
+VMACACHE_HASH() determines which of the four per-task_struct slots a vma
+is cached for a particular address.  This currently depends on the pfn,
+so pfn 5212 occupies a different vmacache slot than its neighboring
+pfn 5213.
 
-A resend would be good.  And include the above info in the changelog.
+vmacache_find() iterates through all four of current's vmacache slots
+when looking up an address.  Hashing based on pfn, an address has
+~1/VMACACHE_SIZE chance of being cached in the first vmacache slot, or
+about 25%, *if* the vma is cached.
 
-I can't say I'm terribly happy with the HMM situation.  I was under the
-impression that a significant number of significant in-tree drivers
-would be using HMM but I've heard nothing since, apart from ongoing
-nouveau work, which will be perfectly happy with GPL-only exports.
+This patch hashes an address by its pmd instead of pte to optimize for
+workloads with good spatial locality.  This results in a higher
+probability of vmas being cached in the first slot that is checked:
+normally ~70% on the same workloads instead of 25%.
 
-So yes, we should revisit the licensing situation and, if only nouveau
-will be using HMM we should revisit HMM's overall usefulness.
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ include/linux/vmacache.h |  6 ------
+ mm/vmacache.c            | 32 ++++++++++++++++++++++----------
+ 2 files changed, 22 insertions(+), 16 deletions(-)
+
+diff --git a/include/linux/vmacache.h b/include/linux/vmacache.h
+--- a/include/linux/vmacache.h
++++ b/include/linux/vmacache.h
+@@ -5,12 +5,6 @@
+ #include <linux/sched.h>
+ #include <linux/mm.h>
+ 
+-/*
+- * Hash based on the page number. Provides a good hit rate for
+- * workloads with good locality and those with random accesses as well.
+- */
+-#define VMACACHE_HASH(addr) ((addr >> PAGE_SHIFT) & VMACACHE_MASK)
+-
+ static inline void vmacache_flush(struct task_struct *tsk)
+ {
+ 	memset(tsk->vmacache.vmas, 0, sizeof(tsk->vmacache.vmas));
+diff --git a/mm/vmacache.c b/mm/vmacache.c
+--- a/mm/vmacache.c
++++ b/mm/vmacache.c
+@@ -7,6 +7,12 @@
+ #include <linux/mm.h>
+ #include <linux/vmacache.h>
+ 
++/*
++ * Hash based on the pmd of addr.  Provides a good hit rate for workloads with
++ * spatial locality.
++ */
++#define VMACACHE_HASH(addr) ((addr >> PMD_SHIFT) & VMACACHE_MASK)
++
+ /*
+  * Flush vma caches for threads that share a given mm.
+  *
+@@ -87,6 +93,7 @@ static bool vmacache_valid(struct mm_struct *mm)
+ 
+ struct vm_area_struct *vmacache_find(struct mm_struct *mm, unsigned long addr)
+ {
++	int idx = VMACACHE_HASH(addr);
+ 	int i;
+ 
+ 	count_vm_vmacache_event(VMACACHE_FIND_CALLS);
+@@ -95,16 +102,18 @@ struct vm_area_struct *vmacache_find(struct mm_struct *mm, unsigned long addr)
+ 		return NULL;
+ 
+ 	for (i = 0; i < VMACACHE_SIZE; i++) {
+-		struct vm_area_struct *vma = current->vmacache.vmas[i];
+-
+-		if (!vma)
+-			continue;
+-		if (WARN_ON_ONCE(vma->vm_mm != mm))
+-			break;
+-		if (vma->vm_start <= addr && vma->vm_end > addr) {
+-			count_vm_vmacache_event(VMACACHE_FIND_HITS);
+-			return vma;
++		struct vm_area_struct *vma = current->vmacache.vmas[idx];
++
++		if (vma) {
++			if (WARN_ON_ONCE(vma->vm_mm != mm))
++				break;
++			if (vma->vm_start <= addr && vma->vm_end > addr) {
++				count_vm_vmacache_event(VMACACHE_FIND_HITS);
++				return vma;
++			}
+ 		}
++		if (++idx == VMACACHE_SIZE)
++			idx = 0;
+ 	}
+ 
+ 	return NULL;
+@@ -115,6 +124,7 @@ struct vm_area_struct *vmacache_find_exact(struct mm_struct *mm,
+ 					   unsigned long start,
+ 					   unsigned long end)
+ {
++	int idx = VMACACHE_HASH(addr);
+ 	int i;
+ 
+ 	count_vm_vmacache_event(VMACACHE_FIND_CALLS);
+@@ -123,12 +133,14 @@ struct vm_area_struct *vmacache_find_exact(struct mm_struct *mm,
+ 		return NULL;
+ 
+ 	for (i = 0; i < VMACACHE_SIZE; i++) {
+-		struct vm_area_struct *vma = current->vmacache.vmas[i];
++		struct vm_area_struct *vma = current->vmacache.vmas[idx];
+ 
+ 		if (vma && vma->vm_start == start && vma->vm_end == end) {
+ 			count_vm_vmacache_event(VMACACHE_FIND_HITS);
+ 			return vma;
+ 		}
++		if (++idx == VMACACHE_SIZE)
++			idx = 0;
+ 	}
+ 
+ 	return NULL;
