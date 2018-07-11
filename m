@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C44976B0291
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:21 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id n2-v6so9876590edr.5
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:21 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 3F76F6B0291
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:22 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id b12-v6so9468815edi.12
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:22 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id x17-v6si2934371edl.345.2018.07.11.04.30.20
+        by mx.google.com with ESMTPS id w43-v6si2443728edc.207.2018.07.11.04.30.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 04:30:20 -0700 (PDT)
+        Wed, 11 Jul 2018 04:30:21 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 30/39] x86/mm/pti: Clone entry-text again in pti_finalize()
-Date: Wed, 11 Jul 2018 13:29:37 +0200
-Message-Id: <1531308586-29340-31-git-send-email-joro@8bytes.org>
+Subject: [PATCH 34/39] x86/ldt: Define LDT_END_ADDR
+Date: Wed, 11 Jul 2018 13:29:41 +0200
+Message-Id: <1531308586-29340-35-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,50 +22,54 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-The mapping for entry-text might have changed in the kernel
-after it was cloned to the user page-table. Clone again
-to update the user page-table to bring the mapping in sync
-with the kernel again.
+It marks the end of the address-space range reserved for the
+LDT. The LDT-code will use it when unmapping the LDT for
+user-space.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/pti.c | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ arch/x86/include/asm/pgtable_32_types.h | 2 ++
+ arch/x86/include/asm/pgtable_64_types.h | 1 +
+ arch/x86/kernel/ldt.c                   | 2 +-
+ 3 files changed, 4 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index 1825f30..b879ccd 100644
---- a/arch/x86/mm/pti.c
-+++ b/arch/x86/mm/pti.c
-@@ -404,7 +404,7 @@ static void __init pti_setup_espfix64(void)
- /*
-  * Clone the populated PMDs of the entry and irqentry text and force it RO.
-  */
--static void __init pti_clone_entry_text(void)
-+static void pti_clone_entry_text(void)
- {
- 	pti_clone_pmds((unsigned long) __entry_text_start,
- 			(unsigned long) __irqentry_text_end,
-@@ -528,13 +528,18 @@ void __init pti_init(void)
- }
+diff --git a/arch/x86/include/asm/pgtable_32_types.h b/arch/x86/include/asm/pgtable_32_types.h
+index 7297810..b0bc0ff 100644
+--- a/arch/x86/include/asm/pgtable_32_types.h
++++ b/arch/x86/include/asm/pgtable_32_types.h
+@@ -53,6 +53,8 @@ extern bool __vmalloc_start_set; /* set once high_memory is set */
+ #define LDT_BASE_ADDR		\
+ 	((CPU_ENTRY_AREA_BASE - PAGE_SIZE) & PMD_MASK)
  
- /*
-- * Finalize the kernel mappings in the userspace page-table.
-+ * Finalize the kernel mappings in the userspace page-table. Some of the
-+ * mappings for the kernel image might have changed since pti_init()
-+ * cloned them. This is because parts of the kernel image have been
-+ * mapped RO and/or NX.  These changes need to be cloned again to the
-+ * userspace page-table.
-  */
- void pti_finalize(void)
- {
- 	/*
--	 * Do this after all of the manipulation of the
--	 * kernel text page tables are complete.
-+	 * We need to clone everything (again) that maps parts of the
-+	 * kernel image.
- 	 */
-+	pti_clone_entry_text();
- 	pti_clone_kernel_text();
- }
++#define LDT_END_ADDR		(LDT_BASE_ADDR + PMD_SIZE)
++
+ #define PKMAP_BASE		\
+ 	((LDT_BASE_ADDR - PAGE_SIZE) & PMD_MASK)
+ 
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index 066e0ab..04edd2d 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -115,6 +115,7 @@ extern unsigned int ptrs_per_p4d;
+ #define LDT_PGD_ENTRY_L5	-112UL
+ #define LDT_PGD_ENTRY		(pgtable_l5_enabled() ? LDT_PGD_ENTRY_L5 : LDT_PGD_ENTRY_L4)
+ #define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
++#define LDT_END_ADDR		(LDT_BASE_ADDR + PGDIR_SIZE)
+ 
+ #define __VMALLOC_BASE_L4	0xffffc90000000000UL
+ #define __VMALLOC_BASE_L5 	0xffa0000000000000UL
+diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
+index c9b1402..e921b3d 100644
+--- a/arch/x86/kernel/ldt.c
++++ b/arch/x86/kernel/ldt.c
+@@ -206,7 +206,7 @@ static void free_ldt_pgtables(struct mm_struct *mm)
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
+ 	struct mmu_gather tlb;
+ 	unsigned long start = LDT_BASE_ADDR;
+-	unsigned long end = start + (1UL << PGDIR_SHIFT);
++	unsigned long end = LDT_END_ADDR;
+ 
+ 	if (!static_cpu_has(X86_FEATURE_PTI))
+ 		return;
 -- 
 2.7.4
