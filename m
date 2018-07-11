@@ -1,284 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A9FCC6B0003
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 18:14:01 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id n19-v6so1465469pgv.14
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 15:14:01 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id y67-v6si12847354pfa.47.2018.07.11.15.13.58
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B4226B0007
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 18:17:46 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id q21-v6so17131876pff.4
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 15:17:46 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d9-v6sor3154939pfb.38.2018.07.11.15.17.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 15:13:58 -0700 (PDT)
-Message-ID: <1531347019.15351.89.camel@intel.com>
-Subject: Re: [RFC PATCH v2 22/27] x86/cet/ibt: User-mode indirect branch
- tracking support
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Date: Wed, 11 Jul 2018 15:10:19 -0700
-In-Reply-To: <3a7e9ce4-03c6-cc28-017b-d00108459e94@linux.intel.com>
-References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
-	 <20180710222639.8241-23-yu-cheng.yu@intel.com>
-	 <3a7e9ce4-03c6-cc28-017b-d00108459e94@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (Google Transport Security);
+        Wed, 11 Jul 2018 15:17:44 -0700 (PDT)
+Date: Wed, 11 Jul 2018 15:17:42 -0700
+From: Guenter Roeck <linux@roeck-us.net>
+Subject: Re: [2/2] mm: Drop unneeded ->vm_ops checks
+Message-ID: <20180711221742.GA9360@roeck-us.net>
+References: <20180710134821.84709-3-kirill.shutemov@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180710134821.84709-3-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, x86@kernel.org, "H. Peter
- Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J.
- Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 2018-07-10 at 17:11 -0700, Dave Hansen wrote:
-> Is this feature *integral* to shadow stacks?A A Or, should it just be
-> in a
-> different series?
+Hi,
 
-The whole CET series is mostly about SHSTK and only a minority for IBT.
-IBT changes cannot be applied by itself without first applying SHSTK
-changes. A Would the titles help, e.g. x86/cet/ibt, x86/cet/shstk, etc.?
-
+On Tue, Jul 10, 2018 at 04:48:21PM +0300, Kirill A. Shutemov wrote:
+> We now have all VMAs with ->vm_ops set and don't need to check it for
+> NULL everywhere.
 > 
-> > 
-> > diff --git a/arch/x86/include/asm/cet.h
-> > b/arch/x86/include/asm/cet.h
-> > index d9ae3d86cdd7..71da2cccba16 100644
-> > --- a/arch/x86/include/asm/cet.h
-> > +++ b/arch/x86/include/asm/cet.h
-> > @@ -12,7 +12,10 @@ struct task_struct;
-> > A struct cet_status {
-> > A 	unsigned long	shstk_base;
-> > A 	unsigned long	shstk_size;
-> > +	unsigned long	ibt_bitmap_addr;
-> > +	unsigned long	ibt_bitmap_size;
-> > A 	unsigned int	shstk_enabled:1;
-> > +	unsigned int	ibt_enabled:1;
-> > A };
-> Is there a reason we're not using pointers here?A A This seems like the
-> kind of place that we probably want __user pointers.
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-Yes, I will change that.
+This patch causes two of my qemu tests to fail:
+	arm:mps2-an385:mps2_defconfig:mps2-an385
+	xtensa:de212:kc705-nommu:nommu_kc705_defconfig
 
-> 
-> 
-> > 
-> > +static unsigned long ibt_mmap(unsigned long addr, unsigned long
-> > len)
-> > +{
-> > +	struct mm_struct *mm = current->mm;
-> > +	unsigned long populate;
-> > +
-> > +	down_write(&mm->mmap_sem);
-> > +	addr = do_mmap(NULL, addr, len, PROT_READ | PROT_WRITE,
-> > +		A A A A A A A MAP_ANONYMOUS | MAP_PRIVATE,
-> > +		A A A A A A A VM_DONTDUMP, 0, &populate, NULL);
-> > +	up_write(&mm->mmap_sem);
-> > +
-> > +	if (populate)
-> > +		mm_populate(addr, populate);
-> > +
-> > +	return addr;
-> > +}
-> We're going to have to start consolidating these at some point.A A We
-> have
-> at least three of them now, maybe more.
+Both are nommu configurations.
 
-Maybe we can do the following in linux/mm.h?
+Reverting the patch fixes the problem. Bisect log is attached for reference.
 
-+static inline unsigned long do_mmap_locked(addr, len, prot,
-+					A  A  flags, vm_flags)
-+{
-+	struct mm_struct *mm = current->mm;
-+	unsigned long populate;
-+
-+	down_write(&mm->mmap_sem);
-+	addr = do_mmap(NULL, addr, len, prot, flags, vm_flags,
-+		A  A  A  A 0, &populate, NULL);
-+	up_write(&mm->mmap_sem);
-+
-+	if (populate)
-+		mm_populate(addr, populate);
-+
-+	return addr;
-+}A 
+Guenter
 
-> > 
-> > +int cet_setup_ibt_bitmap(void)
-> > +{
-> > +	u64 r;
-> > +	unsigned long bitmap;
-> > +	unsigned long size;
-> > +
-> > +	if (!cpu_feature_enabled(X86_FEATURE_IBT))
-> > +		return -EOPNOTSUPP;
-> > +
-> > +	size = TASK_SIZE_MAX / PAGE_SIZE / BITS_PER_BYTE;
-> Just a note: this table is going to be gigantic on 5-level paging
-> systems, and userspace won't, by default use any of that extra
-> address
-> space.A A I think it ends up being a 512GB allocation in a 128TB
-> address
-> space.
-> 
-> Is that a problem?
->
-> On 5-level paging systems, maybe we should just stick it up in the
-> high
-> part of the address space.
-
-We do not know in advance if dlopen() needs to create the bitmap. A Do
-we always reserve high address or force legacy libs to low address?
-
-> 
-> > 
-> > +	bitmap = ibt_mmap(0, size);
-> > +
-> > +	if (bitmap >= TASK_SIZE_MAX)
-> > +		return -ENOMEM;
-> > +
-> > +	bitmap &= PAGE_MASK;
-> We're page-aligning the result of an mmap()?A A Why?
-
-This may not be necessary. A The lower bits of MSR_IA32_U_CET are
-settings and not part of the bitmap address. A Is this is safer?
-
-> 
-> > 
-> > +	rdmsrl(MSR_IA32_U_CET, r);
-> > +	r |= (MSR_IA32_CET_LEG_IW_EN | bitmap);
-> > +	wrmsrl(MSR_IA32_U_CET, r);
-> Comments, please.A A What is this doing, logically?A A Also, why are we
-> OR'ing the results into this MSR?A A What are we trying to preserve?
-
-I will add comments.
-
-> 
-> > 
-> > +	current->thread.cet.ibt_bitmap_addr = bitmap;
-> > +	current->thread.cet.ibt_bitmap_size = size;
-> > +	return 0;
-> > +}
-> > +
-> > +void cet_disable_ibt(void)
-> > +{
-> > +	u64 r;
-> > +
-> > +	if (!cpu_feature_enabled(X86_FEATURE_IBT))
-> > +		return;
-> Does this need a check for being already disabled?
-
-We need that. A We cannot write to those MSRs if the CPU does not
-support it.
-
-> 
-> > 
-> > +	rdmsrl(MSR_IA32_U_CET, r);
-> > +	r &= ~(MSR_IA32_CET_ENDBR_EN | MSR_IA32_CET_LEG_IW_EN |
-> > +	A A A A A A A MSR_IA32_CET_NO_TRACK_EN);
-> > +	wrmsrl(MSR_IA32_U_CET, r);
-> > +	current->thread.cet.ibt_enabled = 0;
-> > +}
-> What's the locking for current->thread.cet?
-
-Now CET is not locked until the application callsA ARCH_CET_LOCK.
-
-> 
-> > 
-> > diff --git a/arch/x86/kernel/cpu/common.c
-> > b/arch/x86/kernel/cpu/common.c
-> > index 705467839ce8..c609c9ce5691 100644
-> > --- a/arch/x86/kernel/cpu/common.c
-> > +++ b/arch/x86/kernel/cpu/common.c
-> > @@ -413,7 +413,8 @@ __setup("nopku", setup_disable_pku);
-> > A 
-> > A static __always_inline void setup_cet(struct cpuinfo_x86 *c)
-> > A {
-> > -	if (cpu_feature_enabled(X86_FEATURE_SHSTK))
-> > +	if (cpu_feature_enabled(X86_FEATURE_SHSTK) ||
-> > +	A A A A cpu_feature_enabled(X86_FEATURE_IBT))
-> > A 		cr4_set_bits(X86_CR4_CET);
-> > A }
-> > A 
-> > @@ -434,6 +435,23 @@ static __init int setup_disable_shstk(char *s)
-> > A __setup("no_cet_shstk", setup_disable_shstk);
-> > A #endif
-> > A 
-> > +#ifdef CONFIG_X86_INTEL_BRANCH_TRACKING_USER
-> > +static __init int setup_disable_ibt(char *s)
-> > +{
-> > +	/* require an exact match without trailing characters */
-> > +	if (strlen(s))
-> > +		return 0;
-> > +
-> > +	if (!boot_cpu_has(X86_FEATURE_IBT))
-> > +		return 1;
-> > +
-> > +	setup_clear_cpu_cap(X86_FEATURE_IBT);
-> > +	pr_info("x86: 'no_cet_ibt' specified, disabling Branch
-> > Tracking\n");
-> > +	return 1;
-> > +}
-> > +__setup("no_cet_ibt", setup_disable_ibt);
-> > +#endif
-> > A /*
-> > A  * Some CPU features depend on higher CPUID levels, which may not
-> > always
-> > A  * be available due to CPUID level capping or broken
-> > virtualization
-> > diff --git a/arch/x86/kernel/elf.c b/arch/x86/kernel/elf.c
-> > index 233f6dad9c1f..42e08d3b573e 100644
-> > --- a/arch/x86/kernel/elf.c
-> > +++ b/arch/x86/kernel/elf.c
-> > @@ -15,6 +15,7 @@
-> > A #include <linux/fs.h>
-> > A #include <linux/uaccess.h>
-> > A #include <linux/string.h>
-> > +#include <linux/compat.h>
-> > A 
-> > A /*
-> > A  * The .note.gnu.property layout:
-> > @@ -222,7 +223,8 @@ int arch_setup_features(void *ehdr_p, void
-> > *phdr_p,
-> > A 
-> > A 	struct elf64_hdr *ehdr64 = ehdr_p;
-> > A 
-> > -	if (!cpu_feature_enabled(X86_FEATURE_SHSTK))
-> > +	if (!cpu_feature_enabled(X86_FEATURE_SHSTK) &&
-> > +	A A A A !cpu_feature_enabled(X86_FEATURE_IBT))
-> > A 		return 0;
-> > A 
-> > A 	if (ehdr64->e_ident[EI_CLASS] == ELFCLASS64) {
-> > @@ -250,6 +252,9 @@ int arch_setup_features(void *ehdr_p, void
-> > *phdr_p,
-> > A 	current->thread.cet.shstk_enabled = 0;
-> > A 	current->thread.cet.shstk_base = 0;
-> > A 	current->thread.cet.shstk_size = 0;
-> > +	current->thread.cet.ibt_enabled = 0;
-> > +	current->thread.cet.ibt_bitmap_addr = 0;
-> > +	current->thread.cet.ibt_bitmap_size = 0;
-> > A 	if (cpu_feature_enabled(X86_FEATURE_SHSTK)) {
-> > A 		if (shstk) {
-> > A 			err = cet_setup_shstk();
-> > @@ -257,6 +262,15 @@ int arch_setup_features(void *ehdr_p, void
-> > *phdr_p,
-> > A 				goto out;
-> > A 		}
-> > A 	}
-> > +
-> > +	if (cpu_feature_enabled(X86_FEATURE_IBT)) {
-> > +		if (ibt) {
-> > +			err = cet_setup_ibt();
-> > +			if (err < 0)
-> > +				goto out;
-> > +		}
-> > +	}
-> You introduced 'ibt' before it was used.A A Please wait to introduce it
-> until you actually use it to make it easier to review.
-> 
-> Also, what's wrong with:
-> 
-> 	if (cpu_feature_enabled(X86_FEATURE_IBT) && ibt) {
-> 		...
-> 	}
-> 
-> ?
-
-I will fix it.
+---
+# bad: [98be45067040799a801e6ce52d8bf4659a153893] Add linux-next specific files for 20180711
+# good: [1e4b044d22517cae7047c99038abb444423243ca] Linux 4.18-rc4
+git bisect start 'HEAD' 'v4.18-rc4'
+# good: [ade30e73739a5174bcaee5860fee76c2365548c5] Merge remote-tracking branch 'crypto/master'
+git bisect good ade30e73739a5174bcaee5860fee76c2365548c5
+# good: [792be221c35d19a1c486789e5b5c91c05279b94d] Merge remote-tracking branch 'tip/auto-latest'
+git bisect good 792be221c35d19a1c486789e5b5c91c05279b94d
+# good: [1d66737ba99400ab9a79c906a25b2090f4cc8b18] Merge remote-tracking branch 'mux/for-next'
+git bisect good 1d66737ba99400ab9a79c906a25b2090f4cc8b18
+# good: [c02d5416bd8504866dd80d2129f4648747166b6f] Merge remote-tracking branch 'kspp/for-next/kspp'
+git bisect good c02d5416bd8504866dd80d2129f4648747166b6f
+# bad: [1e741337a9416010a48c6034855e316ba8057111] ntb: ntb_hw_switchtec: cleanup 64bit IO defines to use the common header
+git bisect bad 1e741337a9416010a48c6034855e316ba8057111
+# good: [205a106bac127145a4defae7d0d35945001fe924] kernel/memremap, kasan: make ZONE_DEVICE with work with KASAN
+git bisect good 205a106bac127145a4defae7d0d35945001fe924
+# good: [e87ebebf76c9ceeaea21a256341d6765c657e550] mm, oom: remove sleep from under oom_lock
+git bisect good e87ebebf76c9ceeaea21a256341d6765c657e550
+# bad: [1f927d8f894e116af625b2326b355f5292c89d2b] mm/page_owner: align with pageblock_nr pages
+git bisect bad 1f927d8f894e116af625b2326b355f5292c89d2b
+# bad: [cc8ce33f3475478af93a876e0cf4a99eabbe49e9] mm: revert mem_cgroup_put() introduction
+git bisect bad cc8ce33f3475478af93a876e0cf4a99eabbe49e9
+# bad: [1f989b6a333fc8d6bddd1552420bb97e3295468a] list_lru-prefetch-neighboring-list-entries-before-acquiring-lock-fix
+git bisect bad 1f989b6a333fc8d6bddd1552420bb97e3295468a
+# bad: [0454d28f4858b6c8b2606417d35e4e6868699130] mm, swap: fix race between swapoff and some swap operations
+git bisect bad 0454d28f4858b6c8b2606417d35e4e6868699130
+# bad: [7efeddad4bc281bf61f411a7fe9b19f3689cf62f] mm, swap: fix race between swapoff and some swap operations
+git bisect bad 7efeddad4bc281bf61f411a7fe9b19f3689cf62f
+# bad: [4a110365f1da9d5cabbd0a01796027c0a6d5e80b] mm: drop unneeded ->vm_ops checks
+git bisect bad 4a110365f1da9d5cabbd0a01796027c0a6d5e80b
+# first bad commit: [4a110365f1da9d5cabbd0a01796027c0a6d5e80b] mm: drop unneeded ->vm_ops checks
