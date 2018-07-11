@@ -1,68 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D90C16B0003
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 19:43:57 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id n17-v6so17242139pff.10
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 16:43:57 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n59-v6sor6795095plb.0.2018.07.11.16.43.56
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B81DB6B0007
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 19:47:55 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id w1-v6so15763133plq.8
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 16:47:55 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
+        by mx.google.com with ESMTPS id c197-v6si22768335pfc.74.2018.07.11.16.47.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 11 Jul 2018 16:43:56 -0700 (PDT)
-Date: Wed, 11 Jul 2018 16:43:54 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, vmacache: hash addresses based on pmd
-In-Reply-To: <20180711161030.b5ae2f5b1210150c13b1a832@linux-foundation.org>
-Message-ID: <alpine.DEB.2.21.1807111637050.254865@chino.kir.corp.google.com>
-References: <alpine.DEB.2.21.1807091749150.114630@chino.kir.corp.google.com> <20180709180841.ebfb6cf70bd8dc08b269c0d9@linux-foundation.org> <alpine.DEB.2.21.1807091822460.130281@chino.kir.corp.google.com>
- <20180711161030.b5ae2f5b1210150c13b1a832@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 11 Jul 2018 16:47:54 -0700 (PDT)
+Date: Thu, 12 Jul 2018 09:47:29 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: Boot failures with "mm/sparse: Remove
+ CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER" on powerpc (was Re: mmotm
+ 2018-07-10-16-50 uploaded)
+Message-ID: <20180712094729.1112f290@canb.auug.org.au>
+In-Reply-To: <20180711141344.10eb6d22b0ee1423cc94faf8@linux-foundation.org>
+References: <20180710235044.vjlRV%akpm@linux-foundation.org>
+	<87lgai9bt5.fsf@concordia.ellerman.id.au>
+	<20180711133737.GA29573@techadventures.net>
+	<CAGM2reYsSi5kDGtnTQASnp1v49T8Y+9o_pNxmSq-+m68QhF2Tg@mail.gmail.com>
+	<20180711141344.10eb6d22b0ee1423cc94faf8@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/EYBWYqRmT+9CpTkc3L=Ei9_"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>, Alexey Dobriyan <adobriyan@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, osalvador@techadventures.net, mpe@ellerman.id.au, broonie@kernel.org, mhocko@suse.cz, linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, mm-commits@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, bhe@redhat.com, aneesh.kumar@linux.ibm.com, khandual@linux.vnet.ibm.com
 
-On Wed, 11 Jul 2018, Andrew Morton wrote:
+--Sig_/EYBWYqRmT+9CpTkc3L=Ei9_
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-> > > Did you consider LRU-sorting the array instead?
-> > > 
-> > 
-> > It adds 40 bytes to struct task_struct,
-> 
-> What does?  LRU sort?  It's a 4-entry array, just do it in place, like
-> bh_lru_install(). Confused.
-> 
+Hi Andrew,
 
-I was imagining an optimized sort rather than adding an iteration to 
-vmacache_update() of the same form that causes vmacache_find() to show up 
-on my perf reports in the first place.
+On Wed, 11 Jul 2018 14:13:44 -0700 Andrew Morton <akpm@linux-foundation.org=
+> wrote:
+>
+> OK, I shall drop
+> mm-sparse-remove-config_sparsemem_alloc_mem_map_together.patch for now.
 
-> > but I'm not sure the least 
-> > recently used is the first preferred check.  If I do 
-> > madvise(MADV_DONTNEED) from a malloc implementation where I don't control 
-> > what is free()'d and I'm constantly freeing back to the same hugepages, 
-> > for example, I may always get first slot cache hits with this patch as 
-> > opposed to the 25% chance that the current implementation has (and perhaps 
-> > an lru would as well).
-> > 
-> > I'm sure that I could construct a workload where LRU would be better and 
-> > could show that the added footprint were worthwhile, but I could also 
-> > construct a workload where the current implementation based on pfn would 
-> > outperform all of these.  It simply turns out that on the user-controlled 
-> > workloads that I was profiling that hashing based on pmd was the win.
-> 
-> That leaves us nowhere to go.  Zapping the WARN_ON seems a no-brainer
-> though?
-> 
+I have dropped it from linux-next today (in case you don't get time).
 
-I would suggest it goes under CONFIG_DEBUG_VM_VMACACHE.
+--=20
+Cheers,
+Stephen Rothwell
 
-My implementation for the optimized vmacache_find() is based on the 
-premise that spatial locality matters, and in practice on random 
-user-controlled workloads this yields a faster lookup than the current 
-implementation.  Of course, any caching technique can be defeated by 
-workloads, artifical or otherwise, but I suggest that as a general 
-principle caching based on PMD_SHIFT rather than pfn has a greater 
-likelihood of avoiding the iteration in vmacache_find() because of spatial 
-locality for anything that iterates over a range of memory.
+--Sig_/EYBWYqRmT+9CpTkc3L=Ei9_
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAltGlxEACgkQAVBC80lX
+0GwoUwf/bx0m01nkKzrGDRN2EbV745BfGn4LcFCUqgnVbtIwvCgd21+BSMQKZeBQ
+hXceLO2LFHU5+BQxG8CsGyLob2rijmXu35ie3boJKXPjMPdng8QaCCtSDyUkjTuu
+XkiNYUspbTMVZWlnHX3tFV0Urm4SI7xHOG5lrE/c58rLoJnTOqL9ssC2cdiN0j2w
+glkgPVXLSljiB5RwUmF/cXf3Q6knDeHF2f3XikAlUjKv5NIa+JR3wz1H/pzzIw7K
+kSVxPcRjwRBaAmqxPMep92ZpthSBZ9sJfTxQajHFyTKfgpSfWB6aP8FuavEL8zuC
+xHM1AI0ggVguLGhN2yKqtxRw77KLmQ==
+=c4bd
+-----END PGP SIGNATURE-----
+
+--Sig_/EYBWYqRmT+9CpTkc3L=Ei9_--
