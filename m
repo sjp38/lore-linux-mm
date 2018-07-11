@@ -1,110 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EA3F6B0010
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 06:33:34 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id b12-v6so9416440edi.12
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 03:33:34 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j62-v6si510775edd.44.2018.07.11.03.33.32
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3358E6B0003
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 06:42:06 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id m6-v6so30617531qkd.20
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 03:42:06 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id r2-v6si2690680qkd.14.2018.07.11.03.42.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 03:33:32 -0700 (PDT)
-Date: Wed, 11 Jul 2018 12:33:12 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC v4 0/3] mm: zap pages with read mmap_sem in munmap for
- large mapping
-Message-ID: <20180711103312.GH20050@dhcp22.suse.cz>
-References: <1531265649-93433-1-git-send-email-yang.shi@linux.alibaba.com>
+        Wed, 11 Jul 2018 03:42:05 -0700 (PDT)
+Date: Wed, 11 Jul 2018 18:41:58 +0800
+From: Baoquan He <bhe@redhat.com>
+Subject: Re: Bug report about KASLR and ZONE_MOVABLE
+Message-ID: <20180711104158.GE2070@MiWiFi-R3L-srv>
+References: <20180711094244.GA2019@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1531265649-93433-1-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <20180711094244.GA2019@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Chao Fan <fanc.fnst@cn.fujitsu.com>, akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, yasu.isimatu@gmail.com, keescook@chromium.org, indou.takao@jp.fujitsu.com, caoj.fnst@cn.fujitsu.com, douly.fnst@cn.fujitsu.com, mhocko@suse.com, vbabka@suse.cz, mgorman@techsingularity.net
 
-On Wed 11-07-18 07:34:06, Yang Shi wrote:
+On 07/11/18 at 05:42pm, Chao Fan wrote:
+> Hi all,
 > 
-> Background:
-> Recently, when we ran some vm scalability tests on machines with large memory,
-> we ran into a couple of mmap_sem scalability issues when unmapping large memory
-> space, please refer to https://lkml.org/lkml/2017/12/14/733 and
-> https://lkml.org/lkml/2018/2/20/576.
+> I found there is a BUG about KASLR and ZONE_MOVABLE.
 > 
+> When users use 'kernelcore=' parameter without 'movable_node',
+> movable memory is evenly distributed to all nodes. The size of
+> ZONE_MOVABLE depends on the kernel parameter 'kernelcore=' and
+> 'movablecore='.
+> But sometiomes, KASLR may put the uncompressed kernel to the
+> tail position of a node, which will cause the kernel memory
+> set as ZONE_MOVABLE. This region can not be offlined.
 > 
-> History:
-> Then akpm suggested to unmap large mapping section by section and drop mmap_sem
-> at a time to mitigate it (see https://lkml.org/lkml/2018/3/6/784).
+> Here is a very simple test in my qemu-kvm machine, there is
+> only one node:
 > 
-> V1 patch series was submitted to the mailing list per Andrew's suggestion
-> (see https://lkml.org/lkml/2018/3/20/786). Then I received a lot great feedback
-> and suggestions.
+> The command line:
+> [root@localhost ~]# cat /proc/cmdline
+> BOOT_IMAGE=/vmlinuz-4.18.0-rc3+ root=/dev/mapper/fedora_localhost--live-root
+> ro resume=/dev/mapper/fedora_localhost--live-swap
+> rd.lvm.lv=fedora_localhost-live/root rd.lvm.lv=fedora_localhost-live/swap
+> console=ttyS0 earlyprintk=ttyS0,115200n8 memblock=debug kernelcore=50%
 > 
-> Then this topic was discussed on LSFMM summit 2018. In the summit, Michal Hocko
-> suggested (also in the v1 patches review) to try "two phases" approach. Zapping
-> pages with read mmap_sem, then doing via cleanup with write mmap_sem (for
-> discussion detail, see https://lwn.net/Articles/753269/)
+> I use 'kernelcore=50%' here.
 > 
+> Here is my early print result, I print the random_addr after KASLR chooses
+> physical memory:
+> early console in extract_kernel
+> input_data: 0x000000000266b3b1
+> input_len: 0x00000000007d8802
+> output: 0x0000000001000000
+> output_len: 0x0000000001e15698
+> kernel_total_size: 0x0000000001a8b000
+> trampoline_32bit: 0x000000000009d000
+> booted via startup_32()
+> Physical KASLR using RDRAND RDTSC...
+> random_addr: 0x000000012f000000
+> Virtual KASLR using RDRAND RDTSC...
 > 
-> Approach:
-> Zapping pages is the most time consuming part, according to the suggestion from
-> Michal Hocko [1], zapping pages can be done with holding read mmap_sem, like
-> what MADV_DONTNEED does. Then re-acquire write mmap_sem to cleanup vmas.
+> The address for kernel is 0x000000012f000000
 > 
-> But, we can't call MADV_DONTNEED directly, since there are two major drawbacks:
->   * The unexpected state from PF if it wins the race in the middle of munmap.
->     It may return zero page, instead of the content or SIGSEGV.
->   * Cana??t handle VM_LOCKED | VM_HUGETLB | VM_PFNMAP and uprobe mappings, which
->     is a showstopper from akpm
+> Here is the log of ZONE:
+> [    0.000000] Zone ranges:
+> [    0.000000]   DMA      [mem 0x0000000000001000-0x0000000000ffffff]
+> [    0.000000]   DMA32    [mem 0x0000000001000000-0x00000000ffffffff]
+> [    0.000000]   Normal   [mem 0x0000000100000000-0x00000001f57fffff]
+> [    0.000000]   Device   empty
+> [    0.000000] Movable zone start for each node
+> [    0.000000]   Node 0: 0x000000011b000000
+> [    0.000000] Early memory node ranges
+> [    0.000000]   node   0: [mem 0x0000000000001000-0x000000000009efff]
+> [    0.000000]   node   0: [mem 0x0000000000100000-0x00000000bffd6fff]
+> [    0.000000]   node   0: [mem 0x0000000100000000-0x00000001f57fffff]
+> [    0.000000] Initmem setup node 0 [mem
+> 0x0000000000001000-0x00000001f57fffff]
+> 
+> Only one node in my machine, ZONE_MOVABLE begins from 0x000000011b000000,
+> which is lower than 0x000000012f000000.
+> So KASLR put the kernel to the ZONE_MOVABLE.
+> Try to solve this problem, I think there should be a new tactic in function
+> find_zone_movable_pfns_for_nodes() of mm/page_alloc.c. If kernel is uncompressed
+> in a tail position, then just set the memory after the kernel as ZONE_MOVABLE,
+> at the same time, memory in other nodes will be set as ZONE_MOVABLE.
 
-I do not really understand why this is a showstopper. This is a mere
-optimization. VM_LOCKED ranges are usually not that large. VM_HUGETLB
-can be quite large alright but this should be doable on top. Is there
-any reason to block any "cover most mappings first" patch?
+Hmm, it's an issue, worth fixing it. Otherwise the size of
+movable area will be smaller than we expect when add "kernel_core="
+or "movable_core=".
 
-> And, some part may need write mmap_sem, for example, vma splitting. So, the
-> design is as follows:
->         acquire write mmap_sem
->         lookup vmas (find and split vmas)
->         set VM_DEAD flags
->         deal with special mappings
->         downgrade_write
-> 
->         zap pages
->         release mmap_sem
-> 
->         retake mmap_sem exclusively
->         cleanup vmas
->         release mmap_sem
+Add a check in find_zone_movable_pfns_for_nodes(), and use min() to get
+the starting address of movable area between aligned '_etext'
+and start_pfn. It will go to label 'restart' to calculate the 2nd round
+if not satisfiled. 
 
-Please explain why dropping the lock and then ratake it to cleanup vmas
-is OK. This is really important because parallel thread could have
-changed the underlying address space range.
+Hi Chao,
 
-Moreover
-
->  include/linux/mm.h  |   8 +++
->  include/linux/oom.h |  20 -------
->  mm/huge_memory.c    |   4 +-
->  mm/hugetlb.c        |   5 ++
->  mm/memory.c         |  57 ++++++++++++++++---
->  mm/mmap.c           | 221 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-------------
->  mm/shmem.c          |   9 ++-
->  7 files changed, 255 insertions(+), 69 deletions(-)
-
-this is not a small change for something that could be achieved
-from the userspace trivially (just call madvise before munmap - library
-can hide this). Most workloads will even not care about races because
-they simply do not play tricks with mmaps and userspace MM. So why do we
-want to put the additional complexity into the kernel?
-
-Note that I am _not_ saying this is a wrong idea, we just need some
-pretty sounds arguments to justify the additional complexity which is
-mostly based on our fear that somebody might be doing something
-(half)insane or dubious at best.
-
--- 
-Michal Hocko
-SUSE Labs
+Could you check if below patch works for you?
