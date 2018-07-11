@@ -1,42 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D4DF76B000D
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 05:21:56 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id f5-v6so14387253plf.18
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 02:21:56 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e4-v6si19024349pfi.184.2018.07.11.02.21.55
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 12B1B6B0003
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 05:29:58 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id u16-v6so15931946pfm.15
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 02:29:58 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id o11-v6si18375135plk.421.2018.07.11.02.29.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 02:21:55 -0700 (PDT)
-Date: Wed, 11 Jul 2018 11:21:52 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v35 1/5] mm: support to get hints of free page blocks
-Message-ID: <20180711092152.GE20050@dhcp22.suse.cz>
-References: <1531215067-35472-1-git-send-email-wei.w.wang@intel.com>
- <1531215067-35472-2-git-send-email-wei.w.wang@intel.com>
- <CA+55aFz9a=D-kquM=sG5uhV_HrBAw+VAhcJmtPNz+howy4j9ow@mail.gmail.com>
- <5B455D50.90902@intel.com>
- <CA+55aFzqj8wxXnHAdUTiOomipgFONVbqKMjL_tfk7e5ar1FziQ@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 11 Jul 2018 02:29:56 -0700 (PDT)
+Date: Wed, 11 Jul 2018 11:29:51 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC PATCH v2 16/27] mm: Modify can_follow_write_pte/pmd for
+ shadow stack
+Message-ID: <20180711092951.GW2476@hirez.programming.kicks-ass.net>
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+ <20180710222639.8241-17-yu-cheng.yu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFzqj8wxXnHAdUTiOomipgFONVbqKMjL_tfk7e5ar1FziQ@mail.gmail.com>
+In-Reply-To: <20180710222639.8241-17-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, virtualization <virtualization@lists.linux-foundation.org>, KVM list <kvm@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Michael S. Tsirkin" <mst@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, Rik van Riel <riel@redhat.com>, peterx@redhat.com
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-On Tue 10-07-18 18:44:34, Linus Torvalds wrote:
-[...]
-> That was what I tried to encourage with actually removing the pages
-> form the page list. That would be an _incremental_ interface. You can
-> remove MAX_ORDER-1 pages one by one (or a hundred at a time), and mark
-> them free for ballooning that way. And if you still feel you have tons
-> of free memory, just continue removing more pages from the free list.
+On Tue, Jul 10, 2018 at 03:26:28PM -0700, Yu-cheng Yu wrote:
+> There are three possible shadow stack PTE settings:
+> 
+>   Normal SHSTK PTE: (R/O + DIRTY_HW)
+>   SHSTK PTE COW'ed: (R/O + DIRTY_HW)
+>   SHSTK PTE shared as R/O data: (R/O + DIRTY_SW)
 
-We already have an interface for that. alloc_pages(GFP_NOWAIT, MAX_ORDER -1).
-So why do we need any array based interface?
--- 
-Michal Hocko
-SUSE Labs
+I count _2_ distinct states there.
+
+> Update can_follow_write_pte/pmd for the shadow stack.
+
+So the below disallows can_follow_write when shstk && _PAGE_DIRTY_SW,
+but this here Changelog doesn't explain why. Doesn't even get close.
+
+Also, the code is a right mess :/ Can't we try harder to not let this
+shadow stack stuff escape arch code.
