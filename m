@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B627E6B0275
+	by kanga.kvack.org (Postfix) with ESMTP id E4B786B027A
 	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:10 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id r9-v6so6133408edh.14
+Received: by mail-ed1-f70.google.com with SMTP id w10-v6so9792423eds.7
         for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:10 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id o34-v6si216973edb.336.2018.07.11.04.30.09
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id x39-v6si9829153ede.200.2018.07.11.04.30.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 11 Jul 2018 04:30:09 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 09/39] x86/entry/32: Introduce SAVE_ALL_NMI and RESTORE_ALL_NMI
-Date: Wed, 11 Jul 2018 13:29:16 +0200
-Message-Id: <1531308586-29340-10-git-send-email-joro@8bytes.org>
+Subject: [PATCH 11/39] x86/entry/32: Simplify debug entry point
+Date: Wed, 11 Jul 2018 13:29:18 +0200
+Message-Id: <1531308586-29340-12-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,72 +22,66 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-These macros will be used in the NMI handler code and
-replace plain SAVE_ALL and RESTORE_REGS there. We will add
-the NMI-specific CR3-switch to these macros later.
+The common exception entry code now handles the
+entry-from-sysenter stack situation and makes sure to leave
+with the same stack as it entered the kernel.
+
+So there is no need anymore for the special handling in the
+debug entry code.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ arch/x86/entry/entry_32.S | 35 +++--------------------------------
+ 1 file changed, 3 insertions(+), 32 deletions(-)
 
 diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index 357b82b..3d1a114 100644
+index b3af76e..9e06431 100644
 --- a/arch/x86/entry/entry_32.S
 +++ b/arch/x86/entry/entry_32.S
-@@ -186,6 +186,9 @@
+@@ -1231,41 +1231,12 @@ END(common_exception)
  
- .endm
+ ENTRY(debug)
+ 	/*
+-	 * #DB can happen at the first instruction of
+-	 * entry_SYSENTER_32 or in Xen's SYSENTER prologue.  If this
+-	 * happens, then we will be running on a very small stack.  We
+-	 * need to detect this condition and switch to the thread
+-	 * stack before calling any C code at all.
+-	 *
+-	 * If you edit this code, keep in mind that NMIs can happen in here.
++	 * Entry from sysenter is now handled in common_exception
+ 	 */
+ 	ASM_CLAC
+ 	pushl	$-1				# mark this as an int
+-
+-	SAVE_ALL
+-	ENCODE_FRAME_POINTER
+-	xorl	%edx, %edx			# error code 0
+-	movl	%esp, %eax			# pt_regs pointer
+-
+-	/* Are we currently on the SYSENTER stack? */
+-	movl	PER_CPU_VAR(cpu_entry_area), %ecx
+-	addl	$CPU_ENTRY_AREA_entry_stack + SIZEOF_entry_stack, %ecx
+-	subl	%eax, %ecx	/* ecx = (end of entry_stack) - esp */
+-	cmpl	$SIZEOF_entry_stack, %ecx
+-	jb	.Ldebug_from_sysenter_stack
+-
+-	TRACE_IRQS_OFF
+-	call	do_debug
+-	jmp	ret_from_exception
+-
+-.Ldebug_from_sysenter_stack:
+-	/* We're on the SYSENTER stack.  Switch off. */
+-	movl	%esp, %ebx
+-	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esp
+-	TRACE_IRQS_OFF
+-	call	do_debug
+-	movl	%ebx, %esp
+-	jmp	ret_from_exception
++	pushl	$do_debug
++	jmp	common_exception
+ END(debug)
  
-+.macro SAVE_ALL_NMI
-+	SAVE_ALL
-+.endm
  /*
-  * This is a sneaky trick to help the unwinder find pt_regs on the stack.  The
-  * frame pointer is replaced with an encoded pointer to pt_regs.  The encoding
-@@ -232,6 +235,10 @@
- 	POP_GS_EX
- .endm
- 
-+.macro RESTORE_ALL_NMI pop=0
-+	RESTORE_REGS pop=\pop
-+.endm
-+
- .macro CHECK_AND_APPLY_ESPFIX
- #ifdef CONFIG_X86_ESPFIX32
- #define GDT_ESPFIX_SS PER_CPU_VAR(gdt_page) + (GDT_ENTRY_ESPFIX_SS * 8)
-@@ -1166,7 +1173,7 @@ ENTRY(nmi)
- #endif
- 
- 	pushl	%eax				# pt_regs->orig_ax
--	SAVE_ALL
-+	SAVE_ALL_NMI
- 	ENCODE_FRAME_POINTER
- 	xorl	%edx, %edx			# zero error code
- 	movl	%esp, %eax			# pt_regs pointer
-@@ -1194,7 +1201,7 @@ ENTRY(nmi)
- 
- .Lnmi_return:
- 	CHECK_AND_APPLY_ESPFIX
--	RESTORE_REGS 4
-+	RESTORE_ALL_NMI pop=4
- 	jmp	.Lirq_return
- 
- #ifdef CONFIG_X86_ESPFIX32
-@@ -1210,12 +1217,12 @@ ENTRY(nmi)
- 	pushl	16(%esp)
- 	.endr
- 	pushl	%eax
--	SAVE_ALL
-+	SAVE_ALL_NMI
- 	ENCODE_FRAME_POINTER
- 	FIXUP_ESPFIX_STACK			# %eax == %esp
- 	xorl	%edx, %edx			# zero error code
- 	call	do_nmi
--	RESTORE_REGS
-+	RESTORE_ALL_NMI
- 	lss	12+4(%esp), %esp		# back to espfix stack
- 	jmp	.Lirq_return
- #endif
 -- 
 2.7.4
