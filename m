@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9829B6B0283
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:14 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id i26-v6so3990761edr.4
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:14 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C7116B0285
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:15 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id c2-v6so9864382edi.20
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:15 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id t9-v6si740934edd.196.2018.07.11.04.30.13
+        by mx.google.com with ESMTPS id l62-v6si740758edl.257.2018.07.11.04.30.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 04:30:13 -0700 (PDT)
+        Wed, 11 Jul 2018 04:30:14 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 19/39] x86/pgtable: Move pti_set_user_pgtbl() to pgtable.h
-Date: Wed, 11 Jul 2018 13:29:26 +0200
-Message-Id: <1531308586-29340-20-git-send-email-joro@8bytes.org>
+Subject: [PATCH 22/39] x86/mm/pae: Populate the user page-table with user pgd's
+Date: Wed, 11 Jul 2018 13:29:29 +0200
+Message-Id: <1531308586-29340-23-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,48 +22,38 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-There it is also usable from 32 bit code.
+When we populate a PGD entry, make sure we populate it in
+the user page-table too.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable.h | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ arch/x86/include/asm/pgtable-3level.h | 7 +++++++
+ 1 file changed, 7 insertions(+)
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index eb47432..cc117161 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -640,8 +640,31 @@ static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
+diff --git a/arch/x86/include/asm/pgtable-3level.h b/arch/x86/include/asm/pgtable-3level.h
+index f24df59..f2ca313 100644
+--- a/arch/x86/include/asm/pgtable-3level.h
++++ b/arch/x86/include/asm/pgtable-3level.h
+@@ -98,6 +98,9 @@ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
  
- pmd_t *populate_extra_pmd(unsigned long vaddr);
- pte_t *populate_extra_pte(unsigned long vaddr);
-+
+ static inline void native_set_pud(pud_t *pudp, pud_t pud)
+ {
 +#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd);
-+
-+/*
-+ * Take a PGD location (pgdp) and a pgd value that needs to be set there.
-+ * Populates the user and returns the resulting PGD that must be set in
-+ * the kernel copy of the page tables.
-+ */
-+static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
-+{
-+	if (!static_cpu_has(X86_FEATURE_PTI))
-+		return pgd;
-+	return __pti_set_user_pgtbl(pgdp, pgd);
-+}
-+#else   /* CONFIG_PAGE_TABLE_ISOLATION */
-+static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
-+{
-+	return pgd;
-+}
-+#endif  /* CONFIG_PAGE_TABLE_ISOLATION */
-+
- #endif	/* __ASSEMBLY__ */
++	pud.p4d.pgd = pti_set_user_pgtbl(&pudp->p4d.pgd, pud.p4d.pgd);
++#endif
+ 	set_64bit((unsigned long long *)(pudp), native_pud_val(pud));
+ }
  
+@@ -229,6 +232,10 @@ static inline pud_t native_pudp_get_and_clear(pud_t *pudp)
+ {
+ 	union split_pud res, *orig = (union split_pud *)pudp;
+ 
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++	pti_set_user_pgtbl(&pudp->p4d.pgd, __pgd(0));
++#endif
 +
- #ifdef CONFIG_X86_32
- # include <asm/pgtable_32.h>
- #else
+ 	/* xchg acts as a barrier before setting of the high bits */
+ 	res.pud_low = xchg(&orig->pud_low, 0);
+ 	res.pud_high = orig->pud_high;
 -- 
 2.7.4
