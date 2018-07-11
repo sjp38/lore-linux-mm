@@ -1,60 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8004B6B026F
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 13:09:16 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id g20-v6so16675750pfi.2
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 10:09:16 -0700 (PDT)
-Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
-        by mx.google.com with ESMTPS id c1-v6si3281252pfe.29.2018.07.11.10.09.15
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 31F536B0271
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 13:10:42 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id d4-v6so16712720pfn.9
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 10:10:42 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id p61-v6si19804524plb.472.2018.07.11.10.10.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 10:09:15 -0700 (PDT)
-Subject: Re: [RFC v4 0/3] mm: zap pages with read mmap_sem in munmap for large
- mapping
-References: <1531265649-93433-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180711103312.GH20050@dhcp22.suse.cz>
- <20180711111311.hrh5kxdottmpdpn2@kshutemo-mobl1>
- <20180711115332.GM20050@dhcp22.suse.cz>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <4076e0b4-f3a8-6d71-2a98-e7b8cc6986d4@linux.alibaba.com>
-Date: Wed, 11 Jul 2018 10:08:52 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180711115332.GM20050@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+        Wed, 11 Jul 2018 10:10:41 -0700 (PDT)
+Message-ID: <1531328731.15351.3.camel@intel.com>
+Subject: Re: [RFC PATCH v2 16/27] mm: Modify can_follow_write_pte/pmd for
+ shadow stack
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Date: Wed, 11 Jul 2018 10:05:31 -0700
+In-Reply-To: <de510df6-7ea9-edc6-9c49-2f80f16472b4@linux.intel.com>
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+	 <20180710222639.8241-17-yu-cheng.yu@intel.com>
+	 <de510df6-7ea9-edc6-9c49-2f80f16472b4@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: willy@infradead.org, ldufour@linux.vnet.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave.hansen@linux.intel.com>, x86@kernel.org, "H. Peter
+ Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J.
+ Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
+On Tue, 2018-07-10 at 16:37 -0700, Dave Hansen wrote:
+> On 07/10/2018 03:26 PM, Yu-cheng Yu wrote:
+> > 
+> > There are three possible shadow stack PTE settings:
+> > 
+> > A  Normal SHSTK PTE: (R/O + DIRTY_HW)
+> > A  SHSTK PTE COW'ed: (R/O + DIRTY_HW)
+> > A  SHSTK PTE shared as R/O data: (R/O + DIRTY_SW)
+> > 
+> > Update can_follow_write_pte/pmd for the shadow stack.
+> First of all, thanks for the excellent patch headers.A A It's nice to
+> have
+> that reference every time even though it's repeated.
+> 
+> > 
+> > -static inline bool can_follow_write_pte(pte_t pte, unsigned int
+> > flags)
+> > +static inline bool can_follow_write_pte(pte_t pte, unsigned int
+> > flags,
+> > +					bool shstk)
+> > A {
+> > +	bool pte_cowed = shstk ? is_shstk_pte(pte):pte_dirty(pte);
+> > +
+> > A 	return pte_write(pte) ||
+> > -		((flags & FOLL_FORCE) && (flags & FOLL_COW) &&
+> > pte_dirty(pte));
+> > +		((flags & FOLL_FORCE) && (flags & FOLL_COW) &&
+> > pte_cowed);
+> > A }
+> Can we just pass the VMA in here?A A This use is OK-ish, but I
+> generally
+> detest true/false function arguments because you can't tell what they
+> are when they show up without a named variable.
+> 
+> But...A A Why does this even matter?A A Your own example showed that all
+> shadowstack PTEs have either DIRTY_HW or DIRTY_SW set, and
+> pte_dirty()
+> checks both.
+> 
+> That makes this check seem a bit superfluous.
 
+My understanding is that we don't want to follow write pte if the page
+is shared as read-only. A For a SHSTK page, that is (R/O + DIRTY_SW),
+which means the SHSTK page has not been COW'ed. A Is that right?
 
-On 7/11/18 4:53 AM, Michal Hocko wrote:
-> On Wed 11-07-18 14:13:12, Kirill A. Shutemov wrote:
->> On Wed, Jul 11, 2018 at 12:33:12PM +0200, Michal Hocko wrote:
->>> this is not a small change for something that could be achieved
->>> from the userspace trivially (just call madvise before munmap - library
->>> can hide this). Most workloads will even not care about races because
->>> they simply do not play tricks with mmaps and userspace MM. So why do we
->>> want to put the additional complexity into the kernel?
->> As I said before, kernel latency issues have to be addressed in kernel.
->> We cannot rely on userspace being kind here.
-> Those who really care and create really large mappings will know how to
-> do this properly. Most others just do not care enough. So I am not
-> really sure this alone is a sufficient argument.
->
-> I personally like the in kernel auto tuning but as I've said the
-> changelog should be really clear why all the complications are
-> justified. This would be a lot easier to argue about if it was a simple
-> 	if (len > THARSHOLD)
-> 		do_madvise(DONTNEED)
-> 	munmap().
-
-The main difference AFAICS, is it can't deal with the parallel faults 
-and those special mappings. Someone may not care about it, but someone may.
-
-Yang
-
-> approach. But if we really have to care about parallel faults and munmap
-> consitency this will always be tricky
+Thanks,
+Yu-cheng
