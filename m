@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 23E5B6B0281
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9829B6B0283
 	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:14 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id a22-v6so9880568eds.13
+Received: by mail-ed1-f72.google.com with SMTP id i26-v6so3990761edr.4
         for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:14 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id y2-v6si4097548eda.263.2018.07.11.04.30.12
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id t9-v6si740934edd.196.2018.07.11.04.30.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 11 Jul 2018 04:30:13 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 21/39] x86/mm/pae: Populate valid user PGD entries
-Date: Wed, 11 Jul 2018 13:29:28 +0200
-Message-Id: <1531308586-29340-22-git-send-email-joro@8bytes.org>
+Subject: [PATCH 19/39] x86/pgtable: Move pti_set_user_pgtbl() to pgtable.h
+Date: Wed, 11 Jul 2018 13:29:26 +0200
+Message-Id: <1531308586-29340-20-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,70 +22,48 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Generic page-table code populates all non-leaf entries with
-_KERNPG_TABLE bits set. This is fine for all paging modes
-except PAE.
-
-In PAE mode only a subset of the bits is allowed to be set.
-Make sure we only set allowed bits by masking out the
-reserved bits.
+There it is also usable from 32 bit code.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable_types.h | 28 ++++++++++++++++++++++++++--
- 1 file changed, 26 insertions(+), 2 deletions(-)
+ arch/x86/include/asm/pgtable.h | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
 
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-index 99fff85..b64acb0 100644
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -50,6 +50,7 @@
- #define _PAGE_GLOBAL	(_AT(pteval_t, 1) << _PAGE_BIT_GLOBAL)
- #define _PAGE_SOFTW1	(_AT(pteval_t, 1) << _PAGE_BIT_SOFTW1)
- #define _PAGE_SOFTW2	(_AT(pteval_t, 1) << _PAGE_BIT_SOFTW2)
-+#define _PAGE_SOFTW3	(_AT(pteval_t, 1) << _PAGE_BIT_SOFTW3)
- #define _PAGE_PAT	(_AT(pteval_t, 1) << _PAGE_BIT_PAT)
- #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
- #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
-@@ -266,14 +267,37 @@ typedef struct pgprot { pgprotval_t pgprot; } pgprot_t;
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index eb47432..cc117161 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -640,8 +640,31 @@ static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
  
- typedef struct { pgdval_t pgd; } pgd_t;
- 
-+#ifdef CONFIG_X86_PAE
+ pmd_t *populate_extra_pmd(unsigned long vaddr);
+ pte_t *populate_extra_pte(unsigned long vaddr);
++
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd);
 +
 +/*
-+ * PHYSICAL_PAGE_MASK might be non-constant when SME is compiled in, so we can't
-+ * use it here.
++ * Take a PGD location (pgdp) and a pgd value that needs to be set there.
++ * Populates the user and returns the resulting PGD that must be set in
++ * the kernel copy of the page tables.
 + */
++static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
++{
++	if (!static_cpu_has(X86_FEATURE_PTI))
++		return pgd;
++	return __pti_set_user_pgtbl(pgdp, pgd);
++}
++#else   /* CONFIG_PAGE_TABLE_ISOLATION */
++static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
++{
++	return pgd;
++}
++#endif  /* CONFIG_PAGE_TABLE_ISOLATION */
 +
-+#define PGD_PAE_PAGE_MASK	((signed long)PAGE_MASK)
-+#define PGD_PAE_PHYS_MASK	(((1ULL << __PHYSICAL_MASK_SHIFT)-1) & PGD_PAE_PAGE_MASK)
-+
-+/*
-+ * PAE allows Base Address, P, PWT, PCD and AVL bits to be set in PGD entries.
-+ * All other bits are Reserved MBZ
-+ */
-+#define PGD_ALLOWED_BITS	(PGD_PAE_PHYS_MASK | _PAGE_PRESENT | \
-+				 _PAGE_PWT | _PAGE_PCD | \
-+				 _PAGE_SOFTW1 | _PAGE_SOFTW2 | _PAGE_SOFTW3)
-+
-+#else
-+/* No need to mask any bits for !PAE */
-+#define PGD_ALLOWED_BITS	(~0ULL)
-+#endif
-+
- static inline pgd_t native_make_pgd(pgdval_t val)
- {
--	return (pgd_t) { val };
-+	return (pgd_t) { val & PGD_ALLOWED_BITS };
- }
+ #endif	/* __ASSEMBLY__ */
  
- static inline pgdval_t native_pgd_val(pgd_t pgd)
- {
--	return pgd.pgd;
-+	return pgd.pgd & PGD_ALLOWED_BITS;
- }
- 
- static inline pgdval_t pgd_flags(pgd_t pgd)
++
+ #ifdef CONFIG_X86_32
+ # include <asm/pgtable_32.h>
+ #else
 -- 
 2.7.4
