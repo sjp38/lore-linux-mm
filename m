@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id ABDD96B0288
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:17 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id d30-v6so4533363edd.0
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:17 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 348236B028B
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:18 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id c2-v6so9864472edi.20
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:18 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id 38-v6si8573796edt.374.2018.07.11.04.30.16
+        by mx.google.com with ESMTPS id w27-v6si3146501eda.272.2018.07.11.04.30.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 04:30:16 -0700 (PDT)
+        Wed, 11 Jul 2018 04:30:17 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 27/39] x86/mm/pti: Make pti_clone_kernel_text() compile on 32 bit
-Date: Wed, 11 Jul 2018 13:29:34 +0200
-Message-Id: <1531308586-29340-28-git-send-email-joro@8bytes.org>
+Subject: [PATCH 25/39] x86/mm/pti: Define X86_CR3_PTI_PCID_USER_BIT on x86_32
+Date: Wed, 11 Jul 2018 13:29:32 +0200
+Message-Id: <1531308586-29340-26-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,91 +22,38 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-The pti_clone_kernel_text() function references
-__end_rodata_hpage_align, which is only present on x86-64.
-This makes sense as the end of the rodata section is not
-huge-page aligned on 32 bit.
+Move it out of the X86_64 specific processor defines so
+that its visible for 32bit too.
 
-Nevertheless we need a symbol for the function that points
-at the right address for both 32 and 64 bit. Introduce
-__end_rodata_aligned for that purpose and use it in
-pti_clone_kernel_text().
-
+Reviewed-by: Andy Lutomirski <luto@kernel.org>
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/sections.h |  1 +
- arch/x86/kernel/vmlinux.lds.S   | 17 ++++++++++-------
- arch/x86/mm/pti.c               |  2 +-
- 3 files changed, 12 insertions(+), 8 deletions(-)
+ arch/x86/include/asm/processor-flags.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/include/asm/sections.h b/arch/x86/include/asm/sections.h
-index 5c019d2..4a911a3 100644
---- a/arch/x86/include/asm/sections.h
-+++ b/arch/x86/include/asm/sections.h
-@@ -7,6 +7,7 @@
+diff --git a/arch/x86/include/asm/processor-flags.h b/arch/x86/include/asm/processor-flags.h
+index 625a52a..02c2cbd 100644
+--- a/arch/x86/include/asm/processor-flags.h
++++ b/arch/x86/include/asm/processor-flags.h
+@@ -39,10 +39,6 @@
+ #define CR3_PCID_MASK	0xFFFull
+ #define CR3_NOFLUSH	BIT_ULL(63)
  
- extern char __brk_base[], __brk_limit[];
- extern struct exception_table_entry __stop___ex_table[];
-+extern char __end_rodata_aligned[];
- 
- #if defined(CONFIG_X86_64)
- extern char __end_rodata_hpage_align[];
-diff --git a/arch/x86/kernel/vmlinux.lds.S b/arch/x86/kernel/vmlinux.lds.S
-index 5e1458f..8bde0a4 100644
---- a/arch/x86/kernel/vmlinux.lds.S
-+++ b/arch/x86/kernel/vmlinux.lds.S
-@@ -55,19 +55,22 @@ jiffies_64 = jiffies;
-  * so we can enable protection checks as well as retain 2MB large page
-  * mappings for kernel text.
-  */
--#define X64_ALIGN_RODATA_BEGIN	. = ALIGN(HPAGE_SIZE);
-+#define X86_ALIGN_RODATA_BEGIN	. = ALIGN(HPAGE_SIZE);
- 
--#define X64_ALIGN_RODATA_END					\
-+#define X86_ALIGN_RODATA_END					\
- 		. = ALIGN(HPAGE_SIZE);				\
--		__end_rodata_hpage_align = .;
-+		__end_rodata_hpage_align = .;			\
-+		__end_rodata_aligned = .;
- 
- #define ALIGN_ENTRY_TEXT_BEGIN	. = ALIGN(PMD_SIZE);
- #define ALIGN_ENTRY_TEXT_END	. = ALIGN(PMD_SIZE);
- 
+-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+-# define X86_CR3_PTI_PCID_USER_BIT	11
+-#endif
+-
  #else
+ /*
+  * CR3_ADDR_MASK needs at least bits 31:5 set on PAE systems, and we save
+@@ -53,4 +49,8 @@
+ #define CR3_NOFLUSH	0
+ #endif
  
--#define X64_ALIGN_RODATA_BEGIN
--#define X64_ALIGN_RODATA_END
-+#define X86_ALIGN_RODATA_BEGIN
-+#define X86_ALIGN_RODATA_END					\
-+		. = ALIGN(PAGE_SIZE);				\
-+		__end_rodata_aligned = .;
- 
- #define ALIGN_ENTRY_TEXT_BEGIN
- #define ALIGN_ENTRY_TEXT_END
-@@ -141,9 +144,9 @@ SECTIONS
- 
- 	/* .text should occupy whole number of pages */
- 	. = ALIGN(PAGE_SIZE);
--	X64_ALIGN_RODATA_BEGIN
-+	X86_ALIGN_RODATA_BEGIN
- 	RO_DATA(PAGE_SIZE)
--	X64_ALIGN_RODATA_END
-+	X86_ALIGN_RODATA_END
- 
- 	/* Data */
- 	.data : AT(ADDR(.data) - LOAD_OFFSET) {
-diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index 2eadab0..4f6e933 100644
---- a/arch/x86/mm/pti.c
-+++ b/arch/x86/mm/pti.c
-@@ -470,7 +470,7 @@ void pti_clone_kernel_text(void)
- 	 * clone the areas past rodata, they might contain secrets.
- 	 */
- 	unsigned long start = PFN_ALIGN(_text);
--	unsigned long end = (unsigned long)__end_rodata_hpage_align;
-+	unsigned long end = (unsigned long)__end_rodata_aligned;
- 
- 	if (!pti_kernel_image_global_ok())
- 		return;
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++# define X86_CR3_PTI_PCID_USER_BIT	11
++#endif
++
+ #endif /* _ASM_X86_PROCESSOR_FLAGS_H */
 -- 
 2.7.4
