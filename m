@@ -1,56 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CB64A6B0003
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 18:40:23 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id r2-v6so17148934ybb.4
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 15:40:23 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id f7-v6si5089152yba.169.2018.07.11.15.40.21
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 326326B0010
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 18:40:30 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h14-v6so17172305pfi.19
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 15:40:30 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id w123-v6si20766471pfb.362.2018.07.11.15.40.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 15:40:22 -0700 (PDT)
-Date: Wed, 11 Jul 2018 15:40:03 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: cgroup-aware OOM killer, how to move forward
-Message-ID: <20180711223959.GA13981@castle.DHCP.thefacebook.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+        Wed, 11 Jul 2018 15:40:29 -0700 (PDT)
+Date: Wed, 11 Jul 2018 15:40:27 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [2/2] mm: Drop unneeded ->vm_ops checks
+Message-Id: <20180711154027.66dd158b11ab144f2f776221@linux-foundation.org>
+In-Reply-To: <20180711221742.GA9360@roeck-us.net>
+References: <20180710134821.84709-3-kirill.shutemov@linux.intel.com>
+	<20180711221742.GA9360@roeck-us.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, rientjes@google.com, mhocko@kernel.org, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
+To: Guenter Roeck <linux@roeck-us.net>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Stephen Rothwell <sfr@canb.auug.org.au>
 
-Hello!
+On Wed, 11 Jul 2018 15:17:42 -0700 Guenter Roeck <linux@roeck-us.net> wrote:
 
-I was thinking on how to move forward with the cgroup-aware OOM killer.
-It looks to me, that we all agree on the "cleanup" part of the patchset:
-it's a nice feature to be able to kill all tasks in the cgroup
-to guarantee the consistent state of the workload.
-All our disagreements are related to the victim selection algorithm.
+> On Tue, Jul 10, 2018 at 04:48:21PM +0300, Kirill A. Shutemov wrote:
+> > We now have all VMAs with ->vm_ops set and don't need to check it for
+> > NULL everywhere.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> 
+> This patch causes two of my qemu tests to fail:
+> 	arm:mps2-an385:mps2_defconfig:mps2-an385
+> 	xtensa:de212:kc705-nommu:nommu_kc705_defconfig
+> 
+> Both are nommu configurations.
+> 
+> Reverting the patch fixes the problem. Bisect log is attached for reference.
 
-So, I wonder, if the right thing to do is to split the problem.
-We can agree on the "cleanup" part, which is useful by itself,
-merge it upstream, and then return to the victim selection
-algorithm.
+Thanks.  And there's the /dev/ion sysbot bug report.
 
-So, here is my proposal:
-let's introduce the memory.group_oom knob with the following semantics:
-if the knob is set, the OOM killer can kill either none, either all
-tasks in the cgroup*.
-It can perfectly work with the current OOM killer (as a "cleanup" option),
-and allows _any_ further approach on the OOM victim selection.
-It also doesn't require any mount/boot/tree-wide options.
-
-How does it sound?
-
-If we can agree on this, I will prepare the patchset.
-It's quite small and straightforward in comparison to the current version.
-
-Thanks!
-
-
-* More precisely: if the OOM killer kills a task,
-it will traverse the cgroup tree up to the OOM domain (OOMing memcg or root),
-looking for the highest-level cgroup with group_oom set. Then it will
-kill all tasks in such cgroup, if it does exist.
+mm-drop-unneeded-vm_ops-checks.patch needs some more work - let's drop it
+for now.
