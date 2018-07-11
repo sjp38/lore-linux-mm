@@ -1,130 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F0F5C6B000A
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:10:57 -0400 (EDT)
-Received: by mail-lj1-f199.google.com with SMTP id e12-v6so682493ljk.3
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:10:57 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u17-v6sor4880714lff.23.2018.07.11.04.10.56
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CF2E56B000C
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:13:04 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id o18-v6so14396119qtm.11
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:13:04 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id 135-v6si6658287qkh.385.2018.07.11.04.13.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 11 Jul 2018 04:10:56 -0700 (PDT)
-Date: Wed, 11 Jul 2018 14:10:52 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC v4 0/3] mm: zap pages with read mmap_sem in munmap for
- large mapping
-Message-ID: <20180711111052.hbyukcwetmjjpij2@kshutemo-mobl1>
-References: <1531265649-93433-1-git-send-email-yang.shi@linux.alibaba.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Jul 2018 04:13:03 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 20/27] x86/cet/shstk: ELF header parsing of CET
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+ <20180710222639.8241-21-yu-cheng.yu@intel.com>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <10c224e9-933a-20d8-a286-5065a6cb10f1@redhat.com>
+Date: Wed, 11 Jul 2018 13:12:57 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1531265649-93433-1-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <20180710222639.8241-21-yu-cheng.yu@intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-On Wed, Jul 11, 2018 at 07:34:06AM +0800, Yang Shi wrote:
-> 
-> Background:
-> Recently, when we ran some vm scalability tests on machines with large memory,
-> we ran into a couple of mmap_sem scalability issues when unmapping large memory
-> space, please refer to https://lkml.org/lkml/2017/12/14/733 and
-> https://lkml.org/lkml/2018/2/20/576.
-> 
-> 
-> History:
-> Then akpm suggested to unmap large mapping section by section and drop mmap_sem
-> at a time to mitigate it (see https://lkml.org/lkml/2018/3/6/784).
-> 
-> V1 patch series was submitted to the mailing list per Andrew's suggestion
-> (see https://lkml.org/lkml/2018/3/20/786). Then I received a lot great feedback
-> and suggestions.
-> 
-> Then this topic was discussed on LSFMM summit 2018. In the summit, Michal Hocko
-> suggested (also in the v1 patches review) to try "two phases" approach. Zapping
-> pages with read mmap_sem, then doing via cleanup with write mmap_sem (for
-> discussion detail, see https://lwn.net/Articles/753269/)
-> 
-> 
-> Approach:
-> Zapping pages is the most time consuming part, according to the suggestion from
-> Michal Hocko [1], zapping pages can be done with holding read mmap_sem, like
-> what MADV_DONTNEED does. Then re-acquire write mmap_sem to cleanup vmas.
-> 
-> But, we can't call MADV_DONTNEED directly, since there are two major drawbacks:
->   * The unexpected state from PF if it wins the race in the middle of munmap.
->     It may return zero page, instead of the content or SIGSEGV.
->   * Cana??t handle VM_LOCKED | VM_HUGETLB | VM_PFNMAP and uprobe mappings, which
->     is a showstopper from akpm
-> 
-> And, some part may need write mmap_sem, for example, vma splitting. So, the
-> design is as follows:
->         acquire write mmap_sem
->         lookup vmas (find and split vmas)
->         set VM_DEAD flags
->         deal with special mappings
->         downgrade_write
-> 
->         zap pages
->         release mmap_sem
-> 
->         retake mmap_sem exclusively
->         cleanup vmas
->         release mmap_sem
-> 
-> Define large mapping size thresh as PUD size, just zap pages with read mmap_sem
-> for mappings which are >= PUD_SIZE. So, unmapping less than PUD_SIZE area still
-> goes with the regular path.
-> 
-> All vmas which will be zapped soon will have VM_DEAD flag set. Since PF may race
-> with munmap, may just return the right content or SIGSEGV before the optimization,
-> but with the optimization, it may return a zero page. Here use this flag to mark
-> PF to this area is unstable, will trigger SIGSEGV, in order to prevent from the
-> unexpected 3rd state.
-> 
-> If the vma has VM_LOCKED | VM_HUGETLB | VM_PFNMAP or uprobe, they are considered
-> as special mappings. They will be dealt with before zapping pages with write
-> mmap_sem held. Basically, just update vm_flags. The actual unmapping is still
-> done with read mmap_sem.
-> 
-> And, since they are also manipulated by unmap_single_vma() which is called by
-> zap_page_range() with read mmap_sem held in this case, to prevent from updating
-> vm_flags in read critical section and considering the complexity of coding, just
-> check if VM_DEAD is set, then skip any VM_DEAD area since they should be handled
-> before.
-> 
-> When cleaning up vmas, just call do_munmap() without carrying vmas from the above
-> to avoid race condition, since the address space might be already changed under
-> our feet after retaking exclusive lock.
-> 
-> For the time being, just do this in munmap syscall path. Other vm_munmap() or
-> do_munmap() call sites (i.e mmap, mremap, etc) remain intact for stability reason.
-> And, make this 64 bit only explicitly per akpm's suggestion.
+On 07/11/2018 12:26 AM, Yu-cheng Yu wrote:
+> +	/*
+> +	 * PT_NOTE segment is small.  Read at most
+> +	 * PAGE_SIZE.
+> +	 */
+> +	if (note_size > PAGE_SIZE)
+> +		note_size = PAGE_SIZE;
 
-I still see VM_DEAD as unnecessary complication. We should be fine without it.
-But looks like I'm in the minority :/
+That's not really true.  There are some huge PT_NOTE segments out there.
 
-It's okay. I have another suggestion that also doesn't require VM_DEAD
-trick too :)
+Why can't you check the notes after the executable has been mapped?
 
-1. Take mmap_sem for write;
-2. Adjust VMA layout (split/remove). After the step all memory we try to
-   unmap is outside any VMA.
-3. Downgrade mmap_sem to read.
-4. Zap the page range.
-5. Drop mmap_sem.
-
-I believe it should be safe.
-
-The pages in the range cannot be re-faulted after step 3 as find_vma()
-will not see the corresponding VMA and deliver SIGSEGV.
-
-New VMAs cannot be created in the range before step 5 since we hold the
-semaphore at least for read the whole time.
-
-Do you see problem in this approach?
-
--- 
- Kirill A. Shutemov
+Thanks,
+Florian
