@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D0676B028F
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C44976B0291
 	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:21 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id v26-v6so3469869eds.9
+Received: by mail-ed1-f70.google.com with SMTP id n2-v6so9876590edr.5
         for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:21 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id g3-v6si3523663edg.360.2018.07.11.04.30.20
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id x17-v6si2934371edl.345.2018.07.11.04.30.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 11 Jul 2018 04:30:20 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 31/39] x86/mm/dump_pagetables: Define INIT_PGD
-Date: Wed, 11 Jul 2018 13:29:38 +0200
-Message-Id: <1531308586-29340-32-git-send-email-joro@8bytes.org>
+Subject: [PATCH 30/39] x86/mm/pti: Clone entry-text again in pti_finalize()
+Date: Wed, 11 Jul 2018 13:29:37 +0200
+Message-Id: <1531308586-29340-31-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,58 +22,50 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Define INIT_PGD to point to the correct initial page-table
-for 32 and 64 bit and use it where needed. This fixes the
-build on 32 bit with CONFIG_PAGE_TABLE_ISOLATION enabled.
+The mapping for entry-text might have changed in the kernel
+after it was cloned to the user page-table. Clone again
+to update the user page-table to bring the mapping in sync
+with the kernel again.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/dump_pagetables.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ arch/x86/mm/pti.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index 2f3c919..e6fd0cd 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -111,6 +111,8 @@ static struct addr_marker address_markers[] = {
- 	[END_OF_SPACE_NR]	= { -1,			NULL }
- };
- 
-+#define INIT_PGD	((pgd_t *) &init_top_pgt)
-+
- #else /* CONFIG_X86_64 */
- 
- enum address_markers_idx {
-@@ -139,6 +141,8 @@ static struct addr_marker address_markers[] = {
- 	[END_OF_SPACE_NR]	= { -1,			NULL }
- };
- 
-+#define INIT_PGD	(swapper_pg_dir)
-+
- #endif /* !CONFIG_X86_64 */
- 
- /* Multipliers for offsets within the PTEs */
-@@ -496,11 +500,7 @@ static inline bool is_hypervisor_range(int idx)
- static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
- 				       bool checkwx, bool dmesg)
+diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+index 1825f30..b879ccd 100644
+--- a/arch/x86/mm/pti.c
++++ b/arch/x86/mm/pti.c
+@@ -404,7 +404,7 @@ static void __init pti_setup_espfix64(void)
+ /*
+  * Clone the populated PMDs of the entry and irqentry text and force it RO.
+  */
+-static void __init pti_clone_entry_text(void)
++static void pti_clone_entry_text(void)
  {
--#ifdef CONFIG_X86_64
--	pgd_t *start = (pgd_t *) &init_top_pgt;
--#else
--	pgd_t *start = swapper_pg_dir;
--#endif
-+	pgd_t *start = INIT_PGD;
- 	pgprotval_t prot, eff;
- 	int i;
- 	struct pg_state st = {};
-@@ -566,7 +566,7 @@ EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
- static void ptdump_walk_user_pgd_level_checkwx(void)
- {
- #ifdef CONFIG_PAGE_TABLE_ISOLATION
--	pgd_t *pgd = (pgd_t *) &init_top_pgt;
-+	pgd_t *pgd = INIT_PGD;
+ 	pti_clone_pmds((unsigned long) __entry_text_start,
+ 			(unsigned long) __irqentry_text_end,
+@@ -528,13 +528,18 @@ void __init pti_init(void)
+ }
  
- 	if (!static_cpu_has(X86_FEATURE_PTI))
- 		return;
+ /*
+- * Finalize the kernel mappings in the userspace page-table.
++ * Finalize the kernel mappings in the userspace page-table. Some of the
++ * mappings for the kernel image might have changed since pti_init()
++ * cloned them. This is because parts of the kernel image have been
++ * mapped RO and/or NX.  These changes need to be cloned again to the
++ * userspace page-table.
+  */
+ void pti_finalize(void)
+ {
+ 	/*
+-	 * Do this after all of the manipulation of the
+-	 * kernel text page tables are complete.
++	 * We need to clone everything (again) that maps parts of the
++	 * kernel image.
+ 	 */
++	pti_clone_entry_text();
+ 	pti_clone_kernel_text();
+ }
 -- 
 2.7.4
