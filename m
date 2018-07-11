@@ -1,48 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 91B616B000E
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 12:22:31 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id e93-v6so13046801plb.5
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 09:22:31 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id s126-v6si21132761pfc.222.2018.07.11.09.22.30
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ACBB36B0266
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 12:24:06 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id w23-v6so12983745iob.18
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 09:24:06 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h6-v6sor7836876iob.244.2018.07.11.09.24.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 09:22:30 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 15/27] mm/mprotect: Prevent mprotect from changing
- shadow stack
-References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
- <20180710222639.8241-16-yu-cheng.yu@intel.com>
- <04800c52-1f86-c485-ba7c-2216d8c4966f@linux.intel.com>
- <20180711091232.GU2476@hirez.programming.kicks-ass.net>
- <1531325272.13297.27.camel@intel.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <a4dae7e3-58a7-5c38-1071-2deee758bb98@linux.intel.com>
-Date: Wed, 11 Jul 2018 09:22:28 -0700
+        (Google Transport Security);
+        Wed, 11 Jul 2018 09:24:05 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1531325272.13297.27.camel@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+References: <1531215067-35472-1-git-send-email-wei.w.wang@intel.com>
+ <1531215067-35472-2-git-send-email-wei.w.wang@intel.com> <CA+55aFz9a=D-kquM=sG5uhV_HrBAw+VAhcJmtPNz+howy4j9ow@mail.gmail.com>
+ <5B455D50.90902@intel.com> <CA+55aFzqj8wxXnHAdUTiOomipgFONVbqKMjL_tfk7e5ar1FziQ@mail.gmail.com>
+ <20180711092152.GE20050@dhcp22.suse.cz>
+In-Reply-To: <20180711092152.GE20050@dhcp22.suse.cz>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 11 Jul 2018 09:23:54 -0700
+Message-ID: <CA+55aFwku2tDH4+rfaC67xc4-cEwSrXgnQaci=e2id5ZCRE9JQ@mail.gmail.com>
+Subject: Re: [PATCH v35 1/5] mm: support to get hints of free page blocks
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, virtualization <virtualization@lists.linux-foundation.org>, KVM list <kvm@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Michael S. Tsirkin" <mst@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, Rik van Riel <riel@redhat.com>, peterx@redhat.com
 
-On 07/11/2018 09:07 AM, Yu-cheng Yu wrote:
->> Why do we need to disallow this? AFAICT the worst that can happen is
->> that a process wrecks itself, so what?
-> Agree. A I will remove the patch.
+On Wed, Jul 11, 2018 at 2:21 AM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> We already have an interface for that. alloc_pages(GFP_NOWAIT, MAX_ORDER -1).
+> So why do we need any array based interface?
 
-No so quick. :)
+That was actually my original argument in the original thread - that
+the only new interface people might want is one that just tells how
+many of those MAX_ORDER-1 pages there are.
 
-We still need to find out a way to handle things that ask for an
-mprotect() which is incompatible with shadow stacks.  PROT_READ without
-PROT_WRITE comes to mind.  We also need to be careful that we don't
-copy-on-write/copy-on-access pages which fault on PROT_NONE.  I *think*
-it'll get done correctly but we have to be sure.
+See the thread in v33 with the subject
 
-BTW, where are all the selftests for this code?  We're slowly building
-up a list of pathological things that need to get tested.
+  "[PATCH v33 1/4] mm: add a function to get free page blocks"
 
-I don't think this can or should get merged before we have selftests.
+and look for me suggesting just using
+
+    #define GFP_MINFLAGS (__GFP_NORETRY | __GFP_NOWARN |
+__GFP_THISNODE | __GFP_NOMEMALLOC)
+
+    struct page *page =  alloc_pages(GFP_MINFLAGS, MAX_ORDER-1);
+
+for this all.
+
+But I could also see an argument for "allocate N pages of size
+MAX_ORDER-1", with some small N, simply because I can see the
+advantage of not taking and releasing the locking and looking up the
+zone individually N times.
+
+If you want to get gigabytes of memory (or terabytes), doing it in
+bigger chunks than one single maximum-sized page sounds fairly
+reasonable.
+
+I just don't think that "thousands of pages" is reasonable. But "tens
+of max-sized pages" sounds fair enough to me, and it would certainly
+not be a pain for the VM.
+
+So I'm open to new interfaces. I just want those new interfaces to
+make sense, and be low latency and simple for the VM to do. I'm
+objecting to the incredibly baroque and heavy-weight one that can
+return near-infinite amounts of memory.
+
+The real advantage of jjuist the existing "alloc_pages()" model is
+that I think the ballooning people can use that to *test* things out.
+If it turns out that taking and releasing the VM locks is a big cost,
+we can see if a batch interface that allows you to get tens of pages
+at the same time is worth it.
+
+So yes, I'd suggest starting with just the existing alloc_pages. Maybe
+it's not enough, but it should be good enough for testing.
+
+                    Linus
