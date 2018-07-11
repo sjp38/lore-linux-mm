@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F8506B028E
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:20 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id c2-v6so9864516edi.20
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:20 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 3D0676B028F
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:21 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id v26-v6so3469869eds.9
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:21 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id 29-v6si6010913edx.293.2018.07.11.04.30.19
+        by mx.google.com with ESMTPS id g3-v6si3523663edg.360.2018.07.11.04.30.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 04:30:19 -0700 (PDT)
+        Wed, 11 Jul 2018 04:30:20 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 29/39] x86/mm/pti: Introduce pti_finalize()
-Date: Wed, 11 Jul 2018 13:29:36 +0200
-Message-Id: <1531308586-29340-30-git-send-email-joro@8bytes.org>
+Subject: [PATCH 31/39] x86/mm/dump_pagetables: Define INIT_PGD
+Date: Wed, 11 Jul 2018 13:29:38 +0200
+Message-Id: <1531308586-29340-32-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,113 +22,58 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Introduce a new function to finalize the kernel mappings for
-the userspace page-table after all ro/nx protections have been
-applied to the kernel mappings.
-
-Also move the call to pti_clone_kernel_text() to that
-function so that it will run on 32 bit kernels too.
+Define INIT_PGD to point to the correct initial page-table
+for 32 and 64 bit and use it where needed. This fixes the
+build on 32 bit with CONFIG_PAGE_TABLE_ISOLATION enabled.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pti.h |  3 +--
- arch/x86/mm/init_64.c      |  6 ------
- arch/x86/mm/pti.c          | 14 +++++++++++++-
- include/linux/pti.h        |  1 +
- init/main.c                |  7 +++++++
- 5 files changed, 22 insertions(+), 9 deletions(-)
+ arch/x86/mm/dump_pagetables.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/arch/x86/include/asm/pti.h b/arch/x86/include/asm/pti.h
-index 38a17f1..5df09a0 100644
---- a/arch/x86/include/asm/pti.h
-+++ b/arch/x86/include/asm/pti.h
-@@ -6,10 +6,9 @@
- #ifdef CONFIG_PAGE_TABLE_ISOLATION
- extern void pti_init(void);
- extern void pti_check_boottime_disable(void);
--extern void pti_clone_kernel_text(void);
-+extern void pti_finalize(void);
- #else
- static inline void pti_check_boottime_disable(void) { }
--static inline void pti_clone_kernel_text(void) { }
- #endif
+diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+index 2f3c919..e6fd0cd 100644
+--- a/arch/x86/mm/dump_pagetables.c
++++ b/arch/x86/mm/dump_pagetables.c
+@@ -111,6 +111,8 @@ static struct addr_marker address_markers[] = {
+ 	[END_OF_SPACE_NR]	= { -1,			NULL }
+ };
  
- #endif /* __ASSEMBLY__ */
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index a688617..9b19f9a 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -1291,12 +1291,6 @@ void mark_rodata_ro(void)
- 			(unsigned long) __va(__pa_symbol(_sdata)));
++#define INIT_PGD	((pgd_t *) &init_top_pgt)
++
+ #else /* CONFIG_X86_64 */
  
- 	debug_checkwx();
--
--	/*
--	 * Do this after all of the manipulation of the
--	 * kernel text page tables are complete.
--	 */
--	pti_clone_kernel_text();
- }
+ enum address_markers_idx {
+@@ -139,6 +141,8 @@ static struct addr_marker address_markers[] = {
+ 	[END_OF_SPACE_NR]	= { -1,			NULL }
+ };
  
- int kern_addr_valid(unsigned long addr)
-diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index fc77054..1825f30 100644
---- a/arch/x86/mm/pti.c
-+++ b/arch/x86/mm/pti.c
-@@ -462,7 +462,7 @@ static inline bool pti_kernel_image_global_ok(void)
-  * For some configurations, map all of kernel text into the user page
-  * tables.  This reduces TLB misses, especially on non-PCID systems.
-  */
--void pti_clone_kernel_text(void)
-+static void pti_clone_kernel_text(void)
++#define INIT_PGD	(swapper_pg_dir)
++
+ #endif /* !CONFIG_X86_64 */
+ 
+ /* Multipliers for offsets within the PTEs */
+@@ -496,11 +500,7 @@ static inline bool is_hypervisor_range(int idx)
+ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
+ 				       bool checkwx, bool dmesg)
  {
- 	/*
- 	 * rodata is part of the kernel image and is normally
-@@ -526,3 +526,15 @@ void __init pti_init(void)
- 	pti_setup_espfix64();
- 	pti_setup_vsyscall();
- }
-+
-+/*
-+ * Finalize the kernel mappings in the userspace page-table.
-+ */
-+void pti_finalize(void)
-+{
-+	/*
-+	 * Do this after all of the manipulation of the
-+	 * kernel text page tables are complete.
-+	 */
-+	pti_clone_kernel_text();
-+}
-diff --git a/include/linux/pti.h b/include/linux/pti.h
-index 0174883..1a941ef 100644
---- a/include/linux/pti.h
-+++ b/include/linux/pti.h
-@@ -6,6 +6,7 @@
- #include <asm/pti.h>
- #else
- static inline void pti_init(void) { }
-+static inline void pti_finalize(void) { }
- #endif
+-#ifdef CONFIG_X86_64
+-	pgd_t *start = (pgd_t *) &init_top_pgt;
+-#else
+-	pgd_t *start = swapper_pg_dir;
+-#endif
++	pgd_t *start = INIT_PGD;
+ 	pgprotval_t prot, eff;
+ 	int i;
+ 	struct pg_state st = {};
+@@ -566,7 +566,7 @@ EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
+ static void ptdump_walk_user_pgd_level_checkwx(void)
+ {
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
+-	pgd_t *pgd = (pgd_t *) &init_top_pgt;
++	pgd_t *pgd = INIT_PGD;
  
- #endif
-diff --git a/init/main.c b/init/main.c
-index 3b4ada1..fcfef46 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -1065,6 +1065,13 @@ static int __ref kernel_init(void *unused)
- 	jump_label_invalidate_initmem();
- 	free_initmem();
- 	mark_readonly();
-+
-+	/*
-+	 * Kernel mappings are now finalized - update the userspace page-table
-+	 * to finalize PTI.
-+	 */
-+	pti_finalize();
-+
- 	system_state = SYSTEM_RUNNING;
- 	numa_default_policy();
- 
+ 	if (!static_cpu_has(X86_FEATURE_PTI))
+ 		return;
 -- 
 2.7.4
