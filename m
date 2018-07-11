@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B9A4E6B027D
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:12 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id v26-v6so3469686eds.9
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:12 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 45D686B027E
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:13 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id t11-v6so9898231edq.1
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:13 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id g2-v6si11047779edc.349.2018.07.11.04.30.11
+        by mx.google.com with ESMTPS id x8-v6si4214689edr.318.2018.07.11.04.30.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 04:30:11 -0700 (PDT)
+        Wed, 11 Jul 2018 04:30:12 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 13/39] x86/entry/32: Add PTI cr3 switch to non-NMI entry/exit points
-Date: Wed, 11 Jul 2018 13:29:20 +0200
-Message-Id: <1531308586-29340-14-git-send-email-joro@8bytes.org>
+Subject: [PATCH 20/39] x86/pgtable: Move two more functions from pgtable_64.h to pgtable.h
+Date: Wed, 11 Jul 2018 13:29:27 +0200
+Message-Id: <1531308586-29340-21-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,182 +22,150 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Add unconditional cr3 switches between user and kernel cr3
-to all non-NMI entry and exit points.
+These two functions are required for PTI on 32 bit:
+
+	* pgdp_maps_userspace()
+	* pgd_large()
+
+Also re-implement pgdp_maps_userspace() so that it will work
+on 64 and 32 bit kernels.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S | 83 ++++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 79 insertions(+), 4 deletions(-)
+ arch/x86/include/asm/pgtable-2level_types.h |  3 +++
+ arch/x86/include/asm/pgtable-3level_types.h |  1 +
+ arch/x86/include/asm/pgtable.h              | 15 ++++++++++++
+ arch/x86/include/asm/pgtable_32.h           |  2 --
+ arch/x86/include/asm/pgtable_64.h           | 36 -----------------------------
+ arch/x86/include/asm/pgtable_64_types.h     |  2 ++
+ 6 files changed, 21 insertions(+), 38 deletions(-)
 
-diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index 9e06431..311aefa 100644
---- a/arch/x86/entry/entry_32.S
-+++ b/arch/x86/entry/entry_32.S
-@@ -154,6 +154,33 @@
+diff --git a/arch/x86/include/asm/pgtable-2level_types.h b/arch/x86/include/asm/pgtable-2level_types.h
+index f982ef8..6deb6cd 100644
+--- a/arch/x86/include/asm/pgtable-2level_types.h
++++ b/arch/x86/include/asm/pgtable-2level_types.h
+@@ -35,4 +35,7 @@ typedef union {
  
- #endif /* CONFIG_X86_32_LAZY_GS */
+ #define PTRS_PER_PTE	1024
  
-+/* Unconditionally switch to user cr3 */
-+.macro SWITCH_TO_USER_CR3 scratch_reg:req
-+	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
++/* This covers all VMSPLIT_* and VMSPLIT_*_OPT variants */
++#define PGD_KERNEL_START	(CONFIG_PAGE_OFFSET >> PGDIR_SHIFT)
 +
-+	movl	%cr3, \scratch_reg
-+	orl	$PTI_SWITCH_MASK, \scratch_reg
-+	movl	\scratch_reg, %cr3
-+.Lend_\@:
-+.endm
-+
+ #endif /* _ASM_X86_PGTABLE_2LEVEL_DEFS_H */
+diff --git a/arch/x86/include/asm/pgtable-3level_types.h b/arch/x86/include/asm/pgtable-3level_types.h
+index 78038e0..858358a 100644
+--- a/arch/x86/include/asm/pgtable-3level_types.h
++++ b/arch/x86/include/asm/pgtable-3level_types.h
+@@ -46,5 +46,6 @@ typedef union {
+ #define PTRS_PER_PTE	512
+ 
+ #define MAX_POSSIBLE_PHYSMEM_BITS	36
++#define PGD_KERNEL_START	(CONFIG_PAGE_OFFSET >> PGDIR_SHIFT)
+ 
+ #endif /* _ASM_X86_PGTABLE_3LEVEL_DEFS_H */
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index cc117161..e39088cb 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -1177,6 +1177,21 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
+ 	}
+ }
+ #endif
 +/*
-+ * Switch to kernel cr3 if not already loaded and return current cr3 in
-+ * \scratch_reg
++ * Page table pages are page-aligned.  The lower half of the top
++ * level is used for userspace and the top half for the kernel.
++ *
++ * Returns true for parts of the PGD that map userspace and
++ * false for the parts that map the kernel.
 + */
-+.macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
-+	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
-+	movl	%cr3, \scratch_reg
-+	/* Test if we are already on kernel CR3 */
-+	testl	$PTI_SWITCH_MASK, \scratch_reg
-+	jz	.Lend_\@
-+	andl	$(~PTI_SWITCH_MASK), \scratch_reg
-+	movl	\scratch_reg, %cr3
-+	/* Return original CR3 in \scratch_reg */
-+	orl	$PTI_SWITCH_MASK, \scratch_reg
-+.Lend_\@:
-+.endm
++static inline bool pgdp_maps_userspace(void *__ptr)
++{
++	unsigned long ptr = (unsigned long)__ptr;
 +
- .macro SAVE_ALL pt_regs_ax=%eax switch_stacks=0
- 	cld
- 	/* Push segment registers and %eax */
-@@ -288,7 +315,6 @@
- #endif /* CONFIG_X86_ESPFIX32 */
- .endm
++	return (((ptr & ~PAGE_MASK) / sizeof(pgd_t)) < PGD_KERNEL_START);
++}
++
++static inline int pgd_large(pgd_t pgd) { return 0; }
  
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
+ /*
+diff --git a/arch/x86/include/asm/pgtable_32.h b/arch/x86/include/asm/pgtable_32.h
+index 88a056b..b3ec519 100644
+--- a/arch/x86/include/asm/pgtable_32.h
++++ b/arch/x86/include/asm/pgtable_32.h
+@@ -34,8 +34,6 @@ static inline void check_pgt_cache(void) { }
+ void paging_init(void);
+ void sync_initial_page_table(void);
+ 
+-static inline int pgd_large(pgd_t pgd) { return 0; }
 -
  /*
-  * Called with pt_regs fully populated and kernel segments loaded,
-  * so we can access PER_CPU and use the integer registers.
-@@ -301,11 +327,19 @@
-  */
+  * Define this if things work differently on an i386 and an i486:
+  * it will (on an i486) warn about kernel memory accesses that are
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 4adba19..acb6970 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -132,41 +132,6 @@ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
+ #endif
+ }
  
- #define CS_FROM_ENTRY_STACK	(1 << 31)
-+#define CS_FROM_USER_CR3	(1 << 30)
- 
- .macro SWITCH_TO_KERNEL_STACK
- 
- 	ALTERNATIVE     "", "jmp .Lend_\@", X86_FEATURE_XENPV
- 
-+	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
-+
-+	/*
-+	 * %eax now contains the entry cr3 and we carry it forward in
-+	 * that register for the time this macro runs
-+	 */
-+
- 	/* Are we on the entry stack? Bail out if not! */
- 	movl	PER_CPU_VAR(cpu_entry_area), %edi
- 	addl	$CPU_ENTRY_AREA_entry_stack, %edi
-@@ -374,7 +408,8 @@
- 	 * but switch back to the entry-stack again when we approach
- 	 * iret and return to the interrupted code-path. This usually
- 	 * happens when we hit an exception while restoring user-space
--	 * segment registers on the way back to user-space.
-+	 * segment registers on the way back to user-space or when the
-+	 * sysenter handler runs with eflags.tf set.
- 	 *
- 	 * When we switch to the task-stack here, we can't trust the
- 	 * contents of the entry-stack anymore, as the exception handler
-@@ -391,6 +426,7 @@
- 	 *
- 	 * %esi: Entry-Stack pointer (same as %esp)
- 	 * %edi: Top of the task stack
-+	 * %eax: CR3 on kernel entry
- 	 */
- 
- 	/* Calculate number of bytes on the entry stack in %ecx */
-@@ -407,6 +443,14 @@
- 	orl	$CS_FROM_ENTRY_STACK, PT_CS(%esp)
- 
- 	/*
-+	 * Test the cr3 used to enter the kernel and add a marker
-+	 * so that we can switch back to it before iret.
-+	 */
-+	testl	$PTI_SWITCH_MASK, %eax
-+	jz	.Lcopy_pt_regs_\@
-+	orl	$CS_FROM_USER_CR3, PT_CS(%esp)
-+
-+	/*
- 	 * %esi and %edi are unchanged, %ecx contains the number of
- 	 * bytes to copy. The code at .Lcopy_pt_regs_\@ will allocate
- 	 * the stack-frame on task-stack and copy everything over
-@@ -472,7 +516,7 @@
- 
+-/*
+- * Page table pages are page-aligned.  The lower half of the top
+- * level is used for userspace and the top half for the kernel.
+- *
+- * Returns true for parts of the PGD that map userspace and
+- * false for the parts that map the kernel.
+- */
+-static inline bool pgdp_maps_userspace(void *__ptr)
+-{
+-	unsigned long ptr = (unsigned long)__ptr;
+-
+-	return (ptr & ~PAGE_MASK) < (PAGE_SIZE / 2);
+-}
+-
+-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+-pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd);
+-
+-/*
+- * Take a PGD location (pgdp) and a pgd value that needs to be set there.
+- * Populates the user and returns the resulting PGD that must be set in
+- * the kernel copy of the page tables.
+- */
+-static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
+-{
+-	if (!static_cpu_has(X86_FEATURE_PTI))
+-		return pgd;
+-	return __pti_set_user_pgtbl(pgdp, pgd);
+-}
+-#else
+-static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
+-{
+-	return pgd;
+-}
+-#endif
+-
+ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
+ {
+ 	pgd_t pgd;
+@@ -206,7 +171,6 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
  /*
-  * This macro handles the case when we return to kernel-mode on the iret
-- * path and have to switch back to the entry stack.
-+ * path and have to switch back to the entry stack and/or user-cr3
-  *
-  * See the comments below the .Lentry_from_kernel_\@ label in the
-  * SWITCH_TO_KERNEL_STACK macro for more details.
-@@ -518,6 +562,18 @@
- 	/* Safe to switch to entry-stack now */
- 	movl	%ebx, %esp
- 
-+	/*
-+	 * We came from entry-stack and need to check if we also need to
-+	 * switch back to user cr3.
-+	 */
-+	testl	$CS_FROM_USER_CR3, PT_CS(%esp)
-+	jz	.Lend_\@
-+
-+	/* Clear marker from stack-frame */
-+	andl	$(~CS_FROM_USER_CR3), PT_CS(%esp)
-+
-+	SWITCH_TO_USER_CR3 scratch_reg=%eax
-+
- .Lend_\@:
- .endm
- /*
-@@ -711,6 +767,18 @@ ENTRY(xen_sysenter_target)
-  * 0(%ebp) arg6
+  * Level 4 access.
   */
- ENTRY(entry_SYSENTER_32)
-+	/*
-+	 * On entry-stack with all userspace-regs live - save and
-+	 * restore eflags and %eax to use it as scratch-reg for the cr3
-+	 * switch.
-+	 */
-+	pushfl
-+	pushl	%eax
-+	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
-+	popl	%eax
-+	popfl
-+
-+	/* Stack empty again, switch to task stack */
- 	movl	TSS_entry_stack(%esp), %esp
+-static inline int pgd_large(pgd_t pgd) { return 0; }
+ #define mk_kernel_pgd(address) __pgd((address) | _KERNPG_TABLE)
  
- .Lsysenter_past_esp:
-@@ -791,6 +859,9 @@ ENTRY(entry_SYSENTER_32)
- 	/* Switch to entry stack */
- 	movl	%eax, %esp
+ /* PUD - Level3 access */
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index 054765a..066e0ab 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -153,4 +153,6 @@ extern unsigned int ptrs_per_p4d;
  
-+	/* Now ready to switch the cr3 */
-+	SWITCH_TO_USER_CR3 scratch_reg=%eax
+ #define EARLY_DYNAMIC_PAGE_TABLES	64
+ 
++#define PGD_KERNEL_START	((PAGE_SIZE / 2) / sizeof(pgd_t))
 +
- 	/*
- 	 * Restore all flags except IF. (We restore IF separately because
- 	 * STI gives a one-instruction window in which we won't be interrupted,
-@@ -871,7 +942,11 @@ restore_all:
- .Lrestore_all_notrace:
- 	CHECK_AND_APPLY_ESPFIX
- .Lrestore_nocheck:
--	RESTORE_REGS 4				# skip orig_eax/error_code
-+	/* Switch back to user CR3 */
-+	SWITCH_TO_USER_CR3 scratch_reg=%eax
-+
-+	/* Restore user state */
-+	RESTORE_REGS pop=4			# skip orig_eax/error_code
- .Lirq_return:
- 	/*
- 	 * ARCH_HAS_MEMBARRIER_SYNC_CORE rely on IRET core serialization
+ #endif /* _ASM_X86_PGTABLE_64_DEFS_H */
 -- 
 2.7.4
