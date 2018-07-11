@@ -1,92 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 23A3D6B000D
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 19:16:48 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id f9-v6so16077240pfn.22
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 16:16:48 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id b17-v6si20037808pgn.308.2018.07.11.16.16.46
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D90C16B0003
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 19:43:57 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id n17-v6so17242139pff.10
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 16:43:57 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n59-v6sor6795095plb.0.2018.07.11.16.43.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 16:16:46 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 22/27] x86/cet/ibt: User-mode indirect branch
- tracking support
-References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
- <20180710222639.8241-23-yu-cheng.yu@intel.com>
- <3a7e9ce4-03c6-cc28-017b-d00108459e94@linux.intel.com>
- <1531347019.15351.89.camel@intel.com>
- <f97ce234-52fa-e666-2250-098925cf3c39@linux.intel.com>
- <1531350028.15351.102.camel@intel.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <25675609-9ea7-55fb-6e73-b4a4c49b6c35@linux.intel.com>
-Date: Wed, 11 Jul 2018 16:16:44 -0700
+        (Google Transport Security);
+        Wed, 11 Jul 2018 16:43:56 -0700 (PDT)
+Date: Wed, 11 Jul 2018 16:43:54 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, vmacache: hash addresses based on pmd
+In-Reply-To: <20180711161030.b5ae2f5b1210150c13b1a832@linux-foundation.org>
+Message-ID: <alpine.DEB.2.21.1807111637050.254865@chino.kir.corp.google.com>
+References: <alpine.DEB.2.21.1807091749150.114630@chino.kir.corp.google.com> <20180709180841.ebfb6cf70bd8dc08b269c0d9@linux-foundation.org> <alpine.DEB.2.21.1807091822460.130281@chino.kir.corp.google.com>
+ <20180711161030.b5ae2f5b1210150c13b1a832@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <1531350028.15351.102.camel@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>, Alexey Dobriyan <adobriyan@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 07/11/2018 04:00 PM, Yu-cheng Yu wrote:
-> On Wed, 2018-07-11 at 15:40 -0700, Dave Hansen wrote:
->> On 07/11/2018 03:10 PM, Yu-cheng Yu wrote:
->>>
->>> On Tue, 2018-07-10 at 17:11 -0700, Dave Hansen wrote:
->>>>
->>>> Is this feature *integral* to shadow stacks?A A Or, should it just
->>>> be
->>>> in a
->>>> different series?
->>> The whole CET series is mostly about SHSTK and only a minority for
->>> IBT.
->>> IBT changes cannot be applied by itself without first applying
->>> SHSTK
->>> changes. A Would the titles help, e.g. x86/cet/ibt, x86/cet/shstk,
->>> etc.?
->> That doesn't really answer what I asked, though.
->>
->> Do shadow stacks *require* IBT?A A Or, should we concentrate on merging
->> shadow stacks themselves first and then do IBT at a later time, in a
->> different patch series?
->>
->> But, yes, better patch titles would help, although I'm not sure
->> that's
->> quite the format that Ingo and Thomas prefer.
+On Wed, 11 Jul 2018, Andrew Morton wrote:
+
+> > > Did you consider LRU-sorting the array instead?
+> > > 
+> > 
+> > It adds 40 bytes to struct task_struct,
 > 
-> Shadow stack does not require IBT, but they complement each other. A If
-> we can resolve the legacy bitmap, both features can be merged at the
-> same time.
-
-As large as this patch set is, I'd really prefer to see you get shadow
-stacks merged and then move on to IBT.  I say separate them.
-
-> GLIBC does the bitmap setup. A It sets bits in there.
-> I thought you wanted a smaller bitmap? A One way is forcing legacy libs
-> to low address, or not having the bitmap at all, i.e. turn IBT off.
-
-I'm concerned with two things:
-1. the virtual address space consumption, especially the *default* case
-   which will be apps using 4-level address space amounts, but having
-   5-level-sized tables.
-2. the driving a truck-sized hole in the address space limits
-
-You can force legacy libs to low addresses, but you can't stop anyone
-from putting code into a high address *later*, at least with the code we
-have today.
-
->>>>> +	rdmsrl(MSR_IA32_U_CET, r);
->>>>> +	r &= ~(MSR_IA32_CET_ENDBR_EN | MSR_IA32_CET_LEG_IW_EN
->>>>> |
->>>>> +	A A A A A A A MSR_IA32_CET_NO_TRACK_EN);
->>>>> +	wrmsrl(MSR_IA32_U_CET, r);
->>>>> +	current->thread.cet.ibt_enabled = 0;
->>>>> +}
->>>> What's the locking for current->thread.cet?
->>> Now CET is not locked until the application callsA ARCH_CET_LOCK.
->> No, I mean what is the in-kernel locking for the current->thread.cet
->> data structure?A A Is there none because it's only every modified via
->> current->thread and it's entirely thread-local?
+> What does?  LRU sort?  It's a 4-entry array, just do it in place, like
+> bh_lru_install(). Confused.
 > 
-> Yes, that is the case.
+
+I was imagining an optimized sort rather than adding an iteration to 
+vmacache_update() of the same form that causes vmacache_find() to show up 
+on my perf reports in the first place.
+
+> > but I'm not sure the least 
+> > recently used is the first preferred check.  If I do 
+> > madvise(MADV_DONTNEED) from a malloc implementation where I don't control 
+> > what is free()'d and I'm constantly freeing back to the same hugepages, 
+> > for example, I may always get first slot cache hits with this patch as 
+> > opposed to the 25% chance that the current implementation has (and perhaps 
+> > an lru would as well).
+> > 
+> > I'm sure that I could construct a workload where LRU would be better and 
+> > could show that the added footprint were worthwhile, but I could also 
+> > construct a workload where the current implementation based on pfn would 
+> > outperform all of these.  It simply turns out that on the user-controlled 
+> > workloads that I was profiling that hashing based on pmd was the win.
+> 
+> That leaves us nowhere to go.  Zapping the WARN_ON seems a no-brainer
+> though?
+> 
+
+I would suggest it goes under CONFIG_DEBUG_VM_VMACACHE.
+
+My implementation for the optimized vmacache_find() is based on the 
+premise that spatial locality matters, and in practice on random 
+user-controlled workloads this yields a faster lookup than the current 
+implementation.  Of course, any caching technique can be defeated by 
+workloads, artifical or otherwise, but I suggest that as a general 
+principle caching based on PMD_SHIFT rather than pfn has a greater 
+likelihood of avoiding the iteration in vmacache_find() because of spatial 
+locality for anything that iterates over a range of memory.
