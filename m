@@ -1,136 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F7226B0008
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 16:59:24 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id j25-v6so17018812pfi.20
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 13:59:24 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id j190-v6si20319012pfb.211.2018.07.11.13.59.23
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id ACCE46B000D
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 17:04:51 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id y2-v6so5809410pll.16
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 14:04:51 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id y17-v6si18997190plp.219.2018.07.11.14.04.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 13:59:23 -0700 (PDT)
-Message-ID: <1531342544.15351.37.camel@intel.com>
-Subject: Re: [RFC PATCH v2 27/27] x86/cet: Add arch_prctl functions for CET
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Date: Wed, 11 Jul 2018 13:55:44 -0700
-In-Reply-To: <CAG48ez2cY1CPTTfDnV5yZyHVPXP787=fR1+G_D7tR5VYXdjFmQ@mail.gmail.com>
-References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
-	 <20180710222639.8241-28-yu-cheng.yu@intel.com>
-	 <CAG48ez2cY1CPTTfDnV5yZyHVPXP787=fR1+G_D7tR5VYXdjFmQ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
+        Wed, 11 Jul 2018 14:04:50 -0700 (PDT)
+Date: Wed, 11 Jul 2018 14:04:49 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: general protection fault in _vm_normal_page
+Message-Id: <20180711140449.3702358d7e8898017e34dcfd@linux-foundation.org>
+In-Reply-To: <00000000000010c9390570bc0643@google.com>
+References: <00000000000010c9390570bc0643@google.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jannh@google.com>
-Cc: the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, bsingharora@gmail.com, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, hjl.tools@gmail.com, Jonathan Corbet <corbet@lwn.net>, keescook@chromiun.org, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, ravi.v.shankar@intel.com, vedvyas.shanbhogue@intel.com
+To: syzbot <syzbot+120abb1c3f7bfdc523f7@syzkaller.appspotmail.com>
+Cc: jglisse@redhat.com, kirill.shutemov@linux.intel.com, ldufour@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, minchan@kernel.org, ross.zwisler@linux.intel.com, sfr@canb.auug.org.au, syzkaller-bugs@googlegroups.com, ying.huang@intel.com
 
-On Wed, 2018-07-11 at 12:45 -0700, Jann Horn wrote:
-> On Tue, Jul 10, 2018 at 3:31 PM Yu-cheng Yu <yu-cheng.yu@intel.com>
-> wrote:
-> > 
-> > 
-> > arch_prctl(ARCH_CET_STATUS, unsigned long *addr)
-> > A A A A Return CET feature status.
-> > 
-> > A A A A The parameter 'addr' is a pointer to a user buffer.
-> > A A A A On returning to the caller, the kernel fills the following
-> > A A A A information:
-> > 
-> > A A A A *addr = SHSTK/IBT status
-> > A A A A *(addr + 1) = SHSTK base address
-> > A A A A *(addr + 2) = SHSTK size
-> > 
-> > arch_prctl(ARCH_CET_DISABLE, unsigned long features)
-> > A A A A Disable SHSTK and/or IBT specified in 'features'.A A Return
-> > -EPERM
-> > A A A A if CET is locked out.
-> > 
-> > arch_prctl(ARCH_CET_LOCK)
-> > A A A A Lock out CET feature.
-> > 
-> > arch_prctl(ARCH_CET_ALLOC_SHSTK, unsigned long *addr)
-> > A A A A Allocate a new SHSTK.
-> > 
-> > A A A A The parameter 'addr' is a pointer to a user buffer and
-> > indicates
-> > A A A A the desired SHSTK size to allocate.A A On returning to the caller
-> > A A A A the buffer contains the address of the new SHSTK.
-> > 
-> > arch_prctl(ARCH_CET_LEGACY_BITMAP, unsigned long *addr)
-> > A A A A Allocate an IBT legacy code bitmap if the current task does not
-> > A A A A have one.
-> > 
-> > A A A A The parameter 'addr' is a pointer to a user buffer.
-> > A A A A On returning to the caller, the kernel fills the following
-> > A A A A information:
-> > 
-> > A A A A *addr = IBT bitmap base address
-> > A A A A *(addr + 1) = IBT bitmap size
-> > 
-> > Signed-off-by: H.J. Lu <hjl.tools@gmail.com>
-> > Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> [...]
-> > 
-> > diff --git a/arch/x86/kernel/cet_prctl.c
-> > b/arch/x86/kernel/cet_prctl.c
-> > new file mode 100644
-> > index 000000000000..86bb78ae656d
-> > --- /dev/null
-> > +++ b/arch/x86/kernel/cet_prctl.c
-> > @@ -0,0 +1,141 @@
-> > +/* SPDX-License-Identifier: GPL-2.0 */
-> > +
-> > +#include <linux/errno.h>
-> > +#include <linux/uaccess.h>
-> > +#include <linux/prctl.h>
-> > +#include <linux/compat.h>
-> > +#include <asm/processor.h>
-> > +#include <asm/prctl.h>
-> > +#include <asm/elf.h>
-> > +#include <asm/elf_property.h>
-> > +#include <asm/cet.h>
-> > +
-> > +/* See Documentation/x86/intel_cet.txt. */
-> > +
-> > +static int handle_get_status(unsigned long arg2)
-> > +{
-> > +A A A A A A A unsigned int features = 0;
-> > +A A A A A A A unsigned long shstk_base, shstk_size;
-> > +
-> > +A A A A A A A if (current->thread.cet.shstk_enabled)
-> > +A A A A A A A A A A A A A A A features |= GNU_PROPERTY_X86_FEATURE_1_SHSTK;
-> > +A A A A A A A if (current->thread.cet.ibt_enabled)
-> > +A A A A A A A A A A A A A A A features |= GNU_PROPERTY_X86_FEATURE_1_IBT;
-> > +
-> > +A A A A A A A shstk_base = current->thread.cet.shstk_base;
-> > +A A A A A A A shstk_size = current->thread.cet.shstk_size;
-> > +
-> > +A A A A A A A if (in_ia32_syscall()) {
-> > +A A A A A A A A A A A A A A A unsigned int buf[3];
-> > +
-> > +A A A A A A A A A A A A A A A buf[0] = features;
-> > +A A A A A A A A A A A A A A A buf[1] = (unsigned int)shstk_base;
-> > +A A A A A A A A A A A A A A A buf[2] = (unsigned int)shstk_size;
-> > +A A A A A A A A A A A A A A A return copy_to_user((unsigned int __user *)arg2,
-> > buf,
-> > +A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A sizeof(buf));
-> > +A A A A A A A } else {
-> > +A A A A A A A A A A A A A A A unsigned long buf[3];
-> > +
-> > +A A A A A A A A A A A A A A A buf[0] = (unsigned long)features;
-> > +A A A A A A A A A A A A A A A buf[1] = shstk_base;
-> > +A A A A A A A A A A A A A A A buf[2] = shstk_size;
-> > +A A A A A A A A A A A A A A A return copy_to_user((unsigned long __user *)arg2,
-> > buf,
-> > +A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A sizeof(buf));
-> > +A A A A A A A }
-> Other places in the kernel (e.g. the BPF subsystem) just
-> unconditionally use u64 instead of unsigned long to avoid having to
-> switch between different sizes. I wonder whether that would make
-> sense
-> here?
+On Wed, 11 Jul 2018 09:49:01 -0700 syzbot <syzbot+120abb1c3f7bfdc523f7@syzkaller.appspotmail.com> wrote:
 
-Yes, that simplifies the code. A I will make that change.
+> Hello,
+> 
+> syzbot found the following crash on:
+> 
+> HEAD commit:    98be45067040 Add linux-next specific files for 20180711
+> git tree:       linux-next
+> console output: https://syzkaller.appspot.com/x/log.txt?x=12496ac2400000
+> kernel config:  https://syzkaller.appspot.com/x/.config?x=3f3b3673fec35d01
+> dashboard link: https://syzkaller.appspot.com/bug?extid=120abb1c3f7bfdc523f7
+> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+> syzkaller repro:https://syzkaller.appspot.com/x/repro.syz?x=12a46568400000
 
-Yu-cheng
+Handy.  /dev/ion from drivers/staging/android/ion/ion.c
+
+> 
+> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> Reported-by: syzbot+120abb1c3f7bfdc523f7@syzkaller.appspotmail.com
+> 
+> R10: 0000000004000812 R11: 0000000000000246 R12: 0000000000000005
+> R13: 00000000004c0565 R14: 00000000004cffb0 R15: 0000000000000005
+> ion_mmap: failure mapping buffer to userspace
+> kasan: CONFIG_KASAN_INLINE enabled
+> kasan: GPF could be caused by NULL-ptr deref or user memory access
+> general protection fault: 0000 [#1] SMP KASAN
+> CPU: 0 PID: 4785 Comm: syz-executor0 Not tainted 4.18.0-rc4-next-20180711+  
+> #4
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+> Google 01/01/2011
+> RIP: 0010:_vm_normal_page+0x1e5/0x330 mm/memory.c:828
+
+Presumably has a NULL vma->vm_ops.  Probably one of the now-removed
+checks in mm-drop-unneeded-vm_ops-checks.patch would have avoided
+this.
+
+Something for Kirill to think about ;)
