@@ -1,40 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CF2E56B000C
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:13:04 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id o18-v6so14396119qtm.11
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:13:04 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 135-v6si6658287qkh.385.2018.07.11.04.13.03
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BC99D6B0010
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:13:16 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id r1-v6so5767547lfi.16
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:13:16 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x14-v6sor4741005lfe.80.2018.07.11.04.13.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 04:13:03 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 20/27] x86/cet/shstk: ELF header parsing of CET
-References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
- <20180710222639.8241-21-yu-cheng.yu@intel.com>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <10c224e9-933a-20d8-a286-5065a6cb10f1@redhat.com>
-Date: Wed, 11 Jul 2018 13:12:57 +0200
+        (Google Transport Security);
+        Wed, 11 Jul 2018 04:13:15 -0700 (PDT)
+Date: Wed, 11 Jul 2018 14:13:12 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC v4 0/3] mm: zap pages with read mmap_sem in munmap for
+ large mapping
+Message-ID: <20180711111311.hrh5kxdottmpdpn2@kshutemo-mobl1>
+References: <1531265649-93433-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20180711103312.GH20050@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180710222639.8241-21-yu-cheng.yu@intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180711103312.GH20050@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>, willy@infradead.org, ldufour@linux.vnet.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 07/11/2018 12:26 AM, Yu-cheng Yu wrote:
-> +	/*
-> +	 * PT_NOTE segment is small.  Read at most
-> +	 * PAGE_SIZE.
-> +	 */
-> +	if (note_size > PAGE_SIZE)
-> +		note_size = PAGE_SIZE;
+On Wed, Jul 11, 2018 at 12:33:12PM +0200, Michal Hocko wrote:
+> this is not a small change for something that could be achieved
+> from the userspace trivially (just call madvise before munmap - library
+> can hide this). Most workloads will even not care about races because
+> they simply do not play tricks with mmaps and userspace MM. So why do we
+> want to put the additional complexity into the kernel?
 
-That's not really true.  There are some huge PT_NOTE segments out there.
+As I said before, kernel latency issues have to be addressed in kernel.
+We cannot rely on userspace being kind here.
 
-Why can't you check the notes after the executable has been mapped?
-
-Thanks,
-Florian
+-- 
+ Kirill A. Shutemov
