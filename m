@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 151206B027E
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B9A4E6B027D
 	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:12 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id b12-v6so9468576edi.12
+Received: by mail-ed1-f71.google.com with SMTP id v26-v6so3469686eds.9
         for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:12 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id s6-v6si3880220edj.407.2018.07.11.04.30.10
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id g2-v6si11047779edc.349.2018.07.11.04.30.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 11 Jul 2018 04:30:11 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 14/39] x86/entry/32: Add PTI cr3 switches to NMI handler code
-Date: Wed, 11 Jul 2018 13:29:21 +0200
-Message-Id: <1531308586-29340-15-git-send-email-joro@8bytes.org>
+Subject: [PATCH 13/39] x86/entry/32: Add PTI cr3 switch to non-NMI entry/exit points
+Date: Wed, 11 Jul 2018 13:29:20 +0200
+Message-Id: <1531308586-29340-14-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,107 +22,182 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-The NMI handler is special, as it needs to leave with the
-same cr3 as it was entered with. We need to do this because
-we could enter the NMI handler from kernel code with
-user-cr3 already loaded.
+Add unconditional cr3 switches between user and kernel cr3
+to all non-NMI entry and exit points.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S | 41 +++++++++++++++++++++++++++++++++++------
- 1 file changed, 35 insertions(+), 6 deletions(-)
+ arch/x86/entry/entry_32.S | 83 ++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 79 insertions(+), 4 deletions(-)
 
 diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index 311aefa..a368583 100644
+index 9e06431..311aefa 100644
 --- a/arch/x86/entry/entry_32.S
 +++ b/arch/x86/entry/entry_32.S
-@@ -77,6 +77,8 @@
- #endif
- .endm
+@@ -154,6 +154,33 @@
  
-+#define PTI_SWITCH_MASK         (1 << PAGE_SHIFT)
-+
- /*
-  * User gs save/restore
-  *
-@@ -213,8 +215,19 @@
+ #endif /* CONFIG_X86_32_LAZY_GS */
  
- .endm
- 
--.macro SAVE_ALL_NMI
-+.macro SAVE_ALL_NMI cr3_reg:req
- 	SAVE_ALL
++/* Unconditionally switch to user cr3 */
++.macro SWITCH_TO_USER_CR3 scratch_reg:req
++	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
 +
-+	/*
-+	 * Now switch the CR3 when PTI is enabled.
-+	 *
-+	 * We can enter with either user or kernel cr3, the code will
-+	 * store the old cr3 in \cr3_reg and switches to the kernel cr3
-+	 * if necessary.
-+	 */
-+	SWITCH_TO_KERNEL_CR3 scratch_reg=\cr3_reg
-+
++	movl	%cr3, \scratch_reg
++	orl	$PTI_SWITCH_MASK, \scratch_reg
++	movl	\scratch_reg, %cr3
 +.Lend_\@:
++.endm
++
++/*
++ * Switch to kernel cr3 if not already loaded and return current cr3 in
++ * \scratch_reg
++ */
++.macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
++	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
++	movl	%cr3, \scratch_reg
++	/* Test if we are already on kernel CR3 */
++	testl	$PTI_SWITCH_MASK, \scratch_reg
++	jz	.Lend_\@
++	andl	$(~PTI_SWITCH_MASK), \scratch_reg
++	movl	\scratch_reg, %cr3
++	/* Return original CR3 in \scratch_reg */
++	orl	$PTI_SWITCH_MASK, \scratch_reg
++.Lend_\@:
++.endm
++
+ .macro SAVE_ALL pt_regs_ax=%eax switch_stacks=0
+ 	cld
+ 	/* Push segment registers and %eax */
+@@ -288,7 +315,6 @@
+ #endif /* CONFIG_X86_ESPFIX32 */
+ .endm
+ 
+-
+ /*
+  * Called with pt_regs fully populated and kernel segments loaded,
+  * so we can access PER_CPU and use the integer registers.
+@@ -301,11 +327,19 @@
+  */
+ 
+ #define CS_FROM_ENTRY_STACK	(1 << 31)
++#define CS_FROM_USER_CR3	(1 << 30)
+ 
+ .macro SWITCH_TO_KERNEL_STACK
+ 
+ 	ALTERNATIVE     "", "jmp .Lend_\@", X86_FEATURE_XENPV
+ 
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
++
++	/*
++	 * %eax now contains the entry cr3 and we carry it forward in
++	 * that register for the time this macro runs
++	 */
++
+ 	/* Are we on the entry stack? Bail out if not! */
+ 	movl	PER_CPU_VAR(cpu_entry_area), %edi
+ 	addl	$CPU_ENTRY_AREA_entry_stack, %edi
+@@ -374,7 +408,8 @@
+ 	 * but switch back to the entry-stack again when we approach
+ 	 * iret and return to the interrupted code-path. This usually
+ 	 * happens when we hit an exception while restoring user-space
+-	 * segment registers on the way back to user-space.
++	 * segment registers on the way back to user-space or when the
++	 * sysenter handler runs with eflags.tf set.
+ 	 *
+ 	 * When we switch to the task-stack here, we can't trust the
+ 	 * contents of the entry-stack anymore, as the exception handler
+@@ -391,6 +426,7 @@
+ 	 *
+ 	 * %esi: Entry-Stack pointer (same as %esp)
+ 	 * %edi: Top of the task stack
++	 * %eax: CR3 on kernel entry
+ 	 */
+ 
+ 	/* Calculate number of bytes on the entry stack in %ecx */
+@@ -407,6 +443,14 @@
+ 	orl	$CS_FROM_ENTRY_STACK, PT_CS(%esp)
+ 
+ 	/*
++	 * Test the cr3 used to enter the kernel and add a marker
++	 * so that we can switch back to it before iret.
++	 */
++	testl	$PTI_SWITCH_MASK, %eax
++	jz	.Lcopy_pt_regs_\@
++	orl	$CS_FROM_USER_CR3, PT_CS(%esp)
++
++	/*
+ 	 * %esi and %edi are unchanged, %ecx contains the number of
+ 	 * bytes to copy. The code at .Lcopy_pt_regs_\@ will allocate
+ 	 * the stack-frame on task-stack and copy everything over
+@@ -472,7 +516,7 @@
+ 
+ /*
+  * This macro handles the case when we return to kernel-mode on the iret
+- * path and have to switch back to the entry stack.
++ * path and have to switch back to the entry stack and/or user-cr3
+  *
+  * See the comments below the .Lentry_from_kernel_\@ label in the
+  * SWITCH_TO_KERNEL_STACK macro for more details.
+@@ -518,6 +562,18 @@
+ 	/* Safe to switch to entry-stack now */
+ 	movl	%ebx, %esp
+ 
++	/*
++	 * We came from entry-stack and need to check if we also need to
++	 * switch back to user cr3.
++	 */
++	testl	$CS_FROM_USER_CR3, PT_CS(%esp)
++	jz	.Lend_\@
++
++	/* Clear marker from stack-frame */
++	andl	$(~CS_FROM_USER_CR3), PT_CS(%esp)
++
++	SWITCH_TO_USER_CR3 scratch_reg=%eax
++
+ .Lend_\@:
  .endm
  /*
-  * This is a sneaky trick to help the unwinder find pt_regs on the stack.  The
-@@ -262,7 +275,23 @@
- 	POP_GS_EX
- .endm
- 
--.macro RESTORE_ALL_NMI pop=0
-+.macro RESTORE_ALL_NMI cr3_reg:req pop=0
+@@ -711,6 +767,18 @@ ENTRY(xen_sysenter_target)
+  * 0(%ebp) arg6
+  */
+ ENTRY(entry_SYSENTER_32)
 +	/*
-+	 * Now switch the CR3 when PTI is enabled.
-+	 *
-+	 * We enter with kernel cr3 and switch the cr3 to the value
-+	 * stored on \cr3_reg, which is either a user or a kernel cr3.
++	 * On entry-stack with all userspace-regs live - save and
++	 * restore eflags and %eax to use it as scratch-reg for the cr3
++	 * switch.
 +	 */
-+	ALTERNATIVE "jmp .Lswitched_\@", "", X86_FEATURE_PTI
++	pushfl
++	pushl	%eax
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
++	popl	%eax
++	popfl
 +
-+	testl	$PTI_SWITCH_MASK, \cr3_reg
-+	jz	.Lswitched_\@
-+
-+	/* User cr3 in \cr3_reg - write it to hardware cr3 */
-+	movl	\cr3_reg, %cr3
-+
-+.Lswitched_\@:
-+
- 	RESTORE_REGS pop=\pop
- .endm
++	/* Stack empty again, switch to task stack */
+ 	movl	TSS_entry_stack(%esp), %esp
  
-@@ -1333,7 +1362,7 @@ ENTRY(nmi)
- #endif
+ .Lsysenter_past_esp:
+@@ -791,6 +859,9 @@ ENTRY(entry_SYSENTER_32)
+ 	/* Switch to entry stack */
+ 	movl	%eax, %esp
  
- 	pushl	%eax				# pt_regs->orig_ax
--	SAVE_ALL_NMI
-+	SAVE_ALL_NMI cr3_reg=%edi
- 	ENCODE_FRAME_POINTER
- 	xorl	%edx, %edx			# zero error code
- 	movl	%esp, %eax			# pt_regs pointer
-@@ -1361,7 +1390,7 @@ ENTRY(nmi)
- 
- .Lnmi_return:
++	/* Now ready to switch the cr3 */
++	SWITCH_TO_USER_CR3 scratch_reg=%eax
++
+ 	/*
+ 	 * Restore all flags except IF. (We restore IF separately because
+ 	 * STI gives a one-instruction window in which we won't be interrupted,
+@@ -871,7 +942,11 @@ restore_all:
+ .Lrestore_all_notrace:
  	CHECK_AND_APPLY_ESPFIX
--	RESTORE_ALL_NMI pop=4
-+	RESTORE_ALL_NMI cr3_reg=%edi pop=4
- 	jmp	.Lirq_return
- 
- #ifdef CONFIG_X86_ESPFIX32
-@@ -1377,12 +1406,12 @@ ENTRY(nmi)
- 	pushl	16(%esp)
- 	.endr
- 	pushl	%eax
--	SAVE_ALL_NMI
-+	SAVE_ALL_NMI cr3_reg=%edi
- 	ENCODE_FRAME_POINTER
- 	FIXUP_ESPFIX_STACK			# %eax == %esp
- 	xorl	%edx, %edx			# zero error code
- 	call	do_nmi
--	RESTORE_ALL_NMI
-+	RESTORE_ALL_NMI cr3_reg=%edi
- 	lss	12+4(%esp), %esp		# back to espfix stack
- 	jmp	.Lirq_return
- #endif
+ .Lrestore_nocheck:
+-	RESTORE_REGS 4				# skip orig_eax/error_code
++	/* Switch back to user CR3 */
++	SWITCH_TO_USER_CR3 scratch_reg=%eax
++
++	/* Restore user state */
++	RESTORE_REGS pop=4			# skip orig_eax/error_code
+ .Lirq_return:
+ 	/*
+ 	 * ARCH_HAS_MEMBARRIER_SYNC_CORE rely on IRET core serialization
 -- 
 2.7.4
