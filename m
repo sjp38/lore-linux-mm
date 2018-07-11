@@ -1,54 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CA39A6B0003
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:59:11 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id n2-v6so9707772edr.5
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 01:59:11 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 48D0C6B0007
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 05:03:59 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id r21-v6so4494203edp.23
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 02:03:59 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r15-v6si64166edo.320.2018.07.11.01.59.10
+        by mx.google.com with ESMTPS id o16-v6si3789938edt.64.2018.07.11.02.03.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 01:59:10 -0700 (PDT)
-Date: Wed, 11 Jul 2018 10:59:08 +0200
+        Wed, 11 Jul 2018 02:03:57 -0700 (PDT)
+Date: Wed, 11 Jul 2018 11:03:53 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, oom: remove sleep from under oom_lock
-Message-ID: <20180711085908.GC20050@dhcp22.suse.cz>
-References: <20180709074706.30635-1-mhocko@kernel.org>
- <alpine.DEB.2.21.1807091548280.125566@chino.kir.corp.google.com>
- <20180710094341.GD14284@dhcp22.suse.cz>
- <alpine.DEB.2.21.1807101152410.9234@chino.kir.corp.google.com>
- <alpine.DEB.2.21.1807101411480.29772@chino.kir.corp.google.com>
+Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+Message-ID: <20180711090353.GD20050@dhcp22.suse.cz>
+References: <20180622150242.16558-1-mhocko@kernel.org>
+ <20180627074421.GF32348@dhcp22.suse.cz>
+ <20180709122908.GJ22049@dhcp22.suse.cz>
+ <20180710134040.GG3014@mtr-leonro.mtl.com>
+ <20180710141410.GP14284@dhcp22.suse.cz>
+ <20180710162020.GJ3014@mtr-leonro.mtl.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1807101411480.29772@chino.kir.corp.google.com>
+In-Reply-To: <20180710162020.GJ3014@mtr-leonro.mtl.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Leon Romanovsky <leon@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Felix Kuehling <felix.kuehling@amd.com>
 
-On Tue 10-07-18 14:12:28, David Rientjes wrote:
-> On Tue, 10 Jul 2018, David Rientjes wrote:
+On Tue 10-07-18 19:20:20, Leon Romanovsky wrote:
+> On Tue, Jul 10, 2018 at 04:14:10PM +0200, Michal Hocko wrote:
+> > On Tue 10-07-18 16:40:40, Leon Romanovsky wrote:
+> > > On Mon, Jul 09, 2018 at 02:29:08PM +0200, Michal Hocko wrote:
+> > > > On Wed 27-06-18 09:44:21, Michal Hocko wrote:
+> > > > > This is the v2 of RFC based on the feedback I've received so far. The
+> > > > > code even compiles as a bonus ;) I haven't runtime tested it yet, mostly
+> > > > > because I have no idea how.
+> > > > >
+> > > > > Any further feedback is highly appreciated of course.
+> > > >
+> > > > Any other feedback before I post this as non-RFC?
+> > >
+> > > From mlx5 perspective, who is primary user of umem_odp.c your change looks ok.
+> >
+> > Can I assume your Acked-by?
 > 
-> > I think it's better, thanks.  However, does it address the question about 
-> > why __oom_reap_task_mm() needs oom_lock protection?  Perhaps it would be 
-> > helpful to mention synchronization between reaping triggered from 
-> > oom_reaper and by exit_mmap().
-> > 
-> 
-> Actually, can't we remove the need to take oom_lock in exit_mmap() if 
-> __oom_reap_task_mm() can do a test and set on MMF_UNSTABLE and, if already 
-> set, bail out immediately?
+> I didn't have a chance to test it because it applies on our rdma-next, but
+> fails to compile.
 
-I think we do not really depend on oom_lock anymore in
-__oom_reap_task_mm.  The race it was original added for (mmget_not_zero
-vs. exit path) is no longer a problem. I didn't really get to evaluate
-it deeper though. There are just too many things going on in parallel.
-
-Tetsuo was proposing some patches to remove the lock but those patches
-had some other problems. If we have a simple patch to remove the
-oom_lock from the oom reaper then I will review it. I am not sure I can
-come up with a patch myself in few days.
+What is the compilation problem? Is it caused by the patch or some other
+unrelated changed?
 -- 
 Michal Hocko
 SUSE Labs
