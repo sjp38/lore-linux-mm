@@ -1,64 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D8A176B0003
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:09:53 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id l1-v6so1858665edi.11
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:09:53 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 09E596B0007
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:10:23 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id a22-v6so9862808eds.13
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:10:22 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c4-v6si3154571edb.348.2018.07.11.04.09.52
+        by mx.google.com with ESMTPS id s4-v6si1646706edh.359.2018.07.11.04.10.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 04:09:52 -0700 (PDT)
-Date: Wed, 11 Jul 2018 13:09:49 +0200
+        Wed, 11 Jul 2018 04:10:21 -0700 (PDT)
+Date: Wed, 11 Jul 2018 13:10:19 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v35 1/5] mm: support to get hints of free page blocks
-Message-ID: <20180711110949.GJ20050@dhcp22.suse.cz>
-References: <1531215067-35472-1-git-send-email-wei.w.wang@intel.com>
- <1531215067-35472-2-git-send-email-wei.w.wang@intel.com>
- <CA+55aFz9a=D-kquM=sG5uhV_HrBAw+VAhcJmtPNz+howy4j9ow@mail.gmail.com>
- <5B455D50.90902@intel.com>
- <CA+55aFzqj8wxXnHAdUTiOomipgFONVbqKMjL_tfk7e5ar1FziQ@mail.gmail.com>
- <20180711092152.GE20050@dhcp22.suse.cz>
- <5B45E17D.2090205@intel.com>
+Subject: Re: [PATCH v13 2/2] Add oom victim's memcg to the oom context
+ information
+Message-ID: <20180711111019.GK20050@dhcp22.suse.cz>
+References: <1531217988-33940-1-git-send-email-ufo19890607@gmail.com>
+ <1531217988-33940-2-git-send-email-ufo19890607@gmail.com>
+ <20180710120816.GJ14284@dhcp22.suse.cz>
+ <CAHCio2jQO58+npS269Ufyg17unHUeKDRpVjS4-ggBEV8xFMMqQ@mail.gmail.com>
+ <20180711074933.GA20050@dhcp22.suse.cz>
+ <CAHCio2itfdQ-Tk9x=YhZs6dG6GTZXkct++aND=jFC=8ndXq12w@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <5B45E17D.2090205@intel.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAHCio2itfdQ-Tk9x=YhZs6dG6GTZXkct++aND=jFC=8ndXq12w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, virtualization <virtualization@lists.linux-foundation.org>, KVM list <kvm@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Michael S. Tsirkin" <mst@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, Rik van Riel <riel@redhat.com>, peterx@redhat.com
+To: =?utf-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>
+Cc: akpm@linux-foundation.org, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
 
-On Wed 11-07-18 18:52:45, Wei Wang wrote:
-> On 07/11/2018 05:21 PM, Michal Hocko wrote:
-> > On Tue 10-07-18 18:44:34, Linus Torvalds wrote:
-> > [...]
-> > > That was what I tried to encourage with actually removing the pages
-> > > form the page list. That would be an _incremental_ interface. You can
-> > > remove MAX_ORDER-1 pages one by one (or a hundred at a time), and mark
-> > > them free for ballooning that way. And if you still feel you have tons
-> > > of free memory, just continue removing more pages from the free list.
-> > We already have an interface for that. alloc_pages(GFP_NOWAIT, MAX_ORDER -1).
-> > So why do we need any array based interface?
+On Wed 11-07-18 18:31:18, c|1e??e?(R) wrote:
+> Hi Michal
 > 
-> Yes, I'm trying to get free pages directly via alloc_pages, so there will be
-> no new mm APIs.
+> I think the single line output you want is just like that:
+> 
+> oom-kill:constraint=<constraint>,nodemask=<nodemask>,cpuset=<cpuset>,mems_allowed=<mems_allowed>,oom_memcg=<memcg>,task_memcg=<memcg>,task=<comm>,pid=<pid>,uid=<uid>
+> 
+> Am I right?
 
-OK. The above was just a rough example. In fact you would need a more
-complex gfp mask. I assume you only want to balloon only memory directly
-usable by the kernel so it will be
-	(GFP_KERNEL | __GFP_NOWARN) & ~__GFP_RECLAIM
-
-> I plan to let free page allocation stop when the remaining system free
-> memory becomes close to min_free_kbytes (prevent swapping).
-
-~__GFP_RECLAIM will make sure you are allocate as long as there is any
-memory without reclaim. It will not even poke the kswapd to do the
-background work. So I do not think you would need much more than that.
-
-But let me note that I am not really convinced how this (or previous)
-approach will really work in most workloads. We tend to cache heavily so
-there is rarely any memory free.
+exactly.
 
 -- 
 Michal Hocko
