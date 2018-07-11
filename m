@@ -1,96 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B5EC6B0007
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 06:20:40 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id w137-v6so1559656wme.2
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 03:20:40 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k127-v6sor421057wme.67.2018.07.11.03.20.38
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F3D36B000A
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 06:21:43 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id c20-v6so9793575eds.21
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 03:21:43 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t9-v6si1180898edh.240.2018.07.11.03.21.41
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 11 Jul 2018 03:20:39 -0700 (PDT)
-Date: Wed, 11 Jul 2018 12:20:35 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [RFC PATCH v2 25/27] x86/cet: Add PTRACE interface for CET
-Message-ID: <20180711102035.GB8574@gmail.com>
-References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
- <20180710222639.8241-26-yu-cheng.yu@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Jul 2018 03:21:41 -0700 (PDT)
+Date: Wed, 11 Jul 2018 12:21:39 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v6 0/7] fs/dcache: Track & limit # of negative dentries
+Message-ID: <20180711102139.GG20050@dhcp22.suse.cz>
+References: <1530905572-817-1-git-send-email-longman@redhat.com>
+ <20180709081920.GD22049@dhcp22.suse.cz>
+ <62275711-e01d-7dbe-06f1-bf094b618195@redhat.com>
+ <20180710142740.GQ14284@dhcp22.suse.cz>
+ <a2794bcc-9193-cbca-3a54-47420a2ab52c@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180710222639.8241-26-yu-cheng.yu@intel.com>
+In-Reply-To: <a2794bcc-9193-cbca-3a54-47420a2ab52c@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Waiman Long <longman@redhat.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>
 
+On Tue 10-07-18 12:09:17, Waiman Long wrote:
+> On 07/10/2018 10:27 AM, Michal Hocko wrote:
+> > On Mon 09-07-18 12:01:04, Waiman Long wrote:
+> >> On 07/09/2018 04:19 AM, Michal Hocko wrote:
+[...]
+> >>> percentage has turned out to be a really wrong unit for many tunables
+> >>> over time. Even 1% can be just too much on really large machines.
+> >> Yes, that is true. Do you have any suggestion of what kind of unit
+> >> should be used? I can scale down the unit to 0.1% of the system memory.
+> >> Alternatively, one unit can be 10k/cpu thread, so a 20-thread system
+> >> corresponds to 200k, etc.
+> > I simply think this is a strange user interface. How much is a
+> > reasonable number? How can any admin figure that out?
+> 
+> Without the optional enforcement, the limit is essentially just a
+> notification mechanism where the system signals that there is something
+> wrong going on and the system administrator need to take a look. So it
+> is perfectly OK if the limit is sufficiently high that normally we won't
+> need to use that many negative dentries. The goal is to prevent negative
+> dentries from consuming a significant portion of the system memory.
 
-* Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
+So again. How do you tell the right number?
 
-> Add PTRACE interface for CET MSRs.
+> I am going to reduce the granularity of each unit to 1/1000 of the total
+> system memory so that for large system with TB of memory, a smaller
+> amount of memory can be specified.
 
-Please *always* describe new ABIs in the changelog, in a precise, well-documented 
-way.
-
-> diff --git a/arch/x86/kernel/ptrace.c b/arch/x86/kernel/ptrace.c
-> index e2ee403865eb..ac2bc3a18427 100644
-> --- a/arch/x86/kernel/ptrace.c
-> +++ b/arch/x86/kernel/ptrace.c
-> @@ -49,7 +49,9 @@ enum x86_regset {
->  	REGSET_IOPERM64 = REGSET_XFP,
->  	REGSET_XSTATE,
->  	REGSET_TLS,
-> +	REGSET_CET64 = REGSET_TLS,
->  	REGSET_IOPERM32,
-> +	REGSET_CET32,
->  };
-
-Why does REGSET_CET64 alias on REGSET_TLS?
-
->  struct pt_regs_offset {
-> @@ -1276,6 +1278,13 @@ static struct user_regset x86_64_regsets[] __ro_after_init = {
->  		.size = sizeof(long), .align = sizeof(long),
->  		.active = ioperm_active, .get = ioperm_get
->  	},
-> +	[REGSET_CET64] = {
-> +		.core_note_type = NT_X86_CET,
-> +		.n = sizeof(struct cet_user_state) / sizeof(u64),
-> +		.size = sizeof(u64), .align = sizeof(u64),
-> +		.active = cetregs_active, .get = cetregs_get,
-> +		.set = cetregs_set
-> +	},
-
-Ok, could we first please make this part of the regset code more readable and 
-start the series with a standalone clean-up patch that changes these initializers 
-to something more readable:
-
-	[REGSET_CET64] = {
-		.core_note_type	= NT_X86_CET,
-		.n		= sizeof(struct cet_user_state) / sizeof(u64),
-		.size		= sizeof(u64),
-		.align		= sizeof(u64),
-		.active		= cetregs_active,
-		.get		= cetregs_get,
-		.set		= cetregs_set
-	},
-
-? (I'm demonstrating the cleanup based on REGSET_CET64, but this should be done on 
-every other entry first.)
-
-
-> --- a/include/uapi/linux/elf.h
-> +++ b/include/uapi/linux/elf.h
-> @@ -401,6 +401,7 @@ typedef struct elf64_shdr {
->  #define NT_386_TLS	0x200		/* i386 TLS slots (struct user_desc) */
->  #define NT_386_IOPERM	0x201		/* x86 io permission bitmap (1=deny) */
->  #define NT_X86_XSTATE	0x202		/* x86 extended state using xsave */
-> +#define NT_X86_CET	0x203		/* x86 cet state */
-
-Acronyms in comments should be in capital letters.
-
-Also, I think I asked this before: why does "Control Flow Enforcement" abbreviate 
-to "CET" (which is a well-known acronym for "Central European Time"), not to CFE?
-
-Thanks,
-
-	Ingo
+It is just a matter of time for this to be too coarse as well.
+-- 
+Michal Hocko
+SUSE Labs
