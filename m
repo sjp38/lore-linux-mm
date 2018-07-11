@@ -1,68 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 37CFE6B0269
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:13:21 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id v26-v6so3454764eds.9
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:13:21 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y39-v6si3507634edb.120.2018.07.11.04.13.19
+	by kanga.kvack.org (Postfix) with ESMTP id 716516B026B
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:03 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id g16-v6so9878559edq.10
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:03 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id j23-v6si3767250edp.51.2018.07.11.04.30.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 04:13:19 -0700 (PDT)
-Date: Wed, 11 Jul 2018 13:13:18 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
-Message-ID: <20180711111318.GL20050@dhcp22.suse.cz>
-References: <20180622150242.16558-1-mhocko@kernel.org>
- <20180627074421.GF32348@dhcp22.suse.cz>
- <20180709122908.GJ22049@dhcp22.suse.cz>
- <20180710134040.GG3014@mtr-leonro.mtl.com>
- <20180710141410.GP14284@dhcp22.suse.cz>
- <20180710162020.GJ3014@mtr-leonro.mtl.com>
- <20180711090353.GD20050@dhcp22.suse.cz>
- <20180711101447.GU3014@mtr-leonro.mtl.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180711101447.GU3014@mtr-leonro.mtl.com>
+        Wed, 11 Jul 2018 04:30:01 -0700 (PDT)
+From: Joerg Roedel <joro@8bytes.org>
+Subject: [PATCH 02/39] x86/entry/32: Rename TSS_sysenter_sp0 to TSS_entry_stack
+Date: Wed, 11 Jul 2018 13:29:09 +0200
+Message-Id: <1531308586-29340-3-git-send-email-joro@8bytes.org>
+In-Reply-To: <1531308586-29340-1-git-send-email-joro@8bytes.org>
+References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Leon Romanovsky <leon@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Felix Kuehling <felix.kuehling@amd.com>
+To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, jroedel@suse.de, joro@8bytes.org
 
-On Wed 11-07-18 13:14:47, Leon Romanovsky wrote:
-> On Wed, Jul 11, 2018 at 11:03:53AM +0200, Michal Hocko wrote:
-> > On Tue 10-07-18 19:20:20, Leon Romanovsky wrote:
-> > > On Tue, Jul 10, 2018 at 04:14:10PM +0200, Michal Hocko wrote:
-> > > > On Tue 10-07-18 16:40:40, Leon Romanovsky wrote:
-> > > > > On Mon, Jul 09, 2018 at 02:29:08PM +0200, Michal Hocko wrote:
-> > > > > > On Wed 27-06-18 09:44:21, Michal Hocko wrote:
-> > > > > > > This is the v2 of RFC based on the feedback I've received so far. The
-> > > > > > > code even compiles as a bonus ;) I haven't runtime tested it yet, mostly
-> > > > > > > because I have no idea how.
-> > > > > > >
-> > > > > > > Any further feedback is highly appreciated of course.
-> > > > > >
-> > > > > > Any other feedback before I post this as non-RFC?
-> > > > >
-> > > > > From mlx5 perspective, who is primary user of umem_odp.c your change looks ok.
-> > > >
-> > > > Can I assume your Acked-by?
-> > >
-> > > I didn't have a chance to test it because it applies on our rdma-next, but
-> > > fails to compile.
-> >
-> > What is the compilation problem? Is it caused by the patch or some other
-> > unrelated changed?
-> 
-> Thanks for pushing me to take a look on it.
-> Your patch needs the following hunk to properly compile at least on my system.
+From: Joerg Roedel <jroedel@suse.de>
 
-I suspect you were trying the original version. I've posted an updated
-patch here http://lkml.kernel.org/r/20180627074421.GF32348@dhcp22.suse.cz
-and all these issues should be fixed there. Including many other fixes.
+The stack address doesn't need to be stored in tss.sp0 if
+we switch manually like on sysenter. Rename the offset so
+that it still makes sense when we change its location.
 
-Could you have a look at that one please?
+We will also use this stack for all kernel-entry points, not
+just sysenter. Reflect that in the name as well.
+
+Signed-off-by: Joerg Roedel <jroedel@suse.de>
+---
+ arch/x86/entry/entry_32.S        | 2 +-
+ arch/x86/kernel/asm-offsets_32.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+index c371bfe..39fdda3 100644
+--- a/arch/x86/entry/entry_32.S
++++ b/arch/x86/entry/entry_32.S
+@@ -412,7 +412,7 @@ ENTRY(xen_sysenter_target)
+  * 0(%ebp) arg6
+  */
+ ENTRY(entry_SYSENTER_32)
+-	movl	TSS_sysenter_sp0(%esp), %esp
++	movl	TSS_entry_stack(%esp), %esp
+ .Lsysenter_past_esp:
+ 	pushl	$__USER_DS		/* pt_regs->ss */
+ 	pushl	%ebp			/* pt_regs->sp (stashed in bp) */
+diff --git a/arch/x86/kernel/asm-offsets_32.c b/arch/x86/kernel/asm-offsets_32.c
+index a4a3be3..ab2d949 100644
+--- a/arch/x86/kernel/asm-offsets_32.c
++++ b/arch/x86/kernel/asm-offsets_32.c
+@@ -47,7 +47,7 @@ void foo(void)
+ 	BLANK();
+ 
+ 	/* Offset from the sysenter stack to tss.sp0 */
+-	DEFINE(TSS_sysenter_sp0, offsetof(struct cpu_entry_area, tss.x86_tss.sp0) -
++	DEFINE(TSS_entry_stack, offsetof(struct cpu_entry_area, tss.x86_tss.sp0) -
+ 	       offsetofend(struct cpu_entry_area, entry_stack_page.stack));
+ 
+ #ifdef CONFIG_STACKPROTECTOR
 -- 
-Michal Hocko
-SUSE Labs
+2.7.4
