@@ -1,72 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D0126B026E
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 17:13:47 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id t78-v6so16899782pfa.8
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 14:13:47 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id v17-v6si22353515pfl.233.2018.07.11.14.13.46
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C4796B0003
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 17:33:19 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id q141-v6so13140163ywg.5
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 14:33:19 -0700 (PDT)
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id d62-v6sor3842970ybd.208.2018.07.11.14.33.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 14:13:46 -0700 (PDT)
-Date: Wed, 11 Jul 2018 14:13:44 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Boot failures with
- "mm/sparse: Remove CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER" on powerpc (was
- Re: mmotm 2018-07-10-16-50 uploaded)
-Message-Id: <20180711141344.10eb6d22b0ee1423cc94faf8@linux-foundation.org>
-In-Reply-To: <CAGM2reYsSi5kDGtnTQASnp1v49T8Y+9o_pNxmSq-+m68QhF2Tg@mail.gmail.com>
-References: <20180710235044.vjlRV%akpm@linux-foundation.org>
-	<87lgai9bt5.fsf@concordia.ellerman.id.au>
-	<20180711133737.GA29573@techadventures.net>
-	<CAGM2reYsSi5kDGtnTQASnp1v49T8Y+9o_pNxmSq-+m68QhF2Tg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Wed, 11 Jul 2018 14:33:18 -0700 (PDT)
+MIME-Version: 1.0
+Date: Wed, 11 Jul 2018 14:33:13 -0700
+Message-Id: <20180711213313.92481-1-cannonmatthews@google.com>
+Subject: [PATCH v2] mm: hugetlb: don't zero 1GiB bootmem pages.
+From: Cannon Matthews <cannonmatthews@google.com>
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: osalvador@techadventures.net, mpe@ellerman.id.au, broonie@kernel.org, mhocko@suse.cz, Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, mm-commits@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, bhe@redhat.com, aneesh.kumar@linux.ibm.com, khandual@linux.vnet.ibm.com
+To: Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadia Yvette Chambers <nyc@holomorphy.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, andreslc@google.com, pfeiner@google.com, dmatlack@google.com, gthelen@google.com, mhocko@kernel.org, Cannon Matthews <cannonmatthews@google.com>
 
-On Wed, 11 Jul 2018 09:55:59 -0400 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
+When using 1GiB pages during early boot, use the new
+memblock_virt_alloc_try_nid_raw() function to allocate memory without
+zeroing it.  Zeroing out hundreds or thousands of GiB in a single core
+memset() call is very slow, and can make early boot last upwards of
+20-30 minutes on multi TiB machines.
 
-> On Wed, Jul 11, 2018 at 9:37 AM Oscar Salvador
-> <osalvador@techadventures.net> wrote:
-> >
-> > On Wed, Jul 11, 2018 at 10:49:58PM +1000, Michael Ellerman wrote:
-> > > akpm@linux-foundation.org writes:
-> > > > The mm-of-the-moment snapshot 2018-07-10-16-50 has been uploaded to
-> > > >
-> > > >    http://www.ozlabs.org/~akpm/mmotm/
-> > > ...
-> > >
-> > > > * mm-sparse-add-a-static-variable-nr_present_sections.patch
-> > > > * mm-sparsemem-defer-the-ms-section_mem_map-clearing.patch
-> > > > * mm-sparsemem-defer-the-ms-section_mem_map-clearing-fix.patch
-> > > > * mm-sparse-add-a-new-parameter-data_unit_size-for-alloc_usemap_and_memmap.patch
-> > > > * mm-sparse-optimize-memmap-allocation-during-sparse_init.patch
-> > > > * mm-sparse-optimize-memmap-allocation-during-sparse_init-checkpatch-fixes.patch
-> > >
-> > > > * mm-sparse-remove-config_sparsemem_alloc_mem_map_together.patch
-> > >
-> > > This seems to be breaking my powerpc pseries qemu boots.
-> > >
-> > > The boot log with some extra debug shows eg:
-> > >
-> > >   $ make pseries_le_defconfig
-> >
-> > Could you please share the config?
-> > I was not able to find such config in the kernel tree.
+The memory does not need to be zero'd as the hugetlb pages are always
+zero'd on page fault.
 
-(top-posting repaired so I can reply to your email, add other people
-and not confuse the heck out of them.  Please don't)
+Tested: Booted with ~3800 1G pages, and it booted successfully in
+roughly the same amount of time as with 0, as opposed to the 25+
+minutes it would take before.
 
-> I am OK, if this patch is removed from Baoquan's series. But, I would
-> still like to get rid of CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER, I
-> can work on this in my sparse_init re-write series. ppc64 should
-> really fallback safely to small chunks allocs, and if it does not
-> there is some existing bug. Michael please send the config that you
-> used.
+Signed-off-by: Cannon Matthews <cannonmatthews@google.com>
+---
+v2: removed the memset of the huge_bootmem_page area and added
+INIT_LIST_HEAD instead.
 
-OK, I shall drop
-mm-sparse-remove-config_sparsemem_alloc_mem_map_together.patch for now.
+ mm/hugetlb.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 3612fbb32e9d..488330f23f04 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -2101,7 +2101,7 @@ int __alloc_bootmem_huge_page(struct hstate *h)
+ 	for_each_node_mask_to_alloc(h, nr_nodes, node, &node_states[N_MEMORY]) {
+ 		void *addr;
+
+-		addr = memblock_virt_alloc_try_nid_nopanic(
++		addr = memblock_virt_alloc_try_nid_raw(
+ 				huge_page_size(h), huge_page_size(h),
+ 				0, BOOTMEM_ALLOC_ACCESSIBLE, node);
+ 		if (addr) {
+@@ -2119,6 +2119,7 @@ int __alloc_bootmem_huge_page(struct hstate *h)
+ found:
+ 	BUG_ON(!IS_ALIGNED(virt_to_phys(m), huge_page_size(h)));
+ 	/* Put them into a private list first because mem_map is not up yet */
++	INIT_LIST_HEAD(&m->list);
+ 	list_add(&m->list, &huge_boot_pages);
+ 	m->hstate = h;
+ 	return 1;
+--
+2.18.0.203.gfac676dfb9-goog
