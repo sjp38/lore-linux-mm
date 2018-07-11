@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A2A106B027F
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C3F0D6B027E
 	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:13 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id g16-v6so9878804edq.10
+Received: by mail-ed1-f72.google.com with SMTP id i26-v6so3990731edr.4
         for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:13 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id o5-v6si2129261edq.43.2018.07.11.04.30.12
+        by mx.google.com with ESMTPS id r12-v6si2295243eda.307.2018.07.11.04.30.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 11 Jul 2018 04:30:12 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 18/39] x86/pgtable: Move pgdp kernel/user conversion functions to pgtable.h
-Date: Wed, 11 Jul 2018 13:29:25 +0200
-Message-Id: <1531308586-29340-19-git-send-email-joro@8bytes.org>
+Subject: [PATCH 17/39] x86/pgtable/32: Allocate 8k page-tables when PTI is enabled
+Date: Wed, 11 Jul 2018 13:29:24 +0200
+Message-Id: <1531308586-29340-18-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,133 +22,94 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Make them available on 32 bit and clone_pgd_range() happy.
+Allocate a kernel and a user page-table root when PTI is
+enabled. Also allocate a full page per root for PAE because
+otherwise the bit to flip in cr3 to switch between them
+would be non-constant, which creates a lot of hassle.
+Keep that for a later optimization.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable.h    | 49 +++++++++++++++++++++++++++++++++++++++
- arch/x86/include/asm/pgtable_64.h | 49 ---------------------------------------
- 2 files changed, 49 insertions(+), 49 deletions(-)
+ arch/x86/kernel/head_32.S | 20 +++++++++++++++-----
+ arch/x86/mm/pgtable.c     |  5 +++--
+ 2 files changed, 18 insertions(+), 7 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 5715647..eb47432 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -1155,6 +1155,55 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
- }
- #endif
+diff --git a/arch/x86/kernel/head_32.S b/arch/x86/kernel/head_32.S
+index abe6df1..30f9cb2 100644
+--- a/arch/x86/kernel/head_32.S
++++ b/arch/x86/kernel/head_32.S
+@@ -512,11 +512,18 @@ ENTRY(initial_code)
+ ENTRY(setup_once_ref)
+ 	.long setup_once
  
 +#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+/*
-+ * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
-+ * (8k-aligned and 8k in size).  The kernel one is at the beginning 4k and
-+ * the user one is in the last 4k.  To switch between them, you
-+ * just need to flip the 12th bit in their addresses.
-+ */
-+#define PTI_PGTABLE_SWITCH_BIT	PAGE_SHIFT
-+
-+/*
-+ * This generates better code than the inline assembly in
-+ * __set_bit().
-+ */
-+static inline void *ptr_set_bit(void *ptr, int bit)
-+{
-+	unsigned long __ptr = (unsigned long)ptr;
-+
-+	__ptr |= BIT(bit);
-+	return (void *)__ptr;
-+}
-+static inline void *ptr_clear_bit(void *ptr, int bit)
-+{
-+	unsigned long __ptr = (unsigned long)ptr;
-+
-+	__ptr &= ~BIT(bit);
-+	return (void *)__ptr;
-+}
-+
-+static inline pgd_t *kernel_to_user_pgdp(pgd_t *pgdp)
-+{
-+	return ptr_set_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
-+}
-+
-+static inline pgd_t *user_to_kernel_pgdp(pgd_t *pgdp)
-+{
-+	return ptr_clear_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
-+}
-+
-+static inline p4d_t *kernel_to_user_p4dp(p4d_t *p4dp)
-+{
-+	return ptr_set_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
-+}
-+
-+static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
-+{
-+	return ptr_clear_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
-+}
-+#endif /* CONFIG_PAGE_TABLE_ISOLATION */
-+
++#define	PGD_ALIGN	(2 * PAGE_SIZE)
++#define PTI_USER_PGD_FILL	1024
++#else
++#define	PGD_ALIGN	(PAGE_SIZE)
++#define PTI_USER_PGD_FILL	0
++#endif
  /*
-  * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);
-  *
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index 9406c4f..4adba19 100644
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -132,55 +132,6 @@ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
+  * BSS section
+  */
+ __PAGE_ALIGNED_BSS
+-	.align PAGE_SIZE
++	.align PGD_ALIGN
+ #ifdef CONFIG_X86_PAE
+ .globl initial_pg_pmd
+ initial_pg_pmd:
+@@ -526,14 +533,17 @@ initial_pg_pmd:
+ initial_page_table:
+ 	.fill 1024,4,0
  #endif
- }
++	.align PGD_ALIGN
+ initial_pg_fixmap:
+ 	.fill 1024,4,0
+-.globl empty_zero_page
+-empty_zero_page:
+-	.fill 4096,1,0
+ .globl swapper_pg_dir
++	.align PGD_ALIGN
+ swapper_pg_dir:
+ 	.fill 1024,4,0
++	.fill PTI_USER_PGD_FILL,4,0
++.globl empty_zero_page
++empty_zero_page:
++	.fill 4096,1,0
+ EXPORT_SYMBOL(empty_zero_page)
  
--#ifdef CONFIG_PAGE_TABLE_ISOLATION
--/*
-- * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
-- * (8k-aligned and 8k in size).  The kernel one is at the beginning 4k and
-- * the user one is in the last 4k.  To switch between them, you
-- * just need to flip the 12th bit in their addresses.
-- */
--#define PTI_PGTABLE_SWITCH_BIT	PAGE_SHIFT
--
--/*
-- * This generates better code than the inline assembly in
-- * __set_bit().
-- */
--static inline void *ptr_set_bit(void *ptr, int bit)
--{
--	unsigned long __ptr = (unsigned long)ptr;
--
--	__ptr |= BIT(bit);
--	return (void *)__ptr;
--}
--static inline void *ptr_clear_bit(void *ptr, int bit)
--{
--	unsigned long __ptr = (unsigned long)ptr;
--
--	__ptr &= ~BIT(bit);
--	return (void *)__ptr;
--}
--
--static inline pgd_t *kernel_to_user_pgdp(pgd_t *pgdp)
--{
--	return ptr_set_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
--}
--
--static inline pgd_t *user_to_kernel_pgdp(pgd_t *pgdp)
--{
--	return ptr_clear_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
--}
--
--static inline p4d_t *kernel_to_user_p4dp(p4d_t *p4dp)
--{
--	return ptr_set_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
--}
--
--static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
--{
--	return ptr_clear_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
--}
--#endif /* CONFIG_PAGE_TABLE_ISOLATION */
--
  /*
-  * Page table pages are page-aligned.  The lower half of the top
-  * level is used for userspace and the top half for the kernel.
+@@ -542,7 +552,7 @@ EXPORT_SYMBOL(empty_zero_page)
+ #ifdef CONFIG_X86_PAE
+ __PAGE_ALIGNED_DATA
+ 	/* Page-aligned for the benefit of paravirt? */
+-	.align PAGE_SIZE
++	.align PGD_ALIGN
+ ENTRY(initial_page_table)
+ 	.long	pa(initial_pg_pmd+PGD_IDENT_ATTR),0	/* low identity map */
+ # if KPMDS == 3
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index 47b5951..db6fb77 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -343,7 +343,8 @@ static inline pgd_t *_pgd_alloc(void)
+ 	 * We allocate one page for pgd.
+ 	 */
+ 	if (!SHARED_KERNEL_PMD)
+-		return (pgd_t *)__get_free_page(PGALLOC_GFP);
++		return (pgd_t *)__get_free_pages(PGALLOC_GFP,
++						 PGD_ALLOCATION_ORDER);
+ 
+ 	/*
+ 	 * Now PAE kernel is not running as a Xen domain. We can allocate
+@@ -355,7 +356,7 @@ static inline pgd_t *_pgd_alloc(void)
+ static inline void _pgd_free(pgd_t *pgd)
+ {
+ 	if (!SHARED_KERNEL_PMD)
+-		free_page((unsigned long)pgd);
++		free_pages((unsigned long)pgd, PGD_ALLOCATION_ORDER);
+ 	else
+ 		kmem_cache_free(pgd_cache, pgd);
+ }
 -- 
 2.7.4
