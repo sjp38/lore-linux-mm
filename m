@@ -1,65 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 00B406B000A
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 00:04:09 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id o18-v6so13642452qtm.11
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 21:04:09 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id r76-v6si12186179qkl.279.2018.07.10.21.04.09
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1111D6B0003
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 01:24:38 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id z21-v6so6533104plo.13
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 22:24:38 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id m24-v6si17840319pgl.452.2018.07.10.22.24.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jul 2018 21:04:09 -0700 (PDT)
-Date: Wed, 11 Jul 2018 07:04:01 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v35 1/5] mm: support to get hints of free page blocks
-Message-ID: <20180711070318-mutt-send-email-mst@kernel.org>
-References: <1531215067-35472-1-git-send-email-wei.w.wang@intel.com>
- <1531215067-35472-2-git-send-email-wei.w.wang@intel.com>
- <CA+55aFz9a=D-kquM=sG5uhV_HrBAw+VAhcJmtPNz+howy4j9ow@mail.gmail.com>
- <20180711064709-mutt-send-email-mst@kernel.org>
+        Tue, 10 Jul 2018 22:24:36 -0700 (PDT)
+Subject: [PATCH v4 0/8] mm: Rework hmm to use devm_memremap_pages and other
+ fixes
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 10 Jul 2018 22:14:37 -0700
+Message-ID: <153128607743.2928.4465435789810433432.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180711064709-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, virtualization <virtualization@lists.linux-foundation.org>, KVM list <kvm@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, Rik van Riel <riel@redhat.com>, peterx@redhat.com
+To: akpm@linux-foundation.org
+Cc: stable@vger.kernel.org, Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, John Hubbard <jhubbard@nvidia.com>, Joe Gorse <jhgorse@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 11, 2018 at 07:00:37AM +0300, Michael S. Tsirkin wrote:
-> On Tue, Jul 10, 2018 at 10:33:08AM -0700, Linus Torvalds wrote:
-> > NAK.
-> > 
-> > On Tue, Jul 10, 2018 at 2:56 AM Wei Wang <wei.w.wang@intel.com> wrote:
-> > >
-> > > +
-> > > +       buf_page = list_first_entry_or_null(pages, struct page, lru);
-> > > +       if (!buf_page)
-> > > +               return -EINVAL;
-> > > +       buf = (__le64 *)page_address(buf_page);
-> > 
-> > Stop this garbage.
-> > 
-> > Why the hell would you pass in some crazy "liost of pages" that uses
-> > that lru list?
-> > 
-> > That's just insane shit.
-> > 
-> > Just pass in a an array to fill in.
-> > No idiotic games like this with
-> > odd list entries (what's the locking?) and crazy casting to
-> > 
-> > So if you want an array of page addresses, pass that in as such. If
-> > you want to do it in a page, do it with
-> > 
-> >     u64 *array = page_address(page);
-> >     int nr = PAGE_SIZE / sizeof(u64);
-> > 
-> > and now you pass that array in to the thing. None of this completely
-> > insane crazy crap interfaces.
-> 
-> Question was raised what to do if there are so many free
-> MAX_ORDER pages that their addresses don't fit in a single MAX_ORDER
-> page.
+Changes since v3 [1]:
+* Collect Logan's reviewed-by on patch 3
+* Collect John's and Joe's tested-by on patch 8
+* Update the changelog for patch 1 and 7 to better explain the
+  EXPORT_SYMBOL_GPL rationale.
+* Update the changelog for patch 2 to clarify that it is a cleanup to
+  make the following patch-3 fix easier
 
-Oh you answered already, I spoke too soon. Nevermind, pls ignore me.
+[1]: https://lkml.org/lkml/2018/6/19/108
+
+---
+
+Hi Andrew,
+
+As requested, here is a resend of the devm_memremap_pages() fixups.
+Please consider for 4.18.
+
+---
+
+As ZONE_DEVICE continues to attract new users, it is imperative to keep
+all users consolidated on devm_memremap_pages() as the interface for
+create "device pages".
+
+The devm_memremap_pages() implementation was recently reworked to make
+it more generic for arbitrary users, like the proposed peer-to-peer
+PCI-E enabling. HMM pre-dated this rework and opted to duplicate
+devm_memremap_pages() as hmm_devmem_pages_create().
+
+Rework hmm to be a consumer of devm_memremap_pages() directly and fix up
+the licensing on the exports given the deep dependencies and exposure of
+core mm internals.
+
+With the exports of devm_memremap_pages() and hmm fixed up we can fix
+the regression of inadvertently making put_page() have EXPORT_SYMBOL_GPL
+dependencies, which breaks consumers like OpenAFS.
+
+The series was tested against v4.18-rc2.
+
+---
+
+Dan Williams (8):
+      mm, devm_memremap_pages: Mark devm_memremap_pages() EXPORT_SYMBOL_GPL
+      mm, devm_memremap_pages: Kill mapping "System RAM" support
+      mm, devm_memremap_pages: Fix shutdown handling
+      mm, devm_memremap_pages: Add MEMORY_DEVICE_PRIVATE support
+      mm, hmm: Use devm semantics for hmm_devmem_{add,remove}
+      mm, hmm: Replace hmm_devmem_pages_create() with devm_memremap_pages()
+      mm, hmm: Mark hmm_devmem_{add,add_resource} EXPORT_SYMBOL_GPL
+      mm: Fix exports that inadvertently make put_page() EXPORT_SYMBOL_GPL
+
+
+ drivers/dax/pmem.c                |   10 -
+ drivers/nvdimm/pmem.c             |   18 +-
+ include/linux/hmm.h               |    4 
+ include/linux/memremap.h          |    7 +
+ kernel/memremap.c                 |   89 +++++++----
+ mm/hmm.c                          |  306 +++++--------------------------------
+ tools/testing/nvdimm/test/iomap.c |   21 ++-
+ 7 files changed, 132 insertions(+), 323 deletions(-)
