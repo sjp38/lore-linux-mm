@@ -1,76 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 31F536B0271
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 13:10:42 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id d4-v6so16712720pfn.9
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 10:10:42 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id p61-v6si19804524plb.472.2018.07.11.10.10.41
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 936186B0003
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 13:28:35 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id f8-v6so4420890eds.6
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 10:28:35 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x17-v6si362718edl.345.2018.07.11.10.28.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 10:10:41 -0700 (PDT)
-Message-ID: <1531328731.15351.3.camel@intel.com>
-Subject: Re: [RFC PATCH v2 16/27] mm: Modify can_follow_write_pte/pmd for
- shadow stack
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Date: Wed, 11 Jul 2018 10:05:31 -0700
-In-Reply-To: <de510df6-7ea9-edc6-9c49-2f80f16472b4@linux.intel.com>
-References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
-	 <20180710222639.8241-17-yu-cheng.yu@intel.com>
-	 <de510df6-7ea9-edc6-9c49-2f80f16472b4@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Wed, 11 Jul 2018 10:28:34 -0700 (PDT)
+Date: Wed, 11 Jul 2018 19:28:30 +0200 (CEST)
+From: Jiri Kosina <jikos@kernel.org>
+Subject: Re: [PATCH 00/39 v7] PTI support for x86-32
+In-Reply-To: <CA+55aFzrG+GV5ySVUiiod8Va5P0_vmUuh25Pner1r7c_aQgH9g@mail.gmail.com>
+Message-ID: <nycvar.YFH.7.76.1807111923420.997@cbobk.fhfr.pm>
+References: <1531308586-29340-1-git-send-email-joro@8bytes.org> <CA+55aFzrG+GV5ySVUiiod8Va5P0_vmUuh25Pner1r7c_aQgH9g@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, x86@kernel.org, "H. Peter
- Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J.
- Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Anvin <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, =?ISO-8859-15?Q?J=FCrgen_Gro=DF?= <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, Joerg Roedel <jroedel@suse.de>
 
-On Tue, 2018-07-10 at 16:37 -0700, Dave Hansen wrote:
-> On 07/10/2018 03:26 PM, Yu-cheng Yu wrote:
-> > 
-> > There are three possible shadow stack PTE settings:
-> > 
-> > A  Normal SHSTK PTE: (R/O + DIRTY_HW)
-> > A  SHSTK PTE COW'ed: (R/O + DIRTY_HW)
-> > A  SHSTK PTE shared as R/O data: (R/O + DIRTY_SW)
-> > 
-> > Update can_follow_write_pte/pmd for the shadow stack.
-> First of all, thanks for the excellent patch headers.A A It's nice to
-> have
-> that reference every time even though it's repeated.
-> 
-> > 
-> > -static inline bool can_follow_write_pte(pte_t pte, unsigned int
-> > flags)
-> > +static inline bool can_follow_write_pte(pte_t pte, unsigned int
-> > flags,
-> > +					bool shstk)
-> > A {
-> > +	bool pte_cowed = shstk ? is_shstk_pte(pte):pte_dirty(pte);
-> > +
-> > A 	return pte_write(pte) ||
-> > -		((flags & FOLL_FORCE) && (flags & FOLL_COW) &&
-> > pte_dirty(pte));
-> > +		((flags & FOLL_FORCE) && (flags & FOLL_COW) &&
-> > pte_cowed);
-> > A }
-> Can we just pass the VMA in here?A A This use is OK-ish, but I
-> generally
-> detest true/false function arguments because you can't tell what they
-> are when they show up without a named variable.
-> 
-> But...A A Why does this even matter?A A Your own example showed that all
-> shadowstack PTEs have either DIRTY_HW or DIRTY_SW set, and
-> pte_dirty()
-> checks both.
-> 
-> That makes this check seem a bit superfluous.
+On Wed, 11 Jul 2018, Linus Torvalds wrote:
 
-My understanding is that we don't want to follow write pte if the page
-is shared as read-only. A For a SHSTK page, that is (R/O + DIRTY_SW),
-which means the SHSTK page has not been COW'ed. A Is that right?
+> It's the testing that worries me most. Pretty much no developers run 
+> 32-bit any more, and I'd be most worried about the odd interactions that 
+> might be hw-specific. Some crazy EFI mapping setup or the similar odd 
+> case that simply requires a particular configuration or setup.
+> 
+> But I guess those issues will never be found until we just spring this
+> all on the unsuspecting public.
 
-Thanks,
-Yu-cheng
+FWIW we shipped Joerg's 32bit KAISER kernel out to our 32bit users (on old 
+product where we still support it) on Apr 25th already (and some issues 
+have been identified since then because of that). So it (or its port to 
+3.0, to be more precise :p) already did receive some crowd-testing.
+
+-- 
+Jiri Kosina
+SUSE Labs
