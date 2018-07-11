@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EB036B027A
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A3FA36B027C
 	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:11 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id c20-v6so9861752eds.21
+Received: by mail-ed1-f72.google.com with SMTP id x21-v6so5799753eds.2
         for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:11 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id s8-v6si1959034edi.258.2018.07.11.04.30.10
+        by mx.google.com with ESMTPS id k25-v6si6425045edf.84.2018.07.11.04.30.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 11 Jul 2018 04:30:10 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 10/39] x86/entry/32: Handle Entry from Kernel-Mode on Entry-Stack
-Date: Wed, 11 Jul 2018 13:29:17 +0200
-Message-Id: <1531308586-29340-11-git-send-email-joro@8bytes.org>
+Subject: [PATCH 15/39] x86/pgtable: Rename pti_set_user_pgd to pti_set_user_pgtbl
+Date: Wed, 11 Jul 2018 13:29:22 +0200
+Message-Id: <1531308586-29340-16-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,200 +22,77 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-It can happen that we enter the kernel from kernel-mode and
-on the entry-stack. The most common way this happens is when
-we get an exception while loading the user-space segment
-registers on the kernel-to-userspace exit path.
-
-The segment loading needs to be done after the entry-stack
-switch, because the stack-switch needs kernel %fs for
-per_cpu access.
-
-When this happens, we need to make sure that we leave the
-kernel with the entry-stack again, so that the interrupted
-code-path runs on the right stack when switching to the
-user-cr3.
-
-We do this by detecting this condition on kernel-entry by
-checking CS.RPL and %esp, and if it happens, we copy over
-the complete content of the entry stack to the task-stack.
-This needs to be done because once we enter the exception
-handlers we might be scheduled out or even migrated to a
-different CPU, so that we can't rely on the entry-stack
-contents. We also leave a marker in the stack-frame to
-detect this condition on the exit path.
-
-On the exit path the copy is reversed, we copy all of the
-remaining task-stack back to the entry-stack and switch
-to it.
+With the way page-table folding is implemented on 32 bit, we
+are not only setting PGDs with this functions, but also PUDs
+and even PMDs. Give the function a more generic name to
+reflect that.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S | 116 +++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 115 insertions(+), 1 deletion(-)
+ arch/x86/include/asm/pgtable_64.h | 12 ++++++------
+ arch/x86/mm/pti.c                 |  2 +-
+ 2 files changed, 7 insertions(+), 7 deletions(-)
 
-diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index 3d1a114..b3af76e 100644
---- a/arch/x86/entry/entry_32.S
-+++ b/arch/x86/entry/entry_32.S
-@@ -299,6 +299,9 @@
-  * copied there. So allocate the stack-frame on the task-stack and
-  * switch to it before we do any copying.
-  */
-+
-+#define CS_FROM_ENTRY_STACK	(1 << 31)
-+
- .macro SWITCH_TO_KERNEL_STACK
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 3c5385f..9406c4f 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -196,21 +196,21 @@ static inline bool pgdp_maps_userspace(void *__ptr)
+ }
  
- 	ALTERNATIVE     "", "jmp .Lend_\@", X86_FEATURE_XENPV
-@@ -320,6 +323,16 @@
- 	/* Load top of task-stack into %edi */
- 	movl	TSS_entry_stack(%edi), %edi
- 
-+	/*
-+	 * Clear upper bits of the CS slot in pt_regs in case hardware
-+	 * didn't clear it for us
-+	 */
-+	andl	$(0x0000ffff), PT_CS(%esp)
-+
-+	/* Special case - entry from kernel mode via entry stack */
-+	testl	$SEGMENT_RPL_MASK, PT_CS(%esp)
-+	jz	.Lentry_from_kernel_\@
-+
- 	/* Bytes to copy */
- 	movl	$PTREGS_SIZE, %ecx
- 
-@@ -333,8 +346,8 @@
- 	 */
- 	addl	$(4 * 4), %ecx
- 
--.Lcopy_pt_regs_\@:
- #endif
-+.Lcopy_pt_regs_\@:
- 
- 	/* Allocate frame on task-stack */
- 	subl	%ecx, %edi
-@@ -350,6 +363,56 @@
- 	cld
- 	rep movsl
- 
-+	jmp .Lend_\@
-+
-+.Lentry_from_kernel_\@:
-+
-+	/*
-+	 * This handles the case when we enter the kernel from
-+	 * kernel-mode and %esp points to the entry-stack. When this
-+	 * happens we need to switch to the task-stack to run C code,
-+	 * but switch back to the entry-stack again when we approach
-+	 * iret and return to the interrupted code-path. This usually
-+	 * happens when we hit an exception while restoring user-space
-+	 * segment registers on the way back to user-space.
-+	 *
-+	 * When we switch to the task-stack here, we can't trust the
-+	 * contents of the entry-stack anymore, as the exception handler
-+	 * might be scheduled out or moved to another CPU. Therefore we
-+	 * copy the complete entry-stack to the task-stack and set a
-+	 * marker in the iret-frame (bit 31 of the CS dword) to detect
-+	 * what we've done on the iret path.
-+	 *
-+	 * On the iret path we copy everything back and switch to the
-+	 * entry-stack, so that the interrupted kernel code-path
-+	 * continues on the same stack it was interrupted with.
-+	 *
-+	 * Be aware that an NMI can happen anytime in this code.
-+	 *
-+	 * %esi: Entry-Stack pointer (same as %esp)
-+	 * %edi: Top of the task stack
-+	 */
-+
-+	/* Calculate number of bytes on the entry stack in %ecx */
-+	movl	%esi, %ecx
-+
-+	/* %ecx to the top of entry-stack */
-+	andl	$(MASK_entry_stack), %ecx
-+	addl	$(SIZEOF_entry_stack), %ecx
-+
-+	/* Number of bytes on the entry stack to %ecx */
-+	sub	%esi, %ecx
-+
-+	/* Mark stackframe as coming from entry stack */
-+	orl	$CS_FROM_ENTRY_STACK, PT_CS(%esp)
-+
-+	/*
-+	 * %esi and %edi are unchanged, %ecx contains the number of
-+	 * bytes to copy. The code at .Lcopy_pt_regs_\@ will allocate
-+	 * the stack-frame on task-stack and copy everything over
-+	 */
-+	jmp .Lcopy_pt_regs_\@
-+
- .Lend_\@:
- .endm
- 
-@@ -408,6 +471,56 @@
- .endm
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
+-pgd_t __pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd);
++pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd);
  
  /*
-+ * This macro handles the case when we return to kernel-mode on the iret
-+ * path and have to switch back to the entry stack.
-+ *
-+ * See the comments below the .Lentry_from_kernel_\@ label in the
-+ * SWITCH_TO_KERNEL_STACK macro for more details.
-+ */
-+.macro PARANOID_EXIT_TO_KERNEL_MODE
-+
-+	/*
-+	 * Test if we entered the kernel with the entry-stack. Most
-+	 * likely we did not, because this code only runs on the
-+	 * return-to-kernel path.
-+	 */
-+	testl	$CS_FROM_ENTRY_STACK, PT_CS(%esp)
-+	jz	.Lend_\@
-+
-+	/* Unlikely slow-path */
-+
-+	/* Clear marker from stack-frame */
-+	andl	$(~CS_FROM_ENTRY_STACK), PT_CS(%esp)
-+
-+	/* Copy the remaining task-stack contents to entry-stack */
-+	movl	%esp, %esi
-+	movl	PER_CPU_VAR(cpu_tss_rw + TSS_sp0), %edi
-+
-+	/* Bytes on the task-stack to ecx */
-+	movl	PER_CPU_VAR(cpu_current_top_of_stack), %ecx
-+	subl	%esi, %ecx
-+
-+	/* Allocate stack-frame on entry-stack */
-+	subl	%ecx, %edi
-+
-+	/*
-+	 * Save future stack-pointer, we must not switch until the
-+	 * copy is done, otherwise the NMI handler could destroy the
-+	 * contents of the task-stack we are about to copy.
-+	 */
-+	movl	%edi, %ebx
-+
-+	/* Do the copy */
-+	shrl	$2, %ecx
-+	cld
-+	rep movsl
-+
-+	/* Safe to switch to entry-stack now */
-+	movl	%ebx, %esp
-+
-+.Lend_\@:
-+.endm
-+/*
-  * %eax: prev task
-  * %edx: next task
+  * Take a PGD location (pgdp) and a pgd value that needs to be set there.
+  * Populates the user and returns the resulting PGD that must be set in
+  * the kernel copy of the page tables.
   */
-@@ -769,6 +882,7 @@ restore_all:
+-static inline pgd_t pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
++static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
+ {
+ 	if (!static_cpu_has(X86_FEATURE_PTI))
+ 		return pgd;
+-	return __pti_set_user_pgd(pgdp, pgd);
++	return __pti_set_user_pgtbl(pgdp, pgd);
+ }
+ #else
+-static inline pgd_t pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
++static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
+ {
+ 	return pgd;
+ }
+@@ -226,7 +226,7 @@ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
+ 	}
  
- restore_all_kernel:
- 	TRACE_IRQS_IRET
-+	PARANOID_EXIT_TO_KERNEL_MODE
- 	RESTORE_REGS 4
- 	jmp	.Lirq_return
+ 	pgd = native_make_pgd(native_p4d_val(p4d));
+-	pgd = pti_set_user_pgd((pgd_t *)p4dp, pgd);
++	pgd = pti_set_user_pgtbl((pgd_t *)p4dp, pgd);
+ 	*p4dp = native_make_p4d(native_pgd_val(pgd));
+ }
  
+@@ -237,7 +237,7 @@ static inline void native_p4d_clear(p4d_t *p4d)
+ 
+ static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
+ {
+-	*pgdp = pti_set_user_pgd(pgdp, pgd);
++	*pgdp = pti_set_user_pgtbl(pgdp, pgd);
+ }
+ 
+ static inline void native_pgd_clear(pgd_t *pgd)
+diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+index 4d418e7..f512222 100644
+--- a/arch/x86/mm/pti.c
++++ b/arch/x86/mm/pti.c
+@@ -117,7 +117,7 @@ void __init pti_check_boottime_disable(void)
+ 	setup_force_cpu_cap(X86_FEATURE_PTI);
+ }
+ 
+-pgd_t __pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
++pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
+ {
+ 	/*
+ 	 * Changes to the high (kernel) portion of the kernelmode page
 -- 
 2.7.4
