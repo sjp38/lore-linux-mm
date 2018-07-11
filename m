@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B1F46B0299
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:25 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id v26-v6so3469931eds.9
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:25 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E2ACD6B02B1
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:31:47 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id p5-v6so1428712edh.16
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:31:47 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id s33-v6si11529346edb.123.2018.07.11.04.30.23
+        by mx.google.com with ESMTPS id j2-v6si2653434edq.304.2018.07.11.04.30.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 04:30:24 -0700 (PDT)
+        Wed, 11 Jul 2018 04:30:11 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 36/39] x86/ldt: Enable LDT user-mapping for PAE
-Date: Wed, 11 Jul 2018 13:29:43 +0200
-Message-Id: <1531308586-29340-37-git-send-email-joro@8bytes.org>
+Subject: [PATCH 16/39] x86/pgtable/pae: Unshare kernel PMDs when PTI is enabled
+Date: Wed, 11 Jul 2018 13:29:23 +0200
+Message-Id: <1531308586-29340-17-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,105 +22,31 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-This adds the needed special case for PAE to get the LDT
-mapped into the user page-table when PTI is enabled. The big
-difference to the other paging modes is that we don't have a
-full top-level PGD entry available for the LDT, but only PMD
-entry.
+With PTI we need to map the per-process LDT into the kernel
+address-space for each process, so we need separate kernel
+PMDs per PGD.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/mmu_context.h |  5 ----
- arch/x86/kernel/ldt.c              | 53 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+), 5 deletions(-)
+ arch/x86/include/asm/pgtable-3level_types.h | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index bbc796e..eeeb928 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -71,12 +71,7 @@ struct ldt_struct {
+diff --git a/arch/x86/include/asm/pgtable-3level_types.h b/arch/x86/include/asm/pgtable-3level_types.h
+index 6a59a6d..78038e0 100644
+--- a/arch/x86/include/asm/pgtable-3level_types.h
++++ b/arch/x86/include/asm/pgtable-3level_types.h
+@@ -21,9 +21,10 @@ typedef union {
+ #endif	/* !__ASSEMBLY__ */
  
- static inline void *ldt_slot_va(int slot)
- {
--#ifdef CONFIG_X86_64
- 	return (void *)(LDT_BASE_ADDR + LDT_SLOT_STRIDE * slot);
--#else
--	BUG();
--	return (void *)fix_to_virt(FIX_HOLE);
--#endif
- }
+ #ifdef CONFIG_PARAVIRT
+-#define SHARED_KERNEL_PMD	(pv_info.shared_kernel_pmd)
++#define SHARED_KERNEL_PMD	((!static_cpu_has(X86_FEATURE_PTI) &&	\
++				 (pv_info.shared_kernel_pmd)))
+ #else
+-#define SHARED_KERNEL_PMD	1
++#define SHARED_KERNEL_PMD	(!static_cpu_has(X86_FEATURE_PTI))
+ #endif
  
  /*
-diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
-index 69af9a0..733e6ac 100644
---- a/arch/x86/kernel/ldt.c
-+++ b/arch/x86/kernel/ldt.c
-@@ -126,6 +126,57 @@ static void do_sanity_check(struct mm_struct *mm,
- 	}
- }
- 
-+#ifdef CONFIG_X86_PAE
-+
-+static pmd_t *pgd_to_pmd_walk(pgd_t *pgd, unsigned long va)
-+{
-+	p4d_t *p4d;
-+	pud_t *pud;
-+
-+	if (pgd->pgd == 0)
-+		return NULL;
-+
-+	p4d = p4d_offset(pgd, va);
-+	if (p4d_none(*p4d))
-+		return NULL;
-+
-+	pud = pud_offset(p4d, va);
-+	if (pud_none(*pud))
-+		return NULL;
-+
-+	return pmd_offset(pud, va);
-+}
-+
-+static void map_ldt_struct_to_user(struct mm_struct *mm)
-+{
-+	pgd_t *k_pgd = pgd_offset(mm, LDT_BASE_ADDR);
-+	pgd_t *u_pgd = kernel_to_user_pgdp(k_pgd);
-+	pmd_t *k_pmd, *u_pmd;
-+
-+	k_pmd = pgd_to_pmd_walk(k_pgd, LDT_BASE_ADDR);
-+	u_pmd = pgd_to_pmd_walk(u_pgd, LDT_BASE_ADDR);
-+
-+	if (static_cpu_has(X86_FEATURE_PTI) && !mm->context.ldt)
-+		set_pmd(u_pmd, *k_pmd);
-+}
-+
-+static void sanity_check_ldt_mapping(struct mm_struct *mm)
-+{
-+	pgd_t *k_pgd = pgd_offset(mm, LDT_BASE_ADDR);
-+	pgd_t *u_pgd = kernel_to_user_pgdp(k_pgd);
-+	bool had_kernel, had_user;
-+	pmd_t *k_pmd, *u_pmd;
-+
-+	k_pmd      = pgd_to_pmd_walk(k_pgd, LDT_BASE_ADDR);
-+	u_pmd      = pgd_to_pmd_walk(u_pgd, LDT_BASE_ADDR);
-+	had_kernel = (k_pmd->pmd != 0);
-+	had_user   = (u_pmd->pmd != 0);
-+
-+	do_sanity_check(mm, had_kernel, had_user);
-+}
-+
-+#else /* !CONFIG_X86_PAE */
-+
- static void map_ldt_struct_to_user(struct mm_struct *mm)
- {
- 	pgd_t *pgd = pgd_offset(mm, LDT_BASE_ADDR);
-@@ -143,6 +194,8 @@ static void sanity_check_ldt_mapping(struct mm_struct *mm)
- 	do_sanity_check(mm, had_kernel, had_user);
- }
- 
-+#endif /* CONFIG_X86_PAE */
-+
- /*
-  * If PTI is enabled, this maps the LDT into the kernelmode and
-  * usermode tables for the given mm.
 -- 
 2.7.4
