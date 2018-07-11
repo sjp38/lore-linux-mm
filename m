@@ -1,86 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 412696B0271
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 11:14:04 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id v65-v6so11527061qka.23
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 08:14:04 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id t34-v6si5865668qth.151.2018.07.11.08.13.59
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D40146B0272
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 11:28:09 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id a12-v6so16358702pfn.12
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 08:28:09 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id y2-v6si21388980pff.117.2018.07.11.08.28.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 08:13:59 -0700 (PDT)
-Subject: Re: [PATCH v6 0/7] fs/dcache: Track & limit # of negative dentries
-References: <1530905572-817-1-git-send-email-longman@redhat.com>
- <20180709081920.GD22049@dhcp22.suse.cz>
- <62275711-e01d-7dbe-06f1-bf094b618195@redhat.com>
- <20180710142740.GQ14284@dhcp22.suse.cz>
- <a2794bcc-9193-cbca-3a54-47420a2ab52c@redhat.com>
- <20180711102139.GG20050@dhcp22.suse.cz>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <9f24c043-1fca-ee86-d609-873a7a8f7a64@redhat.com>
-Date: Wed, 11 Jul 2018 11:13:58 -0400
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 11 Jul 2018 08:28:08 -0700 (PDT)
+Date: Wed, 11 Jul 2018 17:27:54 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC PATCH v2 18/27] x86/cet/shstk: Introduce WRUSS instruction
+Message-ID: <20180711152754.GJ2476@hirez.programming.kicks-ass.net>
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+ <20180710222639.8241-19-yu-cheng.yu@intel.com>
+ <20180711094549.GA2476@hirez.programming.kicks-ass.net>
+ <1531321089.13297.4.camel@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180711102139.GG20050@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1531321089.13297.4.camel@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-On 07/11/2018 06:21 AM, Michal Hocko wrote:
-> On Tue 10-07-18 12:09:17, Waiman Long wrote:
->> On 07/10/2018 10:27 AM, Michal Hocko wrote:
->>> On Mon 09-07-18 12:01:04, Waiman Long wrote:
->>>> On 07/09/2018 04:19 AM, Michal Hocko wrote:
-> [...]
->>>>> percentage has turned out to be a really wrong unit for many tunabl=
-es
->>>>> over time. Even 1% can be just too much on really large machines.
->>>> Yes, that is true. Do you have any suggestion of what kind of unit
->>>> should be used? I can scale down the unit to 0.1% of the system memo=
-ry.
->>>> Alternatively, one unit can be 10k/cpu thread, so a 20-thread system=
+On Wed, Jul 11, 2018 at 07:58:09AM -0700, Yu-cheng Yu wrote:
+> On Wed, 2018-07-11 at 11:45 +0200, Peter Zijlstra wrote:
+> > On Tue, Jul 10, 2018 at 03:26:30PM -0700, Yu-cheng Yu wrote:
+> > > 
+> > > diff --git a/arch/x86/lib/x86-opcode-map.txt b/arch/x86/lib/x86-
+> > > opcode-map.txt
+> > > index e0b85930dd77..72bb7c48a7df 100644
+> > > --- a/arch/x86/lib/x86-opcode-map.txt
+> > > +++ b/arch/x86/lib/x86-opcode-map.txt
+> > > @@ -789,7 +789,7 @@ f0: MOVBE Gy,My | MOVBE Gw,Mw (66) | CRC32
+> > > Gd,Eb (F2) | CRC32 Gd,Eb (66&F2)
+> > >  f1: MOVBE My,Gy | MOVBE Mw,Gw (66) | CRC32 Gd,Ey (F2) | CRC32
+> > > Gd,Ew (66&F2)
+> > >  f2: ANDN Gy,By,Ey (v)
+> > >  f3: Grp17 (1A)
+> > > -f5: BZHI Gy,Ey,By (v) | PEXT Gy,By,Ey (F3),(v) | PDEP Gy,By,Ey
+> > > (F2),(v)
+> > > +f5: BZHI Gy,Ey,By (v) | PEXT Gy,By,Ey (F3),(v) | PDEP Gy,By,Ey
+> > > (F2),(v) | WRUSS Pq,Qq (66),REX.W
+> > >  f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v)
+> > >  f7: BEXTR Gy,Ey,By (v) | SHLX Gy,Ey,By (66),(v) | SARX Gy,Ey,By
+> > > (F3),(v) | SHRX Gy,Ey,By (F2),(v)
+> > >  EndTable
+> > Where are all the other instructions? ISTR that documentation patch
+> > listing a whole bunch of new instructions, not just wuss.
+> 
+> Currently we only use WRUSS in the kernel code.  Do we want to add all
+> instructions here?
 
->>>> corresponds to 200k, etc.
->>> I simply think this is a strange user interface. How much is a
->>> reasonable number? How can any admin figure that out?
->> Without the optional enforcement, the limit is essentially just a
->> notification mechanism where the system signals that there is somethin=
-g
->> wrong going on and the system administrator need to take a look. So it=
-
->> is perfectly OK if the limit is sufficiently high that normally we won=
-'t
->> need to use that many negative dentries. The goal is to prevent negati=
-ve
->> dentries from consuming a significant portion of the system memory.
-> So again. How do you tell the right number?
-
-I guess it will be more a trial and error kind of adjustment as the
-right figure will depend on the kind of workloads being run on the
-system. So unless the enforcement option is turned on, setting a limit
-that is too small won't have too much impact over than a slight
-performance drop because of the invocation of the slowpaths and the
-warning messages in the console. Whenever a non-zero value is written
-into "neg-dentry-limit", an informational message will be printed about
-what the actual negative dentry limits
-will be. It can be compared against the current negative dentry number
-(5th number) from "dentry-state" to see if there is enough safe margin
-to avoid false positive warning.
-
->
->> I am going to reduce the granularity of each unit to 1/1000 of the tot=
-al
->> system memory so that for large system with TB of memory, a smaller
->> amount of memory can be specified.
-> It is just a matter of time for this to be too coarse as well.
-
-The goal is to not have too much memory being consumed by negative
-dentries and also the limit won't be reached by regular daily
-activities. So a limit of 1/1000 of the total system memory will be good
-enough on large memory system even if the absolute number is really big.
-
-Cheers,
-Longman
+Yes, since we also use the in-kernel decoder to decode random userspace
+code.
