@@ -1,42 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 245DF6B0277
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 11:31:06 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id n11-v6so22128602ioa.23
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 08:31:06 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id 198-v6si1743896itx.96.2018.07.11.08.30.59
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 551826B0003
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 11:44:24 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id m2-v6so15145500plt.14
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 08:44:24 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id o3-v6si1817431pls.82.2018.07.11.08.44.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 11 Jul 2018 08:30:59 -0700 (PDT)
-Date: Wed, 11 Jul 2018 17:30:44 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC PATCH v2 18/27] x86/cet/shstk: Introduce WRUSS instruction
-Message-ID: <20180711153044.GK2476@hirez.programming.kicks-ass.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Jul 2018 08:44:23 -0700 (PDT)
+Message-ID: <1531323638.13297.24.camel@intel.com>
+Subject: Re: [RFC PATCH v2 25/27] x86/cet: Add PTRACE interface for CET
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Date: Wed, 11 Jul 2018 08:40:38 -0700
+In-Reply-To: <20180711102035.GB8574@gmail.com>
 References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
- <20180710222639.8241-19-yu-cheng.yu@intel.com>
- <20180711094448.GZ2476@hirez.programming.kicks-ass.net>
- <1531321615.13297.9.camel@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+	 <20180710222639.8241-26-yu-cheng.yu@intel.com>
+	 <20180711102035.GB8574@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <1531321615.13297.9.camel@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-On Wed, Jul 11, 2018 at 08:06:55AM -0700, Yu-cheng Yu wrote:
-> On Wed, 2018-07-11 at 11:44 +0200, Peter Zijlstra wrote:
-
-> > What happened to:
-> > 
-> >   https://lkml.kernel.org/r/1528729376.4526.0.camel@2b52.sc.intel.com
+On Wed, 2018-07-11 at 12:20 +0200, Ingo Molnar wrote:
+> * Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
 > 
-> Yes, I put that in once and realized we only need to skip the
-> instruction and return err.  Do you think we still need a handler for
-> that?
+> > 
+> > Add PTRACE interface for CET MSRs.
+> Please *always* describe new ABIs in the changelog, in a precise,
+> well-documentedA 
+> way.
 
-I find that other form more readable, but then there's Nadav doing asm
-macros to shrink inline asm thingies so maybe he has another suggestion.
+Ok!
+
+> > 
+> > diff --git a/arch/x86/kernel/ptrace.c b/arch/x86/kernel/ptrace.c
+> > index e2ee403865eb..ac2bc3a18427 100644
+> > --- a/arch/x86/kernel/ptrace.c
+> > +++ b/arch/x86/kernel/ptrace.c
+> > @@ -49,7 +49,9 @@ enum x86_regset {
+> > A 	REGSET_IOPERM64 = REGSET_XFP,
+> > A 	REGSET_XSTATE,
+> > A 	REGSET_TLS,
+> > +	REGSET_CET64 = REGSET_TLS,
+> > A 	REGSET_IOPERM32,
+> > +	REGSET_CET32,
+> > A };
+> Why does REGSET_CET64 alias on REGSET_TLS?
+
+In x86_64_regsets[], there is no [REGSET_TLS]. A The core dump code
+cannot handle holes in the array.
+
+> 
+> > 
+> > A struct pt_regs_offset {
+> > @@ -1276,6 +1278,13 @@ static struct user_regset x86_64_regsets[]
+> > __ro_after_init = {
+> > A 		.size = sizeof(long), .align = sizeof(long),
+> > A 		.active = ioperm_active, .get = ioperm_get
+> > A 	},
+> > +	[REGSET_CET64] = {
+> > +		.core_note_type = NT_X86_CET,
+> > +		.n = sizeof(struct cet_user_state) / sizeof(u64),
+> > +		.size = sizeof(u64), .align = sizeof(u64),
+> > +		.active = cetregs_active, .get = cetregs_get,
+> > +		.set = cetregs_set
+> > +	},
+> Ok, could we first please make this part of the regset code more
+> readable andA 
+> start the series with a standalone clean-up patch that changes these
+> initializersA 
+> to something more readable:
+> 
+> 	[REGSET_CET64] = {
+> 		.core_note_type	= NT_X86_CET,
+> 		.n		= sizeof(struct cet_user_state) /
+> sizeof(u64),
+> 		.size		= sizeof(u64),
+> 		.align		= sizeof(u64),
+> 		.active		= cetregs_active,
+> 		.get		= cetregs_get,
+> 		.set		= cetregs_set
+> 	},
+> 
+> ? (I'm demonstrating the cleanup based on REGSET_CET64, but this
+> should be done onA 
+> every other entry first.)
+> 
+
+I will fix it.
+
+> 
+> > 
+> > --- a/include/uapi/linux/elf.h
+> > +++ b/include/uapi/linux/elf.h
+> > @@ -401,6 +401,7 @@ typedef struct elf64_shdr {
+> > A #define NT_386_TLS	0x200		/* i386 TLS slots
+> > (struct user_desc) */
+> > A #define NT_386_IOPERM	0x201		/* x86 io
+> > permission bitmap (1=deny) */
+> > A #define NT_X86_XSTATE	0x202		/* x86 extended
+> > state using xsave */
+> > +#define NT_X86_CET	0x203		/* x86 cet state */
+> Acronyms in comments should be in capital letters.
+> 
+> Also, I think I asked this before: why does "Control Flow
+> Enforcement" abbreviateA 
+> to "CET" (which is a well-known acronym for "Central European Time"),
+> not to CFE?
+> 
+
+I don't know if I can change that, will find out.
+
+Thanks,
+Yu-cheng
