@@ -1,111 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 429C56B0007
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 21:08:49 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id v9-v6so5104906pfn.6
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 18:08:49 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id j19-v6si3193470pgg.313.2018.07.10.18.08.47
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A8826B0008
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 21:24:42 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id w11-v6so9033702pfk.14
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 18:24:42 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id q13-v6si14767834pgq.526.2018.07.10.18.24.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jul 2018 18:08:47 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -v4 04/21] mm, THP, swap: Support PMD swap mapping in swapcache_free_cluster()
-References: <20180622035151.6676-1-ying.huang@intel.com>
-	<20180622035151.6676-5-ying.huang@intel.com>
-	<dd7b3dd7-9e10-4b9f-b931-915298bfd627@linux.intel.com>
-	<874lh7intc.fsf@yhuang-dev.intel.com>
-	<444d0718-8b89-5ef1-15c8-1bbbc6cb1bf3@linux.intel.com>
-Date: Wed, 11 Jul 2018 09:08:44 +0800
-In-Reply-To: <444d0718-8b89-5ef1-15c8-1bbbc6cb1bf3@linux.intel.com> (Dave
-	Hansen's message of "Tue, 10 Jul 2018 06:54:21 -0700")
-Message-ID: <87lgaih943.fsf@yhuang-dev.intel.com>
+        Tue, 10 Jul 2018 18:24:41 -0700 (PDT)
+Message-ID: <5B455D50.90902@intel.com>
+Date: Wed, 11 Jul 2018 09:28:48 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Subject: Re: [PATCH v35 1/5] mm: support to get hints of free page blocks
+References: <1531215067-35472-1-git-send-email-wei.w.wang@intel.com> <1531215067-35472-2-git-send-email-wei.w.wang@intel.com> <CA+55aFz9a=D-kquM=sG5uhV_HrBAw+VAhcJmtPNz+howy4j9ow@mail.gmail.com>
+In-Reply-To: <CA+55aFz9a=D-kquM=sG5uhV_HrBAw+VAhcJmtPNz+howy4j9ow@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, virtualization <virtualization@lists.linux-foundation.org>, KVM list <kvm@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, Rik van Riel <riel@redhat.com>, peterx@redhat.com
 
-Dave Hansen <dave.hansen@linux.intel.com> writes:
-
-> On 07/09/2018 11:53 PM, Huang, Ying wrote:
->> Dave Hansen <dave.hansen@linux.intel.com> writes:
->>>> +#ifdef CONFIG_THP_SWAP
->>>> +static inline int cluster_swapcount(struct swap_cluster_info *ci)
->>>> +{
->>>> +	if (!ci || !cluster_is_huge(ci))
->>>> +		return 0;
->>>> +
->>>> +	return cluster_count(ci) - SWAPFILE_CLUSTER;
->>>> +}
->>>> +#else
->>>> +#define cluster_swapcount(ci)			0
->>>> +#endif
->>>
->>> Dumb questions, round 2:  On a CONFIG_THP_SWAP=n build, presumably,
->>> cluster_is_huge()=0 always, so cluster_swapout() always returns 0.  Right?
->>>
->>> So, why the #ifdef?
->> 
->> #ifdef here is to reduce the code size for !CONFIG_THP_SWAP.
+On 07/11/2018 01:33 AM, Linus Torvalds wrote:
+> NAK.
 >
-> I'd just remove the !CONFIG_THP_SWAP version entirely.
-
-Sure.  Unless there are some build errors after some other refactoring.
-
->>>> @@ -1288,24 +1301,30 @@ static void swapcache_free_cluster(swp_entry_t entry)
->>>>  
->>>>  	ci = lock_cluster(si, offset);
->>>>  	VM_BUG_ON(!cluster_is_huge(ci));
->>>> +	VM_BUG_ON(!is_cluster_offset(offset));
->>>> +	VM_BUG_ON(cluster_count(ci) < SWAPFILE_CLUSTER);
->>>>  	map = si->swap_map + offset;
->>>> -	for (i = 0; i < SWAPFILE_CLUSTER; i++) {
->>>> -		val = map[i];
->>>> -		VM_BUG_ON(!(val & SWAP_HAS_CACHE));
->>>> -		if (val == SWAP_HAS_CACHE)
->>>> -			free_entries++;
->>>> +	if (!cluster_swapcount(ci)) {
->>>> +		for (i = 0; i < SWAPFILE_CLUSTER; i++) {
->>>> +			val = map[i];
->>>> +			VM_BUG_ON(!(val & SWAP_HAS_CACHE));
->>>> +			if (val == SWAP_HAS_CACHE)
->>>> +				free_entries++;
->>>> +		}
->>>> +		if (free_entries != SWAPFILE_CLUSTER)
->>>> +			cluster_clear_huge(ci);
->>>>  	}
->>>
->>> Also, I'll point out that cluster_swapcount() continues the horrific
->>> naming of cluster_couunt(), not saying what the count is *of*.  The
->>> return value doesn't help much:
->>>
->>> 	return cluster_count(ci) - SWAPFILE_CLUSTER;
->> 
->> We have page_swapcount() for page, swp_swapcount() for swap entry.
->> cluster_swapcount() tries to mimic them for swap cluster.  But I am not
->> good at naming in general.  What's your suggestion?
+> On Tue, Jul 10, 2018 at 2:56 AM Wei Wang <wei.w.wang@intel.com> wrote:
+>> +
+>> +       buf_page = list_first_entry_or_null(pages, struct page, lru);
+>> +       if (!buf_page)
+>> +               return -EINVAL;
+>> +       buf = (__le64 *)page_address(buf_page);
+> Stop this garbage.
 >
-> I don't have a suggestion because I haven't the foggiest idea what it is
-> doing. :)
+> Why the hell would you pass in some crazy "liost of pages" that uses
+> that lru list?
 >
-> Is it the number of instantiated swap cache pages that are referring to
-> this cluster?  Is it just huge pages?  Huge and small?  One refcount per
-> huge page, or 512?
+> That's just insane shit.
+>
+> Just pass in a an array to fill in. No idiotic games like this with
+> odd list entries (what's the locking?) and crazy casting to
+>
+> So if you want an array of page addresses, pass that in as such. If
+> you want to do it in a page, do it with
+>
+>      u64 *array = page_address(page);
+>      int nr = PAGE_SIZE / sizeof(u64);
+>
+> and now you pass that array in to the thing. None of this completely
+> insane crazy crap interfaces.
+>
+> Plus, I still haven't heard an explanation for why you want so many
+> pages in the first place, and why you want anything but MAX_ORDER-1.
 
-page_swapcount() and swp_swapcount() for a normal swap entry is the
-number of PTE swap mapping to the normal swap entry.
+Sorry for missing that explanation.
+We only get addresses of the "MAX_ORDER-1" blocks into the array. The 
+max size of the array that could be allocated by kmalloc is 
+KMALLOC_MAX_SIZE (i.e. 4MB on x86). With that max array, we could load 
+"4MB / sizeof(u64)" addresses of "MAX_ORDER-1" blocks, that is, 2TB free 
+memory at most. We thought about removing that 2TB limitation by passing 
+in multiple such max arrays (a list of them).
 
-cluster_swapcount() for a huge swap entry (or huge swap cluster) is the
-number of PMD swap mapping to the huge swap entry.
+But 2TB has been enough for our use cases so far, and agree it would be 
+better to have a simpler API in the first place. So I plan to go back to 
+the previous version of just passing in one simple array 
+(https://lkml.org/lkml/2018/6/15/21) if no objections.
 
-Originally, cluster_count is the reference count of the swap entries in
-the swap cluster (that is, how many entries are in use).  Now, it is the
-sum of the reference count of the swap entries in the swap cluster and
-the number of PMD swap mapping to the huge swap entry.
-
-I need to add comments for this at least.
-
-Best Regards,
-Huang, Ying
+Best,
+Wei
