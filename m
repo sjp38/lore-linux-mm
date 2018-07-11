@@ -1,88 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FB626B0010
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 17:51:49 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id s200-v6so36917533oie.6
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 14:51:49 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f205-v6sor5558696oia.274.2018.07.11.14.51.48
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 590256B0269
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 17:57:04 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id j4-v6so11463623vke.12
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 14:57:04 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id 201-v6si3881705vkl.149.2018.07.11.14.57.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 11 Jul 2018 14:51:48 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Jul 2018 14:57:03 -0700 (PDT)
+Subject: Re: [PATCH v2] mm: hugetlb: don't zero 1GiB bootmem pages.
+References: <20180711213313.92481-1-cannonmatthews@google.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <e04f64c8-37d3-bf81-29d2-c495844dd3a5@oracle.com>
+Date: Wed, 11 Jul 2018 14:56:54 -0700
 MIME-Version: 1.0
-References: <20180710222639.8241-1-yu-cheng.yu@intel.com> <20180710222639.8241-18-yu-cheng.yu@intel.com>
- <CAG48ez1ytOfQyNZMNPFp7XqKcpd7_aRai9G5s7rx0V=8ZG+r2A@mail.gmail.com> <6F5FEFFD-0A9A-4181-8D15-5FC323632BA6@amacapital.net>
-In-Reply-To: <6F5FEFFD-0A9A-4181-8D15-5FC323632BA6@amacapital.net>
-From: Jann Horn <jannh@google.com>
-Date: Wed, 11 Jul 2018 14:51:21 -0700
-Message-ID: <CAG48ez1OwQMmhQfHaauo+vneywsQ_ERKr4uVcQebC=GbdqZWtA@mail.gmail.com>
-Subject: Re: [RFC PATCH v2 17/27] x86/cet/shstk: User-mode shadow stack support
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20180711213313.92481-1-cannonmatthews@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: yu-cheng.yu@intel.com, the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, bsingharora@gmail.com, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, hjl.tools@gmail.com, Jonathan Corbet <corbet@lwn.net>, keescook@chromiun.org, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, ravi.v.shankar@intel.com, vedvyas.shanbhogue@intel.com
+To: Cannon Matthews <cannonmatthews@google.com>, Andrew Morton <akpm@linux-foundation.org>, Nadia Yvette Chambers <nyc@holomorphy.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, andreslc@google.com, pfeiner@google.com, dmatlack@google.com, gthelen@google.com, mhocko@kernel.org
 
-On Wed, Jul 11, 2018 at 2:34 PM Andy Lutomirski <luto@amacapital.net> wrote=
-:
-> > On Jul 11, 2018, at 2:10 PM, Jann Horn <jannh@google.com> wrote:
-> >
-> >> On Tue, Jul 10, 2018 at 3:31 PM Yu-cheng Yu <yu-cheng.yu@intel.com> wr=
-ote:
-> >>
-> >> This patch adds basic shadow stack enabling/disabling routines.
-> >> A task's shadow stack is allocated from memory with VM_SHSTK
-> >> flag set and read-only protection.  The shadow stack is
-> >> allocated to a fixed size.
-> >>
-> >> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> > [...]
-> >> diff --git a/arch/x86/kernel/cet.c b/arch/x86/kernel/cet.c
-> >> new file mode 100644
-> >> index 000000000000..96bf69db7da7
-> >> --- /dev/null
-> >> +++ b/arch/x86/kernel/cet.c
-> > [...]
-> >> +static unsigned long shstk_mmap(unsigned long addr, unsigned long len=
-)
-> >> +{
-> >> +       struct mm_struct *mm =3D current->mm;
-> >> +       unsigned long populate;
-> >> +
-> >> +       down_write(&mm->mmap_sem);
-> >> +       addr =3D do_mmap(NULL, addr, len, PROT_READ,
-> >> +                      MAP_ANONYMOUS | MAP_PRIVATE, VM_SHSTK,
-> >> +                      0, &populate, NULL);
-> >> +       up_write(&mm->mmap_sem);
-> >> +
-> >> +       if (populate)
-> >> +               mm_populate(addr, populate);
-> >> +
-> >> +       return addr;
-> >> +}
-[...]
-> > Should the kernel enforce that two shadow stacks must have a guard
-> > page between them so that they can not be directly adjacent, so that
-> > if you have too much recursion, you can't end up corrupting an
-> > adjacent shadow stack?
->
-> I think the answer is a qualified =E2=80=9Cno=E2=80=9D. I would like to i=
-nstead enforce a general guard page on all mmaps that don=E2=80=99t use MAP=
-_FORCE. We *might* need to exempt any mmap with an address hint for compati=
-bility.
+On 07/11/2018 02:33 PM, Cannon Matthews wrote:
+> When using 1GiB pages during early boot, use the new
+> memblock_virt_alloc_try_nid_raw() function to allocate memory without
+> zeroing it.  Zeroing out hundreds or thousands of GiB in a single core
+> memset() call is very slow, and can make early boot last upwards of
+> 20-30 minutes on multi TiB machines.
+> 
+> The memory does not need to be zero'd as the hugetlb pages are always
+> zero'd on page fault.
+> 
+> Tested: Booted with ~3800 1G pages, and it booted successfully in
+> roughly the same amount of time as with 0, as opposed to the 25+
+> minutes it would take before.
+> 
+> Signed-off-by: Cannon Matthews <cannonmatthews@google.com>
 
-I like this idea a lot.
+Thanks,
 
-> My commercial software has been manually adding guard pages on every sing=
-le mmap done by tcmalloc for years, and it has caught a couple bugs and cos=
-ts essentially nothing.
->
-> Hmm. Linux should maybe add something like Windows=E2=80=99 =E2=80=9Crese=
-rved=E2=80=9D virtual memory. It=E2=80=99s basically a way to ask for a VA =
-range that explicitly contains nothing and can be subsequently be turned in=
-to something useful with the equivalent of MAP_FORCE.
+Acked-by: Mike Kravetz <mike.kravetz@oracle.com>
 
-What's the benefit over creating an anonymous PROT_NONE region? That
-the kernel won't have to scan through the corresponding PTEs when
-tearing down the mapping?
+-- 
+Mike Kravetz
+
+> ---
+> v2: removed the memset of the huge_bootmem_page area and added
+> INIT_LIST_HEAD instead.
+> 
+>  mm/hugetlb.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 3612fbb32e9d..488330f23f04 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -2101,7 +2101,7 @@ int __alloc_bootmem_huge_page(struct hstate *h)
+>  	for_each_node_mask_to_alloc(h, nr_nodes, node, &node_states[N_MEMORY]) {
+>  		void *addr;
+> 
+> -		addr = memblock_virt_alloc_try_nid_nopanic(
+> +		addr = memblock_virt_alloc_try_nid_raw(
+>  				huge_page_size(h), huge_page_size(h),
+>  				0, BOOTMEM_ALLOC_ACCESSIBLE, node);
+>  		if (addr) {
+> @@ -2119,6 +2119,7 @@ int __alloc_bootmem_huge_page(struct hstate *h)
+>  found:
+>  	BUG_ON(!IS_ALIGNED(virt_to_phys(m), huge_page_size(h)));
+>  	/* Put them into a private list first because mem_map is not up yet */
+> +	INIT_LIST_HEAD(&m->list);
+>  	list_add(&m->list, &huge_boot_pages);
+>  	m->hstate = h;
+>  	return 1;
+> --
+> 2.18.0.203.gfac676dfb9-goog
+> 
