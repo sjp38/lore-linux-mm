@@ -1,114 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A7DCF6B026D
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 17:10:50 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id l26-v6so30599228oii.14
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 14:10:50 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i65-v6sor11077055oih.50.2018.07.11.14.10.49
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D0126B026E
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 17:13:47 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id t78-v6so16899782pfa.8
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 14:13:47 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id v17-v6si22353515pfl.233.2018.07.11.14.13.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 11 Jul 2018 14:10:49 -0700 (PDT)
-MIME-Version: 1.0
-References: <20180710222639.8241-1-yu-cheng.yu@intel.com> <20180710222639.8241-18-yu-cheng.yu@intel.com>
-In-Reply-To: <20180710222639.8241-18-yu-cheng.yu@intel.com>
-From: Jann Horn <jannh@google.com>
-Date: Wed, 11 Jul 2018 14:10:22 -0700
-Message-ID: <CAG48ez1ytOfQyNZMNPFp7XqKcpd7_aRai9G5s7rx0V=8ZG+r2A@mail.gmail.com>
-Subject: Re: [RFC PATCH v2 17/27] x86/cet/shstk: User-mode shadow stack support
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Jul 2018 14:13:46 -0700 (PDT)
+Date: Wed, 11 Jul 2018 14:13:44 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: Boot failures with
+ "mm/sparse: Remove CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER" on powerpc (was
+ Re: mmotm 2018-07-10-16-50 uploaded)
+Message-Id: <20180711141344.10eb6d22b0ee1423cc94faf8@linux-foundation.org>
+In-Reply-To: <CAGM2reYsSi5kDGtnTQASnp1v49T8Y+9o_pNxmSq-+m68QhF2Tg@mail.gmail.com>
+References: <20180710235044.vjlRV%akpm@linux-foundation.org>
+	<87lgai9bt5.fsf@concordia.ellerman.id.au>
+	<20180711133737.GA29573@techadventures.net>
+	<CAGM2reYsSi5kDGtnTQASnp1v49T8Y+9o_pNxmSq-+m68QhF2Tg@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yu-cheng.yu@intel.com
-Cc: the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, bsingharora@gmail.com, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, hjl.tools@gmail.com, Jonathan Corbet <corbet@lwn.net>, keescook@chromiun.org, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, ravi.v.shankar@intel.com, vedvyas.shanbhogue@intel.com
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: osalvador@techadventures.net, mpe@ellerman.id.au, broonie@kernel.org, mhocko@suse.cz, Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, mm-commits@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, bhe@redhat.com, aneesh.kumar@linux.ibm.com, khandual@linux.vnet.ibm.com
 
-On Tue, Jul 10, 2018 at 3:31 PM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
->
-> This patch adds basic shadow stack enabling/disabling routines.
-> A task's shadow stack is allocated from memory with VM_SHSTK
-> flag set and read-only protection.  The shadow stack is
-> allocated to a fixed size.
->
-> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-[...]
-> diff --git a/arch/x86/kernel/cet.c b/arch/x86/kernel/cet.c
-> new file mode 100644
-> index 000000000000..96bf69db7da7
-> --- /dev/null
-> +++ b/arch/x86/kernel/cet.c
-[...]
-> +static unsigned long shstk_mmap(unsigned long addr, unsigned long len)
-> +{
-> +       struct mm_struct *mm = current->mm;
-> +       unsigned long populate;
-> +
-> +       down_write(&mm->mmap_sem);
-> +       addr = do_mmap(NULL, addr, len, PROT_READ,
-> +                      MAP_ANONYMOUS | MAP_PRIVATE, VM_SHSTK,
-> +                      0, &populate, NULL);
-> +       up_write(&mm->mmap_sem);
-> +
-> +       if (populate)
-> +               mm_populate(addr, populate);
-> +
-> +       return addr;
-> +}
+On Wed, 11 Jul 2018 09:55:59 -0400 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
 
-How does this interact with UFFDIO_REGISTER?
+> On Wed, Jul 11, 2018 at 9:37 AM Oscar Salvador
+> <osalvador@techadventures.net> wrote:
+> >
+> > On Wed, Jul 11, 2018 at 10:49:58PM +1000, Michael Ellerman wrote:
+> > > akpm@linux-foundation.org writes:
+> > > > The mm-of-the-moment snapshot 2018-07-10-16-50 has been uploaded to
+> > > >
+> > > >    http://www.ozlabs.org/~akpm/mmotm/
+> > > ...
+> > >
+> > > > * mm-sparse-add-a-static-variable-nr_present_sections.patch
+> > > > * mm-sparsemem-defer-the-ms-section_mem_map-clearing.patch
+> > > > * mm-sparsemem-defer-the-ms-section_mem_map-clearing-fix.patch
+> > > > * mm-sparse-add-a-new-parameter-data_unit_size-for-alloc_usemap_and_memmap.patch
+> > > > * mm-sparse-optimize-memmap-allocation-during-sparse_init.patch
+> > > > * mm-sparse-optimize-memmap-allocation-during-sparse_init-checkpatch-fixes.patch
+> > >
+> > > > * mm-sparse-remove-config_sparsemem_alloc_mem_map_together.patch
+> > >
+> > > This seems to be breaking my powerpc pseries qemu boots.
+> > >
+> > > The boot log with some extra debug shows eg:
+> > >
+> > >   $ make pseries_le_defconfig
+> >
+> > Could you please share the config?
+> > I was not able to find such config in the kernel tree.
 
-Is there an explicit design decision on whether FOLL_FORCE should be
-able to write to shadow stacks? I'm guessing the answer is "yes,
-FOLL_FORCE should be able to write to shadow stacks"? It might make
-sense to add documentation for this.
+(top-posting repaired so I can reply to your email, add other people
+and not confuse the heck out of them.  Please don't)
 
-Should the kernel enforce that two shadow stacks must have a guard
-page between them so that they can not be directly adjacent, so that
-if you have too much recursion, you can't end up corrupting an
-adjacent shadow stack?
+> I am OK, if this patch is removed from Baoquan's series. But, I would
+> still like to get rid of CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER, I
+> can work on this in my sparse_init re-write series. ppc64 should
+> really fallback safely to small chunks allocs, and if it does not
+> there is some existing bug. Michael please send the config that you
+> used.
 
-> +int cet_setup_shstk(void)
-> +{
-> +       unsigned long addr, size;
-> +
-> +       if (!cpu_feature_enabled(X86_FEATURE_SHSTK))
-> +               return -EOPNOTSUPP;
-> +
-> +       size = in_ia32_syscall() ? SHSTK_SIZE_32:SHSTK_SIZE_64;
-> +       addr = shstk_mmap(0, size);
-> +
-> +       /*
-> +        * Return actual error from do_mmap().
-> +        */
-> +       if (addr >= TASK_SIZE_MAX)
-> +               return addr;
-> +
-> +       set_shstk_ptr(addr + size - sizeof(u64));
-> +       current->thread.cet.shstk_base = addr;
-> +       current->thread.cet.shstk_size = size;
-> +       current->thread.cet.shstk_enabled = 1;
-> +       return 0;
-> +}
-[...]
-> +void cet_disable_free_shstk(struct task_struct *tsk)
-> +{
-> +       if (!cpu_feature_enabled(X86_FEATURE_SHSTK) ||
-> +           !tsk->thread.cet.shstk_enabled)
-> +               return;
-> +
-> +       if (tsk == current)
-> +               cet_disable_shstk();
-> +
-> +       /*
-> +        * Free only when tsk is current or shares mm
-> +        * with current but has its own shstk.
-> +        */
-> +       if (tsk->mm && (tsk->mm == current->mm) &&
-> +           (tsk->thread.cet.shstk_base)) {
-> +               vm_munmap(tsk->thread.cet.shstk_base,
-> +                         tsk->thread.cet.shstk_size);
-> +               tsk->thread.cet.shstk_base = 0;
-> +               tsk->thread.cet.shstk_size = 0;
-> +       }
-> +
-> +       tsk->thread.cet.shstk_enabled = 0;
-> +}
+OK, I shall drop
+mm-sparse-remove-config_sparsemem_alloc_mem_map_together.patch for now.
