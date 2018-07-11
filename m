@@ -1,153 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DFA56B0003
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 06:14:51 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id g5-v6so698284pgq.5
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 03:14:51 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id a85-v6si21656826pfa.109.2018.07.11.03.14.50
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B5EC6B0007
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 06:20:40 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id w137-v6so1559656wme.2
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 03:20:40 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k127-v6sor421057wme.67.2018.07.11.03.20.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 03:14:50 -0700 (PDT)
-Date: Wed, 11 Jul 2018 13:14:47 +0300
-From: Leon Romanovsky <leon@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
-Message-ID: <20180711101447.GU3014@mtr-leonro.mtl.com>
-References: <20180622150242.16558-1-mhocko@kernel.org>
- <20180627074421.GF32348@dhcp22.suse.cz>
- <20180709122908.GJ22049@dhcp22.suse.cz>
- <20180710134040.GG3014@mtr-leonro.mtl.com>
- <20180710141410.GP14284@dhcp22.suse.cz>
- <20180710162020.GJ3014@mtr-leonro.mtl.com>
- <20180711090353.GD20050@dhcp22.suse.cz>
+        (Google Transport Security);
+        Wed, 11 Jul 2018 03:20:39 -0700 (PDT)
+Date: Wed, 11 Jul 2018 12:20:35 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [RFC PATCH v2 25/27] x86/cet: Add PTRACE interface for CET
+Message-ID: <20180711102035.GB8574@gmail.com>
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+ <20180710222639.8241-26-yu-cheng.yu@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="bzuizT9vlVVqWfw+"
-Content-Disposition: inline
-In-Reply-To: <20180711090353.GD20050@dhcp22.suse.cz>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Felix Kuehling <felix.kuehling@amd.com>
-
-
---bzuizT9vlVVqWfw+
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20180710222639.8241-26-yu-cheng.yu@intel.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-On Wed, Jul 11, 2018 at 11:03:53AM +0200, Michal Hocko wrote:
-> On Tue 10-07-18 19:20:20, Leon Romanovsky wrote:
-> > On Tue, Jul 10, 2018 at 04:14:10PM +0200, Michal Hocko wrote:
-> > > On Tue 10-07-18 16:40:40, Leon Romanovsky wrote:
-> > > > On Mon, Jul 09, 2018 at 02:29:08PM +0200, Michal Hocko wrote:
-> > > > > On Wed 27-06-18 09:44:21, Michal Hocko wrote:
-> > > > > > This is the v2 of RFC based on the feedback I've received so far. The
-> > > > > > code even compiles as a bonus ;) I haven't runtime tested it yet, mostly
-> > > > > > because I have no idea how.
-> > > > > >
-> > > > > > Any further feedback is highly appreciated of course.
-> > > > >
-> > > > > Any other feedback before I post this as non-RFC?
-> > > >
-> > > > From mlx5 perspective, who is primary user of umem_odp.c your change looks ok.
-> > >
-> > > Can I assume your Acked-by?
-> >
-> > I didn't have a chance to test it because it applies on our rdma-next, but
-> > fails to compile.
->
-> What is the compilation problem? Is it caused by the patch or some other
-> unrelated changed?
 
-Thanks for pushing me to take a look on it.
-Your patch needs the following hunk to properly compile at least on my system.
+* Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
 
-I'll take it to our regression.
+> Add PTRACE interface for CET MSRs.
 
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index 369867501bed..1f364a157097 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -155,9 +155,9 @@ struct mmu_notifier_ops {
- 	 * cannot block, mmu_notifier_ops.flags should have
- 	 * MMU_INVALIDATE_DOES_NOT_BLOCK set.
- 	 */
--	void (*invalidate_range_start)(struct mmu_notifier *mn,
-+	int (*invalidate_range_start)(struct mmu_notifier *mn,
- 				       struct mm_struct *mm,
--				       unsigned long start, unsigned long end);
-+				       unsigned long start, unsigned long end, bool blockable);
- 	void (*invalidate_range_end)(struct mmu_notifier *mn,
- 				     struct mm_struct *mm,
- 				     unsigned long start, unsigned long end);
-@@ -229,7 +229,7 @@ extern int __mmu_notifier_test_young(struct mm_struct *mm,
- 				     unsigned long address);
- extern void __mmu_notifier_change_pte(struct mm_struct *mm,
- 				      unsigned long address, pte_t pte);
--extern void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-+extern int __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end,
- 				  bool blockable);
- extern void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index 6adac113e96d..92f70e4c6252 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -95,7 +95,7 @@ static inline int check_stable_address_space(struct mm_struct *mm)
- 	return 0;
- }
+Please *always* describe new ABIs in the changelog, in a precise, well-documented 
+way.
 
--void __oom_reap_task_mm(struct mm_struct *mm);
-+bool __oom_reap_task_mm(struct mm_struct *mm);
+> diff --git a/arch/x86/kernel/ptrace.c b/arch/x86/kernel/ptrace.c
+> index e2ee403865eb..ac2bc3a18427 100644
+> --- a/arch/x86/kernel/ptrace.c
+> +++ b/arch/x86/kernel/ptrace.c
+> @@ -49,7 +49,9 @@ enum x86_regset {
+>  	REGSET_IOPERM64 = REGSET_XFP,
+>  	REGSET_XSTATE,
+>  	REGSET_TLS,
+> +	REGSET_CET64 = REGSET_TLS,
+>  	REGSET_IOPERM32,
+> +	REGSET_CET32,
+>  };
 
- extern unsigned long oom_badness(struct task_struct *p,
- 		struct mem_cgroup *memcg, const nodemask_t *nodemask,
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 7e0c6e78ae5c..7c7bd6f3298e 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -1,6 +1,6 @@
- /*
-  *  linux/mm/oom_kill.c
-- *
-+ *
-  *  Copyright (C)  1998,2000  Rik van Riel
-  *	Thanks go out to Claus Fischer for some serious inspiration and
-  *	for goading me into coding this file...
-@@ -569,7 +569,7 @@ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 	if (!__oom_reap_task_mm(mm)) {
- 		up_read(&mm->mmap_sem);
- 		ret = false;
--		goto out_unlock;
-+		goto unlock_oom;
- 	}
+Why does REGSET_CET64 alias on REGSET_TLS?
 
- 	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+>  struct pt_regs_offset {
+> @@ -1276,6 +1278,13 @@ static struct user_regset x86_64_regsets[] __ro_after_init = {
+>  		.size = sizeof(long), .align = sizeof(long),
+>  		.active = ioperm_active, .get = ioperm_get
+>  	},
+> +	[REGSET_CET64] = {
+> +		.core_note_type = NT_X86_CET,
+> +		.n = sizeof(struct cet_user_state) / sizeof(u64),
+> +		.size = sizeof(u64), .align = sizeof(u64),
+> +		.active = cetregs_active, .get = cetregs_get,
+> +		.set = cetregs_set
+> +	},
 
-Thanks
+Ok, could we first please make this part of the regset code more readable and 
+start the series with a standalone clean-up patch that changes these initializers 
+to something more readable:
 
-> --
-> Michal Hocko
-> SUSE Labs
+	[REGSET_CET64] = {
+		.core_note_type	= NT_X86_CET,
+		.n		= sizeof(struct cet_user_state) / sizeof(u64),
+		.size		= sizeof(u64),
+		.align		= sizeof(u64),
+		.active		= cetregs_active,
+		.get		= cetregs_get,
+		.set		= cetregs_set
+	},
 
---bzuizT9vlVVqWfw+
-Content-Type: application/pgp-signature; name="signature.asc"
+? (I'm demonstrating the cleanup based on REGSET_CET64, but this should be done on 
+every other entry first.)
 
------BEGIN PGP SIGNATURE-----
 
-iQIcBAEBAgAGBQJbRdiXAAoJEORje4g2clinNPQP/jvfP8MeILcz9WT7kxNVX7c/
-XpnkJcPys8ZjDS653gbzrRzw+nFz3sfqbSrvKb6MgCGfAGdanoHWjQsNbYz+Ci0m
-jr68xil3AoZsR30dolMGlCjHnsTq3CyJgNPfjm90VkuBV3huxGx52vSLuKBVVYuv
-qp+D/DwaxHKp9iUa4b5y8aXQYNCV++L3sNWgeUCXzaDvFm8WORW5PX/BxJ5a4M3r
-AFyJf0XIHfByd3mBDWJlo4c3mgAxV1hltesZHFCySPs4oLKRuHFiEap1BGNZsn8j
-m61eIRFoH5WVacvq1xHKs/oF9inuoaB9IzQsaeZan4YgOwthfcAibPxcdbcta29p
-IxYQUgjY+e3feJSOiHqFtujW8A3HpsuFUSPC7PHuJFJWqwCIcESxL3qeikBi2goA
-l5HIP6MMdKXv9PgXEsEFlPQJCS+ZsFk52pUOfneLve8t4MBWcuRXZpk0G0qfVLwq
-/2p9ES6m7Lroq7a0RkFZyWMmIdgBk9WjFbxm1ogXkMTWv7cQbmB94t0ut3fF6RCR
-lQfcHf16xm2IM4gNpzahFy4zsXWNWAdj/oVGDQjx3lu5LzvEriYptJZhKOx+lSdO
-lRO+pA/gzHWnbtA32swGX+MaHUNRAuVV8x1lbgRUq/aKwedg8BCpJXokrcpAasTt
-+En8/fnNQqxwKFdJw8j+
-=6e5O
------END PGP SIGNATURE-----
+> --- a/include/uapi/linux/elf.h
+> +++ b/include/uapi/linux/elf.h
+> @@ -401,6 +401,7 @@ typedef struct elf64_shdr {
+>  #define NT_386_TLS	0x200		/* i386 TLS slots (struct user_desc) */
+>  #define NT_386_IOPERM	0x201		/* x86 io permission bitmap (1=deny) */
+>  #define NT_X86_XSTATE	0x202		/* x86 extended state using xsave */
+> +#define NT_X86_CET	0x203		/* x86 cet state */
 
---bzuizT9vlVVqWfw+--
+Acronyms in comments should be in capital letters.
+
+Also, I think I asked this before: why does "Control Flow Enforcement" abbreviate 
+to "CET" (which is a well-known acronym for "Central European Time"), not to CFE?
+
+Thanks,
+
+	Ingo
