@@ -1,72 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C54A46B026B
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 06:49:48 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id b185-v6so30689121qkg.19
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 03:49:48 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id j23-v6si18580514qtj.7.2018.07.11.03.49.48
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D8A176B0003
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:09:53 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id l1-v6so1858665edi.11
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:09:53 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c4-v6si3154571edb.348.2018.07.11.04.09.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 03:49:48 -0700 (PDT)
-Date: Wed, 11 Jul 2018 18:49:44 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: Bug report about KASLR and ZONE_MOVABLE
-Message-ID: <20180711104944.GG1969@MiWiFi-R3L-srv>
-References: <20180711094244.GA2019@localhost.localdomain>
- <20180711104158.GE2070@MiWiFi-R3L-srv>
+        Wed, 11 Jul 2018 04:09:52 -0700 (PDT)
+Date: Wed, 11 Jul 2018 13:09:49 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v35 1/5] mm: support to get hints of free page blocks
+Message-ID: <20180711110949.GJ20050@dhcp22.suse.cz>
+References: <1531215067-35472-1-git-send-email-wei.w.wang@intel.com>
+ <1531215067-35472-2-git-send-email-wei.w.wang@intel.com>
+ <CA+55aFz9a=D-kquM=sG5uhV_HrBAw+VAhcJmtPNz+howy4j9ow@mail.gmail.com>
+ <5B455D50.90902@intel.com>
+ <CA+55aFzqj8wxXnHAdUTiOomipgFONVbqKMjL_tfk7e5ar1FziQ@mail.gmail.com>
+ <20180711092152.GE20050@dhcp22.suse.cz>
+ <5B45E17D.2090205@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180711104158.GE2070@MiWiFi-R3L-srv>
+In-Reply-To: <5B45E17D.2090205@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chao Fan <fanc.fnst@cn.fujitsu.com>, akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, x86@kernel.org, yasu.isimatu@gmail.com, keescook@chromium.org, indou.takao@jp.fujitsu.com, caoj.fnst@cn.fujitsu.com, douly.fnst@cn.fujitsu.com, mhocko@suse.com, vbabka@suse.cz, mgorman@techsingularity.net
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, virtualization <virtualization@lists.linux-foundation.org>, KVM list <kvm@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Michael S. Tsirkin" <mst@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, Rik van Riel <riel@redhat.com>, peterx@redhat.com
 
-On 07/11/18 at 06:41pm, Baoquan He wrote:
- 
-> Hmm, it's an issue, worth fixing it. Otherwise the size of
-> movable area will be smaller than we expect when add "kernel_core="
-> or "movable_core=".
+On Wed 11-07-18 18:52:45, Wei Wang wrote:
+> On 07/11/2018 05:21 PM, Michal Hocko wrote:
+> > On Tue 10-07-18 18:44:34, Linus Torvalds wrote:
+> > [...]
+> > > That was what I tried to encourage with actually removing the pages
+> > > form the page list. That would be an _incremental_ interface. You can
+> > > remove MAX_ORDER-1 pages one by one (or a hundred at a time), and mark
+> > > them free for ballooning that way. And if you still feel you have tons
+> > > of free memory, just continue removing more pages from the free list.
+> > We already have an interface for that. alloc_pages(GFP_NOWAIT, MAX_ORDER -1).
+> > So why do we need any array based interface?
 > 
-> Add a check in find_zone_movable_pfns_for_nodes(), and use min() to get
-> the starting address of movable area between aligned '_etext'
-> and start_pfn. It will go to label 'restart' to calculate the 2nd round
-> if not satisfiled. 
-> 
-> Hi Chao,
-> 
-> Could you check if below patch works for you?
-> 
-> 
-> From ab6e47c6a78d1a4ccb577b995b7b386f3149732f Mon Sep 17 00:00:00 2001
-> From: Baoquan He <bhe@redhat.com>
-> Date: Wed, 11 Jul 2018 18:30:04 +0800
-> Subject: [PATCH] mm, page_alloc: find movable zone after kernel text
-> 
-> In find_zone_movable_pfns_for_nodes(), when try to find the starting
-> PFN movable zone begins in each node, kernel text position is not
-> considered. KASLR may put kernel after which movable zone begins.
-> 
-> Fix it by finding movable zone after kernel text.
-> 
-> Signed-off-by: Baoquan He <bhe@redhat.com>
-> ---
->  mm/page_alloc.c | 2 ++
->  1 file changed, 2 insertions(+)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 1521100..fe346b4 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6678,6 +6678,8 @@ static void __init find_zone_movable_pfns_for_nodes(void)
->  			unsigned long size_pages;
->  
->  			start_pfn = max(start_pfn, zone_movable_pfn[nid]);
-> +			/* KASLR may put kernel after 'start_pfn', start after kernel */
-> +			start_pfn = max(start_pfn, PAGE_ALIGN(_etext));
+> Yes, I'm trying to get free pages directly via alloc_pages, so there will be
+> no new mm APIs.
 
-Sorry, I used wrong function.
+OK. The above was just a rough example. In fact you would need a more
+complex gfp mask. I assume you only want to balloon only memory directly
+usable by the kernel so it will be
+	(GFP_KERNEL | __GFP_NOWARN) & ~__GFP_RECLAIM
 
-Please try this one:
+> I plan to let free page allocation stop when the remaining system free
+> memory becomes close to min_free_kbytes (prevent swapping).
+
+~__GFP_RECLAIM will make sure you are allocate as long as there is any
+memory without reclaim. It will not even poke the kswapd to do the
+background work. So I do not think you would need much more than that.
+
+But let me note that I am not really convinced how this (or previous)
+approach will really work in most workloads. We tend to cache heavily so
+there is rarely any memory free.
+
+-- 
+Michal Hocko
+SUSE Labs
