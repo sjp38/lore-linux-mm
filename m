@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 097936B0003
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 21:00:01 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id v9-v6so5080843pfn.6
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 18:00:01 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id 1-v6si17861305plx.227.2018.07.10.17.59.59
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 429C56B0007
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2018 21:08:49 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id v9-v6so5104906pfn.6
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2018 18:08:49 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id j19-v6si3193470pgg.313.2018.07.10.18.08.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jul 2018 17:59:59 -0700 (PDT)
+        Tue, 10 Jul 2018 18:08:47 -0700 (PDT)
 From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -v4 03/21] mm, THP, swap: Support PMD swap mapping in swap_duplicate()
+Subject: Re: [PATCH -mm -v4 04/21] mm, THP, swap: Support PMD swap mapping in swapcache_free_cluster()
 References: <20180622035151.6676-1-ying.huang@intel.com>
-	<20180622035151.6676-4-ying.huang@intel.com>
-	<92b86ab6-6f51-97b0-337c-b7e98a30b6cb@linux.intel.com>
-	<878t6jio7x.fsf@yhuang-dev.intel.com>
-	<1b8a9fa8-79a3-c515-26b1-cea6d9eb9aeb@linux.intel.com>
-Date: Wed, 11 Jul 2018 08:59:40 +0800
-In-Reply-To: <1b8a9fa8-79a3-c515-26b1-cea6d9eb9aeb@linux.intel.com> (Dave
-	Hansen's message of "Tue, 10 Jul 2018 06:50:33 -0700")
-Message-ID: <87pnzuh9j7.fsf@yhuang-dev.intel.com>
+	<20180622035151.6676-5-ying.huang@intel.com>
+	<dd7b3dd7-9e10-4b9f-b931-915298bfd627@linux.intel.com>
+	<874lh7intc.fsf@yhuang-dev.intel.com>
+	<444d0718-8b89-5ef1-15c8-1bbbc6cb1bf3@linux.intel.com>
+Date: Wed, 11 Jul 2018 09:08:44 +0800
+In-Reply-To: <444d0718-8b89-5ef1-15c8-1bbbc6cb1bf3@linux.intel.com> (Dave
+	Hansen's message of "Tue, 10 Jul 2018 06:54:21 -0700")
+Message-ID: <87lgaih943.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
@@ -29,37 +29,83 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@
 
 Dave Hansen <dave.hansen@linux.intel.com> writes:
 
->> Yes.  Boolean parameter isn't good at most times.  Matthew Wilcox
->> suggested to use
->> 
->>         swap_duplicate(&entry, HPAGE_PMD_NR);
->> 
->> vs.
->> 
->>         swap_duplicate(&entry, 1);
->> 
->> He thinks this makes the interface more flexible to support other swap
->> entry size in the future.  What do you think about that?
->
-> That looks great to me too.
->
->>>>  		if (likely(!non_swap_entry(entry))) {
->>>> -			if (swap_duplicate(entry) < 0)
->>>> +			if (swap_duplicate(&entry, false) < 0)
->>>>  				return entry.val;
->>>>  
->>>>  			/* make sure dst_mm is on swapoff's mmlist. */
+> On 07/09/2018 11:53 PM, Huang, Ying wrote:
+>> Dave Hansen <dave.hansen@linux.intel.com> writes:
+>>>> +#ifdef CONFIG_THP_SWAP
+>>>> +static inline int cluster_swapcount(struct swap_cluster_info *ci)
+>>>> +{
+>>>> +	if (!ci || !cluster_is_huge(ci))
+>>>> +		return 0;
+>>>> +
+>>>> +	return cluster_count(ci) - SWAPFILE_CLUSTER;
+>>>> +}
+>>>> +#else
+>>>> +#define cluster_swapcount(ci)			0
+>>>> +#endif
 >>>
->>> I'll also point out that in a multi-hundred-line patch, adding arguments
->>> to a existing function would not be something I'd try to include in the
->>> patch.  I'd break it out separately unless absolutely necessary.
+>>> Dumb questions, round 2:  On a CONFIG_THP_SWAP=n build, presumably,
+>>> cluster_is_huge()=0 always, so cluster_swapout() always returns 0.  Right?
+>>>
+>>> So, why the #ifdef?
 >> 
->> You mean add another patch, which only adds arguments to the function,
->> but not change the body of the function?
+>> #ifdef here is to reduce the code size for !CONFIG_THP_SWAP.
 >
-> Yes.  Or, just add the non-THP-swap version first.
+> I'd just remove the !CONFIG_THP_SWAP version entirely.
 
-OK, will do this.
+Sure.  Unless there are some build errors after some other refactoring.
+
+>>>> @@ -1288,24 +1301,30 @@ static void swapcache_free_cluster(swp_entry_t entry)
+>>>>  
+>>>>  	ci = lock_cluster(si, offset);
+>>>>  	VM_BUG_ON(!cluster_is_huge(ci));
+>>>> +	VM_BUG_ON(!is_cluster_offset(offset));
+>>>> +	VM_BUG_ON(cluster_count(ci) < SWAPFILE_CLUSTER);
+>>>>  	map = si->swap_map + offset;
+>>>> -	for (i = 0; i < SWAPFILE_CLUSTER; i++) {
+>>>> -		val = map[i];
+>>>> -		VM_BUG_ON(!(val & SWAP_HAS_CACHE));
+>>>> -		if (val == SWAP_HAS_CACHE)
+>>>> -			free_entries++;
+>>>> +	if (!cluster_swapcount(ci)) {
+>>>> +		for (i = 0; i < SWAPFILE_CLUSTER; i++) {
+>>>> +			val = map[i];
+>>>> +			VM_BUG_ON(!(val & SWAP_HAS_CACHE));
+>>>> +			if (val == SWAP_HAS_CACHE)
+>>>> +				free_entries++;
+>>>> +		}
+>>>> +		if (free_entries != SWAPFILE_CLUSTER)
+>>>> +			cluster_clear_huge(ci);
+>>>>  	}
+>>>
+>>> Also, I'll point out that cluster_swapcount() continues the horrific
+>>> naming of cluster_couunt(), not saying what the count is *of*.  The
+>>> return value doesn't help much:
+>>>
+>>> 	return cluster_count(ci) - SWAPFILE_CLUSTER;
+>> 
+>> We have page_swapcount() for page, swp_swapcount() for swap entry.
+>> cluster_swapcount() tries to mimic them for swap cluster.  But I am not
+>> good at naming in general.  What's your suggestion?
+>
+> I don't have a suggestion because I haven't the foggiest idea what it is
+> doing. :)
+>
+> Is it the number of instantiated swap cache pages that are referring to
+> this cluster?  Is it just huge pages?  Huge and small?  One refcount per
+> huge page, or 512?
+
+page_swapcount() and swp_swapcount() for a normal swap entry is the
+number of PTE swap mapping to the normal swap entry.
+
+cluster_swapcount() for a huge swap entry (or huge swap cluster) is the
+number of PMD swap mapping to the huge swap entry.
+
+Originally, cluster_count is the reference count of the swap entries in
+the swap cluster (that is, how many entries are in use).  Now, it is the
+sum of the reference count of the swap entries in the swap cluster and
+the number of PMD swap mapping to the huge swap entry.
+
+I need to add comments for this at least.
 
 Best Regards,
 Huang, Ying
