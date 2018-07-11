@@ -1,65 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D96A6B0010
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:54:13 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id g16-v6so9705577edq.10
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 01:54:13 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CA39A6B0003
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:59:11 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id n2-v6so9707772edr.5
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 01:59:11 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l3-v6si1798972edq.20.2018.07.11.01.54.11
+        by mx.google.com with ESMTPS id r15-v6si64166edo.320.2018.07.11.01.59.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 01:54:12 -0700 (PDT)
-Date: Wed, 11 Jul 2018 10:54:07 +0200
+        Wed, 11 Jul 2018 01:59:10 -0700 (PDT)
+Date: Wed, 11 Jul 2018 10:59:08 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm/cma: remove unsupported gfp_mask parameter from
- cma_alloc()
-Message-ID: <20180711085407.GB20050@dhcp22.suse.cz>
-References: <CGME20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29@eucas1p2.samsung.com>
- <20180709121956.20200-1-m.szyprowski@samsung.com>
- <20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29~-sqTPJKij2939229392eucas1p2j@eucas1p2.samsung.com>
- <CAAmzW4PPNYhUj_MeZox+ddq8MjXqnJs_AJ3xkayf710udD1pSg@mail.gmail.com>
- <20180710095056.GE14284@dhcp22.suse.cz>
- <CAAmzW4P1m_T77DfQzDD6ysGaOF46++-0gwRaOajmo6ef=VYp=A@mail.gmail.com>
+Subject: Re: [PATCH] mm, oom: remove sleep from under oom_lock
+Message-ID: <20180711085908.GC20050@dhcp22.suse.cz>
+References: <20180709074706.30635-1-mhocko@kernel.org>
+ <alpine.DEB.2.21.1807091548280.125566@chino.kir.corp.google.com>
+ <20180710094341.GD14284@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1807101152410.9234@chino.kir.corp.google.com>
+ <alpine.DEB.2.21.1807101411480.29772@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAAmzW4P1m_T77DfQzDD6ysGaOF46++-0gwRaOajmo6ef=VYp=A@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.21.1807101411480.29772@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, iommu@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Hellwig <hch@lst.de>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Paul Mackerras <paulus@ozlabs.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Chris Zankel <chris@zankel.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Joerg Roedel <joro@8bytes.org>, Sumit Semwal <sumit.semwal@linaro.org>, Robin Murphy <robin.murphy@arm.com>, Laura Abbott <labbott@redhat.com>, linaro-mm-sig@lists.linaro.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 11-07-18 16:35:28, Joonsoo Kim wrote:
-> 2018-07-10 18:50 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
-> > On Tue 10-07-18 16:19:32, Joonsoo Kim wrote:
-> >> Hello, Marek.
-> >>
-> >> 2018-07-09 21:19 GMT+09:00 Marek Szyprowski <m.szyprowski@samsung.com>:
-> >> > cma_alloc() function doesn't really support gfp flags other than
-> >> > __GFP_NOWARN, so convert gfp_mask parameter to boolean no_warn parameter.
-> >>
-> >> Although gfp_mask isn't used in cma_alloc() except no_warn, it can be used
-> >> in alloc_contig_range(). For example, if passed gfp mask has no __GFP_FS,
-> >> compaction(isolation) would work differently. Do you have considered
-> >> such a case?
-> >
-> > Does any of cma_alloc users actually care about GFP_NO{FS,IO}?
+On Tue 10-07-18 14:12:28, David Rientjes wrote:
+> On Tue, 10 Jul 2018, David Rientjes wrote:
 > 
-> I don't know. My guess is that cma_alloc() is used for DMA allocation so
-> block device would use it, too. If fs/block subsystem initiates the
-> request for the device,
-> it would be possible that cma_alloc() is called with such a flag.
-> Again, I don't know
-> much about those subsystem so I would be wrong.
+> > I think it's better, thanks.  However, does it address the question about 
+> > why __oom_reap_task_mm() needs oom_lock protection?  Perhaps it would be 
+> > helpful to mention synchronization between reaping triggered from 
+> > oom_reaper and by exit_mmap().
+> > 
+> 
+> Actually, can't we remove the need to take oom_lock in exit_mmap() if 
+> __oom_reap_task_mm() can do a test and set on MMF_UNSTABLE and, if already 
+> set, bail out immediately?
 
-The patch converts existing users and none of them really tries to use
-anything other than GFP_KERNEL [|__GFP_NOWARN] so this doesn't seem to
-be the case. Should there be a new user requiring more restricted
-gfp_mask we should carefuly re-evaluate and think how to support it.
+I think we do not really depend on oom_lock anymore in
+__oom_reap_task_mm.  The race it was original added for (mmget_not_zero
+vs. exit path) is no longer a problem. I didn't really get to evaluate
+it deeper though. There are just too many things going on in parallel.
 
-Until then I would simply stick with the proposed approach because my
-experience tells me that a wrong gfp mask usage is way too easy so the
-simpler the api is the less likely we will see an abuse.
+Tetsuo was proposing some patches to remove the lock but those patches
+had some other problems. If we have a simple patch to remove the
+oom_lock from the oom reaper then I will review it. I am not sure I can
+come up with a patch myself in few days.
 -- 
 Michal Hocko
 SUSE Labs
