@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C7116B0285
+	by kanga.kvack.org (Postfix) with ESMTP id B72CC6B0286
 	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:15 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id c2-v6so9864382edi.20
+Received: by mail-ed1-f69.google.com with SMTP id r21-v6so4649136edp.23
         for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:15 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id l62-v6si740758edl.257.2018.07.11.04.30.13
+        by mx.google.com with ESMTPS id k28-v6si238760edk.175.2018.07.11.04.30.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 11 Jul 2018 04:30:14 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 22/39] x86/mm/pae: Populate the user page-table with user pgd's
-Date: Wed, 11 Jul 2018 13:29:29 +0200
-Message-Id: <1531308586-29340-23-git-send-email-joro@8bytes.org>
+Subject: [PATCH 23/39] x86/mm/legacy: Populate the user page-table with user pgd's
+Date: Wed, 11 Jul 2018 13:29:30 +0200
+Message-Id: <1531308586-29340-24-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,38 +22,46 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-When we populate a PGD entry, make sure we populate it in
-the user page-table too.
+Also populate the user-spage pgd's in the user page-table.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable-3level.h | 7 +++++++
- 1 file changed, 7 insertions(+)
+ arch/x86/include/asm/pgtable-2level.h | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-diff --git a/arch/x86/include/asm/pgtable-3level.h b/arch/x86/include/asm/pgtable-3level.h
-index f24df59..f2ca313 100644
---- a/arch/x86/include/asm/pgtable-3level.h
-+++ b/arch/x86/include/asm/pgtable-3level.h
-@@ -98,6 +98,9 @@ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
+diff --git a/arch/x86/include/asm/pgtable-2level.h b/arch/x86/include/asm/pgtable-2level.h
+index 685ffe8..c399ea5 100644
+--- a/arch/x86/include/asm/pgtable-2level.h
++++ b/arch/x86/include/asm/pgtable-2level.h
+@@ -19,6 +19,9 @@ static inline void native_set_pte(pte_t *ptep , pte_t pte)
  
- static inline void native_set_pud(pud_t *pudp, pud_t pud)
+ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
  {
 +#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+	pud.p4d.pgd = pti_set_user_pgtbl(&pudp->p4d.pgd, pud.p4d.pgd);
++	pmd.pud.p4d.pgd = pti_set_user_pgtbl(&pmdp->pud.p4d.pgd, pmd.pud.p4d.pgd);
 +#endif
- 	set_64bit((unsigned long long *)(pudp), native_pud_val(pud));
+ 	*pmdp = pmd;
  }
  
-@@ -229,6 +232,10 @@ static inline pud_t native_pudp_get_and_clear(pud_t *pudp)
+@@ -58,6 +61,9 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
+ #ifdef CONFIG_SMP
+ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
  {
- 	union split_pud res, *orig = (union split_pud *)pudp;
- 
 +#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+	pti_set_user_pgtbl(&pudp->p4d.pgd, __pgd(0));
++	pti_set_user_pgtbl(&xp->pud.p4d.pgd, __pgd(0));
 +#endif
-+
- 	/* xchg acts as a barrier before setting of the high bits */
- 	res.pud_low = xchg(&orig->pud_low, 0);
- 	res.pud_high = orig->pud_high;
+ 	return __pmd(xchg((pmdval_t *)xp, 0));
+ }
+ #else
+@@ -67,6 +73,9 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
+ #ifdef CONFIG_SMP
+ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
+ {
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++	pti_set_user_pgtbl(&xp->p4d.pgd, __pgd(0));
++#endif
+ 	return __pud(xchg((pudval_t *)xp, 0));
+ }
+ #else
 -- 
 2.7.4
