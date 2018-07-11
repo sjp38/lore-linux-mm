@@ -1,55 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 48D0C6B0007
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 05:03:59 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id r21-v6so4494203edp.23
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 02:03:59 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o16-v6si3789938edt.64.2018.07.11.02.03.57
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E075D6B0269
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 05:07:10 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id i123-v6so7841110pfc.13
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 02:07:10 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id z9-v6si20678086pfg.46.2018.07.11.02.07.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 02:03:57 -0700 (PDT)
-Date: Wed, 11 Jul 2018 11:03:53 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
-Message-ID: <20180711090353.GD20050@dhcp22.suse.cz>
-References: <20180622150242.16558-1-mhocko@kernel.org>
- <20180627074421.GF32348@dhcp22.suse.cz>
- <20180709122908.GJ22049@dhcp22.suse.cz>
- <20180710134040.GG3014@mtr-leonro.mtl.com>
- <20180710141410.GP14284@dhcp22.suse.cz>
- <20180710162020.GJ3014@mtr-leonro.mtl.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 11 Jul 2018 02:07:01 -0700 (PDT)
+Date: Wed, 11 Jul 2018 11:06:56 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC PATCH v2 13/27] mm: Handle shadow stack page fault
+Message-ID: <20180711090656.GS2476@hirez.programming.kicks-ass.net>
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+ <20180710222639.8241-14-yu-cheng.yu@intel.com>
+ <2f3ff321-c629-3e00-59f6-8bca510650d4@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180710162020.GJ3014@mtr-leonro.mtl.com>
+In-Reply-To: <2f3ff321-c629-3e00-59f6-8bca510650d4@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Leon Romanovsky <leon@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Felix Kuehling <felix.kuehling@amd.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-On Tue 10-07-18 19:20:20, Leon Romanovsky wrote:
-> On Tue, Jul 10, 2018 at 04:14:10PM +0200, Michal Hocko wrote:
-> > On Tue 10-07-18 16:40:40, Leon Romanovsky wrote:
-> > > On Mon, Jul 09, 2018 at 02:29:08PM +0200, Michal Hocko wrote:
-> > > > On Wed 27-06-18 09:44:21, Michal Hocko wrote:
-> > > > > This is the v2 of RFC based on the feedback I've received so far. The
-> > > > > code even compiles as a bonus ;) I haven't runtime tested it yet, mostly
-> > > > > because I have no idea how.
-> > > > >
-> > > > > Any further feedback is highly appreciated of course.
-> > > >
-> > > > Any other feedback before I post this as non-RFC?
-> > >
-> > > From mlx5 perspective, who is primary user of umem_odp.c your change looks ok.
-> >
-> > Can I assume your Acked-by?
+On Tue, Jul 10, 2018 at 04:06:25PM -0700, Dave Hansen wrote:
+> On 07/10/2018 03:26 PM, Yu-cheng Yu wrote:
+> > +	if (is_shstk_mapping(vma->vm_flags))
+> > +		entry = pte_mkdirty_shstk(entry);
+> > +	else
+> > +		entry = pte_mkdirty(entry);
+> > +
+> > +	entry = maybe_mkwrite(entry, vma);
+> >  	if (ptep_set_access_flags(vma, vmf->address, vmf->pte, entry, 1))
+> >  		update_mmu_cache(vma, vmf->address, vmf->pte);
+> >  	pte_unmap_unlock(vmf->pte, vmf->ptl);
+> > @@ -2526,7 +2532,11 @@ static int wp_page_copy(struct vm_fault *vmf)
+> >  		}
+> >  		flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));
+> >  		entry = mk_pte(new_page, vma->vm_page_prot);
+> > -		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+> > +		if (is_shstk_mapping(vma->vm_flags))
+> > +			entry = pte_mkdirty_shstk(entry);
+> > +		else
+> > +			entry = pte_mkdirty(entry);
+> > +		entry = maybe_mkwrite(entry, vma);
 > 
-> I didn't have a chance to test it because it applies on our rdma-next, but
-> fails to compile.
+> Do we want to lift this hunk of code and put it elsewhere?  Maybe:
+> 
+> 	entry = pte_set_vma_features(entry, vma);
+> 
+> and then:
+> 
+> pte_t pte_set_vma_features(pte_t entry, struct vm_area_struct)
+> {
+> 		/*
+> 		 * Shadow stack PTEs are always dirty and always
+> 		 * writable.  They have a different encoding for
+> 		 * this than normal PTEs, though.
+> 		 */
+> 		if (is_shstk_mapping(vma->vm_flags))
+> 			entry = pte_mkdirty_shstk(entry);
+> 		else
+> 			entry = pte_mkdirty(entry);
+> 
+> 		entry = maybe_mkwrite(entry, vma);
+> 
+> 	return entry;
+> }
 
-What is the compilation problem? Is it caused by the patch or some other
-unrelated changed?
--- 
-Michal Hocko
-SUSE Labs
+Yes, that wants a helper like that. Not sold on the name, but whatever.
+
+Is there any way we can hide all the shadow stack magic in arch code?
