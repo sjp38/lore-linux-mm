@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 022496B028D
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F8506B028E
 	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:20 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id w10-v6so9792639eds.7
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:19 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id w10-v6si3190514edi.69.2018.07.11.04.30.18
+Received: by mail-ed1-f72.google.com with SMTP id c2-v6so9864516edi.20
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:20 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id 29-v6si6010913edx.293.2018.07.11.04.30.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 04:30:18 -0700 (PDT)
+        Wed, 11 Jul 2018 04:30:19 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 28/39] x86/mm/pti: Keep permissions when cloning kernel text in pti_clone_kernel_text()
-Date: Wed, 11 Jul 2018 13:29:35 +0200
-Message-Id: <1531308586-29340-29-git-send-email-joro@8bytes.org>
+Subject: [PATCH 29/39] x86/mm/pti: Introduce pti_finalize()
+Date: Wed, 11 Jul 2018 13:29:36 +0200
+Message-Id: <1531308586-29340-30-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,34 +22,113 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Mapping the kernel text area to user-space makes only sense
-if it has the same permissions as in the kernel page-table.
-If permissions are different this will cause a TLB reload
-when using the kernel page-table, which is as good as not
-mapping it at all.
+Introduce a new function to finalize the kernel mappings for
+the userspace page-table after all ro/nx protections have been
+applied to the kernel mappings.
 
-On 64-bit kernels this patch makes no difference, as the
-whole range cloned by pti_clone_kernel_text() is mapped RO
-anyway. On 32 bit there are writeable mappings in the range,
-so just keep the permissions as they are.
+Also move the call to pti_clone_kernel_text() to that
+function so that it will run on 32 bit kernels too.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/pti.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/x86/include/asm/pti.h |  3 +--
+ arch/x86/mm/init_64.c      |  6 ------
+ arch/x86/mm/pti.c          | 14 +++++++++++++-
+ include/linux/pti.h        |  1 +
+ init/main.c                |  7 +++++++
+ 5 files changed, 22 insertions(+), 9 deletions(-)
 
-diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index 4f6e933..fc77054 100644
---- a/arch/x86/mm/pti.c
-+++ b/arch/x86/mm/pti.c
-@@ -482,7 +482,7 @@ void pti_clone_kernel_text(void)
- 	 * pti_set_kernel_image_nonglobal() did to clear the
- 	 * global bit.
- 	 */
--	pti_clone_pmds(start, end, _PAGE_RW);
-+	pti_clone_pmds(start, end, 0);
+diff --git a/arch/x86/include/asm/pti.h b/arch/x86/include/asm/pti.h
+index 38a17f1..5df09a0 100644
+--- a/arch/x86/include/asm/pti.h
++++ b/arch/x86/include/asm/pti.h
+@@ -6,10 +6,9 @@
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
+ extern void pti_init(void);
+ extern void pti_check_boottime_disable(void);
+-extern void pti_clone_kernel_text(void);
++extern void pti_finalize(void);
+ #else
+ static inline void pti_check_boottime_disable(void) { }
+-static inline void pti_clone_kernel_text(void) { }
+ #endif
+ 
+ #endif /* __ASSEMBLY__ */
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index a688617..9b19f9a 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1291,12 +1291,6 @@ void mark_rodata_ro(void)
+ 			(unsigned long) __va(__pa_symbol(_sdata)));
+ 
+ 	debug_checkwx();
+-
+-	/*
+-	 * Do this after all of the manipulation of the
+-	 * kernel text page tables are complete.
+-	 */
+-	pti_clone_kernel_text();
  }
  
- /*
+ int kern_addr_valid(unsigned long addr)
+diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+index fc77054..1825f30 100644
+--- a/arch/x86/mm/pti.c
++++ b/arch/x86/mm/pti.c
+@@ -462,7 +462,7 @@ static inline bool pti_kernel_image_global_ok(void)
+  * For some configurations, map all of kernel text into the user page
+  * tables.  This reduces TLB misses, especially on non-PCID systems.
+  */
+-void pti_clone_kernel_text(void)
++static void pti_clone_kernel_text(void)
+ {
+ 	/*
+ 	 * rodata is part of the kernel image and is normally
+@@ -526,3 +526,15 @@ void __init pti_init(void)
+ 	pti_setup_espfix64();
+ 	pti_setup_vsyscall();
+ }
++
++/*
++ * Finalize the kernel mappings in the userspace page-table.
++ */
++void pti_finalize(void)
++{
++	/*
++	 * Do this after all of the manipulation of the
++	 * kernel text page tables are complete.
++	 */
++	pti_clone_kernel_text();
++}
+diff --git a/include/linux/pti.h b/include/linux/pti.h
+index 0174883..1a941ef 100644
+--- a/include/linux/pti.h
++++ b/include/linux/pti.h
+@@ -6,6 +6,7 @@
+ #include <asm/pti.h>
+ #else
+ static inline void pti_init(void) { }
++static inline void pti_finalize(void) { }
+ #endif
+ 
+ #endif
+diff --git a/init/main.c b/init/main.c
+index 3b4ada1..fcfef46 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -1065,6 +1065,13 @@ static int __ref kernel_init(void *unused)
+ 	jump_label_invalidate_initmem();
+ 	free_initmem();
+ 	mark_readonly();
++
++	/*
++	 * Kernel mappings are now finalized - update the userspace page-table
++	 * to finalize PTI.
++	 */
++	pti_finalize();
++
+ 	system_state = SYSTEM_RUNNING;
+ 	numa_default_policy();
+ 
 -- 
 2.7.4
