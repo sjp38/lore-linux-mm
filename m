@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 236736B0287
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F15466B0287
 	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 07:30:16 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c2-v6so9864411edi.20
+Received: by mail-ed1-f70.google.com with SMTP id x21-v6so5799907eds.2
         for <linux-mm@kvack.org>; Wed, 11 Jul 2018 04:30:16 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id b16-v6si2228326edh.182.2018.07.11.04.30.14
+        by mx.google.com with ESMTPS id e40-v6si603606ede.100.2018.07.11.04.30.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 11 Jul 2018 04:30:15 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 26/39] x86/mm/pti: Clone CPU_ENTRY_AREA on PMD level on x86_32
-Date: Wed, 11 Jul 2018 13:29:33 +0200
-Message-Id: <1531308586-29340-27-git-send-email-joro@8bytes.org>
+Subject: [PATCH 24/39] x86/mm/pti: Add an overflow check to pti_clone_pmds()
+Date: Wed, 11 Jul 2018 13:29:31 +0200
+Message-Id: <1531308586-29340-25-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,53 +22,30 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Cloning on the P4D level would clone the complete kernel
-address space into the user-space page-tables for PAE
-kernels. Cloning on PMD level is fine for PAE and legacy
-paging.
+The addr counter will overflow if we clone the last PMD of
+the address space, resulting in an endless loop.
+
+Check for that and bail out of the loop when it happens.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/pti.c | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ arch/x86/mm/pti.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
 diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index dc02fd4..2eadab0 100644
+index f512222..dc02fd4 100644
 --- a/arch/x86/mm/pti.c
 +++ b/arch/x86/mm/pti.c
-@@ -348,6 +348,7 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
- 	}
- }
+@@ -297,6 +297,10 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
+ 		p4d_t *p4d;
+ 		pud_t *pud;
  
-+#ifdef CONFIG_X86_64
- /*
-  * Clone a single p4d (i.e. a top-level entry on 4-level systems and a
-  * next-level entry on 5-level systems.
-@@ -371,6 +372,25 @@ static void __init pti_clone_user_shared(void)
- 	pti_clone_p4d(CPU_ENTRY_AREA_BASE);
- }
- 
-+#else /* CONFIG_X86_64 */
++		/* Overflow check */
++		if (addr < start)
++			break;
 +
-+/*
-+ * On 32 bit PAE systems with 1GB of Kernel address space there is only
-+ * one pgd/p4d for the whole kernel. Cloning that would map the whole
-+ * address space into the user page-tables, making PTI useless. So clone
-+ * the page-table on the PMD level to prevent that.
-+ */
-+static void __init pti_clone_user_shared(void)
-+{
-+	unsigned long start, end;
-+
-+	start = CPU_ENTRY_AREA_BASE;
-+	end   = start + (PAGE_SIZE * CPU_ENTRY_AREA_PAGES);
-+
-+	pti_clone_pmds(start, end, 0);
-+}
-+#endif /* CONFIG_X86_64 */
-+
- /*
-  * Clone the ESPFIX P4D into the user space visible page table
-  */
+ 		pgd = pgd_offset_k(addr);
+ 		if (WARN_ON(pgd_none(*pgd)))
+ 			return;
 -- 
 2.7.4
