@@ -1,57 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BD9C6B000A
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 07:30:19 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id g20-v6so18385558pfi.2
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 04:30:19 -0700 (PDT)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id f200-v6si23506363pfa.164.2018.07.12.04.30.18
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F12F6B000D
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 07:34:14 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id b25-v6so7743901eds.17
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 04:34:13 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s35-v6si1170030edm.70.2018.07.12.04.34.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jul 2018 04:30:18 -0700 (PDT)
-Message-ID: <5B473CB8.1050306@intel.com>
-Date: Thu, 12 Jul 2018 19:34:16 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        Thu, 12 Jul 2018 04:34:12 -0700 (PDT)
+Date: Thu, 12 Jul 2018 13:34:11 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Caching/buffers become useless after some time
+Message-ID: <20180712113411.GB328@dhcp22.suse.cz>
+References: <CADF2uSrW=Z=7NeA4qRwStoARGeT1y33QSP48Loc1u8XSdpMJOA@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v35 1/5] mm: support to get hints of free page blocks
-References: <1531215067-35472-1-git-send-email-wei.w.wang@intel.com> <1531215067-35472-2-git-send-email-wei.w.wang@intel.com> <CA+55aFz9a=D-kquM=sG5uhV_HrBAw+VAhcJmtPNz+howy4j9ow@mail.gmail.com> <5B455D50.90902@intel.com> <CA+55aFzqj8wxXnHAdUTiOomipgFONVbqKMjL_tfk7e5ar1FziQ@mail.gmail.com> <20180711092152.GE20050@dhcp22.suse.cz> <CA+55aFwku2tDH4+rfaC67xc4-cEwSrXgnQaci=e2id5ZCRE9JQ@mail.gmail.com> <5B46BB46.2080802@intel.com> <CA+55aFxyv=EUAJFUSio=k+pm3ddteojshP7Radjia5ZRgm53zQ@mail.gmail.com> <5B46C258.40601@intel.com> <20180712081317.GD32648@dhcp22.suse.cz>
-In-Reply-To: <20180712081317.GD32648@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CADF2uSrW=Z=7NeA4qRwStoARGeT1y33QSP48Loc1u8XSdpMJOA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, virtualization <virtualization@lists.linux-foundation.org>, KVM list <kvm@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Michael S. Tsirkin" <mst@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, Rik van Riel <riel@redhat.com>, peterx@redhat.com
+To: Marinko Catovic <marinko.catovic@gmail.com>
+Cc: linux-mm@kvack.org
 
-On 07/12/2018 04:13 PM, Michal Hocko wrote:
-> On Thu 12-07-18 10:52:08, Wei Wang wrote:
->> On 07/12/2018 10:30 AM, Linus Torvalds wrote:
->>> On Wed, Jul 11, 2018 at 7:17 PM Wei Wang <wei.w.wang@intel.com> wrote:
->>>> Would it be better to remove __GFP_THISNODE? We actually want to get all
->>>> the guest free pages (from all the nodes).
->>> Maybe. Or maybe it would be better to have the memory balloon logic be
->>> per-node? Maybe you don't want to remove too much memory from one
->>> node? I think it's one of those "play with it" things.
->>>
->>> I don't think that's the big issue, actually. I think the real issue
->>> is how to react quickly and gracefully to "oops, I'm trying to give
->>> memory away, but now the guest wants it back" while you're in the
->>> middle of trying to create that 2TB list of pages.
->> OK. virtio-balloon has already registered an oom notifier
->> (virtballoon_oom_notify). I plan to add some control there. If oom happens,
->> - stop the page allocation;
->> - immediately give back the allocated pages to mm.
-> Please don't. Oom notifier is an absolutely hideous interface which
-> should go away sooner or later (I would much rather like the former) so
-> do not build a new logic on top of it. I would appreciate if you
-> actually remove the notifier much more.
->
-> You can give memory back from the standard shrinker interface. If we are
-> reaching low reclaim priorities then we are struggling to reclaim memory
-> and then you can start returning pages back.
+On Wed 11-07-18 15:18:30, Marinko Catovic wrote:
+> hello guys
+> 
+> 
+> I tried in a few IRC, people told me to ask here, so I'll give it a try.
+> 
+> 
+> I have a very weird issue with mm on several hosts.
+> The systems are for shared hosting, so lots of users there with lots of
+> files.
+> Maybe 5TB of files per host, several million at least, there is lots of I/O
+> which can be handled perfectly fine with buffers/cache
+> 
+> The kernel version is the latest stable, 4.17.4, I had 3.x before and did
+> not notice any issues until now. the same is for 4.16 which was in use
+> before:
+> 
+> The hosts altogether have 64G of RAM and operate with SSD+HDD.
+> HDDs are the issue here, since those 5TB of data are stored there, there
+> goes the high I/O.
+> Running applications need about 15GB, so say 40GB of RAM are left for
+> buffers/caching.
+> 
+> Usually this works perfectly fine. The buffers take about 1-3G of RAM, the
+> cache the rest, say 35GB as an example.
+> But every now and then, maybe every 2 days it happens that both drop to
+> really low values, say 100MB buffers, 3GB caches and the rest of the RAM is
+> not in use, so there are about 35GB+ of totally free RAM.
+> 
+> The performance of the host goes down significantly then, as it becomes
+> unusable at some point, since it behaves as if the buffers/cache were
+> totally useless.
+> After lots and lots of playing around I noticed that when shutting down all
+> services that access the HDDs on the system and restarting them, that this
+> does *not* make any difference.
+> 
+> But what did make a difference was stopping and umounting the fs, mounting
+> it again and starting the services.
+> Then the buffers+cache built up to 5GB/35GB as usual after a while and
+> everything was perfectly fine again!
+> 
+> I noticed that what happens when umount is called, that the caches are
+> being dropped. So I gave it a try:
+> 
+> sync; echo 2 > /proc/sys/vm/drop_caches
+> 
+> has the exactly same effect. Note that echo 1 > .. does not.
+> 
+> So if that low usage like 100MB/3GB occurs I'd have to drop the caches by
+> echoing 2 to drop_caches. The 3GB then become even lower, which is
+> expected, but then at least the buffers/cache built up again to ordinary
+> values and the usual performance is restored after a few minutes.
+> I have never seen this before, this happened after I switched the systems
+> to newer ones, where the old ones had kernel 3.x, this behavior was never
+> observed before.
+> 
+> Do you have *any idea* at all what could be causing this? that issue is
+> bugging me since over a month and seriously really disturbs everything I'm
+> doing since lot of people access that data and all of them start to
+> complain at some point where I see that the caches became useless at that
+> time, having to drop them to rebuild again.
+> 
+> Some guys in IRC suggested that his could be a fragmentation problem or
+> something, or about slab shrinking.
 
-OK. Just curious why oom notifier is thought to be hideous, and has it 
-been a consensus?
+Well, the page cache shouldn't really care about fragmentation because
+single pages are used. Btw. what is the filesystem that you are using?
 
-Best,
-Wei
+> The problem is that I can not reproduce this, I have to wait a while, maybe
+> 2 days to observe that, until that the buffers/caches are fully in use and
+> at some point they decrease within a few hours to those useless values.
+> Sadly this is a production system and I can not play that much around,
+> already causing downtime when dropping caches (populating caches needs
+> maybe 5-10 minutes until the performance is ok again).
+
+This doesn't really ring bells for me.
+
+> Please tell me whatever info you need me to pastebin and when (before/after
+> what event).
+> Any hints are appreciated a lot, it really gives me lots of headache, since
+> I am really busy with other things. Thank you very much!
+
+Could you collect /proc/vmstat every few seconds over that time period?
+Maybe it will tell us more.
+-- 
+Michal Hocko
+SUSE Labs
