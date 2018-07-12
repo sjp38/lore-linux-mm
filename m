@@ -1,51 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E133B6B0006
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 19:16:47 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id n17-v6so19431123pff.10
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 16:16:47 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id u13-v6si8596565pgg.263.2018.07.12.16.16.46
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B78C86B0003
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 19:36:45 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id e93-v6so16112525plb.5
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 16:36:45 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id c15-v6si21063744pgw.550.2018.07.12.16.36.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jul 2018 16:16:46 -0700 (PDT)
-Date: Thu, 12 Jul 2018 16:16:44 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v6 0/7] fs/dcache: Track & limit # of negative dentries
-Message-Id: <20180712161644.02dec2142cad842bc8b73a41@linux-foundation.org>
-In-Reply-To: <c68aa6ad-9e35-f828-6373-39938fd6e2a7@redhat.com>
-References: <1530905572-817-1-git-send-email-longman@redhat.com>
-	<20180709081920.GD22049@dhcp22.suse.cz>
-	<62275711-e01d-7dbe-06f1-bf094b618195@redhat.com>
-	<20180710142740.GQ14284@dhcp22.suse.cz>
-	<a2794bcc-9193-cbca-3a54-47420a2ab52c@redhat.com>
-	<20180711102139.GG20050@dhcp22.suse.cz>
-	<9f24c043-1fca-ee86-d609-873a7a8f7a64@redhat.com>
-	<20180712084807.GF32648@dhcp22.suse.cz>
-	<c68aa6ad-9e35-f828-6373-39938fd6e2a7@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 12 Jul 2018 16:36:44 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH 0/6] swap: THP optimizing refactoring
+Date: Fri, 13 Jul 2018 07:36:30 +0800
+Message-Id: <20180712233636.20629-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Thu, 12 Jul 2018 12:12:28 -0400 Waiman Long <longman@redhat.com> wrote:
+This patchset is based on 2018-07-10 head of mmotm tree.
 
-> The rationale beside this patchset comes from a customer request to have
-> the ability to track and limit negative dentries. 
+Now the THP (Transparent Huge Page) swap optimizing is implemented in
+the way like below,
 
-Please go back to customer and ask them "why", then let us know.
+#ifdef CONFIG_THP_SWAP
+huge_function(...)
+{
+}
+#else
+normal_function(...)
+{
+}
+#endif
 
-Could I suggest you stop working on implementation things and instead
-work on preparing a comprehensive bug report?  Describe the workload,
-describe the system behavior, describe why it is problematic, describe
-the preferred behavior, etc.
+general_function(...)
+{
+	if (huge)
+		return thp_function(...);
+	else
+		return normal_function(...);
+}
 
-Once we have that understanding, it might be that we eventually agree
-that the problem is unfixable using existing memory management
-techniques and that it is indeed appropriate that we add a lot more
-code which essentially duplicates kswapd functionality and which
-essentially duplicates direct reclaim functionality.  But I sure hope
-not.
+As pointed out by Dave Hansen, this will,
+
+1. Created a new, wholly untested code path for huge page
+2. Created two places to patch bugs
+3. Are not reusing code when possible
+
+This patchset is to address these problems via merging huge/normal
+code path/functions if possible.
+
+One concern is that this may cause code size to dilate when
+!CONFIG_TRANSPARENT_HUGEPAGE.  The data shows that most refactoring
+will only cause quite slight code size increase.
+
+Best Regards,
+Huang, Ying
