@@ -1,45 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CA1266B0003
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 22:48:02 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id r2-v6so1243768pgp.3
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 19:48:02 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id t8-v6si21544951pfi.221.2018.07.11.19.48.01
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 136426B000A
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 22:48:50 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id h89-v6so3852685wrh.15
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 19:48:50 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j19-v6sor921669wmf.26.2018.07.11.19.48.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 19:48:01 -0700 (PDT)
-Message-ID: <5B46C258.40601@intel.com>
-Date: Thu, 12 Jul 2018 10:52:08 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (Google Transport Security);
+        Wed, 11 Jul 2018 19:48:48 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v35 1/5] mm: support to get hints of free page blocks
-References: <1531215067-35472-1-git-send-email-wei.w.wang@intel.com> <1531215067-35472-2-git-send-email-wei.w.wang@intel.com> <CA+55aFz9a=D-kquM=sG5uhV_HrBAw+VAhcJmtPNz+howy4j9ow@mail.gmail.com> <5B455D50.90902@intel.com> <CA+55aFzqj8wxXnHAdUTiOomipgFONVbqKMjL_tfk7e5ar1FziQ@mail.gmail.com> <20180711092152.GE20050@dhcp22.suse.cz> <CA+55aFwku2tDH4+rfaC67xc4-cEwSrXgnQaci=e2id5ZCRE9JQ@mail.gmail.com> <5B46BB46.2080802@intel.com> <CA+55aFxyv=EUAJFUSio=k+pm3ddteojshP7Radjia5ZRgm53zQ@mail.gmail.com>
-In-Reply-To: <CA+55aFxyv=EUAJFUSio=k+pm3ddteojshP7Radjia5ZRgm53zQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180711085407.GB20050@dhcp22.suse.cz>
+References: <CGME20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29@eucas1p2.samsung.com>
+ <20180709121956.20200-1-m.szyprowski@samsung.com> <20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29~-sqTPJKij2939229392eucas1p2j@eucas1p2.samsung.com>
+ <CAAmzW4PPNYhUj_MeZox+ddq8MjXqnJs_AJ3xkayf710udD1pSg@mail.gmail.com>
+ <20180710095056.GE14284@dhcp22.suse.cz> <CAAmzW4P1m_T77DfQzDD6ysGaOF46++-0gwRaOajmo6ef=VYp=A@mail.gmail.com>
+ <20180711085407.GB20050@dhcp22.suse.cz>
+From: Joonsoo Kim <js1304@gmail.com>
+Date: Thu, 12 Jul 2018 11:48:47 +0900
+Message-ID: <CAAmzW4M3KADCZD9+B2h7=WsYksGtg-GzYRCJjbqK5Scceynrrg@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm/cma: remove unsupported gfp_mask parameter from cma_alloc()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, virtualization <virtualization@lists.linux-foundation.org>, KVM list <kvm@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Michael S. Tsirkin" <mst@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, Rik van Riel <riel@redhat.com>, peterx@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, iommu@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Hellwig <hch@lst.de>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Paul Mackerras <paulus@ozlabs.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Chris Zankel <chris@zankel.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Joerg Roedel <joro@8bytes.org>, Sumit Semwal <sumit.semwal@linaro.org>, Robin Murphy <robin.murphy@arm.com>, Laura Abbott <labbott@redhat.com>, linaro-mm-sig@lists.linaro.org
 
-On 07/12/2018 10:30 AM, Linus Torvalds wrote:
-> On Wed, Jul 11, 2018 at 7:17 PM Wei Wang <wei.w.wang@intel.com> wrote:
->> Would it be better to remove __GFP_THISNODE? We actually want to get all
->> the guest free pages (from all the nodes).
-> Maybe. Or maybe it would be better to have the memory balloon logic be
-> per-node? Maybe you don't want to remove too much memory from one
-> node? I think it's one of those "play with it" things.
+2018-07-11 17:54 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
+> On Wed 11-07-18 16:35:28, Joonsoo Kim wrote:
+>> 2018-07-10 18:50 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
+>> > On Tue 10-07-18 16:19:32, Joonsoo Kim wrote:
+>> >> Hello, Marek.
+>> >>
+>> >> 2018-07-09 21:19 GMT+09:00 Marek Szyprowski <m.szyprowski@samsung.com>:
+>> >> > cma_alloc() function doesn't really support gfp flags other than
+>> >> > __GFP_NOWARN, so convert gfp_mask parameter to boolean no_warn parameter.
+>> >>
+>> >> Although gfp_mask isn't used in cma_alloc() except no_warn, it can be used
+>> >> in alloc_contig_range(). For example, if passed gfp mask has no __GFP_FS,
+>> >> compaction(isolation) would work differently. Do you have considered
+>> >> such a case?
+>> >
+>> > Does any of cma_alloc users actually care about GFP_NO{FS,IO}?
+>>
+>> I don't know. My guess is that cma_alloc() is used for DMA allocation so
+>> block device would use it, too. If fs/block subsystem initiates the
+>> request for the device,
+>> it would be possible that cma_alloc() is called with such a flag.
+>> Again, I don't know
+>> much about those subsystem so I would be wrong.
 >
-> I don't think that's the big issue, actually. I think the real issue
-> is how to react quickly and gracefully to "oops, I'm trying to give
-> memory away, but now the guest wants it back" while you're in the
-> middle of trying to create that 2TB list of pages.
+> The patch converts existing users and none of them really tries to use
+> anything other than GFP_KERNEL [|__GFP_NOWARN] so this doesn't seem to
+> be the case. Should there be a new user requiring more restricted
+> gfp_mask we should carefuly re-evaluate and think how to support it.
 
-OK. virtio-balloon has already registered an oom notifier 
-(virtballoon_oom_notify). I plan to add some control there. If oom happens,
-- stop the page allocation;
-- immediately give back the allocated pages to mm.
+One of existing user is general DMA layer and it takes gfp flags that is
+provided by user. I don't check all the DMA allocation sites but how do
+you convince that none of them try to use anything other
+than GFP_KERNEL [|__GFP_NOWARN]?
 
-Best,
-Wei
+Thanks.
