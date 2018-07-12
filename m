@@ -1,64 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 473D06B026E
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 17:34:03 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id v25-v6so11115271pfm.11
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 14:34:03 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v5-v6sor5520756pfd.58.2018.07.12.14.34.01
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A697C6B0003
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 18:40:56 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id s3-v6so18175857plp.21
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 15:40:56 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id j10-v6si19180640pgi.500.2018.07.12.15.40.55
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 12 Jul 2018 14:34:01 -0700 (PDT)
-Date: Thu, 12 Jul 2018 14:34:00 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm] mm, oom: remove oom_lock from exit_mmap
-Message-ID: <alpine.DEB.2.21.1807121432370.170100@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Jul 2018 15:40:55 -0700 (PDT)
+Message-ID: <1531435034.2965.15.camel@intel.com>
+Subject: Re: [RFC PATCH v2 25/27] x86/cet: Add PTRACE interface for CET
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Date: Thu, 12 Jul 2018 15:37:14 -0700
+In-Reply-To: <20180712140327.GA7810@gmail.com>
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+	 <20180710222639.8241-26-yu-cheng.yu@intel.com>
+	 <20180711102035.GB8574@gmail.com> <1531323638.13297.24.camel@intel.com>
+	 <20180712140327.GA7810@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-oom_lock isn't needed for __oom_reap_task_mm().  If MMF_UNSTABLE is 
-already set for the mm, we can simply back out immediately since oom 
-reaping is already in progress (or done).
+On Thu, 2018-07-12 at 16:03 +0200, Ingo Molnar wrote:
+> * Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
+> 
+> > 
+> > > 
+> > > > 
+> > > > diff --git a/arch/x86/kernel/ptrace.c b/arch/x86/kernel/ptrace.c
+> > > > index e2ee403865eb..ac2bc3a18427 100644
+> > > > --- a/arch/x86/kernel/ptrace.c
+> > > > +++ b/arch/x86/kernel/ptrace.c
+> > > > @@ -49,7 +49,9 @@ enum x86_regset {
+> > > > A 	REGSET_IOPERM64 = REGSET_XFP,
+> > > > A 	REGSET_XSTATE,
+> > > > A 	REGSET_TLS,
+> > > > +	REGSET_CET64 = REGSET_TLS,
+> > > > A 	REGSET_IOPERM32,
+> > > > +	REGSET_CET32,
+> > > > A };
+> > > Why does REGSET_CET64 alias on REGSET_TLS?
+> > In x86_64_regsets[], there is no [REGSET_TLS]. A The core dump code
+> > cannot handle holes in the array.
+> Is there a fundamental (ABI) reason for that?
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/mmap.c     | 2 --
- mm/oom_kill.c | 6 ++++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+What I did was, ran Linux with 'slub_debug', and forced a core dump
+(kill -abrt <pid>), then there was a red zone warning in the dmesg.
+My feeling is there could be issues in the core dump code. A These
+enum's are only local to arch/x86/kernel/ptrace.c and not exported.
+I am not aware this is in the ABI.
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index cd2431f46188..7f918eb725f6 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3072,9 +3072,7 @@ void exit_mmap(struct mm_struct *mm)
- 		 * to mmu_notifier_release(mm) ensures mmu notifier callbacks in
- 		 * __oom_reap_task_mm() will not block.
- 		 */
--		mutex_lock(&oom_lock);
- 		__oom_reap_task_mm(mm);
--		mutex_unlock(&oom_lock);
- 
- 		/*
- 		 * Now, set MMF_UNSTABLE to avoid racing with the oom reaper.
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 0fe4087d5151..e6328cef090f 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -488,9 +488,11 @@ void __oom_reap_task_mm(struct mm_struct *mm)
- 	 * Tell all users of get_user/copy_from_user etc... that the content
- 	 * is no longer stable. No barriers really needed because unmapping
- 	 * should imply barriers already and the reader would hit a page fault
--	 * if it stumbled over a reaped memory.
-+	 * if it stumbled over a reaped memory. If MMF_UNSTABLE is already set,
-+	 * reaping as already occurred so nothing left to do.
- 	 */
--	set_bit(MMF_UNSTABLE, &mm->flags);
-+	if (test_and_set_bit(MMF_UNSTABLE, &mm->flags))
-+		return;
- 
- 	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
- 		if (!can_madv_dontneed_vma(vma))
+> 
+> > 
+> > > 
+> > > to "CET" (which is a well-known acronym for "Central European Time"),
+> > > not to CFE?
+> > > 
+> > I don't know if I can change that, will find out.
+> So what I'd suggest is something pretty simple: to use CFT/cft in kernel internalA 
+> names, except for the Intel feature bit and any MSR enumeration which can be CETA 
+> if Intel named it that way, and a short comment explaining the acronym difference.
+> 
+> Or something like that.
+
+Ok, I will make changes in the next version and probably revise
+from that if still not optimal.
+
+Yu-cheng
