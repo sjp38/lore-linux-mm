@@ -1,33 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BBA596B000D
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 21:46:58 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id i123-v6so9406762pfc.13
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 18:46:58 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id r81-v6si22062087pfg.305.2018.07.11.18.46.57
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 93F186B0003
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 22:17:53 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id q21-v6so17509409pff.4
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 19:17:53 -0700 (PDT)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id 186-v6si1333077pff.270.2018.07.11.19.17.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jul 2018 18:46:57 -0700 (PDT)
-Date: Wed, 11 Jul 2018 18:46:55 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH] mm, page_alloc: double zone's batchsize
-Message-Id: <20180711184655.23638dfdc29f57c6b70732f4@linux-foundation.org>
-In-Reply-To: <9f778198327e62cdab0651382740189e0665507a.camel@intel.com>
-References: <20180711055855.29072-1-aaron.lu@intel.com>
-	<20180711143505.5ccb378fb67dc6ba8fa202a3@linux-foundation.org>
-	<9f778198327e62cdab0651382740189e0665507a.camel@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Wed, 11 Jul 2018 19:17:52 -0700 (PDT)
+Message-ID: <5B46BB46.2080802@intel.com>
+Date: Thu, 12 Jul 2018 10:21:58 +0800
+From: Wei Wang <wei.w.wang@intel.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v35 1/5] mm: support to get hints of free page blocks
+References: <1531215067-35472-1-git-send-email-wei.w.wang@intel.com> <1531215067-35472-2-git-send-email-wei.w.wang@intel.com> <CA+55aFz9a=D-kquM=sG5uhV_HrBAw+VAhcJmtPNz+howy4j9ow@mail.gmail.com> <5B455D50.90902@intel.com> <CA+55aFzqj8wxXnHAdUTiOomipgFONVbqKMjL_tfk7e5ar1FziQ@mail.gmail.com> <20180711092152.GE20050@dhcp22.suse.cz> <CA+55aFwku2tDH4+rfaC67xc4-cEwSrXgnQaci=e2id5ZCRE9JQ@mail.gmail.com>
+In-Reply-To: <CA+55aFwku2tDH4+rfaC67xc4-cEwSrXgnQaci=e2id5ZCRE9JQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Lu, Aaron" <aaron.lu@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tim.c.chen@linux.intel.com" <tim.c.chen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "Wang, Kemi" <kemi.wang@intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "Hansen, Dave" <dave.hansen@intel.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "Huang, Ying" <ying.huang@intel.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>
+Cc: virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, virtualization <virtualization@lists.linux-foundation.org>, KVM list <kvm@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Michael S. Tsirkin" <mst@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, Rik van Riel <riel@redhat.com>, peterx@redhat.com
 
-On Thu, 12 Jul 2018 01:40:41 +0000 "Lu, Aaron" <aaron.lu@intel.com> wrote:
+On 07/12/2018 12:23 AM, Linus Torvalds wrote:
+> On Wed, Jul 11, 2018 at 2:21 AM Michal Hocko <mhocko@kernel.org> wrote:
+>> We already have an interface for that. alloc_pages(GFP_NOWAIT, MAX_ORDER -1).
+>> So why do we need any array based interface?
+> That was actually my original argument in the original thread - that
+> the only new interface people might want is one that just tells how
+> many of those MAX_ORDER-1 pages there are.
+>
+> See the thread in v33 with the subject
+>
+>    "[PATCH v33 1/4] mm: add a function to get free page blocks"
+>
+> and look for me suggesting just using
+>
+>      #define GFP_MINFLAGS (__GFP_NORETRY | __GFP_NOWARN |
+> __GFP_THISNODE | __GFP_NOMEMALLOC)
 
-> Thanks Andrew.
-> I think the credit goes to Dave Hansen
+Would it be better to remove __GFP_THISNODE? We actually want to get all 
+the guest free pages (from all the nodes).
 
-Oh.  In that case, I take it all back.  The patch sucks!
+Best,
+Wei
