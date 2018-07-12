@@ -1,63 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 136426B000A
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2018 22:48:50 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id h89-v6so3852685wrh.15
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 19:48:50 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j19-v6sor921669wmf.26.2018.07.11.19.48.48
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A96B96B0003
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 00:29:15 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id z21-v6so8858786plo.13
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2018 21:29:15 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id j1-v6si1457394pll.493.2018.07.11.21.29.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 11 Jul 2018 19:48:48 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 11 Jul 2018 21:29:14 -0700 (PDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: Boot failures with "mm/sparse: Remove CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER" on powerpc (was Re: mmotm 2018-07-10-16-50 uploaded)
+In-Reply-To: <20180711131225.GI1969@MiWiFi-R3L-srv>
+References: <20180710235044.vjlRV%akpm@linux-foundation.org> <87lgai9bt5.fsf@concordia.ellerman.id.au> <20180711131225.GI1969@MiWiFi-R3L-srv>
+Date: Thu, 12 Jul 2018 14:29:05 +1000
+Message-ID: <87k1q184by.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-In-Reply-To: <20180711085407.GB20050@dhcp22.suse.cz>
-References: <CGME20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29@eucas1p2.samsung.com>
- <20180709121956.20200-1-m.szyprowski@samsung.com> <20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29~-sqTPJKij2939229392eucas1p2j@eucas1p2.samsung.com>
- <CAAmzW4PPNYhUj_MeZox+ddq8MjXqnJs_AJ3xkayf710udD1pSg@mail.gmail.com>
- <20180710095056.GE14284@dhcp22.suse.cz> <CAAmzW4P1m_T77DfQzDD6ysGaOF46++-0gwRaOajmo6ef=VYp=A@mail.gmail.com>
- <20180711085407.GB20050@dhcp22.suse.cz>
-From: Joonsoo Kim <js1304@gmail.com>
-Date: Thu, 12 Jul 2018 11:48:47 +0900
-Message-ID: <CAAmzW4M3KADCZD9+B2h7=WsYksGtg-GzYRCJjbqK5Scceynrrg@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm/cma: remove unsupported gfp_mask parameter from cma_alloc()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, iommu@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Hellwig <hch@lst.de>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Paul Mackerras <paulus@ozlabs.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Chris Zankel <chris@zankel.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Joerg Roedel <joro@8bytes.org>, Sumit Semwal <sumit.semwal@linaro.org>, Robin Murphy <robin.murphy@arm.com>, Laura Abbott <labbott@redhat.com>, linaro-mm-sig@lists.linaro.org
+To: Baoquan He <bhe@redhat.com>
+Cc: akpm@linux-foundation.org, broonie@kernel.org, mhocko@suse.cz, sfr@canb.auug.org.au, linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, pasha.tatashin@oracle.com, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-2018-07-11 17:54 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
-> On Wed 11-07-18 16:35:28, Joonsoo Kim wrote:
->> 2018-07-10 18:50 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
->> > On Tue 10-07-18 16:19:32, Joonsoo Kim wrote:
->> >> Hello, Marek.
->> >>
->> >> 2018-07-09 21:19 GMT+09:00 Marek Szyprowski <m.szyprowski@samsung.com>:
->> >> > cma_alloc() function doesn't really support gfp flags other than
->> >> > __GFP_NOWARN, so convert gfp_mask parameter to boolean no_warn parameter.
->> >>
->> >> Although gfp_mask isn't used in cma_alloc() except no_warn, it can be used
->> >> in alloc_contig_range(). For example, if passed gfp mask has no __GFP_FS,
->> >> compaction(isolation) would work differently. Do you have considered
->> >> such a case?
+Baoquan He <bhe@redhat.com> writes:
+> On 07/11/18 at 10:49pm, Michael Ellerman wrote:
+>> akpm@linux-foundation.org writes:
+>> > The mm-of-the-moment snapshot 2018-07-10-16-50 has been uploaded to
 >> >
->> > Does any of cma_alloc users actually care about GFP_NO{FS,IO}?
->>
->> I don't know. My guess is that cma_alloc() is used for DMA allocation so
->> block device would use it, too. If fs/block subsystem initiates the
->> request for the device,
->> it would be possible that cma_alloc() is called with such a flag.
->> Again, I don't know
->> much about those subsystem so I would be wrong.
+>> >    http://www.ozlabs.org/~akpm/mmotm/
+>> ...
+>> 
+>> > * mm-sparse-add-a-static-variable-nr_present_sections.patch
+>> > * mm-sparsemem-defer-the-ms-section_mem_map-clearing.patch
+>> > * mm-sparsemem-defer-the-ms-section_mem_map-clearing-fix.patch
+>> > * mm-sparse-add-a-new-parameter-data_unit_size-for-alloc_usemap_and_memmap.patch
+>> > * mm-sparse-optimize-memmap-allocation-during-sparse_init.patch
+>> > * mm-sparse-optimize-memmap-allocation-during-sparse_init-checkpatch-fixes.patch
+>> 
+>> > * mm-sparse-remove-config_sparsemem_alloc_mem_map_together.patch
+>> 
+>> This seems to be breaking my powerpc pseries qemu boots.
+...
 >
-> The patch converts existing users and none of them really tries to use
-> anything other than GFP_KERNEL [|__GFP_NOWARN] so this doesn't seem to
-> be the case. Should there be a new user requiring more restricted
-> gfp_mask we should carefuly re-evaluate and think how to support it.
+> Have you tried reverting that patch and building kernel to test again?
+> Does it work?
 
-One of existing user is general DMA layer and it takes gfp flags that is
-provided by user. I don't check all the DMA allocation sites but how do
-you convince that none of them try to use anything other
-than GFP_KERNEL [|__GFP_NOWARN]?
+Yes.
 
-Thanks.
+Reverting that patch on top of 98be45067040799a801e6ce52d8bf4659a153893
+works as before.
+
+cheers
