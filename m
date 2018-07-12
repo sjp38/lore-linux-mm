@@ -1,120 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 174286B0003
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 11:54:54 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id l23-v6so31775155qtp.1
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 08:54:54 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id q15-v6si7840122qke.4.2018.07.12.08.54.52
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AEBF56B0007
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 11:55:25 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id i10-v6so30476149qtp.13
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 08:55:25 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id x33-v6si3153076qtd.174.2018.07.12.08.55.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jul 2018 08:54:52 -0700 (PDT)
-Subject: Re: [PATCH v6 0/7] fs/dcache: Track & limit # of negative dentries
-References: <1530905572-817-1-git-send-email-longman@redhat.com>
- <20180709081920.GD22049@dhcp22.suse.cz>
- <62275711-e01d-7dbe-06f1-bf094b618195@redhat.com>
- <20180710142740.GQ14284@dhcp22.suse.cz>
- <a2794bcc-9193-cbca-3a54-47420a2ab52c@redhat.com>
- <20180711102139.GG20050@dhcp22.suse.cz>
- <9f24c043-1fca-ee86-d609-873a7a8f7a64@redhat.com>
- <1531330947.3260.13.camel@HansenPartnership.com>
- <18c5cbfe-403b-bb2b-1d11-19d324ec6234@redhat.com>
- <1531336913.3260.18.camel@HansenPartnership.com>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <4d49a270-23c9-529f-f544-65508b6b53cc@redhat.com>
-Date: Thu, 12 Jul 2018 11:54:51 -0400
+        Thu, 12 Jul 2018 08:55:20 -0700 (PDT)
+Date: Thu, 12 Jul 2018 08:55:00 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: cgroup-aware OOM killer, how to move forward
+Message-ID: <20180712155456.GA28187@castle.DHCP.thefacebook.com>
+References: <20180711223959.GA13981@castle.DHCP.thefacebook.com>
+ <20180712120703.GJ32648@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1531336913.3260.18.camel@HansenPartnership.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180712120703.GJ32648@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
 
-On 07/11/2018 03:21 PM, James Bottomley wrote:
-> On Wed, 2018-07-11 at 15:07 -0400, Waiman Long wrote:
->> On 07/11/2018 01:42 PM, James Bottomley wrote:
->>> On Wed, 2018-07-11 at 11:13 -0400, Waiman Long wrote:
->>>> On 07/11/2018 06:21 AM, Michal Hocko wrote:
->>>>> On Tue 10-07-18 12:09:17, Waiman Long wrote:
->>> [...]
->>>>>> I am going to reduce the granularity of each unit to 1/1000
->>>>>> of the total system memory so that for large system with TB
->>>>>> of memory, a smaller amount of memory can be specified.
->>>>> It is just a matter of time for this to be too coarse as well.
->>>> The goal is to not have too much memory being consumed by
->>>> negative
->>>> dentries and also the limit won't be reached by regular daily
->>>> activities. So a limit of 1/1000 of the total system memory will
->>>> be good enough on large memory system even if the absolute number
->>>> is really big.
->>> OK, I think the reason we're going round and round here without
->>> converging is that one of the goals of the mm subsystem is to
->>> manage all of our cached objects and to it the negative (and
->>> positive) dentries simply look like a clean cache of
->>> objects.  Right at the moment mm manages them in the same way it
->>> manages all the other caches, a lot of which suffer from the "you
->>> can cause lots of allocations to artificially grow them"
->>> problem.  So the main question is why doesn't the current mm
->>> control of the caches work well enough for dentries?=20
->>> What are the problems you're seeing that mm should be catching?  If
->>> you can answer this, then we could get on to whether a separate
->>> shrinker, cache separation or some fix in mm itself is the right
->>> answer.
->>>
->>> What you say above is based on a conclusion: limiting dentries
->>> improves the system performance.  What we're asking for is evidence
->>> for that conclusion so we can explore whether the same would go for
->>> any of our other system caches (so do we have a global cache
->>> management problem or is it only the dentry cache?)
->>>
->>> James
->>>
->> I am not saying that limiting dentries will improve performance. I am
->> just saying that unlimited growth in the number of negative dentries
->> will reduce the amount of memory available to other applications and
->> hence will have an impact on performance. Normally the amount of
->> memory consumed by dentries is a very small portion of the system
->> memory.
-> OK, can we poke on only this point for a while?  Linux never really has=
+On Thu, Jul 12, 2018 at 02:07:03PM +0200, Michal Hocko wrote:
+> On Wed 11-07-18 15:40:03, Roman Gushchin wrote:
+> > Hello!
+> > 
+> > I was thinking on how to move forward with the cgroup-aware OOM killer.
+> > It looks to me, that we all agree on the "cleanup" part of the patchset:
+> > it's a nice feature to be able to kill all tasks in the cgroup
+> > to guarantee the consistent state of the workload.
+> > All our disagreements are related to the victim selection algorithm.
+> > 
+> > So, I wonder, if the right thing to do is to split the problem.
+> > We can agree on the "cleanup" part, which is useful by itself,
+> > merge it upstream, and then return to the victim selection
+> > algorithm.
+> 
+> Could you be more specific which patches are those please?
 
-> any "available memory": pretty much as soon as you boot up the system
-> will consume all your free memory for some type of cache (usually the
-> page cache which got filled during boot).  The expectation is that in a=
+It's not quite a part of existing patchset. But I had such version
+during my work on the current patchset, and it was really small and cute.
+I need some time to restore/rebase it.
 
-> steady, running, state the system is using almost all available memory
-> for caching something ... if it's not negative dentries it will be
-> something else.  The mm assumption is that clean cache is so cheap to
-> recover that it's almost equivalent to free memory and your patch is
-> saying this isn't so and we have a problem dumping the dentry cache.
->
-> So, why can't we treat the dentry cache as equivalent to free memory?=20
-> What in your tests is making it harder to recover the memory in the
-> dentry cache?
->
-> James
+> 
+> > So, here is my proposal:
+> > let's introduce the memory.group_oom knob with the following semantics:
+> > if the knob is set, the OOM killer can kill either none, either all
+> > tasks in the cgroup*.
+> > It can perfectly work with the current OOM killer (as a "cleanup" option),
+> > and allows _any_ further approach on the OOM victim selection.
+> > It also doesn't require any mount/boot/tree-wide options.
+> > 
+> > How does it sound?
+> 
+> Well, I guess we have already discussed that. One problem I can see with
+> that approach is that there is a disconnection between what is the oom
+> killable entity and oom candidate entity. This will matter when we start
+> seeing reports that a wrong container has been torn down because there
+> were larger ones running. All that just because the latter ones consists
+> of smaller tasks.
+> 
+> Is this a fundamental roadblock? I am not sure but I would tend to say
+> _no_ because the oom victim selection has always been an implementation
+> detail. We just need to kill _somebody_ to release _some_ memory. Kill
+> the whole workload is a sensible thing to do.
 
-It is not that dentry cache is harder to get rid of than the other
-memory. It is that the ability of generate unlimited number of negative
-dentries that will displace other useful memory from the system. What
-the patch is trying to do is to have a warning or notification system in
-place to spot unusual activities in regard to the number of negative
-dentries in the system. The system administrators can then decide on
-what to do next.
+Yes. We also use Johaness's memory pressure metrics for making OOM
+decisions internally, which is working nice. In this case the in-kernel
+OOM decision logic serves more as a backup solution, and consistency
+is the only thing which does really matter.
 
-For many user activities, there are ways to audit what the users are
-doing and what resources they are consuming. I don't think that is the
-case for negative dentries. The closest I can think of is the use of
-memory controller to limit the amount of kernel memory use. This
-patchset will provide more visibility about the memory consumption of
-negative dentries for the system as a whole, though it won't go into the
-per-user level. We just don't want a disproportionate amount of memory
-to be used up by negative dentries.
+> 
+> So I would be ok with that even though I am still not sure why we should
+> start with something half done when your original implementation was
+> much more consistent. Sure there is some disagreement but I suspect
+> that we will get stuck with an intermediate solution later on again for
+> very same reasons. I have summarized [1] current contention points and
+> I would really appreciate if somebody who wasn't really involved in the
+> previous discussions could just join there and weight arguments. OOM
+> selection policy is just a heuristic with some potential drawbacks and
+> somebody might object and block otherwise useful features for others for
+> ever.  So we should really find some consensus on what is reasonable and
+> what is just over the line.
 
-Cheers,
-Longman
+I would definitely prefer just to land the existing version, and I prefer
+it over this proposal. But it doesn't seem to be going forward well...
 
-Cheers,
-Longman
+Maybe making the described step first might help.
+
+Thanks,
+Roman
