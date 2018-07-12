@@ -1,64 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C1B496B000A
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 09:59:21 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id g6-v6so4637148iti.7
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 06:59:21 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id i32-v6si12901058jak.68.2018.07.12.06.59.20
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F00DE6B000D
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 10:03:32 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id n14-v6so1608064wmh.1
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 07:03:32 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q12-v6sor4665465wrs.3.2018.07.12.07.03.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jul 2018 06:59:20 -0700 (PDT)
-Subject: Re: [PATCH 00/39 v7] PTI support for x86-32
-References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
- <CA+55aFzrG+GV5ySVUiiod8Va5P0_vmUuh25Pner1r7c_aQgH9g@mail.gmail.com>
- <nycvar.YFH.7.76.1807111923420.997@cbobk.fhfr.pm>
- <1225b274-534b-cc32-54eb-aba89efba494@mageia.org>
-From: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Message-ID: <dac081f7-d3f4-d81d-46e6-076f1e3f13a1@oracle.com>
-Date: Thu, 12 Jul 2018 09:59:01 -0400
+        (Google Transport Security);
+        Thu, 12 Jul 2018 07:03:31 -0700 (PDT)
+Date: Thu, 12 Jul 2018 16:03:27 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [RFC PATCH v2 25/27] x86/cet: Add PTRACE interface for CET
+Message-ID: <20180712140327.GA7810@gmail.com>
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+ <20180710222639.8241-26-yu-cheng.yu@intel.com>
+ <20180711102035.GB8574@gmail.com>
+ <1531323638.13297.24.camel@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1225b274-534b-cc32-54eb-aba89efba494@mageia.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1531323638.13297.24.camel@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Backlund <tmb@mageia.org>, Linus Torvalds <torvalds@linux-foundation.org>, Joerg Roedel <joro@8bytes.org>
-Cc: Jiri Kosina <jikos@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Anvin <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-
-On 07/11/2018 03:57 PM, Thomas Backlund wrote:
-> Den 2018-07-11 kl. 20:28, skrev Jiri Kosina:
->> On Wed, 11 Jul 2018, Linus Torvalds wrote:
->>
->>> It's the testing that worries me most. Pretty much no developers run
->>> 32-bit any more, and I'd be most worried about the odd interactions
->>> that
->>> might be hw-specific. Some crazy EFI mapping setup or the similar odd
->>> case that simply requires a particular configuration or setup.
->>>
->>> But I guess those issues will never be found until we just spring this
->>> all on the unsuspecting public.
->>
->> FWIW we shipped Joerg's 32bit KAISER kernel out to our 32bit users
->> (on old
->> product where we still support it) on Apr 25th already (and some issues
->> have been identified since then because of that). So it (or its port to
->> 3.0, to be more precise :p) already did receive some crowd-testing.
->>
->
-> And Mageia has had v2 since February 13th patched into 4.14 -longterm,
-> then updated to v3 at March 5th, and updated to v4 at March 19th and
-> been running that since then (since v5 is rebased on v4.17 we stayed
-> with v4)
->
->
-> So, here is another "lets merge it upstream" vote :)
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
 
-I had a quick boot test for Xen (PV and HVM) and they both looked OK. I
-didn't boot all the way to login prompt but that's most likely due to
-issues in my environment -- I haven't tried this image in a year or so
-and my other setup is offline right now.
+* Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
 
--boris
+> > > diff --git a/arch/x86/kernel/ptrace.c b/arch/x86/kernel/ptrace.c
+> > > index e2ee403865eb..ac2bc3a18427 100644
+> > > --- a/arch/x86/kernel/ptrace.c
+> > > +++ b/arch/x86/kernel/ptrace.c
+> > > @@ -49,7 +49,9 @@ enum x86_regset {
+> > >  	REGSET_IOPERM64 = REGSET_XFP,
+> > >  	REGSET_XSTATE,
+> > >  	REGSET_TLS,
+> > > +	REGSET_CET64 = REGSET_TLS,
+> > >  	REGSET_IOPERM32,
+> > > +	REGSET_CET32,
+> > >  };
+> > Why does REGSET_CET64 alias on REGSET_TLS?
+> 
+> In x86_64_regsets[], there is no [REGSET_TLS].  The core dump code
+> cannot handle holes in the array.
+
+Is there a fundamental (ABI) reason for that?
+
+> > to "CET" (which is a well-known acronym for "Central European Time"),
+> > not to CFE?
+> > 
+> 
+> I don't know if I can change that, will find out.
+
+So what I'd suggest is something pretty simple: to use CFT/cft in kernel internal 
+names, except for the Intel feature bit and any MSR enumeration which can be CET 
+if Intel named it that way, and a short comment explaining the acronym difference.
+
+Or something like that.
+
+Thanks,
+
+	Ingo
