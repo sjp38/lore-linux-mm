@@ -1,71 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 08DE76B0007
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 12:26:36 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id q3-v6so29295486qki.4
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 09:26:36 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 10-v6si742195qvi.103.2018.07.12.09.26.35
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 467246B000A
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 12:39:26 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id s5-v6so4505198plq.4
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 09:39:26 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id n14-v6sor4696207pfk.31.2018.07.12.09.39.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jul 2018 09:26:35 -0700 (PDT)
-Subject: Re: [PATCH v6 0/7] fs/dcache: Track & limit # of negative dentries
-References: <1530905572-817-1-git-send-email-longman@redhat.com>
- <20180709081920.GD22049@dhcp22.suse.cz>
- <62275711-e01d-7dbe-06f1-bf094b618195@redhat.com>
- <20180710142740.GQ14284@dhcp22.suse.cz>
- <a2794bcc-9193-cbca-3a54-47420a2ab52c@redhat.com>
- <20180711102139.GG20050@dhcp22.suse.cz>
- <9f24c043-1fca-ee86-d609-873a7a8f7a64@redhat.com>
- <1531330947.3260.13.camel@HansenPartnership.com>
- <18c5cbfe-403b-bb2b-1d11-19d324ec6234@redhat.com>
- <1531336913.3260.18.camel@HansenPartnership.com>
- <4d49a270-23c9-529f-f544-65508b6b53cc@redhat.com>
- <1531411494.18255.6.camel@HansenPartnership.com>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <30ac8e9b-a48c-9c37-5a96-731ad214262b@redhat.com>
-Date: Thu, 12 Jul 2018 12:26:33 -0400
+        (Google Transport Security);
+        Thu, 12 Jul 2018 09:39:22 -0700 (PDT)
+Date: Thu, 12 Jul 2018 19:39:16 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2 1/2] mm: Fix vma_is_anonymous() false-positives
+Message-ID: <20180712163916.pzewd3nhane7af3u@kshutemo-mobl1>
+References: <20180712145626.41665-1-kirill.shutemov@linux.intel.com>
+ <20180712145626.41665-2-kirill.shutemov@linux.intel.com>
+ <20180712162039.GA16175@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1531411494.18255.6.camel@HansenPartnership.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180712162039.GA16175@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-On 07/12/2018 12:04 PM, James Bottomley wrote:
-> On Thu, 2018-07-12 at 11:54 -0400, Waiman Long wrote:
->>
->> It is not that dentry cache is harder to get rid of than the other
->> memory. It is that the ability of generate unlimited number of
->> negative dentries that will displace other useful memory from the
->> system. What the patch is trying to do is to have a warning or
->> notification system in place to spot unusual activities in regard to
->> the number of negative dentries in the system. The system
->> administrators can then decide on what to do next.
-> But every cache has this property: I can cause the same effect by doing=
+On Thu, Jul 12, 2018 at 06:20:39PM +0200, Oleg Nesterov wrote:
+> Kirill, I am not trying to review this change (but it looks good to me),
+> just a silly question...
+> 
+> On 07/12, Kirill A. Shutemov wrote:
+> >
+> > This can be fixed by assigning anonymous VMAs own vm_ops and not relying
+> > on it being NULL.
+> 
+> I agree, this makes sense, but...
+> 
+> > If ->mmap() failed to set ->vm_ops, mmap_region() will set it to
+> > dummy_vm_ops.
+> 
+> Shouldn't this change alone fix the problem?
 
-> a streaming read on a multi gigabyte file: the page cache will fill
-> with the clean pages belonging to the file until I run out of memory
-> and it has to start evicting older cache entries.  Once we hit the
-> steady state of minimal free memory, the mm subsytem tries to balance
-> the cache requests (like my streaming read) against the existing pool
-> of cached objects.
->
-> The question I'm trying to get an answer to is why does the dentry
-> cache need special limits when the mm handling of the page cache (and
-> other mm caches) just works?
->
-> James
->
+Unfortunately, no. I've tried it before. Mapping /dev/zero with
+MAP_PRIVATE hast to produce anonymous VMA. The trick with dummy_vm_ops
+wouldn't be able to handle the situation.
 
-I/O activities can be easily tracked. Generation of negative dentries,
-however, is more insidious. So the ability to track and be notified when
-too many negative dentries are created can be a useful tool for the
-system administrators. Besides, there are paranoid users out there who
-want to have control of as much as system parameters as possible.
-
-Cheers,
-Longman
+-- 
+ Kirill A. Shutemov
