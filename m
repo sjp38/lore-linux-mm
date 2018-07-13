@@ -1,156 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B3BAF6B0007
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 01:29:07 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id b5-v6so18857723ple.20
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 22:29:07 -0700 (PDT)
-Received: from out4441.biz.mail.alibaba.com (out4441.biz.mail.alibaba.com. [47.88.44.41])
-        by mx.google.com with ESMTPS id f62-v6si13340344pfa.73.2018.07.12.22.29.05
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D16E16B000A
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 01:55:35 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id v25-v6so11838453pfm.11
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 22:55:35 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f70-v6sor5526773pfd.104.2018.07.12.22.55.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jul 2018 22:29:06 -0700 (PDT)
-Date: Fri, 13 Jul 2018 13:28:50 +0800
-From: "=?UTF-8?B?6KOY56iA55+zKOeogOefsyk=?=" <xishi.qiuxishi@alibaba-inc.com>
-Reply-To: "=?UTF-8?B?6KOY56iA55+zKOeogOefsyk=?=" <xishi.qiuxishi@alibaba-inc.com>
-Message-ID: <cd929d16-b167-4775-8686-df21fa7f583f.xishi.qiuxishi@alibaba-inc.com>
-Subject: =?UTF-8?B?5Zue5aSN77yaW1BBVENIIHYxIDEvMl0gbW06IGZpeCByYWNlIG9uIHNvZnQtb2ZmbGluaW5n?=
-  =?UTF-8?B?IGZyZWUgaHVnZSBwYWdlcw==?=
-MIME-Version: 1.0
-References: <1531452366-11661-1-git-send-email-n-horiguchi@ah.jp.nec.com>,<1531452366-11661-2-git-send-email-n-horiguchi@ah.jp.nec.com>,<81f12bd3-d7bf-42a0-a0c5-ead475f489ad.xishi.qiuxishi@alibaba-inc.com>
-In-Reply-To: <81f12bd3-d7bf-42a0-a0c5-ead475f489ad.xishi.qiuxishi@alibaba-inc.com>
-Content-Type: multipart/alternative;
-  boundary="----=ALIBOUNDARY_19179_57b4b940_5b483892_221784"
+        (Google Transport Security);
+        Thu, 12 Jul 2018 22:55:34 -0700 (PDT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (1.0)
+Subject: Re: [RFC PATCH v2 18/27] x86/cet/shstk: Introduce WRUSS instruction
+From: Andy Lutomirski <luto@amacapital.net>
+In-Reply-To: <66016722-9872-a3f9-f88b-37397f9b6979@intel.com>
+Date: Thu, 12 Jul 2018 22:55:30 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <7E04B6EB-8EEE-4A09-9C41-017D31A1A748@amacapital.net>
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com> <20180710222639.8241-19-yu-cheng.yu@intel.com> <bbb487cc-ac1c-f734-eee3-2463a0ba7efc@linux.intel.com> <1531436398.2965.18.camel@intel.com> <46784af0-6fbb-522d-6acb-c6248e5e0e0d@linux.intel.com> <167645aa-f1c7-bd6a-c7e0-2da317cbbaba@intel.com> <55A0592D-0E8D-4BC5-BA4B-E82E92EEA36A@amacapital.net> <66016722-9872-a3f9-f88b-37397f9b6979@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?6KOY56iA55+zKOeogOefsyk=?= <xishi.qiuxishi@alibaba-inc.com>, Horiguchi Naoya <nao.horiguchi@gmail.com>, linux-mm <linux-mm@kvack.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?B?6ZmI5LmJ5YWo?= <zy.zhengyi@alibaba-inc.com>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-------=ALIBOUNDARY_19179_57b4b940_5b483892_221784
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: base64
 
-ICAgIFNvcnJ5LCBJIG1pc3NlZCBwYXRjaCAyLzIsIGl0IGFscmVhZHkgY2hhbmdlZC4KCgoKSGkg
-TmFveWEsCgpTaGFsbCB3ZSBjaGFuZ2UgdGhlIHJldHVybiB2YWx1ZSBpbiBzb2Z0X29mZmxpbmVf
-ZnJlZV9wYWdlKCk/CgogSWYgd2Ugc3RpbGwgcmV0dXJuIHZvaWQgaW4gb2ZmbGluZSBmcmVlIHBh
-Z2VzIG5vIG1hdHRlciBpdCBzdWNjZXNzIApvciBmYWlsIGxhdGVyLiBlY2hvIHh4eCA+IHNvZnRf
-b2ZmbGluZV9wYWdlcywgcmV0dXJuIDAsIHN1Y2Nlc3MsIApidXQgdGhlIG51bWJlciBvZiAiY2F0
-IC9wcm9jL21lbWluZm8gfCBncmVwIEhhcmR3YXJlQ29ycnVwdGVkIgppcyBub3QgIGluY3JlYXNl
-ZCwgdGhpcyBtYWtlcyBjb25mdXNpb24gZm9yIHVzZXJzLgoKVGhhbmtzLApYaXNoaSBRaXUKCi4u
-Lgogc3RhdGljIHZvaWQgc29mdF9vZmZsaW5lX2ZyZWVfcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSkg
-eworIGludCByYyA9IDA7CiAgc3RydWN0IHBhZ2UgKmhlYWQgPSBjb21wb3VuZF9oZWFkKHBhZ2Up
-OwoKLSBpZiAoIVRlc3RTZXRQYWdlSFdQb2lzb24oaGVhZCkpIHsKKyBpZiAoUGFnZUh1Z2UoaGVh
-ZCkpCisgIHJjID0gZGlzc29sdmVfZnJlZV9odWdlX3BhZ2UocGFnZSk7CisgaWYgKCFyYyAmJiAh
-VGVzdFNldFBhZ2VIV1BvaXNvbihwYWdlKSkKICAgbnVtX3BvaXNvbmVkX3BhZ2VzX2luYygpOwot
-ICBpZiAoUGFnZUh1Z2UoaGVhZCkpCi0gICBkaXNzb2x2ZV9mcmVlX2h1Z2VfcGFnZShwYWdlKTsK
-LSB9CiB9CgogLyoqCmRpZmYgLS1naXQgdjQuMTgtcmM0LW1tb3RtLTIwMTgtMDctMTAtMTYtNTAv
-bW0vbWlncmF0ZS5jIHY0LjE4LXJjNC1tbW90bS0yMDE4LTA3LTEwLTE2LTUwX3BhdGNoZWQvbW0v
-bWlncmF0ZS5jCmluZGV4IDE5OGFmNDIuLjNhZTIxM2IgMTAwNjQ0Ci0tLSB2NC4xOC1yYzQtbW1v
-dG0tMjAxOC0wNy0xMC0xNi01MC9tbS9taWdyYXRlLmMKKysrIHY0LjE4LXJjNC1tbW90bS0yMDE4
-LTA3LTEwLTE2LTUwX3BhdGNoZWQvbW0vbWlncmF0ZS5jCkBAIC0xMzE4LDggKzEzMTgsNiBAQCBz
-dGF0aWMgaW50IHVubWFwX2FuZF9tb3ZlX2h1Z2VfcGFnZShuZXdfcGFnZV90IGdldF9uZXdfcGFn
-ZSwKIG91dDoKICBpZiAocmMgIT0gLUVBR0FJTikKICAgcHV0YmFja19hY3RpdmVfaHVnZXBhZ2Uo
-aHBhZ2UpOwotIGlmIChyZWFzb24gPT0gTVJfTUVNT1JZX0ZBSUxVUkUgJiYgIXRlc3Rfc2V0X3Bh
-Z2VfaHdwb2lzb24oaHBhZ2UpKQotICBudW1fcG9pc29uZWRfcGFnZXNfaW5jKCk7CgogIC8qCiAg
-ICogSWYgbWlncmF0aW9uIHdhcyBub3Qgc3VjY2Vzc2Z1bCBhbmQgdGhlcmUncyBhIGZyZWVpbmcg
-Y2FsbGJhY2ssIHVzZQotLSAKMi43LjAKCgo=
-------=ALIBOUNDARY_19179_57b4b940_5b483892_221784
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: base64
 
-PGRpdiBjbGFzcz0iX19hbGl5dW5fZW1haWxfYm9keV9ibG9jayI+PGRpdiAgc3R5bGU9ImxpbmUt
-aGVpZ2h0OjEuNztmb250LWZhbWlseTpUYWhvbWEsQXJpYWwsU1RIZWl0aSxTaW1TdW47Zm9udC1z
-aXplOjE0LjBweDtjb2xvcjojMDAwMDAwOyI+PGRpdiBjbGFzcz0iY2xlYXI6IGJvdGgiPiZuYnNw
-OyZuYnNwOyZuYnNwOyZuYnNwO1NvcnJ5LCBJIG1pc3NlZCBwYXRjaCAyLzIsIGl0IGFscmVhZHkg
-Y2hhbmdlZC48YnIgPjwvZGl2PjxkaXYgY2xhc3M9ImNsZWFyOiBib3RoIj48YnIgPjwvZGl2Pjxi
-bG9ja3F1b3RlICBzdHlsZT0ibWFyZ2luLXJpZ2h0Oi4wcHg7bWFyZ2luLXRvcDouMHB4O21hcmdp
-bi1ib3R0b206LjBweDtmb250LWZhbWlseTpUYWhvbWEsQXJpYWwsU1RIZWl0aSxTaW1TdW47Zm9u
-dC1zaXplOjE0LjBweDtjb2xvcjojMDAwMDAwOyI+PGRpdiBjbGFzcz0iY2xlYXI6IGJvdGgiPjxi
-ciA+PC9kaXY+PGRpdiAgc3R5bGU9ImxpbmUtaGVpZ2h0OjEuNztmb250LWZhbWlseTpUYWhvbWEs
-QXJpYWwsU1RIZWl0aSxTaW1TdW47Zm9udC1zaXplOjE0LjBweDtjb2xvcjojMDAwMDAwOyI+PGRp
-diBjbGFzcz0iY2xlYXI6IGJvdGgiPkhpIE5hb3lhLDwvZGl2PjxkaXYgY2xhc3M9ImNsZWFyOiBi
-b3RoIj48YnIgPjwvZGl2PjxkaXYgY2xhc3M9ImNsZWFyOiBib3RoIj5TaGFsbCB3ZSBjaGFuZ2Ug
-dGhlIHJldHVybiB2YWx1ZSBpbiZuYnNwOzxzcGFuICBzdHlsZT0iY29sb3I6IzAwMDAwMDtmb250
-LWZhbWlseTpUYWhvbWEsQXJpYWwsU1RIZWl0aSxTaW1TdW47Zm9udC1zaXplOjE0LjBweDtmb250
-LXN0eWxlOm5vcm1hbDtmb250LXZhcmlhbnQtbGlnYXR1cmVzOm5vcm1hbDtmb250LXZhcmlhbnQt
-Y2Fwczpub3JtYWw7Zm9udC13ZWlnaHQ6NDAwO3RleHQtYWxpZ246c3RhcnQ7dGV4dC1pbmRlbnQ6
-LjBweDt0ZXh0LXRyYW5zZm9ybTpub25lO2JhY2tncm91bmQtY29sb3I6I2ZmZmZmZjt0ZXh0LWRl
-Y29yYXRpb24tc3R5bGU6aW5pdGlhbDt0ZXh0LWRlY29yYXRpb24tY29sb3I6aW5pdGlhbDtmbG9h
-dDpub25lO2Rpc3BsYXk6aW5saW5lOyI+c29mdF9vZmZsaW5lX2ZyZWVfcGFnZSgpPzwvc3Bhbj48
-L2Rpdj48ZGl2IGNsYXNzPSJjbGVhcjogYm90aCI+PHNwYW4gIHN0eWxlPSJjb2xvcjojMDAwMDAw
-O2ZvbnQtZmFtaWx5OlRhaG9tYSxBcmlhbCxTVEhlaXRpLFNpbVN1bjtmb250LXNpemU6MTQuMHB4
-O2ZvbnQtc3R5bGU6bm9ybWFsO2ZvbnQtdmFyaWFudC1saWdhdHVyZXM6bm9ybWFsO2ZvbnQtdmFy
-aWFudC1jYXBzOm5vcm1hbDtmb250LXdlaWdodDo0MDA7dGV4dC1hbGlnbjpzdGFydDt0ZXh0LWlu
-ZGVudDouMHB4O3RleHQtdHJhbnNmb3JtOm5vbmU7YmFja2dyb3VuZC1jb2xvcjojZmZmZmZmO3Rl
-eHQtZGVjb3JhdGlvbi1zdHlsZTppbml0aWFsO3RleHQtZGVjb3JhdGlvbi1jb2xvcjppbml0aWFs
-O2Zsb2F0Om5vbmU7ZGlzcGxheTppbmxpbmU7Ij48YnIgPjwvc3Bhbj48L2Rpdj48ZGl2IGNsYXNz
-PSJjbGVhcjogYm90aCI+PHNwYW4gIHN0eWxlPSJjb2xvcjojMDAwMDAwO2ZvbnQtZmFtaWx5OlRh
-aG9tYSxBcmlhbCxTVEhlaXRpLFNpbVN1bjtmb250LXNpemU6MTQuMHB4O2ZvbnQtc3R5bGU6bm9y
-bWFsO2ZvbnQtdmFyaWFudC1saWdhdHVyZXM6bm9ybWFsO2ZvbnQtdmFyaWFudC1jYXBzOm5vcm1h
-bDtmb250LXdlaWdodDo0MDA7dGV4dC1hbGlnbjpzdGFydDt0ZXh0LWluZGVudDouMHB4O3RleHQt
-dHJhbnNmb3JtOm5vbmU7YmFja2dyb3VuZC1jb2xvcjojZmZmZmZmO3RleHQtZGVjb3JhdGlvbi1z
-dHlsZTppbml0aWFsO3RleHQtZGVjb3JhdGlvbi1jb2xvcjppbml0aWFsO2Zsb2F0Om5vbmU7ZGlz
-cGxheTppbmxpbmU7Ij4KSWYgd2Ugc3RpbGwgcmV0dXJuIHZvaWQgaW4gb2ZmbGluZSBmcmVlIHBh
-Z2VzIG5vIG1hdHRlciBpdCBzdWNjZXNzCjxiciA+b3IgZmFpbCBsYXRlci4mbmJzcDtlY2hvIHh4
-eCAmZ3Q7IHNvZnRfb2ZmbGluZV9wYWdlcywgcmV0dXJuIDAsIHN1Y2Nlc3MsCjxiciA+YnV0IHRo
-ZSBudW1iZXIgb2YgImNhdCAvcHJvYy9tZW1pbmZvIHwgZ3JlcCBIYXJkd2FyZUNvcnJ1cHRlZCI8
-L3NwYW4+PC9kaXY+PGRpdiBjbGFzcz0iY2xlYXI6IGJvdGgiPjxzcGFuICBzdHlsZT0iY29sb3I6
-IzAwMDAwMDtmb250LWZhbWlseTpUYWhvbWEsQXJpYWwsU1RIZWl0aSxTaW1TdW47Zm9udC1zaXpl
-OjE0LjBweDtmb250LXN0eWxlOm5vcm1hbDtmb250LXZhcmlhbnQtbGlnYXR1cmVzOm5vcm1hbDtm
-b250LXZhcmlhbnQtY2Fwczpub3JtYWw7Zm9udC13ZWlnaHQ6NDAwO3RleHQtYWxpZ246c3RhcnQ7
-dGV4dC1pbmRlbnQ6LjBweDt0ZXh0LXRyYW5zZm9ybTpub25lO2JhY2tncm91bmQtY29sb3I6I2Zm
-ZmZmZjt0ZXh0LWRlY29yYXRpb24tc3R5bGU6aW5pdGlhbDt0ZXh0LWRlY29yYXRpb24tY29sb3I6
-aW5pdGlhbDtmbG9hdDpub25lO2Rpc3BsYXk6aW5saW5lOyI+aXMgbm90Jm5ic3A7IGluY3JlYXNl
-ZCwgdGhpcyBtYWtlcyBjb25mdXNpb24gZm9yIHVzZXJzLjwvc3Bhbj48L2Rpdj48ZGl2IGNsYXNz
-PSJjbGVhcjogYm90aCI+PHNwYW4gIHN0eWxlPSJjb2xvcjojMDAwMDAwO2ZvbnQtZmFtaWx5OlRh
-aG9tYSxBcmlhbCxTVEhlaXRpLFNpbVN1bjtmb250LXNpemU6MTQuMHB4O2ZvbnQtc3R5bGU6bm9y
-bWFsO2ZvbnQtdmFyaWFudC1saWdhdHVyZXM6bm9ybWFsO2ZvbnQtdmFyaWFudC1jYXBzOm5vcm1h
-bDtmb250LXdlaWdodDo0MDA7dGV4dC1hbGlnbjpzdGFydDt0ZXh0LWluZGVudDouMHB4O3RleHQt
-dHJhbnNmb3JtOm5vbmU7YmFja2dyb3VuZC1jb2xvcjojZmZmZmZmO3RleHQtZGVjb3JhdGlvbi1z
-dHlsZTppbml0aWFsO3RleHQtZGVjb3JhdGlvbi1jb2xvcjppbml0aWFsO2Zsb2F0Om5vbmU7ZGlz
-cGxheTppbmxpbmU7Ij48YnIgPjwvc3Bhbj48L2Rpdj48ZGl2IGNsYXNzPSJjbGVhcjogYm90aCI+
-PHNwYW4gIHN0eWxlPSJjb2xvcjojMDAwMDAwO2ZvbnQtZmFtaWx5OlRhaG9tYSxBcmlhbCxTVEhl
-aXRpLFNpbVN1bjtmb250LXNpemU6MTQuMHB4O2ZvbnQtc3R5bGU6bm9ybWFsO2ZvbnQtdmFyaWFu
-dC1saWdhdHVyZXM6bm9ybWFsO2ZvbnQtdmFyaWFudC1jYXBzOm5vcm1hbDtmb250LXdlaWdodDo0
-MDA7dGV4dC1hbGlnbjpzdGFydDt0ZXh0LWluZGVudDouMHB4O3RleHQtdHJhbnNmb3JtOm5vbmU7
-YmFja2dyb3VuZC1jb2xvcjojZmZmZmZmO3RleHQtZGVjb3JhdGlvbi1zdHlsZTppbml0aWFsO3Rl
-eHQtZGVjb3JhdGlvbi1jb2xvcjppbml0aWFsO2Zsb2F0Om5vbmU7ZGlzcGxheTppbmxpbmU7Ij5U
-aGFua3MsPC9zcGFuPjwvZGl2PjxkaXYgY2xhc3M9ImNsZWFyOiBib3RoIj48c3BhbiAgc3R5bGU9
-ImNvbG9yOiMwMDAwMDA7Zm9udC1mYW1pbHk6VGFob21hLEFyaWFsLFNUSGVpdGksU2ltU3VuO2Zv
-bnQtc2l6ZToxNC4wcHg7Zm9udC1zdHlsZTpub3JtYWw7Zm9udC12YXJpYW50LWxpZ2F0dXJlczpu
-b3JtYWw7Zm9udC12YXJpYW50LWNhcHM6bm9ybWFsO2ZvbnQtd2VpZ2h0OjQwMDt0ZXh0LWFsaWdu
-OnN0YXJ0O3RleHQtaW5kZW50Oi4wcHg7dGV4dC10cmFuc2Zvcm06bm9uZTtiYWNrZ3JvdW5kLWNv
-bG9yOiNmZmZmZmY7dGV4dC1kZWNvcmF0aW9uLXN0eWxlOmluaXRpYWw7dGV4dC1kZWNvcmF0aW9u
-LWNvbG9yOmluaXRpYWw7ZmxvYXQ6bm9uZTtkaXNwbGF5OmlubGluZTsiPlhpc2hpIFFpdTwvc3Bh
-bj48L2Rpdj48ZGl2IGNsYXNzPSJjbGVhcjogYm90aCI+PGJyID48L2Rpdj48ZGl2IGNsYXNzPSJj
-bGVhcjogYm90aCI+Li4uPC9kaXY+PGRpdiBjbGFzcz0iY2xlYXI6IGJvdGgiPiBzdGF0aWMmbmJz
-cDt2b2lkJm5ic3A7c29mdF9vZmZsaW5lX2ZyZWVfcGFnZShzdHJ1Y3QmbmJzcDtwYWdlJm5ic3A7
-KnBhZ2UpPC9kaXY+Jm5ic3A7ezxiciA+KyZuYnNwO2ludCZuYnNwO3JjJm5ic3A7PSZuYnNwOzA7
-PGJyID4mbmJzcDsmbmJzcDtzdHJ1Y3QmbmJzcDtwYWdlJm5ic3A7KmhlYWQmbmJzcDs9Jm5ic3A7
-Y29tcG91bmRfaGVhZChwYWdlKTs8YnIgPiZuYnNwOzxiciA+LSZuYnNwO2lmJm5ic3A7KCFUZXN0
-U2V0UGFnZUhXUG9pc29uKGhlYWQpKSZuYnNwO3s8YnIgPismbmJzcDtpZiZuYnNwOyhQYWdlSHVn
-ZShoZWFkKSk8YnIgPismbmJzcDsmbmJzcDtyYyZuYnNwOz0mbmJzcDtkaXNzb2x2ZV9mcmVlX2h1
-Z2VfcGFnZShwYWdlKTs8YnIgPismbmJzcDtpZiZuYnNwOyghcmMmbmJzcDsmYW1wOyZhbXA7Jm5i
-c3A7IVRlc3RTZXRQYWdlSFdQb2lzb24ocGFnZSkpPGJyID4mbmJzcDsmbmJzcDsmbmJzcDtudW1f
-cG9pc29uZWRfcGFnZXNfaW5jKCk7PGJyID4tJm5ic3A7Jm5ic3A7aWYmbmJzcDsoUGFnZUh1Z2Uo
-aGVhZCkpPGJyID4tJm5ic3A7Jm5ic3A7Jm5ic3A7ZGlzc29sdmVfZnJlZV9odWdlX3BhZ2UocGFn
-ZSk7PGJyID4tJm5ic3A7fTxiciA+Jm5ic3A7fTxiciA+Jm5ic3A7PGJyID4mbmJzcDsvKio8YnIg
-PmRpZmYmbmJzcDstLWdpdCZuYnNwO3Y0LjE4LXJjNC1tbW90bS0yMDE4LTA3LTEwLTE2LTUwL21t
-L21pZ3JhdGUuYyZuYnNwO3Y0LjE4LXJjNC1tbW90bS0yMDE4LTA3LTEwLTE2LTUwX3BhdGNoZWQv
-bW0vbWlncmF0ZS5jPGJyID5pbmRleCZuYnNwOzE5OGFmNDIuLjNhZTIxM2ImbmJzcDsxMDA2NDQ8
-YnIgPi0tLSZuYnNwO3Y0LjE4LXJjNC1tbW90bS0yMDE4LTA3LTEwLTE2LTUwL21tL21pZ3JhdGUu
-YzxiciA+KysrJm5ic3A7djQuMTgtcmM0LW1tb3RtLTIwMTgtMDctMTAtMTYtNTBfcGF0Y2hlZC9t
-bS9taWdyYXRlLmM8YnIgPkBAJm5ic3A7LTEzMTgsOCZuYnNwOysxMzE4LDYmbmJzcDtAQCZuYnNw
-O3N0YXRpYyZuYnNwO2ludCZuYnNwO3VubWFwX2FuZF9tb3ZlX2h1Z2VfcGFnZShuZXdfcGFnZV90
-Jm5ic3A7Z2V0X25ld19wYWdlLDxiciA+Jm5ic3A7b3V0OjxiciA+Jm5ic3A7Jm5ic3A7aWYmbmJz
-cDsocmMmbmJzcDshPSZuYnNwOy1FQUdBSU4pPGJyID4mbmJzcDsmbmJzcDsmbmJzcDtwdXRiYWNr
-X2FjdGl2ZV9odWdlcGFnZShocGFnZSk7PGJyID4tJm5ic3A7aWYmbmJzcDsocmVhc29uJm5ic3A7
-PT0mbmJzcDtNUl9NRU1PUllfRkFJTFVSRSZuYnNwOyZhbXA7JmFtcDsmbmJzcDshdGVzdF9zZXRf
-cGFnZV9od3BvaXNvbihocGFnZSkpPGJyID4tJm5ic3A7Jm5ic3A7bnVtX3BvaXNvbmVkX3BhZ2Vz
-X2luYygpOzxiciA+Jm5ic3A7PGJyID4mbmJzcDsmbmJzcDsvKjxiciA+Jm5ic3A7Jm5ic3A7Jm5i
-c3A7KiZuYnNwO0lmJm5ic3A7bWlncmF0aW9uJm5ic3A7d2FzJm5ic3A7bm90Jm5ic3A7c3VjY2Vz
-c2Z1bCZuYnNwO2FuZCZuYnNwO3RoZXJlJ3MmbmJzcDthJm5ic3A7ZnJlZWluZyZuYnNwO2NhbGxi
-YWNrLCZuYnNwO3VzZTxiciA+LS0mbmJzcDs8YnIgPjIuNy4wPGRpdiAgc3R5bGU9ImxpbmUtaGVp
-Z2h0OjIwLjBweDtjbGVhcjpib3RoOyI+PGJyID48L2Rpdj48L2Rpdj48L2Jsb2NrcXVvdGU+PGRp
-diAgc3R5bGU9ImxpbmUtaGVpZ2h0OjIwLjBweDtjbGVhcjpib3RoOyI+PGJyID48L2Rpdj48L2Rp
-dj48L2Rpdj4=
-------=ALIBOUNDARY_19179_57b4b940_5b483892_221784--
+> On Jul 12, 2018, at 9:16 PM, Dave Hansen <dave.hansen@intel.com> wrote:
+>=20
+>> On 07/12/2018 07:21 PM, Andy Lutomirski wrote:
+>> I am tempted to suggest that the whole series not be merged until
+>> there are actual docs. It=E2=80=99s not a fantastic precedent.
+>=20
+> Do you mean Documentation or manpages, or are you talking about hardware
+> documentation?
+> https://software.intel.com/sites/default/files/managed/4d/2a/control-flow-=
+enforcement-technology-preview.pdf
+
+I mean hardware docs. The =E2=80=9Cpreview=E2=80=9D is a little bit dubious I=
+MO.=
