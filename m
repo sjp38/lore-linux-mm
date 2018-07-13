@@ -1,68 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 55E596B000A
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 08:12:15 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id a20-v6so20636166pfi.1
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 05:12:15 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id q1-v6si24106651plb.331.2018.07.13.05.12.13
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F0056B0003
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 08:37:52 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id d11-v6so13848378iok.21
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 05:37:52 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id b1-v6si12230539jak.136.2018.07.13.05.37.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 05:12:14 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 18/27] x86/cet/shstk: Introduce WRUSS instruction
-References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
- <20180710222639.8241-19-yu-cheng.yu@intel.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <166536e2-b296-7be5-d1b7-982cf56f1f9b@linux.intel.com>
-Date: Fri, 13 Jul 2018 05:12:02 -0700
+        Fri, 13 Jul 2018 05:37:51 -0700 (PDT)
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6DCYKQf047390
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 12:37:50 GMT
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by aserp2130.oracle.com with ESMTP id 2k2p767n92-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 12:37:50 +0000
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w6DCbm0I030242
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 12:37:48 GMT
+Received: from abhmp0008.oracle.com (abhmp0008.oracle.com [141.146.116.14])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w6DCbjdZ004104
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 12:37:48 GMT
+Received: by mail-oi0-f52.google.com with SMTP id l10-v6so15223241oii.0
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 05:37:45 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180710222639.8241-19-yu-cheng.yu@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+References: <20180712203730.8703-1-pasha.tatashin@oracle.com>
+ <20180712203730.8703-5-pasha.tatashin@oracle.com> <20180713120340.GA16552@techadventures.net>
+In-Reply-To: <20180713120340.GA16552@techadventures.net>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Fri, 13 Jul 2018 08:37:09 -0400
+Message-ID: <CAGM2reaE8hX=5x9bqp1-8+4Ax7UFTgHACoXiq4QvDc=-H8=0Bw@mail.gmail.com>
+Subject: Re: [PATCH v5 4/5] mm/sparse: add new sparse_init_nid() and sparse_init()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: osalvador@techadventures.net
+Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, kirill.shutemov@linux.intel.com, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, Souptick Joarder <jrdr.linux@gmail.com>, bhe@redhat.com, gregkh@linuxfoundation.org, Vlastimil Babka <vbabka@suse.cz>, Wei Yang <richard.weiyang@gmail.com>, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, abdhalee@linux.vnet.ibm.com, mpe@ellerman.id.au
 
-On 07/10/2018 03:26 PM, Yu-cheng Yu wrote:
-> +static int is_wruss(struct pt_regs *regs, unsigned long error_code)
-> +{
-> +	return (((error_code & (X86_PF_USER | X86_PF_SHSTK)) ==
-> +		(X86_PF_USER | X86_PF_SHSTK)) && !user_mode(regs));
-> +}
-> +
->  static void
->  show_fault_oops(struct pt_regs *regs, unsigned long error_code,
->  		unsigned long address)
-> @@ -848,7 +859,7 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
->  	struct task_struct *tsk = current;
->  
->  	/* User mode accesses just cause a SIGSEGV */
-> -	if (error_code & X86_PF_USER) {
-> +	if ((error_code & X86_PF_USER) && !is_wruss(regs, error_code)) {
->  		/*
->  		 * It's possible to have interrupts off here:
->  		 */
+> > Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+>
+> Looks good to me, and it will make the code much shorter/easier.
+>
+> Reviewed-by: Oscar Salvador <osalvador@suse.de>
+>
 
-Please don't do it this way.
+Thank you!
 
-We have two styles of page fault:
-1. User page faults: find a VMA, try to handle (allocate memory et al.),
-   kill process if we can't handle.
-2. Kernel page faults: search for a *discrete* set of conditions that
-   can be handled, including faults in instructions marked in exception
-   tables.
-
-X86_PF_USER *means*: do user page fault handling.  In the places where
-the hardware doesn't set it, but we still want user page fault handling,
-we manually set it, like this where we "downgrade" an implicit
-supervisor access to a user access:
-
-        if (user_mode(regs)) {
-                local_irq_enable();
-                error_code |= X86_PF_USER;
-                flags |= FAULT_FLAG_USER;
-
-So, just please *clear* X86_PF_USER if !user_mode(regs) and X86_PF_SS.
-We do not want user page fault handling, thus we should not keep the bit
-set.
+Pave
