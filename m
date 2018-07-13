@@ -1,202 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 150C76B0003
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 02:50:59 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id m2-v6so18987435plt.14
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 23:50:59 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C33746B0003
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 04:55:00 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id u8-v6so12846356pfn.18
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 01:55:00 -0700 (PDT)
 Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id m193-v6si25188763pfc.312.2018.07.12.23.50.57
+        by mx.google.com with ESMTPS id x6-v6si22918426plv.315.2018.07.13.01.54.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jul 2018 23:50:57 -0700 (PDT)
+        Fri, 13 Jul 2018 01:54:59 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v5 06/11] mm, memory_failure: Collect mapping size in
- collect_procs()
-Date: Fri, 13 Jul 2018 06:49:16 +0000
-Message-ID: <20180713064916.GB10034@hori1.linux.bs1.fc.nec.co.jp>
+Subject: Re: [PATCH v5 08/11] mm, memory_failure: Teach memory_failure()
+ about dev_pagemap pages
+Date: Fri, 13 Jul 2018 08:52:41 +0000
+Message-ID: <20180713085241.GA26980@hori1.linux.bs1.fc.nec.co.jp>
 References: <153074042316.27838.17319837331947007626.stgit@dwillia2-desk3.amr.corp.intel.com>
- <153074045526.27838.11460088022513024933.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <153074045526.27838.11460088022513024933.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <153074046610.27838.329669845580014251.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <153074046610.27838.329669845580014251.stgit@dwillia2-desk3.amr.corp.intel.com>
 Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <91675B8EB5C02F4A93C6F4133359C60B@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <D05E4B0C66D8854E9D1C7FE0AE24AEB8@gisp.nec.co.jp>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "hch@lst.de" <hch@lst.de>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "jack@suse.cz" <jack@suse.cz>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>
+Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 04, 2018 at 02:40:55PM -0700, Dan Williams wrote:
-> In preparation for supporting memory_failure() for dax mappings, teach
-> collect_procs() to also determine the mapping size. Unlike typical
-> mappings the dax mapping size is determined by walking page-table
-> entries rather than using the compound-page accounting for THP pages.
->=20
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-
-Looks good to me.
-
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
-> ---
->  mm/memory-failure.c |   81 +++++++++++++++++++++++++--------------------=
-------
->  1 file changed, 40 insertions(+), 41 deletions(-)
->=20
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 9d142b9b86dc..4d70753af59c 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -174,22 +174,51 @@ int hwpoison_filter(struct page *p)
->  EXPORT_SYMBOL_GPL(hwpoison_filter);
-> =20
->  /*
-> + * Kill all processes that have a poisoned page mapped and then isolate
-> + * the page.
-> + *
-> + * General strategy:
-> + * Find all processes having the page mapped and kill them.
-> + * But we keep a page reference around so that the page is not
-> + * actually freed yet.
-> + * Then stash the page away
-> + *
-> + * There's no convenient way to get back to mapped processes
-> + * from the VMAs. So do a brute-force search over all
-> + * running processes.
-> + *
-> + * Remember that machine checks are not common (or rather
-> + * if they are common you have other problems), so this shouldn't
-> + * be a performance issue.
-> + *
-> + * Also there are some races possible while we get from the
-> + * error detection to actually handle it.
-> + */
-> +
-> +struct to_kill {
-> +	struct list_head nd;
-> +	struct task_struct *tsk;
-> +	unsigned long addr;
-> +	short size_shift;
-> +	char addr_valid;
-> +};
-> +
-> +/*
->   * Send all the processes who have the page mapped a signal.
->   * ``action optional'' if they are not immediately affected by the error
->   * ``action required'' if error happened in current execution context
->   */
-> -static int kill_proc(struct task_struct *t, unsigned long addr,
-> -			unsigned long pfn, struct page *page, int flags)
-> +static int kill_proc(struct to_kill *tk, unsigned long pfn, int flags)
->  {
-> -	short addr_lsb;
-> +	struct task_struct *t =3D tk->tsk;
-> +	short addr_lsb =3D tk->size_shift;
->  	int ret;
-> =20
->  	pr_err("Memory failure: %#lx: Killing %s:%d due to hardware memory corr=
-uption\n",
->  		pfn, t->comm, t->pid);
-> -	addr_lsb =3D compound_order(compound_head(page)) + PAGE_SHIFT;
-> =20
->  	if ((flags & MF_ACTION_REQUIRED) && t->mm =3D=3D current->mm) {
-> -		ret =3D force_sig_mceerr(BUS_MCEERR_AR, (void __user *)addr,
-> +		ret =3D force_sig_mceerr(BUS_MCEERR_AR, (void __user *)tk->addr,
->  				       addr_lsb, current);
->  	} else {
->  		/*
-> @@ -198,7 +227,7 @@ static int kill_proc(struct task_struct *t, unsigned =
-long addr,
->  		 * This could cause a loop when the user sets SIGBUS
->  		 * to SIG_IGN, but hopefully no one will do that?
->  		 */
-> -		ret =3D send_sig_mceerr(BUS_MCEERR_AO, (void __user *)addr,
-> +		ret =3D send_sig_mceerr(BUS_MCEERR_AO, (void __user *)tk->addr,
->  				      addr_lsb, t);  /* synchronous? */
->  	}
->  	if (ret < 0)
-> @@ -235,35 +264,6 @@ void shake_page(struct page *p, int access)
->  EXPORT_SYMBOL_GPL(shake_page);
-> =20
->  /*
-> - * Kill all processes that have a poisoned page mapped and then isolate
-> - * the page.
-> - *
-> - * General strategy:
-> - * Find all processes having the page mapped and kill them.
-> - * But we keep a page reference around so that the page is not
-> - * actually freed yet.
-> - * Then stash the page away
-> - *
-> - * There's no convenient way to get back to mapped processes
-> - * from the VMAs. So do a brute-force search over all
-> - * running processes.
-> - *
-> - * Remember that machine checks are not common (or rather
-> - * if they are common you have other problems), so this shouldn't
-> - * be a performance issue.
-> - *
-> - * Also there are some races possible while we get from the
-> - * error detection to actually handle it.
-> - */
-> -
-> -struct to_kill {
-> -	struct list_head nd;
-> -	struct task_struct *tsk;
-> -	unsigned long addr;
-> -	char addr_valid;
-> -};
-> -
-> -/*
->   * Failure handling: if we can't find or can't kill a process there's
->   * not much we can do.	We just print a message and ignore otherwise.
->   */
-> @@ -292,6 +292,7 @@ static void add_to_kill(struct task_struct *tsk, stru=
-ct page *p,
->  	}
->  	tk->addr =3D page_address_in_vma(p, vma);
->  	tk->addr_valid =3D 1;
-> +	tk->size_shift =3D compound_order(compound_head(p)) + PAGE_SHIFT;
-> =20
->  	/*
->  	 * In theory we don't have to kill when the page was
-> @@ -317,9 +318,8 @@ static void add_to_kill(struct task_struct *tsk, stru=
-ct page *p,
->   * Also when FAIL is set do a force kill because something went
->   * wrong earlier.
->   */
-> -static void kill_procs(struct list_head *to_kill, int forcekill,
-> -			  bool fail, struct page *page, unsigned long pfn,
-> -			  int flags)
-> +static void kill_procs(struct list_head *to_kill, int forcekill, bool fa=
-il,
-> +		unsigned long pfn, int flags)
->  {
->  	struct to_kill *tk, *next;
-> =20
-> @@ -342,8 +342,7 @@ static void kill_procs(struct list_head *to_kill, int=
- forcekill,
->  			 * check for that, but we need to tell the
->  			 * process anyways.
->  			 */
-> -			else if (kill_proc(tk->tsk, tk->addr,
-> -					      pfn, page, flags) < 0)
-> +			else if (kill_proc(tk, pfn, flags) < 0)
->  				pr_err("Memory failure: %#lx: Cannot send advisory machine check sig=
-nal to %s:%d\n",
->  				       pfn, tk->tsk->comm, tk->tsk->pid);
->  		}
-> @@ -1012,7 +1011,7 @@ static bool hwpoison_user_mappings(struct page *p, =
-unsigned long pfn,
->  	 * any accesses to the poisoned memory.
->  	 */
->  	forcekill =3D PageDirty(hpage) || (flags & MF_MUST_KILL);
-> -	kill_procs(&tokill, forcekill, !unmap_success, p, pfn, flags);
-> +	kill_procs(&tokill, forcekill, !unmap_success, pfn, flags);
-> =20
->  	return unmap_success;
->  }
->=20
-> =
+T24gV2VkLCBKdWwgMDQsIDIwMTggYXQgMDI6NDE6MDZQTSAtMDcwMCwgRGFuIFdpbGxpYW1zIHdy
+b3RlOg0KPiAgICAgbWNlOiBVbmNvcnJlY3RlZCBoYXJkd2FyZSBtZW1vcnkgZXJyb3IgaW4gdXNl
+ci1hY2Nlc3MgYXQgYWYzNDIxNDIwMA0KPiAgICAgezF9W0hhcmR3YXJlIEVycm9yXTogSXQgaGFz
+IGJlZW4gY29ycmVjdGVkIGJ5IGgvdyBhbmQgcmVxdWlyZXMgbm8gZnVydGhlciBhY3Rpb24NCj4g
+ICAgIG1jZTogW0hhcmR3YXJlIEVycm9yXTogTWFjaGluZSBjaGVjayBldmVudHMgbG9nZ2VkDQo+
+ICAgICB7MX1bSGFyZHdhcmUgRXJyb3JdOiBldmVudCBzZXZlcml0eTogY29ycmVjdGVkDQo+ICAg
+ICBNZW1vcnkgZmFpbHVyZTogMHhhZjM0MjE0OiByZXNlcnZlZCBrZXJuZWwgcGFnZSBzdGlsbCBy
+ZWZlcmVuY2VkIGJ5IDEgdXNlcnMNCj4gICAgIFsuLl0NCj4gICAgIE1lbW9yeSBmYWlsdXJlOiAw
+eGFmMzQyMTQ6IHJlY292ZXJ5IGFjdGlvbiBmb3IgcmVzZXJ2ZWQga2VybmVsIHBhZ2U6IEZhaWxl
+ZA0KPiAgICAgbWNlOiBNZW1vcnkgZXJyb3Igbm90IHJlY292ZXJlZA0KPg0KPiBJbiBjb250cmFz
+dCB0byB0eXBpY2FsIG1lbW9yeSwgZGV2X3BhZ2VtYXAgcGFnZXMgbWF5IGJlIGRheCBtYXBwZWQu
+IFdpdGgNCj4gZGF4IHRoZXJlIGlzIG5vIHBvc3NpYmlsaXR5IHRvIG1hcCBpbiBhbm90aGVyIHBh
+Z2UgZHluYW1pY2FsbHkgc2luY2UgZGF4DQo+IGVzdGFibGlzaGVzIDE6MSBwaHlzaWNhbCBhZGRy
+ZXNzIHRvIGZpbGUgb2Zmc2V0IGFzc29jaWF0aW9ucy4gQWxzbw0KPiBkZXZfcGFnZW1hcCBwYWdl
+cyBhc3NvY2lhdGVkIHdpdGggTlZESU1NIC8gcGVyc2lzdGVudCBtZW1vcnkgZGV2aWNlcyBjYW4N
+Cj4gaW50ZXJuYWwgcmVtYXAvcmVwYWlyIGFkZHJlc3NlcyB3aXRoIHBvaXNvbi4gV2hpbGUgbWVt
+b3J5X2ZhaWx1cmUoKQ0KPiBhc3N1bWVzIHRoYXQgaXQgY2FuIGRpc2NhcmQgdHlwaWNhbCBwb2lz
+b25lZCBwYWdlcyBhbmQga2VlcCB0aGVtDQo+IHVubWFwcGVkIGluZGVmaW5pdGVseSwgZGV2X3Bh
+Z2VtYXAgcGFnZXMgbWF5IGJlIHJldHVybmVkIHRvIHNlcnZpY2UNCj4gYWZ0ZXIgdGhlIGVycm9y
+IGlzIGNsZWFyZWQuDQo+DQo+IFRlYWNoIG1lbW9yeV9mYWlsdXJlKCkgdG8gZGV0ZWN0IGFuZCBo
+YW5kbGUgTUVNT1JZX0RFVklDRV9IT1NUDQo+IGRldl9wYWdlbWFwIHBhZ2VzIHRoYXQgaGF2ZSBw
+b2lzb24gY29uc3VtZWQgYnkgdXNlcnNwYWNlLiBNYXJrIHRoZQ0KPiBtZW1vcnkgYXMgVUMgaW5z
+dGVhZCBvZiB1bm1hcHBpbmcgaXQgY29tcGxldGVseSB0byBhbGxvdyBvbmdvaW5nIGFjY2Vzcw0K
+PiB2aWEgdGhlIGRldmljZSBkcml2ZXIgKG5kX3BtZW0pLiBMYXRlciwgbmRfcG1lbSB3aWxsIGdy
+b3cgc3VwcG9ydCBmb3INCj4gbWFya2luZyB0aGUgcGFnZSBiYWNrIHRvIFdCIHdoZW4gdGhlIGVy
+cm9yIGlzIGNsZWFyZWQuDQoNCkJ5IHRoZSB3YXksIHdoYXQgaGFwcGVucyBpZiBtYWR2aXNlKE1B
+RFZfU09GVF9PRkZMSU5FKSBpcyBjYWxsZWQgb24NCmEgZGV2X3BhZ2VtYXAgcGFnZT8gIEknbSBu
+b3Qgc3VyZSB0aGF0IGNtY2kgY2FuIGJlIHRyaWdnZXJlZCBvbiB0aGUNCm52ZGltbSBkZXZpY2Us
+IGJ1dCB0aGlzIGluamVjdGlvbiBpbnRlcmZhY2UgaXMgb3BlbiBmb3Igc3VjaCBhIGNhc2UuDQpN
+YXliZSBzaW1wbHkgaWdub3JpbmcgdGhlIGV2ZW50IGlzIGFuIGV4cGVjdGVkIGJlaGF2aW9yPw0K
+DQpBIGZldyBjb21tZW50cy9xdWV0aW9ucyBiZWxvdyAuLi4NCg0KPg0KPiBDYzogSmFuIEthcmEg
+PGphY2tAc3VzZS5jej4NCj4gQ2M6IENocmlzdG9waCBIZWxsd2lnIDxoY2hAbHN0LmRlPg0KPiBD
+YzogSsOpcsO0bWUgR2xpc3NlIDxqZ2xpc3NlQHJlZGhhdC5jb20+DQo+IENjOiBNYXR0aGV3IFdp
+bGNveCA8bWF3aWxjb3hAbWljcm9zb2Z0LmNvbT4NCj4gQ2M6IE5hb3lhIEhvcmlndWNoaSA8bi1o
+b3JpZ3VjaGlAYWguanAubmVjLmNvbT4NCj4gQ2M6IFJvc3MgWndpc2xlciA8cm9zcy56d2lzbGVy
+QGxpbnV4LmludGVsLmNvbT4NCj4gU2lnbmVkLW9mZi1ieTogRGFuIFdpbGxpYW1zIDxkYW4uai53
+aWxsaWFtc0BpbnRlbC5jb20+DQo+IC0tLQ0KPiAgaW5jbHVkZS9saW51eC9tbS5oICB8ICAgIDEN
+Cj4gIG1tL21lbW9yeS1mYWlsdXJlLmMgfCAgMTI0ICsrKysrKysrKysrKysrKysrKysrKysrKysr
+KysrKysrKysrKysrKysrKysrKysrKysrLQ0KPiAgMiBmaWxlcyBjaGFuZ2VkLCAxMjMgaW5zZXJ0
+aW9ucygrKSwgMiBkZWxldGlvbnMoLSkNCj4NCj4gZGlmZiAtLWdpdCBhL2luY2x1ZGUvbGludXgv
+bW0uaCBiL2luY2x1ZGUvbGludXgvbW0uaA0KPiBpbmRleCBhMGZiYjlmZmUzODAuLjM3NGU1ZTky
+ODRmNyAxMDA2NDQNCj4gLS0tIGEvaW5jbHVkZS9saW51eC9tbS5oDQo+ICsrKyBiL2luY2x1ZGUv
+bGludXgvbW0uaA0KPiBAQCAtMjcyNSw2ICsyNzI1LDcgQEAgZW51bSBtZl9hY3Rpb25fcGFnZV90
+eXBlIHsNCj4gIAlNRl9NU0dfVFJVTkNBVEVEX0xSVSwNCj4gIAlNRl9NU0dfQlVERFksDQo+ICAJ
+TUZfTVNHX0JVRERZXzJORCwNCj4gKwlNRl9NU0dfREFYLA0KPiAgCU1GX01TR19VTktOT1dOLA0K
+PiAgfTsNCj4NCj4gZGlmZiAtLWdpdCBhL21tL21lbW9yeS1mYWlsdXJlLmMgYi9tbS9tZW1vcnkt
+ZmFpbHVyZS5jDQo+IGluZGV4IDRkNzA3NTNhZjU5Yy4uMTYxYWExYjcwMjEyIDEwMDY0NA0KPiAt
+LS0gYS9tbS9tZW1vcnktZmFpbHVyZS5jDQo+ICsrKyBiL21tL21lbW9yeS1mYWlsdXJlLmMNCj4g
+QEAgLTU1LDYgKzU1LDcgQEANCj4gICNpbmNsdWRlIDxsaW51eC9odWdldGxiLmg+DQo+ICAjaW5j
+bHVkZSA8bGludXgvbWVtb3J5X2hvdHBsdWcuaD4NCj4gICNpbmNsdWRlIDxsaW51eC9tbV9pbmxp
+bmUuaD4NCj4gKyNpbmNsdWRlIDxsaW51eC9tZW1yZW1hcC5oPg0KPiAgI2luY2x1ZGUgPGxpbnV4
+L2tmaWZvLmg+DQo+ICAjaW5jbHVkZSA8bGludXgvcmF0ZWxpbWl0Lmg+DQo+ICAjaW5jbHVkZSAi
+aW50ZXJuYWwuaCINCj4gQEAgLTI2Myw2ICsyNjQsMzkgQEAgdm9pZCBzaGFrZV9wYWdlKHN0cnVj
+dCBwYWdlICpwLCBpbnQgYWNjZXNzKQ0KPiAgfQ0KPiAgRVhQT1JUX1NZTUJPTF9HUEwoc2hha2Vf
+cGFnZSk7DQo+DQo+ICtzdGF0aWMgdW5zaWduZWQgbG9uZyBtYXBwaW5nX3NpemUoc3RydWN0IHBh
+Z2UgKnBhZ2UsIHN0cnVjdCB2bV9hcmVhX3N0cnVjdCAqdm1hKQ0KPiArew0KPiArCXVuc2lnbmVk
+IGxvbmcgYWRkcmVzcyA9IHZtYV9hZGRyZXNzKHBhZ2UsIHZtYSk7DQo+ICsJcGdkX3QgKnBnZDsN
+Cj4gKwlwNGRfdCAqcDRkOw0KPiArCXB1ZF90ICpwdWQ7DQo+ICsJcG1kX3QgKnBtZDsNCj4gKwlw
+dGVfdCAqcHRlOw0KPiArDQo+ICsJcGdkID0gcGdkX29mZnNldCh2bWEtPnZtX21tLCBhZGRyZXNz
+KTsNCj4gKwlpZiAoIXBnZF9wcmVzZW50KCpwZ2QpKQ0KPiArCQlyZXR1cm4gMDsNCj4gKwlwNGQg
+PSBwNGRfb2Zmc2V0KHBnZCwgYWRkcmVzcyk7DQo+ICsJaWYgKCFwNGRfcHJlc2VudCgqcDRkKSkN
+Cj4gKwkJcmV0dXJuIDA7DQo+ICsJcHVkID0gcHVkX29mZnNldChwNGQsIGFkZHJlc3MpOw0KPiAr
+CWlmICghcHVkX3ByZXNlbnQoKnB1ZCkpDQo+ICsJCXJldHVybiAwOw0KPiArCWlmIChwdWRfZGV2
+bWFwKCpwdWQpKQ0KPiArCQlyZXR1cm4gUFVEX1NJWkU7DQo+ICsJcG1kID0gcG1kX29mZnNldChw
+dWQsIGFkZHJlc3MpOw0KPiArCWlmICghcG1kX3ByZXNlbnQoKnBtZCkpDQo+ICsJCXJldHVybiAw
+Ow0KPiArCWlmIChwbWRfZGV2bWFwKCpwbWQpKQ0KPiArCQlyZXR1cm4gUE1EX1NJWkU7DQo+ICsJ
+cHRlID0gcHRlX29mZnNldF9tYXAocG1kLCBhZGRyZXNzKTsNCj4gKwlpZiAoIXB0ZV9wcmVzZW50
+KCpwdGUpKQ0KPiArCQlyZXR1cm4gMDsNCj4gKwlpZiAocHRlX2Rldm1hcCgqcHRlKSkNCj4gKwkJ
+cmV0dXJuIFBBR0VfU0laRTsNCj4gKwlyZXR1cm4gMDsNCj4gK30NCj4gKw0KDQpUaGUgZnVuY3Rp
+b24gbmFtZSBsb29rcyBnZW5lcmljLCBidXQgdGhpcyBmdW5jdGlvbiBzZWVtcyB0byBmb2N1cyBv
+bg0KZGV2bWFwIHRoaW5nLCBzbyBjb3VsZCB5b3UgaW5jbHVkZSB0aGUgd29yZCAnZGV2bWFwJyBp
+biB0aGUgbmFtZT8NCg0KPiAgLyoNCj4gICAqIEZhaWx1cmUgaGFuZGxpbmc6IGlmIHdlIGNhbid0
+IGZpbmQgb3IgY2FuJ3Qga2lsbCBhIHByb2Nlc3MgdGhlcmUncw0KPiAgICogbm90IG11Y2ggd2Ug
+Y2FuIGRvLglXZSBqdXN0IHByaW50IGEgbWVzc2FnZSBhbmQgaWdub3JlIG90aGVyd2lzZS4NCj4g
+QEAgLTI5Miw3ICszMjYsMTAgQEAgc3RhdGljIHZvaWQgYWRkX3RvX2tpbGwoc3RydWN0IHRhc2tf
+c3RydWN0ICp0c2ssIHN0cnVjdCBwYWdlICpwLA0KPiAgCX0NCj4gIAl0ay0+YWRkciA9IHBhZ2Vf
+YWRkcmVzc19pbl92bWEocCwgdm1hKTsNCj4gIAl0ay0+YWRkcl92YWxpZCA9IDE7DQo+IC0JdGst
+PnNpemVfc2hpZnQgPSBjb21wb3VuZF9vcmRlcihjb21wb3VuZF9oZWFkKHApKSArIFBBR0VfU0hJ
+RlQ7DQo+ICsJaWYgKGlzX3pvbmVfZGV2aWNlX3BhZ2UocCkpDQo+ICsJCXRrLT5zaXplX3NoaWZ0
+ID0gaWxvZzIobWFwcGluZ19zaXplKHAsIHZtYSkpOw0KPiArCWVsc2UNCj4gKwkJdGstPnNpemVf
+c2hpZnQgPSBjb21wb3VuZF9vcmRlcihjb21wb3VuZF9oZWFkKHApKSArIFBBR0VfU0hJRlQ7DQo+
+DQo+ICAJLyoNCj4gIAkgKiBJbiB0aGVvcnkgd2UgZG9uJ3QgaGF2ZSB0byBraWxsIHdoZW4gdGhl
+IHBhZ2Ugd2FzDQo+IEBAIC0zMDAsNyArMzM3LDcgQEAgc3RhdGljIHZvaWQgYWRkX3RvX2tpbGwo
+c3RydWN0IHRhc2tfc3RydWN0ICp0c2ssIHN0cnVjdCBwYWdlICpwLA0KPiAgCSAqIGxpa2VseSB2
+ZXJ5IHJhcmUga2lsbCBhbnl3YXlzIGp1c3Qgb3V0IG9mIHBhcmFub2lhLCBidXQgdXNlDQo+ICAJ
+ICogYSBTSUdLSUxMIGJlY2F1c2UgdGhlIGVycm9yIGlzIG5vdCBjb250YWluZWQgYW55bW9yZS4N
+Cj4gIAkgKi8NCj4gLQlpZiAodGstPmFkZHIgPT0gLUVGQVVMVCkgew0KPiArCWlmICh0ay0+YWRk
+ciA9PSAtRUZBVUxUIHx8IHRrLT5zaXplX3NoaWZ0ID09IDApIHsNCj4gIAkJcHJfaW5mbygiTWVt
+b3J5IGZhaWx1cmU6IFVuYWJsZSB0byBmaW5kIHVzZXIgc3BhY2UgYWRkcmVzcyAlbHggaW4gJXNc
+biIsDQo+ICAJCQlwYWdlX3RvX3BmbihwKSwgdHNrLT5jb21tKTsNCj4gIAkJdGstPmFkZHJfdmFs
+aWQgPSAwOw0KPiBAQCAtNTE0LDYgKzU1MSw3IEBAIHN0YXRpYyBjb25zdCBjaGFyICogY29uc3Qg
+YWN0aW9uX3BhZ2VfdHlwZXNbXSA9IHsNCj4gIAlbTUZfTVNHX1RSVU5DQVRFRF9MUlVdCQk9ICJh
+bHJlYWR5IHRydW5jYXRlZCBMUlUgcGFnZSIsDQo+ICAJW01GX01TR19CVUREWV0JCQk9ICJmcmVl
+IGJ1ZGR5IHBhZ2UiLA0KPiAgCVtNRl9NU0dfQlVERFlfMk5EXQkJPSAiZnJlZSBidWRkeSBwYWdl
+ICgybmQgdHJ5KSIsDQo+ICsJW01GX01TR19EQVhdCQkJPSAiZGF4IHBhZ2UiLA0KPiAgCVtNRl9N
+U0dfVU5LTk9XTl0JCT0gInVua25vd24gcGFnZSIsDQo+ICB9Ow0KPg0KPiBAQCAtMTExMSw2ICsx
+MTQ5LDgzIEBAIHN0YXRpYyBpbnQgbWVtb3J5X2ZhaWx1cmVfaHVnZXRsYih1bnNpZ25lZCBsb25n
+IHBmbiwgaW50IGZsYWdzKQ0KPiAgCXJldHVybiByZXM7DQo+ICB9DQo+DQo+ICtzdGF0aWMgaW50
+IG1lbW9yeV9mYWlsdXJlX2Rldl9wYWdlbWFwKHVuc2lnbmVkIGxvbmcgcGZuLCBpbnQgZmxhZ3Ms
+DQo+ICsJCXN0cnVjdCBkZXZfcGFnZW1hcCAqcGdtYXApDQo+ICt7DQo+ICsJc3RydWN0IHBhZ2Ug
+KnBhZ2UgPSBwZm5fdG9fcGFnZShwZm4pOw0KPiArCWNvbnN0IGJvb2wgdW5tYXBfc3VjY2VzcyA9
+IHRydWU7DQo+ICsJdW5zaWduZWQgbG9uZyBzaXplID0gMDsNCj4gKwlzdHJ1Y3QgdG9fa2lsbCAq
+dGs7DQo+ICsJTElTVF9IRUFEKHRva2lsbCk7DQo+ICsJaW50IHJjID0gLUVCVVNZOw0KPiArCWxv
+ZmZfdCBzdGFydDsNCj4gKw0KPiArCS8qDQo+ICsJICogUHJldmVudCB0aGUgaW5vZGUgZnJvbSBi
+ZWluZyBmcmVlZCB3aGlsZSB3ZSBhcmUgaW50ZXJyb2dhdGluZw0KPiArCSAqIHRoZSBhZGRyZXNz
+X3NwYWNlLCB0eXBpY2FsbHkgdGhpcyB3b3VsZCBiZSBoYW5kbGVkIGJ5DQo+ICsJICogbG9ja19w
+YWdlKCksIGJ1dCBkYXggcGFnZXMgZG8gbm90IHVzZSB0aGUgcGFnZSBsb2NrLiBUaGlzDQo+ICsJ
+ICogYWxzbyBwcmV2ZW50cyBjaGFuZ2VzIHRvIHRoZSBtYXBwaW5nIG9mIHRoaXMgcGZuIHVudGls
+DQo+ICsJICogcG9pc29uIHNpZ25hbGluZyBpcyBjb21wbGV0ZS4NCj4gKwkgKi8NCj4gKwlpZiAo
+IWRheF9sb2NrX21hcHBpbmdfZW50cnkocGFnZSkpDQo+ICsJCWdvdG8gb3V0Ow0KPiArDQo+ICsJ
+aWYgKGh3cG9pc29uX2ZpbHRlcihwYWdlKSkgew0KPiArCQlyYyA9IDA7DQo+ICsJCWdvdG8gdW5s
+b2NrOw0KPiArCX0NCj4gKw0KPiArCXN3aXRjaCAocGdtYXAtPnR5cGUpIHsNCj4gKwljYXNlIE1F
+TU9SWV9ERVZJQ0VfUFJJVkFURToNCj4gKwljYXNlIE1FTU9SWV9ERVZJQ0VfUFVCTElDOg0KPiAr
+CQkvKg0KPiArCQkgKiBUT0RPOiBIYW5kbGUgSE1NIHBhZ2VzIHdoaWNoIG1heSBuZWVkIGNvb3Jk
+aW5hdGlvbg0KPiArCQkgKiB3aXRoIGRldmljZS1zaWRlIG1lbW9yeS4NCj4gKwkJICovDQo+ICsJ
+CWdvdG8gdW5sb2NrOw0KPiArCWRlZmF1bHQ6DQo+ICsJCWJyZWFrOw0KPiArCX0NCj4gKw0KPiAr
+CS8qDQo+ICsJICogVXNlIHRoaXMgZmxhZyBhcyBhbiBpbmRpY2F0aW9uIHRoYXQgdGhlIGRheCBw
+YWdlIGhhcyBiZWVuDQo+ICsJICogcmVtYXBwZWQgVUMgdG8gcHJldmVudCBzcGVjdWxhdGl2ZSBj
+b25zdW1wdGlvbiBvZiBwb2lzb24uDQo+ICsJICovDQo+ICsJU2V0UGFnZUhXUG9pc29uKHBhZ2Up
+Ow0KDQpUaGUgbnVtYmVyIG9mIGh3cG9pc29uIHBhZ2VzIGlzIG1haW50YWluZWQgYnkgbnVtX3Bv
+aXNvbmVkX3BhZ2VzLA0Kc28geW91IGNhbiBjYWxsIG51bV9wb2lzb25lZF9wYWdlc19pbmMoKT8N
+Cg0KUmVsYXRlZCB0byB0aGlzLCBJJ20gaW50ZXJlc3RlZCBpbiB3aGV0aGVyL2hvdyB1bnBvaXNv
+bl9wYWdlKCkgd29ya3MNCm9uIGEgaHdwb2lzb25lZCBkZXZfcGFnZW1hcCBwYWdlLg0KDQpUaGFu
+a3MsDQpOYW95YSBIb3JpZ3VjaGkNCg0KPiArDQo+ICsJLyoNCj4gKwkgKiBVbmxpa2UgU3lzdGVt
+LVJBTSB0aGVyZSBpcyBubyBwb3NzaWJpbGl0eSB0byBzd2FwIGluIGENCj4gKwkgKiBkaWZmZXJl
+bnQgcGh5c2ljYWwgcGFnZSBhdCBhIGdpdmVuIHZpcnR1YWwgYWRkcmVzcywgc28gYWxsDQo+ICsJ
+ICogdXNlcnNwYWNlIGNvbnN1bXB0aW9uIG9mIFpPTkVfREVWSUNFIG1lbW9yeSBuZWNlc3NpdGF0
+ZXMNCj4gKwkgKiBTSUdCVVMgKGkuZS4gTUZfTVVTVF9LSUxMKQ0KPiArCSAqLw0KPiArCWZsYWdz
+IHw9IE1GX0FDVElPTl9SRVFVSVJFRCB8IE1GX01VU1RfS0lMTDsNCj4gKwljb2xsZWN0X3Byb2Nz
+KHBhZ2UsICZ0b2tpbGwsIGZsYWdzICYgTUZfQUNUSU9OX1JFUVVJUkVEKTsNCj4gKw0KPiArCWxp
+c3RfZm9yX2VhY2hfZW50cnkodGssICZ0b2tpbGwsIG5kKQ0KPiArCQlpZiAodGstPnNpemVfc2hp
+ZnQpDQo+ICsJCQlzaXplID0gbWF4KHNpemUsIDFVTCA8PCB0ay0+c2l6ZV9zaGlmdCk7DQo+ICsJ
+aWYgKHNpemUpIHsNCj4gKwkJLyoNCj4gKwkJICogVW5tYXAgdGhlIGxhcmdlc3QgbWFwcGluZyB0
+byBhdm9pZCBicmVha2luZyB1cA0KPiArCQkgKiBkZXZpY2UtZGF4IG1hcHBpbmdzIHdoaWNoIGFy
+ZSBjb25zdGFudCBzaXplLiBUaGUNCj4gKwkJICogYWN0dWFsIHNpemUgb2YgdGhlIG1hcHBpbmcg
+YmVpbmcgdG9ybiBkb3duIGlzDQo+ICsJCSAqIGNvbW11bmljYXRlZCBpbiBzaWdpbmZvLCBzZWUg
+a2lsbF9wcm9jKCkNCj4gKwkJICovDQo+ICsJCXN0YXJ0ID0gKHBhZ2UtPmluZGV4IDw8IFBBR0Vf
+U0hJRlQpICYgfihzaXplIC0gMSk7DQo+ICsJCXVubWFwX21hcHBpbmdfcmFuZ2UocGFnZS0+bWFw
+cGluZywgc3RhcnQsIHN0YXJ0ICsgc2l6ZSwgMCk7DQo+ICsJfQ0KPiArCWtpbGxfcHJvY3MoJnRv
+a2lsbCwgZmxhZ3MgJiBNRl9NVVNUX0tJTEwsICF1bm1hcF9zdWNjZXNzLCBwZm4sIGZsYWdzKTsN
+Cj4gKwlyYyA9IDA7DQo+ICt1bmxvY2s6DQo+ICsJZGF4X3VubG9ja19tYXBwaW5nX2VudHJ5KHBh
+Z2UpOw0KPiArb3V0Og0KPiArCS8qIGRyb3AgcGdtYXAgcmVmIGFjcXVpcmVkIGluIGNhbGxlciAq
+Lw0KPiArCXB1dF9kZXZfcGFnZW1hcChwZ21hcCk7DQo+ICsJYWN0aW9uX3Jlc3VsdChwZm4sIE1G
+X01TR19EQVgsIHJjID8gTUZfRkFJTEVEIDogTUZfUkVDT1ZFUkVEKTsNCj4gKwlyZXR1cm4gcmM7
+DQo+ICt9DQo+ICsNCj4gIC8qKg0KPiAgICogbWVtb3J5X2ZhaWx1cmUgLSBIYW5kbGUgbWVtb3J5
+IGZhaWx1cmUgb2YgYSBwYWdlLg0KPiAgICogQHBmbjogUGFnZSBOdW1iZXIgb2YgdGhlIGNvcnJ1
+cHRlZCBwYWdlDQo+IEBAIC0xMTMzLDYgKzEyNDgsNyBAQCBpbnQgbWVtb3J5X2ZhaWx1cmUodW5z
+aWduZWQgbG9uZyBwZm4sIGludCBmbGFncykNCj4gIAlzdHJ1Y3QgcGFnZSAqcDsNCj4gIAlzdHJ1
+Y3QgcGFnZSAqaHBhZ2U7DQo+ICAJc3RydWN0IHBhZ2UgKm9yaWdfaGVhZDsNCj4gKwlzdHJ1Y3Qg
+ZGV2X3BhZ2VtYXAgKnBnbWFwOw0KPiAgCWludCByZXM7DQo+ICAJdW5zaWduZWQgbG9uZyBwYWdl
+X2ZsYWdzOw0KPg0KPiBAQCAtMTE0NSw2ICsxMjYxLDEwIEBAIGludCBtZW1vcnlfZmFpbHVyZSh1
+bnNpZ25lZCBsb25nIHBmbiwgaW50IGZsYWdzKQ0KPiAgCQlyZXR1cm4gLUVOWElPOw0KPiAgCX0N
+Cj4NCj4gKwlwZ21hcCA9IGdldF9kZXZfcGFnZW1hcChwZm4sIE5VTEwpOw0KPiArCWlmIChwZ21h
+cCkNCj4gKwkJcmV0dXJuIG1lbW9yeV9mYWlsdXJlX2Rldl9wYWdlbWFwKHBmbiwgZmxhZ3MsIHBn
+bWFwKTsNCj4gKw0KPiAgCXAgPSBwZm5fdG9fcGFnZShwZm4pOw0KPiAgCWlmIChQYWdlSHVnZShw
+KSkNCj4gIAkJcmV0dXJuIG1lbW9yeV9mYWlsdXJlX2h1Z2V0bGIocGZuLCBmbGFncyk7DQo+
