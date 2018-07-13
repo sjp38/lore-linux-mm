@@ -1,28 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B3816B000D
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 13:29:14 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id u18-v6so21079013pfh.21
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 10:29:14 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2772E6B0010
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 13:30:02 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id g20-v6so21107302pfi.2
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 10:30:02 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id q3-v6si23716417pgf.40.2018.07.13.10.29.12
+        by mx.google.com with ESMTPS id d37-v6si24453515pla.85.2018.07.13.10.30.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 10:29:13 -0700 (PDT)
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+        Fri, 13 Jul 2018 10:30:01 -0700 (PDT)
+Received: from mail-wr1-f42.google.com (mail-wr1-f42.google.com [209.85.221.42])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 639FE2148D
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 17:29:12 +0000 (UTC)
-Received: by mail-wm0-f53.google.com with SMTP id n17-v6so10139172wmh.2
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 10:29:12 -0700 (PDT)
+	by mail.kernel.org (Postfix) with ESMTPSA id 8EE4A2147C
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 17:30:00 +0000 (UTC)
+Received: by mail-wr1-f42.google.com with SMTP id b15-v6so25893688wrv.10
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 10:30:00 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1531308586-29340-40-git-send-email-joro@8bytes.org>
-References: <1531308586-29340-1-git-send-email-joro@8bytes.org> <1531308586-29340-40-git-send-email-joro@8bytes.org>
+In-Reply-To: <1531308586-29340-35-git-send-email-joro@8bytes.org>
+References: <1531308586-29340-1-git-send-email-joro@8bytes.org> <1531308586-29340-35-git-send-email-joro@8bytes.org>
 From: Andy Lutomirski <luto@kernel.org>
-Date: Fri, 13 Jul 2018 10:28:50 -0700
-Message-ID: <CALCETrUw5DTnPtDK5TUNv4z50rrmcxwPA-KqtBHcWRcazJXy6Q@mail.gmail.com>
-Subject: Re: [PATCH 39/39] x86/entry/32: Add debug code to check entry/exit cr3
+Date: Fri, 13 Jul 2018 10:29:38 -0700
+Message-ID: <CALCETrV3-X1LeRd+HnvvJrudqrntbvnD1e-x9iAjiGg5mUOFCw@mail.gmail.com>
+Subject: Re: [PATCH 34/39] x86/ldt: Define LDT_END_ADDR
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -32,13 +32,9 @@ Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . P
 On Wed, Jul 11, 2018 at 4:29 AM, Joerg Roedel <joro@8bytes.org> wrote:
 > From: Joerg Roedel <jroedel@suse.de>
 >
-> Add a config option that enabled code to check that we enter
-> and leave the kernel with the correct cr3. This is needed
-> because we have no NX protection of user-addresses in the
-> kernel-cr3 on x86-32 and wouldn't notice that type of bug
-> otherwise.
+> It marks the end of the address-space range reserved for the
+> LDT. The LDT-code will use it when unmapping the LDT for
+> user-space.
 >
 
-I like this, but could you make it just use CONFIG_DEBUG_ENTRY?
-
---Andy
+Reviewed-by: Andy Lutomirski <luto@kernel.org>
