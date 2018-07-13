@@ -1,111 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BA956B0007
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 20:36:21 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id b5-v6so18382715ple.20
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 17:36:21 -0700 (PDT)
-Received: from ipmailnode02.adl6.internode.on.net (ipmailnode02.adl6.internode.on.net. [150.101.137.148])
-        by mx.google.com with ESMTP id r38-v6si22176368pga.381.2018.07.12.17.36.18
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D33C66B0003
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 21:47:13 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id d70-v6so6237230itd.1
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 18:47:13 -0700 (PDT)
+Received: from heian.cn.fujitsu.com (mail.cn.fujitsu.com. [183.91.158.132])
+        by mx.google.com with ESMTP id f19-v6si4056960itf.11.2018.07.12.18.47.10
         for <linux-mm@kvack.org>;
-        Thu, 12 Jul 2018 17:36:19 -0700 (PDT)
-Date: Fri, 13 Jul 2018 10:36:14 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v6 0/7] fs/dcache: Track & limit # of negative dentries
-Message-ID: <20180713003614.GW2234@dastard>
-References: <9f24c043-1fca-ee86-d609-873a7a8f7a64@redhat.com>
- <1531330947.3260.13.camel@HansenPartnership.com>
- <18c5cbfe-403b-bb2b-1d11-19d324ec6234@redhat.com>
- <1531336913.3260.18.camel@HansenPartnership.com>
- <4d49a270-23c9-529f-f544-65508b6b53cc@redhat.com>
- <1531411494.18255.6.camel@HansenPartnership.com>
- <20180712164932.GA3475@bombadil.infradead.org>
- <1531416080.18255.8.camel@HansenPartnership.com>
- <CA+55aFzfQz7c8pcMfLDaRNReNF2HaKJGoWpgB6caQjNAyjg-hA@mail.gmail.com>
- <1531425435.18255.17.camel@HansenPartnership.com>
+        Thu, 12 Jul 2018 18:47:12 -0700 (PDT)
+Date: Fri, 13 Jul 2018 09:44:26 +0800
+From: Chao Fan <fanc.fnst@cn.fujitsu.com>
+Subject: Re: Bug report about KASLR and ZONE_MOVABLE
+Message-ID: <20180713014426.GE6742@localhost.localdomain>
+References: <20180711094244.GA2019@localhost.localdomain>
+ <20180711104158.GE2070@MiWiFi-R3L-srv>
+ <20180711104944.GG1969@MiWiFi-R3L-srv>
+ <20180711124008.GF2070@MiWiFi-R3L-srv>
+ <72721138-ba6a-32c9-3489-f2060f40a4c9@cn.fujitsu.com>
+ <20180712060115.GD6742@localhost.localdomain>
+ <20180712123228.GK32648@dhcp22.suse.cz>
+ <20180712235240.GH2070@MiWiFi-R3L-srv>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1531425435.18255.17.camel@HansenPartnership.com>
+In-Reply-To: <20180712235240.GH2070@MiWiFi-R3L-srv>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Waiman Long <longman@redhat.com>, Michal Hocko <mhocko@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>
+To: Baoquan He <bhe@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Dou Liyang <douly.fnst@cn.fujitsu.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, yasu.isimatu@gmail.com, keescook@chromium.org, indou.takao@jp.fujitsu.com, caoj.fnst@cn.fujitsu.com, vbabka@suse.cz, mgorman@techsingularity.net
 
-On Thu, Jul 12, 2018 at 12:57:15PM -0700, James Bottomley wrote:
-> What surprises me most about this behaviour is the steadiness of the
-> page cache ... I would have thought we'd have shrunk it somewhat given
-> the intense call on the dcache.
+On Fri, Jul 13, 2018 at 07:52:40AM +0800, Baoquan He wrote:
+>Hi Michal,
+>
+>On 07/12/18 at 02:32pm, Michal Hocko wrote:
+>> On Thu 12-07-18 14:01:15, Chao Fan wrote:
+>> > On Thu, Jul 12, 2018 at 01:49:49PM +0800, Dou Liyang wrote:
+>> > >Hi Baoquan,
+>> > >
+>> > >At 07/11/2018 08:40 PM, Baoquan He wrote:
+>> > >> Please try this v3 patch:
+>> > >> >>From 9850d3de9c02e570dc7572069a9749a8add4c4c7 Mon Sep 17 00:00:00 2001
+>> > >> From: Baoquan He <bhe@redhat.com>
+>> > >> Date: Wed, 11 Jul 2018 20:31:51 +0800
+>> > >> Subject: [PATCH v3] mm, page_alloc: find movable zone after kernel text
+>> > >> 
+>> > >> In find_zone_movable_pfns_for_nodes(), when try to find the starting
+>> > >> PFN movable zone begins in each node, kernel text position is not
+>> > >> considered. KASLR may put kernel after which movable zone begins.
+>> > >> 
+>> > >> Fix it by finding movable zone after kernel text on that node.
+>> > >> 
+>> > >> Signed-off-by: Baoquan He <bhe@redhat.com>
+>> > >
+>> > >
+>> > >You fix this in the _zone_init side_. This may make the 'kernelcore=' or
+>> > >'movablecore=' failed if the KASLR puts the kernel back the tail of the
+>> > >last node, or more.
+>> > 
+>> > I think it may not fail.
+>> > There is a 'restart' to do another pass.
+>> > 
+>> > >
+>> > >Due to we have fix the mirror memory in KASLR side, and Chao is trying
+>> > >to fix the 'movable_node' in KASLR side. Have you had a chance to fix
+>> > >this in the KASLR side.
+>> > >
+>> > 
+>> > I think it's better to fix here, but not KASLR side.
+>> > Cause much more code will be change if doing it in KASLR side.
+>> > Since we didn't parse 'kernelcore' in compressed code, and you can see
+>> > the distribution of ZONE_MOVABLE need so much code, so we do not need
+>> > to do so much job in KASLR side. But here, several lines will be OK.
+>> 
+>> I am not able to find the beginning of the email thread right now. Could
+>> you summarize what is the actual problem please?
+>
+>The bug is found on x86 now. 
+>
+>When added "kernelcore=" or "movablecore=" into kernel command line,
+>kernel memory is spread evenly among nodes. However, this is right when
+>KASLR is not enabled, then kernel will be at 16M of place in x86 arch.
+>If KASLR enabled, it could be put any place from 16M to 64T randomly.
+> 
+>Consider a scenario, we have 10 nodes, and each node has 20G memory, and
+>we specify "kernelcore=50%", means each node will take 10G for
+>kernelcore, 10G for movable area. But this doesn't take kernel position
+>into consideration. E.g if kernel is put at 15G of 2nd node, namely
+>node1. Then we think on node1 there's 10G for kernelcore, 10G for
+>movable, in fact there's only 5G available for movable, just after
+>kernel.
+>
+>I made a v4 patch which possibly can fix it.
+>
+>
+>From dbcac3631863aed556dc2c4ff1839772dfd02d18 Mon Sep 17 00:00:00 2001
+>From: Baoquan He <bhe@redhat.com>
+>Date: Fri, 13 Jul 2018 07:49:29 +0800
+>Subject: [PATCH v4] mm, page_alloc: find movable zone after kernel text
+>
+>In find_zone_movable_pfns_for_nodes(), when try to find the starting
+>PFN movable zone begins at in each node, kernel text position is not
+>considered. KASLR may put kernel after which movable zone begins.
+>
+>Fix it by finding movable zone after kernel text on that node.
+>
+>Signed-off-by: Baoquan He <bhe@redhat.com>
 
-Oh, good, the page cache vs superblock shrinker balancing still
-protects the working set of each cache the way it's supposed to
-under heavy single cache pressure. :)
+You can post it as alone PATCH, then I will test it next week.
 
-Keep in mind that the amount of work slab cache shrinkers perform is
-directly proportional to the amount of page cache reclaim that is
-performed and the size of the slab cache being reclaimed.  IOWs,
-under a "single cache pressure" workload we should be directing
-reclaim work to the huge cache creating the pressure and do very
-little reclaim from other caches....
+Thanks,
+Chao Fan
 
-[ What follows from here is conjecture, but is based on what I've
-seen in the past 10+ years on systems with large numbers of negative
-dentries and fragmented dentry/inode caches. ]
-
-However, this only reaches steady state if the reclaim rate can keep
-ahead of the allocation rate. This single threaded micro-workload
-won't result in an internally fragmented dentry slab cache, so
-reclaim is going to be as efficient as possible and have the CPU to
-keep up with the allocation rate.  i.e. Bulk negative dentry reclaim
-is cheap, in LRU order, and frees slab pages quickly and efficiently
-in large batches so steady state is easily reached.
-
-Problems arise when the slab *page* reclaim rate drops below
-allocation rate. i.e when you have short term (negative) dentries
-mixed into the same slab pages as long term stable dentries. This
-causes the dentry cache to fragment internally - reclaim hits the
-negative dentries and creates large numbers of partial pages - and
-so reclaim of negative dentries will fail to free memory. Creating
-new negative dentries then fills these partial pages first, and so
-the alloc/reclaim cycles on negative dentries only ever produce
-partial pages and never free slab cache pages. IOWs, the cost of
-reclaim slab *pages* goes way up despite the fact that the cost of
-reclaiming individual dentries has remained the same.
-
-That's the underlying problem here - the cost of reclaiming dentries
-is constant but the cost of reclaiming *slab pages* is not.  It is
-not uncommon to have to trash 90% of the dentry or inode caches to
-reduce internal fragmentation down to the point where pages start to
-get freed and the per-slab-page reclaim cost reduces to be less than
-the allocation cost. Then we see the system return to normal steady
-state behaviour.
-
-In situations where lots of negative dentries are created by
-production workloads, that "90%" of the cache that needs to be
-reclaimed to fix the internal fragmentation issue is all negative
-dentries and just enough of the real dentries to be freeing
-quantities of partial pages in the slab. Hence negative dentries are
-seen as the problem because they make up the vast majority of the
-dentries that get reclaimed when the problem goes away.
-
-By limiting the number of negative dentries in this case, internal
-slab fragmentation is reduced such that reclaim cost never gets out
-of control. While it appears to "fix" the symptoms, it doesn't
-address the underlying problem. It is a partial solution at best but
-at worst it's another opaque knob that nobody knows how or when to
-tune.
-
-Very few microbenchmarks expose this internal slab fragmentation
-problem because they either don't run long enough, don't create
-memory pressure, or don't have access patterns that mix long and
-short term slab objects together in a way that causes slab
-fragmentation. Run some cold cache directory traversals (git
-status?) at the same time you are creating negative dentries so you
-create pinned partial pages in the slab cache and see how the
-behaviour changes....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+>---
+> mm/page_alloc.c | 15 +++++++++++++--
+> 1 file changed, 13 insertions(+), 2 deletions(-)
+>
+>diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>index 1521100f1e63..5bc1a47dafda 100644
+>--- a/mm/page_alloc.c
+>+++ b/mm/page_alloc.c
+>@@ -6547,7 +6547,7 @@ static unsigned long __init early_calculate_totalpages(void)
+> static void __init find_zone_movable_pfns_for_nodes(void)
+> {
+> 	int i, nid;
+>-	unsigned long usable_startpfn;
+>+	unsigned long usable_startpfn, kernel_endpfn, arch_startpfn;
+> 	unsigned long kernelcore_node, kernelcore_remaining;
+> 	/* save the state before borrow the nodemask */
+> 	nodemask_t saved_node_state = node_states[N_MEMORY];
+>@@ -6649,8 +6649,9 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+> 	if (!required_kernelcore || required_kernelcore >= totalpages)
+> 		goto out;
+> 
+>+	kernel_endpfn = PFN_UP(__pa_symbol(_end));
+> 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
+>-	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
+>+	arch_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
+> 
+> restart:
+> 	/* Spread kernelcore memory as evenly as possible throughout nodes */
+>@@ -6659,6 +6660,16 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+> 		unsigned long start_pfn, end_pfn;
+> 
+> 		/*
+>+		 * KASLR may put kernel near tail of node memory,
+>+		 * start after kernel on that node to find PFN
+>+		 * at which zone begins.
+>+		 */
+>+		if (pfn_to_nid(kernel_endpfn) == nid)
+>+		        usable_startpfn = max(arch_startpfn, kernel_endpfn);
+>+		else
+>+		        usable_startpfn = arch_startpfn;
+>+
+>+		/*
+> 		 * Recalculate kernelcore_node if the division per node
+> 		 * now exceeds what is necessary to satisfy the requested
+> 		 * amount of memory for the kernel
+>-- 
+>2.13.6
+>
+>
+>
