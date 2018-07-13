@@ -1,50 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 55E396B000A
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 02:29:31 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id h18-v6so5536056wmb.8
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 23:29:31 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j6-v6sor10915933wro.14.2018.07.12.23.29.30
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 91C2D6B000D
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 02:35:40 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id q18-v6so18993359pll.3
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 23:35:40 -0700 (PDT)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id x23-v6si2258448pfk.25.2018.07.12.23.35.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 12 Jul 2018 23:29:30 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Jul 2018 23:35:39 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v5 05/11] mm, madvise_inject_error: Let memory_failure()
+ optionally take a page reference
+Date: Fri, 13 Jul 2018 06:31:25 +0000
+Message-ID: <20180713063125.GA10034@hori1.linux.bs1.fc.nec.co.jp>
+References: <153074042316.27838.17319837331947007626.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <153074044986.27838.16910122305490506387.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <153074044986.27838.16910122305490506387.stgit@dwillia2-desk3.amr.corp.intel.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <A161B23BB3FC5245AE184ADCF1A397DB@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20180712071536.GA15506@lst.de>
-References: <CGME20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29@eucas1p2.samsung.com>
- <20180709121956.20200-1-m.szyprowski@samsung.com> <20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29~-sqTPJKij2939229392eucas1p2j@eucas1p2.samsung.com>
- <CAAmzW4PPNYhUj_MeZox+ddq8MjXqnJs_AJ3xkayf710udD1pSg@mail.gmail.com>
- <20180710095056.GE14284@dhcp22.suse.cz> <CAAmzW4P1m_T77DfQzDD6ysGaOF46++-0gwRaOajmo6ef=VYp=A@mail.gmail.com>
- <20180711085407.GB20050@dhcp22.suse.cz> <CAAmzW4M3KADCZD9+B2h7=WsYksGtg-GzYRCJjbqK5Scceynrrg@mail.gmail.com>
- <20180712071536.GA15506@lst.de>
-From: Joonsoo Kim <js1304@gmail.com>
-Date: Fri, 13 Jul 2018 15:29:29 +0900
-Message-ID: <CAAmzW4MNuZOZRP1fHt7E42Mm6+-CLkYYA1Ju2Cfe0ik4Ynb4Lw@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm/cma: remove unsupported gfp_mask parameter from cma_alloc()
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Michal Hocko <mhocko@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, iommu@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Paul Mackerras <paulus@ozlabs.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Chris Zankel <chris@zankel.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Joerg Roedel <joro@8bytes.org>, Sumit Semwal <sumit.semwal@linaro.org>, Robin Murphy <robin.murphy@arm.com>, Laura Abbott <labbott@redhat.com>, linaro-mm-sig@lists.linaro.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Michal Hocko <mhocko@suse.com>, "hch@lst.de" <hch@lst.de>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "jack@suse.cz" <jack@suse.cz>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>
 
-2018-07-12 16:15 GMT+09:00 Christoph Hellwig <hch@lst.de>:
-> On Thu, Jul 12, 2018 at 11:48:47AM +0900, Joonsoo Kim wrote:
->> One of existing user is general DMA layer and it takes gfp flags that is
->> provided by user. I don't check all the DMA allocation sites but how do
->> you convince that none of them try to use anything other
->> than GFP_KERNEL [|__GFP_NOWARN]?
+Hello Dan,
+
+On Wed, Jul 04, 2018 at 02:40:49PM -0700, Dan Williams wrote:
+> The madvise_inject_error() routine uses get_user_pages() to lookup the
+> pfn and other information for injected error, but it does not release
+> that pin. The assumption is that failed pages should be taken out of
+> circulation.
 >
-> They use a few others things still like __GFP_COMP, __GPF_DMA or
-> GFP_HUGEPAGE.  But all these are bogus as we have various implementations
-> that can't respect them.  I plan to get rid of the gfp_t argument
-> in the dma_map_ops alloc method in a few merge windows because of that,
-> but it needs further implementation consolidation first.
+> However, for dax mappings it is not possible to take pages out of
+> circulation since they are 1:1 physically mapped as filesystem blocks,
+> or device-dax capacity. They also typically represent persistent memory
+> which has an error clearing capability.
+>
+> In preparation for adding a special handler for dax mappings, shift the
+> responsibility of taking the page reference to memory_failure(). I.e.
+> drop the page reference and do not specify MF_COUNT_INCREASED to
+> memory_failure().
+>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  mm/madvise.c |   18 +++++++++++++++---
+>  1 file changed, 15 insertions(+), 3 deletions(-)
+>
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index 4d3c922ea1a1..b731933dddae 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -631,11 +631,13 @@ static int madvise_inject_error(int behavior,
+>
+>
+>  	for (; start < end; start +=3D PAGE_SIZE << order) {
+> +		unsigned long pfn;
+>  		int ret;
+>
+>  		ret =3D get_user_pages_fast(start, 1, 0, &page);
+>  		if (ret !=3D 1)
+>  			return ret;
+> +		pfn =3D page_to_pfn(page);
+>
+>  		/*
+>  		 * When soft offlining hugepages, after migrating the page
+> @@ -651,17 +653,27 @@ static int madvise_inject_error(int behavior,
+>
+>  		if (behavior =3D=3D MADV_SOFT_OFFLINE) {
+>  			pr_info("Soft offlining pfn %#lx at process virtual address %#lx\n",
+> -						page_to_pfn(page), start);
+> +					pfn, start);
+>
+>  			ret =3D soft_offline_page(page, MF_COUNT_INCREASED);
+>  			if (ret)
+>  				return ret;
+>  			continue;
+>  		}
+> +
+>  		pr_info("Injecting memory failure for pfn %#lx at process virtual addr=
+ess %#lx\n",
+> -						page_to_pfn(page), start);
+> +				pfn, start);
+> +
+> +		ret =3D memory_failure(pfn, 0);
+> +
+> +		/*
+> +		 * Drop the page reference taken by get_user_pages_fast(). In
+> +		 * the absence of MF_COUNT_INCREASED the memory_failure()
+> +		 * routine is responsible for pinning the page to prevent it
+> +		 * from being released back to the page allocator.
+> +		 */
+> +		put_page(page);
+>
+> -		ret =3D memory_failure(page_to_pfn(page), MF_COUNT_INCREASED);
 
-Okay. If those flags are all, this change would be okay.
+MF_COUNT_INCREASED means that the page refcount for memory error handling
+is taken by the caller so you don't have to take one inside memory_failure(=
+).
+So this code don't keep with the definition, then another refcount can be
+taken in memory_failure() in normal LRU page's case for example.
+As a result the error message "Memory failure: %#lx: %s still referenced by
+%d users\n" will be dumped in page_action().
 
-For the remind of this gfp flag introduction in cma_alloc(), see the
-following link.
+So if you want to put put_page() in madvise_inject_error(), I think that
 
-https://marc.info/?l=linux-mm&m=148431452118407
+ 		put_page(page);
+ 		ret =3D memory_failure(pfn, 0);
 
-Thanks.
+can be acceptable because the purpose of get_user_pages_fast() here is
+just getting pfn, and the refcount itself is not so important.
+IOW, memory_failure() is called only with pfn which never changes depending
+on the page's status.
+In production system memory_failure() is called via machine check code
+without taking any pagecount, so I don't think the this injection interface
+is properly mocking the real thing. So I'm feeling that this flag will be
+wiped out at some point.
+
+Thanks,
+Naoya Horiguchi=
