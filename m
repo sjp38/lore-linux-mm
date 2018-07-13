@@ -1,56 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 541796B0007
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 08:03:43 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id o1-v6so6019844wmc.6
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 05:03:43 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q72-v6sor1414168wmd.9.2018.07.13.05.03.42
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 55E596B000A
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 08:12:15 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id a20-v6so20636166pfi.1
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 05:12:15 -0700 (PDT)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id q1-v6si24106651plb.331.2018.07.13.05.12.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 13 Jul 2018 05:03:42 -0700 (PDT)
-Date: Fri, 13 Jul 2018 14:03:40 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH v5 4/5] mm/sparse: add new sparse_init_nid() and
- sparse_init()
-Message-ID: <20180713120340.GA16552@techadventures.net>
-References: <20180712203730.8703-1-pasha.tatashin@oracle.com>
- <20180712203730.8703-5-pasha.tatashin@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Jul 2018 05:12:14 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 18/27] x86/cet/shstk: Introduce WRUSS instruction
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+ <20180710222639.8241-19-yu-cheng.yu@intel.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <166536e2-b296-7be5-d1b7-982cf56f1f9b@linux.intel.com>
+Date: Fri, 13 Jul 2018 05:12:02 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180712203730.8703-5-pasha.tatashin@oracle.com>
+In-Reply-To: <20180710222639.8241-19-yu-cheng.yu@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, bhe@redhat.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, abdhalee@linux.vnet.ibm.com, mpe@ellerman.id.au
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-On Thu, Jul 12, 2018 at 04:37:29PM -0400, Pavel Tatashin wrote:
-> sparse_init() requires to temporary allocate two large buffers:
-> usemap_map and map_map. Baoquan He has identified that these buffers are so
-> large that Linux is not bootable on small memory machines, such as a kdump
-> boot. The buffers are especially large when CONFIG_X86_5LEVEL is set, as
-> they are scaled to the maximum physical memory size.
-> 
-> Baoquan provided a fix, which reduces these sizes of these buffers, but it
-> is much better to get rid of them entirely.
-> 
-> Add a new way to initialize sparse memory: sparse_init_nid(), which only
-> operates within one memory node, and thus allocates memory either in large
-> contiguous block or allocates section by section. This eliminates the need
-> for use of temporary buffers.
-> 
-> For simplified bisecting and review temporarly call sparse_init()
-> new_sparse_init(), the new interface is going to be enabled as well as old
-> code removed in the next patch.
-> 
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+On 07/10/2018 03:26 PM, Yu-cheng Yu wrote:
+> +static int is_wruss(struct pt_regs *regs, unsigned long error_code)
+> +{
+> +	return (((error_code & (X86_PF_USER | X86_PF_SHSTK)) ==
+> +		(X86_PF_USER | X86_PF_SHSTK)) && !user_mode(regs));
+> +}
+> +
+>  static void
+>  show_fault_oops(struct pt_regs *regs, unsigned long error_code,
+>  		unsigned long address)
+> @@ -848,7 +859,7 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
+>  	struct task_struct *tsk = current;
+>  
+>  	/* User mode accesses just cause a SIGSEGV */
+> -	if (error_code & X86_PF_USER) {
+> +	if ((error_code & X86_PF_USER) && !is_wruss(regs, error_code)) {
+>  		/*
+>  		 * It's possible to have interrupts off here:
+>  		 */
 
-Looks good to me, and it will make the code much shorter/easier.
+Please don't do it this way.
 
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
+We have two styles of page fault:
+1. User page faults: find a VMA, try to handle (allocate memory et al.),
+   kill process if we can't handle.
+2. Kernel page faults: search for a *discrete* set of conditions that
+   can be handled, including faults in instructions marked in exception
+   tables.
 
-Thanks
--- 
-Oscar Salvador
-SUSE L3
+X86_PF_USER *means*: do user page fault handling.  In the places where
+the hardware doesn't set it, but we still want user page fault handling,
+we manually set it, like this where we "downgrade" an implicit
+supervisor access to a user access:
+
+        if (user_mode(regs)) {
+                local_irq_enable();
+                error_code |= X86_PF_USER;
+                flags |= FAULT_FLAG_USER;
+
+So, just please *clear* X86_PF_USER if !user_mode(regs) and X86_PF_SS.
+We do not want user page fault handling, thus we should not keep the bit
+set.
