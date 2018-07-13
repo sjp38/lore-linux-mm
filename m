@@ -1,59 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B431F6B000A
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 09:25:03 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id m6-v6so37923493qkd.20
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 06:25:03 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id s1-v6si6122761qkc.287.2018.07.13.06.25.02
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 106A76B000D
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 09:34:03 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id t10-v6so5645197wre.19
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 06:34:03 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k2-v6sor11615543wrg.77.2018.07.13.06.34.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 06:25:02 -0700 (PDT)
-Subject: Re: [PATCH v5 1/5] mm/sparse: abstract sparse buffer allocations
-References: <20180712203730.8703-1-pasha.tatashin@oracle.com>
- <20180712203730.8703-2-pasha.tatashin@oracle.com>
- <20180713131749.GA16765@techadventures.net>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <23f6e4e5-6e32-faf6-433d-67e50d2895a2@oracle.com>
-Date: Fri, 13 Jul 2018 09:24:44 -0400
+        (Google Transport Security);
+        Fri, 13 Jul 2018 06:34:01 -0700 (PDT)
+Date: Fri, 13 Jul 2018 15:33:58 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [RFC PATCH v2 25/27] x86/cet: Add PTRACE interface for CET
+Message-ID: <20180713133357.GB13602@gmail.com>
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+ <20180710222639.8241-26-yu-cheng.yu@intel.com>
+ <20180711102035.GB8574@gmail.com>
+ <1531323638.13297.24.camel@intel.com>
+ <20180712140327.GA7810@gmail.com>
+ <20180713062804.GA6905@amd>
 MIME-Version: 1.0
-In-Reply-To: <20180713131749.GA16765@techadventures.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180713062804.GA6905@amd>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, bhe@redhat.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, abdhalee@linux.vnet.ibm.com, mpe@ellerman.id.au
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
 
-
-On 07/13/2018 09:17 AM, Oscar Salvador wrote:
-> On Thu, Jul 12, 2018 at 04:37:26PM -0400, Pavel Tatashin wrote:
->> +static void *sparsemap_buf __meminitdata;
->> +static void *sparsemap_buf_end __meminitdata;
->> +
->> +void __init sparse_buffer_init(unsigned long size, int nid)
->> +{
->> +	BUG_ON(sparsemap_buf);
-> 
-> Why do we need a BUG_ON() here?
-> Looking at the code I cannot really see how we can end up with sparsemap_buf being NULL.
-> Is it just for over-protection?
-
-This checks that we do not accidentally leak memory by calling sparse_buffer_init() consequently without sparse_buffer_fini() in-between.
+* Pavel Machek <pavel@ucw.cz> wrote:
 
 > 
->> +	sparsemap_buf =
->> +		memblock_virt_alloc_try_nid_raw(size, PAGE_SIZE,
->> +						__pa(MAX_DMA_ADDRESS),
->> +						BOOTMEM_ALLOC_ACCESSIBLE, nid);
+> > > > to "CET" (which is a well-known acronym for "Central European Time"),
+> > > > not to CFE?
+> > > > 
+> > > 
+> > > I don't know if I can change that, will find out.
+> > 
+> > So what I'd suggest is something pretty simple: to use CFT/cft in kernel internal 
+> > names, except for the Intel feature bit and any MSR enumeration which can be CET 
+> > if Intel named it that way, and a short comment explaining the acronym difference.
+> > 
+> > Or something like that.
 > 
-> In your previous version, you didn't pass a required alignment when setting up sparsemap_buf.
-> size is already PMD_SIZE aligned, do we need to align it also to PAGE_SIZE?
-> 
+> Actually, I don't think CFT is much better -- there's limited number
+> of TLAs (*). "ENFORCE_FLOW"? "FLOWE"? "EFLOW"?
 
-I decided to add PAGE_SIZE alignment, because the implicit memblock alignment is SMP_CACHE_BYTES which is smaller than page size. While, in practice we will most likely get a page size aligned allocation, it is still possible that some ranges in memblock are not page size aligned if that the way they were passed from BIOS.
+Erm, I wanted to say 'CFE', i.e. the abbreviation of 'Control Flow Enforcement'.
 
-Thank you,
-Pavel
+But I guess I can live with CET as well ...
+
+Thanks,
+
+	Ingo
