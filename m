@@ -1,66 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D3E416B0007
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 18:39:17 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id az8-v6so20190923plb.15
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 15:39:17 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id j24-v6sor3979109pfe.146.2018.07.13.15.39.16
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 056766B000A
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 18:46:42 -0400 (EDT)
+Received: by mail-yb0-f199.google.com with SMTP id e6-v6so23810138ybk.23
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 15:46:42 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g23-v6sor7518521ybe.4.2018.07.13.15.46.36
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 13 Jul 2018 15:39:16 -0700 (PDT)
-Date: Fri, 13 Jul 2018 15:39:15 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: cgroup-aware OOM killer, how to move forward
-In-Reply-To: <20180713221602.GA15005@castle.DHCP.thefacebook.com>
-Message-ID: <alpine.DEB.2.21.1807131535420.202408@chino.kir.corp.google.com>
-References: <20180711223959.GA13981@castle.DHCP.thefacebook.com> <alpine.DEB.2.21.1807131423230.194789@chino.kir.corp.google.com> <20180713221602.GA15005@castle.DHCP.thefacebook.com>
+        Fri, 13 Jul 2018 15:46:36 -0700 (PDT)
+Date: Fri, 13 Jul 2018 18:49:20 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC PATCH 10/10] psi: aggregate ongoing stall events when
+ somebody reads pressure
+Message-ID: <20180713224920.GA31566@cmpxchg.org>
+References: <20180712172942.10094-1-hannes@cmpxchg.org>
+ <20180712172942.10094-11-hannes@cmpxchg.org>
+ <CAJuCfpHGhSs6upZj0ARng-rE1Nbtcr_XHynZhN7EgGdC16tpPg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJuCfpHGhSs6upZj0ARng-rE1Nbtcr_XHynZhN7EgGdC16tpPg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@kernel.org, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
+To: Suren Baghdasaryan <surenb@google.com>
+Cc: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Fri, 13 Jul 2018, Roman Gushchin wrote:
-
-> > No objection, of course, this was always the mechanism vs policy 
-> > separation that I was referring to.  Having the ability to kill all 
-> > processes attached to the cgroup when one of its processes is selected is 
-> > useful, and we have our own patches that do just that, with the exception 
-> > that it's triggerable by the user.
+On Fri, Jul 13, 2018 at 03:13:07PM -0700, Suren Baghdasaryan wrote:
+> On Thu, Jul 12, 2018 at 10:29 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > might want to know about and react to stall states before they have
+> > even concluded (e.g. a prolonged reclaim cycle).
+> >
+> > This patches the procfs/cgroupfs interface such that when the pressure
+> > metrics are read, the current per-cpu states, if any, are taken into
+> > account as well.
+> >
+> > Any ongoing states are concluded, their time snapshotted, and then
+> > restarted. This requires holding the rq lock to avoid corruption. It
+> > could use some form of rq lock ratelimiting or avoidance.
+> >
+> > Requested-by: Suren Baghdasaryan <surenb@google.com>
+> > Not-yet-signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > ---
 > 
-> Perfect! I'll prepare the patchset.
-> 
+> IMHO this description is a little difficult to understand. In essence,
+> PSI information is being updated periodically every 2secs and without
+> this patch the data can be stale at the time when we read it (because
+> it was last updated up to 2secs ago). To avoid this we update the PSI
+> "total" values when data is being read.
 
-I mean, I separated it out completely in my own 
-https://marc.info/?l=linux-kernel&m=152175564704473 as part of a patch 
-series that completely fixes all of the issues with the cgroup aware oom 
-killer, so of course there's no objection to separating it out.
+That fix I actually folded into the main patch. We now always update
+the total= field at the time the user reads to include all concluded
+events, even if we sampled less than 2s ago. Only the running averages
+are still bound to the 2s sampling window.
 
-> > 
-> > One of the things that I really like about cgroup v2, though, is what 
-> > appears to be an implicit, but rather apparent, goal to minimize the 
-> > number of files for each controller.  It's very clean.  So I'd suggest 
-> > that we consider memory.group_oom, or however it is named, to allow for 
-> > future development.
-> > 
-> > For example, rather than simply being binary, we'd probably want the 
-> > ability to kill all eligible processes attached directly to the victim's 
-> > mem cgroup *or* all processes attached to its subtree as well.
-> > 
-> > I'd suggest it be implemented to accept a string, "default"/"process", 
-> > "local" or "tree"/"hierarchy", or better names, to define the group oom 
-> > mechanism for the mem cgroup that is oom when one of its processes is 
-> > selected as a victim.
-> 
-> I would prefer to keep it boolean to match the simplicity of cgroup v2 API.
-> In v2 hierarchy processes can't be attached to non-leaf cgroups,
-> so I don't see the place for the 3rd meaning.
-> 
-
-All cgroup v2 files do not need to be boolean and the only way you can add 
-a subtree oom kill is to introduce yet another file later.  Please make it 
-tristate so that you can define a mechanism of default (process only), 
-local cgroup, or subtree, and so we can avoid adding another option later 
-that conflicts with the proposed one.  This should be easy.
+What this patch adds on top is for total= to include any *ongoing*
+stall events that might be happening on a CPU at the time of reading
+from the interface, like a reclaim cycle that hasn't finished yet.
