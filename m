@@ -1,28 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AD0166B0277
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 19:19:03 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id t19-v6so20608295plo.9
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 16:19:03 -0700 (PDT)
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E3856B0279
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 19:22:09 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id 39-v6so20570733ple.6
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 16:22:09 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id t62-v6si17302739pgd.485.2018.07.13.16.19.02
+        by mx.google.com with ESMTPS id l1-v6si23545389pgb.464.2018.07.13.16.22.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 16:19:02 -0700 (PDT)
-Received: from mail-wr1-f51.google.com (mail-wr1-f51.google.com [209.85.221.51])
+        Fri, 13 Jul 2018 16:22:08 -0700 (PDT)
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 130FD208B4
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 23:19:02 +0000 (UTC)
-Received: by mail-wr1-f51.google.com with SMTP id a3-v6so17312866wrt.2
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 16:19:02 -0700 (PDT)
+	by mail.kernel.org (Postfix) with ESMTPSA id 6CCCA208B0
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 23:22:07 +0000 (UTC)
+Received: by mail-wm0-f42.google.com with SMTP id z6-v6so5550557wma.0
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 16:22:07 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1531308586-29340-36-git-send-email-joro@8bytes.org>
-References: <1531308586-29340-1-git-send-email-joro@8bytes.org> <1531308586-29340-36-git-send-email-joro@8bytes.org>
+In-Reply-To: <1531308586-29340-31-git-send-email-joro@8bytes.org>
+References: <1531308586-29340-1-git-send-email-joro@8bytes.org> <1531308586-29340-31-git-send-email-joro@8bytes.org>
 From: Andy Lutomirski <luto@kernel.org>
-Date: Fri, 13 Jul 2018 16:18:40 -0700
-Message-ID: <CALCETrWfA_PBmb1V3H5=4vd-w5qPpSpfR+FvgFc+naH7e3u=1g@mail.gmail.com>
-Subject: Re: [PATCH 35/39] x86/ldt: Split out sanity check in map_ldt_struct()
+Date: Fri, 13 Jul 2018 16:21:45 -0700
+Message-ID: <CALCETrU9pe03cW2d+=nXy_iLbiYWzX1dU2wYCfHEN4gb69Q_EA@mail.gmail.com>
+Subject: Re: [PATCH 30/39] x86/mm/pti: Clone entry-text again in pti_finalize()
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -32,9 +32,9 @@ Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . P
 On Wed, Jul 11, 2018 at 4:29 AM, Joerg Roedel <joro@8bytes.org> wrote:
 > From: Joerg Roedel <jroedel@suse.de>
 >
-> This splits out the mapping sanity check and the actual
-> mapping of the LDT to user-space from the map_ldt_struct()
-> function in a way so that it is re-usable for PAE paging.
->
+> The mapping for entry-text might have changed in the kernel
+> after it was cloned to the user page-table. Clone again
+> to update the user page-table to bring the mapping in sync
+> with the kernel again.
 
-Reviewed-by: Andy Lutomirski <luto@kernel.org>
+Can't we just defer pti_init() until after mark_readonly()?  What am I missing?
