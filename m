@@ -1,92 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 85E1F6B0010
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 18:16:34 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id l1-v6so5088612edi.11
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 15:16:34 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id d1-v6si2299213edn.311.2018.07.13.15.16.32
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BC0CE6B0003
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 18:22:20 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id w1-v6so161227ply.12
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 15:22:20 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t63-v6sor3055302pfi.74.2018.07.13.15.22.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 15:16:33 -0700 (PDT)
-Date: Fri, 13 Jul 2018 15:16:07 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: cgroup-aware OOM killer, how to move forward
-Message-ID: <20180713221602.GA15005@castle.DHCP.thefacebook.com>
-References: <20180711223959.GA13981@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807131423230.194789@chino.kir.corp.google.com>
+        (Google Transport Security);
+        Fri, 13 Jul 2018 15:22:19 -0700 (PDT)
+Date: Fri, 13 Jul 2018 15:22:17 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v13 2/2] Add oom victim's memcg to the oom context
+ information
+In-Reply-To: <1531482952-4595-1-git-send-email-ufo19890607@gmail.com>
+Message-ID: <alpine.DEB.2.21.1807131521030.202408@chino.kir.corp.google.com>
+References: <1531482952-4595-1-git-send-email-ufo19890607@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1807131423230.194789@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@kernel.org, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
+To: ufo19890607@gmail.com
+Cc: akpm@linux-foundation.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yuzhoujian@didichuxing.com
 
-On Fri, Jul 13, 2018 at 02:34:49PM -0700, David Rientjes wrote:
-> On Wed, 11 Jul 2018, Roman Gushchin wrote:
-> 
-> > I was thinking on how to move forward with the cgroup-aware OOM killer.
-> > It looks to me, that we all agree on the "cleanup" part of the patchset:
-> > it's a nice feature to be able to kill all tasks in the cgroup
-> > to guarantee the consistent state of the workload.
-> > All our disagreements are related to the victim selection algorithm.
-> > 
-> > So, I wonder, if the right thing to do is to split the problem.
-> > We can agree on the "cleanup" part, which is useful by itself,
-> > merge it upstream, and then return to the victim selection
-> > algorithm.
-> > 
-> > So, here is my proposal:
-> > let's introduce the memory.group_oom knob with the following semantics:
-> > if the knob is set, the OOM killer can kill either none, either all
-> > tasks in the cgroup*.
-> > It can perfectly work with the current OOM killer (as a "cleanup" option),
-> > and allows _any_ further approach on the OOM victim selection.
-> > It also doesn't require any mount/boot/tree-wide options.
-> > 
-> > How does it sound?
-> > 
-> 
-> No objection, of course, this was always the mechanism vs policy 
-> separation that I was referring to.  Having the ability to kill all 
-> processes attached to the cgroup when one of its processes is selected is 
-> useful, and we have our own patches that do just that, with the exception 
-> that it's triggerable by the user.
+On Fri, 13 Jul 2018, ufo19890607@gmail.com wrote:
 
-Perfect! I'll prepare the patchset.
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 531b2c86d4db..7fbd389ea779 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -434,10 +434,11 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
+>  			oom_constraint_text[oc->constraint],
+>  			nodemask_pr_args(oc->nodemask));
+>  	cpuset_print_current_mems_allowed();
+> +	mem_cgroup_print_oom_context(oc->memcg, p);
+>  	pr_cont(",task=%s,pid=%5d,uid=%5d\n", p->comm, p->pid,
+>  		from_kuid(&init_user_ns, task_uid(p)));
+>  	if (is_memcg_oom(oc))
+> -		mem_cgroup_print_oom_info(oc->memcg, p);
+> +		mem_cgroup_print_oom_meminfo(oc->memcg);
+>  	else {
+>  		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
+>  		if (is_dump_unreclaim_slabs())
 
-> 
-> One of the things that I really like about cgroup v2, though, is what 
-> appears to be an implicit, but rather apparent, goal to minimize the 
-> number of files for each controller.  It's very clean.  So I'd suggest 
-> that we consider memory.group_oom, or however it is named, to allow for 
-> future development.
-> 
-> For example, rather than simply being binary, we'd probably want the 
-> ability to kill all eligible processes attached directly to the victim's 
-> mem cgroup *or* all processes attached to its subtree as well.
-> 
-> I'd suggest it be implemented to accept a string, "default"/"process", 
-> "local" or "tree"/"hierarchy", or better names, to define the group oom 
-> mechanism for the mem cgroup that is oom when one of its processes is 
-> selected as a victim.
+Ugh, could we please not pad the pid and uid with spaces?  I don't think 
+it achieves anything and just makes regex less robust.
 
-I would prefer to keep it boolean to match the simplicity of cgroup v2 API.
-In v2 hierarchy processes can't be attached to non-leaf cgroups,
-so I don't see the place for the 3rd meaning.
-
-> 
-> > * More precisely: if the OOM killer kills a task,
-> > it will traverse the cgroup tree up to the OOM domain (OOMing memcg or root),
-> > looking for the highest-level cgroup with group_oom set. Then it will
-> > kill all tasks in such cgroup, if it does exist.
-> > 
-> 
-> All such processes that are not oom disabled, yes.
-> 
-
-Yep, of course.
-
-Thanks!
+Otherwise, looks good!
