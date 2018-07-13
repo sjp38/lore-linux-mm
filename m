@@ -1,62 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E8DCE6B000D
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 19:35:01 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id w23-v6so19600796iob.18
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 16:35:01 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k71-v6sor4431555iok.317.2018.07.13.16.35.00
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D96C16B0007
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 19:48:07 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id i123-v6so13577548pfc.13
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 16:48:07 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id w18-v6si12013041plq.104.2018.07.13.16.48.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 13 Jul 2018 16:35:00 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20180713224920.GA31566@cmpxchg.org>
-References: <20180712172942.10094-1-hannes@cmpxchg.org> <20180712172942.10094-11-hannes@cmpxchg.org>
- <CAJuCfpHGhSs6upZj0ARng-rE1Nbtcr_XHynZhN7EgGdC16tpPg@mail.gmail.com> <20180713224920.GA31566@cmpxchg.org>
-From: Suren Baghdasaryan <surenb@google.com>
-Date: Fri, 13 Jul 2018 16:34:59 -0700
-Message-ID: <CAJuCfpFe-tfcK3BPZ2Y9AEC56PtYpCc04YPGF+fs=e=RqkW-XA@mail.gmail.com>
-Subject: Re: [RFC PATCH 10/10] psi: aggregate ongoing stall events when
- somebody reads pressure
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Jul 2018 16:48:06 -0700 (PDT)
+Date: Fri, 13 Jul 2018 16:48:04 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: Instability in current -git tree
+Message-Id: <20180713164804.fc2c27ccbac4c02ca2c8b984@linux-foundation.org>
+In-Reply-To: <CA+55aFy9NJZeqT7h_rAgbKUZLjzfxvDPwneFQracBjVhY53aQQ@mail.gmail.com>
+References: <CA+55aFyARQV302+mXNYznrOOjzW+yxbcv+=OkD43dG6G1ktoMQ@mail.gmail.com>
+	<alpine.DEB.2.21.1807140031440.2644@nanos.tec.linutronix.de>
+	<CA+55aFzBx1haeM2QSFvhaW2t_HVK78Y=bKvsiJmOZztwkZ-y7Q@mail.gmail.com>
+	<CA+55aFzVGa57apuzDMBLgWQQRcm3BNBs1UEg-G_2o7YW1i=o2Q@mail.gmail.com>
+	<CA+55aFy9NJZeqT7h_rAgbKUZLjzfxvDPwneFQracBjVhY53aQQ@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Matthew Wilcox <willy@infradead.org>, Ingo Molnar <mingo@redhat.com>, Jens Axboe <axboe@kernel.dk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Miller <davem@davemloft.net>, Al Viro <viro@zeniv.linux.org.uk>, Dave Airlie <airlied@gmail.com>, Tejun Heo <tj@kernel.org>, Ted Ts'o <tytso@google.com>, Mike Snitzer <snitzer@redhat.com>, linux-mm@kvack.org, Daniel Vacek <neelx@redhat.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Mel Gorman <mgorman@techsingularity.net>
 
-On Fri, Jul 13, 2018 at 3:49 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Fri, Jul 13, 2018 at 03:13:07PM -0700, Suren Baghdasaryan wrote:
->> On Thu, Jul 12, 2018 at 10:29 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
->> > might want to know about and react to stall states before they have
->> > even concluded (e.g. a prolonged reclaim cycle).
->> >
->> > This patches the procfs/cgroupfs interface such that when the pressure
->> > metrics are read, the current per-cpu states, if any, are taken into
->> > account as well.
->> >
->> > Any ongoing states are concluded, their time snapshotted, and then
->> > restarted. This requires holding the rq lock to avoid corruption. It
->> > could use some form of rq lock ratelimiting or avoidance.
->> >
->> > Requested-by: Suren Baghdasaryan <surenb@google.com>
->> > Not-yet-signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
->> > ---
->>
->> IMHO this description is a little difficult to understand. In essence,
->> PSI information is being updated periodically every 2secs and without
->> this patch the data can be stale at the time when we read it (because
->> it was last updated up to 2secs ago). To avoid this we update the PSI
->> "total" values when data is being read.
->
-> That fix I actually folded into the main patch. We now always update
-> the total= field at the time the user reads to include all concluded
-> events, even if we sampled less than 2s ago. Only the running averages
-> are still bound to the 2s sampling window.
->
-> What this patch adds on top is for total= to include any *ongoing*
-> stall events that might be happening on a CPU at the time of reading
-> from the interface, like a reclaim cycle that hasn't finished yet.
+On Fri, 13 Jul 2018 16:34:49 -0700 Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-Ok, I see now what you mean. So ondemand flag controls whether
-*ongoing* stall events are accounted for or not. Nit: maybe rename
-that flag to better explain it's function?
+> On Fri, Jul 13, 2018 at 4:13 PM Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
+> >
+> > It does seem to be related to low-memory situation. Maybe page-out.
+> > I'm wondering if it's one of the fairly scary MM patches from this
+> > merge window
+> 
+> Woo-hoo! Yes, I got it to happen in text-mode.
+> 
+>   kernel BUG at mm/page_alloc.c:2016
+> 
+> with the call chain being
+> 
+> RIP: move_pfreepages_block()
+> Call Trace:
+>   steal_suitable_fallback
+>   get_page_from_freelist
+>   __alloc_pages_nodemask
+>   new_slab
+>   ___slab_alloc
+>   __slab_alloc
+>   kmem_cache_alloc
+>   __d_alloc
+>   d_alloc
+>   ...
+> 
+> (and then it goes down to sys_openat and path lookup).
+> 
+> I actually used the dcache stress-tester and a stupid "allocate memory
+> and keep dirtying it" to get low on memory, and that d_alloc because
+> of that.
+> 
+> And then when VM_BUG_ON() causes a do_exit(), you get a nested
+> exception due to "sleeping function called from invalid context" in
+> exit_)signals. And then the machine is well and truly dead and f*cked.
+> 
+> I hate BUG_ON() calls. I wonder how many weeks ago it was that I
+> complained about people adding BUG_ON() calls last?
+> 
+> Anyway, looks like core VM buggery. Now, I don't know *which* one of
+> the multiple tests in that VM_BUG_ON() triggered,
+
+They all did:
+
+	VM_BUG_ON(pfn_valid(page_to_pfn(start_page)) &&
+	          pfn_valid(page_to_pfn(end_page)) &&
+	          page_zone(start_page) != page_zone(end_page));
+
+> and I have no idea
+> which commit caused it, but at least non-VM people can probably
+> breathe a sigh of release.,
+
+> Andrew, I suspect it's some of yours. Adding Willy, because some of
+> the scariest ones in the VM layer are from him (like thall those page
+> member movement ones).
+> 
+
+Cc's added.  Pavel has been fiddling with this code lately.
+
+The comment is interesting.
+
+	/*
+	 * page_zone is not safe to call in this context when
+	 * CONFIG_HOLES_IN_ZONE is set. This bug check is probably redundant
+	 * anyway as we check zone boundaries in move_freepages_block().
+	 * Remove at a later date when no bug reports exist related to
+	 * grouping pages by mobility
+	 */
+
+but we should work out why we're suddenly getting a range which crosses
+zones before we just zap it.
+
+(But it would be interesting to see whether removing the check "fixes" it)
