@@ -1,126 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 080CD6B0003
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 10:26:16 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id b12-v6so12193702edi.12
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 07:26:15 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r16-v6si872759eds.213.2018.07.13.07.26.13
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D76B86B0003
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 11:32:29 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id s63-v6so36280932qkc.7
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 08:32:29 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id i9-v6si10554830qtc.57.2018.07.13.08.32.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 07:26:14 -0700 (PDT)
-Date: Fri, 13 Jul 2018 16:26:12 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch -mm] mm, oom: remove oom_lock from exit_mmap
-Message-ID: <20180713142612.GD19960@dhcp22.suse.cz>
-References: <alpine.DEB.2.21.1807121432370.170100@chino.kir.corp.google.com>
+        Fri, 13 Jul 2018 08:32:28 -0700 (PDT)
+Subject: Re: [PATCH v6 0/7] fs/dcache: Track & limit # of negative dentries
+References: <1530905572-817-1-git-send-email-longman@redhat.com>
+ <20180709081920.GD22049@dhcp22.suse.cz>
+ <62275711-e01d-7dbe-06f1-bf094b618195@redhat.com>
+ <20180710142740.GQ14284@dhcp22.suse.cz>
+ <a2794bcc-9193-cbca-3a54-47420a2ab52c@redhat.com>
+ <20180711102139.GG20050@dhcp22.suse.cz>
+ <9f24c043-1fca-ee86-d609-873a7a8f7a64@redhat.com>
+ <1531330947.3260.13.camel@HansenPartnership.com>
+ <18c5cbfe-403b-bb2b-1d11-19d324ec6234@redhat.com>
+ <1531336913.3260.18.camel@HansenPartnership.com>
+ <4d49a270-23c9-529f-f544-65508b6b53cc@redhat.com>
+ <1531411494.18255.6.camel@HansenPartnership.com>
+ <30ac8e9b-a48c-9c37-5a96-731ad214262b@redhat.com>
+ <1531416833.18255.10.camel@HansenPartnership.com>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <919c5749-4528-ad30-28dd-a3ebb2c42021@redhat.com>
+Date: Fri, 13 Jul 2018 11:32:26 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1807121432370.170100@chino.kir.corp.google.com>
+In-Reply-To: <1531416833.18255.10.camel@HansenPartnership.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: James Bottomley <James.Bottomley@HansenPartnership.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>
 
-On Thu 12-07-18 14:34:00, David Rientjes wrote:
-[...]
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 0fe4087d5151..e6328cef090f 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -488,9 +488,11 @@ void __oom_reap_task_mm(struct mm_struct *mm)
->  	 * Tell all users of get_user/copy_from_user etc... that the content
->  	 * is no longer stable. No barriers really needed because unmapping
->  	 * should imply barriers already and the reader would hit a page fault
-> -	 * if it stumbled over a reaped memory.
-> +	 * if it stumbled over a reaped memory. If MMF_UNSTABLE is already set,
-> +	 * reaping as already occurred so nothing left to do.
->  	 */
-> -	set_bit(MMF_UNSTABLE, &mm->flags);
-> +	if (test_and_set_bit(MMF_UNSTABLE, &mm->flags))
-> +		return;
+On 07/12/2018 01:33 PM, James Bottomley wrote:
+> On Thu, 2018-07-12 at 12:26 -0400, Waiman Long wrote:
+>> On 07/12/2018 12:04 PM, James Bottomley wrote:
+>>> On Thu, 2018-07-12 at 11:54 -0400, Waiman Long wrote:
+>>>> It is not that dentry cache is harder to get rid of than the
+>>>> other memory. It is that the ability of generate unlimited number
+>>>> of negative dentries that will displace other useful memory from
+>>>> the system. What the patch is trying to do is to have a warning
+>>>> or notification system in place to spot unusual activities in
+>>>> regard to the number of negative dentries in the system. The
+>>>> system administrators can then decide on what to do next.
+>>> But every cache has this property: I can cause the same effect by
+>>> doing a streaming read on a multi gigabyte file: the page cache
+>>> will fill with the clean pages belonging to the file until I run
+>>> out of memory and it has to start evicting older cache
+>>> entries.  Once we hit the steady state of minimal free memory, the
+>>> mm subsytem tries to balance the cache requests (like my streaming
+>>> read) against the existing pool of cached objects.
+>>>
+>>> The question I'm trying to get an answer to is why does the dentry
+>>> cache need special limits when the mm handling of the page cache
+>>> (and other mm caches) just works?
+>>>
+>>> James
+>>>
+>> I/O activities can be easily tracked.
+> Tracked?  What do you mean tracked?  you mean we can control the page
+> cache through userfaultfd or something without resorting to cgroup
+> limits or something different?  I mean all caches are "tracked" because=
 
-This could lead to pre mature oom victim selection
-oom_reaper			exiting victim
-oom_reap_task			exit_mmap
-  __oom_reap_task_mm		  __oom_reap_task_mm
-				    test_and_set_bit(MMF_UNSTABLE) # wins the race
-  test_and_set_bit(MMF_UNSTABLE)
-set_bit(MMF_OOM_SKIP) # new victim can be selected now.
+> otherwise we wouldn't know whether we have to retrieve/generate the
+> object or pull it from the cache.  If it's just about cache state,
+> what's wrong with /proc/sys/fs/dentry-state?
 
-Besides that, why should we back off in the first place. We can
-race the two without any problems AFAICS. We already do have proper
-synchronization between the two due to mmap_sem and MMF_OOM_SKIP.
+Sorry for being imprecise. What I meant is it is easy to find out which
+tasks issue the most I/O request and consume the most I/O bandwidth.
+IOW, which one we can blame if there are too much I/O activities. On the
+other hand, it is not that easy to find out which task generates the
+most negative dentries.
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index fc41c0543d7f..4642964f7741 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3073,9 +3073,7 @@ void exit_mmap(struct mm_struct *mm)
- 		 * which clears VM_LOCKED, otherwise the oom reaper cannot
- 		 * reliably test it.
- 		 */
--		mutex_lock(&oom_lock);
- 		__oom_reap_task_mm(mm);
--		mutex_unlock(&oom_lock);
- 
- 		set_bit(MMF_OOM_SKIP, &mm->flags);
- 		down_write(&mm->mmap_sem);
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 32e6f7becb40..f11108af122d 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -529,28 +529,9 @@ void __oom_reap_task_mm(struct mm_struct *mm)
- 
- static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- {
--	bool ret = true;
--
--	/*
--	 * We have to make sure to not race with the victim exit path
--	 * and cause premature new oom victim selection:
--	 * oom_reap_task_mm		exit_mm
--	 *   mmget_not_zero
--	 *				  mmput
--	 *				    atomic_dec_and_test
--	 *				  exit_oom_victim
--	 *				[...]
--	 *				out_of_memory
--	 *				  select_bad_process
--	 *				    # no TIF_MEMDIE task selects new victim
--	 *  unmap_page_range # frees some memory
--	 */
--	mutex_lock(&oom_lock);
--
- 	if (!down_read_trylock(&mm->mmap_sem)) {
--		ret = false;
- 		trace_skip_task_reaping(tsk->pid);
--		goto unlock_oom;
-+		return false;
- 	}
- 
- 	/*
-@@ -562,7 +543,7 @@ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 	if (mm_has_blockable_invalidate_notifiers(mm)) {
- 		up_read(&mm->mmap_sem);
- 		schedule_timeout_idle(HZ);
--		goto unlock_oom;
-+		return true;
- 	}
- 
- 	/*
-@@ -589,9 +570,7 @@ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 	up_read(&mm->mmap_sem);
- 
- 	trace_finish_task_reaping(tsk->pid);
--unlock_oom:
--	mutex_unlock(&oom_lock);
--	return ret;
-+	return true;
- }
- 
- #define MAX_OOM_REAP_RETRIES 10
--- 
-Michal Hocko
-SUSE Labs
+>>  Generation of negative dentries, however, is more insidious. So the
+>> ability to track and be notified when too many negative dentries are
+>> created can be a useful tool for the system administrators. Besides,
+>> there are paranoid users out there who want to have control of as
+>> much as system parameters as possible.
+> To what end?  what problem are these administrators trying to solve?=20
+> You keep coming back to the circular argument that the problem they're
+> trying to solve is limiting negative dentries, but I want to know what
+> issue they see in their systems that causes them to ask for this knob.
+>
+> James
+>
+I would say most system administrators don't want to have surprise. They
+don't want to see bad performance or other system problems and after
+some digging find out that some tasks are generating too much negative
+dentries and thus consuming too much memory, for example. They would
+certainly like to a way to notify them before the problems happen.
+
+Cheers,
+Longman
