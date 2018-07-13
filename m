@@ -1,163 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D33C66B0003
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 21:47:13 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id d70-v6so6237230itd.1
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 18:47:13 -0700 (PDT)
-Received: from heian.cn.fujitsu.com (mail.cn.fujitsu.com. [183.91.158.132])
-        by mx.google.com with ESMTP id f19-v6si4056960itf.11.2018.07.12.18.47.10
-        for <linux-mm@kvack.org>;
-        Thu, 12 Jul 2018 18:47:12 -0700 (PDT)
-Date: Fri, 13 Jul 2018 09:44:26 +0800
-From: Chao Fan <fanc.fnst@cn.fujitsu.com>
-Subject: Re: Bug report about KASLR and ZONE_MOVABLE
-Message-ID: <20180713014426.GE6742@localhost.localdomain>
-References: <20180711094244.GA2019@localhost.localdomain>
- <20180711104158.GE2070@MiWiFi-R3L-srv>
- <20180711104944.GG1969@MiWiFi-R3L-srv>
- <20180711124008.GF2070@MiWiFi-R3L-srv>
- <72721138-ba6a-32c9-3489-f2060f40a4c9@cn.fujitsu.com>
- <20180712060115.GD6742@localhost.localdomain>
- <20180712123228.GK32648@dhcp22.suse.cz>
- <20180712235240.GH2070@MiWiFi-R3L-srv>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 79AC26B0007
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 21:50:31 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id u16-v6so19687115pfm.15
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 18:50:31 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id v190-v6si3372192pgd.668.2018.07.12.18.50.30
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Jul 2018 18:50:30 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 18/27] x86/cet/shstk: Introduce WRUSS instruction
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+ <20180710222639.8241-19-yu-cheng.yu@intel.com>
+ <bbb487cc-ac1c-f734-eee3-2463a0ba7efc@linux.intel.com>
+ <1531436398.2965.18.camel@intel.com>
+ <46784af0-6fbb-522d-6acb-c6248e5e0e0d@linux.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <167645aa-f1c7-bd6a-c7e0-2da317cbbaba@intel.com>
+Date: Thu, 12 Jul 2018 18:50:29 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20180712235240.GH2070@MiWiFi-R3L-srv>
+In-Reply-To: <46784af0-6fbb-522d-6acb-c6248e5e0e0d@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baoquan He <bhe@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Dou Liyang <douly.fnst@cn.fujitsu.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, yasu.isimatu@gmail.com, keescook@chromium.org, indou.takao@jp.fujitsu.com, caoj.fnst@cn.fujitsu.com, vbabka@suse.cz, mgorman@techsingularity.net
+To: Dave Hansen <dave.hansen@linux.intel.com>, Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-On Fri, Jul 13, 2018 at 07:52:40AM +0800, Baoquan He wrote:
->Hi Michal,
->
->On 07/12/18 at 02:32pm, Michal Hocko wrote:
->> On Thu 12-07-18 14:01:15, Chao Fan wrote:
->> > On Thu, Jul 12, 2018 at 01:49:49PM +0800, Dou Liyang wrote:
->> > >Hi Baoquan,
->> > >
->> > >At 07/11/2018 08:40 PM, Baoquan He wrote:
->> > >> Please try this v3 patch:
->> > >> >>From 9850d3de9c02e570dc7572069a9749a8add4c4c7 Mon Sep 17 00:00:00 2001
->> > >> From: Baoquan He <bhe@redhat.com>
->> > >> Date: Wed, 11 Jul 2018 20:31:51 +0800
->> > >> Subject: [PATCH v3] mm, page_alloc: find movable zone after kernel text
->> > >> 
->> > >> In find_zone_movable_pfns_for_nodes(), when try to find the starting
->> > >> PFN movable zone begins in each node, kernel text position is not
->> > >> considered. KASLR may put kernel after which movable zone begins.
->> > >> 
->> > >> Fix it by finding movable zone after kernel text on that node.
->> > >> 
->> > >> Signed-off-by: Baoquan He <bhe@redhat.com>
->> > >
->> > >
->> > >You fix this in the _zone_init side_. This may make the 'kernelcore=' or
->> > >'movablecore=' failed if the KASLR puts the kernel back the tail of the
->> > >last node, or more.
->> > 
->> > I think it may not fail.
->> > There is a 'restart' to do another pass.
->> > 
->> > >
->> > >Due to we have fix the mirror memory in KASLR side, and Chao is trying
->> > >to fix the 'movable_node' in KASLR side. Have you had a chance to fix
->> > >this in the KASLR side.
->> > >
->> > 
->> > I think it's better to fix here, but not KASLR side.
->> > Cause much more code will be change if doing it in KASLR side.
->> > Since we didn't parse 'kernelcore' in compressed code, and you can see
->> > the distribution of ZONE_MOVABLE need so much code, so we do not need
->> > to do so much job in KASLR side. But here, several lines will be OK.
->> 
->> I am not able to find the beginning of the email thread right now. Could
->> you summarize what is the actual problem please?
->
->The bug is found on x86 now. 
->
->When added "kernelcore=" or "movablecore=" into kernel command line,
->kernel memory is spread evenly among nodes. However, this is right when
->KASLR is not enabled, then kernel will be at 16M of place in x86 arch.
->If KASLR enabled, it could be put any place from 16M to 64T randomly.
-> 
->Consider a scenario, we have 10 nodes, and each node has 20G memory, and
->we specify "kernelcore=50%", means each node will take 10G for
->kernelcore, 10G for movable area. But this doesn't take kernel position
->into consideration. E.g if kernel is put at 15G of 2nd node, namely
->node1. Then we think on node1 there's 10G for kernelcore, 10G for
->movable, in fact there's only 5G available for movable, just after
->kernel.
->
->I made a v4 patch which possibly can fix it.
->
->
->From dbcac3631863aed556dc2c4ff1839772dfd02d18 Mon Sep 17 00:00:00 2001
->From: Baoquan He <bhe@redhat.com>
->Date: Fri, 13 Jul 2018 07:49:29 +0800
->Subject: [PATCH v4] mm, page_alloc: find movable zone after kernel text
->
->In find_zone_movable_pfns_for_nodes(), when try to find the starting
->PFN movable zone begins at in each node, kernel text position is not
->considered. KASLR may put kernel after which movable zone begins.
->
->Fix it by finding movable zone after kernel text on that node.
->
->Signed-off-by: Baoquan He <bhe@redhat.com>
+On 07/12/2018 04:49 PM, Dave Hansen wrote:
+>>> That seems like something we need to call out if so.A A It also means we
+>>> need to update the SDM because some of the text is wrong.
+>> It needs to mention the WRUSS case.
+> Ugh.  The documentation for this is not pretty.  But, I guess this is
+> not fundamentally different from access to U=1 pages when SMAP is in
+> place and we've set EFLAGS.AC=1.
 
-You can post it as alone PATCH, then I will test it next week.
+I was wrong and misread the docs.  We do not get X86_PF_USER set when
+EFLAGS.AC=1.
 
-Thanks,
-Chao Fan
+But, we *do* get X86_PF_USER (otherwise defined to be set when in ring3)
+when running in ring0 with the WRUSS instruction and some other various
+shadow-stack-access-related things.  I'm sure folks had a good reason
+for this architecture, but it is a pretty fundamentally *new*
+architecture that we have to account for.
 
->---
-> mm/page_alloc.c | 15 +++++++++++++--
-> 1 file changed, 13 insertions(+), 2 deletions(-)
->
->diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->index 1521100f1e63..5bc1a47dafda 100644
->--- a/mm/page_alloc.c
->+++ b/mm/page_alloc.c
->@@ -6547,7 +6547,7 @@ static unsigned long __init early_calculate_totalpages(void)
-> static void __init find_zone_movable_pfns_for_nodes(void)
-> {
-> 	int i, nid;
->-	unsigned long usable_startpfn;
->+	unsigned long usable_startpfn, kernel_endpfn, arch_startpfn;
-> 	unsigned long kernelcore_node, kernelcore_remaining;
-> 	/* save the state before borrow the nodemask */
-> 	nodemask_t saved_node_state = node_states[N_MEMORY];
->@@ -6649,8 +6649,9 @@ static void __init find_zone_movable_pfns_for_nodes(void)
-> 	if (!required_kernelcore || required_kernelcore >= totalpages)
-> 		goto out;
-> 
->+	kernel_endpfn = PFN_UP(__pa_symbol(_end));
-> 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
->-	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
->+	arch_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
-> 
-> restart:
-> 	/* Spread kernelcore memory as evenly as possible throughout nodes */
->@@ -6659,6 +6660,16 @@ static void __init find_zone_movable_pfns_for_nodes(void)
-> 		unsigned long start_pfn, end_pfn;
-> 
-> 		/*
->+		 * KASLR may put kernel near tail of node memory,
->+		 * start after kernel on that node to find PFN
->+		 * at which zone begins.
->+		 */
->+		if (pfn_to_nid(kernel_endpfn) == nid)
->+		        usable_startpfn = max(arch_startpfn, kernel_endpfn);
->+		else
->+		        usable_startpfn = arch_startpfn;
->+
->+		/*
-> 		 * Recalculate kernelcore_node if the division per node
-> 		 * now exceeds what is necessary to satisfy the requested
-> 		 * amount of memory for the kernel
->-- 
->2.13.6
->
->
->
+This new architecture is also not spelled out or accounted for in the
+SDM as of yet.  It's only called out here as far as I know:
+https://software.intel.com/sites/default/files/managed/4d/2a/control-flow-enforcement-technology-preview.pdf
+
+Which reminds me:  Yu-cheng, do you have a link to the docs anywhere in
+your set?  If not, you really should.
