@@ -1,61 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D80F46B0003
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 19:06:07 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id r15-v6so7948032lff.19
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 16:06:07 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id m202-v6si12379111lfe.383.2018.07.13.16.06.05
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E854B6B000D
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 19:07:25 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id r2-v6so2408647pgp.3
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 16:07:25 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u3-v6sor6571245pgr.176.2018.07.13.16.07.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 16:06:05 -0700 (PDT)
-Date: Fri, 13 Jul 2018 16:05:48 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: cgroup-aware OOM killer, how to move forward
-Message-ID: <20180713230545.GA17467@castle.DHCP.thefacebook.com>
-References: <20180711223959.GA13981@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807131423230.194789@chino.kir.corp.google.com>
- <20180713221602.GA15005@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807131535420.202408@chino.kir.corp.google.com>
+        (Google Transport Security);
+        Fri, 13 Jul 2018 16:07:24 -0700 (PDT)
+Date: Fri, 13 Jul 2018 16:07:23 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch v3 -mm 0/6] rewrite cgroup aware oom killer for general use
+In-Reply-To: <alpine.DEB.2.20.1803221451370.17056@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.21.1807131604560.217600@chino.kir.corp.google.com>
+References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com> <alpine.DEB.2.20.1803151351140.55261@chino.kir.corp.google.com> <alpine.DEB.2.20.1803161405410.209509@chino.kir.corp.google.com>
+ <alpine.DEB.2.20.1803221451370.17056@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1807131535420.202408@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@kernel.org, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
+To: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jul 13, 2018 at 03:39:15PM -0700, David Rientjes wrote:
-> On Fri, 13 Jul 2018, Roman Gushchin wrote:
-> 
-> > > 
-> > > One of the things that I really like about cgroup v2, though, is what 
-> > > appears to be an implicit, but rather apparent, goal to minimize the 
-> > > number of files for each controller.  It's very clean.  So I'd suggest 
-> > > that we consider memory.group_oom, or however it is named, to allow for 
-> > > future development.
-> > > 
-> > > For example, rather than simply being binary, we'd probably want the 
-> > > ability to kill all eligible processes attached directly to the victim's 
-> > > mem cgroup *or* all processes attached to its subtree as well.
-> > > 
-> > > I'd suggest it be implemented to accept a string, "default"/"process", 
-> > > "local" or "tree"/"hierarchy", or better names, to define the group oom 
-> > > mechanism for the mem cgroup that is oom when one of its processes is 
-> > > selected as a victim.
-> > 
-> > I would prefer to keep it boolean to match the simplicity of cgroup v2 API.
-> > In v2 hierarchy processes can't be attached to non-leaf cgroups,
-> > so I don't see the place for the 3rd meaning.
-> > 
-> 
-> All cgroup v2 files do not need to be boolean and the only way you can add 
-> a subtree oom kill is to introduce yet another file later.  Please make it 
-> tristate so that you can define a mechanism of default (process only), 
-> local cgroup, or subtree, and so we can avoid adding another option later 
-> that conflicts with the proposed one.  This should be easy.
+There are three significant concerns about the cgroup aware oom killer as
+it is implemented in -mm:
 
-David, we're adding a cgroup v2 knob, and in cgroup v2 a memory cgroup
-either has a sub-tree, either attached processes. So, there is no difference
-between local cgroup and subtree.
+ (1) allows users to evade the oom killer by creating subcontainers or
+     using other controllers since scoring is done per cgroup and not
+     hierarchically,
+
+ (2) unfairly compares the root mem cgroup using completely different
+     criteria than leaf mem cgroups and allows wildly inaccurate results
+     if oom_score_adj is used, and
+
+ (3) does not allow the user to influence the decisionmaking, such that
+     important subtrees cannot be preferred or biased.
+
+This patchset fixes (1) and (2) completely and, by doing so, introduces a
+completely extensible user interface that can be expanded in the future.
+
+Concern (3) could subsequently be addressed either before or after the
+cgroup-aware oom killer feature is merged.
+
+It preserves all functionality that currently exists in -mm and extends
+it to be generally useful outside of very specialized usecases.
+
+It eliminates the mount option for the cgroup aware oom killer entirely
+since it is now enabled through the root mem cgroup's oom policy.
+---
+v3:
+ - Rebased to next-20180713
+
+v2:
+ - Rebased to next-20180322
+ - Fixed get_nr_swap_pages() build bug found by kbuild test robot
+
+ Documentation/admin-guide/cgroup-v2.rst | 100 ++++++-----
+ include/linux/cgroup-defs.h             |   5 -
+ include/linux/memcontrol.h              |  21 +++
+ kernel/cgroup/cgroup.c                  |  13 +-
+ mm/memcontrol.c                         | 221 ++++++++++++++----------
+ 5 files changed, 204 insertions(+), 156 deletions(-)
