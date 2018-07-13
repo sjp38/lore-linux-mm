@@ -1,28 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E3856B0279
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 19:22:09 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id 39-v6so20570733ple.6
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 16:22:09 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 561656B027B
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 19:25:49 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id a23-v6so9939945pfo.23
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 16:25:49 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id l1-v6si23545389pgb.464.2018.07.13.16.22.08
+        by mx.google.com with ESMTPS id s184-v6si23468090pgb.123.2018.07.13.16.25.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 16:22:08 -0700 (PDT)
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+        Fri, 13 Jul 2018 16:25:48 -0700 (PDT)
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 6CCCA208B0
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 23:22:07 +0000 (UTC)
-Received: by mail-wm0-f42.google.com with SMTP id z6-v6so5550557wma.0
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 16:22:07 -0700 (PDT)
+	by mail.kernel.org (Postfix) with ESMTPSA id AA993208E2
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 23:25:47 +0000 (UTC)
+Received: by mail-wm0-f51.google.com with SMTP id s14-v6so10769019wmc.1
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 16:25:47 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1531308586-29340-31-git-send-email-joro@8bytes.org>
-References: <1531308586-29340-1-git-send-email-joro@8bytes.org> <1531308586-29340-31-git-send-email-joro@8bytes.org>
+In-Reply-To: <1531308586-29340-29-git-send-email-joro@8bytes.org>
+References: <1531308586-29340-1-git-send-email-joro@8bytes.org> <1531308586-29340-29-git-send-email-joro@8bytes.org>
 From: Andy Lutomirski <luto@kernel.org>
-Date: Fri, 13 Jul 2018 16:21:45 -0700
-Message-ID: <CALCETrU9pe03cW2d+=nXy_iLbiYWzX1dU2wYCfHEN4gb69Q_EA@mail.gmail.com>
-Subject: Re: [PATCH 30/39] x86/mm/pti: Clone entry-text again in pti_finalize()
+Date: Fri, 13 Jul 2018 16:25:25 -0700
+Message-ID: <CALCETrXj7TT5tm8m+9ycuRDDWDiqQy4u5gLLVrz8DhNWWw1fXA@mail.gmail.com>
+Subject: Re: [PATCH 28/39] x86/mm/pti: Keep permissions when cloning kernel
+ text in pti_clone_kernel_text()
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -32,9 +33,15 @@ Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . P
 On Wed, Jul 11, 2018 at 4:29 AM, Joerg Roedel <joro@8bytes.org> wrote:
 > From: Joerg Roedel <jroedel@suse.de>
 >
-> The mapping for entry-text might have changed in the kernel
-> after it was cloned to the user page-table. Clone again
-> to update the user page-table to bring the mapping in sync
-> with the kernel again.
+> Mapping the kernel text area to user-space makes only sense
+> if it has the same permissions as in the kernel page-table.
+> If permissions are different this will cause a TLB reload
+> when using the kernel page-table, which is as good as not
+> mapping it at all.
+>
+> On 64-bit kernels this patch makes no difference, as the
+> whole range cloned by pti_clone_kernel_text() is mapped RO
+> anyway. On 32 bit there are writeable mappings in the range,
+> so just keep the permissions as they are.
 
-Can't we just defer pti_init() until after mark_readonly()?  What am I missing?
+Reviewed-by: Andy Lutomirski <luto@kernel.org>
