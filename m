@@ -1,56 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A6B116B000D
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 18:15:15 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id q141-v6so18659818ywg.5
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 15:15:15 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y124-v6sor5977047ywc.551.2018.07.13.15.15.14
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 85E1F6B0010
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 18:16:34 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id l1-v6so5088612edi.11
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 15:16:34 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id d1-v6si2299213edn.311.2018.07.13.15.16.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 13 Jul 2018 15:15:14 -0700 (PDT)
-Date: Fri, 13 Jul 2018 18:17:58 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC PATCH 10/10] psi: aggregate ongoing stall events when
- somebody reads pressure
-Message-ID: <20180713221758.GB30013@cmpxchg.org>
-References: <20180712172942.10094-1-hannes@cmpxchg.org>
- <20180712172942.10094-11-hannes@cmpxchg.org>
- <20180712164537.324caee21fd68c47a02af009@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Jul 2018 15:16:33 -0700 (PDT)
+Date: Fri, 13 Jul 2018 15:16:07 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: cgroup-aware OOM killer, how to move forward
+Message-ID: <20180713221602.GA15005@castle.DHCP.thefacebook.com>
+References: <20180711223959.GA13981@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1807131423230.194789@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20180712164537.324caee21fd68c47a02af009@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.21.1807131423230.194789@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@kernel.org, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
 
-On Thu, Jul 12, 2018 at 04:45:37PM -0700, Andrew Morton wrote:
-> On Thu, 12 Jul 2018 13:29:42 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Fri, Jul 13, 2018 at 02:34:49PM -0700, David Rientjes wrote:
+> On Wed, 11 Jul 2018, Roman Gushchin wrote:
 > 
-> > Right now, psi reports pressure and stall times of already concluded
-> > stall events. For most use cases this is current enough, but certain
-> > highly latency-sensitive applications, like the Android OOM killer,
-> > might want to know about and react to stall states before they have
-> > even concluded (e.g. a prolonged reclaim cycle).
+> > I was thinking on how to move forward with the cgroup-aware OOM killer.
+> > It looks to me, that we all agree on the "cleanup" part of the patchset:
+> > it's a nice feature to be able to kill all tasks in the cgroup
+> > to guarantee the consistent state of the workload.
+> > All our disagreements are related to the victim selection algorithm.
 > > 
-> > This patches the procfs/cgroupfs interface such that when the pressure
-> > metrics are read, the current per-cpu states, if any, are taken into
-> > account as well.
+> > So, I wonder, if the right thing to do is to split the problem.
+> > We can agree on the "cleanup" part, which is useful by itself,
+> > merge it upstream, and then return to the victim selection
+> > algorithm.
 > > 
-> > Any ongoing states are concluded, their time snapshotted, and then
-> > restarted. This requires holding the rq lock to avoid corruption. It
-> > could use some form of rq lock ratelimiting or avoidance.
+> > So, here is my proposal:
+> > let's introduce the memory.group_oom knob with the following semantics:
+> > if the knob is set, the OOM killer can kill either none, either all
+> > tasks in the cgroup*.
+> > It can perfectly work with the current OOM killer (as a "cleanup" option),
+> > and allows _any_ further approach on the OOM victim selection.
+> > It also doesn't require any mount/boot/tree-wide options.
 > > 
-> > Requested-by: Suren Baghdasaryan <surenb@google.com>
-> > Not-yet-signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > How does it sound?
+> > 
 > 
-> What-does-that-mean:?
+> No objection, of course, this was always the mechanism vs policy 
+> separation that I was referring to.  Having the ability to kill all 
+> processes attached to the cgroup when one of its processes is selected is 
+> useful, and we have our own patches that do just that, with the exception 
+> that it's triggerable by the user.
 
-I didn't think this patch was ready for upstream yet, hence the RFC
-and the lack of a proper sign-off.
+Perfect! I'll prepare the patchset.
 
-But Suren has been testing this and found it useful in his specific
-low-latency application, so I included it for completeness, for other
-testers to find, and for possible suggestions on how to improve it.
+> 
+> One of the things that I really like about cgroup v2, though, is what 
+> appears to be an implicit, but rather apparent, goal to minimize the 
+> number of files for each controller.  It's very clean.  So I'd suggest 
+> that we consider memory.group_oom, or however it is named, to allow for 
+> future development.
+> 
+> For example, rather than simply being binary, we'd probably want the 
+> ability to kill all eligible processes attached directly to the victim's 
+> mem cgroup *or* all processes attached to its subtree as well.
+> 
+> I'd suggest it be implemented to accept a string, "default"/"process", 
+> "local" or "tree"/"hierarchy", or better names, to define the group oom 
+> mechanism for the mem cgroup that is oom when one of its processes is 
+> selected as a victim.
+
+I would prefer to keep it boolean to match the simplicity of cgroup v2 API.
+In v2 hierarchy processes can't be attached to non-leaf cgroups,
+so I don't see the place for the 3rd meaning.
+
+> 
+> > * More precisely: if the OOM killer kills a task,
+> > it will traverse the cgroup tree up to the OOM domain (OOMing memcg or root),
+> > looking for the highest-level cgroup with group_oom set. Then it will
+> > kill all tasks in such cgroup, if it does exist.
+> > 
+> 
+> All such processes that are not oom disabled, yes.
+> 
+
+Yep, of course.
+
+Thanks!
