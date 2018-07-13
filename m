@@ -1,76 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 809FD6B0007
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 02:28:07 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id z16-v6so5058013wrs.22
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 23:28:07 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id u16-v6si22668148wrb.128.2018.07.12.23.28.06
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 55E396B000A
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 02:29:31 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id h18-v6so5536056wmb.8
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 23:29:31 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j6-v6sor10915933wro.14.2018.07.12.23.29.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jul 2018 23:28:06 -0700 (PDT)
-Date: Fri, 13 Jul 2018 08:28:04 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC PATCH v2 25/27] x86/cet: Add PTRACE interface for CET
-Message-ID: <20180713062804.GA6905@amd>
-References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
- <20180710222639.8241-26-yu-cheng.yu@intel.com>
- <20180711102035.GB8574@gmail.com>
- <1531323638.13297.24.camel@intel.com>
- <20180712140327.GA7810@gmail.com>
+        (Google Transport Security);
+        Thu, 12 Jul 2018 23:29:30 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="Dxnq1zWXvFF0Q93v"
-Content-Disposition: inline
-In-Reply-To: <20180712140327.GA7810@gmail.com>
+In-Reply-To: <20180712071536.GA15506@lst.de>
+References: <CGME20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29@eucas1p2.samsung.com>
+ <20180709121956.20200-1-m.szyprowski@samsung.com> <20180709122019eucas1p2340da484acfcc932537e6014f4fd2c29~-sqTPJKij2939229392eucas1p2j@eucas1p2.samsung.com>
+ <CAAmzW4PPNYhUj_MeZox+ddq8MjXqnJs_AJ3xkayf710udD1pSg@mail.gmail.com>
+ <20180710095056.GE14284@dhcp22.suse.cz> <CAAmzW4P1m_T77DfQzDD6ysGaOF46++-0gwRaOajmo6ef=VYp=A@mail.gmail.com>
+ <20180711085407.GB20050@dhcp22.suse.cz> <CAAmzW4M3KADCZD9+B2h7=WsYksGtg-GzYRCJjbqK5Scceynrrg@mail.gmail.com>
+ <20180712071536.GA15506@lst.de>
+From: Joonsoo Kim <js1304@gmail.com>
+Date: Fri, 13 Jul 2018 15:29:29 +0900
+Message-ID: <CAAmzW4MNuZOZRP1fHt7E42Mm6+-CLkYYA1Ju2Cfe0ik4Ynb4Lw@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm/cma: remove unsupported gfp_mask parameter from cma_alloc()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Michal Hocko <mhocko@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, iommu@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Paul Mackerras <paulus@ozlabs.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Chris Zankel <chris@zankel.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Joerg Roedel <joro@8bytes.org>, Sumit Semwal <sumit.semwal@linaro.org>, Robin Murphy <robin.murphy@arm.com>, Laura Abbott <labbott@redhat.com>, linaro-mm-sig@lists.linaro.org
 
+2018-07-12 16:15 GMT+09:00 Christoph Hellwig <hch@lst.de>:
+> On Thu, Jul 12, 2018 at 11:48:47AM +0900, Joonsoo Kim wrote:
+>> One of existing user is general DMA layer and it takes gfp flags that is
+>> provided by user. I don't check all the DMA allocation sites but how do
+>> you convince that none of them try to use anything other
+>> than GFP_KERNEL [|__GFP_NOWARN]?
+>
+> They use a few others things still like __GFP_COMP, __GPF_DMA or
+> GFP_HUGEPAGE.  But all these are bogus as we have various implementations
+> that can't respect them.  I plan to get rid of the gfp_t argument
+> in the dma_map_ops alloc method in a few merge windows because of that,
+> but it needs further implementation consolidation first.
 
---Dxnq1zWXvFF0Q93v
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Okay. If those flags are all, this change would be okay.
 
+For the remind of this gfp flag introduction in cma_alloc(), see the
+following link.
 
-> > > to "CET" (which is a well-known acronym for "Central European Time"),
-> > > not to CFE?
-> > >=20
-> >=20
-> > I don't know if I can change that, will find out.
->=20
-> So what I'd suggest is something pretty simple: to use CFT/cft in kernel =
-internal=20
-> names, except for the Intel feature bit and any MSR enumeration which can=
- be CET=20
-> if Intel named it that way, and a short comment explaining the acronym di=
-fference.
->=20
-> Or something like that.
+https://marc.info/?l=linux-mm&m=148431452118407
 
-Actually, I don't think CFT is much better -- there's limited number
-of TLAs (*). "ENFORCE_FLOW"? "FLOWE"? "EFLOW"?
-
-									Pavel
-
-(*) Three letter accronyms.
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
-
---Dxnq1zWXvFF0Q93v
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAltIRnQACgkQMOfwapXb+vJRBACbBpRDlJCr67dR/rk3Htvd60uk
-2z0AoJRrkyCatIQBwROh41c0B0Qw/Luu
-=9cvN
------END PGP SIGNATURE-----
-
---Dxnq1zWXvFF0Q93v--
+Thanks.
