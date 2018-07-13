@@ -1,72 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 40A226B0003
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 07:16:14 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id h26-v6so7194462itj.6
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 04:16:14 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id n11-v6si17280308ioj.55.2018.07.13.04.16.13
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 591D56B0003
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 07:56:05 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id j25-v6so20608256pfi.20
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 04:56:05 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x202-v6sor6062848pgx.300.2018.07.13.04.56.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 04:16:13 -0700 (PDT)
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6DB4xmS171561
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 11:16:12 GMT
-Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
-	by aserp2130.oracle.com with ESMTP id 2k2p767bbm-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 11:16:12 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w6DBGBBC029406
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 11:16:11 GMT
-Received: from abhmp0013.oracle.com (abhmp0013.oracle.com [141.146.116.19])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w6DBGBEJ021468
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 11:16:11 GMT
-Received: by mail-oi0-f46.google.com with SMTP id i12-v6so61559911oik.2
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 04:16:10 -0700 (PDT)
-MIME-Version: 1.0
-References: <20180712203730.8703-1-pasha.tatashin@oracle.com>
- <20180712203730.8703-6-pasha.tatashin@oracle.com> <20180713090949.GA15039@techadventures.net>
-In-Reply-To: <20180713090949.GA15039@techadventures.net>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Fri, 13 Jul 2018 07:15:34 -0400
-Message-ID: <CAGM2reZs_jvgCXfu7Rd6bmQiRhYZQQC18oAFxe5j0jA+Ndt2rQ@mail.gmail.com>
-Subject: Re: [PATCH v5 5/5] mm/sparse: delete old sprase_init and enable new one
-Content-Type: text/plain; charset="UTF-8"
+        (Google Transport Security);
+        Fri, 13 Jul 2018 04:56:04 -0700 (PDT)
+From: ufo19890607@gmail.com
+Subject: [PATCH v13 2/2] Add oom victim's memcg to the oom context information
+Date: Fri, 13 Jul 2018 19:55:52 +0800
+Message-Id: <1531482952-4595-1-git-send-email-ufo19890607@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: osalvador@techadventures.net
-Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, kirill.shutemov@linux.intel.com, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, Souptick Joarder <jrdr.linux@gmail.com>, bhe@redhat.com, gregkh@linuxfoundation.org, Vlastimil Babka <vbabka@suse.cz>, Wei Yang <richard.weiyang@gmail.com>, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, abdhalee@linux.vnet.ibm.com, mpe@ellerman.id.au
+To: akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, yuzhoujian@didichuxing.com
 
-On Fri, Jul 13, 2018 at 5:09 AM Oscar Salvador
-<osalvador@techadventures.net> wrote:
->
->
-> > -#ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
-> > -static void __init sparse_early_mem_maps_alloc_node(void *data,
-> > -                              unsigned long pnum_begin,
-> > -                              unsigned long pnum_end,
-> > -                              unsigned long map_count, int nodeid)
-> > -{
-> > -     struct page **map_map = (struct page **)data;
-> > -
-> > -     sparse_buffer_init(section_map_size() * map_count, nodeid);
-> > -     sparse_mem_maps_populate_node(map_map, pnum_begin, pnum_end,
-> > -                                      map_count, nodeid);
-> > -     sparse_buffer_fini();
-> > -}
->
-> From now on, sparse_mem_maps_populate_node() is not being used anymore, so I guess we can just
-> remove it from sparse.c, right? (as it is done in sparse-vmemmap.c).
+From: yuzhoujian <yuzhoujian@didichuxing.com>
 
-Missed this one, even more code can be deleted! :) I will include this
-in updated patches, after review comments.
+The current oom report doesn't display victim's memcg context during the
+global OOM situation. While this information is not strictly needed, it
+can be really helpful for containerized environments to locate which
+container has lost a process. Now that we have a single line for the oom
+context, we can trivially add both the oom memcg (this can be either
+global_oom or a specific memcg which hits its hard limits) and task_memcg
+which is the victim's memcg.
 
-Thank you,
-Pavel
+Below is the single line output in the oom report after this patch.
+- global oom context information:
+oom-kill:constraint=<constraint>,nodemask=<nodemask>,cpuset=<cpuset>,mems_allowed=<mems_allowed>,global_oom,task_memcg=<memcg>,task=<comm>,pid=<pid>,uid=<uid>
+- memcg oom context information:
+oom-kill:constraint=<constraint>,nodemask=<nodemask>,cpuset=<cpuset>,mems_allowed=<mems_allowed>,oom_memcg=<memcg>,task_memcg=<memcg>,task=<comm>,pid=<pid>,uid=<uid>
 
-> --
-> Oscar Salvador
-> SUSE L3
->
+Signed-off-by: yuzhoujian <yuzhoujian@didichuxing.com>
+---
+Changes since v12
+- print cpuset information before memcg info.
+
+ include/linux/memcontrol.h | 14 +++++++++++---
+ mm/memcontrol.c            | 36 ++++++++++++++++++++++--------------
+ mm/oom_kill.c              |  3 ++-
+ 3 files changed, 35 insertions(+), 18 deletions(-)
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 6c6fb116e925..96a73f989101 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -491,8 +491,10 @@ void mem_cgroup_handle_over_high(void);
+ 
+ unsigned long mem_cgroup_get_max(struct mem_cgroup *memcg);
+ 
+-void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
+-				struct task_struct *p);
++void mem_cgroup_print_oom_context(struct mem_cgroup *memcg,
++		struct task_struct *p);
++
++void mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg);
+ 
+ static inline void mem_cgroup_oom_enable(void)
+ {
+@@ -903,7 +905,13 @@ static inline unsigned long mem_cgroup_get_max(struct mem_cgroup *memcg)
+ }
+ 
+ static inline void
+-mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
++mem_cgroup_print_oom_context(struct mem_cgroup *memcg,
++				struct task_struct *p)
++{
++}
++
++static inline void
++mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg)
+ {
+ }
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index e6f0d5ef320a..18deea974cfd 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1119,32 +1119,40 @@ static const char *const memcg1_stat_names[] = {
+ 
+ #define K(x) ((x) << (PAGE_SHIFT-10))
+ /**
+- * mem_cgroup_print_oom_info: Print OOM information relevant to memory controller.
+- * @memcg: The memory cgroup that went over limit
++ * mem_cgroup_print_oom_context: Print OOM context information relevant to
++ * memory controller.
++ * @memcg: The origin memory cgroup that went over limit
+  * @p: Task that is going to be killed
+  *
+  * NOTE: @memcg and @p's mem_cgroup can be different when hierarchy is
+  * enabled
+  */
+-void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
++void mem_cgroup_print_oom_context(struct mem_cgroup *memcg, struct task_struct *p)
+ {
+-	struct mem_cgroup *iter;
+-	unsigned int i;
++	struct cgroup *origin_cgrp, *kill_cgrp;
+ 
+ 	rcu_read_lock();
+-
++	if (memcg) {
++		pr_cont(",oom_memcg=");
++		pr_cont_cgroup_path(memcg->css.cgroup);
++	} else
++		pr_cont(",global_oom");
+ 	if (p) {
+-		pr_info("Task in ");
++		pr_cont(",task_memcg=");
+ 		pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
+-		pr_cont(" killed as a result of limit of ");
+-	} else {
+-		pr_info("Memory limit reached of cgroup ");
+ 	}
+-
+-	pr_cont_cgroup_path(memcg->css.cgroup);
+-	pr_cont("\n");
+-
+ 	rcu_read_unlock();
++}
++
++/**
++ * mem_cgroup_print_oom_meminfo: Print OOM memory information relevant to
++ * memory controller.
++ * @memcg: The memory cgroup that went over limit
++ */
++void mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg)
++{
++	struct mem_cgroup *iter;
++	unsigned int i;
+ 
+ 	pr_info("memory: usage %llukB, limit %llukB, failcnt %lu\n",
+ 		K((u64)page_counter_read(&memcg->memory)),
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 531b2c86d4db..7fbd389ea779 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -434,10 +434,11 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
+ 			oom_constraint_text[oc->constraint],
+ 			nodemask_pr_args(oc->nodemask));
+ 	cpuset_print_current_mems_allowed();
++	mem_cgroup_print_oom_context(oc->memcg, p);
+ 	pr_cont(",task=%s,pid=%5d,uid=%5d\n", p->comm, p->pid,
+ 		from_kuid(&init_user_ns, task_uid(p)));
+ 	if (is_memcg_oom(oc))
+-		mem_cgroup_print_oom_info(oc->memcg, p);
++		mem_cgroup_print_oom_meminfo(oc->memcg);
+ 	else {
+ 		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
+ 		if (is_dump_unreclaim_slabs())
+-- 
+2.14.1
