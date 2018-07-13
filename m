@@ -1,93 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 18CF66B000A
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 00:44:47 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id w185-v6so27223981oig.19
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 21:44:47 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n76-v6sor16849576oig.126.2018.07.12.21.44.45
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 83FE66B0003
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 01:23:30 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id 70-v6so18850857plc.1
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 22:23:30 -0700 (PDT)
+Received: from out0-140.mail.aliyun.com (out0-140.mail.aliyun.com. [140.205.0.140])
+        by mx.google.com with ESMTPS id t2-v6si22536816pge.64.2018.07.12.22.23.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 12 Jul 2018 21:44:45 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Jul 2018 22:23:29 -0700 (PDT)
+Date: Fri, 13 Jul 2018 13:23:07 +0800
+From: "=?UTF-8?B?6KOY56iA55+zKOeogOefsyk=?=" <xishi.qiuxishi@alibaba-inc.com>
+Reply-To: "=?UTF-8?B?6KOY56iA55+zKOeogOefsyk=?=" <xishi.qiuxishi@alibaba-inc.com>
+Message-ID: <81f12bd3-d7bf-42a0-a0c5-ead475f489ad.xishi.qiuxishi@alibaba-inc.com>
+Subject: =?UTF-8?B?5Zue5aSN77yaW1BBVENIIHYxIDEvMl0gbW06IGZpeCByYWNlIG9uIHNvZnQtb2ZmbGluaW5n?=
+  =?UTF-8?B?IGZyZWUgaHVnZSBwYWdlcw==?=
 MIME-Version: 1.0
-In-Reply-To: <153074042316.27838.17319837331947007626.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <153074042316.27838.17319837331947007626.stgit@dwillia2-desk3.amr.corp.intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 12 Jul 2018 21:44:44 -0700
-Message-ID: <CAPcyv4gxt3iT_Y11WVHXZfctcf_i2MWpe=jc0WB2JrsVcOk7MQ@mail.gmail.com>
-Subject: Re: [PATCH v5 00/11] mm: Teach memory_failure() about ZONE_DEVICE pages
-Content-Type: text/plain; charset="UTF-8"
+References: <1531452366-11661-1-git-send-email-n-horiguchi@ah.jp.nec.com>,<1531452366-11661-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1531452366-11661-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: multipart/alternative;
+  boundary="----=ALIBOUNDARY_1429_55c21940_5b48373b_2218cd"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-nvdimm <linux-nvdimm@lists.01.org>
-Cc: linux-edac@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@alien8.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Christoph Hellwig <hch@lst.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Michal Hocko <mhocko@suse.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Souptick Joarder <jrdr.linux@gmail.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>
+To: Horiguchi Naoya <nao.horiguchi@gmail.com>, linux-mm <linux-mm@kvack.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?B?6ZmI5LmJ5YWo?= <zy.zhengyi@alibaba-inc.com>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 4, 2018 at 2:40 PM, Dan Williams <dan.j.williams@intel.com> wrote:
-> Changes since v4 [1]:
-> * Rework dax_lock_page() to reuse get_unlocked_mapping_entry() (Jan)
->
-> * Change the calling convention to take a 'struct page *' and return
->   success / failure instead of performing the pfn_to_page() internal to
->   the api (Jan, Ross).
->
-> * Rename dax_lock_page() to dax_lock_mapping_entry() (Jan)
->
-> * Account for the case that a given pfn can be fsdax mapped with
->   different sizes in different vmas (Jan)
->
-> * Update collect_procs() to determine the mapping size of the pfn for
->   each page given it can be variable in the dax case.
->
-> [1]: https://lists.01.org/pipermail/linux-nvdimm/2018-June/016279.html
->
-> ---
->
-> As it stands, memory_failure() gets thoroughly confused by dev_pagemap
-> backed mappings. The recovery code has specific enabling for several
-> possible page states and needs new enabling to handle poison in dax
-> mappings.
->
-> In order to support reliable reverse mapping of user space addresses:
->
-> 1/ Add new locking in the memory_failure() rmap path to prevent races
-> that would typically be handled by the page lock.
->
-> 2/ Since dev_pagemap pages are hidden from the page allocator and the
-> "compound page" accounting machinery, add a mechanism to determine the
-> size of the mapping that encompasses a given poisoned pfn.
->
-> 3/ Given pmem errors can be repaired, change the speculatively accessed
-> poison protection, mce_unmap_kpfn(), to be reversible and otherwise
-> allow ongoing access from the kernel.
->
-> A side effect of this enabling is that MADV_HWPOISON becomes usable for
-> dax mappings, however the primary motivation is to allow the system to
-> survive userspace consumption of hardware-poison via dax. Specifically
-> the current behavior is:
->
->     mce: Uncorrected hardware memory error in user-access at af34214200
->     {1}[Hardware Error]: It has been corrected by h/w and requires no further action
->     mce: [Hardware Error]: Machine check events logged
->     {1}[Hardware Error]: event severity: corrected
->     Memory failure: 0xaf34214: reserved kernel page still referenced by 1 users
->     [..]
->     Memory failure: 0xaf34214: recovery action for reserved kernel page: Failed
->     mce: Memory error not recovered
->     <reboot>
->
-> ...and with these changes:
->
->     Injecting memory failure for pfn 0x20cb00 at process virtual address 0x7f763dd00000
->     Memory failure: 0x20cb00: Killing dax-pmd:5421 due to hardware memory corruption
->     Memory failure: 0x20cb00: recovery action for dax page: Recovered
->
-> Given all the cross dependencies I propose taking this through
-> nvdimm.git with acks from Naoya, x86/core, x86/RAS, and of course dax
-> folks.
->
+------=ALIBOUNDARY_1429_55c21940_5b48373b_2218cd
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: base64
 
-Hi,
+CkhpIE5hb3lhLAoKU2hhbGwgd2UgY2hhbmdlIHRoZSByZXR1cm4gdmFsdWUgaW4gc29mdF9vZmZs
+aW5lX2ZyZWVfcGFnZSgpPwoKIElmIHdlIHN0aWxsIHJldHVybiB2b2lkIGluIG9mZmxpbmUgZnJl
+ZSBwYWdlcyBubyBtYXR0ZXIgaXQgc3VjY2VzcyAKb3IgZmFpbCBsYXRlci4gZWNobyB4eHggPiBz
+b2Z0X29mZmxpbmVfcGFnZXMsIHJldHVybiAwLCBzdWNjZXNzLCAKYnV0IHRoZSBudW1iZXIgb2Yg
+ImNhdCAvcHJvYy9tZW1pbmZvIHwgZ3JlcCBIYXJkd2FyZUNvcnJ1cHRlZCIKaXMgbm90ICBpbmNy
+ZWFzZWQsIHRoaXMgbWFrZXMgY29uZnVzaW9uIGZvciB1c2Vycy4KClRoYW5rcywKWGlzaGkgUWl1
+CgouLi4KIHN0YXRpYyB2b2lkIHNvZnRfb2ZmbGluZV9mcmVlX3BhZ2Uoc3RydWN0IHBhZ2UgKnBh
+Z2UpIHsKKyBpbnQgcmMgPSAwOwogIHN0cnVjdCBwYWdlICpoZWFkID0gY29tcG91bmRfaGVhZChw
+YWdlKTsKCi0gaWYgKCFUZXN0U2V0UGFnZUhXUG9pc29uKGhlYWQpKSB7CisgaWYgKFBhZ2VIdWdl
+KGhlYWQpKQorICByYyA9IGRpc3NvbHZlX2ZyZWVfaHVnZV9wYWdlKHBhZ2UpOworIGlmICghcmMg
+JiYgIVRlc3RTZXRQYWdlSFdQb2lzb24ocGFnZSkpCiAgIG51bV9wb2lzb25lZF9wYWdlc19pbmMo
+KTsKLSAgaWYgKFBhZ2VIdWdlKGhlYWQpKQotICAgZGlzc29sdmVfZnJlZV9odWdlX3BhZ2UocGFn
+ZSk7Ci0gfQogfQoKIC8qKgpkaWZmIC0tZ2l0IHY0LjE4LXJjNC1tbW90bS0yMDE4LTA3LTEwLTE2
+LTUwL21tL21pZ3JhdGUuYyB2NC4xOC1yYzQtbW1vdG0tMjAxOC0wNy0xMC0xNi01MF9wYXRjaGVk
+L21tL21pZ3JhdGUuYwppbmRleCAxOThhZjQyLi4zYWUyMTNiIDEwMDY0NAotLS0gdjQuMTgtcmM0
+LW1tb3RtLTIwMTgtMDctMTAtMTYtNTAvbW0vbWlncmF0ZS5jCisrKyB2NC4xOC1yYzQtbW1vdG0t
+MjAxOC0wNy0xMC0xNi01MF9wYXRjaGVkL21tL21pZ3JhdGUuYwpAQCAtMTMxOCw4ICsxMzE4LDYg
+QEAgc3RhdGljIGludCB1bm1hcF9hbmRfbW92ZV9odWdlX3BhZ2UobmV3X3BhZ2VfdCBnZXRfbmV3
+X3BhZ2UsCiBvdXQ6CiAgaWYgKHJjICE9IC1FQUdBSU4pCiAgIHB1dGJhY2tfYWN0aXZlX2h1Z2Vw
+YWdlKGhwYWdlKTsKLSBpZiAocmVhc29uID09IE1SX01FTU9SWV9GQUlMVVJFICYmICF0ZXN0X3Nl
+dF9wYWdlX2h3cG9pc29uKGhwYWdlKSkKLSAgbnVtX3BvaXNvbmVkX3BhZ2VzX2luYygpOwoKICAv
+KgogICAqIElmIG1pZ3JhdGlvbiB3YXMgbm90IHN1Y2Nlc3NmdWwgYW5kIHRoZXJlJ3MgYSBmcmVl
+aW5nIGNhbGxiYWNrLCB1c2UKLS0gCjIuNy4wCgo=
+------=ALIBOUNDARY_1429_55c21940_5b48373b_2218cd
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: base64
 
-Any comments on this series? Matthew is patiently waiting to rebase
-some of his Xarray work until the dax_lock_mapping_entry() changes hit
--next.
+PGRpdiBjbGFzcz0iX19hbGl5dW5fZW1haWxfYm9keV9ibG9jayI+PGRpdiAgc3R5bGU9ImxpbmUt
+aGVpZ2h0OjEuNztmb250LWZhbWlseTpUYWhvbWEsQXJpYWwsU1RIZWl0aSxTaW1TdW47Zm9udC1z
+aXplOjE0LjBweDtjb2xvcjojMDAwMDAwOyI+PGRpdiBjbGFzcz0iY2xlYXI6IGJvdGgiPkhpIE5h
+b3lhLDwvZGl2PjxkaXYgY2xhc3M9ImNsZWFyOiBib3RoIj48YnIgPjwvZGl2PjxkaXYgY2xhc3M9
+ImNsZWFyOiBib3RoIj5TaGFsbCB3ZSBjaGFuZ2UgdGhlIHJldHVybiB2YWx1ZSBpbiZuYnNwOzxz
+cGFuICBzdHlsZT0iY29sb3I6IzAwMDAwMDtmb250LWZhbWlseTpUYWhvbWEsQXJpYWwsU1RIZWl0
+aSxTaW1TdW47Zm9udC1zaXplOjE0LjBweDtmb250LXN0eWxlOm5vcm1hbDtmb250LXZhcmlhbnQt
+bGlnYXR1cmVzOm5vcm1hbDtmb250LXZhcmlhbnQtY2Fwczpub3JtYWw7Zm9udC13ZWlnaHQ6NDAw
+O3RleHQtYWxpZ246c3RhcnQ7dGV4dC1pbmRlbnQ6LjBweDt0ZXh0LXRyYW5zZm9ybTpub25lO2Jh
+Y2tncm91bmQtY29sb3I6I2ZmZmZmZjt0ZXh0LWRlY29yYXRpb24tc3R5bGU6aW5pdGlhbDt0ZXh0
+LWRlY29yYXRpb24tY29sb3I6aW5pdGlhbDtmbG9hdDpub25lO2Rpc3BsYXk6aW5saW5lOyI+c29m
+dF9vZmZsaW5lX2ZyZWVfcGFnZSgpPzwvc3Bhbj48L2Rpdj48ZGl2IGNsYXNzPSJjbGVhcjogYm90
+aCI+PHNwYW4gIHN0eWxlPSJjb2xvcjojMDAwMDAwO2ZvbnQtZmFtaWx5OlRhaG9tYSxBcmlhbCxT
+VEhlaXRpLFNpbVN1bjtmb250LXNpemU6MTQuMHB4O2ZvbnQtc3R5bGU6bm9ybWFsO2ZvbnQtdmFy
+aWFudC1saWdhdHVyZXM6bm9ybWFsO2ZvbnQtdmFyaWFudC1jYXBzOm5vcm1hbDtmb250LXdlaWdo
+dDo0MDA7dGV4dC1hbGlnbjpzdGFydDt0ZXh0LWluZGVudDouMHB4O3RleHQtdHJhbnNmb3JtOm5v
+bmU7YmFja2dyb3VuZC1jb2xvcjojZmZmZmZmO3RleHQtZGVjb3JhdGlvbi1zdHlsZTppbml0aWFs
+O3RleHQtZGVjb3JhdGlvbi1jb2xvcjppbml0aWFsO2Zsb2F0Om5vbmU7ZGlzcGxheTppbmxpbmU7
+Ij48YnIgPjwvc3Bhbj48L2Rpdj48ZGl2IGNsYXNzPSJjbGVhcjogYm90aCI+PHNwYW4gIHN0eWxl
+PSJjb2xvcjojMDAwMDAwO2ZvbnQtZmFtaWx5OlRhaG9tYSxBcmlhbCxTVEhlaXRpLFNpbVN1bjtm
+b250LXNpemU6MTQuMHB4O2ZvbnQtc3R5bGU6bm9ybWFsO2ZvbnQtdmFyaWFudC1saWdhdHVyZXM6
+bm9ybWFsO2ZvbnQtdmFyaWFudC1jYXBzOm5vcm1hbDtmb250LXdlaWdodDo0MDA7dGV4dC1hbGln
+bjpzdGFydDt0ZXh0LWluZGVudDouMHB4O3RleHQtdHJhbnNmb3JtOm5vbmU7YmFja2dyb3VuZC1j
+b2xvcjojZmZmZmZmO3RleHQtZGVjb3JhdGlvbi1zdHlsZTppbml0aWFsO3RleHQtZGVjb3JhdGlv
+bi1jb2xvcjppbml0aWFsO2Zsb2F0Om5vbmU7ZGlzcGxheTppbmxpbmU7Ij4KSWYgd2Ugc3RpbGwg
+cmV0dXJuIHZvaWQgaW4gb2ZmbGluZSBmcmVlIHBhZ2VzIG5vIG1hdHRlciBpdCBzdWNjZXNzCjxi
+ciA+b3IgZmFpbCBsYXRlci4mbmJzcDtlY2hvIHh4eCAmZ3Q7IHNvZnRfb2ZmbGluZV9wYWdlcywg
+cmV0dXJuIDAsIHN1Y2Nlc3MsCjxiciA+YnV0IHRoZSBudW1iZXIgb2YgImNhdCAvcHJvYy9tZW1p
+bmZvIHwgZ3JlcCBIYXJkd2FyZUNvcnJ1cHRlZCI8L3NwYW4+PC9kaXY+PGRpdiBjbGFzcz0iY2xl
+YXI6IGJvdGgiPjxzcGFuICBzdHlsZT0iY29sb3I6IzAwMDAwMDtmb250LWZhbWlseTpUYWhvbWEs
+QXJpYWwsU1RIZWl0aSxTaW1TdW47Zm9udC1zaXplOjE0LjBweDtmb250LXN0eWxlOm5vcm1hbDtm
+b250LXZhcmlhbnQtbGlnYXR1cmVzOm5vcm1hbDtmb250LXZhcmlhbnQtY2Fwczpub3JtYWw7Zm9u
+dC13ZWlnaHQ6NDAwO3RleHQtYWxpZ246c3RhcnQ7dGV4dC1pbmRlbnQ6LjBweDt0ZXh0LXRyYW5z
+Zm9ybTpub25lO2JhY2tncm91bmQtY29sb3I6I2ZmZmZmZjt0ZXh0LWRlY29yYXRpb24tc3R5bGU6
+aW5pdGlhbDt0ZXh0LWRlY29yYXRpb24tY29sb3I6aW5pdGlhbDtmbG9hdDpub25lO2Rpc3BsYXk6
+aW5saW5lOyI+aXMgbm90Jm5ic3A7IGluY3JlYXNlZCwgdGhpcyBtYWtlcyBjb25mdXNpb24gZm9y
+IHVzZXJzLjwvc3Bhbj48L2Rpdj48ZGl2IGNsYXNzPSJjbGVhcjogYm90aCI+PHNwYW4gIHN0eWxl
+PSJjb2xvcjojMDAwMDAwO2ZvbnQtZmFtaWx5OlRhaG9tYSxBcmlhbCxTVEhlaXRpLFNpbVN1bjtm
+b250LXNpemU6MTQuMHB4O2ZvbnQtc3R5bGU6bm9ybWFsO2ZvbnQtdmFyaWFudC1saWdhdHVyZXM6
+bm9ybWFsO2ZvbnQtdmFyaWFudC1jYXBzOm5vcm1hbDtmb250LXdlaWdodDo0MDA7dGV4dC1hbGln
+bjpzdGFydDt0ZXh0LWluZGVudDouMHB4O3RleHQtdHJhbnNmb3JtOm5vbmU7YmFja2dyb3VuZC1j
+b2xvcjojZmZmZmZmO3RleHQtZGVjb3JhdGlvbi1zdHlsZTppbml0aWFsO3RleHQtZGVjb3JhdGlv
+bi1jb2xvcjppbml0aWFsO2Zsb2F0Om5vbmU7ZGlzcGxheTppbmxpbmU7Ij48YnIgPjwvc3Bhbj48
+L2Rpdj48ZGl2IGNsYXNzPSJjbGVhcjogYm90aCI+PHNwYW4gIHN0eWxlPSJjb2xvcjojMDAwMDAw
+O2ZvbnQtZmFtaWx5OlRhaG9tYSxBcmlhbCxTVEhlaXRpLFNpbVN1bjtmb250LXNpemU6MTQuMHB4
+O2ZvbnQtc3R5bGU6bm9ybWFsO2ZvbnQtdmFyaWFudC1saWdhdHVyZXM6bm9ybWFsO2ZvbnQtdmFy
+aWFudC1jYXBzOm5vcm1hbDtmb250LXdlaWdodDo0MDA7dGV4dC1hbGlnbjpzdGFydDt0ZXh0LWlu
+ZGVudDouMHB4O3RleHQtdHJhbnNmb3JtOm5vbmU7YmFja2dyb3VuZC1jb2xvcjojZmZmZmZmO3Rl
+eHQtZGVjb3JhdGlvbi1zdHlsZTppbml0aWFsO3RleHQtZGVjb3JhdGlvbi1jb2xvcjppbml0aWFs
+O2Zsb2F0Om5vbmU7ZGlzcGxheTppbmxpbmU7Ij5UaGFua3MsPC9zcGFuPjwvZGl2PjxkaXYgY2xh
+c3M9ImNsZWFyOiBib3RoIj48c3BhbiAgc3R5bGU9ImNvbG9yOiMwMDAwMDA7Zm9udC1mYW1pbHk6
+VGFob21hLEFyaWFsLFNUSGVpdGksU2ltU3VuO2ZvbnQtc2l6ZToxNC4wcHg7Zm9udC1zdHlsZTpu
+b3JtYWw7Zm9udC12YXJpYW50LWxpZ2F0dXJlczpub3JtYWw7Zm9udC12YXJpYW50LWNhcHM6bm9y
+bWFsO2ZvbnQtd2VpZ2h0OjQwMDt0ZXh0LWFsaWduOnN0YXJ0O3RleHQtaW5kZW50Oi4wcHg7dGV4
+dC10cmFuc2Zvcm06bm9uZTtiYWNrZ3JvdW5kLWNvbG9yOiNmZmZmZmY7dGV4dC1kZWNvcmF0aW9u
+LXN0eWxlOmluaXRpYWw7dGV4dC1kZWNvcmF0aW9uLWNvbG9yOmluaXRpYWw7ZmxvYXQ6bm9uZTtk
+aXNwbGF5OmlubGluZTsiPlhpc2hpIFFpdTwvc3Bhbj48L2Rpdj48ZGl2IGNsYXNzPSJjbGVhcjog
+Ym90aCI+PGJyID48L2Rpdj48ZGl2IGNsYXNzPSJjbGVhcjogYm90aCI+Li4uPC9kaXY+PGRpdiBj
+bGFzcz0iY2xlYXI6IGJvdGgiPiBzdGF0aWMmbmJzcDt2b2lkJm5ic3A7c29mdF9vZmZsaW5lX2Zy
+ZWVfcGFnZShzdHJ1Y3QmbmJzcDtwYWdlJm5ic3A7KnBhZ2UpPC9kaXY+Jm5ic3A7ezxiciA+KyZu
+YnNwO2ludCZuYnNwO3JjJm5ic3A7PSZuYnNwOzA7PGJyID4mbmJzcDsmbmJzcDtzdHJ1Y3QmbmJz
+cDtwYWdlJm5ic3A7KmhlYWQmbmJzcDs9Jm5ic3A7Y29tcG91bmRfaGVhZChwYWdlKTs8YnIgPiZu
+YnNwOzxiciA+LSZuYnNwO2lmJm5ic3A7KCFUZXN0U2V0UGFnZUhXUG9pc29uKGhlYWQpKSZuYnNw
+O3s8YnIgPismbmJzcDtpZiZuYnNwOyhQYWdlSHVnZShoZWFkKSk8YnIgPismbmJzcDsmbmJzcDty
+YyZuYnNwOz0mbmJzcDtkaXNzb2x2ZV9mcmVlX2h1Z2VfcGFnZShwYWdlKTs8YnIgPismbmJzcDtp
+ZiZuYnNwOyghcmMmbmJzcDsmYW1wOyZhbXA7Jm5ic3A7IVRlc3RTZXRQYWdlSFdQb2lzb24ocGFn
+ZSkpPGJyID4mbmJzcDsmbmJzcDsmbmJzcDtudW1fcG9pc29uZWRfcGFnZXNfaW5jKCk7PGJyID4t
+Jm5ic3A7Jm5ic3A7aWYmbmJzcDsoUGFnZUh1Z2UoaGVhZCkpPGJyID4tJm5ic3A7Jm5ic3A7Jm5i
+c3A7ZGlzc29sdmVfZnJlZV9odWdlX3BhZ2UocGFnZSk7PGJyID4tJm5ic3A7fTxiciA+Jm5ic3A7
+fTxiciA+Jm5ic3A7PGJyID4mbmJzcDsvKio8YnIgPmRpZmYmbmJzcDstLWdpdCZuYnNwO3Y0LjE4
+LXJjNC1tbW90bS0yMDE4LTA3LTEwLTE2LTUwL21tL21pZ3JhdGUuYyZuYnNwO3Y0LjE4LXJjNC1t
+bW90bS0yMDE4LTA3LTEwLTE2LTUwX3BhdGNoZWQvbW0vbWlncmF0ZS5jPGJyID5pbmRleCZuYnNw
+OzE5OGFmNDIuLjNhZTIxM2ImbmJzcDsxMDA2NDQ8YnIgPi0tLSZuYnNwO3Y0LjE4LXJjNC1tbW90
+bS0yMDE4LTA3LTEwLTE2LTUwL21tL21pZ3JhdGUuYzxiciA+KysrJm5ic3A7djQuMTgtcmM0LW1t
+b3RtLTIwMTgtMDctMTAtMTYtNTBfcGF0Y2hlZC9tbS9taWdyYXRlLmM8YnIgPkBAJm5ic3A7LTEz
+MTgsOCZuYnNwOysxMzE4LDYmbmJzcDtAQCZuYnNwO3N0YXRpYyZuYnNwO2ludCZuYnNwO3VubWFw
+X2FuZF9tb3ZlX2h1Z2VfcGFnZShuZXdfcGFnZV90Jm5ic3A7Z2V0X25ld19wYWdlLDxiciA+Jm5i
+c3A7b3V0OjxiciA+Jm5ic3A7Jm5ic3A7aWYmbmJzcDsocmMmbmJzcDshPSZuYnNwOy1FQUdBSU4p
+PGJyID4mbmJzcDsmbmJzcDsmbmJzcDtwdXRiYWNrX2FjdGl2ZV9odWdlcGFnZShocGFnZSk7PGJy
+ID4tJm5ic3A7aWYmbmJzcDsocmVhc29uJm5ic3A7PT0mbmJzcDtNUl9NRU1PUllfRkFJTFVSRSZu
+YnNwOyZhbXA7JmFtcDsmbmJzcDshdGVzdF9zZXRfcGFnZV9od3BvaXNvbihocGFnZSkpPGJyID4t
+Jm5ic3A7Jm5ic3A7bnVtX3BvaXNvbmVkX3BhZ2VzX2luYygpOzxiciA+Jm5ic3A7PGJyID4mbmJz
+cDsmbmJzcDsvKjxiciA+Jm5ic3A7Jm5ic3A7Jm5ic3A7KiZuYnNwO0lmJm5ic3A7bWlncmF0aW9u
+Jm5ic3A7d2FzJm5ic3A7bm90Jm5ic3A7c3VjY2Vzc2Z1bCZuYnNwO2FuZCZuYnNwO3RoZXJlJ3Mm
+bmJzcDthJm5ic3A7ZnJlZWluZyZuYnNwO2NhbGxiYWNrLCZuYnNwO3VzZTxiciA+LS0mbmJzcDs8
+YnIgPjIuNy4wPGRpdiAgc3R5bGU9ImxpbmUtaGVpZ2h0OjIwLjBweDtjbGVhcjpib3RoOyI+PGJy
+ID48L2Rpdj48L2Rpdj48L2Rpdj4=
+------=ALIBOUNDARY_1429_55c21940_5b48373b_2218cd--
