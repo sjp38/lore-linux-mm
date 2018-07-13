@@ -1,82 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1552D6B0003
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 20:29:21 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id v25-v6so11355669pfm.11
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 17:29:21 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id t17-v6si22327040plo.343.2018.07.12.17.29.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jul 2018 17:29:19 -0700 (PDT)
-Message-ID: <5B47F357.7020202@intel.com>
-Date: Fri, 13 Jul 2018 08:33:27 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BA956B0007
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2018 20:36:21 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id b5-v6so18382715ple.20
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2018 17:36:21 -0700 (PDT)
+Received: from ipmailnode02.adl6.internode.on.net (ipmailnode02.adl6.internode.on.net. [150.101.137.148])
+        by mx.google.com with ESMTP id r38-v6si22176368pga.381.2018.07.12.17.36.18
+        for <linux-mm@kvack.org>;
+        Thu, 12 Jul 2018 17:36:19 -0700 (PDT)
+Date: Fri, 13 Jul 2018 10:36:14 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v6 0/7] fs/dcache: Track & limit # of negative dentries
+Message-ID: <20180713003614.GW2234@dastard>
+References: <9f24c043-1fca-ee86-d609-873a7a8f7a64@redhat.com>
+ <1531330947.3260.13.camel@HansenPartnership.com>
+ <18c5cbfe-403b-bb2b-1d11-19d324ec6234@redhat.com>
+ <1531336913.3260.18.camel@HansenPartnership.com>
+ <4d49a270-23c9-529f-f544-65508b6b53cc@redhat.com>
+ <1531411494.18255.6.camel@HansenPartnership.com>
+ <20180712164932.GA3475@bombadil.infradead.org>
+ <1531416080.18255.8.camel@HansenPartnership.com>
+ <CA+55aFzfQz7c8pcMfLDaRNReNF2HaKJGoWpgB6caQjNAyjg-hA@mail.gmail.com>
+ <1531425435.18255.17.camel@HansenPartnership.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v35 1/5] mm: support to get hints of free page blocks
-References: <CA+55aFz9a=D-kquM=sG5uhV_HrBAw+VAhcJmtPNz+howy4j9ow@mail.gmail.com> <5B455D50.90902@intel.com> <CA+55aFzqj8wxXnHAdUTiOomipgFONVbqKMjL_tfk7e5ar1FziQ@mail.gmail.com> <20180711092152.GE20050@dhcp22.suse.cz> <CA+55aFwku2tDH4+rfaC67xc4-cEwSrXgnQaci=e2id5ZCRE9JQ@mail.gmail.com> <5B46BB46.2080802@intel.com> <CA+55aFxyv=EUAJFUSio=k+pm3ddteojshP7Radjia5ZRgm53zQ@mail.gmail.com> <5B46C258.40601@intel.com> <20180712081317.GD32648@dhcp22.suse.cz> <5B473CB8.1050306@intel.com> <20180712114946.GI32648@dhcp22.suse.cz>
-In-Reply-To: <20180712114946.GI32648@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1531425435.18255.17.camel@HansenPartnership.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, virtualization <virtualization@lists.linux-foundation.org>, KVM list <kvm@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Michael S. Tsirkin" <mst@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, Rik van Riel <riel@redhat.com>, peterx@redhat.com
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Waiman Long <longman@redhat.com>, Michal Hocko <mhocko@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>
 
-On 07/12/2018 07:49 PM, Michal Hocko wrote:
-> On Thu 12-07-18 19:34:16, Wei Wang wrote:
->> On 07/12/2018 04:13 PM, Michal Hocko wrote:
->>> On Thu 12-07-18 10:52:08, Wei Wang wrote:
->>>> On 07/12/2018 10:30 AM, Linus Torvalds wrote:
->>>>> On Wed, Jul 11, 2018 at 7:17 PM Wei Wang <wei.w.wang@intel.com> wrote:
->>>>>> Would it be better to remove __GFP_THISNODE? We actually want to get all
->>>>>> the guest free pages (from all the nodes).
->>>>> Maybe. Or maybe it would be better to have the memory balloon logic be
->>>>> per-node? Maybe you don't want to remove too much memory from one
->>>>> node? I think it's one of those "play with it" things.
->>>>>
->>>>> I don't think that's the big issue, actually. I think the real issue
->>>>> is how to react quickly and gracefully to "oops, I'm trying to give
->>>>> memory away, but now the guest wants it back" while you're in the
->>>>> middle of trying to create that 2TB list of pages.
->>>> OK. virtio-balloon has already registered an oom notifier
->>>> (virtballoon_oom_notify). I plan to add some control there. If oom happens,
->>>> - stop the page allocation;
->>>> - immediately give back the allocated pages to mm.
->>> Please don't. Oom notifier is an absolutely hideous interface which
->>> should go away sooner or later (I would much rather like the former) so
->>> do not build a new logic on top of it. I would appreciate if you
->>> actually remove the notifier much more.
->>>
->>> You can give memory back from the standard shrinker interface. If we are
->>> reaching low reclaim priorities then we are struggling to reclaim memory
->>> and then you can start returning pages back.
->> OK. Just curious why oom notifier is thought to be hideous, and has it been
->> a consensus?
-> Because it is a completely non-transparent callout from the OOM context
-> which is really subtle on its own. It is just too easy to end up in
-> weird corner cases. We really have to be careful and be as swift as
-> possible. Any potential sleep would make the OOM situation much worse
-> because nobody would be able to make a forward progress or (in)direct
-> dependency on MM subsystem can easily deadlock. Those are really hard
-> to track down and defining the notifier as blockable by design which
-> just asks for bad implementations because most people simply do not
-> realize how subtle the oom context is.
->
-> Another thing is that it happens way too late when we have basically
-> reclaimed the world and didn't get out of the memory pressure so you can
-> expect any workload is suffering already. Anybody sitting on a large
-> amount of reclaimable memory should have released that memory by that
-> time. Proportionally to the reclaim pressure ideally.
->
-> The notifier API is completely unaware of oom constrains. Just imagine
-> you are OOM in a subset of numa nodes. Callback doesn't have any idea
-> about that.
->
-> Moreover we do have proper reclaim mechanism that has a feedback
-> loop and that should be always preferable to an abrupt reclaim.
+On Thu, Jul 12, 2018 at 12:57:15PM -0700, James Bottomley wrote:
+> What surprises me most about this behaviour is the steadiness of the
+> page cache ... I would have thought we'd have shrunk it somewhat given
+> the intense call on the dcache.
 
-Sounds very reasonable, thanks for the elaboration. I'll try with shrinker.
+Oh, good, the page cache vs superblock shrinker balancing still
+protects the working set of each cache the way it's supposed to
+under heavy single cache pressure. :)
 
-Best,
-Wei
+Keep in mind that the amount of work slab cache shrinkers perform is
+directly proportional to the amount of page cache reclaim that is
+performed and the size of the slab cache being reclaimed.  IOWs,
+under a "single cache pressure" workload we should be directing
+reclaim work to the huge cache creating the pressure and do very
+little reclaim from other caches....
+
+[ What follows from here is conjecture, but is based on what I've
+seen in the past 10+ years on systems with large numbers of negative
+dentries and fragmented dentry/inode caches. ]
+
+However, this only reaches steady state if the reclaim rate can keep
+ahead of the allocation rate. This single threaded micro-workload
+won't result in an internally fragmented dentry slab cache, so
+reclaim is going to be as efficient as possible and have the CPU to
+keep up with the allocation rate.  i.e. Bulk negative dentry reclaim
+is cheap, in LRU order, and frees slab pages quickly and efficiently
+in large batches so steady state is easily reached.
+
+Problems arise when the slab *page* reclaim rate drops below
+allocation rate. i.e when you have short term (negative) dentries
+mixed into the same slab pages as long term stable dentries. This
+causes the dentry cache to fragment internally - reclaim hits the
+negative dentries and creates large numbers of partial pages - and
+so reclaim of negative dentries will fail to free memory. Creating
+new negative dentries then fills these partial pages first, and so
+the alloc/reclaim cycles on negative dentries only ever produce
+partial pages and never free slab cache pages. IOWs, the cost of
+reclaim slab *pages* goes way up despite the fact that the cost of
+reclaiming individual dentries has remained the same.
+
+That's the underlying problem here - the cost of reclaiming dentries
+is constant but the cost of reclaiming *slab pages* is not.  It is
+not uncommon to have to trash 90% of the dentry or inode caches to
+reduce internal fragmentation down to the point where pages start to
+get freed and the per-slab-page reclaim cost reduces to be less than
+the allocation cost. Then we see the system return to normal steady
+state behaviour.
+
+In situations where lots of negative dentries are created by
+production workloads, that "90%" of the cache that needs to be
+reclaimed to fix the internal fragmentation issue is all negative
+dentries and just enough of the real dentries to be freeing
+quantities of partial pages in the slab. Hence negative dentries are
+seen as the problem because they make up the vast majority of the
+dentries that get reclaimed when the problem goes away.
+
+By limiting the number of negative dentries in this case, internal
+slab fragmentation is reduced such that reclaim cost never gets out
+of control. While it appears to "fix" the symptoms, it doesn't
+address the underlying problem. It is a partial solution at best but
+at worst it's another opaque knob that nobody knows how or when to
+tune.
+
+Very few microbenchmarks expose this internal slab fragmentation
+problem because they either don't run long enough, don't create
+memory pressure, or don't have access patterns that mix long and
+short term slab objects together in a way that causes slab
+fragmentation. Run some cold cache directory traversals (git
+status?) at the same time you are creating negative dentries so you
+create pinned partial pages in the slab cache and see how the
+behaviour changes....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
