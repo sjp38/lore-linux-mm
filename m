@@ -1,99 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D76B86B0003
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 11:32:29 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id s63-v6so36280932qkc.7
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 08:32:29 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id i9-v6si10554830qtc.57.2018.07.13.08.32.28
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C5B856B0007
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 11:46:56 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id u16-v6so20966385pfm.15
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 08:46:56 -0700 (PDT)
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTPS id v6-v6si23715404plp.60.2018.07.13.08.46.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 08:32:28 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 13 Jul 2018 08:46:55 -0700 (PDT)
+Message-ID: <1531496812.3361.9.camel@HansenPartnership.com>
 Subject: Re: [PATCH v6 0/7] fs/dcache: Track & limit # of negative dentries
-References: <1530905572-817-1-git-send-email-longman@redhat.com>
- <20180709081920.GD22049@dhcp22.suse.cz>
- <62275711-e01d-7dbe-06f1-bf094b618195@redhat.com>
- <20180710142740.GQ14284@dhcp22.suse.cz>
- <a2794bcc-9193-cbca-3a54-47420a2ab52c@redhat.com>
- <20180711102139.GG20050@dhcp22.suse.cz>
- <9f24c043-1fca-ee86-d609-873a7a8f7a64@redhat.com>
- <1531330947.3260.13.camel@HansenPartnership.com>
- <18c5cbfe-403b-bb2b-1d11-19d324ec6234@redhat.com>
- <1531336913.3260.18.camel@HansenPartnership.com>
- <4d49a270-23c9-529f-f544-65508b6b53cc@redhat.com>
- <1531411494.18255.6.camel@HansenPartnership.com>
- <30ac8e9b-a48c-9c37-5a96-731ad214262b@redhat.com>
- <1531416833.18255.10.camel@HansenPartnership.com>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <919c5749-4528-ad30-28dd-a3ebb2c42021@redhat.com>
-Date: Fri, 13 Jul 2018 11:32:26 -0400
-MIME-Version: 1.0
-In-Reply-To: <1531416833.18255.10.camel@HansenPartnership.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Fri, 13 Jul 2018 08:46:52 -0700
+In-Reply-To: <20180713003614.GW2234@dastard>
+References: <9f24c043-1fca-ee86-d609-873a7a8f7a64@redhat.com>
+	 <1531330947.3260.13.camel@HansenPartnership.com>
+	 <18c5cbfe-403b-bb2b-1d11-19d324ec6234@redhat.com>
+	 <1531336913.3260.18.camel@HansenPartnership.com>
+	 <4d49a270-23c9-529f-f544-65508b6b53cc@redhat.com>
+	 <1531411494.18255.6.camel@HansenPartnership.com>
+	 <20180712164932.GA3475@bombadil.infradead.org>
+	 <1531416080.18255.8.camel@HansenPartnership.com>
+	 <CA+55aFzfQz7c8pcMfLDaRNReNF2HaKJGoWpgB6caQjNAyjg-hA@mail.gmail.com>
+	 <1531425435.18255.17.camel@HansenPartnership.com>
+	 <20180713003614.GW2234@dastard>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Waiman Long <longman@redhat.com>, Michal Hocko <mhocko@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "open
+ list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Larry Woodman <lwoodman@redhat.com>, "Wangkai
+ (Kevin,C)" <wangkai86@huawei.com>
 
-On 07/12/2018 01:33 PM, James Bottomley wrote:
-> On Thu, 2018-07-12 at 12:26 -0400, Waiman Long wrote:
->> On 07/12/2018 12:04 PM, James Bottomley wrote:
->>> On Thu, 2018-07-12 at 11:54 -0400, Waiman Long wrote:
->>>> It is not that dentry cache is harder to get rid of than the
->>>> other memory. It is that the ability of generate unlimited number
->>>> of negative dentries that will displace other useful memory from
->>>> the system. What the patch is trying to do is to have a warning
->>>> or notification system in place to spot unusual activities in
->>>> regard to the number of negative dentries in the system. The
->>>> system administrators can then decide on what to do next.
->>> But every cache has this property: I can cause the same effect by
->>> doing a streaming read on a multi gigabyte file: the page cache
->>> will fill with the clean pages belonging to the file until I run
->>> out of memory and it has to start evicting older cache
->>> entries.  Once we hit the steady state of minimal free memory, the
->>> mm subsytem tries to balance the cache requests (like my streaming
->>> read) against the existing pool of cached objects.
->>>
->>> The question I'm trying to get an answer to is why does the dentry
->>> cache need special limits when the mm handling of the page cache
->>> (and other mm caches) just works?
->>>
->>> James
->>>
->> I/O activities can be easily tracked.
-> Tracked?  What do you mean tracked?  you mean we can control the page
-> cache through userfaultfd or something without resorting to cgroup
-> limits or something different?  I mean all caches are "tracked" because=
+On Fri, 2018-07-13 at 10:36 +1000, Dave Chinner wrote:
+> On Thu, Jul 12, 2018 at 12:57:15PM -0700, James Bottomley wrote:
+> > What surprises me most about this behaviour is the steadiness of
+> > the page cache ... I would have thought we'd have shrunk it
+> > somewhat given the intense call on the dcache.
+> 
+> Oh, good, the page cache vs superblock shrinker balancing still
+> protects the working set of each cache the way it's supposed to
+> under heavy single cache pressure. :)
 
-> otherwise we wouldn't know whether we have to retrieve/generate the
-> object or pull it from the cache.  If it's just about cache state,
-> what's wrong with /proc/sys/fs/dentry-state?
+Well, yes, but my expectation is most of the page cache is clean, so
+easily reclaimable.  I suppose part of my surprise is that I expected
+us to reclaim the clean caches first before we started pushing out the
+dirty stuff and reclaiming it.  I'm not saying it's a bad thing, just
+saying I didn't expect us to make such good decisions under the
+parameters of this test.
 
-Sorry for being imprecise. What I meant is it is easy to find out which
-tasks issue the most I/O request and consume the most I/O bandwidth.
-IOW, which one we can blame if there are too much I/O activities. On the
-other hand, it is not that easy to find out which task generates the
-most negative dentries.
+> Keep in mind that the amount of work slab cache shrinkers perform is
+> directly proportional to the amount of page cache reclaim that is
+> performed and the size of the slab cache being reclaimed.A A IOWs,
+> under a "single cache pressure" workload we should be directing
+> reclaim work to the huge cache creating the pressure and do very
+> little reclaim from other caches....
 
->>  Generation of negative dentries, however, is more insidious. So the
->> ability to track and be notified when too many negative dentries are
->> created can be a useful tool for the system administrators. Besides,
->> there are paranoid users out there who want to have control of as
->> much as system parameters as possible.
-> To what end?  what problem are these administrators trying to solve?=20
-> You keep coming back to the circular argument that the problem they're
-> trying to solve is limiting negative dentries, but I want to know what
-> issue they see in their systems that causes them to ask for this knob.
->
-> James
->
-I would say most system administrators don't want to have surprise. They
-don't want to see bad performance or other system problems and after
-some digging find out that some tasks are generating too much negative
-dentries and thus consuming too much memory, for example. They would
-certainly like to a way to notify them before the problems happen.
+That definitely seems to happen.  The thing I was most surprised about
+is the steady pushing of anonymous objects to swap.  I agree the dentry
+cache doesn't seem to be growing hugely after the initial jump, so it
+seems to be the largest source of reclaim.
 
-Cheers,
-Longman
+> [ What follows from here is conjecture, but is based on what I've
+> seen in the past 10+ years on systems with large numbers of negative
+> dentries and fragmented dentry/inode caches. ]
+
+OK, so I fully agree with the concern about pathological object vs page
+freeing problems (I referred to it previously).  However, I did think
+the compaction work that's been ongoing in mm was supposed to help
+here?
+
+James
