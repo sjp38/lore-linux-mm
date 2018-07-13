@@ -1,106 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3217B6B0007
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 06:56:24 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id y17-v6so5999663eds.22
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 03:56:24 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id b24-v6si621112edn.371.2018.07.13.03.56.22
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BB8426B000A
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 07:11:22 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id w23-v6so27684637ioa.1
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 04:11:22 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id z16-v6si462745jan.112.2018.07.13.04.11.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 03:56:22 -0700 (PDT)
-Date: Fri, 13 Jul 2018 12:56:20 +0200
-From: Joerg Roedel <joro@8bytes.org>
-Subject: Re: [PATCH 07/39] x86/entry/32: Enter the kernel via trampoline stack
-Message-ID: <20180713105620.z6bjhqzfez2hll6r@8bytes.org>
-References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
- <1531308586-29340-8-git-send-email-joro@8bytes.org>
- <A66D58A6-3DC6-4CF3-B2A5-433C6E974060@amacapital.net>
+        Fri, 13 Jul 2018 04:11:21 -0700 (PDT)
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6DB4E1b170596
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 11:11:20 GMT
+Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
+	by aserp2130.oracle.com with ESMTP id 2k2p767abd-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 11:11:20 +0000
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w6DBBJ0h015481
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 11:11:19 GMT
+Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w6DBBI82018914
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 11:11:19 GMT
+Received: by mail-oi0-f44.google.com with SMTP id v8-v6so61533437oie.5
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 04:11:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <A66D58A6-3DC6-4CF3-B2A5-433C6E974060@amacapital.net>
+References: <20180712203730.8703-1-pasha.tatashin@oracle.com> <20180713095934.GB15039@techadventures.net>
+In-Reply-To: <20180713095934.GB15039@techadventures.net>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Fri, 13 Jul 2018 07:10:42 -0400
+Message-ID: <CAGM2reavPdp48_=cw1g3Jmz2+ZLU9DkOQbdwAu17v39OCkjVPg@mail.gmail.com>
+Subject: Re: [PATCH v5 0/5] sparse_init rewrite
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, jroedel@suse.de
+To: osalvador@techadventures.net
+Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, kirill.shutemov@linux.intel.com, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, Souptick Joarder <jrdr.linux@gmail.com>, bhe@redhat.com, gregkh@linuxfoundation.org, Vlastimil Babka <vbabka@suse.cz>, Wei Yang <richard.weiyang@gmail.com>, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, abdhalee@linux.vnet.ibm.com, mpe@ellerman.id.au
 
-Hi Andy,
+> About PPC64, your patchset fixes the issue as the population gets followed by a
+> sparse_init_one_section().
+>
+> It can be seen here:
+>
+> Before:
+>
+> kernel: vmemmap_populate f000000000000000..f000000000004000, node 0
+> kernel:       * f000000000000000..f000000000010000 allocated at (____ptrval____)
+> kernel: vmemmap_populate f000000000000000..f000000000008000, node 0
+> kernel:       * f000000000000000..f000000000010000 allocated at (____ptrval____)
+> kernel: vmemmap_populate f000000000000000..f00000000000c000, node 0
+> kernel:       * f000000000000000..f000000000010000 allocated at (____ptrval____)
+>
+>
+> After:
+>
+> kernel: vmemmap_populate f000000000000000..f000000000004000, node 0
+> kernel:       * f000000000000000..f000000000010000 allocated at (____ptrval____)
+> kernel: vmemmap_populate f000000000000000..f000000000008000, node 0
+> kernel: vmemmap_populate f000000000000000..f00000000000c000, node 0
+> kernel: vmemmap_populate f000000000000000..f000000000010000, node 0
+> kernel: vmemmap_populate f000000000010000..f000000000014000, node 0
+> kernel:       * f000000000010000..f000000000020000 allocated at (____ptrval____)
+>
+>
+> As can be seen, before the patchset, we keep calling vmemmap_create_mapping() even if we
+> populated that section already, because of vmemmap_populated() checking for SECTION_HAS_MEM_MAP.
+>
+> After the patchset, since each population is being followed by a call to sparse_init_one_section(),
+> when vmemmap_populated() gets called, we have SECTION_HAS_MEM_MAP already in case the section
+> was populated.
 
-thanks for you valuable feedback.
+Hi Oscar,
 
-On Thu, Jul 12, 2018 at 02:09:45PM -0700, Andy Lutomirski wrote:
-> > On Jul 11, 2018, at 4:29 AM, Joerg Roedel <joro@8bytes.org> wrote:
-> > -.macro SAVE_ALL pt_regs_ax=%eax
-> > +.macro SAVE_ALL pt_regs_ax=%eax switch_stacks=0
-> >    cld
-> > +    /* Push segment registers and %eax */
-> >    PUSH_GS
-> >    pushl    %fs
-> >    pushl    %es
-> >    pushl    %ds
-> >    pushl    \pt_regs_ax
-> > +
-> > +    /* Load kernel segments */
-> > +    movl    $(__USER_DS), %eax
-> 
-> If \pt_regs_ax != %eax, then this will behave oddly. Maybe ita??s okay.
-> But I dona??t see why this change was needed at all.
+Right, I also like that this solution removes one extra loop, thus
+reduces the code size. We were populating pages in one place, and then
+loop again to set sections, now we do both in one place, but still
+allow preallocation of memory to reduces fragmentation on all
+platforms. However, I still wanted to see if someone could test on
+real hardware.
 
-This is a left-over from a previous approach I tried and then abandoned
-later. You are right, it is not needed.
-
-> > +/*
-> > + * Called with pt_regs fully populated and kernel segments loaded,
-> > + * so we can access PER_CPU and use the integer registers.
-> > + *
-> > + * We need to be very careful here with the %esp switch, because an NMI
-> > + * can happen everywhere. If the NMI handler finds itself on the
-> > + * entry-stack, it will overwrite the task-stack and everything we
-> > + * copied there. So allocate the stack-frame on the task-stack and
-> > + * switch to it before we do any copying.
-> 
-> Ick, right. Same with machine check, though. You could alternatively
-> fix it by running NMIs on an irq stack if the irq count is zero.  How
-> confident are you that you got #MC right?
-
-Pretty confident, #MC uses the exception entry path which also handles
-entry-stack and user-cr3 correctly. It might go through through the slow
-paranoid exit path, but that's okay for #MC I guess.
-
-And when the #MC happens while we switch to the task stack and do the
-copying the same precautions as for NMI apply.
-
-> > + */
-> > +.macro SWITCH_TO_KERNEL_STACK
-> > +
-> > +    ALTERNATIVE     "", "jmp .Lend_\@", X86_FEATURE_XENPV
-> > +
-> > +    /* Are we on the entry stack? Bail out if not! */
-> > +    movl    PER_CPU_VAR(cpu_entry_area), %edi
-> > +    addl    $CPU_ENTRY_AREA_entry_stack, %edi
-> > +    cmpl    %esp, %edi
-> > +    jae    .Lend_\@
-> 
-> Thata??s an alarming assumption about the address space layout. How
-> about an xor and an and instead of cmpl?  As it stands, if the address
-> layout ever changes, the failure may be rather subtle.
-
-Right, I implement a more restrictive check.
-
-> Anyway, wouldna??t it be easier to solve this by just not switching
-> stacks on entries from kernel mode and making the entry stack bigger?
-> Stick an assertion in the scheduling code that wea??re not on an entry
-> stack, perhaps.
-
-That'll save us the check whether we are on the entry stack and replace
-it with a check whether we are coming from user/vm86 mode. I don't think
-that this will simplify things much and I am a bit afraid that it'll
-break unwritten assumptions elsewhere. It is probably something we can
-look into later separatly from the basic pti-x32 enablement.
-
-
-Thanks,
-
-	Joerg
+Thank you,
+Pavel
