@@ -1,67 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0497A6B0005
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 21:42:03 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id t65-v6so2160598iof.23
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 18:42:03 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id 63-v6si11494208jar.28.2018.07.13.18.42.01
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 886DC6B0007
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 21:56:00 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id x14-v6so29196342ioa.6
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 18:56:00 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id u206-v6si5933031itc.35.2018.07.13.18.55.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 13 Jul 2018 18:42:01 -0700 (PDT)
-Subject: Re: mmotm 2018-07-13-16-51 uploaded (PSI)
-References: <20180713235138.HoxHd%akpm@linux-foundation.org>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <cf4f5b65-6333-a1f0-6118-16fc0e5bc221@infradead.org>
-Date: Fri, 13 Jul 2018 18:41:40 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Jul 2018 18:55:59 -0700 (PDT)
+Subject: Re: [PATCH v13 0/7] cgroup-aware OOM killer
+References: <20171130152824.1591-1-guro@fb.com>
+ <20180605114729.GB19202@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1807131438380.194789@chino.kir.corp.google.com>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <0a86d2a7-b78e-7e69-f628-aa2c75d91ff0@i-love.sakura.ne.jp>
+Date: Sat, 14 Jul 2018 10:55:41 +0900
 MIME-Version: 1.0
-In-Reply-To: <20180713235138.HoxHd%akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.21.1807131438380.194789@chino.kir.corp.google.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, broonie@kernel.org, mhocko@suse.cz, sfr@canb.auug.org.au, linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
+To: David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@vger.kernel.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 07/13/2018 04:51 PM, akpm@linux-foundation.org wrote:
-> The mm-of-the-moment snapshot 2018-07-13-16-51 has been uploaded to
-> 
->    http://www.ozlabs.org/~akpm/mmotm/
-> 
-> mmotm-readme.txt says
-> 
-> README for mm-of-the-moment:
-> 
-> http://www.ozlabs.org/~akpm/mmotm/
-> 
-> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-> more than once a week.
-> 
-> You will need quilt to apply these patches to the latest Linus release (4.x
-> or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-> http://ozlabs.org/~akpm/mmotm/series
-> 
-> The file broken-out.tar.gz contains two datestamp files: .DATE and
-> .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-> followed by the base kernel version against which this patch series is to
-> be applied.
+On 2018/07/14 6:59, David Rientjes wrote:
+> I'm not trying to preclude the cgroup-aware oom killer from being merged,
+> I'm the only person actively trying to get it merged.
 
-
-../include/linux/psi.h:12:13: error: conflicting types for 'psi_disabled'
-extern bool psi_disabled;
-
-
-choose one:)
-
-kernel/sched/psi.c:
-bool psi_disabled __read_mostly;
-
-
-include/linux/sched/stat.h:
-	extern int psi_disabled;
-
-
-
-
--- 
-~Randy
+Before merging the cgroup-aware oom killer, can we merge OOM lockup fixes
+and my cleanup? The gap between linux.git and linux-next.git keeps us unable
+to use agreed baseline.
