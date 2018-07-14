@@ -1,248 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ECE5F6B0007
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 22:39:50 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id a23-v6so10141928pfo.23
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 19:39:50 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id q74-v6si25774752pfa.272.2018.07.13.19.39.49
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 50AB76B000A
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 22:40:52 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id z9-v6so11030132iom.14
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 19:40:52 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q2-v6sor10390302iog.302.2018.07.13.19.40.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 19:39:49 -0700 (PDT)
-Date: Sat, 14 Jul 2018 10:38:59 +0800
-From: kbuild test robot <lkp@intel.com>
-Subject: [mmotm:master 173/329] kernel/sched/psi.c:504:26: sparse: incorrect
- type in assignment (different address spaces)
-Message-ID: <201807141056.PLxOnvl7%fengguang.wu@intel.com>
+        (Google Transport Security);
+        Fri, 13 Jul 2018 19:40:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+References: <CA+55aFyARQV302+mXNYznrOOjzW+yxbcv+=OkD43dG6G1ktoMQ@mail.gmail.com>
+ <alpine.DEB.2.21.1807140031440.2644@nanos.tec.linutronix.de>
+ <CA+55aFzBx1haeM2QSFvhaW2t_HVK78Y=bKvsiJmOZztwkZ-y7Q@mail.gmail.com>
+ <CA+55aFzVGa57apuzDMBLgWQQRcm3BNBs1UEg-G_2o7YW1i=o2Q@mail.gmail.com>
+ <CA+55aFy9NJZeqT7h_rAgbKUZLjzfxvDPwneFQracBjVhY53aQQ@mail.gmail.com>
+ <20180713164804.fc2c27ccbac4c02ca2c8b984@linux-foundation.org>
+ <CA+55aFxAZr8PHo-raTihr8TKK_D-fVL+k6_tw_UyDLychowFNw@mail.gmail.com>
+ <20180713165812.ec391548ffeead96725d044c@linux-foundation.org>
+ <9b93d48c-b997-01f7-2fd6-6e35301ef263@oracle.com> <CA+55aFxFw2-1BD2UBf_QJ2=faQES_8q==yUjwj4mGJ6Ub4uX7w@mail.gmail.com>
+ <5edf2d71-f548-98f9-16dd-b7fed29f4869@oracle.com>
+In-Reply-To: <5edf2d71-f548-98f9-16dd-b7fed29f4869@oracle.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 13 Jul 2018 19:40:37 -0700
+Message-ID: <CA+55aFwPAwczHS3XKkEnjY02PaDf2mWrcqx_hket4Ce3nScsSg@mail.gmail.com>
+Subject: Re: Instability in current -git tree
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Matthew Wilcox <willy@infradead.org>, Ingo Molnar <mingo@redhat.com>, Jens Axboe <axboe@kernel.dk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Miller <davem@davemloft.net>, Al Viro <viro@zeniv.linux.org.uk>, Dave Airlie <airlied@gmail.com>, Tejun Heo <tj@kernel.org>, Ted Ts'o <tytso@google.com>, Mike Snitzer <snitzer@redhat.com>, linux-mm <linux-mm@kvack.org>, Daniel Vacek <neelx@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   fa5441daae8ad99af4e198bcd4d57cffdd582961
-commit: 05447370dd1cb96635f9502de590442a34903ff1 [173/329] psi: cgroup support
-reproduce:
-        # apt-get install sparse
-        git checkout 05447370dd1cb96635f9502de590442a34903ff1
-        make ARCH=x86_64 allmodconfig
-        make C=1 CF=-D__CHECK_ENDIAN__
+On Fri, Jul 13, 2018 at 5:47 PM Pavel Tatashin
+<pasha.tatashin@oracle.com> wrote:
+>
+> The commit intends to zero memmap (struct pages) for every hole in
+> e820 ranges by marking them reserved in memblock. Later
+> zero_resv_unavail() walks through memmap ranges and zeroes struct
+> pages for every page that is reserved, but does not have a physical
+> backing known by kernel.
 
+Ahh. That just looks incoredibly buggy.
 
-sparse warnings: (new ones prefixed by >>)
+You can't just memset() the 'struct page' to zero after it's been set up.
 
-   kernel/sched/psi.c:153:18: sparse: incorrect type in initializer (different address spaces) @@    expected struct psi_group_cpu *cpus @@    got struct psi_group_struct psi_group_cpu *cpus @@
-   kernel/sched/psi.c:153:18:    expected struct psi_group_cpu *cpus
-   kernel/sched/psi.c:153:18:    got struct psi_group_cpu [noderef] <asn:3>*<noident>
-   kernel/sched/psi.c:220:48: sparse: incorrect type in initializer (different address spaces) @@    expected void const [noderef] <asn:3>*__vpp_verify @@    got nst [noderef] <asn:3>*__vpp_verify @@
-   kernel/sched/psi.c:220:48:    expected void const [noderef] <asn:3>*__vpp_verify
-   kernel/sched/psi.c:220:48:    got struct psi_group_cpu *<noident>
-   kernel/sched/psi.c:256:17: sparse: expression using sizeof(void)
-   kernel/sched/psi.c:257:17: sparse: expression using sizeof(void)
-   kernel/sched/psi.c:339:18: sparse: incorrect type in initializer (different address spaces) @@    expected void const [noderef] <asn:3>*__vpp_verify @@    got nst [noderef] <asn:3>*__vpp_verify @@
-   kernel/sched/psi.c:339:18:    expected void const [noderef] <asn:3>*__vpp_verify
-   kernel/sched/psi.c:339:18:    got struct psi_group_cpu *<noident>
->> kernel/sched/psi.c:504:26: sparse: incorrect type in assignment (different address spaces) @@    expected struct psi_group_cpu *cpus @@    got struct psi_group_struct psi_group_cpu *cpus @@
-   kernel/sched/psi.c:504:26:    expected struct psi_group_cpu *cpus
-   kernel/sched/psi.c:504:26:    got struct psi_group_cpu [noderef] <asn:3>*<noident>
->> kernel/sched/psi.c:514:32: sparse: incorrect type in argument 1 (different address spaces) @@    expected void [noderef] <asn:3>*__pdata @@    got oid [noderef] <asn:3>*__pdata @@
-   kernel/sched/psi.c:514:32:    expected void [noderef] <asn:3>*__pdata
-   kernel/sched/psi.c:514:32:    got struct psi_group_cpu *cpus
->> kernel/sched/psi.c:425:21: sparse: dereference of noderef expression
+That also zeroes page->flags, but page->flags contains things like the
+zone and node ID.
 
-vim +504 kernel/sched/psi.c
+That would explain the completely bogus "DMA" zone. That's not the
+real zone, it's just that page_zonenr() returns 0 because of an
+incorrect clearing of page->flags.
 
-   330	
-   331	static void psi_group_change(struct psi_group *group, int cpu, u64 now,
-   332				     unsigned int clear, unsigned int set)
-   333	{
-   334		enum psi_state state = PSI_NONE;
-   335		struct psi_group_cpu *groupc;
-   336		unsigned int *tasks;
-   337		unsigned int to, bo;
-   338	
- > 339		groupc = per_cpu_ptr(group->cpus, cpu);
-   340		tasks = groupc->tasks;
-   341	
-   342		/* Update task counts according to the set/clear bitmasks */
-   343		for (to = 0; (bo = ffs(clear)); to += bo, clear >>= bo) {
-   344			int idx = to + (bo - 1);
-   345	
-   346			if (tasks[idx] == 0 && !psi_bug) {
-   347				printk_deferred(KERN_ERR "psi: task underflow! cpu=%d idx=%d tasks=[%u %u %u] clear=%x set=%x\n",
-   348						cpu, idx, tasks[0], tasks[1], tasks[2],
-   349						clear, set);
-   350				psi_bug = 1;
-   351			}
-   352			tasks[idx]--;
-   353		}
-   354		for (to = 0; (bo = ffs(set)); to += bo, set >>= bo)
-   355			tasks[to + (bo - 1)]++;
-   356	
-   357		/* Time in which tasks wait for the CPU */
-   358		state = PSI_NONE;
-   359		if (tasks[NR_RUNNING] > 1)
-   360			state = PSI_SOME;
-   361		time_state(&groupc->res[PSI_CPU], state, now);
-   362	
-   363		/* Time in which tasks wait for memory */
-   364		state = PSI_NONE;
-   365		if (tasks[NR_MEMSTALL]) {
-   366			if (!tasks[NR_RUNNING] ||
-   367			    (cpu_curr(cpu)->flags & PF_MEMSTALL))
-   368				state = PSI_FULL;
-   369			else
-   370				state = PSI_SOME;
-   371		}
-   372		time_state(&groupc->res[PSI_MEM], state, now);
-   373	
-   374		/* Time in which tasks wait for IO */
-   375		state = PSI_NONE;
-   376		if (tasks[NR_IOWAIT]) {
-   377			if (!tasks[NR_RUNNING])
-   378				state = PSI_FULL;
-   379			else
-   380				state = PSI_SOME;
-   381		}
-   382		time_state(&groupc->res[PSI_IO], state, now);
-   383	
-   384		/* Time in which tasks are non-idle, to weigh the CPU in summaries */
-   385		if (groupc->nonidle)
-   386			groupc->nonidle_time += now - groupc->nonidle_start;
-   387		groupc->nonidle = tasks[NR_RUNNING] ||
-   388			tasks[NR_IOWAIT] || tasks[NR_MEMSTALL];
-   389		if (groupc->nonidle)
-   390			groupc->nonidle_start = now;
-   391	
-   392		/* Kick the stats aggregation worker if it's gone to sleep */
-   393		if (!delayed_work_pending(&group->clock_work))
-   394			schedule_delayed_work(&group->clock_work, PSI_FREQ);
-   395	}
-   396	
-   397	void psi_task_change(struct task_struct *task, u64 now, int clear, int set)
-   398	{
-   399	#ifdef CONFIG_CGROUPS
-   400		struct cgroup *cgroup, *parent;
-   401	#endif
-   402		int cpu = task_cpu(task);
-   403	
-   404		if (psi_disabled)
-   405			return;
-   406	
-   407		if (!task->pid)
-   408			return;
-   409	
-   410		if (((task->psi_flags & set) ||
-   411		     (task->psi_flags & clear) != clear) &&
-   412		    !psi_bug) {
-   413			printk_deferred(KERN_ERR "psi: inconsistent task state! task=%d:%s cpu=%d psi_flags=%x clear=%x set=%x\n",
-   414					task->pid, task->comm, cpu,
-   415					task->psi_flags, clear, set);
-   416			psi_bug = 1;
-   417		}
-   418	
-   419		task->psi_flags &= ~clear;
-   420		task->psi_flags |= set;
-   421	
-   422		psi_group_change(&psi_system, cpu, now, clear, set);
-   423	
-   424	#ifdef CONFIG_CGROUPS
- > 425	       cgroup = task->cgroups->dfl_cgrp;
-   426	       while (cgroup && (parent = cgroup_parent(cgroup))) {
-   427	               struct psi_group *group;
-   428	
-   429	               group = cgroup_psi(cgroup);
-   430	               psi_group_change(group, cpu, now, clear, set);
-   431	
-   432	               cgroup = parent;
-   433	       }
-   434	#endif
-   435	}
-   436	
-   437	/**
-   438	 * psi_memstall_enter - mark the beginning of a memory stall section
-   439	 * @flags: flags to handle nested sections
-   440	 *
-   441	 * Marks the calling task as being stalled due to a lack of memory,
-   442	 * such as waiting for a refault or performing reclaim.
-   443	 */
-   444	void psi_memstall_enter(unsigned long *flags)
-   445	{
-   446		struct rq_flags rf;
-   447		struct rq *rq;
-   448	
-   449		if (psi_disabled)
-   450			return;
-   451	
-   452		*flags = current->flags & PF_MEMSTALL;
-   453		if (*flags)
-   454			return;
-   455		/*
-   456		 * PF_MEMSTALL setting & accounting needs to be atomic wrt
-   457		 * changes to the task's scheduling state, otherwise we can
-   458		 * race with CPU migration.
-   459		 */
-   460		rq = this_rq_lock_irq(&rf);
-   461	
-   462		update_rq_clock(rq);
-   463	
-   464		current->flags |= PF_MEMSTALL;
-   465		psi_task_change(current, rq_clock(rq), 0, TSK_MEMSTALL);
-   466	
-   467		rq_unlock_irq(rq, &rf);
-   468	}
-   469	
-   470	/**
-   471	 * psi_memstall_leave - mark the end of an memory stall section
-   472	 * @flags: flags to handle nested memdelay sections
-   473	 *
-   474	 * Marks the calling task as no longer stalled due to lack of memory.
-   475	 */
-   476	void psi_memstall_leave(unsigned long *flags)
-   477	{
-   478		struct rq_flags rf;
-   479		struct rq *rq;
-   480	
-   481		if (psi_disabled)
-   482			return;
-   483	
-   484		if (*flags)
-   485			return;
-   486		/*
-   487		 * PF_MEMSTALL clearing & accounting needs to be atomic wrt
-   488		 * changes to the task's scheduling state, otherwise we could
-   489		 * race with CPU migration.
-   490		 */
-   491		rq = this_rq_lock_irq(&rf);
-   492	
-   493		update_rq_clock(rq);
-   494	
-   495		current->flags &= ~PF_MEMSTALL;
-   496		psi_task_change(current, rq_clock(rq), TSK_MEMSTALL, 0);
-   497	
-   498		rq_unlock_irq(rq, &rf);
-   499	}
-   500	
-   501	#ifdef CONFIG_CGROUPS
-   502	int psi_cgroup_alloc(struct cgroup *cgroup)
-   503	{
- > 504		cgroup->psi.cpus = alloc_percpu(struct psi_group_cpu);
-   505		if (!cgroup->psi.cpus)
-   506			return -ENOMEM;
-   507		psi_group_init(&cgroup->psi);
-   508		return 0;
-   509	}
-   510	
-   511	void psi_cgroup_free(struct cgroup *cgroup)
-   512	{
-   513		cancel_delayed_work_sync(&cgroup->psi.clock_work);
- > 514		free_percpu(cgroup->psi.cpus);
-   515	}
-   516	
+And it would also completely bugger pfn_to_page() for
+CONFIG_DISCONTIGMEM, because the way that works is that it looks up
+the node using page_to_nid(), and then looks up the pfn by using the
+per-node pglist_data ->node_mem_map (that the 'struct page' is
+supposed to be a pointer into).
 
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+So zerong the page->flags after it has been set up is completely wrong
+as far as I can see. It literally invalidates 'struct page' and makes
+various core VM function assumptions stop working.
+
+As an example, it makes "page_to_pfn -> pfn_to_page" not be the
+identity transformation, which could result in totally random
+behavior.
+
+And it definitely explains the whole "oh, now the zone ID doesn't
+match" issue. It &*should* have been zone #1 ("DMA32"), but it got
+cleared and that made it zone #0 ("DMA").
+
+So yeah, this looks like the cause of it. And it could result in any
+number of really odd problems, so this could easily explain the syzbot
+failures and reboots at bootup too. Who knows what happens when
+pfn_to_page() doesn't work any more.
+
+Should we perhaps just revert
+
+  124049decbb1 x86/e820: put !E820_TYPE_RAM regions into memblock.reserved
+  f7f99100d8d9 mm: stop zeroing memory during allocation in vmemmap
+
+it still reverts fairly cleanly (there's a trivial conflict with the
+older commit).
+
+              Linus
