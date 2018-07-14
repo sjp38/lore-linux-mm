@@ -1,83 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D20936B0005
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 02:26:59 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id cf17-v6so13571972plb.2
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 23:26:59 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o12-v6sor4753494pfj.139.2018.07.13.23.26.58
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 386D96B0007
+	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 02:27:40 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id c14-v6so2008908wmb.2
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 23:27:40 -0700 (PDT)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id q12-v6si23380306wrp.314.2018.07.13.23.27.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 13 Jul 2018 23:26:58 -0700 (PDT)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (1.0)
-Subject: Re: [PATCH 10/39] x86/entry/32: Handle Entry from Kernel-Mode on Entry-Stack
-From: Andy Lutomirski <luto@amacapital.net>
-In-Reply-To: <20180714052110.cobtew6rms23ih37@suse.de>
-Date: Fri, 13 Jul 2018 23:26:54 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <7AB4F269-E0E8-4290-A764-69D8605467E8@amacapital.net>
-References: <1531308586-29340-1-git-send-email-joro@8bytes.org> <1531308586-29340-11-git-send-email-joro@8bytes.org> <CALCETrUg_4q8a2Tt_Z+GtVuBwj3Ct3=j7M-YhiK06=XjxOG82A@mail.gmail.com> <20180714052110.cobtew6rms23ih37@suse.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Jul 2018 23:27:39 -0700 (PDT)
+Date: Sat, 14 Jul 2018 08:27:37 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [RFC PATCH v2 25/27] x86/cet: Add PTRACE interface for CET
+Message-ID: <20180714062737.GA13242@amd>
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+ <20180710222639.8241-26-yu-cheng.yu@intel.com>
+ <20180711102035.GB8574@gmail.com>
+ <1531323638.13297.24.camel@intel.com>
+ <20180712140327.GA7810@gmail.com>
+ <20180713062804.GA6905@amd>
+ <20180713133357.GB13602@gmail.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="ikeVEW9yuYc//A+q"
+Content-Disposition: inline
+In-Reply-To: <20180713133357.GB13602@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <jroedel@suse.de>
-Cc: Andy Lutomirski <luto@kernel.org>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
 
+--ikeVEW9yuYc//A+q
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> On Jul 13, 2018, at 10:21 PM, Joerg Roedel <jroedel@suse.de> wrote:
+On Fri 2018-07-13 15:33:58, Ingo Molnar wrote:
 >=20
->> On Fri, Jul 13, 2018 at 04:31:02PM -0700, Andy Lutomirski wrote:
->> What you're really doing is keeping it available for an extra flag.
->> Please update the comment as such.  But see below.
+> * Pavel Machek <pavel@ucw.cz> wrote:
 >=20
-> Thanks, will do.
+> >=20
+> > > > > to "CET" (which is a well-known acronym for "Central European Tim=
+e"),
+> > > > > not to CFE?
+> > > > >=20
+> > > >=20
+> > > > I don't know if I can change that, will find out.
+> > >=20
+> > > So what I'd suggest is something pretty simple: to use CFT/cft in ker=
+nel internal=20
+> > > names, except for the Intel feature bit and any MSR enumeration which=
+ can be CET=20
+> > > if Intel named it that way, and a short comment explaining the acrony=
+m difference.
+> > >=20
+> > > Or something like that.
+> >=20
+> > Actually, I don't think CFT is much better -- there's limited number
+> > of TLAs (*). "ENFORCE_FLOW"? "FLOWE"? "EFLOW"?
 >=20
->>> +.macro PARANOID_EXIT_TO_KERNEL_MODE
->>> +
->>> +       /*
->>> +        * Test if we entered the kernel with the entry-stack. Most
->>> +        * likely we did not, because this code only runs on the
->>> +        * return-to-kernel path.
->>> +        */
->>> +       testl   $CS_FROM_ENTRY_STACK, PT_CS(%esp)
->>> +       jz      .Lend_\@
->>> +
->>> +       /* Unlikely slow-path */
->>> +
->>> +       /* Clear marker from stack-frame */
->>> +       andl    $(~CS_FROM_ENTRY_STACK), PT_CS(%esp)
->>> +
->>> +       /* Copy the remaining task-stack contents to entry-stack */
->>> +       movl    %esp, %esi
->>> +       movl    PER_CPU_VAR(cpu_tss_rw + TSS_sp0), %edi
->>=20
->> I'm confused.  Why do we need any special handling here at all?  How
->> could we end up with the contents of the stack frame we interrupted in
->> a corrupt state?
->>=20
->> I guess I don't understand why this patch is needed.
+> Erm, I wanted to say 'CFE', i.e. the abbreviation of 'Control Flow Enforc=
+ement'.
 >=20
-> The patch is needed because we can get exceptions in kernel-mode while
-> we are already on user-cr3 and entry-stack. In this case we need to
-> return with user-cr3 and entry-stack to the kernel too, otherwise we
-> would go to user-space with kernel-cr3.
->=20
-> So based on that, I did the above because the entry-stack is a per-cpu
-> data structure and I am not sure that we always return from the exception
-> on the same CPU where we got it. Therefore the path is called
-> PARANOID_... :)
+> But I guess I can live with CET as well ...
 
-But we should just be able to IRET and end up right back on the entry stack w=
-here we were when we got interrupted.
+Yeah, and I am trying to say that perhaps we should use something
+longer than three letters. It will make code longer but easier to
+read.
+									Pavel
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
 
-On x86_64, we *definitely* can=E2=80=99t schedule in NMI, MCE, or #DB becaus=
-e we=E2=80=99re on a percpu stack. Are you *sure* we need this patch?
+--ikeVEW9yuYc//A+q
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
 
->=20
->=20
-> Regards,
->=20
->    Joerg
->=20
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iEYEARECAAYFAltJl9kACgkQMOfwapXb+vJ/zwCglPFXsNNzgW0ML/M0vPlj5C0a
+To0AoJ4qd5n1bRykjwlqyW6Hs34O+tnJ
+=7LRO
+-----END PGP SIGNATURE-----
+
+--ikeVEW9yuYc//A+q--
