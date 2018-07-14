@@ -1,250 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C51D6B0005
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 05:28:11 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id z6-v6so16277942qto.4
-        for <linux-mm@kvack.org>; Sat, 14 Jul 2018 02:28:11 -0700 (PDT)
-Received: from outgoing-stata.csail.mit.edu (outgoing-stata.csail.mit.edu. [128.30.2.210])
-        by mx.google.com with ESMTP id r7-v6si3449070qvm.102.2018.07.14.02.28.09
-        for <linux-mm@kvack.org>;
-        Sat, 14 Jul 2018 02:28:09 -0700 (PDT)
-Subject: [PATCH 4.4.y 015/101] x86/cpufeature,
- x86/mm/pkeys: Add protection keys related CPUID definitions
-From: "Srivatsa S. Bhat" <srivatsa@csail.mit.edu>
-Date: Sat, 14 Jul 2018 02:28:04 -0700
-Message-ID: <153156048404.10043.9924019452796692128.stgit@srivatsa-ubuntu>
-In-Reply-To: <153156030832.10043.13438231886571087086.stgit@srivatsa-ubuntu>
-References: <153156030832.10043.13438231886571087086.stgit@srivatsa-ubuntu>
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BFF76B0007
+	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 05:29:01 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id y13-v6so18191936iop.3
+        for <linux-mm@kvack.org>; Sat, 14 Jul 2018 02:29:01 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j188-v6sor2579905ite.67.2018.07.14.02.28.59
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Sat, 14 Jul 2018 02:29:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CA+55aFwD0cXbD6wW_2gs0kXRk-VsF05oE+4M6J=OoVj-wOOGSg@mail.gmail.com>
+References: <CA+55aFyARQV302+mXNYznrOOjzW+yxbcv+=OkD43dG6G1ktoMQ@mail.gmail.com>
+ <alpine.DEB.2.21.1807140031440.2644@nanos.tec.linutronix.de>
+ <CA+55aFzBx1haeM2QSFvhaW2t_HVK78Y=bKvsiJmOZztwkZ-y7Q@mail.gmail.com>
+ <CA+55aFzVGa57apuzDMBLgWQQRcm3BNBs1UEg-G_2o7YW1i=o2Q@mail.gmail.com>
+ <CA+55aFy9NJZeqT7h_rAgbKUZLjzfxvDPwneFQracBjVhY53aQQ@mail.gmail.com>
+ <20180713164804.fc2c27ccbac4c02ca2c8b984@linux-foundation.org>
+ <CA+55aFxAZr8PHo-raTihr8TKK_D-fVL+k6_tw_UyDLychowFNw@mail.gmail.com> <CA+55aFwD0cXbD6wW_2gs0kXRk-VsF05oE+4M6J=OoVj-wOOGSg@mail.gmail.com>
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Date: Sat, 14 Jul 2018 11:28:58 +0200
+Message-ID: <CAKv+Gu_Rf1mZJVHjop+e7f_kCJUa+DCoKsarrZJ8QvYN_m1rPQ@mail.gmail.com>
+Subject: Re: Instability in current -git tree
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org, stable@vger.kernel.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave@sr71.net>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, "Matt Helsley (VMware)" <matt.helsley@gmail.com>, Alexey Makhalov <amakhalov@vmware.com>, Bo Gan <ganb@vmware.com>matt.helsley@gmail.com, rostedt@goodmis.orgamakhalov@vmware.comganb@vmware.com, srivatsa@csail.mit.edu, srivatsab@vmware.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Matthew Wilcox <willy@infradead.org>, Ingo Molnar <mingo@redhat.com>, Jens Axboe <axboe@kernel.dk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Miller <davem@davemloft.net>, Al Viro <viro@zeniv.linux.org.uk>, Dave Airlie <airlied@gmail.com>, Tejun Heo <tj@kernel.org>, Ted Ts'o <tytso@google.com>, Mike Snitzer <snitzer@redhat.com>, linux-mm <linux-mm@kvack.org>, Daniel Vacek <neelx@redhat.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Mel Gorman <mgorman@techsingularity.net>
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+On 14 July 2018 at 02:20, Linus Torvalds <torvalds@linux-foundation.org> wrote:
+> On Fri, Jul 13, 2018 at 4:51 PM Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
+>>
+>> I'm building a "replace VM_BUG_ON() with proper printk's instead" right now.
+>
+> Ok, the machine now stays up, and I get messages like
+>
+>   Removed VM_BUG_ON()!
+>      pfn c2400 - c25ff
+>      zone DMA32 DMA
+>      zone pfn 1000 1
+>
+>   Removed VM_BUG_ON()!
+>      pfn c0a00 - c0bff
+>      zone DMA32 DMA
+>      zone pfn 1000 1
+>
+>   Removed VM_BUG_ON()!
+>      pfn c2200 - c23ff
+>      zone DMA DMA32
+>      zone pfn 1 1000
+>
+> instead.
+>
+> That's from
+>
+> +               printk("Removed VM_BUG_ON()!\n");
+> +               printk("   pfn %lx - %lx\n", page_to_pfn(start_page),
+> page_to_pfn(end_page));
+> +               printk("   zone %s %s\n", page_zone(start_page)->name,
+> page_zone(end_page)->name);
+> +               printk("   zone pfn %lx %lx\n",
+> page_zone(start_page)->zone_start_pfn,
+> page_zone(end_page)->zone_start_pfn);
+>
+> inside an if() statement that replaced that VM_BUG_ON().
+>
+> WTF? That's just odd.
+>
+> But everything seems to work fine, and now it doesn't crash.
+>
+> But there's something really odd going on wrt page_zone() and/or page_to_pfn().
+>
+> page_to_pfn() implies this is just regular memory in the 3GB area. It
+> is likely related to this:
+>
+>  BIOS-e820: [mem 0x00000000c0b33000-0x00000000c226cfff] reserved
+>  BIOS-e820: [mem 0x00000000c226d000-0x00000000c227efff] ACPI data
+>  BIOS-e820: [mem 0x00000000c227f000-0x00000000c2439fff] usable
+>  BIOS-e820: [mem 0x00000000c243a000-0x00000000c2a61fff] ACPI NVS
+>  BIOS-e820: [mem 0x00000000c2a62000-0x00000000c32fefff] reserved
+>  BIOS-e820: [mem 0x00000000c32ff000-0x00000000c32fffff] usable
+>  BIOS-e820: [mem 0x00000000c3300000-0x00000000c7ffffff] reserved
+>
+> I dunno. It's a bit odd. I'm not sure I understand that VM_BUG_ON().
+> Adding Ard (who worked on the memblock_next_valid_pfn() thing not that
+> long ago) and must have hit this same BUG_ON() because he modified it
+> not that long ago.
+>
+> Ard, I triggered the VM_BUG_ON() in mm/page_alloc.c:2016, with a call trace opf
+>
+>   RIP: move_pfreepages_block()
+>   Call Trace:
+>     steal_suitable_fallback
+>     get_page_from_freelist
+>     ...
+>
+> just for some context.
+>
 
-commit dfb4a70f20c5b3880da56ee4c9484bdb4e8f1e65 upstream
-
-There are two CPUID bits for protection keys.  One is for whether
-the CPU contains the feature, and the other will appear set once
-the OS enables protection keys.  Specifically:
-
-	Bit 04: OSPKE. If 1, OS has set CR4.PKE to enable
-	Protection keys (and the RDPKRU/WRPKRU instructions)
-
-This is because userspace can not see CR4 contents, but it can
-see CPUID contents.
-
-X86_FEATURE_PKU is referred to as "PKU" in the hardware documentation:
-
-	CPUID.(EAX=07H,ECX=0H):ECX.PKU [bit 3]
-
-X86_FEATURE_OSPKE is "OSPKU":
-
-	CPUID.(EAX=07H,ECX=0H):ECX.OSPKE [bit 4]
-
-These are the first CPU features which need to look at the
-ECX word in CPUID leaf 0x7, so this patch also includes
-fetching that word in to the cpuinfo->x86_capability[] array.
-
-Add it to the disabled-features mask when its config option is
-off.  Even though we are not using it here, we also extend the
-REQUIRED_MASK_BIT_SET() macro to keep it mirroring the
-DISABLED_MASK_BIT_SET() version.
-
-This means that in almost all code, you should use:
-
-	cpu_has(c, X86_FEATURE_PKU)
-
-and *not* the CONFIG option.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave@sr71.net>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/20160212210201.7714C250@viggo.jf.intel.com
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Srivatsa S. Bhat <srivatsa@csail.mit.edu>
-Reviewed-by: Matt Helsley (VMware) <matt.helsley@gmail.com>
-Reviewed-by: Alexey Makhalov <amakhalov@vmware.com>
-Reviewed-by: Bo Gan <ganb@vmware.com>
----
-
- arch/x86/include/asm/cpufeature.h        |   59 ++++++++++++++++++++----------
- arch/x86/include/asm/cpufeatures.h       |    2 +
- arch/x86/include/asm/disabled-features.h |   15 ++++++++
- arch/x86/include/asm/required-features.h |    7 ++++
- arch/x86/kernel/cpu/common.c             |    1 +
- 5 files changed, 63 insertions(+), 21 deletions(-)
-
-diff --git a/arch/x86/include/asm/cpufeature.h b/arch/x86/include/asm/cpufeature.h
-index 03ca602..7fdd717 100644
---- a/arch/x86/include/asm/cpufeature.h
-+++ b/arch/x86/include/asm/cpufeature.h
-@@ -26,6 +26,7 @@ enum cpuid_leafs
- 	CPUID_8000_0008_EBX,
- 	CPUID_6_EAX,
- 	CPUID_8000_000A_EDX,
-+	CPUID_7_ECX,
- };
- 
- #ifdef CONFIG_X86_FEATURE_NAMES
-@@ -48,28 +49,42 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
- 	 test_bit(bit, (unsigned long *)((c)->x86_capability))
- 
- #define REQUIRED_MASK_BIT_SET(bit)					\
--	 ( (((bit)>>5)==0 && (1UL<<((bit)&31) & REQUIRED_MASK0)) ||	\
--	   (((bit)>>5)==1 && (1UL<<((bit)&31) & REQUIRED_MASK1)) ||	\
--	   (((bit)>>5)==2 && (1UL<<((bit)&31) & REQUIRED_MASK2)) ||	\
--	   (((bit)>>5)==3 && (1UL<<((bit)&31) & REQUIRED_MASK3)) ||	\
--	   (((bit)>>5)==4 && (1UL<<((bit)&31) & REQUIRED_MASK4)) ||	\
--	   (((bit)>>5)==5 && (1UL<<((bit)&31) & REQUIRED_MASK5)) ||	\
--	   (((bit)>>5)==6 && (1UL<<((bit)&31) & REQUIRED_MASK6)) ||	\
--	   (((bit)>>5)==7 && (1UL<<((bit)&31) & REQUIRED_MASK7)) ||	\
--	   (((bit)>>5)==8 && (1UL<<((bit)&31) & REQUIRED_MASK8)) ||	\
--	   (((bit)>>5)==9 && (1UL<<((bit)&31) & REQUIRED_MASK9)) )
-+	 ( (((bit)>>5)==0  && (1UL<<((bit)&31) & REQUIRED_MASK0 )) ||	\
-+	   (((bit)>>5)==1  && (1UL<<((bit)&31) & REQUIRED_MASK1 )) ||	\
-+	   (((bit)>>5)==2  && (1UL<<((bit)&31) & REQUIRED_MASK2 )) ||	\
-+	   (((bit)>>5)==3  && (1UL<<((bit)&31) & REQUIRED_MASK3 )) ||	\
-+	   (((bit)>>5)==4  && (1UL<<((bit)&31) & REQUIRED_MASK4 )) ||	\
-+	   (((bit)>>5)==5  && (1UL<<((bit)&31) & REQUIRED_MASK5 )) ||	\
-+	   (((bit)>>5)==6  && (1UL<<((bit)&31) & REQUIRED_MASK6 )) ||	\
-+	   (((bit)>>5)==7  && (1UL<<((bit)&31) & REQUIRED_MASK7 )) ||	\
-+	   (((bit)>>5)==8  && (1UL<<((bit)&31) & REQUIRED_MASK8 )) ||	\
-+	   (((bit)>>5)==9  && (1UL<<((bit)&31) & REQUIRED_MASK9 )) ||	\
-+	   (((bit)>>5)==10 && (1UL<<((bit)&31) & REQUIRED_MASK10)) ||	\
-+	   (((bit)>>5)==11 && (1UL<<((bit)&31) & REQUIRED_MASK11)) ||	\
-+	   (((bit)>>5)==12 && (1UL<<((bit)&31) & REQUIRED_MASK12)) ||	\
-+	   (((bit)>>5)==13 && (1UL<<((bit)&31) & REQUIRED_MASK13)) ||	\
-+	   (((bit)>>5)==13 && (1UL<<((bit)&31) & REQUIRED_MASK14)) ||	\
-+	   (((bit)>>5)==13 && (1UL<<((bit)&31) & REQUIRED_MASK15)) ||	\
-+	   (((bit)>>5)==14 && (1UL<<((bit)&31) & REQUIRED_MASK16)) )
- 
- #define DISABLED_MASK_BIT_SET(bit)					\
--	 ( (((bit)>>5)==0 && (1UL<<((bit)&31) & DISABLED_MASK0)) ||	\
--	   (((bit)>>5)==1 && (1UL<<((bit)&31) & DISABLED_MASK1)) ||	\
--	   (((bit)>>5)==2 && (1UL<<((bit)&31) & DISABLED_MASK2)) ||	\
--	   (((bit)>>5)==3 && (1UL<<((bit)&31) & DISABLED_MASK3)) ||	\
--	   (((bit)>>5)==4 && (1UL<<((bit)&31) & DISABLED_MASK4)) ||	\
--	   (((bit)>>5)==5 && (1UL<<((bit)&31) & DISABLED_MASK5)) ||	\
--	   (((bit)>>5)==6 && (1UL<<((bit)&31) & DISABLED_MASK6)) ||	\
--	   (((bit)>>5)==7 && (1UL<<((bit)&31) & DISABLED_MASK7)) ||	\
--	   (((bit)>>5)==8 && (1UL<<((bit)&31) & DISABLED_MASK8)) ||	\
--	   (((bit)>>5)==9 && (1UL<<((bit)&31) & DISABLED_MASK9)) )
-+	 ( (((bit)>>5)==0  && (1UL<<((bit)&31) & DISABLED_MASK0 )) ||	\
-+	   (((bit)>>5)==1  && (1UL<<((bit)&31) & DISABLED_MASK1 )) ||	\
-+	   (((bit)>>5)==2  && (1UL<<((bit)&31) & DISABLED_MASK2 )) ||	\
-+	   (((bit)>>5)==3  && (1UL<<((bit)&31) & DISABLED_MASK3 )) ||	\
-+	   (((bit)>>5)==4  && (1UL<<((bit)&31) & DISABLED_MASK4 )) ||	\
-+	   (((bit)>>5)==5  && (1UL<<((bit)&31) & DISABLED_MASK5 )) ||	\
-+	   (((bit)>>5)==6  && (1UL<<((bit)&31) & DISABLED_MASK6 )) ||	\
-+	   (((bit)>>5)==7  && (1UL<<((bit)&31) & DISABLED_MASK7 )) ||	\
-+	   (((bit)>>5)==8  && (1UL<<((bit)&31) & DISABLED_MASK8 )) ||	\
-+	   (((bit)>>5)==9  && (1UL<<((bit)&31) & DISABLED_MASK9 )) ||	\
-+	   (((bit)>>5)==10 && (1UL<<((bit)&31) & DISABLED_MASK10)) ||	\
-+	   (((bit)>>5)==11 && (1UL<<((bit)&31) & DISABLED_MASK11)) ||	\
-+	   (((bit)>>5)==12 && (1UL<<((bit)&31) & DISABLED_MASK12)) ||	\
-+	   (((bit)>>5)==13 && (1UL<<((bit)&31) & DISABLED_MASK13)) ||	\
-+	   (((bit)>>5)==13 && (1UL<<((bit)&31) & DISABLED_MASK14)) ||	\
-+	   (((bit)>>5)==13 && (1UL<<((bit)&31) & DISABLED_MASK15)) ||	\
-+	   (((bit)>>5)==14 && (1UL<<((bit)&31) & DISABLED_MASK16)) )
- 
- #define cpu_has(c, bit)							\
- 	(__builtin_constant_p(bit) && REQUIRED_MASK_BIT_SET(bit) ? 1 :	\
-@@ -79,6 +94,10 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
- 	(__builtin_constant_p(bit) && REQUIRED_MASK_BIT_SET(bit) ? 1 : 	\
- 	 x86_this_cpu_test_bit(bit, (unsigned long *)&cpu_info.x86_capability))
- 
-+/* Intel-defined CPU features, CPUID level 0x00000007:0 (ecx), word 16 */
-+#define X86_FEATURE_PKU		(16*32+ 3) /* Protection Keys for Userspace */
-+#define X86_FEATURE_OSPKE	(16*32+ 4) /* OS Protection Keys Enable */
-+
- /*
-  * This macro is for detection of features which need kernel
-  * infrastructure to be used.  It may *not* directly test the CPU
-diff --git a/arch/x86/include/asm/cpufeatures.h b/arch/x86/include/asm/cpufeatures.h
-index 255ea74..6ebb4c2d 100644
---- a/arch/x86/include/asm/cpufeatures.h
-+++ b/arch/x86/include/asm/cpufeatures.h
-@@ -12,7 +12,7 @@
- /*
-  * Defines x86 CPU feature bits
-  */
--#define NCAPINTS	16	/* N 32-bit words worth of info */
-+#define NCAPINTS	17	/* N 32-bit words worth of info */
- #define NBUGINTS	1	/* N 32-bit bug flags */
- 
- /*
-diff --git a/arch/x86/include/asm/disabled-features.h b/arch/x86/include/asm/disabled-features.h
-index 8b17c2a..522a069 100644
---- a/arch/x86/include/asm/disabled-features.h
-+++ b/arch/x86/include/asm/disabled-features.h
-@@ -30,6 +30,14 @@
- # define DISABLE_PCID		(1<<(X86_FEATURE_PCID & 31))
- #endif /* CONFIG_X86_64 */
- 
-+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-+# define DISABLE_PKU		(1<<(X86_FEATURE_PKU))
-+# define DISABLE_OSPKE		(1<<(X86_FEATURE_OSPKE))
-+#else
-+# define DISABLE_PKU		0
-+# define DISABLE_OSPKE		0
-+#endif /* CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS */
-+
- /*
-  * Make sure to add features to the correct mask
-  */
-@@ -43,5 +51,12 @@
- #define DISABLED_MASK7	0
- #define DISABLED_MASK8	0
- #define DISABLED_MASK9	(DISABLE_MPX)
-+#define DISABLED_MASK10	0
-+#define DISABLED_MASK11	0
-+#define DISABLED_MASK12	0
-+#define DISABLED_MASK13	0
-+#define DISABLED_MASK14	0
-+#define DISABLED_MASK15	0
-+#define DISABLED_MASK16	(DISABLE_PKU|DISABLE_OSPKE)
- 
- #endif /* _ASM_X86_DISABLED_FEATURES_H */
-diff --git a/arch/x86/include/asm/required-features.h b/arch/x86/include/asm/required-features.h
-index 5c6e4fb..4916144 100644
---- a/arch/x86/include/asm/required-features.h
-+++ b/arch/x86/include/asm/required-features.h
-@@ -92,5 +92,12 @@
- #define REQUIRED_MASK7	0
- #define REQUIRED_MASK8	0
- #define REQUIRED_MASK9	0
-+#define REQUIRED_MASK10	0
-+#define REQUIRED_MASK11	0
-+#define REQUIRED_MASK12	0
-+#define REQUIRED_MASK13	0
-+#define REQUIRED_MASK14	0
-+#define REQUIRED_MASK15	0
-+#define REQUIRED_MASK16	0
- 
- #endif /* _ASM_X86_REQUIRED_FEATURES_H */
-diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
-index 58d56c4..d6a7b6f2 100644
---- a/arch/x86/kernel/cpu/common.c
-+++ b/arch/x86/kernel/cpu/common.c
-@@ -693,6 +693,7 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
- 		c->x86_capability[CPUID_7_0_EBX] = ebx;
- 
- 		c->x86_capability[CPUID_6_EAX] = cpuid_eax(0x00000006);
-+		c->x86_capability[CPUID_7_ECX] = ecx;
- 	}
- 
- 	/* Extended state features: level 0x0000000d */
+I won't have time to dig into this before the middle of the week, but
+at first glance, it seems that those reserved regions have been
+assigned to the wrong zone. Given that they are reserved, that by
+itself probably does not matter in the first place, and I'd be more
+interested in understanding where those intervals are coming from that
+start or end right in the middle of a reserved region.
