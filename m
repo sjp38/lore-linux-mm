@@ -1,94 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 324586B000D
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 23:29:14 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id p12-v6so15221130iog.8
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 20:29:14 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id j9-v6si5947065itc.115.2018.07.13.20.29.13
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D0E796B0005
+	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 00:07:48 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id 66-v6so1500619plb.18
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 21:07:48 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id w22-v6si3297055pll.96.2018.07.13.21.07.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 20:29:13 -0700 (PDT)
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6E3TCH9028361
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 03:29:12 GMT
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by userp2120.oracle.com with ESMTP id 2k2p7vspq6-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 03:29:12 +0000
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w6E3TB4q010622
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 03:29:11 GMT
-Received: from abhmp0014.oracle.com (abhmp0014.oracle.com [141.146.116.20])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w6E3TAo1031738
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 03:29:11 GMT
-Received: by mail-oi0-f50.google.com with SMTP id w126-v6so65727729oie.7
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 20:29:10 -0700 (PDT)
+        Fri, 13 Jul 2018 21:07:47 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH 1/6] swap: Add comments to lock_cluster_or_swap_info()
+References: <20180712233636.20629-1-ying.huang@intel.com>
+	<20180712233636.20629-2-ying.huang@intel.com>
+	<3c3a4dce-980d-0405-d269-1da9e62b1344@linux.intel.com>
+Date: Sat, 14 Jul 2018 12:07:43 +0800
+In-Reply-To: <3c3a4dce-980d-0405-d269-1da9e62b1344@linux.intel.com> (Dave
+	Hansen's message of "Fri, 13 Jul 2018 03:48:28 -0700")
+Message-ID: <87in5ie9yo.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-References: <CA+55aFyARQV302+mXNYznrOOjzW+yxbcv+=OkD43dG6G1ktoMQ@mail.gmail.com>
- <alpine.DEB.2.21.1807140031440.2644@nanos.tec.linutronix.de>
- <CA+55aFzBx1haeM2QSFvhaW2t_HVK78Y=bKvsiJmOZztwkZ-y7Q@mail.gmail.com>
- <CA+55aFzVGa57apuzDMBLgWQQRcm3BNBs1UEg-G_2o7YW1i=o2Q@mail.gmail.com>
- <CA+55aFy9NJZeqT7h_rAgbKUZLjzfxvDPwneFQracBjVhY53aQQ@mail.gmail.com>
- <20180713164804.fc2c27ccbac4c02ca2c8b984@linux-foundation.org>
- <CA+55aFxAZr8PHo-raTihr8TKK_D-fVL+k6_tw_UyDLychowFNw@mail.gmail.com>
- <20180713165812.ec391548ffeead96725d044c@linux-foundation.org>
- <9b93d48c-b997-01f7-2fd6-6e35301ef263@oracle.com> <CA+55aFxFw2-1BD2UBf_QJ2=faQES_8q==yUjwj4mGJ6Ub4uX7w@mail.gmail.com>
- <5edf2d71-f548-98f9-16dd-b7fed29f4869@oracle.com> <CA+55aFwPAwczHS3XKkEnjY02PaDf2mWrcqx_hket4Ce3nScsSg@mail.gmail.com>
- <CAGM2rebeo3UUo2bL6kXCMGhuM36wjF5CfvqGG_3rpCfBs5S2wA@mail.gmail.com> <CA+55aFxetyCqX2EzFBDdHtriwt6UDYcm0chHGQUdPX20qNHb4Q@mail.gmail.com>
-In-Reply-To: <CA+55aFxetyCqX2EzFBDdHtriwt6UDYcm0chHGQUdPX20qNHb4Q@mail.gmail.com>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Fri, 13 Jul 2018 23:28:34 -0400
-Message-ID: <CAGM2rebDrxzpEduisi6OeNhSkfCNbkwpp6YQ4Pqic2k23kSg0g@mail.gmail.com>
-Subject: Re: Instability in current -git tree
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, tglx@linutronix.de, willy@infradead.org, mingo@redhat.com, axboe@kernel.dk, gregkh@linuxfoundation.org, davem@davemloft.net, viro@zeniv.linux.org.uk, airlied@gmail.com, Tejun Heo <tj@kernel.org>, tytso@google.com, snitzer@redhat.com, Linux Memory Management List <linux-mm@kvack.org>, neelx@redhat.com, mgorman@techsingularity.net
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Fri, Jul 13, 2018 at 11:25 PM Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> On Fri, Jul 13, 2018 at 8:04 PM Pavel Tatashin
-> <pasha.tatashin@oracle.com> wrote:
-> >
-> > > You can't just memset() the 'struct page' to zero after it's been set up.
-> >
-> > That should not be happening, unless there is a bug.
->
-> Well, it does seem to happen. My memory stress-tester has been running
-> for about half an hour now with the revert I posted - it used to
-> trigger the problem in maybe ~5 minutes before.
->
-> So I do think that revert fixes it for me. No guarantees, but since I
-> figured out how to trigger it, it's been fairly reliable.
->
-> > We want to zero those struct pages so we do not have uninitialized
-> > data accessed by various parts of the code that rounds down large
-> > pages and access the first page in section without verifying that the
-> > page is valid. The example of this is described in commit that
-> > introduced zero_resv_unavail()
->
-> I'm attaching the relevant (?) parts of dmesg, which has the node
-> ranges, maybe you can see what the problem with the code is.
->
-> (NOTE! This dmesg is with that "mem=6G" command line option, which causes that
->
->   e820: remove [mem 0x180000000-0xfffffffffffffffe] usable
->
-> line - that's just because it's my stress-test boot. It happens with
-> or without it, but without the "mem=6G" it took days to trigger).
->
-> I'm more than willing to test patches (either for added information or
-> for testing fixes), although I think I'm getting off the computer for
-> today.
+Dave Hansen <dave.hansen@linux.intel.com> writes:
 
-Thank you. I am ok with reverting these patches. I will study the bug
-that was introduced by
-"f7f99100d8d9 mm: stop zeroing memory during allocation in vmemmap",
-and post a fixed version later.
+>> +/*
+>> + * At most times, fine grained cluster lock is sufficient to protect
+>
+> Can we call out those times, please?
 
-Thank you,
-Pavel
+To protect si->swap_map[], if HDD, si->lock is used, otherwise cluster
+lock is used.  "at most times" is ambiguous here, I will fix it.
+
+>> + * the operations on sis->swap_map.  
+>
+> Please be careful with the naming.  You can call it 'si' because that's
+> what the function argument is named.  Or, swap_info_struct because
+> that's the struct name.  Calling it 'sis' is a bit sloppy, no?
+>
+>> 					No need to acquire gross grained
+>
+> "coarse" is a conventional antonym for "fine".
+
+Sorry for my poor English, will change this.
+
+>> + * sis->lock.  But cluster and cluster lock isn't available for HDD,
+>> + * so sis->lock will be instead for them.
+>> + */
+>>  static inline struct swap_cluster_info *lock_cluster_or_swap_info(
+>>  	struct swap_info_struct *si,
+>>  	unsigned long offset)
+>
+> What I already knew was: there are two locks.  We use one sometimes and
+> the other at other times.
+>
+> What I don't know is why there are two locks, and the heuristics why we
+> choose between them.  This comment doesn't help explain the things I
+> don't know.
+
+cluster lock is used to protect fields of struct swap_cluster_info, and
+si->swap_map[], this is described in comments of struct
+swap_cluster_info.  si->lock is used to protect other fields of si.  If
+two locks need to be held, hold si->lock first.  This is for non-HDD.
+For HDD, there are no cluster, so si->lock is used to protect
+si->swap_map[].
+
+Best Regards,
+Huang, Ying
