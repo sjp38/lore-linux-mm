@@ -1,50 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 75A136B000A
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 13:29:55 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id y13-v6so18981201iop.3
-        for <linux-mm@kvack.org>; Sat, 14 Jul 2018 10:29:55 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id r90-v6sor10919600ioi.323.2018.07.14.10.29.54
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C44086B000D
+	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 13:35:28 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id o1-v6so7992982wmc.6
+        for <linux-mm@kvack.org>; Sat, 14 Jul 2018 10:35:28 -0700 (PDT)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id h9-v6si6589322wmh.53.2018.07.14.10.35.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 14 Jul 2018 10:29:54 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 14 Jul 2018 10:35:27 -0700 (PDT)
+Date: Sat, 14 Jul 2018 19:35:16 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH v5 0/6] fs/dcache: Track & limit # of negative dentries
+Message-ID: <20180714173516.uumlhs4wgfgrlc32@devuan>
+References: <1530510723-24814-1-git-send-email-longman@redhat.com>
+ <CA+55aFyH6dHw-7R3364dn32J4p7kxT=TqmnuozCn9_Bz-MHhxQ@mail.gmail.com>
+ <20180702141811.ef027fd7d8087b7fb2ba0cce@linux-foundation.org>
+ <1530570880.3179.9.camel@HansenPartnership.com>
+ <20180702161925.1c717283dd2bd4a221bc987c@linux-foundation.org>
+ <20180703091821.oiywpdxd6rhtxl4p@quack2.suse.cz>
 MIME-Version: 1.0
-References: <CA+55aFyARQV302+mXNYznrOOjzW+yxbcv+=OkD43dG6G1ktoMQ@mail.gmail.com>
- <alpine.DEB.2.21.1807140031440.2644@nanos.tec.linutronix.de>
- <CA+55aFzBx1haeM2QSFvhaW2t_HVK78Y=bKvsiJmOZztwkZ-y7Q@mail.gmail.com>
- <CA+55aFzVGa57apuzDMBLgWQQRcm3BNBs1UEg-G_2o7YW1i=o2Q@mail.gmail.com>
- <CA+55aFy9NJZeqT7h_rAgbKUZLjzfxvDPwneFQracBjVhY53aQQ@mail.gmail.com>
- <20180713164804.fc2c27ccbac4c02ca2c8b984@linux-foundation.org>
- <CA+55aFxAZr8PHo-raTihr8TKK_D-fVL+k6_tw_UyDLychowFNw@mail.gmail.com>
- <20180713165812.ec391548ffeead96725d044c@linux-foundation.org>
- <9b93d48c-b997-01f7-2fd6-6e35301ef263@oracle.com> <CA+55aFxFw2-1BD2UBf_QJ2=faQES_8q==yUjwj4mGJ6Ub4uX7w@mail.gmail.com>
- <5edf2d71-f548-98f9-16dd-b7fed29f4869@oracle.com> <CA+55aFwPAwczHS3XKkEnjY02PaDf2mWrcqx_hket4Ce3nScsSg@mail.gmail.com>
- <CAGM2rebeo3UUo2bL6kXCMGhuM36wjF5CfvqGG_3rpCfBs5S2wA@mail.gmail.com>
- <CA+55aFxetyCqX2EzFBDdHtriwt6UDYcm0chHGQUdPX20qNHb4Q@mail.gmail.com>
- <CAGM2reb2Zk6t=QJtJZPRGwovKKR9bdm+fzgmA_7CDVfDTjSgKA@mail.gmail.com> <CA+55aFx+kOX1z-EPVxuTwH8CAURLoi60chkR=RzoMeJkj7G99w@mail.gmail.com>
-In-Reply-To: <CA+55aFx+kOX1z-EPVxuTwH8CAURLoi60chkR=RzoMeJkj7G99w@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sat, 14 Jul 2018 10:29:42 -0700
-Message-ID: <CA+55aFzd344vd+FJjtzb5Hc-Ur6thvpM_WZ2HEmu5Ydt0Y3W4w@mail.gmail.com>
-Subject: Re: Instability in current -git tree
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180703091821.oiywpdxd6rhtxl4p@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>, Laura Abbott <labbott@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Matthew Wilcox <willy@infradead.org>, Ingo Molnar <mingo@redhat.com>, Jens Axboe <axboe@kernel.dk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Miller <davem@davemloft.net>, Al Viro <viro@zeniv.linux.org.uk>, Dave Airlie <airlied@gmail.com>, Tejun Heo <tj@kernel.org>, Ted Ts'o <tytso@google.com>, Mike Snitzer <snitzer@redhat.com>, linux-mm <linux-mm@kvack.org>, Daniel Vacek <neelx@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <longman@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>
 
-On Sat, Jul 14, 2018 at 10:11 AM Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> Am building and will test. If this fixes it for me, I won't do the revert.
+> > Yes, "should be".  I could understand that the presence of huge
+> > nunmbers of -ve dentries could result in undesirable reclaim of
+> > pagecache, etc.  Triggering oom-killings is very bad, and presumably
+> > has the same cause.
+> > 
+> > Before we go and add a large amount of code to do the shrinker's job
+> > for it, we should get a full understanding of what's going wrong.  Is
+> > it because the dentry_lru had a mixture of +ve and -ve dentries? 
+> > Should we have a separate LRU for -ve dentries?  Are we appropriately
+> > aging the various dentries?  etc.
+> > 
+> > It could be that tuning/fixing the current code will fix whatever
+> > problems inspired this patchset.
+> 
+> What I think is contributing to the problems and could lead to reclaim
+> oddities is the internal fragmentation of dentry slab cache. Dentries are
+> relatively small, you get 21 per page on my system, so if trivial to
+> reclaim negative dentries get mixed with a small amount of unreclaimable
+> positive dentries, you can get a lot of pages in dentry slab cache that are
+> unreclaimable.
 
-Looks good so far. It's past the 5-minute mark, at least. I'll leave
-it running for a while, but at least preliminarily this looks like it
-works.
+Could we allocate -ve entries from separate slab?
 
-I guess it should be marked for stable, because it appears that this
-problem got back-ported to stable (I find that Laura reports it for
-4.17.4, but not 4.17.3).
-
-              Linus
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
