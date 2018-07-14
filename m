@@ -1,182 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AA826B0278
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 01:00:47 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id d1-v6so5832963pfo.16
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 22:00:47 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id k125-v6si2088027pgk.6.2018.07.13.22.00.45
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A6CE6B027B
+	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 01:04:42 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id w10-v6so13231520eds.7
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 22:04:42 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a3-v6si4636649edq.130.2018.07.13.22.04.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 22:00:45 -0700 (PDT)
-Subject: [PATCH v6 08/13] mm,
- memory_failure: Collect mapping size in collect_procs()
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 13 Jul 2018 21:50:11 -0700
-Message-ID: <153154381163.34503.9922261445330906942.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <153154376846.34503.15480221419473501643.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <153154376846.34503.15480221419473501643.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Fri, 13 Jul 2018 22:04:41 -0700 (PDT)
+Date: Sat, 14 Jul 2018 07:04:37 +0200
+From: Joerg Roedel <jroedel@suse.de>
+Subject: Re: [PATCH 30/39] x86/mm/pti: Clone entry-text again in
+ pti_finalize()
+Message-ID: <20180714050437.b4lztahdehaom6el@suse.de>
+References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
+ <1531308586-29340-31-git-send-email-joro@8bytes.org>
+ <CALCETrU9pe03cW2d+=nXy_iLbiYWzX1dU2wYCfHEN4gb69Q_EA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrU9pe03cW2d+=nXy_iLbiYWzX1dU2wYCfHEN4gb69Q_EA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-nvdimm@lists.01.org
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, hch@lst.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>
 
-In preparation for supporting memory_failure() for dax mappings, teach
-collect_procs() to also determine the mapping size. Unlike typical
-mappings the dax mapping size is determined by walking page-table
-entries rather than using the compound-page accounting for THP pages.
+On Fri, Jul 13, 2018 at 04:21:45PM -0700, Andy Lutomirski wrote:
+> On Wed, Jul 11, 2018 at 4:29 AM, Joerg Roedel <joro@8bytes.org> wrote:
+> > From: Joerg Roedel <jroedel@suse.de>
+> >
+> > The mapping for entry-text might have changed in the kernel
+> > after it was cloned to the user page-table. Clone again
+> > to update the user page-table to bring the mapping in sync
+> > with the kernel again.
+> 
+> Can't we just defer pti_init() until after mark_readonly()?  What am I missing?
 
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- mm/memory-failure.c |   81 +++++++++++++++++++++++++--------------------------
- 1 file changed, 40 insertions(+), 41 deletions(-)
+I tried that:
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 988f977db3d2..8a81680d00dd 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -174,22 +174,51 @@ int hwpoison_filter(struct page *p)
- EXPORT_SYMBOL_GPL(hwpoison_filter);
- 
- /*
-+ * Kill all processes that have a poisoned page mapped and then isolate
-+ * the page.
-+ *
-+ * General strategy:
-+ * Find all processes having the page mapped and kill them.
-+ * But we keep a page reference around so that the page is not
-+ * actually freed yet.
-+ * Then stash the page away
-+ *
-+ * There's no convenient way to get back to mapped processes
-+ * from the VMAs. So do a brute-force search over all
-+ * running processes.
-+ *
-+ * Remember that machine checks are not common (or rather
-+ * if they are common you have other problems), so this shouldn't
-+ * be a performance issue.
-+ *
-+ * Also there are some races possible while we get from the
-+ * error detection to actually handle it.
-+ */
-+
-+struct to_kill {
-+	struct list_head nd;
-+	struct task_struct *tsk;
-+	unsigned long addr;
-+	short size_shift;
-+	char addr_valid;
-+};
-+
-+/*
-  * Send all the processes who have the page mapped a signal.
-  * ``action optional'' if they are not immediately affected by the error
-  * ``action required'' if error happened in current execution context
-  */
--static int kill_proc(struct task_struct *t, unsigned long addr,
--			unsigned long pfn, struct page *page, int flags)
-+static int kill_proc(struct to_kill *tk, unsigned long pfn, int flags)
- {
--	short addr_lsb;
-+	struct task_struct *t = tk->tsk;
-+	short addr_lsb = tk->size_shift;
- 	int ret;
- 
- 	pr_err("Memory failure: %#lx: Killing %s:%d due to hardware memory corruption\n",
- 		pfn, t->comm, t->pid);
--	addr_lsb = compound_order(compound_head(page)) + PAGE_SHIFT;
- 
- 	if ((flags & MF_ACTION_REQUIRED) && t->mm == current->mm) {
--		ret = force_sig_mceerr(BUS_MCEERR_AR, (void __user *)addr,
-+		ret = force_sig_mceerr(BUS_MCEERR_AR, (void __user *)tk->addr,
- 				       addr_lsb, current);
- 	} else {
- 		/*
-@@ -198,7 +227,7 @@ static int kill_proc(struct task_struct *t, unsigned long addr,
- 		 * This could cause a loop when the user sets SIGBUS
- 		 * to SIG_IGN, but hopefully no one will do that?
- 		 */
--		ret = send_sig_mceerr(BUS_MCEERR_AO, (void __user *)addr,
-+		ret = send_sig_mceerr(BUS_MCEERR_AO, (void __user *)tk->addr,
- 				      addr_lsb, t);  /* synchronous? */
- 	}
- 	if (ret < 0)
-@@ -235,35 +264,6 @@ void shake_page(struct page *p, int access)
- EXPORT_SYMBOL_GPL(shake_page);
- 
- /*
-- * Kill all processes that have a poisoned page mapped and then isolate
-- * the page.
-- *
-- * General strategy:
-- * Find all processes having the page mapped and kill them.
-- * But we keep a page reference around so that the page is not
-- * actually freed yet.
-- * Then stash the page away
-- *
-- * There's no convenient way to get back to mapped processes
-- * from the VMAs. So do a brute-force search over all
-- * running processes.
-- *
-- * Remember that machine checks are not common (or rather
-- * if they are common you have other problems), so this shouldn't
-- * be a performance issue.
-- *
-- * Also there are some races possible while we get from the
-- * error detection to actually handle it.
-- */
--
--struct to_kill {
--	struct list_head nd;
--	struct task_struct *tsk;
--	unsigned long addr;
--	char addr_valid;
--};
--
--/*
-  * Failure handling: if we can't find or can't kill a process there's
-  * not much we can do.	We just print a message and ignore otherwise.
-  */
-@@ -292,6 +292,7 @@ static void add_to_kill(struct task_struct *tsk, struct page *p,
- 	}
- 	tk->addr = page_address_in_vma(p, vma);
- 	tk->addr_valid = 1;
-+	tk->size_shift = compound_order(compound_head(p)) + PAGE_SHIFT;
- 
- 	/*
- 	 * In theory we don't have to kill when the page was
-@@ -317,9 +318,8 @@ static void add_to_kill(struct task_struct *tsk, struct page *p,
-  * Also when FAIL is set do a force kill because something went
-  * wrong earlier.
-  */
--static void kill_procs(struct list_head *to_kill, int forcekill,
--			  bool fail, struct page *page, unsigned long pfn,
--			  int flags)
-+static void kill_procs(struct list_head *to_kill, int forcekill, bool fail,
-+		unsigned long pfn, int flags)
- {
- 	struct to_kill *tk, *next;
- 
-@@ -342,8 +342,7 @@ static void kill_procs(struct list_head *to_kill, int forcekill,
- 			 * check for that, but we need to tell the
- 			 * process anyways.
- 			 */
--			else if (kill_proc(tk->tsk, tk->addr,
--					      pfn, page, flags) < 0)
-+			else if (kill_proc(tk, pfn, flags) < 0)
- 				pr_err("Memory failure: %#lx: Cannot send advisory machine check signal to %s:%d\n",
- 				       pfn, tk->tsk->comm, tk->tsk->pid);
- 		}
-@@ -1012,7 +1011,7 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
- 	 * any accesses to the poisoned memory.
- 	 */
- 	forcekill = PageDirty(hpage) || (flags & MF_MUST_KILL);
--	kill_procs(&tokill, forcekill, !unmap_success, p, pfn, flags);
-+	kill_procs(&tokill, forcekill, !unmap_success, pfn, flags);
- 
- 	return unmap_success;
- }
+	https://lore.kernel.org/lkml/1530618746-23116-1-git-send-email-joro@8bytes.org/
+
+But while testing it turned out that the kernel potentially executes
+user-space code already before mark_readonly() has ran. This happens
+when some initcall requests a module and the initrd is already
+populated. Then usermode-helper kicks in and runs a userspace binary
+already. When pti_init() has not run yet the user-space page-table is
+completly empty, causing a triple fault when we switch to the user cr3
+on the way to user-space.
+
+
+Regards,
+
+	Joerg
