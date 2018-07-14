@@ -1,71 +1,250 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2066F6B0007
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 05:02:55 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id q18-v6so21264340pll.3
-        for <linux-mm@kvack.org>; Sat, 14 Jul 2018 02:02:55 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id x1-v6si19580280pga.480.2018.07.14.02.02.53
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 14 Jul 2018 02:02:54 -0700 (PDT)
-Date: Sat, 14 Jul 2018 11:02:44 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 08/10] psi: pressure stall information for CPU, memory,
- and IO
-Message-ID: <20180714090244.GC4920@worktop.programming.kicks-ass.net>
-References: <20180712172942.10094-1-hannes@cmpxchg.org>
- <20180712172942.10094-9-hannes@cmpxchg.org>
- <20180713092153.GU2494@hirez.programming.kicks-ass.net>
- <20180713161756.GA21168@cmpxchg.org>
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C51D6B0005
+	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 05:28:11 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id z6-v6so16277942qto.4
+        for <linux-mm@kvack.org>; Sat, 14 Jul 2018 02:28:11 -0700 (PDT)
+Received: from outgoing-stata.csail.mit.edu (outgoing-stata.csail.mit.edu. [128.30.2.210])
+        by mx.google.com with ESMTP id r7-v6si3449070qvm.102.2018.07.14.02.28.09
+        for <linux-mm@kvack.org>;
+        Sat, 14 Jul 2018 02:28:09 -0700 (PDT)
+Subject: [PATCH 4.4.y 015/101] x86/cpufeature,
+ x86/mm/pkeys: Add protection keys related CPUID definitions
+From: "Srivatsa S. Bhat" <srivatsa@csail.mit.edu>
+Date: Sat, 14 Jul 2018 02:28:04 -0700
+Message-ID: <153156048404.10043.9924019452796692128.stgit@srivatsa-ubuntu>
+In-Reply-To: <153156030832.10043.13438231886571087086.stgit@srivatsa-ubuntu>
+References: <153156030832.10043.13438231886571087086.stgit@srivatsa-ubuntu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180713161756.GA21168@cmpxchg.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: gregkh@linuxfoundation.org, stable@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave@sr71.net>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, "Matt Helsley (VMware)" <matt.helsley@gmail.com>, Alexey Makhalov <amakhalov@vmware.com>, Bo Gan <ganb@vmware.com>matt.helsley@gmail.com, rostedt@goodmis.orgamakhalov@vmware.comganb@vmware.com, srivatsa@csail.mit.edu, srivatsab@vmware.com
 
-On Fri, Jul 13, 2018 at 12:17:56PM -0400, Johannes Weiner wrote:
-> On Fri, Jul 13, 2018 at 11:21:53AM +0200, Peter Zijlstra wrote:
-> > On Thu, Jul 12, 2018 at 01:29:40PM -0400, Johannes Weiner wrote:
-> > > +static inline void psi_ttwu_dequeue(struct task_struct *p)
-> > > +{
-> > > +	if (psi_disabled)
-> > > +		return;
-> > > +	/*
-> > > +	 * Is the task being migrated during a wakeup? Make sure to
-> > > +	 * deregister its sleep-persistent psi states from the old
-> > > +	 * queue, and let psi_enqueue() know it has to requeue.
-> > > +	 */
-> > > +	if (unlikely(p->in_iowait || (p->flags & PF_MEMSTALL))) {
-> > > +		struct rq_flags rf;
-> > > +		struct rq *rq;
-> > > +		int clear = 0;
-> > > +
-> > > +		if (p->in_iowait)
-> > > +			clear |= TSK_IOWAIT;
-> > > +		if (p->flags & PF_MEMSTALL)
-> > > +			clear |= TSK_MEMSTALL;
-> > > +
-> > > +		rq = __task_rq_lock(p, &rf);
-> > > +		update_rq_clock(rq);
-> > > +		psi_task_change(p, rq_clock(rq), clear, 0);
-> > > +		p->sched_psi_wake_requeue = 1;
-> > > +		__task_rq_unlock(rq, &rf);
-> > > +	}
-> > > +}
-> > 
-> > Still NAK, what happened to this here:
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-> That's my thought process, anyway. I'd be more than happy to make this
-> more lightweight, but I don't see a way to do it without losing
-> significant functional precision.
+commit dfb4a70f20c5b3880da56ee4c9484bdb4e8f1e65 upstream
 
-I think you're going to have to. We put a lot of effort into not taking
-the old rq->lock on remote wakeups and got a significant performance
-benefit from that.
+There are two CPUID bits for protection keys.  One is for whether
+the CPU contains the feature, and the other will appear set once
+the OS enables protection keys.  Specifically:
 
-You just utterly destroyed that for workloads with a high number of
-iowait wakeups.
+	Bit 04: OSPKE. If 1, OS has set CR4.PKE to enable
+	Protection keys (and the RDPKRU/WRPKRU instructions)
+
+This is because userspace can not see CR4 contents, but it can
+see CPUID contents.
+
+X86_FEATURE_PKU is referred to as "PKU" in the hardware documentation:
+
+	CPUID.(EAX=07H,ECX=0H):ECX.PKU [bit 3]
+
+X86_FEATURE_OSPKE is "OSPKU":
+
+	CPUID.(EAX=07H,ECX=0H):ECX.OSPKE [bit 4]
+
+These are the first CPU features which need to look at the
+ECX word in CPUID leaf 0x7, so this patch also includes
+fetching that word in to the cpuinfo->x86_capability[] array.
+
+Add it to the disabled-features mask when its config option is
+off.  Even though we are not using it here, we also extend the
+REQUIRED_MASK_BIT_SET() macro to keep it mirroring the
+DISABLED_MASK_BIT_SET() version.
+
+This means that in almost all code, you should use:
+
+	cpu_has(c, X86_FEATURE_PKU)
+
+and *not* the CONFIG option.
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Dave Hansen <dave@sr71.net>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/20160212210201.7714C250@viggo.jf.intel.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Srivatsa S. Bhat <srivatsa@csail.mit.edu>
+Reviewed-by: Matt Helsley (VMware) <matt.helsley@gmail.com>
+Reviewed-by: Alexey Makhalov <amakhalov@vmware.com>
+Reviewed-by: Bo Gan <ganb@vmware.com>
+---
+
+ arch/x86/include/asm/cpufeature.h        |   59 ++++++++++++++++++++----------
+ arch/x86/include/asm/cpufeatures.h       |    2 +
+ arch/x86/include/asm/disabled-features.h |   15 ++++++++
+ arch/x86/include/asm/required-features.h |    7 ++++
+ arch/x86/kernel/cpu/common.c             |    1 +
+ 5 files changed, 63 insertions(+), 21 deletions(-)
+
+diff --git a/arch/x86/include/asm/cpufeature.h b/arch/x86/include/asm/cpufeature.h
+index 03ca602..7fdd717 100644
+--- a/arch/x86/include/asm/cpufeature.h
++++ b/arch/x86/include/asm/cpufeature.h
+@@ -26,6 +26,7 @@ enum cpuid_leafs
+ 	CPUID_8000_0008_EBX,
+ 	CPUID_6_EAX,
+ 	CPUID_8000_000A_EDX,
++	CPUID_7_ECX,
+ };
+ 
+ #ifdef CONFIG_X86_FEATURE_NAMES
+@@ -48,28 +49,42 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
+ 	 test_bit(bit, (unsigned long *)((c)->x86_capability))
+ 
+ #define REQUIRED_MASK_BIT_SET(bit)					\
+-	 ( (((bit)>>5)==0 && (1UL<<((bit)&31) & REQUIRED_MASK0)) ||	\
+-	   (((bit)>>5)==1 && (1UL<<((bit)&31) & REQUIRED_MASK1)) ||	\
+-	   (((bit)>>5)==2 && (1UL<<((bit)&31) & REQUIRED_MASK2)) ||	\
+-	   (((bit)>>5)==3 && (1UL<<((bit)&31) & REQUIRED_MASK3)) ||	\
+-	   (((bit)>>5)==4 && (1UL<<((bit)&31) & REQUIRED_MASK4)) ||	\
+-	   (((bit)>>5)==5 && (1UL<<((bit)&31) & REQUIRED_MASK5)) ||	\
+-	   (((bit)>>5)==6 && (1UL<<((bit)&31) & REQUIRED_MASK6)) ||	\
+-	   (((bit)>>5)==7 && (1UL<<((bit)&31) & REQUIRED_MASK7)) ||	\
+-	   (((bit)>>5)==8 && (1UL<<((bit)&31) & REQUIRED_MASK8)) ||	\
+-	   (((bit)>>5)==9 && (1UL<<((bit)&31) & REQUIRED_MASK9)) )
++	 ( (((bit)>>5)==0  && (1UL<<((bit)&31) & REQUIRED_MASK0 )) ||	\
++	   (((bit)>>5)==1  && (1UL<<((bit)&31) & REQUIRED_MASK1 )) ||	\
++	   (((bit)>>5)==2  && (1UL<<((bit)&31) & REQUIRED_MASK2 )) ||	\
++	   (((bit)>>5)==3  && (1UL<<((bit)&31) & REQUIRED_MASK3 )) ||	\
++	   (((bit)>>5)==4  && (1UL<<((bit)&31) & REQUIRED_MASK4 )) ||	\
++	   (((bit)>>5)==5  && (1UL<<((bit)&31) & REQUIRED_MASK5 )) ||	\
++	   (((bit)>>5)==6  && (1UL<<((bit)&31) & REQUIRED_MASK6 )) ||	\
++	   (((bit)>>5)==7  && (1UL<<((bit)&31) & REQUIRED_MASK7 )) ||	\
++	   (((bit)>>5)==8  && (1UL<<((bit)&31) & REQUIRED_MASK8 )) ||	\
++	   (((bit)>>5)==9  && (1UL<<((bit)&31) & REQUIRED_MASK9 )) ||	\
++	   (((bit)>>5)==10 && (1UL<<((bit)&31) & REQUIRED_MASK10)) ||	\
++	   (((bit)>>5)==11 && (1UL<<((bit)&31) & REQUIRED_MASK11)) ||	\
++	   (((bit)>>5)==12 && (1UL<<((bit)&31) & REQUIRED_MASK12)) ||	\
++	   (((bit)>>5)==13 && (1UL<<((bit)&31) & REQUIRED_MASK13)) ||	\
++	   (((bit)>>5)==13 && (1UL<<((bit)&31) & REQUIRED_MASK14)) ||	\
++	   (((bit)>>5)==13 && (1UL<<((bit)&31) & REQUIRED_MASK15)) ||	\
++	   (((bit)>>5)==14 && (1UL<<((bit)&31) & REQUIRED_MASK16)) )
+ 
+ #define DISABLED_MASK_BIT_SET(bit)					\
+-	 ( (((bit)>>5)==0 && (1UL<<((bit)&31) & DISABLED_MASK0)) ||	\
+-	   (((bit)>>5)==1 && (1UL<<((bit)&31) & DISABLED_MASK1)) ||	\
+-	   (((bit)>>5)==2 && (1UL<<((bit)&31) & DISABLED_MASK2)) ||	\
+-	   (((bit)>>5)==3 && (1UL<<((bit)&31) & DISABLED_MASK3)) ||	\
+-	   (((bit)>>5)==4 && (1UL<<((bit)&31) & DISABLED_MASK4)) ||	\
+-	   (((bit)>>5)==5 && (1UL<<((bit)&31) & DISABLED_MASK5)) ||	\
+-	   (((bit)>>5)==6 && (1UL<<((bit)&31) & DISABLED_MASK6)) ||	\
+-	   (((bit)>>5)==7 && (1UL<<((bit)&31) & DISABLED_MASK7)) ||	\
+-	   (((bit)>>5)==8 && (1UL<<((bit)&31) & DISABLED_MASK8)) ||	\
+-	   (((bit)>>5)==9 && (1UL<<((bit)&31) & DISABLED_MASK9)) )
++	 ( (((bit)>>5)==0  && (1UL<<((bit)&31) & DISABLED_MASK0 )) ||	\
++	   (((bit)>>5)==1  && (1UL<<((bit)&31) & DISABLED_MASK1 )) ||	\
++	   (((bit)>>5)==2  && (1UL<<((bit)&31) & DISABLED_MASK2 )) ||	\
++	   (((bit)>>5)==3  && (1UL<<((bit)&31) & DISABLED_MASK3 )) ||	\
++	   (((bit)>>5)==4  && (1UL<<((bit)&31) & DISABLED_MASK4 )) ||	\
++	   (((bit)>>5)==5  && (1UL<<((bit)&31) & DISABLED_MASK5 )) ||	\
++	   (((bit)>>5)==6  && (1UL<<((bit)&31) & DISABLED_MASK6 )) ||	\
++	   (((bit)>>5)==7  && (1UL<<((bit)&31) & DISABLED_MASK7 )) ||	\
++	   (((bit)>>5)==8  && (1UL<<((bit)&31) & DISABLED_MASK8 )) ||	\
++	   (((bit)>>5)==9  && (1UL<<((bit)&31) & DISABLED_MASK9 )) ||	\
++	   (((bit)>>5)==10 && (1UL<<((bit)&31) & DISABLED_MASK10)) ||	\
++	   (((bit)>>5)==11 && (1UL<<((bit)&31) & DISABLED_MASK11)) ||	\
++	   (((bit)>>5)==12 && (1UL<<((bit)&31) & DISABLED_MASK12)) ||	\
++	   (((bit)>>5)==13 && (1UL<<((bit)&31) & DISABLED_MASK13)) ||	\
++	   (((bit)>>5)==13 && (1UL<<((bit)&31) & DISABLED_MASK14)) ||	\
++	   (((bit)>>5)==13 && (1UL<<((bit)&31) & DISABLED_MASK15)) ||	\
++	   (((bit)>>5)==14 && (1UL<<((bit)&31) & DISABLED_MASK16)) )
+ 
+ #define cpu_has(c, bit)							\
+ 	(__builtin_constant_p(bit) && REQUIRED_MASK_BIT_SET(bit) ? 1 :	\
+@@ -79,6 +94,10 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
+ 	(__builtin_constant_p(bit) && REQUIRED_MASK_BIT_SET(bit) ? 1 : 	\
+ 	 x86_this_cpu_test_bit(bit, (unsigned long *)&cpu_info.x86_capability))
+ 
++/* Intel-defined CPU features, CPUID level 0x00000007:0 (ecx), word 16 */
++#define X86_FEATURE_PKU		(16*32+ 3) /* Protection Keys for Userspace */
++#define X86_FEATURE_OSPKE	(16*32+ 4) /* OS Protection Keys Enable */
++
+ /*
+  * This macro is for detection of features which need kernel
+  * infrastructure to be used.  It may *not* directly test the CPU
+diff --git a/arch/x86/include/asm/cpufeatures.h b/arch/x86/include/asm/cpufeatures.h
+index 255ea74..6ebb4c2d 100644
+--- a/arch/x86/include/asm/cpufeatures.h
++++ b/arch/x86/include/asm/cpufeatures.h
+@@ -12,7 +12,7 @@
+ /*
+  * Defines x86 CPU feature bits
+  */
+-#define NCAPINTS	16	/* N 32-bit words worth of info */
++#define NCAPINTS	17	/* N 32-bit words worth of info */
+ #define NBUGINTS	1	/* N 32-bit bug flags */
+ 
+ /*
+diff --git a/arch/x86/include/asm/disabled-features.h b/arch/x86/include/asm/disabled-features.h
+index 8b17c2a..522a069 100644
+--- a/arch/x86/include/asm/disabled-features.h
++++ b/arch/x86/include/asm/disabled-features.h
+@@ -30,6 +30,14 @@
+ # define DISABLE_PCID		(1<<(X86_FEATURE_PCID & 31))
+ #endif /* CONFIG_X86_64 */
+ 
++#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
++# define DISABLE_PKU		(1<<(X86_FEATURE_PKU))
++# define DISABLE_OSPKE		(1<<(X86_FEATURE_OSPKE))
++#else
++# define DISABLE_PKU		0
++# define DISABLE_OSPKE		0
++#endif /* CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS */
++
+ /*
+  * Make sure to add features to the correct mask
+  */
+@@ -43,5 +51,12 @@
+ #define DISABLED_MASK7	0
+ #define DISABLED_MASK8	0
+ #define DISABLED_MASK9	(DISABLE_MPX)
++#define DISABLED_MASK10	0
++#define DISABLED_MASK11	0
++#define DISABLED_MASK12	0
++#define DISABLED_MASK13	0
++#define DISABLED_MASK14	0
++#define DISABLED_MASK15	0
++#define DISABLED_MASK16	(DISABLE_PKU|DISABLE_OSPKE)
+ 
+ #endif /* _ASM_X86_DISABLED_FEATURES_H */
+diff --git a/arch/x86/include/asm/required-features.h b/arch/x86/include/asm/required-features.h
+index 5c6e4fb..4916144 100644
+--- a/arch/x86/include/asm/required-features.h
++++ b/arch/x86/include/asm/required-features.h
+@@ -92,5 +92,12 @@
+ #define REQUIRED_MASK7	0
+ #define REQUIRED_MASK8	0
+ #define REQUIRED_MASK9	0
++#define REQUIRED_MASK10	0
++#define REQUIRED_MASK11	0
++#define REQUIRED_MASK12	0
++#define REQUIRED_MASK13	0
++#define REQUIRED_MASK14	0
++#define REQUIRED_MASK15	0
++#define REQUIRED_MASK16	0
+ 
+ #endif /* _ASM_X86_REQUIRED_FEATURES_H */
+diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
+index 58d56c4..d6a7b6f2 100644
+--- a/arch/x86/kernel/cpu/common.c
++++ b/arch/x86/kernel/cpu/common.c
+@@ -693,6 +693,7 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
+ 		c->x86_capability[CPUID_7_0_EBX] = ebx;
+ 
+ 		c->x86_capability[CPUID_6_EAX] = cpuid_eax(0x00000006);
++		c->x86_capability[CPUID_7_ECX] = ecx;
+ 	}
+ 
+ 	/* Extended state features: level 0x0000000d */
