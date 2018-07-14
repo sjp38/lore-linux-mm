@@ -1,55 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 343D36B0005
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 12:11:28 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id w21-v6so7915922wmc.4
-        for <linux-mm@kvack.org>; Sat, 14 Jul 2018 09:11:28 -0700 (PDT)
-Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
-        by mx.google.com with ESMTPS id n1-v6si19568804wrr.373.2018.07.14.09.11.26
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 77D186B0007
+	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 13:12:04 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id h26-v6so10274262itj.6
+        for <linux-mm@kvack.org>; Sat, 14 Jul 2018 10:12:04 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s11-v6sor6080136iop.136.2018.07.14.10.12.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 14 Jul 2018 09:11:26 -0700 (PDT)
-From: Colin King <colin.king@canonical.com>
-Subject: [PATCH] mm/hmm.c: remove redundant variables align_start and align_end
-Date: Sat, 14 Jul 2018 17:11:24 +0100
-Message-Id: <20180714161124.3923-1-colin.king@canonical.com>
+        (Google Transport Security);
+        Sat, 14 Jul 2018 10:12:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+References: <CA+55aFyARQV302+mXNYznrOOjzW+yxbcv+=OkD43dG6G1ktoMQ@mail.gmail.com>
+ <alpine.DEB.2.21.1807140031440.2644@nanos.tec.linutronix.de>
+ <CA+55aFzBx1haeM2QSFvhaW2t_HVK78Y=bKvsiJmOZztwkZ-y7Q@mail.gmail.com>
+ <CA+55aFzVGa57apuzDMBLgWQQRcm3BNBs1UEg-G_2o7YW1i=o2Q@mail.gmail.com>
+ <CA+55aFy9NJZeqT7h_rAgbKUZLjzfxvDPwneFQracBjVhY53aQQ@mail.gmail.com>
+ <20180713164804.fc2c27ccbac4c02ca2c8b984@linux-foundation.org>
+ <CA+55aFxAZr8PHo-raTihr8TKK_D-fVL+k6_tw_UyDLychowFNw@mail.gmail.com>
+ <20180713165812.ec391548ffeead96725d044c@linux-foundation.org>
+ <9b93d48c-b997-01f7-2fd6-6e35301ef263@oracle.com> <CA+55aFxFw2-1BD2UBf_QJ2=faQES_8q==yUjwj4mGJ6Ub4uX7w@mail.gmail.com>
+ <5edf2d71-f548-98f9-16dd-b7fed29f4869@oracle.com> <CA+55aFwPAwczHS3XKkEnjY02PaDf2mWrcqx_hket4Ce3nScsSg@mail.gmail.com>
+ <CAGM2rebeo3UUo2bL6kXCMGhuM36wjF5CfvqGG_3rpCfBs5S2wA@mail.gmail.com>
+ <CA+55aFxetyCqX2EzFBDdHtriwt6UDYcm0chHGQUdPX20qNHb4Q@mail.gmail.com> <CAGM2reb2Zk6t=QJtJZPRGwovKKR9bdm+fzgmA_7CDVfDTjSgKA@mail.gmail.com>
+In-Reply-To: <CAGM2reb2Zk6t=QJtJZPRGwovKKR9bdm+fzgmA_7CDVfDTjSgKA@mail.gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Sat, 14 Jul 2018 10:11:51 -0700
+Message-ID: <CA+55aFx+kOX1z-EPVxuTwH8CAURLoi60chkR=RzoMeJkj7G99w@mail.gmail.com>
+Subject: Re: Instability in current -git tree
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, linux-mm@kvack.org
-Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Matthew Wilcox <willy@infradead.org>, Ingo Molnar <mingo@redhat.com>, Jens Axboe <axboe@kernel.dk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Miller <davem@davemloft.net>, Al Viro <viro@zeniv.linux.org.uk>, Dave Airlie <airlied@gmail.com>, Tejun Heo <tj@kernel.org>, Ted Ts'o <tytso@google.com>, Mike Snitzer <snitzer@redhat.com>, linux-mm <linux-mm@kvack.org>, Daniel Vacek <neelx@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
 
-From: Colin Ian King <colin.king@canonical.com>
+On Sat, Jul 14, 2018 at 6:40 AM Pavel Tatashin
+<pasha.tatashin@oracle.com> wrote:
+>
+> I attached a temporary fix, which I could not test, as I was unable to
+> reproduce the problem, but it should fix the issue.
 
-Variables align_start and align_end are being assigned but are
-never used hence they are redundant and can be removed.
+Am building and will test. If this fixes it for me, I won't do the revert.
 
-Cleans up clang warnings:
-warning: variable 'align_start' set but not used [-Wunused-but-set-variable]
-warning: variable 'align_size' set but not used [-Wunused-but-set-variable]
+Thanks,
 
-Signed-off-by: Colin Ian King <colin.king@canonical.com>
----
- mm/hmm.c | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
-
-diff --git a/mm/hmm.c b/mm/hmm.c
-index caf9df27599e..76e7a058b32f 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -973,10 +973,7 @@ static RADIX_TREE(hmm_devmem_radix, GFP_KERNEL);
- 
- static void hmm_devmem_radix_release(struct resource *resource)
- {
--	resource_size_t key, align_start, align_size;
--
--	align_start = resource->start & ~(PA_SECTION_SIZE - 1);
--	align_size = ALIGN(resource_size(resource), PA_SECTION_SIZE);
-+	resource_size_t key;
- 
- 	mutex_lock(&hmm_devmem_lock);
- 	for (key = resource->start;
--- 
-2.17.1
+                Linus
