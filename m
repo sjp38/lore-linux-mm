@@ -1,56 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6325B6B026A
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 00:59:55 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b17-v6so20408484pff.17
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 21:59:55 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 13FE76B026B
+	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 01:00:12 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id cf17-v6so13481828plb.2
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 22:00:12 -0700 (PDT)
 Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id j67-v6si67257pgc.186.2018.07.13.21.59.54
+        by mx.google.com with ESMTPS id a1-v6si13170360pgq.387.2018.07.13.22.00.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 21:59:54 -0700 (PDT)
-Subject: [PATCH v6 05/13] mm,
- madvise_inject_error: Disable MADV_SOFT_OFFLINE for ZONE_DEVICE
- pages
+        Fri, 13 Jul 2018 22:00:10 -0700 (PDT)
+Subject: [PATCH v6 06/13] mm,
+ dev_pagemap: Do not clear ->mapping on final put
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 13 Jul 2018 21:49:56 -0700
-Message-ID: <153154379606.34503.17311881160518829077.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Fri, 13 Jul 2018 21:50:01 -0700
+Message-ID: <153154380137.34503.3754023882460956800.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <153154376846.34503.15480221419473501643.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <153154376846.34503.15480221419473501643.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, hch@lst.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: stable@vger.kernel.org, Jan Kara <jack@suse.cz>, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, hch@lst.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Given that dax / device-mapped pages are never subject to page
-allocations remove them from consideration by the soft-offline
-mechanism.
+MEMORY_DEVICE_FS_DAX relies on typical page semantics whereby ->mapping
+is only ever cleared by truncation, not final put.
 
-Reported-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Without this fix dax pages may forget their mapping association at the
+end of every page pin event.
+
+Move this atypical behavior that HMM wants into the HMM ->page_free()
+callback.
+
+Cc: <stable@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>
+Cc: JA(C)rA'me Glisse <jglisse@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Fixes: d2c997c0f145 ("fs, dax: use page->mapping...")
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- mm/memory-failure.c |    8 ++++++++
- 1 file changed, 8 insertions(+)
+ kernel/memremap.c |    1 -
+ mm/hmm.c          |    2 ++
+ 2 files changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 9d142b9b86dc..988f977db3d2 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1751,6 +1751,14 @@ int soft_offline_page(struct page *page, int flags)
- 	int ret;
- 	unsigned long pfn = page_to_pfn(page);
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index 5857267a4af5..62603634a1d2 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -339,7 +339,6 @@ void __put_devmap_managed_page(struct page *page)
+ 		__ClearPageActive(page);
+ 		__ClearPageWaiters(page);
  
-+	if (is_zone_device_page(page)) {
-+		pr_debug_ratelimited("soft_offline: %#lx page is device page\n",
-+				pfn);
-+		if (flags & MF_COUNT_INCREASED)
-+			put_page(page);
-+		return -EIO;
-+	}
+-		page->mapping = NULL;
+ 		mem_cgroup_uncharge(page);
+ 
+ 		page->pgmap->page_free(page, page->pgmap->data);
+diff --git a/mm/hmm.c b/mm/hmm.c
+index de7b6bf77201..f9d1d89dec4d 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -963,6 +963,8 @@ static void hmm_devmem_free(struct page *page, void *data)
+ {
+ 	struct hmm_devmem *devmem = data;
+ 
++	page->mapping = NULL;
 +
- 	if (PageHWPoison(page)) {
- 		pr_info("soft offline: %#lx page already poisoned\n", pfn);
- 		if (flags & MF_COUNT_INCREASED)
+ 	devmem->ops->free(devmem, page);
+ }
+ 
