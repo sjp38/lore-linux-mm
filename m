@@ -1,30 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 015936B0007
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 23:04:25 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id i4-v6so9061371ite.3
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 20:04:24 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id d19-v6si19098052jam.5.2018.07.13.20.04.23
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AF3C86B000A
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 23:04:33 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id x14-v6so29273991ioa.6
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 20:04:33 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p10-v6sor5810334iom.22.2018.07.13.20.04.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 20:04:23 -0700 (PDT)
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6E2xMfG040879
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 03:04:23 GMT
-Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
-	by aserp2130.oracle.com with ESMTP id 2k76pcr3pp-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 03:04:23 +0000
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w6E34Lfl000321
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 03:04:21 GMT
-Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w6E34KKH000310
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 03:04:21 GMT
-Received: by mail-oi0-f48.google.com with SMTP id n84-v6so65673586oib.9
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 20:04:20 -0700 (PDT)
+        (Google Transport Security);
+        Fri, 13 Jul 2018 20:04:33 -0700 (PDT)
 MIME-Version: 1.0
 References: <CA+55aFyARQV302+mXNYznrOOjzW+yxbcv+=OkD43dG6G1ktoMQ@mail.gmail.com>
  <alpine.DEB.2.21.1807140031440.2644@nanos.tec.linutronix.de>
@@ -37,90 +21,21 @@ References: <CA+55aFyARQV302+mXNYznrOOjzW+yxbcv+=OkD43dG6G1ktoMQ@mail.gmail.com>
  <9b93d48c-b997-01f7-2fd6-6e35301ef263@oracle.com> <CA+55aFxFw2-1BD2UBf_QJ2=faQES_8q==yUjwj4mGJ6Ub4uX7w@mail.gmail.com>
  <5edf2d71-f548-98f9-16dd-b7fed29f4869@oracle.com> <CA+55aFwPAwczHS3XKkEnjY02PaDf2mWrcqx_hket4Ce3nScsSg@mail.gmail.com>
 In-Reply-To: <CA+55aFwPAwczHS3XKkEnjY02PaDf2mWrcqx_hket4Ce3nScsSg@mail.gmail.com>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Fri, 13 Jul 2018 23:03:43 -0400
-Message-ID: <CAGM2rebeo3UUo2bL6kXCMGhuM36wjF5CfvqGG_3rpCfBs5S2wA@mail.gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 13 Jul 2018 20:04:21 -0700
+Message-ID: <CA+55aFy-WcfHqKvdj9N9w56dFXscB7ELNMD8BJbPzRfejzh82w@mail.gmail.com>
 Subject: Re: Instability in current -git tree
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: multipart/mixed; boundary="00000000000005d7330570ecdb2f"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, tglx@linutronix.de, willy@infradead.org, mingo@redhat.com, axboe@kernel.dk, gregkh@linuxfoundation.org, davem@davemloft.net, viro@zeniv.linux.org.uk, airlied@gmail.com, Tejun Heo <tj@kernel.org>, tytso@google.com, snitzer@redhat.com, Linux Memory Management List <linux-mm@kvack.org>, neelx@redhat.com, mgorman@techsingularity.net
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Matthew Wilcox <willy@infradead.org>, Ingo Molnar <mingo@redhat.com>, Jens Axboe <axboe@kernel.dk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Miller <davem@davemloft.net>, Al Viro <viro@zeniv.linux.org.uk>, Dave Airlie <airlied@gmail.com>, Tejun Heo <tj@kernel.org>, Ted Ts'o <tytso@google.com>, Mike Snitzer <snitzer@redhat.com>, linux-mm <linux-mm@kvack.org>, Daniel Vacek <neelx@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
 
-On Fri, Jul 13, 2018 at 10:40 PM Linus Torvalds
+--00000000000005d7330570ecdb2f
+Content-Type: text/plain; charset="UTF-8"
+
+On Fri, Jul 13, 2018 at 7:40 PM Linus Torvalds
 <torvalds@linux-foundation.org> wrote:
->
-> On Fri, Jul 13, 2018 at 5:47 PM Pavel Tatashin
-> <pasha.tatashin@oracle.com> wrote:
-> >
-> > The commit intends to zero memmap (struct pages) for every hole in
-> > e820 ranges by marking them reserved in memblock. Later
-> > zero_resv_unavail() walks through memmap ranges and zeroes struct
-> > pages for every page that is reserved, but does not have a physical
-> > backing known by kernel.
->
-> Ahh. That just looks incoredibly buggy.
->
-> You can't just memset() the 'struct page' to zero after it's been set up.
-
-That should not be happening, unless there is a bug.
-zero_resv_unavail() is supposed be zeroing struct pages that were not
-setup.
-
-Struct pages are configured here:
-
-free_area_init_nodes()
-  free_area_init_node()
-    free_area_init_core()
-      memmap_init()
-        memmap_init_zone()
-         if (pfn_valid(pfn))   <--- Actually few more checks:
-early_pfn_valid(pfn), early_pfn_in_nid(pfn, nid)
-          __init_single_page(pfn_to_page(pfn))
-            mm_zero_struct_page(page);
-            set the other fields in struct page
-  zero_resv_unavail(); <-- is called at the end of free_area_init_nodes()
-        if (!pfn_valid(pfn))
-            mm_zero_struct_page(pfn_to_page(pfn)); <- So the idea that
-we zero only the part of memmap that
-            was not initialized in __init_single_page().
-
-We want to zero those struct pages so we do not have uninitialized
-data accessed by various parts of the code that rounds down large
-pages and access the first page in section without verifying that the
-page is valid. The example of this is described in commit that
-introduced zero_resv_unavail()
-
->
-> That also zeroes page->flags, but page->flags contains things like the
-> zone and node ID.
->
-> That would explain the completely bogus "DMA" zone. That's not the
-> real zone, it's just that page_zonenr() returns 0 because of an
-> incorrect clearing of page->flags.
->
-> And it would also completely bugger pfn_to_page() for
-> CONFIG_DISCONTIGMEM, because the way that works is that it looks up
-> the node using page_to_nid(), and then looks up the pfn by using the
-> per-node pglist_data ->node_mem_map (that the 'struct page' is
-> supposed to be a pointer into).
->
-> So zerong the page->flags after it has been set up is completely wrong
-> as far as I can see. It literally invalidates 'struct page' and makes
-> various core VM function assumptions stop working.
->
-> As an example, it makes "page_to_pfn -> pfn_to_page" not be the
-> identity transformation, which could result in totally random
-> behavior.
->
-> And it definitely explains the whole "oh, now the zone ID doesn't
-> match" issue. It &*should* have been zone #1 ("DMA32"), but it got
-> cleared and that made it zone #0 ("DMA").
->
-> So yeah, this looks like the cause of it. And it could result in any
-> number of really odd problems, so this could easily explain the syzbot
-> failures and reboots at bootup too. Who knows what happens when
-> pfn_to_page() doesn't work any more.
 >
 > Should we perhaps just revert
 >
@@ -129,6 +44,106 @@ introduced zero_resv_unavail()
 >
 > it still reverts fairly cleanly (there's a trivial conflict with the
 > older commit).
->
->               Linus
->
+
+This is the revert I'm testing right now..  It seems to be stable for
+me (doing that "limited memory, nasty memory hogs" test that I did
+before), but I'll keep running this for a while. Even with the memory
+limit and the memory hogs, it sometimes took some time to crash.
+
+                  Linus
+
+--00000000000005d7330570ecdb2f
+Content-Type: text/x-patch; charset="US-ASCII"; name="patch.diff"
+Content-Disposition: attachment; filename="patch.diff"
+Content-Transfer-Encoding: base64
+Content-ID: <f_jjkts2n30>
+X-Attachment-Id: f_jjkts2n30
+
+IGFyY2gveDg2L2tlcm5lbC9lODIwLmMgfCAxNSArKystLS0tLS0tLS0tLS0KIG1tL3BhZ2VfYWxs
+b2MuYyAgICAgICAgfCAgMSAtCiBtbS9zcGFyc2Utdm1lbW1hcC5jICAgIHwgMjMgKysrKysrLS0t
+LS0tLS0tLS0tLS0tLS0KIG1tL3NwYXJzZS5jICAgICAgICAgICAgfCAgNiArKystLS0KIDQgZmls
+ZXMgY2hhbmdlZCwgMTIgaW5zZXJ0aW9ucygrKSwgMzMgZGVsZXRpb25zKC0pCgpkaWZmIC0tZ2l0
+IGEvYXJjaC94ODYva2VybmVsL2U4MjAuYyBiL2FyY2gveDg2L2tlcm5lbC9lODIwLmMKaW5kZXgg
+Yzg4YzIzYzY1OGMxLi5kMWYyNWM4MzE0NDcgMTAwNjQ0Ci0tLSBhL2FyY2gveDg2L2tlcm5lbC9l
+ODIwLmMKKysrIGIvYXJjaC94ODYva2VybmVsL2U4MjAuYwpAQCAtMTI0OCw3ICsxMjQ4LDYgQEAg
+dm9pZCBfX2luaXQgZTgyMF9fbWVtYmxvY2tfc2V0dXAodm9pZCkKIHsKIAlpbnQgaTsKIAl1NjQg
+ZW5kOwotCXU2NCBhZGRyID0gMDsKIAogCS8qCiAJICogVGhlIGJvb3RzdHJhcCBtZW1ibG9jayBy
+ZWdpb24gY291bnQgbWF4aW11bSBpcyAxMjggZW50cmllcwpAQCAtMTI2NSwyMSArMTI2NCwxMyBA
+QCB2b2lkIF9faW5pdCBlODIwX19tZW1ibG9ja19zZXR1cCh2b2lkKQogCQlzdHJ1Y3QgZTgyMF9l
+bnRyeSAqZW50cnkgPSAmZTgyMF90YWJsZS0+ZW50cmllc1tpXTsKIAogCQllbmQgPSBlbnRyeS0+
+YWRkciArIGVudHJ5LT5zaXplOwotCQlpZiAoYWRkciA8IGVudHJ5LT5hZGRyKQotCQkJbWVtYmxv
+Y2tfcmVzZXJ2ZShhZGRyLCBlbnRyeS0+YWRkciAtIGFkZHIpOwotCQlhZGRyID0gZW5kOwogCQlp
+ZiAoZW5kICE9IChyZXNvdXJjZV9zaXplX3QpZW5kKQogCQkJY29udGludWU7CiAKLQkJLyoKLQkJ
+ICogYWxsICFFODIwX1RZUEVfUkFNIHJhbmdlcyAoaW5jbHVkaW5nIGdhcCByYW5nZXMpIGFyZSBw
+dXQKLQkJICogaW50byBtZW1ibG9jay5yZXNlcnZlZCB0byBtYWtlIHN1cmUgdGhhdCBzdHJ1Y3Qg
+cGFnZXMgaW4KLQkJICogc3VjaCByZWdpb25zIGFyZSBub3QgbGVmdCB1bmluaXRpYWxpemVkIGFm
+dGVyIGJvb3R1cC4KLQkJICovCiAJCWlmIChlbnRyeS0+dHlwZSAhPSBFODIwX1RZUEVfUkFNICYm
+IGVudHJ5LT50eXBlICE9IEU4MjBfVFlQRV9SRVNFUlZFRF9LRVJOKQotCQkJbWVtYmxvY2tfcmVz
+ZXJ2ZShlbnRyeS0+YWRkciwgZW50cnktPnNpemUpOwotCQllbHNlCi0JCQltZW1ibG9ja19hZGQo
+ZW50cnktPmFkZHIsIGVudHJ5LT5zaXplKTsKKwkJCWNvbnRpbnVlOworCisJCW1lbWJsb2NrX2Fk
+ZChlbnRyeS0+YWRkciwgZW50cnktPnNpemUpOwogCX0KIAogCS8qIFRocm93IGF3YXkgcGFydGlh
+bCBwYWdlczogKi8KZGlmZiAtLWdpdCBhL21tL3BhZ2VfYWxsb2MuYyBiL21tL3BhZ2VfYWxsb2Mu
+YwppbmRleCAxNTIxMTAwZjFlNjMuLjJmZTg1OTcyNmY5YSAxMDA2NDQKLS0tIGEvbW0vcGFnZV9h
+bGxvYy5jCisrKyBiL21tL3BhZ2VfYWxsb2MuYwpAQCAtMTE3MSw3ICsxMTcxLDYgQEAgc3RhdGlj
+IHZvaWQgZnJlZV9vbmVfcGFnZShzdHJ1Y3Qgem9uZSAqem9uZSwKIHN0YXRpYyB2b2lkIF9fbWVt
+aW5pdCBfX2luaXRfc2luZ2xlX3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UsIHVuc2lnbmVkIGxvbmcg
+cGZuLAogCQkJCXVuc2lnbmVkIGxvbmcgem9uZSwgaW50IG5pZCkKIHsKLQltbV96ZXJvX3N0cnVj
+dF9wYWdlKHBhZ2UpOwogCXNldF9wYWdlX2xpbmtzKHBhZ2UsIHpvbmUsIG5pZCwgcGZuKTsKIAlp
+bml0X3BhZ2VfY291bnQocGFnZSk7CiAJcGFnZV9tYXBjb3VudF9yZXNldChwYWdlKTsKZGlmZiAt
+LWdpdCBhL21tL3NwYXJzZS12bWVtbWFwLmMgYi9tbS9zcGFyc2Utdm1lbW1hcC5jCmluZGV4IGJk
+MDI3NmQ1ZjY2Yi4uYzM2M2M2MGJlN2QzIDEwMDY0NAotLS0gYS9tbS9zcGFyc2Utdm1lbW1hcC5j
+CisrKyBiL21tL3NwYXJzZS12bWVtbWFwLmMKQEAgLTQyLDcgKzQyLDcgQEAgc3RhdGljIHZvaWQg
+KiBfX3JlZiBfX2Vhcmx5b25seV9ib290bWVtX2FsbG9jKGludCBub2RlLAogCQkJCXVuc2lnbmVk
+IGxvbmcgYWxpZ24sCiAJCQkJdW5zaWduZWQgbG9uZyBnb2FsKQogewotCXJldHVybiBtZW1ibG9j
+a192aXJ0X2FsbG9jX3RyeV9uaWRfcmF3KHNpemUsIGFsaWduLCBnb2FsLAorCXJldHVybiBtZW1i
+bG9ja192aXJ0X2FsbG9jX3RyeV9uaWQoc2l6ZSwgYWxpZ24sIGdvYWwsCiAJCQkJCSAgICBCT09U
+TUVNX0FMTE9DX0FDQ0VTU0lCTEUsIG5vZGUpOwogfQogCkBAIC01Myw3ICs1Myw3IEBAIHZvaWQg
+KiBfX21lbWluaXQgdm1lbW1hcF9hbGxvY19ibG9jayh1bnNpZ25lZCBsb25nIHNpemUsIGludCBu
+b2RlKQogewogCS8qIElmIHRoZSBtYWluIGFsbG9jYXRvciBpcyB1cCB1c2UgdGhhdCwgZmFsbGJh
+Y2sgdG8gYm9vdG1lbS4gKi8KIAlpZiAoc2xhYl9pc19hdmFpbGFibGUoKSkgewotCQlnZnBfdCBn
+ZnBfbWFzayA9IEdGUF9LRVJORUx8X19HRlBfUkVUUllfTUFZRkFJTHxfX0dGUF9OT1dBUk47CisJ
+CWdmcF90IGdmcF9tYXNrID0gR0ZQX0tFUk5FTHxfX0dGUF9aRVJPfF9fR0ZQX1JFVFJZX01BWUZB
+SUx8X19HRlBfTk9XQVJOOwogCQlpbnQgb3JkZXIgPSBnZXRfb3JkZXIoc2l6ZSk7CiAJCXN0YXRp
+YyBib29sIHdhcm5lZDsKIAkJc3RydWN0IHBhZ2UgKnBhZ2U7CkBAIC0xNjUsMjIgKzE2NSwxMSBA
+QCBwdGVfdCAqIF9fbWVtaW5pdCB2bWVtbWFwX3B0ZV9wb3B1bGF0ZShwbWRfdCAqcG1kLCB1bnNp
+Z25lZCBsb25nIGFkZHIsIGludCBub2RlKQogCXJldHVybiBwdGU7CiB9CiAKLXN0YXRpYyB2b2lk
+ICogX19tZW1pbml0IHZtZW1tYXBfYWxsb2NfYmxvY2tfemVybyh1bnNpZ25lZCBsb25nIHNpemUs
+IGludCBub2RlKQotewotCXZvaWQgKnAgPSB2bWVtbWFwX2FsbG9jX2Jsb2NrKHNpemUsIG5vZGUp
+OwotCi0JaWYgKCFwKQotCQlyZXR1cm4gTlVMTDsKLQltZW1zZXQocCwgMCwgc2l6ZSk7Ci0KLQly
+ZXR1cm4gcDsKLX0KLQogcG1kX3QgKiBfX21lbWluaXQgdm1lbW1hcF9wbWRfcG9wdWxhdGUocHVk
+X3QgKnB1ZCwgdW5zaWduZWQgbG9uZyBhZGRyLCBpbnQgbm9kZSkKIHsKIAlwbWRfdCAqcG1kID0g
+cG1kX29mZnNldChwdWQsIGFkZHIpOwogCWlmIChwbWRfbm9uZSgqcG1kKSkgewotCQl2b2lkICpw
+ID0gdm1lbW1hcF9hbGxvY19ibG9ja196ZXJvKFBBR0VfU0laRSwgbm9kZSk7CisJCXZvaWQgKnAg
+PSB2bWVtbWFwX2FsbG9jX2Jsb2NrKFBBR0VfU0laRSwgbm9kZSk7CiAJCWlmICghcCkKIAkJCXJl
+dHVybiBOVUxMOwogCQlwbWRfcG9wdWxhdGVfa2VybmVsKCZpbml0X21tLCBwbWQsIHApOwpAQCAt
+MTkyLDcgKzE4MSw3IEBAIHB1ZF90ICogX19tZW1pbml0IHZtZW1tYXBfcHVkX3BvcHVsYXRlKHA0
+ZF90ICpwNGQsIHVuc2lnbmVkIGxvbmcgYWRkciwgaW50IG5vZGUpCiB7CiAJcHVkX3QgKnB1ZCA9
+IHB1ZF9vZmZzZXQocDRkLCBhZGRyKTsKIAlpZiAocHVkX25vbmUoKnB1ZCkpIHsKLQkJdm9pZCAq
+cCA9IHZtZW1tYXBfYWxsb2NfYmxvY2tfemVybyhQQUdFX1NJWkUsIG5vZGUpOworCQl2b2lkICpw
+ID0gdm1lbW1hcF9hbGxvY19ibG9jayhQQUdFX1NJWkUsIG5vZGUpOwogCQlpZiAoIXApCiAJCQly
+ZXR1cm4gTlVMTDsKIAkJcHVkX3BvcHVsYXRlKCZpbml0X21tLCBwdWQsIHApOwpAQCAtMjA0LDcg
+KzE5Myw3IEBAIHA0ZF90ICogX19tZW1pbml0IHZtZW1tYXBfcDRkX3BvcHVsYXRlKHBnZF90ICpw
+Z2QsIHVuc2lnbmVkIGxvbmcgYWRkciwgaW50IG5vZGUpCiB7CiAJcDRkX3QgKnA0ZCA9IHA0ZF9v
+ZmZzZXQocGdkLCBhZGRyKTsKIAlpZiAocDRkX25vbmUoKnA0ZCkpIHsKLQkJdm9pZCAqcCA9IHZt
+ZW1tYXBfYWxsb2NfYmxvY2tfemVybyhQQUdFX1NJWkUsIG5vZGUpOworCQl2b2lkICpwID0gdm1l
+bW1hcF9hbGxvY19ibG9jayhQQUdFX1NJWkUsIG5vZGUpOwogCQlpZiAoIXApCiAJCQlyZXR1cm4g
+TlVMTDsKIAkJcDRkX3BvcHVsYXRlKCZpbml0X21tLCBwNGQsIHApOwpAQCAtMjE2LDcgKzIwNSw3
+IEBAIHBnZF90ICogX19tZW1pbml0IHZtZW1tYXBfcGdkX3BvcHVsYXRlKHVuc2lnbmVkIGxvbmcg
+YWRkciwgaW50IG5vZGUpCiB7CiAJcGdkX3QgKnBnZCA9IHBnZF9vZmZzZXRfayhhZGRyKTsKIAlp
+ZiAocGdkX25vbmUoKnBnZCkpIHsKLQkJdm9pZCAqcCA9IHZtZW1tYXBfYWxsb2NfYmxvY2tfemVy
+byhQQUdFX1NJWkUsIG5vZGUpOworCQl2b2lkICpwID0gdm1lbW1hcF9hbGxvY19ibG9jayhQQUdF
+X1NJWkUsIG5vZGUpOwogCQlpZiAoIXApCiAJCQlyZXR1cm4gTlVMTDsKIAkJcGdkX3BvcHVsYXRl
+KCZpbml0X21tLCBwZ2QsIHApOwpkaWZmIC0tZ2l0IGEvbW0vc3BhcnNlLmMgYi9tbS9zcGFyc2Uu
+YwppbmRleCBmMTNmMjcyMzk1MGEuLjRjYzE1NThmZDEwYyAxMDA2NDQKLS0tIGEvbW0vc3BhcnNl
+LmMKKysrIGIvbW0vc3BhcnNlLmMKQEAgLTQxOSw5ICs0MTksOSBAQCB2b2lkIF9faW5pdCBzcGFy
+c2VfbWVtX21hcHNfcG9wdWxhdGVfbm9kZShzdHJ1Y3QgcGFnZSAqKm1hcF9tYXAsCiAJdW5zaWdu
+ZWQgbG9uZyBzaXplID0gc2l6ZW9mKHN0cnVjdCBwYWdlKSAqIFBBR0VTX1BFUl9TRUNUSU9OOwog
+CiAJc2l6ZSA9IFBBR0VfQUxJR04oc2l6ZSk7Ci0JbWFwID0gbWVtYmxvY2tfdmlydF9hbGxvY190
+cnlfbmlkX3JhdyhzaXplICogbWFwX2NvdW50LAotCQkJCQkgICAgICBQQUdFX1NJWkUsIF9fcGEo
+TUFYX0RNQV9BRERSRVNTKSwKLQkJCQkJICAgICAgQk9PVE1FTV9BTExPQ19BQ0NFU1NJQkxFLCBu
+b2RlaWQpOworCW1hcCA9IG1lbWJsb2NrX3ZpcnRfYWxsb2NfdHJ5X25pZChzaXplICogbWFwX2Nv
+dW50LAorCQkJCQkgIFBBR0VfU0laRSwgX19wYShNQVhfRE1BX0FERFJFU1MpLAorCQkJCQkgIEJP
+T1RNRU1fQUxMT0NfQUNDRVNTSUJMRSwgbm9kZWlkKTsKIAlpZiAobWFwKSB7CiAJCWZvciAocG51
+bSA9IHBudW1fYmVnaW47IHBudW0gPCBwbnVtX2VuZDsgcG51bSsrKSB7CiAJCQlpZiAoIXByZXNl
+bnRfc2VjdGlvbl9ucihwbnVtKSkK
+--00000000000005d7330570ecdb2f--
