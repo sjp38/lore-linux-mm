@@ -1,72 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BFAB6B0269
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 20:47:00 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id y13-v6so8690964ita.8
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 17:47:00 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id u206-v6si5855121itc.35.2018.07.13.17.46.58
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AAF316B0005
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 20:55:30 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id f9-v6so20528154pfn.22
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 17:55:30 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id o20-v6si1340957pgh.319.2018.07.13.17.55.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 17:46:59 -0700 (PDT)
-Subject: Re: Instability in current -git tree
-References: <CA+55aFyARQV302+mXNYznrOOjzW+yxbcv+=OkD43dG6G1ktoMQ@mail.gmail.com>
- <alpine.DEB.2.21.1807140031440.2644@nanos.tec.linutronix.de>
- <CA+55aFzBx1haeM2QSFvhaW2t_HVK78Y=bKvsiJmOZztwkZ-y7Q@mail.gmail.com>
- <CA+55aFzVGa57apuzDMBLgWQQRcm3BNBs1UEg-G_2o7YW1i=o2Q@mail.gmail.com>
- <CA+55aFy9NJZeqT7h_rAgbKUZLjzfxvDPwneFQracBjVhY53aQQ@mail.gmail.com>
- <20180713164804.fc2c27ccbac4c02ca2c8b984@linux-foundation.org>
- <CA+55aFxAZr8PHo-raTihr8TKK_D-fVL+k6_tw_UyDLychowFNw@mail.gmail.com>
- <20180713165812.ec391548ffeead96725d044c@linux-foundation.org>
- <9b93d48c-b997-01f7-2fd6-6e35301ef263@oracle.com>
- <CA+55aFxFw2-1BD2UBf_QJ2=faQES_8q==yUjwj4mGJ6Ub4uX7w@mail.gmail.com>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <5edf2d71-f548-98f9-16dd-b7fed29f4869@oracle.com>
-Date: Fri, 13 Jul 2018 20:46:31 -0400
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 13 Jul 2018 17:55:29 -0700 (PDT)
+Date: Sat, 14 Jul 2018 10:55:00 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [next-20180711][Oops] linux-next kernel boot is broken on
+ powerpc
+Message-ID: <20180714105500.3694b93f@canb.auug.org.au>
+In-Reply-To: <1531473191.6480.26.camel@abdul.in.ibm.com>
+References: <1531416305.6480.24.camel@abdul.in.ibm.com>
+	<CAGM2rebtisZda0kqhg0u92fTDxC+=zMNNgKFBLH38osphk0fdA@mail.gmail.com>
+	<1531473191.6480.26.camel@abdul.in.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFxFw2-1BD2UBf_QJ2=faQES_8q==yUjwj4mGJ6Ub4uX7w@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/h9o4dxATHYTD+EgczYGdc_="; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Matthew Wilcox <willy@infradead.org>, Ingo Molnar <mingo@redhat.com>, Jens Axboe <axboe@kernel.dk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Miller <davem@davemloft.net>, Al Viro <viro@zeniv.linux.org.uk>, Dave Airlie <airlied@gmail.com>, Tejun Heo <tj@kernel.org>, Ted Ts'o <tytso@google.com>, Mike Snitzer <snitzer@redhat.com>, linux-mm <linux-mm@kvack.org>, Daniel Vacek <neelx@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
+To: Abdul Haleem <abdhalee@linux.vnet.ibm.com>
+Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, sachinp@linux.vnet.ibm.com, Michal Hocko <mhocko@suse.com>, sim@linux.vnet.ibm.com, venkatb3@in.ibm.com, LKML <linux-kernel@vger.kernel.org>, manvanth@linux.vnet.ibm.com, Linux Memory Management List <linux-mm@kvack.org>, linux-next@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com, linuxppc-dev@lists.ozlabs.org
 
-On 07/13/2018 08:28 PM, Linus Torvalds wrote:
-> On Fri, Jul 13, 2018 at 5:20 PM Pavel Tatashin
-> <pasha.tatashin@oracle.com> wrote:
->>
->> I'd like to try to reproduce it as well, were you able to reproduce this problem in qemu? What were the qemu arguments if so?
-> 
-> No, this is actually on raw hardware. I've had a unstable machine for
-> the last couple of weeks, and it just hung with no sign of where.
-> 
-> I finally reproduced it reliably by booting with less memory
-> ("mem=6G") and then putting the machine under memory pressure and then
-> I could get it on the console when the machine died. Before that it
-> was just an occasional hung machine randomly every other day or
-> whatever.
-> 
-> If it reproduces in emulation, that will certainly make it easier to
-> see the messages.
-> 
-> But since I suspect it might be related to having that odd (read: real
-> life) e820 table setup, it might not reproduce in emulation. At least
-> when I boot up in lkvm-run, I don't see those ACPI tables and ACPI NVS
-> sections, which seems to be related to this.
-> 
-> I'm attaching my kernel-config (this is the non-debug one - it does
-> have CONFIG_DEBUG_VM, but none of the other debug options I ran with
-> for the last few days in the hope of catching it earlier).
-> 
->                 Linus
-> 
+--Sig_/h9o4dxATHYTD+EgczYGdc_=
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-I will try to reproduce it on bare metal. I believe, the problem was narrowed down to this commit:
+Hi Abdul,
 
-124049decbb1 x86/e820: put !E820_TYPE_RAM regions into memblock.reserved
+On Fri, 13 Jul 2018 14:43:11 +0530 Abdul Haleem <abdhalee@linux.vnet.ibm.co=
+m> wrote:
+>
+> On Thu, 2018-07-12 at 13:44 -0400, Pavel Tatashin wrote:
+> > > Related commit could be one of below ? I see lots of patches related =
+to mm and could not bisect
+> > >
+> > > 5479976fda7d3ab23ba0a4eb4d60b296eb88b866 mm: page_alloc: restore memb=
+lock_next_valid_pfn() on arm/arm64
+> > > 41619b27b5696e7e5ef76d9c692dd7342c1ad7eb mm-drop-vm_bug_on-from-__get=
+_free_pages-fix
+> > > 531bbe6bd2721f4b66cdb0f5cf5ac14612fa1419 mm: drop VM_BUG_ON from __ge=
+t_free_pages
+> > > 479350dd1a35f8bfb2534697e5ca68ee8a6e8dea mm, page_alloc: actually ign=
+ore mempolicies for high priority allocations
+> > > 088018f6fe571444caaeb16e84c9f24f22dfc8b0 mm: skip invalid pages block=
+ at a time in zero_resv_unresv() =20
+> >=20
+> > Looks like:
+> > 0ba29a108979 mm/sparse: Remove CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+> >=20
+> > This patch is going to be reverted from linux-next. Abdul, please
+> > verify that issue is gone once  you revert this patch. =20
+>=20
+> kernel booted fine when the above patch is reverted.
 
-The commit intends to zero memmap (struct pages) for every hole in e820 ranges by marking them reserved in memblock. Later  zero_resv_unavail() walks through memmap ranges and zeroes struct pages for every page that is reserved, but does not have a physical backing known by kernel.
+And it has been removed from linux-next as of next-20180713.  (Friday
+the 13th is not all bad :-))
+--=20
+Cheers,
+Stephen Rothwell
 
-Pavel
+--Sig_/h9o4dxATHYTD+EgczYGdc_=
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAltJSeQACgkQAVBC80lX
+0GzEPgf+O8ZUulbaRgniWzhnLUmbpQm5/OWeEsLqXQOjU5/rHCoshZNJPaIJyJZJ
+bBApGslZMfVpOqFwXAg0AyP3RHJwShjMaT/Et+9w7Q2UhxXV5DgPItJ9hvAmOBMk
+9UvmL2gPbZ7UNMZQVnxpnSsPVMj9RWp5nNG59ANcgV8skYN/nPEEju/DtJ+QJFN/
+utSHrk2BXD2juj1xgqQhAd8FGB0eRLFvWUFzMgLXWnl7ErTySkMSYYVYGtY9UBWN
+RuKT/pMD/V6/DdJKLMODs9yQaPeP7s9pFAgXzYeqwxxcqfllxbCr6xhyP3po64kp
+iDtz6xVa4SjoyUiR90n3DIPkbAHV2Q==
+=mqb2
+-----END PGP SIGNATURE-----
+
+--Sig_/h9o4dxATHYTD+EgczYGdc_=--
