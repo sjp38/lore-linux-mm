@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0245E6B0277
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 01:00:45 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id z21-v6so13411611plo.13
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 22:00:44 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id c8-v6si27610292pfc.136.2018.07.13.22.00.43
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AA826B0278
+	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 01:00:47 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id d1-v6so5832963pfo.16
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 22:00:47 -0700 (PDT)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id k125-v6si2088027pgk.6.2018.07.13.22.00.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jul 2018 22:00:43 -0700 (PDT)
-Subject: [PATCH v6 09/13] filesystem-dax: Introduce dax_lock_mapping_entry()
+        Fri, 13 Jul 2018 22:00:45 -0700 (PDT)
+Subject: [PATCH v6 08/13] mm,
+ memory_failure: Collect mapping size in collect_procs()
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 13 Jul 2018 21:50:16 -0700
-Message-ID: <153154381675.34503.4471648812866312162.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Fri, 13 Jul 2018 21:50:11 -0700
+Message-ID: <153154381163.34503.9922261445330906942.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <153154376846.34503.15480221419473501643.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <153154376846.34503.15480221419473501643.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -21,212 +22,161 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Christoph Hellwig <hch@lst.de>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, hch@lst.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-In preparation for implementing support for memory poison (media error)
-handling via dax mappings, implement a lock_page() equivalent. Poison
-error handling requires rmap and needs guarantees that the page->mapping
-association is maintained / valid (inode not freed) for the duration of
-the lookup.
+In preparation for supporting memory_failure() for dax mappings, teach
+collect_procs() to also determine the mapping size. Unlike typical
+mappings the dax mapping size is determined by walking page-table
+entries rather than using the compound-page accounting for THP pages.
 
-In the device-dax case it is sufficient to simply hold a dev_pagemap
-reference. In the filesystem-dax case we need to use the entry lock.
-
-Export the entry lock via dax_lock_mapping_entry() that uses
-rcu_read_lock() to protect against the inode being freed, and
-revalidates the page->mapping association under xa_lock().
-
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Jan Kara <jack@suse.cz>
+Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- fs/dax.c            |  109 ++++++++++++++++++++++++++++++++++++++++++++++++---
- include/linux/dax.h |   13 ++++++
- 2 files changed, 116 insertions(+), 6 deletions(-)
+ mm/memory-failure.c |   81 +++++++++++++++++++++++++--------------------------
+ 1 file changed, 40 insertions(+), 41 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 4de11ed463ce..57ec272038da 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -226,8 +226,8 @@ static inline void *unlock_slot(struct address_space *mapping, void **slot)
-  *
-  * Must be called with the i_pages lock held.
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 988f977db3d2..8a81680d00dd 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -174,22 +174,51 @@ int hwpoison_filter(struct page *p)
+ EXPORT_SYMBOL_GPL(hwpoison_filter);
+ 
+ /*
++ * Kill all processes that have a poisoned page mapped and then isolate
++ * the page.
++ *
++ * General strategy:
++ * Find all processes having the page mapped and kill them.
++ * But we keep a page reference around so that the page is not
++ * actually freed yet.
++ * Then stash the page away
++ *
++ * There's no convenient way to get back to mapped processes
++ * from the VMAs. So do a brute-force search over all
++ * running processes.
++ *
++ * Remember that machine checks are not common (or rather
++ * if they are common you have other problems), so this shouldn't
++ * be a performance issue.
++ *
++ * Also there are some races possible while we get from the
++ * error detection to actually handle it.
++ */
++
++struct to_kill {
++	struct list_head nd;
++	struct task_struct *tsk;
++	unsigned long addr;
++	short size_shift;
++	char addr_valid;
++};
++
++/*
+  * Send all the processes who have the page mapped a signal.
+  * ``action optional'' if they are not immediately affected by the error
+  * ``action required'' if error happened in current execution context
   */
--static void *get_unlocked_mapping_entry(struct address_space *mapping,
--					pgoff_t index, void ***slotp)
-+static void *__get_unlocked_mapping_entry(struct address_space *mapping,
-+		pgoff_t index, void ***slotp, bool (*wait_fn)(void))
+-static int kill_proc(struct task_struct *t, unsigned long addr,
+-			unsigned long pfn, struct page *page, int flags)
++static int kill_proc(struct to_kill *tk, unsigned long pfn, int flags)
  {
- 	void *entry, **slot;
- 	struct wait_exceptional_entry_queue ewait;
-@@ -237,6 +237,8 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
- 	ewait.wait.func = wake_exceptional_entry_func;
+-	short addr_lsb;
++	struct task_struct *t = tk->tsk;
++	short addr_lsb = tk->size_shift;
+ 	int ret;
  
- 	for (;;) {
-+		bool revalidate;
-+
- 		entry = __radix_tree_lookup(&mapping->i_pages, index, NULL,
- 					  &slot);
- 		if (!entry ||
-@@ -251,14 +253,31 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
- 		prepare_to_wait_exclusive(wq, &ewait.wait,
- 					  TASK_UNINTERRUPTIBLE);
- 		xa_unlock_irq(&mapping->i_pages);
--		schedule();
-+		revalidate = wait_fn();
- 		finish_wait(wq, &ewait.wait);
- 		xa_lock_irq(&mapping->i_pages);
-+		if (revalidate)
-+			return ERR_PTR(-EAGAIN);
+ 	pr_err("Memory failure: %#lx: Killing %s:%d due to hardware memory corruption\n",
+ 		pfn, t->comm, t->pid);
+-	addr_lsb = compound_order(compound_head(page)) + PAGE_SHIFT;
+ 
+ 	if ((flags & MF_ACTION_REQUIRED) && t->mm == current->mm) {
+-		ret = force_sig_mceerr(BUS_MCEERR_AR, (void __user *)addr,
++		ret = force_sig_mceerr(BUS_MCEERR_AR, (void __user *)tk->addr,
+ 				       addr_lsb, current);
+ 	} else {
+ 		/*
+@@ -198,7 +227,7 @@ static int kill_proc(struct task_struct *t, unsigned long addr,
+ 		 * This could cause a loop when the user sets SIGBUS
+ 		 * to SIG_IGN, but hopefully no one will do that?
+ 		 */
+-		ret = send_sig_mceerr(BUS_MCEERR_AO, (void __user *)addr,
++		ret = send_sig_mceerr(BUS_MCEERR_AO, (void __user *)tk->addr,
+ 				      addr_lsb, t);  /* synchronous? */
  	}
- }
- 
--static void dax_unlock_mapping_entry(struct address_space *mapping,
--				     pgoff_t index)
-+static bool entry_wait(void)
-+{
-+	schedule();
-+	/*
-+	 * Never return an ERR_PTR() from
-+	 * __get_unlocked_mapping_entry(), just keep looping.
-+	 */
-+	return false;
-+}
-+
-+static void *get_unlocked_mapping_entry(struct address_space *mapping,
-+		pgoff_t index, void ***slotp)
-+{
-+	return __get_unlocked_mapping_entry(mapping, index, slotp, entry_wait);
-+}
-+
-+static void unlock_mapping_entry(struct address_space *mapping, pgoff_t index)
- {
- 	void *entry, **slot;
- 
-@@ -277,7 +296,7 @@ static void dax_unlock_mapping_entry(struct address_space *mapping,
- static void put_locked_mapping_entry(struct address_space *mapping,
- 		pgoff_t index)
- {
--	dax_unlock_mapping_entry(mapping, index);
-+	unlock_mapping_entry(mapping, index);
- }
+ 	if (ret < 0)
+@@ -235,35 +264,6 @@ void shake_page(struct page *p, int access)
+ EXPORT_SYMBOL_GPL(shake_page);
  
  /*
-@@ -374,6 +393,84 @@ static struct page *dax_busy_page(void *entry)
- 	return NULL;
- }
+- * Kill all processes that have a poisoned page mapped and then isolate
+- * the page.
+- *
+- * General strategy:
+- * Find all processes having the page mapped and kill them.
+- * But we keep a page reference around so that the page is not
+- * actually freed yet.
+- * Then stash the page away
+- *
+- * There's no convenient way to get back to mapped processes
+- * from the VMAs. So do a brute-force search over all
+- * running processes.
+- *
+- * Remember that machine checks are not common (or rather
+- * if they are common you have other problems), so this shouldn't
+- * be a performance issue.
+- *
+- * Also there are some races possible while we get from the
+- * error detection to actually handle it.
+- */
+-
+-struct to_kill {
+-	struct list_head nd;
+-	struct task_struct *tsk;
+-	unsigned long addr;
+-	char addr_valid;
+-};
+-
+-/*
+  * Failure handling: if we can't find or can't kill a process there's
+  * not much we can do.	We just print a message and ignore otherwise.
+  */
+@@ -292,6 +292,7 @@ static void add_to_kill(struct task_struct *tsk, struct page *p,
+ 	}
+ 	tk->addr = page_address_in_vma(p, vma);
+ 	tk->addr_valid = 1;
++	tk->size_shift = compound_order(compound_head(p)) + PAGE_SHIFT;
  
-+static bool entry_wait_revalidate(void)
-+{
-+	rcu_read_unlock();
-+	schedule();
-+	rcu_read_lock();
-+
-+	/*
-+	 * Tell __get_unlocked_mapping_entry() to take a break, we need
-+	 * to revalidate page->mapping after dropping locks
-+	 */
-+	return true;
-+}
-+
-+bool dax_lock_mapping_entry(struct page *page)
-+{
-+	pgoff_t index;
-+	struct inode *inode;
-+	bool did_lock = false;
-+	void *entry = NULL, **slot;
-+	struct address_space *mapping;
-+
-+	rcu_read_lock();
-+	for (;;) {
-+		mapping = READ_ONCE(page->mapping);
-+
-+		if (!dax_mapping(mapping))
-+			break;
-+
-+		/*
-+		 * In the device-dax case there's no need to lock, a
-+		 * struct dev_pagemap pin is sufficient to keep the
-+		 * inode alive, and we assume we have dev_pagemap pin
-+		 * otherwise we would not have a valid pfn_to_page()
-+		 * translation.
-+		 */
-+		inode = mapping->host;
-+		if (S_ISCHR(inode->i_mode)) {
-+			did_lock = true;
-+			break;
-+		}
-+
-+		xa_lock_irq(&mapping->i_pages);
-+		if (mapping != page->mapping) {
-+			xa_unlock_irq(&mapping->i_pages);
-+			continue;
-+		}
-+		index = page->index;
-+
-+		entry = __get_unlocked_mapping_entry(mapping, index, &slot,
-+				entry_wait_revalidate);
-+		if (!entry) {
-+			xa_unlock_irq(&mapping->i_pages);
-+			break;
-+		} else if (IS_ERR(entry)) {
-+			WARN_ON_ONCE(PTR_ERR(entry) != -EAGAIN);
-+			continue;
-+		}
-+		lock_slot(mapping, slot);
-+		did_lock = true;
-+		xa_unlock_irq(&mapping->i_pages);
-+		break;
-+	}
-+	rcu_read_unlock();
-+
-+	return did_lock;
-+}
-+
-+void dax_unlock_mapping_entry(struct page *page)
-+{
-+	struct address_space *mapping = page->mapping;
-+	struct inode *inode = mapping->host;
-+
-+	if (S_ISCHR(inode->i_mode))
-+		return;
-+
-+	unlock_mapping_entry(mapping, page->index);
-+}
-+
- /*
-  * Find radix tree entry at given index. If it points to an exceptional entry,
-  * return it with the radix tree entry locked. If the radix tree doesn't
-diff --git a/include/linux/dax.h b/include/linux/dax.h
-index 3855e3800f48..cf8ac51cf0d7 100644
---- a/include/linux/dax.h
-+++ b/include/linux/dax.h
-@@ -88,6 +88,8 @@ int dax_writeback_mapping_range(struct address_space *mapping,
- 		struct block_device *bdev, struct writeback_control *wbc);
- 
- struct page *dax_layout_busy_page(struct address_space *mapping);
-+bool dax_lock_mapping_entry(struct page *page);
-+void dax_unlock_mapping_entry(struct page *page);
- #else
- static inline bool bdev_dax_supported(struct block_device *bdev,
- 		int blocksize)
-@@ -119,6 +121,17 @@ static inline int dax_writeback_mapping_range(struct address_space *mapping,
+ 	/*
+ 	 * In theory we don't have to kill when the page was
+@@ -317,9 +318,8 @@ static void add_to_kill(struct task_struct *tsk, struct page *p,
+  * Also when FAIL is set do a force kill because something went
+  * wrong earlier.
+  */
+-static void kill_procs(struct list_head *to_kill, int forcekill,
+-			  bool fail, struct page *page, unsigned long pfn,
+-			  int flags)
++static void kill_procs(struct list_head *to_kill, int forcekill, bool fail,
++		unsigned long pfn, int flags)
  {
- 	return -EOPNOTSUPP;
- }
-+
-+static inline bool dax_lock_mapping_entry(struct page *page)
-+{
-+	if (IS_DAX(page->mapping->host))
-+		return true;
-+	return false;
-+}
-+
-+static inline void dax_unlock_mapping_entry(struct page *page)
-+{
-+}
- #endif
+ 	struct to_kill *tk, *next;
  
- int dax_read_lock(void);
+@@ -342,8 +342,7 @@ static void kill_procs(struct list_head *to_kill, int forcekill,
+ 			 * check for that, but we need to tell the
+ 			 * process anyways.
+ 			 */
+-			else if (kill_proc(tk->tsk, tk->addr,
+-					      pfn, page, flags) < 0)
++			else if (kill_proc(tk, pfn, flags) < 0)
+ 				pr_err("Memory failure: %#lx: Cannot send advisory machine check signal to %s:%d\n",
+ 				       pfn, tk->tsk->comm, tk->tsk->pid);
+ 		}
+@@ -1012,7 +1011,7 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
+ 	 * any accesses to the poisoned memory.
+ 	 */
+ 	forcekill = PageDirty(hpage) || (flags & MF_MUST_KILL);
+-	kill_procs(&tokill, forcekill, !unmap_success, p, pfn, flags);
++	kill_procs(&tokill, forcekill, !unmap_success, pfn, flags);
+ 
+ 	return unmap_success;
+ }
