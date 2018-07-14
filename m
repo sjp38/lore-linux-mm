@@ -1,129 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C931C6B0010
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 20:34:49 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id w204-v6so46143025oib.9
-        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 17:34:49 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d6-v6sor17793962oig.67.2018.07.13.17.34.48
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BFAB6B0269
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2018 20:47:00 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id y13-v6so8690964ita.8
+        for <linux-mm@kvack.org>; Fri, 13 Jul 2018 17:47:00 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id u206-v6si5855121itc.35.2018.07.13.17.46.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 13 Jul 2018 17:34:48 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Jul 2018 17:46:59 -0700 (PDT)
+Subject: Re: Instability in current -git tree
+References: <CA+55aFyARQV302+mXNYznrOOjzW+yxbcv+=OkD43dG6G1ktoMQ@mail.gmail.com>
+ <alpine.DEB.2.21.1807140031440.2644@nanos.tec.linutronix.de>
+ <CA+55aFzBx1haeM2QSFvhaW2t_HVK78Y=bKvsiJmOZztwkZ-y7Q@mail.gmail.com>
+ <CA+55aFzVGa57apuzDMBLgWQQRcm3BNBs1UEg-G_2o7YW1i=o2Q@mail.gmail.com>
+ <CA+55aFy9NJZeqT7h_rAgbKUZLjzfxvDPwneFQracBjVhY53aQQ@mail.gmail.com>
+ <20180713164804.fc2c27ccbac4c02ca2c8b984@linux-foundation.org>
+ <CA+55aFxAZr8PHo-raTihr8TKK_D-fVL+k6_tw_UyDLychowFNw@mail.gmail.com>
+ <20180713165812.ec391548ffeead96725d044c@linux-foundation.org>
+ <9b93d48c-b997-01f7-2fd6-6e35301ef263@oracle.com>
+ <CA+55aFxFw2-1BD2UBf_QJ2=faQES_8q==yUjwj4mGJ6Ub4uX7w@mail.gmail.com>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <5edf2d71-f548-98f9-16dd-b7fed29f4869@oracle.com>
+Date: Fri, 13 Jul 2018 20:46:31 -0400
 MIME-Version: 1.0
-In-Reply-To: <20180713063125.GA10034@hori1.linux.bs1.fc.nec.co.jp>
-References: <153074042316.27838.17319837331947007626.stgit@dwillia2-desk3.amr.corp.intel.com>
- <153074044986.27838.16910122305490506387.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180713063125.GA10034@hori1.linux.bs1.fc.nec.co.jp>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 13 Jul 2018 17:34:48 -0700
-Message-ID: <CAPcyv4j2M4tSKk-mXPaj1sLGCN6qHNh2iaauKwgciRpmqU8cSw@mail.gmail.com>
-Subject: Re: [PATCH v5 05/11] mm, madvise_inject_error: Let memory_failure()
- optionally take a page reference
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CA+55aFxFw2-1BD2UBf_QJ2=faQES_8q==yUjwj4mGJ6Ub4uX7w@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Michal Hocko <mhocko@suse.com>, "hch@lst.de" <hch@lst.de>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "jack@suse.cz" <jack@suse.cz>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Matthew Wilcox <willy@infradead.org>, Ingo Molnar <mingo@redhat.com>, Jens Axboe <axboe@kernel.dk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Miller <davem@davemloft.net>, Al Viro <viro@zeniv.linux.org.uk>, Dave Airlie <airlied@gmail.com>, Tejun Heo <tj@kernel.org>, Ted Ts'o <tytso@google.com>, Mike Snitzer <snitzer@redhat.com>, linux-mm <linux-mm@kvack.org>, Daniel Vacek <neelx@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
 
-On Thu, Jul 12, 2018 at 11:31 PM, Naoya Horiguchi
-<n-horiguchi@ah.jp.nec.com> wrote:
-> Hello Dan,
->
-> On Wed, Jul 04, 2018 at 02:40:49PM -0700, Dan Williams wrote:
->> The madvise_inject_error() routine uses get_user_pages() to lookup the
->> pfn and other information for injected error, but it does not release
->> that pin. The assumption is that failed pages should be taken out of
->> circulation.
+On 07/13/2018 08:28 PM, Linus Torvalds wrote:
+> On Fri, Jul 13, 2018 at 5:20 PM Pavel Tatashin
+> <pasha.tatashin@oracle.com> wrote:
 >>
->> However, for dax mappings it is not possible to take pages out of
->> circulation since they are 1:1 physically mapped as filesystem blocks,
->> or device-dax capacity. They also typically represent persistent memory
->> which has an error clearing capability.
->>
->> In preparation for adding a special handler for dax mappings, shift the
->> responsibility of taking the page reference to memory_failure(). I.e.
->> drop the page reference and do not specify MF_COUNT_INCREASED to
->> memory_failure().
->>
->> Cc: Michal Hocko <mhocko@suse.com>
->> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
->> ---
->>  mm/madvise.c |   18 +++++++++++++++---
->>  1 file changed, 15 insertions(+), 3 deletions(-)
->>
->> diff --git a/mm/madvise.c b/mm/madvise.c
->> index 4d3c922ea1a1..b731933dddae 100644
->> --- a/mm/madvise.c
->> +++ b/mm/madvise.c
->> @@ -631,11 +631,13 @@ static int madvise_inject_error(int behavior,
->>
->>
->>       for (; start < end; start += PAGE_SIZE << order) {
->> +             unsigned long pfn;
->>               int ret;
->>
->>               ret = get_user_pages_fast(start, 1, 0, &page);
->>               if (ret != 1)
->>                       return ret;
->> +             pfn = page_to_pfn(page);
->>
->>               /*
->>                * When soft offlining hugepages, after migrating the page
->> @@ -651,17 +653,27 @@ static int madvise_inject_error(int behavior,
->>
->>               if (behavior == MADV_SOFT_OFFLINE) {
->>                       pr_info("Soft offlining pfn %#lx at process virtual address %#lx\n",
->> -                                             page_to_pfn(page), start);
->> +                                     pfn, start);
->>
->>                       ret = soft_offline_page(page, MF_COUNT_INCREASED);
->>                       if (ret)
->>                               return ret;
->>                       continue;
->>               }
->> +
->>               pr_info("Injecting memory failure for pfn %#lx at process virtual address %#lx\n",
->> -                                             page_to_pfn(page), start);
->> +                             pfn, start);
->> +
->> +             ret = memory_failure(pfn, 0);
->> +
->> +             /*
->> +              * Drop the page reference taken by get_user_pages_fast(). In
->> +              * the absence of MF_COUNT_INCREASED the memory_failure()
->> +              * routine is responsible for pinning the page to prevent it
->> +              * from being released back to the page allocator.
->> +              */
->> +             put_page(page);
->>
->> -             ret = memory_failure(page_to_pfn(page), MF_COUNT_INCREASED);
->
-> MF_COUNT_INCREASED means that the page refcount for memory error handling
-> is taken by the caller so you don't have to take one inside memory_failure().
-> So this code don't keep with the definition, then another refcount can be
-> taken in memory_failure() in normal LRU page's case for example.
-> As a result the error message "Memory failure: %#lx: %s still referenced by
-> %d users\n" will be dumped in page_action().
->
-> So if you want to put put_page() in madvise_inject_error(), I think that
->
->                 put_page(page);
->                 ret = memory_failure(pfn, 0);
->
-> can be acceptable because the purpose of get_user_pages_fast() here is
-> just getting pfn, and the refcount itself is not so important.
-> IOW, memory_failure() is called only with pfn which never changes depending
-> on the page's status.
+>> I'd like to try to reproduce it as well, were you able to reproduce this problem in qemu? What were the qemu arguments if so?
+> 
+> No, this is actually on raw hardware. I've had a unstable machine for
+> the last couple of weeks, and it just hung with no sign of where.
+> 
+> I finally reproduced it reliably by booting with less memory
+> ("mem=6G") and then putting the machine under memory pressure and then
+> I could get it on the console when the machine died. Before that it
+> was just an occasional hung machine randomly every other day or
+> whatever.
+> 
+> If it reproduces in emulation, that will certainly make it easier to
+> see the messages.
+> 
+> But since I suspect it might be related to having that odd (read: real
+> life) e820 table setup, it might not reproduce in emulation. At least
+> when I boot up in lkvm-run, I don't see those ACPI tables and ACPI NVS
+> sections, which seems to be related to this.
+> 
+> I'm attaching my kernel-config (this is the non-debug one - it does
+> have CONFIG_DEBUG_VM, but none of the other debug options I ran with
+> for the last few days in the hope of catching it earlier).
+> 
+>                 Linus
+> 
 
-Ok, I'll resend with the put_page() moved before memory_failure() to
-make it more clear that memory_failure() is responsible for taking its
-own reference and that there is no dependency to hold the reference in
-madvise_inject_error().
+I will try to reproduce it on bare metal. I believe, the problem was narrowed down to this commit:
 
-> In production system memory_failure() is called via machine check code
-> without taking any pagecount, so I don't think the this injection interface
-> is properly mocking the real thing. So I'm feeling that this flag will be
-> wiped out at some point.
+124049decbb1 x86/e820: put !E820_TYPE_RAM regions into memblock.reserved
 
-Ok, makes sense.
+The commit intends to zero memmap (struct pages) for every hole in e820 ranges by marking them reserved in memblock. Later  zero_resv_unavail() walks through memmap ranges and zeroes struct pages for every page that is reserved, but does not have a physical backing known by kernel.
+
+Pavel
