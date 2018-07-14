@@ -1,17 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C5E496B000A
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 05:32:04 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id u68-v6so25052815qku.5
-        for <linux-mm@kvack.org>; Sat, 14 Jul 2018 02:32:04 -0700 (PDT)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A3BE36B000D
+	for <linux-mm@kvack.org>; Sat, 14 Jul 2018 05:32:14 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id x9-v6so5817367qto.18
+        for <linux-mm@kvack.org>; Sat, 14 Jul 2018 02:32:14 -0700 (PDT)
 Received: from outgoing-stata.csail.mit.edu (outgoing-stata.csail.mit.edu. [128.30.2.210])
-        by mx.google.com with ESMTP id j2-v6si4663489qtp.300.2018.07.14.02.32.03
+        by mx.google.com with ESMTP id k16-v6si4616qkh.243.2018.07.14.02.32.13
         for <linux-mm@kvack.org>;
-        Sat, 14 Jul 2018 02:32:03 -0700 (PDT)
-Subject: [PATCH 4.4.y 041/101] x86/mm: Factor out LDT init from context init
+        Sat, 14 Jul 2018 02:32:13 -0700 (PDT)
+Subject: [PATCH 4.4.y 042/101] x86/mm: Give each mm TLB flush generation a
+ unique ID
 From: "Srivatsa S. Bhat" <srivatsa@csail.mit.edu>
-Date: Sat, 14 Jul 2018 02:31:57 -0700
-Message-ID: <153156071778.10043.13239124304280929230.stgit@srivatsa-ubuntu>
+Date: Sat, 14 Jul 2018 02:32:07 -0700
+Message-ID: <153156072694.10043.1719994417190491710.stgit@srivatsa-ubuntu>
 In-Reply-To: <153156030832.10043.13438231886571087086.stgit@srivatsa-ubuntu>
 References: <153156030832.10043.13438231886571087086.stgit@srivatsa-ubuntu>
 MIME-Version: 1.0
@@ -20,113 +21,120 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: gregkh@linuxfoundation.org, stable@vger.kernel.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave@sr71.net>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, "Matt Helsley (VMware)" <matt.helsley@gmail.com>, Alexey Makhalov <amakhalov@vmware.com>, Bo Gan <ganb@vmware.com>matt.helsley@gmail.com, rostedt@goodmis.orgamakhalov@vmware.comganb@vmware.com, srivatsa@csail.mit.edu, srivatsab@vmware.com
+Cc: Andy Lutomirski <luto@kernel.org>, Nadav Amit <nadav.amit@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@linux.intel.com>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, "Matt Helsley (VMware)" <matt.helsley@gmail.com>, Alexey Makhalov <amakhalov@vmware.com>, Bo Gan <ganb@vmware.com>matt.helsley@gmail.com, rostedt@goodmis.orgamakhalov@vmware.comganb@vmware.com, srivatsa@csail.mit.edu, srivatsab@vmware.com
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+From: Andy Lutomirski <luto@kernel.org>
 
-commit 39a0526fb3f7d93433d146304278477eb463f8af upstream
+commit f39681ed0f48498b80455095376f11535feea332 upstream.
 
-The arch-specific mm_context_t is a great place to put
-protection-key allocation state.
+This adds two new variables to mmu_context_t: ctx_id and tlb_gen.
+ctx_id uniquely identifies the mm_struct and will never be reused.
+For a given mm_struct (and hence ctx_id), tlb_gen is a monotonic
+count of the number of times that a TLB flush has been requested.
+The pair (ctx_id, tlb_gen) can be used as an identifier for TLB
+flush actions and will be used in subsequent patches to reliably
+determine whether all needed TLB flushes have occurred on a given
+CPU.
 
-But, we need to initialize the allocation state because pkey 0 is
-always "allocated".  All of the runtime initialization of
-mm_context_t is done in *_ldt() manipulation functions.  This
-renames the existing LDT functions like this:
+This patch is split out for ease of review.  By itself, it has no
+real effect other than creating and updating the new variables.
 
-	init_new_context() -> init_new_context_ldt()
-	destroy_context() -> destroy_context_ldt()
-
-and makes init_new_context() and destroy_context() available for
-generic use.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Andy Lutomirski <luto@kernel.org>
+Reviewed-by: Nadav Amit <nadav.amit@gmail.com>
 Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Arjan van de Ven <arjan@linux.intel.com>
 Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave@sr71.net>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>
 Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: Rik van Riel <riel@redhat.com>
 Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/20160212210234.DB34FCC5@viggo.jf.intel.com
+Link: http://lkml.kernel.org/r/413a91c24dab3ed0caa5f4e4d017d87b0857f920.1498751203.git.luto@kernel.org
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Signed-off-by: Srivatsa S. Bhat <srivatsa@csail.mit.edu>
 Reviewed-by: Matt Helsley (VMware) <matt.helsley@gmail.com>
 Reviewed-by: Alexey Makhalov <amakhalov@vmware.com>
 Reviewed-by: Bo Gan <ganb@vmware.com>
 ---
 
- arch/x86/include/asm/mmu_context.h |   21 ++++++++++++++++-----
- arch/x86/kernel/ldt.c              |    4 ++--
- 2 files changed, 18 insertions(+), 7 deletions(-)
+ arch/x86/include/asm/mmu.h         |   15 +++++++++++++--
+ arch/x86/include/asm/mmu_context.h |    4 ++++
+ arch/x86/mm/tlb.c                  |    2 ++
+ 3 files changed, 19 insertions(+), 2 deletions(-)
 
+diff --git a/arch/x86/include/asm/mmu.h b/arch/x86/include/asm/mmu.h
+index 7680b76..3359dfe 100644
+--- a/arch/x86/include/asm/mmu.h
++++ b/arch/x86/include/asm/mmu.h
+@@ -3,12 +3,18 @@
+ 
+ #include <linux/spinlock.h>
+ #include <linux/mutex.h>
++#include <linux/atomic.h>
+ 
+ /*
+- * The x86 doesn't have a mmu context, but
+- * we put the segment information here.
++ * x86 has arch-specific MMU state beyond what lives in mm_struct.
+  */
+ typedef struct {
++	/*
++	 * ctx_id uniquely identifies this mm_struct.  A ctx_id will never
++	 * be reused, and zero is not a valid ctx_id.
++	 */
++	u64 ctx_id;
++
+ #ifdef CONFIG_MODIFY_LDT_SYSCALL
+ 	struct ldt_struct *ldt;
+ #endif
+@@ -24,6 +30,11 @@ typedef struct {
+ 	atomic_t perf_rdpmc_allowed;	/* nonzero if rdpmc is allowed */
+ } mm_context_t;
+ 
++#define INIT_MM_CONTEXT(mm)						\
++	.context = {							\
++		.ctx_id = 1,						\
++	}
++
+ void leave_mm(int cpu);
+ 
+ #endif /* _ASM_X86_MMU_H */
 diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index 9bfc5fd..1c4794f 100644
+index 1c4794f..effc127 100644
 --- a/arch/x86/include/asm/mmu_context.h
 +++ b/arch/x86/include/asm/mmu_context.h
-@@ -52,15 +52,15 @@ struct ldt_struct {
- /*
-  * Used for LDT copy/destruction.
-  */
--int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
--void destroy_context(struct mm_struct *mm);
-+int init_new_context_ldt(struct task_struct *tsk, struct mm_struct *mm);
-+void destroy_context_ldt(struct mm_struct *mm);
- #else	/* CONFIG_MODIFY_LDT_SYSCALL */
--static inline int init_new_context(struct task_struct *tsk,
--				   struct mm_struct *mm)
-+static inline int init_new_context_ldt(struct task_struct *tsk,
-+				       struct mm_struct *mm)
+@@ -11,6 +11,9 @@
+ #include <asm/tlbflush.h>
+ #include <asm/paravirt.h>
+ #include <asm/mpx.h>
++
++extern atomic64_t last_mm_ctx_id;
++
+ #ifndef CONFIG_PARAVIRT
+ static inline void paravirt_activate_mm(struct mm_struct *prev,
+ 					struct mm_struct *next)
+@@ -105,6 +108,7 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
+ static inline int init_new_context(struct task_struct *tsk,
+ 				   struct mm_struct *mm)
  {
++	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
+ 	init_new_context_ldt(tsk, mm);
  	return 0;
  }
--static inline void destroy_context(struct mm_struct *mm) {}
-+static inline void destroy_context_ldt(struct mm_struct *mm) {}
- #endif
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index 7cad01af..efec198 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -29,6 +29,8 @@
+  *	Implement flush IPI by CALL_FUNCTION_VECTOR, Alex Shi
+  */
  
- static inline void load_mm_ldt(struct mm_struct *mm)
-@@ -102,6 +102,17 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
- 		this_cpu_write(cpu_tlbstate.state, TLBSTATE_LAZY);
- }
- 
-+static inline int init_new_context(struct task_struct *tsk,
-+				   struct mm_struct *mm)
-+{
-+	init_new_context_ldt(tsk, mm);
-+	return 0;
-+}
-+static inline void destroy_context(struct mm_struct *mm)
-+{
-+	destroy_context_ldt(mm);
-+}
++atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
 +
- extern void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- 		      struct task_struct *tsk);
- 
-diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
-index bc42936..8bc68cf 100644
---- a/arch/x86/kernel/ldt.c
-+++ b/arch/x86/kernel/ldt.c
-@@ -119,7 +119,7 @@ static void free_ldt_struct(struct ldt_struct *ldt)
-  * we do not have to muck with descriptors here, that is
-  * done in switch_mm() as needed.
-  */
--int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
-+int init_new_context_ldt(struct task_struct *tsk, struct mm_struct *mm)
- {
- 	struct ldt_struct *new_ldt;
- 	struct mm_struct *old_mm;
-@@ -160,7 +160,7 @@ out_unlock:
-  *
-  * 64bit: Don't touch the LDT register - we're already in the next thread.
-  */
--void destroy_context(struct mm_struct *mm)
-+void destroy_context_ldt(struct mm_struct *mm)
- {
- 	free_ldt_struct(mm->context.ldt);
- 	mm->context.ldt = NULL;
+ struct flush_tlb_info {
+ 	struct mm_struct *flush_mm;
+ 	unsigned long flush_start;
