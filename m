@@ -1,58 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BECC6B0007
-	for <linux-mm@kvack.org>; Sun, 15 Jul 2018 07:26:10 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id y2-v6so13118318pll.16
-        for <linux-mm@kvack.org>; Sun, 15 Jul 2018 04:26:10 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a7-v6si27023787plz.510.2018.07.15.04.26.09
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 191446B0005
+	for <linux-mm@kvack.org>; Sun, 15 Jul 2018 11:04:38 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id s15-v6so7323749wrn.16
+        for <linux-mm@kvack.org>; Sun, 15 Jul 2018 08:04:38 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y193-v6sor223837wmc.20.2018.07.15.08.04.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 15 Jul 2018 04:26:09 -0700 (PDT)
-Date: Sun, 15 Jul 2018 13:26:05 +0200
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [RESEND] Spectre-v2 (IBPB/IBRS) and SSBD fixes for 4.4.y
-Message-ID: <20180715112605.GA31680@kroah.com>
-References: <153156030832.10043.13438231886571087086.stgit@srivatsa-ubuntu>
+        (Google Transport Security);
+        Sun, 15 Jul 2018 08:04:36 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <153156030832.10043.13438231886571087086.stgit@srivatsa-ubuntu>
+References: <1531557122-12540-1-git-send-email-laoar.shao@gmail.com>
+ <CALvZod57QFRVQ7kM4LSNQJACQ+dGC_otJkqK-5+i-0b53Zq5aA@mail.gmail.com>
+ <CALOAHbDV73+X-y7V2Z4nX1C7uCY6yzBPTPZhEvTpN3f7_qWwUw@mail.gmail.com>
+ <CALvZod5d37v8fv=VCFLa7g+ntPvaT-h8jRQw1+iry2dxb=yXxQ@mail.gmail.com>
+ <CALOAHbBQurMrE6ZCLLsdmbqFrUX3vFVpZtFLvvL_WGnPoF0OSA@mail.gmail.com>
+ <CALvZod6F4vM_U0obH1aU3iJqRs-3JEfR4cHKZoB9JVLTgdSmSQ@mail.gmail.com> <CALOAHbByKH9t_c266Bi+Kv2r=07LLpa6UEQgsc7BNi2dZoeNhQ@mail.gmail.com>
+In-Reply-To: <CALOAHbByKH9t_c266Bi+Kv2r=07LLpa6UEQgsc7BNi2dZoeNhQ@mail.gmail.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Sun, 15 Jul 2018 08:04:24 -0700
+Message-ID: <CALvZod6SVJQz84sxMkvRY7K4iZ2_uzbmMq85URBznsu7+ZP9OA@mail.gmail.com>
+Subject: Re: [PATCH] mm: avoid bothering interrupted task when charge memcg in softirq
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Srivatsa S. Bhat" <srivatsa@csail.mit.edu>
-Cc: stable@vger.kernel.org, Denys Vlasenko <dvlasenk@redhat.com>, Bo Gan <ganb@vmware.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@suse.de>, Thomas Gleixner <tglx@linutronix.de>, Ricardo Neri <ricardo.neri-calderon@linux.intel.com>, Tom Lendacky <thomas.lendacky@amd.com>, ak@linux.intel.com, linux-tip-commits@vger.kernel.org, Jia Zhang <qianyue.zj@alibaba-inc.com>, Josh Poimboeuf <jpoimboe@redhat.com>, xen-devel@lists.xenproject.org, =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@amacapital.net>, Arnaldo Carvalho de Melo <acme@redhat.com>, Sherry Hurwitz <sherry.hurwitz@amd.com>, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, Shuah Khan <shuahkh@osg.samsung.com>, Oleg Nesterov <oleg@redhat.com>, torvalds@linux-foundation.org, dwmw@amazon.co.uk, karahmed@amazon.de, Borislav Petkov <bp@alien8.de>, dave.hansen@linux.intel.com, linux@dominikbrodowski.net, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Joerg Roedel <joro@8bytes.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Kyle Huey <me@kylehuey.com>, Will Drewry <wad@chromium.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Brian Gerst <brgerst@gmail.com>, Kristen Carlson Accardi <kristen@linux.intel.com>, Thomas Garnier <thgarnie@google.com>, Andrew Morton <akpm@linux-foundation.org>, Joe Konno <joe.konno@linux.intel.com>, kvm <kvm@vger.kernel.org>, Piotr Luc <piotr.luc@intel.com>, boris.ostrovsky@oracle.com, Jan Beulich <jbeulich@suse.com>, arjan@linux.intel.com, Alexander Kuleshov <kuleshovmail@gmail.com>, Juergen Gross <jgross@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, =?iso-8859-1?Q?J=F6rg?= Otte <jrg.otte@gmail.com>, tim.c.chen@linux.intel.com, Alexander Sergeyev <sergeev917@gmail.com>, Josh Triplett <josh@joshtriplett.org>, gnomes@lxorguk.ukuu.org.uk, Tony Luck <tony.luck@intel.com>, Laura Abbott <labbott@fedoraproject.org>, dave.hansen@intel.com, Ingo Molnar <mingo@kernel.org>, Mike Galbraith <efault@gmx.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alexey Makhalov <amakhalov@vmware.com>, Dave Hansen <dave@sr71.net>, ashok.raj@intel.com, Mel Gorman <mgorman@suse.de>, =?iso-8859-1?Q?Micka=EBlSala=FCn?= <mic@digikod.net>, Fenghua Yu <fenghua.yu@intel.com>, "Matt Helsley (VMware)" <matt.helsley@gmail.com>, Vince Weaver <vincent.weaver@maine.edu>, Prarit Bhargava <prarit@redhat.com>, rostedt@goodmis.org, Dan Williams <dan.j.williams@intel.com>, Jim Mattson <jmattson@google.com>, Dave Young <dyoung@redhat.com>, linux-edac <linux-edac@vger.kernel.org>, Jon Masters <jcm@redhat.com>, Jiri Kosina <jkosina@suse.cz>, Andy Lutomirski <luto@kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, Jiri Olsa <jolsa@redhat.com>, arjan.van.de.ven@intel.com, sironi@amazon.de, Frederic Weisbecker <fweisbec@gmail.com>, Kyle Huey <khuey@kylehuey.com>, Alexander Popov <alpopov@ptsecurity.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Nadav Amit <nadav.amit@gmail.com>, Yazen Ghannam <Yazen.Ghannam@amd.com>, Wanpeng Li <kernellwp@gmail.com>, Stephane Eranian <eranian@google.com>, David Woodhouse <dwmw2@infradead.org>, srivatsab@vmware.com
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Sat, Jul 14, 2018 at 02:25:43AM -0700, Srivatsa S. Bhat wrote:
-> Hi Greg,
-> 
-> This patch series is a backport of the Spectre-v2 fixes (IBPB/IBRS)
-> and patches for the Speculative Store Bypass vulnerability to 4.4.y
-> (they apply cleanly on top of 4.4.140).
-> 
-> I used 4.9.y as my reference when backporting to 4.4.y (as I thought
-> that would minimize the amount of fixing up necessary). Unfortunately
-> I had to skip the KVM fixes for these vulnerabilities, as the KVM
-> codebase is drastically different in 4.4 as compared to 4.9. (I tried
-> my best to backport them initially, but wasn't confident that they
-> were correct, so I decided to drop them from this series).
-> 
-> You'll notice that the initial few patches in this series include
-> cleanups etc., that are non-critical to IBPB/IBRS/SSBD. Most of these
-> patches are aimed at getting the cpufeature.h vs cpufeatures.h split
-> into 4.4, since a lot of the subsequent patches update these headers.
-> On my first attempt to backport these patches to 4.4.y, I had actually
-> tried to do all the updates on the cpufeature.h file itself, but it
-> started getting very cumbersome, so I resorted to backporting the
-> cpufeature.h vs cpufeatures.h split and their dependencies as well. I
-> think apart from these initial patches, the rest of the patchset
-> doesn't have all that much noise. 
+On Sun, Jul 15, 2018 at 1:02 AM Yafang Shao <laoar.shao@gmail.com> wrote:
+>
+> On Sun, Jul 15, 2018 at 2:34 PM, Shakeel Butt <shakeelb@google.com> wrote:
+> > On Sat, Jul 14, 2018 at 10:26 PM Yafang Shao <laoar.shao@gmail.com> wrote:
+> >>
+> >> On Sun, Jul 15, 2018 at 12:25 PM, Shakeel Butt <shakeelb@google.com> wrote:
+> >> > On Sat, Jul 14, 2018 at 7:10 PM Yafang Shao <laoar.shao@gmail.com> wrote:
+> >> >>
+> >> >> On Sat, Jul 14, 2018 at 11:38 PM, Shakeel Butt <shakeelb@google.com> wrote:
+> >> >> > On Sat, Jul 14, 2018 at 1:32 AM Yafang Shao <laoar.shao@gmail.com> wrote:
+> >> >> >>
+> >> >> >> try_charge maybe executed in packet receive path, which is in interrupt
+> >> >> >> context.
+> >> >> >> In this situation, the 'current' is the interrupted task, which may has
+> >> >> >> no relation to the rx softirq, So it is nonsense to use 'current'.
+> >> >> >>
+> >> >> >
+> >> >> > Have you actually seen this occurring?
+> >> >>
+> >> >> Hi Shakeel,
+> >> >>
+> >> >> I'm trying to produce this issue, but haven't find it occur yet.
+> >> >>
+> >> >> > I am not very familiar with the
+> >> >> > network code but I can think of two ways try_charge() can be called
+> >> >> > from network code. Either through kmem charging or through
+> >> >> > mem_cgroup_charge_skmem() and both locations correctly handle
+> >> >> > interrupt context.
+> >> >> >
+> >> >>
+> >> >> Why do you say that mem_cgroup_charge_skmem() correctly hanle
+> >> >> interrupt context ?
+> >> >>
+> >> >> Let me show you why mem_cgroup_charge_skmem isn't hanling interrupt
+> >> >> context correctly.
+> >> >>
+> >> >> mem_cgroup_charge_skmem() is calling  try_charge() twice.
+> >> >> The first one is with GFP_NOWAIT as the gfp_mask, and the second one
+> >> >> is with  (GFP_NOWAIT |  __GFP_NOFAIL) as the gfp_mask.
+> >> >>
+> >> >> If page_counter_try_charge() failes at the first time, -ENOMEM is returned.
+> >> >> Then mem_cgroup_charge_skmem() will call try_charge() once more with
+> >> >> __GFP_NOFAIL set, and this time if If page_counter_try_charge() failes
+> >> >> again the '
+> >> >> force' label in  try_charge() will be executed and 0 is returned.
+> >> >>
+> >> >> No matter what, the 'current' will be used and touched, that is
+> >> >> meaning mem_cgroup_charge_skmem() isn't hanling the interrupt context
+> >> >> correctly.
+> >> >>
+> >> >
+> >> > Hi Yafang,
+> >> >
+> >> > If you check mem_cgroup_charge_skmem(), the memcg passed is not
+> >> > 'current' but is from the sock object i.e. sk->sk_memcg for which the
+> >> > network buffer is allocated for.
+> >> >
+> >>
+> >> That's correct, the memcg if from the sock object.
+> >> But the point is, in this situation why 'current' is used in try_charge() ?
+> >> As 'current' is not related with the memcg, which is just a interrupted task.
+> >>
+> >
+> > Hmm so you mean the behavior of memcg charging in the interrupt
+> > context depends on the state of the interrupted task.
+>
+> Yes.
+>
+> > As you have
+> > noted, mem_cgroup_charge_skmem() tries charging again with
+> > __GFP_NOFAIL and the charge succeeds. Basically the memcg charging by
+> > mem_cgroup_charge_skmem() will always succeed irrespective of the
+> > state of the interrupted task. However mem_cgroup_charge_skmem() can
+> > return true if the interrupted task was exiting or a fatal signal is
+> > pending or oom victim or reclaiming memory. Can you please explain why
+> > this is bad?
+> >
+>
+> Let me show you the possible issues cause by this behavoir.
+> 1.  In mem_cgroup_oom(), some  members in 'current' is set.
+>      That means an innocent task will be in  task_in_memcg_oom state.
+>      But this task may be in a different memcg, I mean the memcg of
+> the 'current' may be differenct with the sk->sk_memcg.
+>      Then when this innocent 'current' do try_charge it will hit  "if
+> (unlikely(task_in_memcg_oom(current)))" and  -ENOMEM is returned,
+> While there're maybe some free memory (or some memory could be freed )
+> in the memcg of the innocent 'task'.
+>
 
-I've applied the "initial" patches to the 4.4-stable queue right now, as
-those were all just "housekeeping" stuff.  I'll let others review the
-rest of the series this week and see if anyone objects before throwing
-them at the test-bots.
+No memory will be freed as try_charge() is in interrupt context.
 
-Many thanks for doing all of this work.
+> 2.  If the interrupted task was exiting or a fatal signal is  pending
+> or oom victim,
+>      it will directly goto force and 0 is returned, and then
+> mem_cgroup_charge_skmem() will return true.
+>      But mem_cgroup_charge_skmem() maybe need to try the second time
+> and return false.
+>
+> That are all unexpected behavoir.
+>
 
-greg k-h
+Yes, this is inconsistent behavior. Can you explain how this will
+affect network traffic? Basically mem_cgroup_charge_skmem() was
+supposed to return false but sometime based on the interrupted task,
+mem_cgroup_charge_skmem() returns true. How is this behavior bad for
+network traffic?
+
+Please note that I am not against this patch. I just want that the
+motivation/reason behind it is very clear.
+
+thanks,
+Shakeel
