@@ -1,68 +1,45 @@
 Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Jongseok Kim <ks77sj@gmail.com>
-Subject: [PATCH] z3fold: fix wrong handling of headless pages
-Date: Fri,  6 Jul 2018 14:10:46 +0900
-Message-Id: <1530853846-30215-1-git-send-email-ks77sj@gmail.com>
+Date: Mon, 16 Jul 2018 14:12:46 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] Revert "mm: always flush VMA ranges affected by
+ zap_page_range"
+Message-ID: <20180716131246.iacuzs5ntzktangk@techsingularity.net>
+References: <1530896635.5350.25.camel@surriel.com>
+ <20180706131019.51e3a5f0@imladris.surriel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20180706131019.51e3a5f0@imladris.surriel.com>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Andrew Morton <akpm@linux-foundation.org>, Vitaly Wool <vitalywool@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jongseok Kim <ks77sj@gmail.com>
+To: Rik van Riel <riel@surriel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "kirill.shutemov" <kirill.shutemov@linux.intel.com>, Minchan Kim <minchan@kernel.org>, kernel-team <kernel-team@fb.com>
 List-ID: <linux-mm.kvack.org>
 
-During the processing of headless pages in z3fold_reclaim_page(),
-there was a problem that the zhdr pointed to another page
-or a page was already released in z3fold_free(). So, the wrong page
-is encoded in headless, or test_bit does not work properly
-in z3fold_reclaim_page(). This patch fixed these problems.
+On Fri, Jul 06, 2018 at 01:10:19PM -0400, Rik van Riel wrote:
+> There was a bug in Linux that could cause madvise (and mprotect?)
+> system calls to return to userspace without the TLB having been
+> flushed for all the pages involved.
+> 
+> This could happen when multiple threads of a process made simultaneous
+> madvise and/or mprotect calls.
+> 
+> This was noticed in the summer of 2017, at which time two solutions
+> were created:
+> 56236a59556c ("mm: refactor TLB gathering API")
+> 99baac21e458 ("mm: fix MADV_[FREE|DONTNEED] TLB flush miss problem")
+> and
+> 4647706ebeee ("mm: always flush VMA ranges affected by zap_page_range")
+> 
+> We need only one of these solutions, and the former appears to be
+> a little more efficient than the latter, so revert that one.
+> 
+> This reverts commit 4647706ebeee6e50f7b9f922b095f4ec94d581c3.
+> ---
+>  mm/memory.c | 14 +-------------
+>  1 file changed, 1 insertion(+), 13 deletions(-)
 
-Signed-off-by: Jongseok Kim <ks77sj@gmail.com>
----
- mm/z3fold.c | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
-diff --git a/mm/z3fold.c b/mm/z3fold.c
-index 4b366d1..201a8ac 100644
---- a/mm/z3fold.c
-+++ b/mm/z3fold.c
-@@ -746,6 +746,9 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 	}
- 
- 	if (bud == HEADLESS) {
-+		if (test_bit(UNDER_RECLAIM, &page->private))
-+			return;
-+
- 		spin_lock(&pool->lock);
- 		list_del(&page->lru);
- 		spin_unlock(&pool->lock);
-@@ -836,20 +839,20 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 		}
- 		list_for_each_prev(pos, &pool->lru) {
- 			page = list_entry(pos, struct page, lru);
-+			zhdr = page_address(page);
- 			if (test_bit(PAGE_HEADLESS, &page->private))
- 				/* candidate found */
- 				break;
- 
--			zhdr = page_address(page);
- 			if (!z3fold_page_trylock(zhdr))
- 				continue; /* can't evict at this point */
- 			kref_get(&zhdr->refcount);
- 			list_del_init(&zhdr->buddy);
- 			zhdr->cpu = -1;
--			set_bit(UNDER_RECLAIM, &page->private);
- 			break;
- 		}
- 
-+		set_bit(UNDER_RECLAIM, &page->private);
- 		list_del_init(&page->lru);
- 		spin_unlock(&pool->lock);
- 
-@@ -898,6 +901,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 		if (test_bit(PAGE_HEADLESS, &page->private)) {
- 			if (ret == 0) {
- 				free_z3fold_page(page);
-+				atomic64_dec(&pool->pages_nr);
- 				return 0;
- 			}
- 			spin_lock(&pool->lock);
 -- 
-2.7.4
+Mel Gorman
+SUSE Labs
