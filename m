@@ -1,385 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BB6F46B026A
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 13:45:16 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id a10-v6so5288251itc.9
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 10:45:16 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id q77-v6si23112244iod.253.2018.07.16.10.45.15
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 79B8E6B0003
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 14:16:42 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id y130-v6so46346116qka.1
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 11:16:42 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id 41-v6si6000149qvc.142.2018.07.16.11.16.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jul 2018 10:45:15 -0700 (PDT)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v6 5/5] mm/sparse: delete old sparse_init and enable new one
-Date: Mon, 16 Jul 2018 13:44:47 -0400
-Message-Id: <20180716174447.14529-6-pasha.tatashin@oracle.com>
-In-Reply-To: <20180716174447.14529-1-pasha.tatashin@oracle.com>
-References: <20180716174447.14529-1-pasha.tatashin@oracle.com>
+        Mon, 16 Jul 2018 11:16:40 -0700 (PDT)
+Date: Mon, 16 Jul 2018 11:16:17 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [patch v3 -mm 3/6] mm, memcg: add hierarchical usage oom policy
+Message-ID: <20180716181613.GA28327@castle>
+References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com>
+ <alpine.DEB.2.20.1803151351140.55261@chino.kir.corp.google.com>
+ <alpine.DEB.2.20.1803161405410.209509@chino.kir.corp.google.com>
+ <alpine.DEB.2.20.1803221451370.17056@chino.kir.corp.google.com>
+ <alpine.DEB.2.21.1807131604560.217600@chino.kir.corp.google.com>
+ <alpine.DEB.2.21.1807131605590.217600@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.21.1807131605590.217600@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, bhe@redhat.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net, pasha.tatashin@oracle.com, abdhalee@linux.vnet.ibm.com, mpe@ellerman.id.au
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Rename new_sparse_init() to sparse_init() which enables it.  Delete old
-sparse_init() and all the code that became obsolete with.
+On Fri, Jul 13, 2018 at 04:07:29PM -0700, David Rientjes wrote:
+> One of the three significant concerns brought up about the cgroup aware
+> oom killer is that its decisionmaking is completely evaded by creating
+> subcontainers and attaching processes such that the ancestor's usage does
+> not exceed another cgroup on the system.
+> 
+> Consider the example from the previous patch where "memory" is set in
+> each mem cgroup's cgroup.controllers:
+> 
+> 	mem cgroup	cgroup.procs
+> 	==========	============
+> 	/cg1		1 process consuming 250MB
+> 	/cg2		3 processes consuming 100MB each
+> 	/cg3/cg31	2 processes consuming 100MB each
+> 	/cg3/cg32	2 processes consuming 100MB each
+> 
+> If memory.oom_policy is "cgroup", a process from /cg2 is chosen because it
+> is in the single indivisible memory consumer with the greatest usage.
+> 
+> The true usage of /cg3 is actually 400MB, but a process from /cg2 is
+> chosen because cgroups are compared individually rather than
+> hierarchically.
+> 
+> If a system is divided into two users, for example:
+> 
+> 	mem cgroup	memory.max
+> 	==========	==========
+> 	/userA		250MB
+> 	/userB		250MB
+> 
+> If /userA runs all processes attached to the local mem cgroup, whereas
+> /userB distributes their processes over a set of subcontainers under
+> /userB, /userA will be unfairly penalized.
+> 
+> There is incentive with cgroup v2 to distribute processes over a set of
+> subcontainers if those processes shall be constrained by other cgroup
+> controllers; this is a direct result of mandating a single, unified
+> hierarchy for cgroups.  A user may also reasonably do this for mem cgroup
+> control or statistics.  And, a user may do this to evade the cgroup-aware
+> oom killer selection logic.
+> 
+> This patch adds an oom policy, "tree", that accounts for hierarchical
+> usage when comparing cgroups and the cgroup aware oom killer is enabled by
+> an ancestor.  This allows administrators, for example, to require users in
+> their own top-level mem cgroup subtree to be accounted for with
+> hierarchical usage.  In other words, they can longer evade the oom killer
+> by using other controllers or subcontainers.
+> 
+> If an oom policy of "tree" is in place for a subtree, such as /cg3 above,
+> the hierarchical usage is used for comparisons with other cgroups if
+> either "cgroup" or "tree" is the oom policy of the oom mem cgroup.  Thus,
+> if /cg3/memory.oom_policy is "tree", one of the processes from /cg3's
+> subcontainers is chosen for oom kill.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  Documentation/admin-guide/cgroup-v2.rst | 17 ++++++++++++++---
+>  include/linux/memcontrol.h              |  5 +++++
+>  mm/memcontrol.c                         | 18 ++++++++++++------
+>  3 files changed, 31 insertions(+), 9 deletions(-)
+> 
+> diff --git a/Documentation/admin-guide/cgroup-v2.rst b/Documentation/admin-guide/cgroup-v2.rst
+> --- a/Documentation/admin-guide/cgroup-v2.rst
+> +++ b/Documentation/admin-guide/cgroup-v2.rst
+> @@ -1113,6 +1113,10 @@ PAGE_SIZE multiple when read back.
+>  	memory consumers; that is, they will compare mem cgroup usage rather
+>  	than process memory footprint.  See the "OOM Killer" section below.
+>  
+> +	If "tree", the OOM killer will compare mem cgroups and its subtree
+> +	as a single indivisible memory consumer.  This policy cannot be set
+> +	on the root mem cgroup.  See the "OOM Killer" section below.
+> +
+>  	When an OOM condition occurs, the policy is dictated by the mem
+>  	cgroup that is OOM (the root mem cgroup for a system-wide OOM
+>  	condition).  If a descendant mem cgroup has a policy of "none", for
+> @@ -1120,6 +1124,10 @@ PAGE_SIZE multiple when read back.
+>  	the heuristic will still compare mem cgroups as indivisible memory
+>  	consumers.
+>  
+> +	When an OOM condition occurs in a mem cgroup with an OOM policy of
+> +	"cgroup" or "tree", the OOM killer will compare mem cgroups with
+> +	"cgroup" policy individually with "tree" policy subtrees.
+> +
+>    memory.events
+>  	A read-only flat-keyed file which exists on non-root cgroups.
+>  	The following entries are defined.  Unless specified
+> @@ -1355,7 +1363,7 @@ out of memory, its memory.oom_policy will dictate how the OOM killer will
+>  select a process, or cgroup, to kill.  Likewise, when the system is OOM,
+>  the policy is dictated by the root mem cgroup.
+>  
+> -There are currently two available oom policies:
+> +There are currently three available oom policies:
+>  
+>   - "none": default, choose the largest single memory hogging process to
+>     oom kill, as traditionally the OOM killer has always done.
+> @@ -1364,6 +1372,9 @@ There are currently two available oom policies:
+>     subtree as an OOM victim and kill at least one process, depending on
+>     memory.oom_group, from it.
+>  
+> + - "tree": choose the cgroup with the largest memory footprint considering
+> +   itself and its subtree and kill at least one process.
+> +
+>  When selecting a cgroup as a victim, the OOM killer will kill the process
+>  with the largest memory footprint.  A user can control this behavior by
+>  enabling the per-cgroup memory.oom_group option.  If set, it causes the
+> @@ -1382,8 +1393,8 @@ Please, note that memory charges are not migrating if tasks
+>  are moved between different memory cgroups. Moving tasks with
+>  significant memory footprint may affect OOM victim selection logic.
+>  If it's a case, please, consider creating a common ancestor for
+> -the source and destination memory cgroups and enabling oom_group
+> -on ancestor layer.
+> +the source and destination memory cgroups and setting a policy of "tree"
+> +and enabling oom_group on an ancestor layer.
+>  
+>  
+>  IO
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -77,6 +77,11 @@ enum memcg_oom_policy {
+>  	 * mem cgroup as an indivisible consumer
+>  	 */
+>  	MEMCG_OOM_POLICY_CGROUP,
+> +	/*
+> +	 * Tree cgroup usage for all descendant memcg groups, treating each mem
+> +	 * cgroup and its subtree as an indivisible consumer
+> +	 */
+> +	MEMCG_OOM_POLICY_TREE,
+>  };
+>  
+>  struct mem_cgroup_reclaim_cookie {
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2952,7 +2952,7 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+>  	/*
+>  	 * The oom_score is calculated for leaf memory cgroups (including
+>  	 * the root memcg).
+> -	 * Non-leaf oom_group cgroups accumulating score of descendant
+> +	 * Cgroups with oom policy of "tree" accumulate the score of descendant
+>  	 * leaf memory cgroups.
+>  	 */
+>  	rcu_read_lock();
+> @@ -2961,10 +2961,11 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+>  
+>  		/*
+>  		 * We don't consider non-leaf non-oom_group memory cgroups
+> -		 * as OOM victims.
+> +		 * without the oom policy of "tree" as OOM victims.
+>  		 */
+>  		if (memcg_has_children(iter) && iter != root_mem_cgroup &&
+> -		    !mem_cgroup_oom_group(iter))
+> +		    !mem_cgroup_oom_group(iter) &&
+> +		    iter->oom_policy != MEMCG_OOM_POLICY_TREE)
+>  			continue;
 
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-Tested-by: Michael Ellerman <mpe@ellerman.id.au> (powerpc)
----
- include/linux/mm.h  |   6 --
- mm/Kconfig          |   4 -
- mm/sparse-vmemmap.c |  21 ----
- mm/sparse.c         | 237 +-------------------------------------------
- 4 files changed, 1 insertion(+), 267 deletions(-)
+Hello, David!
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 99d8c50adef6..726e71475144 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2649,12 +2649,6 @@ extern int randomize_va_space;
- const char * arch_vma_name(struct vm_area_struct *vma);
- void print_vma_addr(char *prefix, unsigned long rip);
- 
--void sparse_mem_maps_populate_node(struct page **map_map,
--				   unsigned long pnum_begin,
--				   unsigned long pnum_end,
--				   unsigned long map_count,
--				   int nodeid);
--
- void *sparse_buffer_alloc(unsigned long size);
- struct page *sparse_mem_map_populate(unsigned long pnum, int nid,
- 		struct vmem_altmap *altmap);
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 28fcf54946ea..b78e7cd4e9fe 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -115,10 +115,6 @@ config SPARSEMEM_EXTREME
- config SPARSEMEM_VMEMMAP_ENABLE
- 	bool
- 
--config SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
--	def_bool y
--	depends on SPARSEMEM && X86_64
--
- config SPARSEMEM_VMEMMAP
- 	bool "Sparse Memory virtual memmap"
- 	depends on SPARSEMEM && SPARSEMEM_VMEMMAP_ENABLE
-diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-index cd15f3d252c3..8301293331a2 100644
---- a/mm/sparse-vmemmap.c
-+++ b/mm/sparse-vmemmap.c
-@@ -261,24 +261,3 @@ struct page * __meminit sparse_mem_map_populate(unsigned long pnum, int nid,
- 
- 	return map;
- }
--
--void __init sparse_mem_maps_populate_node(struct page **map_map,
--					  unsigned long pnum_begin,
--					  unsigned long pnum_end,
--					  unsigned long map_count, int nodeid)
--{
--	unsigned long pnum;
--	int nr_consumed_maps = 0;
--
--	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
--		if (!present_section_nr(pnum))
--			continue;
--
--		map_map[nr_consumed_maps] =
--				sparse_mem_map_populate(pnum, nodeid, NULL);
--		if (map_map[nr_consumed_maps++])
--			continue;
--		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
--		       __func__);
--	}
--}
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 248d5d7bbf55..10b07eea9a6e 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -205,12 +205,6 @@ static inline unsigned long first_present_section_nr(void)
- 	return next_present_section_nr(-1);
- }
- 
--/*
-- * Record how many memory sections are marked as present
-- * during system bootup.
-- */
--static int __initdata nr_present_sections;
--
- /* Record a memory area against a node. */
- void __init memory_present(int nid, unsigned long start, unsigned long end)
- {
-@@ -240,7 +234,6 @@ void __init memory_present(int nid, unsigned long start, unsigned long end)
- 			ms->section_mem_map = sparse_encode_early_nid(nid) |
- 							SECTION_IS_ONLINE;
- 			section_mark_present(ms);
--			nr_present_sections++;
- 		}
- 	}
- }
-@@ -377,37 +370,8 @@ static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
- }
- #endif /* CONFIG_MEMORY_HOTREMOVE */
- 
--static void __init sparse_early_usemaps_alloc_node(void *data,
--				 unsigned long pnum_begin,
--				 unsigned long pnum_end,
--				 unsigned long usemap_count, int nodeid)
--{
--	void *usemap;
--	unsigned long pnum;
--	unsigned long **usemap_map = (unsigned long **)data;
--	int size = usemap_size();
--	int nr_consumed_maps = 0;
--
--	usemap = sparse_early_usemaps_alloc_pgdat_section(NODE_DATA(nodeid),
--							  size * usemap_count);
--	if (!usemap) {
--		pr_warn("%s: allocation failed\n", __func__);
--		return;
--	}
--
--	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
--		if (!present_section_nr(pnum))
--			continue;
--		usemap_map[nr_consumed_maps] = usemap;
--		usemap += size;
--		check_usemap_section_nr(nodeid, usemap_map[nr_consumed_maps]);
--		nr_consumed_maps++;
--	}
--}
--
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
- static unsigned long __init section_map_size(void)
--
- {
- 	return ALIGN(sizeof(struct page) * PAGES_PER_SECTION, PMD_SIZE);
- }
-@@ -432,25 +396,6 @@ struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid,
- 					  BOOTMEM_ALLOC_ACCESSIBLE, nid);
- 	return map;
- }
--void __init sparse_mem_maps_populate_node(struct page **map_map,
--					  unsigned long pnum_begin,
--					  unsigned long pnum_end,
--					  unsigned long map_count, int nodeid)
--{
--	unsigned long pnum;
--	int nr_consumed_maps = 0;
--
--	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
--		if (!present_section_nr(pnum))
--			continue;
--		map_map[nr_consumed_maps] =
--				sparse_mem_map_populate(pnum, nodeid, NULL);
--		if (map_map[nr_consumed_maps++])
--			continue;
--		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
--		       __func__);
--	}
--}
- #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
- 
- static void *sparsemap_buf __meminitdata;
-@@ -489,190 +434,10 @@ void * __meminit sparse_buffer_alloc(unsigned long size)
- 	return ptr;
- }
- 
--#ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
--static void __init sparse_early_mem_maps_alloc_node(void *data,
--				 unsigned long pnum_begin,
--				 unsigned long pnum_end,
--				 unsigned long map_count, int nodeid)
--{
--	struct page **map_map = (struct page **)data;
--
--	sparse_buffer_init(section_map_size() * map_count, nodeid);
--	sparse_mem_maps_populate_node(map_map, pnum_begin, pnum_end,
--					 map_count, nodeid);
--	sparse_buffer_fini();
--}
--#else
--static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
--{
--	struct page *map;
--	struct mem_section *ms = __nr_to_section(pnum);
--	int nid = sparse_early_nid(ms);
--
--	map = sparse_mem_map_populate(pnum, nid, NULL);
--	if (map)
--		return map;
--
--	pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
--	       __func__);
--	return NULL;
--}
--#endif
--
- void __weak __meminit vmemmap_populate_print_last(void)
- {
- }
- 
--/**
-- *  alloc_usemap_and_memmap - memory alloction for pageblock flags and vmemmap
-- *  @map: usemap_map for pageblock flags or mmap_map for vmemmap
-- *  @unit_size: size of map unit
-- */
--static void __init alloc_usemap_and_memmap(void (*alloc_func)
--					(void *, unsigned long, unsigned long,
--					unsigned long, int), void *data,
--					int data_unit_size)
--{
--	unsigned long pnum;
--	unsigned long map_count;
--	int nodeid_begin = 0;
--	unsigned long pnum_begin = 0;
--
--	for_each_present_section_nr(0, pnum) {
--		struct mem_section *ms;
--
--		ms = __nr_to_section(pnum);
--		nodeid_begin = sparse_early_nid(ms);
--		pnum_begin = pnum;
--		break;
--	}
--	map_count = 1;
--	for_each_present_section_nr(pnum_begin + 1, pnum) {
--		struct mem_section *ms;
--		int nodeid;
--
--		ms = __nr_to_section(pnum);
--		nodeid = sparse_early_nid(ms);
--		if (nodeid == nodeid_begin) {
--			map_count++;
--			continue;
--		}
--		/* ok, we need to take cake of from pnum_begin to pnum - 1*/
--		alloc_func(data, pnum_begin, pnum,
--						map_count, nodeid_begin);
--		/* new start, update count etc*/
--		nodeid_begin = nodeid;
--		pnum_begin = pnum;
--		data += map_count * data_unit_size;
--		map_count = 1;
--	}
--	/* ok, last chunk */
--	alloc_func(data, pnum_begin, __highest_present_section_nr+1,
--						map_count, nodeid_begin);
--}
--
--/*
-- * Allocate the accumulated non-linear sections, allocate a mem_map
-- * for each and record the physical to section mapping.
-- */
--void __init sparse_init(void)
--{
--	unsigned long pnum;
--	struct page *map;
--	unsigned long *usemap;
--	unsigned long **usemap_map;
--	int size;
--	int nr_consumed_maps = 0;
--#ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
--	int size2;
--	struct page **map_map;
--#endif
--
--	/* see include/linux/mmzone.h 'struct mem_section' definition */
--	BUILD_BUG_ON(!is_power_of_2(sizeof(struct mem_section)));
--
--	/* Setup pageblock_order for HUGETLB_PAGE_SIZE_VARIABLE */
--	set_pageblock_order();
--
--	/*
--	 * map is using big page (aka 2M in x86 64 bit)
--	 * usemap is less one page (aka 24 bytes)
--	 * so alloc 2M (with 2M align) and 24 bytes in turn will
--	 * make next 2M slip to one more 2M later.
--	 * then in big system, the memory will have a lot of holes...
--	 * here try to allocate 2M pages continuously.
--	 *
--	 * powerpc need to call sparse_init_one_section right after each
--	 * sparse_early_mem_map_alloc, so allocate usemap_map at first.
--	 */
--	size = sizeof(unsigned long *) * nr_present_sections;
--	usemap_map = memblock_virt_alloc(size, 0);
--	if (!usemap_map)
--		panic("can not allocate usemap_map\n");
--	alloc_usemap_and_memmap(sparse_early_usemaps_alloc_node,
--				(void *)usemap_map,
--				sizeof(usemap_map[0]));
--
--#ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
--	size2 = sizeof(struct page *) * nr_present_sections;
--	map_map = memblock_virt_alloc(size2, 0);
--	if (!map_map)
--		panic("can not allocate map_map\n");
--	alloc_usemap_and_memmap(sparse_early_mem_maps_alloc_node,
--				(void *)map_map,
--				sizeof(map_map[0]));
--#endif
--
--	/*
--	 * The number of present sections stored in nr_present_sections
--	 * are kept the same since mem sections are marked as present in
--	 * memory_present(). In this for loop, we need check which sections
--	 * failed to allocate memmap or usemap, then clear its
--	 * ->section_mem_map accordingly. During this process, we need
--	 * increase 'nr_consumed_maps' whether its allocation of memmap
--	 * or usemap failed or not, so that after we handle the i-th
--	 * memory section, can get memmap and usemap of (i+1)-th section
--	 * correctly.
--	 */
--	for_each_present_section_nr(0, pnum) {
--		struct mem_section *ms;
--
--		if (nr_consumed_maps >= nr_present_sections) {
--			pr_err("nr_consumed_maps goes beyond nr_present_sections\n");
--			break;
--		}
--		ms = __nr_to_section(pnum);
--		usemap = usemap_map[nr_consumed_maps];
--		if (!usemap) {
--			ms->section_mem_map = 0;
--			nr_consumed_maps++;
--			continue;
--		}
--
--#ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
--		map = map_map[nr_consumed_maps];
--#else
--		map = sparse_early_mem_map_alloc(pnum);
--#endif
--		if (!map) {
--			ms->section_mem_map = 0;
--			nr_consumed_maps++;
--			continue;
--		}
--
--		sparse_init_one_section(__nr_to_section(pnum), pnum, map,
--								usemap);
--		nr_consumed_maps++;
--	}
--
--	vmemmap_populate_print_last();
--
--#ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
--	memblock_free_early(__pa(map_map), size2);
--#endif
--	memblock_free_early(__pa(usemap_map), size);
--}
--
- /*
-  * Initialize sparse on a specific node. The node spans [pnum_begin, pnum_end)
-  * And number of present sections in this node is map_count.
-@@ -726,7 +491,7 @@ static void __init sparse_init_nid(int nid, unsigned long pnum_begin,
-  * Allocate the accumulated non-linear sections, allocate a mem_map
-  * for each and record the physical to section mapping.
-  */
--void __init new_sparse_init(void)
-+void __init sparse_init(void)
- {
- 	unsigned long pnum_begin = first_present_section_nr();
- 	int nid_begin = sparse_early_nid(__nr_to_section(pnum_begin));
--- 
-2.18.0
+I think that there is an inconsistency in the memory.oom_policy definition.
+"none" and "cgroup" policies defining how the OOM scoped to this particular
+memory cgroup (or system, if set on root) is handled. And all sub-tree
+settings do not matter at all, right? Also, if a memory cgroup has no
+memory.max set, there is no meaning in setting memory.oom_policy.
+
+And "tree" is different. It actually changes how the selection algorithm works,
+and sub-tree settings do matter in this case.
+
+I find it very confusing.
+
+Thanks!
