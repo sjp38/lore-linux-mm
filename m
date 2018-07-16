@@ -1,120 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 287096B0003
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 16:30:53 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id j189-v6so1337881oih.11
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 13:30:53 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 26AD96B0006
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 16:38:54 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id f9-v6so24636930pfn.22
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 13:38:54 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u8-v6sor21434638oia.89.2018.07.16.13.30.51
+        by mx.google.com with SMTPS id j127-v6sor804412pgc.223.2018.07.16.13.38.52
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 16 Jul 2018 13:30:51 -0700 (PDT)
+        Mon, 16 Jul 2018 13:38:52 -0700 (PDT)
+Date: Mon, 16 Jul 2018 23:38:46 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 1/2] mm: Fix vma_is_anonymous() false-positives
+Message-ID: <20180716203846.roolhtesloabxr2g@kshutemo-mobl1>
+References: <20180710134821.84709-1-kirill.shutemov@linux.intel.com>
+ <20180710134821.84709-2-kirill.shutemov@linux.intel.com>
+ <20180710134858.3506f097104859b533c81bf3@linux-foundation.org>
+ <20180716133028.GQ17280@dhcp22.suse.cz>
+ <20180716140440.fd3sjw5xys5wozw7@black.fi.intel.com>
+ <20180716142245.GT17280@dhcp22.suse.cz>
+ <20180716144739.que5362bofty6ocp@kshutemo-mobl1>
+ <20180716174042.GA17280@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAGM2rea9AwQGaf1JiV_SDDKTKyP_n+dG9Z20gtTZEkuZPFnXFQ@mail.gmail.com>
-References: <153176041838.12695.3365448145295112857.stgit@dwillia2-desk3.amr.corp.intel.com>
- <CAGM2rea9AwQGaf1JiV_SDDKTKyP_n+dG9Z20gtTZEkuZPFnXFQ@mail.gmail.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 16 Jul 2018 13:30:50 -0700
-Message-ID: <CAPcyv4jo91jKjwn-M7cOhG=6vJ3c-QCyp0W+T+CtmiKGyZP1ng@mail.gmail.com>
-Subject: Re: [PATCH v2 00/14] mm: Asynchronous + multithreaded memmap init for ZONE_DEVICE
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180716174042.GA17280@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Luck, Tony" <tony.luck@intel.com>, Huaisheng Ye <yehs1@lenovo.com>, Vishal L Verma <vishal.l.verma@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Dave Jiang <dave.jiang@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Rich Felker <dalias@libc.org>, Fenghua Yu <fenghua.yu@intel.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michal Hocko <mhocko@suse.com>, Paul Mackerras <paulus@samba.org>, Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Ingo Molnar <mingo@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Heiko Carstens <heiko.carstens@de.ibm.com>, X86 ML <x86@kernel.org>, Logan Gunthorpe <logang@deltatee.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, jmoyer <jmoyer@redhat.com>, Johannes Thumshirn <jthumshirn@suse.de>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-On Mon, Jul 16, 2018 at 12:12 PM, Pavel Tatashin
-<pasha.tatashin@oracle.com> wrote:
-> On Mon, Jul 16, 2018 at 1:10 PM Dan Williams <dan.j.williams@intel.com> wrote:
->>
->> Changes since v1 [1]:
->> * Teach memmap_sync() to take over a sub-set of memmap initialization in
->>   the foreground. This foreground work still needs to await the
->>   completion of vmemmap_populate_hugepages(), but it will otherwise
->>   steal 1/1024th of the 'struct page' init work for the given range.
->>   (Jan)
->> * Add kernel-doc for all the new 'async' structures.
->> * Split foreach_order_pgoff() to its own patch.
->> * Add Pavel and Daniel to the cc as they have been active in the memory
->>   hotplug code.
->> * Fix a typo that prevented CONFIG_DAX_DRIVER_DEBUG=y from performing
->>   early pfn retrieval at dax-filesystem mount time.
->> * Improve some of the changelogs
->>
->> [1]: https://lwn.net/Articles/759117/
->>
->> ---
->>
->> In order to keep pfn_to_page() a simple offset calculation the 'struct
->> page' memmap needs to be mapped and initialized in advance of any usage
->> of a page. This poses a problem for large memory systems as it delays
->> full availability of memory resources for 10s to 100s of seconds.
->>
->> For typical 'System RAM' the problem is mitigated by the fact that large
->> memory allocations tend to happen after the kernel has fully initialized
->> and userspace services / applications are launched. A small amount, 2GB
->> of memory, is initialized up front. The remainder is initialized in the
->> background and freed to the page allocator over time.
->>
->> Unfortunately, that scheme is not directly reusable for persistent
->> memory and dax because userspace has visibility to the entire resource
->> pool and can choose to access any offset directly at its choosing. In
->> other words there is no allocator indirection where the kernel can
->> satisfy requests with arbitrary pages as they become initialized.
->>
->> That said, we can approximate the optimization by performing the
->> initialization in the background, allow the kernel to fully boot the
->> platform, start up pmem block devices, mount filesystems in dax mode,
->> and only incur delay at the first userspace dax fault. When that initial
->> fault occurs that process is delegated a portion of the memmap to
->> initialize in the foreground so that it need not wait for initialization
->> of resources that it does not immediately need.
->>
->> With this change an 8 socket system was observed to initialize pmem
->> namespaces in ~4 seconds whereas it was previously taking ~4 minutes.
->
-> Hi Dan,
->
-> I am worried that this work adds another way to multi-thread struct
-> page initialization without re-use of already existing method. The
-> code is already a mess, and leads to bugs [1] because of the number of
-> different memory layouts, architecture specific quirks, and different
-> struct page initialization methods.
+On Mon, Jul 16, 2018 at 07:40:42PM +0200, Michal Hocko wrote:
+> On Mon 16-07-18 17:47:39, Kirill A. Shutemov wrote:
+> > On Mon, Jul 16, 2018 at 04:22:45PM +0200, Michal Hocko wrote:
+> > > On Mon 16-07-18 17:04:41, Kirill A. Shutemov wrote:
+> > > > On Mon, Jul 16, 2018 at 01:30:28PM +0000, Michal Hocko wrote:
+> > > > > On Tue 10-07-18 13:48:58, Andrew Morton wrote:
+> > > > > > On Tue, 10 Jul 2018 16:48:20 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+> > > > > > 
+> > > > > > > vma_is_anonymous() relies on ->vm_ops being NULL to detect anonymous
+> > > > > > > VMA. This is unreliable as ->mmap may not set ->vm_ops.
+> > > > > > > 
+> > > > > > > False-positive vma_is_anonymous() may lead to crashes:
+> > > > > > > 
+> > > > > > > ...
+> > > > > > > 
+> > > > > > > This can be fixed by assigning anonymous VMAs own vm_ops and not relying
+> > > > > > > on it being NULL.
+> > > > > > > 
+> > > > > > > If ->mmap() failed to set ->vm_ops, mmap_region() will set it to
+> > > > > > > dummy_vm_ops. This way we will have non-NULL ->vm_ops for all VMAs.
+> > > > > > 
+> > > > > > Is there a smaller, simpler fix which we can use for backporting
+> > > > > > purposes and save the larger rework for development kernels?
+> > > > > 
+> > > > > Why cannot we simply keep anon vma with null vm_ops and set dummy_vm_ops
+> > > > > for all users who do not initialize it in their mmap callbacks?
+> > > > > Basically have a sanity check&fixup in call_mmap?
+> > > > 
+> > > > As I said, there's a corner case of MAP_PRIVATE of /dev/zero.
+> > > 
+> > > This is really creative. I really didn't think about that. I am
+> > > wondering whether this really has to be handled as a private anonymous
+> > > mapping implicitly. Why does vma_is_anonymous has to succeed for these
+> > > mappings? Why cannot we simply handle it as any other file backed
+> > > PRIVATE mapping?
+> > 
+> > Because it's established way to create anonymous mappings in Linux.
+> > And we cannot break the semantics.
+> 
+> How exactly would semantic break? You would still get zero pages on read
+> faults and anonymous pages on CoW. So basically the same thing as for
+> any other file backed MAP_PRIVATE mapping.
 
-Yes, the lamentations about the complexity of the memory hotplug code
-are known. I didn't think this set made it irretrievably worse, but
-I'm biased and otherwise certainly want to build consensus with other
-mem-hotplug folks.
+You are wrong about zero page. And you won't get THP. And I'm sure there's
+more differences. Just grep for vma_is_anonymous().
 
->
-> So, when DEFERRED_STRUCT_PAGE_INIT is used we initialize struct pages
-> on demand until page_alloc_init_late() is called, and at that time we
-> initialize all the rest of struct pages by calling:
->
-> page_alloc_init_late()
->   deferred_init_memmap() (a thread per node)
->     deferred_init_pages()
->        __init_single_page()
->
-> This is because memmap_init_zone() is not multi-threaded. However,
-> this work makes memmap_init_zone() multi-threaded. So, I think we
-> should really be either be using deferred_init_memmap() here, or teach
-> DEFERRED_STRUCT_PAGE_INIT to use new multi-threaded memmap_init_zone()
-> but not both.
-
-I agree it would be good to look at unifying the 2 async
-initialization approaches, however they have distinct constraints. All
-of the ZONE_DEVICE memmap initialization work happens as a hotplug
-event where the deferred_init_memmap() threads have already been torn
-down. For the memory capacities where it takes minutes to initialize
-the memmap it is painful to incur a global flush of all initialization
-work. So, I think that a move to rework deferred_init_memmap() in
-terms of memmap_init_async() is warranted because memmap_init_async()
-avoids a global sync and supports the hotplug case.
-
-Unfortunately, the work to unite these 2 mechanisms is going to be
-4.20 material, at least for me, since I'm taking an extended leave,
-and there is little time for me to get this in shape for 4.19. I
-wouldn't be opposed to someone judiciously stealing from this set and
-taking a shot at the integration, I likely will not get back to this
-until September.
+-- 
+ Kirill A. Shutemov
