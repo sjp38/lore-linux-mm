@@ -1,80 +1,252 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E53596B0008
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 11:16:42 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id x26-v6so30015276qtb.2
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 08:16:42 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id w2-v6si6677431qtb.345.2018.07.16.08.16.41
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 927946B000C
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 11:19:01 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id t23-v6so34840393ioa.9
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 08:19:01 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id i136-v6si10479678itc.119.2018.07.16.08.18.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jul 2018 08:16:42 -0700 (PDT)
+        Mon, 16 Jul 2018 08:18:59 -0700 (PDT)
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6GFDcR5045620
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 15:18:59 GMT
+Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
+	by userp2120.oracle.com with ESMTP id 2k7a3jmwwb-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 15:18:59 +0000
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w6GFIvZU024877
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 15:18:57 GMT
+Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w6GFIv13010684
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 15:18:57 GMT
+Received: by mail-oi0-f51.google.com with SMTP id l10-v6so28796177oii.0
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 08:18:56 -0700 (PDT)
+MIME-Version: 1.0
+References: <5b4a9633.1c69fb81.17984.f7b3@mx.google.com> <0ab16066-5498-374b-5391-3dd7979044aa@collabora.com>
+ <20180716105451.GA20734@sirena.org.uk> <20180716110208.GA25227@kroah.com>
+ <CAGM2reY7RDLKR3vyr9bne3kVo58qn_F58oYHtUZaA0BChzsQGw@mail.gmail.com> <CAGM2reaZaJU1WQTyzGiT1zOpjHLv6=hxNfA75JLM4AdbiajrtQ@mail.gmail.com>
+In-Reply-To: <CAGM2reaZaJU1WQTyzGiT1zOpjHLv6=hxNfA75JLM4AdbiajrtQ@mail.gmail.com>
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH] mm: don't do zero_resv_unavail if memmap is not allocated
-Date: Mon, 16 Jul 2018 11:16:30 -0400
-Message-Id: <20180716151630.770-1-pasha.tatashin@oracle.com>
+Date: Mon, 16 Jul 2018 11:18:20 -0400
+Message-ID: <CAGM2reZybMKjOH3v_Gfxvhj8JvebxSp9uKBA3Op9EbYAHe7R5w@mail.gmail.com>
+Subject: Re: mainline/master boot: 177 boots: 2 failed, 174 passed with 1
+ conflict (v4.18-rc4-160-gf353078f028f)
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, mgorman@techsingularity.net, pasha.tatashin@oracle.com, torvalds@linux-foundation.org, gregkh@linuxfoundation.org
+To: gregkh@linuxfoundation.org
+Cc: broonie@kernel.org, guillaume.tucker@collabora.com, Linux Memory Management List <linux-mm@kvack.org>, kernel@collabora.com, LKML <linux-kernel@vger.kernel.org>, stable@vger.kernel.org, kernel-build-reports@lists.linaro.org, Michal Hocko <mhocko@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-Moving zero_resv_unavail before memmap_init_zone(), caused a regression on
-x86-32.
-
-The cause is that we access struct pages before they are allocated when
-CONFIG_FLAT_NODE_MEM_MAP is used.
-
-free_area_init_nodes()
-  zero_resv_unavail()
-    mm_zero_struct_page(pfn_to_page(pfn)); <- struct page is not alloced
-  free_area_init_node()
-    if CONFIG_FLAT_NODE_MEM_MAP
-      alloc_node_mem_map()
-        memblock_virt_alloc_node_nopanic() <- struct page alloced here
-
-On the other hand memblock_virt_alloc_node_nopanic() zeroes all the memory
-that it returns, so we do not need to do zero_resv_unavail() here.
-
-Fixes: e181ae0c5db9 ("mm: zero unavailable pages before memmap init")
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
----
- include/linux/mm.h | 2 +-
- mm/page_alloc.c    | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a0fbb9ffe380..3982c83fdcbf 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2132,7 +2132,7 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
- 					struct mminit_pfnnid_cache *state);
- #endif
- 
--#ifdef CONFIG_HAVE_MEMBLOCK
-+#if defined(CONFIG_HAVE_MEMBLOCK) && !defined(CONFIG_FLAT_NODE_MEM_MAP)
- void zero_resv_unavail(void);
- #else
- static inline void zero_resv_unavail(void) {}
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5d800d61ddb7..a790ef4be74e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6383,7 +6383,7 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
- 	free_area_init_core(pgdat);
- }
- 
--#ifdef CONFIG_HAVE_MEMBLOCK
-+#if defined(CONFIG_HAVE_MEMBLOCK) && !defined(CONFIG_FLAT_NODE_MEM_MAP)
- /*
-  * Only struct pages that are backed by physical memory are zeroed and
-  * initialized by going through __init_single_page(). But, there are some
-@@ -6421,7 +6421,7 @@ void __paginginit zero_resv_unavail(void)
- 	if (pgcnt)
- 		pr_info("Reserved but unavailable: %lld pages", pgcnt);
- }
--#endif /* CONFIG_HAVE_MEMBLOCK */
-+#endif /* CONFIG_HAVE_MEMBLOCK && !CONFIG_FLAT_NODE_MEM_MAP */
- 
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 
--- 
-2.18.0
+I have posted a patch for the above issue:
+http://lkml.kernel.org/r/20180716151630.770-1-pasha.tatashin@oracle.com
+On Mon, Jul 16, 2018 at 9:15 AM Pavel Tatashin
+<pasha.tatashin@oracle.com> wrote:
+>
+> I have figured out what is going with x86-32.  Since it has FLATMEM
+> memory layout, the memmap is now allocated after zero_resv_unavail():
+>
+> Now, we have something like this:
+>
+> zero_resv_unavail()
+> free_area_init_node()
+>  #ifdef CONFIG_FLAT_NODE_MEM_MAP
+>   alloc_node_mem_map()
+> #endif
+>
+> At the time when zero_resv_unavail() is called, memmap for
+> FLAT_NODE_MEM_MAP is not yet allocated. On the other hand,
+> alloc_node_mem_map() calls memblock_virt_alloc_node_nopanic() which
+> calls memset(0), so zero_resv_unavail()
+>  is not needed for this layout.
+>
+> The fix is:
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 5d800d61ddb7..9ec34218713b 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6847,7 +6847,9 @@ void __init free_area_init_nodes(unsigned long
+> *max_zone_pfn)
+>         /* Initialise every node */
+>         mminit_verify_pageflags_layout();
+>         setup_nr_node_ids();
+> +#ifndef CONFIG_FLAT_NODE_MEM_MAP
+>         zero_resv_unavail();
+> +#endif
+>         for_each_online_node(nid) {
+>                 pg_data_t *pgdat = NODE_DATA(nid);
+>                 free_area_init_node(nid, NULL,
+>
+> This is just a temporary fix, I will do a proper fix later, when I
+> will get rid of zero_resv_unavail(), but that will require more
+> thinking, on how to ensure that no section in memmap is skipped while
+> we go through memmap_init_zone().
+>
+> Should I submit an updated patch for "mm: zero unavailable pages
+> before memmap init", or just this incremental fix?
+>
+> Thank  you,
+> Pavel
+>
+> On Mon, Jul 16, 2018 at 7:56 AM Pavel Tatashin
+> <pasha.tatashin@oracle.com> wrote:
+> >
+> > I have reproduced the problem on mainline. Use x86_32 defcontig +
+> > qemu, and problem is reproduced immediately.  I will send an update
+> > once I figure out what is going on.
+> >
+> > Pavel
+> > On Mon, Jul 16, 2018 at 7:02 AM Greg Kroah-Hartman
+> > <gregkh@linuxfoundation.org> wrote:
+> > >
+> > > On Mon, Jul 16, 2018 at 11:54:51AM +0100, Mark Brown wrote:
+> > > > On Mon, Jul 16, 2018 at 11:40:06AM +0100, Guillaume Tucker wrote:
+> > > > > On 15/07/18 01:32, kernelci.org bot wrote:
+> > > > > > mainline/master boot: 177 boots: 2 failed, 174 passed with 1 conflict (v4.18-rc4-160-gf353078f028f)
+> > > > > >
+> > > > > > Full Boot Summary: https://kernelci.org/boot/all/job/mainline/branch/master/kernel/v4.18-rc4-160-gf353078f028f/
+> > > > > > Full Build Summary: https://kernelci.org/build/mainline/branch/master/kernel/v4.18-rc4-160-gf353078f028f/
+> > > > > >
+> > > > > > Tree: mainline
+> > > > > > Branch: master
+> > > > > > Git Describe: v4.18-rc4-160-gf353078f028f
+> > > > > > Git Commit: f353078f028fbfe9acd4b747b4a19c69ef6846cd
+> > > > > > Git URL: http://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+> > > > > > Tested: 67 unique boards, 25 SoC families, 21 builds out of 199
+> > > > > >
+> > > > > > Boot Regressions Detected:
+> > > > > [...]
+> > > > > > x86:
+> > > > > >
+> > > > > >      i386_defconfig:
+> > > > > >          x86-celeron:
+> > > > > >              lab-mhart: new failure (last pass: v4.18-rc4-147-g2db39a2f491a)
+> > > > > >          x86-pentium4:
+> > > > > >              lab-mhart: new failure (last pass: v4.18-rc4-147-g2db39a2f491a)
+> > > > >
+> > > > > Please see below an automated bisection report for this
+> > > > > regression.  Several bisections were run on other x86 platforms
+> > > > > with i386_defconfig on a few revisions up to v4.18-rc5, they all
+> > > > > reached the same "bad" commit.
+> > > > >
+> > > > >
+> > > > > Unfortunately there isn't much to learn from the kernelci.org
+> > > > > boot logs as the kernel seems to crash very early on:
+> > > > >
+> > > > >     https://kernelci.org/boot/all/job/mainline/branch/master/kernel/v4.18-rc5/
+> > > > >     https://storage.kernelci.org/mainline/master/v4.18-rc4-160-gf353078f028f/x86/i386_defconfig/lab-mhart/lava-x86-celeron.html
+> > > > >
+> > > > >
+> > > > > It looks like stable-rc/linux-4.17.y is also broken with
+> > > > > i386_defconfig, which tends to confirm the "bad" commit found by
+> > > > > the automated bisection which was applied there as well:
+> > > > >
+> > > > >     https://kernelci.org/boot/all/job/stable-rc/branch/linux-4.17.y/kernel/v4.17.6-68-gbc0bd9e05fa1/
+> > > >
+> > > > Adding Greg directly to the CCs due to the stable impact, not deleting
+> > > > context for his benefit.
+> > >
+> > > Hey, I read all stable emails, who else would?  :)
+> > >
+> > > > > The automated bisection on kernelci.org is still quite new, so
+> > > > > please take the results with a pinch of salt as the "bad" commit
+> > > > > found may not be the actual root cause of the boot failure.
+> > > > >
+> > > > > Hope this helps!
+> > > > >
+> > > > > Best wishes,
+> > > > > Guillaume
+> > > > >
+> > > > >
+> > > > > --------------------------------------8<--------------------------------------
+> > > > >
+> > > > >
+> > > > >
+> > > > > Bisection result for mainline/master (v4.18-rc4-160-gf353078f028f) on x86-celeron
+> > > > >
+> > > > >   Good:       2db39a2f491a Merge branch 'i2c/for-current' of git://git.kernel.org/pub/scm/linux/kernel/git/wsa/linux
+> > > > >   Bad:        f353078f028f Merge branch 'akpm' (patches from Andrew)
+> > > > >   Found:      e181ae0c5db9 mm: zero unavailable pages before memmap init
+> > > > >
+> > > > > Checks:
+> > > > >   revert:     PASS
+> > > > >   verify:     PASS
+> > > > >
+> > > > > Parameters:
+> > > > >   Tree:       mainline
+> > > > >   URL:        http://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+> > > > >   Branch:     master
+> > > > >   Target:     x86-celeron
+> > > > >   Lab:        lab-mhart
+> > > > >   Config:     i386_defconfig
+> > > > >   Plan:       boot
+> > > > >
+> > > > > Breaking commit found:
+> > > > >
+> > > > > -------------------------------------------------------------------------------
+> > > > > commit e181ae0c5db9544de9c53239eb22bc012ce75033
+> > > > > Author: Pavel Tatashin <pasha.tatashin@oracle.com>
+> > > > > Date:   Sat Jul 14 09:15:07 2018 -0400
+> > > > >
+> > > > >     mm: zero unavailable pages before memmap init
+> > > > >     We must zero struct pages for memory that is not backed by physical
+> > > > >     memory, or kernel does not have access to.
+> > > > >     Recently, there was a change which zeroed all memmap for all holes in
+> > > > >     e820.  Unfortunately, it introduced a bug that is discussed here:
+> > > > >       https://www.spinics.net/lists/linux-mm/msg156764.html
+> > > > >     Linus, also saw this bug on his machine, and confirmed that reverting
+> > > > >     commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM regions into
+> > > > >     memblock.reserved") fixes the issue.
+> > > > >     The problem is that we incorrectly zero some struct pages after they
+> > > > >     were setup.
+> > > > >     The fix is to zero unavailable struct pages prior to initializing of
+> > > > >     struct pages.
+> > > > >     A more detailed fix should come later that would avoid double zeroing
+> > > > >     cases: one in __init_single_page(), the other one in
+> > > > >     zero_resv_unavail().
+> > > > >     Fixes: 124049decbb1 ("x86/e820: put !E820_TYPE_RAM regions into memblock.reserved")
+> > > > >     Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> > > > >     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+> > > > >
+> > > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > > > index 1521100f1e63..5d800d61ddb7 100644
+> > > > > --- a/mm/page_alloc.c
+> > > > > +++ b/mm/page_alloc.c
+> > > > > @@ -6847,6 +6847,7 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+> > > > >     /* Initialise every node */
+> > > > >     mminit_verify_pageflags_layout();
+> > > > >     setup_nr_node_ids();
+> > > > > +   zero_resv_unavail();
+> > > > >     for_each_online_node(nid) {
+> > > > >             pg_data_t *pgdat = NODE_DATA(nid);
+> > > > >             free_area_init_node(nid, NULL,
+> > > > > @@ -6857,7 +6858,6 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+> > > > >                     node_set_state(nid, N_MEMORY);
+> > > > >             check_for_memory(pgdat, nid);
+> > > > >     }
+> > > > > -   zero_resv_unavail();
+> > > > >  }
+> > > > >  static int __init cmdline_parse_core(char *p, unsigned long *core,
+> > > > > @@ -7033,9 +7033,9 @@ void __init set_dma_reserve(unsigned long new_dma_reserve)
+> > > > >  void __init free_area_init(unsigned long *zones_size)
+> > > > >  {
+> > > > > +   zero_resv_unavail();
+> > > > >     free_area_init_node(0, zones_size,
+> > > > >                     __pa(PAGE_OFFSET) >> PAGE_SHIFT, NULL);
+> > > > > -   zero_resv_unavail();
+> > > > >  }
+> > > > >  static int page_alloc_cpu_dead(unsigned int cpu)
+> > > > > -------------------------------------------------------------------------------
+> > >
+> > > So this patch breaks i386, ick.  I'll wait for the fix to hit Linus's
+> > > tree as that's a bit more important to have the large majority of the
+> > > x86-64 boxes fixed with this patch for now.
+> > >
+> > > thanks,
+> > >
+> > > greg k-h
+> > >
