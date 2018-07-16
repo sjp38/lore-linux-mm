@@ -1,112 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D9346B0281
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 13:13:25 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id x2-v6so25094091plv.0
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 10:13:25 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id d26-v6si30103688pgd.32.2018.07.16.10.13.24
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A0F56B0003
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 13:40:46 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id i26-v6so9714041edr.4
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 10:40:46 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f4-v6si3003959edi.37.2018.07.16.10.40.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jul 2018 10:13:24 -0700 (PDT)
-Subject: [PATCH v2 03/14] mm: Teach memmap_init_zone() to initialize
- ZONE_DEVICE pages
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 16 Jul 2018 10:00:37 -0700
-Message-ID: <153176043742.12695.12733023097134464039.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <153176041838.12695.3365448145295112857.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <153176041838.12695.3365448145295112857.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Mon, 16 Jul 2018 10:40:44 -0700 (PDT)
+Date: Mon, 16 Jul 2018 19:40:42 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm: Fix vma_is_anonymous() false-positives
+Message-ID: <20180716174042.GA17280@dhcp22.suse.cz>
+References: <20180710134821.84709-1-kirill.shutemov@linux.intel.com>
+ <20180710134821.84709-2-kirill.shutemov@linux.intel.com>
+ <20180710134858.3506f097104859b533c81bf3@linux-foundation.org>
+ <20180716133028.GQ17280@dhcp22.suse.cz>
+ <20180716140440.fd3sjw5xys5wozw7@black.fi.intel.com>
+ <20180716142245.GT17280@dhcp22.suse.cz>
+ <20180716144739.que5362bofty6ocp@kshutemo-mobl1>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180716144739.que5362bofty6ocp@kshutemo-mobl1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Logan Gunthorpe <logang@deltatee.com>, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, vishal.l.verma@intel.com, linux-mm@kvack.org, jack@suse.cz, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-Rather than run a loop over the freshly initialized pages in
-devm_memremap_pages() *after* arch_add_memory() returns, teach
-memmap_init_zone() to return the pages fully initialized. This is in
-preparation for multi-threading page initialization work, but it also
-has some straight line performance benefits to not incur another loop of
-cache misses across a large (100s of GBs to TBs) address range.
+On Mon 16-07-18 17:47:39, Kirill A. Shutemov wrote:
+> On Mon, Jul 16, 2018 at 04:22:45PM +0200, Michal Hocko wrote:
+> > On Mon 16-07-18 17:04:41, Kirill A. Shutemov wrote:
+> > > On Mon, Jul 16, 2018 at 01:30:28PM +0000, Michal Hocko wrote:
+> > > > On Tue 10-07-18 13:48:58, Andrew Morton wrote:
+> > > > > On Tue, 10 Jul 2018 16:48:20 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+> > > > > 
+> > > > > > vma_is_anonymous() relies on ->vm_ops being NULL to detect anonymous
+> > > > > > VMA. This is unreliable as ->mmap may not set ->vm_ops.
+> > > > > > 
+> > > > > > False-positive vma_is_anonymous() may lead to crashes:
+> > > > > > 
+> > > > > > ...
+> > > > > > 
+> > > > > > This can be fixed by assigning anonymous VMAs own vm_ops and not relying
+> > > > > > on it being NULL.
+> > > > > > 
+> > > > > > If ->mmap() failed to set ->vm_ops, mmap_region() will set it to
+> > > > > > dummy_vm_ops. This way we will have non-NULL ->vm_ops for all VMAs.
+> > > > > 
+> > > > > Is there a smaller, simpler fix which we can use for backporting
+> > > > > purposes and save the larger rework for development kernels?
+> > > > 
+> > > > Why cannot we simply keep anon vma with null vm_ops and set dummy_vm_ops
+> > > > for all users who do not initialize it in their mmap callbacks?
+> > > > Basically have a sanity check&fixup in call_mmap?
+> > > 
+> > > As I said, there's a corner case of MAP_PRIVATE of /dev/zero.
+> > 
+> > This is really creative. I really didn't think about that. I am
+> > wondering whether this really has to be handled as a private anonymous
+> > mapping implicitly. Why does vma_is_anonymous has to succeed for these
+> > mappings? Why cannot we simply handle it as any other file backed
+> > PRIVATE mapping?
+> 
+> Because it's established way to create anonymous mappings in Linux.
+> And we cannot break the semantics.
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Logan Gunthorpe <logang@deltatee.com>
-Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- kernel/memremap.c |   16 +---------------
- mm/page_alloc.c   |   19 +++++++++++++++++++
- 2 files changed, 20 insertions(+), 15 deletions(-)
-
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index b861fe909932..85e4a7c576b2 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -173,8 +173,8 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap,
- 	struct vmem_altmap *altmap = pgmap->altmap_valid ?
- 			&pgmap->altmap : NULL;
- 	struct resource *res = &pgmap->res;
--	unsigned long pfn, pgoff, order;
- 	pgprot_t pgprot = PAGE_KERNEL;
-+	unsigned long pgoff, order;
- 	int error, nid, is_ram;
- 
- 	if (!pgmap->ref || !kill)
-@@ -251,20 +251,6 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap,
- 	if (error)
- 		goto err_add_memory;
- 
--	for_each_device_pfn(pfn, pgmap) {
--		struct page *page = pfn_to_page(pfn);
--
--		/*
--		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
--		 * pointer.  It is a bug if a ZONE_DEVICE page is ever
--		 * freed or placed on a driver-private list.  Seed the
--		 * storage with LIST_POISON* values.
--		 */
--		list_del(&page->lru);
--		page->pgmap = pgmap;
--		percpu_ref_get(pgmap->ref);
--	}
--
- 	pgmap->kill = kill;
- 	error = devm_add_action_or_reset(dev, devm_memremap_pages_release,
- 			pgmap);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f83682ef006e..fb45cfeb4a50 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5548,6 +5548,25 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
- 			cond_resched();
- 		}
-+
-+		if (is_zone_device_page(page)) {
-+			if (WARN_ON_ONCE(!pgmap))
-+				continue;
-+
-+			/* skip invalid device pages */
-+			if (altmap && (pfn < (altmap->base_pfn
-+						+ vmem_altmap_offset(altmap))))
-+				continue;
-+			/*
-+			 * ZONE_DEVICE pages union ->lru with a ->pgmap back
-+			 * pointer.  It is a bug if a ZONE_DEVICE page is ever
-+			 * freed or placed on a driver-private list.  Seed the
-+			 * storage with poison.
-+			 */
-+			page->lru.prev = LIST_POISON2;
-+			page->pgmap = pgmap;
-+			percpu_ref_get(pgmap->ref);
-+		}
- 	}
- }
- 
+How exactly would semantic break? You would still get zero pages on read
+faults and anonymous pages on CoW. So basically the same thing as for
+any other file backed MAP_PRIVATE mapping.
+-- 
+Michal Hocko
+SUSE Labs
