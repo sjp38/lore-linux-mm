@@ -1,79 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B87DB6B026F
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 03:59:34 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id f9-v6so23706800pfn.22
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 00:59:34 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id m3-v6si27495365plb.27.2018.07.16.00.59.33
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E5C3F6B0271
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 04:00:40 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id v4-v6so33567632oix.2
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 01:00:40 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id k126-v6si19127198oih.305.2018.07.16.01.00.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jul 2018 00:59:33 -0700 (PDT)
-Date: Mon, 16 Jul 2018 10:59:29 +0300
-From: Leon Romanovsky <leon@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom: distinguish blockable mode for mmu notifiers
-Message-ID: <20180716075929.GF3152@mtr-leonro.mtl.com>
-References: <20180622150242.16558-1-mhocko@kernel.org>
- <20180627074421.GF32348@dhcp22.suse.cz>
- <20180709122908.GJ22049@dhcp22.suse.cz>
- <20180710134040.GG3014@mtr-leonro.mtl.com>
- <20180710141410.GP14284@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="IpbVkmxF4tDyP/Kb"
-Content-Disposition: inline
-In-Reply-To: <20180710141410.GP14284@dhcp22.suse.cz>
+        Mon, 16 Jul 2018 01:00:39 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6G7xwjp001604
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 04:00:39 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2k8hcgv24s-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 04:00:38 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Mon, 16 Jul 2018 09:00:36 +0100
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH] unicore32: switch to NO_BOOTMEM
+Date: Mon, 16 Jul 2018 11:00:24 +0300
+Message-Id: <1531728024-13259-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Felix Kuehling <felix.kuehling@amd.com>
+To: Guan Xuetao <gxt@pku.edu.cn>
+Cc: Michal Hocko <mhocko@kernel.org>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
+The unicore32 already supports memblock and uses it for some early memory
+reservations, e.g initrd and the page tables.
 
---IpbVkmxF4tDyP/Kb
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+At some point unicore32 allocates the bootmem bitmap from the memblock and
+then hands over the memory reservations from memblock to bootmem.
 
-On Tue, Jul 10, 2018 at 04:14:10PM +0200, Michal Hocko wrote:
-> On Tue 10-07-18 16:40:40, Leon Romanovsky wrote:
-> > On Mon, Jul 09, 2018 at 02:29:08PM +0200, Michal Hocko wrote:
-> > > On Wed 27-06-18 09:44:21, Michal Hocko wrote:
-> > > > This is the v2 of RFC based on the feedback I've received so far. The
-> > > > code even compiles as a bonus ;) I haven't runtime tested it yet, mostly
-> > > > because I have no idea how.
-> > > >
-> > > > Any further feedback is highly appreciated of course.
-> > >
-> > > Any other feedback before I post this as non-RFC?
-> >
-> > From mlx5 perspective, who is primary user of umem_odp.c your change looks ok.
->
-> Can I assume your Acked-by?
->
-> Thanks for your review!
+This patch removes the bootmem initialization and leaves memblock as the
+only boot time memory manager for unicore32.
 
-For mlx and umem_odp pieces,
-Acked-by: Leon Romanovsky <leonro@mellanox.com>
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+---
 
-Thanks
+I couldn't get unicore32 toolchain as the only link I was able to find [1]
+gives me timeout, so the best I could do to check the changes was
 
---IpbVkmxF4tDyP/Kb
-Content-Type: application/pgp-signature; name="signature.asc"
+	gcc <lots of flags> -c arch/unicore32/mm/init.c
 
------BEGIN PGP SIGNATURE-----
+[1] http://mprc.pku.edu.cn/~guanxuetao/linux/uc4-1.0.5-hard.tgz
 
-iQIcBAEBAgAGBQJbTFBhAAoJEORje4g2clinrPEQAM3K+7WNo+Ro9U49mpUc8xr/
-MGGxTsfNW12jUSp6FCTQU6e53hUr+Xkr7HLA9V2PRM848OAOjQlBUKgCGQ4Mb1hQ
-jaWFDf5PTXMiSwutJGhqJXuaYkFyLiR6oE0hdGoaPFRQ6TDkWeqXmP7MDOvJe9ml
-Ea4dAgif8LEjYjGNOCUGJ6Ur89jJmf4D6EFcWhHyin7XejnD3z4vX0VcRbVwY8tl
-H7w7S/TRXNE9gGUTid8i6eC81IG+p+xOaG0JhLcf95F0/sz7Y2gwWUzHWUScrn7A
-m7mLXJf+hMGM6oVYxE224xTUbKkVXfYjYLzY9BZ7NB9ycKdi6aDL4diB2w+83acB
-SplvTEfXKFVQtSKVyo24NoxEIscZyIHrJu0BaE8d002tvAcE2uiSmgUbQ/grXooe
-8Fl8vyau1974/hx4bP6/Fclol25CUtqCatVw+x4vysEqferddvmFW0xOTzUorpTP
-bI7zb9Ozs3icZ90Hhxk1jBe1Jmw8XIPGTCv06yDQOufFHxi2UnL2qKVxIrPLh/s5
-xkJzguy/TxXk210mWnbWmpmytgKNsUQSMmYqyUEfxtzWlRHYWD3Z6KVUAsPsuy8J
-b/fCbYfHzCTP2X4Vm4eoYTxI7YzByBnyIK/eAz1eKVlYbJb8yXx0bqzRbmn6gizc
-jWDNXsZCJJ8q58BpwivZ
-=YBIL
------END PGP SIGNATURE-----
+ arch/unicore32/Kconfig   |  1 +
+ arch/unicore32/mm/init.c | 54 +-----------------------------------------------
+ 2 files changed, 2 insertions(+), 53 deletions(-)
 
---IpbVkmxF4tDyP/Kb--
+diff --git a/arch/unicore32/Kconfig b/arch/unicore32/Kconfig
+index 03f991e..cff4b9d 100644
+--- a/arch/unicore32/Kconfig
++++ b/arch/unicore32/Kconfig
+@@ -5,6 +5,7 @@ config UNICORE32
+ 	select ARCH_MIGHT_HAVE_PC_PARPORT
+ 	select ARCH_MIGHT_HAVE_PC_SERIO
+ 	select HAVE_MEMBLOCK
++	select NO_BOOTMEM
+ 	select HAVE_GENERIC_DMA_COHERENT
+ 	select HAVE_KERNEL_GZIP
+ 	select HAVE_KERNEL_BZIP2
+diff --git a/arch/unicore32/mm/init.c b/arch/unicore32/mm/init.c
+index f4950fb..44ccc15 100644
+--- a/arch/unicore32/mm/init.c
++++ b/arch/unicore32/mm/init.c
+@@ -84,58 +84,6 @@ static void __init find_limits(unsigned long *min, unsigned long *max_low,
+ 	}
+ }
+ 
+-static void __init uc32_bootmem_init(unsigned long start_pfn,
+-	unsigned long end_pfn)
+-{
+-	struct memblock_region *reg;
+-	unsigned int boot_pages;
+-	phys_addr_t bitmap;
+-	pg_data_t *pgdat;
+-
+-	/*
+-	 * Allocate the bootmem bitmap page.  This must be in a region
+-	 * of memory which has already been mapped.
+-	 */
+-	boot_pages = bootmem_bootmap_pages(end_pfn - start_pfn);
+-	bitmap = memblock_alloc_base(boot_pages << PAGE_SHIFT, L1_CACHE_BYTES,
+-				__pfn_to_phys(end_pfn));
+-
+-	/*
+-	 * Initialise the bootmem allocator, handing the
+-	 * memory banks over to bootmem.
+-	 */
+-	node_set_online(0);
+-	pgdat = NODE_DATA(0);
+-	init_bootmem_node(pgdat, __phys_to_pfn(bitmap), start_pfn, end_pfn);
+-
+-	/* Free the lowmem regions from memblock into bootmem. */
+-	for_each_memblock(memory, reg) {
+-		unsigned long start = memblock_region_memory_base_pfn(reg);
+-		unsigned long end = memblock_region_memory_end_pfn(reg);
+-
+-		if (end >= end_pfn)
+-			end = end_pfn;
+-		if (start >= end)
+-			break;
+-
+-		free_bootmem(__pfn_to_phys(start), (end - start) << PAGE_SHIFT);
+-	}
+-
+-	/* Reserve the lowmem memblock reserved regions in bootmem. */
+-	for_each_memblock(reserved, reg) {
+-		unsigned long start = memblock_region_reserved_base_pfn(reg);
+-		unsigned long end = memblock_region_reserved_end_pfn(reg);
+-
+-		if (end >= end_pfn)
+-			end = end_pfn;
+-		if (start >= end)
+-			break;
+-
+-		reserve_bootmem(__pfn_to_phys(start),
+-			(end - start) << PAGE_SHIFT, BOOTMEM_DEFAULT);
+-	}
+-}
+-
+ static void __init uc32_bootmem_free(unsigned long min, unsigned long max_low,
+ 	unsigned long max_high)
+ {
+@@ -232,7 +180,7 @@ void __init bootmem_init(void)
+ 
+ 	find_limits(&min, &max_low, &max_high);
+ 
+-	uc32_bootmem_init(min, max_low);
++	node_set_online(0);
+ 
+ #ifdef CONFIG_SWIOTLB
+ 	swiotlb_init(1);
+-- 
+2.7.4
