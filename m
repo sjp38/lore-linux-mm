@@ -1,100 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C782A6B0007
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 12:09:59 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id y14-v6so3746572edo.21
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 09:09:59 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AB5FA6B0010
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 12:23:39 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id d30-v6so10170101edd.0
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 09:23:39 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a18-v6si7213851edj.406.2018.07.16.09.09.58
+        by mx.google.com with ESMTPS id m2-v6si10166510edi.372.2018.07.16.09.23.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jul 2018 09:09:58 -0700 (PDT)
-Date: Mon, 16 Jul 2018 18:09:56 +0200
+        Mon, 16 Jul 2018 09:23:38 -0700 (PDT)
+Date: Mon, 16 Jul 2018 18:23:37 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: don't do zero_resv_unavail if memmap is not allocated
-Message-ID: <20180716160956.GW17280@dhcp22.suse.cz>
-References: <20180716151630.770-1-pasha.tatashin@oracle.com>
+Subject: Re: Caching/buffers become useless after some time
+Message-ID: <20180716162337.GY17280@dhcp22.suse.cz>
+References: <CADF2uSrW=Z=7NeA4qRwStoARGeT1y33QSP48Loc1u8XSdpMJOA@mail.gmail.com>
+ <20180712113411.GB328@dhcp22.suse.cz>
+ <CADF2uSqDDt3X_LHEQnc5xzHpqJ66E5gncogwR45bmZsNHxV55A@mail.gmail.com>
+ <CADF2uSr-uFz+AAhcwP7ORgGgtLohayBtpDLxx9kcADDxaW8hWw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180716151630.770-1-pasha.tatashin@oracle.com>
+In-Reply-To: <CADF2uSr-uFz+AAhcwP7ORgGgtLohayBtpDLxx9kcADDxaW8hWw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, mgorman@techsingularity.net, torvalds@linux-foundation.org, gregkh@linuxfoundation.org
+To: Marinko Catovic <marinko.catovic@gmail.com>
+Cc: linux-mm@kvack.org
 
-On Mon 16-07-18 11:16:30, Pavel Tatashin wrote:
-> Moving zero_resv_unavail before memmap_init_zone(), caused a regression on
-> x86-32.
+On Mon 16-07-18 17:53:42, Marinko Catovic wrote:
+> I can provide further data now, monitoring vmstat:
 > 
-> The cause is that we access struct pages before they are allocated when
-> CONFIG_FLAT_NODE_MEM_MAP is used.
+> https://pastebin.com/j0dMGBe4 .. 1 day later, 600MB/13GB in use, 35GB free
+> https://pastebin.com/N011kYyd .. 1 day later, 300MB/10GB in use, 40GB free,
+> performance becomes even worse
 > 
-> free_area_init_nodes()
->   zero_resv_unavail()
->     mm_zero_struct_page(pfn_to_page(pfn)); <- struct page is not alloced
->   free_area_init_node()
->     if CONFIG_FLAT_NODE_MEM_MAP
->       alloc_node_mem_map()
->         memblock_virt_alloc_node_nopanic() <- struct page alloced here
+> the issue raises up again, I would have to drop caches by now to restore
+> normal usage for another day or two.
 > 
-> On the other hand memblock_virt_alloc_node_nopanic() zeroes all the memory
-> that it returns, so we do not need to do zero_resv_unavail() here.
-
-This all is subtle as hell and almost impossible to build a sane code on
-top. Your patch sounds good as a stop gap fix but we really need
-something resembling an actual design rather than ad-hoc hacks piled on
-top of each other.
-
-> Fixes: e181ae0c5db9 ("mm: zero unavailable pages before memmap init")
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  include/linux/mm.h | 2 +-
->  mm/page_alloc.c    | 4 ++--
->  2 files changed, 3 insertions(+), 3 deletions(-)
+> Afaik there should be no reason at all to not have the buffers/cache fill
+> up the entire memory, isn't that true?
+> There is to my knowledge almost no O_DIRECT involved, also as mentioned
+> before: when dropping caches
+> the buffers/cache usage would eat up all RAM within the hour as usual for
+> 1-2 days until it starts to go crazy again.
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index a0fbb9ffe380..3982c83fdcbf 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2132,7 +2132,7 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
->  					struct mminit_pfnnid_cache *state);
->  #endif
->  
-> -#ifdef CONFIG_HAVE_MEMBLOCK
-> +#if defined(CONFIG_HAVE_MEMBLOCK) && !defined(CONFIG_FLAT_NODE_MEM_MAP)
->  void zero_resv_unavail(void);
->  #else
->  static inline void zero_resv_unavail(void) {}
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 5d800d61ddb7..a790ef4be74e 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6383,7 +6383,7 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
->  	free_area_init_core(pgdat);
->  }
->  
-> -#ifdef CONFIG_HAVE_MEMBLOCK
-> +#if defined(CONFIG_HAVE_MEMBLOCK) && !defined(CONFIG_FLAT_NODE_MEM_MAP)
->  /*
->   * Only struct pages that are backed by physical memory are zeroed and
->   * initialized by going through __init_single_page(). But, there are some
-> @@ -6421,7 +6421,7 @@ void __paginginit zero_resv_unavail(void)
->  	if (pgcnt)
->  		pr_info("Reserved but unavailable: %lld pages", pgcnt);
->  }
-> -#endif /* CONFIG_HAVE_MEMBLOCK */
-> +#endif /* CONFIG_HAVE_MEMBLOCK && !CONFIG_FLAT_NODE_MEM_MAP */
->  
->  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
->  
-> -- 
-> 2.18.0
+> As mentioned, the usage oscillates up and down instead of up until all RAM
+> is consumed.
 > 
+> Please tell me if there is anything else I can do to help investigate this.
 
+Do you have periodic /proc/vmstat snapshots I have asked before?
 -- 
 Michal Hocko
 SUSE Labs
