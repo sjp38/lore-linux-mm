@@ -1,49 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 18D276B0005
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 08:41:33 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id d22-v6so6942318pls.4
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 05:41:33 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id x62-v6si34848938pfd.124.2018.07.16.05.41.31
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A94C96B0003
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 09:02:08 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id l13-v6so16018509qth.8
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 06:02:08 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id j4-v6si404373qte.29.2018.07.16.06.02.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 16 Jul 2018 05:41:31 -0700 (PDT)
-Date: Mon, 16 Jul 2018 05:41:15 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v6 0/7] fs/dcache: Track & limit # of negative dentries
-Message-ID: <20180716124115.GA7072@bombadil.infradead.org>
-References: <18c5cbfe-403b-bb2b-1d11-19d324ec6234@redhat.com>
- <1531336913.3260.18.camel@HansenPartnership.com>
- <4d49a270-23c9-529f-f544-65508b6b53cc@redhat.com>
- <1531411494.18255.6.camel@HansenPartnership.com>
- <20180712164932.GA3475@bombadil.infradead.org>
- <1531416080.18255.8.camel@HansenPartnership.com>
- <CA+55aFzfQz7c8pcMfLDaRNReNF2HaKJGoWpgB6caQjNAyjg-hA@mail.gmail.com>
- <1531425435.18255.17.camel@HansenPartnership.com>
- <20180713003614.GW2234@dastard>
- <20180716090901.GG17280@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Jul 2018 06:02:07 -0700 (PDT)
+Date: Mon, 16 Jul 2018 21:02:02 +0800
+From: Baoquan He <bhe@redhat.com>
+Subject: Re: Bug report about KASLR and ZONE_MOVABLE
+Message-ID: <20180716130202.GB1724@MiWiFi-R3L-srv>
+References: <20180711094244.GA2019@localhost.localdomain>
+ <20180711104158.GE2070@MiWiFi-R3L-srv>
+ <20180711104944.GG1969@MiWiFi-R3L-srv>
+ <20180711124008.GF2070@MiWiFi-R3L-srv>
+ <72721138-ba6a-32c9-3489-f2060f40a4c9@cn.fujitsu.com>
+ <20180712060115.GD6742@localhost.localdomain>
+ <20180712123228.GK32648@dhcp22.suse.cz>
+ <20180712235240.GH2070@MiWiFi-R3L-srv>
+ <20180716113845.GM17280@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180716090901.GG17280@dhcp22.suse.cz>
+In-Reply-To: <20180716113845.GM17280@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Dave Chinner <david@fromorbit.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <longman@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>
+Cc: Chao Fan <fanc.fnst@cn.fujitsu.com>, Dou Liyang <douly.fnst@cn.fujitsu.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, yasu.isimatu@gmail.com, keescook@chromium.org, indou.takao@jp.fujitsu.com, caoj.fnst@cn.fujitsu.com, vbabka@suse.cz, mgorman@techsingularity.net
 
-On Mon, Jul 16, 2018 at 11:09:01AM +0200, Michal Hocko wrote:
-> On Fri 13-07-18 10:36:14, Dave Chinner wrote:
+On 07/16/18 at 01:38pm, Michal Hocko wrote:
+> On Fri 13-07-18 07:52:40, Baoquan He wrote:
+> > Hi Michal,
+> > 
+> > On 07/12/18 at 02:32pm, Michal Hocko wrote:
 > [...]
-> > By limiting the number of negative dentries in this case, internal
-> > slab fragmentation is reduced such that reclaim cost never gets out
-> > of control. While it appears to "fix" the symptoms, it doesn't
-> > address the underlying problem. It is a partial solution at best but
-> > at worst it's another opaque knob that nobody knows how or when to
-> > tune.
+> > > I am not able to find the beginning of the email thread right now. Could
+> > > you summarize what is the actual problem please?
+> > 
+> > The bug is found on x86 now. 
+> > 
+> > When added "kernelcore=" or "movablecore=" into kernel command line,
+> > kernel memory is spread evenly among nodes. However, this is right when
+> > KASLR is not enabled, then kernel will be at 16M of place in x86 arch.
+> > If KASLR enabled, it could be put any place from 16M to 64T randomly.
+> >  
+> > Consider a scenario, we have 10 nodes, and each node has 20G memory, and
+> > we specify "kernelcore=50%", means each node will take 10G for
+> > kernelcore, 10G for movable area. But this doesn't take kernel position
+> > into consideration. E.g if kernel is put at 15G of 2nd node, namely
+> > node1. Then we think on node1 there's 10G for kernelcore, 10G for
+> > movable, in fact there's only 5G available for movable, just after
+> > kernel.
 > 
-> Would it help to put all the negative dentries into its own slab cache?
+> OK, I guess I see that part. But who is going to use movablecore along
+> with KASLR enabled? I mean do we really have to support those two
+> obscure command line parameters for KASLR?
 
-Maybe the dcache should be more sensitive to its own needs.  In __d_alloc,
-it could check whether there are a high proportion of negative dentries
-and start recycling some existing negative dentries.
+Not very sure whether we have to support both of those to work with
+KASLR. Maybe it's time to make clear of it now.
+
+For 'kernelcore=mirror', we have solved the conflict to make it work well
+with KASLR. For 'movable_node' conflict with KASLR, Chao is posting
+patches to fix it. As for 'kernelcore=' and 'movablecore=', 
+
+1) solve the conflict between them with KASLR in
+   find_zone_movable_pfns_for_nodes();
+2) disable KASLR when 'kernelcore=' | 'movablecore=' is set;
+3) disable 'kernelcore=' | 'movablecore=' when KASLR is enabled;
+4) add note in doc to notice people to not add them at the same time;
+
+2) and 3) may need be fixed in arch/x86 code. As long as come to an
+agreement, any one is fine to me.
+> 
+> In fact I would be much more concerned about memory hotplug and
+> pre-defined movable nodes. Does the current KASLR code work in that
+> case?
+
+As said above, kernelcore=mirror works well with KASLR now. Making
+'movable_node' work with KASLR is in progress.
+
+Thanks
+Baoquan
