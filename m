@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 59F016B0277
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 13:11:19 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id 70-v6so25091003plc.1
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 10:11:19 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id n10-v6si4631587plp.328.2018.07.16.10.11.17
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CEC3E6B0279
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 13:11:24 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e7-v6so5425936pfe.10
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 10:11:24 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id j189-v6si22800381pgd.498.2018.07.16.10.11.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jul 2018 10:11:18 -0700 (PDT)
-Subject: [PATCH v2 11/14] filesystem-dax: Make mount time pfn validation a
- debug check
+        Mon, 16 Jul 2018 10:11:23 -0700 (PDT)
+Subject: [PATCH v2 12/14] libnvdimm,
+ pmem: Initialize the memmap in the background
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 16 Jul 2018 10:01:19 -0700
-Message-ID: <153176047958.12695.16209413909835344164.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Mon, 16 Jul 2018 10:01:25 -0700
+Message-ID: <153176048517.12695.1997102156305453692.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <153176041838.12695.3365448145295112857.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <153176041838.12695.3365448145295112857.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -22,149 +22,141 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, vishal.l.verma@intel.com, linux-mm@kvack.orgjack@suse.cz, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Vishal Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>, hch@lst.de, linux-mm@kvack.org, jack@suse.cz, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
 
-Do not ask for dax_direct_access() to retrieve a pfn in the
-DAX_DRIVER_DEBUG=n case. This avoids an early call to memmap_sync() in
-the driver.
+Arrange for the pmem driver to call memmap_sync() when it is asked to
+produce a valid pfn. The infrastructure is housed in the 'nd_pfn'
+device which implies that the async init support only exists for
+platform defined persistent memory, not the legacy / debug memmap=ss!nn
+facility.
 
-Now that QUEUE_FLAG_DAX usage has been fixed the validation of the pfn
-is only useful for dax driver developers. It is safe to assume that
-pmem, dcssblk, and device-mapper-dax are correct with respect to dax
-operation, so only retrieve the pfn for debug builds when qualifying a
-new dax driver, if one ever arrives.
+Another reason to restrict the capability to the 'nd_pfn' device case is
+that nd_pfn devices have sysfs infrastructure to communicate the
+memmap initialization state to userspace.
 
-The moves the first consumption of a pfn from ->direct_access() to the
-first dax mapping fault, rather than initial filesystem mount. I.e. more
-time for memmap init to run in the background.
+The sysfs publication of memmap init state is saved for a later patch.
 
-Cc: Jan Kara <jack@suse.cz>
-Cc: Christoph Hellwig <hch@lst.de>
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Vishal Verma <vishal.l.verma@intel.com>
+Cc: Dave Jiang <dave.jiang@intel.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/dax/Kconfig |   10 ++++++++
- drivers/dax/super.c |   64 ++++++++++++++++++++++++++++++++-------------------
- 2 files changed, 50 insertions(+), 24 deletions(-)
+ drivers/nvdimm/nd.h             |    2 ++
+ drivers/nvdimm/pmem.c           |   16 ++++++++++++----
+ drivers/nvdimm/pmem.h           |    1 +
+ tools/testing/nvdimm/pmem-dax.c |    7 ++++++-
+ 4 files changed, 21 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/dax/Kconfig b/drivers/dax/Kconfig
-index e0700bf4893a..b32f8827b983 100644
---- a/drivers/dax/Kconfig
-+++ b/drivers/dax/Kconfig
-@@ -9,6 +9,16 @@ menuconfig DAX
+diff --git a/drivers/nvdimm/nd.h b/drivers/nvdimm/nd.h
+index 32e0364b48b9..ee4f76fb0cb5 100644
+--- a/drivers/nvdimm/nd.h
++++ b/drivers/nvdimm/nd.h
+@@ -12,6 +12,7 @@
+  */
+ #ifndef __ND_H__
+ #define __ND_H__
++#include <linux/memmap_async.h>
+ #include <linux/libnvdimm.h>
+ #include <linux/badblocks.h>
+ #include <linux/blkdev.h>
+@@ -208,6 +209,7 @@ struct nd_pfn {
+ 	unsigned long npfns;
+ 	enum nd_pfn_mode mode;
+ 	struct nd_pfn_sb *pfn_sb;
++	struct memmap_async_state async;
+ 	struct nd_namespace_common *ndns;
+ };
  
- if DAX
- 
-+config DAX_DRIVER_DEBUG
-+	bool "DAX: driver debug"
-+	help
-+	  Enable validation of the page frame objects returned from a
-+	  driver's 'direct_access' operation. This validation is
-+	  performed relative to the requirements of the FS_DAX and
-+	  FS_DAX_LIMITED configuration options. If you are validating
-+	  the implementation of a dax device driver say Y otherwise
-+	  say N.
+diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
+index c430536320a5..a1158181adc2 100644
+--- a/drivers/nvdimm/pmem.c
++++ b/drivers/nvdimm/pmem.c
+@@ -22,6 +22,7 @@
+ #include <linux/platform_device.h>
+ #include <linux/module.h>
+ #include <linux/moduleparam.h>
++#include <linux/memmap_async.h>
+ #include <linux/badblocks.h>
+ #include <linux/memremap.h>
+ #include <linux/vmalloc.h>
+@@ -228,8 +229,13 @@ __weak long __pmem_direct_access(struct pmem_device *pmem, pgoff_t pgoff,
+ 					PFN_PHYS(nr_pages))))
+ 		return -EIO;
+ 	*kaddr = pmem->virt_addr + offset;
+-	if (pfn)
++	if (pfn) {
++		struct dev_pagemap *pgmap = &pmem->pgmap;
++		struct memmap_async_state *async = pgmap->async;
 +
- config DEV_DAX
- 	tristate "Device DAX: direct access mapping device"
- 	depends on TRANSPARENT_HUGEPAGE
-diff --git a/drivers/dax/super.c b/drivers/dax/super.c
-index 903d9c473749..65851919e59a 100644
---- a/drivers/dax/super.c
-+++ b/drivers/dax/super.c
-@@ -72,6 +72,41 @@ struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
- EXPORT_SYMBOL_GPL(fs_dax_get_by_bdev);
- #endif
- 
-+static bool validate_dax_pfn(pfn_t *pfn)
-+{
-+	bool dax_enabled = false;
-+
-+	/*
-+	 * Unless debugging a new dax driver, or new dax architecture
-+	 * support there is no need to check the pfn. Delay the kernel's
-+	 * first need for a dax pfn until first userspace dax fault.
-+	 */
-+	if (!pfn)
-+		return true;
-+
-+	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED) && pfn_t_special(*pfn)) {
-+		/*
-+		 * An arch that has enabled the pmem api should also
-+		 * have its drivers support pfn_t_devmap()
-+		 *
-+		 * This is a developer warning and should not trigger in
-+		 * production. dax_flush() will crash since it depends
-+		 * on being able to do (page_address(pfn_to_page())).
-+		 */
-+		WARN_ON(IS_ENABLED(CONFIG_ARCH_HAS_PMEM_API));
-+		dax_enabled = true;
-+	} else if (pfn_t_devmap(*pfn)) {
-+		struct dev_pagemap *pgmap;
-+
-+		pgmap = get_dev_pagemap(pfn_t_to_pfn(*pfn), NULL);
-+		if (pgmap && pgmap->type == MEMORY_DEVICE_FS_DAX)
-+			dax_enabled = true;
-+		put_dev_pagemap(pgmap);
+ 		*pfn = phys_to_pfn_t(pmem->phys_addr + offset, pmem->pfn_flags);
++		memmap_sync(*pfn, nr_pages, async);
 +	}
-+
-+	return dax_enabled;
-+}
-+
- /**
-  * __bdev_dax_supported() - Check if the device supports dax for filesystem
-  * @bdev: block device to check
-@@ -85,11 +120,10 @@ EXPORT_SYMBOL_GPL(fs_dax_get_by_bdev);
- bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
+ 
+ 	/*
+ 	 * If badblocks are present, limit known good range to the
+@@ -310,13 +316,15 @@ static void fsdax_pagefree(struct page *page, void *data)
+ 	wake_up_var(&page->_refcount);
+ }
+ 
+-static int setup_pagemap_fsdax(struct device *dev, struct dev_pagemap *pgmap)
++static int setup_pagemap_fsdax(struct device *dev, struct dev_pagemap *pgmap,
++		struct memmap_async_state *async)
  {
- 	struct dax_device *dax_dev;
--	bool dax_enabled = false;
-+	pfn_t _pfn, *pfn;
- 	pgoff_t pgoff;
- 	int err, id;
- 	void *kaddr;
--	pfn_t pfn;
- 	long len;
- 	char buf[BDEVNAME_SIZE];
+ 	dev_pagemap_get_ops();
+ 	if (devm_add_action_or_reset(dev, pmem_release_pgmap_ops, pgmap))
+ 		return -ENOMEM;
+ 	pgmap->type = MEMORY_DEVICE_FS_DAX;
+ 	pgmap->page_free = fsdax_pagefree;
++	pgmap->async = async;
  
-@@ -113,8 +147,10 @@ bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
- 		return false;
+ 	return 0;
+ }
+@@ -379,7 +387,7 @@ static int pmem_attach_disk(struct device *dev,
+ 	pmem->pfn_flags = PFN_DEV;
+ 	pmem->pgmap.ref = &q->q_usage_counter;
+ 	if (is_nd_pfn(dev)) {
+-		if (setup_pagemap_fsdax(dev, &pmem->pgmap))
++		if (setup_pagemap_fsdax(dev, &pmem->pgmap, &nd_pfn->async))
+ 			return -ENOMEM;
+ 		addr = devm_memremap_pages(dev, &pmem->pgmap,
+ 				pmem_freeze_queue);
+@@ -393,7 +401,7 @@ static int pmem_attach_disk(struct device *dev,
+ 	} else if (pmem_should_map_pages(dev)) {
+ 		memcpy(&pmem->pgmap.res, &nsio->res, sizeof(pmem->pgmap.res));
+ 		pmem->pgmap.altmap_valid = false;
+-		if (setup_pagemap_fsdax(dev, &pmem->pgmap))
++		if (setup_pagemap_fsdax(dev, &pmem->pgmap, NULL))
+ 			return -ENOMEM;
+ 		addr = devm_memremap_pages(dev, &pmem->pgmap,
+ 				pmem_freeze_queue);
+diff --git a/drivers/nvdimm/pmem.h b/drivers/nvdimm/pmem.h
+index a64ebc78b5df..93d226ea1006 100644
+--- a/drivers/nvdimm/pmem.h
++++ b/drivers/nvdimm/pmem.h
+@@ -1,6 +1,7 @@
+ /* SPDX-License-Identifier: GPL-2.0 */
+ #ifndef __NVDIMM_PMEM_H__
+ #define __NVDIMM_PMEM_H__
++#include <linux/memmap_async.h>
+ #include <linux/badblocks.h>
+ #include <linux/types.h>
+ #include <linux/pfn_t.h>
+diff --git a/tools/testing/nvdimm/pmem-dax.c b/tools/testing/nvdimm/pmem-dax.c
+index d4cb5281b30e..63151b75615c 100644
+--- a/tools/testing/nvdimm/pmem-dax.c
++++ b/tools/testing/nvdimm/pmem-dax.c
+@@ -42,8 +42,13 @@ long __pmem_direct_access(struct pmem_device *pmem, pgoff_t pgoff,
  	}
  
-+	pfn = IS_ENABLED(CONFIG_DAX_DRIVER_DEBUG) ? &_pfn : NULL;
+ 	*kaddr = pmem->virt_addr + offset;
+-	if (pfn)
++	if (pfn) {
++		struct dev_pagemap *pgmap = &pmem->pgmap;
++		struct memmap_async_state *async = pgmap->async;
 +
- 	id = dax_read_lock();
--	len = dax_direct_access(dax_dev, pgoff, 1, &kaddr, &pfn);
-+	len = dax_direct_access(dax_dev, pgoff, 1, &kaddr, pfn);
- 	dax_read_unlock(id);
+ 		*pfn = phys_to_pfn_t(pmem->phys_addr + offset, pmem->pfn_flags);
++		memmap_sync(*pfn, nr_pages, async);
++	}
  
- 	put_dax(dax_dev);
-@@ -125,27 +161,7 @@ bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
- 		return false;
- 	}
- 
--	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED) && pfn_t_special(pfn)) {
--		/*
--		 * An arch that has enabled the pmem api should also
--		 * have its drivers support pfn_t_devmap()
--		 *
--		 * This is a developer warning and should not trigger in
--		 * production. dax_flush() will crash since it depends
--		 * on being able to do (page_address(pfn_to_page())).
--		 */
--		WARN_ON(IS_ENABLED(CONFIG_ARCH_HAS_PMEM_API));
--		dax_enabled = true;
--	} else if (pfn_t_devmap(pfn)) {
--		struct dev_pagemap *pgmap;
--
--		pgmap = get_dev_pagemap(pfn_t_to_pfn(pfn), NULL);
--		if (pgmap && pgmap->type == MEMORY_DEVICE_FS_DAX)
--			dax_enabled = true;
--		put_dev_pagemap(pgmap);
--	}
--
--	if (!dax_enabled) {
-+	if (!validate_dax_pfn(pfn)) {
- 		pr_debug("%s: error: dax support not enabled\n",
- 				bdevname(bdev, buf));
- 		return false;
+ 	/*
+ 	 * If badblocks are present, limit known good range to the
