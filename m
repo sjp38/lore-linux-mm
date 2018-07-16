@@ -1,90 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0545B6B0006
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 16:05:28 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id u18-v6so25741571pfh.21
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 13:05:27 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r138-v6si36384774pfc.202.2018.07.16.13.05.26
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 287096B0003
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 16:30:53 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id j189-v6so1337881oih.11
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 13:30:53 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u8-v6sor21434638oia.89.2018.07.16.13.30.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jul 2018 13:05:26 -0700 (PDT)
-Date: Mon, 16 Jul 2018 22:05:17 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v1 00/10] mm: online/offline 4MB chunks controlled by
- device driver
-Message-ID: <20180716200517.GA16803@dhcp22.suse.cz>
-References: <20180524093121.GZ20441@dhcp22.suse.cz>
- <c0b8bbd5-6c01-f550-ae13-ef80b2255ea6@redhat.com>
- <20180524120341.GF20441@dhcp22.suse.cz>
- <1a03ac4e-9185-ce8e-a672-c747c3e40ff2@redhat.com>
- <20180524142241.GJ20441@dhcp22.suse.cz>
- <819e45c5-6ae3-1dff-3f1d-c0411b6e2e1d@redhat.com>
- <3748f033-f349-6d88-d189-d77c76565981@redhat.com>
- <20180611115641.GL13364@dhcp22.suse.cz>
- <71bd1b65-2a88-5de7-9789-bf4fac26507d@redhat.com>
- <e9697e6f-e562-a96c-7080-9271dbfbbea9@redhat.com>
+        (Google Transport Security);
+        Mon, 16 Jul 2018 13:30:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e9697e6f-e562-a96c-7080-9271dbfbbea9@redhat.com>
+In-Reply-To: <CAGM2rea9AwQGaf1JiV_SDDKTKyP_n+dG9Z20gtTZEkuZPFnXFQ@mail.gmail.com>
+References: <153176041838.12695.3365448145295112857.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <CAGM2rea9AwQGaf1JiV_SDDKTKyP_n+dG9Z20gtTZEkuZPFnXFQ@mail.gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 16 Jul 2018 13:30:50 -0700
+Message-ID: <CAPcyv4jo91jKjwn-M7cOhG=6vJ3c-QCyp0W+T+CtmiKGyZP1ng@mail.gmail.com>
+Subject: Re: [PATCH v2 00/14] mm: Asynchronous + multithreaded memmap init for ZONE_DEVICE
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Balbir Singh <bsingharora@gmail.com>, Baoquan He <bhe@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Dave Young <dyoung@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jaewon Kim <jaewon31.kim@samsung.com>, Jan Kara <jack@suse.cz>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Mel Gorman <mgorman@suse.de>, Michael Ellerman <mpe@ellerman.id.au>, Miles Chen <miles.chen@mediatek.com>, Oscar Salvador <osalvador@techadventures.net>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Philippe Ombredanne <pombredanne@nexb.com>, Rashmica Gupta <rashmica.g@gmail.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Souptick Joarder <jrdr.linux@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Luck, Tony" <tony.luck@intel.com>, Huaisheng Ye <yehs1@lenovo.com>, Vishal L Verma <vishal.l.verma@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Dave Jiang <dave.jiang@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Rich Felker <dalias@libc.org>, Fenghua Yu <fenghua.yu@intel.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michal Hocko <mhocko@suse.com>, Paul Mackerras <paulus@samba.org>, Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Ingo Molnar <mingo@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Heiko Carstens <heiko.carstens@de.ibm.com>, X86 ML <x86@kernel.org>, Logan Gunthorpe <logang@deltatee.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, jmoyer <jmoyer@redhat.com>, Johannes Thumshirn <jthumshirn@suse.de>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 16-07-18 21:48:59, David Hildenbrand wrote:
-> On 11.06.2018 14:33, David Hildenbrand wrote:
-> > On 11.06.2018 13:56, Michal Hocko wrote:
-> >> On Mon 11-06-18 13:53:49, David Hildenbrand wrote:
-> >>> On 24.05.2018 23:07, David Hildenbrand wrote:
-> >>>> On 24.05.2018 16:22, Michal Hocko wrote:
-> >>>>> I will go over the rest of the email later I just wanted to make this
-> >>>>> point clear because I suspect we are talking past each other.
-> >>>>
-> >>>> It sounds like we are now talking about how to solve the problem. I like
-> >>>> that :)
-> >>>>
-> >>>
-> >>> Hi Michal,
-> >>>
-> >>> did you have time to think about the details of your proposed idea?
-> >>
-> >> Not really. Sorry about that. It's been busy time. I am planning to
-> >> revisit after merge window closes.
-> >>
-> > 
-> > Sure no worries, I still have a bunch of other things to work on. But it
-> > would be nice to clarify soon in which direction I have to head to get
-> > this implemented and upstream (e.g. what I proposed, what you proposed
-> > or maybe something different).
-> > 
-> I would really like to make progress here.
-> 
-> I pointed out basic problems/questions with the proposed alternative. I
-> think I answered all your questions. But you also said that you are not
-> going to accept the current approach. So some decision has to be made.
-> 
-> Although it's very demotivating and frustrating (I hope not all work in
-> the MM area will be like this), if there is no guidance on how to
-> proceed, I'll have to switch to adding/removing/onlining/offlining whole
-> segments. This is not what I want, but maybe this has a higher chance of
-> getting reviews/acks.
-> 
-> Understanding that you are busy, please if you make suggestions, follow
-> up on responses.
+On Mon, Jul 16, 2018 at 12:12 PM, Pavel Tatashin
+<pasha.tatashin@oracle.com> wrote:
+> On Mon, Jul 16, 2018 at 1:10 PM Dan Williams <dan.j.williams@intel.com> wrote:
+>>
+>> Changes since v1 [1]:
+>> * Teach memmap_sync() to take over a sub-set of memmap initialization in
+>>   the foreground. This foreground work still needs to await the
+>>   completion of vmemmap_populate_hugepages(), but it will otherwise
+>>   steal 1/1024th of the 'struct page' init work for the given range.
+>>   (Jan)
+>> * Add kernel-doc for all the new 'async' structures.
+>> * Split foreach_order_pgoff() to its own patch.
+>> * Add Pavel and Daniel to the cc as they have been active in the memory
+>>   hotplug code.
+>> * Fix a typo that prevented CONFIG_DAX_DRIVER_DEBUG=y from performing
+>>   early pfn retrieval at dax-filesystem mount time.
+>> * Improve some of the changelogs
+>>
+>> [1]: https://lwn.net/Articles/759117/
+>>
+>> ---
+>>
+>> In order to keep pfn_to_page() a simple offset calculation the 'struct
+>> page' memmap needs to be mapped and initialized in advance of any usage
+>> of a page. This poses a problem for large memory systems as it delays
+>> full availability of memory resources for 10s to 100s of seconds.
+>>
+>> For typical 'System RAM' the problem is mitigated by the fact that large
+>> memory allocations tend to happen after the kernel has fully initialized
+>> and userspace services / applications are launched. A small amount, 2GB
+>> of memory, is initialized up front. The remainder is initialized in the
+>> background and freed to the page allocator over time.
+>>
+>> Unfortunately, that scheme is not directly reusable for persistent
+>> memory and dax because userspace has visibility to the entire resource
+>> pool and can choose to access any offset directly at its choosing. In
+>> other words there is no allocator indirection where the kernel can
+>> satisfy requests with arbitrary pages as they become initialized.
+>>
+>> That said, we can approximate the optimization by performing the
+>> initialization in the background, allow the kernel to fully boot the
+>> platform, start up pmem block devices, mount filesystems in dax mode,
+>> and only incur delay at the first userspace dax fault. When that initial
+>> fault occurs that process is delegated a portion of the memmap to
+>> initialize in the foreground so that it need not wait for initialization
+>> of resources that it does not immediately need.
+>>
+>> With this change an 8 socket system was observed to initialize pmem
+>> namespaces in ~4 seconds whereas it was previously taking ~4 minutes.
+>
+> Hi Dan,
+>
+> I am worried that this work adds another way to multi-thread struct
+> page initialization without re-use of already existing method. The
+> code is already a mess, and leads to bugs [1] because of the number of
+> different memory layouts, architecture specific quirks, and different
+> struct page initialization methods.
 
-I plan to get back to this. It's busy time with too many things
-happening both upstream and on my work table as well. Sorry about that.
-I do understand your frustration but there is only that much time I
-have. There are not that many people to review this code unfortunately.
+Yes, the lamentations about the complexity of the memory hotplug code
+are known. I didn't think this set made it irretrievably worse, but
+I'm biased and otherwise certainly want to build consensus with other
+mem-hotplug folks.
 
-In principle though, I still maintain my position that the memory
-hotplug code is way too subtle to add more on top. Maybe the code can be
-reworked to be less section oriented but that will be a lot of work.
-If you _really_ need a smaller granularity I do not have a better
-suggestion than to emulate that on top of sections. I still have to go
-back to your last emails though.
--- 
-Michal Hocko
-SUSE Labs
+>
+> So, when DEFERRED_STRUCT_PAGE_INIT is used we initialize struct pages
+> on demand until page_alloc_init_late() is called, and at that time we
+> initialize all the rest of struct pages by calling:
+>
+> page_alloc_init_late()
+>   deferred_init_memmap() (a thread per node)
+>     deferred_init_pages()
+>        __init_single_page()
+>
+> This is because memmap_init_zone() is not multi-threaded. However,
+> this work makes memmap_init_zone() multi-threaded. So, I think we
+> should really be either be using deferred_init_memmap() here, or teach
+> DEFERRED_STRUCT_PAGE_INIT to use new multi-threaded memmap_init_zone()
+> but not both.
+
+I agree it would be good to look at unifying the 2 async
+initialization approaches, however they have distinct constraints. All
+of the ZONE_DEVICE memmap initialization work happens as a hotplug
+event where the deferred_init_memmap() threads have already been torn
+down. For the memory capacities where it takes minutes to initialize
+the memmap it is painful to incur a global flush of all initialization
+work. So, I think that a move to rework deferred_init_memmap() in
+terms of memmap_init_async() is warranted because memmap_init_async()
+avoids a global sync and supports the hotplug case.
+
+Unfortunately, the work to unite these 2 mechanisms is going to be
+4.20 material, at least for me, since I'm taking an extended leave,
+and there is little time for me to get this in shape for 4.19. I
+wouldn't be opposed to someone judiciously stealing from this set and
+taking a shot at the integration, I likely will not get back to this
+until September.
