@@ -1,107 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FD6A6B000C
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 13:45:09 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id d11-v6so20898081iok.21
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 10:45:09 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id j185-v6si9726046itb.69.2018.07.16.10.45.08
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F0EE66B000E
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 13:45:11 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id k204-v6so641270ite.1
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 10:45:11 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id x197-v6si5128498iod.49.2018.07.16.10.45.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jul 2018 10:45:08 -0700 (PDT)
+        Mon, 16 Jul 2018 10:45:11 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v6 2/5] mm/sparse: use the new sparse buffer functions in non-vmemmap
-Date: Mon, 16 Jul 2018 13:44:44 -0400
-Message-Id: <20180716174447.14529-3-pasha.tatashin@oracle.com>
+Subject: [PATCH v6 3/5] mm/sparse: move buffer init/fini to the common place
+Date: Mon, 16 Jul 2018 13:44:45 -0400
+Message-Id: <20180716174447.14529-4-pasha.tatashin@oracle.com>
 In-Reply-To: <20180716174447.14529-1-pasha.tatashin@oracle.com>
 References: <20180716174447.14529-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, bhe@redhat.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net, pasha.tatashin@oracle.com, abdhalee@linux.vnet.ibm.com, mpe@ellerman.id.au
 
-non-vmemmap sparse also allocated large contiguous chunk of memory, and if
-fails falls back to smaller allocations.  Use the same functions to
-allocate buffer as the vmemmap-sparse
+Now, that both variants of sparse memory use the same buffers to populate
+memory map, we can move sparse_buffer_init()/sparse_buffer_fini() to the
+common place.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 ---
- mm/sparse.c | 41 ++++++++++++++---------------------------
- 1 file changed, 14 insertions(+), 27 deletions(-)
+ include/linux/mm.h  |  3 ---
+ mm/sparse-vmemmap.c |  2 --
+ mm/sparse.c         | 14 +++++++-------
+ 3 files changed, 7 insertions(+), 12 deletions(-)
 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 9a0a5f598469..db4867b62fff 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -408,13 +408,20 @@ unsigned long __init section_map_size(void)
- }
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a83d3e0e66d4..99d8c50adef6 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2655,9 +2655,6 @@ void sparse_mem_maps_populate_node(struct page **map_map,
+ 				   unsigned long map_count,
+ 				   int nodeid);
  
- #else
-+unsigned long __init section_map_size(void)
-+{
-+	return PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION);
-+}
-+
- struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid,
- 		struct vmem_altmap *altmap)
- {
--	struct page *map;
--	unsigned long size;
-+	unsigned long size = section_map_size();
-+	struct page *map = sparse_buffer_alloc(size);
-+
-+	if (map)
-+		return map;
- 
--	size = PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION);
- 	map = memblock_virt_alloc_try_nid(size,
- 					  PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
- 					  BOOTMEM_ALLOC_ACCESSIBLE, nid);
-@@ -425,42 +432,22 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
- 					  unsigned long pnum_end,
- 					  unsigned long map_count, int nodeid)
- {
--	void *map;
+-unsigned long __init section_map_size(void);
+-void sparse_buffer_init(unsigned long size, int nid);
+-void sparse_buffer_fini(void);
+ void *sparse_buffer_alloc(unsigned long size);
+ struct page *sparse_mem_map_populate(unsigned long pnum, int nid,
+ 		struct vmem_altmap *altmap);
+diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+index b05c7663c640..cd15f3d252c3 100644
+--- a/mm/sparse-vmemmap.c
++++ b/mm/sparse-vmemmap.c
+@@ -270,7 +270,6 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
  	unsigned long pnum;
--	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
--	int nr_consumed_maps;
--
--	size = PAGE_ALIGN(size);
--	map = memblock_virt_alloc_try_nid_raw(size * map_count,
--					      PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
--					      BOOTMEM_ALLOC_ACCESSIBLE, nodeid);
--	if (map) {
--		nr_consumed_maps = 0;
--		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
--			if (!present_section_nr(pnum))
--				continue;
--			map_map[nr_consumed_maps] = map;
--			map += size;
--			nr_consumed_maps++;
--		}
--		return;
--	}
-+	unsigned long size = section_map_size();
-+	int nr_consumed_maps = 0;
+ 	int nr_consumed_maps = 0;
  
--	/* fallback */
--	nr_consumed_maps = 0;
-+	sparse_buffer_init(size * map_count, nodeid);
+-	sparse_buffer_init(section_map_size() * map_count, nodeid);
  	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
--		struct mem_section *ms;
--
  		if (!present_section_nr(pnum))
  			continue;
- 		map_map[nr_consumed_maps] =
- 				sparse_mem_map_populate(pnum, nodeid, NULL);
- 		if (map_map[nr_consumed_maps++])
- 			continue;
--		ms = __nr_to_section(pnum);
+@@ -282,5 +281,4 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
  		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
  		       __func__);
  	}
-+	sparse_buffer_fini();
+-	sparse_buffer_fini();
+ }
+diff --git a/mm/sparse.c b/mm/sparse.c
+index db4867b62fff..20ca292d8f11 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -401,14 +401,14 @@ static void __init sparse_early_usemaps_alloc_node(void *data,
+ }
+ 
+ #ifdef CONFIG_SPARSEMEM_VMEMMAP
+-unsigned long __init section_map_size(void)
++static unsigned long __init section_map_size(void)
+ 
+ {
+ 	return ALIGN(sizeof(struct page) * PAGES_PER_SECTION, PMD_SIZE);
+ }
+ 
+ #else
+-unsigned long __init section_map_size(void)
++static unsigned long __init section_map_size(void)
+ {
+ 	return PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION);
+ }
+@@ -433,10 +433,8 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+ 					  unsigned long map_count, int nodeid)
+ {
+ 	unsigned long pnum;
+-	unsigned long size = section_map_size();
+ 	int nr_consumed_maps = 0;
+ 
+-	sparse_buffer_init(size * map_count, nodeid);
+ 	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+ 		if (!present_section_nr(pnum))
+ 			continue;
+@@ -447,14 +445,13 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+ 		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
+ 		       __func__);
+ 	}
+-	sparse_buffer_fini();
  }
  #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
  
+ static void *sparsemap_buf __meminitdata;
+ static void *sparsemap_buf_end __meminitdata;
+ 
+-void __init sparse_buffer_init(unsigned long size, int nid)
++static void __init sparse_buffer_init(unsigned long size, int nid)
+ {
+ 	WARN_ON(sparsemap_buf);	/* forgot to call sparse_buffer_fini()? */
+ 	sparsemap_buf =
+@@ -464,7 +461,7 @@ void __init sparse_buffer_init(unsigned long size, int nid)
+ 	sparsemap_buf_end = sparsemap_buf + size;
+ }
+ 
+-void __init sparse_buffer_fini(void)
++static void __init sparse_buffer_fini(void)
+ {
+ 	unsigned long size = sparsemap_buf_end - sparsemap_buf;
+ 
+@@ -494,8 +491,11 @@ static void __init sparse_early_mem_maps_alloc_node(void *data,
+ 				 unsigned long map_count, int nodeid)
+ {
+ 	struct page **map_map = (struct page **)data;
++
++	sparse_buffer_init(section_map_size() * map_count, nodeid);
+ 	sparse_mem_maps_populate_node(map_map, pnum_begin, pnum_end,
+ 					 map_count, nodeid);
++	sparse_buffer_fini();
+ }
+ #else
+ static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
 -- 
 2.18.0
