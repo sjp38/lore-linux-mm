@@ -1,194 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 19B956B0003
-	for <linux-mm@kvack.org>; Sun, 15 Jul 2018 23:39:28 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id k9-v6so21177507iob.16
-        for <linux-mm@kvack.org>; Sun, 15 Jul 2018 20:39:28 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b99-v6sor3476888itd.36.2018.07.15.20.39.26
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B8AAD6B0003
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 02:13:22 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id w1-v6so3848477ply.12
+        for <linux-mm@kvack.org>; Sun, 15 Jul 2018 23:13:22 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c4-v6si4890755pfa.285.2018.07.15.23.13.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 15 Jul 2018 20:39:26 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 15 Jul 2018 23:13:21 -0700 (PDT)
+Date: Mon, 16 Jul 2018 08:13:17 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [patch -mm] mm, oom: remove oom_lock from exit_mmap
+Message-ID: <20180716061317.GA17280@dhcp22.suse.cz>
+References: <alpine.DEB.2.21.1807121432370.170100@chino.kir.corp.google.com>
+ <20180713142612.GD19960@dhcp22.suse.cz>
+ <44d26c25-6e09-49de-5e90-3c16115eb337@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <CALvZod4jx1r4k6gMrqFq+PzDT3D37_DFGyyokgPSsZFXbMV0ZA@mail.gmail.com>
-References: <1531557122-12540-1-git-send-email-laoar.shao@gmail.com>
- <CALvZod57QFRVQ7kM4LSNQJACQ+dGC_otJkqK-5+i-0b53Zq5aA@mail.gmail.com>
- <CALOAHbDV73+X-y7V2Z4nX1C7uCY6yzBPTPZhEvTpN3f7_qWwUw@mail.gmail.com>
- <CALvZod5d37v8fv=VCFLa7g+ntPvaT-h8jRQw1+iry2dxb=yXxQ@mail.gmail.com>
- <CALOAHbBQurMrE6ZCLLsdmbqFrUX3vFVpZtFLvvL_WGnPoF0OSA@mail.gmail.com>
- <CALvZod6F4vM_U0obH1aU3iJqRs-3JEfR4cHKZoB9JVLTgdSmSQ@mail.gmail.com>
- <CALOAHbByKH9t_c266Bi+Kv2r=07LLpa6UEQgsc7BNi2dZoeNhQ@mail.gmail.com>
- <CALvZod6SVJQz84sxMkvRY7K4iZ2_uzbmMq85URBznsu7+ZP9OA@mail.gmail.com>
- <CALOAHbAnVvKR2AQ4TAkwUuC8XVK5UaD3vt80OC_M4OK2j6b_Yg@mail.gmail.com> <CALvZod4jx1r4k6gMrqFq+PzDT3D37_DFGyyokgPSsZFXbMV0ZA@mail.gmail.com>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Mon, 16 Jul 2018 11:38:45 +0800
-Message-ID: <CALOAHbAovZyh5Lju9rR6wDAFFovXnW9EBeJ6is7W7O4ooULqYA@mail.gmail.com>
-Subject: Re: [PATCH] mm: avoid bothering interrupted task when charge memcg in softirq
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <44d26c25-6e09-49de-5e90-3c16115eb337@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Roman Gushchin <guro@fb.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jul 16, 2018 at 11:09 AM, Shakeel Butt <shakeelb@google.com> wrote:
-> On Sun, Jul 15, 2018 at 6:50 PM Yafang Shao <laoar.shao@gmail.com> wrote:
->>
->> On Sun, Jul 15, 2018 at 11:04 PM, Shakeel Butt <shakeelb@google.com> wrote:
->> > On Sun, Jul 15, 2018 at 1:02 AM Yafang Shao <laoar.shao@gmail.com> wrote:
->> >>
->> >> On Sun, Jul 15, 2018 at 2:34 PM, Shakeel Butt <shakeelb@google.com> wrote:
->> >> > On Sat, Jul 14, 2018 at 10:26 PM Yafang Shao <laoar.shao@gmail.com> wrote:
->> >> >>
->> >> >> On Sun, Jul 15, 2018 at 12:25 PM, Shakeel Butt <shakeelb@google.com> wrote:
->> >> >> > On Sat, Jul 14, 2018 at 7:10 PM Yafang Shao <laoar.shao@gmail.com> wrote:
->> >> >> >>
->> >> >> >> On Sat, Jul 14, 2018 at 11:38 PM, Shakeel Butt <shakeelb@google.com> wrote:
->> >> >> >> > On Sat, Jul 14, 2018 at 1:32 AM Yafang Shao <laoar.shao@gmail.com> wrote:
->> >> >> >> >>
->> >> >> >> >> try_charge maybe executed in packet receive path, which is in interrupt
->> >> >> >> >> context.
->> >> >> >> >> In this situation, the 'current' is the interrupted task, which may has
->> >> >> >> >> no relation to the rx softirq, So it is nonsense to use 'current'.
->> >> >> >> >>
->> >> >> >> >
->> >> >> >> > Have you actually seen this occurring?
->> >> >> >>
->> >> >> >> Hi Shakeel,
->> >> >> >>
->> >> >> >> I'm trying to produce this issue, but haven't find it occur yet.
->> >> >> >>
->> >> >> >> > I am not very familiar with the
->> >> >> >> > network code but I can think of two ways try_charge() can be called
->> >> >> >> > from network code. Either through kmem charging or through
->> >> >> >> > mem_cgroup_charge_skmem() and both locations correctly handle
->> >> >> >> > interrupt context.
->> >> >> >> >
->> >> >> >>
->> >> >> >> Why do you say that mem_cgroup_charge_skmem() correctly hanle
->> >> >> >> interrupt context ?
->> >> >> >>
->> >> >> >> Let me show you why mem_cgroup_charge_skmem isn't hanling interrupt
->> >> >> >> context correctly.
->> >> >> >>
->> >> >> >> mem_cgroup_charge_skmem() is calling  try_charge() twice.
->> >> >> >> The first one is with GFP_NOWAIT as the gfp_mask, and the second one
->> >> >> >> is with  (GFP_NOWAIT |  __GFP_NOFAIL) as the gfp_mask.
->> >> >> >>
->> >> >> >> If page_counter_try_charge() failes at the first time, -ENOMEM is returned.
->> >> >> >> Then mem_cgroup_charge_skmem() will call try_charge() once more with
->> >> >> >> __GFP_NOFAIL set, and this time if If page_counter_try_charge() failes
->> >> >> >> again the '
->> >> >> >> force' label in  try_charge() will be executed and 0 is returned.
->> >> >> >>
->> >> >> >> No matter what, the 'current' will be used and touched, that is
->> >> >> >> meaning mem_cgroup_charge_skmem() isn't hanling the interrupt context
->> >> >> >> correctly.
->> >> >> >>
->> >> >> >
->> >> >> > Hi Yafang,
->> >> >> >
->> >> >> > If you check mem_cgroup_charge_skmem(), the memcg passed is not
->> >> >> > 'current' but is from the sock object i.e. sk->sk_memcg for which the
->> >> >> > network buffer is allocated for.
->> >> >> >
->> >> >>
->> >> >> That's correct, the memcg if from the sock object.
->> >> >> But the point is, in this situation why 'current' is used in try_charge() ?
->> >> >> As 'current' is not related with the memcg, which is just a interrupted task.
->> >> >>
->> >> >
->> >> > Hmm so you mean the behavior of memcg charging in the interrupt
->> >> > context depends on the state of the interrupted task.
->> >>
->> >> Yes.
->> >>
->> >> > As you have
->> >> > noted, mem_cgroup_charge_skmem() tries charging again with
->> >> > __GFP_NOFAIL and the charge succeeds. Basically the memcg charging by
->> >> > mem_cgroup_charge_skmem() will always succeed irrespective of the
->> >> > state of the interrupted task. However mem_cgroup_charge_skmem() can
->> >> > return true if the interrupted task was exiting or a fatal signal is
->> >> > pending or oom victim or reclaiming memory. Can you please explain why
->> >> > this is bad?
->> >> >
->> >>
->> >> Let me show you the possible issues cause by this behavoir.
->> >> 1.  In mem_cgroup_oom(), some  members in 'current' is set.
->> >>      That means an innocent task will be in  task_in_memcg_oom state.
->> >>      But this task may be in a different memcg, I mean the memcg of
->> >> the 'current' may be differenct with the sk->sk_memcg.
->> >>      Then when this innocent 'current' do try_charge it will hit  "if
->> >> (unlikely(task_in_memcg_oom(current)))" and  -ENOMEM is returned,
->> >> While there're maybe some free memory (or some memory could be freed )
->> >> in the memcg of the innocent 'task'.
->> >>
->> >
->> > No memory will be freed as try_charge() is in interrupt context.
->> >
->>
->> I mean when this interrupted 'current' is running, that's in process context.
->> In process context it should call try_to_free_mem_cgroup_pages() to
->> free some memory,
->> but it will hit "if (unlikely(task_in_memcg_oom(current)))"  before as
->> it is set in the interrupt context.
->>
->> That's an obviously issue. Do you understand ?
->>
->
-> Not really. I couldn't find where current->memcg_in_oom can be set in
-> the interrupt context.
->
+On Sat 14-07-18 06:18:58, Tetsuo Handa wrote:
+> On 2018/07/13 23:26, Michal Hocko wrote:
+> > On Thu 12-07-18 14:34:00, David Rientjes wrote:
+> > [...]
+> >> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> >> index 0fe4087d5151..e6328cef090f 100644
+> >> --- a/mm/oom_kill.c
+> >> +++ b/mm/oom_kill.c
+> >> @@ -488,9 +488,11 @@ void __oom_reap_task_mm(struct mm_struct *mm)
+> >>  	 * Tell all users of get_user/copy_from_user etc... that the content
+> >>  	 * is no longer stable. No barriers really needed because unmapping
+> >>  	 * should imply barriers already and the reader would hit a page fault
+> >> -	 * if it stumbled over a reaped memory.
+> >> +	 * if it stumbled over a reaped memory. If MMF_UNSTABLE is already set,
+> >> +	 * reaping as already occurred so nothing left to do.
+> >>  	 */
+> >> -	set_bit(MMF_UNSTABLE, &mm->flags);
+> >> +	if (test_and_set_bit(MMF_UNSTABLE, &mm->flags))
+> >> +		return;
+> > 
+> > This could lead to pre mature oom victim selection
+> > oom_reaper			exiting victim
+> > oom_reap_task			exit_mmap
+> >   __oom_reap_task_mm		  __oom_reap_task_mm
+> > 				    test_and_set_bit(MMF_UNSTABLE) # wins the race
+> >   test_and_set_bit(MMF_UNSTABLE)
+> > set_bit(MMF_OOM_SKIP) # new victim can be selected now.
+> > 
+> > Besides that, why should we back off in the first place. We can
+> > race the two without any problems AFAICS. We already do have proper
+> > synchronization between the two due to mmap_sem and MMF_OOM_SKIP.
+> > 
+> > diff --git a/mm/mmap.c b/mm/mmap.c
+> > index fc41c0543d7f..4642964f7741 100644
+> > --- a/mm/mmap.c
+> > +++ b/mm/mmap.c
+> > @@ -3073,9 +3073,7 @@ void exit_mmap(struct mm_struct *mm)
+> >  		 * which clears VM_LOCKED, otherwise the oom reaper cannot
+> >  		 * reliably test it.
+> >  		 */
+> > -		mutex_lock(&oom_lock);
+> >  		__oom_reap_task_mm(mm);
+> > -		mutex_unlock(&oom_lock);
+> >  
+> >  		set_bit(MMF_OOM_SKIP, &mm->flags);
+> 
+> David and Michal are using different version as a baseline here.
+> David is making changes using timeout based back off (in linux-next.git)
+> which is inappropriately trying to use MMF_UNSTABLE for two purposes.
+> 
+> Michal is making changes using current code (in linux.git) which does not
+> address David's concern.
 
-You are right. current->memcg_in_oom can't be set in the interrupt context.
+Yes I have based it on top of Linus tree because the point of this patch
+is to get rid of the locking which is no longer needed. I do not see
+what concern are you talking about.
+> 
+> My version ( https://marc.info/?l=linux-mm&m=153119509215026 ) is
+> making changes using current code which also provides oom-badness
+> based back off in order to address David's concern.
+> 
+> >  		down_write(&mm->mmap_sem);
+> 
+> Anyway, I suggest doing
+> 
+>   mutex_lock(&oom_lock);
+>   set_bit(MMF_OOM_SKIP, &mm->flags);
+>   mutex_unlock(&oom_lock);
 
->> >> 2.  If the interrupted task was exiting or a fatal signal is  pending
->> >> or oom victim,
->> >>      it will directly goto force and 0 is returned, and then
->> >> mem_cgroup_charge_skmem() will return true.
->> >>      But mem_cgroup_charge_skmem() maybe need to try the second time
->> >> and return false.
->> >>
->> >> That are all unexpected behavoir.
->> >>
->> >
->> > Yes, this is inconsistent behavior. Can you explain how this will
->> > affect network traffic? Basically mem_cgroup_charge_skmem() was
->> > supposed to return false but sometime based on the interrupted task,
->> > mem_cgroup_charge_skmem() returns true. How is this behavior bad for
->> > network traffic?
->> >
->>
->> You could see the funtion  __sk_mem_raise_allocated().
->> If mem_cgroup_charge_skmem() return false, it will goto
->> suppress_allocation and uncharge skmem,
->> while when mem_cgroup_charge_skmem() return true, it will charge skmem
->> sucessfully.
->>
->> The consequence behavior is  sk_rmem_schedule may fail while it should sucess.
->> And then it will call  tcp_prune_queue() and tcp collapse may take a long time.
->>
->
-> Is that a good thing or bad?
-> From what I understand with your change
-> if charge fails, sk_rmem_schedule will always fail. However without
-> your change the interrupted task's state might help sk_rmem_schedule
-> to pass. I am all for consistent behavior but I wanted to make sure if
-> that is what you are aiming for.
->
+Why do we need it?
 
-Yes, with this change it will always fail. Without this change it may
-sucess depends on the  interrupted task's state.
-My previous statement makes some mistake.
+> like I mentioned at
+> http://lkml.kernel.org/r/201807130620.w6D6KiAJ093010@www262.sakura.ne.jp
+> even if we make changes on top of linux-next's timeout based back off.
 
-I have no clear idea it is bad or good. That's why I'm trying to
-produce the issue now.
-But I think that we should avoid this unexpected behavior due to state
-of the random interrupted task.
+says
+: (3) Prevent from selecting new OOM victim when there is an !MMF_OOM_SKIP mm
+:     which current thread should wait for.
+[...]
+: Regarding (A), we can reduce the range oom_lock serializes from
+: "__oom_reap_task_mm()" to "setting MMF_OOM_SKIP", for oom_lock is useful for (3).
 
-> Anyways, from what I remember Facebook is using the cgroup-v2's tcpmem
-> accounting. Johannes or Roman can shed some light if they have
-> observed this issue in production and might have opinion on how to
-> solve it.
->
-> thanks,
-> Shakeel
+But why there is a lock needed for this? This doesn't make much sense to
+me. If we do not have MMF_OOM_SKIP set we still should have mm_is_oom_victim
+so no new task should be selected. If we race with the oom reaper than
+ok, we would just not select a new victim and retry later.
+-- 
+Michal Hocko
+SUSE Labs
