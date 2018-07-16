@@ -1,85 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 804216B0007
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 05:45:48 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id m185-v6so3576559itm.1
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 02:45:48 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c63-v6sor2668734ioe.106.2018.07.16.02.45.47
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F99B6B0003
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 06:38:36 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id u23-v6so33711595iol.22
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 03:38:36 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id h63-v6si9691649ith.1.2018.07.16.03.38.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 16 Jul 2018 02:45:47 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Jul 2018 03:38:34 -0700 (PDT)
+Subject: Re: [patch -mm] mm, oom: remove oom_lock from exit_mmap
+References: <alpine.DEB.2.21.1807121432370.170100@chino.kir.corp.google.com>
+ <20180713142612.GD19960@dhcp22.suse.cz>
+ <44d26c25-6e09-49de-5e90-3c16115eb337@i-love.sakura.ne.jp>
+ <20180716061317.GA17280@dhcp22.suse.cz>
+ <916d7e1d-66ea-00d9-c943-ef3d2e082584@i-love.sakura.ne.jp>
+ <20180716074410.GB17280@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <f648cbc0-fa8f-5cf5-5e2b-d9ee6d721cf2@i-love.sakura.ne.jp>
+Date: Mon, 16 Jul 2018 19:38:21 +0900
 MIME-Version: 1.0
-In-Reply-To: <20180716075836.GC17280@dhcp22.suse.cz>
-References: <1531557122-12540-1-git-send-email-laoar.shao@gmail.com> <20180716075836.GC17280@dhcp22.suse.cz>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Mon, 16 Jul 2018 17:45:06 +0800
-Message-ID: <CALOAHbD1+eYHDo5-q1--nsBTNj66ZX6iw2YU4koLgZD_0ZDy+w@mail.gmail.com>
-Subject: Re: [PATCH] mm: avoid bothering interrupted task when charge memcg in softirq
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180716074410.GB17280@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jul 16, 2018 at 3:58 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Sat 14-07-18 16:32:02, Yafang Shao wrote:
->> try_charge maybe executed in packet receive path, which is in interrupt
->> context.
->> In this situation, the 'current' is the interrupted task, which may has
->> no relation to the rx softirq, So it is nonsense to use 'current'.
+On 2018/07/16 16:44, Michal Hocko wrote:
+>> If setting MMF_OOM_SKIP is guarded by oom_lock, we can enforce
+>> last second allocation attempt like below.
 >>
->> Avoid bothering the interrupted if page_counter_try_charge failes.
->
-> I agree with Shakeel that this changelog asks for more information about
-> "why it matters". Small inconsistencies should be tolerable because the
-> state we rely on is so rarely set that it shouldn't make a visible
-> difference in practice.
->
-
-HI Michal,
-
-No, it can make a visible difference in pratice.
-The difference is in __sk_mem_raise_allocated().
-
-Without this patch, if the random interrupted task is oom victim or
-fatal signal pending or exiting, the charge will success anyway. That
-means the cgroup limit doesn't work in this situation.
-
-With this patch, in the same situation the charged memory will be
-uncharged as it hits the memcg limit.
-
-That is okay if the memcg of the interrupted task is same with the
-sk->sk_memcg,  but it may not okay if they are difference.
-
-I'm trying to prove it, but seems it's very hard to produce this issue.
-
->> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
->> ---
->>  mm/memcontrol.c | 3 +++
->>  1 file changed, 3 insertions(+)
+>>   CPU 0                                   CPU 1
+>>   
+>>   mutex_trylock(&oom_lock) in __alloc_pages_may_oom() succeeds.
+>>   get_page_from_freelist() fails.
+>>   Enters out_of_memory().
 >>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 68ef266..13f95db 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -2123,6 +2123,9 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
->>               goto retry;
->>       }
+>>                                           __oom_reap_task_mm() reclaims some memory.
+>>                                           mutex_lock(&oom_lock);
 >>
->> +     if (in_softirq())
->> +             goto nomem;
->> +
->
-> If anything would it make more sense to use in_interrupt() to be more
-> bullet proof for future?
->
->>       /*
->>        * Unlike in global OOM situations, memcg is not in a physical
->>        * memory shortage.  Allow dying and OOM-killed tasks to
->> --
->> 1.8.3.1
->
-> --
-> Michal Hocko
-> SUSE Labs
+>>   select_bad_process() does not select new victim because MMF_OOM_SKIP is not yet set.
+>>   Leaves out_of_memory().
+>>   mutex_unlock(&oom_lock) in __alloc_pages_may_oom() is called.
+>>
+>>                                           Sets MMF_OOM_SKIP.
+>>                                           mutex_unlock(&oom_lock);
+>>
+>>   get_page_from_freelist() likely succeeds before reaching __alloc_pages_may_oom() again.
+>>   Saved one OOM victim from being needlessly killed.
+>>
+>> That is, guarding setting MMF_OOM_SKIP works as if synchronize_rcu(); it waits for anybody
+>> who already acquired (or started waiting for) oom_lock to release oom_lock, in order to
+>> prevent select_bad_process() from needlessly selecting new OOM victim.
+> 
+> Hmm, is this a practical problem though? Do we really need to have a
+> broader locking context just to defeat this race?
+
+Yes, for you think that select_bad_process() might take long time. It is possible
+that MMF_OOM_SKIP is set while the owner of oom_lock is preempted. It is not such
+a small window that select_bad_process() finds an mm which got MMF_OOM_SKIP
+immediately before examining that mm.
+
+>                                                   How about this goes
+> into a separate patch with some data justifying it?
+> 
+
+No. We won't be able to get data until we let people test using released
+kernels. I don't like again getting reports like
+http://lkml.kernel.org/r/1495034780-9520-1-git-send-email-guro@fb.com
+by not guarding MMF_OOM_SKIP.
