@@ -1,121 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AF2D6B0003
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 03:43:31 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id x21-v6so10890763eds.2
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 00:43:31 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id d63-v6si579088edd.305.2018.07.16.00.43.28
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 37E8B6B0007
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 03:44:14 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id f8-v6so9125089eds.6
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 00:44:14 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o34-v6si2108466eda.43.2018.07.16.00.44.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jul 2018 00:43:29 -0700 (PDT)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6G7dK63026180
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 03:43:27 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2k8gw048p1-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 03:43:27 -0400
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Mon, 16 Jul 2018 08:43:26 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH] hexagon: switch to NO_BOOTMEM
-Date: Mon, 16 Jul 2018 10:43:18 +0300
-Message-Id: <1531726998-10971-1-git-send-email-rppt@linux.vnet.ibm.com>
+        Mon, 16 Jul 2018 00:44:12 -0700 (PDT)
+Date: Mon, 16 Jul 2018 09:44:10 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [patch -mm] mm, oom: remove oom_lock from exit_mmap
+Message-ID: <20180716074410.GB17280@dhcp22.suse.cz>
+References: <alpine.DEB.2.21.1807121432370.170100@chino.kir.corp.google.com>
+ <20180713142612.GD19960@dhcp22.suse.cz>
+ <44d26c25-6e09-49de-5e90-3c16115eb337@i-love.sakura.ne.jp>
+ <20180716061317.GA17280@dhcp22.suse.cz>
+ <916d7e1d-66ea-00d9-c943-ef3d2e082584@i-love.sakura.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <916d7e1d-66ea-00d9-c943-ef3d2e082584@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Kuo <rkuo@codeaurora.org>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-hexagon@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This patch adds registration of the system memory with memblock, eliminates
-bootmem initialization and converts early memory reservations from bootmem
-to memblock.
+On Mon 16-07-18 16:04:26, Tetsuo Handa wrote:
+> On 2018/07/16 15:13, Michal Hocko wrote:
+> > On Sat 14-07-18 06:18:58, Tetsuo Handa wrote:
+> >>> @@ -3073,9 +3073,7 @@ void exit_mmap(struct mm_struct *mm)
+> >>>  		 * which clears VM_LOCKED, otherwise the oom reaper cannot
+> >>>  		 * reliably test it.
+> >>>  		 */
+> >>> -		mutex_lock(&oom_lock);
+> >>>  		__oom_reap_task_mm(mm);
+> >>> -		mutex_unlock(&oom_lock);
+> >>>  
+> >>>  		set_bit(MMF_OOM_SKIP, &mm->flags);
+> >>
+> >> David and Michal are using different version as a baseline here.
+> >> David is making changes using timeout based back off (in linux-next.git)
+> >> which is inappropriately trying to use MMF_UNSTABLE for two purposes.
+> >>
+> >> Michal is making changes using current code (in linux.git) which does not
+> >> address David's concern.
+> > 
+> > Yes I have based it on top of Linus tree because the point of this patch
+> > is to get rid of the locking which is no longer needed. I do not see
+> > what concern are you talking about.
+> 
+> I'm saying that applying your patch does not work on linux-next.git
+> because David's patch already did s/MMF_OOM_SKIP/MMF_UNSTABLE/ .
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
+This patch has been nacked by me AFAIR so I assume it should be dropped
+from the mmotm tree.
+ 
+> >> My version ( https://marc.info/?l=linux-mm&m=153119509215026 ) is
+> >> making changes using current code which also provides oom-badness
+> >> based back off in order to address David's concern.
+> >>
+> >>>  		down_write(&mm->mmap_sem);
+> >>
+> >> Anyway, I suggest doing
+> >>
+> >>   mutex_lock(&oom_lock);
+> >>   set_bit(MMF_OOM_SKIP, &mm->flags);
+> >>   mutex_unlock(&oom_lock);
+> > 
+> > Why do we need it?
+> > 
+> >> like I mentioned at
+> >> http://lkml.kernel.org/r/201807130620.w6D6KiAJ093010@www262.sakura.ne.jp
+> >> even if we make changes on top of linux-next's timeout based back off.
+> > 
+> > says
+> > : (3) Prevent from selecting new OOM victim when there is an !MMF_OOM_SKIP mm
+> > :     which current thread should wait for.
+> > [...]
+> > : Regarding (A), we can reduce the range oom_lock serializes from
+> > : "__oom_reap_task_mm()" to "setting MMF_OOM_SKIP", for oom_lock is useful for (3).
+> > 
+> > But why there is a lock needed for this? This doesn't make much sense to
+> > me. If we do not have MMF_OOM_SKIP set we still should have mm_is_oom_victim
+> > so no new task should be selected. If we race with the oom reaper than
+> > ok, we would just not select a new victim and retry later.
+> > 
+> 
+> How mm_is_oom_victim() helps? mm_is_oom_victim() is used by exit_mmap() whether
+> current thread should call __oom_reap_task_mm().
+> 
+> I'm talking about below sequence (i.e. after returning from __oom_reap_task_mm()).
+> 
+>   CPU 0                                   CPU 1
+>   
+>   mutex_trylock(&oom_lock) in __alloc_pages_may_oom() succeeds.
+>   get_page_from_freelist() fails.
+>   Enters out_of_memory().
+> 
+>                                           __oom_reap_task_mm() reclaims some memory.
+>                                           Sets MMF_OOM_SKIP.
+> 
+>   select_bad_process() selects new victim because MMF_OOM_SKIP is already set.
+>   Kills a new OOM victim without retrying last second allocation attempt.
+>   Leaves out_of_memory().
+>   mutex_unlock(&oom_lock) in __alloc_pages_may_oom() is called.
 
-Build tested only.
+OK, that wasn't clear from your above wording. As you explicitly
+mentioned !MMF_OOM_SKIP mm.
 
- arch/hexagon/Kconfig   |  3 +++
- arch/hexagon/mm/init.c | 20 ++++++++------------
- 2 files changed, 11 insertions(+), 12 deletions(-)
+> If setting MMF_OOM_SKIP is guarded by oom_lock, we can enforce
+> last second allocation attempt like below.
+>
+>   CPU 0                                   CPU 1
+>   
+>   mutex_trylock(&oom_lock) in __alloc_pages_may_oom() succeeds.
+>   get_page_from_freelist() fails.
+>   Enters out_of_memory().
+> 
+>                                           __oom_reap_task_mm() reclaims some memory.
+>                                           mutex_lock(&oom_lock);
+> 
+>   select_bad_process() does not select new victim because MMF_OOM_SKIP is not yet set.
+>   Leaves out_of_memory().
+>   mutex_unlock(&oom_lock) in __alloc_pages_may_oom() is called.
+> 
+>                                           Sets MMF_OOM_SKIP.
+>                                           mutex_unlock(&oom_lock);
+> 
+>   get_page_from_freelist() likely succeeds before reaching __alloc_pages_may_oom() again.
+>   Saved one OOM victim from being needlessly killed.
+> 
+> That is, guarding setting MMF_OOM_SKIP works as if synchronize_rcu(); it waits for anybody
+> who already acquired (or started waiting for) oom_lock to release oom_lock, in order to
+> prevent select_bad_process() from needlessly selecting new OOM victim.
 
-diff --git a/arch/hexagon/Kconfig b/arch/hexagon/Kconfig
-index 37adb20..66fb2d5 100644
---- a/arch/hexagon/Kconfig
-+++ b/arch/hexagon/Kconfig
-@@ -28,6 +28,9 @@ config HEXAGON
- 	select GENERIC_CLOCKEVENTS_BROADCAST
- 	select MODULES_USE_ELF_RELA
- 	select GENERIC_CPU_DEVICES
-+	select HAVE_MEMBLOCK
-+	select ARCH_DISCARD_MEMBLOCK
-+	select NO_BOOTMEM
- 	---help---
- 	  Qualcomm Hexagon is a processor architecture designed for high
- 	  performance and low power across a wide variety of applications.
-diff --git a/arch/hexagon/mm/init.c b/arch/hexagon/mm/init.c
-index 1495d45..8d265bf 100644
---- a/arch/hexagon/mm/init.c
-+++ b/arch/hexagon/mm/init.c
-@@ -21,6 +21,7 @@
- #include <linux/init.h>
- #include <linux/mm.h>
- #include <linux/bootmem.h>
-+#include <linux/memblock.h>
- #include <asm/atomic.h>
- #include <linux/highmem.h>
- #include <asm/tlb.h>
-@@ -176,7 +177,6 @@ size_t hexagon_coherent_pool_size = (size_t) (DMA_RESERVE << 22);
- 
- void __init setup_arch_memory(void)
- {
--	int bootmap_size;
- 	/*  XXX Todo: this probably should be cleaned up  */
- 	u32 *segtable = (u32 *) &swapper_pg_dir[0];
- 	u32 *segtable_end;
-@@ -195,18 +195,22 @@ void __init setup_arch_memory(void)
- 	bootmem_lastpg = PFN_DOWN((bootmem_lastpg << PAGE_SHIFT) &
- 		~((BIG_KERNEL_PAGE_SIZE) - 1));
- 
-+	memblock_add(PHYS_OFFSET,
-+		     (bootmem_lastpg - ARCH_PFN_OFFSET) << PAGE_SHIFT);
-+
-+	/* Reserve kernel text/data/bss */
-+	memblock_reserve(PHYS_OFFSET,
-+			 (bootmem_startpg - PHYS_OFFSET) << PAGE_SHIFT);
- 	/*
- 	 * Reserve the top DMA_RESERVE bytes of RAM for DMA (uncached)
- 	 * memory allocation
- 	 */
--
- 	max_low_pfn = bootmem_lastpg - PFN_DOWN(DMA_RESERVED_BYTES);
- 	min_low_pfn = ARCH_PFN_OFFSET;
--	bootmap_size =  init_bootmem_node(NODE_DATA(0), bootmem_startpg, min_low_pfn, max_low_pfn);
-+	memblock_reserve(PFN_PHYS(max_low_pfn), DMA_RESERVED_BYTES);
- 
- 	printk(KERN_INFO "bootmem_startpg:  0x%08lx\n", bootmem_startpg);
- 	printk(KERN_INFO "bootmem_lastpg:  0x%08lx\n", bootmem_lastpg);
--	printk(KERN_INFO "bootmap_size:  %d\n", bootmap_size);
- 	printk(KERN_INFO "min_low_pfn:  0x%08lx\n", min_low_pfn);
- 	printk(KERN_INFO "max_low_pfn:  0x%08lx\n", max_low_pfn);
- 
-@@ -257,14 +261,6 @@ void __init setup_arch_memory(void)
- #endif
- 
- 	/*
--	 * Free all the memory that wasn't taken up by the bootmap, the DMA
--	 * reserve, or kernel itself.
--	 */
--	free_bootmem(PFN_PHYS(bootmem_startpg) + bootmap_size,
--		     PFN_PHYS(bootmem_lastpg - bootmem_startpg) - bootmap_size -
--		     DMA_RESERVED_BYTES);
--
--	/*
- 	 *  The bootmem allocator seemingly just lives to feed memory
- 	 *  to the paging system
- 	 */
+Hmm, is this a practical problem though? Do we really need to have a
+broader locking context just to defeat this race? How about this goes
+into a separate patch with some data justifying it?
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
