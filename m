@@ -1,56 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 006846B027E
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 13:11:34 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id t20-v6so3861184pgu.9
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 10:11:34 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id j185-v6si986431pgc.419.2018.07.16.10.11.33
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D9346B0281
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 13:13:25 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id x2-v6so25094091plv.0
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 10:13:25 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id d26-v6si30103688pgd.32.2018.07.16.10.13.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jul 2018 10:11:33 -0700 (PDT)
-Subject: [PATCH v2 09/14] s390,
- dcssblk: Allow a NULL-pfn to ->direct_access()
+        Mon, 16 Jul 2018 10:13:24 -0700 (PDT)
+Subject: [PATCH v2 03/14] mm: Teach memmap_init_zone() to initialize
+ ZONE_DEVICE pages
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 16 Jul 2018 10:01:08 -0700
-Message-ID: <153176046886.12695.7487453664953251895.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Mon, 16 Jul 2018 10:00:37 -0700
+Message-ID: <153176043742.12695.12733023097134464039.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <153176041838.12695.3365448145295112857.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <153176041838.12695.3365448145295112857.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: Huaisheng Ye <yehs1@lenovo.com>, Jan Kara <jack@suse.cz>, vishal.l.verma@intel.com, hch@lst.de, linux-mm@kvack.orgjack@suse.cz, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
+Cc: Logan Gunthorpe <logang@deltatee.com>, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, vishal.l.verma@intel.com, linux-mm@kvack.org, jack@suse.cz, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
 
-From: Huaisheng Ye <yehs1@lenovo.com>
+Rather than run a loop over the freshly initialized pages in
+devm_memremap_pages() *after* arch_add_memory() returns, teach
+memmap_init_zone() to return the pages fully initialized. This is in
+preparation for multi-threading page initialization work, but it also
+has some straight line performance benefits to not incur another loop of
+cache misses across a large (100s of GBs to TBs) address range.
 
-dcssblk_direct_access() needs to check the validity of pointer pfn for
-NULL assignment. If pfn equals to NULL, it doesn't need to calculate the
-value. This is in support of asynchronous memmap init and avoid page
-lookups when possible.
-
-Signed-off-by: Huaisheng Ye <yehs1@lenovo.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Logan Gunthorpe <logang@deltatee.com>
+Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/s390/block/dcssblk.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ kernel/memremap.c |   16 +---------------
+ mm/page_alloc.c   |   19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+), 15 deletions(-)
 
-diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
-index ed607288e696..a645b2c93c34 100644
---- a/drivers/s390/block/dcssblk.c
-+++ b/drivers/s390/block/dcssblk.c
-@@ -923,8 +923,9 @@ __dcssblk_direct_access(struct dcssblk_dev_info *dev_info, pgoff_t pgoff,
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index b861fe909932..85e4a7c576b2 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -173,8 +173,8 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap,
+ 	struct vmem_altmap *altmap = pgmap->altmap_valid ?
+ 			&pgmap->altmap : NULL;
+ 	struct resource *res = &pgmap->res;
+-	unsigned long pfn, pgoff, order;
+ 	pgprot_t pgprot = PAGE_KERNEL;
++	unsigned long pgoff, order;
+ 	int error, nid, is_ram;
  
- 	dev_sz = dev_info->end - dev_info->start + 1;
- 	*kaddr = (void *) dev_info->start + offset;
--	*pfn = __pfn_to_pfn_t(PFN_DOWN(dev_info->start + offset),
--			PFN_DEV|PFN_SPECIAL);
-+	if (pfn)
-+		*pfn = __pfn_to_pfn_t(PFN_DOWN(dev_info->start + offset),
-+				PFN_DEV|PFN_SPECIAL);
+ 	if (!pgmap->ref || !kill)
+@@ -251,20 +251,6 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap,
+ 	if (error)
+ 		goto err_add_memory;
  
- 	return (dev_sz - offset) / PAGE_SIZE;
+-	for_each_device_pfn(pfn, pgmap) {
+-		struct page *page = pfn_to_page(pfn);
+-
+-		/*
+-		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
+-		 * pointer.  It is a bug if a ZONE_DEVICE page is ever
+-		 * freed or placed on a driver-private list.  Seed the
+-		 * storage with LIST_POISON* values.
+-		 */
+-		list_del(&page->lru);
+-		page->pgmap = pgmap;
+-		percpu_ref_get(pgmap->ref);
+-	}
+-
+ 	pgmap->kill = kill;
+ 	error = devm_add_action_or_reset(dev, devm_memremap_pages_release,
+ 			pgmap);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f83682ef006e..fb45cfeb4a50 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5548,6 +5548,25 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+ 			cond_resched();
+ 		}
++
++		if (is_zone_device_page(page)) {
++			if (WARN_ON_ONCE(!pgmap))
++				continue;
++
++			/* skip invalid device pages */
++			if (altmap && (pfn < (altmap->base_pfn
++						+ vmem_altmap_offset(altmap))))
++				continue;
++			/*
++			 * ZONE_DEVICE pages union ->lru with a ->pgmap back
++			 * pointer.  It is a bug if a ZONE_DEVICE page is ever
++			 * freed or placed on a driver-private list.  Seed the
++			 * storage with poison.
++			 */
++			page->lru.prev = LIST_POISON2;
++			page->pgmap = pgmap;
++			percpu_ref_get(pgmap->ref);
++		}
+ 	}
  }
+ 
