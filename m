@@ -1,87 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E0356B0003
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 08:29:22 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id r21-v6so9815045edp.23
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 05:29:22 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d3-v6si3801292edj.156.2018.07.16.05.29.20
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B966F6B0008
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 08:30:45 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id u1-v6so8354258wrs.18
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 05:30:45 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id w18-v6si9530942wmc.107.2018.07.16.05.30.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jul 2018 05:29:20 -0700 (PDT)
-Date: Mon, 16 Jul 2018 14:29:18 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Instability in current -git tree
-Message-ID: <20180716122918.GO17280@dhcp22.suse.cz>
-References: <20180713165812.ec391548ffeead96725d044c@linux-foundation.org>
- <9b93d48c-b997-01f7-2fd6-6e35301ef263@oracle.com>
- <CA+55aFxFw2-1BD2UBf_QJ2=faQES_8q==yUjwj4mGJ6Ub4uX7w@mail.gmail.com>
- <5edf2d71-f548-98f9-16dd-b7fed29f4869@oracle.com>
- <CA+55aFwPAwczHS3XKkEnjY02PaDf2mWrcqx_hket4Ce3nScsSg@mail.gmail.com>
- <CAGM2rebeo3UUo2bL6kXCMGhuM36wjF5CfvqGG_3rpCfBs5S2wA@mail.gmail.com>
- <CA+55aFxetyCqX2EzFBDdHtriwt6UDYcm0chHGQUdPX20qNHb4Q@mail.gmail.com>
- <CAGM2reb2Zk6t=QJtJZPRGwovKKR9bdm+fzgmA_7CDVfDTjSgKA@mail.gmail.com>
- <20180716120642.GN17280@dhcp22.suse.cz>
- <fc5cfff3-0000-41da-e4d9-3e91ef9d0792@oracle.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 16 Jul 2018 05:30:44 -0700 (PDT)
+Date: Mon, 16 Jul 2018 14:30:38 +0200
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Subject: Re: [PATCH 3/6] bdi: Use refcount_t for reference counting instead
+ atomic_t
+Message-ID: <20180716123038.hxdc3dv7h3gyfjpd@linutronix.de>
+References: <20180703200141.28415-1-bigeasy@linutronix.de>
+ <20180703200141.28415-4-bigeasy@linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <fc5cfff3-0000-41da-e4d9-3e91ef9d0792@oracle.com>
+In-Reply-To: <20180703200141.28415-4-bigeasy@linutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, tglx@linutronix.de, willy@infradead.org, mingo@redhat.com, axboe@kernel.dk, gregkh@linuxfoundation.org, davem@davemloft.net, viro@zeniv.linux.org.uk, Dave Airlie <airlied@gmail.com>, Tejun Heo <tj@kernel.org>, Theodore Tso <tytso@google.com>, snitzer@redhat.com, Linux Memory Management List <linux-mm@kvack.org>, neelx@redhat.com, mgorman@techsingularity.net
+To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: tglx@linutronix.de, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, linux-mm@kvack.org
 
-On Mon 16-07-18 08:09:19, Pavel Tatashin wrote:
-> 
-> 
-> On 07/16/2018 08:06 AM, Michal Hocko wrote:
-> > On Sat 14-07-18 09:39:29, Pavel Tatashin wrote:
-> > [...]
-> >> From 95259841ef79cc17c734a994affa3714479753e3 Mon Sep 17 00:00:00 2001
-> >> From: Pavel Tatashin <pasha.tatashin@oracle.com>
-> >> Date: Sat, 14 Jul 2018 09:15:07 -0400
-> >> Subject: [PATCH] mm: zero unavailable pages before memmap init
-> >>
-> >> We must zero struct pages for memory that is not backed by physical memory,
-> >> or kernel does not have access to.
-> >>
-> >> Recently, there was a change which zeroed all memmap for all holes in e820.
-> >> Unfortunately, it introduced a bug that is discussed here:
-> >>
-> >> https://www.spinics.net/lists/linux-mm/msg156764.html
-> >>
-> >> Linus, also saw this bug on his machine, and confirmed that pulling
-> >> commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM regions into memblock.reserved")
-> >> fixes the issue.
-> >>
-> >> The problem is that we incorrectly zero some struct pages after they were
-> >> setup.
-> > 
-> > I am sorry but I simply do not see it. zero_resv_unavail should be
-> > touching only reserved memory ranges and those are not initialized
-> > anywhere. So who has reused them and put them to normal available
-> > memory to be initialized by free_area_init_node[s]?
-> > 
-> > The patch itself should be safe because reserved and available memory
-> > ranges should be disjoint so the ordering shouldn't matter. The fact
-> > that it matters is the crux thing to understand and document. So the
-> > change looks good to me but I do not understand _why_ it makes any
-> > difference. There must be somebody to put (memblock) reserved memory
-> > available to the page allocator behind our backs.
-> 
-> Thats exactly right, and I am also not sure why this is happening,
-> there must be some overlapping happening that just should not. I will
-> study it later.
+On 2018-07-03 22:01:38 [+0200], To linux-kernel@vger.kernel.org wrote:
+> refcount_t type and corresponding API should be used instead of atomic_t when
+> the variable is used as a reference counter. This allows to avoid accidental
+> refcounter overflows that might lead to use-after-free situations.
 
-Maybe a stupid question, but I do not see it from the code (this init
-code is just to complex to keep it cached in head so I always have to
-study the code again and again, sigh). So what exactly prevents
-memmap_init_zone to stumble over reserved regions? We do play some ugly
-games to find a first !reserved pfn in the node but I do not really see
-anything in the init path to properly skip over reserved holes inside
-the node.
+Andrew, is it okay for you to collect this one (and 4/6 of this series,
+both bdi)? The prerequisites are already in Linus' tree.
 
--- 
-Michal Hocko
-SUSE Labs
+> Cc: linux-mm@kvack.org
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Suggested-by: Peter Zijlstra <peterz@infradead.org>
+> Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+> Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+> ---
+>  include/linux/backing-dev-defs.h |  3 ++-
+>  include/linux/backing-dev.h      |  4 ++--
+>  mm/backing-dev.c                 | 12 ++++++------
+>  3 files changed, 10 insertions(+), 9 deletions(-)
+> 
+> diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
+> index 24251762c20c..9a6bc0951cfa 100644
+> --- a/include/linux/backing-dev-defs.h
+> +++ b/include/linux/backing-dev-defs.h
+> @@ -12,6 +12,7 @@
+>  #include <linux/timer.h>
+>  #include <linux/workqueue.h>
+>  #include <linux/kref.h>
+> +#include <linux/refcount.h>
+>  
+>  struct page;
+>  struct device;
+> @@ -75,7 +76,7 @@ enum wb_reason {
+>   */
+>  struct bdi_writeback_congested {
+>  	unsigned long state;		/* WB_[a]sync_congested flags */
+> -	atomic_t refcnt;		/* nr of attached wb's and blkg */
+> +	refcount_t refcnt;		/* nr of attached wb's and blkg */
+>  
+>  #ifdef CONFIG_CGROUP_WRITEBACK
+>  	struct backing_dev_info *__bdi;	/* the associated bdi, set to NULL
+> diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+> index 72ca0f3d39f3..c28a47cbe355 100644
+> --- a/include/linux/backing-dev.h
+> +++ b/include/linux/backing-dev.h
+> @@ -404,13 +404,13 @@ static inline bool inode_cgwb_enabled(struct inode *inode)
+>  static inline struct bdi_writeback_congested *
+>  wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
+>  {
+> -	atomic_inc(&bdi->wb_congested->refcnt);
+> +	refcount_inc(&bdi->wb_congested->refcnt);
+>  	return bdi->wb_congested;
+>  }
+>  
+>  static inline void wb_congested_put(struct bdi_writeback_congested *congested)
+>  {
+> -	if (atomic_dec_and_test(&congested->refcnt))
+> +	if (refcount_dec_and_test(&congested->refcnt))
+>  		kfree(congested);
+>  }
+>  
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index 2e5d3df0853d..55a233d75f39 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -438,10 +438,10 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
+>  	if (new_congested) {
+>  		/* !found and storage for new one already allocated, insert */
+>  		congested = new_congested;
+> -		new_congested = NULL;
+>  		rb_link_node(&congested->rb_node, parent, node);
+>  		rb_insert_color(&congested->rb_node, &bdi->cgwb_congested_tree);
+> -		goto found;
+> +		spin_unlock_irqrestore(&cgwb_lock, flags);
+> +		return congested;
+>  	}
+>  
+>  	spin_unlock_irqrestore(&cgwb_lock, flags);
+> @@ -451,13 +451,13 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
+>  	if (!new_congested)
+>  		return NULL;
+>  
+> -	atomic_set(&new_congested->refcnt, 0);
+> +	refcount_set(&new_congested->refcnt, 1);
+>  	new_congested->__bdi = bdi;
+>  	new_congested->blkcg_id = blkcg_id;
+>  	goto retry;
+>  
+>  found:
+> -	atomic_inc(&congested->refcnt);
+> +	refcount_inc(&congested->refcnt);
+>  	spin_unlock_irqrestore(&cgwb_lock, flags);
+>  	kfree(new_congested);
+>  	return congested;
+> @@ -474,7 +474,7 @@ void wb_congested_put(struct bdi_writeback_congested *congested)
+>  	unsigned long flags;
+>  
+>  	local_irq_save(flags);
+> -	if (!atomic_dec_and_lock(&congested->refcnt, &cgwb_lock)) {
+> +	if (!refcount_dec_and_lock(&congested->refcnt, &cgwb_lock)) {
+>  		local_irq_restore(flags);
+>  		return;
+>  	}
+> @@ -804,7 +804,7 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
+>  	if (!bdi->wb_congested)
+>  		return -ENOMEM;
+>  
+> -	atomic_set(&bdi->wb_congested->refcnt, 1);
+> +	refcount_set(&bdi->wb_congested->refcnt, 1);
+>  
+>  	err = wb_init(&bdi->wb, bdi, 1, GFP_KERNEL);
+>  	if (err) {
+> -- 
+> 2.18.0
+
+Sebastian
