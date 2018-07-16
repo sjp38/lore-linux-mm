@@ -1,69 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EB3216B0005
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 10:47:46 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id u8-v6so17838209pfn.18
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 07:47:46 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u188-v6sor4830703pgu.152.2018.07.16.07.47.45
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E53596B0008
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 11:16:42 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id x26-v6so30015276qtb.2
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 08:16:42 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id w2-v6si6677431qtb.345.2018.07.16.08.16.41
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 16 Jul 2018 07:47:45 -0700 (PDT)
-Date: Mon, 16 Jul 2018 17:47:39 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 1/2] mm: Fix vma_is_anonymous() false-positives
-Message-ID: <20180716144739.que5362bofty6ocp@kshutemo-mobl1>
-References: <20180710134821.84709-1-kirill.shutemov@linux.intel.com>
- <20180710134821.84709-2-kirill.shutemov@linux.intel.com>
- <20180710134858.3506f097104859b533c81bf3@linux-foundation.org>
- <20180716133028.GQ17280@dhcp22.suse.cz>
- <20180716140440.fd3sjw5xys5wozw7@black.fi.intel.com>
- <20180716142245.GT17280@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180716142245.GT17280@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Jul 2018 08:16:42 -0700 (PDT)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [PATCH] mm: don't do zero_resv_unavail if memmap is not allocated
+Date: Mon, 16 Jul 2018 11:16:30 -0400
+Message-Id: <20180716151630.770-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, mgorman@techsingularity.net, pasha.tatashin@oracle.com, torvalds@linux-foundation.org, gregkh@linuxfoundation.org
 
-On Mon, Jul 16, 2018 at 04:22:45PM +0200, Michal Hocko wrote:
-> On Mon 16-07-18 17:04:41, Kirill A. Shutemov wrote:
-> > On Mon, Jul 16, 2018 at 01:30:28PM +0000, Michal Hocko wrote:
-> > > On Tue 10-07-18 13:48:58, Andrew Morton wrote:
-> > > > On Tue, 10 Jul 2018 16:48:20 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> > > > 
-> > > > > vma_is_anonymous() relies on ->vm_ops being NULL to detect anonymous
-> > > > > VMA. This is unreliable as ->mmap may not set ->vm_ops.
-> > > > > 
-> > > > > False-positive vma_is_anonymous() may lead to crashes:
-> > > > > 
-> > > > > ...
-> > > > > 
-> > > > > This can be fixed by assigning anonymous VMAs own vm_ops and not relying
-> > > > > on it being NULL.
-> > > > > 
-> > > > > If ->mmap() failed to set ->vm_ops, mmap_region() will set it to
-> > > > > dummy_vm_ops. This way we will have non-NULL ->vm_ops for all VMAs.
-> > > > 
-> > > > Is there a smaller, simpler fix which we can use for backporting
-> > > > purposes and save the larger rework for development kernels?
-> > > 
-> > > Why cannot we simply keep anon vma with null vm_ops and set dummy_vm_ops
-> > > for all users who do not initialize it in their mmap callbacks?
-> > > Basically have a sanity check&fixup in call_mmap?
-> > 
-> > As I said, there's a corner case of MAP_PRIVATE of /dev/zero.
-> 
-> This is really creative. I really didn't think about that. I am
-> wondering whether this really has to be handled as a private anonymous
-> mapping implicitly. Why does vma_is_anonymous has to succeed for these
-> mappings? Why cannot we simply handle it as any other file backed
-> PRIVATE mapping?
+Moving zero_resv_unavail before memmap_init_zone(), caused a regression on
+x86-32.
 
-Because it's established way to create anonymous mappings in Linux.
-And we cannot break the semantics.
+The cause is that we access struct pages before they are allocated when
+CONFIG_FLAT_NODE_MEM_MAP is used.
 
+free_area_init_nodes()
+  zero_resv_unavail()
+    mm_zero_struct_page(pfn_to_page(pfn)); <- struct page is not alloced
+  free_area_init_node()
+    if CONFIG_FLAT_NODE_MEM_MAP
+      alloc_node_mem_map()
+        memblock_virt_alloc_node_nopanic() <- struct page alloced here
+
+On the other hand memblock_virt_alloc_node_nopanic() zeroes all the memory
+that it returns, so we do not need to do zero_resv_unavail() here.
+
+Fixes: e181ae0c5db9 ("mm: zero unavailable pages before memmap init")
+Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+---
+ include/linux/mm.h | 2 +-
+ mm/page_alloc.c    | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a0fbb9ffe380..3982c83fdcbf 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2132,7 +2132,7 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
+ 					struct mminit_pfnnid_cache *state);
+ #endif
+ 
+-#ifdef CONFIG_HAVE_MEMBLOCK
++#if defined(CONFIG_HAVE_MEMBLOCK) && !defined(CONFIG_FLAT_NODE_MEM_MAP)
+ void zero_resv_unavail(void);
+ #else
+ static inline void zero_resv_unavail(void) {}
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5d800d61ddb7..a790ef4be74e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6383,7 +6383,7 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+ 	free_area_init_core(pgdat);
+ }
+ 
+-#ifdef CONFIG_HAVE_MEMBLOCK
++#if defined(CONFIG_HAVE_MEMBLOCK) && !defined(CONFIG_FLAT_NODE_MEM_MAP)
+ /*
+  * Only struct pages that are backed by physical memory are zeroed and
+  * initialized by going through __init_single_page(). But, there are some
+@@ -6421,7 +6421,7 @@ void __paginginit zero_resv_unavail(void)
+ 	if (pgcnt)
+ 		pr_info("Reserved but unavailable: %lld pages", pgcnt);
+ }
+-#endif /* CONFIG_HAVE_MEMBLOCK */
++#endif /* CONFIG_HAVE_MEMBLOCK && !CONFIG_FLAT_NODE_MEM_MAP */
+ 
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ 
 -- 
- Kirill A. Shutemov
+2.18.0
