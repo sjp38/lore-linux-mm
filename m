@@ -1,141 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DAAC76B026A
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 07:19:35 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id r4-v6so8593744wrt.2
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 04:19:35 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id m10-v6si27929387wrm.287.2018.07.16.04.19.34
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1940E6B0271
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 07:26:03 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id k9-v6so21851673iob.16
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 04:26:03 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o194-v6sor4665124itc.133.2018.07.16.04.26.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 16 Jul 2018 04:19:34 -0700 (PDT)
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: [PATCH 4/4] mm/list_lru: Introduce list_lru_shrink_walk_irq()
-Date: Mon, 16 Jul 2018 13:19:21 +0200
-Message-Id: <20180716111921.5365-5-bigeasy@linutronix.de>
-In-Reply-To: <20180716111921.5365-1-bigeasy@linutronix.de>
-References: <20180716111921.5365-1-bigeasy@linutronix.de>
+        (Google Transport Security);
+        Mon, 16 Jul 2018 04:26:01 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <CAAeHK+wJbbCZd+-X=9oeJgsqQJiq8h+Aagz3SQMPaAzCD+pvFw@mail.gmail.com>
+References: <cover.1529507994.git.andreyknvl@google.com> <CAAeHK+zqtyGzd_CZ7qKZKU-uZjZ1Pkmod5h8zzbN0xCV26nSfg@mail.gmail.com>
+ <20180626172900.ufclp2pfrhwkxjco@armageddon.cambridge.arm.com>
+ <CAAeHK+yqWKTdTG+ymZ2-5XKiDANV+fmUjnQkRy-5tpgphuLJRA@mail.gmail.com> <CAAeHK+wJbbCZd+-X=9oeJgsqQJiq8h+Aagz3SQMPaAzCD+pvFw@mail.gmail.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Mon, 16 Jul 2018 13:25:59 +0200
+Message-ID: <CAAeHK+yWF05XoU+0iuJoXAL3cWgdtxbeLoBz169yP12W4LkcQw@mail.gmail.com>
+Subject: Re: [PATCH v4 0/7] arm64: untag user pointers passed to the kernel
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: tglx@linutronix.de, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-doc@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
 
-Provide list_lru_shrink_walk_irq() and let it behave like
-list_lru_walk_one() except that it locks the spinlock with
-spin_lock_irq(). This is used by scan_shadow_nodes() because its lock
-nests within the i_pages lock which is acquired with IRQ.
-This change allows to use proper locking promitives instead hand crafted
-lock_irq_disable() plus spin_lock().
-There is no EXPORT_SYMBOL provided because the current user is in-KERNEL
-only.
+On Thu, Jun 28, 2018 at 9:30 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
+> On Wed, Jun 27, 2018 at 5:05 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
+>> On Tue, Jun 26, 2018 at 7:29 PM, Catalin Marinas
+>> <catalin.marinas@arm.com> wrote:
+>>> While I support this work, as a maintainer I'd like to understand
+>>> whether we'd be in a continuous chase of ABI breaks with every kernel
+>>> release or we have a better way to identify potential issues. Is there
+>>> any way to statically analyse conversions from __user ptr to long for
+>>> example? Or, could we get the compiler to do this for us?
+>>
+>>
+>> OK, got it, I'll try to figure out a way to find these conversions.
+>
+> I've prototyped a checker on top of clang static analyzer (initially
+> looked at sparse, but couldn't find any documentation or examples).
+> The results are here [1], search for "warning: user pointer cast".
+> Sharing in case anybody wants to take a look, will look at them myself
+> tomorrow.
+>
+> [1] https://gist.github.com/xairy/433edd5c86456a64026247cb2fef2115
 
-Add list_lru_shrink_walk_irq() which acquires the spinlock with the
-proper locking primitives.
+So the checker reports ~100 different places where a __user pointer
+being casted. I've looked through them and found 3 places where we
+need to add untagging. Source code lines below come from 4.18-rc2+
+(6f0d349d).
 
-Reviewed-by: Vladimir Davydov <vdavydov.dev@gmail.com>
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
----
- include/linux/list_lru.h | 25 +++++++++++++++++++++++++
- mm/list_lru.c            | 15 +++++++++++++++
- mm/workingset.c          |  8 ++------
- 3 files changed, 42 insertions(+), 6 deletions(-)
+Place 1:
 
-diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
-index d9c16f2f2f00..aa5efd9351eb 100644
---- a/include/linux/list_lru.h
-+++ b/include/linux/list_lru.h
-@@ -166,6 +166,23 @@ unsigned long list_lru_walk_one(struct list_lru *lru,
- 				int nid, struct mem_cgroup *memcg,
- 				list_lru_walk_cb isolate, void *cb_arg,
- 				unsigned long *nr_to_walk);
-+/**
-+ * list_lru_walk_one_irq: walk a list_lru, isolating and disposing freeabl=
-e items.
-+ * @lru: the lru pointer.
-+ * @nid: the node id to scan from.
-+ * @memcg: the cgroup to scan from.
-+ * @isolate: callback function that is resposible for deciding what to do =
-with
-+ *  the item currently being scanned
-+ * @cb_arg: opaque type that will be passed to @isolate
-+ * @nr_to_walk: how many items to scan.
-+ *
-+ * Same as @list_lru_walk_one except that the spinlock is acquired with
-+ * spin_lock_irq().
-+ */
-+unsigned long list_lru_walk_one_irq(struct list_lru *lru,
-+				    int nid, struct mem_cgroup *memcg,
-+				    list_lru_walk_cb isolate, void *cb_arg,
-+				    unsigned long *nr_to_walk);
- unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
- 				 list_lru_walk_cb isolate, void *cb_arg,
- 				 unsigned long *nr_to_walk);
-@@ -178,6 +195,14 @@ list_lru_shrink_walk(struct list_lru *lru, struct shri=
-nk_control *sc,
- 				 &sc->nr_to_scan);
- }
-=20
-+static inline unsigned long
-+list_lru_shrink_walk_irq(struct list_lru *lru, struct shrink_control *sc,
-+			 list_lru_walk_cb isolate, void *cb_arg)
-+{
-+	return list_lru_walk_one_irq(lru, sc->nid, sc->memcg, isolate, cb_arg,
-+				     &sc->nr_to_scan);
-+}
-+
- static inline unsigned long
- list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
- 	      void *cb_arg, unsigned long nr_to_walk)
-diff --git a/mm/list_lru.c b/mm/list_lru.c
-index 7b7a737f0963..89349a0276de 100644
---- a/mm/list_lru.c
-+++ b/mm/list_lru.c
-@@ -289,6 +289,21 @@ list_lru_walk_one(struct list_lru *lru, int nid, struc=
-t mem_cgroup *memcg,
- }
- EXPORT_SYMBOL_GPL(list_lru_walk_one);
-=20
-+unsigned long
-+list_lru_walk_one_irq(struct list_lru *lru, int nid, struct mem_cgroup *me=
-mcg,
-+		      list_lru_walk_cb isolate, void *cb_arg,
-+		      unsigned long *nr_to_walk)
-+{
-+	struct list_lru_node *nlru =3D &lru->node[nid];
-+	unsigned long ret;
-+
-+	spin_lock_irq(&nlru->lock);
-+	ret =3D __list_lru_walk_one(nlru, memcg_cache_id(memcg), isolate, cb_arg,
-+				  nr_to_walk);
-+	spin_unlock_irq(&nlru->lock);
-+	return ret;
-+}
-+
- unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
- 				 list_lru_walk_cb isolate, void *cb_arg,
- 				 unsigned long *nr_to_walk)
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 06b45147e892..0b4f471d07ba 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -501,13 +501,9 @@ static enum lru_status shadow_lru_isolate(struct list_=
-head *item,
- static unsigned long scan_shadow_nodes(struct shrinker *shrinker,
- 				       struct shrink_control *sc)
- {
--	unsigned long ret;
--
- 	/* list_lru lock nests inside the IRQ-safe i_pages lock */
--	local_irq_disable();
--	ret =3D list_lru_shrink_walk(&shadow_nodes, sc, shadow_lru_isolate, NULL);
--	local_irq_enable();
--	return ret;
-+	return list_lru_shrink_walk_irq(&shadow_nodes, sc, shadow_lru_isolate,
-+					NULL);
- }
-=20
- static struct shrinker workingset_shadow_shrinker =3D {
---=20
-2.18.0
+arch/arm64/mm/fault.c:302:34: warning: user pointer cast
+current->thread.fault_address = (unsigned long)info->si_addr;
+
+Compare a pointer with TASK_SIZE (1 << 48) to check whether it lies in
+the kernel or in user space. Need to untag the address before
+performing a comparison.
+
+Place 2:
+
+fs/namespace.c:2736:21: warning: user pointer cast
+size = TASK_SIZE - (unsigned long)data;
+
+A similar check performed by subtracting a pointer from TASK_SIZE.
+Need to untag before subtracting.
+
+Place 3:
+
+drivers/usb/core/devio.c:1407:29: warning: user pointer cast
+unsigned long uurb_start = (unsigned long)uurb->buffer;
+drivers/usb/core/devio.c:1636:31: warning: user pointer cast
+unsigned long uurb_start = (unsigned long)uurb->buffer;
+drivers/usb/core/devio.c:1715:30: warning: user pointer cast
+unsigned long uurb_start = (unsigned long)uurb->buffer;
+
+The device keeps list of mmapped areas and searches them for provided
+__user pointer. Need to untag before searching.
+
+There are also a few cases of memory syscalls operating on __user
+pointers instead of unsigned longs like mmap:
+
+ipc/shm.c:1355:23: warning: user pointer cast
+unsigned long addr = (unsigned long)shmaddr;
+ipc/shm.c:1566:23: warning: user pointer cast
+unsigned long addr = (unsigned long)shmaddr;
+mm/migrate.c:1586:10: warning: user pointer cast
+addr = (unsigned long)p;
+mm/migrate.c:1660:24: warning: user pointer cast
+unsigned long addr = (unsigned long)(*pages);
+
+If we don't add untagging to mmap, we probably don't need it here.
+
+The rest of reported places look fine as is. Full annotated results of
+running the checker are here [2].
+
+I'll add the 3 patches with fixes to v5 of this patchset.
+
+Catalin, WDYT?
+
+[2] https://gist.github.com/xairy/aabda57741919df67d79895356ba9b58
