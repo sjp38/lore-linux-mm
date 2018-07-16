@@ -1,61 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BE08A6B0003
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 17:00:23 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id cf17-v6so17909926plb.2
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 14:00:23 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id f62-v6si33357633pfg.165.2018.07.16.14.00.18
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 379FF6B0006
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 17:14:18 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id s200-v6so54173463oie.6
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 14:14:18 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id p131-v6si21220316oic.105.2018.07.16.14.14.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 16 Jul 2018 14:00:18 -0700 (PDT)
-Date: Mon, 16 Jul 2018 14:00:14 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2 05/14] mm, memremap: Up-level foreach_order_pgoff()
-Message-ID: <20180716210014.GA1607@bombadil.infradead.org>
-References: <153176041838.12695.3365448145295112857.stgit@dwillia2-desk3.amr.corp.intel.com>
- <153176044796.12695.10692625606054072713.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Jul 2018 14:14:16 -0700 (PDT)
+Subject: Re: [PATCH v13 0/7] cgroup-aware OOM killer
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+References: <20171130152824.1591-1-guro@fb.com>
+ <20180605114729.GB19202@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1807131438380.194789@chino.kir.corp.google.com>
+ <0a86d2a7-b78e-7e69-f628-aa2c75d91ff0@i-love.sakura.ne.jp>
+Message-ID: <0d018c7e-a3de-a23a-3996-bed8b28b1e4a@i-love.sakura.ne.jp>
+Date: Tue, 17 Jul 2018 06:13:47 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <153176044796.12695.10692625606054072713.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <0a86d2a7-b78e-7e69-f628-aa2c75d91ff0@i-love.sakura.ne.jp>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Logan Gunthorpe <logang@deltatee.com>, vishal.l.verma@intel.com, hch@lst.de, linux-mm@kvack.org, jack@suse.cz, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>, Roman Gushchin <guro@fb.com>, linux-mm@vger.kernel.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jul 16, 2018 at 10:00:48AM -0700, Dan Williams wrote:
-> The foreach_order_pgoff() helper takes advantage of the ability to
-> insert multi-order entries into a radix. It is currently used by
-> devm_memremap_pages() to minimize the number of entries in the pgmap
-> radix. Instead of dividing a range by a constant power-of-2 sized unit
-> and inserting an entry for each unit, it determines the maximum
-> power-of-2 sized entry (subject to alignment offset) that can be
-> inserted at each iteration.
+No response from Roman and David...
+
+Andrew, will you once drop Roman's cgroup-aware OOM killer and David's patches?
+Roman's series has a bug which I mentioned and which can be avoided by my patch.
+David's patch is using MMF_UNSTABLE incorrectly such that it might start selecting
+next OOM victim without trying to reclaim any memory.
+
+Since they are not responding to my mail, I suggest once dropping from linux-next.
+
+https://www.spinics.net/lists/linux-mm/msg153212.html
+https://lore.kernel.org/lkml/201807130620.w6D6KiAJ093010@www262.sakura.ne.jp/T/#u
+
+On 2018/07/14 10:55, Tetsuo Handa wrote:
+> On 2018/07/14 6:59, David Rientjes wrote:
+>> I'm not trying to preclude the cgroup-aware oom killer from being merged,
+>> I'm the only person actively trying to get it merged.
 > 
-> Up-level this helper so it can be used for populating other radix
-> instances. For example asynchronous-memmap-initialization-thread lookups
-> arriving in a follow on change.
-
-Hopefully by the time you're back, I'll have this code replaced with
-the XArray.  Here's my proposed API:
-
-	old = xa_store_range(xa, first, last, ptr, GFP_KERNEL);
-
-and then you'd simply use xa_for_each() as an iterator.  You'd do one
-iteration for each range in the XArray, not for each entry occupied.
-So there's a difference between:
-
-	xa_store(xa, 1, ptr, GFP_KERNEL);
-	xa_store(xa, 2, ptr, GFP_KERNEL);
-	xa_store(xa, 3, ptr, GFP_KERNEL);
-
-and
-
-	xa_store_range(xa, 1, 3, ptr, GFP_KERNEL);
-
-	index = 0; i = 0;
-	xa_for_each(xa, p, index, ULONG_MAX, XA_PRESENT)
-		i++;
-
-will return i = 3 for the first case and i = 1 for the second.
+> Before merging the cgroup-aware oom killer, can we merge OOM lockup fixes
+> and my cleanup? The gap between linux.git and linux-next.git keeps us unable
+> to use agreed baseline.
+> 
