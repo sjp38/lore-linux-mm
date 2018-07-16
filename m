@@ -1,80 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 26AD96B0006
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 16:38:54 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id f9-v6so24636930pfn.22
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 13:38:54 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j127-v6sor804412pgc.223.2018.07.16.13.38.52
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BE08A6B0003
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 17:00:23 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id cf17-v6so17909926plb.2
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 14:00:23 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id f62-v6si33357633pfg.165.2018.07.16.14.00.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 16 Jul 2018 13:38:52 -0700 (PDT)
-Date: Mon, 16 Jul 2018 23:38:46 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 1/2] mm: Fix vma_is_anonymous() false-positives
-Message-ID: <20180716203846.roolhtesloabxr2g@kshutemo-mobl1>
-References: <20180710134821.84709-1-kirill.shutemov@linux.intel.com>
- <20180710134821.84709-2-kirill.shutemov@linux.intel.com>
- <20180710134858.3506f097104859b533c81bf3@linux-foundation.org>
- <20180716133028.GQ17280@dhcp22.suse.cz>
- <20180716140440.fd3sjw5xys5wozw7@black.fi.intel.com>
- <20180716142245.GT17280@dhcp22.suse.cz>
- <20180716144739.que5362bofty6ocp@kshutemo-mobl1>
- <20180716174042.GA17280@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 16 Jul 2018 14:00:18 -0700 (PDT)
+Date: Mon, 16 Jul 2018 14:00:14 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v2 05/14] mm, memremap: Up-level foreach_order_pgoff()
+Message-ID: <20180716210014.GA1607@bombadil.infradead.org>
+References: <153176041838.12695.3365448145295112857.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <153176044796.12695.10692625606054072713.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180716174042.GA17280@dhcp22.suse.cz>
+In-Reply-To: <153176044796.12695.10692625606054072713.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Logan Gunthorpe <logang@deltatee.com>, vishal.l.verma@intel.com, hch@lst.de, linux-mm@kvack.org, jack@suse.cz, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
 
-On Mon, Jul 16, 2018 at 07:40:42PM +0200, Michal Hocko wrote:
-> On Mon 16-07-18 17:47:39, Kirill A. Shutemov wrote:
-> > On Mon, Jul 16, 2018 at 04:22:45PM +0200, Michal Hocko wrote:
-> > > On Mon 16-07-18 17:04:41, Kirill A. Shutemov wrote:
-> > > > On Mon, Jul 16, 2018 at 01:30:28PM +0000, Michal Hocko wrote:
-> > > > > On Tue 10-07-18 13:48:58, Andrew Morton wrote:
-> > > > > > On Tue, 10 Jul 2018 16:48:20 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> > > > > > 
-> > > > > > > vma_is_anonymous() relies on ->vm_ops being NULL to detect anonymous
-> > > > > > > VMA. This is unreliable as ->mmap may not set ->vm_ops.
-> > > > > > > 
-> > > > > > > False-positive vma_is_anonymous() may lead to crashes:
-> > > > > > > 
-> > > > > > > ...
-> > > > > > > 
-> > > > > > > This can be fixed by assigning anonymous VMAs own vm_ops and not relying
-> > > > > > > on it being NULL.
-> > > > > > > 
-> > > > > > > If ->mmap() failed to set ->vm_ops, mmap_region() will set it to
-> > > > > > > dummy_vm_ops. This way we will have non-NULL ->vm_ops for all VMAs.
-> > > > > > 
-> > > > > > Is there a smaller, simpler fix which we can use for backporting
-> > > > > > purposes and save the larger rework for development kernels?
-> > > > > 
-> > > > > Why cannot we simply keep anon vma with null vm_ops and set dummy_vm_ops
-> > > > > for all users who do not initialize it in their mmap callbacks?
-> > > > > Basically have a sanity check&fixup in call_mmap?
-> > > > 
-> > > > As I said, there's a corner case of MAP_PRIVATE of /dev/zero.
-> > > 
-> > > This is really creative. I really didn't think about that. I am
-> > > wondering whether this really has to be handled as a private anonymous
-> > > mapping implicitly. Why does vma_is_anonymous has to succeed for these
-> > > mappings? Why cannot we simply handle it as any other file backed
-> > > PRIVATE mapping?
-> > 
-> > Because it's established way to create anonymous mappings in Linux.
-> > And we cannot break the semantics.
+On Mon, Jul 16, 2018 at 10:00:48AM -0700, Dan Williams wrote:
+> The foreach_order_pgoff() helper takes advantage of the ability to
+> insert multi-order entries into a radix. It is currently used by
+> devm_memremap_pages() to minimize the number of entries in the pgmap
+> radix. Instead of dividing a range by a constant power-of-2 sized unit
+> and inserting an entry for each unit, it determines the maximum
+> power-of-2 sized entry (subject to alignment offset) that can be
+> inserted at each iteration.
 > 
-> How exactly would semantic break? You would still get zero pages on read
-> faults and anonymous pages on CoW. So basically the same thing as for
-> any other file backed MAP_PRIVATE mapping.
+> Up-level this helper so it can be used for populating other radix
+> instances. For example asynchronous-memmap-initialization-thread lookups
+> arriving in a follow on change.
 
-You are wrong about zero page. And you won't get THP. And I'm sure there's
-more differences. Just grep for vma_is_anonymous().
+Hopefully by the time you're back, I'll have this code replaced with
+the XArray.  Here's my proposed API:
 
--- 
- Kirill A. Shutemov
+	old = xa_store_range(xa, first, last, ptr, GFP_KERNEL);
+
+and then you'd simply use xa_for_each() as an iterator.  You'd do one
+iteration for each range in the XArray, not for each entry occupied.
+So there's a difference between:
+
+	xa_store(xa, 1, ptr, GFP_KERNEL);
+	xa_store(xa, 2, ptr, GFP_KERNEL);
+	xa_store(xa, 3, ptr, GFP_KERNEL);
+
+and
+
+	xa_store_range(xa, 1, 3, ptr, GFP_KERNEL);
+
+	index = 0; i = 0;
+	xa_for_each(xa, p, index, ULONG_MAX, XA_PRESENT)
+		i++;
+
+will return i = 3 for the first case and i = 1 for the second.
