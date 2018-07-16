@@ -1,46 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C6856B0003
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 18:09:50 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id u19-v6so46970397qkl.13
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 15:09:50 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id x189-v6si11524591qkc.266.2018.07.16.15.09.48
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DDC76B0003
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 18:57:19 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id d4-v6so26032144pfn.9
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 15:57:19 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 80-v6si29537966pgf.604.2018.07.16.15.57.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jul 2018 15:09:48 -0700 (PDT)
-Date: Mon, 16 Jul 2018 15:09:21 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH v13 0/7] cgroup-aware OOM killer
-Message-ID: <20180716220918.GA3898@castle.DHCP.thefacebook.com>
-References: <20171130152824.1591-1-guro@fb.com>
- <20180605114729.GB19202@dhcp22.suse.cz>
- <alpine.DEB.2.21.1807131438380.194789@chino.kir.corp.google.com>
- <0a86d2a7-b78e-7e69-f628-aa2c75d91ff0@i-love.sakura.ne.jp>
- <0d018c7e-a3de-a23a-3996-bed8b28b1e4a@i-love.sakura.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <0d018c7e-a3de-a23a-3996-bed8b28b1e4a@i-love.sakura.ne.jp>
+        Mon, 16 Jul 2018 15:57:18 -0700 (PDT)
+Date: Mon, 16 Jul 2018 15:57:16 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 3/6] bdi: Use refcount_t for reference counting instead
+ atomic_t
+Message-Id: <20180716155716.1f7ac43d211133a8cb476637@linux-foundation.org>
+In-Reply-To: <20180703200141.28415-4-bigeasy@linutronix.de>
+References: <20180703200141.28415-1-bigeasy@linutronix.de>
+	<20180703200141.28415-4-bigeasy@linutronix.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@vger.kernel.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Cc: linux-kernel@vger.kernel.org, tglx@linutronix.de, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, linux-mm@kvack.org, Jens Axboe <axboe@kernel.dk>
 
-On Tue, Jul 17, 2018 at 06:13:47AM +0900, Tetsuo Handa wrote:
-> No response from Roman and David...
+On Tue,  3 Jul 2018 22:01:38 +0200 Sebastian Andrzej Siewior <bigeasy@linutronix.de> wrote:
+
+> refcount_t type and corresponding API should be used instead of atomic_t when
+> the variable is used as a reference counter. This allows to avoid accidental
+> refcounter overflows that might lead to use-after-free situations.
 > 
-> Andrew, will you once drop Roman's cgroup-aware OOM killer and David's patches?
-> Roman's series has a bug which I mentioned and which can be avoided by my patch.
-> David's patch is using MMF_UNSTABLE incorrectly such that it might start selecting
-> next OOM victim without trying to reclaim any memory.
-> 
-> Since they are not responding to my mail, I suggest once dropping from linux-next.
+> ...
+>
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -438,10 +438,10 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
+>  	if (new_congested) {
+>  		/* !found and storage for new one already allocated, insert */
+>  		congested = new_congested;
+> -		new_congested = NULL;
+>  		rb_link_node(&congested->rb_node, parent, node);
+>  		rb_insert_color(&congested->rb_node, &bdi->cgwb_congested_tree);
+> -		goto found;
+> +		spin_unlock_irqrestore(&cgwb_lock, flags);
+> +		return congested;
+>  	}
+>  
+>  	spin_unlock_irqrestore(&cgwb_lock, flags);
+> @@ -451,13 +451,13 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
+>  	if (!new_congested)
+>  		return NULL;
+>  
+> -	atomic_set(&new_congested->refcnt, 0);
+> +	refcount_set(&new_congested->refcnt, 1);
+>  	new_congested->__bdi = bdi;
+>  	new_congested->blkcg_id = blkcg_id;
+>  	goto retry;
+>  
+>  found:
+> -	atomic_inc(&congested->refcnt);
+> +	refcount_inc(&congested->refcnt);
+>  	spin_unlock_irqrestore(&cgwb_lock, flags);
+>  	kfree(new_congested);
+>  	return congested;
+>
+> ...
+>
 
-I was in cc, and didn't thought that you're expecting something from me.
-
-I don't get, why it's necessary to drop the cgroup oom killer to merge your fix?
-I'm happy to help with rebasing and everything else.
-
-Thanks,
-Roman
+I'm not sure that the restructuring of wb_congested_get_create() was
+desirable and it does make the patch harder to review.  But it looks
+OK to me.
