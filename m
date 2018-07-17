@@ -1,123 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F5FF6B000C
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 14:44:59 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id w7-v6so805670pgv.1
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 11:44:59 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h12-v6sor430181pgk.380.2018.07.17.11.44.58
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F19EB6B000E
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 14:55:32 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id a70-v6so1626510qkb.16
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 11:55:32 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id k66-v6si1493485qkb.65.2018.07.17.11.55.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 17 Jul 2018 11:44:58 -0700 (PDT)
-Date: Tue, 17 Jul 2018 11:44:55 -0700
-From: Eric Biggers <ebiggers3@gmail.com>
-Subject: Re: BUG: bad usercopy in __check_heap_object (3)
-Message-ID: <20180717184455.GE75957@gmail.com>
-References: <000000000000b9a32405705c54c2@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Jul 2018 11:55:31 -0700 (PDT)
+Date: Tue, 17 Jul 2018 11:54:54 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH v2 5/7] mm: rename and change semantics of
+ nr_indirectly_reclaimable_bytes
+Message-ID: <20180717185451.GA18762@castle.DHCP.thefacebook.com>
+References: <20180618091808.4419-6-vbabka@suse.cz>
+ <201806201923.mC5ZpigB%fengguang.wu@intel.com>
+ <38c6a6e1-c5e0-fd7d-4baf-1f0f09be5094@suse.cz>
+ <20180629211201.GA14897@castle.DHCP.thefacebook.com>
+ <ef2dea13-0102-c4bc-a28f-c1b2408f0753@suse.cz>
+ <20180702165223.GA17295@castle.DHCP.thefacebook.com>
+ <bfdb3fb1-5d81-e17c-e456-083cca04e2cc@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <000000000000b9a32405705c54c2@google.com>
+In-Reply-To: <bfdb3fb1-5d81-e17c-e456-083cca04e2cc@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: syzbot <syzbot+4b712dce5cbce6700f27@syzkaller.appspotmail.com>
-Cc: keescook@chromium.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-api@vger.kernel.org, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Vijayanand Jitta <vjitta@codeaurora.org>, Laura Abbott <labbott@redhat.com>, Sumit Semwal <sumit.semwal@linaro.org>
 
-On Fri, Jul 06, 2018 at 03:39:04PM -0700, syzbot wrote:
-> Hello,
+On Tue, Jul 17, 2018 at 10:44:07AM +0200, Vlastimil Babka wrote:
+> On 07/02/2018 06:52 PM, Roman Gushchin wrote:
+> > On Sat, Jun 30, 2018 at 12:09:27PM +0200, Vlastimil Babka wrote:
+> >> On 06/29/2018 11:12 PM, Roman Gushchin wrote:
+> >>>>
+> >>>> The vmstat counter NR_INDIRECTLY_RECLAIMABLE_BYTES was introduced by commit
+> >>>> eb59254608bc ("mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES") with the goal of
+> >>>> accounting objects that can be reclaimed, but cannot be allocated via a
+> >>>> SLAB_RECLAIM_ACCOUNT cache. This is now possible via kmalloc() with
+> >>>> __GFP_RECLAIMABLE flag, and the dcache external names user is converted.
+> >>>>
+> >>>> The counter is however still useful for accounting direct page allocations
+> >>>> (i.e. not slab) with a shrinker, such as the ION page pool. So keep it, and:
+> >>>
+> >>> Btw, it looks like I've another example of usefulness of this counter:
+> >>> dynamic per-cpu data.
+> >>
+> >> Hmm, but are those reclaimable? Most likely not in general? Do you have
+> >> examples that are?
+> > 
+> > If these per-cpu data is something like per-cpu refcounters,
+> > which are using to manage reclaimable objects (e.g. cgroup css objects).
+> > Of course, they are not always reclaimable, but in certain states.
 > 
-> syzbot found the following crash on:
-> 
-> HEAD commit:    526674536360 Add linux-next specific files for 20180706
-> git tree:       linux-next
-> console output: https://syzkaller.appspot.com/x/log.txt?x=12d51a2c400000
-> kernel config:  https://syzkaller.appspot.com/x/.config?x=c8d1cfc0cb798e48
-> dashboard link: https://syzkaller.appspot.com/bug?extid=4b712dce5cbce6700f27
-> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
-> syzkaller repro:https://syzkaller.appspot.com/x/repro.syz?x=14b05afc400000
-> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=17594968400000
-> 
-> IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> Reported-by: syzbot+4b712dce5cbce6700f27@syzkaller.appspotmail.com
-> 
-> IPv6: ADDRCONF(NETDEV_CHANGE): bond0: link becomes ready
-> IPv6: ADDRCONF(NETDEV_UP): team0: link is not ready
-> 8021q: adding VLAN 0 to HW filter on device team0
-> usercopy: Kernel memory exposure attempt detected from SLAB object
-> 'kmalloc-4096' (offset 2399, size 2626)!
-> ------------[ cut here ]------------
-> kernel BUG at mm/usercopy.c:100!
-> invalid opcode: 0000 [#1] SMP KASAN
-> CPU: 1 PID: 4718 Comm: syz-executor688 Not tainted 4.18.0-rc3-next-20180706+
-> #1
-> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> Google 01/01/2011
-> RIP: 0010:usercopy_abort+0xbb/0xbd mm/usercopy.c:88
-> Code: c0 e8 37 ec b8 ff ff 75 c8 48 8b 55 c0 4d 89 f9 ff 75 d0 4d 89 e8 48
-> 89 d9 4c 89 e6 41 56 48 c7 c7 e0 4c f3 87 e8 37 a0 9f ff <0f> 0b e8 0c ec b8
-> ff e8 97 42 f7 ff 4c 89 e1 8b 95 14 ff ff ff 31
-> RSP: 0018:ffff8801d33a78b0 EFLAGS: 00010286
-> RAX: 000000000000006b RBX: ffffffff88c10e70 RCX: 0000000000000000
-> RDX: 0000000000000000 RSI: ffffffff81634381 RDI: 0000000000000001
-> RBP: ffff8801d33a7908 R08: ffff8801d1e2a200 R09: ffffed003b5e4fc0
-> R10: ffffed003b5e4fc0 R11: ffff8801daf27e07 R12: ffffffff87f34bc0
-> R13: ffffffff87f34a80 R14: ffffffff87f34a40 R15: ffffffff88c0c905
-> FS:  00007f56a6072700(0000) GS:ffff8801daf00000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 0000000020001000 CR3: 00000001b8fdf000 CR4: 00000000001406e0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> Call Trace:
->  __check_heap_object+0xb5/0xb5 mm/slab.c:4445
->  check_heap_object mm/usercopy.c:236 [inline]
->  __check_object_size+0x4db/0x5f2 mm/usercopy.c:259
->  check_object_size include/linux/thread_info.h:119 [inline]
->  check_copy_size include/linux/thread_info.h:150 [inline]
->  copy_to_user include/linux/uaccess.h:154 [inline]
->  seq_read+0x578/0x10e0 fs/seq_file.c:211
->  do_loop_readv_writev fs/read_write.c:700 [inline]
->  do_iter_read+0x49e/0x650 fs/read_write.c:924
->  vfs_readv+0x175/0x1c0 fs/read_write.c:986
->  do_readv+0x11a/0x310 fs/read_write.c:1019
->  __do_sys_readv fs/read_write.c:1106 [inline]
->  __se_sys_readv fs/read_write.c:1103 [inline]
->  __x64_sys_readv+0x75/0xb0 fs/read_write.c:1103
->  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
->  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-> RIP: 0033:0x446c09
-> Code: e8 1c bc 02 00 48 83 c4 18 c3 0f 1f 80 00 00 00 00 48 89 f8 48 89 f7
-> 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff ff
-> 0f 83 5b 07 fc ff c3 66 2e 0f 1f 84 00 00 00 00
-> RSP: 002b:00007f56a6071d18 EFLAGS: 00000246 ORIG_RAX: 0000000000000013
-> RAX: ffffffffffffffda RBX: 00000000006dcc5c RCX: 0000000000446c09
-> RDX: 0000000000000002 RSI: 00000000200021c0 RDI: 0000000000000005
-> RBP: 0000000000000000 R08: 0000000000000000 R09: 0000000000000000
-> R10: 0000000000000000 R11: 0000000000000246 R12: 00000000006dcc58
-> R13: 00007f56a6071d20 R14: 6f72746e6f632f2e R15: 0000000000000007
-> Modules linked in:
-> Dumping ftrace buffer:
->    (ftrace buffer empty)
-> ---[ end trace 532b9c3f493b2e4d ]---
-> RIP: 0010:usercopy_abort+0xbb/0xbd mm/usercopy.c:88
-> Code: c0 e8 37 ec b8 ff ff 75 c8 48 8b 55 c0 4d 89 f9 ff 75 d0 4d 89 e8 48
-> 89 d9 4c 89 e6 41 56 48 c7 c7 e0 4c f3 87 e8 37 a0 9f ff <0f> 0b e8 0c ec b8
-> ff e8 97 42 f7 ff 4c 89 e1 8b 95 14 ff ff ff 31
-> RSP: 0018:ffff8801d33a78b0 EFLAGS: 00010286
-> RAX: 000000000000006b RBX: ffffffff88c10e70 RCX: 0000000000000000
-> RDX: 0000000000000000 RSI: ffffffff81634381 RDI: 0000000000000001
-> RBP: ffff8801d33a7908 R08: ffff8801d1e2a200 R09: ffffed003b5e4fc0
-> R10: ffffed003b5e4fc0 R11: ffff8801daf27e07 R12: ffffffff87f34bc0
-> R13: ffffffff87f34a80 R14: ffffffff87f34a40 R15: ffffffff88c0c905
-> FS:  00007f56a6072700(0000) GS:ffff8801daf00000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 0000000020001000 CR3: 00000001b8fdf000 CR4: 00000000001406e0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> 
-> 
+> BTW, seems you seem interested, could you provide some more formal
+> review as well? Others too. We don't need to cover all use cases
+> immediately, when the patchset is apparently stalled due to lack of
+> review. Thanks!
 
-Fixed in -mm and linux-next by:
+Sure!
 
-#syz fix: VFS: seq_file: ensure ->from is valid
+The patchset looks sane at a first glance, but I need some time
+to dig deeper. Is v2 the final version?
 
-- Eric
+Thanks!
