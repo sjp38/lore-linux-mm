@@ -1,37 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 893246B0003
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 00:22:45 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id m2-v6so26020848plt.14
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 21:22:45 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id k6-v6sor1408051pls.23.2018.07.16.21.22.44
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 363226B0003
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 01:32:47 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id t20-v6so4485558pgu.9
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 22:32:47 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g2-v6sor19555pgu.149.2018.07.16.22.32.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 16 Jul 2018 21:22:44 -0700 (PDT)
-Date: Mon, 16 Jul 2018 21:22:43 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm] mm, oom: remove oom_lock from exit_mmap
-In-Reply-To: <44d26c25-6e09-49de-5e90-3c16115eb337@i-love.sakura.ne.jp>
-Message-ID: <alpine.DEB.2.21.1807162121040.157949@chino.kir.corp.google.com>
-References: <alpine.DEB.2.21.1807121432370.170100@chino.kir.corp.google.com> <20180713142612.GD19960@dhcp22.suse.cz> <44d26c25-6e09-49de-5e90-3c16115eb337@i-love.sakura.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Mon, 16 Jul 2018 22:32:45 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v2 0/2] mm: soft-offline: fix race against page allocation
+Date: Tue, 17 Jul 2018 14:32:30 +0900
+Message-Id: <1531805552-19547-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, xishi.qiuxishi@alibaba-inc.com, zy.zhengyi@alibaba-inc.com, linux-kernel@vger.kernel.org
 
-On Sat, 14 Jul 2018, Tetsuo Handa wrote:
+I've updated the patchset based on feedbacks:
 
-> David is making changes using timeout based back off (in linux-next.git)
-> which is inappropriately trying to use MMF_UNSTABLE for two purposes.
-> 
+- updated comments (from Andrew),
+- moved calling set_hwpoison_free_buddy_page() from mm/migrate.c to mm/memory-failure.c,
+  which is necessary to check the return code of set_hwpoison_free_buddy_page(),
+- lkp bot reported a build error when only 1/2 is applied.
 
-If you believe there is a problem with the use of MMF_UNSTABLE as it sits 
-in -mm, please follow up directly in the thread that proposed the patch.  
-I have seen two replies to that thread from you: one that incorporates it 
-into your work, and one that links to a verison of my patch in your 
-patchset.  I haven't seen a concern raised about the use of MMF_UNSTABLE, 
-but perhaps it's somewhere in the 10,000 other emails about the oom 
-killer.
+  >    mm/memory-failure.c: In function 'soft_offline_huge_page':
+  > >> mm/memory-failure.c:1610:8: error: implicit declaration of function
+  > 'set_hwpoison_free_buddy_page'; did you mean 'is_free_buddy_page'?
+  > [-Werror=implicit-function-declaration]
+  >        if (set_hwpoison_free_buddy_page(page))
+  >            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  >            is_free_buddy_page
+  >    cc1: some warnings being treated as errors
+
+  set_hwpoison_free_buddy_page() is defined in 2/2, so we can't use it
+  in 1/2. Simply doing s/set_hwpoison_free_buddy_page/!TestSetPageHWPoison/
+  will fix this.
+
+v1: https://lkml.org/lkml/2018/7/12/968
+
+Thanks,
+Naoya Horiguchi
+---
+Summary:
+
+Naoya Horiguchi (2):
+      mm: fix race on soft-offlining free huge pages
+      mm: soft-offline: close the race against page allocation
+
+ include/linux/page-flags.h |  5 +++++
+ include/linux/swapops.h    | 10 ---------
+ mm/hugetlb.c               | 11 +++++-----
+ mm/memory-failure.c        | 53 ++++++++++++++++++++++++++++++++++++++--------
+ mm/migrate.c               | 11 ----------
+ mm/page_alloc.c            | 30 ++++++++++++++++++++++++++
+ 6 files changed, 84 insertions(+), 36 deletions(-)
