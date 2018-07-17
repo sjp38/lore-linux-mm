@@ -1,231 +1,264 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F7036B000C
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A3D976B0008
 	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 07:21:47 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c13-v6so388999pfo.14
+Received: by mail-pg1-f198.google.com with SMTP id y16-v6so319162pgv.23
         for <linux-mm@kvack.org>; Tue, 17 Jul 2018 04:21:47 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id l185-v6si754822pfl.134.2018.07.17.04.21.45
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id r21-v6si791980pgu.55.2018.07.17.04.21.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 04:21:45 -0700 (PDT)
+        Tue, 17 Jul 2018 04:21:46 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv5 00/19] MKTME enabling
-Date: Tue, 17 Jul 2018 14:20:10 +0300
-Message-Id: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5 01/19] mm: Do no merge VMAs with different encryption KeyIDs
+Date: Tue, 17 Jul 2018 14:20:11 +0300
+Message-Id: <20180717112029.42378-2-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
+References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Multikey Total Memory Encryption (MKTME)[1] is a technology that allows
-transparent memory encryption in upcoming Intel platforms. See overview
-below.
+VMAs with different KeyID do not mix together. Only VMAs with the same
+KeyID are compatible.
 
-Here's updated version of my patchset that brings support of MKTME.
-Please review and consider applying.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ fs/userfaultfd.c   |  7 ++++---
+ include/linux/mm.h |  9 ++++++++-
+ mm/madvise.c       |  2 +-
+ mm/mempolicy.c     |  3 ++-
+ mm/mlock.c         |  2 +-
+ mm/mmap.c          | 31 +++++++++++++++++++------------
+ mm/mprotect.c      |  2 +-
+ 7 files changed, 36 insertions(+), 20 deletions(-)
 
-The patchset provides in-kernel infrastructure for MKTME, but doesn't yet
-have userspace interface.
-
-First 8 patches are for core-mm. The rest is x86-specific.
-
-The patchset is on top of tip- tree plus page_ext cleanups I've posted
-earlier[2]. page_ext cleanups are in -mm tree now.
-
-Below is performance numbers for kernel build. Enabling MKTME doesn't
-affect performance of non-encrypted memory allocation.
-
-For encrypted memory allocation requires cache flush on allocation and
-freeing encrypted memory. For kernel build it results in ~20% performance
-degradation if we allocate all anonymous memory as encrypted.
-
-We would need to maintain per-KeyID pool of free pages to minimize cache
-flushing. I'm going to work on the optimization on top of this patchset.
-
-The patchset also can be found here:
-
-git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git mktme/wip
-
-v5:
- - Do not merge VMAs with different KeyID (for real).
-
- - Do not use zero page in encrypted VMAs.
-
- - Avoid division in __pa(). The division is replaced with masking which
-   makes it near-free. I was not able to measure difference comparing to
-   base line. direct_mapping_size now has to be power-of-2 if MKTME
-   enabled. Only in this case we can use masking there.
-
-v4:
- - Address Dave's feedback.
-
- - Add performance numbers.
-
-v3:
- - Kernel now can access encrypted pages via per-KeyID direct mapping.
-
- - Rework page allocation for encrypted memory to minimize overhead on
-   non-encrypted pages. It comes with cost for allocation of encrypted
-   pages: we have to flush cache on every time we allocate *and* free
-   encrypted page. We will need to optimize it later.
-
-v2:
- - Store KeyID of page in page_ext->flags rather than in anon_vma.
-   anon_vma approach turned out to be problematic. The main problem is
-   that anon_vma of the page is no longer stable after last mapcount has
-   gone. We would like to preserve last used KeyID even for freed
-   pages as it allows to avoid unnecessary cache flushing on allocation
-   of an encrypted page. page_ext serves this well enough.
-
- - KeyID is now propagated through page allocator. No need in GFP_ENCRYPT
-   anymore.
-
- - Patch "Decouple dynamic __PHYSICAL_MASK from AMD SME" has been fix to
-   work with AMD SEV (need to be confirmed by AMD folks).
-
-------------------------------------------------------------------------------
-
-MKTME is built on top of TME. TME allows encryption of the entirety of
-system memory using a single key. MKTME allows to have multiple encryption
-domains, each having own key -- different memory pages can be encrypted
-with different keys.
-
-Key design points of Intel MKTME:
-
- - Initial HW implementation would support upto 63 keys (plus one default
-   TME key). But the number of keys may be as low as 3, depending to SKU
-   and BIOS settings
-
- - To access encrypted memory you need to use mapping with proper KeyID
-   int the page table entry. KeyID is encoded in upper bits of PFN in page
-   table entry.
-
- - CPU does not enforce coherency between mappings of the same physical
-   page with different KeyIDs or encryption keys. We wound need to take
-   care about flushing cache on allocation of encrypted page and on
-   returning it back to free pool.
-
- - For managing keys, there's MKTME_KEY_PROGRAM leaf of the new PCONFIG
-   (platform configuration) instruction. It allows load and clear keys
-   associated with a KeyID. You can also ask CPU to generate a key for
-   you or disable memory encryption when a KeyID is used.
-
-Performance numbers for kernel build:
-
-Base (tip- tree):
-
- Performance counter stats for 'sh -c make -j100 -B -k >/dev/null' (5 runs):
-
-    5664711.936917      task-clock (msec)         #   34.815 CPUs utilized            ( +-  0.02% )
-         1,033,886      context-switches          #    0.183 K/sec                    ( +-  0.37% )
-           189,308      cpu-migrations            #    0.033 K/sec                    ( +-  0.39% )
-       104,951,554      page-faults               #    0.019 M/sec                    ( +-  0.01% )
-16,907,670,543,945      cycles                    #    2.985 GHz                      ( +-  0.01% )
-12,662,345,427,578      stalled-cycles-frontend   #   74.89% frontend cycles idle     ( +-  0.02% )
- 9,936,469,878,830      instructions              #    0.59  insn per cycle
-                                                  #    1.27  stalled cycles per insn  ( +-  0.00% )
- 2,179,100,082,611      branches                  #  384.680 M/sec                    ( +-  0.00% )
-    91,235,200,652      branch-misses             #    4.19% of all branches          ( +-  0.01% )
-
-     162.706797586 seconds time elapsed                                          ( +-  0.04% )
-
-CONFIG_X86_INTEL_MKTME=y, no encrypted memory:
-
- Performance counter stats for 'sh -c make -j100 -B -k >/dev/null' (5 runs):
-
-    5668508.245004      task-clock (msec)         #   34.872 CPUs utilized            ( +-  0.02% )
-         1,032,034      context-switches          #    0.182 K/sec                    ( +-  0.90% )
-           188,098      cpu-migrations            #    0.033 K/sec                    ( +-  1.15% )
-       104,964,084      page-faults               #    0.019 M/sec                    ( +-  0.01% )
-16,919,270,913,026      cycles                    #    2.985 GHz                      ( +-  0.02% )
-12,672,067,815,805      stalled-cycles-frontend   #   74.90% frontend cycles idle     ( +-  0.02% )
- 9,942,560,135,477      instructions              #    0.59  insn per cycle
-                                                  #    1.27  stalled cycles per insn  ( +-  0.00% )
- 2,180,800,745,687      branches                  #  384.722 M/sec                    ( +-  0.00% )
-    91,167,857,700      branch-misses             #    4.18% of all branches          ( +-  0.02% )
-
-     162.552503629 seconds time elapsed                                          ( +-  0.10% )
-
-CONFIG_X86_INTEL_MKTME=y, all anonymous memory encrypted with KeyID-1, pay
-cache flush overhead on allocation and free:
-
- Performance counter stats for 'sh -c make -j100 -B -k >/dev/null' (5 runs):
-
-    7041851.999259      task-clock (msec)         #   35.915 CPUs utilized            ( +-  0.01% )
-         1,118,938      context-switches          #    0.159 K/sec                    ( +-  0.49% )
-           197,039      cpu-migrations            #    0.028 K/sec                    ( +-  0.80% )
-       104,970,021      page-faults               #    0.015 M/sec                    ( +-  0.00% )
-21,025,639,251,627      cycles                    #    2.986 GHz                      ( +-  0.01% )
-16,729,451,765,492      stalled-cycles-frontend   #   79.57% frontend cycles idle     ( +-  0.02% )
-10,010,727,735,588      instructions              #    0.48  insn per cycle
-                                                  #    1.67  stalled cycles per insn  ( +-  0.00% )
- 2,197,110,181,421      branches                  #  312.007 M/sec                    ( +-  0.00% )
-    91,119,463,513      branch-misses             #    4.15% of all branches          ( +-  0.01% )
-
-     196.072361087 seconds time elapsed                                          ( +-  0.14% )
-
-[1] https://software.intel.com/sites/default/files/managed/a5/16/Multi-Key-Total-Memory-Encryption-Spec.pdf
-[2] https://lkml.kernel.org/r/20180531135457.20167-1-kirill.shutemov@linux.intel.com
-
-Kirill A. Shutemov (19):
-  mm: Do no merge VMAs with different encryption KeyIDs
-  mm: Do not use zero page in encrypted pages
-  mm/ksm: Do not merge pages with different KeyIDs
-  mm/page_alloc: Unify alloc_hugepage_vma()
-  mm/page_alloc: Handle allocation for encrypted memory
-  mm/khugepaged: Handle encrypted pages
-  x86/mm: Mask out KeyID bits from page table entry pfn
-  x86/mm: Introduce variables to store number, shift and mask of KeyIDs
-  x86/mm: Preserve KeyID on pte_modify() and pgprot_modify()
-  x86/mm: Implement page_keyid() using page_ext
-  x86/mm: Implement vma_keyid()
-  x86/mm: Implement prep_encrypted_page() and arch_free_page()
-  x86/mm: Rename CONFIG_RANDOMIZE_MEMORY_PHYSICAL_PADDING
-  x86/mm: Allow to disable MKTME after enumeration
-  x86/mm: Detect MKTME early
-  x86/mm: Calculate direct mapping size
-  x86/mm: Implement sync_direct_mapping()
-  x86/mm: Handle encrypted memory in page_to_virt() and __pa()
-  x86: Introduce CONFIG_X86_INTEL_MKTME
-
- Documentation/x86/x86_64/mm.txt      |   4 +
- arch/alpha/include/asm/page.h        |   2 +-
- arch/s390/include/asm/pgtable.h      |   2 +-
- arch/x86/Kconfig                     |  21 +-
- arch/x86/include/asm/mktme.h         |  47 +++
- arch/x86/include/asm/page.h          |   1 +
- arch/x86/include/asm/page_64.h       |   4 +-
- arch/x86/include/asm/pgtable_types.h |  15 +-
- arch/x86/include/asm/setup.h         |   6 +
- arch/x86/kernel/cpu/intel.c          |  32 +-
- arch/x86/kernel/head64.c             |   4 +
- arch/x86/kernel/setup.c              |   3 +
- arch/x86/mm/Makefile                 |   2 +
- arch/x86/mm/init_64.c                |  68 ++++
- arch/x86/mm/kaslr.c                  |  11 +-
- arch/x86/mm/mktme.c                  | 546 +++++++++++++++++++++++++++
- fs/userfaultfd.c                     |   7 +-
- include/linux/gfp.h                  |  54 ++-
- include/linux/migrate.h              |  12 +-
- include/linux/mm.h                   |  20 +-
- include/linux/page_ext.h             |  11 +-
- mm/compaction.c                      |   1 +
- mm/huge_memory.c                     |   3 +-
- mm/khugepaged.c                      |  10 +
- mm/ksm.c                             |   3 +
- mm/madvise.c                         |   2 +-
- mm/memory.c                          |   3 +-
- mm/mempolicy.c                       |  31 +-
- mm/migrate.c                         |   4 +-
- mm/mlock.c                           |   2 +-
- mm/mmap.c                            |  31 +-
- mm/mprotect.c                        |   2 +-
- mm/page_alloc.c                      |  47 +++
- mm/page_ext.c                        |   3 +
- 34 files changed, 954 insertions(+), 60 deletions(-)
- create mode 100644 arch/x86/include/asm/mktme.h
- create mode 100644 arch/x86/mm/mktme.c
-
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index 594d192b2331..bb0db9f9d958 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -890,7 +890,7 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
+ 				 new_flags, vma->anon_vma,
+ 				 vma->vm_file, vma->vm_pgoff,
+ 				 vma_policy(vma),
+-				 NULL_VM_UFFD_CTX);
++				 NULL_VM_UFFD_CTX, vma_keyid(vma));
+ 		if (prev)
+ 			vma = prev;
+ 		else
+@@ -1423,7 +1423,8 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+ 		prev = vma_merge(mm, prev, start, vma_end, new_flags,
+ 				 vma->anon_vma, vma->vm_file, vma->vm_pgoff,
+ 				 vma_policy(vma),
+-				 ((struct vm_userfaultfd_ctx){ ctx }));
++				 ((struct vm_userfaultfd_ctx){ ctx }),
++				 vma_keyid(vma));
+ 		if (prev) {
+ 			vma = prev;
+ 			goto next;
+@@ -1581,7 +1582,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
+ 		prev = vma_merge(mm, prev, start, vma_end, new_flags,
+ 				 vma->anon_vma, vma->vm_file, vma->vm_pgoff,
+ 				 vma_policy(vma),
+-				 NULL_VM_UFFD_CTX);
++				 NULL_VM_UFFD_CTX, vma_keyid(vma));
+ 		if (prev) {
+ 			vma = prev;
+ 			goto next;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 9a35362bbc92..c8780c5835ad 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1544,6 +1544,13 @@ static inline bool vma_is_anonymous(struct vm_area_struct *vma)
+ 	return vma->vm_ops == &anon_vm_ops;
+ }
+ 
++#ifndef vma_keyid
++static inline int vma_keyid(struct vm_area_struct *vma)
++{
++	return 0;
++}
++#endif
++
+ #ifdef CONFIG_SHMEM
+ /*
+  * The vma_is_shmem is not inline because it is used only by slow
+@@ -2219,7 +2226,7 @@ static inline int vma_adjust(struct vm_area_struct *vma, unsigned long start,
+ extern struct vm_area_struct *vma_merge(struct mm_struct *,
+ 	struct vm_area_struct *prev, unsigned long addr, unsigned long end,
+ 	unsigned long vm_flags, struct anon_vma *, struct file *, pgoff_t,
+-	struct mempolicy *, struct vm_userfaultfd_ctx);
++	struct mempolicy *, struct vm_userfaultfd_ctx, int keyid);
+ extern struct anon_vma *find_mergeable_anon_vma(struct vm_area_struct *);
+ extern int __split_vma(struct mm_struct *, struct vm_area_struct *,
+ 	unsigned long addr, int new_below);
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 4d3c922ea1a1..c88fb12be6e5 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -138,7 +138,7 @@ static long madvise_behavior(struct vm_area_struct *vma,
+ 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
+ 	*prev = vma_merge(mm, *prev, start, end, new_flags, vma->anon_vma,
+ 			  vma->vm_file, pgoff, vma_policy(vma),
+-			  vma->vm_userfaultfd_ctx);
++			  vma->vm_userfaultfd_ctx, vma_keyid(vma));
+ 	if (*prev) {
+ 		vma = *prev;
+ 		goto success;
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index f0fcf70bcec7..581b729e05a0 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -705,7 +705,8 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
+ 			((vmstart - vma->vm_start) >> PAGE_SHIFT);
+ 		prev = vma_merge(mm, prev, vmstart, vmend, vma->vm_flags,
+ 				 vma->anon_vma, vma->vm_file, pgoff,
+-				 new_pol, vma->vm_userfaultfd_ctx);
++				 new_pol, vma->vm_userfaultfd_ctx,
++				 vma_keyid(vma));
+ 		if (prev) {
+ 			vma = prev;
+ 			next = vma->vm_next;
+diff --git a/mm/mlock.c b/mm/mlock.c
+index 74e5a6547c3d..3c96321b66bb 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -534,7 +534,7 @@ static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,
+ 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
+ 	*prev = vma_merge(mm, *prev, start, end, newflags, vma->anon_vma,
+ 			  vma->vm_file, pgoff, vma_policy(vma),
+-			  vma->vm_userfaultfd_ctx);
++			  vma->vm_userfaultfd_ctx, vma_keyid(vma));
+ 	if (*prev) {
+ 		vma = *prev;
+ 		goto success;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 180f19dfb83f..4c604eb644b4 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -984,7 +984,8 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
+  */
+ static inline int is_mergeable_vma(struct vm_area_struct *vma,
+ 				struct file *file, unsigned long vm_flags,
+-				struct vm_userfaultfd_ctx vm_userfaultfd_ctx)
++				struct vm_userfaultfd_ctx vm_userfaultfd_ctx,
++				int keyid)
+ {
+ 	/*
+ 	 * VM_SOFTDIRTY should not prevent from VMA merging, if we
+@@ -998,6 +999,8 @@ static inline int is_mergeable_vma(struct vm_area_struct *vma,
+ 		return 0;
+ 	if (vma->vm_file != file)
+ 		return 0;
++	if (vma_keyid(vma) != keyid)
++		return 0;
+ 	if (vma->vm_ops->close)
+ 		return 0;
+ 	if (!is_mergeable_vm_userfaultfd_ctx(vma, vm_userfaultfd_ctx))
+@@ -1034,9 +1037,10 @@ static int
+ can_vma_merge_before(struct vm_area_struct *vma, unsigned long vm_flags,
+ 		     struct anon_vma *anon_vma, struct file *file,
+ 		     pgoff_t vm_pgoff,
+-		     struct vm_userfaultfd_ctx vm_userfaultfd_ctx)
++		     struct vm_userfaultfd_ctx vm_userfaultfd_ctx,
++		     int keyid)
+ {
+-	if (is_mergeable_vma(vma, file, vm_flags, vm_userfaultfd_ctx) &&
++	if (is_mergeable_vma(vma, file, vm_flags, vm_userfaultfd_ctx, keyid) &&
+ 	    is_mergeable_anon_vma(anon_vma, vma->anon_vma, vma)) {
+ 		if (vma->vm_pgoff == vm_pgoff)
+ 			return 1;
+@@ -1055,9 +1059,10 @@ static int
+ can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
+ 		    struct anon_vma *anon_vma, struct file *file,
+ 		    pgoff_t vm_pgoff,
+-		    struct vm_userfaultfd_ctx vm_userfaultfd_ctx)
++		    struct vm_userfaultfd_ctx vm_userfaultfd_ctx,
++		    int keyid)
+ {
+-	if (is_mergeable_vma(vma, file, vm_flags, vm_userfaultfd_ctx) &&
++	if (is_mergeable_vma(vma, file, vm_flags, vm_userfaultfd_ctx, keyid) &&
+ 	    is_mergeable_anon_vma(anon_vma, vma->anon_vma, vma)) {
+ 		pgoff_t vm_pglen;
+ 		vm_pglen = vma_pages(vma);
+@@ -1112,7 +1117,8 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
+ 			unsigned long end, unsigned long vm_flags,
+ 			struct anon_vma *anon_vma, struct file *file,
+ 			pgoff_t pgoff, struct mempolicy *policy,
+-			struct vm_userfaultfd_ctx vm_userfaultfd_ctx)
++			struct vm_userfaultfd_ctx vm_userfaultfd_ctx,
++			int keyid)
+ {
+ 	pgoff_t pglen = (end - addr) >> PAGE_SHIFT;
+ 	struct vm_area_struct *area, *next;
+@@ -1145,7 +1151,7 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
+ 			mpol_equal(vma_policy(prev), policy) &&
+ 			can_vma_merge_after(prev, vm_flags,
+ 					    anon_vma, file, pgoff,
+-					    vm_userfaultfd_ctx)) {
++					    vm_userfaultfd_ctx, keyid)) {
+ 		/*
+ 		 * OK, it can.  Can we now merge in the successor as well?
+ 		 */
+@@ -1154,7 +1160,8 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
+ 				can_vma_merge_before(next, vm_flags,
+ 						     anon_vma, file,
+ 						     pgoff+pglen,
+-						     vm_userfaultfd_ctx) &&
++						     vm_userfaultfd_ctx,
++						     keyid) &&
+ 				is_mergeable_anon_vma(prev->anon_vma,
+ 						      next->anon_vma, NULL)) {
+ 							/* cases 1, 6 */
+@@ -1177,7 +1184,7 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
+ 			mpol_equal(policy, vma_policy(next)) &&
+ 			can_vma_merge_before(next, vm_flags,
+ 					     anon_vma, file, pgoff+pglen,
+-					     vm_userfaultfd_ctx)) {
++					     vm_userfaultfd_ctx, keyid)) {
+ 		if (prev && addr < prev->vm_end)	/* case 4 */
+ 			err = __vma_adjust(prev, prev->vm_start,
+ 					 addr, prev->vm_pgoff, NULL, next);
+@@ -1722,7 +1729,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+ 	 * Can we just expand an old mapping?
+ 	 */
+ 	vma = vma_merge(mm, prev, addr, addr + len, vm_flags,
+-			NULL, file, pgoff, NULL, NULL_VM_UFFD_CTX);
++			NULL, file, pgoff, NULL, NULL_VM_UFFD_CTX, 0);
+ 	if (vma)
+ 		goto out;
+ 
+@@ -2987,7 +2994,7 @@ static int do_brk_flags(unsigned long addr, unsigned long len, unsigned long fla
+ 
+ 	/* Can we just expand an old private anonymous mapping? */
+ 	vma = vma_merge(mm, prev, addr, addr + len, flags,
+-			NULL, NULL, pgoff, NULL, NULL_VM_UFFD_CTX);
++			NULL, NULL, pgoff, NULL, NULL_VM_UFFD_CTX, 0);
+ 	if (vma)
+ 		goto out;
+ 
+@@ -3189,7 +3196,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
+ 		return NULL;	/* should never get here */
+ 	new_vma = vma_merge(mm, prev, addr, addr + len, vma->vm_flags,
+ 			    vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma),
+-			    vma->vm_userfaultfd_ctx);
++			    vma->vm_userfaultfd_ctx, vma_keyid(vma));
+ 	if (new_vma) {
+ 		/*
+ 		 * Source vma may have been merged into new_vma
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 625608bc8962..68dc476310c0 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -349,7 +349,7 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
+ 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
+ 	*pprev = vma_merge(mm, *pprev, start, end, newflags,
+ 			   vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma),
+-			   vma->vm_userfaultfd_ctx);
++			   vma->vm_userfaultfd_ctx, vma_keyid(vma));
+ 	if (*pprev) {
+ 		vma = *pprev;
+ 		VM_WARN_ON((vma->vm_flags ^ newflags) & ~VM_SOFTDIRTY);
 -- 
 2.18.0
