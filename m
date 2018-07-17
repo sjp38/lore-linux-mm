@@ -1,119 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BB00A6B0003
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 13:32:46 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id l8-v6so134495ita.4
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 10:32:46 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d138-v6sor57990itd.28.2018.07.17.10.32.45
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CD2376B0006
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 13:39:38 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id b7-v6so1326038qtp.14
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 10:39:38 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id x4-v6si1851878qvj.116.2018.07.17.10.39.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 17 Jul 2018 10:32:45 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Jul 2018 10:39:37 -0700 (PDT)
+Date: Tue, 17 Jul 2018 10:38:45 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: cgroup-aware OOM killer, how to move forward
+Message-ID: <20180717173844.GB14909@castle.DHCP.thefacebook.com>
+References: <20180711223959.GA13981@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1807131423230.194789@chino.kir.corp.google.com>
+ <20180713221602.GA15005@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1807131535420.202408@chino.kir.corp.google.com>
+ <20180713230545.GA17467@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1807131608530.218060@chino.kir.corp.google.com>
+ <20180713231630.GB17467@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
 MIME-Version: 1.0
-References: <153176041838.12695.3365448145295112857.stgit@dwillia2-desk3.amr.corp.intel.com>
- <CAGM2rea9AwQGaf1JiV_SDDKTKyP_n+dG9Z20gtTZEkuZPFnXFQ@mail.gmail.com>
- <CAPcyv4jo91jKjwn-M7cOhG=6vJ3c-QCyp0W+T+CtmiKGyZP1ng@mail.gmail.com>
- <CAGM2reacO1HF91yH8OR5w5AdZwPgwfSFfjDNBsHbP66v1rEg=g@mail.gmail.com> <20180717155006.GL7193@dhcp22.suse.cz>
-In-Reply-To: <20180717155006.GL7193@dhcp22.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 17 Jul 2018 10:32:32 -0700
-Message-ID: <CAA9_cmez_vrjBYvcpXT_5ziQ2CqRFzPbEWMO2kdmjW0rWhkaCA@mail.gmail.com>
-Subject: Re: [PATCH v2 00/14] mm: Asynchronous + multithreaded memmap init for ZONE_DEVICE
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: pasha.tatashin@oracle.com, dalias@libc.org, Jan Kara <jack@suse.cz>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, "H. Peter Anvin" <hpa@zytor.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, the arch/x86 maintainers <x86@kernel.org>, Matthew Wilcox <willy@infradead.org>, daniel.m.jordan@oracle.com, Ingo Molnar <mingo@redhat.com>, fenghua.yu@intel.com, Jerome Glisse <jglisse@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "Luck, Tony" <tony.luck@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@kernel.org, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
 
-On Tue, Jul 17, 2018 at 8:50 AM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Tue 17-07-18 10:46:39, Pavel Tatashin wrote:
-> > > > Hi Dan,
-> > > >
-> > > > I am worried that this work adds another way to multi-thread struct
-> > > > page initialization without re-use of already existing method. The
-> > > > code is already a mess, and leads to bugs [1] because of the number of
-> > > > different memory layouts, architecture specific quirks, and different
-> > > > struct page initialization methods.
-> > >
-> > > Yes, the lamentations about the complexity of the memory hotplug code
-> > > are known. I didn't think this set made it irretrievably worse, but
-> > > I'm biased and otherwise certainly want to build consensus with other
-> > > mem-hotplug folks.
-> > >
-> > > >
-> > > > So, when DEFERRED_STRUCT_PAGE_INIT is used we initialize struct pages
-> > > > on demand until page_alloc_init_late() is called, and at that time we
-> > > > initialize all the rest of struct pages by calling:
-> > > >
-> > > > page_alloc_init_late()
-> > > >   deferred_init_memmap() (a thread per node)
-> > > >     deferred_init_pages()
-> > > >        __init_single_page()
-> > > >
-> > > > This is because memmap_init_zone() is not multi-threaded. However,
-> > > > this work makes memmap_init_zone() multi-threaded. So, I think we
-> > > > should really be either be using deferred_init_memmap() here, or teach
-> > > > DEFERRED_STRUCT_PAGE_INIT to use new multi-threaded memmap_init_zone()
-> > > > but not both.
-> > >
-> > > I agree it would be good to look at unifying the 2 async
-> > > initialization approaches, however they have distinct constraints. All
-> > > of the ZONE_DEVICE memmap initialization work happens as a hotplug
-> > > event where the deferred_init_memmap() threads have already been torn
-> > > down. For the memory capacities where it takes minutes to initialize
-> > > the memmap it is painful to incur a global flush of all initialization
-> > > work. So, I think that a move to rework deferred_init_memmap() in
-> > > terms of memmap_init_async() is warranted because memmap_init_async()
-> > > avoids a global sync and supports the hotplug case.
-> > >
-> > > Unfortunately, the work to unite these 2 mechanisms is going to be
-> > > 4.20 material, at least for me, since I'm taking an extended leave,
-> > > and there is little time for me to get this in shape for 4.19. I
-> > > wouldn't be opposed to someone judiciously stealing from this set and
-> > > taking a shot at the integration, I likely will not get back to this
-> > > until September.
-> >
-> > Hi Dan,
-> >
-> > I do not want to hold your work, so if Michal or Andrew are OK with
-> > the general approach of teaching    memmap_init_zone() to be async
-> > without re-using deferred_init_memmap() or without changing
-> > deferred_init_memmap() to use the new memmap_init_async() I will
-> > review your patches.
->
-> Well, I would rather have a sane code base than rush anything in. I do
-> agree with Pavel that we the number of async methods we have right now
-> is really disturbing. Applying yet another one will put additional
-> maintenance burden on whoever comes next.
+On Mon, Jul 16, 2018 at 09:19:18PM -0700, David Rientjes wrote:
+> On Fri, 13 Jul 2018, Roman Gushchin wrote:
+> 
+> > > > > All cgroup v2 files do not need to be boolean and the only way you can add 
+> > > > > a subtree oom kill is to introduce yet another file later.  Please make it 
+> > > > > tristate so that you can define a mechanism of default (process only), 
+> > > > > local cgroup, or subtree, and so we can avoid adding another option later 
+> > > > > that conflicts with the proposed one.  This should be easy.
+> > > > 
+> > > > David, we're adding a cgroup v2 knob, and in cgroup v2 a memory cgroup
+> > > > either has a sub-tree, either attached processes. So, there is no difference
+> > > > between local cgroup and subtree.
+> > > > 
+> > > 
+> > > Uhm, what?  We're talking about a common ancestor reaching its limit, so 
+> > > it's oom, and it has multiple immediate children with their own processes 
+> > > attached.  The difference is killing all processes attached to the 
+> > > victim's cgroup or all processes under the oom mem cgroup's subtree.
+> > > 
+> > 
+> > But it's a binary decision, no?
+> > If memory.group_oom set, the whole sub-tree will be killed. Otherwise not.
+> > 
+> 
+> No, if memory.max is reached and memory.group_oom is set, my understanding 
+> of your proposal is that a process is chosen and all eligible processes 
+> attached to its mem cgroup are oom killed.  My desire for a tristate is so 
+> that it can be specified that all processes attached to the *subtree* are 
+> oom killed.  With single unified hierarchy mandated by cgroup v2, we can 
+> separate descendant cgroups for use with other controllers and enforce 
+> memory.max by an ancestor.
+> 
+> Making this a boolean value is only preventing it from becoming 
+> extensible.  If memory.group_oom only is effective for the victim's mem 
+> cgroup, it becomes impossible to specify that all processes in the subtree 
+> should be oom killed as a result of the ancestor limit without adding yet 
+> another tunable.
 
-I thought we only had the one async implementation presently, this
-makes it sound like we have more than one? Did I miss the other(s)?
+Let me show my proposal on examples. Let's say we have the following hierarchy,
+and the biggest process (or the process with highest oom_score_adj) is in D.
 
-> Is there any reason that this work has to target the next merge window?
-> The changelog is not really specific about that.
+  /
+  |
+  A
+  |
+  B
+ / \
+C   D
 
-Same reason as any other change in this space, hardware availability
-continues to increase. These patches are a direct response to end user
-reports of unacceptable init latency with current kernels.
+Let's look at different examples and intended behavior:
+1) system-wide OOM
+  - default settings: the biggest process is killed
+  - D/memory.group_oom=1: all processes in D are killed
+  - A/memory.group_oom=1: all processes in A are killed
+2) memcg oom in B
+  - default settings: the biggest process is killed
+  - A/memory.group_oom=1: the biggest process is killed
+  - B/memory.group_oom=1: all processes in B are killed
+  - D/memory.group_oom=1: all processes in D are killed
 
-> There no numbers or
-> anything that would make this sound as a high priority stuff.
+Please, note, that processes can't be attached directly to A and B,
+so "all processes in A are killed" means all processes in the sub-tree
+are killed. Immortal processes (oom_score_adj=-1000) are excluded.
 
->From the end of the cover letter:
+I believe, that this model is full and doesn't require any further
+extension.
 
-"With this change an 8 socket system was observed to initialize pmem
-namespaces in ~4 seconds whereas it was previously taking ~4 minutes."
-
-My plan if this is merged would be to come back and refactor it with
-the deferred_init_memmap() implementation, my plan if this is not
-merged would be to come back and refactor it with the
-deferred_init_memmap() implementation.
-
-In practical terms, 0day has noticed a couple minor build fixes are needed:
-https://lists.01.org/pipermail/kbuild-all/2018-July/050229.html
-https://lists.01.org/pipermail/kbuild-all/2018-July/050231.html
-
-...and I'm going to be offline until September. I thought it best to
-post this before I go, and I'm open to someone else picking up this
-work to get in shape for merging per community feedback.
+Thanks!
