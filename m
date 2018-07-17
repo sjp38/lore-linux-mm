@@ -1,99 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 90B116B0277
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 10:47:20 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id n68-v6so1261440ite.8
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 07:47:20 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id x9-v6si782130ioh.205.2018.07.17.07.47.18
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E4726B026A
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 11:02:03 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id t65-v6so981715iof.23
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 08:02:03 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id p7-v6si974085iof.19.2018.07.17.08.02.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 07:47:18 -0700 (PDT)
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6HEiK34101652
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 14:47:18 GMT
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by aserp2120.oracle.com with ESMTP id 2k7a34117q-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 14:47:17 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w6HElGYB029936
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 14:47:17 GMT
-Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w6HElGe7014252
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 14:47:16 GMT
-Received: by mail-oi0-f52.google.com with SMTP id n84-v6so2497938oib.9
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 07:47:16 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 17 Jul 2018 08:02:00 -0700 (PDT)
+Date: Tue, 17 Jul 2018 17:01:42 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 08/10] psi: pressure stall information for CPU, memory,
+ and IO
+Message-ID: <20180717150142.GG2494@hirez.programming.kicks-ass.net>
+References: <20180712172942.10094-1-hannes@cmpxchg.org>
+ <20180712172942.10094-9-hannes@cmpxchg.org>
 MIME-Version: 1.0
-References: <153176041838.12695.3365448145295112857.stgit@dwillia2-desk3.amr.corp.intel.com>
- <CAGM2rea9AwQGaf1JiV_SDDKTKyP_n+dG9Z20gtTZEkuZPFnXFQ@mail.gmail.com> <CAPcyv4jo91jKjwn-M7cOhG=6vJ3c-QCyp0W+T+CtmiKGyZP1ng@mail.gmail.com>
-In-Reply-To: <CAPcyv4jo91jKjwn-M7cOhG=6vJ3c-QCyp0W+T+CtmiKGyZP1ng@mail.gmail.com>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Tue, 17 Jul 2018 10:46:39 -0400
-Message-ID: <CAGM2reacO1HF91yH8OR5w5AdZwPgwfSFfjDNBsHbP66v1rEg=g@mail.gmail.com>
-Subject: Re: [PATCH v2 00/14] mm: Asynchronous + multithreaded memmap init for ZONE_DEVICE
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180712172942.10094-9-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dan.j.williams@intel.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, tony.luck@intel.com, yehs1@lenovo.com, vishal.l.verma@intel.com, jack@suse.cz, willy@infradead.org, dave.jiang@intel.com, hpa@zytor.com, tglx@linutronix.de, dalias@libc.org, fenghua.yu@intel.com, Daniel Jordan <daniel.m.jordan@oracle.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, benh@kernel.crashing.org, Michal Hocko <mhocko@suse.com>, paulus@samba.org, hch@lst.de, jglisse@redhat.com, mingo@redhat.com, mpe@ellerman.id.au, Heiko Carstens <heiko.carstens@de.ibm.com>, x86@kernel.org, logang@deltatee.com, ross.zwisler@linux.intel.com, jmoyer@redhat.com, jthumshirn@suse.de, schwidefsky@de.ibm.com, Linux Memory Management List <linux-mm@kvack.org>, linux-nvdimm@lists.01.org, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-> > Hi Dan,
-> >
-> > I am worried that this work adds another way to multi-thread struct
-> > page initialization without re-use of already existing method. The
-> > code is already a mess, and leads to bugs [1] because of the number of
-> > different memory layouts, architecture specific quirks, and different
-> > struct page initialization methods.
->
-> Yes, the lamentations about the complexity of the memory hotplug code
-> are known. I didn't think this set made it irretrievably worse, but
-> I'm biased and otherwise certainly want to build consensus with other
-> mem-hotplug folks.
->
-> >
-> > So, when DEFERRED_STRUCT_PAGE_INIT is used we initialize struct pages
-> > on demand until page_alloc_init_late() is called, and at that time we
-> > initialize all the rest of struct pages by calling:
-> >
-> > page_alloc_init_late()
-> >   deferred_init_memmap() (a thread per node)
-> >     deferred_init_pages()
-> >        __init_single_page()
-> >
-> > This is because memmap_init_zone() is not multi-threaded. However,
-> > this work makes memmap_init_zone() multi-threaded. So, I think we
-> > should really be either be using deferred_init_memmap() here, or teach
-> > DEFERRED_STRUCT_PAGE_INIT to use new multi-threaded memmap_init_zone()
-> > but not both.
->
-> I agree it would be good to look at unifying the 2 async
-> initialization approaches, however they have distinct constraints. All
-> of the ZONE_DEVICE memmap initialization work happens as a hotplug
-> event where the deferred_init_memmap() threads have already been torn
-> down. For the memory capacities where it takes minutes to initialize
-> the memmap it is painful to incur a global flush of all initialization
-> work. So, I think that a move to rework deferred_init_memmap() in
-> terms of memmap_init_async() is warranted because memmap_init_async()
-> avoids a global sync and supports the hotplug case.
->
-> Unfortunately, the work to unite these 2 mechanisms is going to be
-> 4.20 material, at least for me, since I'm taking an extended leave,
-> and there is little time for me to get this in shape for 4.19. I
-> wouldn't be opposed to someone judiciously stealing from this set and
-> taking a shot at the integration, I likely will not get back to this
-> until September.
+On Thu, Jul 12, 2018 at 01:29:40PM -0400, Johannes Weiner wrote:
+> +static bool psi_update_stats(struct psi_group *group)
+> +{
+> +	u64 some[NR_PSI_RESOURCES] = { 0, };
+> +	u64 full[NR_PSI_RESOURCES] = { 0, };
+> +	unsigned long nonidle_total = 0;
+> +	unsigned long missed_periods;
+> +	unsigned long expires;
+> +	int cpu;
+> +	int r;
+> +
+> +	mutex_lock(&group->stat_lock);
+> +
+> +	/*
+> +	 * Collect the per-cpu time buckets and average them into a
+> +	 * single time sample that is normalized to wallclock time.
+> +	 *
+> +	 * For averaging, each CPU is weighted by its non-idle time in
+> +	 * the sampling period. This eliminates artifacts from uneven
+> +	 * loading, or even entirely idle CPUs.
+> +	 *
+> +	 * We could pin the online CPUs here, but the noise introduced
+> +	 * by missing up to one sample period from CPUs that are going
+> +	 * away shouldn't matter in practice - just like the noise of
+> +	 * previously offlined CPUs returning with a non-zero sample.
 
-Hi Dan,
+But why!? cpuu_read_lock() is neither expensive nor complicated. So why
+try and avoid it?
 
-I do not want to hold your work, so if Michal or Andrew are OK with
-the general approach of teaching    memmap_init_zone() to be async
-without re-using deferred_init_memmap() or without changing
-deferred_init_memmap() to use the new memmap_init_async() I will
-review your patches.
+> +	 */
+> +	for_each_online_cpu(cpu) {
+> +		struct psi_group_cpu *groupc = per_cpu_ptr(group->cpus, cpu);
+> +		unsigned long nonidle;
+> +
+> +		if (!groupc->nonidle_time)
+> +			continue;
+> +
+> +		nonidle = nsecs_to_jiffies(groupc->nonidle_time);
+> +		groupc->nonidle_time = 0;
+> +		nonidle_total += nonidle;
+> +
+> +		for (r = 0; r < NR_PSI_RESOURCES; r++) {
+> +			struct psi_resource *res = &groupc->res[r];
+> +
+> +			some[r] += (res->times[0] + res->times[1]) * nonidle;
+> +			full[r] += res->times[1] * nonidle;
+> +
+> +			/* It's racy, but we can tolerate some error */
+> +			res->times[0] = 0;
+> +			res->times[1] = 0;
+> +		}
+> +	}
+> +
+> +	/*
+> +	 * Integrate the sample into the running statistics that are
+> +	 * reported to userspace: the cumulative stall times and the
+> +	 * decaying averages.
+> +	 *
+> +	 * Pressure percentages are sampled at PSI_FREQ. We might be
+> +	 * called more often when the user polls more frequently than
+> +	 * that; we might be called less often when there is no task
+> +	 * activity, thus no data, and clock ticks are sporadic. The
+> +	 * below handles both.
+> +	 */
+> +
+> +	/* total= */
+> +	for (r = 0; r < NR_PSI_RESOURCES; r++) {
+> +		do_div(some[r], max(nonidle_total, 1UL));
+> +		do_div(full[r], max(nonidle_total, 1UL));
+> +
+> +		group->some[r] += some[r];
+> +		group->full[r] += full[r];
 
-Thank you,
-Pavel
+		group->some[r] = div64_ul(some[r], max(nonidle_total, 1UL));
+		group->full[r] = div64_ul(full[r], max(nonidle_total, 1UL));
 
->
+Is easier to read imo.
+
+> +	}
+> +
+> +	/* avgX= */
+> +	expires = group->period_expires;
+> +	if (time_before(jiffies, expires))
+> +		goto out;
+> +
+> +	missed_periods = (jiffies - expires) / PSI_FREQ;
+> +	group->period_expires = expires + ((1 + missed_periods) * PSI_FREQ);
+> +
+> +	for (r = 0; r < NR_PSI_RESOURCES; r++) {
+> +		u64 some, full;
+> +
+> +		some = group->some[r] - group->last_some[r];
+> +		full = group->full[r] - group->last_full[r];
+> +
+> +		calc_avgs(group->avg_some[r], some, missed_periods);
+> +		calc_avgs(group->avg_full[r], full, missed_periods);
+> +
+> +		group->last_some[r] = group->some[r];
+> +		group->last_full[r] = group->full[r];
+> +	}
+> +out:
+> +	mutex_unlock(&group->stat_lock);
+> +	return nonidle_total;
+> +}
