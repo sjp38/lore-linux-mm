@@ -1,38 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B07E16B0008
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 14:36:58 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id u8-v6so916854pfn.18
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 11:36:58 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id q28-v6si1469213pgm.362.2018.07.17.11.36.57
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F5FF6B000C
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 14:44:59 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id w7-v6so805670pgv.1
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 11:44:59 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h12-v6sor430181pgk.380.2018.07.17.11.44.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 11:36:57 -0700 (PDT)
-Subject: Re: [PATCH v2 7/7] swap, put_swap_page: Share more between
- huge/normal code path
-References: <20180717005556.29758-1-ying.huang@intel.com>
- <20180717005556.29758-8-ying.huang@intel.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <98288fec-1199-1b25-8c8c-18d60c33e596@linux.intel.com>
-Date: Tue, 17 Jul 2018 11:36:54 -0700
+        (Google Transport Security);
+        Tue, 17 Jul 2018 11:44:58 -0700 (PDT)
+Date: Tue, 17 Jul 2018 11:44:55 -0700
+From: Eric Biggers <ebiggers3@gmail.com>
+Subject: Re: BUG: bad usercopy in __check_heap_object (3)
+Message-ID: <20180717184455.GE75957@gmail.com>
+References: <000000000000b9a32405705c54c2@google.com>
 MIME-Version: 1.0
-In-Reply-To: <20180717005556.29758-8-ying.huang@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <000000000000b9a32405705c54c2@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Dan Williams <dan.j.williams@intel.com>
+To: syzbot <syzbot+4b712dce5cbce6700f27@syzkaller.appspotmail.com>
+Cc: keescook@chromium.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
 
-On 07/16/2018 05:55 PM, Huang, Ying wrote:
-> 		text	   data	    bss	    dec	    hex	filename
-> base:	       24215	   2028	    340	  26583	   67d7	mm/swapfile.o
-> unified:       24577	   2028	    340	  26945	   6941	mm/swapfile.o
+On Fri, Jul 06, 2018 at 03:39:04PM -0700, syzbot wrote:
+> Hello,
+> 
+> syzbot found the following crash on:
+> 
+> HEAD commit:    526674536360 Add linux-next specific files for 20180706
+> git tree:       linux-next
+> console output: https://syzkaller.appspot.com/x/log.txt?x=12d51a2c400000
+> kernel config:  https://syzkaller.appspot.com/x/.config?x=c8d1cfc0cb798e48
+> dashboard link: https://syzkaller.appspot.com/bug?extid=4b712dce5cbce6700f27
+> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+> syzkaller repro:https://syzkaller.appspot.com/x/repro.syz?x=14b05afc400000
+> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=17594968400000
+> 
+> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> Reported-by: syzbot+4b712dce5cbce6700f27@syzkaller.appspotmail.com
+> 
+> IPv6: ADDRCONF(NETDEV_CHANGE): bond0: link becomes ready
+> IPv6: ADDRCONF(NETDEV_UP): team0: link is not ready
+> 8021q: adding VLAN 0 to HW filter on device team0
+> usercopy: Kernel memory exposure attempt detected from SLAB object
+> 'kmalloc-4096' (offset 2399, size 2626)!
+> ------------[ cut here ]------------
+> kernel BUG at mm/usercopy.c:100!
+> invalid opcode: 0000 [#1] SMP KASAN
+> CPU: 1 PID: 4718 Comm: syz-executor688 Not tainted 4.18.0-rc3-next-20180706+
+> #1
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> RIP: 0010:usercopy_abort+0xbb/0xbd mm/usercopy.c:88
+> Code: c0 e8 37 ec b8 ff ff 75 c8 48 8b 55 c0 4d 89 f9 ff 75 d0 4d 89 e8 48
+> 89 d9 4c 89 e6 41 56 48 c7 c7 e0 4c f3 87 e8 37 a0 9f ff <0f> 0b e8 0c ec b8
+> ff e8 97 42 f7 ff 4c 89 e1 8b 95 14 ff ff ff 31
+> RSP: 0018:ffff8801d33a78b0 EFLAGS: 00010286
+> RAX: 000000000000006b RBX: ffffffff88c10e70 RCX: 0000000000000000
+> RDX: 0000000000000000 RSI: ffffffff81634381 RDI: 0000000000000001
+> RBP: ffff8801d33a7908 R08: ffff8801d1e2a200 R09: ffffed003b5e4fc0
+> R10: ffffed003b5e4fc0 R11: ffff8801daf27e07 R12: ffffffff87f34bc0
+> R13: ffffffff87f34a80 R14: ffffffff87f34a40 R15: ffffffff88c0c905
+> FS:  00007f56a6072700(0000) GS:ffff8801daf00000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 0000000020001000 CR3: 00000001b8fdf000 CR4: 00000000001406e0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> Call Trace:
+>  __check_heap_object+0xb5/0xb5 mm/slab.c:4445
+>  check_heap_object mm/usercopy.c:236 [inline]
+>  __check_object_size+0x4db/0x5f2 mm/usercopy.c:259
+>  check_object_size include/linux/thread_info.h:119 [inline]
+>  check_copy_size include/linux/thread_info.h:150 [inline]
+>  copy_to_user include/linux/uaccess.h:154 [inline]
+>  seq_read+0x578/0x10e0 fs/seq_file.c:211
+>  do_loop_readv_writev fs/read_write.c:700 [inline]
+>  do_iter_read+0x49e/0x650 fs/read_write.c:924
+>  vfs_readv+0x175/0x1c0 fs/read_write.c:986
+>  do_readv+0x11a/0x310 fs/read_write.c:1019
+>  __do_sys_readv fs/read_write.c:1106 [inline]
+>  __se_sys_readv fs/read_write.c:1103 [inline]
+>  __x64_sys_readv+0x75/0xb0 fs/read_write.c:1103
+>  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x446c09
+> Code: e8 1c bc 02 00 48 83 c4 18 c3 0f 1f 80 00 00 00 00 48 89 f8 48 89 f7
+> 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff ff
+> 0f 83 5b 07 fc ff c3 66 2e 0f 1f 84 00 00 00 00
+> RSP: 002b:00007f56a6071d18 EFLAGS: 00000246 ORIG_RAX: 0000000000000013
+> RAX: ffffffffffffffda RBX: 00000000006dcc5c RCX: 0000000000446c09
+> RDX: 0000000000000002 RSI: 00000000200021c0 RDI: 0000000000000005
+> RBP: 0000000000000000 R08: 0000000000000000 R09: 0000000000000000
+> R10: 0000000000000000 R11: 0000000000000246 R12: 00000000006dcc58
+> R13: 00007f56a6071d20 R14: 6f72746e6f632f2e R15: 0000000000000007
+> Modules linked in:
+> Dumping ftrace buffer:
+>    (ftrace buffer empty)
+> ---[ end trace 532b9c3f493b2e4d ]---
+> RIP: 0010:usercopy_abort+0xbb/0xbd mm/usercopy.c:88
+> Code: c0 e8 37 ec b8 ff ff 75 c8 48 8b 55 c0 4d 89 f9 ff 75 d0 4d 89 e8 48
+> 89 d9 4c 89 e6 41 56 48 c7 c7 e0 4c f3 87 e8 37 a0 9f ff <0f> 0b e8 0c ec b8
+> ff e8 97 42 f7 ff 4c 89 e1 8b 95 14 ff ff ff 31
+> RSP: 0018:ffff8801d33a78b0 EFLAGS: 00010286
+> RAX: 000000000000006b RBX: ffffffff88c10e70 RCX: 0000000000000000
+> RDX: 0000000000000000 RSI: ffffffff81634381 RDI: 0000000000000001
+> RBP: ffff8801d33a7908 R08: ffff8801d1e2a200 R09: ffffed003b5e4fc0
+> R10: ffffed003b5e4fc0 R11: ffff8801daf27e07 R12: ffffffff87f34bc0
+> R13: ffffffff87f34a80 R14: ffffffff87f34a40 R15: ffffffff88c0c905
+> FS:  00007f56a6072700(0000) GS:ffff8801daf00000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 0000000020001000 CR3: 00000001b8fdf000 CR4: 00000000001406e0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> 
+> 
 
-That's a bit more than I'd expect looking at the rest of the diff.  Make
-me wonder if we missed an #ifdef somewhere or the compiler is getting
-otherwise confused.
+Fixed in -mm and linux-next by:
 
-Might be worth a 10-minute look at the disassembly.
+#syz fix: VFS: seq_file: ensure ->from is valid
+
+- Eric
