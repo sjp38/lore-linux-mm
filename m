@@ -1,171 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DAB86B026F
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 07:16:53 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id g5-v6so443695edp.1
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 04:16:53 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l11-v6si633885edc.382.2018.07.17.04.16.51
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A38016B0006
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 07:21:46 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id 39-v6so459247ple.6
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 04:21:46 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id f62-v6si697286pfg.165.2018.07.17.04.21.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 04:16:51 -0700 (PDT)
-Date: Tue, 17 Jul 2018 13:16:49 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v14 2/2] Add oom victim's memcg to the oom context
- information
-Message-ID: <20180717111649.GD7193@dhcp22.suse.cz>
-References: <1531825548-27761-1-git-send-email-ufo19890607@gmail.com>
- <1531825548-27761-2-git-send-email-ufo19890607@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1531825548-27761-2-git-send-email-ufo19890607@gmail.com>
+        Tue, 17 Jul 2018 04:21:45 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5 02/19] mm: Do not use zero page in encrypted pages
+Date: Tue, 17 Jul 2018 14:20:12 +0300
+Message-Id: <20180717112029.42378-3-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
+References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ufo19890607@gmail.com
-Cc: akpm@linux-foundation.org, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yuzhoujian@didichuxing.com
+To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue 17-07-18 19:05:48, ufo19890607@gmail.com wrote:
-> From: yuzhoujian <yuzhoujian@didichuxing.com>
-> 
-> The current oom report doesn't display victim's memcg context during the
-> global OOM situation. While this information is not strictly needed, it
-> can be really helpful for containerized environments to locate which
-> container has lost a process. Now that we have a single line for the oom
-> context, we can trivially add both the oom memcg (this can be either
-> global_oom or a specific memcg which hits its hard limits) and task_memcg
-> which is the victim's memcg.
-> 
-> Below is the single line output in the oom report after this patch.
-> - global oom context information:
-> oom-kill:constraint=<constraint>,nodemask=<nodemask>,cpuset=<cpuset>,mems_allowed=<mems_allowed>,global_oom,task_memcg=<memcg>,task=<comm>,pid=<pid>,uid=<uid>
-> - memcg oom context information:
-> oom-kill:constraint=<constraint>,nodemask=<nodemask>,cpuset=<cpuset>,mems_allowed=<mems_allowed>,oom_memcg=<memcg>,task_memcg=<memcg>,task=<comm>,pid=<pid>,uid=<uid>
-> 
-> Signed-off-by: yuzhoujian <yuzhoujian@didichuxing.com>
+Zero page is not encrypted and putting it into encrypted VMA produces
+garbage.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+We can map zero page with KeyID-0 into an encrypted VMA, but this would
+be violation security boundary between encryption domains.
 
-still applies.
+Forbid zero pages in encrypted VMAs.
 
-> ---
->  include/linux/memcontrol.h | 14 +++++++++++---
->  mm/memcontrol.c            | 36 ++++++++++++++++++++++--------------
->  mm/oom_kill.c              |  3 ++-
->  3 files changed, 35 insertions(+), 18 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 6c6fb116e925..96a73f989101 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -491,8 +491,10 @@ void mem_cgroup_handle_over_high(void);
->  
->  unsigned long mem_cgroup_get_max(struct mem_cgroup *memcg);
->  
-> -void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
-> -				struct task_struct *p);
-> +void mem_cgroup_print_oom_context(struct mem_cgroup *memcg,
-> +		struct task_struct *p);
-> +
-> +void mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg);
->  
->  static inline void mem_cgroup_oom_enable(void)
->  {
-> @@ -903,7 +905,13 @@ static inline unsigned long mem_cgroup_get_max(struct mem_cgroup *memcg)
->  }
->  
->  static inline void
-> -mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
-> +mem_cgroup_print_oom_context(struct mem_cgroup *memcg,
-> +				struct task_struct *p)
-> +{
-> +}
-> +
-> +static inline void
-> +mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg)
->  {
->  }
->  
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index e6f0d5ef320a..18deea974cfd 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1119,32 +1119,40 @@ static const char *const memcg1_stat_names[] = {
->  
->  #define K(x) ((x) << (PAGE_SHIFT-10))
->  /**
-> - * mem_cgroup_print_oom_info: Print OOM information relevant to memory controller.
-> - * @memcg: The memory cgroup that went over limit
-> + * mem_cgroup_print_oom_context: Print OOM context information relevant to
-> + * memory controller.
-> + * @memcg: The origin memory cgroup that went over limit
->   * @p: Task that is going to be killed
->   *
->   * NOTE: @memcg and @p's mem_cgroup can be different when hierarchy is
->   * enabled
->   */
-> -void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
-> +void mem_cgroup_print_oom_context(struct mem_cgroup *memcg, struct task_struct *p)
->  {
-> -	struct mem_cgroup *iter;
-> -	unsigned int i;
-> +	struct cgroup *origin_cgrp, *kill_cgrp;
->  
->  	rcu_read_lock();
-> -
-> +	if (memcg) {
-> +		pr_cont(",oom_memcg=");
-> +		pr_cont_cgroup_path(memcg->css.cgroup);
-> +	} else
-> +		pr_cont(",global_oom");
->  	if (p) {
-> -		pr_info("Task in ");
-> +		pr_cont(",task_memcg=");
->  		pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
-> -		pr_cont(" killed as a result of limit of ");
-> -	} else {
-> -		pr_info("Memory limit reached of cgroup ");
->  	}
-> -
-> -	pr_cont_cgroup_path(memcg->css.cgroup);
-> -	pr_cont("\n");
-> -
->  	rcu_read_unlock();
-> +}
-> +
-> +/**
-> + * mem_cgroup_print_oom_meminfo: Print OOM memory information relevant to
-> + * memory controller.
-> + * @memcg: The memory cgroup that went over limit
-> + */
-> +void mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg)
-> +{
-> +	struct mem_cgroup *iter;
-> +	unsigned int i;
->  
->  	pr_info("memory: usage %llukB, limit %llukB, failcnt %lu\n",
->  		K((u64)page_counter_read(&memcg->memory)),
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 4e18b69fd464..4f3e4382900f 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -434,10 +434,11 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
->  			oom_constraint_text[oc->constraint],
->  			nodemask_pr_args(oc->nodemask));
->  	cpuset_print_current_mems_allowed();
-> +	mem_cgroup_print_oom_context(oc->memcg, p);
->  	pr_cont(",task=%s,pid=%d,uid=%d\n", p->comm, p->pid,
->  		from_kuid(&init_user_ns, task_uid(p)));
->  	if (is_memcg_oom(oc))
-> -		mem_cgroup_print_oom_info(oc->memcg, p);
-> +		mem_cgroup_print_oom_meminfo(oc->memcg);
->  	else {
->  		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
->  		if (is_dump_unreclaim_slabs())
-> -- 
-> 2.14.1
-> 
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ arch/s390/include/asm/pgtable.h | 2 +-
+ include/linux/mm.h              | 4 ++--
+ mm/huge_memory.c                | 3 +--
+ mm/memory.c                     | 3 +--
+ 4 files changed, 5 insertions(+), 7 deletions(-)
 
+diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
+index 5ab636089c60..2e8658962aae 100644
+--- a/arch/s390/include/asm/pgtable.h
++++ b/arch/s390/include/asm/pgtable.h
+@@ -505,7 +505,7 @@ static inline int mm_alloc_pgste(struct mm_struct *mm)
+  * In the case that a guest uses storage keys
+  * faults should no longer be backed by zero pages
+  */
+-#define mm_forbids_zeropage mm_has_pgste
++#define vma_forbids_zeropage(vma) mm_has_pgste(vma->vm_mm)
+ static inline int mm_uses_skeys(struct mm_struct *mm)
+ {
+ #ifdef CONFIG_PGSTE
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index c8780c5835ad..151d6e6b16e5 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -92,8 +92,8 @@ extern int mmap_rnd_compat_bits __read_mostly;
+  * s390 does this to prevent multiplexing of hardware bits
+  * related to the physical page in case of virtualization.
+  */
+-#ifndef mm_forbids_zeropage
+-#define mm_forbids_zeropage(X)	(0)
++#ifndef vma_forbids_zeropage
++#define vma_forbids_zeropage(vma)	vma_keyid(vma)
+ #endif
+ 
+ /*
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 1cd7c1a57a14..83f096c7299b 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -676,8 +676,7 @@ int do_huge_pmd_anonymous_page(struct vm_fault *vmf)
+ 		return VM_FAULT_OOM;
+ 	if (unlikely(khugepaged_enter(vma, vma->vm_flags)))
+ 		return VM_FAULT_OOM;
+-	if (!(vmf->flags & FAULT_FLAG_WRITE) &&
+-			!mm_forbids_zeropage(vma->vm_mm) &&
++	if (!(vmf->flags & FAULT_FLAG_WRITE) && !vma_forbids_zeropage(vma) &&
+ 			transparent_hugepage_use_zero_page()) {
+ 		pgtable_t pgtable;
+ 		struct page *zero_page;
+diff --git a/mm/memory.c b/mm/memory.c
+index 02fbef2bd024..a705637d2ded 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3139,8 +3139,7 @@ static int do_anonymous_page(struct vm_fault *vmf)
+ 		return 0;
+ 
+ 	/* Use the zero-page for reads */
+-	if (!(vmf->flags & FAULT_FLAG_WRITE) &&
+-			!mm_forbids_zeropage(vma->vm_mm)) {
++	if (!(vmf->flags & FAULT_FLAG_WRITE) && !vma_forbids_zeropage(vma)) {
+ 		entry = pte_mkspecial(pfn_pte(my_zero_pfn(vmf->address),
+ 						vma->vm_page_prot));
+ 		vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd,
 -- 
-Michal Hocko
-SUSE Labs
+2.18.0
