@@ -1,78 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AFDE6B0266
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 15:05:18 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id u140-v6so359937itc.3
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 12:05:18 -0700 (PDT)
-Received: from sonic307-11.consmr.mail.ne1.yahoo.com (sonic307-11.consmr.mail.ne1.yahoo.com. [66.163.190.34])
-        by mx.google.com with ESMTPS id h4-v6si185198ith.105.2018.07.17.12.05.16
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 84C4D6B0003
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 15:10:52 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id s200-v6so1920327oie.6
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 12:10:52 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id c83-v6si986036oif.356.2018.07.17.12.10.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 12:05:17 -0700 (PDT)
-Date: Tue, 17 Jul 2018 19:05:14 +0000 (UTC)
-From: David Frank <david_frank95@yahoo.com>
-Message-ID: <115606142.5883850.1531854314452@mail.yahoo.com>
-Subject: mmap with huge page
+        Tue, 17 Jul 2018 12:10:51 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6HIxGQ3066662
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 15:10:50 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2k9mjvv7j7-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 15:10:49 -0400
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Tue, 17 Jul 2018 20:10:47 +0100
+Date: Tue, 17 Jul 2018 12:10:36 -0700
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [PATCH v13 19/24] selftests/vm: associate key on a mapped page
+ and detect access violation
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1528937115-10132-1-git-send-email-linuxram@us.ibm.com>
+ <1528937115-10132-20-git-send-email-linuxram@us.ibm.com>
+ <048b1de9-85f8-22ff-a31a-b06a382769bb@intel.com>
+ <20180717161332.GH5790@ram.oc3035372033.ibm.com>
+ <febe6668-c66a-4601-63da-44501faf12ee@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_Part_5883849_1141935688.1531854314451"
-References: <115606142.5883850.1531854314452.ref@mail.yahoo.com>
+In-Reply-To: <febe6668-c66a-4601-63da-44501faf12ee@intel.com>
+Message-Id: <20180717191036.GI5790@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 8bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kernelnewbies <kernelnewbies@kernelnewbies.org>, Linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, mingo@redhat.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, fweimer@redhat.com, msuchanek@suse.de, aneesh.kumar@linux.vnet.ibm.com
 
-------=_Part_5883849_1141935688.1531854314451
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+On Tue, Jul 17, 2018 at 10:56:08AM -0700, Dave Hansen wrote:
+> On 07/17/2018 09:13 AM, Ram Pai wrote:
+> > I have incorporated almost all of your comments. But there are some
+> > comments that take some effort to implement. Shall we get the patches
+> > merged in the current form?  This code has been sitting out for a while.
+> > 
+> > In the current form its tested and works on powerpc and on x86, and
+> > incorporates about 95% of your suggestions. The rest I will take care
+> > as we go.
+> 
+> What constitutes the remaining 5%?
 
-Hi,According to the instruction, I have to mount a huge directory to hugetl=
-bfs and create file in the huge directory to use the mmap huge page feature=
-. But the issue is that, the files in the huge directory takes up the huge =
-pages configured throughvm.nr_hugepages =3D=20
+Mostly your comments on code-organization in the signal handler. There
+are still some #if defined(__i386__)  ..... Can be cleaned up and
+abstracted further.
 
-even the files are not used.
-When the total size of the files in the huge directory =3D vm.nr_hugepages =
-* huge page size, then mmap would fail with 'can not allocate memory' if th=
-e file to be=C2=A0 mapped is in the huge dir or the call has HUGEPAGETLB fl=
-ag.
-Basically, I have to move the files off of the huge directory to free up hu=
-ge pages.
-Am I missing anything here?
-Thanks,
-David
+Also your questions on some of the code changes, the rationale for which
+is not obvious. Will help to spinkle in some descriptive comments there.
 
-------=_Part_5883849_1141935688.1531854314451
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Have fixed up a lot of codying style issues. But there could till be a
+few that may spew warning by checkpatch.pl.
 
-<html><head></head><body><div style=3D"font-family:Helvetica Neue, Helvetic=
-a, Arial, sans-serif;font-size:13px;"><div style=3D"font-family:Helvetica N=
-eue, Helvetica, Arial, sans-serif;font-size:13px;">Hi,</div><div style=3D"f=
-ont-family:Helvetica Neue, Helvetica, Arial, sans-serif;font-size:13px;">Ac=
-cording to the instruction, I have to mount a huge directory to hugetlbfs a=
-nd create file in the huge directory to use the mmap huge page feature. But=
- the issue is that, the files in the huge directory takes up the huge pages=
- configured through</div><div style=3D"font-family:Helvetica Neue, Helvetic=
-a, Arial, sans-serif;font-size:13px;">vm.nr_hugepages =3D <br></div><div st=
-yle=3D"font-family:Helvetica Neue, Helvetica, Arial, sans-serif;font-size:1=
-3px;"><br></div><div style=3D"font-family:Helvetica Neue, Helvetica, Arial,=
- sans-serif;font-size:13px;">even the files are not used.</div><div style=
-=3D"font-family:Helvetica Neue, Helvetica, Arial, sans-serif;font-size:13px=
-;"><br></div><div style=3D"font-family:Helvetica Neue, Helvetica, Arial, sa=
-ns-serif;font-size:13px;">When the total size of the files in the huge dire=
-ctory =3D vm.nr_hugepages * huge page size, then mmap would fail with 'can =
-not allocate memory' if the file to be&nbsp; mapped is in the huge dir or t=
-he call has HUGEPAGETLB flag.</div><div style=3D"font-family:Helvetica Neue=
-, Helvetica, Arial, sans-serif;font-size:13px;"><br></div><div style=3D"fon=
-t-family:Helvetica Neue, Helvetica, Arial, sans-serif;font-size:13px;">Basi=
-cally, I have to move the files off of the huge directory to free up huge p=
-ages.</div><div style=3D"font-family:Helvetica Neue, Helvetica, Arial, sans=
--serif;font-size:13px;"><br></div><div style=3D"font-family:Helvetica Neue,=
- Helvetica, Arial, sans-serif;font-size:13px;">Am I missing anything here?<=
-/div><div style=3D"font-family:Helvetica Neue, Helvetica, Arial, sans-serif=
-;font-size:13px;"><br></div><div style=3D"font-family:Helvetica Neue, Helve=
-tica, Arial, sans-serif;font-size:13px;">Thanks,</div><div style=3D"font-fa=
-mily:Helvetica Neue, Helvetica, Arial, sans-serif;font-size:13px;"><br></di=
-v><div style=3D"font-family:Helvetica Neue, Helvetica, Arial, sans-serif;fo=
-nt-size:13px;">David<br></div></div></body></html>
-------=_Part_5883849_1141935688.1531854314451--
+There are no functional issues AFAICT.
+
+RP
