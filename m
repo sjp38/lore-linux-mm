@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 54E5C6B0010
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F13646B0010
 	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 07:21:49 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id q18-v6so464554pll.3
+Received: by mail-pg1-f200.google.com with SMTP id o16-v6so322061pgv.21
         for <linux-mm@kvack.org>; Tue, 17 Jul 2018 04:21:49 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id 186-v6si752417pff.270.2018.07.17.04.21.48
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id a4-v6si759513pgl.9.2018.07.17.04.21.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 17 Jul 2018 04:21:48 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv5 03/19] mm/ksm: Do not merge pages with different KeyIDs
-Date: Tue, 17 Jul 2018 14:20:13 +0300
-Message-Id: <20180717112029.42378-4-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5 08/19] x86/mm: Introduce variables to store number, shift and mask of KeyIDs
+Date: Tue, 17 Jul 2018 14:20:18 +0300
+Message-Id: <20180717112029.42378-9-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
 References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,46 +20,102 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Pages encrypted with different encryption keys are not allowed to be
-merged by KSM. Otherwise it would cross security boundary.
+mktme_nr_keyids holds number of KeyIDs available for MKTME, excluding
+KeyID zero which used by TME. MKTME KeyIDs start from 1.
+
+mktme_keyid_shift holds shift of KeyID within physical address.
+
+mktme_keyid_mask holds mask to extract KeyID from physical address.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/mm.h | 7 +++++++
- mm/ksm.c           | 3 +++
- 2 files changed, 10 insertions(+)
+ arch/x86/include/asm/mktme.h | 16 ++++++++++++++++
+ arch/x86/kernel/cpu/intel.c  | 12 ++++++++----
+ arch/x86/mm/Makefile         |  2 ++
+ arch/x86/mm/mktme.c          |  5 +++++
+ 4 files changed, 31 insertions(+), 4 deletions(-)
+ create mode 100644 arch/x86/include/asm/mktme.h
+ create mode 100644 arch/x86/mm/mktme.c
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 151d6e6b16e5..a4ce26aa0b65 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1551,6 +1551,13 @@ static inline int vma_keyid(struct vm_area_struct *vma)
- }
- #endif
- 
-+#ifndef page_keyid
-+static inline int page_keyid(struct page *page)
-+{
-+	return 0;
-+}
+diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
+new file mode 100644
+index 000000000000..df31876ec48c
+--- /dev/null
++++ b/arch/x86/include/asm/mktme.h
+@@ -0,0 +1,16 @@
++#ifndef	_ASM_X86_MKTME_H
++#define	_ASM_X86_MKTME_H
++
++#include <linux/types.h>
++
++#ifdef CONFIG_X86_INTEL_MKTME
++extern phys_addr_t mktme_keyid_mask;
++extern int mktme_nr_keyids;
++extern int mktme_keyid_shift;
++#else
++#define mktme_keyid_mask	((phys_addr_t)0)
++#define mktme_nr_keyids		0
++#define mktme_keyid_shift	0
 +#endif
 +
- #ifdef CONFIG_SHMEM
- /*
-  * The vma_is_shmem is not inline because it is used only by slow
-diff --git a/mm/ksm.c b/mm/ksm.c
-index a6d43cf9a982..1bd7b9710e29 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1214,6 +1214,9 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
- 	if (!PageAnon(page))
- 		goto out;
++#endif
+diff --git a/arch/x86/kernel/cpu/intel.c b/arch/x86/kernel/cpu/intel.c
+index bf2caf9d52dd..efc9e9fc47d4 100644
+--- a/arch/x86/kernel/cpu/intel.c
++++ b/arch/x86/kernel/cpu/intel.c
+@@ -573,6 +573,9 @@ static void detect_tme(struct cpuinfo_x86 *c)
  
-+	if (page_keyid(page) != page_keyid(kpage))
-+		goto out;
+ #ifdef CONFIG_X86_INTEL_MKTME
+ 	if (mktme_status == MKTME_ENABLED && nr_keyids) {
++		mktme_nr_keyids = nr_keyids;
++		mktme_keyid_shift = c->x86_phys_bits - keyid_bits;
 +
- 	/*
- 	 * We need the page lock to read a stable PageSwapCache in
- 	 * write_protect_page().  We use trylock_page() instead of
+ 		/*
+ 		 * Mask out bits claimed from KeyID from physical address mask.
+ 		 *
+@@ -580,10 +583,8 @@ static void detect_tme(struct cpuinfo_x86 *c)
+ 		 * and number of bits claimed for KeyID is 6, bits 51:46 of
+ 		 * physical address is unusable.
+ 		 */
+-		phys_addr_t keyid_mask;
+-
+-		keyid_mask = GENMASK_ULL(c->x86_phys_bits - 1, c->x86_phys_bits - keyid_bits);
+-		physical_mask &= ~keyid_mask;
++		mktme_keyid_mask = GENMASK_ULL(c->x86_phys_bits - 1, mktme_keyid_shift);
++		physical_mask &= ~mktme_keyid_mask;
+ 	} else {
+ 		/*
+ 		 * Reset __PHYSICAL_MASK.
+@@ -591,6 +592,9 @@ static void detect_tme(struct cpuinfo_x86 *c)
+ 		 * between CPUs.
+ 		 */
+ 		physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
++		mktme_keyid_mask = 0;
++		mktme_keyid_shift = 0;
++		mktme_nr_keyids = 0;
+ 	}
+ #endif
+ 
+diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
+index 4b101dd6e52f..4ebee899c363 100644
+--- a/arch/x86/mm/Makefile
++++ b/arch/x86/mm/Makefile
+@@ -53,3 +53,5 @@ obj-$(CONFIG_PAGE_TABLE_ISOLATION)		+= pti.o
+ obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt.o
+ obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_identity.o
+ obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_boot.o
++
++obj-$(CONFIG_X86_INTEL_MKTME)	+= mktme.o
+diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
+new file mode 100644
+index 000000000000..467f1b26c737
+--- /dev/null
++++ b/arch/x86/mm/mktme.c
+@@ -0,0 +1,5 @@
++#include <asm/mktme.h>
++
++phys_addr_t mktme_keyid_mask;
++int mktme_nr_keyids;
++int mktme_keyid_shift;
 -- 
 2.18.0
