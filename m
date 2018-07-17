@@ -1,106 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B99B86B0003
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 21:51:26 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id 123-v6so45130463qkg.8
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 18:51:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id k66-v6si1581452qkb.65.2018.07.16.18.51.25
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F72F6B0006
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 22:07:52 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id g125-v6so14967188ita.0
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 19:07:52 -0700 (PDT)
+Received: from torfep02.bell.net (simcoe208srvr.owm.bell.net. [184.150.200.208])
+        by mx.google.com with ESMTPS id k4-v6si21006418ioa.172.2018.07.16.19.07.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jul 2018 18:51:25 -0700 (PDT)
-Date: Tue, 17 Jul 2018 09:51:20 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: Bug report about KASLR and ZONE_MOVABLE
-Message-ID: <20180717015120.GC1724@MiWiFi-R3L-srv>
-References: <20180711104158.GE2070@MiWiFi-R3L-srv>
- <20180711104944.GG1969@MiWiFi-R3L-srv>
- <20180711124008.GF2070@MiWiFi-R3L-srv>
- <72721138-ba6a-32c9-3489-f2060f40a4c9@cn.fujitsu.com>
- <20180712060115.GD6742@localhost.localdomain>
- <20180712123228.GK32648@dhcp22.suse.cz>
- <20180712235240.GH2070@MiWiFi-R3L-srv>
- <20180716113845.GM17280@dhcp22.suse.cz>
- <20180716130202.GB1724@MiWiFi-R3L-srv>
- <20180716152410.GU17280@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180716152410.GU17280@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 16 Jul 2018 19:07:51 -0700 (PDT)
+Received: from bell.net torfep02 184.150.200.158 by torfep02.bell.net
+          with ESMTP
+          id <20180717020750.ZUCS32387.torfep02.bell.net@torspm01.bell.net>
+          for <linux-mm@kvack.org>; Mon, 16 Jul 2018 22:07:50 -0400
+Message-ID: <18439b1a3755a6bfd8f96b1866c328ada1db0aa8.camel@sympatico.ca>
+Subject: Re: [PATCH 00/39 v7] PTI support for x86-32
+From: "David H. Gutteridge" <dhgutteridge@sympatico.ca>
+Date: Mon, 16 Jul 2018 22:07:44 -0400
+In-Reply-To: <1531308586-29340-1-git-send-email-joro@8bytes.org>
+References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Chao Fan <fanc.fnst@cn.fujitsu.com>, Dou Liyang <douly.fnst@cn.fujitsu.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, yasu.isimatu@gmail.com, keescook@chromium.org, indou.takao@jp.fujitsu.com, caoj.fnst@cn.fujitsu.com, vbabka@suse.cz, mgorman@techsingularity.net
+To: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, jroedel@suse.de
 
-On 07/16/18 at 05:24pm, Michal Hocko wrote:
-> On Mon 16-07-18 21:02:02, Baoquan He wrote:
-> > On 07/16/18 at 01:38pm, Michal Hocko wrote:
-> > > On Fri 13-07-18 07:52:40, Baoquan He wrote:
-> > > > Hi Michal,
-> > > > 
-> > > > On 07/12/18 at 02:32pm, Michal Hocko wrote:
-> > > [...]
-> > > > > I am not able to find the beginning of the email thread right now. Could
-> > > > > you summarize what is the actual problem please?
-> > > > 
-> > > > The bug is found on x86 now. 
-> > > > 
-> > > > When added "kernelcore=" or "movablecore=" into kernel command line,
-> > > > kernel memory is spread evenly among nodes. However, this is right when
-> > > > KASLR is not enabled, then kernel will be at 16M of place in x86 arch.
-> > > > If KASLR enabled, it could be put any place from 16M to 64T randomly.
-> > > >  
-> > > > Consider a scenario, we have 10 nodes, and each node has 20G memory, and
-> > > > we specify "kernelcore=50%", means each node will take 10G for
-> > > > kernelcore, 10G for movable area. But this doesn't take kernel position
-> > > > into consideration. E.g if kernel is put at 15G of 2nd node, namely
-> > > > node1. Then we think on node1 there's 10G for kernelcore, 10G for
-> > > > movable, in fact there's only 5G available for movable, just after
-> > > > kernel.
-> > > 
-> > > OK, I guess I see that part. But who is going to use movablecore along
-> > > with KASLR enabled? I mean do we really have to support those two
-> > > obscure command line parameters for KASLR?
-> > 
-> > Not very sure whether we have to support both of those to work with
-> > KASLR. Maybe it's time to make clear of it now.
+On Wed, 2018-07-11 at 13:29 +0200, Joerg Roedel wrote:
+> Hi,
 > 
-> Yes, I would really like to deprecate this. It is an ugly piece of code
-> and it's far from easily maintainable as well.
+> here is version 7 of my patches to enable PTI on x86-32.
+> Changes to the previous version are:
 > 
-> > For 'kernelcore=mirror', we have solved the conflict to make it work well
-> > with KASLR. For 'movable_node' conflict with KASLR, Chao is posting
-> > patches to fix it. As for 'kernelcore=' and 'movablecore=', 
-> > 
-> > 1) solve the conflict between them with KASLR in
-> >    find_zone_movable_pfns_for_nodes();
-> > 2) disable KASLR when 'kernelcore=' | 'movablecore=' is set;
-> > 3) disable 'kernelcore=' | 'movablecore=' when KASLR is enabled;
-> > 4) add note in doc to notice people to not add them at the same time;
+> 	* Rebased to v4.18-rc4
 > 
-> I would simply warn that those kernel parameters are not supported
-> anymore. If somebody shows up with a valid usecase we can reconsider.
-
-OK, got it. The use case I can think of is that people want to check 
-hotplug on system w/o hotplug ACPI info.
-
-I am fine with warning people they are not supported. Should I post a
-patch to address this, or you will do it? Both is fine to me.
-
+> 	* Introduced pti_finalize() which is called after
+> 	  mark_readonly() and used to update the kernel
+> 	  mappings in the user page-table after RO/NX
+> 	  protections are in place.
 > 
-> > 2) and 3) may need be fixed in arch/x86 code. As long as come to an
-> > agreement, any one is fine to me.
-> > > 
-> > > In fact I would be much more concerned about memory hotplug and
-> > > pre-defined movable nodes. Does the current KASLR code work in that
-> > > case?
-> > 
-> > As said above, kernelcore=mirror works well with KASLR now. Making
-> > 'movable_node' work with KASLR is in progress.
-> 
-> OK, thanks for the info.
+> The patches need the vmalloc/ioremap fixes in tip/x86/mm to
+> work correctly, because this enablement makes the issues
+> fixed there more likely to happen.
 
-You are welcome.
+Hi Joerg & *,
 
-Thanks
-Baoquan
+I redid my testing on bare metal and in a VM (as with my previous
+testing
+efforts: https://lkml.org/lkml/2018/2/19/844, same setups
+and coverage,
+plus CONFIG_X86_DEBUG_ENTRY_CR3 enabled too) with the
+pti-x32-v7 branch,
+and I didn't encounter any issues. The two DRM
+drivers that were
+triggering bugs in some of the prior iterations
+are both behaving
+properly for me.
+
+Regards,
+
+Dave
