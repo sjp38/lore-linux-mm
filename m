@@ -1,95 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E1CD16B0005
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 11:50:57 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id d10-v6so801153pll.22
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 08:50:57 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f1-v6si1107216plf.453.2018.07.17.08.50.56
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 84F046B0008
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 11:56:20 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id r2-v6so617998pgp.3
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 08:56:20 -0700 (PDT)
+Received: from SMTP03.CITRIX.COM (smtp03.citrix.com. [162.221.156.55])
+        by mx.google.com with ESMTPS id a21-v6si1238037pgm.417.2018.07.17.08.56.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 08:50:56 -0700 (PDT)
-Date: Tue, 17 Jul 2018 17:50:50 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 00/14] mm: Asynchronous + multithreaded memmap init
- for ZONE_DEVICE
-Message-ID: <20180717155006.GL7193@dhcp22.suse.cz>
-References: <153176041838.12695.3365448145295112857.stgit@dwillia2-desk3.amr.corp.intel.com>
- <CAGM2rea9AwQGaf1JiV_SDDKTKyP_n+dG9Z20gtTZEkuZPFnXFQ@mail.gmail.com>
- <CAPcyv4jo91jKjwn-M7cOhG=6vJ3c-QCyp0W+T+CtmiKGyZP1ng@mail.gmail.com>
- <CAGM2reacO1HF91yH8OR5w5AdZwPgwfSFfjDNBsHbP66v1rEg=g@mail.gmail.com>
+        Tue, 17 Jul 2018 08:56:19 -0700 (PDT)
+From: Anoob Soman <anoob.soman@citrix.com>
+Subject: GP fault in free_pcppages_bulk() while trying to list_del(&page->lru)
+Message-ID: <1f1b5a3a-9787-a134-992e-b8fbc2a9e86b@citrix.com>
+Date: Tue, 17 Jul 2018 16:55:54 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGM2reacO1HF91yH8OR5w5AdZwPgwfSFfjDNBsHbP66v1rEg=g@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: dan.j.williams@intel.com, Andrew Morton <akpm@linux-foundation.org>, tony.luck@intel.com, yehs1@lenovo.com, vishal.l.verma@intel.com, jack@suse.cz, willy@infradead.org, dave.jiang@intel.com, hpa@zytor.com, tglx@linutronix.de, dalias@libc.org, fenghua.yu@intel.com, Daniel Jordan <daniel.m.jordan@oracle.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, benh@kernel.crashing.org, paulus@samba.org, hch@lst.de, jglisse@redhat.com, mingo@redhat.com, mpe@ellerman.id.au, Heiko Carstens <heiko.carstens@de.ibm.com>, x86@kernel.org, logang@deltatee.com, ross.zwisler@linux.intel.com, jmoyer@redhat.com, jthumshirn@suse.de, schwidefsky@de.ibm.com, Linux Memory Management List <linux-mm@kvack.org>, linux-nvdimm@lists.01.org, LKML <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, mgorman@techsingularity.net, pasha.tatashin@oracle.com, iamjoonsoo.kim@lge.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 17-07-18 10:46:39, Pavel Tatashin wrote:
-> > > Hi Dan,
-> > >
-> > > I am worried that this work adds another way to multi-thread struct
-> > > page initialization without re-use of already existing method. The
-> > > code is already a mess, and leads to bugs [1] because of the number of
-> > > different memory layouts, architecture specific quirks, and different
-> > > struct page initialization methods.
-> >
-> > Yes, the lamentations about the complexity of the memory hotplug code
-> > are known. I didn't think this set made it irretrievably worse, but
-> > I'm biased and otherwise certainly want to build consensus with other
-> > mem-hotplug folks.
-> >
-> > >
-> > > So, when DEFERRED_STRUCT_PAGE_INIT is used we initialize struct pages
-> > > on demand until page_alloc_init_late() is called, and at that time we
-> > > initialize all the rest of struct pages by calling:
-> > >
-> > > page_alloc_init_late()
-> > >   deferred_init_memmap() (a thread per node)
-> > >     deferred_init_pages()
-> > >        __init_single_page()
-> > >
-> > > This is because memmap_init_zone() is not multi-threaded. However,
-> > > this work makes memmap_init_zone() multi-threaded. So, I think we
-> > > should really be either be using deferred_init_memmap() here, or teach
-> > > DEFERRED_STRUCT_PAGE_INIT to use new multi-threaded memmap_init_zone()
-> > > but not both.
-> >
-> > I agree it would be good to look at unifying the 2 async
-> > initialization approaches, however they have distinct constraints. All
-> > of the ZONE_DEVICE memmap initialization work happens as a hotplug
-> > event where the deferred_init_memmap() threads have already been torn
-> > down. For the memory capacities where it takes minutes to initialize
-> > the memmap it is painful to incur a global flush of all initialization
-> > work. So, I think that a move to rework deferred_init_memmap() in
-> > terms of memmap_init_async() is warranted because memmap_init_async()
-> > avoids a global sync and supports the hotplug case.
-> >
-> > Unfortunately, the work to unite these 2 mechanisms is going to be
-> > 4.20 material, at least for me, since I'm taking an extended leave,
-> > and there is little time for me to get this in shape for 4.19. I
-> > wouldn't be opposed to someone judiciously stealing from this set and
-> > taking a shot at the integration, I likely will not get back to this
-> > until September.
-> 
-> Hi Dan,
-> 
-> I do not want to hold your work, so if Michal or Andrew are OK with
-> the general approach of teaching    memmap_init_zone() to be async
-> without re-using deferred_init_memmap() or without changing
-> deferred_init_memmap() to use the new memmap_init_async() I will
-> review your patches.
+Hi All,
 
-Well, I would rather have a sane code base than rush anything in. I do
-agree with Pavel that we the number of async methods we have right now
-is really disturbing. Applying yet another one will put additional
-maintenance burden on whoever comes next.
+A customer of us have encountered GP fault, when free_pcppages_bulk() 
+tries to access list_del(). A snippet of kernel backtrace is pasted below.
 
-Is there any reason that this work has to target the next merge window?
-The changelog is not really specific about that. There no numbers or
-anything that would make this sound as a high priority stuff.
--- 
-Michal Hocko
-SUSE Labs
+CPU: 1 PID: 0 Comm: swapper/1 Tainted: GA A A A A A A A A A  OA A A  4.4.0+2 #1
+Hardware name: IBM System x3650 M3 -[7945K2G]-/69Y5698, BIOS 
+-[D6E162AUS-1.20]- 05/07/2014
+task: ffff880189dbb580 ti: ffff880189dc4000 task.ti: ffff880189dc4000
+RIP: e030:[<ffffffff8115e055>]A  [<ffffffff8115e055>] 
+free_pcppages_bulk+0xe5/0x520
+RSP: e02b:ffff88018a823d70A  EFLAGS: 00010093
+RAX: ffffea0004150f20 RBX: ffffffff81ac3040 RCX: ffff88018a839058
+RDX: dead000000000200 RSI: ffffea00057b4900 RDI: dead000000000100
+RBP: ffff88018a823dd0 R08: 0000000000000525 R09: ffffea00057b4940
+R10: 0000000000000560 R11: ffff88007ee9f000 R12: 0000000004150f00
+R13: 0000000000000001 R14: 0000160000000000 R15: ffffea0004150f00
+FS:A  00007fa2bc2e9840(0000) GS:ffff88018a820000(0000) 
+knlGS:0000000000000000
+CS:A  e033 DS: 002b ES: 002b CR0: 000000008005003b
+CR2: 00007ffafd0e3b50 CR3: 0000000149f34000 CR4: 0000000000002660
+Stack:
+ffff88018a823d98 ffffffff81ac34d0 ffff88018a82ae80 ffff88018a839038
+ffff88018a839058 0000000100000052 0000000000000001 ffff88018a839038
+ffffffff81ac0040 ffffffff8115e590 0000000000000000 0000000000000000
+Call Trace:
+<IRQ>
+[<ffffffff8115e590>] ? page_alloc_cpu_notify+0x50/0x50
+[<ffffffff8115e4cf>] drain_pages_zone+0x3f/0x60
+[<ffffffff8115e51f>] drain_pages+0x2f/0x50
+[<ffffffff8115e5b5>] drain_local_pages+0x25/0x30
+[<ffffffff810e3d58>] flush_smp_call_function_queue+0xc8/0x130
+[<ffffffff810e45d3>] generic_smp_call_function_single_interrupt+0x13/0x60
+[<ffffffff81014303>] xen_call_function_interrupt+0x13/0x30
+[<ffffffff810bff2f>] handle_irq_event_percpu+0x7f/0x1e0
+[<ffffffff810c347a>] handle_percpu_irq+0x3a/0x50
+[<ffffffff810bf732>] generic_handle_irq+0x22/0x30
+[<ffffffff813c646b>] __evtchn_fifo_handle_events+0x14b/0x170
+[<ffffffff813c64a0>] evtchn_fifo_handle_events+0x10/0x20
+[<ffffffff813c34ba>] __xen_evtchn_do_upcall+0x4a/0x80
+[<ffffffff813c5290>] xen_evtchn_do_upcall+0x30/0x50
+[<ffffffff815a25ae>] xen_do_hypervisor_callback+0x1e/0x40
+<EOI>
+
+I tried decoding as much as I can, but I am confused at the moment 
+wondering how this crash could happen.
+
+Some relevant bits of objdump free_pcppages_bulk(), which is mainly 
+list_del().
+ffffffff8115e034:A A A A A A  48 bf 00 01 00 00 00A A A  movabs 
+$0xdead000000000100,%rdi
+ffffffff8115e03b:A A A A A A  00 ad de
+ffffffff8115e03e:A A A A A A  48 8b 40 08A A A A A A A A A A A A  mov 0x8(%rax),%rax
+ffffffff8115e042:A A A A A A  48 8b 50 08A A A A A A A A A A A A  mov 0x8(%rax),%rdx
+ffffffff8115e046:A A A A A A  48 8b 08A A A A A A A A A A A A A A A  movA A A  (%rax),%rcx
+ffffffff8115e049:A A A A A A  4c 8d 78 e0A A A A A A A A A A A A  lea -0x20(%rax),%r15
+ffffffff8115e04d:A A A A A A  4f 8d 24 37A A A A A A A A A A A A  lea (%r15,%r14,1),%r12
+ffffffff8115e051:A A A A A A  48 89 51 08A A A A A A A A A A A A  mov %rdx,0x8(%rcx)
+ffffffff8115e055:A A A A A A  48 89 0aA A A A A A A A A A A A A A A  movA A A  %rcx,(%rdx) 
+<------ RIP is here
+ffffffff8115e058:A A A A A A  48 ba 00 02 00 00 00A A A  movabs 
+$0xdead000000000200,%rdx
+ffffffff8115e05f:A A A A A A  00 ad de
+ffffffff8115e062:A A A A A A  48 89 38A A A A A A A A A A A A A A A  movA A A  %rdi,(%rax)
+ffffffff8115e065:A A A A A A  48 89 50 08A A A A A A A A A A A A  mov %rdx,0x8(%rax)
+
+RIP points to ffffffff8115e055 and GP fault because RDX contains 
+LIST_POISON2. RDI contains LIST_POISON1 (this doesn't matter as it is 
+just a temporary register which holds POISON1)
+
+Based on objdump, I can conclude that RDX points to entry->prev and RCX 
+points to entry->next.
+
+free_pcppages_bulk() tries to delete an entry, from pcp->list, whose 
+"prev" pointer is LIST_POISON2, but "next" pointer is not poisoned. Is 
+it safe to assume that this entry was in the middle of being add into a 
+list and free_pcppages_bulk() went and deleted it ? One possibility it a 
+different CPU is processing another CPU pcp list, but looking to the 
+code, I am certain that this can never happen.
+
+Are there any other explanation why this might happen.
+
+As you can see from backtrace, we are running 4.4-24 kernel and we might 
+have missed some patches. But looking at the history of commits, I don't 
+see anything relevant fixed in this area.
+
+Can someone point me right direction as to how to debug this further.
+
+Thanks,
+Anoob.
