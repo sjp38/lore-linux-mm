@@ -1,107 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C0276B0008
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 16:52:39 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id s46-v6so1205102ybe.8
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 13:52:39 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id b6-v6si375083ywl.566.2018.07.17.13.52.38
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D8ACF6B0003
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 17:03:43 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id d4-v6so1108595pfn.9
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 14:03:43 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id n16-v6si1529983pgl.596.2018.07.17.14.03.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 13:52:38 -0700 (PDT)
-Date: Tue, 17 Jul 2018 13:52:22 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: cgroup-aware OOM killer, how to move forward
-Message-ID: <20180717205221.GA19862@castle.DHCP.thefacebook.com>
-References: <20180713221602.GA15005@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807131535420.202408@chino.kir.corp.google.com>
- <20180713230545.GA17467@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807131608530.218060@chino.kir.corp.google.com>
- <20180713231630.GB17467@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
- <20180717173844.GB14909@castle.DHCP.thefacebook.com>
- <20180717194945.GM7193@dhcp22.suse.cz>
- <20180717200641.GB18762@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807171329200.12251@chino.kir.corp.google.com>
+        Tue, 17 Jul 2018 14:03:42 -0700 (PDT)
+Subject: Re: [PATCH v2] mm: disallow mapping that conflict for
+ devm_memremap_pages()
+From: Dave Jiang <dave.jiang@intel.com>
+References: <152909478401.50143.312364396244072931.stgit@djiang5-desk3.ch.intel.com>
+Message-ID: <865f6e1e-1711-bcb9-b226-4eb0d091f700@intel.com>
+Date: Tue, 17 Jul 2018 14:03:41 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1807171329200.12251@chino.kir.corp.google.com>
+In-Reply-To: <152909478401.50143.312364396244072931.stgit@djiang5-desk3.ch.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, dan.j.williams@intel.com, elliott@hpe.com, linux-nvdimm@lists.01.org
 
-On Tue, Jul 17, 2018 at 01:41:33PM -0700, David Rientjes wrote:
-> On Tue, 17 Jul 2018, Roman Gushchin wrote:
-> 
-> > > > Let me show my proposal on examples. Let's say we have the following hierarchy,
-> > > > and the biggest process (or the process with highest oom_score_adj) is in D.
-> > > > 
-> > > >   /
-> > > >   |
-> > > >   A
-> > > >   |
-> > > >   B
-> > > >  / \
-> > > > C   D
-> > > > 
-> > > > Let's look at different examples and intended behavior:
-> > > > 1) system-wide OOM
-> > > >   - default settings: the biggest process is killed
-> > > >   - D/memory.group_oom=1: all processes in D are killed
-> > > >   - A/memory.group_oom=1: all processes in A are killed
-> > > > 2) memcg oom in B
-> > > >   - default settings: the biggest process is killed
-> > > >   - A/memory.group_oom=1: the biggest process is killed
-> > > 
-> > > Huh? Why would you even consider A here when the oom is below it?
-> > > /me confused
-> > 
-> > I do not.
-> > This is exactly a counter-example: A's memory.group_oom
-> > is not considered at all in this case,
-> > because A is above ooming cgroup.
-> > 
-> 
-> I think the confusion is that this says A/memory.group_oom=1 and then the 
-> biggest process is killed, which doesn't seem like it matches the 
-> description you want to give memory.group_oom.
+Andrew, is it possible to pick up this patch? Thanks!
 
-It matches perfectly, as the description says that the kernel will
-look for the most high-level cgroup with group_oom set up to the OOM domain.
-Here B is oom domain, so A's settings are irrelevant.
-
+On 06/15/2018 01:33 PM, Dave Jiang wrote:
+> When pmem namespaces created are smaller than section size, this can cause
+> issue during removal and gpf was observed:
 > 
-> > > >   - B/memory.group_oom=1: all processes in B are killed
-> > > 
-> > >     - B/memory.group_oom=0 &&
-> > > >   - D/memory.group_oom=1: all processes in D are killed
-> > > 
-> > > What about?
-> > >     - B/memory.group_oom=1 && D/memory.group_oom=0
-> > 
-> > All tasks in B are killed.
-> > 
-> > Group_oom set to 1 means that the workload can't tolerate
-> > killing of a random process, so in this case it's better
-> > to guarantee consistency for B.
-> > 
+> [ 249.613597] general protection fault: 0000 1 SMP PTI
+> [ 249.725203] CPU: 36 PID: 3941 Comm: ndctl Tainted: G W
+> 4.14.28-1.el7uek.x86_64 #2
+> [ 249.745495] task: ffff88acda150000 task.stack: ffffc900233a4000
+> [ 249.752107] RIP: 0010:__put_page+0x56/0x79
+> [ 249.844675] Call Trace:
+> [ 249.847410] devm_memremap_pages_release+0x155/0x23a
+> [ 249.852953] release_nodes+0x21e/0x260
+> [ 249.857138] devres_release_all+0x3c/0x48
+> [ 249.861606] device_release_driver_internal+0x15c/0x207
+> [ 249.867439] device_release_driver+0x12/0x14
+> [ 249.872204] unbind_store+0xba/0xd8
+> [ 249.876098] drv_attr_store+0x27/0x31
+> [ 249.880186] sysfs_kf_write+0x3f/0x46
+> [ 249.884266] kernfs_fop_write+0x10f/0x18b
+> [ 249.888734] __vfs_write+0x3a/0x16d
+> [ 249.892628] ? selinux_file_permission+0xe5/0x116
+> [ 249.897881] ? security_file_permission+0x41/0xbb
+> [ 249.903133] vfs_write+0xb2/0x1a1
+> [ 249.906835] ? syscall_trace_enter+0x1ce/0x2b8
+> [ 249.911795] SyS_write+0x55/0xb9
+> [ 249.915397] do_syscall_64+0x79/0x1ae
+> [ 249.919485] entry_SYSCALL_64_after_hwframe+0x3d/0x0
 > 
-> This example is missing the usecase that I was referring to, i.e. killing 
-> all processes attached to a subtree because the limit on a common ancestor 
-> has been reached.
+> Add code to check whether we have mapping already in the same section and
+> prevent additional mapping from created if that is the case.
 > 
-> In your example, I would think that the memory.group_oom setting of /A and 
-> /A/B are meaningless because there are no processes attached to them.
+> Signed-off-by: Dave Jiang <dave.jiang@intel.com>
+> ---
 > 
-> IIUC, your proposal is to select the victim by whatever means, check the 
-> memory.group_oom setting of that victim, and then either kill the victim 
-> or all processes attached to that local mem cgroup depending on the 
-> setting.
-
-Sorry, I don't get what are you saying.
-In cgroup v2 processes can't be attached to A and B.
-There is no such thing as "local mem cgroup" at all.
-
-Thanks!
+> v2: Change dev_warn() to dev_WARN() to provide helpful backtrace. (Robert E)
+> 
+>  kernel/memremap.c |   18 +++++++++++++++++-
+>  1 file changed, 17 insertions(+), 1 deletion(-)
+> 
+> diff --git a/kernel/memremap.c b/kernel/memremap.c
+> index 5857267a4af5..a734b1747466 100644
+> --- a/kernel/memremap.c
+> +++ b/kernel/memremap.c
+> @@ -176,10 +176,27 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+>  	unsigned long pfn, pgoff, order;
+>  	pgprot_t pgprot = PAGE_KERNEL;
+>  	int error, nid, is_ram;
+> +	struct dev_pagemap *conflict_pgmap;
+>  
+>  	align_start = res->start & ~(SECTION_SIZE - 1);
+>  	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
+>  		- align_start;
+> +	align_end = align_start + align_size - 1;
+> +
+> +	conflict_pgmap = get_dev_pagemap(PHYS_PFN(align_start), NULL);
+> +	if (conflict_pgmap) {
+> +		dev_WARN(dev, "Conflicting mapping in same section\n");
+> +		put_dev_pagemap(conflict_pgmap);
+> +		return ERR_PTR(-ENOMEM);
+> +	}
+> +
+> +	conflict_pgmap = get_dev_pagemap(PHYS_PFN(align_end), NULL);
+> +	if (conflict_pgmap) {
+> +		dev_WARN(dev, "Conflicting mapping in same section\n");
+> +		put_dev_pagemap(conflict_pgmap);
+> +		return ERR_PTR(-ENOMEM);
+> +	}
+> +
+>  	is_ram = region_intersects(align_start, align_size,
+>  		IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
+>  
+> @@ -199,7 +216,6 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+>  
+>  	mutex_lock(&pgmap_lock);
+>  	error = 0;
+> -	align_end = align_start + align_size - 1;
+>  
+>  	foreach_order_pgoff(res, order, pgoff) {
+>  		error = __radix_tree_insert(&pgmap_radix,
+> 
