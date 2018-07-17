@@ -1,88 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2549B6B000C
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 08:42:01 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id d30-v6so539906edd.0
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 05:42:01 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B2ABB6B0003
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 08:47:09 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id g11-v6so514943edi.8
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 05:47:09 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g2-v6si827038edc.349.2018.07.17.05.41.59
+        by mx.google.com with ESMTPS id s26-v6si846296edq.393.2018.07.17.05.47.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 05:41:59 -0700 (PDT)
-Date: Tue, 17 Jul 2018 14:41:55 +0200
+        Tue, 17 Jul 2018 05:47:08 -0700 (PDT)
+Date: Tue, 17 Jul 2018 14:47:03 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: cgroup-aware OOM killer, how to move forward
-Message-ID: <20180717124155.GH7193@dhcp22.suse.cz>
-References: <20180711223959.GA13981@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807131423230.194789@chino.kir.corp.google.com>
- <20180713221602.GA15005@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807131535420.202408@chino.kir.corp.google.com>
- <20180713230545.GA17467@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807131608530.218060@chino.kir.corp.google.com>
- <20180713231630.GB17467@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
+Subject: Re: vmalloc with GFP_NOFS
+Message-ID: <20180717124703.GA30926@dhcp22.suse.cz>
+References: <20180424162712.GL17484@dhcp22.suse.cz>
+ <3732370.1623zxSvNg@blindfold>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
+In-Reply-To: <3732370.1623zxSvNg@blindfold>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
+To: Richard Weinberger <richard@nod.at>
+Cc: LKML <linux-kernel@vger.kernel.org>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Steven Whitehouse <swhiteho@redhat.com>, Bob Peterson <rpeterso@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Adrian Hunter <adrian.hunter@intel.com>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Mikulas Patocka <mpatocka@redhat.com>, linux-mtd@lists.infradead.org, linux-ext4@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
 
-On Mon 16-07-18 21:19:18, David Rientjes wrote:
-> On Fri, 13 Jul 2018, Roman Gushchin wrote:
+On Tue 24-04-18 21:03:43, Richard Weinberger wrote:
+> Am Dienstag, 24. April 2018, 18:27:12 CEST schrieb Michal Hocko:
+> > fs/ubifs/debug.c
 > 
-> > > > > All cgroup v2 files do not need to be boolean and the only way you can add 
-> > > > > a subtree oom kill is to introduce yet another file later.  Please make it 
-> > > > > tristate so that you can define a mechanism of default (process only), 
-> > > > > local cgroup, or subtree, and so we can avoid adding another option later 
-> > > > > that conflicts with the proposed one.  This should be easy.
-> > > > 
-> > > > David, we're adding a cgroup v2 knob, and in cgroup v2 a memory cgroup
-> > > > either has a sub-tree, either attached processes. So, there is no difference
-> > > > between local cgroup and subtree.
-> > > > 
-> > > 
-> > > Uhm, what?  We're talking about a common ancestor reaching its limit, so 
-> > > it's oom, and it has multiple immediate children with their own processes 
-> > > attached.  The difference is killing all processes attached to the 
-> > > victim's cgroup or all processes under the oom mem cgroup's subtree.
-> > > 
-> > 
-> > But it's a binary decision, no?
-> > If memory.group_oom set, the whole sub-tree will be killed. Otherwise not.
-> > 
+> This one is just for debugging.
+> So, preallocating + locking would not hurt much.
 > 
-> No, if memory.max is reached and memory.group_oom is set, my understanding 
-> of your proposal is that a process is chosen and all eligible processes 
-> attached to its mem cgroup are oom killed.  My desire for a tristate is so 
-> that it can be specified that all processes attached to the *subtree* are 
-> oom killed.  With single unified hierarchy mandated by cgroup v2, we can 
-> separate descendant cgroups for use with other controllers and enforce 
-> memory.max by an ancestor.
+> > fs/ubifs/lprops.c
 > 
-> Making this a boolean value is only preventing it from becoming 
-> extensible.  If memory.group_oom only is effective for the victim's mem 
-> cgroup, it becomes impossible to specify that all processes in the subtree 
-> should be oom killed as a result of the ancestor limit without adding yet 
-> another tunable.
+> Ditto.
+> 
+> > fs/ubifs/lpt_commit.c
+> 
+> Here we use it also only in debugging mode and in one case for
+> fatal error reporting.
+> No hot paths.
+> 
+> > fs/ubifs/orphan.c
+> 
+> Also only for debugging.
+> Getting rid of vmalloc with GFP_NOFS in UBIFS is no big problem.
+> I can prepare a patch.
 
-No, this is mangling the interface again. I have already objected to
-this [1]. group_oom only tells to tear the whole group down. How you
-select this particular group is a completely different story. Conflating
-those two things is a bad interface to start with. Killing the whold
-cgroup or only a single process should be invariant for the particular
-memcg regardless of what is the oom selection policy above in the
-hierarchy. Either you are indivisible workload or you are not, full
-stop.
-
-If we really need a better control over how to select subtrees then this
-should be a separate control knob. How should it look like is a matter
-of discussion but it will be hard to find any consensus if the
-single-knob-for-single-purpose approach is not clear.
-
-[1] http://lkml.kernel.org/r/20180117160004.GH2900@dhcp22.suse.cz
+Hi Richard, I have just got back to this and noticed that the vmalloc
+NOFS usage is still there. Do you have any plans to push changes to
+remove it?
 -- 
 Michal Hocko
 SUSE Labs
