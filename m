@@ -1,104 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 29D056B000D
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 09:31:12 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id b12-v6so559629edi.12
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 06:31:12 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k21-v6si86501edq.27.2018.07.17.06.31.10
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 04BBE6B0003
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 09:50:02 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id o18-v6so807807qko.21
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 06:50:01 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f96-v6sor492965qtb.134.2018.07.17.06.50.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 06:31:10 -0700 (PDT)
-Date: Tue, 17 Jul 2018 15:31:09 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/page_alloc: Deprecate kernelcore=nn and movable_core=
-Message-ID: <20180717133109.GI7193@dhcp22.suse.cz>
-References: <20180717131837.18411-1-bhe@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180717131837.18411-1-bhe@redhat.com>
+        (Google Transport Security);
+        Tue, 17 Jul 2018 06:50:00 -0700 (PDT)
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: [PATCH v14 00/22] selftests, powerpc, x86 : Memory Protection Keys
+Date: Tue, 17 Jul 2018 06:49:03 -0700
+Message-Id: <1531835365-32387-1-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baoquan He <bhe@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, corbet@lwn.net, linux-doc@vger.kernel.org
+To: shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org
+Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, mingo@redhat.com, dave.hansen@intel.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, linuxram@us.ibm.com, fweimer@redhat.com, msuchanek@suse.de, aneesh.kumar@linux.vnet.ibm.com
 
-On Tue 17-07-18 21:18:37, Baoquan He wrote:
-> We can still use 'kernelcore=mirror' or 'movable_node' for the usage
-> of hotplug and movable zone. If somebody shows up with a valid usecase
-> we can reconsider.
+Memory protection keys enables an application to protect its address space from
+inadvertent access by its own code.
 
-Well this doesn't really explain why to deprecate this functionality.
-It is a rather ugly hack that has been originally introduced for large
-order allocations. But we do have compaction these days. Even though the
-compaction cannot solve all the fragmentation issues the zone movable is
-not a great answer as it introduces other issues (basically highmem kind
-of issues we used to have on 32b systems).
-The current code doesn't work with KASLR and the code is too subtle to
-work properly in other cases as well. E.g. movablecore range might cover
-already used memory (e.g. bootmem allocations) and therefore it doesn't
-comply with the basic assumption that the memory is movable and that
-confuses memory hotplug (e.g. 15c30bc09085 ("mm, memory_hotplug: make
-has_unmovable_pages more robust").
+This feature is now enabled on powerpc architecture and integrated in
+4.16-rc1.  The patches move the selftests to arch neutral directory
+and enhance their test coverage.
 
-There are probably other issues I am not aware of but primarily the code
-adds a maintenance burden which would be better to get rid of.
+Test
+----
+Verified for correctness on powerpc and on x86.
 
-I would also go further and remove all the code the feature is using at
-one go. If somebody really needs this functionality we would need to
-revert the whole thing anyway.
+History:
+-------
+version 14:
+	(1) incorporated another round of comments from Dave Hansen.
 
-> Suggested-by: Michal Hocko <mhocko@kernel.org>
-> Signed-off-by: Baoquan He <bhe@redhat.com>
-> ---
->  Documentation/admin-guide/kernel-parameters.txt | 2 ++
->  mm/page_alloc.c                                 | 3 +++
->  2 files changed, 5 insertions(+)
-> 
-> diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-> index efc7aa7a0670..1e22c49866a2 100644
-> --- a/Documentation/admin-guide/kernel-parameters.txt
-> +++ b/Documentation/admin-guide/kernel-parameters.txt
-> @@ -1855,6 +1855,7 @@
->  	keepinitrd	[HW,ARM]
->  
->  	kernelcore=	[KNL,X86,IA-64,PPC]
-> +			[Usage of kernelcore=nn[KMGTPE] | nn% is deprecated]
->  			Format: nn[KMGTPE] | nn% | "mirror"
->  			This parameter specifies the amount of memory usable by
->  			the kernel for non-movable allocations.  The requested
-> @@ -2395,6 +2396,7 @@
->  			reporting absolute coordinates, such as tablets
->  
->  	movablecore=	[KNL,X86,IA-64,PPC]
-> +			[Deprecated]
->  			Format: nn[KMGTPE] | nn%
->  			This parameter is the complement to kernelcore=, it
->  			specifies the amount of memory used for migratable
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 1521100f1e63..86cf05f48b5f 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6899,6 +6899,8 @@ static int __init cmdline_parse_kernelcore(char *p)
->  		return 0;
->  	}
->  
-> +	pr_warn("Only kernelcore=mirror supported, "
-> +		"usage of kernelcore=nn[KMGTPE]|nn%% is deprecated.\n");
->  	return cmdline_parse_core(p, &required_kernelcore,
->  				  &required_kernelcore_percent);
->  }
-> @@ -6909,6 +6911,7 @@ static int __init cmdline_parse_kernelcore(char *p)
->   */
->  static int __init cmdline_parse_movablecore(char *p)
->  {
-> +	pr_warn("Option movablecore= is deprecated.\n");
->  	return cmdline_parse_core(p, &required_movablecore,
->  				  &required_movablecore_percent);
->  }
-> -- 
-> 2.13.6
+version 13:
+        (1) Incorporated comments for Dave Hansen.
+	(2)   Added one more test for correct pkey-0 behavior.
 
--- 
-Michal Hocko
-SUSE Labs
+version 12:
+	(1) fixed the offset of pkey field in the siginfo structure for
+		x86_64 and powerpc. And tries to use the actual field
+		if the headers have it defined.
+
+version 11:
+	(1) fixed a deadlock in the ptrace testcase.
+
+version 10 and prior:
+	(1) moved the testcase to arch neutral directory
+	(2) split the changes into incremental patches.
+
+Ram Pai (20):
+  selftests/x86: Move protecton key selftest to arch neutral directory
+  selftests/vm: rename all references to pkru to a generic name
+  selftests/vm: move generic definitions to header file
+  selftests/vm: typecast the pkey register
+  selftests/vm: generic function to handle shadow key register
+  selftests/vm: fix the wrong assert in pkey_disable_set()
+  selftests/vm: fixed bugs in pkey_disable_clear()
+  selftests/vm: fix alloc_random_pkey() to make it really random
+  selftests/vm: introduce two arch independent abstraction
+  selftests/vm: pkey register should match shadow pkey
+  selftests/vm: generic cleanup
+  selftests/vm: Introduce generic abstractions
+  selftests/vm: powerpc implementation to check support for pkey
+  selftests/vm: fix an assertion in test_pkey_alloc_exhaust()
+  selftests/vm: associate key on a mapped page and detect access
+    violation
+  selftests/vm: associate key on a mapped page and detect write
+    violation
+  selftests/vm: detect write violation on a mapped access-denied-key
+    page
+  selftests/vm: testcases must restore pkey-permissions
+  selftests/vm: sub-page allocator
+  selftests/vm: test correct behavior of pkey-0
+
+Thiago Jung Bauermann (2):
+  selftests/vm: move arch-specific definitions to arch-specific header
+  selftests/vm: Make gcc check arguments of sigsafe_printf()
+
+ tools/testing/selftests/vm/.gitignore         |    1 +
+ tools/testing/selftests/vm/Makefile           |    1 +
+ tools/testing/selftests/vm/pkey-helpers.h     |  214 ++++
+ tools/testing/selftests/vm/pkey-powerpc.h     |  128 ++
+ tools/testing/selftests/vm/pkey-x86.h         |  184 +++
+ tools/testing/selftests/vm/protection_keys.c  | 1593 +++++++++++++++++++++++++
+ tools/testing/selftests/x86/.gitignore        |    1 -
+ tools/testing/selftests/x86/pkey-helpers.h    |  219 ----
+ tools/testing/selftests/x86/protection_keys.c | 1485 -----------------------
+ 9 files changed, 2121 insertions(+), 1705 deletions(-)
+ create mode 100644 tools/testing/selftests/vm/pkey-helpers.h
+ create mode 100644 tools/testing/selftests/vm/pkey-powerpc.h
+ create mode 100644 tools/testing/selftests/vm/pkey-x86.h
+ create mode 100644 tools/testing/selftests/vm/protection_keys.c
+ delete mode 100644 tools/testing/selftests/x86/pkey-helpers.h
+ delete mode 100644 tools/testing/selftests/x86/protection_keys.c
