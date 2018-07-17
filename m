@@ -1,81 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C0E06B000C
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 16:07:08 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id p4-v6so1161614ybk.6
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 13:07:08 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id d3-v6si408817ybd.661.2018.07.17.13.07.06
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CF4F6B000E
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 16:10:53 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id n135-v6so802278vke.17
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 13:10:53 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id d1-v6si526016vke.273.2018.07.17.13.10.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 13:07:07 -0700 (PDT)
-Date: Tue, 17 Jul 2018 13:06:42 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: cgroup-aware OOM killer, how to move forward
-Message-ID: <20180717200641.GB18762@castle.DHCP.thefacebook.com>
-References: <20180711223959.GA13981@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807131423230.194789@chino.kir.corp.google.com>
- <20180713221602.GA15005@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807131535420.202408@chino.kir.corp.google.com>
- <20180713230545.GA17467@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807131608530.218060@chino.kir.corp.google.com>
- <20180713231630.GB17467@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
- <20180717173844.GB14909@castle.DHCP.thefacebook.com>
- <20180717194945.GM7193@dhcp22.suse.cz>
+        Tue, 17 Jul 2018 13:10:52 -0700 (PDT)
+Subject: Re: [PATCH v2 1/2] mm: fix race on soft-offlining free huge pages
+References: <1531805552-19547-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1531805552-19547-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20180717142743.GJ7193@dhcp22.suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <773a2f4e-c420-e973-cadd-4144730d28e8@oracle.com>
+Date: Tue, 17 Jul 2018 13:10:39 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20180717194945.GM7193@dhcp22.suse.cz>
+In-Reply-To: <20180717142743.GJ7193@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
+To: Michal Hocko <mhocko@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, xishi.qiuxishi@alibaba-inc.com, zy.zhengyi@alibaba-inc.com, linux-kernel@vger.kernel.org
 
-On Tue, Jul 17, 2018 at 09:49:46PM +0200, Michal Hocko wrote:
-> On Tue 17-07-18 10:38:45, Roman Gushchin wrote:
-> [...]
-> > Let me show my proposal on examples. Let's say we have the following hierarchy,
-> > and the biggest process (or the process with highest oom_score_adj) is in D.
-> > 
-> >   /
-> >   |
-> >   A
-> >   |
-> >   B
-> >  / \
-> > C   D
-> > 
-> > Let's look at different examples and intended behavior:
-> > 1) system-wide OOM
-> >   - default settings: the biggest process is killed
-> >   - D/memory.group_oom=1: all processes in D are killed
-> >   - A/memory.group_oom=1: all processes in A are killed
-> > 2) memcg oom in B
-> >   - default settings: the biggest process is killed
-> >   - A/memory.group_oom=1: the biggest process is killed
+On 07/17/2018 07:27 AM, Michal Hocko wrote:
+> On Tue 17-07-18 14:32:31, Naoya Horiguchi wrote:
+>> There's a race condition between soft offline and hugetlb_fault which
+>> causes unexpected process killing and/or hugetlb allocation failure.
+>>
+>> The process killing is caused by the following flow:
+>>
+>>   CPU 0               CPU 1              CPU 2
+>>
+>>   soft offline
+>>     get_any_page
+>>     // find the hugetlb is free
+>>                       mmap a hugetlb file
+>>                       page fault
+>>                         ...
+>>                           hugetlb_fault
+>>                             hugetlb_no_page
+>>                               alloc_huge_page
+>>                               // succeed
+>>       soft_offline_free_page
+>>       // set hwpoison flag
+>>                                          mmap the hugetlb file
+>>                                          page fault
+>>                                            ...
+>>                                              hugetlb_fault
+>>                                                hugetlb_no_page
+>>                                                  find_lock_page
+>>                                                    return VM_FAULT_HWPOISON
+>>                                            mm_fault_error
+>>                                              do_sigbus
+>>                                              // kill the process
+>>
+>>
+>> The hugetlb allocation failure comes from the following flow:
+>>
+>>   CPU 0                          CPU 1
+>>
+>>                                  mmap a hugetlb file
+>>                                  // reserve all free page but don't fault-in
+>>   soft offline
+>>     get_any_page
+>>     // find the hugetlb is free
+>>       soft_offline_free_page
+>>       // set hwpoison flag
+>>         dissolve_free_huge_page
+>>         // fail because all free hugepages are reserved
+>>                                  page fault
+>>                                    ...
+>>                                      hugetlb_fault
+>>                                        hugetlb_no_page
+>>                                          alloc_huge_page
+>>                                            ...
+>>                                              dequeue_huge_page_node_exact
+>>                                              // ignore hwpoisoned hugepage
+>>                                              // and finally fail due to no-mem
+>>
+>> The root cause of this is that current soft-offline code is written
+>> based on an assumption that PageHWPoison flag should beset at first to
+>> avoid accessing the corrupted data.  This makes sense for memory_failure()
+>> or hard offline, but does not for soft offline because soft offline is
+>> about corrected (not uncorrected) error and is safe from data lost.
+>> This patch changes soft offline semantics where it sets PageHWPoison flag
+>> only after containment of the error page completes successfully.
 > 
-> Huh? Why would you even consider A here when the oom is below it?
-> /me confused
+> Could you please expand on the worklow here please? The code is really
+> hard to grasp. I must be missing something because the thing shouldn't
+> be really complicated. Either the page is in the free pool and you just
+> remove it from the allocator (with hugetlb asking for a new hugeltb page
+> to guaratee reserves) or it is used and you just migrate the content to
+> a new page (again with the hugetlb reserves consideration). Why should
+> PageHWPoison flag ordering make any relevance?
 
-I do not.
-This is exactly a counter-example: A's memory.group_oom
-is not considered at all in this case,
-because A is above ooming cgroup.
+My understanding may not be corect, but just looking at the current code
+for soft_offline_free_page helps me understand:
 
-> 
-> >   - B/memory.group_oom=1: all processes in B are killed
-> 
->     - B/memory.group_oom=0 &&
-> >   - D/memory.group_oom=1: all processes in D are killed
-> 
-> What about?
->     - B/memory.group_oom=1 && D/memory.group_oom=0
+static void soft_offline_free_page(struct page *page)
+{
+	struct page *head = compound_head(page);
 
-All tasks in B are killed.
+	if (!TestSetPageHWPoison(head)) {
+		num_poisoned_pages_inc();
+		if (PageHuge(head))
+			dissolve_free_huge_page(page);
+	}
+}
 
-Group_oom set to 1 means that the workload can't tolerate
-killing of a random process, so in this case it's better
-to guarantee consistency for B.
+The HWPoison flag is set before even checking to determine if the huge
+page can be dissolved.  So, someone could could attempt to pull the page
+off the free list (if free) or fault/map it (if already associated with
+a file) which leads to the  failures described above.  The patches ensure
+that we only set HWPoison after successfully dissolving the page. At least
+that is how I understand it.
 
-Thanks!
+It seems that soft_offline_free_page can be called for in use pages.
+Certainly, that is the case in the first workflow above.  With the
+suggested changes, I think this is OK for huge pages.  However, it seems
+that setting HWPoison on a in use non-huge page could cause issues?
+
+While looking at the code, I noticed this comment in __get_any_page()
+        /*
+         * When the target page is a free hugepage, just remove it
+         * from free hugepage list.
+         */
+Did that apply to some code that was removed?  It does not seem to make
+any sense in that routine.
+-- 
+Mike Kravetz
