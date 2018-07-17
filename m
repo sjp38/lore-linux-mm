@@ -1,125 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EB4826B000A
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 09:20:35 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id e93-v6so621501plb.5
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 06:20:35 -0700 (PDT)
-Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20125.outbound.protection.outlook.com. [40.107.2.125])
-        by mx.google.com with ESMTPS id u9-v6si965241pfg.62.2018.07.17.06.20.33
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 29D056B000D
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 09:31:12 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id b12-v6so559629edi.12
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 06:31:12 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k21-v6si86501edq.27.2018.07.17.06.31.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 17 Jul 2018 06:20:34 -0700 (PDT)
-Subject: Re: general protection fault in list_lru_count_one
-References: <000000000000d8cc39057131bbcd@google.com>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <c7860eae-cb7b-07fc-ff8b-b0bbaf04bdfa@virtuozzo.com>
-Date: Tue, 17 Jul 2018 16:20:25 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Jul 2018 06:31:10 -0700 (PDT)
+Date: Tue, 17 Jul 2018 15:31:09 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/page_alloc: Deprecate kernelcore=nn and movable_core=
+Message-ID: <20180717133109.GI7193@dhcp22.suse.cz>
+References: <20180717131837.18411-1-bhe@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <000000000000d8cc39057131bbcd@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180717131837.18411-1-bhe@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: syzbot <syzbot+50d322b3e0b15a4a8d55@syzkaller.appspotmail.com>, akpm@linux-foundation.org, garsilva@embeddedor.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, longman@redhat.com, mhocko@suse.com, sfr@canb.auug.org.au, syzkaller-bugs@googlegroups.com, vdavydov.dev@gmail.com
+To: Baoquan He <bhe@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, corbet@lwn.net, linux-doc@vger.kernel.org
 
-On 17.07.2018 16:15, syzbot wrote:
-> Hello,
-> 
-> syzbot found the following crash on:
-> 
-> HEAD commit:A A A  483d835c8189 Add linux-next specific files for 20180713
+On Tue 17-07-18 21:18:37, Baoquan He wrote:
+> We can still use 'kernelcore=mirror' or 'movable_node' for the usage
+> of hotplug and movable zone. If somebody shows up with a valid usecase
+> we can reconsider.
 
-483d835c8189 contains register_shrinker() in sget_fc(). It's fixed by 72589a599d79
-and 2c028928aa4c, which came in next-20180716.
+Well this doesn't really explain why to deprecate this functionality.
+It is a rather ugly hack that has been originally introduced for large
+order allocations. But we do have compaction these days. Even though the
+compaction cannot solve all the fragmentation issues the zone movable is
+not a great answer as it introduces other issues (basically highmem kind
+of issues we used to have on 32b systems).
+The current code doesn't work with KASLR and the code is too subtle to
+work properly in other cases as well. E.g. movablecore range might cover
+already used memory (e.g. bootmem allocations) and therefore it doesn't
+comply with the basic assumption that the memory is movable and that
+confuses memory hotplug (e.g. 15c30bc09085 ("mm, memory_hotplug: make
+has_unmovable_pages more robust").
 
-> git tree:A A A A A A  linux-next
-> console output: https://syzkaller.appspot.com/x/log.txt?x=169b4770400000
-> kernel config:A  https://syzkaller.appspot.com/x/.config?x=60e5ac2478928314
-> dashboard link: https://syzkaller.appspot.com/bug?extid=50d322b3e0b15a4a8d55
-> compiler:A A A A A A  gcc (GCC) 8.0.1 20180413 (experimental)
-> syzkaller repro:https://syzkaller.appspot.com/x/repro.syz?x=10faa9a4400000
-> C reproducer:A A  https://syzkaller.appspot.com/x/repro.c?x=17f57794400000
-> 
-> IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> Reported-by: syzbot+50d322b3e0b15a4a8d55@syzkaller.appspotmail.com
-> 
-> random: sshd: uninitialized urandom read (32 bytes read)
-> random: sshd: uninitialized urandom read (32 bytes read)
-> IPVS: ftp: loaded support on port[0] = 21
-> kasan: CONFIG_KASAN_INLINE enabled
-> kasan: GPF could be caused by NULL-ptr deref or user memory access
-> general protection fault: 0000 [#1] SMP KASAN
-> CPU: 0 PID: 4462 Comm: syz-executor763 Not tainted 4.18.0-rc4-next-20180713+ #7
-> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
-> RIP: 0010:__read_once_size include/linux/compiler.h:188 [inline]
-> RIP: 0010:list_lru_from_memcg_idx mm/list_lru.c:56 [inline]
-> RIP: 0010:list_lru_count_one+0x156/0x460 mm/list_lru.c:201
-> Code: 08 3c 03 0f 8e b5 02 00 00 4d 63 bd d8 0a 00 00 e8 7f 35 d2 ff 48 8d 7b 50 48 b8 00 00 00 00 00 fc ff df 48 89 fa 48 c1 ea 03 <80> 3c 02 00 0f 85 d8 02 00 00 49 8d 46 c0 4c 8b 6b 50 48 ba 00 00
-> RSP: 0018:ffff8801ac967198 EFLAGS: 00010206
-> RAX: dffffc0000000000 RBX: 0000000000000000 RCX: ffffffff81aa3a64
-> RDX: 000000000000000a RSI: ffffffff81aa3ad1 RDI: 0000000000000050
-> RBP: ffff8801ac967228 R08: ffff8801af1c6300 R09: 0000000000000000
-> R10: ffffed00359e0088 R11: ffff8801acf00447 R12: 1ffff1003592ce34
-> R13: ffff8801ad6aa080 R14: ffff8801ac967200 R15: 0000000000000000
-> FS:A  000000000206b880(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
-> CS:A  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 00000000006ce080 CR3: 00000001ae3c1000 CR4: 00000000001406f0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> Call Trace:
-> A list_lru_shrink_count include/linux/list_lru.h:122 [inline]
-> A super_cache_count+0x153/0x2e0 fs/super.c:146
-> A do_shrink_slab+0x148/0xc50 mm/vmscan.c:458
-> A shrink_slab_memcg mm/vmscan.c:598 [inline]
-> A shrink_slab+0x861/0xa60 mm/vmscan.c:671
-> A shrink_node+0x429/0x16a0 mm/vmscan.c:2735
-> A shrink_zones mm/vmscan.c:2964 [inline]
-> A do_try_to_free_pages+0x3e7/0x1290 mm/vmscan.c:3026
-> A try_to_free_mem_cgroup_pages+0x49d/0xc90 mm/vmscan.c:3324
-> A reclaim_high.constprop.73+0x137/0x1e0 mm/memcontrol.c:2060
-> A mem_cgroup_handle_over_high+0x8d/0x130 mm/memcontrol.c:2085
-> A tracehook_notify_resume include/linux/tracehook.h:195 [inline]
-> A exit_to_usermode_loop+0x287/0x380 arch/x86/entry/common.c:166
-> A prepare_exit_to_usermode arch/x86/entry/common.c:197 [inline]
-> A syscall_return_slowpath arch/x86/entry/common.c:268 [inline]
-> A do_syscall_64+0x6be/0x820 arch/x86/entry/common.c:293
-> A entry_SYSCALL_64_after_hwframe+0x49/0xbe
-> RIP: 0033:0x440ec7
-> Code: 1f 40 00 b8 5a 00 00 00 0f 05 48 3d 01 f0 ff ff 0f 83 6d 14 fc ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 b8 53 00 00 00 0f 05 <48> 3d 01 f0 ff ff 0f 83 4d 14 fc ff c3 66 2e 0f 1f 84 00 00 00 00
-> RSP: 002b:00007ffe197f4e98 EFLAGS: 00000202 ORIG_RAX: 0000000000000053
-> RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000440ec7
-> RDX: 00007ffe197f4eb3 RSI: 00000000000001ff RDI: 00007ffe197f4eb0
-> RBP: 0000000000000002 R08: 0000000000000000 R09: 0000000000000003
-> R10: 0000000000000064 R11: 0000000000000202 R12: 0000000000000001
-> R13: 0000000000008fab R14: 0000000000000000 R15: 0000000000000000
-> Modules linked in:
-> Dumping ftrace buffer:
-> A A  (ftrace buffer empty)
-> ---[ end trace 82052695a1b5b84c ]---
-> RIP: 0010:__read_once_size include/linux/compiler.h:188 [inline]
-> RIP: 0010:list_lru_from_memcg_idx mm/list_lru.c:56 [inline]
-> RIP: 0010:list_lru_count_one+0x156/0x460 mm/list_lru.c:201
-> Code: 08 3c 03 0f 8e b5 02 00 00 4d 63 bd d8 0a 00 00 e8 7f 35 d2 ff 48 8d 7b 50 48 b8 00 00 00 00 00 fc ff df 48 89 fa 48 c1 ea 03 <80> 3c 02 00 0f 85 d8 02 00 00 49 8d 46 c0 4c 8b 6b 50 48 ba 00 00
-> RSP: 0018:ffff8801ac967198 EFLAGS: 00010206
-> RAX: dffffc0000000000 RBX: 0000000000000000 RCX: ffffffff81aa3a64
-> RDX: 000000000000000a RSI: ffffffff81aa3ad1 RDI: 0000000000000050
-> RBP: ffff8801ac967228 R08: ffff8801af1c6300 R09: 0000000000000000
-> R10: ffffed00359e0088 R11: ffff8801acf00447 R12: 1ffff1003592ce34
-> R13: ffff8801ad6aa080 R14: ffff8801ac967200 R15: 0000000000000000
-> FS:A  000000000206b880(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
-> CS:A  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 00000000006ce080 CR3: 00000001ae3c1000 CR4: 00000000001406f0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> 
-> 
+There are probably other issues I am not aware of but primarily the code
+adds a maintenance burden which would be better to get rid of.
+
+I would also go further and remove all the code the feature is using at
+one go. If somebody really needs this functionality we would need to
+revert the whole thing anyway.
+
+> Suggested-by: Michal Hocko <mhocko@kernel.org>
+> Signed-off-by: Baoquan He <bhe@redhat.com>
 > ---
-> This bug is generated by a bot. It may contain errors.
-> See https://goo.gl/tpsmEJ for more information about syzbot.
-> syzbot engineers can be reached at syzkaller@googlegroups.com.
+>  Documentation/admin-guide/kernel-parameters.txt | 2 ++
+>  mm/page_alloc.c                                 | 3 +++
+>  2 files changed, 5 insertions(+)
 > 
-> syzbot will keep track of this bug report. See:
-> https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with syzbot.
-> syzbot can test patches for this bug, for details see:
-> https://goo.gl/tpsmEJ#testing-patches
+> diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+> index efc7aa7a0670..1e22c49866a2 100644
+> --- a/Documentation/admin-guide/kernel-parameters.txt
+> +++ b/Documentation/admin-guide/kernel-parameters.txt
+> @@ -1855,6 +1855,7 @@
+>  	keepinitrd	[HW,ARM]
+>  
+>  	kernelcore=	[KNL,X86,IA-64,PPC]
+> +			[Usage of kernelcore=nn[KMGTPE] | nn% is deprecated]
+>  			Format: nn[KMGTPE] | nn% | "mirror"
+>  			This parameter specifies the amount of memory usable by
+>  			the kernel for non-movable allocations.  The requested
+> @@ -2395,6 +2396,7 @@
+>  			reporting absolute coordinates, such as tablets
+>  
+>  	movablecore=	[KNL,X86,IA-64,PPC]
+> +			[Deprecated]
+>  			Format: nn[KMGTPE] | nn%
+>  			This parameter is the complement to kernelcore=, it
+>  			specifies the amount of memory used for migratable
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 1521100f1e63..86cf05f48b5f 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6899,6 +6899,8 @@ static int __init cmdline_parse_kernelcore(char *p)
+>  		return 0;
+>  	}
+>  
+> +	pr_warn("Only kernelcore=mirror supported, "
+> +		"usage of kernelcore=nn[KMGTPE]|nn%% is deprecated.\n");
+>  	return cmdline_parse_core(p, &required_kernelcore,
+>  				  &required_kernelcore_percent);
+>  }
+> @@ -6909,6 +6911,7 @@ static int __init cmdline_parse_kernelcore(char *p)
+>   */
+>  static int __init cmdline_parse_movablecore(char *p)
+>  {
+> +	pr_warn("Option movablecore= is deprecated.\n");
+>  	return cmdline_parse_core(p, &required_movablecore,
+>  				  &required_movablecore_percent);
+>  }
+> -- 
+> 2.13.6
+
+-- 
+Michal Hocko
+SUSE Labs
