@@ -1,67 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F19EB6B000E
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 14:55:32 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id a70-v6so1626510qkb.16
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 11:55:32 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id k66-v6si1493485qkb.65.2018.07.17.11.55.30
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AFDE6B0266
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 15:05:18 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id u140-v6so359937itc.3
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 12:05:18 -0700 (PDT)
+Received: from sonic307-11.consmr.mail.ne1.yahoo.com (sonic307-11.consmr.mail.ne1.yahoo.com. [66.163.190.34])
+        by mx.google.com with ESMTPS id h4-v6si185198ith.105.2018.07.17.12.05.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 11:55:31 -0700 (PDT)
-Date: Tue, 17 Jul 2018 11:54:54 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH v2 5/7] mm: rename and change semantics of
- nr_indirectly_reclaimable_bytes
-Message-ID: <20180717185451.GA18762@castle.DHCP.thefacebook.com>
-References: <20180618091808.4419-6-vbabka@suse.cz>
- <201806201923.mC5ZpigB%fengguang.wu@intel.com>
- <38c6a6e1-c5e0-fd7d-4baf-1f0f09be5094@suse.cz>
- <20180629211201.GA14897@castle.DHCP.thefacebook.com>
- <ef2dea13-0102-c4bc-a28f-c1b2408f0753@suse.cz>
- <20180702165223.GA17295@castle.DHCP.thefacebook.com>
- <bfdb3fb1-5d81-e17c-e456-083cca04e2cc@suse.cz>
+        Tue, 17 Jul 2018 12:05:17 -0700 (PDT)
+Date: Tue, 17 Jul 2018 19:05:14 +0000 (UTC)
+From: David Frank <david_frank95@yahoo.com>
+Message-ID: <115606142.5883850.1531854314452@mail.yahoo.com>
+Subject: mmap with huge page
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <bfdb3fb1-5d81-e17c-e456-083cca04e2cc@suse.cz>
+Content-Type: multipart/alternative;
+	boundary="----=_Part_5883849_1141935688.1531854314451"
+References: <115606142.5883850.1531854314452.ref@mail.yahoo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-api@vger.kernel.org, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Vijayanand Jitta <vjitta@codeaurora.org>, Laura Abbott <labbott@redhat.com>, Sumit Semwal <sumit.semwal@linaro.org>
+To: Kernelnewbies <kernelnewbies@kernelnewbies.org>, Linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jul 17, 2018 at 10:44:07AM +0200, Vlastimil Babka wrote:
-> On 07/02/2018 06:52 PM, Roman Gushchin wrote:
-> > On Sat, Jun 30, 2018 at 12:09:27PM +0200, Vlastimil Babka wrote:
-> >> On 06/29/2018 11:12 PM, Roman Gushchin wrote:
-> >>>>
-> >>>> The vmstat counter NR_INDIRECTLY_RECLAIMABLE_BYTES was introduced by commit
-> >>>> eb59254608bc ("mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES") with the goal of
-> >>>> accounting objects that can be reclaimed, but cannot be allocated via a
-> >>>> SLAB_RECLAIM_ACCOUNT cache. This is now possible via kmalloc() with
-> >>>> __GFP_RECLAIMABLE flag, and the dcache external names user is converted.
-> >>>>
-> >>>> The counter is however still useful for accounting direct page allocations
-> >>>> (i.e. not slab) with a shrinker, such as the ION page pool. So keep it, and:
-> >>>
-> >>> Btw, it looks like I've another example of usefulness of this counter:
-> >>> dynamic per-cpu data.
-> >>
-> >> Hmm, but are those reclaimable? Most likely not in general? Do you have
-> >> examples that are?
-> > 
-> > If these per-cpu data is something like per-cpu refcounters,
-> > which are using to manage reclaimable objects (e.g. cgroup css objects).
-> > Of course, they are not always reclaimable, but in certain states.
-> 
-> BTW, seems you seem interested, could you provide some more formal
-> review as well? Others too. We don't need to cover all use cases
-> immediately, when the patchset is apparently stalled due to lack of
-> review. Thanks!
+------=_Part_5883849_1141935688.1531854314451
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-Sure!
+Hi,According to the instruction, I have to mount a huge directory to hugetl=
+bfs and create file in the huge directory to use the mmap huge page feature=
+. But the issue is that, the files in the huge directory takes up the huge =
+pages configured throughvm.nr_hugepages =3D=20
 
-The patchset looks sane at a first glance, but I need some time
-to dig deeper. Is v2 the final version?
+even the files are not used.
+When the total size of the files in the huge directory =3D vm.nr_hugepages =
+* huge page size, then mmap would fail with 'can not allocate memory' if th=
+e file to be=C2=A0 mapped is in the huge dir or the call has HUGEPAGETLB fl=
+ag.
+Basically, I have to move the files off of the huge directory to free up hu=
+ge pages.
+Am I missing anything here?
+Thanks,
+David
 
-Thanks!
+------=_Part_5883849_1141935688.1531854314451
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<html><head></head><body><div style=3D"font-family:Helvetica Neue, Helvetic=
+a, Arial, sans-serif;font-size:13px;"><div style=3D"font-family:Helvetica N=
+eue, Helvetica, Arial, sans-serif;font-size:13px;">Hi,</div><div style=3D"f=
+ont-family:Helvetica Neue, Helvetica, Arial, sans-serif;font-size:13px;">Ac=
+cording to the instruction, I have to mount a huge directory to hugetlbfs a=
+nd create file in the huge directory to use the mmap huge page feature. But=
+ the issue is that, the files in the huge directory takes up the huge pages=
+ configured through</div><div style=3D"font-family:Helvetica Neue, Helvetic=
+a, Arial, sans-serif;font-size:13px;">vm.nr_hugepages =3D <br></div><div st=
+yle=3D"font-family:Helvetica Neue, Helvetica, Arial, sans-serif;font-size:1=
+3px;"><br></div><div style=3D"font-family:Helvetica Neue, Helvetica, Arial,=
+ sans-serif;font-size:13px;">even the files are not used.</div><div style=
+=3D"font-family:Helvetica Neue, Helvetica, Arial, sans-serif;font-size:13px=
+;"><br></div><div style=3D"font-family:Helvetica Neue, Helvetica, Arial, sa=
+ns-serif;font-size:13px;">When the total size of the files in the huge dire=
+ctory =3D vm.nr_hugepages * huge page size, then mmap would fail with 'can =
+not allocate memory' if the file to be&nbsp; mapped is in the huge dir or t=
+he call has HUGEPAGETLB flag.</div><div style=3D"font-family:Helvetica Neue=
+, Helvetica, Arial, sans-serif;font-size:13px;"><br></div><div style=3D"fon=
+t-family:Helvetica Neue, Helvetica, Arial, sans-serif;font-size:13px;">Basi=
+cally, I have to move the files off of the huge directory to free up huge p=
+ages.</div><div style=3D"font-family:Helvetica Neue, Helvetica, Arial, sans=
+-serif;font-size:13px;"><br></div><div style=3D"font-family:Helvetica Neue,=
+ Helvetica, Arial, sans-serif;font-size:13px;">Am I missing anything here?<=
+/div><div style=3D"font-family:Helvetica Neue, Helvetica, Arial, sans-serif=
+;font-size:13px;"><br></div><div style=3D"font-family:Helvetica Neue, Helve=
+tica, Arial, sans-serif;font-size:13px;">Thanks,</div><div style=3D"font-fa=
+mily:Helvetica Neue, Helvetica, Arial, sans-serif;font-size:13px;"><br></di=
+v><div style=3D"font-family:Helvetica Neue, Helvetica, Arial, sans-serif;fo=
+nt-size:13px;">David<br></div></div></body></html>
+------=_Part_5883849_1141935688.1531854314451--
