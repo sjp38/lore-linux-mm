@@ -1,64 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A4AC66B0283
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 07:22:10 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id n5-v6so325761pgp.20
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 04:22:10 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id 6-v6si675799pgv.508.2018.07.17.04.22.09
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F6396B028F
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 07:25:19 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id w14-v6so395601pfn.13
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 04:25:19 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j10-v6si707978pgi.500.2018.07.17.04.25.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 04:22:09 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv5 18/19] x86/mm: Handle encrypted memory in page_to_virt() and __pa()
-Date: Tue, 17 Jul 2018 14:20:28 +0300
-Message-Id: <20180717112029.42378-19-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
-References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
+        Tue, 17 Jul 2018 04:25:18 -0700 (PDT)
+Date: Tue, 17 Jul 2018 13:25:15 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/10] psi: pressure stall information for CPU, memory,
+ and IO v2
+Message-ID: <20180717112515.GE7193@dhcp22.suse.cz>
+References: <20180712172942.10094-1-hannes@cmpxchg.org>
+ <20180716155745.10368-1-drake@endlessm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180716155745.10368-1-drake@endlessm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Daniel Drake <drake@endlessm.com>
+Cc: hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux@endlessm.com, linux-block@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
 
-Per-KeyID direct mappings require changes into how we find the right
-virtual address for a page and virt-to-phys address translations.
+On Mon 16-07-18 10:57:45, Daniel Drake wrote:
+> Hi Johannes,
+> 
+> Thanks for your work on psi! 
+> 
+> We have also been investigating the "thrashing problem" on our Endless
+> desktop OS. We have seen that systems can easily get into a state where the
+> UI becomes unresponsive to input, and the mouse cursor becomes extremely
+> slow or stuck when the system is running out of memory. We are working with
+> a full GNOME desktop environment on systems with only 2GB RAM, and
+> sometimes no real swap (although zram-swap helps mitigate the problem to
+> some extent).
+> 
+> My analysis so far indicates that when the system is low on memory and hits
+> this condition, the system is spending much of the time under
+> __alloc_pages_direct_reclaim. "perf trace -F" shows many many page faults
+> in executable code while this is going on. I believe the kernel is
+> swapping out executable code in order to satisfy memory allocation
+> requests, but then that swapped-out code is needed a moment later so it
+> gets swapped in again via the page fault handler, and all this activity
+> severely starves the system from being able to respond to user input.
+> 
+> I appreciate the kernel's attempt to keep processes alive, but in the
+> desktop case we see that the system rarely recovers from this situation,
+> so you have to hard shutdown. In this case we view it as desirable that
+> the OOM killer would step in (it is not doing so because direct reclaim
+> is not actually failing).
 
-page_to_virt() definition overwrites default macros provided by
-<linux/mm.h>. We only overwrite the macros if MTKME is enabled
-compile-time.
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/include/asm/mktme.h   | 3 +++
- arch/x86/include/asm/page_64.h | 2 +-
- 2 files changed, 4 insertions(+), 1 deletion(-)
-
-diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
-index ba83fba4f9b3..dbfbd955da98 100644
---- a/arch/x86/include/asm/mktme.h
-+++ b/arch/x86/include/asm/mktme.h
-@@ -29,6 +29,9 @@ void arch_free_page(struct page *page, int order);
- 
- int sync_direct_mapping(void);
- 
-+#define page_to_virt(x) \
-+	(__va(PFN_PHYS(page_to_pfn(x))) + page_keyid(x) * direct_mapping_size)
-+
- #else
- #define mktme_keyid_mask	((phys_addr_t)0)
- #define mktme_nr_keyids		0
-diff --git a/arch/x86/include/asm/page_64.h b/arch/x86/include/asm/page_64.h
-index f57fc3cc2246..a4f394e3471d 100644
---- a/arch/x86/include/asm/page_64.h
-+++ b/arch/x86/include/asm/page_64.h
-@@ -24,7 +24,7 @@ static inline unsigned long __phys_addr_nodebug(unsigned long x)
- 	/* use the carry flag to determine if x was < __START_KERNEL_map */
- 	x = y + ((x > y) ? phys_base : (__START_KERNEL_map - PAGE_OFFSET));
- 
--	return x;
-+	return x & direct_mapping_mask;
- }
- 
- #ifdef CONFIG_DEBUG_VIRTUAL
+Yes this is really unfortunate. One thing that could help would be to
+consider a trashing level during the reclaim (get_scan_count) to simply
+forget about LRUs which are constantly refaulting pages back. We already
+have the infrastructure for that. We just need to plumb it in.
 -- 
-2.18.0
+Michal Hocko
+SUSE Labs
