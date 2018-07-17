@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 15A146B0275
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 07:21:53 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id 66-v6so440826plb.18
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 04:21:53 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id a4-v6si759513pgl.9.2018.07.17.04.21.51
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AFC116B0278
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 07:21:57 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id 132-v6so323192pga.18
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 04:21:57 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id b23-v6si597132pls.341.2018.07.17.04.21.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 04:21:51 -0700 (PDT)
+        Tue, 17 Jul 2018 04:21:56 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv5 16/19] x86/mm: Calculate direct mapping size
-Date: Tue, 17 Jul 2018 14:20:26 +0300
-Message-Id: <20180717112029.42378-17-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5 10/19] x86/mm: Implement page_keyid() using page_ext
+Date: Tue, 17 Jul 2018 14:20:20 +0300
+Message-Id: <20180717112029.42378-11-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
 References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,229 +20,144 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The kernel needs to have a way to access encrypted memory. We have two
-option on how approach it:
+Store KeyID in bits 31:16 of extended page flags. These bits are unused.
 
- - Create temporary mappings every time kernel needs access to encrypted
-   memory. That's basically brings highmem and its overhead back.
+page_keyid() returns zero until page_ext is ready. page_ext initializer
+enables static branch to indicate that page_keyid() can use page_ext.
+The same static branch will gate MKTME readiness in general.
 
- - Create multiple direct mappings, one per-KeyID. In this setup we
-   don't need to create temporary mappings on the fly -- encrypted
-   memory is permanently available in kernel address space.
-
-We take the second approach as it has lower overhead.
-
-It's worth noting that with per-KeyID direct mappings compromised kernel
-would give access to decrypted data right away without additional tricks
-to get memory mapped with the correct KeyID.
-
-Per-KeyID mappings require a lot more virtual address space. On 4-level
-machine with 64 KeyIDs we max out 46-bit virtual address space dedicated
-for direct mapping with 1TiB of RAM. Given that we round up any
-calculation on direct mapping size to 1TiB, we effectively claim all
-46-bit address space for direct mapping on such machine regardless of
-RAM size.
-
-Increased usage of virtual address space has implications for KASLR:
-we have less space for randomization. With 64 TiB claimed for direct
-mapping with 4-level we left with 27 TiB of entropy to place
-page_offset_base, vmalloc_base and vmemmap_base.
-
-5-level paging provides much wider virtual address space and KASLR
-doesn't suffer significantly from per-KeyID direct mappings.
-
-It's preferred to run MKTME with 5-level paging.
-
-A direct mapping for each KeyID will be put next to each other in the
-virtual address space. We need to have a way to find boundaries of
-direct mapping for particular KeyID.
-
-The new variable direct_mapping_size specifies the size of direct
-mapping. With the value, it's trivial to find direct mapping for
-KeyID-N: PAGE_OFFSET + N * direct_mapping_size.
-
-Size of direct mapping is calculated during KASLR setup. If KALSR is
-disabled it happens during MKTME initialization.
-
-With MKTME size of direct mapping has to be power-of-2. It makes
-implementation of __pa() efficient.
+We don't yet set KeyID for the page. It will come in the following
+patch that implements prep_encrypted_page(). All pages have KeyID-0 for
+now.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- Documentation/x86/x86_64/mm.txt |  4 +++
- arch/x86/include/asm/page_64.h  |  2 ++
- arch/x86/include/asm/setup.h    |  6 ++++
- arch/x86/kernel/head64.c        |  4 +++
- arch/x86/kernel/setup.c         |  3 ++
- arch/x86/mm/init_64.c           | 58 +++++++++++++++++++++++++++++++++
- arch/x86/mm/kaslr.c             | 11 +++++--
- 7 files changed, 85 insertions(+), 3 deletions(-)
+ arch/x86/include/asm/mktme.h |  7 +++++++
+ arch/x86/include/asm/page.h  |  1 +
+ arch/x86/mm/mktme.c          | 34 ++++++++++++++++++++++++++++++++++
+ include/linux/page_ext.h     | 11 ++++++++++-
+ mm/page_ext.c                |  3 +++
+ 5 files changed, 55 insertions(+), 1 deletion(-)
 
-diff --git a/Documentation/x86/x86_64/mm.txt b/Documentation/x86/x86_64/mm.txt
-index 5432a96d31ff..c5b92904090f 100644
---- a/Documentation/x86/x86_64/mm.txt
-+++ b/Documentation/x86/x86_64/mm.txt
-@@ -61,6 +61,10 @@ The direct mapping covers all memory in the system up to the highest
- memory address (this means in some cases it can also include PCI memory
- holes).
+diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
+index df31876ec48c..7266494b4f0a 100644
+--- a/arch/x86/include/asm/mktme.h
++++ b/arch/x86/include/asm/mktme.h
+@@ -2,11 +2,18 @@
+ #define	_ASM_X86_MKTME_H
  
-+With MKTME, we have multiple direct mappings. One per-KeyID. They are put
-+next to each other. PAGE_OFFSET + N * direct_mapping_size can be used to
-+find direct mapping for KeyID-N.
+ #include <linux/types.h>
++#include <linux/page_ext.h>
+ 
+ #ifdef CONFIG_X86_INTEL_MKTME
+ extern phys_addr_t mktme_keyid_mask;
+ extern int mktme_nr_keyids;
+ extern int mktme_keyid_shift;
 +
- vmalloc space is lazily synchronized into the different PML4/PML5 pages of
- the processes using the page fault handler, with init_top_pgt as
- reference.
-diff --git a/arch/x86/include/asm/page_64.h b/arch/x86/include/asm/page_64.h
-index 939b1cff4a7b..f57fc3cc2246 100644
---- a/arch/x86/include/asm/page_64.h
-+++ b/arch/x86/include/asm/page_64.h
-@@ -14,6 +14,8 @@ extern unsigned long phys_base;
- extern unsigned long page_offset_base;
- extern unsigned long vmalloc_base;
- extern unsigned long vmemmap_base;
-+extern unsigned long direct_mapping_size;
-+extern unsigned long direct_mapping_mask;
- 
- static inline unsigned long __phys_addr_nodebug(unsigned long x)
- {
-diff --git a/arch/x86/include/asm/setup.h b/arch/x86/include/asm/setup.h
-index ae13bc974416..bcac5080cca5 100644
---- a/arch/x86/include/asm/setup.h
-+++ b/arch/x86/include/asm/setup.h
-@@ -59,6 +59,12 @@ extern void x86_ce4100_early_setup(void);
- static inline void x86_ce4100_early_setup(void) { }
- #endif
- 
-+#ifdef CONFIG_MEMORY_PHYSICAL_PADDING
-+void calculate_direct_mapping_size(void);
-+#else
-+static inline void calculate_direct_mapping_size(void) { }
-+#endif
++extern struct page_ext_operations page_mktme_ops;
 +
- #ifndef _SETUP
- 
- #include <asm/espfix.h>
-diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
-index 8047379e575a..79b92518ceee 100644
---- a/arch/x86/kernel/head64.c
-+++ b/arch/x86/kernel/head64.c
-@@ -59,6 +59,10 @@ EXPORT_SYMBOL(vmalloc_base);
- unsigned long vmemmap_base __ro_after_init = __VMEMMAP_BASE_L4;
- EXPORT_SYMBOL(vmemmap_base);
- #endif
-+unsigned long direct_mapping_size __ro_after_init = -1UL;
-+EXPORT_SYMBOL(direct_mapping_size);
-+unsigned long direct_mapping_mask __ro_after_init = -1UL;
-+EXPORT_SYMBOL(direct_mapping_mask);
- 
- #define __head	__section(.head.text)
- 
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index 2f86d883dd95..09ddbd142e3c 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -1053,6 +1053,9 @@ void __init setup_arch(char **cmdline_p)
- 	 */
- 	init_cache_modes();
- 
-+	 /* direct_mapping_size has to be initialized before KASLR and MKTME */
-+	calculate_direct_mapping_size();
++#define page_keyid page_keyid
++int page_keyid(const struct page *page);
 +
- 	/*
- 	 * Define random base addresses for memory sections after max_pfn is
- 	 * defined and before each memory section base is used.
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index a688617c727e..d3a93ca69c67 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -1399,6 +1399,64 @@ unsigned long memory_block_size_bytes(void)
- 	return memory_block_size_probed;
- }
+ #else
+ #define mktme_keyid_mask	((phys_addr_t)0)
+ #define mktme_nr_keyids		0
+diff --git a/arch/x86/include/asm/page.h b/arch/x86/include/asm/page.h
+index 7555b48803a8..39af59487d5f 100644
+--- a/arch/x86/include/asm/page.h
++++ b/arch/x86/include/asm/page.h
+@@ -19,6 +19,7 @@
+ struct page;
  
-+#ifdef CONFIG_MEMORY_PHYSICAL_PADDING
-+void __init calculate_direct_mapping_size(void)
+ #include <linux/range.h>
++#include <asm/mktme.h>
+ extern struct range pfn_mapped[];
+ extern int nr_pfn_mapped;
+ 
+diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
+index 467f1b26c737..09cbff678b9f 100644
+--- a/arch/x86/mm/mktme.c
++++ b/arch/x86/mm/mktme.c
+@@ -3,3 +3,37 @@
+ phys_addr_t mktme_keyid_mask;
+ int mktme_nr_keyids;
+ int mktme_keyid_shift;
++
++static DEFINE_STATIC_KEY_FALSE(mktme_enabled_key);
++
++static inline bool mktme_enabled(void)
 +{
-+	unsigned long available_va;
-+
-+	/* 1/4 of virtual address space is didicated for direct mapping */
-+	available_va = 1UL << (__VIRTUAL_MASK_SHIFT - 1);
-+
-+	/* How much memory the system has? */
-+	direct_mapping_size = max_pfn << PAGE_SHIFT;
-+	direct_mapping_size = round_up(direct_mapping_size, 1UL << 40);
-+
-+	if (!mktme_nr_keyids)
-+		goto out;
-+
-+	/*
-+	 * For MKTME we need direct_mapping_size to be power-of-2.
-+	 * It makes __pa() implementation efficient.
-+	 */
-+	direct_mapping_size = roundup_pow_of_two(direct_mapping_size);
-+
-+	/*
-+	 * Not enough virtual address space to address all physical memory with
-+	 * MKTME enabled. Even without padding.
-+	 *
-+	 * Disable MKTME instead.
-+	 */
-+	if (direct_mapping_size > available_va / (mktme_nr_keyids + 1)) {
-+		pr_err("x86/mktme: Disabled. Not enough virtual address space\n");
-+		pr_err("x86/mktme: Consider switching to 5-level paging\n");
-+		mktme_disable();
-+		goto out;
-+	}
-+
-+	/*
-+	 * Virtual address space is divided between per-KeyID direct mappings.
-+	 */
-+	available_va /= mktme_nr_keyids + 1;
-+out:
-+	/* Add padding, if there's enough virtual address space */
-+	direct_mapping_size += (1UL << 40) * CONFIG_MEMORY_PHYSICAL_PADDING;
-+	if (mktme_nr_keyids)
-+		direct_mapping_size = roundup_pow_of_two(direct_mapping_size);
-+
-+	if (direct_mapping_size > available_va)
-+		direct_mapping_size = available_va;
-+
-+	/*
-+	 * For MKTME, make sure direct_mapping_size is still power-of-2
-+	 * after adding padding and calculate mask that is used in __pa().
-+	 */
-+	if (mktme_nr_keyids) {
-+		direct_mapping_size = rounddown_pow_of_two(direct_mapping_size);
-+		direct_mapping_mask = direct_mapping_size - 1;
-+	}
++	return static_branch_unlikely(&mktme_enabled_key);
 +}
-+#endif
 +
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
++int page_keyid(const struct page *page)
++{
++	if (!mktme_enabled())
++		return 0;
++
++	return lookup_page_ext(page)->keyid;
++}
++EXPORT_SYMBOL(page_keyid);
++
++static bool need_page_mktme(void)
++{
++	/* Make sure keyid doesn't collide with extended page flags */
++	BUILD_BUG_ON(__NR_PAGE_EXT_FLAGS > 16);
++
++	return !!mktme_nr_keyids;
++}
++
++static void init_page_mktme(void)
++{
++	static_branch_enable(&mktme_enabled_key);
++}
++
++struct page_ext_operations page_mktme_ops = {
++	.need = need_page_mktme,
++	.init = init_page_mktme,
++};
+diff --git a/include/linux/page_ext.h b/include/linux/page_ext.h
+index f84f167ec04c..d9c5aae9523f 100644
+--- a/include/linux/page_ext.h
++++ b/include/linux/page_ext.h
+@@ -23,6 +23,7 @@ enum page_ext_flags {
+ 	PAGE_EXT_YOUNG,
+ 	PAGE_EXT_IDLE,
+ #endif
++	__NR_PAGE_EXT_FLAGS
+ };
+ 
  /*
-  * Initialise the sparsemem vmemmap using huge-pages at the PMD level.
-diff --git a/arch/x86/mm/kaslr.c b/arch/x86/mm/kaslr.c
-index 4408cd9a3bef..bf044ff50ec0 100644
---- a/arch/x86/mm/kaslr.c
-+++ b/arch/x86/mm/kaslr.c
-@@ -101,10 +101,15 @@ void __init kernel_randomize_memory(void)
- 	 * add padding if needed (especially for memory hotplug support).
- 	 */
- 	BUG_ON(kaslr_regions[0].base != &page_offset_base);
--	memory_tb = DIV_ROUND_UP(max_pfn << PAGE_SHIFT, 1UL << TB_SHIFT) +
--		CONFIG_MEMORY_PHYSICAL_PADDING;
+@@ -33,7 +34,15 @@ enum page_ext_flags {
+  * then the page_ext for pfn always exists.
+  */
+ struct page_ext {
+-	unsigned long flags;
++	union {
++		unsigned long flags;
++#ifdef CONFIG_X86_INTEL_MKTME
++		struct {
++			unsigned short __pad;
++			unsigned short keyid;
++		};
++#endif
++	};
+ };
  
--	/* Adapt phyiscal memory region size based on available memory */
-+	/*
-+	 * Calculate space required to map all physical memory.
-+	 * In case of MKTME, we map physical memory multiple times, one for
-+	 * each KeyID. If MKTME is disabled mktme_nr_keyids is 0.
-+	 */
-+	memory_tb = (direct_mapping_size * (mktme_nr_keyids + 1)) >> TB_SHIFT;
-+
-+	/* Adapt physical memory region size based on available memory */
- 	if (memory_tb < kaslr_regions[0].size_tb)
- 		kaslr_regions[0].size_tb = memory_tb;
+ extern void pgdat_page_ext_init(struct pglist_data *pgdat);
+diff --git a/mm/page_ext.c b/mm/page_ext.c
+index a9826da84ccb..036658229842 100644
+--- a/mm/page_ext.c
++++ b/mm/page_ext.c
+@@ -68,6 +68,9 @@ static struct page_ext_operations *page_ext_ops[] = {
+ #if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
+ 	&page_idle_ops,
+ #endif
++#ifdef CONFIG_X86_INTEL_MKTME
++	&page_mktme_ops,
++#endif
+ };
  
+ static unsigned long total_usage;
 -- 
 2.18.0
