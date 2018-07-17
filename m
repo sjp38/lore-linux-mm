@@ -1,62 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E26A86B0003
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 03:15:48 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id s18-v6so165349edr.15
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 00:15:48 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D6D416B0003
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 04:12:10 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id r21-v6so217450edp.23
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 01:12:10 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o57-v6si101026edo.114.2018.07.17.00.15.47
+        by mx.google.com with ESMTPS id g4-v6si473539edq.282.2018.07.17.01.12.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 00:15:47 -0700 (PDT)
-Date: Tue, 17 Jul 2018 09:15:45 +0200
-From: Joerg Roedel <jroedel@suse.de>
-Subject: Re: [PATCH 10/39] x86/entry/32: Handle Entry from Kernel-Mode on
- Entry-Stack
-Message-ID: <20180717071545.ojdall7tatbjtfai@suse.de>
-References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
- <1531308586-29340-11-git-send-email-joro@8bytes.org>
- <CALCETrUg_4q8a2Tt_Z+GtVuBwj3Ct3=j7M-YhiK06=XjxOG82A@mail.gmail.com>
- <20180714052110.cobtew6rms23ih37@suse.de>
- <7AB4F269-E0E8-4290-A764-69D8605467E8@amacapital.net>
- <20180714080159.hqp36q7fxzb2ktlq@suse.de>
- <75BDF04F-9585-438C-AE04-918FBE00A174@amacapital.net>
+        Tue, 17 Jul 2018 01:12:08 -0700 (PDT)
+Date: Tue, 17 Jul 2018 10:12:01 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+Message-ID: <20180717081201.GB16803@dhcp22.suse.cz>
+References: <20180716115058.5559-1-mhocko@kernel.org>
+ <20180716161249.c76240cd487c070fb271d529@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <75BDF04F-9585-438C-AE04-918FBE00A174@amacapital.net>
+In-Reply-To: <20180716161249.c76240cd487c070fb271d529@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Andy Lutomirski <luto@kernel.org>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Felix Kuehling <felix.kuehling@amd.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Rientjes <rientjes@google.com>, Leon Romanovsky <leonro@mellanox.com>
 
-On Sat, Jul 14, 2018 at 07:36:47AM -0700, Andy Lutomirski wrote:
-> But Ia??m still unconvinced. If any code executed with IRQs enabled on
-> the entry stack, then that code is terminally buggy. If youa??re
-> executing with IRQs off, youa??re not going to get migrated.  64-bit
-> kernels run on percpu stacks all the time, and ita??s not a problem.
+On Mon 16-07-18 16:12:49, Andrew Morton wrote:
+> On Mon, 16 Jul 2018 13:50:58 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > There are several blockable mmu notifiers which might sleep in
+> > mmu_notifier_invalidate_range_start and that is a problem for the
+> > oom_reaper because it needs to guarantee a forward progress so it cannot
+> > depend on any sleepable locks.
+> > 
+> > Currently we simply back off and mark an oom victim with blockable mmu
+> > notifiers as done after a short sleep. That can result in selecting a
+> > new oom victim prematurely because the previous one still hasn't torn
+> > its memory down yet.
+> > 
+> > We can do much better though. Even if mmu notifiers use sleepable locks
+> > there is no reason to automatically assume those locks are held.
+> > Moreover majority of notifiers only care about a portion of the address
+> > space and there is absolutely zero reason to fail when we are unmapping an
+> > unrelated range. Many notifiers do really block and wait for HW which is
+> > harder to handle and we have to bail out though.
+> > 
+> > This patch handles the low hanging fruid. __mmu_notifier_invalidate_range_start
+> > gets a blockable flag and callbacks are not allowed to sleep if the
+> > flag is set to false. This is achieved by using trylock instead of the
+> > sleepable lock for most callbacks and continue as long as we do not
+> > block down the call chain.
+> 
+> I assume device driver developers are wondering "what does this mean
+> for me".  As I understand it, the only time they will see
+> blockable==false is when their driver is being called in response to an
+> out-of-memory condition, yes?  So it is a very rare thing.
 
-The code switches to the kernel-stack and kernel-cr3 and just remembers
-where it came from (to handle the entry-from-kernel with entry-stack
-and/or user-cr3 case). IRQs are disabled in the entry-code path. But
-ultimately it calls into C code to handle the exception. And there IRQs
-might get enabled again.
+Yes, this is the case right now. Maybe we will grow other users in
+future. Those other potential users is the reason why I used blockable
+rather than oom parameter name.
 
-> IRET errors are genuinely special and, if theya??re causing a problem
-> for you, we should fix them the same way we deal with them on x86_64.
+> Any suggestions regarding how the driver developers can test this code
+> path?  I don't think we presently have a way to fake an oom-killing
+> event?  Perhaps we should add such a thing, given the problems we're
+> having with that feature.
 
-Right, IRET is handled differently and doesn't need this patch. But the
-segment-writing exceptions do.
+The simplest way is to wrap an userspace code which uses these notifiers
+into a memcg and set the hard limit to hit the oom. This can be done
+e.g. after the test faults in all the mmu notifier managed memory and
+set the hard limit to something really small. Then we are looking for a
+proper process tear down.
 
-If you insist on it I can try to implement the assumption that we don't
-get preempted in this code-path. That will safe us some cycles for
-copying stack contents in this unlikely slow-path. But we definitly need
-to handle the entry-from-kernel with entry-stack and/or user-cr3 case
-correctly and make a switch to kernel-stack/cr3 because we are going to
-call into C-code.
+> > I think we can improve that even further because there is a common
+> > pattern to do a range lookup first and then do something about that.
+> > The first part can be done without a sleeping lock in most cases AFAICS.
+> > 
+> > The oom_reaper end then simply retries if there is at least one notifier
+> > which couldn't make any progress in !blockable mode. A retry loop is
+> > already implemented to wait for the mmap_sem and this is basically the
+> > same thing.
+> > 
+> > ...
+> >
+> > +static inline int mmu_notifier_invalidate_range_start_nonblock(struct mm_struct *mm,
+> > +				  unsigned long start, unsigned long end)
+> > +{
+> > +	int ret = 0;
+> > +	if (mm_has_notifiers(mm))
+> > +		ret = __mmu_notifier_invalidate_range_start(mm, start, end, false);
+> > +
+> > +	return ret;
+> >  }
+> 
+> nit,
+> 
+> {
+> 	if (mm_has_notifiers(mm))
+> 		return __mmu_notifier_invalidate_range_start(mm, start, end, false);
+> 	return 0;
+> }
+> 
+> would suffice.
 
+Sure. Fixed
+ 
+> > 
+> > ...
+> >
+> > --- a/mm/mmap.c
+> > +++ b/mm/mmap.c
+> > @@ -3074,7 +3074,7 @@ void exit_mmap(struct mm_struct *mm)
+> >  		 * reliably test it.
+> >  		 */
+> >  		mutex_lock(&oom_lock);
+> > -		__oom_reap_task_mm(mm);
+> > +		(void)__oom_reap_task_mm(mm);
+> >  		mutex_unlock(&oom_lock);
+> 
+> What does this do?
 
-Regards,
-
-	Joerg
+There is no error to be returned here as the comment above explains
+		 * Nothing can be holding mm->mmap_sem here and the above call
+		 * to mmu_notifier_release(mm) ensures mmu notifier callbacks in
+		 * __oom_reap_task_mm() will not block.
+-- 
+Michal Hocko
+SUSE Labs
