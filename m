@@ -1,85 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8189B6B0006
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 20:34:20 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id w205-v6so11707054oiw.21
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 17:34:20 -0700 (PDT)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id n189-v6si19424781oia.145.2018.07.16.17.34.18
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CEF226B0008
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 20:51:47 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id q18-v6so25736754pll.3
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 17:51:47 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id q4-v6si16496784pll.156.2018.07.16.17.51.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jul 2018 17:34:19 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v1 2/2] mm: soft-offline: close the race against page
- allocation
-Date: Tue, 17 Jul 2018 00:27:31 +0000
-Message-ID: <20180717002731.GA11433@hori1.linux.bs1.fc.nec.co.jp>
-References: <1531452366-11661-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1531452366-11661-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20180713134002.a365049a79d41be3c28916cc@linux-foundation.org>
-In-Reply-To: <20180713134002.a365049a79d41be3c28916cc@linux-foundation.org>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <317E8E8C8B68C64890D63BEBEA885BB8@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        Mon, 16 Jul 2018 17:51:46 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH v2 0/7] swap: THP optimizing refactoring
+Date: Tue, 17 Jul 2018 08:51:46 +0800
+Message-Id: <20180717005153.29483-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, "xishi.qiuxishi@alibaba-inc.com" <xishi.qiuxishi@alibaba-inc.com>, "zy.zhengyi@alibaba-inc.com" <zy.zhengyi@alibaba-inc.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Fri, Jul 13, 2018 at 01:40:02PM -0700, Andrew Morton wrote:
-> On Fri, 13 Jul 2018 12:26:06 +0900 Naoya Horiguchi <n-horiguchi@ah.jp.nec=
-.com> wrote:
->=20
-> > A process can be killed with SIGBUS(BUS_MCEERR_AR) when it tries to
-> > allocate a page that was just freed on the way of soft-offline.
-> > This is undesirable because soft-offline (which is about corrected erro=
-r)
-> > is less aggressive than hard-offline (which is about uncorrected error)=
-,
-> > and we can make soft-offline fail and keep using the page for good reas=
-on
-> > like "system is busy."
-> >=20
-> > Two main changes of this patch are:
-> >=20
-> > - setting migrate type of the target page to MIGRATE_ISOLATE. As done
-> >   in free_unref_page_commit(), this makes kernel bypass pcplist when
-> >   freeing the page. So we can assume that the page is in freelist just
-> >   after put_page() returns,
-> >=20
-> > - setting PG_hwpoison on free page under zone->lock which protects
-> >   freelists, so this allows us to avoid setting PG_hwpoison on a page
-> >   that is decided to be allocated soon.
-> >=20
-> >
-> > ...
-> >
-> > +
-> > +#ifdef CONFIG_MEMORY_FAILURE
-> > +/*
-> > + * Set PG_hwpoison flag if a given page is confirmed to be a free page
-> > + * within zone lock, which prevents the race against page allocation.
-> > + */
->=20
-> I think this is clearer?
->=20
-> --- a/mm/page_alloc.c~mm-soft-offline-close-the-race-against-page-allocat=
-ion-fix
-> +++ a/mm/page_alloc.c
-> @@ -8039,8 +8039,9 @@ bool is_free_buddy_page(struct page *pag
-> =20
->  #ifdef CONFIG_MEMORY_FAILURE
->  /*
-> - * Set PG_hwpoison flag if a given page is confirmed to be a free page
-> - * within zone lock, which prevents the race against page allocation.
-> + * Set PG_hwpoison flag if a given page is confirmed to be a free page. =
- This
-> + * test is performed under the zone lock to prevent a race against page
-> + * allocation.
+This patchset is based on 2018-07-13 head of mmotm tree.
 
-Yes, I like it.
+Now the THP (Transparent Huge Page) swap optimizing is implemented in
+the way like below,
 
-Thanks,
-Naoya Horiguchi=
+#ifdef CONFIG_THP_SWAP
+huge_function(...)
+{
+}
+#else
+normal_function(...)
+{
+}
+#endif
+
+general_function(...)
+{
+	if (huge)
+		return thp_function(...);
+	else
+		return normal_function(...);
+}
+
+As pointed out by Dave Hansen, this will,
+
+1. Created a new, wholly untested code path for huge page
+2. Created two places to patch bugs
+3. Are not reusing code when possible
+
+This patchset is to address these problems via merging huge/normal
+code path/functions if possible.
+
+One concern is that this may cause code size to dilate when
+!CONFIG_TRANSPARENT_HUGEPAGE.  The data shows that most refactoring
+will only cause quite slight code size increase.
+
+Best Regards,
+Huang, Ying
