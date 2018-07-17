@@ -1,62 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EAADC6B000D
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 20:55:32 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id j189-v6so2014433oih.11
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 17:55:32 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id b1-v6si22134941oih.394.2018.07.16.17.55.31
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D87B46B0010
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2018 20:55:48 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id j15-v6so2096146pff.12
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2018 17:55:48 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id bc5-v6si30619643plb.413.2018.07.16.17.55.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jul 2018 17:55:31 -0700 (PDT)
-Message-Id: <201807170055.w6H0tHn5075670@www262.sakura.ne.jp>
-Subject: Re: [PATCH v13 0/7] cgroup-aware OOM killer
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-MIME-Version: 1.0
-Date: Tue, 17 Jul 2018 09:55:17 +0900
-References: <0d018c7e-a3de-a23a-3996-bed8b28b1e4a@i-love.sakura.ne.jp> <20180716220918.GA3898@castle.DHCP.thefacebook.com>
-In-Reply-To: <20180716220918.GA3898@castle.DHCP.thefacebook.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+        Mon, 16 Jul 2018 17:55:47 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH v2 0/7] swap: THP optimizing refactoring
+Date: Tue, 17 Jul 2018 08:55:49 +0800
+Message-Id: <20180717005556.29758-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@vger.kernel.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Dan Williams <dan.j.williams@intel.com>
 
-Roman Gushchin wrote:
-> On Tue, Jul 17, 2018 at 06:13:47AM +0900, Tetsuo Handa wrote:
-> > No response from Roman and David...
-> > 
-> > Andrew, will you once drop Roman's cgroup-aware OOM killer and David's patches?
-> > Roman's series has a bug which I mentioned and which can be avoided by my patch.
-> > David's patch is using MMF_UNSTABLE incorrectly such that it might start selecting
-> > next OOM victim without trying to reclaim any memory.
-> > 
-> > Since they are not responding to my mail, I suggest once dropping from linux-next.
-> 
-> I was in cc, and didn't thought that you're expecting something from me.
+This patchset is based on 2018-07-13 head of mmotm tree.
 
-Oops. I was waiting for your response. ;-)
+Now the THP (Transparent Huge Page) swap optimizing is implemented in
+the way like below,
 
-  But Roman, my patch conflicts with your "mm, oom: cgroup-aware OOM killer" patch
-  in linux-next. And it seems to me that your patch contains a bug which leads to
-  premature memory allocation failure explained below.
+#ifdef CONFIG_THP_SWAP
+huge_function(...)
+{
+}
+#else
+normal_function(...)
+{
+}
+#endif
 
-  Can we apply my patch prior to your "mm, oom: cgroup-aware OOM killer" patch
-  (which eliminates "delay" and "out:" from your patch) so that people can easily
-  backport my patch? Or, do you want to apply a fix (which eliminates "delay" and
-  "out:" from linux-next) prior to my patch?
+general_function(...)
+{
+	if (huge)
+		return thp_function(...);
+	else
+		return normal_function(...);
+}
 
-> 
-> I don't get, why it's necessary to drop the cgroup oom killer to merge your fix?
-> I'm happy to help with rebasing and everything else.
+As pointed out by Dave Hansen, this will,
 
-Yes, I wish you rebase your series on top of OOM lockup (CVE-2016-10723) mitigation
-patch ( https://marc.info/?l=linux-mm&m=153112243424285&w=4 ). It is a trivial change
-and easy to cleanly backport (if applied before your series).
+1. Created a new, wholly untested code path for huge page
+2. Created two places to patch bugs
+3. Are not reusing code when possible
 
-Also, I expect you to check whether my cleanup patch which removes "abort" path
-( [PATCH 1/2] at https://marc.info/?l=linux-mm&m=153119509215026&w=4 ) helps
-simplifying your series. I don't know detailed behavior of your series, but I
-assume that your series do not kill threads which current thread should not wait
-for MMF_OOM_SKIP.
+This patchset is to address these problems via merging huge/normal
+code path/functions if possible.
+
+One concern is that this may cause code size to dilate when
+!CONFIG_TRANSPARENT_HUGEPAGE.  The data shows that most refactoring
+will only cause quite slight code size increase.
+
+Best Regards,
+Huang, Ying
