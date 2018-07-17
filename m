@@ -1,109 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D8ACF6B0003
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 17:03:43 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id d4-v6so1108595pfn.9
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 14:03:43 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id n16-v6si1529983pgl.596.2018.07.17.14.03.42
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B178B6B000C
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 17:09:42 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id k204-v6so2909467ite.1
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 14:09:42 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id k70-v6si341250ita.20.2018.07.17.14.09.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 14:03:42 -0700 (PDT)
-Subject: Re: [PATCH v2] mm: disallow mapping that conflict for
- devm_memremap_pages()
-From: Dave Jiang <dave.jiang@intel.com>
-References: <152909478401.50143.312364396244072931.stgit@djiang5-desk3.ch.intel.com>
-Message-ID: <865f6e1e-1711-bcb9-b226-4eb0d091f700@intel.com>
-Date: Tue, 17 Jul 2018 14:03:41 -0700
+        Tue, 17 Jul 2018 14:09:40 -0700 (PDT)
+Subject: Re: [patch v3] mm, oom: fix unnecessary killing of additional
+ processes
+References: <alpine.DEB.2.21.1806211434420.51095@chino.kir.corp.google.com>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <d19d44c3-c8cf-70a1-9b15-c98df233d5f0@i-love.sakura.ne.jp>
+Date: Wed, 18 Jul 2018 06:09:24 +0900
 MIME-Version: 1.0
-In-Reply-To: <152909478401.50143.312364396244072931.stgit@djiang5-desk3.ch.intel.com>
+In-Reply-To: <alpine.DEB.2.21.1806211434420.51095@chino.kir.corp.google.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, dan.j.williams@intel.com, elliott@hpe.com, linux-nvdimm@lists.01.org
+To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild test robot <fengguang.wu@intel.com>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Andrew, is it possible to pick up this patch? Thanks!
+This patch should be dropped from linux-next because it is incorrectly
+using MMF_UNSTABLE.
 
-On 06/15/2018 01:33 PM, Dave Jiang wrote:
-> When pmem namespaces created are smaller than section size, this can cause
-> issue during removal and gpf was observed:
-> 
-> [ 249.613597] general protection fault: 0000 1 SMP PTI
-> [ 249.725203] CPU: 36 PID: 3941 Comm: ndctl Tainted: G W
-> 4.14.28-1.el7uek.x86_64 #2
-> [ 249.745495] task: ffff88acda150000 task.stack: ffffc900233a4000
-> [ 249.752107] RIP: 0010:__put_page+0x56/0x79
-> [ 249.844675] Call Trace:
-> [ 249.847410] devm_memremap_pages_release+0x155/0x23a
-> [ 249.852953] release_nodes+0x21e/0x260
-> [ 249.857138] devres_release_all+0x3c/0x48
-> [ 249.861606] device_release_driver_internal+0x15c/0x207
-> [ 249.867439] device_release_driver+0x12/0x14
-> [ 249.872204] unbind_store+0xba/0xd8
-> [ 249.876098] drv_attr_store+0x27/0x31
-> [ 249.880186] sysfs_kf_write+0x3f/0x46
-> [ 249.884266] kernfs_fop_write+0x10f/0x18b
-> [ 249.888734] __vfs_write+0x3a/0x16d
-> [ 249.892628] ? selinux_file_permission+0xe5/0x116
-> [ 249.897881] ? security_file_permission+0x41/0xbb
-> [ 249.903133] vfs_write+0xb2/0x1a1
-> [ 249.906835] ? syscall_trace_enter+0x1ce/0x2b8
-> [ 249.911795] SyS_write+0x55/0xb9
-> [ 249.915397] do_syscall_64+0x79/0x1ae
-> [ 249.919485] entry_SYSCALL_64_after_hwframe+0x3d/0x0
-> 
-> Add code to check whether we have mapping already in the same section and
-> prevent additional mapping from created if that is the case.
-> 
-> Signed-off-by: Dave Jiang <dave.jiang@intel.com>
-> ---
-> 
-> v2: Change dev_warn() to dev_WARN() to provide helpful backtrace. (Robert E)
-> 
->  kernel/memremap.c |   18 +++++++++++++++++-
->  1 file changed, 17 insertions(+), 1 deletion(-)
-> 
-> diff --git a/kernel/memremap.c b/kernel/memremap.c
-> index 5857267a4af5..a734b1747466 100644
-> --- a/kernel/memremap.c
-> +++ b/kernel/memremap.c
-> @@ -176,10 +176,27 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
->  	unsigned long pfn, pgoff, order;
->  	pgprot_t pgprot = PAGE_KERNEL;
->  	int error, nid, is_ram;
-> +	struct dev_pagemap *conflict_pgmap;
+On 2018/06/22 6:35, David Rientjes wrote:
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -3059,25 +3059,28 @@ void exit_mmap(struct mm_struct *mm)
+>  	if (unlikely(mm_is_oom_victim(mm))) {
+>  		/*
+>  		 * Manually reap the mm to free as much memory as possible.
+> -		 * Then, as the oom reaper does, set MMF_OOM_SKIP to disregard
+> -		 * this mm from further consideration.  Taking mm->mmap_sem for
+> -		 * write after setting MMF_OOM_SKIP will guarantee that the oom
+> -		 * reaper will not run on this mm again after mmap_sem is
+> -		 * dropped.
+> -		 *
+>  		 * Nothing can be holding mm->mmap_sem here and the above call
+>  		 * to mmu_notifier_release(mm) ensures mmu notifier callbacks in
+>  		 * __oom_reap_task_mm() will not block.
+> -		 *
+> -		 * This needs to be done before calling munlock_vma_pages_all(),
+> -		 * which clears VM_LOCKED, otherwise the oom reaper cannot
+> -		 * reliably test it.
+>  		 */
+>  		mutex_lock(&oom_lock);
+>  		__oom_reap_task_mm(mm);
+>  		mutex_unlock(&oom_lock);
 >  
->  	align_start = res->start & ~(SECTION_SIZE - 1);
->  	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
->  		- align_start;
-> +	align_end = align_start + align_size - 1;
-> +
-> +	conflict_pgmap = get_dev_pagemap(PHYS_PFN(align_start), NULL);
-> +	if (conflict_pgmap) {
-> +		dev_WARN(dev, "Conflicting mapping in same section\n");
-> +		put_dev_pagemap(conflict_pgmap);
-> +		return ERR_PTR(-ENOMEM);
-> +	}
-> +
-> +	conflict_pgmap = get_dev_pagemap(PHYS_PFN(align_end), NULL);
-> +	if (conflict_pgmap) {
-> +		dev_WARN(dev, "Conflicting mapping in same section\n");
-> +		put_dev_pagemap(conflict_pgmap);
-> +		return ERR_PTR(-ENOMEM);
-> +	}
-> +
->  	is_ram = region_intersects(align_start, align_size,
->  		IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
+> -		set_bit(MMF_OOM_SKIP, &mm->flags);
+> +		/*
+> +		 * Now, set MMF_UNSTABLE to avoid racing with the oom reaper.
+> +		 * This needs to be done before calling munlock_vma_pages_all(),
+> +		 * which clears VM_LOCKED, otherwise the oom reaper cannot
+> +		 * reliably test for it.  If the oom reaper races with
+> +		 * munlock_vma_pages_all(), this can result in a kernel oops if
+> +		 * a pmd is zapped, for example, after follow_page_mask() has
+> +		 * checked pmd_none().
+> +		 *
+> +		 * Taking mm->mmap_sem for write after setting MMF_UNSTABLE will
+> +		 * guarantee that the oom reaper will not run on this mm again
+> +		 * after mmap_sem is dropped.
+> +		 */
+> +		set_bit(MMF_UNSTABLE, &mm->flags);
+
+Since MMF_UNSTABLE is set by __oom_reap_task_mm() from exit_mmap() before start reaping
+(because the purpose of MMF_UNSTABLE is to "tell all users of get_user/copy_from_user
+etc... that the content is no longer stable"), it cannot be used for a flag for indicating
+that the OOM reaper can't work on the mm anymore.
+
+If the oom_lock serialization is removed, the OOM reaper will give up after (by default)
+1 second even if current thread is immediately after set_bit(MMF_UNSTABLE, &mm->flags) from
+__oom_reap_task_mm() from exit_mmap(). Thus, this patch and the other patch which removes
+oom_lock serialization should be dropped.
+
+>  		down_write(&mm->mmap_sem);
+>  		up_write(&mm->mmap_sem);
+>  	}
+
+> @@ -637,25 +649,57 @@ static int oom_reaper(void *unused)
+>  	return 0;
+>  }
 >  
-> @@ -199,7 +216,6 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+> +/*
+> + * Millisecs to wait for an oom mm to free memory before selecting another
+> + * victim.
+> + */
+> +static u64 oom_free_timeout_ms = 1000;
+>  static void wake_oom_reaper(struct task_struct *tsk)
+>  {
+> -	/* tsk is already queued? */
+> -	if (tsk == oom_reaper_list || tsk->oom_reaper_list)
+> +	/*
+> +	 * Set the reap timeout; if it's already set, the mm is enqueued and
+> +	 * this tsk can be ignored.
+> +	 */
+> +	if (cmpxchg(&tsk->signal->oom_mm->oom_free_expire, 0UL,
+> +			jiffies + msecs_to_jiffies(oom_free_timeout_ms)))
+>  		return;
+
+"expire" must not be 0 in order to avoid double list_add(). See
+https://lore.kernel.org/lkml/201807130620.w6D6KiAJ093010@www262.sakura.ne.jp/T/#u .
+
 >  
->  	mutex_lock(&pgmap_lock);
->  	error = 0;
-> -	align_end = align_start + align_size - 1;
+>  	get_task_struct(tsk);
 >  
->  	foreach_order_pgoff(res, order, pgoff) {
->  		error = __radix_tree_insert(&pgmap_radix,
-> 
+>  	spin_lock(&oom_reaper_lock);
+> -	tsk->oom_reaper_list = oom_reaper_list;
+> -	oom_reaper_list = tsk;
+> +	list_add(&tsk->oom_reap_list, &oom_reaper_list);
+>  	spin_unlock(&oom_reaper_lock);
+>  	trace_wake_reaper(tsk->pid);
+>  	wake_up(&oom_reaper_wait);
+>  }
