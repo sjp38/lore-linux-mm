@@ -1,100 +1,285 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F4B26B0010
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 06:56:56 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id q18-v6so261803wrr.12
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 03:56:56 -0700 (PDT)
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 41DD76B0003
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 07:06:03 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id 31-v6so423849plf.19
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 04:06:03 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h45-v6sor345303wrh.8.2018.07.17.03.56.55
+        by mx.google.com with SMTPS id y2-v6sor246336plr.76.2018.07.17.04.06.01
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 17 Jul 2018 03:56:55 -0700 (PDT)
-From: osalvador@techadventures.net
-Subject: [RFC PATCH 3/3] mm: Make free_area_init_node call certain functions only when booting
-Date: Tue, 17 Jul 2018 12:56:22 +0200
-Message-Id: <20180717105622.12410-4-osalvador@techadventures.net>
-In-Reply-To: <20180717105622.12410-1-osalvador@techadventures.net>
-References: <20180717105622.12410-1-osalvador@techadventures.net>
+        Tue, 17 Jul 2018 04:06:01 -0700 (PDT)
+From: ufo19890607@gmail.com
+Subject: [PATCH v14 1/2] Reorganize the oom report in dump_header
+Date: Tue, 17 Jul 2018 19:05:47 +0800
+Message-Id: <1531825548-27761-1-git-send-email-ufo19890607@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: pasha.tatashin@oracle.com, mhocko@suse.com, vbabka@suse.cz, akpm@linux-foundation.org, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, yuzhoujian@didichuxing.com
 
-From: Oscar Salvador <osalvador@suse.de>
+From: yuzhoujian <yuzhoujian@didichuxing.com>
 
-If free_area_init_node got called from memhotplug code, we do not need
-to call calculate_node_totalpages(), as the node has no pages.
+OOM report contains several sections. The first one is the allocation
+context that has triggered the OOM. Then we have cpuset context
+followed by the stack trace of the OOM path. Followed by the oom
+eligible tasks and the information about the chosen oom victim.
 
-We do not need to set the range for the deferred initialization either,
-as memmap_init_zone skips that when the context is MEMMAP_HOTPLUG.
+One thing that makes parsing more awkward than necessary is that we do
+not have a single and easily parsable line about the oom context. This
+patch is reorganizing the oom report to
+1) who invoked oom and what was the allocation request
+	[  131.751307] panic invoked oom-killer: gfp_mask=0x6280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), order=0, oom_score_adj=0
 
-Signed-off-by: Oscar Salvador <osalvador@suse.de>
+2) OOM stack trace
+	[  131.752399] CPU: 16 PID: 8581 Comm: panic Not tainted 4.18.0-rc5+ #48
+	[  131.753154] Hardware name: Inspur SA5212M4/YZMB-00370-107, BIOS 4.1.10 11/14/2016
+	[  131.753806] Call Trace:
+	[  131.754473]  dump_stack+0x5a/0x73
+	[  131.755129]  dump_header+0x53/0x2dc
+	[  131.755775]  oom_kill_process+0x228/0x420
+	[  131.756430]  ? oom_badness+0x2a/0x130
+	[  131.757063]  out_of_memory+0x11a/0x4a0
+	[  131.757710]  __alloc_pages_slowpath+0x7cc/0xa1e
+	[  131.758392]  ? apic_timer_interrupt+0xa/0x20
+	[  131.759040]  __alloc_pages_nodemask+0x277/0x290
+	[  131.759710]  alloc_pages_vma+0x73/0x180
+	[  131.760388]  do_anonymous_page+0xed/0x5a0
+	[  131.761067]  __handle_mm_fault+0xbb3/0xe70
+	[  131.761749]  handle_mm_fault+0xfa/0x210
+	[  131.762457]  __do_page_fault+0x233/0x4c0
+	[  131.763136]  do_page_fault+0x32/0x140
+	[  131.763832]  ? page_fault+0x8/0x30
+	[  131.764523]  page_fault+0x1e/0x30
+
+3) oom context (contrains and the chosen victim).
+	[  131.771164] oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=/,mems_allowed=0-1,task=panic,pid=8608,uid=0
+
+An admin can easily get the full oom context at a single line which
+makes parsing much easier.
+
+Signed-off-by: yuzhoujian <yuzhoujian@didichuxing.com>
 ---
- mm/page_alloc.c | 37 ++++++++++++++++++++++---------------
- 1 file changed, 22 insertions(+), 15 deletions(-)
+Changes since v13:
+- remove the spaces for printing pid and uid.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 3bf939393ca1..d2562751dbfd 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6299,8 +6299,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
- 	spin_lock_init(&pgdat->lru_lock);
- 	lruvec_init(node_lruvec(pgdat));
+Changes since v12:
+- print the cpuset and memory allocation information after oom victim comm, pid.
+
+Changes since v11:
+- move the array of const char oom_constraint_text to oom_kill.c
+- add the cpuset information in the one line output.
+  
+Changes since v10:
+- divide the patch v8 into two parts. One part is to add the array of const char and put enum
+  oom_constaint into oom.h; the other adds a new func to print the missing information for the system-
+  wide oom report.
+
+Changes since v9:
+- divide the patch v8 into two parts. One part is to move enum oom_constraint into memcontrol.h; the
+  other refactors the output info in the dump_header.
+- replace orgin_memcg and kill_memcg with oom_memcg and task_memcg resptively.
+
+Changes since v8:
+- add the constraint in the oom_control structure.
+- put enum oom_constraint and constraint array into the oom.h file.
+- simplify the description for mem_cgroup_print_oom_context.
+
+Changes since v7:
+- add the constraint parameter to dump_header and oom_kill_process.
+- remove the static char array in the mem_cgroup_print_oom_context, and
+  invoke pr_cont_cgroup_path to print memcg' name.
+- combine the patchset v6 into one.
+
+Changes since v6:
+- divide the patch v5 into two parts. One part is to add an array of const char and
+  put enum oom_constraint into the memcontrol.h; the other refactors the output
+  in the dump_header.
+- limit the memory usage for the static char array by using NAME_MAX in the mem_cgroup_print_oom_context.
+- eliminate the spurious spaces in the oom's output and fix the spelling of "constrain".
+
+Changes since v5:
+- add an array of const char for each constraint.
+- replace all of the pr_cont with a single line print of the pr_info.
+- put enum oom_constraint into the memcontrol.c file for printing oom constraint.
+
+Changes since v4:
+- rename the helper's name to mem_cgroup_print_oom_context.
+- rename the mem_cgroup_print_oom_info to mem_cgroup_print_oom_meminfo.
+- add the constrain info in the dump_header.
+
+Changes since v3:
+- rename the helper's name to mem_cgroup_print_oom_memcg_name.
+- add the rcu lock held to the helper.
+- remove the print info of memcg's name in mem_cgroup_print_oom_info.
+
+Changes since v2:
+- add the mem_cgroup_print_memcg_name helper to print the memcg's
+  name which contains the task that will be killed by the oom-killer.
+
+Changes since v1:
+- replace adding mem_cgroup_print_oom_info with printing the memcg's
+  name only.
+
+ include/linux/oom.h    | 10 ++++++++++
+ kernel/cgroup/cpuset.c |  4 ++--
+ mm/oom_kill.c          | 37 +++++++++++++++++++++----------------
+ mm/page_alloc.c        |  4 ++--
+ 4 files changed, 35 insertions(+), 20 deletions(-)
+
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index 6adac113e96d..3e5e01619bc8 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -15,6 +15,13 @@ struct notifier_block;
+ struct mem_cgroup;
+ struct task_struct;
  
--	pgdat->per_cpu_nodestats = &boot_nodestats;
--
- 	for (j = 0; j < MAX_NR_ZONES; j++) {
- 		struct zone *zone = pgdat->node_zones + j;
- 
-@@ -6386,6 +6384,21 @@ static void __ref alloc_node_mem_map(struct pglist_data *pgdat)
- static void __ref alloc_node_mem_map(struct pglist_data *pgdat) { }
- #endif /* CONFIG_FLAT_NODE_MEM_MAP */
- 
-+#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
-+static void pgdat_set_deferred_range(pg_data_t *pgdat)
-+{
-+	/*
-+	 * We start only with one section of pages, more pages are added as
-+	 * needed until the rest of deferred pages are initialized.
-+	 */
-+	pgdat->static_init_pgcnt = min_t(unsigned long, PAGES_PER_SECTION,
-+						pgdat->node_spanned_pages);
-+	pgdat->first_deferred_pfn = ULONG_MAX;
-+}
-+#else
-+static void pgdat_set_deferred_range(pg_data_t *pgdat) {}
-+#endif
++enum oom_constraint {
++	CONSTRAINT_NONE,
++	CONSTRAINT_CPUSET,
++	CONSTRAINT_MEMORY_POLICY,
++	CONSTRAINT_MEMCG,
++};
 +
- void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
- 		unsigned long node_start_pfn, unsigned long *zholes_size)
- {
-@@ -6407,20 +6420,14 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
- #else
- 	start_pfn = node_start_pfn;
- #endif
--	calculate_node_totalpages(pgdat, start_pfn, end_pfn,
--				  zones_size, zholes_size);
--
--	alloc_node_mem_map(pgdat);
-+	if (system_state == SYSTEM_BOOTING) {
-+		calculate_node_totalpages(pgdat, start_pfn, end_pfn,
-+					  zones_size, zholes_size);
-+		alloc_node_mem_map(pgdat);
-+		pgdat_set_deferred_range(pgdat);
-+		pgdat->per_cpu_nodestats = &boot_nodestats;
-+	}
+ /*
+  * Details of the page allocation that triggered the oom killer that are used to
+  * determine what should be killed.
+@@ -42,6 +49,9 @@ struct oom_control {
+ 	unsigned long totalpages;
+ 	struct task_struct *chosen;
+ 	unsigned long chosen_points;
++
++	/* Used to print the constraint info. */
++	enum oom_constraint constraint;
+ };
  
--#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
--	/*
--	 * We start only with one section of pages, more pages are added as
--	 * needed until the rest of deferred pages are initialized.
--	 */
--	pgdat->static_init_pgcnt = min_t(unsigned long, PAGES_PER_SECTION,
--					 pgdat->node_spanned_pages);
--	pgdat->first_deferred_pfn = ULONG_MAX;
--#endif
- 	free_area_init_core(pgdat);
+ extern struct mutex oom_lock;
+diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
+index 266f10cb7222..9510a5b32eaf 100644
+--- a/kernel/cgroup/cpuset.c
++++ b/kernel/cgroup/cpuset.c
+@@ -2666,9 +2666,9 @@ void cpuset_print_current_mems_allowed(void)
+ 	rcu_read_lock();
+ 
+ 	cgrp = task_cs(current)->css.cgroup;
+-	pr_info("%s cpuset=", current->comm);
++	pr_cont(",cpuset=");
+ 	pr_cont_cgroup_name(cgrp);
+-	pr_cont(" mems_allowed=%*pbl\n",
++	pr_cont(",mems_allowed=%*pbl",
+ 		nodemask_pr_args(&current->mems_allowed));
+ 
+ 	rcu_read_unlock();
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 84081e77bc51..4e18b69fd464 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -237,11 +237,11 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+ 	return points > 0 ? points : 1;
  }
  
+-enum oom_constraint {
+-	CONSTRAINT_NONE,
+-	CONSTRAINT_CPUSET,
+-	CONSTRAINT_MEMORY_POLICY,
+-	CONSTRAINT_MEMCG,
++static const char * const oom_constraint_text[] = {
++	[CONSTRAINT_NONE] = "CONSTRAINT_NONE",
++	[CONSTRAINT_CPUSET] = "CONSTRAINT_CPUSET",
++	[CONSTRAINT_MEMORY_POLICY] = "CONSTRAINT_MEMORY_POLICY",
++	[CONSTRAINT_MEMCG] = "CONSTRAINT_MEMCG",
+ };
+ 
+ /*
+@@ -421,15 +421,21 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
+ 
+ static void dump_header(struct oom_control *oc, struct task_struct *p)
+ {
+-	pr_warn("%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=%*pbl, order=%d, oom_score_adj=%hd\n",
+-		current->comm, oc->gfp_mask, &oc->gfp_mask,
+-		nodemask_pr_args(oc->nodemask), oc->order,
++	pr_warn("%s invoked oom-killer: gfp_mask=%#x(%pGg), order=%d, oom_score_adj=%hd\n",
++		current->comm, oc->gfp_mask, &oc->gfp_mask, oc->order,
+ 			current->signal->oom_score_adj);
+ 	if (!IS_ENABLED(CONFIG_COMPACTION) && oc->order)
+ 		pr_warn("COMPACTION is disabled!!!\n");
+ 
+-	cpuset_print_current_mems_allowed();
+ 	dump_stack();
++
++	/* one line summary of the oom killer context. */
++	pr_info("oom-kill:constraint=%s,nodemask=%*pbl",
++			oom_constraint_text[oc->constraint],
++			nodemask_pr_args(oc->nodemask));
++	cpuset_print_current_mems_allowed();
++	pr_cont(",task=%s,pid=%d,uid=%d\n", p->comm, p->pid,
++		from_kuid(&init_user_ns, task_uid(p)));
+ 	if (is_memcg_oom(oc))
+ 		mem_cgroup_print_oom_info(oc->memcg, p);
+ 	else {
+@@ -973,8 +979,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ /*
+  * Determines whether the kernel must panic because of the panic_on_oom sysctl.
+  */
+-static void check_panic_on_oom(struct oom_control *oc,
+-			       enum oom_constraint constraint)
++static void check_panic_on_oom(struct oom_control *oc)
+ {
+ 	if (likely(!sysctl_panic_on_oom))
+ 		return;
+@@ -984,7 +989,7 @@ static void check_panic_on_oom(struct oom_control *oc,
+ 		 * does not panic for cpuset, mempolicy, or memcg allocation
+ 		 * failures.
+ 		 */
+-		if (constraint != CONSTRAINT_NONE)
++		if (oc->constraint != CONSTRAINT_NONE)
+ 			return;
+ 	}
+ 	/* Do not panic for oom kills triggered by sysrq */
+@@ -1021,8 +1026,8 @@ EXPORT_SYMBOL_GPL(unregister_oom_notifier);
+ bool out_of_memory(struct oom_control *oc)
+ {
+ 	unsigned long freed = 0;
+-	enum oom_constraint constraint = CONSTRAINT_NONE;
+ 
++	oc->constraint = CONSTRAINT_NONE;
+ 	if (oom_killer_disabled)
+ 		return false;
+ 
+@@ -1057,10 +1062,10 @@ bool out_of_memory(struct oom_control *oc)
+ 	 * Check if there were limitations on the allocation (only relevant for
+ 	 * NUMA and memcg) that may require different handling.
+ 	 */
+-	constraint = constrained_alloc(oc);
+-	if (constraint != CONSTRAINT_MEMORY_POLICY)
++	oc->constraint = constrained_alloc(oc);
++	if (oc->constraint != CONSTRAINT_MEMORY_POLICY)
+ 		oc->nodemask = NULL;
+-	check_panic_on_oom(oc, constraint);
++	check_panic_on_oom(oc);
+ 
+ 	if (!is_memcg_oom(oc) && sysctl_oom_kill_allocating_task &&
+ 	    current->mm && !oom_unkillable_task(current, NULL, oc->nodemask) &&
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a790ef4be74e..892f51e630c8 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3416,13 +3416,13 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+ 	va_start(args, fmt);
+ 	vaf.fmt = fmt;
+ 	vaf.va = &args;
+-	pr_warn("%s: %pV, mode:%#x(%pGg), nodemask=%*pbl\n",
++	pr_warn("%s: %pV,mode:%#x(%pGg),nodemask=%*pbl",
+ 			current->comm, &vaf, gfp_mask, &gfp_mask,
+ 			nodemask_pr_args(nodemask));
+ 	va_end(args);
+ 
+ 	cpuset_print_current_mems_allowed();
+-
++	pr_cont("\n");
+ 	dump_stack();
+ 	warn_alloc_show_mem(gfp_mask, nodemask);
+ }
 -- 
-2.13.6
+2.14.1
