@@ -1,40 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C6776B000C
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 19:15:12 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id y2-v6so1366228pll.16
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 16:15:12 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id p17-v6si2022753pfd.76.2018.07.17.16.15.11
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D18396B000E
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 19:31:10 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id o6-v6so2003765qtp.15
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 16:31:10 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id i65-v6si1025544qkd.91.2018.07.17.16.31.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 16:15:11 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 16/27] mm: Modify can_follow_write_pte/pmd for
- shadow stack
-References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
- <20180710222639.8241-17-yu-cheng.yu@intel.com>
- <de510df6-7ea9-edc6-9c49-2f80f16472b4@linux.intel.com>
- <1531328731.15351.3.camel@intel.com>
- <45a85b01-e005-8cb6-af96-b23ce9b5fca7@linux.intel.com>
- <1531868610.3541.21.camel@intel.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <fa9db8c5-41c8-05e9-ad8d-dc6aaf11cb04@linux.intel.com>
-Date: Tue, 17 Jul 2018 16:15:10 -0700
+        Tue, 17 Jul 2018 16:31:05 -0700 (PDT)
+Date: Wed, 18 Jul 2018 07:31:00 +0800
+From: Baoquan He <bhe@redhat.com>
+Subject: Re: [PATCH] mm/page_alloc: Deprecate kernelcore=nn and movable_core=
+Message-ID: <20180717233100.GH1724@MiWiFi-R3L-srv>
+References: <20180717131837.18411-1-bhe@redhat.com>
+ <alpine.DEB.2.21.1807171344320.12251@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <1531868610.3541.21.camel@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.21.1807171344320.12251@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: David Rientjes <rientjes@google.com>
+Cc: mhocko@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, corbet@lwn.net, linux-doc@vger.kernel.org
 
-On 07/17/2018 04:03 PM, Yu-cheng Yu wrote:
-> We need to find a way to differentiate "someone can write to this PTE"
-> from "the write bit is set in this PTE".
+On 07/17/18 at 01:46pm, David Rientjes wrote:
+> On Tue, 17 Jul 2018, Baoquan He wrote:
+> 
+> > We can still use 'kernelcore=mirror' or 'movable_node' for the usage
+> > of hotplug and movable zone. If somebody shows up with a valid usecase
+> > we can reconsider.
+> > 
+> 
+> We actively use kernelcore=n%, I had recently added support for the option 
+> in the first place in 4.17.  It's certainly not deprecated.
 
-Please think about this:
+Thanks for telling. Just for curiosity, could you tell the scenario you
+are using kernelcore=n%? Since it evenly spread movable area on nodes,
+we may not be able to physically hot unplug/plug RAM.
 
-	Should pte_write() tell us whether PTE.W=1, or should it tell us
-	that *something* can write to the PTE, which would include
-	PTE.W=0/D=1?
+Thanks
+Baoquan
