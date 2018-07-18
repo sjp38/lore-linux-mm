@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A6166B02B2
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:41:44 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id d30-v6so1705529edd.0
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:41:44 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F1C086B02B6
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:43:22 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id v26-v6so1700551eds.9
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:43:22 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id f33-v6si1037678edd.346.2018.07.18.02.41.42
+        by mx.google.com with ESMTPS id y2-v6si1923555eda.263.2018.07.18.02.41.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 02:41:43 -0700 (PDT)
+        Wed, 18 Jul 2018 02:41:29 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 39/39] x86/entry/32: Add debug code to check entry/exit cr3
-Date: Wed, 18 Jul 2018 11:41:16 +0200
-Message-Id: <1531906876-13451-40-git-send-email-joro@8bytes.org>
+Subject: [PATCH 15/39] x86/pgtable: Rename pti_set_user_pgd to pti_set_user_pgtbl
+Date: Wed, 18 Jul 2018 11:40:52 +0200
+Message-Id: <1531906876-13451-16-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,133 +22,77 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Add code to check whether we enter and leave the kernel with
-the correct cr3 and make it depend on CONFIG_DEBUG_ENTRY.
-This is needed because we have no NX protection of
-user-addresses in the kernel-cr3 on x86-32 and wouldn't
-notice that type of bug otherwise.
+With the way page-table folding is implemented on 32 bit, we
+are not only setting PGDs with this functions, but also PUDs
+and even PMDs. Give the function a more generic name to
+reflect that.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S | 43 +++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 43 insertions(+)
+ arch/x86/include/asm/pgtable_64.h | 12 ++++++------
+ arch/x86/mm/pti.c                 |  2 +-
+ 2 files changed, 7 insertions(+), 7 deletions(-)
 
-diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index b1541c7..010cdb4 100644
---- a/arch/x86/entry/entry_32.S
-+++ b/arch/x86/entry/entry_32.S
-@@ -166,6 +166,24 @@
- .Lend_\@:
- .endm
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 3c5385f..9406c4f 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -196,21 +196,21 @@ static inline bool pgdp_maps_userspace(void *__ptr)
+ }
  
-+.macro BUG_IF_WRONG_CR3 no_user_check=0
-+#ifdef CONFIG_DEBUG_ENTRY
-+	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
-+	.if \no_user_check == 0
-+	/* coming from usermode? */
-+	testl	$SEGMENT_RPL_MASK, PT_CS(%esp)
-+	jz	.Lend_\@
-+	.endif
-+	/* On user-cr3? */
-+	movl	%cr3, %eax
-+	testl	$PTI_SWITCH_MASK, %eax
-+	jnz	.Lend_\@
-+	/* From userspace with kernel cr3 - BUG */
-+	ud2
-+.Lend_\@:
-+#endif
-+.endm
-+
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
+-pgd_t __pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd);
++pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd);
+ 
  /*
-  * Switch to kernel cr3 if not already loaded and return current cr3 in
-  * \scratch_reg
-@@ -213,6 +231,8 @@
- .macro SAVE_ALL_NMI cr3_reg:req
- 	SAVE_ALL
+  * Take a PGD location (pgdp) and a pgd value that needs to be set there.
+  * Populates the user and returns the resulting PGD that must be set in
+  * the kernel copy of the page tables.
+  */
+-static inline pgd_t pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
++static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
+ {
+ 	if (!static_cpu_has(X86_FEATURE_PTI))
+ 		return pgd;
+-	return __pti_set_user_pgd(pgdp, pgd);
++	return __pti_set_user_pgtbl(pgdp, pgd);
+ }
+ #else
+-static inline pgd_t pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
++static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
+ {
+ 	return pgd;
+ }
+@@ -226,7 +226,7 @@ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
+ 	}
  
-+	BUG_IF_WRONG_CR3
-+
+ 	pgd = native_make_pgd(native_p4d_val(p4d));
+-	pgd = pti_set_user_pgd((pgd_t *)p4dp, pgd);
++	pgd = pti_set_user_pgtbl((pgd_t *)p4dp, pgd);
+ 	*p4dp = native_make_p4d(native_pgd_val(pgd));
+ }
+ 
+@@ -237,7 +237,7 @@ static inline void native_p4d_clear(p4d_t *p4d)
+ 
+ static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
+ {
+-	*pgdp = pti_set_user_pgd(pgdp, pgd);
++	*pgdp = pti_set_user_pgtbl(pgdp, pgd);
+ }
+ 
+ static inline void native_pgd_clear(pgd_t *pgd)
+diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+index 4d418e7..f512222 100644
+--- a/arch/x86/mm/pti.c
++++ b/arch/x86/mm/pti.c
+@@ -117,7 +117,7 @@ void __init pti_check_boottime_disable(void)
+ 	setup_force_cpu_cap(X86_FEATURE_PTI);
+ }
+ 
+-pgd_t __pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
++pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
+ {
  	/*
- 	 * Now switch the CR3 when PTI is enabled.
- 	 *
-@@ -224,6 +244,7 @@
- 
- .Lend_\@:
- .endm
-+
- /*
-  * This is a sneaky trick to help the unwinder find pt_regs on the stack.  The
-  * frame pointer is replaced with an encoded pointer to pt_regs.  The encoding
-@@ -287,6 +308,8 @@
- 
- .Lswitched_\@:
- 
-+	BUG_IF_WRONG_CR3
-+
- 	RESTORE_REGS pop=\pop
- .endm
- 
-@@ -357,6 +380,8 @@
- 
- 	ALTERNATIVE     "", "jmp .Lend_\@", X86_FEATURE_XENPV
- 
-+	BUG_IF_WRONG_CR3
-+
- 	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
- 
- 	/*
-@@ -799,6 +824,7 @@ ENTRY(entry_SYSENTER_32)
- 	 */
- 	pushfl
- 	pushl	%eax
-+	BUG_IF_WRONG_CR3 no_user_check=1
- 	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
- 	popl	%eax
- 	popfl
-@@ -893,6 +919,7 @@ ENTRY(entry_SYSENTER_32)
- 	 * whereas POPF does not.)
- 	 */
- 	btrl	$X86_EFLAGS_IF_BIT, (%esp)
-+	BUG_IF_WRONG_CR3 no_user_check=1
- 	popfl
- 	popl	%eax
- 
-@@ -970,6 +997,8 @@ restore_all:
- 	/* Switch back to user CR3 */
- 	SWITCH_TO_USER_CR3 scratch_reg=%eax
- 
-+	BUG_IF_WRONG_CR3
-+
- 	/* Restore user state */
- 	RESTORE_REGS pop=4			# skip orig_eax/error_code
- .Lirq_return:
-@@ -983,6 +1012,7 @@ restore_all:
- restore_all_kernel:
- 	TRACE_IRQS_IRET
- 	PARANOID_EXIT_TO_KERNEL_MODE
-+	BUG_IF_WRONG_CR3
- 	RESTORE_REGS 4
- 	jmp	.Lirq_return
- 
-@@ -990,6 +1020,19 @@ restore_all_kernel:
- ENTRY(iret_exc	)
- 	pushl	$0				# no error code
- 	pushl	$do_iret_error
-+
-+#ifdef CONFIG_DEBUG_ENTRY
-+	/*
-+	 * The stack-frame here is the one that iret faulted on, so its a
-+	 * return-to-user frame. We are on kernel-cr3 because we come here from
-+	 * the fixup code. This confuses the CR3 checker, so switch to user-cr3
-+	 * as the checker expects it.
-+	 */
-+	pushl	%eax
-+	SWITCH_TO_USER_CR3 scratch_reg=%eax
-+	popl	%eax
-+#endif
-+
- 	jmp	common_exception
- .previous
- 	_ASM_EXTABLE(.Lirq_return, iret_exc)
+ 	 * Changes to the high (kernel) portion of the kernelmode page
 -- 
 2.7.4
