@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A32F6B02A0
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F3D186B02A6
 	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:41:38 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id w10-v6so1685008eds.7
+Received: by mail-ed1-f69.google.com with SMTP id c2-v6so1694022edi.20
         for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:41:38 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id 42-v6si381422edu.414.2018.07.18.02.41.37
+        by mx.google.com with ESMTPS id e29-v6si2401632eda.181.2018.07.18.02.41.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 18 Jul 2018 02:41:37 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 28/39] x86/mm/pti: Keep permissions when cloning kernel text in pti_clone_kernel_text()
-Date: Wed, 18 Jul 2018 11:41:05 +0200
-Message-Id: <1531906876-13451-29-git-send-email-joro@8bytes.org>
+Subject: [PATCH 31/39] x86/mm/dump_pagetables: Define INIT_PGD
+Date: Wed, 18 Jul 2018 11:41:08 +0200
+Message-Id: <1531906876-13451-32-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,34 +22,58 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Mapping the kernel text area to user-space makes only sense
-if it has the same permissions as in the kernel page-table.
-If permissions are different this will cause a TLB reload
-when using the kernel page-table, which is as good as not
-mapping it at all.
-
-On 64-bit kernels this patch makes no difference, as the
-whole range cloned by pti_clone_kernel_text() is mapped RO
-anyway. On 32 bit there are writeable mappings in the range,
-so just keep the permissions as they are.
+Define INIT_PGD to point to the correct initial page-table
+for 32 and 64 bit and use it where needed. This fixes the
+build on 32 bit with CONFIG_PAGE_TABLE_ISOLATION enabled.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/pti.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/x86/mm/dump_pagetables.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index 4f6e933..fc77054 100644
---- a/arch/x86/mm/pti.c
-+++ b/arch/x86/mm/pti.c
-@@ -482,7 +482,7 @@ void pti_clone_kernel_text(void)
- 	 * pti_set_kernel_image_nonglobal() did to clear the
- 	 * global bit.
- 	 */
--	pti_clone_pmds(start, end, _PAGE_RW);
-+	pti_clone_pmds(start, end, 0);
- }
+diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+index 2f3c919..e6fd0cd 100644
+--- a/arch/x86/mm/dump_pagetables.c
++++ b/arch/x86/mm/dump_pagetables.c
+@@ -111,6 +111,8 @@ static struct addr_marker address_markers[] = {
+ 	[END_OF_SPACE_NR]	= { -1,			NULL }
+ };
  
- /*
++#define INIT_PGD	((pgd_t *) &init_top_pgt)
++
+ #else /* CONFIG_X86_64 */
+ 
+ enum address_markers_idx {
+@@ -139,6 +141,8 @@ static struct addr_marker address_markers[] = {
+ 	[END_OF_SPACE_NR]	= { -1,			NULL }
+ };
+ 
++#define INIT_PGD	(swapper_pg_dir)
++
+ #endif /* !CONFIG_X86_64 */
+ 
+ /* Multipliers for offsets within the PTEs */
+@@ -496,11 +500,7 @@ static inline bool is_hypervisor_range(int idx)
+ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
+ 				       bool checkwx, bool dmesg)
+ {
+-#ifdef CONFIG_X86_64
+-	pgd_t *start = (pgd_t *) &init_top_pgt;
+-#else
+-	pgd_t *start = swapper_pg_dir;
+-#endif
++	pgd_t *start = INIT_PGD;
+ 	pgprotval_t prot, eff;
+ 	int i;
+ 	struct pg_state st = {};
+@@ -566,7 +566,7 @@ EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
+ static void ptdump_walk_user_pgd_level_checkwx(void)
+ {
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
+-	pgd_t *pgd = (pgd_t *) &init_top_pgt;
++	pgd_t *pgd = INIT_PGD;
+ 
+ 	if (!static_cpu_has(X86_FEATURE_PTI))
+ 		return;
 -- 
 2.7.4
