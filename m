@@ -1,99 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DB9826B0272
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:29:07 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id c11-v6so2579412ywb.0
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 08:29:07 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id l5-v6si783002ywm.658.2018.07.18.08.29.06
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A70EC6B0274
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:32:17 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id q18-v6so2779968pll.3
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 08:32:17 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id q129-v6si3442405pga.217.2018.07.18.08.32.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 08:29:06 -0700 (PDT)
-Date: Wed, 18 Jul 2018 08:28:50 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: cgroup-aware OOM killer, how to move forward
-Message-ID: <20180718152846.GA6840@castle.DHCP.thefacebook.com>
-References: <20180713221602.GA15005@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807131535420.202408@chino.kir.corp.google.com>
- <20180713230545.GA17467@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807131608530.218060@chino.kir.corp.google.com>
- <20180713231630.GB17467@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
- <20180717173844.GB14909@castle.DHCP.thefacebook.com>
- <20180717194945.GM7193@dhcp22.suse.cz>
- <20180717200641.GB18762@castle.DHCP.thefacebook.com>
- <20180718081230.GP7193@dhcp22.suse.cz>
+        Wed, 18 Jul 2018 08:32:16 -0700 (PDT)
+Subject: Re: [PATCH v14 06/22] selftests/vm: typecast the pkey register
+References: <1531835365-32387-1-git-send-email-linuxram@us.ibm.com>
+ <1531835365-32387-7-git-send-email-linuxram@us.ibm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <8c468c61-615a-dd0d-2b73-d3218f38e3e4@intel.com>
+Date: Wed, 18 Jul 2018 08:32:10 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20180718081230.GP7193@dhcp22.suse.cz>
+In-Reply-To: <1531835365-32387-7-git-send-email-linuxram@us.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
+To: Ram Pai <linuxram@us.ibm.com>, shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org
+Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, mingo@redhat.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, fweimer@redhat.com, msuchanek@suse.de, aneesh.kumar@linux.vnet.ibm.com
 
-On Wed, Jul 18, 2018 at 10:12:30AM +0200, Michal Hocko wrote:
-> On Tue 17-07-18 13:06:42, Roman Gushchin wrote:
-> > On Tue, Jul 17, 2018 at 09:49:46PM +0200, Michal Hocko wrote:
-> > > On Tue 17-07-18 10:38:45, Roman Gushchin wrote:
-> > > [...]
-> > > > Let me show my proposal on examples. Let's say we have the following hierarchy,
-> > > > and the biggest process (or the process with highest oom_score_adj) is in D.
-> > > > 
-> > > >   /
-> > > >   |
-> > > >   A
-> > > >   |
-> > > >   B
-> > > >  / \
-> > > > C   D
-> > > > 
-> > > > Let's look at different examples and intended behavior:
-> > > > 1) system-wide OOM
-> > > >   - default settings: the biggest process is killed
-> > > >   - D/memory.group_oom=1: all processes in D are killed
-> > > >   - A/memory.group_oom=1: all processes in A are killed
-> > > > 2) memcg oom in B
-> > > >   - default settings: the biggest process is killed
-> > > >   - A/memory.group_oom=1: the biggest process is killed
-> > > 
-> > > Huh? Why would you even consider A here when the oom is below it?
-> > > /me confused
-> > 
-> > I do not.
-> > This is exactly a counter-example: A's memory.group_oom
-> > is not considered at all in this case,
-> > because A is above ooming cgroup.
-> 
-> OK, it confused me.
-> 
-> > > 
-> > > >   - B/memory.group_oom=1: all processes in B are killed
-> > > 
-> > >     - B/memory.group_oom=0 &&
-> > > >   - D/memory.group_oom=1: all processes in D are killed
-> > > 
-> > > What about?
-> > >     - B/memory.group_oom=1 && D/memory.group_oom=0
-> > 
-> > All tasks in B are killed.
-> 
-> so essentially find a task, traverse the memcg hierarchy from the
-> victim's memcg up to the oom root as long as memcg.group_oom = 1?
-> If the resulting memcg.group_oom == 1 then kill the whole sub tree.
-> Right?
+On 07/17/2018 06:49 AM, Ram Pai wrote:
+> This is in preparation to accomadate a differing size register
+> across architectures.
 
-Yes.
+This is pretty fugly, and reading it again, I wonder whether we should
+have just made it 64-bit, at least in all the printk's.  Or even
 
-> 
-> > Group_oom set to 1 means that the workload can't tolerate
-> > killing of a random process, so in this case it's better
-> > to guarantee consistency for B.
-> 
-> OK, but then if D itself is OOM then we do not care about consistency
-> all of the sudden? I have hard time to think about a sensible usecase.
+	prink("pk reg: %*llx\n", PKEY_FMT_LEN, pkey_reg);
 
-I mean if traversing the hierarchy up to the oom root we meet
-a memcg with group_oom set to 0, we shouldn't stop traversing.
+But, I don't _really_ care in the end.
 
-Thanks!
+Acked-by: Dave Hansen <dave.hansen@intel.com>
