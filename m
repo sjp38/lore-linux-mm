@@ -1,122 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C49E6B026A
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 12:06:42 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id n5-v6so2221986pgp.20
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 09:06:42 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id o12-v6si3375733plg.154.2018.07.18.09.06.40
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 119276B0003
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 12:17:27 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id k21-v6so3566011qtj.23
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 09:17:27 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id g123-v6si3612455qkd.61.2018.07.18.09.17.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 09:06:41 -0700 (PDT)
-Subject: Re: [PATCH v14 13/22] selftests/vm: generic cleanup
-References: <1531835365-32387-1-git-send-email-linuxram@us.ibm.com>
- <1531835365-32387-14-git-send-email-linuxram@us.ibm.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <07f89e3b-a538-0466-cf5c-b975c0cc0aa8@intel.com>
-Date: Wed, 18 Jul 2018 09:06:26 -0700
+        Wed, 18 Jul 2018 09:17:25 -0700 (PDT)
+Subject: Re: [PATCH v6 0/7] fs/dcache: Track & limit # of negative dentries
+References: <1531330947.3260.13.camel@HansenPartnership.com>
+ <18c5cbfe-403b-bb2b-1d11-19d324ec6234@redhat.com>
+ <1531336913.3260.18.camel@HansenPartnership.com>
+ <4d49a270-23c9-529f-f544-65508b6b53cc@redhat.com>
+ <1531411494.18255.6.camel@HansenPartnership.com>
+ <20180712164932.GA3475@bombadil.infradead.org>
+ <1531416080.18255.8.camel@HansenPartnership.com>
+ <CA+55aFzfQz7c8pcMfLDaRNReNF2HaKJGoWpgB6caQjNAyjg-hA@mail.gmail.com>
+ <1531425435.18255.17.camel@HansenPartnership.com>
+ <20180713003614.GW2234@dastard> <20180716090901.GG17280@dhcp22.suse.cz>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <caf309f5-2844-6546-e545-6ae56ad7d022@redhat.com>
+Date: Wed, 18 Jul 2018 12:17:24 -0400
 MIME-Version: 1.0
-In-Reply-To: <1531835365-32387-14-git-send-email-linuxram@us.ibm.com>
+In-Reply-To: <20180716090901.GG17280@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>, shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org
-Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, mingo@redhat.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, fweimer@redhat.com, msuchanek@suse.de, aneesh.kumar@linux.vnet.ibm.com
+To: Michal Hocko <mhocko@kernel.org>, Dave Chinner <david@fromorbit.com>
+Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, Linus Torvalds <torvalds@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>
 
-On 07/17/2018 06:49 AM, Ram Pai wrote:
-> cleanup the code to satisfy coding styles.
-> 
-> cc: Dave Hansen <dave.hansen@intel.com>
-> cc: Florian Weimer <fweimer@redhat.com>
-> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
-> ---
->  tools/testing/selftests/vm/protection_keys.c |   64 +++++++++++++++++--------
->  1 files changed, 43 insertions(+), 21 deletions(-)
-> 
-> diff --git a/tools/testing/selftests/vm/protection_keys.c b/tools/testing/selftests/vm/protection_keys.c
-> index f50cce8..304f74f 100644
-> --- a/tools/testing/selftests/vm/protection_keys.c
-> +++ b/tools/testing/selftests/vm/protection_keys.c
-> @@ -4,7 +4,7 @@
->   *
->   * There are examples in here of:
->   *  * how to set protection keys on memory
-> - *  * how to set/clear bits in pkey registers (the rights register)
-> + *  * how to set/clear bits in Protection Key registers (the rights register)
+On 07/16/2018 05:09 AM, Michal Hocko wrote:
+> On Fri 13-07-18 10:36:14, Dave Chinner wrote:
+> [...]
+>> By limiting the number of negative dentries in this case, internal
+>> slab fragmentation is reduced such that reclaim cost never gets out
+>> of control. While it appears to "fix" the symptoms, it doesn't
+>> address the underlying problem. It is a partial solution at best but
+>> at worst it's another opaque knob that nobody knows how or when to
+>> tune.
+> Would it help to put all the negative dentries into its own slab cache?=
 
-Huh?  Which coding style says that we can't say "pkey"?
+>
+>> Very few microbenchmarks expose this internal slab fragmentation
+>> problem because they either don't run long enough, don't create
+>> memory pressure, or don't have access patterns that mix long and
+>> short term slab objects together in a way that causes slab
+>> fragmentation. Run some cold cache directory traversals (git
+>> status?) at the same time you are creating negative dentries so you
+>> create pinned partial pages in the slab cache and see how the
+>> behaviour changes....
+> Agreed! Slab fragmentation is a real problem we are seeing for quite
+> some time. We should try to address it rather than paper over it with
+> weird knobs.
 
->   *  * how to handle SEGV_PKUERR signals and extract pkey-relevant
->   *    information from the siginfo
->   *
-> @@ -13,13 +13,18 @@
->   *	prefault pages in at malloc, or not
->   *	protect MPX bounds tables with protection keys?
->   *	make sure VMA splitting/merging is working correctly
-> - *	OOMs can destroy mm->mmap (see exit_mmap()), so make sure it is immune to pkeys
-> - *	look for pkey "leaks" where it is still set on a VMA but "freed" back to the kernel
-> - *	do a plain mprotect() to a mprotect_pkey() area and make sure the pkey sticks
-> + *	OOMs can destroy mm->mmap (see exit_mmap()),
-> + *			so make sure it is immune to pkeys
-> + *	look for pkey "leaks" where it is still set on a VMA
-> + *			 but "freed" back to the kernel
-> + *	do a plain mprotect() to a mprotect_pkey() area and make
-> + *			 sure the pkey sticks
+I am aware that you don't like the limit knob that control how many
+negative dentries are allowed as a percentage of total system memory. I
+got comments in the past about doing some kind of auto-tuning. How about
+consolidating the 2 knobs that I currently have in the patchset into a
+single one with 3 possible values, like:
 
-This makes it work substantially worse.  That's not acceptable, even if
-you did move it under 80 columns.
+0 - no limiting
+1 - set soft limit to "a constant + 4 x max # of positive dentries" and
+warn if exceeded
+2 - same limit but kill excess negative dentries after use.
 
->   * Compile like this:
-> - *	gcc      -o protection_keys    -O2 -g -std=gnu99 -pthread -Wall protection_keys.c -lrt -ldl -lm
-> - *	gcc -m32 -o protection_keys_32 -O2 -g -std=gnu99 -pthread -Wall protection_keys.c -lrt -ldl -lm
-> + *	gcc      -o protection_keys    -O2 -g -std=gnu99
-> + *			 -pthread -Wall protection_keys.c -lrt -ldl -lm
-> + *	gcc -m32 -o protection_keys_32 -O2 -g -std=gnu99
-> + *			 -pthread -Wall protection_keys.c -lrt -ldl -lm
->   */
+Does that kind of knob make more sense to you?
 
-Why was this on one line?  Because it was easier to copy and paste.
-Please leave it on one line, CodingStyle be damned.
-
->  #define _GNU_SOURCE
->  #include <errno.h>
-> @@ -263,10 +268,12 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
->  			__read_pkey_reg());
->  	dprintf1("pkey from siginfo: %jx\n", siginfo_pkey);
->  	*(u64 *)pkey_reg_ptr = 0x00000000;
-> -	dprintf1("WARNING: set PRKU=0 to allow faulting instruction to continue\n");
-> +	dprintf1("WARNING: set PKEY_REG=0 to allow faulting instruction "
-> +			"to continue\n");
-
-It's actually totally OK to let printk strings go over 80 columns.
-
->  	pkey_faults++;
->  	dprintf1("<<<<==================================================\n");
->  	dprint_in_signal = 0;
-> +	return;
->  }
-
-Now we're just being silly.
-
->  
->  int wait_all_children(void)
-> @@ -384,7 +391,7 @@ void pkey_disable_set(int pkey, int flags)
->  {
->  	unsigned long syscall_flags = 0;
->  	int ret;
-> -	int pkey_rights;
-> +	u32 pkey_rights;
-
-This is not CodingStyle.  Shouldn't this be the pkey_reg_t that you
-introduced earlier in the series?
-
-> -int sys_pkey_alloc(unsigned long flags, unsigned long init_val)
-> +int sys_pkey_alloc(unsigned long flags, u64 init_val)
->  {
-
-Um, this is actually a 'unsigned long' in the ABI.
-
-Can you go back through this and actually make sure that these are real
-coding style cleanups?
+Cheers,
+Longman
