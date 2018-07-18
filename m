@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F02E16B0266
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:25:43 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id z21-v6so2756039plo.13
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 08:25:43 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id d10-v6si3353483pgg.341.2018.07.18.08.25.42
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 64C2D6B026A
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:26:20 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id n17-v6so2264620pff.17
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 08:26:20 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id u24-v6si3496627pgk.72.2018.07.18.08.26.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 08:25:42 -0700 (PDT)
-Subject: Re: [PATCH v14 01/22] selftests/x86: Move protecton key selftest to
- arch neutral directory
+        Wed, 18 Jul 2018 08:26:19 -0700 (PDT)
+Subject: Re: [PATCH v14 03/22] selftests/vm: move generic definitions to
+ header file
 References: <1531835365-32387-1-git-send-email-linuxram@us.ibm.com>
- <1531835365-32387-2-git-send-email-linuxram@us.ibm.com>
+ <1531835365-32387-4-git-send-email-linuxram@us.ibm.com>
 From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <d37b2ac3-d5a7-19d3-e609-2a0ebbe980c4@intel.com>
-Date: Wed, 18 Jul 2018 08:25:39 -0700
+Message-ID: <7b7e20f1-a145-949a-1cbc-cca3e36631a6@intel.com>
+Date: Wed, 18 Jul 2018 08:26:16 -0700
 MIME-Version: 1.0
-In-Reply-To: <1531835365-32387-2-git-send-email-linuxram@us.ibm.com>
+In-Reply-To: <1531835365-32387-4-git-send-email-linuxram@us.ibm.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
