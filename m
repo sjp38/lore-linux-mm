@@ -1,67 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FE016B0006
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 12:31:24 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id e93-v6so2863693plb.5
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 09:31:24 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id ce14-v6si3748397plb.391.2018.07.18.09.31.22
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 81D776B0008
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 12:38:20 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id e1-v6so2814962pld.23
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 09:38:20 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id r25-v6si3466816pge.104.2018.07.18.09.38.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 18 Jul 2018 09:31:22 -0700 (PDT)
-Date: Wed, 18 Jul 2018 18:31:15 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 08/10] psi: pressure stall information for CPU, memory,
- and IO
-Message-ID: <20180718163115.GV2494@hirez.programming.kicks-ass.net>
-References: <20180712172942.10094-1-hannes@cmpxchg.org>
- <20180712172942.10094-9-hannes@cmpxchg.org>
- <20180718124627.GD2476@hirez.programming.kicks-ass.net>
- <20180718135633.GA5161@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Jul 2018 09:38:17 -0700 (PDT)
+Subject: Re: [PATCH v14 14/22] selftests/vm: Introduce generic abstractions
+References: <1531835365-32387-1-git-send-email-linuxram@us.ibm.com>
+ <1531835365-32387-15-git-send-email-linuxram@us.ibm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <527bc6c2-0bfd-4ada-e601-08863443995f@intel.com>
+Date: Wed, 18 Jul 2018 09:38:14 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180718135633.GA5161@cmpxchg.org>
+In-Reply-To: <1531835365-32387-15-git-send-email-linuxram@us.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Ram Pai <linuxram@us.ibm.com>, shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org
+Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, mingo@redhat.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, fweimer@redhat.com, msuchanek@suse.de, aneesh.kumar@linux.vnet.ibm.com
 
-On Wed, Jul 18, 2018 at 09:56:33AM -0400, Johannes Weiner wrote:
-> On Wed, Jul 18, 2018 at 02:46:27PM +0200, Peter Zijlstra wrote:
+On 07/17/2018 06:49 AM, Ram Pai wrote:
+> Introduce generic abstractions and provide architecture
+> specific implementation for the abstractions.
 
-> > I'm confused by this whole MEMSTALL thing... I thought the idea was to
-> > account the time we were _blocked_ because of memstall, but you seem to
-> > count the time we're _running_ with PF_MEMSTALL.
-> 
-> Under heavy memory pressure, a lot of active CPU time is spent
-> scanning and rotating through the LRU lists, which we do want to
-> capture in the pressure metric. What we really want to know is the
-> time in which CPU potential goes to waste due to a lack of
-> resources. That's the CPU going idle due to a memstall, but it's also
-> a CPU doing *work* which only occurs due to a lack of memory. We want
-> to know about both to judge how productive system and workload are.
+I really wanted to see these two things separated:
+1. introduce abstractions
+2. introduce ppc implementation
 
-Then maybe memstall (esp. the 'stall' part of it) is a bit of a
-misnomer.
+But, I guess most of it is done except for the siginfo stuff.
 
-> > And esp. the wait_on_page_bit_common caller seems performance sensitive,
-> > and the above function is quite expensive.
-> 
-> Right, but we don't call it on every invocation, only when waiting for
-> the IO to read back a page that was recently deactivated and evicted:
-> 
-> 	if (bit_nr == PG_locked &&
-> 	    !PageUptodate(page) && PageWorkingset(page)) {
-> 		if (!PageSwapBacked(page))
-> 			delayacct_thrashing_start();
-> 		psi_memstall_enter(&pflags);
-> 		thrashing = true;
-> 	}
-> 
-> That means the page cache workingset/file active list is thrashing, in
-> which case the IO itself is our biggest concern, not necessarily a few
-> additional cycles before going to sleep to wait on its completion.
+>  #if defined(__i386__) || defined(__x86_64__) /* arch */
+>  #include "pkey-x86.h"
+> +#elif defined(__powerpc64__) /* arch */
+> +#include "pkey-powerpc.h"
+>  #else /* arch */
+>  #error Architecture not supported
+>  #endif /* arch */
+> @@ -186,7 +191,16 @@ static inline int open_hugepage_file(int flag)
+>  
+>  static inline int get_start_key(void)
+>  {
+> -	return 1;
+> +	return 0;
+> +}
 
-Ah, right. PageWorkingset() is only true if we (recently) evicted that
-page before, right?
+How does this not now break x86?
+>  #endif /* _PKEYS_X86_H */
+> diff --git a/tools/testing/selftests/vm/protection_keys.c b/tools/testing/selftests/vm/protection_keys.c
+> index 304f74f..18e1bb7 100644
+> --- a/tools/testing/selftests/vm/protection_keys.c
+> +++ b/tools/testing/selftests/vm/protection_keys.c
+> @@ -197,17 +197,18 @@ void dump_mem(void *dumpme, int len_bytes)
+>  
+>  int pkey_faults;
+>  int last_si_pkey = -1;
+> +void pkey_access_allow(int pkey);
+
+Please just move the function.
+
+>  void signal_handler(int signum, siginfo_t *si, void *vucontext)
+>  {
+>  	ucontext_t *uctxt = vucontext;
+>  	int trapno;
+>  	unsigned long ip;
+>  	char *fpregs;
+> +#if defined(__i386__) || defined(__x86_64__) /* arch */
+>  	pkey_reg_t *pkey_reg_ptr;
+> -	u64 siginfo_pkey;
+> +#endif /* defined(__i386__) || defined(__x86_64__) */
+> +	u32 siginfo_pkey;
+>  	u32 *si_pkey_ptr;
+> -	int pkey_reg_offset;
+> -	fpregset_t fpregset;
+>  
+>  	dprint_in_signal = 1;
+>  	dprintf1(">>>>===============SIGSEGV============================\n");
+> @@ -217,12 +218,14 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
+>  
+>  	trapno = uctxt->uc_mcontext.gregs[REG_TRAPNO];
+>  	ip = uctxt->uc_mcontext.gregs[REG_IP_IDX];
+> -	fpregset = uctxt->uc_mcontext.fpregs;
+> -	fpregs = (void *)fpregset;
+> +	fpregs = (char *) uctxt->uc_mcontext.fpregs;
+>  
+>  	dprintf2("%s() trapno: %d ip: 0x%016lx info->si_code: %s/%d\n",
+>  			__func__, trapno, ip, si_code_str(si->si_code),
+>  			si->si_code);
+> +
+> +#if defined(__i386__) || defined(__x86_64__) /* arch */
+> +
+>  #ifdef __i386__
+>  	/*
+>  	 * 32-bit has some extra padding so that userspace can tell whether
+> @@ -230,20 +233,21 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
+>  	 * state.  We just assume that it is here.
+>  	 */
+>  	fpregs += 0x70;
+> -#endif
+> -	pkey_reg_offset = pkey_reg_xstate_offset();
+> -	pkey_reg_ptr = (void *)(&fpregs[pkey_reg_offset]);
+> +#endif /* __i386__ */
+>  
+> -	dprintf1("siginfo: %p\n", si);
+> -	dprintf1(" fpregs: %p\n", fpregs);
+> +	pkey_reg_ptr = (void *)(&fpregs[pkey_reg_xstate_offset()]);
+
+There are unnecessary parenthesis here.
+
+Also, why are you bothering to mess with this?  This is inside the x86
+#ifdef, right?
+
+>  	/*
+> -	 * If we got a PKEY fault, we *HAVE* to have at least one bit set in
+> +	 * If we got a key fault, we *HAVE* to have at least one bit set in
+>  	 * here.
+>  	 */
+>  	dprintf1("pkey_reg_xstate_offset: %d\n", pkey_reg_xstate_offset());
+>  	if (DEBUG_LEVEL > 4)
+>  		dump_mem(pkey_reg_ptr - 128, 256);
+>  	pkey_assert(*pkey_reg_ptr);
+> +#endif /* defined(__i386__) || defined(__x86_64__) */
+> +
+> +	dprintf1("siginfo: %p\n", si);
+> +	dprintf1(" fpregs: %p\n", fpregs);
+>  
+>  	if ((si->si_code == SEGV_MAPERR) ||
+>  	    (si->si_code == SEGV_ACCERR) ||
+> @@ -252,22 +256,28 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
+>  		exit(4);
+>  	}
+>  
+> -	si_pkey_ptr = (u32 *)(((u8 *)si) + si_pkey_offset);
+> +	si_pkey_ptr = siginfo_get_pkey_ptr(si);
+>  	dprintf1("si_pkey_ptr: %p\n", si_pkey_ptr);
+> -	dump_mem((u8 *)si_pkey_ptr - 8, 24);
+> +	dump_mem(si_pkey_ptr - 8, 24);
+
+You removed the cast here, why?  That changes the pointer math.
+
+Can we merge this as-is.  No, I do not think we can.  If it were _just_
+the #ifdefs, we could let it pass, but there are a bunch of rough spots,
+not just the #ifdefs.
