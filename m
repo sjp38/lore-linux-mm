@@ -1,79 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E3EB6B0005
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 07:47:43 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id b25-v6so1809609eds.17
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 04:47:43 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id h2-v6si3258054eds.21.2018.07.18.04.47.41
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 40E3E6B000A
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 07:59:11 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id b25-v6so1820056eds.17
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 04:59:11 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id 7-v6si447864edh.451.2018.07.18.04.59.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 04:47:42 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6IBhkVS006090
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 07:47:40 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2ka2xvwc22-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 07:47:40 -0400
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 18 Jul 2018 12:47:35 +0100
-Date: Wed, 18 Jul 2018 14:47:30 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 00/11] docs/mm: add boot time memory management docs
-References: <1530370506-21751-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20180702113255.1f7504e2@lwn.net>
+        Wed, 18 Jul 2018 04:59:06 -0700 (PDT)
+Date: Wed, 18 Jul 2018 13:59:05 +0200
+From: Joerg Roedel <joro@8bytes.org>
+Subject: Re: [PATCH 10/39] x86/entry/32: Handle Entry from Kernel-Mode on
+ Entry-Stack
+Message-ID: <20180718115905.GA18541@8bytes.org>
+References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
+ <1531308586-29340-11-git-send-email-joro@8bytes.org>
+ <CALCETrUg_4q8a2Tt_Z+GtVuBwj3Ct3=j7M-YhiK06=XjxOG82A@mail.gmail.com>
+ <20180714052110.cobtew6rms23ih37@suse.de>
+ <7AB4F269-E0E8-4290-A764-69D8605467E8@amacapital.net>
+ <20180714080159.hqp36q7fxzb2ktlq@suse.de>
+ <75BDF04F-9585-438C-AE04-918FBE00A174@amacapital.net>
+ <20180717071545.ojdall7tatbjtfai@suse.de>
+ <CALCETrXAF6+mkDL4+uQdHQdJ=G70YVu_k55P_x6Mgi4hXe3oYw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180702113255.1f7504e2@lwn.net>
-Message-Id: <20180718114730.GD4302@rapoport-lnx>
+In-Reply-To: <CALCETrXAF6+mkDL4+uQdHQdJ=G70YVu_k55P_x6Mgi4hXe3oYw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: Randy Dunlap <rdunlap@infradead.org>, linux-doc <linux-doc@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Joerg Roedel <jroedel@suse.de>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>
 
-Hi,
+On Tue, Jul 17, 2018 at 01:06:11PM -0700, Andy Lutomirski wrote:
+> Yes, we obviously need to restore the correct cr3.  But I really don't
+> like the code that rewrites the stack frame that we're about to IRET
+> to, especially when it doesn't seem to serve a purpose.  I'd much
+> rather the code just get its CR3 right and do the IRET and trust that
+> the frame it's returning to is still there.
 
-On Mon, Jul 02, 2018 at 11:32:55AM -0600, Jonathan Corbet wrote:
-> On Sat, 30 Jun 2018 17:54:55 +0300
-> Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
-> 
-> > Both bootmem and memblock have pretty good documentation coverage. With
-> > some fixups and additions we get a nice overall description.
-> > 
-> > v2 changes:
-> > * address Randy's comments
-> > 
-> > Mike Rapoport (11):
-> >   mm/bootmem: drop duplicated kernel-doc comments
-> >   docs/mm: nobootmem: fixup kernel-doc comments
-> >   docs/mm: bootmem: fix kernel-doc warnings
-> >   docs/mm: bootmem: add kernel-doc description of 'struct bootmem_data'
-> >   docs/mm: bootmem: add overview documentation
-> >   mm/memblock: add a name for memblock flags enumeration
-> >   docs/mm: memblock: update kernel-doc comments
-> >   docs/mm: memblock: add kernel-doc comments for memblock_add[_node]
-> >   docs/mm: memblock: add kernel-doc description for memblock types
-> >   docs/mm: memblock: add overview documentation
-> >   docs/mm: add description of boot time memory management
-> 
-> So this seems like good stuff overall.  It digs pretty deeply into the mm
-> code, though, so I'm a little reluctant to apply it without an ack from an
-> mm developer.  Alternatively, I'm happy to step back if Andrew wants to
-> pick the set up.
+Okay, I'll give it a try and if it works without the copying we can put
+that on-top of this patch-set. This also has the benefit that we can
+revert it later if it causes problems down the road.
 
-Jon, does Michal's reply [1] address your concerns?
-Or should I respin and ask Andrew to pick it up? 
 
-[1] https://lore.kernel.org/lkml/20180712080006.GA328@dhcp22.suse.cz/
-> Thanks,
-> 
-> jon
-> 
+Regards,
 
--- 
-Sincerely yours,
-Mike.
+	Joerg
