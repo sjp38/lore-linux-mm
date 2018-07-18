@@ -1,117 +1,289 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D84566B0007
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 20:01:13 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id y13-v6so2142352iop.3
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 17:01:13 -0700 (PDT)
-Received: from sonic308-12.consmr.mail.ne1.yahoo.com (sonic308-12.consmr.mail.ne1.yahoo.com. [66.163.187.35])
-        by mx.google.com with ESMTPS id l18-v6si1677770jak.48.2018.07.17.17.01.12
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 83B106B0003
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 21:00:01 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id l26-v6so2745988oii.14
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 18:00:01 -0700 (PDT)
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id g188-v6si1563184oic.33.2018.07.17.17.59.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 17:01:12 -0700 (PDT)
-Date: Wed, 18 Jul 2018 00:01:10 +0000 (UTC)
-From: David Frank <david_frank95@yahoo.com>
-Message-ID: <1485529317.61381.1531872070328@mail.yahoo.com>
-In-Reply-To: <3b40325e-a75e-017d-920e-83e090153621@oracle.com>
-References: <115606142.5883850.1531854314452.ref@mail.yahoo.com> <115606142.5883850.1531854314452@mail.yahoo.com> <3b40325e-a75e-017d-920e-83e090153621@oracle.com>
-Subject: Re: mmap with huge page
+        Tue, 17 Jul 2018 17:59:59 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v2 1/2] mm: fix race on soft-offlining free huge pages
+Date: Wed, 18 Jul 2018 00:55:29 +0000
+Message-ID: <20180718005528.GA12184@hori1.linux.bs1.fc.nec.co.jp>
+References: <1531805552-19547-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1531805552-19547-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20180717142743.GJ7193@dhcp22.suse.cz>
+In-Reply-To: <20180717142743.GJ7193@dhcp22.suse.cz>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <6FFDF45C1E8AD64E88E9A9492850100B@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_Part_61380_437181951.1531872070327"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kernelnewbies <kernelnewbies@kernelnewbies.org>, Linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "xishi.qiuxishi@alibaba-inc.com" <xishi.qiuxishi@alibaba-inc.com>, "zy.zhengyi@alibaba-inc.com" <zy.zhengyi@alibaba-inc.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-------=_Part_61380_437181951.1531872070327
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
- Thanks Mike.=C2=A0 I read the doc, which is not explicit on the non used f=
-ile taking up huge page count=C2=A0
-    On Tuesday, July 17, 2018, 4:57:04 PM PDT, Mike Kravetz <mike.kravetz@o=
-racle.com> wrote: =20
-=20
- On 07/17/2018 12:05 PM, David Frank wrote:
-> Hi,
-> According to the instruction, I have to mount a huge directory to hugetlb=
-fs and create file in the huge directory to use the mmap huge page feature.=
- But the issue is that, the files in the huge directory takes up the huge p=
-ages configured through
-> vm.nr_hugepages =3D
+On Tue, Jul 17, 2018 at 04:27:43PM +0200, Michal Hocko wrote:
+> On Tue 17-07-18 14:32:31, Naoya Horiguchi wrote:
+> > There's a race condition between soft offline and hugetlb_fault which
+> > causes unexpected process killing and/or hugetlb allocation failure.
+> >=20
+> > The process killing is caused by the following flow:
+> >=20
+> >   CPU 0               CPU 1              CPU 2
+> >=20
+> >   soft offline
+> >     get_any_page
+> >     // find the hugetlb is free
+> >                       mmap a hugetlb file
+> >                       page fault
+> >                         ...
+> >                           hugetlb_fault
+> >                             hugetlb_no_page
+> >                               alloc_huge_page
+> >                               // succeed
+> >       soft_offline_free_page
+> >       // set hwpoison flag
+> >                                          mmap the hugetlb file
+> >                                          page fault
+> >                                            ...
+> >                                              hugetlb_fault
+> >                                                hugetlb_no_page
+> >                                                  find_lock_page
+> >                                                    return VM_FAULT_HWPO=
+ISON
+> >                                            mm_fault_error
+> >                                              do_sigbus
+> >                                              // kill the process
+> >=20
+> >=20
+> > The hugetlb allocation failure comes from the following flow:
+> >=20
+> >   CPU 0                          CPU 1
+> >=20
+> >                                  mmap a hugetlb file
+> >                                  // reserve all free page but don't fau=
+lt-in
+> >   soft offline
+> >     get_any_page
+> >     // find the hugetlb is free
+> >       soft_offline_free_page
+> >       // set hwpoison flag
+> >         dissolve_free_huge_page
+> >         // fail because all free hugepages are reserved
+> >                                  page fault
+> >                                    ...
+> >                                      hugetlb_fault
+> >                                        hugetlb_no_page
+> >                                          alloc_huge_page
+> >                                            ...
+> >                                              dequeue_huge_page_node_exa=
+ct
+> >                                              // ignore hwpoisoned hugep=
+age
+> >                                              // and finally fail due to=
+ no-mem
+> >=20
+> > The root cause of this is that current soft-offline code is written
+> > based on an assumption that PageHWPoison flag should beset at first to
+> > avoid accessing the corrupted data.  This makes sense for memory_failur=
+e()
+> > or hard offline, but does not for soft offline because soft offline is
+> > about corrected (not uncorrected) error and is safe from data lost.
+> > This patch changes soft offline semantics where it sets PageHWPoison fl=
+ag
+> > only after containment of the error page completes successfully.
 >=20
-> even the files are not used.
->=20
-> When the total size of the files in the huge directory =3D vm.nr_hugepage=
-s * huge page size, then mmap would fail with 'can not allocate memory' if =
-the file to be=C2=A0 mapped is in the huge dir or the call has HUGEPAGETLB =
-flag.
->=20
-> Basically, I have to move the files off of the huge directory to free up =
-huge pages.
->=20
-> Am I missing anything here?
->=20
+> Could you please expand on the worklow here please? The code is really
+> hard to grasp. I must be missing something because the thing shouldn't
+> be really complicated. Either the page is in the free pool and you just
+> remove it from the allocator (with hugetlb asking for a new hugeltb page
+> to guaratee reserves) or it is used and you just migrate the content to
+> a new page (again with the hugetlb reserves consideration). Why should
+> PageHWPoison flag ordering make any relevance?
 
-No, that is working as designed.
+(Considering soft offlining free hugepage,)
+PageHWPoison is set at first before this patch, which is racy with
+hugetlb fault code because it's not protected by hugetlb_lock.
 
-hugetlbfs filesystems are generally pre-allocated with nr_hugepages
-huge pages.=C2=A0 That is the upper limit of huge pages available.=C2=A0 Yo=
-u can
-use overcommit/surplus pages to try and exceed the limit, but that
-comes with a whole set of potential issues.
+Originally this was written in the similar manner as hard-offline, where
+the race is accepted and a PageHWPoison flag is set as soon as possible.
+But actually that's found not necessary/correct because soft offline is
+supposed to be less aggressive and failure is OK.
 
-If you have not done so already, please see Documentation/vm/hugetlbpage.tx=
-t
-in the kernel source tree.
---=20
-Mike Kravetz
- =20
-------=_Part_61380_437181951.1531872070327
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+So this patch is suggesting to make soft-offline less aggressive by
+moving SetPageHWPoison into the lock.
 
-<html><head></head><body><div style=3D"font-family:Helvetica Neue, Helvetic=
-a, Arial, sans-serif;font-size:16px;"><div style=3D"font-family:Helvetica N=
-eue, Helvetica, Arial, sans-serif;font-size:16px;"><div></div>
-        <div>Thanks Mike.&nbsp; I read the doc, which is not explicit on th=
-e non used file taking up huge page count&nbsp;</div><div><br></div>
-       =20
-        <div id=3D"ydp9a441918yahoo_quoted_2048059283" class=3D"ydp9a441918=
-yahoo_quoted">
-            <div style=3D"font-family:'Helvetica Neue', Helvetica, Arial, s=
-ans-serif;font-size:13px;color:#26282a;">
-               =20
-                <div>
-                    On Tuesday, July 17, 2018, 4:57:04 PM PDT, Mike Kravetz=
- &lt;mike.kravetz@oracle.com&gt; wrote:
-                </div>
-                <div><br></div>
-                <div><br></div>
-                <div><div dir=3D"ltr">On 07/17/2018 12:05 PM, David Frank w=
-rote:<div class=3D"ydp9a441918yqt3201060868" id=3D"ydp9a441918yqtfd93097"><=
-br clear=3D"none">&gt; Hi,<br clear=3D"none">&gt; According to the instruct=
-ion, I have to mount a huge directory to hugetlbfs and create file in the h=
-uge directory to use the mmap huge page feature. But the issue is that, the=
- files in the huge directory takes up the huge pages configured through<br =
-clear=3D"none">&gt; vm.nr_hugepages =3D<br clear=3D"none">&gt; <br clear=3D=
-"none">&gt; even the files are not used.<br clear=3D"none">&gt; <br clear=
-=3D"none">&gt; When the total size of the files in the huge directory =3D v=
-m.nr_hugepages * huge page size, then mmap would fail with 'can not allocat=
-e memory' if the file to be&nbsp; mapped is in the huge dir or the call has=
- HUGEPAGETLB flag.<br clear=3D"none">&gt; <br clear=3D"none">&gt; Basically=
-, I have to move the files off of the huge directory to free up huge pages.=
-<br clear=3D"none">&gt; <br clear=3D"none">&gt; Am I missing anything here?=
-</div><br clear=3D"none">&gt; <br clear=3D"none"><br clear=3D"none">No, tha=
-t is working as designed.<br clear=3D"none"><br clear=3D"none">hugetlbfs fi=
-lesystems are generally pre-allocated with nr_hugepages<br clear=3D"none">h=
-uge pages.&nbsp; That is the upper limit of huge pages available.&nbsp; You=
- can<br clear=3D"none">use overcommit/surplus pages to try and exceed the l=
-imit, but that<br clear=3D"none">comes with a whole set of potential issues=
-.<br clear=3D"none"><br clear=3D"none">If you have not done so already, ple=
-ase see Documentation/vm/hugetlbpage.txt<br clear=3D"none">in the kernel so=
-urce tree.<br clear=3D"none">-- <br clear=3D"none">Mike Kravetz<div class=
-=3D"ydp9a441918yqt3201060868" id=3D"ydp9a441918yqtfd43949"><br clear=3D"non=
-e"></div></div></div>
-            </div>
-        </div></div></div></body></html>
-------=_Part_61380_437181951.1531872070327--
+>=20
+> Do I get it right that the only difference between the hard and soft
+> offlining is that hugetlb reserves might break for the former while not
+> for the latter
+
+Correct.
+
+> and that the failed migration kills all owners for the
+> former while not for latter?
+
+Hard-offline doesn't cause any page migration because the data is already
+lost, but yes it can kill the owners.
+Soft-offline never kills processes even if it fails (due to migration failr=
+ue
+or some other reasons.)
+
+I listed below some common points and differences between hard-offline
+and soft-offline.
+
+  common points
+    - they are both contained by PageHWPoison flag,
+    - error is injected via simliar interfaces.
+
+  differences
+    - the data on the page is considered lost in hard offline, but is not
+      in soft offline,
+    - hard offline likely kills the affected processes, but soft offline
+      never kills processes,
+    - soft offline causes page migration, but hard offline does not,
+    - hard offline prioritizes to prevent consumption of broken data with
+      accepting some race, and soft offline prioritizes not to impact
+      userspace with accepting failure.
+
+Looks to me that there're more differences rather than commont points.
+
+Thanks,
+Naoya Horiguchi
+
+> =20
+> > Reported-by: Xishi Qiu <xishi.qiuxishi@alibaba-inc.com>
+> > Suggested-by: Xishi Qiu <xishi.qiuxishi@alibaba-inc.com>
+> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > ---
+> > changelog v1->v2:
+> > - don't use set_hwpoison_free_buddy_page() (not defined yet)
+> > - updated comment in soft_offline_huge_page()
+> > ---
+> >  mm/hugetlb.c        | 11 +++++------
+> >  mm/memory-failure.c | 24 ++++++++++++++++++------
+> >  mm/migrate.c        |  2 --
+> >  3 files changed, 23 insertions(+), 14 deletions(-)
+> >=20
+> > diff --git v4.18-rc4-mmotm-2018-07-10-16-50/mm/hugetlb.c v4.18-rc4-mmot=
+m-2018-07-10-16-50_patched/mm/hugetlb.c
+> > index 430be42..937c142 100644
+> > --- v4.18-rc4-mmotm-2018-07-10-16-50/mm/hugetlb.c
+> > +++ v4.18-rc4-mmotm-2018-07-10-16-50_patched/mm/hugetlb.c
+> > @@ -1479,22 +1479,20 @@ static int free_pool_huge_page(struct hstate *h=
+, nodemask_t *nodes_allowed,
+> >  /*
+> >   * Dissolve a given free hugepage into free buddy pages. This function=
+ does
+> >   * nothing for in-use (including surplus) hugepages. Returns -EBUSY if=
+ the
+> > - * number of free hugepages would be reduced below the number of reser=
+ved
+> > - * hugepages.
+> > + * dissolution fails because a give page is not a free hugepage, or be=
+cause
+> > + * free hugepages are fully reserved.
+> >   */
+> >  int dissolve_free_huge_page(struct page *page)
+> >  {
+> > -	int rc =3D 0;
+> > +	int rc =3D -EBUSY;
+> > =20
+> >  	spin_lock(&hugetlb_lock);
+> >  	if (PageHuge(page) && !page_count(page)) {
+> >  		struct page *head =3D compound_head(page);
+> >  		struct hstate *h =3D page_hstate(head);
+> >  		int nid =3D page_to_nid(head);
+> > -		if (h->free_huge_pages - h->resv_huge_pages =3D=3D 0) {
+> > -			rc =3D -EBUSY;
+> > +		if (h->free_huge_pages - h->resv_huge_pages =3D=3D 0)
+> >  			goto out;
+> > -		}
+> >  		/*
+> >  		 * Move PageHWPoison flag from head page to the raw error page,
+> >  		 * which makes any subpages rather than the error page reusable.
+> > @@ -1508,6 +1506,7 @@ int dissolve_free_huge_page(struct page *page)
+> >  		h->free_huge_pages_node[nid]--;
+> >  		h->max_huge_pages--;
+> >  		update_and_free_page(h, head);
+> > +		rc =3D 0;
+> >  	}
+> >  out:
+> >  	spin_unlock(&hugetlb_lock);
+> > diff --git v4.18-rc4-mmotm-2018-07-10-16-50/mm/memory-failure.c v4.18-r=
+c4-mmotm-2018-07-10-16-50_patched/mm/memory-failure.c
+> > index 9d142b9..9b77f85 100644
+> > --- v4.18-rc4-mmotm-2018-07-10-16-50/mm/memory-failure.c
+> > +++ v4.18-rc4-mmotm-2018-07-10-16-50_patched/mm/memory-failure.c
+> > @@ -1598,8 +1598,20 @@ static int soft_offline_huge_page(struct page *p=
+age, int flags)
+> >  		if (ret > 0)
+> >  			ret =3D -EIO;
+> >  	} else {
+> > -		if (PageHuge(page))
+> > -			dissolve_free_huge_page(page);
+> > +		/*
+> > +		 * We set PG_hwpoison only when the migration source hugepage
+> > +		 * was successfully dissolved, because otherwise hwpoisoned
+> > +		 * hugepage remains on free hugepage list. The allocator ignores
+> > +		 * such a hwpoisoned page so it's never allocated, but it could
+> > +		 * kill a process because of no-memory rather than hwpoison.
+> > +		 * Soft-offline never impacts the userspace, so this is
+> > +		 * undesired.
+> > +		 */
+> > +		ret =3D dissolve_free_huge_page(page);
+> > +		if (!ret) {
+> > +			if (!TestSetPageHWPoison(page))
+> > +				num_poisoned_pages_inc();
+> > +		}
+> >  	}
+> >  	return ret;
+> >  }
+> > @@ -1715,13 +1727,13 @@ static int soft_offline_in_use_page(struct page=
+ *page, int flags)
+> > =20
+> >  static void soft_offline_free_page(struct page *page)
+> >  {
+> > +	int rc =3D 0;
+> >  	struct page *head =3D compound_head(page);
+> > =20
+> > -	if (!TestSetPageHWPoison(head)) {
+> > +	if (PageHuge(head))
+> > +		rc =3D dissolve_free_huge_page(page);
+> > +	if (!rc && !TestSetPageHWPoison(page))
+> >  		num_poisoned_pages_inc();
+> > -		if (PageHuge(head))
+> > -			dissolve_free_huge_page(page);
+> > -	}
+> >  }
+> > =20
+> >  /**
+> > diff --git v4.18-rc4-mmotm-2018-07-10-16-50/mm/migrate.c v4.18-rc4-mmot=
+m-2018-07-10-16-50_patched/mm/migrate.c
+> > index 198af42..3ae213b 100644
+> > --- v4.18-rc4-mmotm-2018-07-10-16-50/mm/migrate.c
+> > +++ v4.18-rc4-mmotm-2018-07-10-16-50_patched/mm/migrate.c
+> > @@ -1318,8 +1318,6 @@ static int unmap_and_move_huge_page(new_page_t ge=
+t_new_page,
+> >  out:
+> >  	if (rc !=3D -EAGAIN)
+> >  		putback_active_hugepage(hpage);
+> > -	if (reason =3D=3D MR_MEMORY_FAILURE && !test_set_page_hwpoison(hpage)=
+)
+> > -		num_poisoned_pages_inc();
+> > =20
+> >  	/*
+> >  	 * If migration was not successful and there's a freeing callback, us=
+e
+> > --=20
+> > 2.7.0
+>=20
+> --=20
+> Michal Hocko
+> SUSE Labs
+> =
