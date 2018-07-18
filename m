@@ -1,75 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 72B8C6B026A
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 13:00:56 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id p7-v6so2179507eds.19
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 10:00:56 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id f12-v6si3147564eds.462.2018.07.18.10.00.54
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EDC96B0006
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 13:03:17 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id n17-v6so2381040pff.17
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 10:03:17 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id f27-v6si3964432pgb.302.2018.07.18.10.03.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 10:00:54 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6IGsUtR068181
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 13:00:53 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2ka95m9249-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 13:00:52 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 18 Jul 2018 18:00:50 +0100
-Date: Wed, 18 Jul 2018 20:00:43 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 00/11] docs/mm: add boot time memory management docs
-References: <1530370506-21751-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20180702113255.1f7504e2@lwn.net>
- <20180718114730.GD4302@rapoport-lnx>
- <20180718060249.6b45605d@lwn.net>
+        Wed, 18 Jul 2018 10:03:16 -0700 (PDT)
+Subject: Re: [PATCH v14 22/22] selftests/vm: test correct behavior of pkey-0
+References: <1531835365-32387-1-git-send-email-linuxram@us.ibm.com>
+ <1531835365-32387-23-git-send-email-linuxram@us.ibm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <2963bd69-55bf-c557-ea24-deb56219cbb7@intel.com>
+Date: Wed, 18 Jul 2018 10:03:11 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180718060249.6b45605d@lwn.net>
-Message-Id: <20180718170043.GA23770@rapoport-lnx>
+In-Reply-To: <1531835365-32387-23-git-send-email-linuxram@us.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Randy Dunlap <rdunlap@infradead.org>, linux-doc <linux-doc@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Ram Pai <linuxram@us.ibm.com>, shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org
+Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, mingo@redhat.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, fweimer@redhat.com, msuchanek@suse.de, aneesh.kumar@linux.vnet.ibm.com
 
-(added Andrew)
-
-On Wed, Jul 18, 2018 at 06:02:49AM -0600, Jonathan Corbet wrote:
-> On Wed, 18 Jul 2018 14:47:30 +0300
-> Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+On 07/17/2018 06:49 AM, Ram Pai wrote:
+> Ensure pkey-0 is allocated on start.  Ensure pkey-0 can be attached
+> dynamically in various modes, without failures.  Ensure pkey-0 can be
+> freed and allocated.
 > 
-> > > So this seems like good stuff overall.  It digs pretty deeply into the mm
-> > > code, though, so I'm a little reluctant to apply it without an ack from an
-> > > mm developer.  Alternatively, I'm happy to step back if Andrew wants to
-> > > pick the set up.  
-> > 
-> > Jon, does Michal's reply [1] address your concerns?
-> > Or should I respin and ask Andrew to pick it up? 
-> > 
-> > [1] https://lore.kernel.org/lkml/20180712080006.GA328@dhcp22.suse.cz/
+> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+> ---
+>  tools/testing/selftests/vm/protection_keys.c |   66 +++++++++++++++++++++++++-
+>  1 files changed, 64 insertions(+), 2 deletions(-)
 > 
-> Michal acked #11 (the docs patch) in particular but not the series as a
-> whole.  But it's the rest of the series that I was most worried about :)
-> I'm happy for the patches to take either path, but I'd really like an
-> explicit ack before I apply that many changes directly to the MM code...
+> diff --git a/tools/testing/selftests/vm/protection_keys.c b/tools/testing/selftests/vm/protection_keys.c
+> index 569faf1..156b449 100644
+> --- a/tools/testing/selftests/vm/protection_keys.c
+> +++ b/tools/testing/selftests/vm/protection_keys.c
+> @@ -999,6 +999,67 @@ void close_test_fds(void)
+>  	return *ptr;
+>  }
+>  
+> +void test_pkey_alloc_free_attach_pkey0(int *ptr, u16 pkey)
+> +{
+> +	int i, err;
+> +	int max_nr_pkey_allocs;
+> +	int alloced_pkeys[NR_PKEYS];
+> +	int nr_alloced = 0;
+> +	int newpkey;
+> +	long size;
+> +
+> +	assert(pkey_last_malloc_record);
+> +	size = pkey_last_malloc_record->size;
+> +	/*
+> +	 * This is a bit of a hack.  But mprotect() requires
+> +	 * huge-page-aligned sizes when operating on hugetlbfs.
+> +	 * So, make sure that we use something that's a multiple
+> +	 * of a huge page when we can.
+> +	 */
+> +	if (size >= HPAGE_SIZE)
+> +		size = HPAGE_SIZE;
+> +
+> +
+> +	/* allocate every possible key and make sure key-0 never got allocated */
+> +	max_nr_pkey_allocs = NR_PKEYS;
+> +	for (i = 0; i < max_nr_pkey_allocs; i++) {
+> +		int new_pkey = alloc_pkey();
+> +		assert(new_pkey != 0);
 
-Andrew,
+Missed these earlier.  This needs to be pkey_assert().  We don't want
+these tests to ever _actually_ crash.
 
-Can you please take a look at this series? The thread starts at [1] and if
-it'd be more convenient to you I can respin the whole set.
- 
-[1] https://lore.kernel.org/lkml/1530370506-21751-1-git-send-email-rppt@linux.vnet.ibm.com/
+> +	/* attach key-0 in various modes */
+> +	err = sys_mprotect_pkey(ptr, size, PROT_READ, 0);
+> +	pkey_assert(!err);
+> +	err = sys_mprotect_pkey(ptr, size, PROT_WRITE, 0);
+> +	pkey_assert(!err);
+> +	err = sys_mprotect_pkey(ptr, size, PROT_EXEC, 0);
+> +	pkey_assert(!err);
+> +	err = sys_mprotect_pkey(ptr, size, PROT_READ|PROT_WRITE, 0);
+> +	pkey_assert(!err);
+> +	err = sys_mprotect_pkey(ptr, size, PROT_READ|PROT_WRITE|PROT_EXEC, 0);
+> +	pkey_assert(!err);
 
-> Thanks,
-> 
-> jon
-> 
+This is all fine.
 
--- 
-Sincerely yours,
-Mike.
+> +	/* free key-0 */
+> +	err = sys_pkey_free(0);
+> +	pkey_assert(!err);
+
+This part is called out as undefined behavior in the manpage:
+
+>        An application should not call pkey_free() on any protection key
+>        which has been assigned to an address range by pkey_mprotect(2) and
+>        which is still in use.  The behavior in this case is undefined and
+>        may result in an error.
+
+I don't think we should be testing for undefined behavior.
+
+> +	newpkey = sys_pkey_alloc(0, 0x0);
+> +	assert(newpkey == 0);
+> +}
+> +
+>  void test_read_of_write_disabled_region(int *ptr, u16 pkey)
+>  {
+>  	int ptr_contents;
+> @@ -1144,10 +1205,10 @@ void test_kernel_gup_write_to_write_disabled_region(int *ptr, u16 pkey)
+>  void test_pkey_syscalls_on_non_allocated_pkey(int *ptr, u16 pkey)
+>  {
+>  	int err;
+> -	int i = get_start_key();
+> +	int i;
+>  
+>  	/* Note: 0 is the default pkey, so don't mess with it */
+> -	for (; i < NR_PKEYS; i++) {
+> +	for (i=1; i < NR_PKEYS; i++) {
+>  		if (pkey == i)
+>  			continue;
+
+This seems to be randomly reverting earlier changes.
