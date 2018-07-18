@@ -1,145 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CAF716B000E
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 19:19:14 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id s3-v6so3341089plp.21
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 16:19:14 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id d5-v6si3970103plo.3.2018.07.18.16.19.13
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 68ECF6B0266
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 19:22:43 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id j15-v6so2978865pff.12
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 16:22:43 -0700 (PDT)
+Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
+        by mx.google.com with ESMTPS id u6-v6si4455910plr.437.2018.07.18.16.22.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 16:19:13 -0700 (PDT)
-Subject: Re: [PATCHv5 08/19] x86/mm: Introduce variables to store number,
- shift and mask of KeyIDs
-References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
- <20180717112029.42378-9-kirill.shutemov@linux.intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <1edc05b0-8371-807e-7cfa-6e8f61ee9b70@intel.com>
-Date: Wed, 18 Jul 2018 16:19:10 -0700
+        Wed, 18 Jul 2018 16:22:41 -0700 (PDT)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [RFC v5 0/2] mm: zap pages with read mmap_sem in munmap for large mapping
+Date: Thu, 19 Jul 2018 07:21:39 +0800
+Message-Id: <1531956101-8526-1-git-send-email-yang.shi@linux.alibaba.com>
 MIME-Version: 1.0
-In-Reply-To: <20180717112029.42378-9-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 07/17/2018 04:20 AM, Kirill A. Shutemov wrote:
-> mktme_nr_keyids holds number of KeyIDs available for MKTME, excluding
-> KeyID zero which used by TME. MKTME KeyIDs start from 1.
-> 
-> mktme_keyid_shift holds shift of KeyID within physical address.
 
-I know what all these words mean, but the combination of them makes no
-sense to me.  I still don't know what the variable does after reading this.
+Background:
+Recently, when we ran some vm scalability tests on machines with large memory,
+we ran into a couple of mmap_sem scalability issues when unmapping large memory
+space, please refer to https://lkml.org/lkml/2017/12/14/733 and
+https://lkml.org/lkml/2018/2/20/576.
 
-Is this the lowest bit in the physical address which is used for the
-KeyID?  How many bits you must shift up a KeyID to get to the location
-at which it can be masked into the physical address?
 
-> mktme_keyid_mask holds mask to extract KeyID from physical address.
+History:
+Then akpm suggested to unmap large mapping section by section and drop mmap_sem
+at a time to mitigate it (see https://lkml.org/lkml/2018/3/6/784).
 
-Good descriptions, wrong place.  Please put these in the code.
+V1 patch series was submitted to the mailing list per Andrew's suggestion
+(see https://lkml.org/lkml/2018/3/20/786). Then I received a lot great feedback
+and suggestions.
 
-Also, the grammar constantly needs some work.  "holds mask" needs to be
-"holds the mask".
+Then this topic was discussed on LSFMM summit 2018. In the summit, Michal Hocko
+suggested (also in the v1 patches review) to try "two phases" approach. Zapping
+pages with read mmap_sem, then doing via cleanup with write mmap_sem (for
+discussion detail, see https://lwn.net/Articles/753269/)
 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  arch/x86/include/asm/mktme.h | 16 ++++++++++++++++
->  arch/x86/kernel/cpu/intel.c  | 12 ++++++++----
->  arch/x86/mm/Makefile         |  2 ++
->  arch/x86/mm/mktme.c          |  5 +++++
->  4 files changed, 31 insertions(+), 4 deletions(-)
->  create mode 100644 arch/x86/include/asm/mktme.h
->  create mode 100644 arch/x86/mm/mktme.c
-> 
-> diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
-> new file mode 100644
-> index 000000000000..df31876ec48c
-> --- /dev/null
-> +++ b/arch/x86/include/asm/mktme.h
-> @@ -0,0 +1,16 @@
-> +#ifndef	_ASM_X86_MKTME_H
-> +#define	_ASM_X86_MKTME_H
-> +
-> +#include <linux/types.h>
-> +
-> +#ifdef CONFIG_X86_INTEL_MKTME
-> +extern phys_addr_t mktme_keyid_mask;
-> +extern int mktme_nr_keyids;
-> +extern int mktme_keyid_shift;
-> +#else
-> +#define mktme_keyid_mask	((phys_addr_t)0)
-> +#define mktme_nr_keyids		0
-> +#define mktme_keyid_shift	0
-> +#endif
-> +
-> +#endif
-> diff --git a/arch/x86/kernel/cpu/intel.c b/arch/x86/kernel/cpu/intel.c
-> index bf2caf9d52dd..efc9e9fc47d4 100644
-> --- a/arch/x86/kernel/cpu/intel.c
-> +++ b/arch/x86/kernel/cpu/intel.c
-> @@ -573,6 +573,9 @@ static void detect_tme(struct cpuinfo_x86 *c)
->  
->  #ifdef CONFIG_X86_INTEL_MKTME
->  	if (mktme_status == MKTME_ENABLED && nr_keyids) {
-> +		mktme_nr_keyids = nr_keyids;
-> +		mktme_keyid_shift = c->x86_phys_bits - keyid_bits;
-> +
->  		/*
->  		 * Mask out bits claimed from KeyID from physical address mask.
->  		 *
-> @@ -580,10 +583,8 @@ static void detect_tme(struct cpuinfo_x86 *c)
->  		 * and number of bits claimed for KeyID is 6, bits 51:46 of
->  		 * physical address is unusable.
->  		 */
-> -		phys_addr_t keyid_mask;
-> -
-> -		keyid_mask = GENMASK_ULL(c->x86_phys_bits - 1, c->x86_phys_bits - keyid_bits);
-> -		physical_mask &= ~keyid_mask;
-> +		mktme_keyid_mask = GENMASK_ULL(c->x86_phys_bits - 1, mktme_keyid_shift);
-> +		physical_mask &= ~mktme_keyid_mask;
 
-Seems a bit silly that we introduce keyid_mask only to make it global a
-few patches later.
+Approach:
+Zapping pages is the most time consuming part, according to the suggestion from
+Michal Hocko [1], zapping pages can be done with holding read mmap_sem, like
+what MADV_DONTNEED does. Then re-acquire write mmap_sem to cleanup vmas.
 
->  	} else {
->  		/*
->  		 * Reset __PHYSICAL_MASK.
-> @@ -591,6 +592,9 @@ static void detect_tme(struct cpuinfo_x86 *c)
->  		 * between CPUs.
->  		 */
->  		physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
-> +		mktme_keyid_mask = 0;
-> +		mktme_keyid_shift = 0;
-> +		mktme_nr_keyids = 0;
->  	}
+But, we can't call MADV_DONTNEED directly, since there are two major drawbacks:
+  * The unexpected state from PF if it wins the race in the middle of munmap.
+    It may return zero page, instead of the content or SIGSEGV.
+  * Cana??t handle VM_LOCKED | VM_HUGETLB | VM_PFNMAP and uprobe mappings, which
+    is a showstopper from akpm
 
-Should be unnecessary.  These are zeroed by the compiler.
+But, some part may need write mmap_sem, for example, vma splitting. So,
+the design is as follows:
+        acquire write mmap_sem
+        lookup vmas (find and split vmas)
+        detach vmas
+        deal with special mappings
+        downgrade_write
 
-> diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
-> index 4b101dd6e52f..4ebee899c363 100644
-> --- a/arch/x86/mm/Makefile
-> +++ b/arch/x86/mm/Makefile
-> @@ -53,3 +53,5 @@ obj-$(CONFIG_PAGE_TABLE_ISOLATION)		+= pti.o
->  obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt.o
->  obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_identity.o
->  obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_boot.o
-> +
-> +obj-$(CONFIG_X86_INTEL_MKTME)	+= mktme.o
-> diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
-> new file mode 100644
-> index 000000000000..467f1b26c737
-> --- /dev/null
-> +++ b/arch/x86/mm/mktme.c
-> @@ -0,0 +1,5 @@
-> +#include <asm/mktme.h>
-> +
-> +phys_addr_t mktme_keyid_mask;
-> +int mktme_nr_keyids;
-> +int mktme_keyid_shift;
+        zap pages
+        free page tables
+        release mmap_sem
 
-Descriptions should be here, please, not in the changelog.
+The vm events with read mmap_sem may come in during page zapping, but
+since vmas have been detached before, they, i.e. page fault, gup, etc,
+will not be able to find valid vma, then just return SIGSEGV or -EFAULT
+as expected.
+
+If the vma has VM_LOCKED | VM_HUGETLB | VM_PFNMAP or uprobe, they are
+considered as special mappings. They will be dealt with before zapping
+pages with write mmap_sem held. Basically, just update vm_flags.
+
+And, since they are also manipulated by unmap_single_vma() which is
+called by unmap_vma() with read mmap_sem held in this case, to
+prevent from updating vm_flags in read critical section, a new
+parameter, called "skip_flags" is added to unmap_region(), unmap_vmas()
+and unmap_single_vma(). If it is true, then just skip unmap those
+special mappings. Currently, the only place which pass true to this
+parameter is us.
+
+With this approach we don't have to re-acquire mmap_sem again to clean
+up vmas to avoid race window which might get the address space changed.
+
+And, since the lock acquire/release cost is managed to the minimum and
+almost as same as before, the optimization could be extended to any size
+of mapping without incuring significant penalty to small mappings.
+
+For the time being, just do this in munmap syscall path. Other vm_munmap() or
+do_munmap() call sites (i.e mmap, mremap, etc) remain intact for stability
+reason.
+
+Changelog:
+v4 -> v5:
+* Detach vmas before zapping pages so that we don't have to use VM_DEAD to mark
+  a being unmapping vma since they have been detached from rbtree when zapping
+  pages. Per Kirill
+* Eliminate VM_DEAD stuff
+* With this change we don't have to re-acquire write mmap_sem to do cleanup.
+  So, we could eliminate a potential race window
+* Eliminate PUD_SIZE check, and extend this optimization to all size
+
+v3 -> v4:
+* Extend check_stable_address_space to check VM_DEAD as Michal suggested
+* Deal with vm_flags update of VM_LOCKED | VM_HUGETLB | VM_PFNMAP and uprobe
+  mappings with exclusive lock held. The actual unmapping is still done with read
+  mmap_sem to solve akpm's concern
+* Clean up vmas with calling do_munmap to prevent from race condition by not
+  carrying vmas as Kirill suggested
+* Extracted more common code
+* Solved some code cleanup comments from akpm
+* Dropped uprobe and arch specific code, now all the changes are mm only
+* Still keep PUD_SIZE threshold, if everyone thinks it is better to extend to all
+  sizes or smaller size, will remove it
+* Make this optimization 64 bit only explicitly per akpm's suggestion
+
+v2 -> v3:
+* Refactor do_munmap code to extract the common part per Peter's sugestion
+* Introduced VM_DEAD flag per Michal's suggestion. Just handled VM_DEAD in
+  x86's page fault handler for the time being. Other architectures will be covered
+  once the patch series is reviewed
+* Now lookup vma (find and split) and set VM_DEAD flag with write mmap_sem, then
+  zap mapping with read mmap_sem, then clean up pgtables and vmas with write
+  mmap_sem per Peter's suggestion
+
+v1 -> v2:
+* Re-implemented the code per the discussion on LSFMM summit
+
+
+Regression and performance data:
+Did the below regression test with setting thresh to 4K manually in the code:
+  * Full LTP
+  * Trinity (munmap/all vm syscalls)
+  * Stress-ng: mmap/mmapfork/mmapfixed/mmapaddr/mmapmany/vm
+  * mm-tests: kernbench, phpbench, sysbench-mariadb, will-it-scale
+  * vm-scalability
+
+With the patches, exclusive mmap_sem hold time when munmap a 80GB address
+space on a machine with 32 cores of E5-2680 @ 2.70GHz dropped to us level
+from second.
+
+munmap_test-15002 [008]   594.380138: funcgraph_entry: |  vm_munmap_zap_rlock() {
+munmap_test-15002 [008]   594.380146: funcgraph_entry:      !2485684 us |    unmap_region();
+munmap_test-15002 [008]   596.865836: funcgraph_exit:       !2485692 us |  }
+
+Here the excution time of unmap_region() is used to evaluate the time of
+holding read mmap_sem, then the remaining time is used with holding
+exclusive lock.
+
+Yang Shi (2):
+      mm: refactor do_munmap() to extract the common part
+      mm: mmap: zap pages with read mmap_sem in munmap
+
+ include/linux/mm.h |   2 +-
+ mm/memory.c        |  35 +++++++++++++-----
+ mm/mmap.c          | 219 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-----------------------
+ 3 files changed, 199 insertions(+), 57 deletions(-)
