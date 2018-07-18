@@ -1,75 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 91EF96B0270
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:27:39 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id e127-v6so1774072vkg.12
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 08:27:39 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s93-v6sor1486591uas.10.2018.07.18.08.27.38
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DB9826B0272
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:29:07 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id c11-v6so2579412ywb.0
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 08:29:07 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id l5-v6si783002ywm.658.2018.07.18.08.29.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 18 Jul 2018 08:27:38 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Jul 2018 08:29:06 -0700 (PDT)
+Date: Wed, 18 Jul 2018 08:28:50 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: cgroup-aware OOM killer, how to move forward
+Message-ID: <20180718152846.GA6840@castle.DHCP.thefacebook.com>
+References: <20180713221602.GA15005@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1807131535420.202408@chino.kir.corp.google.com>
+ <20180713230545.GA17467@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1807131608530.218060@chino.kir.corp.google.com>
+ <20180713231630.GB17467@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
+ <20180717173844.GB14909@castle.DHCP.thefacebook.com>
+ <20180717194945.GM7193@dhcp22.suse.cz>
+ <20180717200641.GB18762@castle.DHCP.thefacebook.com>
+ <20180718081230.GP7193@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180718144710.GI7193@dhcp22.suse.cz>
-References: <CAOm-9arwY3VLUx5189JAR9J7B=Miad9nQjjet_VNdT3i+J+5FA@mail.gmail.com>
- <20180717212307.d6803a3b0bbfeb32479c1e26@linux-foundation.org>
- <20180718104230.GC1431@dhcp22.suse.cz> <CAOm-9aqeKZ7+Jvhc5DxEEzbk4T0iQx8gZ=O1vy6YXnbOkncFsg@mail.gmail.com>
- <20180718144710.GI7193@dhcp22.suse.cz>
-From: Bruce Merry <bmerry@ska.ac.za>
-Date: Wed, 18 Jul 2018 17:27:37 +0200
-Message-ID: <CAOm-9aqLopJouRFd6sQr95yYTJmuoE6y9=VoMEJeyr_OVfQxnw@mail.gmail.com>
-Subject: Re: Showing /sys/fs/cgroup/memory/memory.stat very slow on some machines
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180718081230.GP7193@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
 
-On 18 July 2018 at 16:47, Michal Hocko <mhocko@kernel.org> wrote:
->> Thanks for looking into this. I'm not familiar with ftrace. Can you
->> give me a specific command line to run? Based on "perf record cat
->> /sys/fs/cgroup/memory/memory.stat"/"perf report", I see the following:
->>
->>   42.09%  cat      [kernel.kallsyms]  [k] memcg_stat_show
->>   29.19%  cat      [kernel.kallsyms]  [k] memcg_sum_events.isra.22
->>   12.41%  cat      [kernel.kallsyms]  [k] mem_cgroup_iter
->>    5.42%  cat      [kernel.kallsyms]  [k] _find_next_bit
->>    4.14%  cat      [kernel.kallsyms]  [k] css_next_descendant_pre
->>    3.44%  cat      [kernel.kallsyms]  [k] find_next_bit
->>    2.84%  cat      [kernel.kallsyms]  [k] mem_cgroup_node_nr_lru_pages
->
-> I would just use perf record as you did. How long did the call take?
-> Also is the excessive time an outlier or a more consistent thing? If the
-> former does perf record show any difference?
+On Wed, Jul 18, 2018 at 10:12:30AM +0200, Michal Hocko wrote:
+> On Tue 17-07-18 13:06:42, Roman Gushchin wrote:
+> > On Tue, Jul 17, 2018 at 09:49:46PM +0200, Michal Hocko wrote:
+> > > On Tue 17-07-18 10:38:45, Roman Gushchin wrote:
+> > > [...]
+> > > > Let me show my proposal on examples. Let's say we have the following hierarchy,
+> > > > and the biggest process (or the process with highest oom_score_adj) is in D.
+> > > > 
+> > > >   /
+> > > >   |
+> > > >   A
+> > > >   |
+> > > >   B
+> > > >  / \
+> > > > C   D
+> > > > 
+> > > > Let's look at different examples and intended behavior:
+> > > > 1) system-wide OOM
+> > > >   - default settings: the biggest process is killed
+> > > >   - D/memory.group_oom=1: all processes in D are killed
+> > > >   - A/memory.group_oom=1: all processes in A are killed
+> > > > 2) memcg oom in B
+> > > >   - default settings: the biggest process is killed
+> > > >   - A/memory.group_oom=1: the biggest process is killed
+> > > 
+> > > Huh? Why would you even consider A here when the oom is below it?
+> > > /me confused
+> > 
+> > I do not.
+> > This is exactly a counter-example: A's memory.group_oom
+> > is not considered at all in this case,
+> > because A is above ooming cgroup.
+> 
+> OK, it confused me.
+> 
+> > > 
+> > > >   - B/memory.group_oom=1: all processes in B are killed
+> > > 
+> > >     - B/memory.group_oom=0 &&
+> > > >   - D/memory.group_oom=1: all processes in D are killed
+> > > 
+> > > What about?
+> > >     - B/memory.group_oom=1 && D/memory.group_oom=0
+> > 
+> > All tasks in B are killed.
+> 
+> so essentially find a task, traverse the memcg hierarchy from the
+> victim's memcg up to the oom root as long as memcg.group_oom = 1?
+> If the resulting memcg.group_oom == 1 then kill the whole sub tree.
+> Right?
 
-I didn't note the exact time for that particular run, but it's pretty
-consistently 372-377ms on the machine that has that perf report. The
-times differ between machines showing the symptom (anywhere from
-200-500ms), but are consistent (within a few ms) in back-to-back runs
-on each machine.
+Yes.
 
->> Ubuntu 16.04 with kernel 4.13.0-41-generic (so presumably includes
->> some Ubuntu special sauce).
->
-> Do you see the same whe running with the vanilla kernel?
+> 
+> > Group_oom set to 1 means that the workload can't tolerate
+> > killing of a random process, so in this case it's better
+> > to guarantee consistency for B.
+> 
+> OK, but then if D itself is OOM then we do not care about consistency
+> all of the sudden? I have hard time to think about a sensible usecase.
 
-We don't currently have any boxes running vanilla kernels. While I
-could install a test box with a vanilla kernel, I don't know how to
-reproduce the problem, what piece of our production environment is
-triggering it, or even why some machines are unaffected, so if the
-problem didn't re-occur on the test box I wouldn't be able to conclude
-anything useful.
+I mean if traversing the hierarchy up to the oom root we meet
+a memcg with group_oom set to 0, we shouldn't stop traversing.
 
-Do you have suggestions on things I could try that might trigger this?
-e.g. are there cases where a cgroup no longer shows up in the
-filesystem but is still lingering while waiting for its refcount to
-hit zero? Does every child cgroup contribute to the stat_show cost of
-its parent or does it have to have some non-trivial variation from its
-parent?
-
-Thanks
-Bruce
--- 
-Bruce Merry
-Senior Science Processing Developer
-SKA South Africa
+Thanks!
