@@ -1,75 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 30A4D6B026A
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 18:19:19 -0400 (EDT)
-Received: by mail-yb0-f198.google.com with SMTP id s46-v6so3201758ybe.8
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 15:19:19 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f7-v6sor1196090ywe.61.2018.07.18.15.19.11
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B7F46B0003
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 18:22:04 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id t83-v6so1468948wmt.3
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 15:22:03 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id b13-v6si3427672wrr.53.2018.07.18.15.22.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 18 Jul 2018 15:19:11 -0700 (PDT)
-Date: Wed, 18 Jul 2018 18:21:57 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 0/10] psi: pressure stall information for CPU, memory,
- and IO v2
-Message-ID: <20180718222157.GG2838@cmpxchg.org>
-References: <20180712172942.10094-1-hannes@cmpxchg.org>
- <20180716155745.10368-1-drake@endlessm.com>
- <20180717112515.GE7193@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 18 Jul 2018 15:22:02 -0700 (PDT)
+Date: Thu, 19 Jul 2018 00:21:44 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCHv5 18/19] x86/mm: Handle encrypted memory in page_to_virt()
+ and __pa()
+In-Reply-To: <20180717112029.42378-19-kirill.shutemov@linux.intel.com>
+Message-ID: <alpine.DEB.2.21.1807182356520.1689@nanos.tec.linutronix.de>
+References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com> <20180717112029.42378-19-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180717112515.GE7193@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Daniel Drake <drake@endlessm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux@endlessm.com, linux-block@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Jul 17, 2018 at 01:25:15PM +0200, Michal Hocko wrote:
-> On Mon 16-07-18 10:57:45, Daniel Drake wrote:
-> > Hi Johannes,
-> > 
-> > Thanks for your work on psi! 
-> > 
-> > We have also been investigating the "thrashing problem" on our Endless
-> > desktop OS. We have seen that systems can easily get into a state where the
-> > UI becomes unresponsive to input, and the mouse cursor becomes extremely
-> > slow or stuck when the system is running out of memory. We are working with
-> > a full GNOME desktop environment on systems with only 2GB RAM, and
-> > sometimes no real swap (although zram-swap helps mitigate the problem to
-> > some extent).
-> > 
-> > My analysis so far indicates that when the system is low on memory and hits
-> > this condition, the system is spending much of the time under
-> > __alloc_pages_direct_reclaim. "perf trace -F" shows many many page faults
-> > in executable code while this is going on. I believe the kernel is
-> > swapping out executable code in order to satisfy memory allocation
-> > requests, but then that swapped-out code is needed a moment later so it
-> > gets swapped in again via the page fault handler, and all this activity
-> > severely starves the system from being able to respond to user input.
-> > 
-> > I appreciate the kernel's attempt to keep processes alive, but in the
-> > desktop case we see that the system rarely recovers from this situation,
-> > so you have to hard shutdown. In this case we view it as desirable that
-> > the OOM killer would step in (it is not doing so because direct reclaim
-> > is not actually failing).
+On Tue, 17 Jul 2018, Kirill A. Shutemov wrote:
 
-Yes, we currently use a userspace application that monitors pressure
-and OOM kills (there is usually plenty of headroom left for a small
-application to run by the time quality of service for most workloads
-has already tanked to unacceptable levels). We want to eventually add
-this back into the kernel with the appropriate configuration options
-(pressure threshold value and sustained duration etc.)
+> Per-KeyID direct mappings require changes into how we find the right
+> virtual address for a page and virt-to-phys address translations.
+> 
+> page_to_virt() definition overwrites default macros provided by
+> <linux/mm.h>. We only overwrite the macros if MTKME is enabled
+> compile-time.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  arch/x86/include/asm/mktme.h   | 3 +++
+>  arch/x86/include/asm/page_64.h | 2 +-
+>  2 files changed, 4 insertions(+), 1 deletion(-)
+> 
+> diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
+> index ba83fba4f9b3..dbfbd955da98 100644
+> --- a/arch/x86/include/asm/mktme.h
+> +++ b/arch/x86/include/asm/mktme.h
+> @@ -29,6 +29,9 @@ void arch_free_page(struct page *page, int order);
+>  
+>  int sync_direct_mapping(void);
+>  
+> +#define page_to_virt(x) \
+> +	(__va(PFN_PHYS(page_to_pfn(x))) + page_keyid(x) * direct_mapping_size)
 
-> Yes this is really unfortunate. One thing that could help would be to
-> consider a trashing level during the reclaim (get_scan_count) to simply
-> forget about LRUs which are constantly refaulting pages back. We already
-> have the infrastructure for that. We just need to plumb it in.
+This really does not belong into the mktme header.
 
-This doesn't work without quantifying the actual time you're spending
-on thrashing IO. The cutoff for acceptable refaults is very different
-between rotating disks, crappy SSDs, and high-end flash.
+Please make this the unconditional x86 page_to_virt() implementation in
+asm/page.h, which is the canonical and obvious place for it.
 
-But in the future we might want the OOM killer to monitor psi memory
-levels and dispatch tasks when we sustain X percent for Y seconds.
+The page_keyid() name is quite generic as well. Can this please have some
+kind of reference to the underlying mechanism, i.e. mktme?
+
+Please hide the multiplication with direct_mapping_size in the mktme header
+as well. It's non interesting for the !MKTME case. Something like:
+
+#define page_to_virt(x) \
+	(__va(PFN_PHYS(page_to_pfn(x))) + mktme_page_to_virt_offset(x))
+
+makes it immediately clear where to look and also makes it clear that the
+offset will be 0 for a !MKTME enabled kernel and (hopefully) for all !MKTME
+enabled processors as well.
+
+And then have a proper implementation of mktme_page_to_virt_offset() with a
+proper comment what on earth this is doing. It might be all obvious to you
+now, but it's completely non obvious for the casual reader and you will
+have to twist your brain around it 6 month from now as well.
+
+>  #else
+>  #define mktme_keyid_mask	((phys_addr_t)0)
+>  #define mktme_nr_keyids		0
+> diff --git a/arch/x86/include/asm/page_64.h b/arch/x86/include/asm/page_64.h
+> index f57fc3cc2246..a4f394e3471d 100644
+> --- a/arch/x86/include/asm/page_64.h
+> +++ b/arch/x86/include/asm/page_64.h
+> @@ -24,7 +24,7 @@ static inline unsigned long __phys_addr_nodebug(unsigned long x)
+>  	/* use the carry flag to determine if x was < __START_KERNEL_map */
+>  	x = y + ((x > y) ? phys_base : (__START_KERNEL_map - PAGE_OFFSET));
+>  
+> -	return x;
+> +	return x & direct_mapping_mask;
+
+This hunk also lacks any explanation both in the changelog and in form of a
+comment.
+
+> Per-KeyID direct mappings require changes into how we find the right
+> virtual address for a page and virt-to-phys address translations.
+
+That's pretty useless as it does just tell about 'changes', but not at all
+about what kind of changes and why these changes are required. It's really
+not helpful to assume that everyone stumbling over this will know the whole
+story especially not 6 month after this has been merged and then someone
+ends up with a bisect on that change.
+
+While at it, please get rid of the 'we'. We are neither CPUs nor code.
+
+Thanks,
+
+	tglx
