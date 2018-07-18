@@ -1,135 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D21DC6B0008
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 14:27:34 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id d194-v6so4319234qkb.12
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:27:34 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t35-v6si1594596qvt.93.2018.07.18.11.27.33
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AA146B000C
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 14:36:24 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id az8-v6so3006177plb.15
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:36:24 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 188-v6si4091584pfg.154.2018.07.18.11.36.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 11:27:33 -0700 (PDT)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [PATCH v2] mm: disallow mapping that conflict for devm_memremap_pages()
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 18 Jul 2018 11:36:23 -0700 (PDT)
+Date: Wed, 18 Jul 2018 11:36:21 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v2] mm: disallow mapping that conflict for
+ devm_memremap_pages()
+Message-ID: <20180718183621.GE4949@bombadil.infradead.org>
 References: <152909478401.50143.312364396244072931.stgit@djiang5-desk3.ch.intel.com>
-Date: Wed, 18 Jul 2018 14:27:31 -0400
-In-Reply-To: <152909478401.50143.312364396244072931.stgit@djiang5-desk3.ch.intel.com>
-	(Dave Jiang's message of "Fri, 15 Jun 2018 13:33:39 -0700")
-Message-ID: <x49efg04cx8.fsf@segfault.boston.devel.redhat.com>
+ <x49efg04cx8.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <x49efg04cx8.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jiang <dave.jiang@intel.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Dave Jiang <dave.jiang@intel.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-Hi, Dave,
+On Wed, Jul 18, 2018 at 02:27:31PM -0400, Jeff Moyer wrote:
+> Hi, Dave,
+> 
+> Dave Jiang <dave.jiang@intel.com> writes:
+> 
+> > When pmem namespaces created are smaller than section size, this can cause
+> > issue during removal and gpf was observed:
+> >
+> > Add code to check whether we have mapping already in the same section and
+> > prevent additional mapping from created if that is the case.
+> >
+> > Signed-off-by: Dave Jiang <dave.jiang@intel.com>
+> > ---
+> >
+> > v2: Change dev_warn() to dev_WARN() to provide helpful backtrace. (Robert E)
+> 
+> OK, I can reproduce the issue.  What I don't like about your patch is
+> that you can still get yourself into trouble.  Just create a namespace
+> with a size that isn't aligned to 128MB, and then all further
+> create-namespace operations will fail.  The only "fix" is to delete the
+> odd-sized namespace and try again.  And that warning message doesn't
+> really help the administrator to figure this out.
+> 
+> Why can't we simply round up to the next section automatically?  Either
+> that, or have the kernel export a minimum namespace size of 128MB, and
+> have ndctl enforce it?  I know we had some requests for 4MB namespaces,
+> but it doesn't sound like those will be very useful if they're going to
+> waste 124MB of space.
+> 
+> Or, we could try to fix this problem of having multiple namespace
+> co-exist in the same memblock section.  That seems like the most obvious
+> fix, but there must be a reason you didn't pursue it.
+> 
+> Dave, what do you think is the most viable option?
 
-Dave Jiang <dave.jiang@intel.com> writes:
+Just as a reminder, the desire for small pmem devices comes from cloud
+usecases where you have teeny tiny layers, each of which might contain a
+single package (eg a webserver or a database).  Because you're going to
+run tens of thousands of instances, you don't want each machine to keep
+a copy of the program text in pagecache; you want to have it in-memory
+once and then DAX-map it in each guest.
 
-> When pmem namespaces created are smaller than section size, this can cause
-> issue during removal and gpf was observed:
->
-> [ 249.613597] general protection fault: 0000 1 SMP PTI
-> [ 249.725203] CPU: 36 PID: 3941 Comm: ndctl Tainted: G W
-> 4.14.28-1.el7uek.x86_64 #2
-> [ 249.745495] task: ffff88acda150000 task.stack: ffffc900233a4000
-> [ 249.752107] RIP: 0010:__put_page+0x56/0x79
-> [ 249.844675] Call Trace:
-> [ 249.847410] devm_memremap_pages_release+0x155/0x23a
-> [ 249.852953] release_nodes+0x21e/0x260
-> [ 249.857138] devres_release_all+0x3c/0x48
-> [ 249.861606] device_release_driver_internal+0x15c/0x207
-> [ 249.867439] device_release_driver+0x12/0x14
-> [ 249.872204] unbind_store+0xba/0xd8
-> [ 249.876098] drv_attr_store+0x27/0x31
-> [ 249.880186] sysfs_kf_write+0x3f/0x46
-> [ 249.884266] kernfs_fop_write+0x10f/0x18b
-> [ 249.888734] __vfs_write+0x3a/0x16d
-> [ 249.892628] ? selinux_file_permission+0xe5/0x116
-> [ 249.897881] ? security_file_permission+0x41/0xbb
-> [ 249.903133] vfs_write+0xb2/0x1a1
-> [ 249.906835] ? syscall_trace_enter+0x1ce/0x2b8
-> [ 249.911795] SyS_write+0x55/0xb9
-> [ 249.915397] do_syscall_64+0x79/0x1ae
-> [ 249.919485] entry_SYSCALL_64_after_hwframe+0x3d/0x0
->
-> Add code to check whether we have mapping already in the same section and
-> prevent additional mapping from created if that is the case.
->
-> Signed-off-by: Dave Jiang <dave.jiang@intel.com>
-> ---
->
-> v2: Change dev_warn() to dev_WARN() to provide helpful backtrace. (Robert E)
-
-OK, I can reproduce the issue.  What I don't like about your patch is
-that you can still get yourself into trouble.  Just create a namespace
-with a size that isn't aligned to 128MB, and then all further
-create-namespace operations will fail.  The only "fix" is to delete the
-odd-sized namespace and try again.  And that warning message doesn't
-really help the administrator to figure this out.
-
-Why can't we simply round up to the next section automatically?  Either
-that, or have the kernel export a minimum namespace size of 128MB, and
-have ndctl enforce it?  I know we had some requests for 4MB namespaces,
-but it doesn't sound like those will be very useful if they're going to
-waste 124MB of space.
-
-Or, we could try to fix this problem of having multiple namespace
-co-exist in the same memblock section.  That seems like the most obvious
-fix, but there must be a reason you didn't pursue it.
-
-Dave, what do you think is the most viable option?
-
-Cheers,
-Jeff
-
-
->  kernel/memremap.c |   18 +++++++++++++++++-
->  1 file changed, 17 insertions(+), 1 deletion(-)
->
-> diff --git a/kernel/memremap.c b/kernel/memremap.c
-> index 5857267a4af5..a734b1747466 100644
-> --- a/kernel/memremap.c
-> +++ b/kernel/memremap.c
-> @@ -176,10 +176,27 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
->  	unsigned long pfn, pgoff, order;
->  	pgprot_t pgprot = PAGE_KERNEL;
->  	int error, nid, is_ram;
-> +	struct dev_pagemap *conflict_pgmap;
->  
->  	align_start = res->start & ~(SECTION_SIZE - 1);
->  	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
->  		- align_start;
-> +	align_end = align_start + align_size - 1;
-> +
-> +	conflict_pgmap = get_dev_pagemap(PHYS_PFN(align_start), NULL);
-> +	if (conflict_pgmap) {
-> +		dev_WARN(dev, "Conflicting mapping in same section\n");
-> +		put_dev_pagemap(conflict_pgmap);
-> +		return ERR_PTR(-ENOMEM);
-> +	}
-> +
-> +	conflict_pgmap = get_dev_pagemap(PHYS_PFN(align_end), NULL);
-> +	if (conflict_pgmap) {
-> +		dev_WARN(dev, "Conflicting mapping in same section\n");
-> +		put_dev_pagemap(conflict_pgmap);
-> +		return ERR_PTR(-ENOMEM);
-> +	}
-> +
->  	is_ram = region_intersects(align_start, align_size,
->  		IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
->  
-> @@ -199,7 +216,6 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
->  
->  	mutex_lock(&pgmap_lock);
->  	error = 0;
-> -	align_end = align_start + align_size - 1;
->  
->  	foreach_order_pgoff(res, order, pgoff) {
->  		error = __radix_tree_insert(&pgmap_radix,
->
-> _______________________________________________
-> Linux-nvdimm mailing list
-> Linux-nvdimm@lists.01.org
-> https://lists.01.org/mailman/listinfo/linux-nvdimm
+While it's OK to waste a certain amount of each guest's physical memory,
+when you have hundreds or thousands of these tiny layers, it adds up.
