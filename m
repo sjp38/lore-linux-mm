@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0516C6B026B
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:41:23 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id p7-v6so1687710eds.19
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:41:22 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4499B6B026D
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:41:24 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id d5-v6so1699570edq.3
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:41:24 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id y12-v6si394735edm.280.2018.07.18.02.41.21
+        by mx.google.com with ESMTPS id z25-v6si2943977edq.292.2018.07.18.02.41.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 02:41:21 -0700 (PDT)
+        Wed, 18 Jul 2018 02:41:23 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 01/39] x86/asm-offsets: Move TSS_sp0 and TSS_sp1 to asm-offsets.c
-Date: Wed, 18 Jul 2018 11:40:38 +0200
-Message-Id: <1531906876-13451-2-git-send-email-joro@8bytes.org>
+Subject: [PATCH 02/39] x86/entry/32: Rename TSS_sysenter_sp0 to TSS_entry2task_stack
+Date: Wed, 18 Jul 2018 11:40:39 +0200
+Message-Id: <1531906876-13451-3-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,40 +22,47 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-These offsets will be used in 32 bit assembly code as well,
-so make them available for all of x86 code.
+The stack address doesn't need to be stored in tss.sp0 if
+we switch manually like on sysenter. Rename the offset so
+that it still makes sense when we change its location.
 
-Reviewed-by: Andy Lutomirski <luto@kernel.org>
+We will also use this stack for all kernel-entry points, not
+just sysenter. Reflect that and the fact that it is the
+offset to the task-stack location in the name as well.
+
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/kernel/asm-offsets.c    | 4 ++++
- arch/x86/kernel/asm-offsets_64.c | 2 --
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ arch/x86/entry/entry_32.S        | 2 +-
+ arch/x86/kernel/asm-offsets_32.c | 5 +++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/kernel/asm-offsets.c b/arch/x86/kernel/asm-offsets.c
-index dcb008c..a1e1628 100644
---- a/arch/x86/kernel/asm-offsets.c
-+++ b/arch/x86/kernel/asm-offsets.c
-@@ -103,4 +103,8 @@ void common(void) {
- 	OFFSET(CPU_ENTRY_AREA_entry_trampoline, cpu_entry_area, entry_trampoline);
- 	OFFSET(CPU_ENTRY_AREA_entry_stack, cpu_entry_area, entry_stack_page);
- 	DEFINE(SIZEOF_entry_stack, sizeof(struct entry_stack));
-+
-+	/* Offset for sp0 and sp1 into the tss_struct */
-+	OFFSET(TSS_sp0, tss_struct, x86_tss.sp0);
-+	OFFSET(TSS_sp1, tss_struct, x86_tss.sp1);
- }
-diff --git a/arch/x86/kernel/asm-offsets_64.c b/arch/x86/kernel/asm-offsets_64.c
-index b2dcd16..3b9405e 100644
---- a/arch/x86/kernel/asm-offsets_64.c
-+++ b/arch/x86/kernel/asm-offsets_64.c
-@@ -65,8 +65,6 @@ int main(void)
- #undef ENTRY
- 
- 	OFFSET(TSS_ist, tss_struct, x86_tss.ist);
--	OFFSET(TSS_sp0, tss_struct, x86_tss.sp0);
--	OFFSET(TSS_sp1, tss_struct, x86_tss.sp1);
+diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+index c371bfe..39f711a 100644
+--- a/arch/x86/entry/entry_32.S
++++ b/arch/x86/entry/entry_32.S
+@@ -412,7 +412,7 @@ ENTRY(xen_sysenter_target)
+  * 0(%ebp) arg6
+  */
+ ENTRY(entry_SYSENTER_32)
+-	movl	TSS_sysenter_sp0(%esp), %esp
++	movl	TSS_entry2task_stack(%esp), %esp
+ .Lsysenter_past_esp:
+ 	pushl	$__USER_DS		/* pt_regs->ss */
+ 	pushl	%ebp			/* pt_regs->sp (stashed in bp) */
+diff --git a/arch/x86/kernel/asm-offsets_32.c b/arch/x86/kernel/asm-offsets_32.c
+index a4a3be3..15b3f45 100644
+--- a/arch/x86/kernel/asm-offsets_32.c
++++ b/arch/x86/kernel/asm-offsets_32.c
+@@ -46,8 +46,9 @@ void foo(void)
+ 	OFFSET(saved_context_gdt_desc, saved_context, gdt_desc);
  	BLANK();
+ 
+-	/* Offset from the sysenter stack to tss.sp0 */
+-	DEFINE(TSS_sysenter_sp0, offsetof(struct cpu_entry_area, tss.x86_tss.sp0) -
++	/* Offset from the entry stack to task stack stored in TSS */
++	DEFINE(TSS_entry2task_stack,
++	       offsetof(struct cpu_entry_area, tss.x86_tss.sp0) -
+ 	       offsetofend(struct cpu_entry_area, entry_stack_page.stack));
  
  #ifdef CONFIG_STACKPROTECTOR
 -- 
