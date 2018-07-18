@@ -1,54 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 626C16B0007
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 13:40:22 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id u26-v6so1793054uan.23
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 10:40:22 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t90-v6sor1811581uat.170.2018.07.18.10.40.21
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E70D6B000C
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 13:43:12 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id e19-v6so2304592pgv.11
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 10:43:12 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id b1-v6si3599674plc.403.2018.07.18.10.43.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 18 Jul 2018 10:40:21 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Jul 2018 10:43:11 -0700 (PDT)
+Subject: Re: [PATCHv5 04/19] mm/page_alloc: Unify alloc_hugepage_vma()
+References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
+ <20180717112029.42378-5-kirill.shutemov@linux.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <9a716ae8-c4bd-59d8-f8d3-7816fb58fabe@intel.com>
+Date: Wed, 18 Jul 2018 10:43:08 -0700
 MIME-Version: 1.0
-In-Reply-To: <CALvZod4ag02N6QPwRQCYv663hj05Z6vtrK8=XEE6uWHQCL4yRw@mail.gmail.com>
-References: <CAOm-9arwY3VLUx5189JAR9J7B=Miad9nQjjet_VNdT3i+J+5FA@mail.gmail.com>
- <20180717212307.d6803a3b0bbfeb32479c1e26@linux-foundation.org>
- <20180718104230.GC1431@dhcp22.suse.cz> <CAOm-9aqeKZ7+Jvhc5DxEEzbk4T0iQx8gZ=O1vy6YXnbOkncFsg@mail.gmail.com>
- <CALvZod7_vPwqyLBxiecZtREEeY4hioCGnZWVhQx9wVdM8CFcog@mail.gmail.com>
- <CAOm-9aprLokqi6awMvi0NbkriZBpmvnBA81QhOoHnK7ZEA96fw@mail.gmail.com> <CALvZod4ag02N6QPwRQCYv663hj05Z6vtrK8=XEE6uWHQCL4yRw@mail.gmail.com>
-From: Bruce Merry <bmerry@ska.ac.za>
-Date: Wed, 18 Jul 2018 19:40:20 +0200
-Message-ID: <CAOm-9arxtTwNxXzmb8nN+N_UtjiuH0XkpkVPFHpi3EOYXvZYVA@mail.gmail.com>
-Subject: Re: Showing /sys/fs/cgroup/memory/memory.stat very slow on some machines
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180717112029.42378-5-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
+Cc: Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 18 July 2018 at 17:49, Shakeel Butt <shakeelb@google.com> wrote:
-> On Wed, Jul 18, 2018 at 8:37 AM Bruce Merry <bmerry@ska.ac.za> wrote:
->> That sounds promising. Is there any way to tell how many zombies there
->> are, and is there any way to deliberately create zombies? If I can
->> produce zombies that might give me a reliable way to reproduce the
->> problem, which could then sensibly be tested against newer kernel
->> versions.
->>
->
-> Yes, very easy to produce zombies, though I don't think kernel
-> provides any way to tell how many zombies exist on the system.
->
-> To create a zombie, first create a memcg node, enter that memcg,
-> create a tmpfs file of few KiBs, exit the memcg and rmdir the memcg.
-> That memcg will be a zombie until you delete that tmpfs file.
+A grammar error or two is probably OK in these descriptions, but these
+are just riddled with them in a way that makes them hard to read.
+Suggestions below.
 
-Thanks, that makes sense. I'll see if I can reproduce the issue. Do
-you expect the same thing to happen with normal (non-tmpfs) files that
-are sitting in the page cache, and/or dentries?
+On 07/17/2018 04:20 AM, Kirill A. Shutemov wrote:
+> We don't need to have separate implementations of alloc_hugepage_vma()
+> for NUMA and non-NUMA. Using variant based on alloc_pages_vma() we would
+> cover both cases.
 
-Cheers
-Bruce
--- 
-Bruce Merry
-Senior Science Processing Developer
-SKA South Africa
+"Using the"
+
+> This is preparation patch for allocation encrypted pages.
+
+"a preparation"
+
+"allocation encrypted pages" -> "allocation of encrypted pages" or
+"allocation encrypted pages" -> "allocating encrypted pages" or
+
+> alloc_pages_vma() will handle allocation of encrypted pages. With this
+> change we don' t need to cover alloc_hugepage_vma() separately.
+
+"don' t" -> "don't"
+
+> The change makes typo in Alpha's implementation of
+
+"a typo"
