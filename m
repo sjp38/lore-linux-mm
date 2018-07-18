@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E9D96B0282
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E758B6B0284
 	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:41:34 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id s18-v6so1694970edr.15
+Received: by mail-ed1-f69.google.com with SMTP id b25-v6so1680836eds.17
         for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:41:34 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id k21-v6si160987edq.27.2018.07.18.02.41.33
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id o12-v6si818090edk.377.2018.07.18.02.41.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 18 Jul 2018 02:41:33 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 16/39] x86/pgtable/pae: Unshare kernel PMDs when PTI is enabled
-Date: Wed, 18 Jul 2018 11:40:53 +0200
-Message-Id: <1531906876-13451-17-git-send-email-joro@8bytes.org>
+Subject: [PATCH 23/39] x86/mm/legacy: Populate the user page-table with user pgd's
+Date: Wed, 18 Jul 2018 11:41:00 +0200
+Message-Id: <1531906876-13451-24-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,31 +22,46 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-With PTI we need to map the per-process LDT into the kernel
-address-space for each process, so we need separate kernel
-PMDs per PGD.
+Also populate the user-spage pgd's in the user page-table.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable-3level_types.h | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ arch/x86/include/asm/pgtable-2level.h | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-diff --git a/arch/x86/include/asm/pgtable-3level_types.h b/arch/x86/include/asm/pgtable-3level_types.h
-index 6a59a6d..78038e0 100644
---- a/arch/x86/include/asm/pgtable-3level_types.h
-+++ b/arch/x86/include/asm/pgtable-3level_types.h
-@@ -21,9 +21,10 @@ typedef union {
- #endif	/* !__ASSEMBLY__ */
+diff --git a/arch/x86/include/asm/pgtable-2level.h b/arch/x86/include/asm/pgtable-2level.h
+index 685ffe8..c399ea5 100644
+--- a/arch/x86/include/asm/pgtable-2level.h
++++ b/arch/x86/include/asm/pgtable-2level.h
+@@ -19,6 +19,9 @@ static inline void native_set_pte(pte_t *ptep , pte_t pte)
  
- #ifdef CONFIG_PARAVIRT
--#define SHARED_KERNEL_PMD	(pv_info.shared_kernel_pmd)
-+#define SHARED_KERNEL_PMD	((!static_cpu_has(X86_FEATURE_PTI) &&	\
-+				 (pv_info.shared_kernel_pmd)))
+ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
+ {
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++	pmd.pud.p4d.pgd = pti_set_user_pgtbl(&pmdp->pud.p4d.pgd, pmd.pud.p4d.pgd);
++#endif
+ 	*pmdp = pmd;
+ }
+ 
+@@ -58,6 +61,9 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
+ #ifdef CONFIG_SMP
+ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
+ {
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++	pti_set_user_pgtbl(&xp->pud.p4d.pgd, __pgd(0));
++#endif
+ 	return __pmd(xchg((pmdval_t *)xp, 0));
+ }
  #else
--#define SHARED_KERNEL_PMD	1
-+#define SHARED_KERNEL_PMD	(!static_cpu_has(X86_FEATURE_PTI))
- #endif
- 
- /*
+@@ -67,6 +73,9 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
+ #ifdef CONFIG_SMP
+ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
+ {
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++	pti_set_user_pgtbl(&xp->p4d.pgd, __pgd(0));
++#endif
+ 	return __pud(xchg((pudval_t *)xp, 0));
+ }
+ #else
 -- 
 2.7.4
