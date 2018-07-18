@@ -1,225 +1,192 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 641196B0003
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 17:21:26 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id k204-v6so130404ite.1
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 14:21:26 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id k22-v6si2895313ioj.97.2018.07.18.14.21.23
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CAAAB6B0006
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 17:45:54 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id g11-v6so2566465pgs.13
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 14:45:54 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id k91-v6si4110232pld.248.2018.07.18.14.45.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 14:21:24 -0700 (PDT)
-Subject: Re: [patch v3] mm, oom: fix unnecessary killing of additional
- processes
-References: <alpine.DEB.2.21.1806211434420.51095@chino.kir.corp.google.com>
- <d19d44c3-c8cf-70a1-9b15-c98df233d5f0@i-love.sakura.ne.jp>
- <alpine.DEB.2.21.1807181317540.49359@chino.kir.corp.google.com>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <a78fb992-ad59-0cdb-3c38-8284b2245f21@i-love.sakura.ne.jp>
-Date: Thu, 19 Jul 2018 06:21:03 +0900
+        Wed, 18 Jul 2018 14:45:53 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 16/27] mm: Modify can_follow_write_pte/pmd for
+ shadow stack
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+ <20180710222639.8241-17-yu-cheng.yu@intel.com>
+ <de510df6-7ea9-edc6-9c49-2f80f16472b4@linux.intel.com>
+ <1531328731.15351.3.camel@intel.com>
+ <45a85b01-e005-8cb6-af96-b23ce9b5fca7@linux.intel.com>
+ <1531868610.3541.21.camel@intel.com>
+ <fa9db8c5-41c8-05e9-ad8d-dc6aaf11cb04@linux.intel.com>
+ <1531944882.10738.1.camel@intel.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <3f158401-f0b6-7bf7-48ab-2958354b28ad@linux.intel.com>
+Date: Wed, 18 Jul 2018 14:45:40 -0700
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.21.1807181317540.49359@chino.kir.corp.google.com>
+In-Reply-To: <1531944882.10738.1.camel@intel.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <fengguang.wu@intel.com>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-Sigh...
-
-Nacked-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-
-because David is not aware what is wrong.
-
-On 2018/07/19 5:22, David Rientjes wrote:
-> On Wed, 18 Jul 2018, Tetsuo Handa wrote:
-> 
->>> diff --git a/mm/mmap.c b/mm/mmap.c
->>> --- a/mm/mmap.c
->>> +++ b/mm/mmap.c
->>> @@ -3059,25 +3059,28 @@ void exit_mmap(struct mm_struct *mm)
->>>  	if (unlikely(mm_is_oom_victim(mm))) {
->>>  		/*
->>>  		 * Manually reap the mm to free as much memory as possible.
->>> -		 * Then, as the oom reaper does, set MMF_OOM_SKIP to disregard
->>> -		 * this mm from further consideration.  Taking mm->mmap_sem for
->>> -		 * write after setting MMF_OOM_SKIP will guarantee that the oom
->>> -		 * reaper will not run on this mm again after mmap_sem is
->>> -		 * dropped.
->>> -		 *
->>>  		 * Nothing can be holding mm->mmap_sem here and the above call
->>>  		 * to mmu_notifier_release(mm) ensures mmu notifier callbacks in
->>>  		 * __oom_reap_task_mm() will not block.
->>> -		 *
->>> -		 * This needs to be done before calling munlock_vma_pages_all(),
->>> -		 * which clears VM_LOCKED, otherwise the oom reaper cannot
->>> -		 * reliably test it.
->>>  		 */
->>>  		mutex_lock(&oom_lock);
->>>  		__oom_reap_task_mm(mm);
->>>  		mutex_unlock(&oom_lock);
->>>  
->>> -		set_bit(MMF_OOM_SKIP, &mm->flags);
->>> +		/*
->>> +		 * Now, set MMF_UNSTABLE to avoid racing with the oom reaper.
->>> +		 * This needs to be done before calling munlock_vma_pages_all(),
->>> +		 * which clears VM_LOCKED, otherwise the oom reaper cannot
->>> +		 * reliably test for it.  If the oom reaper races with
->>> +		 * munlock_vma_pages_all(), this can result in a kernel oops if
->>> +		 * a pmd is zapped, for example, after follow_page_mask() has
->>> +		 * checked pmd_none().
->>> +		 *
->>> +		 * Taking mm->mmap_sem for write after setting MMF_UNSTABLE will
->>> +		 * guarantee that the oom reaper will not run on this mm again
->>> +		 * after mmap_sem is dropped.
->>> +		 */
->>> +		set_bit(MMF_UNSTABLE, &mm->flags);
+On 07/18/2018 01:14 PM, Yu-cheng Yu wrote:
+> On Tue, 2018-07-17 at 16:15 -0700, Dave Hansen wrote:
+>> On 07/17/2018 04:03 PM, Yu-cheng Yu wrote:
+>>>
+>>> We need to find a way to differentiate "someone can write to this PTE"
+>>> from "the write bit is set in this PTE".
+>> Please think about this:
 >>
->> Since MMF_UNSTABLE is set by __oom_reap_task_mm() from exit_mmap() before start reaping
->> (because the purpose of MMF_UNSTABLE is to "tell all users of get_user/copy_from_user
->> etc... that the content is no longer stable"), it cannot be used for a flag for indicating
->> that the OOM reaper can't work on the mm anymore.
->>
+>> 	Should pte_write() tell us whether PTE.W=1, or should it tell us
+>> 	that *something* can write to the PTE, which would include
+>> 	PTE.W=0/D=1?
 > 
-> Why?  It should be able to be set by exit_mmap() since nothing else should 
-> be accessing this mm in the first place.  There is no reason to wait for 
-> the oom reaper and the following down_write();up_write(); cycle will 
-> guarantee it is not operating on the mm before munlocking.
 > 
+> Is it better now?
+> 
+> 
+> Subject: [PATCH] mm: Modify can_follow_write_pte/pmd for shadow stack
+> 
+> can_follow_write_pte/pmd look for the (RO & DIRTY) PTE/PMD to
+> verify a non-sharing RO page still exists after a broken COW.
+> 
+> However, a shadow stack PTE is always RO & DIRTY; it can be:
+> 
+> A  RO & DIRTY_HW - is_shstk_pte(pte) is true; or
+> A  RO & DIRTY_SW - the page is being shared.
+> 
+> Update these functions to check a non-sharing shadow stack page
+> still exists after the COW.
+> 
+> Also rename can_follow_write_pte/pmd() to can_follow_write() to
+> make their meaning clear; i.e. "Can we write to the page?", not
+> "Is the PTE writable?"
+> 
+> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+> ---
+> A mm/gup.cA A A A A A A A A | 38 ++++++++++++++++++++++++++++++++++----
+> A mm/huge_memory.c | 19 ++++++++++++++-----
+> A 2 files changed, 48 insertions(+), 9 deletions(-)
+> 
+> diff --git a/mm/gup.c b/mm/gup.c
+> index fc5f98069f4e..316967996232 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -63,11 +63,41 @@ static int follow_pfn_pte(struct vm_area_struct *vma, unsigned long address,
+> A /*
+> A  * FOLL_FORCE can write to even unwritable pte's, but only
+> A  * after we've gone through a COW cycle and they are dirty.
+> + *
+> + * Background:
+> + *
+> + * When we force-write to a read-only page, the page fault
+> + * handler copies the page and sets the new page's PTE to
+> + * RO & DIRTY.A A This routine tells
+> + *
+> + *A A A A A "Can we write to the page?"
+> + *
+> + * by checking:
+> + *
+> + *A A A A A (1) The page has been copied, i.e. FOLL_COW is set;
+> + *A A A A A (2) The copy still exists and its PTE is RO & DIRTY.
+> + *
+> + * However, a shadow stack PTE is always RO & DIRTY; it can
+> + * be:
+> + *
+> + *A A A A A RO & DIRTY_HW: when is_shstk_pte(pte) is true; or
+> + *A A A A A RO & DIRTY_SW: when the page is being shared.
+> + *
+> + * To test a shadow stack's non-sharing page still exists,
+> + * we verify that the new page's PTE is_shstk_pte(pte).
 
-It does not make sense to call set_bit(MMF_UNSTABLE, &mm->flags) again after returning from
-__oom_reap_task_mm() because MMF_UNSTABLE is _aready_ set in the beginning of __oom_reap_task_mm().
+The content is getting there, but we need it next to the code, please.
 
-void __oom_reap_task_mm(struct mm_struct *mm)
+> A  */
+> -static inline bool can_follow_write_pte(pte_t pte, unsigned int flags)
+> +static inline bool can_follow_write(pte_t pte, unsigned int flags,
+> +				A A A A struct vm_area_struct *vma)
+> A {
+> -	return pte_write(pte) ||
+> -		((flags & FOLL_FORCE) && (flags & FOLL_COW) && pte_dirty(pte));
+> +	if (!is_shstk_mapping(vma->vm_flags)) {
+> +		if (pte_write(pte))
+> +			return true;
+
+Let me see if I can say this another way.
+
+The bigger issue is that these patches change the semantics of
+pte_write().  Before these patches, it meant that you *MUST* have this
+bit set to write to the page controlled by the PTE.  Now, it means: you
+can write if this bit is set *OR* the shadowstack bit combination is set.
+
+That's the fundamental problem.  We need some code in the kernel that
+logically represents the concept of "is this PTE a shadowstack PTE or a
+PTE with the write bit set", and we will call that pte_write(), or maybe
+pte_writable().
+
+You *have* to somehow rectify this situation.  We can absolutely no
+leave pte_write() in its current, ambiguous state where it has no real
+meaning or where it is used to mean _both_ things depending on context.
+
+> +		return ((flags & FOLL_FORCE) && (flags & FOLL_COW) &&
+> +			pte_dirty(pte));
+> +	} else {
+> +		return ((flags & FOLL_FORCE) && (flags & FOLL_COW) &&
+> +			is_shstk_pte(pte));
+> +	}
+> A }
+
+Ok, it's rewrite time I guess.
+
+Yu-cheng, you may not know all the history, but this code is actually
+the source of the "Dirty COW" security issue.  We need to be very, very
+careful with it, and super-explicit about all the logic.  This is the
+time to blow up the comments and walk folks through exactly what we
+expect to happen.
+
+Anybody think I'm being too verbose?  Is there a reason not to just go
+whole-hog on this sucker?
+
+static inline bool can_follow_write(pte_t pte, unsigned int flags,
+				    struct vm_area_struct *vma)
 {
-        struct vm_area_struct *vma;
+	/*
+	 * FOLL_FORCE can "write" to hardware read-only PTEs, but
+	 * has to do a COW operation first.  Do not allow the
+	 * hardware protection override unless we see FOLL_FORCE
+	 * *and* the COW has been performed by the fault code.
+	 */
+	bool gup_cow_ok = (flags & FOLL_FORCE) &&
+			  (flags & FOLL_COW);
 
-        /*
-         * Tell all users of get_user/copy_from_user etc... that the content
-         * is no longer stable. No barriers really needed because unmapping
-         * should imply barriers already and the reader would hit a page fault
-         * if it stumbled over a reaped memory. If MMF_UNSTABLE is already set,
-         * reaping as already occurred so nothing left to do.
-         */
-        if (test_and_set_bit(MMF_UNSTABLE, &mm->flags))
-                return;
-(...snipped...)
+	/*
+	 * FOLL_COW flags tell us whether the page fault code did a COW
+	 * operation but not whether the PTE we are dealing with here
+	 * was COW'd.  It could have been zapped and refaulted since the
+	 * COW operation.
+	 */
+	bool pte_cow_ok;
+
+	/* We have two COW pte "formats" */
+	if (!is_shstk_mapping(vma->vm_flags)) {
+		if (pte_write(pte)) {
+			/* Any hardware-writable PTE is writable here */
+			pte_cow_ok = true;
+		} else {
+			/* Is the COW-set dirty bit still there? */
+			pte_cow_ok = pte_dirty(pte));
+		}
+	} else {
+		/* Shadow stack PTEs are always hardware-writable */
+
+		/*
+		 * Shadow stack pages do copy-on-access, so any present
+		 * shadow stack page has had a COW-equivalent performed.
+		 */
+		pte_cow_ok = is_shstk_pte(pte));
+	}
+
+	return gup_cow_ok && pte_cow_ok;
 }
-
-void exit_mmap(struct mm_struct *mm)
-{
-        struct mmu_gather tlb;
-        struct vm_area_struct *vma;
-        unsigned long nr_accounted = 0;
-
-        /* mm's last user has gone, and its about to be pulled down */
-        mmu_notifier_release(mm);
-
-        if (unlikely(mm_is_oom_victim(mm))) {
-                /*
-                 * Manually reap the mm to free as much memory as possible.
-                 * Nothing can be holding mm->mmap_sem here and the above call
-                 * to mmu_notifier_release(mm) ensures mmu notifier callbacks in
-                 * __oom_reap_task_mm() will not block.
-                 */
-                __oom_reap_task_mm(mm);
-
-                /*
-                 * Now, set MMF_UNSTABLE to avoid racing with the oom reaper.
-                 * This needs to be done before calling munlock_vma_pages_all(),
-                 * which clears VM_LOCKED, otherwise the oom reaper cannot
-                 * reliably test for it.  If the oom reaper races with
-                 * munlock_vma_pages_all(), this can result in a kernel oops if
-                 * a pmd is zapped, for example, after follow_page_mask() has
-                 * checked pmd_none().
-                 *
-                 * Taking mm->mmap_sem for write after setting MMF_UNSTABLE will
-                 * guarantee that the oom reaper will not run on this mm again
-                 * after mmap_sem is dropped.
-                 */
-                set_bit(MMF_UNSTABLE, &mm->flags);
-                down_write(&mm->mmap_sem);
-                up_write(&mm->mmap_sem);
-        }
-(...snipped...)
-}
-
->> If the oom_lock serialization is removed, the OOM reaper will give up after (by default)
->> 1 second even if current thread is immediately after set_bit(MMF_UNSTABLE, &mm->flags) from
->> __oom_reap_task_mm() from exit_mmap(). Thus, this patch and the other patch which removes
->> oom_lock serialization should be dropped.
->>
-> 
-> No, it shouldn't, lol.  The oom reaper may give up because we have entered 
-> __oom_reap_task_mm() by way of exit_mmap(), there's no other purpose for 
-> it acting on the mm.  This is very different from giving up by setting 
-> MMF_OOM_SKIP, which it will wait for oom_free_timeout_ms to do unless the 
-> thread can make forward progress here in exit_mmap().
-
-Let's call "A" as a thread doing exit_mmap(), and "B" as the OOM reaper kernel thread.
-
-(1) "A" finds that unlikely(mm_is_oom_victim(mm)) == true.
-(2) "B" finds that test_bit(MMF_OOM_SKIP, &mm->flags) in oom_reap_task() is false.
-(3) "B" finds that !test_bit(MMF_UNSTABLE, &mm->flags) in oom_reap_task() is true.
-(4) "B" enters into oom_reap_task_mm(tsk, mm).
-(5) "B" finds that !down_read_trylock(&mm->mmap_sem) is false.
-(6) "B" finds that mm_has_blockable_invalidate_notifiers(mm) is false.
-(7) "B" finds that test_bit(MMF_UNSTABLE, &mm->flags) is false.
-(8) "B" enters into __oom_reap_task_mm(mm).
-(9) "A" finds that test_and_set_bit(MMF_UNSTABLE, &mm->flags) is false.
-(10) "A" is preempted by somebody else.
-(11) "B" finds that test_and_set_bit(MMF_UNSTABLE, &mm->flags) is true.
-(12) "B" leaves __oom_reap_task_mm(mm).
-(13) "B" leaves oom_reap_task_mm().
-(14) "B" finds that time_after_eq(jiffies, mm->oom_free_expire) became true.
-(15) "B" finds that !test_bit(MMF_OOM_SKIP, &mm->flags) is true.
-(16) "B" calls set_bit(MMF_OOM_SKIP, &mm->flags).
-(17) "B" finds that test_bit(MMF_OOM_SKIP, &mm->flags) is true.
-(18) select_bad_process() finds that MMF_OOM_SKIP is already set.
-(19) out_of_memory() kills a new OOM victim.
-(20) "A" resumes execution and start reclaiming memory.
-
-because oom_lock serialization was already removed.
-
-> 
->>>  		down_write(&mm->mmap_sem);
->>>  		up_write(&mm->mmap_sem);
->>>  	}
->>
->>> @@ -637,25 +649,57 @@ static int oom_reaper(void *unused)
->>>  	return 0;
->>>  }
->>>  
->>> +/*
->>> + * Millisecs to wait for an oom mm to free memory before selecting another
->>> + * victim.
->>> + */
->>> +static u64 oom_free_timeout_ms = 1000;
->>>  static void wake_oom_reaper(struct task_struct *tsk)
->>>  {
->>> -	/* tsk is already queued? */
->>> -	if (tsk == oom_reaper_list || tsk->oom_reaper_list)
->>> +	/*
->>> +	 * Set the reap timeout; if it's already set, the mm is enqueued and
->>> +	 * this tsk can be ignored.
->>> +	 */
->>> +	if (cmpxchg(&tsk->signal->oom_mm->oom_free_expire, 0UL,
->>> +			jiffies + msecs_to_jiffies(oom_free_timeout_ms)))
->>>  		return;
->>
->> "expire" must not be 0 in order to avoid double list_add(). See
->> https://lore.kernel.org/lkml/201807130620.w6D6KiAJ093010@www262.sakura.ne.jp/T/#u .
->>
-> 
-> We should not allow oom_free_timeout_ms to be 0 for sure, I assume 1000 is 
-> the sane minimum since we need to allow time for some memory freeing and 
-> this will not be radically different from what existed before the patch 
-> for the various backoffs.  Or maybe you meant something else for "expire" 
-> here?
-> 
-
-I'm saying that jiffies + msecs_to_jiffies(oom_free_timeout_ms) == 0 will make
-tsk->signal->oom_mm->oom_free_expire == 0 and the list will be corrupted by
-allowing cmpxchg(&tsk->signal->oom_mm->oom_free_expire) to become true for twice.
