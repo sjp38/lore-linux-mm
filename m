@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C63796B02A4
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:41:39 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id p5-v6so1699167edh.16
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:41:39 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id v11-v6si3335343edk.204.2018.07.18.02.41.38
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8188F6B02A4
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:41:40 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id r9-v6so1701703edh.14
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:41:40 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id d7-v6si77849edp.133.2018.07.18.02.41.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 02:41:38 -0700 (PDT)
+        Wed, 18 Jul 2018 02:41:39 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 26/39] x86/mm/pti: Clone CPU_ENTRY_AREA on PMD level on x86_32
-Date: Wed, 18 Jul 2018 11:41:03 +0200
-Message-Id: <1531906876-13451-27-git-send-email-joro@8bytes.org>
+Subject: [PATCH 34/39] x86/ldt: Define LDT_END_ADDR
+Date: Wed, 18 Jul 2018 11:41:11 +0200
+Message-Id: <1531906876-13451-35-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,53 +22,54 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Cloning on the P4D level would clone the complete kernel
-address space into the user-space page-tables for PAE
-kernels. Cloning on PMD level is fine for PAE and legacy
-paging.
+It marks the end of the address-space range reserved for the
+LDT. The LDT-code will use it when unmapping the LDT for
+user-space.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/pti.c | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ arch/x86/include/asm/pgtable_32_types.h | 2 ++
+ arch/x86/include/asm/pgtable_64_types.h | 1 +
+ arch/x86/kernel/ldt.c                   | 2 +-
+ 3 files changed, 4 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index dc02fd4..2eadab0 100644
---- a/arch/x86/mm/pti.c
-+++ b/arch/x86/mm/pti.c
-@@ -348,6 +348,7 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
- 	}
- }
+diff --git a/arch/x86/include/asm/pgtable_32_types.h b/arch/x86/include/asm/pgtable_32_types.h
+index 7297810..b0bc0ff 100644
+--- a/arch/x86/include/asm/pgtable_32_types.h
++++ b/arch/x86/include/asm/pgtable_32_types.h
+@@ -53,6 +53,8 @@ extern bool __vmalloc_start_set; /* set once high_memory is set */
+ #define LDT_BASE_ADDR		\
+ 	((CPU_ENTRY_AREA_BASE - PAGE_SIZE) & PMD_MASK)
  
-+#ifdef CONFIG_X86_64
- /*
-  * Clone a single p4d (i.e. a top-level entry on 4-level systems and a
-  * next-level entry on 5-level systems.
-@@ -371,6 +372,25 @@ static void __init pti_clone_user_shared(void)
- 	pti_clone_p4d(CPU_ENTRY_AREA_BASE);
- }
++#define LDT_END_ADDR		(LDT_BASE_ADDR + PMD_SIZE)
++
+ #define PKMAP_BASE		\
+ 	((LDT_BASE_ADDR - PAGE_SIZE) & PMD_MASK)
  
-+#else /* CONFIG_X86_64 */
-+
-+/*
-+ * On 32 bit PAE systems with 1GB of Kernel address space there is only
-+ * one pgd/p4d for the whole kernel. Cloning that would map the whole
-+ * address space into the user page-tables, making PTI useless. So clone
-+ * the page-table on the PMD level to prevent that.
-+ */
-+static void __init pti_clone_user_shared(void)
-+{
-+	unsigned long start, end;
-+
-+	start = CPU_ENTRY_AREA_BASE;
-+	end   = start + (PAGE_SIZE * CPU_ENTRY_AREA_PAGES);
-+
-+	pti_clone_pmds(start, end, 0);
-+}
-+#endif /* CONFIG_X86_64 */
-+
- /*
-  * Clone the ESPFIX P4D into the user space visible page table
-  */
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index 066e0ab..04edd2d 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -115,6 +115,7 @@ extern unsigned int ptrs_per_p4d;
+ #define LDT_PGD_ENTRY_L5	-112UL
+ #define LDT_PGD_ENTRY		(pgtable_l5_enabled() ? LDT_PGD_ENTRY_L5 : LDT_PGD_ENTRY_L4)
+ #define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
++#define LDT_END_ADDR		(LDT_BASE_ADDR + PGDIR_SIZE)
+ 
+ #define __VMALLOC_BASE_L4	0xffffc90000000000UL
+ #define __VMALLOC_BASE_L5 	0xffa0000000000000UL
+diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
+index c9b1402..e921b3d 100644
+--- a/arch/x86/kernel/ldt.c
++++ b/arch/x86/kernel/ldt.c
+@@ -206,7 +206,7 @@ static void free_ldt_pgtables(struct mm_struct *mm)
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
+ 	struct mmu_gather tlb;
+ 	unsigned long start = LDT_BASE_ADDR;
+-	unsigned long end = start + (1UL << PGDIR_SHIFT);
++	unsigned long end = LDT_END_ADDR;
+ 
+ 	if (!static_cpu_has(X86_FEATURE_PTI))
+ 		return;
 -- 
 2.7.4
