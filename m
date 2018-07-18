@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AC566B02AF
+	by kanga.kvack.org (Postfix) with ESMTP id B23986B02AF
 	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:41:43 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id d5-v6so1699856edq.3
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:41:42 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id p5-v6si2761541eda.158.2018.07.18.02.41.41
+Received: by mail-ed1-f70.google.com with SMTP id g11-v6so1631636edi.8
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:41:43 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id j8-v6si2471765ede.97.2018.07.18.02.41.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 02:41:41 -0700 (PDT)
+        Wed, 18 Jul 2018 02:41:42 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 38/39] x86/mm/pti: Add Warning when booting on a PCID capable CPU
-Date: Wed, 18 Jul 2018 11:41:15 +0200
-Message-Id: <1531906876-13451-39-git-send-email-joro@8bytes.org>
+Subject: [PATCH 36/39] x86/ldt: Enable LDT user-mapping for PAE
+Date: Wed, 18 Jul 2018 11:41:13 +0200
+Message-Id: <1531906876-13451-37-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,47 +22,105 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Warn the user in case the performance can be significantly
-improved by switching to a 64-bit kernel.
+This adds the needed special case for PAE to get the LDT
+mapped into the user page-table when PTI is enabled. The big
+difference to the other paging modes is that we don't have a
+full top-level PGD entry available for the LDT, but only PMD
+entry.
 
-Suggested-by: Andy Lutomirski <luto@kernel.org>
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/pti.c | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ arch/x86/include/asm/mmu_context.h |  5 ----
+ arch/x86/kernel/ldt.c              | 53 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 5 deletions(-)
 
-diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index b879ccd..be8d2cd 100644
---- a/arch/x86/mm/pti.c
-+++ b/arch/x86/mm/pti.c
-@@ -517,6 +517,28 @@ void __init pti_init(void)
+diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
+index bbc796e..eeeb928 100644
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -71,12 +71,7 @@ struct ldt_struct {
  
- 	pr_info("enabled\n");
+ static inline void *ldt_slot_va(int slot)
+ {
+-#ifdef CONFIG_X86_64
+ 	return (void *)(LDT_BASE_ADDR + LDT_SLOT_STRIDE * slot);
+-#else
+-	BUG();
+-	return (void *)fix_to_virt(FIX_HOLE);
+-#endif
+ }
  
-+#ifdef CONFIG_X86_32
-+	/*
-+	 * We check for X86_FEATURE_PCID here. But the init-code will
-+	 * clear the feature flag on 32 bit because the feature is not
-+	 * supported on 32 bit anyway. To print the warning we need to
-+	 * check with cpuid directly again.
-+	 */
-+	if (cpuid_ecx(0x1) && BIT(17)) {
-+		/* Use printk to work around pr_fmt() */
-+		printk(KERN_WARNING "\n");
-+		printk(KERN_WARNING "************************************************************\n");
-+		printk(KERN_WARNING "** WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!  **\n");
-+		printk(KERN_WARNING "**                                                        **\n");
-+		printk(KERN_WARNING "** You are using 32-bit PTI on a 64-bit PCID-capable CPU. **\n");
-+		printk(KERN_WARNING "** Your performance will increase dramatically if you     **\n");
-+		printk(KERN_WARNING "** switch to a 64-bit kernel!                             **\n");
-+		printk(KERN_WARNING "**                                                        **\n");
-+		printk(KERN_WARNING "** WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!  **\n");
-+		printk(KERN_WARNING "************************************************************\n");
-+	}
-+#endif
+ /*
+diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
+index 69af9a0..733e6ac 100644
+--- a/arch/x86/kernel/ldt.c
++++ b/arch/x86/kernel/ldt.c
+@@ -126,6 +126,57 @@ static void do_sanity_check(struct mm_struct *mm,
+ 	}
+ }
+ 
++#ifdef CONFIG_X86_PAE
 +
- 	pti_clone_user_shared();
++static pmd_t *pgd_to_pmd_walk(pgd_t *pgd, unsigned long va)
++{
++	p4d_t *p4d;
++	pud_t *pud;
++
++	if (pgd->pgd == 0)
++		return NULL;
++
++	p4d = p4d_offset(pgd, va);
++	if (p4d_none(*p4d))
++		return NULL;
++
++	pud = pud_offset(p4d, va);
++	if (pud_none(*pud))
++		return NULL;
++
++	return pmd_offset(pud, va);
++}
++
++static void map_ldt_struct_to_user(struct mm_struct *mm)
++{
++	pgd_t *k_pgd = pgd_offset(mm, LDT_BASE_ADDR);
++	pgd_t *u_pgd = kernel_to_user_pgdp(k_pgd);
++	pmd_t *k_pmd, *u_pmd;
++
++	k_pmd = pgd_to_pmd_walk(k_pgd, LDT_BASE_ADDR);
++	u_pmd = pgd_to_pmd_walk(u_pgd, LDT_BASE_ADDR);
++
++	if (static_cpu_has(X86_FEATURE_PTI) && !mm->context.ldt)
++		set_pmd(u_pmd, *k_pmd);
++}
++
++static void sanity_check_ldt_mapping(struct mm_struct *mm)
++{
++	pgd_t *k_pgd = pgd_offset(mm, LDT_BASE_ADDR);
++	pgd_t *u_pgd = kernel_to_user_pgdp(k_pgd);
++	bool had_kernel, had_user;
++	pmd_t *k_pmd, *u_pmd;
++
++	k_pmd      = pgd_to_pmd_walk(k_pgd, LDT_BASE_ADDR);
++	u_pmd      = pgd_to_pmd_walk(u_pgd, LDT_BASE_ADDR);
++	had_kernel = (k_pmd->pmd != 0);
++	had_user   = (u_pmd->pmd != 0);
++
++	do_sanity_check(mm, had_kernel, had_user);
++}
++
++#else /* !CONFIG_X86_PAE */
++
+ static void map_ldt_struct_to_user(struct mm_struct *mm)
+ {
+ 	pgd_t *pgd = pgd_offset(mm, LDT_BASE_ADDR);
+@@ -143,6 +194,8 @@ static void sanity_check_ldt_mapping(struct mm_struct *mm)
+ 	do_sanity_check(mm, had_kernel, had_user);
+ }
  
- 	/* Undo all global bits from the init pagetables in head_64.S: */
++#endif /* CONFIG_X86_PAE */
++
+ /*
+  * If PTI is enabled, this maps the LDT into the kernelmode and
+  * usermode tables for the given mm.
 -- 
 2.7.4
