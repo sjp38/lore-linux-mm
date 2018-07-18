@@ -1,72 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CB176B0003
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 00:23:10 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id w7-v6so1414033pgv.1
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 21:23:10 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id m13-v6si2217763pls.70.2018.07.17.21.23.08
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BDA46B0003
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 03:12:43 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id e23-v6so3439726oii.10
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 00:12:43 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id t187-v6si1812131oie.262.2018.07.18.00.12.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 21:23:08 -0700 (PDT)
-Date: Tue, 17 Jul 2018 21:23:07 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Showing /sys/fs/cgroup/memory/memory.stat very slow on some
- machines
-Message-Id: <20180717212307.d6803a3b0bbfeb32479c1e26@linux-foundation.org>
-In-Reply-To: <CAOm-9arwY3VLUx5189JAR9J7B=Miad9nQjjet_VNdT3i+J+5FA@mail.gmail.com>
-References: <CAOm-9arwY3VLUx5189JAR9J7B=Miad9nQjjet_VNdT3i+J+5FA@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 18 Jul 2018 00:12:42 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6I78df4031217
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 03:12:41 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2ka03k21ky-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 03:12:41 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Wed, 18 Jul 2018 08:12:38 +0100
+Date: Wed, 18 Jul 2018 10:12:31 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: kernel BUG at fs/userfaultfd.c:LINE! (2)
+References: <000000000000dcb1a1057112c66a@google.com>
+ <20180717192806.GI75957@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180717192806.GI75957@gmail.com>
+Message-Id: <20180718071230.GA4302@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bruce Merry <bmerry@ska.ac.za>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Eric Biggers <ebiggers3@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, syzbot <syzbot+121be635a7a35ddb7dcb@syzkaller.appspotmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk
 
-(cc linux-mm)
+On Tue, Jul 17, 2018 at 12:28:06PM -0700, Eric Biggers wrote:
+> [+Cc userfaultfd developers and linux-mm]
+> 
+> The reproducer hits the BUG_ON() in userfaultfd_release():
+> 
+> 	BUG_ON(!!vma->vm_userfaultfd_ctx.ctx ^
+> 	       !!(vma->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP)));
 
-On Tue, 3 Jul 2018 08:43:23 +0200 Bruce Merry <bmerry@ska.ac.za> wrote:
+Thanks for the CC.
 
-> Hi
-> 
-> I've run into an odd performance issue in the kernel, and not being a
-> kernel dev or knowing terribly much about cgroups, am looking for
-> advice on diagnosing the problem further (I discovered this while
-> trying to pin down high CPU load in cadvisor).
-> 
-> On some machines in our production system, cat
-> /sys/fs/cgroup/memory/memory.stat is extremely slow (500ms on one
-> machine), while on other nominally identical machines it is fast
-> (2ms).
-> 
-> One other thing I've noticed is that the affected machines generally
-> have much larger values for SUnreclaim in /proc/memstat (up to several
-> GB), and slabtop reports >1GB of dentry.
-> 
-> Before I tracked the original problem (high CPU usage in cadvisor)
-> down to this, I rebooted one of the machines and the original problem
-> went away, so it seems to be cleared by a reboot; I'm reluctant to
-> reboot more machines to confirm since I don't have a sure-fire way to
-> reproduce the problem again to debug it.
-> 
-> The machines are running Ubuntu 16.04 with kernel 4.13.0-41-generic.
-> They're running Docker, which creates a bunch of cgroups, but not an
-> excessive number: there are 106 memory.stat files in
-> /sys/fs/cgroup/memory.
-> 
-> Digging a bit further, cat
-> /sys/fs/cgroup/memory/system.slice/memory.stat also takes ~500ms, but
-> "find /sys/fs/cgroup/memory/system.slice -mindepth 2 -name memory.stat
-> | xargs cat" takes only 8ms.
-> 
-> Any thoughts, particularly on what I should compare between the good
-> and bad machines to narrow down the cause, or even better, how to
-> prevent it happening?
-> 
-> Thanks
-> Bruce
-> -- 
-> Bruce Merry
-> Senior Science Processing Developer
-> SKA South Africa
+The fix is below.
+
+--
+Sincerely yours,
+Mike.
