@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CAF16B02AD
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:41:42 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id y14-v6so1688103edo.21
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AC566B02AF
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:41:43 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id d5-v6so1699856edq.3
         for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:41:42 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id l56-v6si2671942edd.239.2018.07.18.02.41.41
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id p5-v6si2761541eda.158.2018.07.18.02.41.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 18 Jul 2018 02:41:41 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 37/39] x86/pti: Allow CONFIG_PAGE_TABLE_ISOLATION for x86_32
-Date: Wed, 18 Jul 2018 11:41:14 +0200
-Message-Id: <1531906876-13451-38-git-send-email-joro@8bytes.org>
+Subject: [PATCH 38/39] x86/mm/pti: Add Warning when booting on a PCID capable CPU
+Date: Wed, 18 Jul 2018 11:41:15 +0200
+Message-Id: <1531906876-13451-39-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,25 +22,47 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Allow PTI to be compiled on x86_32.
+Warn the user in case the performance can be significantly
+improved by switching to a 64-bit kernel.
 
+Suggested-by: Andy Lutomirski <luto@kernel.org>
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- security/Kconfig | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/x86/mm/pti.c | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
 
-diff --git a/security/Kconfig b/security/Kconfig
-index c430206..afa91c6 100644
---- a/security/Kconfig
-+++ b/security/Kconfig
-@@ -57,7 +57,7 @@ config SECURITY_NETWORK
- config PAGE_TABLE_ISOLATION
- 	bool "Remove the kernel mapping in user mode"
- 	default y
--	depends on X86_64 && !UML
-+	depends on X86 && !UML
- 	help
- 	  This feature reduces the number of hardware side channels by
- 	  ensuring that the majority of kernel addresses are not mapped
+diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+index b879ccd..be8d2cd 100644
+--- a/arch/x86/mm/pti.c
++++ b/arch/x86/mm/pti.c
+@@ -517,6 +517,28 @@ void __init pti_init(void)
+ 
+ 	pr_info("enabled\n");
+ 
++#ifdef CONFIG_X86_32
++	/*
++	 * We check for X86_FEATURE_PCID here. But the init-code will
++	 * clear the feature flag on 32 bit because the feature is not
++	 * supported on 32 bit anyway. To print the warning we need to
++	 * check with cpuid directly again.
++	 */
++	if (cpuid_ecx(0x1) && BIT(17)) {
++		/* Use printk to work around pr_fmt() */
++		printk(KERN_WARNING "\n");
++		printk(KERN_WARNING "************************************************************\n");
++		printk(KERN_WARNING "** WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!  **\n");
++		printk(KERN_WARNING "**                                                        **\n");
++		printk(KERN_WARNING "** You are using 32-bit PTI on a 64-bit PCID-capable CPU. **\n");
++		printk(KERN_WARNING "** Your performance will increase dramatically if you     **\n");
++		printk(KERN_WARNING "** switch to a 64-bit kernel!                             **\n");
++		printk(KERN_WARNING "**                                                        **\n");
++		printk(KERN_WARNING "** WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!  **\n");
++		printk(KERN_WARNING "************************************************************\n");
++	}
++#endif
++
+ 	pti_clone_user_shared();
+ 
+ 	/* Undo all global bits from the init pagetables in head_64.S: */
 -- 
 2.7.4
