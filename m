@@ -1,86 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E5A046B000E
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 14:39:51 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id i9-v6so3984241qtj.3
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:39:51 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id h195-v6si4174315qke.31.2018.07.18.11.39.50
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A88136B0003
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 14:43:57 -0400 (EDT)
+Received: by mail-ua0-f199.google.com with SMTP id r6-v6so1873714uan.7
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:43:57 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id o3-v6sor1850890uae.20.2018.07.18.11.43.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 11:39:50 -0700 (PDT)
-Subject: Re: [PATCH v6 0/7] fs/dcache: Track & limit # of negative dentries
-References: <18c5cbfe-403b-bb2b-1d11-19d324ec6234@redhat.com>
- <1531336913.3260.18.camel@HansenPartnership.com>
- <4d49a270-23c9-529f-f544-65508b6b53cc@redhat.com>
- <1531411494.18255.6.camel@HansenPartnership.com>
- <20180712164932.GA3475@bombadil.infradead.org>
- <1531416080.18255.8.camel@HansenPartnership.com>
- <CA+55aFzfQz7c8pcMfLDaRNReNF2HaKJGoWpgB6caQjNAyjg-hA@mail.gmail.com>
- <1531425435.18255.17.camel@HansenPartnership.com>
- <20180713003614.GW2234@dastard> <20180716090901.GG17280@dhcp22.suse.cz>
- <20180716124115.GA7072@bombadil.infradead.org>
- <20180716164032.94e13f765c5f33c6022eca38@linux-foundation.org>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <d37af7a4-b9a9-0928-eed0-10ab818d08c0@redhat.com>
-Date: Wed, 18 Jul 2018 14:39:48 -0400
+        (Google Transport Security);
+        Wed, 18 Jul 2018 11:43:56 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180716164032.94e13f765c5f33c6022eca38@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
+In-Reply-To: <CALvZod77dzc2qxQ4=Xc8P-Yup7fks37Nron0WHV_-q9PyoDaBg@mail.gmail.com>
+References: <CAOm-9arwY3VLUx5189JAR9J7B=Miad9nQjjet_VNdT3i+J+5FA@mail.gmail.com>
+ <20180717212307.d6803a3b0bbfeb32479c1e26@linux-foundation.org>
+ <20180718104230.GC1431@dhcp22.suse.cz> <CAOm-9aqeKZ7+Jvhc5DxEEzbk4T0iQx8gZ=O1vy6YXnbOkncFsg@mail.gmail.com>
+ <CALvZod7_vPwqyLBxiecZtREEeY4hioCGnZWVhQx9wVdM8CFcog@mail.gmail.com>
+ <CAOm-9aprLokqi6awMvi0NbkriZBpmvnBA81QhOoHnK7ZEA96fw@mail.gmail.com>
+ <CALvZod4ag02N6QPwRQCYv663hj05Z6vtrK8=XEE6uWHQCL4yRw@mail.gmail.com>
+ <CAOm-9arxtTwNxXzmb8nN+N_UtjiuH0XkpkVPFHpi3EOYXvZYVA@mail.gmail.com>
+ <CALvZod5UsYzNs_FJqy2U4HiZ+SdKzKZtzdK1OYcV7v_91kqn8A@mail.gmail.com>
+ <CAOm-9aocfOOFODdGn2Gz236_PKaff++6S0U0bTj9eOPnRwM-_w@mail.gmail.com> <CALvZod77dzc2qxQ4=Xc8P-Yup7fks37Nron0WHV_-q9PyoDaBg@mail.gmail.com>
+From: Bruce Merry <bmerry@ska.ac.za>
+Date: Wed, 18 Jul 2018 20:43:55 +0200
+Message-ID: <CAOm-9apU_qYR+nmRur-hdPneuv_Y8v2f_Rub6Tsxc98+AuSiZg@mail.gmail.com>
+Subject: Re: Showing /sys/fs/cgroup/memory/memory.stat very slow on some machines
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Dave Chinner <david@fromorbit.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On 07/16/2018 07:40 PM, Andrew Morton wrote:
-> On Mon, 16 Jul 2018 05:41:15 -0700 Matthew Wilcox <willy@infradead.org>=
- wrote:
+On 18 July 2018 at 20:13, Shakeel Butt <shakeelb@google.com> wrote:
+> On Wed, Jul 18, 2018 at 10:58 AM Bruce Merry <bmerry@ska.ac.za> wrote:
+> Yes, if there is no memory pressure such memory can stay around.
 >
->> On Mon, Jul 16, 2018 at 11:09:01AM +0200, Michal Hocko wrote:
->>> On Fri 13-07-18 10:36:14, Dave Chinner wrote:
->>> [...]
->>>> By limiting the number of negative dentries in this case, internal
->>>> slab fragmentation is reduced such that reclaim cost never gets out
->>>> of control. While it appears to "fix" the symptoms, it doesn't
->>>> address the underlying problem. It is a partial solution at best but=
+> On your production machine, before deleting memory containers, you can
+> try force_empty to reclaim such memory from them. See if that helps.
 
->>>> at worst it's another opaque knob that nobody knows how or when to
->>>> tune.
->>> Would it help to put all the negative dentries into its own slab cach=
-e?
->> Maybe the dcache should be more sensitive to its own needs.  In __d_al=
-loc,
->> it could check whether there are a high proportion of negative dentrie=
-s
->> and start recycling some existing negative dentries.
-> Well, yes.
->
-> The proposed patchset adds all this background reclaiming.  Problem is
-> a) that background reclaiming sometimes can't keep up so a synchronous
-> direct-reclaim was added on top and b) reclaiming dentries in the
-> background will cause non-dentry-allocating tasks to suffer because of
-> activity from the dentry-allocating tasks, which is inappropriate.
+Thanks. At the moment the cgroups are all managed by systemd and
+docker, but I'll keep that in mind while experimenting.
 
-I have taken out the background reclaiming in the latest v7 patch for
-the concern people have on duplicating the reclaim effort. We can always
-add it back on later on if we want to.
-
-> I expect a better design is something like
->
-> __d_alloc()
-> {
-> 	...
-> 	while (too many dentries)
-> 		call the dcache shrinker
-> 	...
-> }
->
-> and that's it.  This way we have a hard upper limit and only the tasks
-> which are creating dentries suffer the cost.
-
-Yes, that is certainly one way of doing it.
-
-Cheers,
-Longman
+Bruce
+-- 
+Bruce Merry
+Senior Science Processing Developer
+SKA South Africa
