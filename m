@@ -1,71 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AA146B000C
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 14:36:24 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id az8-v6so3006177plb.15
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:36:24 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 188-v6si4091584pfg.154.2018.07.18.11.36.23
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E5A046B000E
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 14:39:51 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id i9-v6so3984241qtj.3
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:39:51 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id h195-v6si4174315qke.31.2018.07.18.11.39.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 18 Jul 2018 11:36:23 -0700 (PDT)
-Date: Wed, 18 Jul 2018 11:36:21 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2] mm: disallow mapping that conflict for
- devm_memremap_pages()
-Message-ID: <20180718183621.GE4949@bombadil.infradead.org>
-References: <152909478401.50143.312364396244072931.stgit@djiang5-desk3.ch.intel.com>
- <x49efg04cx8.fsf@segfault.boston.devel.redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Jul 2018 11:39:50 -0700 (PDT)
+Subject: Re: [PATCH v6 0/7] fs/dcache: Track & limit # of negative dentries
+References: <18c5cbfe-403b-bb2b-1d11-19d324ec6234@redhat.com>
+ <1531336913.3260.18.camel@HansenPartnership.com>
+ <4d49a270-23c9-529f-f544-65508b6b53cc@redhat.com>
+ <1531411494.18255.6.camel@HansenPartnership.com>
+ <20180712164932.GA3475@bombadil.infradead.org>
+ <1531416080.18255.8.camel@HansenPartnership.com>
+ <CA+55aFzfQz7c8pcMfLDaRNReNF2HaKJGoWpgB6caQjNAyjg-hA@mail.gmail.com>
+ <1531425435.18255.17.camel@HansenPartnership.com>
+ <20180713003614.GW2234@dastard> <20180716090901.GG17280@dhcp22.suse.cz>
+ <20180716124115.GA7072@bombadil.infradead.org>
+ <20180716164032.94e13f765c5f33c6022eca38@linux-foundation.org>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <d37af7a4-b9a9-0928-eed0-10ab818d08c0@redhat.com>
+Date: Wed, 18 Jul 2018 14:39:48 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <x49efg04cx8.fsf@segfault.boston.devel.redhat.com>
+In-Reply-To: <20180716164032.94e13f765c5f33c6022eca38@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: Dave Jiang <dave.jiang@intel.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Dave Chinner <david@fromorbit.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>
 
-On Wed, Jul 18, 2018 at 02:27:31PM -0400, Jeff Moyer wrote:
-> Hi, Dave,
-> 
-> Dave Jiang <dave.jiang@intel.com> writes:
-> 
-> > When pmem namespaces created are smaller than section size, this can cause
-> > issue during removal and gpf was observed:
-> >
-> > Add code to check whether we have mapping already in the same section and
-> > prevent additional mapping from created if that is the case.
-> >
-> > Signed-off-by: Dave Jiang <dave.jiang@intel.com>
-> > ---
-> >
-> > v2: Change dev_warn() to dev_WARN() to provide helpful backtrace. (Robert E)
-> 
-> OK, I can reproduce the issue.  What I don't like about your patch is
-> that you can still get yourself into trouble.  Just create a namespace
-> with a size that isn't aligned to 128MB, and then all further
-> create-namespace operations will fail.  The only "fix" is to delete the
-> odd-sized namespace and try again.  And that warning message doesn't
-> really help the administrator to figure this out.
-> 
-> Why can't we simply round up to the next section automatically?  Either
-> that, or have the kernel export a minimum namespace size of 128MB, and
-> have ndctl enforce it?  I know we had some requests for 4MB namespaces,
-> but it doesn't sound like those will be very useful if they're going to
-> waste 124MB of space.
-> 
-> Or, we could try to fix this problem of having multiple namespace
-> co-exist in the same memblock section.  That seems like the most obvious
-> fix, but there must be a reason you didn't pursue it.
-> 
-> Dave, what do you think is the most viable option?
+On 07/16/2018 07:40 PM, Andrew Morton wrote:
+> On Mon, 16 Jul 2018 05:41:15 -0700 Matthew Wilcox <willy@infradead.org>=
+ wrote:
+>
+>> On Mon, Jul 16, 2018 at 11:09:01AM +0200, Michal Hocko wrote:
+>>> On Fri 13-07-18 10:36:14, Dave Chinner wrote:
+>>> [...]
+>>>> By limiting the number of negative dentries in this case, internal
+>>>> slab fragmentation is reduced such that reclaim cost never gets out
+>>>> of control. While it appears to "fix" the symptoms, it doesn't
+>>>> address the underlying problem. It is a partial solution at best but=
 
-Just as a reminder, the desire for small pmem devices comes from cloud
-usecases where you have teeny tiny layers, each of which might contain a
-single package (eg a webserver or a database).  Because you're going to
-run tens of thousands of instances, you don't want each machine to keep
-a copy of the program text in pagecache; you want to have it in-memory
-once and then DAX-map it in each guest.
+>>>> at worst it's another opaque knob that nobody knows how or when to
+>>>> tune.
+>>> Would it help to put all the negative dentries into its own slab cach=
+e?
+>> Maybe the dcache should be more sensitive to its own needs.  In __d_al=
+loc,
+>> it could check whether there are a high proportion of negative dentrie=
+s
+>> and start recycling some existing negative dentries.
+> Well, yes.
+>
+> The proposed patchset adds all this background reclaiming.  Problem is
+> a) that background reclaiming sometimes can't keep up so a synchronous
+> direct-reclaim was added on top and b) reclaiming dentries in the
+> background will cause non-dentry-allocating tasks to suffer because of
+> activity from the dentry-allocating tasks, which is inappropriate.
 
-While it's OK to waste a certain amount of each guest's physical memory,
-when you have hundreds or thousands of these tiny layers, it adds up.
+I have taken out the background reclaiming in the latest v7 patch for
+the concern people have on duplicating the reclaim effort. We can always
+add it back on later on if we want to.
+
+> I expect a better design is something like
+>
+> __d_alloc()
+> {
+> 	...
+> 	while (too many dentries)
+> 		call the dcache shrinker
+> 	...
+> }
+>
+> and that's it.  This way we have a hard upper limit and only the tasks
+> which are creating dentries suffer the cost.
+
+Yes, that is certainly one way of doing it.
+
+Cheers,
+Longman
