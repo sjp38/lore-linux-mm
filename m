@@ -1,52 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 24B6B6B0279
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:36:58 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id cf17-v6so2784120plb.2
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 08:36:58 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id w9-v6si3346665ply.462.2018.07.18.08.36.57
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 56CB16B027C
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:37:45 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id 11-v6so1796176vko.21
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 08:37:45 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y43-v6sor150969uac.184.2018.07.18.08.37.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 08:36:57 -0700 (PDT)
-Subject: Re: [PATCH v14 08/22] selftests/vm: fix the wrong assert in
- pkey_disable_set()
-References: <1531835365-32387-1-git-send-email-linuxram@us.ibm.com>
- <1531835365-32387-9-git-send-email-linuxram@us.ibm.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <b8ace761-2140-afce-a1d4-fc2a27c8fd9e@intel.com>
-Date: Wed, 18 Jul 2018 08:36:50 -0700
+        (Google Transport Security);
+        Wed, 18 Jul 2018 08:37:44 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1531835365-32387-9-git-send-email-linuxram@us.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <CALvZod7_vPwqyLBxiecZtREEeY4hioCGnZWVhQx9wVdM8CFcog@mail.gmail.com>
+References: <CAOm-9arwY3VLUx5189JAR9J7B=Miad9nQjjet_VNdT3i+J+5FA@mail.gmail.com>
+ <20180717212307.d6803a3b0bbfeb32479c1e26@linux-foundation.org>
+ <20180718104230.GC1431@dhcp22.suse.cz> <CAOm-9aqeKZ7+Jvhc5DxEEzbk4T0iQx8gZ=O1vy6YXnbOkncFsg@mail.gmail.com>
+ <CALvZod7_vPwqyLBxiecZtREEeY4hioCGnZWVhQx9wVdM8CFcog@mail.gmail.com>
+From: Bruce Merry <bmerry@ska.ac.za>
+Date: Wed, 18 Jul 2018 17:37:43 +0200
+Message-ID: <CAOm-9aprLokqi6awMvi0NbkriZBpmvnBA81QhOoHnK7ZEA96fw@mail.gmail.com>
+Subject: Re: Showing /sys/fs/cgroup/memory/memory.stat very slow on some machines
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>, shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org
-Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, mingo@redhat.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, fweimer@redhat.com, msuchanek@suse.de, aneesh.kumar@linux.vnet.ibm.com
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On 07/17/2018 06:49 AM, Ram Pai wrote:
-> If the flag is 0, no bits will be set. Hence we cant expect
-> the resulting bitmap to have a higher value than what it
-> was earlier.
-...
-> --- a/tools/testing/selftests/vm/protection_keys.c
-> +++ b/tools/testing/selftests/vm/protection_keys.c
-> @@ -415,7 +415,7 @@ void pkey_disable_set(int pkey, int flags)
->  	dprintf1("%s(%d) pkey_reg: 0x"PKEY_REG_FMT"\n",
->  		__func__, pkey, read_pkey_reg());
->  	if (flags)
-> -		pkey_assert(read_pkey_reg() > orig_pkey_reg);
-> +		pkey_assert(read_pkey_reg() >= orig_pkey_reg);
->  	dprintf1("END<---%s(%d, 0x%x)\n", __func__,
->  		pkey, flags);
->  }
+On 18 July 2018 at 17:26, Shakeel Butt <shakeelb@google.com> wrote:
+> On Wed, Jul 18, 2018 at 7:29 AM Bruce Merry <bmerry@ska.ac.za> wrote:
+> It seems like you are using cgroup-v1. How many nodes are there in
+> your memcg tree and also how many cpus does the system have?
 
-I know these are just selftests, but this change makes zero sense
-without the context from how powerpc works.  It's also totally
-non-obvious from the patch itself what is going on, even though I
-specifically called this out in a previous review.
+>From my original email: "there are 106 memory.stat files in
+/sys/fs/cgroup/memory." - is that what you mean by the number of
+nodes?
 
-Please add a comment here that either specifically calls out powerpc or
-talks about "an architecture that does this ..."
+The affected systems all have 8 CPU cores (hyperthreading is disabled).
+
+> Please note that memcg_stat_show or reading memory.stat in cgroup-v1
+> is not optimized as cgroup-v2. The function memcg_stat_show() in 4.13
+> does ~17 tree walks and then for ~12 of those tree walks, it goes
+> through all cpus for each node in the memcg tree. In 4.16,
+> a983b5ebee57 ("mm: memcontrol: fix excessive complexity in memory.stat
+> reporting") optimizes aways the cpu traversal at the expense of some
+> accuracy. Next optimization would be to do just one memcg tree
+> traversal similar to cgroup-v2's memory_stat_show().
+
+On most machines it is still fast (1-2ms), and there is no difference
+in the number of CPUs and only very small differences in the number of
+live memory cgroups, so presumably something else is going on.
+
+> The memcg tree does include all zombie memcgs and these zombies does
+> contribute to the memcg_stat_show cost.
+
+That sounds promising. Is there any way to tell how many zombies there
+are, and is there any way to deliberately create zombies? If I can
+produce zombies that might give me a reliable way to reproduce the
+problem, which could then sensibly be tested against newer kernel
+versions.
+
+Thanks
+Bruce
+-- 
+Bruce Merry
+Senior Science Processing Developer
+SKA South Africa
