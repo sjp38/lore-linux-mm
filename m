@@ -1,74 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B87BD6B0008
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:49:22 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id w2-v6so2138889wrt.13
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 08:49:22 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r1-v6sor1917553wrm.62.2018.07.18.08.49.21
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DA9D6B000C
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:53:59 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id v9-v6so2523519pff.4
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 08:53:59 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id b4-v6si3384946pgc.654.2018.07.18.08.53.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 18 Jul 2018 08:49:21 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Jul 2018 08:53:58 -0700 (PDT)
+Subject: Re: [PATCH v14 11/22] selftests/vm: introduce two arch independent
+ abstraction
+References: <1531835365-32387-1-git-send-email-linuxram@us.ibm.com>
+ <1531835365-32387-12-git-send-email-linuxram@us.ibm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <5c557b14-8898-9afc-ba9e-3e5ab2e0aa31@intel.com>
+Date: Wed, 18 Jul 2018 08:52:57 -0700
 MIME-Version: 1.0
-References: <CAOm-9arwY3VLUx5189JAR9J7B=Miad9nQjjet_VNdT3i+J+5FA@mail.gmail.com>
- <20180717212307.d6803a3b0bbfeb32479c1e26@linux-foundation.org>
- <20180718104230.GC1431@dhcp22.suse.cz> <CAOm-9aqeKZ7+Jvhc5DxEEzbk4T0iQx8gZ=O1vy6YXnbOkncFsg@mail.gmail.com>
- <CALvZod7_vPwqyLBxiecZtREEeY4hioCGnZWVhQx9wVdM8CFcog@mail.gmail.com> <CAOm-9aprLokqi6awMvi0NbkriZBpmvnBA81QhOoHnK7ZEA96fw@mail.gmail.com>
-In-Reply-To: <CAOm-9aprLokqi6awMvi0NbkriZBpmvnBA81QhOoHnK7ZEA96fw@mail.gmail.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Wed, 18 Jul 2018 08:49:09 -0700
-Message-ID: <CALvZod4ag02N6QPwRQCYv663hj05Z6vtrK8=XEE6uWHQCL4yRw@mail.gmail.com>
-Subject: Re: Showing /sys/fs/cgroup/memory/memory.stat very slow on some machines
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <1531835365-32387-12-git-send-email-linuxram@us.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bmerry@ska.ac.za
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Ram Pai <linuxram@us.ibm.com>, shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org
+Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, mingo@redhat.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, fweimer@redhat.com, msuchanek@suse.de, aneesh.kumar@linux.vnet.ibm.com
 
-On Wed, Jul 18, 2018 at 8:37 AM Bruce Merry <bmerry@ska.ac.za> wrote:
->
-> On 18 July 2018 at 17:26, Shakeel Butt <shakeelb@google.com> wrote:
-> > On Wed, Jul 18, 2018 at 7:29 AM Bruce Merry <bmerry@ska.ac.za> wrote:
-> > It seems like you are using cgroup-v1. How many nodes are there in
-> > your memcg tree and also how many cpus does the system have?
->
-> From my original email: "there are 106 memory.stat files in
-> /sys/fs/cgroup/memory." - is that what you mean by the number of
-> nodes?
+On 07/17/2018 06:49 AM, Ram Pai wrote:
+> open_hugepage_file() <- opens the huge page file
 
-Yes but it seems like your system might be suffering with zombies.
+Folks, a sentence here would be nice:
 
->
-> The affected systems all have 8 CPU cores (hyperthreading is disabled).
->
-> > Please note that memcg_stat_show or reading memory.stat in cgroup-v1
-> > is not optimized as cgroup-v2. The function memcg_stat_show() in 4.13
-> > does ~17 tree walks and then for ~12 of those tree walks, it goes
-> > through all cpus for each node in the memcg tree. In 4.16,
-> > a983b5ebee57 ("mm: memcontrol: fix excessive complexity in memory.stat
-> > reporting") optimizes aways the cpu traversal at the expense of some
-> > accuracy. Next optimization would be to do just one memcg tree
-> > traversal similar to cgroup-v2's memory_stat_show().
->
-> On most machines it is still fast (1-2ms), and there is no difference
-> in the number of CPUs and only very small differences in the number of
-> live memory cgroups, so presumably something else is going on.
->
-> > The memcg tree does include all zombie memcgs and these zombies does
-> > contribute to the memcg_stat_show cost.
->
-> That sounds promising. Is there any way to tell how many zombies there
-> are, and is there any way to deliberately create zombies? If I can
-> produce zombies that might give me a reliable way to reproduce the
-> problem, which could then sensibly be tested against newer kernel
-> versions.
->
+	Different architectures have different huge page sizes and thus
+	have different sysfs filees to manipulate when allocating huge
+	pages.
 
-Yes, very easy to produce zombies, though I don't think kernel
-provides any way to tell how many zombies exist on the system.
+> get_start_key() <--  provides the first non-reserved key.
 
-To create a zombie, first create a memcg node, enter that memcg,
-create a tmpfs file of few KiBs, exit the memcg and rmdir the memcg.
-That memcg will be a zombie until you delete that tmpfs file.
+Does powerpc not start on key 0?  Why do you need this?
 
-Shakeel
+> cc: Dave Hansen <dave.hansen@intel.com>
+> cc: Florian Weimer <fweimer@redhat.com>
+> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+> Signed-off-by: Thiago Jung Bauermann <bauerman@linux.ibm.com>
+> Reviewed-by: Dave Hansen <dave.hansen@intel.com>
+> ---
+>  tools/testing/selftests/vm/pkey-helpers.h    |   10 ++++++++++
+>  tools/testing/selftests/vm/pkey-x86.h        |    1 +
+>  tools/testing/selftests/vm/protection_keys.c |    6 +++---
+>  3 files changed, 14 insertions(+), 3 deletions(-)
+> 
+> diff --git a/tools/testing/selftests/vm/pkey-helpers.h b/tools/testing/selftests/vm/pkey-helpers.h
+> index ada0146..52a1152 100644
+> --- a/tools/testing/selftests/vm/pkey-helpers.h
+> +++ b/tools/testing/selftests/vm/pkey-helpers.h
+> @@ -179,4 +179,14 @@ static inline void __pkey_write_allow(int pkey, int do_allow_write)
+>  #define __stringify_1(x...)     #x
+>  #define __stringify(x...)       __stringify_1(x)
+>  
+> +static inline int open_hugepage_file(int flag)
+> +{
+> +	return open(HUGEPAGE_FILE, flag);
+> +}
+
+open_nr_hugepages_file() if you revise this, please
+> +
+> +static inline int get_start_key(void)
+> +{
+> +	return 1;
+> +}
+
+get_first_user_pkey(), please.
+
+>  #endif /* _PKEYS_HELPER_H */
+> diff --git a/tools/testing/selftests/vm/pkey-x86.h b/tools/testing/selftests/vm/pkey-x86.h
+> index 2b3780d..d5fa299 100644
+> --- a/tools/testing/selftests/vm/pkey-x86.h
+> +++ b/tools/testing/selftests/vm/pkey-x86.h
+> @@ -48,6 +48,7 @@
+>  #define MB			(1<<20)
+>  #define pkey_reg_t		u32
+>  #define PKEY_REG_FMT		"%016x"
+> +#define HUGEPAGE_FILE		"/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages"
+>  
+>  static inline u32 pkey_bit_position(int pkey)
+>  {
+> diff --git a/tools/testing/selftests/vm/protection_keys.c b/tools/testing/selftests/vm/protection_keys.c
+> index 2565b4c..2e448e0 100644
+> --- a/tools/testing/selftests/vm/protection_keys.c
+> +++ b/tools/testing/selftests/vm/protection_keys.c
+> @@ -788,7 +788,7 @@ void setup_hugetlbfs(void)
+>  	 * Now go make sure that we got the pages and that they
+>  	 * are 2M pages.  Someone might have made 1G the default.
+>  	 */
+> -	fd = open("/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages", O_RDONLY);
+> +	fd = open_hugepage_file(O_RDONLY);
+>  	if (fd < 0) {
+>  		perror("opening sysfs 2M hugetlb config");
+>  		return;
+
+This is fine, and obviously necessary.
+
+> @@ -1075,10 +1075,10 @@ void test_kernel_gup_write_to_write_disabled_region(int *ptr, u16 pkey)
+>  void test_pkey_syscalls_on_non_allocated_pkey(int *ptr, u16 pkey)
+>  {
+>  	int err;
+> -	int i;
+> +	int i = get_start_key();
+>  
+>  	/* Note: 0 is the default pkey, so don't mess with it */
+> -	for (i = 1; i < NR_PKEYS; i++) {
+> +	for (; i < NR_PKEYS; i++) {
+>  		if (pkey == i)
+>  			continue;
+
+Grumble, grumble, you moved the code away from the comment connected to
+it.
