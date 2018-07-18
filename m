@@ -1,78 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D44766B000E
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 12:44:15 -0400 (EDT)
-Received: by mail-yb0-f198.google.com with SMTP id 189-v6so2581634ybz.11
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 09:44:15 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j15-v6sor1018430ybp.194.2018.07.18.09.44.10
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 778F26B0005
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 12:52:15 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id f91-v6so611956plb.10
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 09:52:15 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id x19-v6si3715243pgk.80.2018.07.18.09.52.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 18 Jul 2018 09:44:10 -0700 (PDT)
-Date: Wed, 18 Jul 2018 12:46:56 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 08/10] psi: pressure stall information for CPU, memory,
- and IO
-Message-ID: <20180718164656.GA2838@cmpxchg.org>
-References: <20180712172942.10094-1-hannes@cmpxchg.org>
- <20180712172942.10094-9-hannes@cmpxchg.org>
- <20180718124627.GD2476@hirez.programming.kicks-ass.net>
- <20180718135633.GA5161@cmpxchg.org>
- <20180718163115.GV2494@hirez.programming.kicks-ass.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Jul 2018 09:52:14 -0700 (PDT)
+Subject: Re: [PATCH v14 16/22] selftests/vm: fix an assertion in
+ test_pkey_alloc_exhaust()
+References: <1531835365-32387-1-git-send-email-linuxram@us.ibm.com>
+ <1531835365-32387-17-git-send-email-linuxram@us.ibm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <36450dc3-0206-d355-0b58-5a42b43f53c4@intel.com>
+Date: Wed, 18 Jul 2018 09:52:11 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180718163115.GV2494@hirez.programming.kicks-ass.net>
+In-Reply-To: <1531835365-32387-17-git-send-email-linuxram@us.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Ram Pai <linuxram@us.ibm.com>, shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org
+Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, mingo@redhat.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, fweimer@redhat.com, msuchanek@suse.de, aneesh.kumar@linux.vnet.ibm.com
 
-On Wed, Jul 18, 2018 at 06:31:15PM +0200, Peter Zijlstra wrote:
-> On Wed, Jul 18, 2018 at 09:56:33AM -0400, Johannes Weiner wrote:
-> > On Wed, Jul 18, 2018 at 02:46:27PM +0200, Peter Zijlstra wrote:
-> 
-> > > I'm confused by this whole MEMSTALL thing... I thought the idea was to
-> > > account the time we were _blocked_ because of memstall, but you seem to
-> > > count the time we're _running_ with PF_MEMSTALL.
-> > 
-> > Under heavy memory pressure, a lot of active CPU time is spent
-> > scanning and rotating through the LRU lists, which we do want to
-> > capture in the pressure metric. What we really want to know is the
-> > time in which CPU potential goes to waste due to a lack of
-> > resources. That's the CPU going idle due to a memstall, but it's also
-> > a CPU doing *work* which only occurs due to a lack of memory. We want
-> > to know about both to judge how productive system and workload are.
-> 
-> Then maybe memstall (esp. the 'stall' part of it) is a bit of a
-> misnomer.
+On 07/17/2018 06:49 AM, Ram Pai wrote:
+> The maximum number of keys that can be allocated has to
+> take into consideration, that some keys are reserved by
+> the architecture for   specific   purpose. Hence cannot
+> be allocated.
 
-I'm not tied to that name, but I can't really think of a better
-one. It was called PF_MEMDELAY in the past, but "delay" also has
-busy-spinning connotations in the kernel. "wait" also implies that
-it's a passive state.
+Back to incomplete sentences, I see. :)
 
-> > > And esp. the wait_on_page_bit_common caller seems performance sensitive,
-> > > and the above function is quite expensive.
-> > 
-> > Right, but we don't call it on every invocation, only when waiting for
-> > the IO to read back a page that was recently deactivated and evicted:
-> > 
-> > 	if (bit_nr == PG_locked &&
-> > 	    !PageUptodate(page) && PageWorkingset(page)) {
-> > 		if (!PageSwapBacked(page))
-> > 			delayacct_thrashing_start();
-> > 		psi_memstall_enter(&pflags);
-> > 		thrashing = true;
-> > 	}
-> > 
-> > That means the page cache workingset/file active list is thrashing, in
-> > which case the IO itself is our biggest concern, not necessarily a few
-> > additional cycles before going to sleep to wait on its completion.
-> 
-> Ah, right. PageWorkingset() is only true if we (recently) evicted that
-> page before, right?
+How about:
 
-Yep, but not all of those, only the ones who were on the active list
-in their previous incarnation, aka refaulting *hot* pages, aka there
-is little chance this is healthy behavior.
+	Some pkeys which are valid to the hardware are not available
+	for application use.  Those can not be allocated.
+
+	test_pkey_alloc_exhaust() tries to account for these but
+	___FILL_IN_WHAT_IT_DID_WRONG____.  We fix this by
+	___FILL_IN_WAY_IT_WAS_FIXED____.
+
+> diff --git a/tools/testing/selftests/vm/protection_keys.c b/tools/testing/selftests/vm/protection_keys.c
+> index d27fa5e..67d841e 100644
+> --- a/tools/testing/selftests/vm/protection_keys.c
+> +++ b/tools/testing/selftests/vm/protection_keys.c
+> @@ -1171,15 +1171,11 @@ void test_pkey_alloc_exhaust(int *ptr, u16 pkey)
+>  	pkey_assert(i < NR_PKEYS*2);
+>  
+>  	/*
+> -	 * There are 16 pkeys supported in hardware.  Three are
+> -	 * allocated by the time we get here:
+> -	 *   1. The default key (0)
+> -	 *   2. One possibly consumed by an execute-only mapping.
+> -	 *   3. One allocated by the test code and passed in via
+> -	 *      'pkey' to this function.
+> -	 * Ensure that we can allocate at least another 13 (16-3).
+> +	 * There are NR_PKEYS pkeys supported in hardware. arch_reserved_keys()
+> +	 * are reserved. And one key is allocated by the test code and passed
+> +	 * in via 'pkey' to this function.
+>  	 */
+> -	pkey_assert(i >= NR_PKEYS-3);
+> +	pkey_assert(i >= (NR_PKEYS-arch_reserved_keys()-1));
+>  
+>  	for (i = 0; i < nr_allocated_pkeys; i++) {
+>  		err = sys_pkey_free(allocated_pkeys[i]);
+
+You also killed my nice, shiny, new comment.  You made an attempt to
+make up for it two patches ago, but it pales in comparison to mine.  The
+fact that I wrote it only a few short week ago makes me very attached to
+it, kinda like a new puppy.  I don't want to throw it to the wolves
+quite yet.  So, please preserve as much of it as possible, even if it
+has to live in the x86 header.
+
+For bonus points, axe this comment in the same patch that you create the
+x86 header comment for easier review.
