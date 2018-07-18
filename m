@@ -1,160 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 21E006B0269
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 09:36:36 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id s18-v6so1945513edr.15
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 06:36:36 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 726CB6B026E
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 09:36:50 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id y17-v6so1930582eds.22
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 06:36:50 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 92-v6si3133509edg.337.2018.07.18.06.36.30
+        by mx.google.com with ESMTPS id w44-v6si2710127edb.165.2018.07.18.06.36.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 06:36:30 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v3 6/7] mm, proc: add KReclaimable to /proc/meminfo
-Date: Wed, 18 Jul 2018 15:36:19 +0200
-Message-Id: <20180718133620.6205-7-vbabka@suse.cz>
-In-Reply-To: <20180718133620.6205-1-vbabka@suse.cz>
-References: <20180718133620.6205-1-vbabka@suse.cz>
+        Wed, 18 Jul 2018 06:36:48 -0700 (PDT)
+Date: Wed, 18 Jul 2018 15:36:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/3] mm/page_alloc: Refactor free_area_init_core
+Message-ID: <20180718133647.GD7193@dhcp22.suse.cz>
+References: <20180718124722.9872-1-osalvador@techadventures.net>
+ <20180718124722.9872-3-osalvador@techadventures.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180718124722.9872-3-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>
+To: osalvador@techadventures.net
+Cc: akpm@linux-foundation.org, pasha.tatashin@oracle.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, aaron.lu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
 
-The vmstat NR_KERNEL_MISC_RECLAIMABLE counter is for kernel non-slab
-allocations that can be reclaimed via shrinker. In /proc/meminfo, we can show
-the sum of all reclaimable kernel allocations (including slab) as
-"KReclaimable". Add the same counter also to per-node meminfo under /sys
+On Wed 18-07-18 14:47:21, osalvador@techadventures.net wrote:
+> From: Oscar Salvador <osalvador@suse.de>
+> 
+> When free_area_init_core gets called from the memhotplug code,
+> we only need to perform some of the operations in
+> there.
 
-With this counter, users will have more complete information about
-kernel memory usage. Non-slab reclaimable pages (currently just the ION
-allocator) will not be missing from /proc/meminfo, making users wonder
-where part of their memory went. More precisely, they already appear in
-MemAvailable, but without the new counter, it's not obvious why the
-value in MemAvailable doesn't fully correspond with the sum of other
-counters participating in it.
+Which ones? Or other way around. Which we do not want to do and why?
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- Documentation/filesystems/proc.txt |  4 ++++
- drivers/base/node.c                | 19 ++++++++++++-------
- fs/proc/meminfo.c                  | 16 ++++++++--------
- 3 files changed, 24 insertions(+), 15 deletions(-)
+> Since memhotplug code is the only place where free_area_init_core
+> gets called while node being still offline, we can better separate
+> the context from where it is called.
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 520f6a84cf50..6a255f960ab5 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -858,6 +858,7 @@ Writeback:           0 kB
- AnonPages:      861800 kB
- Mapped:         280372 kB
- Shmem:             644 kB
-+KReclaimable:   168048 kB
- Slab:           284364 kB
- SReclaimable:   159856 kB
- SUnreclaim:     124508 kB
-@@ -921,6 +922,9 @@ AnonHugePages: Non-file backed huge pages mapped into userspace page tables
- ShmemHugePages: Memory used by shared memory (shmem) and tmpfs allocated
-               with huge pages
- ShmemPmdMapped: Shared memory mapped into userspace with huge pages
-+KReclaimable: Kernel allocations that the kernel will attempt to reclaim
-+              under memory pressure. Includes SReclaimable (below), and other
-+              direct allocations with a shrinker.
-         Slab: in-kernel data structures cache
- SReclaimable: Part of Slab, that might be reclaimed, such as caches
-   SUnreclaim: Part of Slab, that cannot be reclaimed on memory pressure
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index a5e821d09656..81cef8031eae 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -67,8 +67,11 @@ static ssize_t node_read_meminfo(struct device *dev,
- 	int nid = dev->id;
- 	struct pglist_data *pgdat = NODE_DATA(nid);
- 	struct sysinfo i;
-+	unsigned long sreclaimable, sunreclaimable;
- 
- 	si_meminfo_node(&i, nid);
-+	sreclaimable = node_page_state(pgdat, NR_SLAB_RECLAIMABLE);
-+	sunreclaimable = node_page_state(pgdat, NR_SLAB_UNRECLAIMABLE);
- 	n = sprintf(buf,
- 		       "Node %d MemTotal:       %8lu kB\n"
- 		       "Node %d MemFree:        %8lu kB\n"
-@@ -118,6 +121,7 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       "Node %d NFS_Unstable:   %8lu kB\n"
- 		       "Node %d Bounce:         %8lu kB\n"
- 		       "Node %d WritebackTmp:   %8lu kB\n"
-+		       "Node %d KReclaimable:   %8lu kB\n"
- 		       "Node %d Slab:           %8lu kB\n"
- 		       "Node %d SReclaimable:   %8lu kB\n"
- 		       "Node %d SUnreclaim:     %8lu kB\n"
-@@ -138,20 +142,21 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       nid, K(node_page_state(pgdat, NR_UNSTABLE_NFS)),
- 		       nid, K(sum_zone_node_page_state(nid, NR_BOUNCE)),
- 		       nid, K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
--		       nid, K(node_page_state(pgdat, NR_SLAB_RECLAIMABLE) +
--			      node_page_state(pgdat, NR_SLAB_UNRECLAIMABLE)),
--		       nid, K(node_page_state(pgdat, NR_SLAB_RECLAIMABLE)),
-+		       nid, K(sreclaimable +
-+			      node_page_state(pgdat, NR_KERNEL_MISC_RECLAIMABLE)),
-+		       nid, K(sreclaimable + sunreclaimable),
-+		       nid, K(sreclaimable),
-+		       nid, K(sunreclaimable)
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--		       nid, K(node_page_state(pgdat, NR_SLAB_UNRECLAIMABLE)),
-+		       ,
- 		       nid, K(node_page_state(pgdat, NR_ANON_THPS) *
- 				       HPAGE_PMD_NR),
- 		       nid, K(node_page_state(pgdat, NR_SHMEM_THPS) *
- 				       HPAGE_PMD_NR),
- 		       nid, K(node_page_state(pgdat, NR_SHMEM_PMDMAPPED) *
--				       HPAGE_PMD_NR));
--#else
--		       nid, K(node_page_state(pgdat, NR_SLAB_UNRECLAIMABLE)));
-+				       HPAGE_PMD_NR)
- #endif
-+		       );
- 	n += hugetlb_report_node_meminfo(nid, buf + n);
- 	return n;
- }
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 2fb04846ed11..61a18477bc07 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -37,6 +37,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 	long cached;
- 	long available;
- 	unsigned long pages[NR_LRU_LISTS];
-+	unsigned long sreclaimable, sunreclaim;
- 	int lru;
- 
- 	si_meminfo(&i);
-@@ -52,6 +53,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 		pages[lru] = global_node_page_state(NR_LRU_BASE + lru);
- 
- 	available = si_mem_available();
-+	sreclaimable = global_node_page_state(NR_SLAB_RECLAIMABLE);
-+	sunreclaim = global_node_page_state(NR_SLAB_UNRECLAIMABLE);
- 
- 	show_val_kb(m, "MemTotal:       ", i.totalram);
- 	show_val_kb(m, "MemFree:        ", i.freeram);
-@@ -93,14 +96,11 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 	show_val_kb(m, "Mapped:         ",
- 		    global_node_page_state(NR_FILE_MAPPED));
- 	show_val_kb(m, "Shmem:          ", i.sharedram);
--	show_val_kb(m, "Slab:           ",
--		    global_node_page_state(NR_SLAB_RECLAIMABLE) +
--		    global_node_page_state(NR_SLAB_UNRECLAIMABLE));
--
--	show_val_kb(m, "SReclaimable:   ",
--		    global_node_page_state(NR_SLAB_RECLAIMABLE));
--	show_val_kb(m, "SUnreclaim:     ",
--		    global_node_page_state(NR_SLAB_UNRECLAIMABLE));
-+	show_val_kb(m, "KReclaimable:   ", sreclaimable +
-+		    global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE));
-+	show_val_kb(m, "Slab:           ", sreclaimable + sunreclaim);
-+	show_val_kb(m, "SReclaimable:   ", sreclaimable);
-+	show_val_kb(m, "SUnreclaim:     ", sunreclaim);
- 	seq_printf(m, "KernelStack:    %8lu kB\n",
- 		   global_zone_page_state(NR_KERNEL_STACK_KB));
- 	show_val_kb(m, "PageTables:     ",
+I really do not like this if node is offline than only perform half of
+the function. This will generate more mess in the future. Why don't you
+simply. If we can split out this code into logical units then let's do
+that but no, please do not make random ifs for hotplug code paths.
+Sooner or later somebody will simply don't know what is needed and what
+is not.
+
+> This patch re-structures the code for that purpose.
+> 
+> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> ---
+>  mm/page_alloc.c | 94 +++++++++++++++++++++++++++++++--------------------------
+>  1 file changed, 52 insertions(+), 42 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 8a73305f7c55..d652a3ad720c 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6237,6 +6237,40 @@ static void pgdat_init_kcompactd(struct pglist_data *pgdat)
+>  static void pgdat_init_kcompactd(struct pglist_data *pgdat) {}
+>  #endif
+>  
+> +static unsigned long calc_remaining_pages(enum zone_type type, unsigned long freesize,
+> +								unsigned long size)
+> +{
+> +	unsigned long memmap_pages = calc_memmap_size(size, freesize);
+> +
+> +	if(!is_highmem_idx(type)) {
+> +		if (freesize >= memmap_pages) {
+> +			freesize -= memmap_pages;
+> +			if (memmap_pages)
+> +				printk(KERN_DEBUG
+> +					"  %s zone: %lu pages used for memmap\n",
+> +					zone_names[type], memmap_pages);
+> +		} else
+> +			pr_warn("  %s zone: %lu pages exceeds freesize %lu\n",
+> +				zone_names[type], memmap_pages, freesize);
+> +	}
+> +
+> +	/* Account for reserved pages */
+> +	if (type == 0 && freesize > dma_reserve) {
+> +		freesize -= dma_reserve;
+> +		printk(KERN_DEBUG "  %s zone: %lu pages reserved\n",
+> +		zone_names[0], dma_reserve);
+> +	}
+> +
+> +	if (!is_highmem_idx(type))
+> +		nr_kernel_pages += freesize;
+> +	/* Charge for highmem memmap if there are enough kernel pages */
+> +	else if (nr_kernel_pages > memmap_pages * 2)
+> +		nr_kernel_pages -= memmap_pages;
+> +	nr_all_pages += freesize;
+> +
+> +	return freesize;
+> +}
+> +
+>  /*
+>   * Set up the zone data structures:
+>   *   - mark all pages reserved
+> @@ -6249,6 +6283,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+>  {
+>  	enum zone_type j;
+>  	int nid = pgdat->node_id;
+> +	bool no_hotplug_context;
+>  
+>  	pgdat_resize_init(pgdat);
+>  
+> @@ -6265,45 +6300,18 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+>  
+>  	pgdat->per_cpu_nodestats = &boot_nodestats;
+>  
+> +	/* Memhotplug is the only place where free_area_init_node gets called
+> +	 * with the node being still offline.
+> +	 */
+> +	no_hotplug_context = node_online(nid);
+> +
+>  	for (j = 0; j < MAX_NR_ZONES; j++) {
+>  		struct zone *zone = pgdat->node_zones + j;
+> -		unsigned long size, freesize, memmap_pages;
+> -		unsigned long zone_start_pfn = zone->zone_start_pfn;
+> +		unsigned long size = zone->spanned_pages;
+> +		unsigned long freesize = zone->present_pages;
+>  
+> -		size = zone->spanned_pages;
+> -		freesize = zone->present_pages;
+> -
+> -		/*
+> -		 * Adjust freesize so that it accounts for how much memory
+> -		 * is used by this zone for memmap. This affects the watermark
+> -		 * and per-cpu initialisations
+> -		 */
+> -		memmap_pages = calc_memmap_size(size, freesize);
+> -		if (!is_highmem_idx(j)) {
+> -			if (freesize >= memmap_pages) {
+> -				freesize -= memmap_pages;
+> -				if (memmap_pages)
+> -					printk(KERN_DEBUG
+> -					       "  %s zone: %lu pages used for memmap\n",
+> -					       zone_names[j], memmap_pages);
+> -			} else
+> -				pr_warn("  %s zone: %lu pages exceeds freesize %lu\n",
+> -					zone_names[j], memmap_pages, freesize);
+> -		}
+> -
+> -		/* Account for reserved pages */
+> -		if (j == 0 && freesize > dma_reserve) {
+> -			freesize -= dma_reserve;
+> -			printk(KERN_DEBUG "  %s zone: %lu pages reserved\n",
+> -					zone_names[0], dma_reserve);
+> -		}
+> -
+> -		if (!is_highmem_idx(j))
+> -			nr_kernel_pages += freesize;
+> -		/* Charge for highmem memmap if there are enough kernel pages */
+> -		else if (nr_kernel_pages > memmap_pages * 2)
+> -			nr_kernel_pages -= memmap_pages;
+> -		nr_all_pages += freesize;
+> +		if (no_hotplug_context)
+> +			freesize = calc_remaining_pages(j, freesize, size);
+>  
+>  		/*
+>  		 * Set an approximate value for lowmem here, it will be adjusted
+> @@ -6311,6 +6319,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+>  		 * And all highmem pages will be managed by the buddy system.
+>  		 */
+>  		zone->managed_pages = freesize;
+> +
+>  #ifdef CONFIG_NUMA
+>  		zone->node = nid;
+>  #endif
+> @@ -6320,13 +6329,14 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+>  		zone_seqlock_init(zone);
+>  		zone_pcp_init(zone);
+>  
+> -		if (!size)
+> -			continue;
+> +		if (size && no_hotplug_context) {
+> +			unsigned long zone_start_pfn = zone->zone_start_pfn;
+>  
+> -		set_pageblock_order();
+> -		setup_usemap(pgdat, zone, zone_start_pfn, size);
+> -		init_currently_empty_zone(zone, zone_start_pfn, size);
+> -		memmap_init(size, nid, j, zone_start_pfn);
+> +			set_pageblock_order();
+> +			setup_usemap(pgdat, zone, zone_start_pfn, size);
+> +			init_currently_empty_zone(zone, zone_start_pfn, size);
+> +			memmap_init(size, nid, j, zone_start_pfn);
+> +		}
+>  	}
+>  }
+>  
+> -- 
+> 2.13.6
+> 
+
 -- 
-2.18.0
+Michal Hocko
+SUSE Labs
