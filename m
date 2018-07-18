@@ -1,118 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0289C6B0270
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 09:37:20 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id g11-v6so1873029edi.8
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 06:37:19 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t11-v6si3641028edt.159.2018.07.18.06.37.18
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 124876B0274
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 09:39:39 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id d25-v6so3688478qkj.9
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 06:39:39 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id b11-v6si3900500qvi.8.2018.07.18.06.39.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 06:37:18 -0700 (PDT)
-Date: Wed, 18 Jul 2018 15:37:17 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/3] mm/page_alloc: Move ifdefery out of
- free_area_init_core
-Message-ID: <20180718133717.GE7193@dhcp22.suse.cz>
-References: <20180718124722.9872-1-osalvador@techadventures.net>
- <20180718124722.9872-2-osalvador@techadventures.net>
+        Wed, 18 Jul 2018 06:39:38 -0700 (PDT)
+Subject: Re: [PATCH v1 00/10] mm: online/offline 4MB chunks controlled by
+ device driver
+References: <20180523151151.6730-1-david@redhat.com>
+ <20180524075327.GU20441@dhcp22.suse.cz>
+ <14d79dad-ad47-f090-2ec0-c5daf87ac529@redhat.com>
+ <20180524093121.GZ20441@dhcp22.suse.cz>
+ <c0b8bbd5-6c01-f550-ae13-ef80b2255ea6@redhat.com>
+ <20180524120341.GF20441@dhcp22.suse.cz>
+ <1a03ac4e-9185-ce8e-a672-c747c3e40ff2@redhat.com>
+ <20180524142241.GJ20441@dhcp22.suse.cz>
+ <819e45c5-6ae3-1dff-3f1d-c0411b6e2e1d@redhat.com>
+ <20180718131905.GB7193@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <c4c82cd3-c1be-dce8-af2e-fcd177cf7b54@redhat.com>
+Date: Wed, 18 Jul 2018 15:39:29 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180718124722.9872-2-osalvador@techadventures.net>
+In-Reply-To: <20180718131905.GB7193@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: osalvador@techadventures.net
-Cc: akpm@linux-foundation.org, pasha.tatashin@oracle.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, aaron.lu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Balbir Singh <bsingharora@gmail.com>, Baoquan He <bhe@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Dave Young <dyoung@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jaewon Kim <jaewon31.kim@samsung.com>, Jan Kara <jack@suse.cz>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Mel Gorman <mgorman@suse.de>, Michael Ellerman <mpe@ellerman.id.au>, Miles Chen <miles.chen@mediatek.com>, Oscar Salvador <osalvador@techadventures.net>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Philippe Ombredanne <pombredanne@nexb.com>, Rashmica Gupta <rashmica.g@gmail.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Souptick Joarder <jrdr.linux@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>
 
-On Wed 18-07-18 14:47:20, osalvador@techadventures.net wrote:
-> From: Oscar Salvador <osalvador@suse.de>
+On 18.07.2018 15:19, Michal Hocko wrote:
+> [got back to this really late. Sorry about that]
 > 
-> Moving the #ifdefs out of the function makes it easier to follow.
+> On Thu 24-05-18 23:07:23, David Hildenbrand wrote:
+>> On 24.05.2018 16:22, Michal Hocko wrote:
+>>> I will go over the rest of the email later I just wanted to make this
+>>> point clear because I suspect we are talking past each other.
+>>
+>> It sounds like we are now talking about how to solve the problem. I like
+>> that :)
+>>
+>>>
+>>> On Thu 24-05-18 16:04:38, David Hildenbrand wrote:
+>>> [...]
+>>>> The point I was making is: I cannot allocate 8MB/128MB using the buddy
+>>>> allocator. All I want to do is manage the memory a virtio-mem device
+>>>> provides as flexible as possible.
+>>>
+>>> I didn't mean to use the page allocator to isolate pages from it. We do
+>>> have other means. Have a look at the page isolation framework and have a
+>>> look how the current memory hotplug (ab)uses it. In short you mark the
+>>> desired physical memory range as isolated (nobody can allocate from it)
+>>> and then simply remove it from the page allocator. And you are done with
+>>> it. Your particular range is gone, nobody will ever use it. If you mark
+>>> those struct pages reserved then pfn walkers should already ignore them.
+>>> If you keep those pages with ref count 0 then even hotplug should work
+>>> seemlessly (I would have to double check).
+>>>
+>>> So all I am arguing is that whatever your driver wants to do can be
+>>> handled without touching the hotplug code much. You would still need
+>>> to add new ranges in the mem section units and manage on top of that.
+>>> You need to do that anyway to keep track of what parts are in use or
+>>> offlined anyway right? Now the mem sections. You have to do that anyway
+>>> for memmaps. Our sparse memory model simply works in those units. Even
+>>> if you make a part of that range unavailable then the section will still
+>>> be there.
+>>>
+>>> Do I make at least some sense or I am completely missing your point?
+>>>
+>>
+>> I think we're heading somewhere. I understand that you want to separate
+>> this "semi" offline part from the general offlining code. If so, we
+>> should definitely enforce segment alignment for online_pages/offline_pages.
+>>
+>> Importantly, what I need is:
+>>
+>> 1. Indicate and prepare memory sections to be used for adding memory
+>>    chunks (right now add_memory())
 > 
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> Yes, this is section based. So you will always get memmap (struct page)
+> for the whole section.
+> 
+>> 2. Make memory chunks of a section available to the system (right now
+>>    online_pages())
+> 
+> Yes, this doesn't have to be section based. All you need is to mark
+> remaining pages as offline. They are reserved at this moment so nobody
+> should touch tehem.
+> 
+>> 3. Remove memory chunks of a section from the system (right now
+>>    offline_pages())
+> 
+> Yes. All we need is to note that those reserved pages are actually good
+> to offline. I have mentioned that reserved pages are yours at this stage
+> so you can note the special state without an additional page flag.
+> 
+> The generic hotplug code just have to learn about this new state.
+> has_unmovable_pages sounds like a proper place to do that. You simply
+> clear the offline state and the PageReserved and you are done with the
+> page.
+> 
 
-OK, this makes some sense.
-Acked-by: Michal Hocko <mhocko@suse.com>
+I agree. This would be minimal invassive - notifiers are still called on
+whole segment.
 
-> ---
->  mm/page_alloc.c | 50 +++++++++++++++++++++++++++++++++++++-------------
->  1 file changed, 37 insertions(+), 13 deletions(-)
+>> 4. Remove memory sections from the system (right now remove_memory())
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index e357189cd24a..8a73305f7c55 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6206,6 +6206,37 @@ static unsigned long __paginginit calc_memmap_size(unsigned long spanned_pages,
->  	return PAGE_ALIGN(pages * sizeof(struct page)) >> PAGE_SHIFT;
->  }
->  
-> +#ifdef CONFIG_NUMA_BALANCING
-> +static void pgdat_init_numabalancing(struct pglist_data *pgdat)
-> +{
-> +	spin_lock_init(&pgdat->numabalancing_migrate_lock);
-> +	pgdat->numabalancing_migrate_nr_pages = 0;
-> +	pgdat->numabalancing_migrate_next_window = jiffies;
-> +}
-> +#else
-> +static void pgdat_init_numabalancing(struct pglist_data *pgdat) {}
-> +#endif
-> +
-> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> +static void pgdat_init_split_queue(struct pglist_data *pgdat)
-> +{
-> +	spin_lock_init(&pgdat->split_queue_lock);
-> +	INIT_LIST_HEAD(&pgdat->split_queue);
-> +	pgdat->split_queue_len = 0;
-> +}
-> +#else
-> +static void pgdat_init_split_queue(struct pglist_data *pgdat) {}
-> +#endif
-> +
-> +#ifdef CONFIG_COMPACTION
-> +static void pgdat_init_kcompactd(struct pglist_data *pgdat)
-> +{
-> +	init_waitqueue_head(&pgdat->kcompactd_wait);
-> +}
-> +#else
-> +static void pgdat_init_kcompactd(struct pglist_data *pgdat) {}
-> +#endif
-> +
->  /*
->   * Set up the zone data structures:
->   *   - mark all pages reserved
-> @@ -6220,21 +6251,14 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
->  	int nid = pgdat->node_id;
->  
->  	pgdat_resize_init(pgdat);
-> -#ifdef CONFIG_NUMA_BALANCING
-> -	spin_lock_init(&pgdat->numabalancing_migrate_lock);
-> -	pgdat->numabalancing_migrate_nr_pages = 0;
-> -	pgdat->numabalancing_migrate_next_window = jiffies;
-> -#endif
-> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> -	spin_lock_init(&pgdat->split_queue_lock);
-> -	INIT_LIST_HEAD(&pgdat->split_queue);
-> -	pgdat->split_queue_len = 0;
-> -#endif
-> +
-> +	pgdat_init_numabalancing(pgdat);
-> +	pgdat_init_split_queue(pgdat);
-> +	pgdat_init_kcompactd(pgdat);
-> +
->  	init_waitqueue_head(&pgdat->kswapd_wait);
->  	init_waitqueue_head(&pgdat->pfmemalloc_wait);
-> -#ifdef CONFIG_COMPACTION
-> -	init_waitqueue_head(&pgdat->kcompactd_wait);
-> -#endif
-> +
->  	pgdat_page_ext_init(pgdat);
->  	spin_lock_init(&pgdat->lru_lock);
->  	lruvec_init(node_lruvec(pgdat));
-> -- 
-> 2.13.6
+> no change needed
 > 
+>> 5. Hinder dumping tools from reading memory chunks that are logically
+>>    offline (right now PageOffline())
+> 
+> I still fail to see why do we even care about some dumping tools. Pages
+> are reserved so they simply shouldn't touch that memory at all.
+> 
+
+Thanks for having a look!
+
+I wonder why reserved pages never got excluded by dump tools. So I
+assume there is some kind of magic hidden in it.
+
+`git grep SetPageReserved` returns a number of buffers that are not to
+be swapped. So "reserved" there is used for:
+  "PG_reserved is set for special pages, which can never be swapped out"
+
+And my point would be that these pages are still to be dumped (just as
+it is being done now). They are valid memory.
+
+It seems like this bit is used for two different purposes. My take would
+be then to have another way of indicating "don't swap" vs. "page not
+accessible / offline". And that's why I propose PageOffline.
+
+I would even go one step further and rename "reserved" to "dontswap".
+
 
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David / dhildenb
