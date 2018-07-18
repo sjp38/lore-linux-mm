@@ -1,128 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E82B26B02BB
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:56:41 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id f64-v6so423155qkb.20
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:56:41 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id k7-v6si3026485qtb.53.2018.07.18.02.56.40
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A90E6B0010
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 06:28:45 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id e23-v6so3799061oii.10
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 03:28:45 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id z124-v6si2032834oiz.167.2018.07.18.03.28.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 02:56:40 -0700 (PDT)
-Subject: Re: [PATCH v1 00/10] mm: online/offline 4MB chunks controlled by
- device driver
-References: <20180524093121.GZ20441@dhcp22.suse.cz>
- <c0b8bbd5-6c01-f550-ae13-ef80b2255ea6@redhat.com>
- <20180524120341.GF20441@dhcp22.suse.cz>
- <1a03ac4e-9185-ce8e-a672-c747c3e40ff2@redhat.com>
- <20180524142241.GJ20441@dhcp22.suse.cz>
- <819e45c5-6ae3-1dff-3f1d-c0411b6e2e1d@redhat.com>
- <3748f033-f349-6d88-d189-d77c76565981@redhat.com>
- <20180611115641.GL13364@dhcp22.suse.cz>
- <71bd1b65-2a88-5de7-9789-bf4fac26507d@redhat.com>
- <e9697e6f-e562-a96c-7080-9271dbfbbea9@redhat.com>
- <20180716200517.GA16803@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <a701af3a-4aa0-c3ae-3e17-a6c7f14f5f96@redhat.com>
-Date: Wed, 18 Jul 2018 11:56:29 +0200
+        Wed, 18 Jul 2018 03:28:43 -0700 (PDT)
+Subject: Re: INFO: task hung in generic_file_write_iter
+References: <0000000000009ce88d05714242a8@google.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <4b349bff-8ad4-6410-250d-593b13d8d496@I-love.SAKURA.ne.jp>
+Date: Wed, 18 Jul 2018 19:28:26 +0900
 MIME-Version: 1.0
-In-Reply-To: <20180716200517.GA16803@dhcp22.suse.cz>
+In-Reply-To: <0000000000009ce88d05714242a8@google.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Balbir Singh <bsingharora@gmail.com>, Baoquan He <bhe@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Dave Young <dyoung@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jaewon Kim <jaewon31.kim@samsung.com>, Jan Kara <jack@suse.cz>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Mel Gorman <mgorman@suse.de>, Michael Ellerman <mpe@ellerman.id.au>, Miles Chen <miles.chen@mediatek.com>, Oscar Salvador <osalvador@techadventures.net>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Philippe Ombredanne <pombredanne@nexb.com>, Rashmica Gupta <rashmica.g@gmail.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Souptick Joarder <jrdr.linux@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>
+To: syzbot <syzbot+9933e4476f365f5d5a1b@syzkaller.appspotmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, mgorman@techsingularity.net, Michal Hocko <mhocko@kernel.org>
+Cc: ak@linux.intel.com, jack@suse.cz, jlayton@redhat.com, linux-kernel@vger.kernel.org, mawilcox@microsoft.com, syzkaller-bugs@googlegroups.com, tim.c.chen@linux.intel.com
 
-On 16.07.2018 22:05, Michal Hocko wrote:
-> On Mon 16-07-18 21:48:59, David Hildenbrand wrote:
->> On 11.06.2018 14:33, David Hildenbrand wrote:
->>> On 11.06.2018 13:56, Michal Hocko wrote:
->>>> On Mon 11-06-18 13:53:49, David Hildenbrand wrote:
->>>>> On 24.05.2018 23:07, David Hildenbrand wrote:
->>>>>> On 24.05.2018 16:22, Michal Hocko wrote:
->>>>>>> I will go over the rest of the email later I just wanted to make this
->>>>>>> point clear because I suspect we are talking past each other.
->>>>>>
->>>>>> It sounds like we are now talking about how to solve the problem. I like
->>>>>> that :)
->>>>>>
->>>>>
->>>>> Hi Michal,
->>>>>
->>>>> did you have time to think about the details of your proposed idea?
->>>>
->>>> Not really. Sorry about that. It's been busy time. I am planning to
->>>> revisit after merge window closes.
->>>>
->>>
->>> Sure no worries, I still have a bunch of other things to work on. But it
->>> would be nice to clarify soon in which direction I have to head to get
->>> this implemented and upstream (e.g. what I proposed, what you proposed
->>> or maybe something different).
->>>
->> I would really like to make progress here.
->>
->> I pointed out basic problems/questions with the proposed alternative. I
->> think I answered all your questions. But you also said that you are not
->> going to accept the current approach. So some decision has to be made.
->>
->> Although it's very demotivating and frustrating (I hope not all work in
->> the MM area will be like this), if there is no guidance on how to
->> proceed, I'll have to switch to adding/removing/onlining/offlining whole
->> segments. This is not what I want, but maybe this has a higher chance of
->> getting reviews/acks.
->>
->> Understanding that you are busy, please if you make suggestions, follow
->> up on responses.
-> 
-> I plan to get back to this. It's busy time with too many things
-> happening both upstream and on my work table as well. Sorry about that.
-> I do understand your frustration but there is only that much time I
-> have. There are not that many people to review this code unfortunately.
-> 
-> In principle though, I still maintain my position that the memory
-> hotplug code is way too subtle to add more on top. Maybe the code can be
-> reworked to be less section oriented but that will be a lot of work.
-> If you _really_ need a smaller granularity I do not have a better
-> suggestion than to emulate that on top of sections. I still have to go
-> back to your last emails though.
-> 
+On 2018/07/18 17:58, syzbot wrote:
+> mmap: syz-executor7 (10902) uses deprecated remap_file_pages() syscall. See Documentation/vm/remap_file_pages.rst.
 
-The only way I see doing the stuff on top will be using a new bit for
-marking pages as offline (PageOffline - Patch 1).
+There are many reports which are stalling inside __getblk_gfp().
+And there is horrible comment for __getblk_gfp():
 
-When a section is added, all pages are initialized to PageOffline.
+  /*
+   * __getblk_gfp() will locate (and, if necessary, create) the buffer_head
+   * which corresponds to the passed block_device, block and size. The
+   * returned buffer has its reference count incremented.
+   *
+   * __getblk_gfp() will lock up the machine if grow_dev_page's
+   * try_to_free_buffers() attempt is failing.  FIXME, perhaps?
+   */
 
-online_pages() can be then hindered to online specific pages using the
-well known hook set_online_page_callback().
+This report is stalling after mount() completed and process used remap_file_pages().
+I think that we might need to use debug printk(). But I don't know what to examine.
 
-In my driver, I can manually "soft offline" parts, setting them to
-PageOffline or "soft online" them again (including clearing PageOffline).
-
-offline_pages() can then skip all pages that are already "soft offline"
-- PageOffline set - and effectively set the section offline.
-
-
-Without this new bit offline_pages() cannot know if a page is actually
-offline or simply reserved by some other part of the system. Imagine
-that all parts of a section are "soft offline". Now I want to offline
-the section and remove the memory. I would have to temporarily online
-all pages again, adding them to the buddy in order to properly offline
-them using offline_pages(). Prone to races as these pages must not be
-touched.
-
-So in summary, PageOffline would have to be used but
-online_pages/offline_pages would continue calling e.g. notifiers on
-segment basis. Boils down to patch 1 and another patch that skips pages
-that are already offline in offline_pages().
-
-Once you have some spare cycles, please let me know what you think or
-which other alternatives you see. Thanks.
-
--- 
-
-Thanks,
-
-David / dhildenb
+> CPU: 1 PID: 10863 Comm: syz-executor0 Not tainted 4.18.0-rc5+ #151
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
+> RIP: 0010:__sanitizer_cov_trace_pc+0x3f/0x50 kernel/kcov.c:106
+> Code: e2 00 01 1f 00 48 8b 75 08 75 2b 8b 90 90 12 00 00 83 fa 02 75 20 48 8b 88 98 12 00 00 8b 80 94 12 00 00 48 8b 11 48 83 c2 01 <48> 39 d0 76 07 48 89 34 d1 48 89 11 5d c3 0f 1f 00 55 40 0f b6 d6
+> RSP: 0018:ffff8801913be760 EFLAGS: 00000216
+> RAX: 0000000000040000 RBX: ffff88018e06b348 RCX: ffffc90001e34000
+> RDX: 0000000000040000 RSI: ffffffff81d44df2 RDI: 0000000000000007
+> RBP: ffff8801913be760 R08: ffff8801b465c540 R09: ffffed003b5e46d6
+> R10: 0000000000000003 R11: 0000000000000006 R12: dffffc0000000000
+> R13: 0000000000000042 R14: 0000000000000001 R15: 0000000000000020
+> FS:  00007f53ece9c700(0000) GS:ffff8801daf00000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 000000000119f218 CR3: 00000001ba743000 CR4: 00000000001406e0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> Call Trace:
+>  init_page_buffers+0x3e2/0x530 fs/buffer.c:904
+>  grow_dev_page fs/buffer.c:947 [inline]
+>  grow_buffers fs/buffer.c:1009 [inline]
+>  __getblk_slow fs/buffer.c:1036 [inline]
+>  __getblk_gfp+0x906/0xb10 fs/buffer.c:1313
+>  __bread_gfp+0x2d/0x310 fs/buffer.c:1347
+>  sb_bread include/linux/buffer_head.h:307 [inline]
+>  fat12_ent_bread+0x14e/0x3d0 fs/fat/fatent.c:75
+>  fat_ent_read_block fs/fat/fatent.c:441 [inline]
+>  fat_alloc_clusters+0x8ce/0x16e0 fs/fat/fatent.c:489
+>  fat_add_cluster+0x7a/0x150 fs/fat/inode.c:101
+>  __fat_get_block fs/fat/inode.c:148 [inline]
+>  fat_get_block+0x375/0xaf0 fs/fat/inode.c:183
+>  __block_write_begin_int+0x50d/0x1b00 fs/buffer.c:1958
+>  __block_write_begin fs/buffer.c:2008 [inline]
+>  block_write_begin+0xda/0x370 fs/buffer.c:2067
+>  cont_write_begin+0x569/0x860 fs/buffer.c:2417
+>  fat_write_begin+0x8d/0x120 fs/fat/inode.c:229
+>  generic_perform_write+0x3ae/0x6c0 mm/filemap.c:3139
+>  __generic_file_write_iter+0x26e/0x630 mm/filemap.c:3264
+>  generic_file_write_iter+0x438/0x870 mm/filemap.c:3292
+>  call_write_iter include/linux/fs.h:1793 [inline]
+>  new_sync_write fs/read_write.c:474 [inline]
+>  __vfs_write+0x6c6/0x9f0 fs/read_write.c:487
+>  __kernel_write+0x10c/0x380 fs/read_write.c:506
+>  do_acct_process+0x1148/0x1660 kernel/acct.c:520
+>  acct_pin_kill+0x2e/0x100 kernel/acct.c:174
+>  pin_kill+0x29f/0xb60 fs/fs_pin.c:50
+>  acct_on+0x63b/0x8b0 kernel/acct.c:254
+>  __do_sys_acct kernel/acct.c:286 [inline]
+>  __se_sys_acct kernel/acct.c:273 [inline]
+>  __x64_sys_acct+0xc2/0x1f0 kernel/acct.c:273
+>  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
