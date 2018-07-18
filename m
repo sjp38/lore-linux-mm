@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 517C36B027B
+	by kanga.kvack.org (Postfix) with ESMTP id D74696B027E
 	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:41:32 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id v26-v6so1698776eds.9
+Received: by mail-ed1-f70.google.com with SMTP id b12-v6so1626530edi.12
         for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:41:32 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id k42-v6si1011675eda.168.2018.07.18.02.41.31
+        by mx.google.com with ESMTPS id u21-v6si215646edo.113.2018.07.18.02.41.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 18 Jul 2018 02:41:31 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 11/39] x86/entry/32: Simplify debug entry point
-Date: Wed, 18 Jul 2018 11:40:48 +0200
-Message-Id: <1531906876-13451-12-git-send-email-joro@8bytes.org>
+Subject: [PATCH 18/39] x86/pgtable: Move pgdp kernel/user conversion functions to pgtable.h
+Date: Wed, 18 Jul 2018 11:40:55 +0200
+Message-Id: <1531906876-13451-19-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,66 +22,133 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-The common exception entry code now handles the
-entry-from-sysenter stack situation and makes sure to leave
-with the same stack as it entered the kernel.
-
-So there is no need anymore for the special handling in the
-debug entry code.
+Make them available on 32 bit and clone_pgd_range() happy.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S | 35 +++--------------------------------
- 1 file changed, 3 insertions(+), 32 deletions(-)
+ arch/x86/include/asm/pgtable.h    | 49 +++++++++++++++++++++++++++++++++++++++
+ arch/x86/include/asm/pgtable_64.h | 49 ---------------------------------------
+ 2 files changed, 49 insertions(+), 49 deletions(-)
 
-diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index 9d6eceb..dbf7d61 100644
---- a/arch/x86/entry/entry_32.S
-+++ b/arch/x86/entry/entry_32.S
-@@ -1226,41 +1226,12 @@ END(common_exception)
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 5715647..eb47432 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -1155,6 +1155,55 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
+ }
+ #endif
  
- ENTRY(debug)
- 	/*
--	 * #DB can happen at the first instruction of
--	 * entry_SYSENTER_32 or in Xen's SYSENTER prologue.  If this
--	 * happens, then we will be running on a very small stack.  We
--	 * need to detect this condition and switch to the thread
--	 * stack before calling any C code at all.
--	 *
--	 * If you edit this code, keep in mind that NMIs can happen in here.
-+	 * Entry from sysenter is now handled in common_exception
- 	 */
- 	ASM_CLAC
- 	pushl	$-1				# mark this as an int
--
--	SAVE_ALL
--	ENCODE_FRAME_POINTER
--	xorl	%edx, %edx			# error code 0
--	movl	%esp, %eax			# pt_regs pointer
--
--	/* Are we currently on the SYSENTER stack? */
--	movl	PER_CPU_VAR(cpu_entry_area), %ecx
--	addl	$CPU_ENTRY_AREA_entry_stack + SIZEOF_entry_stack, %ecx
--	subl	%eax, %ecx	/* ecx = (end of entry_stack) - esp */
--	cmpl	$SIZEOF_entry_stack, %ecx
--	jb	.Ldebug_from_sysenter_stack
--
--	TRACE_IRQS_OFF
--	call	do_debug
--	jmp	ret_from_exception
--
--.Ldebug_from_sysenter_stack:
--	/* We're on the SYSENTER stack.  Switch off. */
--	movl	%esp, %ebx
--	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esp
--	TRACE_IRQS_OFF
--	call	do_debug
--	movl	%ebx, %esp
--	jmp	ret_from_exception
-+	pushl	$do_debug
-+	jmp	common_exception
- END(debug)
- 
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++/*
++ * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
++ * (8k-aligned and 8k in size).  The kernel one is at the beginning 4k and
++ * the user one is in the last 4k.  To switch between them, you
++ * just need to flip the 12th bit in their addresses.
++ */
++#define PTI_PGTABLE_SWITCH_BIT	PAGE_SHIFT
++
++/*
++ * This generates better code than the inline assembly in
++ * __set_bit().
++ */
++static inline void *ptr_set_bit(void *ptr, int bit)
++{
++	unsigned long __ptr = (unsigned long)ptr;
++
++	__ptr |= BIT(bit);
++	return (void *)__ptr;
++}
++static inline void *ptr_clear_bit(void *ptr, int bit)
++{
++	unsigned long __ptr = (unsigned long)ptr;
++
++	__ptr &= ~BIT(bit);
++	return (void *)__ptr;
++}
++
++static inline pgd_t *kernel_to_user_pgdp(pgd_t *pgdp)
++{
++	return ptr_set_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
++}
++
++static inline pgd_t *user_to_kernel_pgdp(pgd_t *pgdp)
++{
++	return ptr_clear_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
++}
++
++static inline p4d_t *kernel_to_user_p4dp(p4d_t *p4dp)
++{
++	return ptr_set_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
++}
++
++static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
++{
++	return ptr_clear_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
++}
++#endif /* CONFIG_PAGE_TABLE_ISOLATION */
++
  /*
+  * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);
+  *
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 9406c4f..4adba19 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -132,55 +132,6 @@ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
+ #endif
+ }
+ 
+-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+-/*
+- * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
+- * (8k-aligned and 8k in size).  The kernel one is at the beginning 4k and
+- * the user one is in the last 4k.  To switch between them, you
+- * just need to flip the 12th bit in their addresses.
+- */
+-#define PTI_PGTABLE_SWITCH_BIT	PAGE_SHIFT
+-
+-/*
+- * This generates better code than the inline assembly in
+- * __set_bit().
+- */
+-static inline void *ptr_set_bit(void *ptr, int bit)
+-{
+-	unsigned long __ptr = (unsigned long)ptr;
+-
+-	__ptr |= BIT(bit);
+-	return (void *)__ptr;
+-}
+-static inline void *ptr_clear_bit(void *ptr, int bit)
+-{
+-	unsigned long __ptr = (unsigned long)ptr;
+-
+-	__ptr &= ~BIT(bit);
+-	return (void *)__ptr;
+-}
+-
+-static inline pgd_t *kernel_to_user_pgdp(pgd_t *pgdp)
+-{
+-	return ptr_set_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
+-}
+-
+-static inline pgd_t *user_to_kernel_pgdp(pgd_t *pgdp)
+-{
+-	return ptr_clear_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
+-}
+-
+-static inline p4d_t *kernel_to_user_p4dp(p4d_t *p4dp)
+-{
+-	return ptr_set_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
+-}
+-
+-static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
+-{
+-	return ptr_clear_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
+-}
+-#endif /* CONFIG_PAGE_TABLE_ISOLATION */
+-
+ /*
+  * Page table pages are page-aligned.  The lower half of the top
+  * level is used for userspace and the top half for the kernel.
 -- 
 2.7.4
