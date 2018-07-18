@@ -1,64 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4830E6B0006
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 23:26:11 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id c13-v6so1576785pfo.14
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 20:26:11 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id z28-v6si2596180pfa.161.2018.07.17.20.26.09
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CB176B0003
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 00:23:10 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id w7-v6so1414033pgv.1
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 21:23:10 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id m13-v6si2217763pls.70.2018.07.17.21.23.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 20:26:10 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH v2 2/7] mm/swapfile.c: Replace some #ifdef with IS_ENABLED()
-References: <20180717005556.29758-1-ying.huang@intel.com>
-	<20180717005556.29758-3-ying.huang@intel.com>
-	<10878744-8db0-1d2c-e899-7c132d78e153@linux.intel.com>
-Date: Wed, 18 Jul 2018 11:25:56 +0800
-In-Reply-To: <10878744-8db0-1d2c-e899-7c132d78e153@linux.intel.com> (Dave
-	Hansen's message of "Tue, 17 Jul 2018 11:32:48 -0700")
-Message-ID: <877eltgr7f.fsf@yhuang-dev.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+        Tue, 17 Jul 2018 21:23:08 -0700 (PDT)
+Date: Tue, 17 Jul 2018 21:23:07 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: Showing /sys/fs/cgroup/memory/memory.stat very slow on some
+ machines
+Message-Id: <20180717212307.d6803a3b0bbfeb32479c1e26@linux-foundation.org>
+In-Reply-To: <CAOm-9arwY3VLUx5189JAR9J7B=Miad9nQjjet_VNdT3i+J+5FA@mail.gmail.com>
+References: <CAOm-9arwY3VLUx5189JAR9J7B=Miad9nQjjet_VNdT3i+J+5FA@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Dan Williams <dan.j.williams@intel.com>
+To: Bruce Merry <bmerry@ska.ac.za>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Dave Hansen <dave.hansen@linux.intel.com> writes:
+(cc linux-mm)
 
->> @@ -878,6 +877,11 @@ static int swap_alloc_cluster(struct swap_info_struct *si, swp_entry_t *slot)
->>  	unsigned long offset, i;
->>  	unsigned char *map;
->>  
->> +	if (!IS_ENABLED(CONFIG_THP_SWAP)) {
->> +		VM_WARN_ON_ONCE(1);
->> +		return 0;
->> +	}
->
-> I see you seized the opportunity to keep this code gloriously
-> unencumbered by pesky comments.  This seems like a time when you might
-> have slipped up and been temped to add a comment or two.  Guess not. :)
->
-> Seriously, though, does it hurt us to add a comment or two to say
-> something like:
->
-> 	/*
-> 	 * Should not even be attempting cluster allocations when
-> 	 * huge page swap is disabled.  Warn and fail the allocation.
-> 	 */
-> 	if (!IS_ENABLED(CONFIG_THP_SWAP)) {
-> 		VM_WARN_ON_ONCE(1);
-> 		return 0;
-> 	}
+On Tue, 3 Jul 2018 08:43:23 +0200 Bruce Merry <bmerry@ska.ac.za> wrote:
 
-I totally agree with you that we should add more comments for THP swap
-to improve the code readability.  As for this specific case,
-VM_WARN_ON_ONCE() here is just to capture some programming error during
-development.  Do we really need comments here?
-
-I will try to add more comments for other places in code regardless this
-one.
-
-Best Regards,
-Huang, Ying
+> Hi
+> 
+> I've run into an odd performance issue in the kernel, and not being a
+> kernel dev or knowing terribly much about cgroups, am looking for
+> advice on diagnosing the problem further (I discovered this while
+> trying to pin down high CPU load in cadvisor).
+> 
+> On some machines in our production system, cat
+> /sys/fs/cgroup/memory/memory.stat is extremely slow (500ms on one
+> machine), while on other nominally identical machines it is fast
+> (2ms).
+> 
+> One other thing I've noticed is that the affected machines generally
+> have much larger values for SUnreclaim in /proc/memstat (up to several
+> GB), and slabtop reports >1GB of dentry.
+> 
+> Before I tracked the original problem (high CPU usage in cadvisor)
+> down to this, I rebooted one of the machines and the original problem
+> went away, so it seems to be cleared by a reboot; I'm reluctant to
+> reboot more machines to confirm since I don't have a sure-fire way to
+> reproduce the problem again to debug it.
+> 
+> The machines are running Ubuntu 16.04 with kernel 4.13.0-41-generic.
+> They're running Docker, which creates a bunch of cgroups, but not an
+> excessive number: there are 106 memory.stat files in
+> /sys/fs/cgroup/memory.
+> 
+> Digging a bit further, cat
+> /sys/fs/cgroup/memory/system.slice/memory.stat also takes ~500ms, but
+> "find /sys/fs/cgroup/memory/system.slice -mindepth 2 -name memory.stat
+> | xargs cat" takes only 8ms.
+> 
+> Any thoughts, particularly on what I should compare between the good
+> and bad machines to narrow down the cause, or even better, how to
+> prevent it happening?
+> 
+> Thanks
+> Bruce
+> -- 
+> Bruce Merry
+> Senior Science Processing Developer
+> SKA South Africa
