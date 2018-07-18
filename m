@@ -1,50 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A77B96B000E
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:16:15 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id x2-v6so2161568pgv.7
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 08:16:15 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id n1-v6si3522060pge.57.2018.07.18.08.16.14
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F02E16B0266
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:25:43 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id z21-v6so2756039plo.13
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 08:25:43 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id d10-v6si3353483pgg.341.2018.07.18.08.25.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 08:16:14 -0700 (PDT)
-Subject: Re: [PATCH v2 2/7] mm/swapfile.c: Replace some #ifdef with
- IS_ENABLED()
-References: <20180717005556.29758-1-ying.huang@intel.com>
- <20180717005556.29758-3-ying.huang@intel.com>
- <10878744-8db0-1d2c-e899-7c132d78e153@linux.intel.com>
- <877eltgr7f.fsf@yhuang-dev.intel.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <ec1c459d-4366-8134-59d3-bc48d9fc5acd@linux.intel.com>
-Date: Wed, 18 Jul 2018 08:15:58 -0700
+        Wed, 18 Jul 2018 08:25:42 -0700 (PDT)
+Subject: Re: [PATCH v14 01/22] selftests/x86: Move protecton key selftest to
+ arch neutral directory
+References: <1531835365-32387-1-git-send-email-linuxram@us.ibm.com>
+ <1531835365-32387-2-git-send-email-linuxram@us.ibm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <d37b2ac3-d5a7-19d3-e609-2a0ebbe980c4@intel.com>
+Date: Wed, 18 Jul 2018 08:25:39 -0700
 MIME-Version: 1.0
-In-Reply-To: <877eltgr7f.fsf@yhuang-dev.intel.com>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <1531835365-32387-2-git-send-email-linuxram@us.ibm.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Dan Williams <dan.j.williams@intel.com>
+To: Ram Pai <linuxram@us.ibm.com>, shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org
+Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, mingo@redhat.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, fweimer@redhat.com, msuchanek@suse.de, aneesh.kumar@linux.vnet.ibm.com
 
-On 07/17/2018 08:25 PM, Huang, Ying wrote:
->> Seriously, though, does it hurt us to add a comment or two to say
->> something like:
->>
->> 	/*
->> 	 * Should not even be attempting cluster allocations when
->> 	 * huge page swap is disabled.  Warn and fail the allocation.
->> 	 */
->> 	if (!IS_ENABLED(CONFIG_THP_SWAP)) {
->> 		VM_WARN_ON_ONCE(1);
->> 		return 0;
->> 	}
-> I totally agree with you that we should add more comments for THP swap
-> to improve the code readability.  As for this specific case,
-> VM_WARN_ON_ONCE() here is just to capture some programming error during
-> development.  Do we really need comments here?
-
-If it's code in mainline, we need to know what it is doing.
-
-If it's not useful to have in mainline, then let's remove it.
+Acked-by: Dave Hansen <dave.hansen@intel.com>
