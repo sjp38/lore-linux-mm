@@ -1,52 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BDA46B0003
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 03:12:43 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id e23-v6so3439726oii.10
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 00:12:43 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id t187-v6si1812131oie.262.2018.07.18.00.12.41
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E6DD6B0006
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 04:12:34 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id f13-v6so533501edr.10
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 01:12:34 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x41-v6si1826438edb.66.2018.07.18.01.12.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 00:12:42 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6I78df4031217
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 03:12:41 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ka03k21ky-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 03:12:41 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 18 Jul 2018 08:12:38 +0100
-Date: Wed, 18 Jul 2018 10:12:31 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: kernel BUG at fs/userfaultfd.c:LINE! (2)
-References: <000000000000dcb1a1057112c66a@google.com>
- <20180717192806.GI75957@gmail.com>
+        Wed, 18 Jul 2018 01:12:32 -0700 (PDT)
+Date: Wed, 18 Jul 2018 10:12:30 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: cgroup-aware OOM killer, how to move forward
+Message-ID: <20180718081230.GP7193@dhcp22.suse.cz>
+References: <alpine.DEB.2.21.1807131423230.194789@chino.kir.corp.google.com>
+ <20180713221602.GA15005@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1807131535420.202408@chino.kir.corp.google.com>
+ <20180713230545.GA17467@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1807131608530.218060@chino.kir.corp.google.com>
+ <20180713231630.GB17467@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
+ <20180717173844.GB14909@castle.DHCP.thefacebook.com>
+ <20180717194945.GM7193@dhcp22.suse.cz>
+ <20180717200641.GB18762@castle.DHCP.thefacebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180717192806.GI75957@gmail.com>
-Message-Id: <20180718071230.GA4302@rapoport-lnx>
+In-Reply-To: <20180717200641.GB18762@castle.DHCP.thefacebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Biggers <ebiggers3@gmail.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, syzbot <syzbot+121be635a7a35ddb7dcb@syzkaller.appspotmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk
+To: Roman Gushchin <guro@fb.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
 
-On Tue, Jul 17, 2018 at 12:28:06PM -0700, Eric Biggers wrote:
-> [+Cc userfaultfd developers and linux-mm]
+On Tue 17-07-18 13:06:42, Roman Gushchin wrote:
+> On Tue, Jul 17, 2018 at 09:49:46PM +0200, Michal Hocko wrote:
+> > On Tue 17-07-18 10:38:45, Roman Gushchin wrote:
+> > [...]
+> > > Let me show my proposal on examples. Let's say we have the following hierarchy,
+> > > and the biggest process (or the process with highest oom_score_adj) is in D.
+> > > 
+> > >   /
+> > >   |
+> > >   A
+> > >   |
+> > >   B
+> > >  / \
+> > > C   D
+> > > 
+> > > Let's look at different examples and intended behavior:
+> > > 1) system-wide OOM
+> > >   - default settings: the biggest process is killed
+> > >   - D/memory.group_oom=1: all processes in D are killed
+> > >   - A/memory.group_oom=1: all processes in A are killed
+> > > 2) memcg oom in B
+> > >   - default settings: the biggest process is killed
+> > >   - A/memory.group_oom=1: the biggest process is killed
+> > 
+> > Huh? Why would you even consider A here when the oom is below it?
+> > /me confused
 > 
-> The reproducer hits the BUG_ON() in userfaultfd_release():
+> I do not.
+> This is exactly a counter-example: A's memory.group_oom
+> is not considered at all in this case,
+> because A is above ooming cgroup.
+
+OK, it confused me.
+
+> > 
+> > >   - B/memory.group_oom=1: all processes in B are killed
+> > 
+> >     - B/memory.group_oom=0 &&
+> > >   - D/memory.group_oom=1: all processes in D are killed
+> > 
+> > What about?
+> >     - B/memory.group_oom=1 && D/memory.group_oom=0
 > 
-> 	BUG_ON(!!vma->vm_userfaultfd_ctx.ctx ^
-> 	       !!(vma->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP)));
+> All tasks in B are killed.
 
-Thanks for the CC.
+so essentially find a task, traverse the memcg hierarchy from the
+victim's memcg up to the oom root as long as memcg.group_oom = 1?
+If the resulting memcg.group_oom == 1 then kill the whole sub tree.
+Right?
 
-The fix is below.
+> Group_oom set to 1 means that the workload can't tolerate
+> killing of a random process, so in this case it's better
+> to guarantee consistency for B.
 
---
-Sincerely yours,
-Mike.
+OK, but then if D itself is OOM then we do not care about consistency
+all of the sudden? I have hard time to think about a sensible usecase.
+-- 
+Michal Hocko
+SUSE Labs
