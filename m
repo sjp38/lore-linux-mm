@@ -1,56 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FCB76B0270
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 19:38:12 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id x15-v6so3363571pll.7
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 16:38:12 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id e6-v6si4530526pgh.50.2018.07.18.16.38.10
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B76386B0272
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 19:40:33 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id s3-v6so3365188plp.21
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 16:40:33 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id v38-v6si4389537pgn.431.2018.07.18.16.40.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 16:38:11 -0700 (PDT)
-Subject: Re: [PATCHv5 10/19] x86/mm: Implement page_keyid() using page_ext
+        Wed, 18 Jul 2018 16:40:32 -0700 (PDT)
+Subject: Re: [PATCHv5 11/19] x86/mm: Implement vma_keyid()
 References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
- <20180717112029.42378-11-kirill.shutemov@linux.intel.com>
+ <20180717112029.42378-12-kirill.shutemov@linux.intel.com>
 From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <2166be55-3491-f620-5eb0-6f671a53645f@intel.com>
-Date: Wed, 18 Jul 2018 16:38:02 -0700
+Message-ID: <a204a032-5e2b-63f6-31d3-c17014f94c8b@intel.com>
+Date: Wed, 18 Jul 2018 16:40:14 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180717112029.42378-11-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20180717112029.42378-12-kirill.shutemov@linux.intel.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Schofield, Alison" <alison.schofield@intel.com>
+Cc: Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 07/17/2018 04:20 AM, Kirill A. Shutemov wrote:
-> Store KeyID in bits 31:16 of extended page flags. These bits are unused.
+> --- a/arch/x86/mm/mktme.c
+> +++ b/arch/x86/mm/mktme.c
+> @@ -1,3 +1,4 @@
+> +#include <linux/mm.h>
+>  #include <asm/mktme.h>
+>  
+>  phys_addr_t mktme_keyid_mask;
+> @@ -37,3 +38,14 @@ struct page_ext_operations page_mktme_ops = {
+>  	.need = need_page_mktme,
+>  	.init = init_page_mktme,
+>  };
+> +
+> +int vma_keyid(struct vm_area_struct *vma)
+> +{
+> +	pgprotval_t prot;
+> +
+> +	if (!mktme_enabled())
+> +		return 0;
+> +
+> +	prot = pgprot_val(vma->vm_page_prot);
+> +	return (prot & mktme_keyid_mask) >> mktme_keyid_shift;
+> +}
 
-I'd love a two sentence remind of what page_ext is and why you chose to
-use it.  Yes, you need this.  No, not everybody that you want to review
-this patch set knows what it is or why you chose it.
+I'm a bit surprised this isn't inlined.  Not that function calls are
+expensive, but we *could* entirely avoid them using the normal pattern of:
 
-> page_keyid() returns zero until page_ext is ready.
+// In the header:
+static inline vma_keyid(...)
+{
+	if (!mktme_enabled())
+		return 0;
 
-Is there any implication of this?  Or does it not matter because we
-don't run userspace until after page_ext initialization is done?
-
-> page_ext initializer enables static branch to indicate that
-
-			"enables a static branch"
-
-> page_keyid() can use page_ext. The same static branch will gate MKTME
-> readiness in general.
-
-Can you elaborate on this a bit?  It would also be a nice place to hint
-to the folks working hard on the APIs to ensure she checks this.
-
-> We don't yet set KeyID for the page. It will come in the following
-> patch that implements prep_encrypted_page(). All pages have KeyID-0 for
-> now.
-
-It also wouldn't hurt to mention why you don't use an X86_FEATURE_* for
-this rather than an explicit static branch.  I'm sure the x86
-maintainers will be curious.
+	return __vma_keyid(...); // <- the .c file version
+}
