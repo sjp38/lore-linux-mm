@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EC846B0280
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C6986B027F
 	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:41:33 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id d5-v6so1699681edq.3
+Received: by mail-ed1-f71.google.com with SMTP id d5-v6so1699689edq.3
         for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:41:33 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id o16-v6si659572edo.118.2018.07.18.02.41.31
+        by mx.google.com with ESMTPS id r11-v6si1171220edp.9.2018.07.18.02.41.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 18 Jul 2018 02:41:32 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 19/39] x86/pgtable: Move pti_set_user_pgtbl() to pgtable.h
-Date: Wed, 18 Jul 2018 11:40:56 +0200
-Message-Id: <1531906876-13451-20-git-send-email-joro@8bytes.org>
+Subject: [PATCH 17/39] x86/pgtable/32: Allocate 8k page-tables when PTI is enabled
+Date: Wed, 18 Jul 2018 11:40:54 +0200
+Message-Id: <1531906876-13451-18-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,48 +22,94 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-There it is also usable from 32 bit code.
+Allocate a kernel and a user page-table root when PTI is
+enabled. Also allocate a full page per root for PAE because
+otherwise the bit to flip in cr3 to switch between them
+would be non-constant, which creates a lot of hassle.
+Keep that for a later optimization.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable.h | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ arch/x86/kernel/head_32.S | 20 +++++++++++++++-----
+ arch/x86/mm/pgtable.c     |  5 +++--
+ 2 files changed, 18 insertions(+), 7 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index eb47432..cc117161 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -640,8 +640,31 @@ static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
+diff --git a/arch/x86/kernel/head_32.S b/arch/x86/kernel/head_32.S
+index abe6df1..30f9cb2 100644
+--- a/arch/x86/kernel/head_32.S
++++ b/arch/x86/kernel/head_32.S
+@@ -512,11 +512,18 @@ ENTRY(initial_code)
+ ENTRY(setup_once_ref)
+ 	.long setup_once
  
- pmd_t *populate_extra_pmd(unsigned long vaddr);
- pte_t *populate_extra_pte(unsigned long vaddr);
-+
 +#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd);
-+
-+/*
-+ * Take a PGD location (pgdp) and a pgd value that needs to be set there.
-+ * Populates the user and returns the resulting PGD that must be set in
-+ * the kernel copy of the page tables.
-+ */
-+static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
-+{
-+	if (!static_cpu_has(X86_FEATURE_PTI))
-+		return pgd;
-+	return __pti_set_user_pgtbl(pgdp, pgd);
-+}
-+#else   /* CONFIG_PAGE_TABLE_ISOLATION */
-+static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
-+{
-+	return pgd;
-+}
-+#endif  /* CONFIG_PAGE_TABLE_ISOLATION */
-+
- #endif	/* __ASSEMBLY__ */
++#define	PGD_ALIGN	(2 * PAGE_SIZE)
++#define PTI_USER_PGD_FILL	1024
++#else
++#define	PGD_ALIGN	(PAGE_SIZE)
++#define PTI_USER_PGD_FILL	0
++#endif
+ /*
+  * BSS section
+  */
+ __PAGE_ALIGNED_BSS
+-	.align PAGE_SIZE
++	.align PGD_ALIGN
+ #ifdef CONFIG_X86_PAE
+ .globl initial_pg_pmd
+ initial_pg_pmd:
+@@ -526,14 +533,17 @@ initial_pg_pmd:
+ initial_page_table:
+ 	.fill 1024,4,0
+ #endif
++	.align PGD_ALIGN
+ initial_pg_fixmap:
+ 	.fill 1024,4,0
+-.globl empty_zero_page
+-empty_zero_page:
+-	.fill 4096,1,0
+ .globl swapper_pg_dir
++	.align PGD_ALIGN
+ swapper_pg_dir:
+ 	.fill 1024,4,0
++	.fill PTI_USER_PGD_FILL,4,0
++.globl empty_zero_page
++empty_zero_page:
++	.fill 4096,1,0
+ EXPORT_SYMBOL(empty_zero_page)
  
-+
- #ifdef CONFIG_X86_32
- # include <asm/pgtable_32.h>
- #else
+ /*
+@@ -542,7 +552,7 @@ EXPORT_SYMBOL(empty_zero_page)
+ #ifdef CONFIG_X86_PAE
+ __PAGE_ALIGNED_DATA
+ 	/* Page-aligned for the benefit of paravirt? */
+-	.align PAGE_SIZE
++	.align PGD_ALIGN
+ ENTRY(initial_page_table)
+ 	.long	pa(initial_pg_pmd+PGD_IDENT_ATTR),0	/* low identity map */
+ # if KPMDS == 3
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index 47b5951..db6fb77 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -343,7 +343,8 @@ static inline pgd_t *_pgd_alloc(void)
+ 	 * We allocate one page for pgd.
+ 	 */
+ 	if (!SHARED_KERNEL_PMD)
+-		return (pgd_t *)__get_free_page(PGALLOC_GFP);
++		return (pgd_t *)__get_free_pages(PGALLOC_GFP,
++						 PGD_ALLOCATION_ORDER);
+ 
+ 	/*
+ 	 * Now PAE kernel is not running as a Xen domain. We can allocate
+@@ -355,7 +356,7 @@ static inline pgd_t *_pgd_alloc(void)
+ static inline void _pgd_free(pgd_t *pgd)
+ {
+ 	if (!SHARED_KERNEL_PMD)
+-		free_page((unsigned long)pgd);
++		free_pages((unsigned long)pgd, PGD_ALLOCATION_ORDER);
+ 	else
+ 		kmem_cache_free(pgd_cache, pgd);
+ }
 -- 
 2.7.4
