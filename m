@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 430686B0284
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D3C5E6B0288
 	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:41:36 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b25-v6so1680853eds.17
+Received: by mail-ed1-f71.google.com with SMTP id n2-v6so1704913edr.5
         for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:41:36 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id o16-v6si659662edo.118.2018.07.18.02.41.35
+        by mx.google.com with ESMTPS id l11-v6si2343173edc.382.2018.07.18.02.41.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 18 Jul 2018 02:41:35 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 25/39] x86/mm/pti: Define X86_CR3_PTI_PCID_USER_BIT on x86_32
-Date: Wed, 18 Jul 2018 11:41:02 +0200
-Message-Id: <1531906876-13451-26-git-send-email-joro@8bytes.org>
+Subject: [PATCH 21/39] x86/mm/pae: Populate valid user PGD entries
+Date: Wed, 18 Jul 2018 11:40:58 +0200
+Message-Id: <1531906876-13451-22-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,38 +22,70 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Move it out of the X86_64 specific processor defines so
-that its visible for 32bit too.
+Generic page-table code populates all non-leaf entries with
+_KERNPG_TABLE bits set. This is fine for all paging modes
+except PAE.
 
-Reviewed-by: Andy Lutomirski <luto@kernel.org>
+In PAE mode only a subset of the bits is allowed to be set.
+Make sure we only set allowed bits by masking out the
+reserved bits.
+
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/processor-flags.h | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ arch/x86/include/asm/pgtable_types.h | 28 ++++++++++++++++++++++++++--
+ 1 file changed, 26 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/include/asm/processor-flags.h b/arch/x86/include/asm/processor-flags.h
-index 625a52a..02c2cbd 100644
---- a/arch/x86/include/asm/processor-flags.h
-+++ b/arch/x86/include/asm/processor-flags.h
-@@ -39,10 +39,6 @@
- #define CR3_PCID_MASK	0xFFFull
- #define CR3_NOFLUSH	BIT_ULL(63)
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index 99fff85..b64acb0 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -50,6 +50,7 @@
+ #define _PAGE_GLOBAL	(_AT(pteval_t, 1) << _PAGE_BIT_GLOBAL)
+ #define _PAGE_SOFTW1	(_AT(pteval_t, 1) << _PAGE_BIT_SOFTW1)
+ #define _PAGE_SOFTW2	(_AT(pteval_t, 1) << _PAGE_BIT_SOFTW2)
++#define _PAGE_SOFTW3	(_AT(pteval_t, 1) << _PAGE_BIT_SOFTW3)
+ #define _PAGE_PAT	(_AT(pteval_t, 1) << _PAGE_BIT_PAT)
+ #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
+ #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
+@@ -266,14 +267,37 @@ typedef struct pgprot { pgprotval_t pgprot; } pgprot_t;
  
--#ifdef CONFIG_PAGE_TABLE_ISOLATION
--# define X86_CR3_PTI_PCID_USER_BIT	11
--#endif
--
- #else
- /*
-  * CR3_ADDR_MASK needs at least bits 31:5 set on PAE systems, and we save
-@@ -53,4 +49,8 @@
- #define CR3_NOFLUSH	0
- #endif
+ typedef struct { pgdval_t pgd; } pgd_t;
  
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+# define X86_CR3_PTI_PCID_USER_BIT	11
++#ifdef CONFIG_X86_PAE
++
++/*
++ * PHYSICAL_PAGE_MASK might be non-constant when SME is compiled in, so we can't
++ * use it here.
++ */
++
++#define PGD_PAE_PAGE_MASK	((signed long)PAGE_MASK)
++#define PGD_PAE_PHYS_MASK	(((1ULL << __PHYSICAL_MASK_SHIFT)-1) & PGD_PAE_PAGE_MASK)
++
++/*
++ * PAE allows Base Address, P, PWT, PCD and AVL bits to be set in PGD entries.
++ * All other bits are Reserved MBZ
++ */
++#define PGD_ALLOWED_BITS	(PGD_PAE_PHYS_MASK | _PAGE_PRESENT | \
++				 _PAGE_PWT | _PAGE_PCD | \
++				 _PAGE_SOFTW1 | _PAGE_SOFTW2 | _PAGE_SOFTW3)
++
++#else
++/* No need to mask any bits for !PAE */
++#define PGD_ALLOWED_BITS	(~0ULL)
 +#endif
 +
- #endif /* _ASM_X86_PROCESSOR_FLAGS_H */
+ static inline pgd_t native_make_pgd(pgdval_t val)
+ {
+-	return (pgd_t) { val };
++	return (pgd_t) { val & PGD_ALLOWED_BITS };
+ }
+ 
+ static inline pgdval_t native_pgd_val(pgd_t pgd)
+ {
+-	return pgd.pgd;
++	return pgd.pgd & PGD_ALLOWED_BITS;
+ }
+ 
+ static inline pgdval_t pgd_flags(pgd_t pgd)
 -- 
 2.7.4
