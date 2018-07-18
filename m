@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C5DF6B02A3
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C63796B02A4
 	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:41:39 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id i26-v6so1708031edr.4
+Received: by mail-ed1-f71.google.com with SMTP id p5-v6so1699167edh.16
         for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:41:39 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id f15-v6si2973927ede.13.2018.07.18.02.41.38
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id v11-v6si3335343edk.204.2018.07.18.02.41.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 18 Jul 2018 02:41:38 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 27/39] x86/mm/pti: Make pti_clone_kernel_text() compile on 32 bit
-Date: Wed, 18 Jul 2018 11:41:04 +0200
-Message-Id: <1531906876-13451-28-git-send-email-joro@8bytes.org>
+Subject: [PATCH 26/39] x86/mm/pti: Clone CPU_ENTRY_AREA on PMD level on x86_32
+Date: Wed, 18 Jul 2018 11:41:03 +0200
+Message-Id: <1531906876-13451-27-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,91 +22,53 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-The pti_clone_kernel_text() function references
-__end_rodata_hpage_align, which is only present on x86-64.
-This makes sense as the end of the rodata section is not
-huge-page aligned on 32 bit.
-
-Nevertheless we need a symbol for the function that points
-at the right address for both 32 and 64 bit. Introduce
-__end_rodata_aligned for that purpose and use it in
-pti_clone_kernel_text().
+Cloning on the P4D level would clone the complete kernel
+address space into the user-space page-tables for PAE
+kernels. Cloning on PMD level is fine for PAE and legacy
+paging.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/sections.h |  1 +
- arch/x86/kernel/vmlinux.lds.S   | 17 ++++++++++-------
- arch/x86/mm/pti.c               |  2 +-
- 3 files changed, 12 insertions(+), 8 deletions(-)
+ arch/x86/mm/pti.c | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
 
-diff --git a/arch/x86/include/asm/sections.h b/arch/x86/include/asm/sections.h
-index 5c019d2..4a911a3 100644
---- a/arch/x86/include/asm/sections.h
-+++ b/arch/x86/include/asm/sections.h
-@@ -7,6 +7,7 @@
- 
- extern char __brk_base[], __brk_limit[];
- extern struct exception_table_entry __stop___ex_table[];
-+extern char __end_rodata_aligned[];
- 
- #if defined(CONFIG_X86_64)
- extern char __end_rodata_hpage_align[];
-diff --git a/arch/x86/kernel/vmlinux.lds.S b/arch/x86/kernel/vmlinux.lds.S
-index 5e1458f..8bde0a4 100644
---- a/arch/x86/kernel/vmlinux.lds.S
-+++ b/arch/x86/kernel/vmlinux.lds.S
-@@ -55,19 +55,22 @@ jiffies_64 = jiffies;
-  * so we can enable protection checks as well as retain 2MB large page
-  * mappings for kernel text.
-  */
--#define X64_ALIGN_RODATA_BEGIN	. = ALIGN(HPAGE_SIZE);
-+#define X86_ALIGN_RODATA_BEGIN	. = ALIGN(HPAGE_SIZE);
- 
--#define X64_ALIGN_RODATA_END					\
-+#define X86_ALIGN_RODATA_END					\
- 		. = ALIGN(HPAGE_SIZE);				\
--		__end_rodata_hpage_align = .;
-+		__end_rodata_hpage_align = .;			\
-+		__end_rodata_aligned = .;
- 
- #define ALIGN_ENTRY_TEXT_BEGIN	. = ALIGN(PMD_SIZE);
- #define ALIGN_ENTRY_TEXT_END	. = ALIGN(PMD_SIZE);
- 
- #else
- 
--#define X64_ALIGN_RODATA_BEGIN
--#define X64_ALIGN_RODATA_END
-+#define X86_ALIGN_RODATA_BEGIN
-+#define X86_ALIGN_RODATA_END					\
-+		. = ALIGN(PAGE_SIZE);				\
-+		__end_rodata_aligned = .;
- 
- #define ALIGN_ENTRY_TEXT_BEGIN
- #define ALIGN_ENTRY_TEXT_END
-@@ -141,9 +144,9 @@ SECTIONS
- 
- 	/* .text should occupy whole number of pages */
- 	. = ALIGN(PAGE_SIZE);
--	X64_ALIGN_RODATA_BEGIN
-+	X86_ALIGN_RODATA_BEGIN
- 	RO_DATA(PAGE_SIZE)
--	X64_ALIGN_RODATA_END
-+	X86_ALIGN_RODATA_END
- 
- 	/* Data */
- 	.data : AT(ADDR(.data) - LOAD_OFFSET) {
 diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index 2eadab0..4f6e933 100644
+index dc02fd4..2eadab0 100644
 --- a/arch/x86/mm/pti.c
 +++ b/arch/x86/mm/pti.c
-@@ -470,7 +470,7 @@ void pti_clone_kernel_text(void)
- 	 * clone the areas past rodata, they might contain secrets.
- 	 */
- 	unsigned long start = PFN_ALIGN(_text);
--	unsigned long end = (unsigned long)__end_rodata_hpage_align;
-+	unsigned long end = (unsigned long)__end_rodata_aligned;
+@@ -348,6 +348,7 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
+ 	}
+ }
  
- 	if (!pti_kernel_image_global_ok())
- 		return;
++#ifdef CONFIG_X86_64
+ /*
+  * Clone a single p4d (i.e. a top-level entry on 4-level systems and a
+  * next-level entry on 5-level systems.
+@@ -371,6 +372,25 @@ static void __init pti_clone_user_shared(void)
+ 	pti_clone_p4d(CPU_ENTRY_AREA_BASE);
+ }
+ 
++#else /* CONFIG_X86_64 */
++
++/*
++ * On 32 bit PAE systems with 1GB of Kernel address space there is only
++ * one pgd/p4d for the whole kernel. Cloning that would map the whole
++ * address space into the user page-tables, making PTI useless. So clone
++ * the page-table on the PMD level to prevent that.
++ */
++static void __init pti_clone_user_shared(void)
++{
++	unsigned long start, end;
++
++	start = CPU_ENTRY_AREA_BASE;
++	end   = start + (PAGE_SIZE * CPU_ENTRY_AREA_PAGES);
++
++	pti_clone_pmds(start, end, 0);
++}
++#endif /* CONFIG_X86_64 */
++
+ /*
+  * Clone the ESPFIX P4D into the user space visible page table
+  */
 -- 
 2.7.4
