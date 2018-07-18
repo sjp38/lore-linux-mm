@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B2246B026A
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 19:22:44 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id y2-v6so3358347pll.16
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 16:22:44 -0700 (PDT)
-Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
-        by mx.google.com with ESMTPS id 1-v6si4067945plj.411.2018.07.18.16.22.40
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ACD96B026C
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 19:22:53 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id t78-v6so2986350pfa.8
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 16:22:53 -0700 (PDT)
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id h90-v6si3471921plb.484.2018.07.18.16.22.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 16:22:42 -0700 (PDT)
+        Wed, 18 Jul 2018 16:22:51 -0700 (PDT)
 From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [RFC v5 PATCH 2/2] mm: mmap: zap pages with read mmap_sem in munmap
-Date: Thu, 19 Jul 2018 07:21:41 +0800
-Message-Id: <1531956101-8526-3-git-send-email-yang.shi@linux.alibaba.com>
+Subject: [RFC v5 PATCH 1/2] mm: refactor do_munmap() to extract the common part
+Date: Thu, 19 Jul 2018 07:21:40 +0800
+Message-Id: <1531956101-8526-2-git-send-email-yang.shi@linux.alibaba.com>
 In-Reply-To: <1531956101-8526-1-git-send-email-yang.shi@linux.alibaba.com>
 References: <1531956101-8526-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,261 +20,152 @@ List-ID: <linux-mm.kvack.org>
 To: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org
 Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-When running some mmap/munmap scalability tests with large memory (i.e.
-> 300GB), the below hung task issue may happen occasionally.
+Introduces three new helper functions:
+  * munmap_addr_sanity()
+  * munmap_lookup_vma()
+  * munmap_mlock_vma()
 
-INFO: task ps:14018 blocked for more than 120 seconds.
-       Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
- "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
-message.
- ps              D    0 14018      1 0x00000004
-  ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
-  ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
-  00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
- Call Trace:
-  [<ffffffff817154d0>] ? __schedule+0x250/0x730
-  [<ffffffff817159e6>] schedule+0x36/0x80
-  [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
-  [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
-  [<ffffffff81717db0>] down_read+0x20/0x40
-  [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
-  [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
-  [<ffffffff81241d87>] __vfs_read+0x37/0x150
-  [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
-  [<ffffffff81242266>] vfs_read+0x96/0x130
-  [<ffffffff812437b5>] SyS_read+0x55/0xc0
-  [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
+They will be used by do_munmap() and the new do_munmap with zapping
+large mapping early in the later patch.
 
-It is because munmap holds mmap_sem exclusively from very beginning to
-all the way down to the end, and doesn't release it in the middle. When
-unmapping large mapping, it may take long time (take ~18 seconds to
-unmap 320GB mapping with every single page mapped on an idle machine).
+There is no functional change, just code refactor.
 
-Zapping pages is the most time consuming part, according to the
-suggestion from Michal Hocko [1], zapping pages can be done with holding
-read mmap_sem, like what MADV_DONTNEED does. Then re-acquire write
-mmap_sem to cleanup vmas.
-
-But, some part may need write mmap_sem, for example, vma splitting. So,
-the design is as follows:
-        acquire write mmap_sem
-        lookup vmas (find and split vmas)
-	detach vmas
-        deal with special mappings
-        downgrade_write
-
-        zap pages
-	free page tables
-        release mmap_sem
-
-The vm events with read mmap_sem may come in during page zapping, but
-since vmas have been detached before, they, i.e. page fault, gup, etc,
-will not be able to find valid vma, then just return SIGSEGV or -EFAULT
-as expected.
-
-If the vma has VM_LOCKED | VM_HUGETLB | VM_PFNMAP or uprobe, they are
-considered as special mappings. They will be dealt with before zapping
-pages with write mmap_sem held. Basically, just update vm_flags.
-
-And, since they are also manipulated by unmap_single_vma() which is
-called by unmap_vma() with read mmap_sem held in this case, to
-prevent from updating vm_flags in read critical section, a new
-parameter, called "skip_flags" is added to unmap_region(), unmap_vmas()
-and unmap_single_vma(). If it is true, then just skip unmap those
-special mappings. Currently, the only place which pass true to this
-parameter is us.
-
-With this approach we don't have to re-acquire mmap_sem again to clean
-up vmas to avoid race window which might get the address space changed.
-
-And, since the lock acquire/release cost is managed to the minimum and
-almost as same as before, the optimization could be extended to any size
-of mapping without incuring significan penalty to small mappings.
-
-For the time being, just do this in munmap syscall path. Other
-vm_munmap() or do_munmap() call sites (i.e mmap, mremap, etc) remain
-intact for stability reason.
-
-With the patches, exclusive mmap_sem hold time when munmap a 80GB
-address space on a machine with 32 cores of E5-2680 @ 2.70GHz dropped to
-us level from second.
-
-munmap_test-15002 [008]   594.380138: funcgraph_entry: |  vm_munmap_zap_rlock() {
-munmap_test-15002 [008]   594.380146: funcgraph_entry:      !2485684 us |    unmap_region();
-munmap_test-15002 [008]   596.865836: funcgraph_exit:       !2485692 us |  }
-
-Here the excution time of unmap_region() is used to evaluate the time of
-holding read mmap_sem, then the remaining time is used with holding
-exclusive lock.
-
-[1] https://lwn.net/Articles/753269/
-
-Suggested-by: Michal Hocko <mhocko@kernel.org>
-Suggested-by: Kirill A. Shutemov <kirill@shutemov.name>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 ---
- include/linux/mm.h |  2 +-
- mm/memory.c        | 35 +++++++++++++------
- mm/mmap.c          | 99 +++++++++++++++++++++++++++++++++++++++++++++++++-----
- 3 files changed, 117 insertions(+), 19 deletions(-)
+ mm/mmap.c | 120 ++++++++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 82 insertions(+), 38 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a0fbb9f..95a4e97 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1321,7 +1321,7 @@ void zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
- void zap_page_range(struct vm_area_struct *vma, unsigned long address,
- 		    unsigned long size);
- void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
--		unsigned long start, unsigned long end);
-+		unsigned long start, unsigned long end, bool skip_flags);
- 
- /**
-  * mm_walk - callbacks for walk_page_range
-diff --git a/mm/memory.c b/mm/memory.c
-index 7206a63..00ecdae 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1514,7 +1514,7 @@ void unmap_page_range(struct mmu_gather *tlb,
- static void unmap_single_vma(struct mmu_gather *tlb,
- 		struct vm_area_struct *vma, unsigned long start_addr,
- 		unsigned long end_addr,
--		struct zap_details *details)
-+		struct zap_details *details, bool skip_flags)
- {
- 	unsigned long start = max(vma->vm_start, start_addr);
- 	unsigned long end;
-@@ -1525,11 +1525,13 @@ static void unmap_single_vma(struct mmu_gather *tlb,
- 	if (end <= vma->vm_start)
- 		return;
- 
--	if (vma->vm_file)
--		uprobe_munmap(vma, start, end);
-+	if (!skip_flags) {
-+		if (vma->vm_file)
-+			uprobe_munmap(vma, start, end);
- 
--	if (unlikely(vma->vm_flags & VM_PFNMAP))
--		untrack_pfn(vma, 0, 0);
-+		if (unlikely(vma->vm_flags & VM_PFNMAP))
-+			untrack_pfn(vma, 0, 0);
-+	}
- 
- 	if (start != end) {
- 		if (unlikely(is_vm_hugetlb_page(vma))) {
-@@ -1546,7 +1548,19 @@ static void unmap_single_vma(struct mmu_gather *tlb,
- 			 */
- 			if (vma->vm_file) {
- 				i_mmap_lock_write(vma->vm_file->f_mapping);
--				__unmap_hugepage_range_final(tlb, vma, start, end, NULL);
-+				if (!skip_flags)
-+					/*
-+					 * The vma is being unmapped with read
-+					 * mmap_sem.
-+					 * Can't update vm_flags, it will be
-+					 * updated later with exclusive lock
-+					 * held
-+					 */
-+					__unmap_hugepage_range(tlb, vma, start,
-+							end, NULL);
-+				else
-+					__unmap_hugepage_range_final(tlb, vma,
-+							start, end, NULL);
- 				i_mmap_unlock_write(vma->vm_file->f_mapping);
- 			}
- 		} else
-@@ -1574,13 +1588,14 @@ static void unmap_single_vma(struct mmu_gather *tlb,
-  */
- void unmap_vmas(struct mmu_gather *tlb,
- 		struct vm_area_struct *vma, unsigned long start_addr,
--		unsigned long end_addr)
-+		unsigned long end_addr, bool skip_flags)
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 
- 	mmu_notifier_invalidate_range_start(mm, start_addr, end_addr);
- 	for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next)
--		unmap_single_vma(tlb, vma, start_addr, end_addr, NULL);
-+		unmap_single_vma(tlb, vma, start_addr, end_addr, NULL,
-+				 skip_flags);
- 	mmu_notifier_invalidate_range_end(mm, start_addr, end_addr);
- }
- 
-@@ -1604,7 +1619,7 @@ void zap_page_range(struct vm_area_struct *vma, unsigned long start,
- 	update_hiwater_rss(mm);
- 	mmu_notifier_invalidate_range_start(mm, start, end);
- 	for ( ; vma && vma->vm_start < end; vma = vma->vm_next) {
--		unmap_single_vma(&tlb, vma, start, end, NULL);
-+		unmap_single_vma(&tlb, vma, start, end, NULL, false);
- 
- 		/*
- 		 * zap_page_range does not specify whether mmap_sem should be
-@@ -1641,7 +1656,7 @@ static void zap_page_range_single(struct vm_area_struct *vma, unsigned long addr
- 	tlb_gather_mmu(&tlb, mm, address, end);
- 	update_hiwater_rss(mm);
- 	mmu_notifier_invalidate_range_start(mm, address, end);
--	unmap_single_vma(&tlb, vma, address, end, details);
-+	unmap_single_vma(&tlb, vma, address, end, details, false);
- 	mmu_notifier_invalidate_range_end(mm, address, end);
- 	tlb_finish_mmu(&tlb, address, end);
- }
 diff --git a/mm/mmap.c b/mm/mmap.c
-index 2504094..f5d5312 100644
+index d1eb87e..2504094 100644
 --- a/mm/mmap.c
 +++ b/mm/mmap.c
-@@ -73,7 +73,7 @@
- 
- static void unmap_region(struct mm_struct *mm,
- 		struct vm_area_struct *vma, struct vm_area_struct *prev,
--		unsigned long start, unsigned long end);
-+		unsigned long start, unsigned long end, bool skip_flags);
- 
- /* description of effects of mapping type and prot in current implementation.
-  * this is due to the limited x86 page protection hardware.  The expected
-@@ -1824,7 +1824,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
- 	fput(file);
- 
- 	/* Undo any partial mapping done by a device driver. */
--	unmap_region(mm, vma, prev, vma->vm_start, vma->vm_end);
-+	unmap_region(mm, vma, prev, vma->vm_start, vma->vm_end, false);
- 	charged = 0;
- 	if (vm_flags & VM_SHARED)
- 		mapping_unmap_writable(file->f_mapping);
-@@ -2559,7 +2559,7 @@ static void remove_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
-  */
- static void unmap_region(struct mm_struct *mm,
- 		struct vm_area_struct *vma, struct vm_area_struct *prev,
--		unsigned long start, unsigned long end)
-+		unsigned long start, unsigned long end, bool skip_flags)
- {
- 	struct vm_area_struct *next = prev ? prev->vm_next : mm->mmap;
- 	struct mmu_gather tlb;
-@@ -2567,7 +2567,7 @@ static void unmap_region(struct mm_struct *mm,
- 	lru_add_drain();
- 	tlb_gather_mmu(&tlb, mm, start, end);
- 	update_hiwater_rss(mm);
--	unmap_vmas(&tlb, vma, start, end);
-+	unmap_vmas(&tlb, vma, start, end, skip_flags);
- 	free_pgtables(&tlb, vma, prev ? prev->vm_end : FIRST_USER_ADDRESS,
- 				 next ? next->vm_start : USER_PGTABLES_CEILING);
- 	tlb_finish_mmu(&tlb, start, end);
-@@ -2778,6 +2778,79 @@ static inline void munmap_mlock_vma(struct vm_area_struct *vma,
- 	}
+@@ -2686,34 +2686,44 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	return __split_vma(mm, vma, addr, new_below);
  }
  
+-/* Munmap is split into 2 main parts -- this part which finds
+- * what needs doing, and the areas themselves, which do the
+- * work.  This now handles partial unmappings.
+- * Jeremy Fitzhardinge <jeremy@goop.org>
+- */
+-int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+-	      struct list_head *uf)
++static inline bool munmap_addr_sanity(unsigned long start, size_t len)
+ {
+-	unsigned long end;
+-	struct vm_area_struct *vma, *prev, *last;
+-
+ 	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE-start)
+-		return -EINVAL;
++		return false;
+ 
+-	len = PAGE_ALIGN(len);
+-	if (len == 0)
+-		return -EINVAL;
++	if (PAGE_ALIGN(len) == 0)
++		return false;
++
++	return true;
++}
++
 +/*
-+ * Zap pages with read mmap_sem held
++ * munmap_lookup_vma: find the first overlap vma and split overlap vmas.
++ * @mm: mm_struct
++ * @vma: the first overlapping vma
++ * @prev: vma's prev
++ * @start: start address
++ * @end: end address
 + *
-+ * uf is the list for userfaultfd
++ * returns 1 if successful, 0 or errno otherwise
 + */
-+static int do_munmap_zap_rlock(struct mm_struct *mm, unsigned long start,
-+			       size_t len, struct list_head *uf)
++static int munmap_lookup_vma(struct mm_struct *mm, struct vm_area_struct **vma,
++			     struct vm_area_struct **prev, unsigned long start,
++			     unsigned long end)
 +{
-+	unsigned long end = 0;
-+	struct vm_area_struct *start_vma = NULL, *prev, *vma;
++	struct vm_area_struct *tmp, *last;
+ 
+ 	/* Find the first overlapping VMA */
+-	vma = find_vma(mm, start);
+-	if (!vma)
++	tmp = find_vma(mm, start);
++	if (!tmp)
+ 		return 0;
+-	prev = vma->vm_prev;
+-	/* we have  start < vma->vm_end  */
++
++	*prev = tmp->vm_prev;
++
++	/* we have start < vma->vm_end  */
+ 
+ 	/* if it doesn't overlap, we have nothing.. */
+-	end = start + len;
+-	if (vma->vm_start >= end)
++	if (tmp->vm_start >= end)
+ 		return 0;
+ 
+ 	/*
+@@ -2723,7 +2733,7 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 	 * unmapped vm_area_struct will remain in use: so lower split_vma
+ 	 * places tmp vma above, and higher split_vma places tmp vma below.
+ 	 */
+-	if (start > vma->vm_start) {
++	if (start > tmp->vm_start) {
+ 		int error;
+ 
+ 		/*
+@@ -2731,13 +2741,14 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 		 * not exceed its limit; but let map_count go just above
+ 		 * its limit temporarily, to help free resources as expected.
+ 		 */
+-		if (end < vma->vm_end && mm->map_count >= sysctl_max_map_count)
++		if (end < tmp->vm_end &&
++		    mm->map_count > sysctl_max_map_count)
+ 			return -ENOMEM;
+ 
+-		error = __split_vma(mm, vma, start, 0);
++		error = __split_vma(mm, tmp, start, 0);
+ 		if (error)
+ 			return error;
+-		prev = vma;
++		*prev = tmp;
+ 	}
+ 
+ 	/* Does it split the last one? */
+@@ -2747,7 +2758,48 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 		if (error)
+ 			return error;
+ 	}
+-	vma = prev ? prev->vm_next : mm->mmap;
++
++	*vma = *prev ? (*prev)->vm_next : mm->mmap;
++
++	return 1;
++}
++
++static inline void munmap_mlock_vma(struct vm_area_struct *vma,
++				    unsigned long end)
++{
++	struct vm_area_struct *tmp = vma;
++
++	while (tmp && tmp->vm_start < end) {
++		if (tmp->vm_flags & VM_LOCKED) {
++			vma->vm_mm->locked_vm -= vma_pages(tmp);
++			munlock_vma_pages_all(tmp);
++		}
++		tmp = tmp->vm_next;
++	}
++}
++
++/* Munmap is split into 2 main parts -- this part which finds
++ * what needs doing, and the areas themselves, which do the
++ * work.  This now handles partial unmappings.
++ * Jeremy Fitzhardinge <jeremy@goop.org>
++ */
++int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
++	      struct list_head *uf)
++{
++	unsigned long end;
++	struct vm_area_struct *vma = NULL, *prev;
 +	int ret = 0;
 +
 +	if (!munmap_addr_sanity(start, len))
@@ -284,110 +175,41 @@ index 2504094..f5d5312 100644
 +
 +	end = start + len;
 +
-+	/*
-+	 * need write mmap_sem to split vmas and detach vmas
-+	 * splitting vma up-front to save PITA to clean if it is failed
-+	 */
-+	if (down_write_killable(&mm->mmap_sem))
-+		return -EINTR;
-+
-+	ret = munmap_lookup_vma(mm, &start_vma, &prev, start, end);
++	ret = munmap_lookup_vma(mm, &vma, &prev, start, end);
 +	if (ret != 1)
-+		goto out;
-+
-+	if (unlikely(uf)) {
-+		ret = userfaultfd_unmap_prep(start_vma, start, end, uf);
++		return ret;
+ 
+ 	if (unlikely(uf)) {
+ 		/*
+@@ -2759,24 +2811,16 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 		 * split, despite we could. This is unlikely enough
+ 		 * failure that it's not worth optimizing it for.
+ 		 */
+-		int error = userfaultfd_unmap_prep(vma, start, end, uf);
+-		if (error)
+-			return error;
++		ret = userfaultfd_unmap_prep(vma, start, end, uf);
 +		if (ret)
-+			goto out;
-+	}
-+
-+	/* Handle mlocked vmas */
-+	if (mm->locked_vm)
-+		munmap_mlock_vma(start_vma, end);
-+
-+	/* Detach vmas from rbtree */
-+	detach_vmas_to_be_unmapped(mm, start_vma, prev, end);
-+
-+	/*
-+	 * Clear uprobe, VM_PFNMAP and hugetlb mapping in advance since they
-+	 * need update vm_flags with write mmap_sem
-+	 */
-+	vma = start_vma;
-+	for ( ; vma && vma->vm_start < end; vma = vma->vm_next) {
-+		if (vma->vm_file)
-+			uprobe_munmap(vma, vma->vm_start, vma->vm_end);
-+		if (unlikely(vma->vm_flags & VM_PFNMAP))
-+			untrack_pfn(vma, 0, 0);
-+		if (is_vm_hugetlb_page(vma))
-+			vma->vm_flags &= ~VM_MAYSHARE;
-+	}
-+
-+	downgrade_write(&mm->mmap_sem);
-+
-+	/* zap mappings with read mmap_sem */
-+	unmap_region(mm, start_vma, prev, start, end, true);
-+
-+	arch_unmap(mm, start_vma, start, end);
-+	remove_vma_list(mm, start_vma);
-+	up_read(&mm->mmap_sem);
-+
-+	return 0;
-+
-+out:
-+	up_write(&mm->mmap_sem);
-+	return ret;
-+}
-+
- /* Munmap is split into 2 main parts -- this part which finds
-  * what needs doing, and the areas themselves, which do the
-  * work.  This now handles partial unmappings.
-@@ -2826,7 +2899,7 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
- 	 * Remove the vma's, and unmap the actual pages
++			return ret;
+ 	}
+ 
+ 	/*
+ 	 * unlock any mlock()ed ranges before detaching vmas
  	 */
- 	detach_vmas_to_be_unmapped(mm, vma, prev, end);
--	unmap_region(mm, vma, prev, start, end);
-+	unmap_region(mm, vma, prev, start, end, false);
+-	if (mm->locked_vm) {
+-		struct vm_area_struct *tmp = vma;
+-		while (tmp && tmp->vm_start < end) {
+-			if (tmp->vm_flags & VM_LOCKED) {
+-				mm->locked_vm -= vma_pages(tmp);
+-				munlock_vma_pages_all(tmp);
+-			}
+-			tmp = tmp->vm_next;
+-		}
+-	}
++	if (mm->locked_vm)
++		munmap_mlock_vma(vma, end);
  
- 	arch_unmap(mm, vma, start, end);
- 
-@@ -2836,6 +2909,17 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
- 	return 0;
- }
- 
-+static int vm_munmap_zap_rlock(unsigned long start, size_t len)
-+{
-+	int ret;
-+	struct mm_struct *mm = current->mm;
-+	LIST_HEAD(uf);
-+
-+	ret = do_munmap_zap_rlock(mm, start, len, &uf);
-+	userfaultfd_unmap_complete(mm, &uf);
-+	return ret;
-+}
-+
- int vm_munmap(unsigned long start, size_t len)
- {
- 	int ret;
-@@ -2855,10 +2939,9 @@ int vm_munmap(unsigned long start, size_t len)
- SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
- {
- 	profile_munmap(addr);
--	return vm_munmap(addr, len);
-+	return vm_munmap_zap_rlock(addr, len);
- }
- 
--
- /*
-  * Emulation of deprecated remap_file_pages() syscall.
-  */
-@@ -3146,7 +3229,7 @@ void exit_mmap(struct mm_struct *mm)
- 	tlb_gather_mmu(&tlb, mm, 0, -1);
- 	/* update_hiwater_rss(mm) here? but nobody should be looking */
- 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
--	unmap_vmas(&tlb, vma, 0, -1);
-+	unmap_vmas(&tlb, vma, 0, -1, false);
- 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
- 	tlb_finish_mmu(&tlb, 0, -1);
- 
+ 	/*
+ 	 * Remove the vma's, and unmap the actual pages
 -- 
 1.8.3.1
