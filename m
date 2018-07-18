@@ -1,20 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E6DD6B0006
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 04:12:34 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id f13-v6so533501edr.10
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 01:12:34 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id BF8856B0008
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 04:19:03 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id s18-v6so1603744edr.15
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 01:19:03 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x41-v6si1826438edb.66.2018.07.18.01.12.32
+        by mx.google.com with ESMTPS id m90-v6si2921509ede.52.2018.07.18.01.19.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 01:12:32 -0700 (PDT)
-Date: Wed, 18 Jul 2018 10:12:30 +0200
+        Wed, 18 Jul 2018 01:19:02 -0700 (PDT)
+Date: Wed, 18 Jul 2018 10:19:01 +0200
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: cgroup-aware OOM killer, how to move forward
-Message-ID: <20180718081230.GP7193@dhcp22.suse.cz>
-References: <alpine.DEB.2.21.1807131423230.194789@chino.kir.corp.google.com>
- <20180713221602.GA15005@castle.DHCP.thefacebook.com>
+Message-ID: <20180718081901.GQ7193@dhcp22.suse.cz>
+References: <20180713221602.GA15005@castle.DHCP.thefacebook.com>
  <alpine.DEB.2.21.1807131535420.202408@chino.kir.corp.google.com>
  <20180713230545.GA17467@castle.DHCP.thefacebook.com>
  <alpine.DEB.2.21.1807131608530.218060@chino.kir.corp.google.com>
@@ -23,71 +22,38 @@ References: <alpine.DEB.2.21.1807131423230.194789@chino.kir.corp.google.com>
  <20180717173844.GB14909@castle.DHCP.thefacebook.com>
  <20180717194945.GM7193@dhcp22.suse.cz>
  <20180717200641.GB18762@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1807171329200.12251@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180717200641.GB18762@castle.DHCP.thefacebook.com>
+In-Reply-To: <alpine.DEB.2.21.1807171329200.12251@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
+To: David Rientjes <rientjes@google.com>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
 
-On Tue 17-07-18 13:06:42, Roman Gushchin wrote:
-> On Tue, Jul 17, 2018 at 09:49:46PM +0200, Michal Hocko wrote:
-> > On Tue 17-07-18 10:38:45, Roman Gushchin wrote:
-> > [...]
-> > > Let me show my proposal on examples. Let's say we have the following hierarchy,
-> > > and the biggest process (or the process with highest oom_score_adj) is in D.
-> > > 
-> > >   /
-> > >   |
-> > >   A
-> > >   |
-> > >   B
-> > >  / \
-> > > C   D
-> > > 
-> > > Let's look at different examples and intended behavior:
-> > > 1) system-wide OOM
-> > >   - default settings: the biggest process is killed
-> > >   - D/memory.group_oom=1: all processes in D are killed
-> > >   - A/memory.group_oom=1: all processes in A are killed
-> > > 2) memcg oom in B
-> > >   - default settings: the biggest process is killed
-> > >   - A/memory.group_oom=1: the biggest process is killed
-> > 
-> > Huh? Why would you even consider A here when the oom is below it?
-> > /me confused
-> 
-> I do not.
-> This is exactly a counter-example: A's memory.group_oom
-> is not considered at all in this case,
-> because A is above ooming cgroup.
+On Tue 17-07-18 13:41:33, David Rientjes wrote:
+[...]
+> Thus, the semantic would be: if oom mem cgroup is "tree", kill all 
+> processes in subtree; otherwise, it can be "cgroup" or "process" to 
+> determine what is oom killed depending on the victim selection.
 
-OK, it confused me.
+Why should be an intermediate node any different from the leaf. If you
+want to tear down the whole subtree, just make it oom_cgroup = true and
+be done with that. Why do we even need to call it tree?
+ 
+> Having the "tree" behavior could definitely be implemented as a separate 
+> tunable; but then then value of /A/memory.group_oom and 
+> /A/B/memory.group_oom are irrelevant and, to me, seems like it would be 
+> more confusing.
 
-> > 
-> > >   - B/memory.group_oom=1: all processes in B are killed
-> > 
-> >     - B/memory.group_oom=0 &&
-> > >   - D/memory.group_oom=1: all processes in D are killed
-> > 
-> > What about?
-> >     - B/memory.group_oom=1 && D/memory.group_oom=0
-> 
-> All tasks in B are killed.
+I am sorry, I do not follow. How are the following two different?
+A (tree)	A (group)
+|		|
+B (tree)	B (group)
+|		|
+C (process)	C (group=false)
 
-so essentially find a task, traverse the memcg hierarchy from the
-victim's memcg up to the oom root as long as memcg.group_oom = 1?
-If the resulting memcg.group_oom == 1 then kill the whole sub tree.
-Right?
-
-> Group_oom set to 1 means that the workload can't tolerate
-> killing of a random process, so in this case it's better
-> to guarantee consistency for B.
-
-OK, but then if D itself is OOM then we do not care about consistency
-all of the sudden? I have hard time to think about a sensible usecase.
 -- 
 Michal Hocko
 SUSE Labs
