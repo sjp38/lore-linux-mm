@@ -1,84 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C12EB6B000E
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 12:00:21 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id t19-v6so2803186plo.9
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 09:00:21 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id 32-v6si3459981plc.452.2018.07.18.09.00.20
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 44AEE6B0266
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 12:01:09 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id l13-v6so3526713qth.8
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 09:01:09 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id a18-v6si1391830qtm.396.2018.07.18.09.01.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 09:00:20 -0700 (PDT)
-Subject: Re: [PATCH v14 12/22] selftests/vm: pkey register should match shadow
- pkey
-References: <1531835365-32387-1-git-send-email-linuxram@us.ibm.com>
- <1531835365-32387-13-git-send-email-linuxram@us.ibm.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <13e29efb-6a75-d6c8-e9a8-9e7495b88e00@intel.com>
-Date: Wed, 18 Jul 2018 09:00:11 -0700
+        Wed, 18 Jul 2018 09:01:05 -0700 (PDT)
+Subject: Re: [PATCH v5 0/6] fs/dcache: Track & limit # of negative dentries
+References: <1530510723-24814-1-git-send-email-longman@redhat.com>
+ <CA+55aFyH6dHw-7R3364dn32J4p7kxT=TqmnuozCn9_Bz-MHhxQ@mail.gmail.com>
+ <20180702141811.ef027fd7d8087b7fb2ba0cce@linux-foundation.org>
+ <1530570880.3179.9.camel@HansenPartnership.com>
+ <20180702161925.1c717283dd2bd4a221bc987c@linux-foundation.org>
+ <20180703091821.oiywpdxd6rhtxl4p@quack2.suse.cz>
+ <20180714173516.uumlhs4wgfgrlc32@devuan>
+ <CA+55aFw1vrsTjJyoq4Q3jBwv1nXaTkkmSbHO6vozWZuTc7_6Kg@mail.gmail.com>
+ <20180714183445.GJ30522@ZenIV.linux.org.uk>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <990ac8fd-69a6-7d6b-6608-cda012ac22a4@redhat.com>
+Date: Wed, 18 Jul 2018 12:01:03 -0400
 MIME-Version: 1.0
-In-Reply-To: <1531835365-32387-13-git-send-email-linuxram@us.ibm.com>
+In-Reply-To: <20180714183445.GJ30522@ZenIV.linux.org.uk>
 Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>, shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org
-Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, mingo@redhat.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, fweimer@redhat.com, msuchanek@suse.de, aneesh.kumar@linux.vnet.ibm.com
+To: Al Viro <viro@ZenIV.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Pavel Machek <pavel@ucw.cz>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>, linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>
 
-On 07/17/2018 06:49 AM, Ram Pai wrote:
-> expected_pkey_fault() is comparing the contents of pkey
-> register with 0. This may not be true all the time. There
-> could be bits set by default by the architecture
-> which can never be changed. Hence compare the value against
-> shadow pkey register, which is supposed to track the bits
-> accurately all throughout
+On 07/14/2018 02:34 PM, Al Viro wrote:
+> On Sat, Jul 14, 2018 at 11:00:32AM -0700, Linus Torvalds wrote:
+>> On Sat, Jul 14, 2018 at 10:35 AM Pavel Machek <pavel@ucw.cz> wrote:
+>>> Could we allocate -ve entries from separate slab?
+>> No, because negative dentrires don't stay negative.
+>>
+>> Every single positive dentry starts out as a negative dentry that is
+>> passed in to "lookup()" to maybe be made positive.
+>>
+>> And most of the time they <i>do</i> turn positive, because most of the=
 
-This is getting dangerously close to full sentences that actually
-describe the patch.  You forgot a period, but much this is a substantial
-improvement over earlier parts of the series.  Thanks for writing this,
-seriously.
+>> time people actually open files that exist.
+>>
+>> But then occasionally you don't, because you're just blindly opening a=
 
-> cc: Dave Hansen <dave.hansen@intel.com>
-> cc: Florian Weimer <fweimer@redhat.com>
-> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
-> ---
->  tools/testing/selftests/vm/protection_keys.c |    4 ++--
->  1 files changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/tools/testing/selftests/vm/protection_keys.c b/tools/testing/selftests/vm/protection_keys.c
-> index 2e448e0..f50cce8 100644
-> --- a/tools/testing/selftests/vm/protection_keys.c
-> +++ b/tools/testing/selftests/vm/protection_keys.c
-> @@ -913,10 +913,10 @@ void expected_pkey_fault(int pkey)
->  		pkey_assert(last_si_pkey == pkey);
->  
->  	/*
-> -	 * The signal handler shold have cleared out PKEY register to let the
-> +	 * The signal handler should have cleared out pkey-register to let the
->  	 * test program continue.  We now have to restore it.
->  	 */
+>> filename whether it exists or not (to _check_ whether it's there).
+> BTW, one point that might not be realized by everyone: negative dentrie=
+s
+> are *not* the hard case.
+> mount -t tmpfs none /mnt
+> touch /mnt/a
+> for i in `seq 100000`; do ln /mnt/a /mnt/$i; done
+>
+> and you've got 100000 *unevictable* dentries, with the time per iterati=
+on
+> being not all that high (especially if you just call link(2) in a loop)=
+=2E
+> They are all positive and all pinned.  And you've got only one inode
+> there and no persistently opened files, so rlimit and quota won't help
+> any.
 
-... while I appreciate the spelling corrections, and I would totally ack
-a patch that fixed them in one fell swoop, could we please segregate the
-random spelling corrections from code fixes unless you touch those lines
-otherwise?
+Normally you need to be root or have privileges to mount a filesystem.
+Right?
 
-> -	if (__read_pkey_reg() != 0)
-> +	if (__read_pkey_reg() != shadow_pkey_reg)
->  		pkey_assert(0);
->  
->  	__write_pkey_reg(shadow_pkey_reg);
+I am aware there is effort going on to allow non-privilege user mount in
+container. That can open a can of worms if it is not done properly.
 
-I know this is a one-line change, but I don't fully understand it.
+With privileges, there is a lot of ways one can screw up the system. So
+I am not less concern about this particular issue.
 
-On x86, if we take a pkey fault, we clear PKRU entirely (via the
-on-stack XSAVE state that is restored at sigreturn) which allows the
-faulting instruction to resume and execute normally.  That's what this
-check is looking for: Did the signal handler clear PKRU?
-
-Now, you're saying that powerpc might not clear it.  That makes sense.
-
-While PKRU's state here is obvious, it isn't patently obvious to me what
-shadow_pkey_reg's state is.  In fact, looking at it, I don't see the
-signal handler manipulating the shadow.  So, how can this patch work?
+Cheers,
+Longman
