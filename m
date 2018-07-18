@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DA9D6B000C
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 11:53:59 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id v9-v6so2523519pff.4
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 08:53:59 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id b4-v6si3384946pgc.654.2018.07.18.08.53.57
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C12EB6B000E
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 12:00:21 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id t19-v6so2803186plo.9
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 09:00:21 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id 32-v6si3459981plc.452.2018.07.18.09.00.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 08:53:58 -0700 (PDT)
-Subject: Re: [PATCH v14 11/22] selftests/vm: introduce two arch independent
- abstraction
+        Wed, 18 Jul 2018 09:00:20 -0700 (PDT)
+Subject: Re: [PATCH v14 12/22] selftests/vm: pkey register should match shadow
+ pkey
 References: <1531835365-32387-1-git-send-email-linuxram@us.ibm.com>
- <1531835365-32387-12-git-send-email-linuxram@us.ibm.com>
+ <1531835365-32387-13-git-send-email-linuxram@us.ibm.com>
 From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <5c557b14-8898-9afc-ba9e-3e5ab2e0aa31@intel.com>
-Date: Wed, 18 Jul 2018 08:52:57 -0700
+Message-ID: <13e29efb-6a75-d6c8-e9a8-9e7495b88e00@intel.com>
+Date: Wed, 18 Jul 2018 09:00:11 -0700
 MIME-Version: 1.0
-In-Reply-To: <1531835365-32387-12-git-send-email-linuxram@us.ibm.com>
+In-Reply-To: <1531835365-32387-13-git-send-email-linuxram@us.ibm.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -27,92 +27,58 @@ To: Ram Pai <linuxram@us.ibm.com>, shuahkh@osg.samsung.com, linux-kselftest@vger
 Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, mingo@redhat.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, fweimer@redhat.com, msuchanek@suse.de, aneesh.kumar@linux.vnet.ibm.com
 
 On 07/17/2018 06:49 AM, Ram Pai wrote:
-> open_hugepage_file() <- opens the huge page file
+> expected_pkey_fault() is comparing the contents of pkey
+> register with 0. This may not be true all the time. There
+> could be bits set by default by the architecture
+> which can never be changed. Hence compare the value against
+> shadow pkey register, which is supposed to track the bits
+> accurately all throughout
 
-Folks, a sentence here would be nice:
-
-	Different architectures have different huge page sizes and thus
-	have different sysfs filees to manipulate when allocating huge
-	pages.
-
-> get_start_key() <--  provides the first non-reserved key.
-
-Does powerpc not start on key 0?  Why do you need this?
+This is getting dangerously close to full sentences that actually
+describe the patch.  You forgot a period, but much this is a substantial
+improvement over earlier parts of the series.  Thanks for writing this,
+seriously.
 
 > cc: Dave Hansen <dave.hansen@intel.com>
 > cc: Florian Weimer <fweimer@redhat.com>
 > Signed-off-by: Ram Pai <linuxram@us.ibm.com>
-> Signed-off-by: Thiago Jung Bauermann <bauerman@linux.ibm.com>
-> Reviewed-by: Dave Hansen <dave.hansen@intel.com>
 > ---
->  tools/testing/selftests/vm/pkey-helpers.h    |   10 ++++++++++
->  tools/testing/selftests/vm/pkey-x86.h        |    1 +
->  tools/testing/selftests/vm/protection_keys.c |    6 +++---
->  3 files changed, 14 insertions(+), 3 deletions(-)
+>  tools/testing/selftests/vm/protection_keys.c |    4 ++--
+>  1 files changed, 2 insertions(+), 2 deletions(-)
 > 
-> diff --git a/tools/testing/selftests/vm/pkey-helpers.h b/tools/testing/selftests/vm/pkey-helpers.h
-> index ada0146..52a1152 100644
-> --- a/tools/testing/selftests/vm/pkey-helpers.h
-> +++ b/tools/testing/selftests/vm/pkey-helpers.h
-> @@ -179,4 +179,14 @@ static inline void __pkey_write_allow(int pkey, int do_allow_write)
->  #define __stringify_1(x...)     #x
->  #define __stringify(x...)       __stringify_1(x)
->  
-> +static inline int open_hugepage_file(int flag)
-> +{
-> +	return open(HUGEPAGE_FILE, flag);
-> +}
-
-open_nr_hugepages_file() if you revise this, please
-> +
-> +static inline int get_start_key(void)
-> +{
-> +	return 1;
-> +}
-
-get_first_user_pkey(), please.
-
->  #endif /* _PKEYS_HELPER_H */
-> diff --git a/tools/testing/selftests/vm/pkey-x86.h b/tools/testing/selftests/vm/pkey-x86.h
-> index 2b3780d..d5fa299 100644
-> --- a/tools/testing/selftests/vm/pkey-x86.h
-> +++ b/tools/testing/selftests/vm/pkey-x86.h
-> @@ -48,6 +48,7 @@
->  #define MB			(1<<20)
->  #define pkey_reg_t		u32
->  #define PKEY_REG_FMT		"%016x"
-> +#define HUGEPAGE_FILE		"/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages"
->  
->  static inline u32 pkey_bit_position(int pkey)
->  {
 > diff --git a/tools/testing/selftests/vm/protection_keys.c b/tools/testing/selftests/vm/protection_keys.c
-> index 2565b4c..2e448e0 100644
+> index 2e448e0..f50cce8 100644
 > --- a/tools/testing/selftests/vm/protection_keys.c
 > +++ b/tools/testing/selftests/vm/protection_keys.c
-> @@ -788,7 +788,7 @@ void setup_hugetlbfs(void)
->  	 * Now go make sure that we got the pages and that they
->  	 * are 2M pages.  Someone might have made 1G the default.
->  	 */
-> -	fd = open("/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages", O_RDONLY);
-> +	fd = open_hugepage_file(O_RDONLY);
->  	if (fd < 0) {
->  		perror("opening sysfs 2M hugetlb config");
->  		return;
-
-This is fine, and obviously necessary.
-
-> @@ -1075,10 +1075,10 @@ void test_kernel_gup_write_to_write_disabled_region(int *ptr, u16 pkey)
->  void test_pkey_syscalls_on_non_allocated_pkey(int *ptr, u16 pkey)
->  {
->  	int err;
-> -	int i;
-> +	int i = get_start_key();
+> @@ -913,10 +913,10 @@ void expected_pkey_fault(int pkey)
+>  		pkey_assert(last_si_pkey == pkey);
 >  
->  	/* Note: 0 is the default pkey, so don't mess with it */
-> -	for (i = 1; i < NR_PKEYS; i++) {
-> +	for (; i < NR_PKEYS; i++) {
->  		if (pkey == i)
->  			continue;
+>  	/*
+> -	 * The signal handler shold have cleared out PKEY register to let the
+> +	 * The signal handler should have cleared out pkey-register to let the
+>  	 * test program continue.  We now have to restore it.
+>  	 */
 
-Grumble, grumble, you moved the code away from the comment connected to
-it.
+... while I appreciate the spelling corrections, and I would totally ack
+a patch that fixed them in one fell swoop, could we please segregate the
+random spelling corrections from code fixes unless you touch those lines
+otherwise?
+
+> -	if (__read_pkey_reg() != 0)
+> +	if (__read_pkey_reg() != shadow_pkey_reg)
+>  		pkey_assert(0);
+>  
+>  	__write_pkey_reg(shadow_pkey_reg);
+
+I know this is a one-line change, but I don't fully understand it.
+
+On x86, if we take a pkey fault, we clear PKRU entirely (via the
+on-stack XSAVE state that is restored at sigreturn) which allows the
+faulting instruction to resume and execute normally.  That's what this
+check is looking for: Did the signal handler clear PKRU?
+
+Now, you're saying that powerpc might not clear it.  That makes sense.
+
+While PKRU's state here is obvious, it isn't patently obvious to me what
+shadow_pkey_reg's state is.  In fact, looking at it, I don't see the
+signal handler manipulating the shadow.  So, how can this patch work?
