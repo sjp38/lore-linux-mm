@@ -1,192 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CAAAB6B0006
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 17:45:54 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id g11-v6so2566465pgs.13
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 14:45:54 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id k91-v6si4110232pld.248.2018.07.18.14.45.53
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EF5736B0003
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 17:54:02 -0400 (EDT)
+Received: by mail-yb0-f198.google.com with SMTP id d6-v6so3215751ybn.14
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 14:54:02 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z127-v6sor1261224yba.197.2018.07.18.14.53.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 14:45:53 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 16/27] mm: Modify can_follow_write_pte/pmd for
- shadow stack
-References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
- <20180710222639.8241-17-yu-cheng.yu@intel.com>
- <de510df6-7ea9-edc6-9c49-2f80f16472b4@linux.intel.com>
- <1531328731.15351.3.camel@intel.com>
- <45a85b01-e005-8cb6-af96-b23ce9b5fca7@linux.intel.com>
- <1531868610.3541.21.camel@intel.com>
- <fa9db8c5-41c8-05e9-ad8d-dc6aaf11cb04@linux.intel.com>
- <1531944882.10738.1.camel@intel.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <3f158401-f0b6-7bf7-48ab-2958354b28ad@linux.intel.com>
-Date: Wed, 18 Jul 2018 14:45:40 -0700
+        (Google Transport Security);
+        Wed, 18 Jul 2018 14:53:59 -0700 (PDT)
+Date: Wed, 18 Jul 2018 17:56:44 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 08/10] psi: pressure stall information for CPU, memory,
+ and IO
+Message-ID: <20180718215644.GB2838@cmpxchg.org>
+References: <20180712172942.10094-1-hannes@cmpxchg.org>
+ <20180712172942.10094-9-hannes@cmpxchg.org>
+ <20180717100347.GD2494@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <1531944882.10738.1.camel@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180717100347.GD2494@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 07/18/2018 01:14 PM, Yu-cheng Yu wrote:
-> On Tue, 2018-07-17 at 16:15 -0700, Dave Hansen wrote:
->> On 07/17/2018 04:03 PM, Yu-cheng Yu wrote:
->>>
->>> We need to find a way to differentiate "someone can write to this PTE"
->>> from "the write bit is set in this PTE".
->> Please think about this:
->>
->> 	Should pte_write() tell us whether PTE.W=1, or should it tell us
->> 	that *something* can write to the PTE, which would include
->> 	PTE.W=0/D=1?
+On Tue, Jul 17, 2018 at 12:03:47PM +0200, Peter Zijlstra wrote:
+> This is still a scary amount of accounting; not to mention you'll be
+> adding O(cgroup-depth) to this in a later patch.
 > 
-> 
-> Is it better now?
-> 
-> 
-> Subject: [PATCH] mm: Modify can_follow_write_pte/pmd for shadow stack
-> 
-> can_follow_write_pte/pmd look for the (RO & DIRTY) PTE/PMD to
-> verify a non-sharing RO page still exists after a broken COW.
-> 
-> However, a shadow stack PTE is always RO & DIRTY; it can be:
-> 
-> A  RO & DIRTY_HW - is_shstk_pte(pte) is true; or
-> A  RO & DIRTY_SW - the page is being shared.
-> 
-> Update these functions to check a non-sharing shadow stack page
-> still exists after the COW.
-> 
-> Also rename can_follow_write_pte/pmd() to can_follow_write() to
-> make their meaning clear; i.e. "Can we write to the page?", not
-> "Is the PTE writable?"
-> 
-> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> ---
-> A mm/gup.cA A A A A A A A A | 38 ++++++++++++++++++++++++++++++++++----
-> A mm/huge_memory.c | 19 ++++++++++++++-----
-> A 2 files changed, 48 insertions(+), 9 deletions(-)
-> 
-> diff --git a/mm/gup.c b/mm/gup.c
-> index fc5f98069f4e..316967996232 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -63,11 +63,41 @@ static int follow_pfn_pte(struct vm_area_struct *vma, unsigned long address,
-> A /*
-> A  * FOLL_FORCE can write to even unwritable pte's, but only
-> A  * after we've gone through a COW cycle and they are dirty.
-> + *
-> + * Background:
-> + *
-> + * When we force-write to a read-only page, the page fault
-> + * handler copies the page and sets the new page's PTE to
-> + * RO & DIRTY.A A This routine tells
-> + *
-> + *A A A A A "Can we write to the page?"
-> + *
-> + * by checking:
-> + *
-> + *A A A A A (1) The page has been copied, i.e. FOLL_COW is set;
-> + *A A A A A (2) The copy still exists and its PTE is RO & DIRTY.
-> + *
-> + * However, a shadow stack PTE is always RO & DIRTY; it can
-> + * be:
-> + *
-> + *A A A A A RO & DIRTY_HW: when is_shstk_pte(pte) is true; or
-> + *A A A A A RO & DIRTY_SW: when the page is being shared.
-> + *
-> + * To test a shadow stack's non-sharing page still exists,
-> + * we verify that the new page's PTE is_shstk_pte(pte).
+> Where are the performance numbers for all this?
 
-The content is getting there, but we need it next to the code, please.
+I benchmarked it using our two most scheduling sensitive workloads:
+memcache and webserver. They handle a ton of small requests - lots of
+wakeups and sleeps with little actual work in between - so they tend
+to be canaries for scheduler regressions.
 
-> A  */
-> -static inline bool can_follow_write_pte(pte_t pte, unsigned int flags)
-> +static inline bool can_follow_write(pte_t pte, unsigned int flags,
-> +				A A A A struct vm_area_struct *vma)
-> A {
-> -	return pte_write(pte) ||
-> -		((flags & FOLL_FORCE) && (flags & FOLL_COW) && pte_dirty(pte));
-> +	if (!is_shstk_mapping(vma->vm_flags)) {
-> +		if (pte_write(pte))
-> +			return true;
+In the tests, the boxes were handling live traffic over the course of
+several hours. Half the machines, the control, ran with CONFIG_PSI=n.
 
-Let me see if I can say this another way.
+For memcache I used eight machines total. They're 2-socket, 14 core,
+56 thread boxes. The test runs for half the test period, flips the
+test and control kernels on the hardware to rule out HW factors, DC
+location etc., then runs the other half of the test.
 
-The bigger issue is that these patches change the semantics of
-pte_write().  Before these patches, it meant that you *MUST* have this
-bit set to write to the page controlled by the PTE.  Now, it means: you
-can write if this bit is set *OR* the shadowstack bit combination is set.
+For the webservers, I used 32 machines total. They're single socket,
+16 core, 32 thread machines.
 
-That's the fundamental problem.  We need some code in the kernel that
-logically represents the concept of "is this PTE a shadowstack PTE or a
-PTE with the write bit set", and we will call that pte_write(), or maybe
-pte_writable().
+During the memcache test, CPU load was nopsi=78.05% psi=78.98% in the
+first half and nopsi=77.52% psi=78.25%, so psi added between 0.7 and
+0.9 percentage points to the CPU load, a difference of about 1%.
 
-You *have* to somehow rectify this situation.  We can absolutely no
-leave pte_write() in its current, ambiguous state where it has no real
-meaning or where it is used to mean _both_ things depending on context.
+As far as end-to-end request latency from the client perspective goes,
+we don't sample those finely enough to capture the requests going to
+those particular machines during the test, but we know the p50
+turnaround time in this workload is 54us, and perf bench sched pipe on
+those machines show nopsi=5.232666 us/op and psi=5.587347 us/op, so
+this doesn't add much here either.
 
-> +		return ((flags & FOLL_FORCE) && (flags & FOLL_COW) &&
-> +			pte_dirty(pte));
-> +	} else {
-> +		return ((flags & FOLL_FORCE) && (flags & FOLL_COW) &&
-> +			is_shstk_pte(pte));
-> +	}
-> A }
+The profile for the pipe benchmark shows:
 
-Ok, it's rewrite time I guess.
+     0.87%  sched-pipe  [kernel.vmlinux]    [k] psi_group_change
+     0.83%  perf.real   [kernel.vmlinux]    [k] psi_group_change
+     0.82%  perf.real   [kernel.vmlinux]    [k] psi_task_change
+     0.58%  sched-pipe  [kernel.vmlinux]    [k] psi_task_change
 
-Yu-cheng, you may not know all the history, but this code is actually
-the source of the "Dirty COW" security issue.  We need to be very, very
-careful with it, and super-explicit about all the logic.  This is the
-time to blow up the comments and walk folks through exactly what we
-expect to happen.
 
-Anybody think I'm being too verbose?  Is there a reason not to just go
-whole-hog on this sucker?
+The webserver load is running inside 4 nested cgroup levels. The CPU
+load with both nopsi and psi kernels was indistinguishable at 81%.
 
-static inline bool can_follow_write(pte_t pte, unsigned int flags,
-				    struct vm_area_struct *vma)
-{
-	/*
-	 * FOLL_FORCE can "write" to hardware read-only PTEs, but
-	 * has to do a COW operation first.  Do not allow the
-	 * hardware protection override unless we see FOLL_FORCE
-	 * *and* the COW has been performed by the fault code.
-	 */
-	bool gup_cow_ok = (flags & FOLL_FORCE) &&
-			  (flags & FOLL_COW);
+For comparison, we had to disable the cgroup cpu controller on the
+webservers because it added 4 percentage points to the CPU% during
+this same exact test.
 
-	/*
-	 * FOLL_COW flags tell us whether the page fault code did a COW
-	 * operation but not whether the PTE we are dealing with here
-	 * was COW'd.  It could have been zapped and refaulted since the
-	 * COW operation.
-	 */
-	bool pte_cow_ok;
+Versions of this accounting code now run on 80% of our fleet. None of
+our workloads have reported regressions during the rollout.
 
-	/* We have two COW pte "formats" */
-	if (!is_shstk_mapping(vma->vm_flags)) {
-		if (pte_write(pte)) {
-			/* Any hardware-writable PTE is writable here */
-			pte_cow_ok = true;
-		} else {
-			/* Is the COW-set dirty bit still there? */
-			pte_cow_ok = pte_dirty(pte));
-		}
-	} else {
-		/* Shadow stack PTEs are always hardware-writable */
+[ Also note that the webservers that tested the nopsi kernel were
+  during that time susceptible to swap storms, memory livelocks, and
+  eventual hardresets because without psi they couldn't run our full
+  resource isolation stack that would prevent that ;) ]
 
-		/*
-		 * Shadow stack pages do copy-on-access, so any present
-		 * shadow stack page has had a COW-equivalent performed.
-		 */
-		pte_cow_ok = is_shstk_pte(pte));
-	}
-
-	return gup_cow_ok && pte_cow_ok;
-}
+Let me know if there are other tests I could run.
