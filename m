@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 766266B0274
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F119A6B0274
 	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:41:30 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id d30-v6so1705287edd.0
+Received: by mail-ed1-f72.google.com with SMTP id b25-v6so1680778eds.17
         for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:41:30 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id j34-v6si279873edb.167.2018.07.18.02.41.29
+        by mx.google.com with ESMTPS id q15-v6si935791edd.134.2018.07.18.02.41.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 18 Jul 2018 02:41:29 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 08/39] x86/entry/32: Leave the kernel via trampoline stack
-Date: Wed, 18 Jul 2018 11:40:45 +0200
-Message-Id: <1531906876-13451-9-git-send-email-joro@8bytes.org>
+Subject: [PATCH 10/39] x86/entry/32: Handle Entry from Kernel-Mode on Entry-Stack
+Date: Wed, 18 Jul 2018 11:40:47 +0200
+Message-Id: <1531906876-13451-11-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,134 +22,200 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Switch back to the trampoline stack before returning to
-userspace.
+It can happen that we enter the kernel from kernel-mode and
+on the entry-stack. The most common way this happens is when
+we get an exception while loading the user-space segment
+registers on the kernel-to-userspace exit path.
+
+The segment loading needs to be done after the entry-stack
+switch, because the stack-switch needs kernel %fs for
+per_cpu access.
+
+When this happens, we need to make sure that we leave the
+kernel with the entry-stack again, so that the interrupted
+code-path runs on the right stack when switching to the
+user-cr3.
+
+We do this by detecting this condition on kernel-entry by
+checking CS.RPL and %esp, and if it happens, we copy over
+the complete content of the entry stack to the task-stack.
+This needs to be done because once we enter the exception
+handlers we might be scheduled out or even migrated to a
+different CPU, so that we can't rely on the entry-stack
+contents. We also leave a marker in the stack-frame to
+detect this condition on the exit path.
+
+On the exit path the copy is reversed, we copy all of the
+remaining task-stack back to the entry-stack and switch
+to it.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S | 79 +++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 77 insertions(+), 2 deletions(-)
+ arch/x86/entry/entry_32.S | 116 +++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 115 insertions(+), 1 deletion(-)
 
 diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index fea49ec..a905e62 100644
+index 7635925..9d6eceb 100644
 --- a/arch/x86/entry/entry_32.S
 +++ b/arch/x86/entry/entry_32.S
-@@ -343,6 +343,60 @@
+@@ -294,6 +294,9 @@
+  * copied there. So allocate the stack-frame on the task-stack and
+  * switch to it before we do any copying.
+  */
++
++#define CS_FROM_ENTRY_STACK	(1 << 31)
++
+ .macro SWITCH_TO_KERNEL_STACK
+ 
+ 	ALTERNATIVE     "", "jmp .Lend_\@", X86_FEATURE_XENPV
+@@ -316,6 +319,16 @@
+ 	/* Load top of task-stack into %edi */
+ 	movl	TSS_entry2task_stack(%edi), %edi
+ 
++	/*
++	 * Clear unused upper bits of the dword containing the word-sized CS
++	 * slot in pt_regs in case hardware didn't clear it for us.
++	 */
++	andl	$(0x0000ffff), PT_CS(%esp)
++
++	/* Special case - entry from kernel mode via entry stack */
++	testl	$SEGMENT_RPL_MASK, PT_CS(%esp)
++	jz	.Lentry_from_kernel_\@
++
+ 	/* Bytes to copy */
+ 	movl	$PTREGS_SIZE, %ecx
+ 
+@@ -329,8 +342,8 @@
+ 	 */
+ 	addl	$(4 * 4), %ecx
+ 
+-.Lcopy_pt_regs_\@:
+ #endif
++.Lcopy_pt_regs_\@:
+ 
+ 	/* Allocate frame on task-stack */
+ 	subl	%ecx, %edi
+@@ -346,6 +359,56 @@
+ 	cld
+ 	rep movsl
+ 
++	jmp .Lend_\@
++
++.Lentry_from_kernel_\@:
++
++	/*
++	 * This handles the case when we enter the kernel from
++	 * kernel-mode and %esp points to the entry-stack. When this
++	 * happens we need to switch to the task-stack to run C code,
++	 * but switch back to the entry-stack again when we approach
++	 * iret and return to the interrupted code-path. This usually
++	 * happens when we hit an exception while restoring user-space
++	 * segment registers on the way back to user-space.
++	 *
++	 * When we switch to the task-stack here, we can't trust the
++	 * contents of the entry-stack anymore, as the exception handler
++	 * might be scheduled out or moved to another CPU. Therefore we
++	 * copy the complete entry-stack to the task-stack and set a
++	 * marker in the iret-frame (bit 31 of the CS dword) to detect
++	 * what we've done on the iret path.
++	 *
++	 * On the iret path we copy everything back and switch to the
++	 * entry-stack, so that the interrupted kernel code-path
++	 * continues on the same stack it was interrupted with.
++	 *
++	 * Be aware that an NMI can happen anytime in this code.
++	 *
++	 * %esi: Entry-Stack pointer (same as %esp)
++	 * %edi: Top of the task stack
++	 */
++
++	/* Calculate number of bytes on the entry stack in %ecx */
++	movl	%esi, %ecx
++
++	/* %ecx to the top of entry-stack */
++	andl	$(MASK_entry_stack), %ecx
++	addl	$(SIZEOF_entry_stack), %ecx
++
++	/* Number of bytes on the entry stack to %ecx */
++	sub	%esi, %ecx
++
++	/* Mark stackframe as coming from entry stack */
++	orl	$CS_FROM_ENTRY_STACK, PT_CS(%esp)
++
++	/*
++	 * %esi and %edi are unchanged, %ecx contains the number of
++	 * bytes to copy. The code at .Lcopy_pt_regs_\@ will allocate
++	 * the stack-frame on task-stack and copy everything over
++	 */
++	jmp .Lcopy_pt_regs_\@
++
+ .Lend_\@:
+ .endm
+ 
+@@ -404,6 +467,56 @@
  .endm
  
  /*
-+ * Switch back from the kernel stack to the entry stack.
++ * This macro handles the case when we return to kernel-mode on the iret
++ * path and have to switch back to the entry stack.
 + *
-+ * The %esp register must point to pt_regs on the task stack. It will
-+ * first calculate the size of the stack-frame to copy, depending on
-+ * whether we return to VM86 mode or not. With that it uses 'rep movsl'
-+ * to copy the contents of the stack over to the entry stack.
-+ *
-+ * We must be very careful here, as we can't trust the contents of the
-+ * task-stack once we switched to the entry-stack. When an NMI happens
-+ * while on the entry-stack, the NMI handler will switch back to the top
-+ * of the task stack, overwriting our stack-frame we are about to copy.
-+ * Therefore we switch the stack only after everything is copied over.
++ * See the comments below the .Lentry_from_kernel_\@ label in the
++ * SWITCH_TO_KERNEL_STACK macro for more details.
 + */
-+.macro SWITCH_TO_ENTRY_STACK
++.macro PARANOID_EXIT_TO_KERNEL_MODE
 +
-+	ALTERNATIVE     "", "jmp .Lend_\@", X86_FEATURE_XENPV
++	/*
++	 * Test if we entered the kernel with the entry-stack. Most
++	 * likely we did not, because this code only runs on the
++	 * return-to-kernel path.
++	 */
++	testl	$CS_FROM_ENTRY_STACK, PT_CS(%esp)
++	jz	.Lend_\@
 +
-+	/* Bytes to copy */
-+	movl	$PTREGS_SIZE, %ecx
++	/* Unlikely slow-path */
 +
-+#ifdef CONFIG_VM86
-+	testl	$(X86_EFLAGS_VM), PT_EFLAGS(%esp)
-+	jz	.Lcopy_pt_regs_\@
++	/* Clear marker from stack-frame */
++	andl	$(~CS_FROM_ENTRY_STACK), PT_CS(%esp)
 +
-+	/* Additional 4 registers to copy when returning to VM86 mode */
-+	addl    $(4 * 4), %ecx
-+
-+.Lcopy_pt_regs_\@:
-+#endif
-+
-+	/* Initialize source and destination for movsl */
-+	movl	PER_CPU_VAR(cpu_tss_rw + TSS_sp0), %edi
-+	subl	%ecx, %edi
++	/* Copy the remaining task-stack contents to entry-stack */
 +	movl	%esp, %esi
++	movl	PER_CPU_VAR(cpu_tss_rw + TSS_sp0), %edi
 +
-+	/* Save future stack pointer in %ebx */
++	/* Bytes on the task-stack to ecx */
++	movl	PER_CPU_VAR(cpu_tss_rw + TSS_sp1), %ecx
++	subl	%esi, %ecx
++
++	/* Allocate stack-frame on entry-stack */
++	subl	%ecx, %edi
++
++	/*
++	 * Save future stack-pointer, we must not switch until the
++	 * copy is done, otherwise the NMI handler could destroy the
++	 * contents of the task-stack we are about to copy.
++	 */
 +	movl	%edi, %ebx
 +
-+	/* Copy over the stack-frame */
++	/* Do the copy */
 +	shrl	$2, %ecx
 +	cld
 +	rep movsl
 +
-+	/*
-+	 * Switch to entry-stack - needs to happen after everything is
-+	 * copied because the NMI handler will overwrite the task-stack
-+	 * when on entry-stack
-+	 */
++	/* Safe to switch to entry-stack now */
 +	movl	%ebx, %esp
 +
 +.Lend_\@:
 +.endm
-+
 +/*
   * %eax: prev task
   * %edx: next task
   */
-@@ -581,25 +635,45 @@ ENTRY(entry_SYSENTER_32)
+@@ -764,6 +877,7 @@ restore_all:
  
- /* Opportunistic SYSEXIT */
- 	TRACE_IRQS_ON			/* User mode traces as IRQs on. */
-+
-+	/*
-+	 * Setup entry stack - we keep the pointer in %eax and do the
-+	 * switch after almost all user-state is restored.
-+	 */
-+
-+	/* Load entry stack pointer and allocate frame for eflags/eax */
-+	movl	PER_CPU_VAR(cpu_tss_rw + TSS_sp0), %eax
-+	subl	$(2*4), %eax
-+
-+	/* Copy eflags and eax to entry stack */
-+	movl	PT_EFLAGS(%esp), %edi
-+	movl	PT_EAX(%esp), %esi
-+	movl	%edi, (%eax)
-+	movl	%esi, 4(%eax)
-+
-+	/* Restore user registers and segments */
- 	movl	PT_EIP(%esp), %edx	/* pt_regs->ip */
- 	movl	PT_OLDESP(%esp), %ecx	/* pt_regs->sp */
- 1:	mov	PT_FS(%esp), %fs
- 	PTGS_TO_GS
-+
- 	popl	%ebx			/* pt_regs->bx */
- 	addl	$2*4, %esp		/* skip pt_regs->cx and pt_regs->dx */
- 	popl	%esi			/* pt_regs->si */
- 	popl	%edi			/* pt_regs->di */
- 	popl	%ebp			/* pt_regs->bp */
--	popl	%eax			/* pt_regs->ax */
-+
-+	/* Switch to entry stack */
-+	movl	%eax, %esp
- 
- 	/*
- 	 * Restore all flags except IF. (We restore IF separately because
- 	 * STI gives a one-instruction window in which we won't be interrupted,
- 	 * whereas POPF does not.)
- 	 */
--	addl	$PT_EFLAGS-PT_DS, %esp	/* point esp at pt_regs->flags */
- 	btrl	$X86_EFLAGS_IF_BIT, (%esp)
- 	popfl
-+	popl	%eax
- 
- 	/*
- 	 * Return back to the vDSO, which will pop ecx and edx.
-@@ -668,6 +742,7 @@ ENTRY(entry_INT80_32)
- 
- restore_all:
+ restore_all_kernel:
  	TRACE_IRQS_IRET
-+	SWITCH_TO_ENTRY_STACK
- .Lrestore_all_notrace:
- 	CHECK_AND_APPLY_ESPFIX
- .Lrestore_nocheck:
++	PARANOID_EXIT_TO_KERNEL_MODE
+ 	RESTORE_REGS 4
+ 	jmp	.Lirq_return
+ 
 -- 
 2.7.4
