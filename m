@@ -1,49 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 40E3E6B000A
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 07:59:11 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id b25-v6so1820056eds.17
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 04:59:11 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id 7-v6si447864edh.451.2018.07.18.04.59.06
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2454A6B000D
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 08:00:04 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id w2-v6so1854412wrt.13
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:00:04 -0700 (PDT)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id e17-v6si2652792wrj.406.2018.07.18.05.00.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 04:59:06 -0700 (PDT)
-Date: Wed, 18 Jul 2018 13:59:05 +0200
-From: Joerg Roedel <joro@8bytes.org>
-Subject: Re: [PATCH 10/39] x86/entry/32: Handle Entry from Kernel-Mode on
- Entry-Stack
-Message-ID: <20180718115905.GA18541@8bytes.org>
-References: <1531308586-29340-1-git-send-email-joro@8bytes.org>
- <1531308586-29340-11-git-send-email-joro@8bytes.org>
- <CALCETrUg_4q8a2Tt_Z+GtVuBwj3Ct3=j7M-YhiK06=XjxOG82A@mail.gmail.com>
- <20180714052110.cobtew6rms23ih37@suse.de>
- <7AB4F269-E0E8-4290-A764-69D8605467E8@amacapital.net>
- <20180714080159.hqp36q7fxzb2ktlq@suse.de>
- <75BDF04F-9585-438C-AE04-918FBE00A174@amacapital.net>
- <20180717071545.ojdall7tatbjtfai@suse.de>
- <CALCETrXAF6+mkDL4+uQdHQdJ=G70YVu_k55P_x6Mgi4hXe3oYw@mail.gmail.com>
+        Wed, 18 Jul 2018 05:00:02 -0700 (PDT)
+Date: Wed, 18 Jul 2018 13:59:57 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH 00/39 v8] PTI support for x86-32
+Message-ID: <20180718115957.GA23157@amd>
+References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="6c2NcOVqGQ03X4Wi"
 Content-Disposition: inline
-In-Reply-To: <CALCETrXAF6+mkDL4+uQdHQdJ=G70YVu_k55P_x6Mgi4hXe3oYw@mail.gmail.com>
+In-Reply-To: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Joerg Roedel <jroedel@suse.de>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>
-
-On Tue, Jul 17, 2018 at 01:06:11PM -0700, Andy Lutomirski wrote:
-> Yes, we obviously need to restore the correct cr3.  But I really don't
-> like the code that rewrites the stack frame that we're about to IRET
-> to, especially when it doesn't seem to serve a purpose.  I'd much
-> rather the code just get its CR3 right and do the IRET and trust that
-> the frame it's returning to is still there.
-
-Okay, I'll give it a try and if it works without the copying we can put
-that on-top of this patch-set. This also has the benefit that we can
-revert it later if it causes problems down the road.
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, jroedel@suse.de
 
 
-Regards,
+--6c2NcOVqGQ03X4Wi
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-	Joerg
+On Wed 2018-07-18 11:40:37, Joerg Roedel wrote:
+> Hi,
+>=20
+> here is version 8 of my patches to enable PTI on x86-32. The
+> last version got some good review which I mostly worked into
+> this version.
+
+
+> for easier testing. The code survived >12h overnight testing
+> with my usual
+>=20
+> 	* 'perf top' for NMI load
+>=20
+> 	* x86-selftests in a loop (except mpx and pkeys
+> 	  which are not supported on the machine)
+>=20
+> 	* kernel-compile in a loop
+>=20
+> all in parallel. I also boot-tested x86-64 and !PAE config
+> again and ran my GLB-test to make sure that the global
+> mappings between user and kernel page-table are identical.
+> All that succeeded and showed no regressions.
+
+For the record:
+
+Tested-by: Pavel Machek <pavel@ucw.cz>
+
+(on top of .18.0-rc5-next-20180718)
+
+									Pavel
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
+
+--6c2NcOVqGQ03X4Wi
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iEYEARECAAYFAltPK70ACgkQMOfwapXb+vLILACdF5fdD/3UabcoQ6uWeZKLloG+
+LcEAnRHN546y9wVWUOYJtYl2S7rfDisl
+=KJSr
+-----END PGP SIGNATURE-----
+
+--6c2NcOVqGQ03X4Wi--
