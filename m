@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4499B6B026D
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:41:24 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id d5-v6so1699570edq.3
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:41:24 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id z25-v6si2943977edq.292.2018.07.18.02.41.23
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B248F6B026E
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 05:41:25 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id y17-v6so1681018eds.22
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:41:25 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id z22-v6si3650099edi.394.2018.07.18.02.41.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 02:41:23 -0700 (PDT)
+        Wed, 18 Jul 2018 02:41:24 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 02/39] x86/entry/32: Rename TSS_sysenter_sp0 to TSS_entry2task_stack
-Date: Wed, 18 Jul 2018 11:40:39 +0200
-Message-Id: <1531906876-13451-3-git-send-email-joro@8bytes.org>
+Subject: [PATCH 05/39] x86/entry/32: Unshare NMI return path
+Date: Wed, 18 Jul 2018 11:40:42 +0200
+Message-Id: <1531906876-13451-6-git-send-email-joro@8bytes.org>
 In-Reply-To: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,48 +22,40 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-The stack address doesn't need to be stored in tss.sp0 if
-we switch manually like on sysenter. Rename the offset so
-that it still makes sense when we change its location.
-
-We will also use this stack for all kernel-entry points, not
-just sysenter. Reflect that and the fact that it is the
-offset to the task-stack location in the name as well.
+NMI will no longer use most of the shared return path,
+because NMI needs special handling when the CR3 switches for
+PTI are added. This patch prepares for that.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S        | 2 +-
- arch/x86/kernel/asm-offsets_32.c | 5 +++--
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ arch/x86/entry/entry_32.S | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
 
 diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index c371bfe..39f711a 100644
+index ef7d653..4364131 100644
 --- a/arch/x86/entry/entry_32.S
 +++ b/arch/x86/entry/entry_32.S
-@@ -412,7 +412,7 @@ ENTRY(xen_sysenter_target)
-  * 0(%ebp) arg6
-  */
- ENTRY(entry_SYSENTER_32)
--	movl	TSS_sysenter_sp0(%esp), %esp
-+	movl	TSS_entry2task_stack(%esp), %esp
- .Lsysenter_past_esp:
- 	pushl	$__USER_DS		/* pt_regs->ss */
- 	pushl	%ebp			/* pt_regs->sp (stashed in bp) */
-diff --git a/arch/x86/kernel/asm-offsets_32.c b/arch/x86/kernel/asm-offsets_32.c
-index a4a3be3..15b3f45 100644
---- a/arch/x86/kernel/asm-offsets_32.c
-+++ b/arch/x86/kernel/asm-offsets_32.c
-@@ -46,8 +46,9 @@ void foo(void)
- 	OFFSET(saved_context_gdt_desc, saved_context, gdt_desc);
- 	BLANK();
+@@ -1017,7 +1017,7 @@ ENTRY(nmi)
  
--	/* Offset from the sysenter stack to tss.sp0 */
--	DEFINE(TSS_sysenter_sp0, offsetof(struct cpu_entry_area, tss.x86_tss.sp0) -
-+	/* Offset from the entry stack to task stack stored in TSS */
-+	DEFINE(TSS_entry2task_stack,
-+	       offsetof(struct cpu_entry_area, tss.x86_tss.sp0) -
- 	       offsetofend(struct cpu_entry_area, entry_stack_page.stack));
+ 	/* Not on SYSENTER stack. */
+ 	call	do_nmi
+-	jmp	.Lrestore_all_notrace
++	jmp	.Lnmi_return
  
- #ifdef CONFIG_STACKPROTECTOR
+ .Lnmi_from_sysenter_stack:
+ 	/*
+@@ -1028,7 +1028,11 @@ ENTRY(nmi)
+ 	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esp
+ 	call	do_nmi
+ 	movl	%ebx, %esp
+-	jmp	.Lrestore_all_notrace
++
++.Lnmi_return:
++	CHECK_AND_APPLY_ESPFIX
++	RESTORE_REGS 4
++	jmp	.Lirq_return
+ 
+ #ifdef CONFIG_X86_ESPFIX32
+ .Lnmi_espfix_stack:
 -- 
 2.7.4
