@@ -1,171 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A2E6B6B0003
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 21:49:23 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id t65-v6so2254361iof.23
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 18:49:23 -0700 (PDT)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id k4-v6si1613125iog.129.2018.07.17.18.49.21
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 99A386B0008
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2018 22:01:01 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id t23-v6so2328457ioa.9
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 19:01:01 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id x139-v6si681758itc.4.2018.07.17.19.01.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jul 2018 18:49:22 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v2 1/2] mm: fix race on soft-offlining free huge pages
-Date: Wed, 18 Jul 2018 01:41:06 +0000
-Message-ID: <20180718014106.GC12184@hori1.linux.bs1.fc.nec.co.jp>
-References: <1531805552-19547-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1531805552-19547-2-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20180717142743.GJ7193@dhcp22.suse.cz>
- <20180718005528.GA12184@hori1.linux.bs1.fc.nec.co.jp>
-In-Reply-To: <20180718005528.GA12184@hori1.linux.bs1.fc.nec.co.jp>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <17B3499424B95046AD437A3299570E4B@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Tue, 17 Jul 2018 19:01:00 -0700 (PDT)
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6I205TK153624
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:00:59 GMT
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by userp2120.oracle.com with ESMTP id 2k7a3ju27w-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:00:59 +0000
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w6I20vtN014171
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:00:58 GMT
+Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w6I20vvU006631
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 02:00:57 GMT
+Received: by mail-oi0-f52.google.com with SMTP id s198-v6so5779643oih.11
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2018 19:00:57 -0700 (PDT)
 MIME-Version: 1.0
+References: <1531416305.6480.24.camel@abdul.in.ibm.com> <CAGM2rebtisZda0kqhg0u92fTDxC+=zMNNgKFBLH38osphk0fdA@mail.gmail.com>
+ <1531473191.6480.26.camel@abdul.in.ibm.com> <20180714105500.3694b93f@canb.auug.org.au>
+ <1531824532.15016.30.camel@abdul.in.ibm.com>
+In-Reply-To: <1531824532.15016.30.camel@abdul.in.ibm.com>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Tue, 17 Jul 2018 22:00:20 -0400
+Message-ID: <CAGM2reav2giqHjUTWADWzqb-8m7AqUBJxerA1Oc+4YJhTLXrDA@mail.gmail.com>
+Subject: Re: [next-20180711][Oops] linux-next kernel boot is broken on powerpc
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "xishi.qiuxishi@alibaba-inc.com" <xishi.qiuxishi@alibaba-inc.com>, "zy.zhengyi@alibaba-inc.com" <zy.zhengyi@alibaba-inc.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: abdhalee@linux.vnet.ibm.com
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, sachinp@linux.vnet.ibm.com, Michal Hocko <mhocko@suse.com>, sim@linux.vnet.ibm.com, venkatb3@in.ibm.com, LKML <linux-kernel@vger.kernel.org>, manvanth@linux.vnet.ibm.com, Linux Memory Management List <linux-mm@kvack.org>, linux-next@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com, linuxppc-dev@lists.ozlabs.org
 
-On Wed, Jul 18, 2018 at 12:55:29AM +0000, Horiguchi Naoya(=1B$BKY8}=1B(B =
-=1B$BD>Li=1B(B) wrote:
-> On Tue, Jul 17, 2018 at 04:27:43PM +0200, Michal Hocko wrote:
-> > On Tue 17-07-18 14:32:31, Naoya Horiguchi wrote:
-> > > There's a race condition between soft offline and hugetlb_fault which
-> > > causes unexpected process killing and/or hugetlb allocation failure.
-> > >=20
-> > > The process killing is caused by the following flow:
-> > >=20
-> > >   CPU 0               CPU 1              CPU 2
-> > >=20
-> > >   soft offline
-> > >     get_any_page
-> > >     // find the hugetlb is free
-> > >                       mmap a hugetlb file
-> > >                       page fault
-> > >                         ...
-> > >                           hugetlb_fault
-> > >                             hugetlb_no_page
-> > >                               alloc_huge_page
-> > >                               // succeed
-> > >       soft_offline_free_page
-> > >       // set hwpoison flag
-> > >                                          mmap the hugetlb file
-> > >                                          page fault
-> > >                                            ...
-> > >                                              hugetlb_fault
-> > >                                                hugetlb_no_page
-> > >                                                  find_lock_page
-> > >                                                    return VM_FAULT_HW=
-POISON
-> > >                                            mm_fault_error
-> > >                                              do_sigbus
-> > >                                              // kill the process
-> > >=20
-> > >=20
-> > > The hugetlb allocation failure comes from the following flow:
-> > >=20
-> > >   CPU 0                          CPU 1
-> > >=20
-> > >                                  mmap a hugetlb file
-> > >                                  // reserve all free page but don't f=
-ault-in
-> > >   soft offline
-> > >     get_any_page
-> > >     // find the hugetlb is free
-> > >       soft_offline_free_page
-> > >       // set hwpoison flag
-> > >         dissolve_free_huge_page
-> > >         // fail because all free hugepages are reserved
-> > >                                  page fault
-> > >                                    ...
-> > >                                      hugetlb_fault
-> > >                                        hugetlb_no_page
-> > >                                          alloc_huge_page
-> > >                                            ...
-> > >                                              dequeue_huge_page_node_e=
-xact
-> > >                                              // ignore hwpoisoned hug=
-epage
-> > >                                              // and finally fail due =
-to no-mem
-> > >=20
-> > > The root cause of this is that current soft-offline code is written
-> > > based on an assumption that PageHWPoison flag should beset at first t=
-o
-> > > avoid accessing the corrupted data.  This makes sense for memory_fail=
-ure()
-> > > or hard offline, but does not for soft offline because soft offline i=
-s
-> > > about corrected (not uncorrected) error and is safe from data lost.
-> > > This patch changes soft offline semantics where it sets PageHWPoison =
-flag
-> > > only after containment of the error page completes successfully.
-> >=20
-> > Could you please expand on the worklow here please? The code is really
-> > hard to grasp. I must be missing something because the thing shouldn't
-> > be really complicated. Either the page is in the free pool and you just
-> > remove it from the allocator (with hugetlb asking for a new hugeltb pag=
-e
-> > to guaratee reserves) or it is used and you just migrate the content to
-> > a new page (again with the hugetlb reserves consideration). Why should
-> > PageHWPoison flag ordering make any relevance?
->=20
-> (Considering soft offlining free hugepage,)
-> PageHWPoison is set at first before this patch, which is racy with
-> hugetlb fault code because it's not protected by hugetlb_lock.
->=20
-> Originally this was written in the similar manner as hard-offline, where
-> the race is accepted and a PageHWPoison flag is set as soon as possible.
-> But actually that's found not necessary/correct because soft offline is
-> supposed to be less aggressive and failure is OK.
->=20
-> So this patch is suggesting to make soft-offline less aggressive
+On Tue, Jul 17, 2018 at 6:49 AM Abdul Haleem
+<abdhalee@linux.vnet.ibm.com> wrote:
+>
+> On Sat, 2018-07-14 at 10:55 +1000, Stephen Rothwell wrote:
+> > Hi Abdul,
+> >
+> > On Fri, 13 Jul 2018 14:43:11 +0530 Abdul Haleem <abdhalee@linux.vnet.ibm.com> wrote:
+> > >
+> > > On Thu, 2018-07-12 at 13:44 -0400, Pavel Tatashin wrote:
+> > > > > Related commit could be one of below ? I see lots of patches related to mm and could not bisect
+> > > > >
+> > > > > 5479976fda7d3ab23ba0a4eb4d60b296eb88b866 mm: page_alloc: restore memblock_next_valid_pfn() on arm/arm64
+> > > > > 41619b27b5696e7e5ef76d9c692dd7342c1ad7eb mm-drop-vm_bug_on-from-__get_free_pages-fix
+> > > > > 531bbe6bd2721f4b66cdb0f5cf5ac14612fa1419 mm: drop VM_BUG_ON from __get_free_pages
+> > > > > 479350dd1a35f8bfb2534697e5ca68ee8a6e8dea mm, page_alloc: actually ignore mempolicies for high priority allocations
+> > > > > 088018f6fe571444caaeb16e84c9f24f22dfc8b0 mm: skip invalid pages block at a time in zero_resv_unresv()
+> > > >
+> > > > Looks like:
+> > > > 0ba29a108979 mm/sparse: Remove CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+> > > >
+> > > > This patch is going to be reverted from linux-next. Abdul, please
+> > > > verify that issue is gone once  you revert this patch.
+> > >
+> > > kernel booted fine when the above patch is reverted.
+> >
+> > And it has been removed from linux-next as of next-20180713.  (Friday
+> > the 13th is not all bad :-))
+>
+> Hi Stephen,
+>
+> After reverting 0ba29a108979, our bare-metal machines boot fails with
+> kernel panic, is this related ?
+>
+> I have attached the boot logs.
 
+The panic happens much later in boot and looks unrelated to the
+sparse_init changes.
 
-> by moving SetPageHWPoison into the lock.
-
-My apology, this part of reasoning was incorrect.  What patch 1/2 actually
-does is transforming the issue into the normal page's similar race issue
-which is solved by patch 2/2.  After patch 1/2, soft offline never sets
-PageHWPoison on hugepage.
-
-Thanks,
-Naoya Horiguchi
-
->=20
-> >=20
-> > Do I get it right that the only difference between the hard and soft
-> > offlining is that hugetlb reserves might break for the former while not
-> > for the latter
->=20
-> Correct.
->=20
-> > and that the failed migration kills all owners for the
-> > former while not for latter?
->=20
-> Hard-offline doesn't cause any page migration because the data is already
-> lost, but yes it can kill the owners.
-> Soft-offline never kills processes even if it fails (due to migration fai=
-lrue
-> or some other reasons.)
->=20
-> I listed below some common points and differences between hard-offline
-> and soft-offline.
->=20
->   common points
->     - they are both contained by PageHWPoison flag,
->     - error is injected via simliar interfaces.
->=20
->   differences
->     - the data on the page is considered lost in hard offline, but is not
->       in soft offline,
->     - hard offline likely kills the affected processes, but soft offline
->       never kills processes,
->     - soft offline causes page migration, but hard offline does not,
->     - hard offline prioritizes to prevent consumption of broken data with
->       accepting some race, and soft offline prioritizes not to impact
->       userspace with accepting failure.
->=20
-> Looks to me that there're more differences rather than commont points.=
+Thank you,
+Pavel
