@@ -1,72 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9702E6B0008
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 09:41:16 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id f11-v6so2457004wmc.3
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 06:41:16 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id u13-v6si4738048wrq.429.2018.07.19.06.41.15
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E1276B0274
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 09:44:19 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id x204-v6so6523955qka.6
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 06:44:19 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id e19-v6si6008299qta.24.2018.07.19.06.44.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Jul 2018 06:41:15 -0700 (PDT)
-Date: Thu, 19 Jul 2018 15:40:41 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCHv5 08/19] x86/mm: Introduce variables to store number,
- shift and mask of KeyIDs
-In-Reply-To: <20180719132312.75lduymla2uretax@kshutemo-mobl1>
-Message-ID: <alpine.DEB.2.21.1807191539370.1602@nanos.tec.linutronix.de>
-References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com> <20180717112029.42378-9-kirill.shutemov@linux.intel.com> <1edc05b0-8371-807e-7cfa-6e8f61ee9b70@intel.com> <20180719102130.b4f6b6v5wg3modtc@kshutemo-mobl1> <alpine.DEB.2.21.1807191436300.1602@nanos.tec.linutronix.de>
- <20180719131245.sxnqsgzvkqriy3o2@kshutemo-mobl1> <alpine.DEB.2.21.1807191515150.1602@nanos.tec.linutronix.de> <20180719132312.75lduymla2uretax@kshutemo-mobl1>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Jul 2018 06:44:18 -0700 (PDT)
+Subject: Re: [PATCH v2 2/5] mm: access zone->node via zone_to_nid() and
+ zone_set_nid()
+References: <20180719132740.32743-1-osalvador@techadventures.net>
+ <20180719132740.32743-3-osalvador@techadventures.net>
+ <20180719134018.GB7193@dhcp22.suse.cz>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <760195c6-7cfb-76db-1c5c-b85456f3a4ad@oracle.com>
+Date: Thu, 19 Jul 2018 09:44:09 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20180719134018.GB7193@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Dave Hansen <dave.hansen@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>, osalvador@techadventures.net
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
 
-On Thu, 19 Jul 2018, Kirill A. Shutemov wrote:
-> On Thu, Jul 19, 2018 at 03:18:03PM +0200, Thomas Gleixner wrote:
-> > On Thu, 19 Jul 2018, Kirill A. Shutemov wrote:
-> > > On Thu, Jul 19, 2018 at 02:37:35PM +0200, Thomas Gleixner wrote:
-> > > > On Thu, 19 Jul 2018, Kirill A. Shutemov wrote:
-> > > > > On Wed, Jul 18, 2018 at 04:19:10PM -0700, Dave Hansen wrote:
-> > > > > > >  	} else {
-> > > > > > >  		/*
-> > > > > > >  		 * Reset __PHYSICAL_MASK.
-> > > > > > > @@ -591,6 +592,9 @@ static void detect_tme(struct cpuinfo_x86 *c)
-> > > > > > >  		 * between CPUs.
-> > > > > > >  		 */
-> > > > > > >  		physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
-> > > > > > > +		mktme_keyid_mask = 0;
-> > > > > > > +		mktme_keyid_shift = 0;
-> > > > > > > +		mktme_nr_keyids = 0;
-> > > > > > >  	}
-> > > > > > 
-> > > > > > Should be unnecessary.  These are zeroed by the compiler.
-> > > > > 
-> > > > > No. detect_tme() called for each CPU in the system.
-> > > > 
-> > > > And then the variables are cleared out while other CPUs can access them?
-> > > > How is that supposed to work?
-> > > 
-> > > This code path only matter in patalogical case: when MKTME configuation is
-> > > inconsitent between CPUs. Basically if BIOS screwed things up we disable
-> > > MKTME.
-> > 
-> > I still don't see how that's supposed to work.
-> > 
-> > When the inconsistent CPU is brought up _AFTER_ MKTME is enabled, then how
-> > does clearing the variables help? It does not magically make all the other
-> > stuff go away.
+
+
+On 07/19/2018 09:40 AM, Michal Hocko wrote:
+> On Thu 19-07-18 15:27:37, osalvador@techadventures.net wrote:
+>> From: Pavel Tatashin <pasha.tatashin@oracle.com>
+>>
+>> zone->node is configured only when CONFIG_NUMA=y, so it is a good idea to
+>> have inline functions to access this field in order to avoid ifdef's in
+>> c files.
 > 
-> We don't actually enable MKTME in kernel. BIOS does. Kernel makes choose
-> to use it or not. Current design targeted to be used by userspace.
-> So until init we don't have any other stuff to go away. We can just
-> pretend that MKTME was never there.
+> Is this a manual find & replace or did you use some scripts?
 
-Hotplug is not guaranteed to happen _BEFORE_ init. Think about physical
-hotplug.
+I used opengrok:
 
-Thanks,
+http://src.illumos.org/source/search?q=%22zone-%3Enode%22&defs=&refs=&path=&hist=&project=linux-master
 
-	tglx
+http://src.illumos.org/source/search?q=%22z-%3Enode%22&defs=&refs=&path=&hist=&project=linux-master
+
+> 
+> The change makes sense, but I haven't checked that all the places are
+> replaced properly. If not we can replace them later.
+> 
+>> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+>> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+>> Reviewed-by: Oscar Salvador <osalvador@suse.de>
+> 
+> Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thank you,
+Pavel
