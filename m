@@ -1,147 +1,303 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BC4CC6B0003
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 04:23:21 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id r21-v6so2843079edp.23
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 01:23:21 -0700 (PDT)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id k9-v6si3333142edh.39.2018.07.19.01.23.20
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 39B806B000E
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 04:27:33 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id v9-v6so3715958pff.4
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 01:27:33 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q1-v6sor1826263plb.62.2018.07.19.01.27.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Jul 2018 01:23:20 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id EADB098765
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 08:23:19 +0000 (UTC)
-Date: Thu, 19 Jul 2018 09:23:19 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH v3 2/7] mm, slab/slub: introduce kmalloc-reclaimable
- caches
-Message-ID: <20180719082319.6jkltwinon3pyzyn@techsingularity.net>
-References: <20180718133620.6205-1-vbabka@suse.cz>
- <20180718133620.6205-3-vbabka@suse.cz>
+        (Google Transport Security);
+        Thu, 19 Jul 2018 01:27:31 -0700 (PDT)
+Date: Thu, 19 Jul 2018 11:27:24 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv5 05/19] mm/page_alloc: Handle allocation for encrypted
+ memory
+Message-ID: <20180719082724.4qvfdp6q4kuhxskn@kshutemo-mobl1>
+References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
+ <20180717112029.42378-6-kirill.shutemov@linux.intel.com>
+ <95ce19cb-332c-44f5-b3a1-6cfebd870127@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180718133620.6205-3-vbabka@suse.cz>
+In-Reply-To: <95ce19cb-332c-44f5-b3a1-6cfebd870127@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Matthew Wilcox <willy@infradead.org>
+To: Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jul 18, 2018 at 03:36:15PM +0200, Vlastimil Babka wrote:
-> Kmem caches can be created with a SLAB_RECLAIM_ACCOUNT flag, which indicates
-> they contain objects which can be reclaimed under memory pressure (typically
-> through a shrinker). This makes the slab pages accounted as NR_SLAB_RECLAIMABLE
-> in vmstat, which is reflected also the MemAvailable meminfo counter and in
-> overcommit decisions. The slab pages are also allocated with __GFP_RECLAIMABLE,
-> which is good for anti-fragmentation through grouping pages by mobility.
+On Wed, Jul 18, 2018 at 04:03:53PM -0700, Dave Hansen wrote:
+> I asked about this before and it still isn't covered in the description:
+> You were specifically asked (maybe in person at LSF/MM?) not to modify
+> allocator to pass the keyid around.  Please specifically mention how
+> this design addresses that feedback in the patch description.
 > 
-> The generic kmalloc-X caches are created without this flag, but sometimes are
-> used also for objects that can be reclaimed, which due to varying size cannot
-> have a dedicated kmem cache with SLAB_RECLAIM_ACCOUNT flag. A prominent example
-> are dcache external names, which prompted the creation of a new, manually
-> managed vmstat counter NR_INDIRECTLY_RECLAIMABLE_BYTES in commit f1782c9bc547
-> ("dcache: account external names as indirectly reclaimable memory").
+> You were told, "don't change the core allocator", so I think you just
+> added new functions that wrap the core allocator and called them from
+> the majority of sites that call into the core allocator.  Personally, I
+> think that misses the point of the original request.
 > 
-> To better handle this and any other similar cases, this patch introduces
-> SLAB_RECLAIM_ACCOUNT variants of kmalloc caches, named kmalloc-rcl-X.
-> They are used whenever the kmalloc() call passes __GFP_RECLAIMABLE among gfp
-> flags. They are added to the kmalloc_caches array as a new type. Allocations
-> with both __GFP_DMA and __GFP_RECLAIMABLE will use a dma type cache.
+> Do I have a better way?  Nope, not really.
+
++Michal.
+
+IIRC, Michal was not happy that I propagate the KeyID to very core
+allcoator and we've talked about wrappers around existing APIs as a better
+solution.
+
+Michal, is it correct?
+
+> > +/*
+> > + * Encrypted page has to be cleared once keyid is set, not on allocation.
+> > + */
+> > +static inline bool encrypted_page_needs_zero(int keyid, gfp_t *gfp_mask)
+> > +{
+> > +	if (!keyid)
+> > +		return false;
+> > +
+> > +	if (*gfp_mask & __GFP_ZERO) {
+> > +		*gfp_mask &= ~__GFP_ZERO;
+> > +		return true;
+> > +	}
+> > +
+> > +	return false;
+> > +}
 > 
-> This change only applies to SLAB and SLUB, not SLOB. This is fine, since SLOB's
-> target are tiny system and this patch does add some overhead of kmem management
-> objects.
+> Shouldn't this be zero_page_at_alloc()?
 > 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
->
-> <SNIP>
->
-> @@ -309,12 +310,19 @@ extern struct kmem_cache *kmalloc_caches[KMALLOC_TYPES][KMALLOC_SHIFT_HIGH + 1];
->  static __always_inline unsigned int kmalloc_type(gfp_t flags)
->  {
->  	int is_dma = 0;
-> +	int is_reclaimable;
->  
->  #ifdef CONFIG_ZONE_DMA
->  	is_dma = !!(flags & __GFP_DMA);
->  #endif
->  
-> -	return is_dma;
-> +	is_reclaimable = !!(flags & __GFP_RECLAIMABLE);
-> +
-> +	/*
-> +	 * If an allocation is botth __GFP_DMA and __GFP_RECLAIMABLE, return
-> +	 * KMALLOC_DMA and effectively ignore __GFP_RECLAIMABLE
-> +	 */
-> +	return (is_dma * 2) + (is_reclaimable & !is_dma);
->  }
->  
+> Otherwise, it gets confusing about whether the page needs zeroing at
+> *all*, vs at alloc vs. free.
 
-s/botth/both/
+I like your idea with deferred_page_zero() below. I'll go with it.
 
+> > +static inline struct page *alloc_pages_node_keyid(int nid, int keyid,
+> > +		gfp_t gfp_mask, unsigned int order)
+> > +{
+> > +	if (nid == NUMA_NO_NODE)
+> > +		nid = numa_mem_id();
+> > +
+> > +	return __alloc_pages_node_keyid(nid, keyid, gfp_mask, order);
+> > +}
+> 
+> We have an innumerable number of (__)?alloc_pages* functions.  This adds
+> two more.  I'm not a big fan of making this worse.
+> 
+> Do I have a better idea?  Not really.  The best I have is to start being
+> more careful about all of the arguments and actually formalize the list
+> of things that we need to succeed in an allocation in a struct
+> alloc_args or something.
 
+Sounds like a separate project to me :)
 
->  /*
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> index 4614248ca381..614fb7ab8312 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -1107,10 +1107,21 @@ void __init setup_kmalloc_cache_index_table(void)
->  	}
->  }
->  
-> -static void __init new_kmalloc_cache(int idx, slab_flags_t flags)
-> +static void __init
-> +new_kmalloc_cache(int idx, int type, slab_flags_t flags)
->  {
-> -	kmalloc_caches[KMALLOC_NORMAL][idx] = create_kmalloc_cache(
-> -					kmalloc_info[idx].name,
-> +	const char *name;
-> +
-> +	if (type == KMALLOC_RECLAIM) {
-> +		flags |= SLAB_RECLAIM_ACCOUNT;
-> +		name = kasprintf(GFP_NOWAIT, "kmalloc-rcl-%u",
-> +						kmalloc_info[idx].size);
-> +		BUG_ON(!name);
-> +	} else {
-> +		name = kmalloc_info[idx].name;
-> +	}
-> +
-> +	kmalloc_caches[type][idx] = create_kmalloc_cache(name,
->  					kmalloc_info[idx].size, flags, 0,
->  					kmalloc_info[idx].size);
->  }
+> >  #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
+> >  #define alloc_page_vma(gfp_mask, vma, addr)			\
+> > diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+> > index f2b4abbca55e..fede9bfa89d9 100644
+> > --- a/include/linux/migrate.h
+> > +++ b/include/linux/migrate.h
+> > @@ -38,9 +38,15 @@ static inline struct page *new_page_nodemask(struct page *page,
+> >  	unsigned int order = 0;
+> >  	struct page *new_page = NULL;
+> >  
+> > -	if (PageHuge(page))
+> > +	if (PageHuge(page)) {
+> > +		/*
+> > +		 * HugeTLB doesn't support encryption. We shouldn't see
+> > +		 * such pages.
+> > +		 */
+> > +		WARN_ON(page_keyid(page));
+> >  		return alloc_huge_page_nodemask(page_hstate(compound_head(page)),
+> >  				preferred_nid, nodemask);
+> > +	}
+> 
+> Shouldn't we be returning NULL?  Seems like failing the allocation is
+> much less likely to result in bad things happening.
 
-I was going to query that BUG_ON but if I'm reading it right, we just
-have to be careful in the future that the "normal" kmalloc cache is always
-initialised before the reclaimable cache or there will be issues.
+Okay.
 
-> @@ -1122,22 +1133,25 @@ static void __init new_kmalloc_cache(int idx, slab_flags_t flags)
->   */
->  void __init create_kmalloc_caches(slab_flags_t flags)
->  {
-> -	int i;
-> -	int type = KMALLOC_NORMAL;
-> +	int i, type;
->  
-> -	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
-> -		if (!kmalloc_caches[type][i])
-> -			new_kmalloc_cache(i, flags);
-> +	for (type = KMALLOC_NORMAL; type <= KMALLOC_RECLAIM; type++) {
-> +		for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
-> +			if (!kmalloc_caches[type][i])
-> +				new_kmalloc_cache(i, type, flags);
->  
+> >  	if (PageTransHuge(page)) {
+> >  		gfp_mask |= GFP_TRANSHUGE;
+> > @@ -50,8 +56,8 @@ static inline struct page *new_page_nodemask(struct page *page,
+> >  	if (PageHighMem(page) || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
+> >  		gfp_mask |= __GFP_HIGHMEM;
+> >  
+> > -	new_page = __alloc_pages_nodemask(gfp_mask, order,
+> > -				preferred_nid, nodemask);
+> > +	new_page = __alloc_pages_nodemask_keyid(gfp_mask, order,
+> > +				preferred_nid, nodemask, page_keyid(page));
+> 
+> Needs a comment please.  It's totally non-obvious that this is the
+> migration case from the context, new_page_nodemask()'s name, or the name
+> of 'page'.
+> 
+> 	/* Allocate a page with the same KeyID as the source page */
 
-I don't see a problem here as such but the values of the KMALLOC_* types
-is important both for this function and the kmalloc_type(). It might be
-worth adding a warning that these functions be examined if updating the
-types but then again, anyone trying and getting it wrong will have a
-broken kernel so;
+Sure.
 
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
+> 
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > index faca45ebe62d..fd51aa32ad96 100644
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -1187,6 +1187,7 @@ static struct page *compaction_alloc(struct page *migratepage,
+> >  	list_del(&freepage->lru);
+> >  	cc->nr_freepages--;
+> >  
+> > +	prep_encrypted_page(freepage, 0, page_keyid(migratepage), false);
+> >  	return freepage;
+> >  }
+> 
+> Comments, please.
+> 
+> Why is this here?
+
+/* Prepare the page using the same KeyID as the source page */
+
+> What other code might need prep_encrypted_page()?
+
+Custom pages allocators if these pages can end up in encrypted VMAs.
+
+It this case compaction creates own pool of pages to be used for
+allocation during page migration.
+
+> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> > index 581b729e05a0..ce7b436444b5 100644
+> > --- a/mm/mempolicy.c
+> > +++ b/mm/mempolicy.c
+> > @@ -921,22 +921,28 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
+> >  /* page allocation callback for NUMA node migration */
+> >  struct page *alloc_new_node_page(struct page *page, unsigned long node)
+> >  {
+> > -	if (PageHuge(page))
+> > +	if (PageHuge(page)) {
+> > +		/*
+> > +		 * HugeTLB doesn't support encryption. We shouldn't see
+> > +		 * such pages.
+> > +		 */
+> > +		WARN_ON(page_keyid(page));
+> >  		return alloc_huge_page_node(page_hstate(compound_head(page)),
+> >  					node);
+> > -	else if (PageTransHuge(page)) {
+> > +	} else if (PageTransHuge(page)) {
+> >  		struct page *thp;
+> >  
+> > -		thp = alloc_pages_node(node,
+> > +		thp = alloc_pages_node_keyid(node, page_keyid(page),
+> >  			(GFP_TRANSHUGE | __GFP_THISNODE),
+> >  			HPAGE_PMD_ORDER);
+> >  		if (!thp)
+> >  			return NULL;
+> >  		prep_transhuge_page(thp);
+> >  		return thp;
+> > -	} else
+> > -		return __alloc_pages_node(node, GFP_HIGHUSER_MOVABLE |
+> > -						    __GFP_THISNODE, 0);
+> > +	} else {
+> > +		return __alloc_pages_node_keyid(node, page_keyid(page),
+> > +				GFP_HIGHUSER_MOVABLE | __GFP_THISNODE, 0);
+> > +	}
+> >  }
+> >  
+> >  /*
+> > @@ -2013,9 +2019,16 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+> >  {
+> >  	struct mempolicy *pol;
+> >  	struct page *page;
+> > -	int preferred_nid;
+> > +	bool zero = false;
+> > +	int keyid, preferred_nid;
+> >  	nodemask_t *nmask;
+> >  
+> > +	keyid = vma_keyid(vma);
+> > +	if (keyid && (gfp & __GFP_ZERO)) {
+> > +		zero = true;
+> > +		gfp &= ~__GFP_ZERO;
+> > +	}
+> 
+> Comments, please.  'zero' should be 'deferred_zero', at least.
+> 
+> Also, can't we hide this a _bit_ better?
+> 
+> 	if (deferred_page_zero(vma))
+> 		gfp &= ~__GFP_ZERO;
+> 
+> Then, later:
+> 
+> 	deferred_page_prep(vma, page, order);
+> 
+> and hide everything in deferred_page_zero() and deferred_page_prep().
+> 
+> 
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -3697,6 +3697,39 @@ should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_fla
+> >  }
+> >  #endif /* CONFIG_COMPACTION */
+> >  
+> > +#ifndef CONFIG_NUMA
+> > +struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
+> > +		struct vm_area_struct *vma, unsigned long addr,
+> > +		int node, bool hugepage)
+> > +{
+> > +	struct page *page;
+> > +	bool need_zero;
+> > +	int keyid = vma_keyid(vma);
+> > +
+> > +	need_zero = encrypted_page_needs_zero(keyid, &gfp_mask);
+> > +	page = alloc_pages(gfp_mask, order);
+> > +	prep_encrypted_page(page, order, keyid, need_zero);
+> > +
+> > +	return page;
+> > +}
+> > +#endif
+> 
+> Is there *ever* a VMA-based allocation that doesn't need zeroing?
+
+Sure. Any allocations for CoW.
+
+> > +struct page * __alloc_pages_node_keyid(int nid, int keyid,
+> > +		gfp_t gfp_mask, unsigned int order)
+> > +{
+> > +	struct page *page;
+> > +	bool need_zero;
+> > +
+> > +	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
+> > +	VM_WARN_ON(!node_online(nid));
+> > +
+> > +	need_zero = encrypted_page_needs_zero(keyid, &gfp_mask);
+> > +	page = __alloc_pages(gfp_mask, order, nid);
+> > +	prep_encrypted_page(page, order, keyid, need_zero);
+> > +
+> > +	return page;
+> > +}
+> > +
+> >  #ifdef CONFIG_LOCKDEP
+> >  static struct lockdep_map __fs_reclaim_map =
+> >  	STATIC_LOCKDEP_MAP_INIT("fs_reclaim", &__fs_reclaim_map);
+> > @@ -4401,6 +4434,20 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
+> >  }
+> >  EXPORT_SYMBOL(__alloc_pages_nodemask);
+> >  
+> > +struct page *
+> > +__alloc_pages_nodemask_keyid(gfp_t gfp_mask, unsigned int order,
+> > +		int preferred_nid, nodemask_t *nodemask, int keyid)
+> > +{
+> > +	struct page *page;
+> > +	bool need_zero;
+> > +
+> > +	need_zero = encrypted_page_needs_zero(keyid, &gfp_mask);
+> > +	page = __alloc_pages_nodemask(gfp_mask, order, preferred_nid, nodemask);
+> > +	prep_encrypted_page(page, order, keyid, need_zero);
+> > +	return page;
+> > +}
+> > +EXPORT_SYMBOL(__alloc_pages_nodemask_keyid);
+> 
+> That looks like three duplicates of the same code, wrapping three more
+> allocator variants.  Do we really have no other alternatives?  Can you
+> please go ask the folks that gave you the feedback about the allocator
+> modifications and ask them if this is OK explicitly?
+
+Michal, any feedback for the patch?
 
 -- 
-Mel Gorman
-SUSE Labs
+G Kirill A. Shutemov
