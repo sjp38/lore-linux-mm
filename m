@@ -1,45 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E4B116B0003
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 08:15:56 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id d25-v6so6390667qkj.9
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 05:15:56 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F2C5C6B0006
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 08:19:04 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id f13-v6so2359609wmb.4
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 05:19:04 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u47-v6sor3084170qtk.139.2018.07.19.05.15.51
+        by mx.google.com with SMTPS id b67-v6sor1324192wme.65.2018.07.19.05.19.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 19 Jul 2018 05:15:51 -0700 (PDT)
-Date: Thu, 19 Jul 2018 08:18:37 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 0/10] psi: pressure stall information for CPU, memory,
- and IO v2
-Message-ID: <20180719121837.GA13799@cmpxchg.org>
-References: <20180712172942.10094-1-hannes@cmpxchg.org>
- <20180716155745.10368-1-drake@endlessm.com>
- <20180717112515.GE7193@dhcp22.suse.cz>
- <20180718222157.GG2838@cmpxchg.org>
- <143db4db-2613-345d-9b8e-1794b6d8c4fe@sony.com>
+        Thu, 19 Jul 2018 05:19:03 -0700 (PDT)
+Date: Thu, 19 Jul 2018 14:19:02 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH 1/3] mm/page_alloc: Move ifdefery out of
+ free_area_init_core
+Message-ID: <20180719121902.GB8750@techadventures.net>
+References: <20180718124722.9872-1-osalvador@techadventures.net>
+ <20180718124722.9872-2-osalvador@techadventures.net>
+ <20180718141150.imiyuust5txfmfvw@xakep.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <143db4db-2613-345d-9b8e-1794b6d8c4fe@sony.com>
+In-Reply-To: <20180718141150.imiyuust5txfmfvw@xakep.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peter enderborg <peter.enderborg@sony.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Daniel Drake <drake@endlessm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux@endlessm.com, linux-block@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, aaron.lu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
 
-On Thu, Jul 19, 2018 at 01:29:39PM +0200, peter enderborg wrote:
-> On 07/19/2018 12:21 AM, Johannes Weiner wrote:
-> >
-> > Yes, we currently use a userspace application that monitors pressure
-> > and OOM kills (there is usually plenty of headroom left for a small
-> > application to run by the time quality of service for most workloads
-> > has already tanked to unacceptable levels). We want to eventually add
-> > this back into the kernel with the appropriate configuration options
-> > (pressure threshold value and sustained duration etc.)
-> Is that the same application as googles lmkd for android? Any source
-> that you might share?
+On Wed, Jul 18, 2018 at 10:11:50AM -0400, Pavel Tatashin wrote:
+> On 18-07-18 14:47:20, osalvador@techadventures.net wrote:
+> > From: Oscar Salvador <osalvador@suse.de>
+> > 
+> > Moving the #ifdefs out of the function makes it easier to follow.
+> > 
+> > Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> 
+> Hi Oscar,
+> 
+> Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> 
+> Please include the following patch in your series, to get rid of the last
+> ifdef in this function.
 
-Sure! This is the oomd we've been developing and using at Facebook:
+Hi Pavel,
 
-	https://github.com/facebookincubator/oomd
+I am about to send v2 with this patch included, but I just wanted to let you know
+this:
+
+> +		zone_set_nid(nid);
+
+This should be:
+
+zone_set_nid(zone, nid);
+
+I fixed it up in your patch, I hope that is ok.
+
+Thanks 
+-- 
+Oscar Salvador
+SUSE L3
