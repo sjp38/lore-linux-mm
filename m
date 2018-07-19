@@ -1,46 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B19366B0005
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 05:54:12 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id t26-v6so3829801pfh.0
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 02:54:12 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id f70-v6sor1619165pfd.104.2018.07.19.02.54.11
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 534956B0003
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 06:07:09 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id u16-v6so3835313pfm.15
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 03:07:09 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 19-v6sor1531390pgl.427.2018.07.19.03.07.07
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 19 Jul 2018 02:54:11 -0700 (PDT)
-Date: Thu, 19 Jul 2018 12:54:05 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv5 07/19] x86/mm: Mask out KeyID bits from page table
- entry pfn
-Message-ID: <20180719095404.pkm72iyhhc6v5tth@kshutemo-mobl1>
-References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
- <20180717112029.42378-8-kirill.shutemov@linux.intel.com>
- <9922042b-f130-a87c-8239-9b852e335f26@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <9922042b-f130-a87c-8239-9b852e335f26@intel.com>
+        Thu, 19 Jul 2018 03:07:07 -0700 (PDT)
+From: Jing Xia <jing.xia.mail@gmail.com>
+Subject: [PATCH] mm: memcg: fix use after free in mem_cgroup_iter()
+Date: Thu, 19 Jul 2018 18:06:47 +0800
+Message-Id: <1531994807-25639-1-git-send-email-jing.xia@unisoc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com
+Cc: chunyan.zhang@unisoc.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 18, 2018 at 04:13:20PM -0700, Dave Hansen wrote:
-> On 07/17/2018 04:20 AM, Kirill A. Shutemov wrote:
-> > +	} else {
-> > +		/*
-> > +		 * Reset __PHYSICAL_MASK.
-> > +		 * Maybe needed if there's inconsistent configuation
-> > +		 * between CPUs.
-> > +		 */
-> > +		physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
-> > +	}
-> 
-> This seems like an appropriate place for a WARN_ON().  Either that, or
-> axe this code.
+It was reported that a kernel crash happened in mem_cgroup_iter(),
+which can be triggered if the legacy cgroup-v1 non-hierarchical
+mode is used.
 
-There's pr_err_once() above in the function.
+Unable to handle kernel paging request at virtual address 6b6b6b6b6b6b8f
+......
+Call trace:
+  mem_cgroup_iter+0x2e0/0x6d4
+  shrink_zone+0x8c/0x324
+  balance_pgdat+0x450/0x640
+  kswapd+0x130/0x4b8
+  kthread+0xe8/0xfc
+  ret_from_fork+0x10/0x20
 
+  mem_cgroup_iter():
+      ......
+      if (css_tryget(css))    <-- crash here
+	    break;
+      ......
+
+The crashing reason is that mem_cgroup_iter() uses the memcg object
+whose pointer is stored in iter->position, which has been freed before
+and filled with POISON_FREE(0x6b).
+
+And the root cause of the use-after-free issue is that
+invalidate_reclaim_iterators() fails to reset the value of
+iter->position to NULL when the css of the memcg is released in non-
+hierarchical mode.
+
+Signed-off-by: Jing Xia <jing.xia.mail@gmail.com>
+---
+ mm/memcontrol.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index e6f0d5e..8c0280b 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -850,7 +850,7 @@ static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
+ 	int nid;
+ 	int i;
+ 
+-	while ((memcg = parent_mem_cgroup(memcg))) {
++	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
+ 		for_each_node(nid) {
+ 			mz = mem_cgroup_nodeinfo(memcg, nid);
+ 			for (i = 0; i <= DEF_PRIORITY; i++) {
 -- 
- Kirill A. Shutemov
+1.9.1
