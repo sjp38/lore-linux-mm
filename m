@@ -1,48 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BDFED6B0003
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 11:01:17 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l4-v6so2537483wme.7
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 08:01:17 -0700 (PDT)
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E57756B0006
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 11:08:33 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id y13-v6so5964012ita.8
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 08:08:33 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n7-v6sor2941292wrj.83.2018.07.19.08.01.16
+        by mx.google.com with SMTPS id g82-v6sor2312535ioe.6.2018.07.19.08.08.32
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 19 Jul 2018 08:01:16 -0700 (PDT)
-Date: Thu, 19 Jul 2018 17:01:14 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH v2 5/5] mm/page_alloc: Only call pgdat_set_deferred_range
- when the system boots
-Message-ID: <20180719150114.GC10988@techadventures.net>
-References: <20180719132740.32743-1-osalvador@techadventures.net>
- <20180719132740.32743-6-osalvador@techadventures.net>
- <20180719134622.GE7193@dhcp22.suse.cz>
- <20180719135859.GA10988@techadventures.net>
- <20180719140308.GG7193@dhcp22.suse.cz>
- <CAGM2reZ-+njLtZSnNpry11frg85KmMk4WWxGdaqk1o4BUJVO1w@mail.gmail.com>
+        Thu, 19 Jul 2018 08:08:32 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGM2reZ-+njLtZSnNpry11frg85KmMk4WWxGdaqk1o4BUJVO1w@mail.gmail.com>
+References: <20180712172942.10094-1-hannes@cmpxchg.org> <20180712172942.10094-9-hannes@cmpxchg.org>
+ <20180718120318.GC2476@hirez.programming.kicks-ass.net>
+In-Reply-To: <20180718120318.GC2476@hirez.programming.kicks-ass.net>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 19 Jul 2018 08:08:20 -0700
+Message-ID: <CA+55aFw7t++BzEy-XsatNcauw3Wn22SSXfd3iTYECi4fJ97CCg@mail.gmail.com>
+Subject: Re: [PATCH 08/10] psi: pressure stall information for CPU, memory,
+ and IO
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: mhocko@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, osalvador@suse.de
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, surenb@google.com, Vinayak Menon <vinmenon@codeaurora.org>, Christoph Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, shakeelb@google.com, linux-mm <linux-mm@kvack.org>, cgroups <cgroups@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kernel-team <kernel-team@fb.com>
 
-On Thu, Jul 19, 2018 at 10:27:44AM -0400, Pavel Tatashin wrote:
-> On Thu, Jul 19, 2018 at 10:03 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > I am not really sure. I am not a big fan of SYSTEM_BOOTING global
-> > thingy so I would rather not spread its usage.
-> 
-> I agree, I do not think this patch is necessary. Calling
-> pgdat_set_deferred_range() does not hurt in hotplug context, and it is
-> cheap too. SYSTEM_BOOTING sometimes useful, but it is better to use it
-> only where necessary, where without this "if" we will encounter some
-> bugs.
+On Wed, Jul 18, 2018 at 5:03 AM Peter Zijlstra <peterz@infradead.org> wrote:
+>
+> And as said before, we can compress the state from 12 bytes, to 6 bits
+> (or 1 byte), giving another 11 bytes for 59 bytes free.
+>
+> Leaving us just 5 bytes short of needing a single cacheline :/
 
-Ok, let us drop it then ;-).
+Do you actually need 64 bits for the times?
 
-Thanks
--- 
-Oscar Salvador
-SUSE L3
+That's the big cost. And it seems ridiculous, if you actually care about size.
+
+You already have a 64-bit start time. Everything else is some
+cumulative relative time. Do those really need 64-bit and nanosecond
+resolution?
+
+Maybe a 32-bit microsecond would be ok - would you ever account more
+than 35 minutes of anything without starting anew?
+
+             Linus
