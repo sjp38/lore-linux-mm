@@ -1,156 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 32E606B000C
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 14:01:04 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id y13-v6so6410295ita.8
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 11:01:04 -0700 (PDT)
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id 184-v6sor45479itb.38.2018.07.19.11.01.01
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A210A6B000E
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 14:16:57 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id e23-v6so7665791oii.10
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 11:16:57 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id r64-v6si4180252oif.153.2018.07.19.11.16.55
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 19 Jul 2018 11:01:01 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Jul 2018 11:16:56 -0700 (PDT)
+Date: Thu, 19 Jul 2018 11:16:17 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH v3 2/7] mm, slab/slub: introduce kmalloc-reclaimable
+ caches
+Message-ID: <20180719181613.GA26595@castle.DHCP.thefacebook.com>
+References: <20180718133620.6205-1-vbabka@suse.cz>
+ <20180718133620.6205-3-vbabka@suse.cz>
 MIME-Version: 1.0
-Date: Thu, 19 Jul 2018 11:01:01 -0700
-Message-ID: <00000000000047116205715df655@google.com>
-Subject: KASAN: use-after-free Read in generic_perform_write
-From: syzbot <syzbot+b173e77096a8ba815511@syzkaller.appspotmail.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180718133620.6205-3-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, jack@suse.cz, jlayton@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com, willy@infradead.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>
 
-Hello,
+On Wed, Jul 18, 2018 at 03:36:15PM +0200, Vlastimil Babka wrote:
+> Kmem caches can be created with a SLAB_RECLAIM_ACCOUNT flag, which indicates
+> they contain objects which can be reclaimed under memory pressure (typically
+> through a shrinker). This makes the slab pages accounted as NR_SLAB_RECLAIMABLE
+> in vmstat, which is reflected also the MemAvailable meminfo counter and in
+> overcommit decisions. The slab pages are also allocated with __GFP_RECLAIMABLE,
+> which is good for anti-fragmentation through grouping pages by mobility.
+> 
+> The generic kmalloc-X caches are created without this flag, but sometimes are
+> used also for objects that can be reclaimed, which due to varying size cannot
+> have a dedicated kmem cache with SLAB_RECLAIM_ACCOUNT flag. A prominent example
+> are dcache external names, which prompted the creation of a new, manually
+> managed vmstat counter NR_INDIRECTLY_RECLAIMABLE_BYTES in commit f1782c9bc547
+> ("dcache: account external names as indirectly reclaimable memory").
+> 
+> To better handle this and any other similar cases, this patch introduces
+> SLAB_RECLAIM_ACCOUNT variants of kmalloc caches, named kmalloc-rcl-X.
+> They are used whenever the kmalloc() call passes __GFP_RECLAIMABLE among gfp
+> flags. They are added to the kmalloc_caches array as a new type. Allocations
+> with both __GFP_DMA and __GFP_RECLAIMABLE will use a dma type cache.
+> 
+> This change only applies to SLAB and SLUB, not SLOB. This is fine, since SLOB's
+> target are tiny system and this patch does add some overhead of kmem management
+> objects.
+> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> ---
+>  include/linux/slab.h | 16 +++++++++++----
+>  mm/slab_common.c     | 48 ++++++++++++++++++++++++++++----------------
+>  2 files changed, 43 insertions(+), 21 deletions(-)
+> 
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 4299c59353a1..d89e934e0d8b 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -296,11 +296,12 @@ static inline void __check_heap_object(const void *ptr, unsigned long n,
+>                                 (KMALLOC_MIN_SIZE) : 16)
+>  
+>  #define KMALLOC_NORMAL	0
+> +#define KMALLOC_RECLAIM	1
+>  #ifdef CONFIG_ZONE_DMA
+> -#define KMALLOC_DMA	1
+> -#define KMALLOC_TYPES	2
+> +#define KMALLOC_DMA	2
+> +#define KMALLOC_TYPES	3
+>  #else
+> -#define KMALLOC_TYPES	1
+> +#define KMALLOC_TYPES	2
+>  #endif
+>  
+>  #ifndef CONFIG_SLOB
+> @@ -309,12 +310,19 @@ extern struct kmem_cache *kmalloc_caches[KMALLOC_TYPES][KMALLOC_SHIFT_HIGH + 1];
+>  static __always_inline unsigned int kmalloc_type(gfp_t flags)
+>  {
+>  	int is_dma = 0;
+> +	int is_reclaimable;
+>  
+>  #ifdef CONFIG_ZONE_DMA
+>  	is_dma = !!(flags & __GFP_DMA);
+>  #endif
+>  
+> -	return is_dma;
+> +	is_reclaimable = !!(flags & __GFP_RECLAIMABLE);
+> +
+> +	/*
+> +	 * If an allocation is botth __GFP_DMA and __GFP_RECLAIMABLE, return
+                                 ^^
+			       typo
+> +	 * KMALLOC_DMA and effectively ignore __GFP_RECLAIMABLE
+> +	 */
+> +	return (is_dma * 2) + (is_reclaimable & !is_dma);
 
-syzbot found the following crash on:
+Maybe
+is_dma * KMALLOC_DMA + (is_reclaimable && !is_dma) * KMALLOC_RECLAIM
+looks better?
 
-HEAD commit:    1c34981993da Add linux-next specific files for 20180719
-git tree:       linux-next
-console output: https://syzkaller.appspot.com/x/log.txt?x=16e6ac44400000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=7002497517b09aec
-dashboard link: https://syzkaller.appspot.com/bug?extid=b173e77096a8ba815511
-compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+>  }
+>  
+>  /*
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index 4614248ca381..614fb7ab8312 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -1107,10 +1107,21 @@ void __init setup_kmalloc_cache_index_table(void)
+>  	}
+>  }
+>  
+> -static void __init new_kmalloc_cache(int idx, slab_flags_t flags)
+> +static void __init
+> +new_kmalloc_cache(int idx, int type, slab_flags_t flags)
+>  {
+> -	kmalloc_caches[KMALLOC_NORMAL][idx] = create_kmalloc_cache(
+> -					kmalloc_info[idx].name,
+> +	const char *name;
+> +
+> +	if (type == KMALLOC_RECLAIM) {
+> +		flags |= SLAB_RECLAIM_ACCOUNT;
+> +		name = kasprintf(GFP_NOWAIT, "kmalloc-rcl-%u",
+> +						kmalloc_info[idx].size);
+> +		BUG_ON(!name);
 
-Unfortunately, I don't have any reproducer for this crash yet.
+I'd replace this with WARN_ON() and falling back to kmalloc_info[idx].name.
 
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+b173e77096a8ba815511@syzkaller.appspotmail.com
-
-IPVS: length: 141 != 24
-XFS (loop5): Invalid superblock magic number
-==================================================================
-BUG: KASAN: use-after-free in memcpy include/linux/string.h:345 [inline]
-BUG: KASAN: use-after-free in iov_iter_copy_from_user_atomic+0xb8d/0xfa0  
-lib/iov_iter.c:916
-Read of size 21 at addr ffff880190103660 by task kworker/0:3/4927
-
-CPU: 0 PID: 4927 Comm: kworker/0:3 Not tainted 4.18.0-rc5-next-20180719+ #11
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Workqueue: events p9_write_work
-Call Trace:
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0x1c9/0x2b4 lib/dump_stack.c:113
-  print_address_description+0x6c/0x20b mm/kasan/report.c:256
-  kasan_report_error mm/kasan/report.c:354 [inline]
-  kasan_report.cold.7+0x242/0x30d mm/kasan/report.c:412
-  check_memory_region_inline mm/kasan/kasan.c:260 [inline]
-  check_memory_region+0x13e/0x1b0 mm/kasan/kasan.c:267
-  memcpy+0x23/0x50 mm/kasan/kasan.c:302
-  memcpy include/linux/string.h:345 [inline]
-  iov_iter_copy_from_user_atomic+0xb8d/0xfa0 lib/iov_iter.c:916
-  generic_perform_write+0x469/0x6c0 mm/filemap.c:3058
-  __generic_file_write_iter+0x26e/0x630 mm/filemap.c:3175
-  ext4_file_write_iter+0x390/0x1450 fs/ext4/file.c:266
-  call_write_iter include/linux/fs.h:1826 [inline]
-  new_sync_write fs/read_write.c:474 [inline]
-  __vfs_write+0x6af/0x9d0 fs/read_write.c:487
-  vfs_write+0x1fc/0x560 fs/read_write.c:549
-  kernel_write+0xab/0x120 fs/read_write.c:526
-  p9_fd_write net/9p/trans_fd.c:427 [inline]
-  p9_write_work+0x6f1/0xd50 net/9p/trans_fd.c:476
-  process_one_work+0xc73/0x1ba0 kernel/workqueue.c:2153
-  worker_thread+0x189/0x13c0 kernel/workqueue.c:2296
-  kthread+0x345/0x410 kernel/kthread.c:246
-  ret_from_fork+0x3a/0x50 arch/x86/entry/entry_64.S:415
-
-Allocated by task 13072:
-  save_stack+0x43/0xd0 mm/kasan/kasan.c:448
-  set_track mm/kasan/kasan.c:460 [inline]
-  kasan_kmalloc+0xc4/0xe0 mm/kasan/kasan.c:553
-  __do_kmalloc mm/slab.c:3718 [inline]
-  __kmalloc+0x14e/0x760 mm/slab.c:3727
-  kmalloc include/linux/slab.h:518 [inline]
-  p9_fcall_alloc+0x1e/0x90 net/9p/client.c:237
-  p9_tag_alloc net/9p/client.c:266 [inline]
-  p9_client_prepare_req.part.8+0x107/0xa00 net/9p/client.c:640
-  p9_client_prepare_req net/9p/client.c:675 [inline]
-  p9_client_rpc+0x242/0x1330 net/9p/client.c:675
-  p9_client_version net/9p/client.c:890 [inline]
-  p9_client_create+0xca4/0x1537 net/9p/client.c:974
-  v9fs_session_init+0x21a/0x1a80 fs/9p/v9fs.c:400
-  v9fs_mount+0x7c/0x900 fs/9p/vfs_super.c:135
-  legacy_get_tree+0x131/0x460 fs/fs_context.c:674
-  vfs_get_tree+0x1cb/0x5c0 fs/super.c:1743
-  do_new_mount fs/namespace.c:2603 [inline]
-  do_mount+0x6f2/0x1e20 fs/namespace.c:2927
-  ksys_mount+0x12d/0x140 fs/namespace.c:3143
-  __do_sys_mount fs/namespace.c:3157 [inline]
-  __se_sys_mount fs/namespace.c:3154 [inline]
-  __x64_sys_mount+0xbe/0x150 fs/namespace.c:3154
-  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-
-Freed by task 13072:
-  save_stack+0x43/0xd0 mm/kasan/kasan.c:448
-  set_track mm/kasan/kasan.c:460 [inline]
-  __kasan_slab_free+0x11a/0x170 mm/kasan/kasan.c:521
-  kasan_slab_free+0xe/0x10 mm/kasan/kasan.c:528
-  __cache_free mm/slab.c:3498 [inline]
-  kfree+0xd9/0x260 mm/slab.c:3813
-  p9_free_req+0xb5/0x120 net/9p/client.c:338
-  p9_client_rpc+0xa8e/0x1330 net/9p/client.c:739
-  p9_client_version net/9p/client.c:890 [inline]
-  p9_client_create+0xca4/0x1537 net/9p/client.c:974
-  v9fs_session_init+0x21a/0x1a80 fs/9p/v9fs.c:400
-  v9fs_mount+0x7c/0x900 fs/9p/vfs_super.c:135
-  legacy_get_tree+0x131/0x460 fs/fs_context.c:674
-  vfs_get_tree+0x1cb/0x5c0 fs/super.c:1743
-  do_new_mount fs/namespace.c:2603 [inline]
-  do_mount+0x6f2/0x1e20 fs/namespace.c:2927
-  ksys_mount+0x12d/0x140 fs/namespace.c:3143
-  __do_sys_mount fs/namespace.c:3157 [inline]
-  __se_sys_mount fs/namespace.c:3154 [inline]
-  __x64_sys_mount+0xbe/0x150 fs/namespace.c:3154
-  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-
-The buggy address belongs to the object at ffff880190103640
-  which belongs to the cache kmalloc-16384 of size 16384
-The buggy address is located 32 bytes inside of
-  16384-byte region [ffff880190103640, ffff880190107640)
-The buggy address belongs to the page:
-page:ffffea0006404000 count:1 mapcount:0 mapping:ffff8801da802200 index:0x0  
-compound_mapcount: 0
-flags: 0x2fffc0000010200(slab|head)
-raw: 02fffc0000010200 ffffea000643b808 ffffea0006452c08 ffff8801da802200
-raw: 0000000000000000 ffff880190103640 0000000100000001 0000000000000000
-page dumped because: kasan: bad access detected
-
-Memory state around the buggy address:
-  ffff880190103500: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
-  ffff880190103580: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
-> ffff880190103600: fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb fb
-                                                        ^
-  ffff880190103680: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-  ffff880190103700: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-==================================================================
-
-
----
-This bug is generated by a bot. It may contain errors.
-See https://goo.gl/tpsmEJ for more information about syzbot.
-syzbot engineers can be reached at syzkaller@googlegroups.com.
-
-syzbot will keep track of this bug report. See:
-https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
-syzbot.
+> +	} else {
+> +		name = kmalloc_info[idx].name;
+> +	}
+> +
+> +	kmalloc_caches[type][idx] = create_kmalloc_cache(name,
+>  					kmalloc_info[idx].size, flags, 0,
+>  					kmalloc_info[idx].size);
+>  }
