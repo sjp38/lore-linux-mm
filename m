@@ -1,43 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 55F386B026E
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 10:05:45 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id g5-v6so3695460pgv.12
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 07:05:45 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id p14-v6si5240316plo.357.2018.07.19.07.05.44
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 766E86B0006
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 10:13:56 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id cf17-v6so4702201plb.2
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 07:13:56 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id n21-v6si5987661pgk.307.2018.07.19.07.13.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jul 2018 07:05:44 -0700 (PDT)
-Subject: Re: [PATCHv5 05/19] mm/page_alloc: Handle allocation for encrypted
- memory
+        Thu, 19 Jul 2018 07:13:55 -0700 (PDT)
+Subject: Re: [PATCHv5 06/19] mm/khugepaged: Handle encrypted pages
 References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
- <20180717112029.42378-6-kirill.shutemov@linux.intel.com>
- <95ce19cb-332c-44f5-b3a1-6cfebd870127@intel.com>
- <20180719082724.4qvfdp6q4kuhxskn@kshutemo-mobl1>
+ <20180717112029.42378-7-kirill.shutemov@linux.intel.com>
+ <ad4c704f-fdda-7e75-60ec-3fbc8a4bb0ba@intel.com>
+ <20180719085901.ebdciqkjpx6hy4xt@kshutemo-mobl1>
 From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <b0a92a2f-cf14-c976-9fbd-fd9aa4ebcf96@intel.com>
-Date: Thu, 19 Jul 2018 07:05:36 -0700
+Message-ID: <bc6074f3-dd71-8b6f-5a1f-d3770ac4990b@intel.com>
+Date: Thu, 19 Jul 2018 07:13:39 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180719082724.4qvfdp6q4kuhxskn@kshutemo-mobl1>
+In-Reply-To: <20180719085901.ebdciqkjpx6hy4xt@kshutemo-mobl1>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@suse.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 07/19/2018 01:27 AM, Kirill A. Shutemov wrote:
->> What other code might need prep_encrypted_page()?
+On 07/19/2018 01:59 AM, Kirill A. Shutemov wrote:
+> On Wed, Jul 18, 2018 at 04:11:57PM -0700, Dave Hansen wrote:
+>> On 07/17/2018 04:20 AM, Kirill A. Shutemov wrote:
+>>> khugepaged allocates page in advance, before we found a VMA for
+>>> collapse. We don't yet know which KeyID to use for the allocation.
+>>
+>> That's not really true.  We have the VMA and the address in the caller
+>> (khugepaged_scan_pmd()), but we drop the lock and have to revalidate the
+>> VMA.
 > 
-> Custom pages allocators if these pages can end up in encrypted VMAs.
+> For !NUMA we allocate the page in khugepaged_do_scan(), well before we
+> know VMA.
+
+Ahh, thanks for clarifying.  That's some more very good information
+about the design and progression of your patch that belongs in the
+changelog.
+
+>>> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+>>> index 5ae34097aed1..d116f4ebb622 100644
+>>> --- a/mm/khugepaged.c
+>>> +++ b/mm/khugepaged.c
+>>> @@ -1056,6 +1056,16 @@ static void collapse_huge_page(struct mm_struct *mm,
+>>>  	 */
+>>>  	anon_vma_unlock_write(vma->anon_vma);
+>>>  
+>>> +	/*
+>>> +	 * At this point new_page is allocated as non-encrypted.
+>>> +	 * If VMA's KeyID is non-zero, we need to prepare it to be encrypted
+>>> +	 * before coping data.
+>>> +	 */
+>>> +	if (vma_keyid(vma)) {
+>>> +		prep_encrypted_page(new_page, HPAGE_PMD_ORDER,
+>>> +				vma_keyid(vma), false);
+>>> +	}
+>>
+>> I guess this isn't horribly problematic now, but if we ever keep pools
+>> of preassigned-keyids, this won't work any more.
 > 
-> It this case compaction creates own pool of pages to be used for
-> allocation during page migration.
+> I don't get this. What pools of preassigned-keyids are you talking about?
 
-OK, that makes sense.  It also sounds like some great information to add
-near prep_encrypted_page().
+My point was that if we ever teach the allocator or something _near_ the
+allocator to keep pools of pre-zeroed and/or pre-cache-cleared pages,
+this approach will need to get changed otherwise we will double-prep pages.
 
-Do we have any ability to catch cases like this if we get them wrong, or
-will we just silently corrupt data?
+My overall concern with prep_encrypted_page() in this patch set is that
+it's inserted pretty ad-hoc.  It seems easy to miss spots where it
+should be.  I'm also unsure of the failure mode and anything we've done
+to ensure that if we get this wrong, we scream clearly and loudly about
+what happened.  Do we do something like that?
