@@ -1,126 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 007246B0003
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 03:59:30 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id i26-v6so2941501edr.4
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 00:59:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p7-v6sor3212263edh.51.2018.07.19.00.59.28
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AC756B0005
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 04:10:14 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id m197-v6so6455153oig.18
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 01:10:14 -0700 (PDT)
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id j66-v6si3569040oif.40.2018.07.19.01.10.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 19 Jul 2018 00:59:28 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mm, oom: remove oom_lock from oom_reaper
-Date: Thu, 19 Jul 2018 09:59:22 +0200
-Message-Id: <20180719075922.13784-1-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Jul 2018 01:10:13 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v2 1/2] mm: fix race on soft-offlining free huge pages
+Date: Thu, 19 Jul 2018 08:08:05 +0000
+Message-ID: <20180719080804.GA32756@hori1.linux.bs1.fc.nec.co.jp>
+References: <1531805552-19547-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1531805552-19547-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20180717142743.GJ7193@dhcp22.suse.cz>
+ <20180718005528.GA12184@hori1.linux.bs1.fc.nec.co.jp>
+ <20180718085032.GS7193@dhcp22.suse.cz>
+ <20180719061945.GB22154@hori1.linux.bs1.fc.nec.co.jp>
+ <20180719071516.GK7193@dhcp22.suse.cz>
+In-Reply-To: <20180719071516.GK7193@dhcp22.suse.cz>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <05B4D8597F8D454BABD4853CF7549D4D@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "xishi.qiuxishi@alibaba-inc.com" <xishi.qiuxishi@alibaba-inc.com>, "zy.zhengyi@alibaba-inc.com" <zy.zhengyi@alibaba-inc.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-From: Michal Hocko <mhocko@suse.com>
+On Thu, Jul 19, 2018 at 09:15:16AM +0200, Michal Hocko wrote:
+> On Thu 19-07-18 06:19:45, Naoya Horiguchi wrote:
+> > On Wed, Jul 18, 2018 at 10:50:32AM +0200, Michal Hocko wrote:
+> > > On Wed 18-07-18 00:55:29, Naoya Horiguchi wrote:
+> > > > On Tue, Jul 17, 2018 at 04:27:43PM +0200, Michal Hocko wrote:
+> > > > > On Tue 17-07-18 14:32:31, Naoya Horiguchi wrote:
+> > > > > > There's a race condition between soft offline and hugetlb_fault=
+ which
+> > > > > > causes unexpected process killing and/or hugetlb allocation fai=
+lure.
+> > > > > >
+> > > > > > The process killing is caused by the following flow:
+> > > > > >
+> > > > > >   CPU 0               CPU 1              CPU 2
+> > > > > >
+> > > > > >   soft offline
+> > > > > >     get_any_page
+> > > > > >     // find the hugetlb is free
+> > > > > >                       mmap a hugetlb file
+> > > > > >                       page fault
+> > > > > >                         ...
+> > > > > >                           hugetlb_fault
+> > > > > >                             hugetlb_no_page
+> > > > > >                               alloc_huge_page
+> > > > > >                               // succeed
+> > > > > >       soft_offline_free_page
+> > > > > >       // set hwpoison flag
+> > > > > >                                          mmap the hugetlb file
+> > > > > >                                          page fault
+> > > > > >                                            ...
+> > > > > >                                              hugetlb_fault
+> > > > > >                                                hugetlb_no_page
+> > > > > >                                                  find_lock_page
+> > > > > >                                                    return VM_FA=
+ULT_HWPOISON
+> > > > > >                                            mm_fault_error
+> > > > > >                                              do_sigbus
+> > > > > >                                              // kill the proces=
+s
+> > > > > >
+> > > > > >
+> > > > > > The hugetlb allocation failure comes from the following flow:
+> > > > > >
+> > > > > >   CPU 0                          CPU 1
+> > > > > >
+> > > > > >                                  mmap a hugetlb file
+> > > > > >                                  // reserve all free page but d=
+on't fault-in
+> > > > > >   soft offline
+> > > > > >     get_any_page
+> > > > > >     // find the hugetlb is free
+> > > > > >       soft_offline_free_page
+> > > > > >       // set hwpoison flag
+> > > > > >         dissolve_free_huge_page
+> > > > > >         // fail because all free hugepages are reserved
+> > > > > >                                  page fault
+> > > > > >                                    ...
+> > > > > >                                      hugetlb_fault
+> > > > > >                                        hugetlb_no_page
+> > > > > >                                          alloc_huge_page
+> > > > > >                                            ...
+> > > > > >                                              dequeue_huge_page_=
+node_exact
+> > > > > >                                              // ignore hwpoison=
+ed hugepage
+> > > > > >                                              // and finally fai=
+l due to no-mem
+> > > > > >
+> > > > > > The root cause of this is that current soft-offline code is wri=
+tten
+> > > > > > based on an assumption that PageHWPoison flag should beset at f=
+irst to
+> > > > > > avoid accessing the corrupted data.  This makes sense for memor=
+y_failure()
+> > > > > > or hard offline, but does not for soft offline because soft off=
+line is
+> > > > > > about corrected (not uncorrected) error and is safe from data l=
+ost.
+> > > > > > This patch changes soft offline semantics where it sets PageHWP=
+oison flag
+> > > > > > only after containment of the error page completes successfully=
+.
+> > > > >
+> > > > > Could you please expand on the worklow here please? The code is r=
+eally
+> > > > > hard to grasp. I must be missing something because the thing shou=
+ldn't
+> > > > > be really complicated. Either the page is in the free pool and yo=
+u just
+> > > > > remove it from the allocator (with hugetlb asking for a new hugel=
+tb page
+> > > > > to guaratee reserves) or it is used and you just migrate the cont=
+ent to
+> > > > > a new page (again with the hugetlb reserves consideration). Why s=
+hould
+> > > > > PageHWPoison flag ordering make any relevance?
+> > > >
+> > > > (Considering soft offlining free hugepage,)
+> > > > PageHWPoison is set at first before this patch, which is racy with
+> > > > hugetlb fault code because it's not protected by hugetlb_lock.
+> > > >
+> > > > Originally this was written in the similar manner as hard-offline, =
+where
+> > > > the race is accepted and a PageHWPoison flag is set as soon as poss=
+ible.
+> > > > But actually that's found not necessary/correct because soft offlin=
+e is
+> > > > supposed to be less aggressive and failure is OK.
+> > >
+> > > OK
+> > >
+> > > > So this patch is suggesting to make soft-offline less aggressive by
+> > > > moving SetPageHWPoison into the lock.
+> > >
+> > > I guess I still do not understand why we should even care about the
+> > > ordering of the HWPoison flag setting. Why cannot we simply have the
+> > > following code flow? Or maybe we are doing that already I just do not
+> > > follow the code
+> > >
+> > > 	soft_offline
+> > > 	  check page_count
+> > > 	    - free - normal page - remove from the allocator
+> > > 	           - hugetlb - allocate a new hugetlb page && remove from th=
+e pool
+> > > 	    - used - migrate to a new page && never release the old one
+> > >
+> > > Why do we even need HWPoison flag here? Everything can be completely
+> > > transparent to the application. It shouldn't fail from what I
+> > > understood.
+> >=20
+> > PageHWPoison flag is used to the 'remove from the allocator' part
+> > which is like below:
+> >=20
+> >   static inline
+> >   struct page *rmqueue(
+> >           ...
+> >           do {
+> >                   page =3D NULL;
+> >                   if (alloc_flags & ALLOC_HARDER) {
+> >                           page =3D __rmqueue_smallest(zone, order, MIGR=
+ATE_HIGHATOMIC);
+> >                           if (page)
+> >                                   trace_mm_page_alloc_zone_locked(page,=
+ order, migratetype);
+> >                   }
+> >                   if (!page)
+> >                           page =3D __rmqueue(zone, order, migratetype);
+> >           } while (page && check_new_pages(page, order));
+> >=20
+> > check_new_pages() returns true if the page taken from free list has
+> > a hwpoison page so that the allocator iterates another round to get
+> > another page.
+> >=20
+> > There's no function that can be called from outside allocator to remove
+> > a page in allocator.  So actual page removal is done at allocation time=
+,
+> > not at error handling time. That's the reason why we need PageHWPoison.
+>=20
+> hwpoison is an internal mm functionality so why cannot we simply add a
+> function that would do that?
 
-oom_reaper used to rely on the oom_lock since e2fe14564d33 ("oom_reaper:
-close race with exiting task"). We do not really need the lock anymore
-though. 212925802454 ("mm: oom: let oom_reap_task and exit_mmap run
-concurrently") has removed serialization with the exit path based on the
-mm reference count and so we do not really rely on the oom_lock anymore.
+That's one possible solution.
 
-Tetsuo was arguing that at least MMF_OOM_SKIP should be set under the
-lock to prevent from races when the page allocator didn't manage to get
-the freed (reaped) memory in __alloc_pages_may_oom but it sees the flag
-later on and move on to another victim. Although this is possible in
-principle let's wait for it to actually happen in real life before we
-make the locking more complex again.
+I know about another downside in current implementation.
+If a hwpoison page is found during high order page allocation,
+all 2^order pages (not only hwpoison page) are removed from
+buddy because of the above quoted code. And these leaked pages
+are never returned to freelist even with unpoison_memory().
+If we have a page removal function which properly splits high order
+free pages into lower order pages, this problem is avoided.
 
-Therefore remove the oom_lock for oom_reaper paths (both exit_mmap and
-oom_reap_task_mm). The reaper serializes with exit_mmap by mmap_sem +
-MMF_OOM_SKIP flag. There is no synchronization with out_of_memory path
-now.
+OTOH PageHWPoison still has a role to report error to userspace.
+Without it unpoison_memory() doesn't work.
 
-Suggested-by: David Rientjes <rientjes@google.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/mmap.c     |  2 --
- mm/oom_kill.c | 29 ++++-------------------------
- 2 files changed, 4 insertions(+), 27 deletions(-)
+Thanks,
+Naoya Horiguchi
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index fc41c0543d7f..4642964f7741 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3073,9 +3073,7 @@ void exit_mmap(struct mm_struct *mm)
- 		 * which clears VM_LOCKED, otherwise the oom reaper cannot
- 		 * reliably test it.
- 		 */
--		mutex_lock(&oom_lock);
- 		__oom_reap_task_mm(mm);
--		mutex_unlock(&oom_lock);
- 
- 		set_bit(MMF_OOM_SKIP, &mm->flags);
- 		down_write(&mm->mmap_sem);
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 32e6f7becb40..c74bf0bd8010 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -529,28 +529,9 @@ void __oom_reap_task_mm(struct mm_struct *mm)
- 
- static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- {
--	bool ret = true;
--
--	/*
--	 * We have to make sure to not race with the victim exit path
--	 * and cause premature new oom victim selection:
--	 * oom_reap_task_mm		exit_mm
--	 *   mmget_not_zero
--	 *				  mmput
--	 *				    atomic_dec_and_test
--	 *				  exit_oom_victim
--	 *				[...]
--	 *				out_of_memory
--	 *				  select_bad_process
--	 *				    # no TIF_MEMDIE task selects new victim
--	 *  unmap_page_range # frees some memory
--	 */
--	mutex_lock(&oom_lock);
--
- 	if (!down_read_trylock(&mm->mmap_sem)) {
--		ret = false;
- 		trace_skip_task_reaping(tsk->pid);
--		goto unlock_oom;
-+		return false;
- 	}
- 
- 	/*
-@@ -562,7 +543,7 @@ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 	if (mm_has_blockable_invalidate_notifiers(mm)) {
- 		up_read(&mm->mmap_sem);
- 		schedule_timeout_idle(HZ);
--		goto unlock_oom;
-+		return true;
- 	}
- 
- 	/*
-@@ -574,7 +555,7 @@ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
- 		up_read(&mm->mmap_sem);
- 		trace_skip_task_reaping(tsk->pid);
--		goto unlock_oom;
-+		return true;
- 	}
- 
- 	trace_start_task_reaping(tsk->pid);
-@@ -589,9 +570,7 @@ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 	up_read(&mm->mmap_sem);
- 
- 	trace_finish_task_reaping(tsk->pid);
--unlock_oom:
--	mutex_unlock(&oom_lock);
--	return ret;
-+	return true;
- }
- 
- #define MAX_OOM_REAP_RETRIES 10
--- 
-2.18.0
+> I find the PageHWPoison usage here doing
+> more complications than real good. Or am I missing something?=
