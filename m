@@ -1,73 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1991D6B0003
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 09:23:19 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id y8-v6so4547873plp.17
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 06:23:19 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E5B26B000C
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 09:27:47 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id v2-v6so3640310wrr.10
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 06:27:47 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k12-v6sor1643652pgo.192.2018.07.19.06.23.18
+        by mx.google.com with SMTPS id c3-v6sor2825220wrn.20.2018.07.19.06.27.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 19 Jul 2018 06:23:18 -0700 (PDT)
-Date: Thu, 19 Jul 2018 16:23:12 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv5 08/19] x86/mm: Introduce variables to store number,
- shift and mask of KeyIDs
-Message-ID: <20180719132312.75lduymla2uretax@kshutemo-mobl1>
-References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
- <20180717112029.42378-9-kirill.shutemov@linux.intel.com>
- <1edc05b0-8371-807e-7cfa-6e8f61ee9b70@intel.com>
- <20180719102130.b4f6b6v5wg3modtc@kshutemo-mobl1>
- <alpine.DEB.2.21.1807191436300.1602@nanos.tec.linutronix.de>
- <20180719131245.sxnqsgzvkqriy3o2@kshutemo-mobl1>
- <alpine.DEB.2.21.1807191515150.1602@nanos.tec.linutronix.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1807191515150.1602@nanos.tec.linutronix.de>
+        Thu, 19 Jul 2018 06:27:46 -0700 (PDT)
+From: osalvador@techadventures.net
+Subject: [PATCH v2 0/5] Refactor free_area_init_node/free_area_init_core
+Date: Thu, 19 Jul 2018 15:27:35 +0200
+Message-Id: <20180719132740.32743-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Dave Hansen <dave.hansen@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: pasha.tatashin@oracle.com, mhocko@suse.com, vbabka@suse.cz, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
 
-On Thu, Jul 19, 2018 at 03:18:03PM +0200, Thomas Gleixner wrote:
-> On Thu, 19 Jul 2018, Kirill A. Shutemov wrote:
-> > On Thu, Jul 19, 2018 at 02:37:35PM +0200, Thomas Gleixner wrote:
-> > > On Thu, 19 Jul 2018, Kirill A. Shutemov wrote:
-> > > > On Wed, Jul 18, 2018 at 04:19:10PM -0700, Dave Hansen wrote:
-> > > > > >  	} else {
-> > > > > >  		/*
-> > > > > >  		 * Reset __PHYSICAL_MASK.
-> > > > > > @@ -591,6 +592,9 @@ static void detect_tme(struct cpuinfo_x86 *c)
-> > > > > >  		 * between CPUs.
-> > > > > >  		 */
-> > > > > >  		physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
-> > > > > > +		mktme_keyid_mask = 0;
-> > > > > > +		mktme_keyid_shift = 0;
-> > > > > > +		mktme_nr_keyids = 0;
-> > > > > >  	}
-> > > > > 
-> > > > > Should be unnecessary.  These are zeroed by the compiler.
-> > > > 
-> > > > No. detect_tme() called for each CPU in the system.
-> > > 
-> > > And then the variables are cleared out while other CPUs can access them?
-> > > How is that supposed to work?
-> > 
-> > This code path only matter in patalogical case: when MKTME configuation is
-> > inconsitent between CPUs. Basically if BIOS screwed things up we disable
-> > MKTME.
-> 
-> I still don't see how that's supposed to work.
-> 
-> When the inconsistent CPU is brought up _AFTER_ MKTME is enabled, then how
-> does clearing the variables help? It does not magically make all the other
-> stuff go away.
+From: Oscar Salvador <osalvador@suse.de>
 
-We don't actually enable MKTME in kernel. BIOS does. Kernel makes choose
-to use it or not. Current design targeted to be used by userspace.
-So until init we don't have any other stuff to go away. We can just
-pretend that MKTME was never there.
+This patchset pretends to make free_area_init_core more readable by
+moving the ifdefery to inline functions, and while we are at it,
+it optimizes the function a little bit (better explained in patch 3).
+
+Oscar Salvador (4):
+  mm/page_alloc: Move ifdefery out of free_area_init_core
+  mm/page_alloc: Optimize free_area_init_core
+  mm/page_alloc: Inline function to handle
+    CONFIG_DEFERRED_STRUCT_PAGE_INIT
+  mm/page_alloc: Only call pgdat_set_deferred_range when the system
+    boots
+
+Pavel Tatashin (1):
+  mm: access zone->node via zone_to_nid() and zone_set_nid()
+
+ include/linux/mm.h     |   9 ---
+ include/linux/mmzone.h |  26 ++++++--
+ mm/mempolicy.c         |   4 +-
+ mm/mm_init.c           |   9 +--
+ mm/page_alloc.c        | 159 +++++++++++++++++++++++++++++--------------------
+ 5 files changed, 120 insertions(+), 87 deletions(-)
 
 -- 
- Kirill A. Shutemov
+2.13.6
