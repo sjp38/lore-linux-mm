@@ -1,47 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CF0B76B0275
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 20:01:42 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id t26-v6so3058286pfh.0
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 17:01:42 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id r12-v6si1948842plo.475.2018.07.18.17.01.41
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 015556B0278
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2018 20:06:39 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id az8-v6so3418008plb.15
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2018 17:06:38 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id d19-v6si4789471pfm.226.2018.07.18.17.06.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jul 2018 17:01:41 -0700 (PDT)
-Subject: Re: [PATCHv5 17/19] x86/mm: Implement sync_direct_mapping()
-References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
- <20180717112029.42378-18-kirill.shutemov@linux.intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <4a99e079-7bd0-a611-571a-d730815b4b2a@intel.com>
-Date: Wed, 18 Jul 2018 17:01:37 -0700
+        Wed, 18 Jul 2018 17:06:36 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 16/27] mm: Modify can_follow_write_pte/pmd for
+ shadow stack
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+ <20180710222639.8241-17-yu-cheng.yu@intel.com>
+ <de510df6-7ea9-edc6-9c49-2f80f16472b4@linux.intel.com>
+ <1531328731.15351.3.camel@intel.com>
+ <45a85b01-e005-8cb6-af96-b23ce9b5fca7@linux.intel.com>
+ <1531868610.3541.21.camel@intel.com>
+ <fa9db8c5-41c8-05e9-ad8d-dc6aaf11cb04@linux.intel.com>
+ <1531944882.10738.1.camel@intel.com>
+ <3f158401-f0b6-7bf7-48ab-2958354b28ad@linux.intel.com>
+ <1531955428.12385.30.camel@intel.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <f4c90626-51d8-5551-5b77-baaff81f16bb@linux.intel.com>
+Date: Wed, 18 Jul 2018 17:06:33 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180717112029.42378-18-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1531955428.12385.30.camel@intel.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-On 07/17/2018 04:20 AM, Kirill A. Shutemov wrote:
->  arch/x86/include/asm/mktme.h |   8 +
->  arch/x86/mm/init_64.c        |  10 +
->  arch/x86/mm/mktme.c          | 437 +++++++++++++++++++++++++++++++++++
->  3 files changed, 455 insertions(+)
+>>> -static inline bool can_follow_write_pte(pte_t pte, unsigned int flags)
+>>> +static inline bool can_follow_write(pte_t pte, unsigned int flags,
+>>> +				A A A A struct vm_area_struct *vma)
+>>> A {
+>>> -	return pte_write(pte) ||
+>>> -		((flags & FOLL_FORCE) && (flags & FOLL_COW) && pte_dirty(pte));
+>>> +	if (!is_shstk_mapping(vma->vm_flags)) {
+>>> +		if (pte_write(pte))
+>>> +			return true;
+>> Let me see if I can say this another way.
+>>
+>> The bigger issue is that these patches change the semantics of
+>> pte_write().A A Before these patches, it meant that you *MUST* have this
+>> bit set to write to the page controlled by the PTE.A A Now, it means: you
+>> can write if this bit is set *OR* the shadowstack bit combination is set.
+> 
+> Here, we only figure out (1) if the page is pointed by a writable PTE; or
+> (2) if the page is pointed by a RO PTE (data or SHSTK) and it has been
+> copied and it still exists. A We are not trying to
+> determine if the
+> SHSTK PTE is writable (we know it is not).
 
-I'm not the maintainer.  But, NAK from me on this on the diffstat alone.
+Please think about the big picture.  I'm not just talking about this
+patch, but about every use of pte_write() in the kernel.
 
-There is simply too much technical debt here.  There is no way this code
-is not riddled with bugs and I would bet lots of beer on the fact that
-this has received little to know testing with all the combinations that
-matter, like memory hotplug.  I'd love to be proven wrong, so I eagerly
-await to be dazzled with the test results that have so far escaped
-mention in the changelog.
+>> That's the fundamental problem.A A We need some code in the kernel that
+>> logically represents the concept of "is this PTE a shadowstack PTE or a
+>> PTE with the write bit set", and we will call that pte_write(), or maybe
+>> pte_writable().
+>>
+>> You *have* to somehow rectify this situation.A A We can absolutely no
+>> leave pte_write() in its current, ambiguous state where it has no real
+>> meaning or where it is used to mean _both_ things depending on context.
+> 
+> True, the processor can always write to a page through a shadow stack
+> PTE, but it must do that with a CALL instruction. A Can we define aA 
+> write operation as: MOV r1, *(r2). A Then we don't have any doubt on
+> pte_write() any more.
 
-Please make an effort to refactor this to reuse the code that we already
-have to manage the direct mapping.  We can't afford 455 new lines of
-page table manipulation that nobody tests or runs.
+No, we can't just move the target. :)
 
-How _was_ this tested?
+You can define it this way, but then you also need to go to every spot
+in the kernel that calls pte_write() (and _PAGE_RW in fact) and audit it
+to ensure it means "mov ..." and not push.
