@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 528F96B0008
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 10:19:10 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id n19-v6so3753347pgv.14
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 07:19:10 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id 190-v6si6506467pfu.343.2018.07.19.07.19.09
+	by kanga.kvack.org (Postfix) with ESMTP id 70D496B0270
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 10:23:36 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id o16-v6so3754192pgv.21
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 07:23:36 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id 64-v6si5891116pfd.155.2018.07.19.07.23.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jul 2018 07:19:09 -0700 (PDT)
-Subject: Re: [PATCHv5 07/19] x86/mm: Mask out KeyID bits from page table entry
- pfn
+        Thu, 19 Jul 2018 07:23:35 -0700 (PDT)
+Subject: Re: [PATCHv5 08/19] x86/mm: Introduce variables to store number,
+ shift and mask of KeyIDs
 References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
- <20180717112029.42378-8-kirill.shutemov@linux.intel.com>
- <9922042b-f130-a87c-8239-9b852e335f26@intel.com>
- <20180719095404.pkm72iyhhc6v5tth@kshutemo-mobl1>
+ <20180717112029.42378-9-kirill.shutemov@linux.intel.com>
+ <1edc05b0-8371-807e-7cfa-6e8f61ee9b70@intel.com>
+ <20180719102130.b4f6b6v5wg3modtc@kshutemo-mobl1>
 From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <0c1bdd80-8e47-e65c-f421-0c5010058025@intel.com>
-Date: Thu, 19 Jul 2018 07:19:01 -0700
+Message-ID: <e56be94d-e70e-8100-9b15-98a224442db9@intel.com>
+Date: Thu, 19 Jul 2018 07:23:27 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180719095404.pkm72iyhhc6v5tth@kshutemo-mobl1>
+In-Reply-To: <20180719102130.b4f6b6v5wg3modtc@kshutemo-mobl1>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -28,24 +28,27 @@ List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 07/19/2018 02:54 AM, Kirill A. Shutemov wrote:
-> On Wed, Jul 18, 2018 at 04:13:20PM -0700, Dave Hansen wrote:
+On 07/19/2018 03:21 AM, Kirill A. Shutemov wrote:
+> On Wed, Jul 18, 2018 at 04:19:10PM -0700, Dave Hansen wrote:
 >> On 07/17/2018 04:20 AM, Kirill A. Shutemov wrote:
->>> +	} else {
->>> +		/*
->>> +		 * Reset __PHYSICAL_MASK.
->>> +		 * Maybe needed if there's inconsistent configuation
->>> +		 * between CPUs.
->>> +		 */
->>> +		physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
->>> +	}
->> This seems like an appropriate place for a WARN_ON().  Either that, or
->> axe this code.
-> There's pr_err_once() above in the function.
+>>> mktme_nr_keyids holds number of KeyIDs available for MKTME, excluding
+>>> KeyID zero which used by TME. MKTME KeyIDs start from 1.
+>>>
+>>> mktme_keyid_shift holds shift of KeyID within physical address.
+>> I know what all these words mean, but the combination of them makes no
+>> sense to me.  I still don't know what the variable does after reading this.
+>>
+>> Is this the lowest bit in the physical address which is used for the
+>> KeyID?  How many bits you must shift up a KeyID to get to the location
+>> at which it can be masked into the physical address?
+> Right.
+> 
+> I'm not sure what is not clear from the description. It look fine to me.
 
-Do you mean for the (tme_activate != tme_activate_cpu0) check?
+Well, OK, I guess I can write a better one for you.
 
-But that's about double-activating this feature.  This check is about an
-inconsistent configuration between two CPUs which seems totally different.
+"Position in the PTE of the lowest bit of the KeyID"
 
-Could you explain?
+It's also a name that could use some love (now that I know what it
+does).  mktme_keyid_pte_shift would be much better.  Or
+mktme_keyid_low_pte_bit.
