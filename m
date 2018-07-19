@@ -1,24 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 766E86B0006
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 10:13:56 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id cf17-v6so4702201plb.2
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 07:13:56 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id n21-v6si5987661pgk.307.2018.07.19.07.13.55
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 528F96B0008
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 10:19:10 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id n19-v6so3753347pgv.14
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 07:19:10 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id 190-v6si6506467pfu.343.2018.07.19.07.19.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jul 2018 07:13:55 -0700 (PDT)
-Subject: Re: [PATCHv5 06/19] mm/khugepaged: Handle encrypted pages
+        Thu, 19 Jul 2018 07:19:09 -0700 (PDT)
+Subject: Re: [PATCHv5 07/19] x86/mm: Mask out KeyID bits from page table entry
+ pfn
 References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
- <20180717112029.42378-7-kirill.shutemov@linux.intel.com>
- <ad4c704f-fdda-7e75-60ec-3fbc8a4bb0ba@intel.com>
- <20180719085901.ebdciqkjpx6hy4xt@kshutemo-mobl1>
+ <20180717112029.42378-8-kirill.shutemov@linux.intel.com>
+ <9922042b-f130-a87c-8239-9b852e335f26@intel.com>
+ <20180719095404.pkm72iyhhc6v5tth@kshutemo-mobl1>
 From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <bc6074f3-dd71-8b6f-5a1f-d3770ac4990b@intel.com>
-Date: Thu, 19 Jul 2018 07:13:39 -0700
+Message-ID: <0c1bdd80-8e47-e65c-f421-0c5010058025@intel.com>
+Date: Thu, 19 Jul 2018 07:19:01 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180719085901.ebdciqkjpx6hy4xt@kshutemo-mobl1>
+In-Reply-To: <20180719095404.pkm72iyhhc6v5tth@kshutemo-mobl1>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -27,52 +28,24 @@ List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 07/19/2018 01:59 AM, Kirill A. Shutemov wrote:
-> On Wed, Jul 18, 2018 at 04:11:57PM -0700, Dave Hansen wrote:
+On 07/19/2018 02:54 AM, Kirill A. Shutemov wrote:
+> On Wed, Jul 18, 2018 at 04:13:20PM -0700, Dave Hansen wrote:
 >> On 07/17/2018 04:20 AM, Kirill A. Shutemov wrote:
->>> khugepaged allocates page in advance, before we found a VMA for
->>> collapse. We don't yet know which KeyID to use for the allocation.
->>
->> That's not really true.  We have the VMA and the address in the caller
->> (khugepaged_scan_pmd()), but we drop the lock and have to revalidate the
->> VMA.
-> 
-> For !NUMA we allocate the page in khugepaged_do_scan(), well before we
-> know VMA.
-
-Ahh, thanks for clarifying.  That's some more very good information
-about the design and progression of your patch that belongs in the
-changelog.
-
->>> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
->>> index 5ae34097aed1..d116f4ebb622 100644
->>> --- a/mm/khugepaged.c
->>> +++ b/mm/khugepaged.c
->>> @@ -1056,6 +1056,16 @@ static void collapse_huge_page(struct mm_struct *mm,
->>>  	 */
->>>  	anon_vma_unlock_write(vma->anon_vma);
->>>  
->>> +	/*
->>> +	 * At this point new_page is allocated as non-encrypted.
->>> +	 * If VMA's KeyID is non-zero, we need to prepare it to be encrypted
->>> +	 * before coping data.
->>> +	 */
->>> +	if (vma_keyid(vma)) {
->>> +		prep_encrypted_page(new_page, HPAGE_PMD_ORDER,
->>> +				vma_keyid(vma), false);
+>>> +	} else {
+>>> +		/*
+>>> +		 * Reset __PHYSICAL_MASK.
+>>> +		 * Maybe needed if there's inconsistent configuation
+>>> +		 * between CPUs.
+>>> +		 */
+>>> +		physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
 >>> +	}
->>
->> I guess this isn't horribly problematic now, but if we ever keep pools
->> of preassigned-keyids, this won't work any more.
-> 
-> I don't get this. What pools of preassigned-keyids are you talking about?
+>> This seems like an appropriate place for a WARN_ON().  Either that, or
+>> axe this code.
+> There's pr_err_once() above in the function.
 
-My point was that if we ever teach the allocator or something _near_ the
-allocator to keep pools of pre-zeroed and/or pre-cache-cleared pages,
-this approach will need to get changed otherwise we will double-prep pages.
+Do you mean for the (tme_activate != tme_activate_cpu0) check?
 
-My overall concern with prep_encrypted_page() in this patch set is that
-it's inserted pretty ad-hoc.  It seems easy to miss spots where it
-should be.  I'm also unsure of the failure mode and anything we've done
-to ensure that if we get this wrong, we scream clearly and loudly about
-what happened.  Do we do something like that?
+But that's about double-activating this feature.  This check is about an
+inconsistent configuration between two CPUs which seems totally different.
+
+Could you explain?
