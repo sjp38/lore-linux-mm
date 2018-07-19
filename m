@@ -1,117 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 81CA36B027E
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 04:49:11 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id u16-v6so3734871pfm.15
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 01:49:11 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id x18-v6si4948122pll.193.2018.07.19.01.49.09
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A30786B0003
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 04:58:14 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id f8-v6so3004225eds.6
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 01:58:14 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x13-v6si2295070edm.270.2018.07.19.01.58.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jul 2018 01:49:10 -0700 (PDT)
-From: Huang Ying <ying.huang@intel.com>
-Subject: [PATCH v3 8/8] swap, put_swap_page: Share more between huge/normal code path
-Date: Thu, 19 Jul 2018 16:48:42 +0800
-Message-Id: <20180719084842.11385-9-ying.huang@intel.com>
-In-Reply-To: <20180719084842.11385-1-ying.huang@intel.com>
-References: <20180719084842.11385-1-ying.huang@intel.com>
+        Thu, 19 Jul 2018 01:58:13 -0700 (PDT)
+Date: Thu, 19 Jul 2018 10:58:12 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mm: adjust max read count in generic_file_buffered_read()
+Message-ID: <20180719085812.sjup2odrjyuigt3l@quack2.suse.cz>
+References: <20180719081726.3341-1-cgxu519@gmx.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180719081726.3341-1-cgxu519@gmx.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Chengguang Xu <cgxu519@gmx.com>
+Cc: akpm@linux-foundation.org, jack@suse.cz, mgorman@techsingularity.net, jlayton@redhat.com, ak@linux.intel.com, mawilcox@microsoft.com, tim.c.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>
 
-In this patch, locking related code is shared between huge/normal code
-path in put_swap_page() to reduce code duplication.  And `free_entries
-== 0` case is merged into more general `free_entries !=
-SWAPFILE_CLUSTER` case, because the new locking method makes it easy.
+On Thu 19-07-18 16:17:26, Chengguang Xu wrote:
+> When we try to truncate read count in generic_file_buffered_read(),
+> should deliver (sb->s_maxbytes - offset) as maximum count not
+> sb->s_maxbytes itself.
+> 
+> Signed-off-by: Chengguang Xu <cgxu519@gmx.com>
 
-The added lines is same as the removed lines.  But the code size is
-increased when CONFIG_TRANSPARENT_HUGEPAGE=n.
+Looks good to me. You can add:
 
-		text	   data	    bss	    dec	    hex	filename
-base:	       24123	   2004	    340	  26467	   6763	mm/swapfile.o
-unified:       24485	   2004	    340	  26829	   68cd	mm/swapfile.o
+Reviewed-by: Jan Kara <jack@suse.cz>
 
-Dig on step deeper with `size -A mm/swapfile.o` for base and unified
-kernel and compare the result, yields,
+BTW, I can see you didn't include two (I'd say the most important ;)
+addresses to CC: Al Viro as a VFS maintainer and linux-fsdevel mailing
+list. Although this code resides in mm/ it is in fact a filesystem code.
+Added now.
 
-  -.text                                17723      0
-  +.text                                17835      0
-  -.orc_unwind_ip                        1380      0
-  +.orc_unwind_ip                        1480      0
-  -.orc_unwind                           2070      0
-  +.orc_unwind                           2220      0
-  -Total                                26686
-  +Total                                27048
+								Honza
 
-The total difference is the same.  The text segment difference is much
-smaller: 112.  More difference comes from the ORC unwinder
-segments: (1480 + 2220) - (1380 + 2070) = 250.  If the frame pointer
-unwinder is used, this costs nothing.
-
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
----
- mm/swapfile.c | 20 ++++++++++----------
- 1 file changed, 10 insertions(+), 10 deletions(-)
-
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index d313f7512d26..2fe2e93cee0e 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1284,8 +1284,8 @@ void put_swap_page(struct page *page, swp_entry_t entry)
- 	if (!si)
- 		return;
- 
-+	ci = lock_cluster_or_swap_info(si, offset);
- 	if (size == SWAPFILE_CLUSTER) {
--		ci = lock_cluster(si, offset);
- 		VM_BUG_ON(!cluster_is_huge(ci));
- 		map = si->swap_map + offset;
- 		for (i = 0; i < SWAPFILE_CLUSTER; i++) {
-@@ -1294,13 +1294,9 @@ void put_swap_page(struct page *page, swp_entry_t entry)
- 			if (val == SWAP_HAS_CACHE)
- 				free_entries++;
- 		}
--		if (!free_entries) {
--			for (i = 0; i < SWAPFILE_CLUSTER; i++)
--				map[i] &= ~SWAP_HAS_CACHE;
--		}
- 		cluster_clear_huge(ci);
--		unlock_cluster(ci);
- 		if (free_entries == SWAPFILE_CLUSTER) {
-+			unlock_cluster_or_swap_info(si, ci);
- 			spin_lock(&si->lock);
- 			ci = lock_cluster(si, offset);
- 			memset(map, 0, SWAPFILE_CLUSTER);
-@@ -1311,12 +1307,16 @@ void put_swap_page(struct page *page, swp_entry_t entry)
- 			return;
- 		}
- 	}
--	if (size == 1 || free_entries) {
--		for (i = 0; i < size; i++, entry.val++) {
--			if (!__swap_entry_free(si, entry, SWAP_HAS_CACHE))
--				free_swap_slot(entry);
-+	for (i = 0; i < size; i++, entry.val++) {
-+		if (!__swap_entry_free_locked(si, offset + i, SWAP_HAS_CACHE)) {
-+			unlock_cluster_or_swap_info(si, ci);
-+			free_swap_slot(entry);
-+			if (i == size - 1)
-+				return;
-+			lock_cluster_or_swap_info(si, offset);
- 		}
- 	}
-+	unlock_cluster_or_swap_info(si, ci);
- }
- 
- #ifdef CONFIG_THP_SWAP
+> ---
+>  mm/filemap.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 52517f28e6f4..5c2d481d21cf 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -2064,7 +2064,7 @@ static ssize_t generic_file_buffered_read(struct kiocb *iocb,
+>  
+>  	if (unlikely(*ppos >= inode->i_sb->s_maxbytes))
+>  		return 0;
+> -	iov_iter_truncate(iter, inode->i_sb->s_maxbytes);
+> +	iov_iter_truncate(iter, inode->i_sb->s_maxbytes - *ppos);
+>  
+>  	index = *ppos >> PAGE_SHIFT;
+>  	prev_index = ra->prev_pos >> PAGE_SHIFT;
+> -- 
+> 2.17.1
+> 
 -- 
-2.16.4
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
