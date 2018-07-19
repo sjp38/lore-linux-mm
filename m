@@ -1,48 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E13D6B0008
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 03:32:48 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id v25-v6so3615667pfm.11
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 00:32:48 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b5-v6sor1799275ple.5.2018.07.19.00.32.47
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 161CA6B000C
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 03:35:34 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id u1-v6so3097324wrs.18
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 00:35:34 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r24-v6sor1147806wmh.0.2018.07.19.00.35.32
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 19 Jul 2018 00:32:47 -0700 (PDT)
-Date: Thu, 19 Jul 2018 10:32:40 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv5 03/19] mm/ksm: Do not merge pages with different KeyIDs
-Message-ID: <20180719073240.autom4g4cdm3jgd6@kshutemo-mobl1>
-References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
- <20180717112029.42378-4-kirill.shutemov@linux.intel.com>
- <a6fc50f2-b0c2-32db-cbef-3de57d5e6b16@intel.com>
+        Thu, 19 Jul 2018 00:35:32 -0700 (PDT)
+Date: Thu, 19 Jul 2018 09:35:31 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH 3/3] mm/page_alloc: Split context in free_area_init_node
+Message-ID: <20180719073531.GA8750@techadventures.net>
+References: <20180718124722.9872-1-osalvador@techadventures.net>
+ <20180718124722.9872-4-osalvador@techadventures.net>
+ <CAGM2reY8ODmr=u4bsCrdEX3f-c6NkSuKuEcXowRy=SkuMppjiw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <a6fc50f2-b0c2-32db-cbef-3de57d5e6b16@intel.com>
+In-Reply-To: <CAGM2reY8ODmr=u4bsCrdEX3f-c6NkSuKuEcXowRy=SkuMppjiw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, iamjoonsoo.kim@lge.com, aaron.lu@intel.com, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, osalvador@suse.de
 
-On Wed, Jul 18, 2018 at 10:38:27AM -0700, Dave Hansen wrote:
-> On 07/17/2018 04:20 AM, Kirill A. Shutemov wrote:
-> > Pages encrypted with different encryption keys are not allowed to be
-> > merged by KSM. Otherwise it would cross security boundary.
+On Wed, Jul 18, 2018 at 10:34:19AM -0400, Pavel Tatashin wrote:
+> On Wed, Jul 18, 2018 at 8:47 AM <osalvador@techadventures.net> wrote:
+> >
+> > From: Oscar Salvador <osalvador@suse.de>
+> >
+> > If free_area_init_node gets called from memhotplug code,
+> > we do not need to call calculate_node_totalpages(),
+> > as the node has no pages.
 > 
-> Let's say I'm using plain AES (not AES-XTS).  I use the same key in two
-> keyid slots.  I map a page with the first keyid and another with the
-> other keyid.
+> I am not positive this is safe. Some pgdat fields in
+> calculate_node_totalpages() are set. Even if those fields are always
+> set to zeros, pgdat may be reused (i.e. node went offline and later
+> came back online), so we might still need to set those fields to
+> zeroes.
 > 
-> Won't they have the same cipertext?  Why shouldn't we KSM them?
 
-We compare plain text, not ciphertext. And for good reason.
+You are right, I do not know why, but I thought that we were zeroing pgdat struct
+before getting in the function.
 
-Comparing ciphertext would only make KSM successful for AES-ECB that
-doesn't dependent on physical address of the page.
+I will leave that part out.
+Since we only should care about deferred pfns during the boot, maybe we can change 
+it to something like:
 
-MKTME only supports AES-XTS (no plans to support AES-ECB). It effectively
-disables KSM if we go with comparing ciphertext.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 70fe4c80643f..89fc8f4240ca 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6381,6 +6381,21 @@ static void __ref alloc_node_mem_map(struct pglist_data *pgdat)
+ static void __ref alloc_node_mem_map(struct pglist_data *pgdat) { }
+ #endif /* CONFIG_FLAT_NODE_MEM_MAP */
+ 
++#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
++static void pgdat_set_deferred_range(pg_data_t *pgdat)
++{
++	/*
++	 * We start only with one section of pages, more pages are added as
++	 * needed until the rest of deferred pages are initialized.
++	 */
++	pgdat->static_init_pgcnt = min_t(unsigned long, PAGES_PER_SECTION,
++						pgdat->node_spanned_pages);
++	pgdat->first_deferred_pfn = ULONG_MAX;
++}
++#else
++static void pgdat_set_deferred_range(pg_data_t *pgdat) {}
++#endif
++
+ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+ 		unsigned long node_start_pfn, unsigned long *zholes_size)
+ {
+@@ -6402,20 +6417,14 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+ #else
+ 	start_pfn = node_start_pfn;
+ #endif
+-	calculate_node_totalpages(pgdat, start_pfn, end_pfn,
+-				  zones_size, zholes_size);
+ 
++	calculate_node_totalpages(pgdat, start_pfn, end_pfn,
++					zones_size, zholes_size);
+ 	alloc_node_mem_map(pgdat);
+ 
+-#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+-	/*
+-	 * We start only with one section of pages, more pages are added as
+-	 * needed until the rest of deferred pages are initialized.
+-	 */
+-	pgdat->static_init_pgcnt = min_t(unsigned long, PAGES_PER_SECTION,
+-					 pgdat->node_spanned_pages);
+-	pgdat->first_deferred_pfn = ULONG_MAX;
+-#endif
++	if (system_state == SYSTEM_BOOTING)
++		pgdat_set_deferred_range(pgdat);
++
+ 	free_area_init_core(pgdat);
+ }
 
+Thanks
 -- 
- Kirill A. Shutemov
+Oscar Salvador
+SUSE L3
