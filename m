@@ -1,63 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 96F376B0006
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 12:11:36 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id s14-v6so3953014wra.0
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 09:11:36 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g18-v6sor1436010wmd.76.2018.07.19.09.11.35
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 530276B0008
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 12:19:57 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id u1-v6so3828831wrs.18
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 09:19:57 -0700 (PDT)
+Received: from eu-smtp-delivery-211.mimecast.com (eu-smtp-delivery-211.mimecast.com. [207.82.80.211])
+        by mx.google.com with ESMTPS id f140-v6si3603777wme.28.2018.07.19.09.19.55
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 19 Jul 2018 09:11:35 -0700 (PDT)
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Jul 2018 09:19:55 -0700 (PDT)
+From: David Laight <David.Laight@ACULAB.COM>
+Subject: RE: [PATCH] mm: Cleanup in do_shrink_slab()
+Date: Thu, 19 Jul 2018 16:21:32 +0000
+Message-ID: <0f98d9b38be1466b8608d5c071aa52ed@AcuMS.aculab.com>
 References: <153201627722.12295.11034132843390627757.stgit@localhost.localdomain>
 In-Reply-To: <153201627722.12295.11034132843390627757.stgit@localhost.localdomain>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Thu, 19 Jul 2018 09:11:22 -0700
-Message-ID: <CALvZod6iCE8W51m2N704GQ_ML==J76SU6e9w7RCFE2+Vd+Vjaw@mail.gmail.com>
-Subject: Re: [PATCH] mm: Cleanup in do_shrink_slab()
-Content-Type: text/plain; charset="UTF-8"
+Content-Language: en-US
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: 'Kirill Tkhai' <ktkhai@virtuozzo.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "vdavydov.dev@gmail.com" <vdavydov.dev@gmail.com>, "mhocko@suse.com" <mhocko@suse.com>, "penguin-kernel@I-love.SAKURA.ne.jp" <penguin-kernel@I-love.SAKURA.ne.jp>, "shakeelb@google.com" <shakeelb@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Thu, Jul 19, 2018 at 9:04 AM Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
->
-> Group long variables together to minimize number of occupied lines
-> and place all definitions in back Christmas tree order. Also,
-> simplify expression around batch_size: use all power of C language!
->
-> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
-
-Reviewed-by: Shakeel Butt <shakeelb@google.com>
-
-> ---
->  mm/vmscan.c |   11 +++--------
->  1 file changed, 3 insertions(+), 8 deletions(-)
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 9918bfc1d2f9..636657213b9b 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -445,16 +445,11 @@ EXPORT_SYMBOL(unregister_shrinker);
->  static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
->                                     struct shrinker *shrinker, int priority)
->  {
-> -       unsigned long freed = 0;
-> +       long total_scan, freeable, nr, new_nr, next_deferred, scanned = 0;
-> +       long batch_size = shrinker->batch ? : SHRINK_BATCH;
->         unsigned long long delta;
-> -       long total_scan;
-> -       long freeable;
-> -       long nr;
-> -       long new_nr;
->         int nid = shrinkctl->nid;
-> -       long batch_size = shrinker->batch ? shrinker->batch
-> -                                         : SHRINK_BATCH;
-> -       long scanned = 0, next_deferred;
-> +       unsigned long freed = 0;
->
->         freeable = shrinker->count_objects(shrinker, shrinkctl);
->         if (freeable == 0 || freeable == SHRINK_EMPTY)
->
+RnJvbTogS2lyaWxsIFRraGFpDQo+IFNlbnQ6IDE5IEp1bHkgMjAxOCAxNzowNQ0KPiANCj4gR3Jv
+dXAgbG9uZyB2YXJpYWJsZXMgdG9nZXRoZXIgdG8gbWluaW1pemUgbnVtYmVyIG9mIG9jY3VwaWVk
+IGxpbmVzDQo+IGFuZCBwbGFjZSBhbGwgZGVmaW5pdGlvbnMgaW4gYmFjayBDaHJpc3RtYXMgdHJl
+ZSBvcmRlci4NCg0KR3JvdXBpbmcgdG9nZXRoZXIgdW5yZWxhdGVkIHZhcmlhYmxlcyBkb2Vzbid0
+IHJlYWxseSBtYWtlIHRoZSBjb2RlDQphbnkgbW9yZSByZWFkYWJsZS4NCklNSE8gT25lIHZhcmlh
+YmxlIHBlciBsaW5lIGlzIHVzdWFsbHkgYmVzdC4NCg0KPiBBbHNvLCBzaW1wbGlmeSBleHByZXNz
+aW9uIGFyb3VuZCBiYXRjaF9zaXplOiB1c2UgYWxsIHBvd2VyIG9mIEMgbGFuZ3VhZ2UhDQoNCiAg
+IGZvbyA9IGJhciA/IDogYmF6Ow0KSXMgbm90IHBhcnQgb2YgQywgaXQgaXMgYSBnY2MgZXh0ZW5z
+aW9uLg0KDQoJRGF2aWQNCg0KLQ0KUmVnaXN0ZXJlZCBBZGRyZXNzIExha2VzaWRlLCBCcmFtbGV5
+IFJvYWQsIE1vdW50IEZhcm0sIE1pbHRvbiBLZXluZXMsIE1LMSAxUFQsIFVLDQpSZWdpc3RyYXRp
+b24gTm86IDEzOTczODYgKFdhbGVzKQ0K
