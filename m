@@ -1,62 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4912C6B0008
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 09:18:18 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id s25-v6so834864wmh.1
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 06:18:18 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id g129-v6si3373344wmg.58.2018.07.19.06.18.16
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B6CB6B000D
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 09:18:44 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id 132-v6so3613186pga.18
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 06:18:44 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id d9-v6si5344738pll.255.2018.07.19.06.18.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Jul 2018 06:18:16 -0700 (PDT)
-Date: Thu, 19 Jul 2018 15:18:03 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCHv5 08/19] x86/mm: Introduce variables to store number,
- shift and mask of KeyIDs
-In-Reply-To: <20180719131245.sxnqsgzvkqriy3o2@kshutemo-mobl1>
-Message-ID: <alpine.DEB.2.21.1807191515150.1602@nanos.tec.linutronix.de>
-References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com> <20180717112029.42378-9-kirill.shutemov@linux.intel.com> <1edc05b0-8371-807e-7cfa-6e8f61ee9b70@intel.com> <20180719102130.b4f6b6v5wg3modtc@kshutemo-mobl1> <alpine.DEB.2.21.1807191436300.1602@nanos.tec.linutronix.de>
- <20180719131245.sxnqsgzvkqriy3o2@kshutemo-mobl1>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 19 Jul 2018 06:18:43 -0700 (PDT)
+Date: Thu, 19 Jul 2018 15:18:36 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 08/10] psi: pressure stall information for CPU, memory,
+ and IO
+Message-ID: <20180719131836.GG2476@hirez.programming.kicks-ass.net>
+References: <20180712172942.10094-1-hannes@cmpxchg.org>
+ <20180712172942.10094-9-hannes@cmpxchg.org>
+ <20180718120318.GC2476@hirez.programming.kicks-ass.net>
+ <20180719092614.GY2512@hirez.programming.kicks-ass.net>
+ <20180719125038.GB13799@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180719125038.GB13799@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Dave Hansen <dave.hansen@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Arnaldo Carvalho de Melo <acme@kernel.org>
 
-On Thu, 19 Jul 2018, Kirill A. Shutemov wrote:
-> On Thu, Jul 19, 2018 at 02:37:35PM +0200, Thomas Gleixner wrote:
-> > On Thu, 19 Jul 2018, Kirill A. Shutemov wrote:
-> > > On Wed, Jul 18, 2018 at 04:19:10PM -0700, Dave Hansen wrote:
-> > > > >  	} else {
-> > > > >  		/*
-> > > > >  		 * Reset __PHYSICAL_MASK.
-> > > > > @@ -591,6 +592,9 @@ static void detect_tme(struct cpuinfo_x86 *c)
-> > > > >  		 * between CPUs.
-> > > > >  		 */
-> > > > >  		physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
-> > > > > +		mktme_keyid_mask = 0;
-> > > > > +		mktme_keyid_shift = 0;
-> > > > > +		mktme_nr_keyids = 0;
-> > > > >  	}
-> > > > 
-> > > > Should be unnecessary.  These are zeroed by the compiler.
-> > > 
-> > > No. detect_tme() called for each CPU in the system.
+On Thu, Jul 19, 2018 at 08:50:38AM -0400, Johannes Weiner wrote:
+> On Thu, Jul 19, 2018 at 11:26:14AM +0200, Peter Zijlstra wrote:
+> > On Wed, Jul 18, 2018 at 02:03:18PM +0200, Peter Zijlstra wrote:
 > > 
-> > And then the variables are cleared out while other CPUs can access them?
-> > How is that supposed to work?
+> > > Leaving us just 5 bytes short of needing a single cacheline :/
+> > > 
+> > > struct ponies {
+> > >         unsigned int               tasks[3];                                             /*     0    12 */
+> > >         unsigned int               cpu_state:2;                                          /*    12:30  4 */
+> > >         unsigned int               io_state:2;                                           /*    12:28  4 */
+> > >         unsigned int               mem_state:2;                                          /*    12:26  4 */
+> > > 
+> > >         /* XXX 26 bits hole, try to pack */
+> > > 
+> > >         /* typedef u64 */ long long unsigned int     last_time;                          /*    16     8 */
+> > >         /* typedef u64 */ long long unsigned int     some_time[3];                       /*    24    24 */
+> > >         /* typedef u64 */ long long unsigned int     full_time[2];                       /*    48    16 */
+> > >         /* --- cacheline 1 boundary (64 bytes) --- */
+> > >         /* typedef u64 */ long long unsigned int     nonidle_time;                       /*    64     8 */
+> > > 
+> > >         /* size: 72, cachelines: 2, members: 8 */
+> > >         /* bit holes: 1, sum bit holes: 26 bits */
+> > >         /* last cacheline: 8 bytes */
+> > > };
+> > > 
+> > > ARGGH!
+> > 
+> > It _might_ be possible to use curr->se.exec_start for last_time if you
+> > very carefully audit and place the hooks. I've not gone through it in
+> > detail, but it might just work.
 > 
-> This code path only matter in patalogical case: when MKTME configuation is
-> inconsitent between CPUs. Basically if BIOS screwed things up we disable
-> MKTME.
+> Hnngg, and chop off an entire cacheline...
 
-I still don't see how that's supposed to work.
+Yes.. a worthy goal :-)
 
-When the inconsistent CPU is brought up _AFTER_ MKTME is enabled, then how
-does clearing the variables help? It does not magically make all the other
-stuff go away.
+> But don't we flush that delta out and update the timestamp on every
+> tick?
 
-Thanks,
+Indeed.
 
-	tglx
+> entity_tick() does update_curr(). That might be too expensive :(
+
+Well, since you already do all this accounting on every enqueue/dequeue,
+this can run many thousands of times per tick already, so once per tick
+doesn't sound bad.
+
+However, I just realized this might not in fact work, because
+curr->se.exec_start is per task, and you really want something per-cpu
+for this.
+
+Bah, if only perf had a useful tool to report on data layout instead of
+this c2c crap.. :-( The thinking being that we could maybe find a
+usage-hole (a data member that is not in fact used) near something we
+already touch for writing. 
