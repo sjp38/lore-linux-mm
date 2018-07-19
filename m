@@ -1,67 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 489496B027B
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 09:47:18 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b12-v6so3182412edi.12
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 06:47:18 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v27-v6si5435876eda.162.2018.07.19.06.47.17
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FC9A6B0003
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 09:58:45 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id e19-v6so3678501pgv.11
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 06:58:45 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id k13-v6si6215700pgh.213.2018.07.19.06.58.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jul 2018 06:47:17 -0700 (PDT)
-Date: Thu, 19 Jul 2018 15:47:16 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 2/5] mm: access zone->node via zone_to_nid() and
- zone_set_nid()
-Message-ID: <20180719134716.GF7193@dhcp22.suse.cz>
-References: <20180719132740.32743-1-osalvador@techadventures.net>
- <20180719132740.32743-3-osalvador@techadventures.net>
- <20180719134018.GB7193@dhcp22.suse.cz>
- <760195c6-7cfb-76db-1c5c-b85456f3a4ad@oracle.com>
+        Thu, 19 Jul 2018 06:58:44 -0700 (PDT)
+Subject: Re: [PATCHv5 02/19] mm: Do not use zero page in encrypted pages
+References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
+ <20180717112029.42378-3-kirill.shutemov@linux.intel.com>
+ <e09c67ab-38a7-5b76-29e6-a45627eec1e5@intel.com>
+ <20180719071606.dkeq5btz5wlzk4oq@kshutemo-mobl1>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <d50d89d2-f93b-4b4b-bf8d-2f53cedebcd1@intel.com>
+Date: Thu, 19 Jul 2018 06:58:14 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <760195c6-7cfb-76db-1c5c-b85456f3a4ad@oracle.com>
+In-Reply-To: <20180719071606.dkeq5btz5wlzk4oq@kshutemo-mobl1>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: osalvador@techadventures.net, akpm@linux-foundation.org, vbabka@suse.cz, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 19-07-18 09:44:09, Pavel Tatashin wrote:
+On 07/19/2018 12:16 AM, Kirill A. Shutemov wrote:
+> On Wed, Jul 18, 2018 at 10:36:24AM -0700, Dave Hansen wrote:
+>> On 07/17/2018 04:20 AM, Kirill A. Shutemov wrote:
+>>> Zero page is not encrypted and putting it into encrypted VMA produces
+>>> garbage.
+>>>
+>>> We can map zero page with KeyID-0 into an encrypted VMA, but this would
+>>> be violation security boundary between encryption domains.
+>> Why?  How is it a violation?
+>>
+>> It only matters if they write secrets.  They can't write secrets to the
+>> zero page.
+> I believe usage of zero page is wrong here. It would indirectly reveal
+> content of supposedly encrypted memory region.
 > 
-> 
-> On 07/19/2018 09:40 AM, Michal Hocko wrote:
-> > On Thu 19-07-18 15:27:37, osalvador@techadventures.net wrote:
-> >> From: Pavel Tatashin <pasha.tatashin@oracle.com>
-> >>
-> >> zone->node is configured only when CONFIG_NUMA=y, so it is a good idea to
-> >> have inline functions to access this field in order to avoid ifdef's in
-> >> c files.
-> > 
-> > Is this a manual find & replace or did you use some scripts?
-> 
-> I used opengrok:
-> 
-> http://src.illumos.org/source/search?q=%22zone-%3Enode%22&defs=&refs=&path=&hist=&project=linux-master
-> 
-> http://src.illumos.org/source/search?q=%22z-%3Enode%22&defs=&refs=&path=&hist=&project=linux-master
+> I can see argument why it should be okay and I don't have very strong
+> opinion on this.
 
-Then it is good to mention that in the changelog so that people might
-use the same tool locally and compare the result or even learn about the
-tool ;)
- 
-> > The change makes sense, but I haven't checked that all the places are
-> > replaced properly. If not we can replace them later.
-> > 
-> >> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> >> Signed-off-by: Oscar Salvador <osalvador@suse.de>
-> >> Reviewed-by: Oscar Salvador <osalvador@suse.de>
-> > 
-> > Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> Thank you,
-> Pavel
+I think we should make the zero page work.  If folks are
+security-sensitive, they need to write to guarantee it isn't being
+shared.  That's a pretty low bar.
 
--- 
-Michal Hocko
-SUSE Labs
+I'm struggling to think of a case where an attacker has access to the
+encrypted data, the virt->phys mapping, *and* can glean something
+valuable from the presence of the zero page.
+
+Please spend some time and focus on your patch descriptions.  Use facts
+that are backed up and are *precise* or tell the story of how your patch
+was developed.  In this case, citing the "security boundary" is not
+precise enough without explaining what the boundary is and how it is
+violated.
