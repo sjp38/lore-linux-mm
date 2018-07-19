@@ -1,60 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F2C5C6B0006
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 08:19:04 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id f13-v6so2359609wmb.4
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 05:19:04 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b67-v6sor1324192wme.65.2018.07.19.05.19.03
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E104A6B0008
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 08:38:00 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id w145-v6so2299433wmw.1
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 05:38:00 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id j22-v6si5018443wre.342.2018.07.19.05.37.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 19 Jul 2018 05:19:03 -0700 (PDT)
-Date: Thu, 19 Jul 2018 14:19:02 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH 1/3] mm/page_alloc: Move ifdefery out of
- free_area_init_core
-Message-ID: <20180719121902.GB8750@techadventures.net>
-References: <20180718124722.9872-1-osalvador@techadventures.net>
- <20180718124722.9872-2-osalvador@techadventures.net>
- <20180718141150.imiyuust5txfmfvw@xakep.localdomain>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 19 Jul 2018 05:37:59 -0700 (PDT)
+Date: Thu, 19 Jul 2018 14:37:35 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCHv5 08/19] x86/mm: Introduce variables to store number,
+ shift and mask of KeyIDs
+In-Reply-To: <20180719102130.b4f6b6v5wg3modtc@kshutemo-mobl1>
+Message-ID: <alpine.DEB.2.21.1807191436300.1602@nanos.tec.linutronix.de>
+References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com> <20180717112029.42378-9-kirill.shutemov@linux.intel.com> <1edc05b0-8371-807e-7cfa-6e8f61ee9b70@intel.com> <20180719102130.b4f6b6v5wg3modtc@kshutemo-mobl1>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180718141150.imiyuust5txfmfvw@xakep.localdomain>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, aaron.lu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Dave Hansen <dave.hansen@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jul 18, 2018 at 10:11:50AM -0400, Pavel Tatashin wrote:
-> On 18-07-18 14:47:20, osalvador@techadventures.net wrote:
-> > From: Oscar Salvador <osalvador@suse.de>
+On Thu, 19 Jul 2018, Kirill A. Shutemov wrote:
+> On Wed, Jul 18, 2018 at 04:19:10PM -0700, Dave Hansen wrote:
+> > >  	} else {
+> > >  		/*
+> > >  		 * Reset __PHYSICAL_MASK.
+> > > @@ -591,6 +592,9 @@ static void detect_tme(struct cpuinfo_x86 *c)
+> > >  		 * between CPUs.
+> > >  		 */
+> > >  		physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
+> > > +		mktme_keyid_mask = 0;
+> > > +		mktme_keyid_shift = 0;
+> > > +		mktme_nr_keyids = 0;
+> > >  	}
 > > 
-> > Moving the #ifdefs out of the function makes it easier to follow.
-> > 
-> > Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> > Should be unnecessary.  These are zeroed by the compiler.
 > 
-> Hi Oscar,
-> 
-> Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> 
-> Please include the following patch in your series, to get rid of the last
-> ifdef in this function.
+> No. detect_tme() called for each CPU in the system.
 
-Hi Pavel,
+And then the variables are cleared out while other CPUs can access them?
+How is that supposed to work?
 
-I am about to send v2 with this patch included, but I just wanted to let you know
-this:
+Thanks,
 
-> +		zone_set_nid(nid);
-
-This should be:
-
-zone_set_nid(zone, nid);
-
-I fixed it up in your patch, I hope that is ok.
-
-Thanks 
--- 
-Oscar Salvador
-SUSE L3
+	tglx
