@@ -1,65 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 19B8B6B0003
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 14:41:12 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id q12-v6so4202220pgp.6
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 11:41:12 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id ce14-v6si6500851plb.391.2018.07.19.11.41.10
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EBCC6B0006
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 14:44:56 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id t10-v6so4867581ywc.7
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 11:44:56 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h22-v6sor1689111ybg.198.2018.07.19.11.44.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jul 2018 11:41:11 -0700 (PDT)
-Subject: Re: [PATCH v2 00/14] mm: Asynchronous + multithreaded memmap init for
- ZONE_DEVICE
-References: <153176041838.12695.3365448145295112857.stgit@dwillia2-desk3.amr.corp.intel.com>
- <CAGM2rea9AwQGaf1JiV_SDDKTKyP_n+dG9Z20gtTZEkuZPFnXFQ@mail.gmail.com>
- <CAPcyv4jo91jKjwn-M7cOhG=6vJ3c-QCyp0W+T+CtmiKGyZP1ng@mail.gmail.com>
- <CAGM2reacO1HF91yH8OR5w5AdZwPgwfSFfjDNBsHbP66v1rEg=g@mail.gmail.com>
- <20180717155006.GL7193@dhcp22.suse.cz>
- <CAA9_cmez_vrjBYvcpXT_5ziQ2CqRFzPbEWMO2kdmjW0rWhkaCA@mail.gmail.com>
- <20180718120529.GY7193@dhcp22.suse.cz>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <3f43729d-fd4e-a488-e04d-026ef5a28dd9@intel.com>
-Date: Thu, 19 Jul 2018 11:41:10 -0700
+        (Google Transport Security);
+        Thu, 19 Jul 2018 11:44:52 -0700 (PDT)
+Date: Thu, 19 Jul 2018 14:47:40 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 08/10] psi: pressure stall information for CPU, memory,
+ and IO
+Message-ID: <20180719184740.GA26291@cmpxchg.org>
+References: <20180712172942.10094-1-hannes@cmpxchg.org>
+ <20180712172942.10094-9-hannes@cmpxchg.org>
+ <20180718120318.GC2476@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <20180718120529.GY7193@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180718120318.GC2476@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Dan Williams <dan.j.williams@intel.com>
-Cc: pasha.tatashin@oracle.com, dalias@libc.org, Jan Kara <jack@suse.cz>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, "H. Peter Anvin" <hpa@zytor.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, the arch/x86 maintainers <x86@kernel.org>, Matthew Wilcox <willy@infradead.org>, daniel.m.jordan@oracle.com, Ingo Molnar <mingo@redhat.com>, fenghua.yu@intel.com, Jerome Glisse <jglisse@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "Luck, Tony" <tony.luck@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 07/18/2018 05:05 AM, Michal Hocko wrote:
-> On Tue 17-07-18 10:32:32, Dan Williams wrote:
->> On Tue, Jul 17, 2018 at 8:50 AM Michal Hocko <mhocko@kernel.org> wrote:
-> [...]
->>> Is there any reason that this work has to target the next merge window?
->>> The changelog is not really specific about that.
->>
->> Same reason as any other change in this space, hardware availability
->> continues to increase. These patches are a direct response to end user
->> reports of unacceptable init latency with current kernels.
+On Wed, Jul 18, 2018 at 02:03:18PM +0200, Peter Zijlstra wrote:
+> On Thu, Jul 12, 2018 at 01:29:40PM -0400, Johannes Weiner wrote:
+> > +	/* Update task counts according to the set/clear bitmasks */
+> > +	for (to = 0; (bo = ffs(clear)); to += bo, clear >>= bo) {
+> > +		int idx = to + (bo - 1);
+> > +
+> > +		if (tasks[idx] == 0 && !psi_bug) {
+> > +			printk_deferred(KERN_ERR "psi: task underflow! cpu=%d idx=%d tasks=[%u %u %u] clear=%x set=%x\n",
+> > +					cpu, idx, tasks[0], tasks[1], tasks[2],
+> > +					clear, set);
+> > +			psi_bug = 1;
+> > +		}
 > 
-> Do you have any reference please?
+> 		WARN_ONCE(!tasks[idx], ...);
 
-Are you looking for the actual end-user reports?  This was more of a
-case of the customer plugging in some persistent memory DIMMs, noticing
-the boot delta and calling the folks who sold them the DIMMs (Intel).
-We can get you more details if you'd like but there are no public
-reports that we can share.
+It's just open-coded because of the printk_deferred, since this is
+inside the scheduler.
 
->>> There no numbers or
->>> anything that would make this sound as a high priority stuff.
->>
->> >From the end of the cover letter:
->>
->> "With this change an 8 socket system was observed to initialize pmem
->> namespaces in ~4 seconds whereas it was previously taking ~4 minutes."
-> 
-> Well, yeah, it sounds like a nice to have thing to me. 4 minutes doesn't
-> sounds excesive for a single init time operation. Machines are booting
-> tens of minutes these days...
-
-It was excessive enough for the customer to complain. :)
+It actually used to be a straight-up WARN_ONCE() in older
+versions. Recursive scheduling bugs are no fun to debug ;)
