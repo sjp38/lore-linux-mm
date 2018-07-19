@@ -1,136 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C2D8F6B0003
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 13:06:14 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id d4-v6so4677408ybl.3
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 10:06:14 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id i8-v6si61083ybg.397.2018.07.19.10.06.13
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B16BA6B0006
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 13:10:03 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id 66-v6so5008805plb.18
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 10:10:03 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id x2-v6si5718443plv.388.2018.07.19.10.10.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jul 2018 10:06:13 -0700 (PDT)
-Date: Thu, 19 Jul 2018 10:05:47 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: cgroup-aware OOM killer, how to move forward
-Message-ID: <20180719170543.GA21770@castle.DHCP.thefacebook.com>
-References: <20180713230545.GA17467@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807131608530.218060@chino.kir.corp.google.com>
- <20180713231630.GB17467@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
- <20180717173844.GB14909@castle.DHCP.thefacebook.com>
- <20180717194945.GM7193@dhcp22.suse.cz>
- <20180717200641.GB18762@castle.DHCP.thefacebook.com>
- <20180718081230.GP7193@dhcp22.suse.cz>
- <20180718152846.GA6840@castle.DHCP.thefacebook.com>
- <20180719073843.GL7193@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20180719073843.GL7193@dhcp22.suse.cz>
+        Thu, 19 Jul 2018 10:10:02 -0700 (PDT)
+Message-ID: <1532019963.16711.61.camel@intel.com>
+Subject: Re: [RFC PATCH v2 16/27] mm: Modify can_follow_write_pte/pmd for
+ shadow stack
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Date: Thu, 19 Jul 2018 10:06:03 -0700
+In-Reply-To: <f4c90626-51d8-5551-5b77-baaff81f16bb@linux.intel.com>
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+	 <20180710222639.8241-17-yu-cheng.yu@intel.com>
+	 <de510df6-7ea9-edc6-9c49-2f80f16472b4@linux.intel.com>
+	 <1531328731.15351.3.camel@intel.com>
+	 <45a85b01-e005-8cb6-af96-b23ce9b5fca7@linux.intel.com>
+	 <1531868610.3541.21.camel@intel.com>
+	 <fa9db8c5-41c8-05e9-ad8d-dc6aaf11cb04@linux.intel.com>
+	 <1531944882.10738.1.camel@intel.com>
+	 <3f158401-f0b6-7bf7-48ab-2958354b28ad@linux.intel.com>
+	 <1531955428.12385.30.camel@intel.com>
+	 <f4c90626-51d8-5551-5b77-baaff81f16bb@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
+To: Dave Hansen <dave.hansen@linux.intel.com>, x86@kernel.org, "H. Peter
+ Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J.
+ Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-On Thu, Jul 19, 2018 at 09:38:43AM +0200, Michal Hocko wrote:
-> On Wed 18-07-18 08:28:50, Roman Gushchin wrote:
-> > On Wed, Jul 18, 2018 at 10:12:30AM +0200, Michal Hocko wrote:
-> > > On Tue 17-07-18 13:06:42, Roman Gushchin wrote:
-> > > > On Tue, Jul 17, 2018 at 09:49:46PM +0200, Michal Hocko wrote:
-> > > > > On Tue 17-07-18 10:38:45, Roman Gushchin wrote:
-> > > > > [...]
-> > > > > > Let me show my proposal on examples. Let's say we have the following hierarchy,
-> > > > > > and the biggest process (or the process with highest oom_score_adj) is in D.
-> > > > > > 
-> > > > > >   /
-> > > > > >   |
-> > > > > >   A
-> > > > > >   |
-> > > > > >   B
-> > > > > >  / \
-> > > > > > C   D
-> > > > > > 
-> > > > > > Let's look at different examples and intended behavior:
-> > > > > > 1) system-wide OOM
-> > > > > >   - default settings: the biggest process is killed
-> > > > > >   - D/memory.group_oom=1: all processes in D are killed
-> > > > > >   - A/memory.group_oom=1: all processes in A are killed
-> > > > > > 2) memcg oom in B
-> > > > > >   - default settings: the biggest process is killed
-> > > > > >   - A/memory.group_oom=1: the biggest process is killed
-> > > > > 
-> > > > > Huh? Why would you even consider A here when the oom is below it?
-> > > > > /me confused
+On Wed, 2018-07-18 at 17:06 -0700, Dave Hansen wrote:
+> > 
+> > > 
 > > > > 
-> > > > I do not.
-> > > > This is exactly a counter-example: A's memory.group_oom
-> > > > is not considered at all in this case,
-> > > > because A is above ooming cgroup.
+> > > > -static inline bool can_follow_write_pte(pte_t pte, unsigned
+> > > > int flags)
+> > > > +static inline bool can_follow_write(pte_t pte, unsigned int
+> > > > flags,
+> > > > +				A A A A struct vm_area_struct
+> > > > *vma)
+> > > > A {
+> > > > -	return pte_write(pte) ||
+> > > > -		((flags & FOLL_FORCE) && (flags & FOLL_COW)
+> > > > && pte_dirty(pte));
+> > > > +	if (!is_shstk_mapping(vma->vm_flags)) {
+> > > > +		if (pte_write(pte))
+> > > > +			return true;
+> > > Let me see if I can say this another way.
 > > > 
-> > > OK, it confused me.
-> > > 
-> > > > > 
-> > > > > >   - B/memory.group_oom=1: all processes in B are killed
-> > > > > 
-> > > > >     - B/memory.group_oom=0 &&
-> > > > > >   - D/memory.group_oom=1: all processes in D are killed
-> > > > > 
-> > > > > What about?
-> > > > >     - B/memory.group_oom=1 && D/memory.group_oom=0
-> > > > 
-> > > > All tasks in B are killed.
-> > > 
-> > > so essentially find a task, traverse the memcg hierarchy from the
-> > > victim's memcg up to the oom root as long as memcg.group_oom = 1?
-> > > If the resulting memcg.group_oom == 1 then kill the whole sub tree.
-> > > Right?
-> > 
-> > Yes.
-> > 
-> > > 
-> > > > Group_oom set to 1 means that the workload can't tolerate
-> > > > killing of a random process, so in this case it's better
-> > > > to guarantee consistency for B.
-> > > 
-> > > OK, but then if D itself is OOM then we do not care about consistency
-> > > all of the sudden? I have hard time to think about a sensible usecase.
-> > 
-> > I mean if traversing the hierarchy up to the oom root we meet
-> > a memcg with group_oom set to 0, we shouldn't stop traversing.
+> > > The bigger issue is that these patches change the semantics of
+> > > pte_write().A A Before these patches, it meant that you *MUST*
+> > > have this
+> > > bit set to write to the page controlled by the PTE.A A Now, it
+> > > means: you
+> > > can write if this bit is set *OR* the shadowstack bit
+> > > combination is set.
+> > Here, we only figure out (1) if the page is pointed by a writable
+> > PTE; or
+> > (2) if the page is pointed by a RO PTE (data or SHSTK) and it has
+> > been
+> > copied and it still exists. A We are not trying to
+> > determine if the
+> > SHSTK PTE is writable (we know it is not).
+> Please think about the big picture.A A I'm not just talking about this
+> patch, but about every use of pte_write() in the kernel.
 > 
-> Well, I am still fighting with the semantic of group, no-group, group
-> configuration. Why does it make any sense? In other words when can we
-> consider a cgroup to be a indivisible workload for one oom context while
-> it is fine to lose head or arm from another?
+> > 
+> > > 
+> > > That's the fundamental problem.A A We need some code in the kernel
+> > > that
+> > > logically represents the concept of "is this PTE a shadowstack
+> > > PTE or a
+> > > PTE with the write bit set", and we will call that pte_write(),
+> > > or maybe
+> > > pte_writable().
+> > > 
+> > > You *have* to somehow rectify this situation.A A We can absolutely
+> > > no
+> > > leave pte_write() in its current, ambiguous state where it has
+> > > no real
+> > > meaning or where it is used to mean _both_ things depending on
+> > > context.
+> > True, the processor can always write to a page through a shadow
+> > stack
+> > PTE, but it must do that with a CALL instruction. A Can we define
+> > aA 
+> > write operation as: MOV r1, *(r2). A Then we don't have any doubt
+> > on
+> > pte_write() any more.
+> No, we can't just move the target. :)
+> 
+> You can define it this way, but then you also need to go to every
+> spot
+> in the kernel that calls pte_write() (and _PAGE_RW in fact) and
+> audit it
+> to ensure it means "mov ..." and not push.
 
-Hm, so the question is should we traverse up to the OOMing cgroup,
-or up to the first cgroup with memory.group_oom=0?
+Which pte_write() do you think is right?
 
-I looked at an example, and it *might* be the latter is better,
-especially if we'll make the default value inheritable.
+bool is_shstk_pte(pte) {
+	return (_PAGE_RW not set) &&
+(_PAGE_DIRTY_HW set);
+}
 
-Let's say we have a sub-tree with a workload and some control stuff.
-Workload is tolerable to OOM's (we can handle it in userspace, for
-example), but the control stuff is not.
-Then it probably makes no sense to kill the entire sub-tree,
-if a task in C has to be killed. But makes perfect sense if we
-have to kill a task in B.
+int pte_write_1(pte) {
+	return (_PAGE_RW set) && !is_shstk_pte(pte);
+}
 
-  /
-  |
-  A, delegated sub-tree, group_oom=1
- / \
-B   C, workload, group_oom=0
-^
-some control stuff here, group_oom=1
+int pte_write_2(pte) {
+	return (_PAGE_RW set) || is_shstk_pte(pte);
+}
 
-Does this makes sense?
-
-> Anyway, your previous implementation would allow the same configuration
-> as well, so this is nothing really new. The new selection policy you are
-> proposing just makes it more obvious. So that doesn't mean this is a
-> roadblock but I think we should be really thinking hard about this.
-
-I agree.
-
-Thanks!
+Yu-cheng
