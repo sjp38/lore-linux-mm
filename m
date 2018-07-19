@@ -1,45 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E57756B0006
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 11:08:33 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id y13-v6so5964012ita.8
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 08:08:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g82-v6sor2312535ioe.6.2018.07.19.08.08.32
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 08C546B0008
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 11:16:00 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id s18-v6so3420411edr.15
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 08:15:59 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 3-v6si1199914edc.284.2018.07.19.08.15.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 19 Jul 2018 08:08:32 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Jul 2018 08:15:58 -0700 (PDT)
+Date: Thu, 19 Jul 2018 17:15:55 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 3/5] mm/page_alloc: Optimize free_area_init_core
+Message-ID: <20180719151555.GH7193@dhcp22.suse.cz>
+References: <20180719132740.32743-1-osalvador@techadventures.net>
+ <20180719132740.32743-4-osalvador@techadventures.net>
+ <20180719134417.GC7193@dhcp22.suse.cz>
+ <20180719140327.GB10988@techadventures.net>
 MIME-Version: 1.0
-References: <20180712172942.10094-1-hannes@cmpxchg.org> <20180712172942.10094-9-hannes@cmpxchg.org>
- <20180718120318.GC2476@hirez.programming.kicks-ass.net>
-In-Reply-To: <20180718120318.GC2476@hirez.programming.kicks-ass.net>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 19 Jul 2018 08:08:20 -0700
-Message-ID: <CA+55aFw7t++BzEy-XsatNcauw3Wn22SSXfd3iTYECi4fJ97CCg@mail.gmail.com>
-Subject: Re: [PATCH 08/10] psi: pressure stall information for CPU, memory,
- and IO
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180719140327.GB10988@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, surenb@google.com, Vinayak Menon <vinmenon@codeaurora.org>, Christoph Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, shakeelb@google.com, linux-mm <linux-mm@kvack.org>, cgroups <cgroups@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kernel-team <kernel-team@fb.com>
+To: Oscar Salvador <osalvador@techadventures.net>
+Cc: akpm@linux-foundation.org, pasha.tatashin@oracle.com, vbabka@suse.cz, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
 
-On Wed, Jul 18, 2018 at 5:03 AM Peter Zijlstra <peterz@infradead.org> wrote:
->
-> And as said before, we can compress the state from 12 bytes, to 6 bits
-> (or 1 byte), giving another 11 bytes for 59 bytes free.
->
-> Leaving us just 5 bytes short of needing a single cacheline :/
+On Thu 19-07-18 16:03:27, Oscar Salvador wrote:
+> On Thu, Jul 19, 2018 at 03:44:17PM +0200, Michal Hocko wrote:
+> > On Thu 19-07-18 15:27:38, osalvador@techadventures.net wrote:
+> > > From: Oscar Salvador <osalvador@suse.de>
+> > > 
+> > > In free_area_init_core we calculate the amount of managed pages
+> > > we are left with, by substracting the memmap pages and the pages
+> > > reserved for dma.
+> > > With the values left, we also account the total of kernel pages and
+> > > the total of pages.
+> > > 
+> > > Since memmap pages are calculated from zone->spanned_pages,
+> > > let us only do these calculcations whenever zone->spanned_pages is greather
+> > > than 0.
+> > 
+> > But why do we care? How do we test this? In other words, why is this
+> > worth merging?
+>  
+> Uhm, unless the values are going to be updated, why do we want to go through all
+> comparasions/checks?
+> I thought it was a nice thing to have the chance to skip that block unless we are going to
+> update the counters.
+> 
+> Again, if you think this only adds complexity and no good, I can drop it.
 
-Do you actually need 64 bits for the times?
+Your changelog doesn't really explain the motivation. Does the change
+help performance? Is this a pure cleanup?
 
-That's the big cost. And it seems ridiculous, if you actually care about size.
+The function is certainly not an example of beauty. It is more an
+example of changes done on top of older ones without much thinking. But
+I do not see your change would make it so much better. I would consider
+it a much nicer cleanup if it was split into logical units each doing
+one specific thing.
 
-You already have a 64-bit start time. Everything else is some
-cumulative relative time. Do those really need 64-bit and nanosecond
-resolution?
+Btw. are you sure this change is correct? E.g.
+		/*
+		 * Set an approximate value for lowmem here, it will be adjusted
+		 * when the bootmem allocator frees pages into the buddy system.
+		 * And all highmem pages will be managed by the buddy system.
+		 */
+		zone->managed_pages = is_highmem_idx(j) ? realsize : freesize;
 
-Maybe a 32-bit microsecond would be ok - would you ever account more
-than 35 minutes of anything without starting anew?
+expects freesize to be calculated properly and just from quick reading
+the code I do not see why skipping other adjustments is ok for size > 0.
+Maybe this is OK, I dunno and my brain is already heading few days off
+but a real cleanup wouldn't even make me think what the heck is going on
+here.
 
-             Linus
+-- 
+Michal Hocko
+SUSE Labs
