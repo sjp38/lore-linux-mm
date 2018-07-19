@@ -1,66 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 552E76B000C
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 04:59:09 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c13-v6so3745181pfo.14
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 01:59:09 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z3-v6sor1834435plb.82.2018.07.19.01.59.08
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A809B6B0005
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 05:12:33 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id e93-v6so4234034plb.5
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 02:12:33 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y6-v6si5366397pfy.140.2018.07.19.02.12.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 19 Jul 2018 01:59:08 -0700 (PDT)
-Date: Thu, 19 Jul 2018 11:59:01 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv5 06/19] mm/khugepaged: Handle encrypted pages
-Message-ID: <20180719085901.ebdciqkjpx6hy4xt@kshutemo-mobl1>
-References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
- <20180717112029.42378-7-kirill.shutemov@linux.intel.com>
- <ad4c704f-fdda-7e75-60ec-3fbc8a4bb0ba@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Jul 2018 02:12:32 -0700 (PDT)
+Date: Thu, 19 Jul 2018 11:12:25 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+Message-ID: <20180719091225.GR7193@dhcp22.suse.cz>
+References: <20180716115058.5559-1-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <ad4c704f-fdda-7e75-60ec-3fbc8a4bb0ba@intel.com>
+In-Reply-To: <20180716115058.5559-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Felix Kuehling <felix.kuehling@amd.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Rientjes <rientjes@google.com>, Leon Romanovsky <leonro@mellanox.com>
 
-On Wed, Jul 18, 2018 at 04:11:57PM -0700, Dave Hansen wrote:
-> On 07/17/2018 04:20 AM, Kirill A. Shutemov wrote:
-> > khugepaged allocates page in advance, before we found a VMA for
-> > collapse. We don't yet know which KeyID to use for the allocation.
-> 
-> That's not really true.  We have the VMA and the address in the caller
-> (khugepaged_scan_pmd()), but we drop the lock and have to revalidate the
-> VMA.
-
-For !NUMA we allocate the page in khugepaged_do_scan(), well before we
-know VMA.
-
-> 
-> 
-> > diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-> > index 5ae34097aed1..d116f4ebb622 100644
-> > --- a/mm/khugepaged.c
-> > +++ b/mm/khugepaged.c
-> > @@ -1056,6 +1056,16 @@ static void collapse_huge_page(struct mm_struct *mm,
-> >  	 */
-> >  	anon_vma_unlock_write(vma->anon_vma);
-> >  
-> > +	/*
-> > +	 * At this point new_page is allocated as non-encrypted.
-> > +	 * If VMA's KeyID is non-zero, we need to prepare it to be encrypted
-> > +	 * before coping data.
-> > +	 */
-> > +	if (vma_keyid(vma)) {
-> > +		prep_encrypted_page(new_page, HPAGE_PMD_ORDER,
-> > +				vma_keyid(vma), false);
-> > +	}
-> 
-> I guess this isn't horribly problematic now, but if we ever keep pools
-> of preassigned-keyids, this won't work any more.
-
-I don't get this. What pools of preassigned-keyids are you talking about?
-
+Does anybody see any reasons why this should get into mmotm tree?
+I do not want to rush this in but if general feeling is to push it for
+the upcoming merge window then I will not object.
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
