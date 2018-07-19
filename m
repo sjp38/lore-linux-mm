@@ -1,59 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AB296B026A
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 10:03:12 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id w10-v6so3304065eds.7
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 07:03:12 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d4-v6si4083668edq.426.2018.07.19.07.03.11
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A9CF66B026C
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 10:03:30 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id q26-v6so879835wmc.0
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 07:03:30 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p6-v6sor1205117wmh.17.2018.07.19.07.03.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jul 2018 07:03:11 -0700 (PDT)
-Date: Thu, 19 Jul 2018 16:03:08 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 5/5] mm/page_alloc: Only call pgdat_set_deferred_range
- when the system boots
-Message-ID: <20180719140308.GG7193@dhcp22.suse.cz>
+        (Google Transport Security);
+        Thu, 19 Jul 2018 07:03:29 -0700 (PDT)
+Date: Thu, 19 Jul 2018 16:03:27 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH v2 3/5] mm/page_alloc: Optimize free_area_init_core
+Message-ID: <20180719140327.GB10988@techadventures.net>
 References: <20180719132740.32743-1-osalvador@techadventures.net>
- <20180719132740.32743-6-osalvador@techadventures.net>
- <20180719134622.GE7193@dhcp22.suse.cz>
- <20180719135859.GA10988@techadventures.net>
+ <20180719132740.32743-4-osalvador@techadventures.net>
+ <20180719134417.GC7193@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180719135859.GA10988@techadventures.net>
+In-Reply-To: <20180719134417.GC7193@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>
+To: Michal Hocko <mhocko@kernel.org>
 Cc: akpm@linux-foundation.org, pasha.tatashin@oracle.com, vbabka@suse.cz, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
 
-On Thu 19-07-18 15:58:59, Oscar Salvador wrote:
-> On Thu, Jul 19, 2018 at 03:46:22PM +0200, Michal Hocko wrote:
-> > On Thu 19-07-18 15:27:40, osalvador@techadventures.net wrote:
-> > > From: Oscar Salvador <osalvador@suse.de>
-> > > 
-> > > We should only care about deferred initialization when booting.
+On Thu, Jul 19, 2018 at 03:44:17PM +0200, Michal Hocko wrote:
+> On Thu 19-07-18 15:27:38, osalvador@techadventures.net wrote:
+> > From: Oscar Salvador <osalvador@suse.de>
 > > 
-> > Again why is this worth doing?
+> > In free_area_init_core we calculate the amount of managed pages
+> > we are left with, by substracting the memmap pages and the pages
+> > reserved for dma.
+> > With the values left, we also account the total of kernel pages and
+> > the total of pages.
+> > 
+> > Since memmap pages are calculated from zone->spanned_pages,
+> > let us only do these calculcations whenever zone->spanned_pages is greather
+> > than 0.
 > 
-> Well, it is not a big win if that is what you meant.
-> 
-> Those two fields are only being used when dealing with deferred pages,
-> which only happens at boot time.
-> 
-> If later on, free_area_init_node gets called from memhotplug code,
-> we will also set the fields, although they will not be used.
-> 
-> Is this a problem? No, but I think it is more clear from the code if we
-> see when this is called.
-> So I would say it was only for code consistency.
+> But why do we care? How do we test this? In other words, why is this
+> worth merging?
+ 
+Uhm, unless the values are going to be updated, why do we want to go through all
+comparasions/checks?
+I thought it was a nice thing to have the chance to skip that block unless we are going to
+update the counters.
 
-Then put it to the changelog.
+Again, if you think this only adds complexity and no good, I can drop it.
 
-> If you think this this is not worth, I am ok with dropping it.
-
-I am not really sure. I am not a big fan of SYSTEM_BOOTING global
-thingy so I would rather not spread its usage.
+Thanks
 -- 
-Michal Hocko
-SUSE Labs
+Oscar Salvador
+SUSE L3
