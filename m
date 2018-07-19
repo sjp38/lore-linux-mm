@@ -1,36 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 530276B0008
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 12:19:57 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id u1-v6so3828831wrs.18
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 09:19:57 -0700 (PDT)
-Received: from eu-smtp-delivery-211.mimecast.com (eu-smtp-delivery-211.mimecast.com. [207.82.80.211])
-        by mx.google.com with ESMTPS id f140-v6si3603777wme.28.2018.07.19.09.19.55
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A242D6B000C
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 12:23:23 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id v24-v6so2551472wmh.5
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 09:23:23 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s2-v6sor1476852wmf.6.2018.07.19.09.23.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jul 2018 09:19:55 -0700 (PDT)
-From: David Laight <David.Laight@ACULAB.COM>
-Subject: RE: [PATCH] mm: Cleanup in do_shrink_slab()
-Date: Thu, 19 Jul 2018 16:21:32 +0000
-Message-ID: <0f98d9b38be1466b8608d5c071aa52ed@AcuMS.aculab.com>
-References: <153201627722.12295.11034132843390627757.stgit@localhost.localdomain>
-In-Reply-To: <153201627722.12295.11034132843390627757.stgit@localhost.localdomain>
-Content-Language: en-US
+        (Google Transport Security);
+        Thu, 19 Jul 2018 09:23:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+References: <1531994807-25639-1-git-send-email-jing.xia@unisoc.com> <20180719104345.GV7193@dhcp22.suse.cz>
+In-Reply-To: <20180719104345.GV7193@dhcp22.suse.cz>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Thu, 19 Jul 2018 09:23:10 -0700
+Message-ID: <CALvZod55Ku7U3soLtuYY_HL2_mMp5+OT-hngdZkPRGN9xm1a9Q@mail.gmail.com>
+Subject: Re: [PATCH] mm: memcg: fix use after free in mem_cgroup_iter()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Kirill Tkhai' <ktkhai@virtuozzo.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "vdavydov.dev@gmail.com" <vdavydov.dev@gmail.com>, "mhocko@suse.com" <mhocko@suse.com>, "penguin-kernel@I-love.SAKURA.ne.jp" <penguin-kernel@I-love.SAKURA.ne.jp>, "shakeelb@google.com" <shakeelb@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: jing.xia.mail@gmail.com, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, chunyan.zhang@unisoc.com, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-RnJvbTogS2lyaWxsIFRraGFpDQo+IFNlbnQ6IDE5IEp1bHkgMjAxOCAxNzowNQ0KPiANCj4gR3Jv
-dXAgbG9uZyB2YXJpYWJsZXMgdG9nZXRoZXIgdG8gbWluaW1pemUgbnVtYmVyIG9mIG9jY3VwaWVk
-IGxpbmVzDQo+IGFuZCBwbGFjZSBhbGwgZGVmaW5pdGlvbnMgaW4gYmFjayBDaHJpc3RtYXMgdHJl
-ZSBvcmRlci4NCg0KR3JvdXBpbmcgdG9nZXRoZXIgdW5yZWxhdGVkIHZhcmlhYmxlcyBkb2Vzbid0
-IHJlYWxseSBtYWtlIHRoZSBjb2RlDQphbnkgbW9yZSByZWFkYWJsZS4NCklNSE8gT25lIHZhcmlh
-YmxlIHBlciBsaW5lIGlzIHVzdWFsbHkgYmVzdC4NCg0KPiBBbHNvLCBzaW1wbGlmeSBleHByZXNz
-aW9uIGFyb3VuZCBiYXRjaF9zaXplOiB1c2UgYWxsIHBvd2VyIG9mIEMgbGFuZ3VhZ2UhDQoNCiAg
-IGZvbyA9IGJhciA/IDogYmF6Ow0KSXMgbm90IHBhcnQgb2YgQywgaXQgaXMgYSBnY2MgZXh0ZW5z
-aW9uLg0KDQoJRGF2aWQNCg0KLQ0KUmVnaXN0ZXJlZCBBZGRyZXNzIExha2VzaWRlLCBCcmFtbGV5
-IFJvYWQsIE1vdW50IEZhcm0sIE1pbHRvbiBLZXluZXMsIE1LMSAxUFQsIFVLDQpSZWdpc3RyYXRp
-b24gTm86IDEzOTczODYgKFdhbGVzKQ0K
+On Thu, Jul 19, 2018 at 3:43 AM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> [CC Andrew]
+>
+> On Thu 19-07-18 18:06:47, Jing Xia wrote:
+> > It was reported that a kernel crash happened in mem_cgroup_iter(),
+> > which can be triggered if the legacy cgroup-v1 non-hierarchical
+> > mode is used.
+> >
+> > Unable to handle kernel paging request at virtual address 6b6b6b6b6b6b8f
+> > ......
+> > Call trace:
+> >   mem_cgroup_iter+0x2e0/0x6d4
+> >   shrink_zone+0x8c/0x324
+> >   balance_pgdat+0x450/0x640
+> >   kswapd+0x130/0x4b8
+> >   kthread+0xe8/0xfc
+> >   ret_from_fork+0x10/0x20
+> >
+> >   mem_cgroup_iter():
+> >       ......
+> >       if (css_tryget(css))    <-- crash here
+> >           break;
+> >       ......
+> >
+> > The crashing reason is that mem_cgroup_iter() uses the memcg object
+> > whose pointer is stored in iter->position, which has been freed before
+> > and filled with POISON_FREE(0x6b).
+> >
+> > And the root cause of the use-after-free issue is that
+> > invalidate_reclaim_iterators() fails to reset the value of
+> > iter->position to NULL when the css of the memcg is released in non-
+> > hierarchical mode.
+>
+> Well, spotted!
+>
+> I suspect
+> Fixes: 6df38689e0e9 ("mm: memcontrol: fix possible memcg leak due to interrupted reclaim")
+>
+> but maybe it goes further into past. I also suggest
+> Cc: stable
+>
+> even though the non-hierarchical mode is strongly discouraged.
+
+Why not set root_mem_cgroup's use_hierarchy to true by default on
+init? If someone wants non-hierarchical mode, they can explicitly set
+it to false.
+
+> A lack of
+> reports for 3 years is encouraging that not many people really use this
+> mode.
+>
+> > Signed-off-by: Jing Xia <jing.xia.mail@gmail.com>
+>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+>
+> Thanks!
+> > ---
+> >  mm/memcontrol.c | 2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> >
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index e6f0d5e..8c0280b 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -850,7 +850,7 @@ static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
+> >       int nid;
+> >       int i;
+> >
+> > -     while ((memcg = parent_mem_cgroup(memcg))) {
+> > +     for (; memcg; memcg = parent_mem_cgroup(memcg)) {
+> >               for_each_node(nid) {
+> >                       mz = mem_cgroup_nodeinfo(memcg, nid);
+> >                       for (i = 0; i <= DEF_PRIORITY; i++) {
+> > --
+> > 1.9.1
+>
+> --
+> Michal Hocko
+> SUSE Labs
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
