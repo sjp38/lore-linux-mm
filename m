@@ -1,66 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A30786B0003
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 04:58:14 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id f8-v6so3004225eds.6
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 01:58:14 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x13-v6si2295070edm.270.2018.07.19.01.58.13
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 552E76B000C
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 04:59:09 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id c13-v6so3745181pfo.14
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 01:59:09 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z3-v6sor1834435plb.82.2018.07.19.01.59.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jul 2018 01:58:13 -0700 (PDT)
-Date: Thu, 19 Jul 2018 10:58:12 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm: adjust max read count in generic_file_buffered_read()
-Message-ID: <20180719085812.sjup2odrjyuigt3l@quack2.suse.cz>
-References: <20180719081726.3341-1-cgxu519@gmx.com>
+        (Google Transport Security);
+        Thu, 19 Jul 2018 01:59:08 -0700 (PDT)
+Date: Thu, 19 Jul 2018 11:59:01 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv5 06/19] mm/khugepaged: Handle encrypted pages
+Message-ID: <20180719085901.ebdciqkjpx6hy4xt@kshutemo-mobl1>
+References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
+ <20180717112029.42378-7-kirill.shutemov@linux.intel.com>
+ <ad4c704f-fdda-7e75-60ec-3fbc8a4bb0ba@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180719081726.3341-1-cgxu519@gmx.com>
+In-Reply-To: <ad4c704f-fdda-7e75-60ec-3fbc8a4bb0ba@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chengguang Xu <cgxu519@gmx.com>
-Cc: akpm@linux-foundation.org, jack@suse.cz, mgorman@techsingularity.net, jlayton@redhat.com, ak@linux.intel.com, mawilcox@microsoft.com, tim.c.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 19-07-18 16:17:26, Chengguang Xu wrote:
-> When we try to truncate read count in generic_file_buffered_read(),
-> should deliver (sb->s_maxbytes - offset) as maximum count not
-> sb->s_maxbytes itself.
+On Wed, Jul 18, 2018 at 04:11:57PM -0700, Dave Hansen wrote:
+> On 07/17/2018 04:20 AM, Kirill A. Shutemov wrote:
+> > khugepaged allocates page in advance, before we found a VMA for
+> > collapse. We don't yet know which KeyID to use for the allocation.
 > 
-> Signed-off-by: Chengguang Xu <cgxu519@gmx.com>
+> That's not really true.  We have the VMA and the address in the caller
+> (khugepaged_scan_pmd()), but we drop the lock and have to revalidate the
+> VMA.
 
-Looks good to me. You can add:
+For !NUMA we allocate the page in khugepaged_do_scan(), well before we
+know VMA.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-BTW, I can see you didn't include two (I'd say the most important ;)
-addresses to CC: Al Viro as a VFS maintainer and linux-fsdevel mailing
-list. Although this code resides in mm/ it is in fact a filesystem code.
-Added now.
-
-								Honza
-
-> ---
->  mm/filemap.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 52517f28e6f4..5c2d481d21cf 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -2064,7 +2064,7 @@ static ssize_t generic_file_buffered_read(struct kiocb *iocb,
->  
->  	if (unlikely(*ppos >= inode->i_sb->s_maxbytes))
->  		return 0;
-> -	iov_iter_truncate(iter, inode->i_sb->s_maxbytes);
-> +	iov_iter_truncate(iter, inode->i_sb->s_maxbytes - *ppos);
->  
->  	index = *ppos >> PAGE_SHIFT;
->  	prev_index = ra->prev_pos >> PAGE_SHIFT;
-> -- 
-> 2.17.1
 > 
+> > diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> > index 5ae34097aed1..d116f4ebb622 100644
+> > --- a/mm/khugepaged.c
+> > +++ b/mm/khugepaged.c
+> > @@ -1056,6 +1056,16 @@ static void collapse_huge_page(struct mm_struct *mm,
+> >  	 */
+> >  	anon_vma_unlock_write(vma->anon_vma);
+> >  
+> > +	/*
+> > +	 * At this point new_page is allocated as non-encrypted.
+> > +	 * If VMA's KeyID is non-zero, we need to prepare it to be encrypted
+> > +	 * before coping data.
+> > +	 */
+> > +	if (vma_keyid(vma)) {
+> > +		prep_encrypted_page(new_page, HPAGE_PMD_ORDER,
+> > +				vma_keyid(vma), false);
+> > +	}
+> 
+> I guess this isn't horribly problematic now, but if we ever keep pools
+> of preassigned-keyids, this won't work any more.
+
+I don't get this. What pools of preassigned-keyids are you talking about?
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+ Kirill A. Shutemov
