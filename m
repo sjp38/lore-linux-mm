@@ -1,62 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D13C26B000E
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 09:18:45 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id h26-v6so5766564itj.6
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 06:18:45 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id 78-v6si4220081ioc.252.2018.07.19.06.18.44
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1991D6B0003
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 09:23:19 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id y8-v6so4547873plp.17
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 06:23:19 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k12-v6sor1643652pgo.192.2018.07.19.06.23.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jul 2018 06:18:44 -0700 (PDT)
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6JDIi6S033611
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 13:18:44 GMT
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by aserp2120.oracle.com with ESMTP id 2k9yjgq29d-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 13:18:44 +0000
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w6JDIhxZ020113
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 13:18:43 GMT
-Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w6JDIgHo018101
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 13:18:42 GMT
-Received: by mail-oi0-f44.google.com with SMTP id 13-v6so15499827ois.1
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 06:18:42 -0700 (PDT)
+        (Google Transport Security);
+        Thu, 19 Jul 2018 06:23:18 -0700 (PDT)
+Date: Thu, 19 Jul 2018 16:23:12 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv5 08/19] x86/mm: Introduce variables to store number,
+ shift and mask of KeyIDs
+Message-ID: <20180719132312.75lduymla2uretax@kshutemo-mobl1>
+References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
+ <20180717112029.42378-9-kirill.shutemov@linux.intel.com>
+ <1edc05b0-8371-807e-7cfa-6e8f61ee9b70@intel.com>
+ <20180719102130.b4f6b6v5wg3modtc@kshutemo-mobl1>
+ <alpine.DEB.2.21.1807191436300.1602@nanos.tec.linutronix.de>
+ <20180719131245.sxnqsgzvkqriy3o2@kshutemo-mobl1>
+ <alpine.DEB.2.21.1807191515150.1602@nanos.tec.linutronix.de>
 MIME-Version: 1.0
-References: <20180718124722.9872-1-osalvador@techadventures.net>
- <20180718124722.9872-2-osalvador@techadventures.net> <20180718141150.imiyuust5txfmfvw@xakep.localdomain>
- <20180719121902.GB8750@techadventures.net>
-In-Reply-To: <20180719121902.GB8750@techadventures.net>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Thu, 19 Jul 2018 09:18:06 -0400
-Message-ID: <CAGM2reaQkRDYvMsH=nVa=ZZTwAcqEE=omn6ma3=y8N7=UX=65g@mail.gmail.com>
-Subject: Re: [PATCH 1/3] mm/page_alloc: Move ifdefery out of free_area_init_core
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.21.1807191515150.1602@nanos.tec.linutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: osalvador@techadventures.net
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, iamjoonsoo.kim@lge.com, aaron.lu@intel.com, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, osalvador@suse.de
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Dave Hansen <dave.hansen@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
- > +             zone_set_nid(nid);
->
-> This should be:
->
-> zone_set_nid(zone, nid);
->
-> I fixed it up in your patch, I hope that is ok.
+On Thu, Jul 19, 2018 at 03:18:03PM +0200, Thomas Gleixner wrote:
+> On Thu, 19 Jul 2018, Kirill A. Shutemov wrote:
+> > On Thu, Jul 19, 2018 at 02:37:35PM +0200, Thomas Gleixner wrote:
+> > > On Thu, 19 Jul 2018, Kirill A. Shutemov wrote:
+> > > > On Wed, Jul 18, 2018 at 04:19:10PM -0700, Dave Hansen wrote:
+> > > > > >  	} else {
+> > > > > >  		/*
+> > > > > >  		 * Reset __PHYSICAL_MASK.
+> > > > > > @@ -591,6 +592,9 @@ static void detect_tme(struct cpuinfo_x86 *c)
+> > > > > >  		 * between CPUs.
+> > > > > >  		 */
+> > > > > >  		physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
+> > > > > > +		mktme_keyid_mask = 0;
+> > > > > > +		mktme_keyid_shift = 0;
+> > > > > > +		mktme_nr_keyids = 0;
+> > > > > >  	}
+> > > > > 
+> > > > > Should be unnecessary.  These are zeroed by the compiler.
+> > > > 
+> > > > No. detect_tme() called for each CPU in the system.
+> > > 
+> > > And then the variables are cleared out while other CPUs can access them?
+> > > How is that supposed to work?
+> > 
+> > This code path only matter in patalogical case: when MKTME configuation is
+> > inconsitent between CPUs. Basically if BIOS screwed things up we disable
+> > MKTME.
+> 
+> I still don't see how that's supposed to work.
+> 
+> When the inconsistent CPU is brought up _AFTER_ MKTME is enabled, then how
+> does clearing the variables help? It does not magically make all the other
+> stuff go away.
 
-Yes, thank you. I fixed this when compile tested this patch, but must
-have forgotten to regenerate the patch before sending it.
+We don't actually enable MKTME in kernel. BIOS does. Kernel makes choose
+to use it or not. Current design targeted to be used by userspace.
+So until init we don't have any other stuff to go away. We can just
+pretend that MKTME was never there.
 
-Thank you,
-Pavel
-
->
-> Thanks
-> --
-> Oscar Salvador
-> SUSE L3
->
+-- 
+ Kirill A. Shutemov
