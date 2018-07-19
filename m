@@ -1,59 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AB686B0279
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 09:46:26 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id f13-v6so2249053edr.10
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 06:46:26 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 489496B027B
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 09:47:18 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id b12-v6so3182412edi.12
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 06:47:18 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z14-v6si5057710edd.127.2018.07.19.06.46.25
+        by mx.google.com with ESMTPS id v27-v6si5435876eda.162.2018.07.19.06.47.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jul 2018 06:46:25 -0700 (PDT)
-Date: Thu, 19 Jul 2018 15:46:22 +0200
+        Thu, 19 Jul 2018 06:47:17 -0700 (PDT)
+Date: Thu, 19 Jul 2018 15:47:16 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 5/5] mm/page_alloc: Only call pgdat_set_deferred_range
- when the system boots
-Message-ID: <20180719134622.GE7193@dhcp22.suse.cz>
+Subject: Re: [PATCH v2 2/5] mm: access zone->node via zone_to_nid() and
+ zone_set_nid()
+Message-ID: <20180719134716.GF7193@dhcp22.suse.cz>
 References: <20180719132740.32743-1-osalvador@techadventures.net>
- <20180719132740.32743-6-osalvador@techadventures.net>
+ <20180719132740.32743-3-osalvador@techadventures.net>
+ <20180719134018.GB7193@dhcp22.suse.cz>
+ <760195c6-7cfb-76db-1c5c-b85456f3a4ad@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180719132740.32743-6-osalvador@techadventures.net>
+In-Reply-To: <760195c6-7cfb-76db-1c5c-b85456f3a4ad@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: osalvador@techadventures.net
-Cc: akpm@linux-foundation.org, pasha.tatashin@oracle.com, vbabka@suse.cz, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: osalvador@techadventures.net, akpm@linux-foundation.org, vbabka@suse.cz, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
 
-On Thu 19-07-18 15:27:40, osalvador@techadventures.net wrote:
-> From: Oscar Salvador <osalvador@suse.de>
+On Thu 19-07-18 09:44:09, Pavel Tatashin wrote:
 > 
-> We should only care about deferred initialization when booting.
+> 
+> On 07/19/2018 09:40 AM, Michal Hocko wrote:
+> > On Thu 19-07-18 15:27:37, osalvador@techadventures.net wrote:
+> >> From: Pavel Tatashin <pasha.tatashin@oracle.com>
+> >>
+> >> zone->node is configured only when CONFIG_NUMA=y, so it is a good idea to
+> >> have inline functions to access this field in order to avoid ifdef's in
+> >> c files.
+> > 
+> > Is this a manual find & replace or did you use some scripts?
+> 
+> I used opengrok:
+> 
+> http://src.illumos.org/source/search?q=%22zone-%3Enode%22&defs=&refs=&path=&hist=&project=linux-master
+> 
+> http://src.illumos.org/source/search?q=%22z-%3Enode%22&defs=&refs=&path=&hist=&project=linux-master
 
-Again why is this worth doing?
+Then it is good to mention that in the changelog so that people might
+use the same tool locally and compare the result or even learn about the
+tool ;)
  
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
-> ---
->  mm/page_alloc.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
+> > The change makes sense, but I haven't checked that all the places are
+> > replaced properly. If not we can replace them later.
+> > 
+> >> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> >> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> >> Reviewed-by: Oscar Salvador <osalvador@suse.de>
+> > 
+> > Acked-by: Michal Hocko <mhocko@suse.com>
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index d77bc2a7ec2c..5911b64a88ab 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6419,7 +6419,8 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
->  				  zones_size, zholes_size);
->  
->  	alloc_node_mem_map(pgdat);
-> -	pgdat_set_deferred_range(pgdat);
-> +	if (system_state == SYSTEM_BOOTING)
-> +		pgdat_set_deferred_range(pgdat);
->  
->  	free_area_init_core(pgdat);
->  }
-> -- 
-> 2.13.6
-> 
+> Thank you,
+> Pavel
 
 -- 
 Michal Hocko
