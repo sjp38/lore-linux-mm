@@ -1,84 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BF8D6B0003
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 15:16:07 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id 123-v6so9981849qkg.8
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 12:16:07 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j33-v6sor1376099qtc.87.2018.07.20.12.16.06
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F8126B0006
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 15:27:59 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id z16-v6so5838536wrs.22
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 12:27:59 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id o12-v6si1589792wmh.0.2018.07.20.12.27.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 20 Jul 2018 12:16:06 -0700 (PDT)
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 20 Jul 2018 12:27:58 -0700 (PDT)
+Date: Fri, 20 Jul 2018 21:27:44 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 1/3] perf/core: Make sure the ring-buffer is mapped in
+ all page-tables
+In-Reply-To: <CALCETrXJX8tPVgD=Ce41534uneAAobm-HyjeGwVYgJDJ_+-bDw@mail.gmail.com>
+Message-ID: <alpine.DEB.2.21.1807202126400.1694@nanos.tec.linutronix.de>
+References: <1532103744-31902-1-git-send-email-joro@8bytes.org> <1532103744-31902-2-git-send-email-joro@8bytes.org> <CALCETrXJX8tPVgD=Ce41534uneAAobm-HyjeGwVYgJDJ_+-bDw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180626184422.24974-1-malat@debian.org>
-References: <20180625171513.31845-1-malat@debian.org> <20180626184422.24974-1-malat@debian.org>
-From: Tony Luck <tony.luck@gmail.com>
-Date: Fri, 20 Jul 2018 12:16:05 -0700
-Message-ID: <CA+8MBbLB5JTdcgS3yJRR12doMgEiofD8NNXedyYyj4c7AcDnMg@mail.gmail.com>
-Subject: Re: [PATCH v3] mm/memblock: add missing include <linux/bootmem.h>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mathieu Malaterre <malat@debian.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Stefan Agner <stefan@agner.ch>, Joe Perches <joe@perches.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Joerg Roedel <joro@8bytes.org>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, Joerg Roedel <jroedel@suse.de>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>
 
-On Tue, Jun 26, 2018 at 11:44 AM, Mathieu Malaterre <malat@debian.org> wrote:
-> Because Makefile already does:
->
->   obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.o
->
-> The #ifdef has been simplified from:
->
->   #if defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM)
->
-> to simply:
->
->   #if defined(CONFIG_NO_BOOTMEM)
+On Fri, 20 Jul 2018, Andy Lutomirski wrote:
+> > On Jul 20, 2018, at 6:22 AM, Joerg Roedel <joro@8bytes.org> wrote:
+> >
+> > From: Joerg Roedel <jroedel@suse.de>
+> >
+> > The ring-buffer is accessed in the NMI handler, so we better
+> > avoid faulting on it. Sync the vmalloc range with all
+> > page-tables in system to make sure everyone has it mapped.
+> >
+> > This fixes a WARN_ON_ONCE() that can be triggered with PTI
+> > enabled on x86-32:
+> >
+> >    WARNING: CPU: 4 PID: 0 at arch/x86/mm/fault.c:320 vmalloc_fault+0x220/0x230
+> >
+> > This triggers because with PTI enabled on an PAE kernel the
+> > PMDs are no longer shared between the page-tables, so the
+> > vmalloc changes do not propagate automatically.
+> 
+> It seems like it would be much more robust to fix the vmalloc_fault()
+> code instead.
 
-Is this sitting in a queue somewhere ready to go to Linus?
+Right, but now the obvious fix for the issue at hand is this. We surely
+should revisit this.
 
-I don't see it upstream yet.
+Thanks,
 
->
-> Suggested-by: Tony Luck <tony.luck@intel.com>
-> Suggested-by: Michal Hocko <mhocko@kernel.org>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Signed-off-by: Mathieu Malaterre <malat@debian.org>
-> ---
-> v3: Add missing reference to commit 6cc22dc08a24
-> v2: Simplify #ifdef
->
->  mm/memblock.c | 3 +++
->  1 file changed, 3 insertions(+)
->
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 03d48d8835ba..611a970ac902 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -20,6 +20,7 @@
->  #include <linux/kmemleak.h>
->  #include <linux/seq_file.h>
->  #include <linux/memblock.h>
-> +#include <linux/bootmem.h>
->
->  #include <asm/sections.h>
->  #include <linux/io.h>
-> @@ -1224,6 +1225,7 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
->         return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
->  }
->
-> +#if defined(CONFIG_NO_BOOTMEM)
->  /**
->   * memblock_virt_alloc_internal - allocate boot memory block
->   * @size: size of memory block to be allocated in bytes
-> @@ -1431,6 +1433,7 @@ void * __init memblock_virt_alloc_try_nid(
->               (u64)max_addr);
->         return NULL;
->  }
-> +#endif
->
->  /**
->   * __memblock_free_early - free boot memory block
-> --
-> 2.11.0
->
+	tglx
