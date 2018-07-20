@@ -1,164 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 280E16B0269
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 03:20:05 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id q12-v6so5379161pgp.6
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 00:20:05 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id a24-v6si1272473pgh.357.2018.07.20.00.19.57
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 39D0E6B0006
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 03:53:03 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id g12-v6so7800340ioh.5
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 00:53:03 -0700 (PDT)
+Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id b6-v6si874681jal.13.2018.07.20.00.53.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jul 2018 00:19:57 -0700 (PDT)
-From: Huang Ying <ying.huang@intel.com>
-Subject: [PATCH v4 6/8] swap, get_swap_pages: Use entry_size instead of cluster in parameter
-Date: Fri, 20 Jul 2018 15:18:43 +0800
-Message-Id: <20180720071845.17920-7-ying.huang@intel.com>
-In-Reply-To: <20180720071845.17920-1-ying.huang@intel.com>
-References: <20180720071845.17920-1-ying.huang@intel.com>
+        Fri, 20 Jul 2018 00:53:01 -0700 (PDT)
+Subject: Re: [RFC] a question about reuse hwpoison page in soft_offline_page()
+References: <99235479-716d-4c40-8f61-8e44c242abf8.xishi.qiuxishi@alibaba-inc.com>
+ <20180706081847.GA5144@hori1.linux.bs1.fc.nec.co.jp>
+From: Xie XiuQi <xiexiuqi@huawei.com>
+Message-ID: <7f0ff90d-578b-2096-92c0-542a490b06a1@huawei.com>
+Date: Fri, 20 Jul 2018 15:50:26 +0800
+MIME-Version: 1.0
+In-Reply-To: <20180706081847.GA5144@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?UTF-8?B?6KOY56iA55+zKOeogOefsyk=?= <xishi.qiuxishi@alibaba-inc.com>
+Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, "zy.zhengyi" <zy.zhengyi@alibaba-inc.com>, "Zhangfei (Tyler)" <tyler.zhang@huawei.com>, lvzhipeng@huawei.com, meinanjing@huawei.com, Zhong Jiang <zhongjiang@huawei.com>
 
-As suggested by Matthew Wilcox, it is better to use "int entry_size"
-instead of "bool cluster" as parameter to specify whether to operate
-for huge or normal swap entries.  Because this improve the flexibility
-to support other swap entry size.  And Dave Hansen thinks that this
-improves code readability too.
+Hi Naoya, Xishi,
 
-So in this patch, the "bool cluster" parameter of get_swap_pages() is
-replaced by "int entry_size".
+We have a similar problem.
+@zhangfei, could you please describe your problem here.
 
-And nr_swap_entries() trick is used to reduce the binary size when
-!CONFIG_TRANSPARENT_HUGE_PAGE.
+On 2018/7/6 16:18, Naoya Horiguchi wrote:
+> On Fri, Jul 06, 2018 at 11:37:41AM +0800, 裘稀石(稀石) wrote:
+>> This patch add05cec
+>> (mm: soft-offline: don't free target page in successful page migration) removes
+>> set_migratetype_isolate() and unset_migratetype_isolate() in soft_offline_page
+>> ().
+>>
+>> And this patch 243abd5b
+>> (mm: hugetlb: prevent reuse of hwpoisoned free hugepages) changes
+>> if (!is_migrate_isolate_page(page)) to if (!PageHWPoison(page)), so it could
+>> prevent someone
+>> reuse the free hugetlb again after set the hwpoison flag
+>> in soft_offline_free_page()
+>>
+>> My question is that if someone reuse the free hugetlb again before 
+>> soft_offline_free_page() and
+>> after get_any_page(), then it uses the hopoison page, and this may trigger mce
+>> kill later, right?
+> 
+> Hi Xishi,
+> 
+> Thank you for pointing out the issue. That's nice catch.
+> 
+> I think that the race condition itself could happen, but it doesn't lead
+> to MCE kill because PageHWPoison is not visible to HW which triggers MCE.
+> PageHWPoison flag is just a flag in struct page to report the memory error
+> from kernel to userspace. So even if a CPU is accessing to the page whose
+> struct page has PageHWPoison set, that doesn't cause a MCE unless the page
+> is physically broken.
+> The type of memory error that soft offline tries to handle is corrected
+> one which is not a failure yet although it's starting to wear.
+> So such PageHWPoison page can be reused, but that's not critical because
+> the page is freed at some point afterword and error containment completes.
+> 
+> However, I noticed that there's a small pain in free hugetlb case.
+> We call dissolve_free_huge_page() in soft_offline_free_page() which moves
+> the PageHWPoison flag from the head page to the raw error page.
+> If the reported race happens, dissolve_free_huge_page() just return without
+> doing any dissolve work because "if (PageHuge(page) && !page_count(page))"
+> block is skipped.
+> The hugepage is allocated and used as usual, but the contaiment doesn't
+> complete as expected in the normal page, because free_huge_pages() doesn't
+> call dissolve_free_huge_page() for hwpoison hugepage. This is not critical
+> because such error hugepage just reside in free hugepage list. But this
+> might looks like a kind of memory leak. And even worse when hugepage pool
+> is shrinked and the hwpoison hugepage is freed, the PageHWPoison flag is
+> still on the head page which is unlikely to be an actual error page.
+> 
+> So I think we need improvement here, how about the fix like below?
+> 
+>   (not tested yet, sorry)
+> 
+>   diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+>   --- a/mm/memory-failure.c
+>   +++ b/mm/memory-failure.c
+>   @@ -1883,6 +1883,11 @@ static void soft_offline_free_page(struct page *page)
+>           struct page *head = compound_head(page);
+>   
+>           if (!TestSetPageHWPoison(head)) {
+>   +               if (page_count(head)) {
+>   +                       ClearPageHWPoison(head);
+>   +                       return;
+>   +               }
+>   +
+>                   num_poisoned_pages_inc();
+>                   if (PageHuge(head))
+>                           dissolve_free_huge_page(page);
+> 
+> Thanks,
+> Naoya Horiguchi
+> 
+> .
+> 
 
-       text	   data	    bss	    dec	    hex	filename
-base  24215	   2028	    340	  26583	   67d7	mm/swapfile.o
-head  24123	   2004	    340	  26467	   6763	mm/swapfile.o
-
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
----
- include/linux/swap.h |  2 +-
- mm/swap_slots.c      |  8 ++++----
- mm/swapfile.c        | 16 ++++++++--------
- 3 files changed, 13 insertions(+), 13 deletions(-)
-
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index e20c240d6c65..34de0d8bf4fa 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -443,7 +443,7 @@ extern void si_swapinfo(struct sysinfo *);
- extern swp_entry_t get_swap_page(struct page *page);
- extern void put_swap_page(struct page *page, swp_entry_t entry);
- extern swp_entry_t get_swap_page_of_type(int);
--extern int get_swap_pages(int n, bool cluster, swp_entry_t swp_entries[]);
-+extern int get_swap_pages(int n, swp_entry_t swp_entries[], int entry_size);
- extern int add_swap_count_continuation(swp_entry_t, gfp_t);
- extern void swap_shmem_alloc(swp_entry_t);
- extern int swap_duplicate(swp_entry_t);
-diff --git a/mm/swap_slots.c b/mm/swap_slots.c
-index 008ccb22fee6..63a7b4563a57 100644
---- a/mm/swap_slots.c
-+++ b/mm/swap_slots.c
-@@ -269,8 +269,8 @@ static int refill_swap_slots_cache(struct swap_slots_cache *cache)
- 
- 	cache->cur = 0;
- 	if (swap_slot_cache_active)
--		cache->nr = get_swap_pages(SWAP_SLOTS_CACHE_SIZE, false,
--					   cache->slots);
-+		cache->nr = get_swap_pages(SWAP_SLOTS_CACHE_SIZE,
-+					   cache->slots, 1);
- 
- 	return cache->nr;
- }
-@@ -316,7 +316,7 @@ swp_entry_t get_swap_page(struct page *page)
- 
- 	if (PageTransHuge(page)) {
- 		if (IS_ENABLED(CONFIG_THP_SWAP))
--			get_swap_pages(1, true, &entry);
-+			get_swap_pages(1, &entry, HPAGE_PMD_NR);
- 		goto out;
- 	}
- 
-@@ -350,7 +350,7 @@ swp_entry_t get_swap_page(struct page *page)
- 			goto out;
- 	}
- 
--	get_swap_pages(1, false, &entry);
-+	get_swap_pages(1, &entry, 1);
- out:
- 	if (mem_cgroup_try_charge_swap(page, entry)) {
- 		put_swap_page(page, entry);
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index ad247c3da494..d80567dd60db 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -941,18 +941,18 @@ static unsigned long scan_swap_map(struct swap_info_struct *si,
- 
- }
- 
--int get_swap_pages(int n_goal, bool cluster, swp_entry_t swp_entries[])
-+int get_swap_pages(int n_goal, swp_entry_t swp_entries[], int entry_size)
- {
--	unsigned long nr_pages = cluster ? SWAPFILE_CLUSTER : 1;
-+	unsigned long size = swap_entry_size(entry_size);
- 	struct swap_info_struct *si, *next;
- 	long avail_pgs;
- 	int n_ret = 0;
- 	int node;
- 
- 	/* Only single cluster request supported */
--	WARN_ON_ONCE(n_goal > 1 && cluster);
-+	WARN_ON_ONCE(n_goal > 1 && size == SWAPFILE_CLUSTER);
- 
--	avail_pgs = atomic_long_read(&nr_swap_pages) / nr_pages;
-+	avail_pgs = atomic_long_read(&nr_swap_pages) / size;
- 	if (avail_pgs <= 0)
- 		goto noswap;
- 
-@@ -962,7 +962,7 @@ int get_swap_pages(int n_goal, bool cluster, swp_entry_t swp_entries[])
- 	if (n_goal > avail_pgs)
- 		n_goal = avail_pgs;
- 
--	atomic_long_sub(n_goal * nr_pages, &nr_swap_pages);
-+	atomic_long_sub(n_goal * size, &nr_swap_pages);
- 
- 	spin_lock(&swap_avail_lock);
- 
-@@ -989,14 +989,14 @@ int get_swap_pages(int n_goal, bool cluster, swp_entry_t swp_entries[])
- 			spin_unlock(&si->lock);
- 			goto nextsi;
- 		}
--		if (cluster) {
-+		if (size == SWAPFILE_CLUSTER) {
- 			if (!(si->flags & SWP_FILE))
- 				n_ret = swap_alloc_cluster(si, swp_entries);
- 		} else
- 			n_ret = scan_swap_map_slots(si, SWAP_HAS_CACHE,
- 						    n_goal, swp_entries);
- 		spin_unlock(&si->lock);
--		if (n_ret || cluster)
-+		if (n_ret || size == SWAPFILE_CLUSTER)
- 			goto check_out;
- 		pr_debug("scan_swap_map of si %d failed to find offset\n",
- 			si->type);
-@@ -1022,7 +1022,7 @@ int get_swap_pages(int n_goal, bool cluster, swp_entry_t swp_entries[])
- 
- check_out:
- 	if (n_ret < n_goal)
--		atomic_long_add((long)(n_goal - n_ret) * nr_pages,
-+		atomic_long_add((long)(n_goal - n_ret) * size,
- 				&nr_swap_pages);
- noswap:
- 	return n_ret;
 -- 
-2.16.4
+Thanks,
+Xie XiuQi
