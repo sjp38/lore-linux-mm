@@ -1,108 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 39D0E6B0006
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 03:53:03 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id g12-v6so7800340ioh.5
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 00:53:03 -0700 (PDT)
-Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id b6-v6si874681jal.13.2018.07.20.00.53.01
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F1AC06B0003
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 03:59:47 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id e19-v6so5409985pgv.11
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 00:59:47 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v129-v6si1189530pgv.610.2018.07.20.00.59.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jul 2018 00:53:01 -0700 (PDT)
-Subject: Re: [RFC] a question about reuse hwpoison page in soft_offline_page()
-References: <99235479-716d-4c40-8f61-8e44c242abf8.xishi.qiuxishi@alibaba-inc.com>
- <20180706081847.GA5144@hori1.linux.bs1.fc.nec.co.jp>
-From: Xie XiuQi <xiexiuqi@huawei.com>
-Message-ID: <7f0ff90d-578b-2096-92c0-542a490b06a1@huawei.com>
-Date: Fri, 20 Jul 2018 15:50:26 +0800
+        Fri, 20 Jul 2018 00:59:46 -0700 (PDT)
+Date: Fri, 20 Jul 2018 09:59:33 +0200
+From: Joerg Roedel <jroedel@suse.de>
+Subject: Re: [PATCH 00/39 v8] PTI support for x86-32
+Message-ID: <20180720075933.fegnjnhgouclitft@suse.de>
+References: <1531906876-13451-1-git-send-email-joro@8bytes.org>
+ <alpine.DEB.2.21.1807200114130.1693@nanos.tec.linutronix.de>
 MIME-Version: 1.0
-In-Reply-To: <20180706081847.GA5144@hori1.linux.bs1.fc.nec.co.jp>
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.21.1807200114130.1693@nanos.tec.linutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?UTF-8?B?6KOY56iA55+zKOeogOefsyk=?= <xishi.qiuxishi@alibaba-inc.com>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, "zy.zhengyi" <zy.zhengyi@alibaba-inc.com>, "Zhangfei (Tyler)" <tyler.zhang@huawei.com>, lvzhipeng@huawei.com, meinanjing@huawei.com, Zhong Jiang <zhongjiang@huawei.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Joerg Roedel <joro@8bytes.org>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>
 
-Hi Naoya, Xishi,
+Hi Thomas,
 
-We have a similar problem.
-@zhangfei, could you please describe your problem here.
+On Fri, Jul 20, 2018 at 01:21:33AM +0200, Thomas Gleixner wrote:
+> On Wed, 18 Jul 2018, Joerg Roedel wrote:
+> > 
+> > here is version 8 of my patches to enable PTI on x86-32. The
+> > last version got some good review which I mostly worked into
+> > this version.
+> 
+> I went over the whole set once again and did not find any real issues. As
+> the outstanding review comments are addressed, I decided that only broader
+> exposure can shake out eventually remaining issues. Applied and pushed out,
+> so it should show up in linux-next soon.
+> 
+> The mm regression seems to be sorted, so there is no immeditate fallout
+> expected.
+> 
+> Thanks for your patience in reworking this over and over. Thanks to Andy
+> for putting his entry focssed eyes on it more than once. Great work!
 
-On 2018/7/6 16:18, Naoya Horiguchi wrote:
-> On Fri, Jul 06, 2018 at 11:37:41AM +0800, 裘稀石(稀石) wrote:
->> This patch add05cec
->> (mm: soft-offline: don't free target page in successful page migration) removes
->> set_migratetype_isolate() and unset_migratetype_isolate() in soft_offline_page
->> ().
->>
->> And this patch 243abd5b
->> (mm: hugetlb: prevent reuse of hwpoisoned free hugepages) changes
->> if (!is_migrate_isolate_page(page)) to if (!PageHWPoison(page)), so it could
->> prevent someone
->> reuse the free hugetlb again after set the hwpoison flag
->> in soft_offline_free_page()
->>
->> My question is that if someone reuse the free hugetlb again before 
->> soft_offline_free_page() and
->> after get_any_page(), then it uses the hopoison page, and this may trigger mce
->> kill later, right?
-> 
-> Hi Xishi,
-> 
-> Thank you for pointing out the issue. That's nice catch.
-> 
-> I think that the race condition itself could happen, but it doesn't lead
-> to MCE kill because PageHWPoison is not visible to HW which triggers MCE.
-> PageHWPoison flag is just a flag in struct page to report the memory error
-> from kernel to userspace. So even if a CPU is accessing to the page whose
-> struct page has PageHWPoison set, that doesn't cause a MCE unless the page
-> is physically broken.
-> The type of memory error that soft offline tries to handle is corrected
-> one which is not a failure yet although it's starting to wear.
-> So such PageHWPoison page can be reused, but that's not critical because
-> the page is freed at some point afterword and error containment completes.
-> 
-> However, I noticed that there's a small pain in free hugetlb case.
-> We call dissolve_free_huge_page() in soft_offline_free_page() which moves
-> the PageHWPoison flag from the head page to the raw error page.
-> If the reported race happens, dissolve_free_huge_page() just return without
-> doing any dissolve work because "if (PageHuge(page) && !page_count(page))"
-> block is skipped.
-> The hugepage is allocated and used as usual, but the contaiment doesn't
-> complete as expected in the normal page, because free_huge_pages() doesn't
-> call dissolve_free_huge_page() for hwpoison hugepage. This is not critical
-> because such error hugepage just reside in free hugepage list. But this
-> might looks like a kind of memory leak. And even worse when hugepage pool
-> is shrinked and the hwpoison hugepage is freed, the PageHWPoison flag is
-> still on the head page which is unlikely to be an actual error page.
-> 
-> So I think we need improvement here, how about the fix like below?
-> 
->   (not tested yet, sorry)
-> 
->   diff --git a/mm/memory-failure.c b/mm/memory-failure.c
->   --- a/mm/memory-failure.c
->   +++ b/mm/memory-failure.c
->   @@ -1883,6 +1883,11 @@ static void soft_offline_free_page(struct page *page)
->           struct page *head = compound_head(page);
->   
->           if (!TestSetPageHWPoison(head)) {
->   +               if (page_count(head)) {
->   +                       ClearPageHWPoison(head);
->   +                       return;
->   +               }
->   +
->                   num_poisoned_pages_inc();
->                   if (PageHuge(head))
->                           dissolve_free_huge_page(page);
-> 
-> Thanks,
-> Naoya Horiguchi
-> 
-> .
-> 
+Thanks a lot too! Let's hope things will go smooth from here...
+I will also continue testing and improving the code, currently I am
+working on a relaxed paranoid entry/exit path suggested by Andy.
 
--- 
-Thanks,
-Xie XiuQi
+
+Regards,
+
+	Joerg
