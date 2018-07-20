@@ -1,63 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7036C6B0006
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 17:37:05 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b25-v6so5186930eds.17
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 14:37:05 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s29-v6si1955558edd.58.2018.07.20.14.37.03
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BFCB6B0008
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 17:40:39 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id a26-v6so3769284pgw.7
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 14:40:39 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id o3-v6si2484612pld.281.2018.07.20.14.40.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jul 2018 14:37:04 -0700 (PDT)
-Date: Fri, 20 Jul 2018 23:37:00 +0200
-From: Joerg Roedel <jroedel@suse.de>
-Subject: Re: [PATCH 1/3] perf/core: Make sure the ring-buffer is mapped in
- all page-tables
-Message-ID: <20180720213700.gh6d2qd2ck6nt4ax@suse.de>
-References: <1532103744-31902-1-git-send-email-joro@8bytes.org>
- <1532103744-31902-2-git-send-email-joro@8bytes.org>
- <CALCETrXJX8tPVgD=Ce41534uneAAobm-HyjeGwVYgJDJ_+-bDw@mail.gmail.com>
- <20180720174846.GF18541@8bytes.org>
- <CALCETrUj4cLpOKUbJUfLqKJFkjAgeraE=ORQ-e-bKU+AHda0=Q@mail.gmail.com>
+        Fri, 20 Jul 2018 14:40:37 -0700 (PDT)
+Subject: Re: [patch v3] mm, oom: fix unnecessary killing of additional
+ processes
+References: <alpine.DEB.2.21.1806211434420.51095@chino.kir.corp.google.com>
+ <d19d44c3-c8cf-70a1-9b15-c98df233d5f0@i-love.sakura.ne.jp>
+ <alpine.DEB.2.21.1807181317540.49359@chino.kir.corp.google.com>
+ <a78fb992-ad59-0cdb-3c38-8284b2245f21@i-love.sakura.ne.jp>
+ <alpine.DEB.2.21.1807200133310.119737@chino.kir.corp.google.com>
+ <9ab77cc7-2167-0659-a2ad-9cec3b9440e9@i-love.sakura.ne.jp>
+ <alpine.DEB.2.21.1807201315580.231119@chino.kir.corp.google.com>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <569cf225-f1d3-f81b-5947-cff7bd21381f@i-love.sakura.ne.jp>
+Date: Sat, 21 Jul 2018 05:47:30 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrUj4cLpOKUbJUfLqKJFkjAgeraE=ORQ-e-bKU+AHda0=Q@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.21.1807201315580.231119@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jul 20, 2018 at 12:32:10PM -0700, Andy Lutomirski wrote:
-> I'm just reading your changelog, and you said the PMDs are no longer
-> shared between the page tables.  So this presumably means that
-> vmalloc_fault() no longer actually works correctly on PTI systems.  I
-> didn't read the code to figure out *why* it doesn't work, but throwing
-> random vmalloc_sync_all() calls around is wrong.
+On 2018/07/21 5:19, David Rientjes wrote:
+> On Fri, 20 Jul 2018, Tetsuo Handa wrote:
+> 
+>>> Absent oom_lock serialization, this is exactly working as intended.  You 
+>>> could argue that once the thread has reached exit_mmap() and begins oom 
+>>> reaping that it should be allowed to finish before the oom reaper declares 
+>>> MMF_OOM_SKIP.  That could certainly be helpful, I simply haven't 
+>>> encountered a usecase where it were needed.  Or, we could restart the oom 
+>>> expiration when MMF_UNSTABLE is set and deem that progress is being made 
+>>> so it give it some extra time.  In practice, again, we haven't seen this 
+>>> needed.  But either of those are very easy to add in as well.  Which would 
+>>> you prefer?
+>>
+>> I don't think we need to introduce user-visible knob interface (even if it is in
+>> debugfs), for I think that my approach can solve your problem. Please try OOM lockup
+>> (CVE-2016-10723) mitigation patch ( https://marc.info/?l=linux-mm&m=153112243424285&w=4 )
+> 
+> The issue I am fixing has nothing to do with contention on oom_lock, it 
+> has to do with the inability of the oom reaper to free memory for one or 
+> more of several reasons: mlock, blockable mmus, ptes, mm->mmap_sem 
+> contention, and then the setting of MMF_OOM_SKIP to choose another victim 
+> before the original victim even reaches exit_mmap().  Thus, removing 
+> oom_lock from exit_mmap() will not fix this issue.
+> 
+> I agree that oom_lock can be removed from exit_mmap() and it would be 
+> helpful to do so, and may address a series of problems that we have yet to 
+> encounter, but this would not fix the almost immediate setting of 
+> MMF_OOM_SKIP that occurs with minimal memory freeing due to the oom 
+> reaper.
+> 
 
-Hmm, so the whole point of vmalloc_fault() fault is to sync changes from
-swapper_pg_dir to process page-tables when the relevant parts of the
-kernel page-table are not shared, no?
-
-That is also the reason we don't see this on 64 bit, because there these
-parts *are* shared.
-
-So with that reasoning vmalloc_fault() works as designed, except that
-a warning is issued when it's happens in the NMI path. That warning comes
-from
-
-	ebc8827f75954 x86: Barf when vmalloc and kmemcheck faults happen in NMI
-
-which went into 2.6.37 and was added because the NMI handler were not
-nesting-safe back then. Reason probably was that the handler on 64 bit
-has to use an IST stack and a nested NMI would overwrite the stack of
-the upper handler.  We don't have this problem on 32 bit as a nested NMI
-will not do another stack-switch there.
-
-I am not sure about 64 bit, but there is a lot of assembly magic to make
-NMIs nesting-safe, so I guess the problem should be gone there too.
-
-
-Regards,
-
-	Joerg
+Why [PATCH 2/2] in https://marc.info/?l=linux-mm&m=153119509215026&w=4 does not
+solve your problem?
