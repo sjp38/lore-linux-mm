@@ -1,84 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D02EA6B000A
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 04:32:22 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id q18-v6so4997288wrr.12
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 01:32:22 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z17-v6sor474446wrp.52.2018.07.20.01.32.21
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 14CCA6B000D
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 04:32:31 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id q12-v6so5508880pgp.6
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 01:32:31 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 59-v6sor408754plp.6.2018.07.20.01.32.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 20 Jul 2018 01:32:21 -0700 (PDT)
-Subject: Re: [PATCH V2 0/4] Fix kvm misconceives NVDIMM pages as reserved mmio
-References: <cover.1531241281.git.yi.z.zhang@linux.intel.com>
- <c4e1c527-a372-bd6a-a101-5a8e9026e7c1@linux.intel.com>
-From: Paolo Bonzini <pbonzini@redhat.com>
-Message-ID: <25569674-2d8f-8b54-4ba7-478b57067325@redhat.com>
-Date: Fri, 20 Jul 2018 10:32:19 +0200
+        Fri, 20 Jul 2018 01:32:30 -0700 (PDT)
+Date: Fri, 20 Jul 2018 01:32:28 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: cgroup-aware OOM killer, how to move forward
+In-Reply-To: <20180719170543.GA21770@castle.DHCP.thefacebook.com>
+Message-ID: <alpine.DEB.2.21.1807200130230.119737@chino.kir.corp.google.com>
+References: <20180713230545.GA17467@castle.DHCP.thefacebook.com> <alpine.DEB.2.21.1807131608530.218060@chino.kir.corp.google.com> <20180713231630.GB17467@castle.DHCP.thefacebook.com> <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
+ <20180717173844.GB14909@castle.DHCP.thefacebook.com> <20180717194945.GM7193@dhcp22.suse.cz> <20180717200641.GB18762@castle.DHCP.thefacebook.com> <20180718081230.GP7193@dhcp22.suse.cz> <20180718152846.GA6840@castle.DHCP.thefacebook.com> <20180719073843.GL7193@dhcp22.suse.cz>
+ <20180719170543.GA21770@castle.DHCP.thefacebook.com>
 MIME-Version: 1.0
-In-Reply-To: <c4e1c527-a372-bd6a-a101-5a8e9026e7c1@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Zhang,Yi" <yi.z.zhang@linux.intel.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, dan.j.williams@intel.com, jack@suse.cz, hch@lst.de, yu.c.zhang@intel.com, dave.jiang@intel.com
-Cc: linux-mm@kvack.org, rkrcmar@redhat.com, yi.z.zhang@intel.com
+To: Roman Gushchin <guro@fb.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
 
-On 20/07/2018 16:11, Zhang,Yi wrote:
-> Added Jiang,Dave,
-> 
-> Ping for further review, comments.
+On Thu, 19 Jul 2018, Roman Gushchin wrote:
 
-I need an Acked-by from the MM people to merge this.  Jan, Dan?
+> Hm, so the question is should we traverse up to the OOMing cgroup,
+> or up to the first cgroup with memory.group_oom=0?
+> 
+> I looked at an example, and it *might* be the latter is better,
+> especially if we'll make the default value inheritable.
+> 
+> Let's say we have a sub-tree with a workload and some control stuff.
+> Workload is tolerable to OOM's (we can handle it in userspace, for
+> example), but the control stuff is not.
+> Then it probably makes no sense to kill the entire sub-tree,
+> if a task in C has to be killed. But makes perfect sense if we
+> have to kill a task in B.
+> 
+>   /
+>   |
+>   A, delegated sub-tree, group_oom=1
+>  / \
+> B   C, workload, group_oom=0
+> ^
+> some control stuff here, group_oom=1
+> 
+> Does this makes sense?
+> 
 
-Paolo
-
-> 
-> Thanks All
-> 
-> Regards
-> Yi.
-> 
-> 
-> On 2018a1'07ae??11ae?JPY 01:01, Zhang Yi wrote:
->> For device specific memory space, when we move these area of pfn to
->> memory zone, we will set the page reserved flag at that time, some of
->> these reserved for device mmio, and some of these are not, such as
->> NVDIMM pmem.
->>
->> Now, we map these dev_dax or fs_dax pages to kvm for DIMM/NVDIMM
->> backend, since these pages are reserved. the check of
->> kvm_is_reserved_pfn() misconceives those pages as MMIO. Therefor, we
->> introduce 2 page map types, MEMORY_DEVICE_FS_DAX/MEMORY_DEVICE_DEV_DAX,
->> to indentify these pages are from NVDIMM pmem. and let kvm treat these
->> as normal pages.
->>
->> Without this patch, Many operations will be missed due to this
->> mistreatment to pmem pages. For example, a page may not have chance to
->> be unpinned for KVM guest(in kvm_release_pfn_clean); not able to be
->> marked as dirty/accessed(in kvm_set_pfn_dirty/accessed) etc.
->>
->> V1:
->> https://lkml.org/lkml/2018/7/4/91
->>
->> V2:
->> *Add documentation for MEMORY_DEVICE_DEV_DAX memory type in comment block
->> *Add is_dax_page() in mm.h to differentiate the pages is from DAX device.
->> *Remove the function kvm_is_nd_pfn().
->>
->> Zhang Yi (4):
->>   kvm: remove redundant reserved page check
->>   mm: introduce memory type MEMORY_DEVICE_DEV_DAX
->>   mm: add a function to differentiate the pages is from DAX device
->>     memory
->>   kvm: add a check if pfn is from NVDIMM pmem.
->>
->>  drivers/dax/pmem.c       |  1 +
->>  include/linux/memremap.h |  9 +++++++++
->>  include/linux/mm.h       | 12 ++++++++++++
->>  virt/kvm/kvm_main.c      | 16 ++++++++--------
->>  4 files changed, 30 insertions(+), 8 deletions(-)
->>
-> 
-> 
+The *only* suggestion here was that memory.group_oom take a string instead 
+of a boolean value so that it can be extended later, especially if 
+introducing another tunable is problematic because it clashes with 
+semantics of the this one.  This is *so* trivial to do.  Anything that is 
+going to care about setting up cgroup oom killing will have no problems 
+writing a string instead of an integer.  I'm asking that you don't back 
+the interface into a corner where extending it later is problematic.
