@@ -1,45 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C48C6B0008
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 16:01:30 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id 70-v6so8176597plc.1
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 13:01:30 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e93-v6si2384268plb.135.2018.07.20.13.01.29
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EF6E86B0010
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 16:02:35 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id t20-v6so6621548pgu.9
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 13:02:35 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t69-v6sor796518pgd.355.2018.07.20.13.02.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 20 Jul 2018 13:01:29 -0700 (PDT)
-Date: Fri, 20 Jul 2018 13:01:24 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v4 0/8] mm: Rework hmm to use devm_memremap_pages and
- other fixes
-Message-ID: <20180720200124.GB2736@bombadil.infradead.org>
-References: <37267986-A987-4AD7-96CE-C1D2F116A4AC@sinenomine.net>
- <20180720125146.02db0f40b4edc716c6f080d2@linux-foundation.org>
- <20180720195746.GD7697@redhat.com>
+        (Google Transport Security);
+        Fri, 20 Jul 2018 13:02:34 -0700 (PDT)
+Date: Fri, 20 Jul 2018 13:02:33 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: thp: remove use_zero_page sysfs knob
+In-Reply-To: <20180720123243.6dfc95ba061cd06e05c0262e@linux-foundation.org>
+Message-ID: <alpine.DEB.2.21.1807201300290.224013@chino.kir.corp.google.com>
+References: <1532110430-115278-1-git-send-email-yang.shi@linux.alibaba.com> <20180720123243.6dfc95ba061cd06e05c0262e@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180720195746.GD7697@redhat.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mark Vitale <mvitale@sinenomine.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dan Williams <dan.j.williams@intel.org>, Joe Gorse <jgorse@sinenomine.net>, "release-team@openafs.org" <release-team@openafs.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>, kirill@shutemov.name, hughd@google.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jul 20, 2018 at 03:57:47PM -0400, Jerome Glisse wrote:
-> On Fri, Jul 20, 2018 at 12:51:46PM -0700, Andrew Morton wrote:
-> > Problem is, that patch is eighth in a series which we're waiting for
-> > Jerome to review and the changelog starts with "Now that all producers
-> > of dev_pagemap instances in the kernel are properly converted to
-> > EXPORT_SYMBOL_GPL...".
+On Fri, 20 Jul 2018, Andrew Morton wrote:
+
+> > By digging into the original review, it looks use_zero_page sysfs knob
+> > was added to help ease-of-testing and give user a way to mitigate
+> > refcounting overhead.
+> > 
+> > It has been a few years since the knob was added at the first place, I
+> > think we are confident that it is stable enough. And, since commit
+> > 6fcb52a56ff60 ("thp: reduce usage of huge zero page's atomic counter"),
+> > it looks refcounting overhead has been reduced significantly.
+> > 
+> > Other than the above, the value of the knob is always 1 (enabled by
+> > default), I'm supposed very few people turn it off by default.
+> > 
+> > So, it sounds not worth to still keep this knob around.
 > 
-> I am fine with the patchset modulo GPL, i did review it in the past
-> but i did not formaly reply as i was opose to the GPL changes. So my
-> only objection is with the GPL export, everything else looks fine.
+> Probably OK.  Might not be OK, nobody knows.
+> 
+> It's been there for seven years so another six months won't kill us. 
+> How about as an intermediate step we add a printk("use_zero_page is
+> scheduled for removal.  Please contact linux-mm@kvack.org if you need
+> it").
+> 
 
-Everyone from the mm side who's looked at these patches agrees that it
-reaches far too far into the guts of the mm to be anything other than
-exposing internals.  It's not credible to claim that a module written that
-uses these interfaces is anything other than a derived work of the kernel.
-
-I feel these patches should be merged over Jerome's objections.
+We disable the huge zero page through this interface, there were issues 
+related to the huge zero page shrinker (probably best to never free a 
+per-node huge zero page after allocated) and CVE-2017-1000405 for huge 
+dirty COW.
