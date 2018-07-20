@@ -1,58 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B88A6B0010
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 05:47:25 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id b9-v6so4278995edn.18
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 02:47:25 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t27-v6si626065edd.157.2018.07.20.02.47.23
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DF526B0003
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 05:58:01 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id r10-v6so8588212itc.2
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 02:58:01 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id m23-v6si1160616jal.40.2018.07.20.02.57.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jul 2018 02:47:23 -0700 (PDT)
-Subject: Re: [PATCH v3 0/7] kmalloc-reclaimable caches
-References: <20180718133620.6205-1-vbabka@suse.cz>
- <20180719195332.GB26595@castle.DHCP.thefacebook.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <8ed44a53-fa20-a7ff-c662-72de9a9fd9e4@suse.cz>
-Date: Fri, 20 Jul 2018 11:45:02 +0200
+        Fri, 20 Jul 2018 02:58:00 -0700 (PDT)
+Subject: Re: [patch v3] mm, oom: fix unnecessary killing of additional
+ processes
+References: <alpine.DEB.2.21.1806211434420.51095@chino.kir.corp.google.com>
+ <d19d44c3-c8cf-70a1-9b15-c98df233d5f0@i-love.sakura.ne.jp>
+ <alpine.DEB.2.21.1807181317540.49359@chino.kir.corp.google.com>
+ <a78fb992-ad59-0cdb-3c38-8284b2245f21@i-love.sakura.ne.jp>
+ <alpine.DEB.2.21.1807200133310.119737@chino.kir.corp.google.com>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <9ab77cc7-2167-0659-a2ad-9cec3b9440e9@i-love.sakura.ne.jp>
+Date: Fri, 20 Jul 2018 18:57:44 +0900
 MIME-Version: 1.0
-In-Reply-To: <20180719195332.GB26595@castle.DHCP.thefacebook.com>
+In-Reply-To: <alpine.DEB.2.21.1807200133310.119737@chino.kir.corp.google.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Laura Abbott <labbott@redhat.com>, Sumit Semwal <sumit.semwal@linaro.org>, Vijayanand Jitta <vjitta@codeaurora.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kbuild test robot <fengguang.wu@intel.com>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 07/19/2018 09:53 PM, Roman Gushchin wrote:
->> Vlastimil
-> Overall the patchset looks solid to me.
-> Please, feel free to add
-> Acked-by: Roman Gushchin <guro@fb.com>
+On 2018/07/20 17:41, David Rientjes wrote:
+> Absent oom_lock serialization, this is exactly working as intended.  You 
+> could argue that once the thread has reached exit_mmap() and begins oom 
+> reaping that it should be allowed to finish before the oom reaper declares 
+> MMF_OOM_SKIP.  That could certainly be helpful, I simply haven't 
+> encountered a usecase where it were needed.  Or, we could restart the oom 
+> expiration when MMF_UNSTABLE is set and deem that progress is being made 
+> so it give it some extra time.  In practice, again, we haven't seen this 
+> needed.  But either of those are very easy to add in as well.  Which would 
+> you prefer?
 
-Thanks!
-
-> Two small nits:
-> 1) The last patch is unrelated to the main idea,
-> and can potentially cause ABI breakage.
-
-Yes, that's why it's last.
-
-> I'd separate it from the rest of the patchset.
-
-It's not independent though because there would be conflicts. It has to
-be decided if it goes before of after the rest. Putting it last in the
-series makes the order clear and makes it possible to revert it in case
-it does break any users, without disrupting the rest of the series.
-
-> 2) It's actually re-opening the security issue for SLOB
-> users. Is the memory overhead really big enough to
-> justify that?
-
-I assume that anyone choosing SLOB has a tiny embedded device which runs
-only pre-flashed code, so that's less of an issue. If somebody can
-trigger the issue remotely, there are likely also other ways to exhaust
-the limited memory there?
-
-> Thanks!
+I don't think we need to introduce user-visible knob interface (even if it is in
+debugfs), for I think that my approach can solve your problem. Please try OOM lockup
+(CVE-2016-10723) mitigation patch ( https://marc.info/?l=linux-mm&m=153112243424285&w=4 )
+and my cleanup patch ( [PATCH 1/2] at https://marc.info/?l=linux-mm&m=153119509215026&w=4 )
+on top of linux.git . And please reply how was the result, for I'm currently asking
+Roman whether we can apply these patches before applying the cgroup-aware OOM killer.
