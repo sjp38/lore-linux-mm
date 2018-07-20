@@ -1,169 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 426896B0006
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 06:03:30 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c2-v6so4474679edi.20
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 03:03:30 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h4-v6sor956610edq.9.2018.07.20.03.03.28
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F9786B0003
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 06:30:18 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id c2-v6so4503331edi.20
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 03:30:18 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x18-v6si1318099edb.460.2018.07.20.03.30.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 20 Jul 2018 03:03:28 -0700 (PDT)
-Date: Fri, 20 Jul 2018 12:03:27 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH v2 3/5] mm/page_alloc: Optimize free_area_init_core
-Message-ID: <20180720100327.GA19478@techadventures.net>
-References: <20180719132740.32743-1-osalvador@techadventures.net>
- <20180719132740.32743-4-osalvador@techadventures.net>
- <20180719134417.GC7193@dhcp22.suse.cz>
- <20180719140327.GB10988@techadventures.net>
- <20180719151555.GH7193@dhcp22.suse.cz>
- <20180719205235.GA14010@techadventures.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180719205235.GA14010@techadventures.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Jul 2018 03:30:16 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH] fs/seq_file: remove kmalloc(ops) for single_open seqfiles
+Date: Fri, 20 Jul 2018 12:29:52 +0200
+Message-Id: <20180720102952.30935-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, pasha.tatashin@oracle.com, vbabka@suse.cz, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
+To: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>
 
-On Thu, Jul 19, 2018 at 10:52:35PM +0200, Oscar Salvador wrote:
-> On Thu, Jul 19, 2018 at 05:15:55PM +0200, Michal Hocko wrote:
-> > Your changelog doesn't really explain the motivation. Does the change
-> > help performance? Is this a pure cleanup?
-> 
-> Hi Michal,
-> 
-> Sorry to not have explained this better from the very beginning.
-> 
-> It should help a bit in performance terms as we would be skipping those
-> condition checks and assignations for zones that do not have any pages.
-> It is not a huge win, but I think that skipping code we do not really need to run
-> is worh to have.
-> 
-> > The function is certainly not an example of beauty. It is more an
-> > example of changes done on top of older ones without much thinking. But
-> > I do not see your change would make it so much better. I would consider
-> > it a much nicer cleanup if it was split into logical units each doing
-> > one specific thing.
-> 
-> About the cleanup, I thought that moving that block of code to a separate function
-> would make the code easier to follow.
-> If you think that this is still not enough, I can try to split it and see the outcome.
+single_open() currently allocates seq_operations with kmalloc(). This is
+suboptimal, because that's four pointers, of which three are constant, and
+only the 'show' op differs. We also have to be careful to use single_release()
+to avoid leaking the ops structure.
 
-I tried to split it innto three logical blocks:
+Instead of this we can have a fixed single_show() function and constant ops
+structure for these seq_files. We can store the pointer to the 'show' op as
+a new field of struct seq_file. That's also not terribly elegant, because the
+field is there also for non-single_open() seq files, but it's a single pointer
+in an already existing (and already relatively large) structure instead of
+an extra kmalloc of four pointers, so the tradeoff is OK.
 
-- Substract memmap pages
-- Substract dma reserves
-- Account kernel pages (nr_kernel_pages and nr_total_pages)
+Suggested-by: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ Documentation/filesystems/seq_file.txt |  5 +++-
+ fs/seq_file.c                          | 40 ++++++++++++--------------
+ include/linux/seq_file.h               |  5 ++--
+ 3 files changed, 25 insertions(+), 25 deletions(-)
 
-Is this something that makes sense to you:
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 10b754fba5fa..1397dcdd4a3c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6237,6 +6237,47 @@ static void pgdat_init_kcompactd(struct pglist_data *pgdat)
- static void pgdat_init_kcompactd(struct pglist_data *pgdat) {}
- #endif
+diff --git a/Documentation/filesystems/seq_file.txt b/Documentation/filesystems/seq_file.txt
+index 9de4303201e1..ed61495abee8 100644
+--- a/Documentation/filesystems/seq_file.txt
++++ b/Documentation/filesystems/seq_file.txt
+@@ -335,4 +335,7 @@ When output time comes, the show() function will be called once. The data
+ value given to single_open() can be found in the private field of the
+ seq_file structure. When using single_open(), the programmer should use
+ single_release() instead of seq_release() in the file_operations structure
+-to avoid a memory leak.
++to avoid a memory leak. Note that the implementation has changed and current
++kernels will not leak anymore, but it's better to keep using single_release()
++in case the implementation details change again.
++
+diff --git a/fs/seq_file.c b/fs/seq_file.c
+index 4cc090b50cc5..3fd2ded04d93 100644
+--- a/fs/seq_file.c
++++ b/fs/seq_file.c
+@@ -563,22 +563,27 @@ static void single_stop(struct seq_file *p, void *v)
+ {
+ }
  
-+static void account_kernel_pages(enum zone_type j, unsigned long freesize,
-+						unsigned long memmap_pages)
++static int single_show(struct seq_file *p, void *v)
 +{
-+	if (!is_highmem_idx(j))
-+		nr_kernel_pages += freesize;
-+	/* Charge for highmem memmap if there are enough kernel pages */
-+	else if (nr_kernel_pages > memmap_pages * 2)
-+		 nr_kernel_pages -= memmap_pages;
-+	nr_all_pages += freesize;
++	return p->single_show_op(p, v);
 +}
 +
-+static unsigned long substract_dma_reserves(unsigned long freesize)
-+{
-+	/* Account for reserved pages */
-+	if (freesize > dma_reserve) {
-+		freesize -= dma_reserve;
-+		printk(KERN_DEBUG "  %s zone: %lu pages reserved\n",
-+					zone_names[0], dma_reserve);
-+	}
++static const struct seq_operations single_seq_op = {
++	.start	= single_start,
++	.next	= single_next,
++	.stop	= single_stop,
++	.show	= single_show
++};
 +
-+	return freesize;
-+}
-+
-+static unsigned long substract_memmap_pages(unsigned long freesize, unsigned long memmap_pages)
-+{
-+	/*
-+	 * Adjust freesize so that it accounts for how much memory
-+	 * is used by this zone for memmap. This affects the watermark
-+	 * and per-cpu initialisations
-+	 */
-+	if (freesize >= memmap_pages) {
-+		freesize -= memmap_pages;
-+		if (memmap_pages)
-+			printk(KERN_DEBUG "  %s zone: %lu pages used for memmap\n",
-+							zone_names[j], memmap_pages);
-+	} else
-+		pr_warn("  %s zone: %lu pages exceeds freesize %lu\n",
-+				zone_names[j], memmap_pages, freesize);
-+	return freesize;
-+}
-+
- /*
-  * Set up the zone data structures:
-  *   - mark all pages reserved
-@@ -6267,44 +6308,20 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
- 
- 	for (j = 0; j < MAX_NR_ZONES; j++) {
- 		struct zone *zone = pgdat->node_zones + j;
--		unsigned long size, freesize, memmap_pages;
-+		unsigned long size = zone->spanned_pages
-+		unsigned long freesize = zone->present_pages;
- 		unsigned long zone_start_pfn = zone->zone_start_pfn;
- 
--		size = zone->spanned_pages;
--		freesize = zone->present_pages;
+ int single_open(struct file *file, int (*show)(struct seq_file *, void *),
+ 		void *data)
+ {
+-	struct seq_operations *op = kmalloc(sizeof(*op), GFP_KERNEL_ACCOUNT);
+-	int res = -ENOMEM;
 -
--		/*
--		 * Adjust freesize so that it accounts for how much memory
--		 * is used by this zone for memmap. This affects the watermark
--		 * and per-cpu initialisations
--		 */
--		memmap_pages = calc_memmap_size(size, freesize);
--		if (!is_highmem_idx(j)) {
--			if (freesize >= memmap_pages) {
--				freesize -= memmap_pages;
--				if (memmap_pages)
--					printk(KERN_DEBUG
--					       "  %s zone: %lu pages used for memmap\n",
--					       zone_names[j], memmap_pages);
--			} else
--				pr_warn("  %s zone: %lu pages exceeds freesize %lu\n",
--					zone_names[j], memmap_pages, freesize);
--		}
-+		if (size) {
-+			unsigned long memmap_pages = calc_memmap_size(size, freesize);
-+			if (!is_highmem_idx(j))
-+				freesize =  substract_memmap_pages(freesize, memmap_pages);
+-	if (op) {
+-		op->start = single_start;
+-		op->next = single_next;
+-		op->stop = single_stop;
+-		op->show = show;
+-		res = seq_open(file, op);
+-		if (!res)
+-			((struct seq_file *)file->private_data)->private = data;
+-		else
+-			kfree(op);
++	int res;
++
++	res = seq_open(file, &single_seq_op);
++	if (!res) {
++		((struct seq_file *)file->private_data)->private = data;
++		((struct seq_file *)file->private_data)->single_show_op = show;
+ 	}
+ 	return res;
+ }
+@@ -602,15 +607,6 @@ int single_open_size(struct file *file, int (*show)(struct seq_file *, void *),
+ }
+ EXPORT_SYMBOL(single_open_size);
  
--		/* Account for reserved pages */
--		if (j == 0 && freesize > dma_reserve) {
--			freesize -= dma_reserve;
--			printk(KERN_DEBUG "  %s zone: %lu pages reserved\n",
--					zone_names[0], dma_reserve);
-+			if (j == ZONE_DMA)
-+				freesize = substract_dma_reserves(freesize);
-+			account_kernel_pages(j, freesize, memmap_pages);
- 		}
+-int single_release(struct inode *inode, struct file *file)
+-{
+-	const struct seq_operations *op = ((struct seq_file *)file->private_data)->op;
+-	int res = seq_release(inode, file);
+-	kfree(op);
+-	return res;
+-}
+-EXPORT_SYMBOL(single_release);
+-
+ int seq_release_private(struct inode *inode, struct file *file)
+ {
+ 	struct seq_file *seq = file->private_data;
+diff --git a/include/linux/seq_file.h b/include/linux/seq_file.h
+index a121982af0f5..c9a70c584a7d 100644
+--- a/include/linux/seq_file.h
++++ b/include/linux/seq_file.h
+@@ -24,9 +24,10 @@ struct seq_file {
+ 	u64 version;
+ 	struct mutex lock;
+ 	const struct seq_operations *op;
+-	int poll_event;
++	int (*single_show_op)(struct seq_file *, void *);
+ 	const struct file *file;
+ 	void *private;
++	int poll_event;
+ };
  
--		if (!is_highmem_idx(j))
--			nr_kernel_pages += freesize;
--		/* Charge for highmem memmap if there are enough kernel pages */
--		else if (nr_kernel_pages > memmap_pages * 2)
--			nr_kernel_pages -= memmap_pages;
--		nr_all_pages += freesize;
-
-Thanks
+ struct seq_operations {
+@@ -140,7 +141,7 @@ int seq_path_root(struct seq_file *m, const struct path *path,
+ 
+ int single_open(struct file *, int (*)(struct seq_file *, void *), void *);
+ int single_open_size(struct file *, int (*)(struct seq_file *, void *), void *, size_t);
+-int single_release(struct inode *, struct file *);
++#define single_release	seq_release
+ void *__seq_open_private(struct file *, const struct seq_operations *, int);
+ int seq_open_private(struct file *, const struct seq_operations *, int);
+ int seq_release_private(struct inode *, struct file *);
 -- 
-Oscar Salvador
-SUSE L3
+2.18.0
