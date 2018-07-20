@@ -1,66 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E91DD6B0003
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2018 21:25:43 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id f91-v6so3694011plb.10
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 18:25:43 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id n3-v6si590006pld.146.2018.07.19.18.25.42
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D9D506B0003
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 02:25:38 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id e93-v6so6577172plb.5
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2018 23:25:38 -0700 (PDT)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id h23-v6si1077338pgl.373.2018.07.19.23.25.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 19 Jul 2018 18:25:42 -0700 (PDT)
-Date: Thu, 19 Jul 2018 18:25:36 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [V9fs-developer] KASAN: use-after-free Read in
- generic_perform_write
-Message-ID: <20180720012536.GA27335@bombadil.infradead.org>
-References: <00000000000047116205715df655@google.com>
- <20180719170718.8d4e7344fe79b2ad411dde98@linux-foundation.org>
- <20180720002704.GA20844@nautica>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Jul 2018 23:25:37 -0700 (PDT)
+Subject: Re: [PATCH V2 0/4] Fix kvm misconceives NVDIMM pages as reserved mmio
+References: <cover.1531241281.git.yi.z.zhang@linux.intel.com>
+From: "Zhang,Yi" <yi.z.zhang@linux.intel.com>
+Message-ID: <c4e1c527-a372-bd6a-a101-5a8e9026e7c1@linux.intel.com>
+Date: Fri, 20 Jul 2018 22:11:30 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180720002704.GA20844@nautica>
+In-Reply-To: <cover.1531241281.git.yi.z.zhang@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dominique Martinet <asmadeus@codewreck.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, syzbot <syzbot+b173e77096a8ba815511@syzkaller.appspotmail.com>, jack@suse.cz, jlayton@redhat.com, syzkaller-bugs@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, v9fs-developer@lists.sourceforge.net, mgorman@techsingularity.net
+To: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pbonzini@redhat.com, dan.j.williams@intel.com, jack@suse.cz, hch@lst.de, yu.c.zhang@intel.com, dave.jiang@intel.com
+Cc: linux-mm@kvack.org, rkrcmar@redhat.com, yi.z.zhang@intel.com
 
-On Fri, Jul 20, 2018 at 02:27:05AM +0200, Dominique Martinet wrote:
-> Andrew Morton wrote on Thu, Jul 19, 2018:
-> > On Thu, 19 Jul 2018 11:01:01 -0700 syzbot <syzbot+b173e77096a8ba815511@syzkaller.appspotmail.com> wrote:
-> > > Hello,
-> > > 
-> > > syzbot found the following crash on:
-> > > 
-> > > HEAD commit:    1c34981993da Add linux-next specific files for 20180719
-> > > git tree:       linux-next
-> > > console output: https://syzkaller.appspot.com/x/log.txt?x=16e6ac44400000
-> > > kernel config:  https://syzkaller.appspot.com/x/.config?x=7002497517b09aec
-> > > dashboard link: https://syzkaller.appspot.com/bug?extid=b173e77096a8ba815511
-> > > compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
-> > > 
-> > > Unfortunately, I don't have any reproducer for this crash yet.
-> 
-> > I'm suspecting v9fs.  Does that fs attempt to write to the fs from a
-> > kmalloced buffer?
-> 
-> Difficult to say without any idea of what syzkaller tried doing, but it
-> looks like it hook'd up a fd opened to a local ext4 file into a trans_fd
-> mount; so sending a packet to the "server" would trigger a local write
-> instead.
-> The reason it's freed too early probably is that the reply came from a
-> read before the write happened; this is going to be tricky to fix as
-> that write is 100% asynchronous without any feedback right now (the
-> design assumes that the write has to have finished by the time reply
-> came), but if we want to protect ourselves from rogue servers we'll have
-> to think about something.
-> 
-> I'll write it down to not forget, thanks for the cc.
+Added Jiang,Dave,
 
-I suspect this got unmasked by my changes; before it would allocate
-buffers and just leave them around.  Now it'll free them, which means we
-get to see this reuse (rather than having the buffer reused and getting
-corrupt data written).
+Ping for further review, comments.
 
-Not that I'm volunteering to fix this problem ;-)
+Thanks All
+
+Regards
+Yi.
+
+
+On 2018a1'07ae??11ae?JPY 01:01, Zhang Yi wrote:
+> For device specific memory space, when we move these area of pfn to
+> memory zone, we will set the page reserved flag at that time, some of
+> these reserved for device mmio, and some of these are not, such as
+> NVDIMM pmem.
+>
+> Now, we map these dev_dax or fs_dax pages to kvm for DIMM/NVDIMM
+> backend, since these pages are reserved. the check of
+> kvm_is_reserved_pfn() misconceives those pages as MMIO. Therefor, we
+> introduce 2 page map types, MEMORY_DEVICE_FS_DAX/MEMORY_DEVICE_DEV_DAX,
+> to indentify these pages are from NVDIMM pmem. and let kvm treat these
+> as normal pages.
+>
+> Without this patch, Many operations will be missed due to this
+> mistreatment to pmem pages. For example, a page may not have chance to
+> be unpinned for KVM guest(in kvm_release_pfn_clean); not able to be
+> marked as dirty/accessed(in kvm_set_pfn_dirty/accessed) etc.
+>
+> V1:
+> https://lkml.org/lkml/2018/7/4/91
+>
+> V2:
+> *Add documentation for MEMORY_DEVICE_DEV_DAX memory type in comment block
+> *Add is_dax_page() in mm.h to differentiate the pages is from DAX device.
+> *Remove the function kvm_is_nd_pfn().
+>
+> Zhang Yi (4):
+>   kvm: remove redundant reserved page check
+>   mm: introduce memory type MEMORY_DEVICE_DEV_DAX
+>   mm: add a function to differentiate the pages is from DAX device
+>     memory
+>   kvm: add a check if pfn is from NVDIMM pmem.
+>
+>  drivers/dax/pmem.c       |  1 +
+>  include/linux/memremap.h |  9 +++++++++
+>  include/linux/mm.h       | 12 ++++++++++++
+>  virt/kvm/kvm_main.c      | 16 ++++++++--------
+>  4 files changed, 30 insertions(+), 8 deletions(-)
+>
