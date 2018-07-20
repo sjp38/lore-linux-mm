@@ -1,98 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B7056B0273
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 08:51:39 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id d1-v6so8332676qth.21
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 05:51:39 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id g28-v6si1697221qvi.238.2018.07.20.05.51.38
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BCD46B0003
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 09:18:21 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id z13-v6so5589591wrt.19
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 06:18:20 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id b9-v6si1455589wrp.210.2018.07.20.06.18.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jul 2018 05:51:38 -0700 (PDT)
-Date: Fri, 20 Jul 2018 15:51:32 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v36 0/5] Virtio-balloon: support free page reporting
-Message-ID: <20180720154922-mutt-send-email-mst@kernel.org>
-References: <1532075585-39067-1-git-send-email-wei.w.wang@intel.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 20 Jul 2018 06:18:19 -0700 (PDT)
+Date: Fri, 20 Jul 2018 15:17:54 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCHv5 08/19] x86/mm: Introduce variables to store number,
+ shift and mask of KeyIDs
+In-Reply-To: <20180720123415.57m2fqbdjtvnietu@kshutemo-mobl1>
+Message-ID: <alpine.DEB.2.21.1807201511560.1580@nanos.tec.linutronix.de>
+References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com> <20180717112029.42378-9-kirill.shutemov@linux.intel.com> <1edc05b0-8371-807e-7cfa-6e8f61ee9b70@intel.com> <20180719102130.b4f6b6v5wg3modtc@kshutemo-mobl1> <alpine.DEB.2.21.1807191436300.1602@nanos.tec.linutronix.de>
+ <20180719131245.sxnqsgzvkqriy3o2@kshutemo-mobl1> <alpine.DEB.2.21.1807191515150.1602@nanos.tec.linutronix.de> <20180719132312.75lduymla2uretax@kshutemo-mobl1> <alpine.DEB.2.21.1807191539370.1602@nanos.tec.linutronix.de>
+ <20180720123415.57m2fqbdjtvnietu@kshutemo-mobl1>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1532075585-39067-1-git-send-email-wei.w.wang@intel.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Dave Hansen <dave.hansen@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jul 20, 2018 at 04:33:00PM +0800, Wei Wang wrote:
-> This patch series is separated from the previous "Virtio-balloon
-> Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_HINT,  
-> implemented by this series enables the virtio-balloon driver to report
-> hints of guest free pages to the host. It can be used to accelerate live
-> migration of VMs. Here is an introduction of this usage:
+On Fri, 20 Jul 2018, Kirill A. Shutemov wrote:
+> On Thu, Jul 19, 2018 at 03:40:41PM +0200, Thomas Gleixner wrote:
+> > > > I still don't see how that's supposed to work.
+> > > > 
+> > > > When the inconsistent CPU is brought up _AFTER_ MKTME is enabled, then how
+> > > > does clearing the variables help? It does not magically make all the other
+> > > > stuff go away.
+> > > 
+> > > We don't actually enable MKTME in kernel. BIOS does. Kernel makes choose
+> > > to use it or not. Current design targeted to be used by userspace.
+> > > So until init we don't have any other stuff to go away. We can just
+> > > pretend that MKTME was never there.
+> > 
+> > Hotplug is not guaranteed to happen _BEFORE_ init. Think about physical
+> > hotplug.
 > 
-> Live migration needs to transfer the VM's memory from the source machine
-> to the destination round by round. For the 1st round, all the VM's memory
-> is transferred. From the 2nd round, only the pieces of memory that were
-> written by the guest (after the 1st round) are transferred. One method
-> that is popularly used by the hypervisor to track which part of memory is
-> written is to write-protect all the guest memory.
+> Ouch. I didn't think about this. :/
 > 
-> This feature enables the optimization by skipping the transfer of guest
-> free pages during VM live migration. It is not concerned that the memory
-> pages are used after they are given to the hypervisor as a hint of the
-> free pages, because they will be tracked by the hypervisor and transferred
-> in the subsequent round if they are used and written.
-> 
-> * Tests
-> - Test Environment
->     Host: Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz
->     Guest: 8G RAM, 4 vCPU
->     Migration setup: migrate_set_speed 100G, migrate_set_downtime 2 second
+> In this case I don't see how to handle the situation properly.
+> Is it okay to WARN() && pray()?
 
-Can we split out patches 1 and 2? They seem appropriate for this
-release ...
+Not really. First of all, you want to do the initial checking on the boot
+CPU and then when secondary CPUs are brought up, verify that they have
+matching parameters. If they do not, then we should just shut them down
+right away before they can touch anything which is TME related and mark
+them as 'don't online again'. That needs some extra logic in the hotplug
+code, but I already have played with that for different reasons. Stick a
+fat comment into that 'not matching' code path for now and I'll give you
+the magic for preventing full bringup after polishing it a bit.
 
-> - Test Results
->     - Idle Guest Live Migration Time (results are averaged over 10 runs):
->         - Optimization v.s. Legacy = 409ms vs 1757ms --> ~77% reduction
-> 	(setting page poisoning zero and enabling ksm don't affect the
->          comparison result)
->     - Guest with Linux Compilation Workload (make bzImage -j4):
->         - Live Migration Time (average)
->           Optimization v.s. Legacy = 1407ms v.s. 2528ms --> ~44% reduction
->         - Linux Compilation Time
->           Optimization v.s. Legacy = 5min4s v.s. 5min12s
->           --> no obvious difference
-> 
-> ChangeLog:
-> v35->v36:
->     - remove the mm patch, as Linus has a suggestion to get free page
->       addresses via allocation, instead of reading from the free page
->       list.
->     - virtio-balloon:
->         - replace oom notifier with shrinker;
->         - the guest to host communication interface remains the same as
->           v32.
-> 	- allocate free page blocks and send to host one by one, and free
->           them after sending all the pages.
-> 
-> For ChangeLogs from v22 to v35, please reference
-> https://lwn.net/Articles/759413/
-> 
-> For ChangeLogs before v21, please reference
-> https://lwn.net/Articles/743660/
-> 
-> Wei Wang (5):
->   virtio-balloon: remove BUG() in init_vqs
->   virtio_balloon: replace oom notifier with shrinker
->   virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
->   mm/page_poison: expose page_poisoning_enabled to kernel modules
->   virtio-balloon: VIRTIO_BALLOON_F_PAGE_POISON
-> 
->  drivers/virtio/virtio_balloon.c     | 456 ++++++++++++++++++++++++++++++------
->  include/uapi/linux/virtio_balloon.h |   7 +
->  mm/page_poison.c                    |   6 +
->  3 files changed, 394 insertions(+), 75 deletions(-)
-> 
-> -- 
-> 2.7.4
+Thanks,
+
+	tglx
