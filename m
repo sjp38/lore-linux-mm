@@ -1,85 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 746746B0269
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 08:34:21 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id d22-v6so7303361pls.4
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 05:34:21 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 3-v6sor464304pgf.66.2018.07.20.05.34.20
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DF2A66B026B
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 08:34:35 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id d18-v6so8386829qtj.20
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 05:34:35 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id s20-v6si1751362qvj.130.2018.07.20.05.34.35
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 20 Jul 2018 05:34:20 -0700 (PDT)
-Date: Fri, 20 Jul 2018 15:34:16 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv5 08/19] x86/mm: Introduce variables to store number,
- shift and mask of KeyIDs
-Message-ID: <20180720123415.57m2fqbdjtvnietu@kshutemo-mobl1>
-References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
- <20180717112029.42378-9-kirill.shutemov@linux.intel.com>
- <1edc05b0-8371-807e-7cfa-6e8f61ee9b70@intel.com>
- <20180719102130.b4f6b6v5wg3modtc@kshutemo-mobl1>
- <alpine.DEB.2.21.1807191436300.1602@nanos.tec.linutronix.de>
- <20180719131245.sxnqsgzvkqriy3o2@kshutemo-mobl1>
- <alpine.DEB.2.21.1807191515150.1602@nanos.tec.linutronix.de>
- <20180719132312.75lduymla2uretax@kshutemo-mobl1>
- <alpine.DEB.2.21.1807191539370.1602@nanos.tec.linutronix.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Jul 2018 05:34:35 -0700 (PDT)
+From: David Hildenbrand <david@redhat.com>
+Subject: [PATCH v1 0/2] mm/kdump: exclude reserved pages in dumps
+Date: Fri, 20 Jul 2018 14:34:20 +0200
+Message-Id: <20180720123422.10127-1-david@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1807191539370.1602@nanos.tec.linutronix.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Dave Hansen <dave.hansen@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, David Hildenbrand <david@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Dave Young <dyoung@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Michal Hocko <mhocko@kernel.org>, Michal Hocko <mhocko@suse.com>, Miles Chen <miles.chen@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Tesarik <ptesarik@suse.cz>, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu, Jul 19, 2018 at 03:40:41PM +0200, Thomas Gleixner wrote:
-> On Thu, 19 Jul 2018, Kirill A. Shutemov wrote:
-> > On Thu, Jul 19, 2018 at 03:18:03PM +0200, Thomas Gleixner wrote:
-> > > On Thu, 19 Jul 2018, Kirill A. Shutemov wrote:
-> > > > On Thu, Jul 19, 2018 at 02:37:35PM +0200, Thomas Gleixner wrote:
-> > > > > On Thu, 19 Jul 2018, Kirill A. Shutemov wrote:
-> > > > > > On Wed, Jul 18, 2018 at 04:19:10PM -0700, Dave Hansen wrote:
-> > > > > > > >  	} else {
-> > > > > > > >  		/*
-> > > > > > > >  		 * Reset __PHYSICAL_MASK.
-> > > > > > > > @@ -591,6 +592,9 @@ static void detect_tme(struct cpuinfo_x86 *c)
-> > > > > > > >  		 * between CPUs.
-> > > > > > > >  		 */
-> > > > > > > >  		physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
-> > > > > > > > +		mktme_keyid_mask = 0;
-> > > > > > > > +		mktme_keyid_shift = 0;
-> > > > > > > > +		mktme_nr_keyids = 0;
-> > > > > > > >  	}
-> > > > > > > 
-> > > > > > > Should be unnecessary.  These are zeroed by the compiler.
-> > > > > > 
-> > > > > > No. detect_tme() called for each CPU in the system.
-> > > > > 
-> > > > > And then the variables are cleared out while other CPUs can access them?
-> > > > > How is that supposed to work?
-> > > > 
-> > > > This code path only matter in patalogical case: when MKTME configuation is
-> > > > inconsitent between CPUs. Basically if BIOS screwed things up we disable
-> > > > MKTME.
-> > > 
-> > > I still don't see how that's supposed to work.
-> > > 
-> > > When the inconsistent CPU is brought up _AFTER_ MKTME is enabled, then how
-> > > does clearing the variables help? It does not magically make all the other
-> > > stuff go away.
-> > 
-> > We don't actually enable MKTME in kernel. BIOS does. Kernel makes choose
-> > to use it or not. Current design targeted to be used by userspace.
-> > So until init we don't have any other stuff to go away. We can just
-> > pretend that MKTME was never there.
-> 
-> Hotplug is not guaranteed to happen _BEFORE_ init. Think about physical
-> hotplug.
+Dumping tools (like makedumpfile) right now don't exclude reserved pages.
+So reserved pages might be access by dump tools although nobody except
+the owner should touch them.
 
-Ouch. I didn't think about this. :/
+This is relevant in virtual environments where we soon might want to
+report certain reserved pages to the hypervisor and they might no longer
+be accessible - what already was documented for reserved pages a long
+time ago ("might not even exist").
 
-In this case I don't see how to handle the situation properly.
-Is it okay to WARN() && pray()?
+David Hildenbrand (2):
+  mm: clarify semantics of reserved pages
+  kdump: include PG_reserved value in VMCOREINFO
+
+ include/linux/page-flags.h | 4 ++--
+ kernel/crash_core.c        | 1 +
+ 2 files changed, 3 insertions(+), 2 deletions(-)
 
 -- 
- Kirill A. Shutemov
+2.17.1
