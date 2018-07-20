@@ -1,75 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0892E6B0008
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 18:20:29 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id f91-v6so6137515plb.10
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 15:20:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p19-v6sor869677pfo.123.2018.07.20.15.20.27
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EE6D6B0003
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 19:01:29 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id t19-v6so8471892plo.9
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 16:01:29 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id x127-v6si2668580pgb.618.2018.07.20.16.01.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 20 Jul 2018 15:20:27 -0700 (PDT)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (1.0)
-Subject: Re: [PATCH 1/3] perf/core: Make sure the ring-buffer is mapped in all page-tables
-From: Andy Lutomirski <luto@amacapital.net>
-In-Reply-To: <20180720213700.gh6d2qd2ck6nt4ax@suse.de>
-Date: Fri, 20 Jul 2018 12:20:24 -1000
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <D89602E9-E620-4AF0-822C-206D7F0BA071@amacapital.net>
-References: <1532103744-31902-1-git-send-email-joro@8bytes.org> <1532103744-31902-2-git-send-email-joro@8bytes.org> <CALCETrXJX8tPVgD=Ce41534uneAAobm-HyjeGwVYgJDJ_+-bDw@mail.gmail.com> <20180720174846.GF18541@8bytes.org> <CALCETrUj4cLpOKUbJUfLqKJFkjAgeraE=ORQ-e-bKU+AHda0=Q@mail.gmail.com> <20180720213700.gh6d2qd2ck6nt4ax@suse.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Jul 2018 16:01:27 -0700 (PDT)
+Date: Fri, 20 Jul 2018 16:01:25 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+Message-Id: <20180720160125.f3cda46f317a1ff5a2342549@linux-foundation.org>
+In-Reply-To: <20180717081201.GB16803@dhcp22.suse.cz>
+References: <20180716115058.5559-1-mhocko@kernel.org>
+	<20180716161249.c76240cd487c070fb271d529@linux-foundation.org>
+	<20180717081201.GB16803@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <jroedel@suse.de>
-Cc: Andy Lutomirski <luto@kernel.org>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?UTF-8?Q?Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Felix Kuehling <felix.kuehling@amd.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, Christian =?ISO-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Rientjes <rientjes@google.com>, Leon Romanovsky <leonro@mellanox.com>
 
+On Tue, 17 Jul 2018 10:12:01 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 
-> On Jul 20, 2018, at 11:37 AM, Joerg Roedel <jroedel@suse.de> wrote:
->=20
->> On Fri, Jul 20, 2018 at 12:32:10PM -0700, Andy Lutomirski wrote:
->> I'm just reading your changelog, and you said the PMDs are no longer
->> shared between the page tables.  So this presumably means that
->> vmalloc_fault() no longer actually works correctly on PTI systems.  I
->> didn't read the code to figure out *why* it doesn't work, but throwing
->> random vmalloc_sync_all() calls around is wrong.
->=20
-> Hmm, so the whole point of vmalloc_fault() fault is to sync changes from
-> swapper_pg_dir to process page-tables when the relevant parts of the
-> kernel page-table are not shared, no?
->=20
-> That is also the reason we don't see this on 64 bit, because there these
-> parts *are* shared.
->=20
-> So with that reasoning vmalloc_fault() works as designed, except that
-> a warning is issued when it's happens in the NMI path. That warning comes
-> from
->=20
->    ebc8827f75954 x86: Barf when vmalloc and kmemcheck faults happen in NMI=
+> > Any suggestions regarding how the driver developers can test this code
+> > path?  I don't think we presently have a way to fake an oom-killing
+> > event?  Perhaps we should add such a thing, given the problems we're
+> > having with that feature.
+> 
+> The simplest way is to wrap an userspace code which uses these notifiers
+> into a memcg and set the hard limit to hit the oom. This can be done
+> e.g. after the test faults in all the mmu notifier managed memory and
+> set the hard limit to something really small. Then we are looking for a
+> proper process tear down.
 
->=20
-> which went into 2.6.37 and was added because the NMI handler were not
-> nesting-safe back then. Reason probably was that the handler on 64 bit
-> has to use an IST stack and a nested NMI would overwrite the stack of
-> the upper handler.  We don't have this problem on 32 bit as a nested NMI
-> will not do another stack-switch there.
->=20
-
-Thanks for digging!  The problem was presumably that vmalloc_fault() will IR=
-ET and re-enable NMIs on the way out.  But we=E2=80=99ve supported page faul=
-ts on user memory in NMI handlers on 32-bit and 64-bit for quite a while, an=
-d it=E2=80=99s fine now.
-
-I would remove the warning, re-test, and revert the other patch.
-
-The one case we can=E2=80=99t handle in vmalloc_fault() is a fault on a stac=
-k access. I don=E2=80=99t expect this to be a problem for PTI. It was a prob=
-lem for CONFIG_VMAP_STACK, though.
-
-> I am not sure about 64 bit, but there is a lot of assembly magic to make
-> NMIs nesting-safe, so I guess the problem should be gone there too.
->=20
->=20
-> Regards,
->=20
->    Joerg
+Chances are, some of the intended audience don't know how to do this
+and will either have to hunt down a lot of documentation or will just
+not test it.  But we want them to test it, so a little worked step-by-step
+example would help things along please.
