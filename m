@@ -1,150 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 23DEA6B0269
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 04:41:47 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id e19-v6so5488886pgv.11
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 01:41:47 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g2-v6sor368684pgv.100.2018.07.20.01.41.45
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 52AF16B0006
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 04:50:34 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id g5-v6so4411642edp.1
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 01:50:34 -0700 (PDT)
+Received: from huawei.com (szxga02-in.huawei.com. [45.249.212.188])
+        by mx.google.com with ESMTPS id c22-v6si1128318edj.78.2018.07.20.01.50.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 20 Jul 2018 01:41:45 -0700 (PDT)
-Date: Fri, 20 Jul 2018 01:41:43 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v3] mm, oom: fix unnecessary killing of additional
- processes
-In-Reply-To: <a78fb992-ad59-0cdb-3c38-8284b2245f21@i-love.sakura.ne.jp>
-Message-ID: <alpine.DEB.2.21.1807200133310.119737@chino.kir.corp.google.com>
-References: <alpine.DEB.2.21.1806211434420.51095@chino.kir.corp.google.com> <d19d44c3-c8cf-70a1-9b15-c98df233d5f0@i-love.sakura.ne.jp> <alpine.DEB.2.21.1807181317540.49359@chino.kir.corp.google.com>
- <a78fb992-ad59-0cdb-3c38-8284b2245f21@i-love.sakura.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Jul 2018 01:50:32 -0700 (PDT)
+From: "Zhangfei (Tyler)" <tyler.zhang@huawei.com>
+Subject: =?gb2312?B?tPC4tDogW1JGQ10gYSBxdWVzdGlvbiBhYm91dCByZXVzZSBod3BvaXNvbiBw?=
+ =?gb2312?B?YWdlIGluIHNvZnRfb2ZmbGluZV9wYWdlKCk=?=
+Date: Fri, 20 Jul 2018 08:50:22 +0000
+Message-ID: <E690DE8F4F207D4EB356CAC7B78E15467E402966@DGGEMA503-MBX.china.huawei.com>
+References: <99235479-716d-4c40-8f61-8e44c242abf8.xishi.qiuxishi@alibaba-inc.com>
+ <20180706081847.GA5144@hori1.linux.bs1.fc.nec.co.jp>
+ <7f0ff90d-578b-2096-92c0-542a490b06a1@huawei.com>
+In-Reply-To: <7f0ff90d-578b-2096-92c0-542a490b06a1@huawei.com>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kbuild test robot <fengguang.wu@intel.com>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Xiexiuqi <xiexiuqi@huawei.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?gb2312?B?9MPPocqvKM+hyq8p?= <xishi.qiuxishi@alibaba-inc.com>
+Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, "zy.zhengyi" <zy.zhengyi@alibaba-inc.com>, lvzhipeng <lvzhipeng@huawei.com>, meinanjing <meinanjing@huawei.com>, zhongjiang <zhongjiang@huawei.com>, Dukaitian <dukaitian@huawei.com>, Chenglongfei <chenglongfei@huawei.com>
 
-On Thu, 19 Jul 2018, Tetsuo Handa wrote:
-
-> Sigh...
-> 
-> Nacked-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> 
-> because David is not aware what is wrong.
-> 
-
-Hmm, didn't you incorporate this exact patch into your own patch series 
-that you proposed? :)
-
-I'm coming to this stark realization that all of these theater is only for 
-effect.  Perhaps other observers have come to that understanding earlier 
-and I was late to the party.
-
-You're nacking a patch because it does a double set_bit() and jiffies can 
-wraparound and we can add a process to the oom reaper list twice if the 
-oom happens at the exact same moment.  Ok.  These are extremely trivial to 
-fix.
-
-> Let's call "A" as a thread doing exit_mmap(), and "B" as the OOM reaper kernel thread.
-> 
-> (1) "A" finds that unlikely(mm_is_oom_victim(mm)) == true.
-> (2) "B" finds that test_bit(MMF_OOM_SKIP, &mm->flags) in oom_reap_task() is false.
-> (3) "B" finds that !test_bit(MMF_UNSTABLE, &mm->flags) in oom_reap_task() is true.
-> (4) "B" enters into oom_reap_task_mm(tsk, mm).
-> (5) "B" finds that !down_read_trylock(&mm->mmap_sem) is false.
-> (6) "B" finds that mm_has_blockable_invalidate_notifiers(mm) is false.
-> (7) "B" finds that test_bit(MMF_UNSTABLE, &mm->flags) is false.
-> (8) "B" enters into __oom_reap_task_mm(mm).
-> (9) "A" finds that test_and_set_bit(MMF_UNSTABLE, &mm->flags) is false.
-> (10) "A" is preempted by somebody else.
-> (11) "B" finds that test_and_set_bit(MMF_UNSTABLE, &mm->flags) is true.
-> (12) "B" leaves __oom_reap_task_mm(mm).
-> (13) "B" leaves oom_reap_task_mm().
-> (14) "B" finds that time_after_eq(jiffies, mm->oom_free_expire) became true.
-> (15) "B" finds that !test_bit(MMF_OOM_SKIP, &mm->flags) is true.
-> (16) "B" calls set_bit(MMF_OOM_SKIP, &mm->flags).
-> (17) "B" finds that test_bit(MMF_OOM_SKIP, &mm->flags) is true.
-> (18) select_bad_process() finds that MMF_OOM_SKIP is already set.
-> (19) out_of_memory() kills a new OOM victim.
-> (20) "A" resumes execution and start reclaiming memory.
-> 
-> because oom_lock serialization was already removed.
-> 
-
-Absent oom_lock serialization, this is exactly working as intended.  You 
-could argue that once the thread has reached exit_mmap() and begins oom 
-reaping that it should be allowed to finish before the oom reaper declares 
-MMF_OOM_SKIP.  That could certainly be helpful, I simply haven't 
-encountered a usecase where it were needed.  Or, we could restart the oom 
-expiration when MMF_UNSTABLE is set and deem that progress is being made 
-so it give it some extra time.  In practice, again, we haven't seen this 
-needed.  But either of those are very easy to add in as well.  Which would 
-you prefer?
-
-
-mm, oom: fix unnecessary killing of additional processes fix
-
-Fix double set_bit() per Tetsuo.
-
-Fix jiffies wraparound per Tetsuo.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/mmap.c     | 13 ++++++-------
- mm/oom_kill.c |  7 +++++--
- 2 files changed, 11 insertions(+), 9 deletions(-)
-
-diff --git a/mm/mmap.c b/mm/mmap.c
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3069,23 +3069,22 @@ void exit_mmap(struct mm_struct *mm)
- 		 * Nothing can be holding mm->mmap_sem here and the above call
- 		 * to mmu_notifier_release(mm) ensures mmu notifier callbacks in
- 		 * __oom_reap_task_mm() will not block.
--		 */
--		__oom_reap_task_mm(mm);
--
--		/*
--		 * Now, set MMF_UNSTABLE to avoid racing with the oom reaper.
-+		 *
-+		 * This sets MMF_UNSTABLE to avoid racing with the oom reaper.
- 		 * This needs to be done before calling munlock_vma_pages_all(),
- 		 * which clears VM_LOCKED, otherwise the oom reaper cannot
- 		 * reliably test for it.  If the oom reaper races with
- 		 * munlock_vma_pages_all(), this can result in a kernel oops if
- 		 * a pmd is zapped, for example, after follow_page_mask() has
- 		 * checked pmd_none().
--		 *
-+		 */
-+		__oom_reap_task_mm(mm);
-+
-+		/*
- 		 * Taking mm->mmap_sem for write after setting MMF_UNSTABLE will
- 		 * guarantee that the oom reaper will not run on this mm again
- 		 * after mmap_sem is dropped.
- 		 */
--		set_bit(MMF_UNSTABLE, &mm->flags);
- 		down_write(&mm->mmap_sem);
- 		up_write(&mm->mmap_sem);
- 	}
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -666,12 +666,15 @@ static int oom_reaper(void *unused)
- static u64 oom_free_timeout_ms = 1000;
- static void wake_oom_reaper(struct task_struct *tsk)
- {
-+	unsigned long expire = jiffies + msecs_to_jiffies(oom_free_timeout_ms);
-+
-+	if (!expire)
-+		expire++;
- 	/*
- 	 * Set the reap timeout; if it's already set, the mm is enqueued and
- 	 * this tsk can be ignored.
- 	 */
--	if (cmpxchg(&tsk->signal->oom_mm->oom_free_expire, 0UL,
--			jiffies + msecs_to_jiffies(oom_free_timeout_ms)))
-+	if (cmpxchg(&tsk->signal->oom_mm->oom_free_expire, 0UL, expire))
- 		return;
- 
- 	get_task_struct(tsk);
+SGkgTmFveWEmeGlzaGmjug0KCVdlIGhhdmUgYSBzaW1pbGFyIHByb2JsZW0sIHRoZSBkaWZmZXJl
+bmNlIGlzIHRoYXQgd2UgZGlkIG5vdCBFbmFibGUgaHVnZXBhZ2UsIHRoZSBzb2Z0LW9mZmxpbmUg
+d2FzIGV4ZWN1dGVkIGluIHRoZSBjYXNlIG9mIG5vcm1hbCA0SyBwYWdlcywgYW5kIGZpbmFsbHkg
+dGhlIE1DRSBraWxsIHdhcyB0cmlnZ2VyZWSjqGZpbmQgaHdwb2lzb24gZmxhZyBpcyBhbHJlYWR5
+IHNldC0tPnJldCA9IFZNX0ZBVUxUX0hXUE9JU09OLS0+bW1fZmF1bHRfZXJyb3IgLS0+ZG9fc2ln
+YnVzIC0tPiBtY2Uga2lsbKOpLiBXZSBub3RpY2VkIHRoYXQgdGhlIG5ldyBwYXRjaCBtYWRlIHNv
+bWUgbW9kaWZpY2F0aW9ucyB0byB0aGUgY2FzZSBvZiBodWdlIHBhZ2Ugb2ZmbGluZSwgQnV0IGhv
+dyBjYW4gd2UgYXZvaWQgdGhpcyByYWNlIGNvbmRpdGlvbiBmb3IgdGhlIGNhc2Ugb2Ygbm9ybWFs
+IHBhZ2U/DQoNClRoYW5rc6OhDQoNCi0tLS0t08q8/tStvP4tLS0tLQ0Kt6K8/sjLOiBYaWV4aXVx
+aSANCreiy83KsbzkOiAyMDE4xOo31MIyMMjVIDE1OjUwDQrK1bz+yMs6IE5hb3lhIEhvcmlndWNo
+aSA8bi1ob3JpZ3VjaGlAYWguanAubmVjLmNvbT47IPTDz6HKryjPocqvKSA8eGlzaGkucWl1eGlz
+aGlAYWxpYmFiYS1pbmMuY29tPg0Ks63LzTogbGludXgtbW0gPGxpbnV4LW1tQGt2YWNrLm9yZz47
+IGxpbnV4LWtlcm5lbCA8bGludXgta2VybmVsQHZnZXIua2VybmVsLm9yZz47IHp5LnpoZW5neWkg
+PHp5LnpoZW5neWlAYWxpYmFiYS1pbmMuY29tPjsgWmhhbmdmZWkgKFR5bGVyKSA8dHlsZXIuemhh
+bmdAaHVhd2VpLmNvbT47IGx2emhpcGVuZyA8bHZ6aGlwZW5nQGh1YXdlaS5jb20+OyBtZWluYW5q
+aW5nIDxtZWluYW5qaW5nQGh1YXdlaS5jb20+OyB6aG9uZ2ppYW5nIDx6aG9uZ2ppYW5nQGh1YXdl
+aS5jb20+DQrW98ziOiBSZTogW1JGQ10gYSBxdWVzdGlvbiBhYm91dCByZXVzZSBod3BvaXNvbiBw
+YWdlIGluIHNvZnRfb2ZmbGluZV9wYWdlKCkNCg0KSGkgTmFveWEsIFhpc2hpLA0KDQpXZSBoYXZl
+IGEgc2ltaWxhciBwcm9ibGVtLg0KQHpoYW5nZmVpLCBjb3VsZCB5b3UgcGxlYXNlIGRlc2NyaWJl
+IHlvdXIgcHJvYmxlbSBoZXJlLg0KDQpPbiAyMDE4LzcvNiAxNjoxOCwgTmFveWEgSG9yaWd1Y2hp
+IHdyb3RlOg0KPiBPbiBGcmksIEp1bCAwNiwgMjAxOCBhdCAxMTozNzo0MUFNICswODAwLCD0w8+h
+yq8oz6HKrykgd3JvdGU6DQo+PiBUaGlzIHBhdGNoIGFkZDA1Y2VjDQo+PiAobW06IHNvZnQtb2Zm
+bGluZTogZG9uJ3QgZnJlZSB0YXJnZXQgcGFnZSBpbiBzdWNjZXNzZnVsIHBhZ2UgDQo+PiBtaWdy
+YXRpb24pIHJlbW92ZXMNCj4+IHNldF9taWdyYXRldHlwZV9pc29sYXRlKCkgYW5kIHVuc2V0X21p
+Z3JhdGV0eXBlX2lzb2xhdGUoKSBpbiANCj4+IHNvZnRfb2ZmbGluZV9wYWdlICgpLg0KPj4NCj4+
+IEFuZCB0aGlzIHBhdGNoIDI0M2FiZDViDQo+PiAobW06IGh1Z2V0bGI6IHByZXZlbnQgcmV1c2Ug
+b2YgaHdwb2lzb25lZCBmcmVlIGh1Z2VwYWdlcykgY2hhbmdlcyBpZiANCj4+ICghaXNfbWlncmF0
+ZV9pc29sYXRlX3BhZ2UocGFnZSkpIHRvIGlmICghUGFnZUhXUG9pc29uKHBhZ2UpKSwgc28gaXQg
+DQo+PiBjb3VsZCBwcmV2ZW50IHNvbWVvbmUgcmV1c2UgdGhlIGZyZWUgaHVnZXRsYiBhZ2FpbiBh
+ZnRlciBzZXQgdGhlIA0KPj4gaHdwb2lzb24gZmxhZyBpbiBzb2Z0X29mZmxpbmVfZnJlZV9wYWdl
+KCkNCj4+DQo+PiBNeSBxdWVzdGlvbiBpcyB0aGF0IGlmIHNvbWVvbmUgcmV1c2UgdGhlIGZyZWUg
+aHVnZXRsYiBhZ2FpbiBiZWZvcmUNCj4+IHNvZnRfb2ZmbGluZV9mcmVlX3BhZ2UoKSBhbmQNCj4+
+IGFmdGVyIGdldF9hbnlfcGFnZSgpLCB0aGVuIGl0IHVzZXMgdGhlIGhvcG9pc29uIHBhZ2UsIGFu
+ZCB0aGlzIG1heSANCj4+IHRyaWdnZXIgbWNlIGtpbGwgbGF0ZXIsIHJpZ2h0Pw0KPiANCj4gSGkg
+WGlzaGksDQo+IA0KPiBUaGFuayB5b3UgZm9yIHBvaW50aW5nIG91dCB0aGUgaXNzdWUuIFRoYXQn
+cyBuaWNlIGNhdGNoLg0KPiANCj4gSSB0aGluayB0aGF0IHRoZSByYWNlIGNvbmRpdGlvbiBpdHNl
+bGYgY291bGQgaGFwcGVuLCBidXQgaXQgZG9lc24ndCANCj4gbGVhZCB0byBNQ0Uga2lsbCBiZWNh
+dXNlIFBhZ2VIV1BvaXNvbiBpcyBub3QgdmlzaWJsZSB0byBIVyB3aGljaCB0cmlnZ2VycyBNQ0Uu
+DQo+IFBhZ2VIV1BvaXNvbiBmbGFnIGlzIGp1c3QgYSBmbGFnIGluIHN0cnVjdCBwYWdlIHRvIHJl
+cG9ydCB0aGUgbWVtb3J5IA0KPiBlcnJvciBmcm9tIGtlcm5lbCB0byB1c2Vyc3BhY2UuIFNvIGV2
+ZW4gaWYgYSBDUFUgaXMgYWNjZXNzaW5nIHRvIHRoZSANCj4gcGFnZSB3aG9zZSBzdHJ1Y3QgcGFn
+ZSBoYXMgUGFnZUhXUG9pc29uIHNldCwgdGhhdCBkb2Vzbid0IGNhdXNlIGEgTUNFIA0KPiB1bmxl
+c3MgdGhlIHBhZ2UgaXMgcGh5c2ljYWxseSBicm9rZW4uDQo+IFRoZSB0eXBlIG9mIG1lbW9yeSBl
+cnJvciB0aGF0IHNvZnQgb2ZmbGluZSB0cmllcyB0byBoYW5kbGUgaXMgDQo+IGNvcnJlY3RlZCBv
+bmUgd2hpY2ggaXMgbm90IGEgZmFpbHVyZSB5ZXQgYWx0aG91Z2ggaXQncyBzdGFydGluZyB0byB3
+ZWFyLg0KPiBTbyBzdWNoIFBhZ2VIV1BvaXNvbiBwYWdlIGNhbiBiZSByZXVzZWQsIGJ1dCB0aGF0
+J3Mgbm90IGNyaXRpY2FsIA0KPiBiZWNhdXNlIHRoZSBwYWdlIGlzIGZyZWVkIGF0IHNvbWUgcG9p
+bnQgYWZ0ZXJ3b3JkIGFuZCBlcnJvciBjb250YWlubWVudCBjb21wbGV0ZXMuDQo+IA0KPiBIb3dl
+dmVyLCBJIG5vdGljZWQgdGhhdCB0aGVyZSdzIGEgc21hbGwgcGFpbiBpbiBmcmVlIGh1Z2V0bGIg
+Y2FzZS4NCj4gV2UgY2FsbCBkaXNzb2x2ZV9mcmVlX2h1Z2VfcGFnZSgpIGluIHNvZnRfb2ZmbGlu
+ZV9mcmVlX3BhZ2UoKSB3aGljaCANCj4gbW92ZXMgdGhlIFBhZ2VIV1BvaXNvbiBmbGFnIGZyb20g
+dGhlIGhlYWQgcGFnZSB0byB0aGUgcmF3IGVycm9yIHBhZ2UuDQo+IElmIHRoZSByZXBvcnRlZCBy
+YWNlIGhhcHBlbnMsIGRpc3NvbHZlX2ZyZWVfaHVnZV9wYWdlKCkganVzdCByZXR1cm4gDQo+IHdp
+dGhvdXQgZG9pbmcgYW55IGRpc3NvbHZlIHdvcmsgYmVjYXVzZSAiaWYgKFBhZ2VIdWdlKHBhZ2Up
+ICYmICFwYWdlX2NvdW50KHBhZ2UpKSINCj4gYmxvY2sgaXMgc2tpcHBlZC4NCj4gVGhlIGh1Z2Vw
+YWdlIGlzIGFsbG9jYXRlZCBhbmQgdXNlZCBhcyB1c3VhbCwgYnV0IHRoZSBjb250YWltZW50IA0K
+PiBkb2Vzbid0IGNvbXBsZXRlIGFzIGV4cGVjdGVkIGluIHRoZSBub3JtYWwgcGFnZSwgYmVjYXVz
+ZSANCj4gZnJlZV9odWdlX3BhZ2VzKCkgZG9lc24ndCBjYWxsIGRpc3NvbHZlX2ZyZWVfaHVnZV9w
+YWdlKCkgZm9yIGh3cG9pc29uIA0KPiBodWdlcGFnZS4gVGhpcyBpcyBub3QgY3JpdGljYWwgYmVj
+YXVzZSBzdWNoIGVycm9yIGh1Z2VwYWdlIGp1c3QgcmVzaWRlIA0KPiBpbiBmcmVlIGh1Z2VwYWdl
+IGxpc3QuIEJ1dCB0aGlzIG1pZ2h0IGxvb2tzIGxpa2UgYSBraW5kIG9mIG1lbW9yeSANCj4gbGVh
+ay4gQW5kIGV2ZW4gd29yc2Ugd2hlbiBodWdlcGFnZSBwb29sIGlzIHNocmlua2VkIGFuZCB0aGUg
+aHdwb2lzb24gDQo+IGh1Z2VwYWdlIGlzIGZyZWVkLCB0aGUgUGFnZUhXUG9pc29uIGZsYWcgaXMg
+c3RpbGwgb24gdGhlIGhlYWQgcGFnZSB3aGljaCBpcyB1bmxpa2VseSB0byBiZSBhbiBhY3R1YWwg
+ZXJyb3IgcGFnZS4NCj4gDQo+IFNvIEkgdGhpbmsgd2UgbmVlZCBpbXByb3ZlbWVudCBoZXJlLCBo
+b3cgYWJvdXQgdGhlIGZpeCBsaWtlIGJlbG93Pw0KPiANCj4gICAobm90IHRlc3RlZCB5ZXQsIHNv
+cnJ5KQ0KPiANCj4gICBkaWZmIC0tZ2l0IGEvbW0vbWVtb3J5LWZhaWx1cmUuYyBiL21tL21lbW9y
+eS1mYWlsdXJlLmMNCj4gICAtLS0gYS9tbS9tZW1vcnktZmFpbHVyZS5jDQo+ICAgKysrIGIvbW0v
+bWVtb3J5LWZhaWx1cmUuYw0KPiAgIEBAIC0xODgzLDYgKzE4ODMsMTEgQEAgc3RhdGljIHZvaWQg
+c29mdF9vZmZsaW5lX2ZyZWVfcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSkNCj4gICAgICAgICAgIHN0
+cnVjdCBwYWdlICpoZWFkID0gY29tcG91bmRfaGVhZChwYWdlKTsNCj4gICANCj4gICAgICAgICAg
+IGlmICghVGVzdFNldFBhZ2VIV1BvaXNvbihoZWFkKSkgew0KPiAgICsgICAgICAgICAgICAgICBp
+ZiAocGFnZV9jb3VudChoZWFkKSkgew0KPiAgICsgICAgICAgICAgICAgICAgICAgICAgIENsZWFy
+UGFnZUhXUG9pc29uKGhlYWQpOw0KPiAgICsgICAgICAgICAgICAgICAgICAgICAgIHJldHVybjsN
+Cj4gICArICAgICAgICAgICAgICAgfQ0KPiAgICsNCj4gICAgICAgICAgICAgICAgICAgbnVtX3Bv
+aXNvbmVkX3BhZ2VzX2luYygpOw0KPiAgICAgICAgICAgICAgICAgICBpZiAoUGFnZUh1Z2UoaGVh
+ZCkpDQo+ICAgICAgICAgICAgICAgICAgICAgICAgICAgZGlzc29sdmVfZnJlZV9odWdlX3BhZ2Uo
+cGFnZSk7DQo+IA0KPiBUaGFua3MsDQo+IE5hb3lhIEhvcmlndWNoaQ0KPiANCj4gLg0KPiANCg0K
+LS0NClRoYW5rcywNClhpZSBYaXVRaQ0KDQo=
