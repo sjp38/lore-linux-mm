@@ -1,73 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A8CF6B0006
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 10:20:39 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id q18-v6so7532989pll.3
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 07:20:39 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id k20-v6si1913543pgg.7.2018.07.20.07.20.38
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 442776B0003
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 10:43:33 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id i9-v6so8664615qtj.3
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 07:43:33 -0700 (PDT)
+Received: from smtp68.iad3a.emailsrvr.com (smtp68.iad3a.emailsrvr.com. [173.203.187.68])
+        by mx.google.com with ESMTPS id y4-v6si749755qvb.104.2018.07.20.07.43.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jul 2018 07:20:38 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 14/27] mm: Handle THP/HugeTLB shadow stack page
- fault
-References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
- <20180710222639.8241-15-yu-cheng.yu@intel.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <adc8f0b0-e2a5-d3e9-edaf-8d5b3be6a5b6@linux.intel.com>
-Date: Fri, 20 Jul 2018 07:20:25 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180710222639.8241-15-yu-cheng.yu@intel.com>
-Content-Type: text/plain; charset=utf-8
+        Fri, 20 Jul 2018 07:43:32 -0700 (PDT)
+From: Mark Vitale <mvitale@sinenomine.net>
+Subject: re: [PATCH v4 0/8] mm: Rework hmm to use devm_memremap_pages and
+ other fixes
+Date: Fri, 20 Jul 2018 14:43:14 +0000
+Message-ID: <37267986-A987-4AD7-96CE-C1D2F116A4AC@sinenomine.net>
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <5C1AA35799B0FE489C7AC171780E466F@mex09.mlsrvr.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Dan Williams <dan.j.williams@intel.org>, Andrew Morton <akpm@linux-foundation.org>, Joe Gorse <jgorse@sinenomine.net>, "release-team@openafs.org" <release-team@openafs.org>
 
-On 07/10/2018 03:26 PM, Yu-cheng Yu wrote:
-> @@ -1193,6 +1195,8 @@ static int do_huge_pmd_wp_page_fallback(struct vm_fault *vmf, pmd_t orig_pmd,
->  		pte_t entry;
->  		entry = mk_pte(pages[i], vma->vm_page_prot);
->  		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-> +		if (is_shstk_mapping(vma->vm_flags))
-> +			entry = pte_mkdirty_shstk(entry);
+On Jul 11, 2018, Dan Williams wrote:
+> Changes since v3 [1]:
+> * Collect Logan's reviewed-by on patch 3
+> * Collect John's and Joe's tested-by on patch 8
+> * Update the changelog for patch 1 and 7 to better explain the
+>   EXPORT_SYMBOL_GPL rationale.
+> * Update the changelog for patch 2 to clarify that it is a cleanup to
+>   make the following patch-3 fix easier
+>
+> [1]: https://lkml.org/lkml/2018/6/19/108
+>
+> ---
+>=20
+> Hi Andrew,
+>=20
+> As requested, here is a resend of the devm_memremap_pages() fixups.
+> Please consider for 4.18.
 
-Peter Z was pointing out that we should get rid of all this generic code
-manipulation.  We might not easily be able to do it *all*, but we can do
-better than what we've got here.
+What is the status of this patchset?  OpenAFS is unable to build on
+Linux 4.18 without the last patch in this set:
 
-Basically, if you have code outside of arch/x86 in your patch set that
-refers to shadow stacks, you should consider it a bug (for now),
-especially if you have to hack .c files.
+8/8  mm: Fix exports that inadvertently make put_page() EXPORT_SYMBOL_GPL
 
-For instance, in the code above, you could move the is_shstk_mapping() into:
+Will this be merged soon to linux-next, and ultimately to a Linux 4.18 rc?
 
-static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
-{
-        if (likely(vma->vm_flags & VM_WRITE))
-                pte = pte_mkwrite(pte);
-	
-+	pte = arch_pte_mkwrite(pte, vma);
-+
-        return pte;
-}
-
-... and add an arch callback that does:
-
-static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
-{
-	if (!is_shstk_mapping(vma->vm_flags))
-		return pte;
-
-	WARN_ON(... pte bits incompatible with shadow stacks?);
-
-	/* Lots of comments of course */
-	entry = pte_mkdirty_shstk(entry);
-}
-
-This is just one example.  You are probably going to need a couple of
-similar things.  Just remember: the bar is very high to make changes to
-.c files outside of arch/x86.  You can do a _bit_ more in non-x86
-headers, but you have the most freedom to patch what you want as long as
-it's in arch/x86.
+Thank you,
+--
+Mark Vitale
+mvitale@sinenomine.net
+on behalf of the OpenAFS release team
