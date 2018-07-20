@@ -1,64 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 155A56B000A
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 16:38:05 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id u4-v6so6668847pgr.2
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 13:38:05 -0700 (PDT)
-Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
-        by mx.google.com with ESMTPS id g40-v6si2547309plb.169.2018.07.20.13.38.03
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A2AC86B0003
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 16:48:22 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id z83-v6so824514ywg.3
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 13:48:22 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id c16-v6si645421ywa.301.2018.07.20.13.48.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jul 2018 13:38:03 -0700 (PDT)
-Subject: Re: [PATCH] mm: thp: remove use_zero_page sysfs knob
-References: <1532110430-115278-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180720123243.6dfc95ba061cd06e05c0262e@linux-foundation.org>
- <alpine.DEB.2.21.1807201300290.224013@chino.kir.corp.google.com>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <3238b5d2-fd89-a6be-0382-027a24a4d3ad@linux.alibaba.com>
-Date: Fri, 20 Jul 2018 13:37:47 -0700
+        Fri, 20 Jul 2018 13:48:21 -0700 (PDT)
+Date: Fri, 20 Jul 2018 13:47:54 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: cgroup-aware OOM killer, how to move forward
+Message-ID: <20180720204746.GA23478@castle.DHCP.thefacebook.com>
+References: <20180713231630.GB17467@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
+ <20180717173844.GB14909@castle.DHCP.thefacebook.com>
+ <20180717194945.GM7193@dhcp22.suse.cz>
+ <20180717200641.GB18762@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1807171329200.12251@chino.kir.corp.google.com>
+ <20180717205221.GA19862@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1807200126540.119737@chino.kir.corp.google.com>
+ <20180720112131.GX72677@devbig577.frc2.facebook.com>
+ <alpine.DEB.2.21.1807201321040.231119@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.21.1807201300290.224013@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.21.1807201321040.231119@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kirill@shutemov.name, hughd@google.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, gthelen@google.com
 
+On Fri, Jul 20, 2018 at 01:28:56PM -0700, David Rientjes wrote:
+> On Fri, 20 Jul 2018, Tejun Heo wrote:
+> 
+> > > process chosen for oom kill.  I know that you care about the latter.  My 
+> > > *only* suggestion was for the tunable to take a string instead of a 
+> > > boolean so it is extensible for future use.  This seems like something so 
+> > > trivial.
+> > 
+> > So, I'd much prefer it as boolean.  It's a fundamentally binary
+> > property, either handle the cgroup as a unit when chosen as oom victim
+> > or not, nothing more.
+> 
+> With the single hierarchy mandate of cgroup v2, the need arises to 
+> separate processes from a single job into subcontainers for use with 
+> controllers other than mem cgroup.  In that case, we have no functionality 
+> to oom kill all processes in the subtree.
+> 
+> A boolean can kill all processes attached to the victim's mem cgroup, but 
+> cannot kill all processes in a subtree if the limit of a common ancestor 
+> is reached.
 
+Why so?
 
-On 7/20/18 1:02 PM, David Rientjes wrote:
-> On Fri, 20 Jul 2018, Andrew Morton wrote:
->
->>> By digging into the original review, it looks use_zero_page sysfs knob
->>> was added to help ease-of-testing and give user a way to mitigate
->>> refcounting overhead.
->>>
->>> It has been a few years since the knob was added at the first place, I
->>> think we are confident that it is stable enough. And, since commit
->>> 6fcb52a56ff60 ("thp: reduce usage of huge zero page's atomic counter"),
->>> it looks refcounting overhead has been reduced significantly.
->>>
->>> Other than the above, the value of the knob is always 1 (enabled by
->>> default), I'm supposed very few people turn it off by default.
->>>
->>> So, it sounds not worth to still keep this knob around.
->> Probably OK.  Might not be OK, nobody knows.
->>
->> It's been there for seven years so another six months won't kill us.
->> How about as an intermediate step we add a printk("use_zero_page is
->> scheduled for removal.  Please contact linux-mm@kvack.org if you need
->> it").
->>
-> We disable the huge zero page through this interface, there were issues
-> related to the huge zero page shrinker (probably best to never free a
-> per-node huge zero page after allocated) and CVE-2017-1000405 for huge
-> dirty COW.
+Once again my proposal:
+as soon as the OOM killer selected a victim task,
+we'll look at the victim task's memory cgroup.
+If memory.oom.group is not set, we're done.
+Otherwise let's traverse the memory cgroup tree up to
+the OOMing cgroup (or root) as long as memory.oom.group is set.
+Kill the last cgroup entirely (including all children).
 
-Thanks for the information. It looks the CVE has been resolved by commit 
-a8f97366452ed491d13cf1e44241bc0b5740b1f0 ("mm, thp: Do not make page 
-table dirty unconditionally in touch_p[mu]d()"), which is in 4.15 already.
+Please, note:
+we do not look at memory.oom.group of the OOMing cgroup,
+we're looking at the memcg of the victim task.
 
-What was the shrinker related issue? I'm supposed it has been resolved, 
-right?
+If this model doesn't work well for you case,
+please, describe it on an example. I'm not sure
+I understand your problem anymore.
+
+Thanks!
