@@ -1,67 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 19C616B026B
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 16:17:10 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id g7-v6so9326623qtp.19
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 13:17:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id f16-v6si2690761qkm.232.2018.07.20.13.17.09
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B847E6B026F
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 16:20:01 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id q18-v6so8224877pll.3
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 13:20:01 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id d2-v6sor891379pll.134.2018.07.20.13.20.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jul 2018 13:17:09 -0700 (PDT)
-Date: Fri, 20 Jul 2018 16:17:07 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH v4 0/8] mm: Rework hmm to use devm_memremap_pages and
- other fixes
-Message-ID: <20180720201706.GE7697@redhat.com>
-References: <37267986-A987-4AD7-96CE-C1D2F116A4AC@sinenomine.net>
- <20180720125146.02db0f40b4edc716c6f080d2@linux-foundation.org>
- <20180720195746.GD7697@redhat.com>
- <20180720200124.GB2736@bombadil.infradead.org>
+        (Google Transport Security);
+        Fri, 20 Jul 2018 13:20:00 -0700 (PDT)
+Date: Fri, 20 Jul 2018 13:19:59 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v3] mm, oom: fix unnecessary killing of additional
+ processes
+In-Reply-To: <9ab77cc7-2167-0659-a2ad-9cec3b9440e9@i-love.sakura.ne.jp>
+Message-ID: <alpine.DEB.2.21.1807201315580.231119@chino.kir.corp.google.com>
+References: <alpine.DEB.2.21.1806211434420.51095@chino.kir.corp.google.com> <d19d44c3-c8cf-70a1-9b15-c98df233d5f0@i-love.sakura.ne.jp> <alpine.DEB.2.21.1807181317540.49359@chino.kir.corp.google.com> <a78fb992-ad59-0cdb-3c38-8284b2245f21@i-love.sakura.ne.jp>
+ <alpine.DEB.2.21.1807200133310.119737@chino.kir.corp.google.com> <9ab77cc7-2167-0659-a2ad-9cec3b9440e9@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180720200124.GB2736@bombadil.infradead.org>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mark Vitale <mvitale@sinenomine.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dan Williams <dan.j.williams@intel.org>, Joe Gorse <jgorse@sinenomine.net>, "release-team@openafs.org" <release-team@openafs.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jul 20, 2018 at 01:01:24PM -0700, Matthew Wilcox wrote:
-> On Fri, Jul 20, 2018 at 03:57:47PM -0400, Jerome Glisse wrote:
-> > On Fri, Jul 20, 2018 at 12:51:46PM -0700, Andrew Morton wrote:
-> > > Problem is, that patch is eighth in a series which we're waiting for
-> > > Jerome to review and the changelog starts with "Now that all producers
-> > > of dev_pagemap instances in the kernel are properly converted to
-> > > EXPORT_SYMBOL_GPL...".
-> > 
-> > I am fine with the patchset modulo GPL, i did review it in the past
-> > but i did not formaly reply as i was opose to the GPL changes. So my
-> > only objection is with the GPL export, everything else looks fine.
+On Fri, 20 Jul 2018, Tetsuo Handa wrote:
+
+> > Absent oom_lock serialization, this is exactly working as intended.  You 
+> > could argue that once the thread has reached exit_mmap() and begins oom 
+> > reaping that it should be allowed to finish before the oom reaper declares 
+> > MMF_OOM_SKIP.  That could certainly be helpful, I simply haven't 
+> > encountered a usecase where it were needed.  Or, we could restart the oom 
+> > expiration when MMF_UNSTABLE is set and deem that progress is being made 
+> > so it give it some extra time.  In practice, again, we haven't seen this 
+> > needed.  But either of those are very easy to add in as well.  Which would 
+> > you prefer?
 > 
-> Everyone from the mm side who's looked at these patches agrees that it
-> reaches far too far into the guts of the mm to be anything other than
-> exposing internals.  It's not credible to claim that a module written that
-> uses these interfaces is anything other than a derived work of the kernel.
-> 
-> I feel these patches should be merged over Jerome's objections.
+> I don't think we need to introduce user-visible knob interface (even if it is in
+> debugfs), for I think that my approach can solve your problem. Please try OOM lockup
+> (CVE-2016-10723) mitigation patch ( https://marc.info/?l=linux-mm&m=153112243424285&w=4 )
 
-I feel that people do not understand how far reaching this is. It means
-that any new devices with memory supporting new system bus like CAPI or
-CCIX will need to have a GPL driver. This is a departure of current
-state of affair where we allow non GPL driver to exist.
+The issue I am fixing has nothing to do with contention on oom_lock, it 
+has to do with the inability of the oom reaper to free memory for one or 
+more of several reasons: mlock, blockable mmus, ptes, mm->mmap_sem 
+contention, and then the setting of MMF_OOM_SKIP to choose another victim 
+before the original victim even reaches exit_mmap().  Thus, removing 
+oom_lock from exit_mmap() will not fix this issue.
 
-Moreover I have argue that HMM abstract the internal mm and by doing so
-allow anyone to update the mm code without having to worried about driver
-which use HMM. Thus disproving that user of HMM are tie to mm internal.
-
-
-Also to make thing perfectly clear i am a strong proponent of open
-source and i rather have a GPL driver but at the same time i do not want
-linux kernel to become second citizen because it can not support new
-devices ...
-
-
-Cheers,
-Jerome
+I agree that oom_lock can be removed from exit_mmap() and it would be 
+helpful to do so, and may address a series of problems that we have yet to 
+encounter, but this would not fix the almost immediate setting of 
+MMF_OOM_SKIP that occurs with minimal memory freeing due to the oom 
+reaper.
