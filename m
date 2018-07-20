@@ -1,50 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CFBD96B000A
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 15:30:21 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id r2-v6so6590269pgp.3
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 12:30:21 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id n10-v6si2562955pfb.316.2018.07.20.12.30.20
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E86D96B000D
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 15:32:33 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id j4-v6so6557196pgq.16
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 12:32:33 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id a36-v6si2332348pla.207.2018.07.20.12.32.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jul 2018 12:30:20 -0700 (PDT)
-Date: Fri, 20 Jul 2018 12:30:18 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3] mm/memblock: add missing include <linux/bootmem.h>
-Message-Id: <20180720123018.0a7b4ea3a5c848e1a63750aa@linux-foundation.org>
-In-Reply-To: <CA+8MBbLB5JTdcgS3yJRR12doMgEiofD8NNXedyYyj4c7AcDnMg@mail.gmail.com>
-References: <20180625171513.31845-1-malat@debian.org>
-	<20180626184422.24974-1-malat@debian.org>
-	<CA+8MBbLB5JTdcgS3yJRR12doMgEiofD8NNXedyYyj4c7AcDnMg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 20 Jul 2018 12:32:32 -0700 (PDT)
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 421932086E
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 19:32:32 +0000 (UTC)
+Received: by mail-wm0-f42.google.com with SMTP id s14-v6so10875014wmc.1
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 12:32:32 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20180720174846.GF18541@8bytes.org>
+References: <1532103744-31902-1-git-send-email-joro@8bytes.org>
+ <1532103744-31902-2-git-send-email-joro@8bytes.org> <CALCETrXJX8tPVgD=Ce41534uneAAobm-HyjeGwVYgJDJ_+-bDw@mail.gmail.com>
+ <20180720174846.GF18541@8bytes.org>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Fri, 20 Jul 2018 12:32:10 -0700
+Message-ID: <CALCETrUj4cLpOKUbJUfLqKJFkjAgeraE=ORQ-e-bKU+AHda0=Q@mail.gmail.com>
+Subject: Re: [PATCH 1/3] perf/core: Make sure the ring-buffer is mapped in all page-tables
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@gmail.com>
-Cc: Mathieu Malaterre <malat@debian.org>, Michal Hocko <mhocko@kernel.org>, Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Stefan Agner <stefan@agner.ch>, Joe Perches <joe@perches.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, Joerg Roedel <jroedel@suse.de>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>
 
-On Fri, 20 Jul 2018 12:16:05 -0700 Tony Luck <tony.luck@gmail.com> wrote:
+On Fri, Jul 20, 2018 at 10:48 AM, Joerg Roedel <joro@8bytes.org> wrote:
+> On Fri, Jul 20, 2018 at 10:06:54AM -0700, Andy Lutomirski wrote:
+>> > On Jul 20, 2018, at 6:22 AM, Joerg Roedel <joro@8bytes.org> wrote:
+>> >
+>> > From: Joerg Roedel <jroedel@suse.de>
+>> >
+>> > The ring-buffer is accessed in the NMI handler, so we better
+>> > avoid faulting on it. Sync the vmalloc range with all
+>> > page-tables in system to make sure everyone has it mapped.
+>> >
+>> > This fixes a WARN_ON_ONCE() that can be triggered with PTI
+>> > enabled on x86-32:
+>> >
+>> >    WARNING: CPU: 4 PID: 0 at arch/x86/mm/fault.c:320 vmalloc_fault+0x220/0x230
+>> >
+>> > This triggers because with PTI enabled on an PAE kernel the
+>> > PMDs are no longer shared between the page-tables, so the
+>> > vmalloc changes do not propagate automatically.
+>>
+>> It seems like it would be much more robust to fix the vmalloc_fault()
+>> code instead.
+>
+> The question is whether the NMI path is nesting-safe, then we can remove
+> the WARN_ON_ONCE(in_nmi()) in the vmalloc_fault path. It should be
+> nesting-safe on x86-32 because of the way the stack-switch happens
+> there. If its also nesting-safe on x86-64 the warning there can be
+> removed.
+>
+> Or did you think of something else to fix there?
 
-> On Tue, Jun 26, 2018 at 11:44 AM, Mathieu Malaterre <malat@debian.org> wrote:
-> > Because Makefile already does:
-> >
-> >   obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.o
-> >
-> > The #ifdef has been simplified from:
-> >
-> >   #if defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM)
-> >
-> > to simply:
-> >
-> >   #if defined(CONFIG_NO_BOOTMEM)
-> 
-> Is this sitting in a queue somewhere ready to go to Linus?
+I'm just reading your changelog, and you said the PMDs are no longer
+shared between the page tables.  So this presumably means that
+vmalloc_fault() no longer actually works correctly on PTI systems.  I
+didn't read the code to figure out *why* it doesn't work, but throwing
+random vmalloc_sync_all() calls around is wrong.
 
-linux-next ;)
+Or maybe the bug really just is the warning.  The warning can probably go.
 
-> I don't see it upstream yet.
-
-For some brainfarty reason I had it for 4.19-rc1.  Shall send it in
-today.
+>
+>
+> Thanks,
+>
+>         Joerg
+>
