@@ -1,66 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D92D86B0003
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 17:34:42 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id h26-v6so10272265itf.4
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 14:34:42 -0700 (PDT)
-Received: from sonic311-22.consmr.mail.ne1.yahoo.com (sonic311-22.consmr.mail.ne1.yahoo.com. [66.163.188.203])
-        by mx.google.com with ESMTPS id y77-v6si2292708iof.72.2018.07.20.14.34.41
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7036C6B0006
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 17:37:05 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id b25-v6so5186930eds.17
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 14:37:05 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s29-v6si1955558edd.58.2018.07.20.14.37.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jul 2018 14:34:41 -0700 (PDT)
-Date: Fri, 20 Jul 2018 21:34:38 +0000 (UTC)
-From: David Frank <david_frank95@yahoo.com>
-Message-ID: <289656.55439.1532122478212@mail.yahoo.com>
-In-Reply-To: <1835984892.475561.1532108339625@mail.yahoo.com>
-References: <1835984892.475561.1532108339625.ref@mail.yahoo.com> <1835984892.475561.1532108339625@mail.yahoo.com>
-Subject: memcpy seg fault with mmaped address
+        Fri, 20 Jul 2018 14:37:04 -0700 (PDT)
+Date: Fri, 20 Jul 2018 23:37:00 +0200
+From: Joerg Roedel <jroedel@suse.de>
+Subject: Re: [PATCH 1/3] perf/core: Make sure the ring-buffer is mapped in
+ all page-tables
+Message-ID: <20180720213700.gh6d2qd2ck6nt4ax@suse.de>
+References: <1532103744-31902-1-git-send-email-joro@8bytes.org>
+ <1532103744-31902-2-git-send-email-joro@8bytes.org>
+ <CALCETrXJX8tPVgD=Ce41534uneAAobm-HyjeGwVYgJDJ_+-bDw@mail.gmail.com>
+ <20180720174846.GF18541@8bytes.org>
+ <CALCETrUj4cLpOKUbJUfLqKJFkjAgeraE=ORQ-e-bKU+AHda0=Q@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_Part_55438_428776891.1532122478211"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrUj4cLpOKUbJUfLqKJFkjAgeraE=ORQ-e-bKU+AHda0=Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-mm <linux-mm@kvack.org>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>
 
-------=_Part_55438_428776891.1532122478211
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+On Fri, Jul 20, 2018 at 12:32:10PM -0700, Andy Lutomirski wrote:
+> I'm just reading your changelog, and you said the PMDs are no longer
+> shared between the page tables.  So this presumably means that
+> vmalloc_fault() no longer actually works correctly on PTI systems.  I
+> didn't read the code to figure out *why* it doesn't work, but throwing
+> random vmalloc_sync_all() calls around is wrong.
 
-=20
+Hmm, so the whole point of vmalloc_fault() fault is to sync changes from
+swapper_pg_dir to process page-tables when the relevant parts of the
+kernel page-table are not shared, no?
 
- Hi,=20
-I'm memcpy data into mmaped address with 2GB file, after a few files, it wo=
-uld fault with the following stack dump:
-received signal SIGSEGV, Segmentation fault.[Switching to Thread 0x7ffff5e9=
-5700 (LWP 3028)]
-__memmove_avx_unaligned_erms ()
-=C2=A0=C2=A0=C2=A0 at ../sysdeps/x86_64/multiarch/memmove-vec-unaligned-erm=
-s.S:494
-494=C2=A0=C2=A0=C2=A0 ../sysdeps/x86_64/multiarch/memmove-vec-unaligned-erm=
-s.S: No such
-file or directory.
-(gdb) bt
-#0=C2=A0 __memmove_avx_unaligned_erms ()
-=C2=A0=C2=A0=C2=A0 at ../sysdeps/x86_64/multiarch/memmove-vec-unaligned-erm=
-s.S:494
+That is also the reason we don't see this on 64 bit, because there these
+parts *are* shared.
+
+So with that reasoning vmalloc_fault() works as designed, except that
+a warning is issued when it's happens in the NMI path. That warning comes
+from
+
+	ebc8827f75954 x86: Barf when vmalloc and kmemcheck faults happen in NMI
+
+which went into 2.6.37 and was added because the NMI handler were not
+nesting-safe back then. Reason probably was that the handler on 64 bit
+has to use an IST stack and a nested NMI would overwrite the stack of
+the upper handler.  We don't have this problem on 32 bit as a nested NMI
+will not do another stack-switch there.
+
+I am not sure about 64 bit, but there is a lot of assembly magic to make
+NMIs nesting-safe, so I guess the problem should be gone there too.
 
 
-Any idea?
-Thanks,
-David
- =20
-------=_Part_55438_428776891.1532122478211
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Regards,
 
-<html><head></head><body><div style="font-family:Helvetica Neue, Helvetica, Arial, sans-serif;font-size:16px;"><div style="font-family:Helvetica Neue, Helvetica, Arial, sans-serif;font-size:16px;"><div></div>
-        <div><br></div><div id="ydpc4b12af0yahoo_quoted_2998272837" class="ydpc4b12af0yahoo_quoted"><div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:13px;color:#26282a;"><div><br></div>
-                <div><div id="ydpc4b12af0yiv4069575967"><div><div style="font-family:Helvetica Neue, Helvetica, Arial, sans-serif;font-size:13px;"><div style="font-family:Helvetica Neue, Helvetica, Arial, sans-serif;font-size:13px;"><div><span>Hi, <br></span></div><div><span>I'm memcpy data into mmaped address with 2GB file, after a few files, it would fault with the following stack dump:</span></div><div><span><br></span></div><div><span>received signal SIGSEGV, Segmentation fault.</span></div><span>[Switching to Thread 
-0x7ffff5e95700 (LWP 3028)]<br>__memmove_avx_unaligned_erms ()<br>&nbsp;&nbsp;&nbsp; at 
-../sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S:494<br>494&nbsp;&nbsp;&nbsp; 
-../sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S: No such<br>file or 
-directory.<br>(gdb) bt<br>#0&nbsp; __memmove_avx_unaligned_erms ()<br></span><div><span>&nbsp;&nbsp;&nbsp; at 
-../sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S:494</span></div><div><span></span><br></div><div><br></div><div><br></div><div>Any idea?</div><div><br></div><div>Thanks,</div><div><br></div><div>David<br></div></div></div></div></div></div>
-            </div>
-        </div></div></div></body></html>
-------=_Part_55438_428776891.1532122478211--
+	Joerg
