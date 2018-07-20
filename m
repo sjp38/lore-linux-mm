@@ -1,107 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 619ED6B0006
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 15:53:49 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id v2-v6so5908544wrr.10
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 12:53:49 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id r14-v6si2193710wrg.106.2018.07.20.12.53.47
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F95F6B000A
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 15:57:51 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id b8-v6so9202077qto.16
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 12:57:51 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id w9-v6si2324962qvk.136.2018.07.20.12.57.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 20 Jul 2018 12:53:48 -0700 (PDT)
-Date: Fri, 20 Jul 2018 21:53:41 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 1/3] perf/core: Make sure the ring-buffer is mapped in
- all page-tables
-In-Reply-To: <alpine.DEB.2.21.1807202142130.1694@nanos.tec.linutronix.de>
-Message-ID: <alpine.DEB.2.21.1807202152400.1694@nanos.tec.linutronix.de>
-References: <1532103744-31902-1-git-send-email-joro@8bytes.org> <1532103744-31902-2-git-send-email-joro@8bytes.org> <CALCETrXJX8tPVgD=Ce41534uneAAobm-HyjeGwVYgJDJ_+-bDw@mail.gmail.com> <alpine.DEB.2.21.1807202126400.1694@nanos.tec.linutronix.de>
- <CALCETrW7o=s7esmE4+SxLPsLv2SvJZU6f7jfsedazZVrot2EqA@mail.gmail.com> <alpine.DEB.2.21.1807202142130.1694@nanos.tec.linutronix.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Jul 2018 12:57:50 -0700 (PDT)
+Date: Fri, 20 Jul 2018 15:57:47 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH v4 0/8] mm: Rework hmm to use devm_memremap_pages and
+ other fixes
+Message-ID: <20180720195746.GD7697@redhat.com>
+References: <37267986-A987-4AD7-96CE-C1D2F116A4AC@sinenomine.net>
+ <20180720125146.02db0f40b4edc716c6f080d2@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180720125146.02db0f40b4edc716c6f080d2@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Joerg Roedel <joro@8bytes.org>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, Joerg Roedel <jroedel@suse.de>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mark Vitale <mvitale@sinenomine.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dan Williams <dan.j.williams@intel.org>, Joe Gorse <jgorse@sinenomine.net>, "release-team@openafs.org" <release-team@openafs.org>
 
-On Fri, 20 Jul 2018, Thomas Gleixner wrote:
-> On Fri, 20 Jul 2018, Andy Lutomirski wrote:
-> > On Fri, Jul 20, 2018 at 12:27 PM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> > > On Fri, 20 Jul 2018, Andy Lutomirski wrote:
-> > >> > On Jul 20, 2018, at 6:22 AM, Joerg Roedel <joro@8bytes.org> wrote:
-> > >> >
-> > >> > From: Joerg Roedel <jroedel@suse.de>
-> > >> >
-> > >> > The ring-buffer is accessed in the NMI handler, so we better
-> > >> > avoid faulting on it. Sync the vmalloc range with all
-> > >> > page-tables in system to make sure everyone has it mapped.
-> > >> >
-> > >> > This fixes a WARN_ON_ONCE() that can be triggered with PTI
-> > >> > enabled on x86-32:
-> > >> >
-> > >> >    WARNING: CPU: 4 PID: 0 at arch/x86/mm/fault.c:320 vmalloc_fault+0x220/0x230
-> > >> >
-> > >> > This triggers because with PTI enabled on an PAE kernel the
-> > >> > PMDs are no longer shared between the page-tables, so the
-> > >> > vmalloc changes do not propagate automatically.
-> > >>
-> > >> It seems like it would be much more robust to fix the vmalloc_fault()
-> > >> code instead.
-> > >
-> > > Right, but now the obvious fix for the issue at hand is this. We surely
-> > > should revisit this.
-> > 
-> > If you commit this under this reasoning, then please at least make it say:
-> > 
-> > /* XXX: The vmalloc_fault() code is buggy on PTI+PAE systems, and this
-> > is a workaround. */
-> > 
-> > Let's not have code in the kernel that pretends to make sense but is
-> > actually voodoo magic that works around bugs elsewhere.  It's no fun
-> > to maintain down the road.
+On Fri, Jul 20, 2018 at 12:51:46PM -0700, Andrew Morton wrote:
+> On Fri, 20 Jul 2018 14:43:14 +0000 Mark Vitale <mvitale@sinenomine.net> wrote:
 > 
-> Fair enough. Lemme amend it. Joerg is looking into it, but I surely want to
-> get that stuff some exposure in next ASAP.
+> > On Jul 11, 2018, Dan Williams wrote:
+> > > Changes since v3 [1]:
+> > > * Collect Logan's reviewed-by on patch 3
+> > > * Collect John's and Joe's tested-by on patch 8
+> > > * Update the changelog for patch 1 and 7 to better explain the
+> > >   EXPORT_SYMBOL_GPL rationale.
+> > > * Update the changelog for patch 2 to clarify that it is a cleanup to
+> > >   make the following patch-3 fix easier
+> > >
+> > > [1]: https://lkml.org/lkml/2018/6/19/108
+> > >
+> > > ---
+> > > 
+> > > Hi Andrew,
+> > > 
+> > > As requested, here is a resend of the devm_memremap_pages() fixups.
+> > > Please consider for 4.18.
+> > 
+> > What is the status of this patchset?  OpenAFS is unable to build on
+> > Linux 4.18 without the last patch in this set:
+> > 
+> > 8/8  mm: Fix exports that inadvertently make put_page() EXPORT_SYMBOL_GPL
+> > 
+> > Will this be merged soon to linux-next, and ultimately to a Linux 4.18 rc?
+> > 
+> 
+> Problem is, that patch is eighth in a series which we're waiting for
+> Jerome to review and the changelog starts with "Now that all producers
+> of dev_pagemap instances in the kernel are properly converted to
+> EXPORT_SYMBOL_GPL...".
 
-Delta patch below.
+I am fine with the patchset modulo GPL, i did review it in the past
+but i did not formaly reply as i was opose to the GPL changes. So my
+only objection is with the GPL export, everything else looks fine.
 
-Thanks.
+I can review once more as it has been more than a month since i last
+look at this patchset. I am working with Ben on nouveau right now so
+if it breaks anything for me i will fix it once we do our final
+rebase before posting.
 
-	tglx
-
-8<-------------
---- a/kernel/events/ring_buffer.c
-+++ b/kernel/events/ring_buffer.c
-@@ -815,8 +815,12 @@ static void rb_free_work(struct work_str
- 	vfree(base);
- 	kfree(rb);
- 
--	/* Make sure buffer is unmapped in all page-tables */
--	vmalloc_sync_all();
-+	/*
-+	 * FIXME: PAE workaround for vmalloc_fault(): Make sure buffer is
-+	 * unmapped in all page-tables.
-+	 */
-+	if (IS_ENABLED(CONFIG_X86_PAE))
-+		vmalloc_sync_all();
- }
- 
- void rb_free(struct ring_buffer *rb)
-@@ -844,11 +848,13 @@ struct ring_buffer *rb_alloc(int nr_page
- 		goto fail_all_buf;
- 
- 	/*
--	 * The buffer is accessed in NMI handlers, make sure it is
--	 * mapped in all page-tables in the system so that we don't
--	 * fault on the range in an NMI handler.
-+	 * FIXME: PAE workaround for vmalloc_fault(): The buffer is
-+	 * accessed in NMI handlers, make sure it is mapped in all
-+	 * page-tables in the system so that we don't fault on the range in
-+	 * an NMI handler.
- 	 */
--	vmalloc_sync_all();
-+	if (IS_ENABLED(CONFIG_X86_PAE))
-+		vmalloc_sync_all();
- 
- 	rb->user_page = all_buf;
- 	rb->data_pages[0] = all_buf + PAGE_SIZE;
+Cheers,
+Jerome
