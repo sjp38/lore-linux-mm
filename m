@@ -1,173 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DA8A56B000A
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 17:40:39 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id d10-v6so6678802pgv.8
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 14:40:39 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id o3-v6si2484612pld.281.2018.07.20.14.40.38
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B17D6B0010
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 17:42:39 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id b12-v6so5010549edi.12
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 14:42:39 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id e19-v6si1105584eda.336.2018.07.20.14.42.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jul 2018 14:40:38 -0700 (PDT)
-Subject: Re: [patch v4] mm, oom: fix unnecessary killing of additional
- processes
-References: <alpine.DEB.2.21.1806211434420.51095@chino.kir.corp.google.com>
- <d19d44c3-c8cf-70a1-9b15-c98df233d5f0@i-love.sakura.ne.jp>
- <alpine.DEB.2.21.1807181317540.49359@chino.kir.corp.google.com>
- <a78fb992-ad59-0cdb-3c38-8284b2245f21@i-love.sakura.ne.jp>
- <alpine.DEB.2.21.1807200133310.119737@chino.kir.corp.google.com>
- <alpine.DEB.2.21.1807201314230.231119@chino.kir.corp.google.com>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <ca34b123-5c81-569f-85ea-4851bc569962@i-love.sakura.ne.jp>
-Date: Sat, 21 Jul 2018 05:43:15 +0900
+        Fri, 20 Jul 2018 14:42:38 -0700 (PDT)
+Date: Fri, 20 Jul 2018 23:42:37 +0200
+From: Joerg Roedel <joro@8bytes.org>
+Subject: Re: [PATCH 3/3] x86/entry/32: Copy only ptregs on paranoid
+ entry/exit path
+Message-ID: <20180720214237.GI18541@8bytes.org>
+References: <1532103744-31902-1-git-send-email-joro@8bytes.org>
+ <1532103744-31902-4-git-send-email-joro@8bytes.org>
+ <CALCETrWmd3arHdkTzAS7reLRjm96jrJC-1O5dYAPwbh2EqKMSA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.21.1807201314230.231119@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrWmd3arHdkTzAS7reLRjm96jrJC-1O5dYAPwbh2EqKMSA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, Joerg Roedel <jroedel@suse.de>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>
 
-On 2018/07/21 5:14, David Rientjes wrote:
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -3066,25 +3066,27 @@ void exit_mmap(struct mm_struct *mm)
->  	if (unlikely(mm_is_oom_victim(mm))) {
->  		/*
->  		 * Manually reap the mm to free as much memory as possible.
-> -		 * Then, as the oom reaper does, set MMF_OOM_SKIP to disregard
-> -		 * this mm from further consideration.  Taking mm->mmap_sem for
-> -		 * write after setting MMF_OOM_SKIP will guarantee that the oom
-> -		 * reaper will not run on this mm again after mmap_sem is
-> -		 * dropped.
-> -		 *
->  		 * Nothing can be holding mm->mmap_sem here and the above call
->  		 * to mmu_notifier_release(mm) ensures mmu notifier callbacks in
->  		 * __oom_reap_task_mm() will not block.
->  		 *
-> +		 * This sets MMF_UNSTABLE to avoid racing with the oom reaper.
->  		 * This needs to be done before calling munlock_vma_pages_all(),
->  		 * which clears VM_LOCKED, otherwise the oom reaper cannot
-> -		 * reliably test it.
-> +		 * reliably test for it.  If the oom reaper races with
-> +		 * munlock_vma_pages_all(), this can result in a kernel oops if
-> +		 * a pmd is zapped, for example, after follow_page_mask() has
-> +		 * checked pmd_none().
->  		 */
->  		mutex_lock(&oom_lock);
->  		__oom_reap_task_mm(mm);
->  		mutex_unlock(&oom_lock);
+[ Re-sending because I accidentially replied only to Andy ]
 
-I don't like holding oom_lock for full teardown of an mm, for an OOM victim's mm
-might have multiple TB memory which could take long time.
+On Fri, Jul 20, 2018 at 10:09:26AM -0700, Andy Lutomirski wrote:
+> Can you give an example of the exact scenario in which any of this
+> copying happens and why it's needed?  IMO you should just be able to
+> *run* on the entry stack without copying anything at all.
 
-Of course, forcing someone who triggered __mmput() to pay the full cost is
-not nice though, for it even can be a /proc/$pid/ reader, can't it?
+So for example when we execute RESTORE_REGS on the path back to
+user-space and get an exception while loading the user segment
+registers.
 
->  
-> -		set_bit(MMF_OOM_SKIP, &mm->flags);
-> +		/*
-> +		 * Taking mm->mmap_sem for write after setting MMF_UNSTABLE will
-> +		 * guarantee that the oom reaper will not run on this mm again
-> +		 * after mmap_sem is dropped.
-> +		 */
->  		down_write(&mm->mmap_sem);
->  		up_write(&mm->mmap_sem);
->  	}
+When that happens we are already on the entry-stack and on user-cr3.
+There is no question that when we return from the exception we need to
+get back to entry-stack and user-cr3, despite we are returning to kernel
+mode. Otherwise we enter user-space with kernel-cr3 or get a page-fault
+and panic.
 
+The exception runs through the common_exception path, and finally ends
+up calling C code. And correct me if I am wrong, but calling into C code
+from the entry-stack is a bad idea for multiple reasons.
 
+First reason is the size of the stack. We can make it larger, but how
+large does it need to be?
 
-> -#define MAX_OOM_REAP_RETRIES 10
->  static void oom_reap_task(struct task_struct *tsk)
->  {
-> -	int attempts = 0;
->  	struct mm_struct *mm = tsk->signal->oom_mm;
->  
-> -	/* Retry the down_read_trylock(mmap_sem) a few times */
-> -	while (attempts++ < MAX_OOM_REAP_RETRIES && !oom_reap_task_mm(tsk, mm))
-> -		schedule_timeout_idle(HZ/10);
-> +	/*
-> +	 * If this mm has either been fully unmapped, or the oom reaper has
-> +	 * given up on it, nothing left to do except drop the refcount.
-> +	 */
-> +	if (test_bit(MMF_OOM_SKIP, &mm->flags))
-> +		goto drop;
->  
-> -	if (attempts <= MAX_OOM_REAP_RETRIES ||
-> -	    test_bit(MMF_OOM_SKIP, &mm->flags))
-> -		goto done;
-> +	/*
-> +	 * If this mm has already been reaped, doing so again will not likely
-> +	 * free additional memory.
-> +	 */
-> +	if (!test_bit(MMF_UNSTABLE, &mm->flags))
-> +		oom_reap_task_mm(tsk, mm);
+Next problem is that current_pt_regs doesn't work in the C code when
+pt_regs are on the entry-stack.
 
-This is still wrong. If preempted immediately after set_bit(MMF_UNSTABLE, &mm->flags) from
-__oom_reap_task_mm() from exit_mmap(), oom_reap_task() can give up before reclaiming any memory.
-test_bit(MMF_UNSTABLE, &mm->flags) has to be done under oom_lock serialization, and
-I don't like holding oom_lock while calling __oom_reap_task_mm(mm).
+These problems can all be solved, but it wouldn't be a robust solution
+because when changes to the C code are made they are usually not tested
+while on the entry-stack. That case is hard to trigger, so it can easily
+break again.
 
->  
-> -	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
-> -		task_pid_nr(tsk), tsk->comm);
-> -	debug_show_all_locks();
-> +	if (time_after_eq(jiffies, mm->oom_free_expire)) {
-> +		if (!test_bit(MMF_OOM_SKIP, &mm->flags)) {
-> +			pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
-> +				task_pid_nr(tsk), tsk->comm);
-> +			debug_show_all_locks();
->  
-> -done:
-> -	tsk->oom_reaper_list = NULL;
-> +			/*
-> +			 * Reaping has failed for the timeout period, so give up
-> +			 * and allow additional processes to be oom killed.
-> +			 */
-> +			set_bit(MMF_OOM_SKIP, &mm->flags);
-> +		}
-> +		goto drop;
-> +	}
+For me, only the x86 selftests triggered all these corner-cases, but not
+all developers run them on 32 bit when making changes to generic x86
+code.
 
+Regards,
 
-
-> @@ -645,25 +657,60 @@ static int oom_reaper(void *unused)
->  	return 0;
->  }
->  
-> +/*
-> + * Millisecs to wait for an oom mm to free memory before selecting another
-> + * victim.
-> + */
-> +static u64 oom_free_timeout_ms = 1000;
->  static void wake_oom_reaper(struct task_struct *tsk)
->  {
-> -	/* tsk is already queued? */
-> -	if (tsk == oom_reaper_list || tsk->oom_reaper_list)
-> +	unsigned long expire = jiffies + msecs_to_jiffies(oom_free_timeout_ms);
-> +
-> +	if (!expire)
-> +		expire++;
-> +	/*
-> +	 * Set the reap timeout; if it's already set, the mm is enqueued and
-> +	 * this tsk can be ignored.
-> +	 */
-> +	if (cmpxchg(&tsk->signal->oom_mm->oom_free_expire, 0UL, expire))
->  		return;
-
-We don't need this if we do from mark_oom_victim() like my series does.
-
->  
->  	get_task_struct(tsk);
->  
->  	spin_lock(&oom_reaper_lock);
-> -	tsk->oom_reaper_list = oom_reaper_list;
-> -	oom_reaper_list = tsk;
-> +	list_add(&tsk->oom_reap_list, &oom_reaper_list);
->  	spin_unlock(&oom_reaper_lock);
->  	trace_wake_reaper(tsk->pid);
->  	wake_up(&oom_reaper_wait);
->  }
+	Joerg
