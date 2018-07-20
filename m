@@ -1,76 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E3DA6B0003
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 10:11:13 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id d25-v6so9448991qkj.9
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 07:11:13 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v51-v6sor909622qtj.49.2018.07.20.07.11.07
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A8CF6B0006
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 10:20:39 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id q18-v6so7532989pll.3
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 07:20:39 -0700 (PDT)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id k20-v6si1913543pgg.7.2018.07.20.07.20.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 20 Jul 2018 07:11:07 -0700 (PDT)
-Date: Fri, 20 Jul 2018 10:13:54 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 08/10] psi: pressure stall information for CPU, memory,
- and IO
-Message-ID: <20180720141354.GA1729@cmpxchg.org>
-References: <20180712172942.10094-1-hannes@cmpxchg.org>
- <20180712172942.10094-9-hannes@cmpxchg.org>
- <20180717150142.GG2494@hirez.programming.kicks-ass.net>
- <20180718220623.GE2838@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Jul 2018 07:20:38 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 14/27] mm: Handle THP/HugeTLB shadow stack page
+ fault
+References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
+ <20180710222639.8241-15-yu-cheng.yu@intel.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <adc8f0b0-e2a5-d3e9-edaf-8d5b3be6a5b6@linux.intel.com>
+Date: Fri, 20 Jul 2018 07:20:25 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180718220623.GE2838@cmpxchg.org>
+In-Reply-To: <20180710222639.8241-15-yu-cheng.yu@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-On Wed, Jul 18, 2018 at 06:06:23PM -0400, Johannes Weiner wrote:
-> On Tue, Jul 17, 2018 at 05:01:42PM +0200, Peter Zijlstra wrote:
-> > On Thu, Jul 12, 2018 at 01:29:40PM -0400, Johannes Weiner wrote:
-> > > +static bool psi_update_stats(struct psi_group *group)
-> > > +{
-> > > +	u64 some[NR_PSI_RESOURCES] = { 0, };
-> > > +	u64 full[NR_PSI_RESOURCES] = { 0, };
-> > > +	unsigned long nonidle_total = 0;
-> > > +	unsigned long missed_periods;
-> > > +	unsigned long expires;
-> > > +	int cpu;
-> > > +	int r;
-> > > +
-> > > +	mutex_lock(&group->stat_lock);
-> > > +
-> > > +	/*
-> > > +	 * Collect the per-cpu time buckets and average them into a
-> > > +	 * single time sample that is normalized to wallclock time.
-> > > +	 *
-> > > +	 * For averaging, each CPU is weighted by its non-idle time in
-> > > +	 * the sampling period. This eliminates artifacts from uneven
-> > > +	 * loading, or even entirely idle CPUs.
-> > > +	 *
-> > > +	 * We could pin the online CPUs here, but the noise introduced
-> > > +	 * by missing up to one sample period from CPUs that are going
-> > > +	 * away shouldn't matter in practice - just like the noise of
-> > > +	 * previously offlined CPUs returning with a non-zero sample.
-> > 
-> > But why!? cpuu_read_lock() is neither expensive nor complicated. So why
-> > try and avoid it?
-> 
-> Hm, I don't feel strongly about it either way. I'll add it.
+On 07/10/2018 03:26 PM, Yu-cheng Yu wrote:
+> @@ -1193,6 +1195,8 @@ static int do_huge_pmd_wp_page_fallback(struct vm_fault *vmf, pmd_t orig_pmd,
+>  		pte_t entry;
+>  		entry = mk_pte(pages[i], vma->vm_page_prot);
+>  		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+> +		if (is_shstk_mapping(vma->vm_flags))
+> +			entry = pte_mkdirty_shstk(entry);
 
-Thinking more about it, this really doesn't buy anything. Whether a
-CPU comes online or goes offline during the loop is no different than
-that happening right before grabbing the cpus_read_lock(). If we see a
-sample from a CPU, we incorporate it, if not we don't.
+Peter Z was pointing out that we should get rid of all this generic code
+manipulation.  We might not easily be able to do it *all*, but we can do
+better than what we've got here.
 
-So it's not so much avoidance as it's lack of reason for synchronizing
-against hotplugging in any fashion. The comment is wrong. This noise
-it points to is there with and without the lock, and the only way to
-avoid it would be to do either for_each_possible_cpu() in that loop or
-having a hotplug callback that would flush the offlining CPU bucket
-into a holding place for missed dead cpu samples that the aggregation
-loop checks every time. Neither of these seem remotely worth the cost.
+Basically, if you have code outside of arch/x86 in your patch set that
+refers to shadow stacks, you should consider it a bug (for now),
+especially if you have to hack .c files.
 
-I'll fix the comment instead.
+For instance, in the code above, you could move the is_shstk_mapping() into:
+
+static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
+{
+        if (likely(vma->vm_flags & VM_WRITE))
+                pte = pte_mkwrite(pte);
+	
++	pte = arch_pte_mkwrite(pte, vma);
++
+        return pte;
+}
+
+... and add an arch callback that does:
+
+static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
+{
+	if (!is_shstk_mapping(vma->vm_flags))
+		return pte;
+
+	WARN_ON(... pte bits incompatible with shadow stacks?);
+
+	/* Lots of comments of course */
+	entry = pte_mkdirty_shstk(entry);
+}
+
+This is just one example.  You are probably going to need a couple of
+similar things.  Just remember: the bar is very high to make changes to
+.c files outside of arch/x86.  You can do a _bit_ more in non-x86
+headers, but you have the most freedom to patch what you want as long as
+it's in arch/x86.
