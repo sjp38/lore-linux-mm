@@ -1,74 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A2AC86B0003
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 16:48:22 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id z83-v6so824514ywg.3
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 13:48:22 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id c16-v6si645421ywa.301.2018.07.20.13.48.21
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AB6BC6B0005
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 17:05:54 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id s3-v6so8263898plp.21
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 14:05:54 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r3-v6sor842784pfi.109.2018.07.20.14.05.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jul 2018 13:48:21 -0700 (PDT)
-Date: Fri, 20 Jul 2018 13:47:54 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: cgroup-aware OOM killer, how to move forward
-Message-ID: <20180720204746.GA23478@castle.DHCP.thefacebook.com>
-References: <20180713231630.GB17467@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
- <20180717173844.GB14909@castle.DHCP.thefacebook.com>
- <20180717194945.GM7193@dhcp22.suse.cz>
- <20180717200641.GB18762@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807171329200.12251@chino.kir.corp.google.com>
- <20180717205221.GA19862@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807200126540.119737@chino.kir.corp.google.com>
- <20180720112131.GX72677@devbig577.frc2.facebook.com>
- <alpine.DEB.2.21.1807201321040.231119@chino.kir.corp.google.com>
+        (Google Transport Security);
+        Fri, 20 Jul 2018 14:05:53 -0700 (PDT)
+Date: Fri, 20 Jul 2018 14:05:52 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: thp: remove use_zero_page sysfs knob
+In-Reply-To: <3238b5d2-fd89-a6be-0382-027a24a4d3ad@linux.alibaba.com>
+Message-ID: <alpine.DEB.2.21.1807201401390.231119@chino.kir.corp.google.com>
+References: <1532110430-115278-1-git-send-email-yang.shi@linux.alibaba.com> <20180720123243.6dfc95ba061cd06e05c0262e@linux-foundation.org> <alpine.DEB.2.21.1807201300290.224013@chino.kir.corp.google.com>
+ <3238b5d2-fd89-a6be-0382-027a24a4d3ad@linux.alibaba.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1807201321040.231119@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, gthelen@google.com
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kirill@shutemov.name, hughd@google.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jul 20, 2018 at 01:28:56PM -0700, David Rientjes wrote:
-> On Fri, 20 Jul 2018, Tejun Heo wrote:
+On Fri, 20 Jul 2018, Yang Shi wrote:
+
+> > We disable the huge zero page through this interface, there were issues
+> > related to the huge zero page shrinker (probably best to never free a
+> > per-node huge zero page after allocated) and CVE-2017-1000405 for huge
+> > dirty COW.
 > 
-> > > process chosen for oom kill.  I know that you care about the latter.  My 
-> > > *only* suggestion was for the tunable to take a string instead of a 
-> > > boolean so it is extensible for future use.  This seems like something so 
-> > > trivial.
-> > 
-> > So, I'd much prefer it as boolean.  It's a fundamentally binary
-> > property, either handle the cgroup as a unit when chosen as oom victim
-> > or not, nothing more.
+> Thanks for the information. It looks the CVE has been resolved by commit
+> a8f97366452ed491d13cf1e44241bc0b5740b1f0 ("mm, thp: Do not make page table
+> dirty unconditionally in touch_p[mu]d()"), which is in 4.15 already.
 > 
-> With the single hierarchy mandate of cgroup v2, the need arises to 
-> separate processes from a single job into subcontainers for use with 
-> controllers other than mem cgroup.  In that case, we have no functionality 
-> to oom kill all processes in the subtree.
+
+For users who run kernels earlier than 4.15 they may choose to mitigate 
+the CVE by using this tunable.  It's not something we permanently need to 
+have, but it may likely be too early.
+
+> What was the shrinker related issue? I'm supposed it has been resolved, right?
 > 
-> A boolean can kill all processes attached to the victim's mem cgroup, but 
-> cannot kill all processes in a subtree if the limit of a common ancestor 
-> is reached.
 
-Why so?
+The huge zero page can be reclaimed under memory pressure and, if it is, 
+it is attempted to be allocted again with gfp flags that attempt memory 
+compaction that can become expensive.  If we are constantly under memory 
+pressure, it gets freed and reallocated millions of times always trying to 
+compact memory both directly and by kicking kcompactd in the background.
 
-Once again my proposal:
-as soon as the OOM killer selected a victim task,
-we'll look at the victim task's memory cgroup.
-If memory.oom.group is not set, we're done.
-Otherwise let's traverse the memory cgroup tree up to
-the OOMing cgroup (or root) as long as memory.oom.group is set.
-Kill the last cgroup entirely (including all children).
-
-Please, note:
-we do not look at memory.oom.group of the OOMing cgroup,
-we're looking at the memcg of the victim task.
-
-If this model doesn't work well for you case,
-please, describe it on an example. I'm not sure
-I understand your problem anymore.
-
-Thanks!
+It likely should also be per node.
