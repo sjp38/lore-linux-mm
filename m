@@ -1,135 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 198546B0269
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 18:03:41 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id d1-v6so6264216wrr.4
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 15:03:41 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id h132-v6sor582582wmd.12.2018.07.20.15.03.39
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E59FE6B0003
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 18:13:47 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id t19-v6so8407318plo.9
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 15:13:47 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v6-v6sor870760pfk.68.2018.07.20.15.13.46
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 20 Jul 2018 15:03:39 -0700 (PDT)
+        Fri, 20 Jul 2018 15:13:46 -0700 (PDT)
+Date: Fri, 20 Jul 2018 15:13:44 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v4] mm, oom: fix unnecessary killing of additional
+ processes
+In-Reply-To: <ca34b123-5c81-569f-85ea-4851bc569962@i-love.sakura.ne.jp>
+Message-ID: <alpine.DEB.2.21.1807201505550.38399@chino.kir.corp.google.com>
+References: <alpine.DEB.2.21.1806211434420.51095@chino.kir.corp.google.com> <d19d44c3-c8cf-70a1-9b15-c98df233d5f0@i-love.sakura.ne.jp> <alpine.DEB.2.21.1807181317540.49359@chino.kir.corp.google.com> <a78fb992-ad59-0cdb-3c38-8284b2245f21@i-love.sakura.ne.jp>
+ <alpine.DEB.2.21.1807200133310.119737@chino.kir.corp.google.com> <alpine.DEB.2.21.1807201314230.231119@chino.kir.corp.google.com> <ca34b123-5c81-569f-85ea-4851bc569962@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20180716164500.GZ17280@dhcp22.suse.cz>
-References: <CADF2uSrW=Z=7NeA4qRwStoARGeT1y33QSP48Loc1u8XSdpMJOA@mail.gmail.com>
- <20180712113411.GB328@dhcp22.suse.cz> <CADF2uSqDDt3X_LHEQnc5xzHpqJ66E5gncogwR45bmZsNHxV55A@mail.gmail.com>
- <CADF2uSr-uFz+AAhcwP7ORgGgtLohayBtpDLxx9kcADDxaW8hWw@mail.gmail.com>
- <20180716162337.GY17280@dhcp22.suse.cz> <CADF2uSpEZTqD7pUp1t77GNTT+L=M3Ycir2+gsZg3kf5=y-5_-Q@mail.gmail.com>
- <20180716164500.GZ17280@dhcp22.suse.cz>
-From: Marinko Catovic <marinko.catovic@gmail.com>
-Date: Sat, 21 Jul 2018 00:03:38 +0200
-Message-ID: <CADF2uSpkOqCU5hO9y4708TvpJ5JvkXjZ-M1o+FJr2v16AZP3Vw@mail.gmail.com>
-Subject: Re: Caching/buffers become useless after some time
-Content-Type: multipart/alternative; boundary="000000000000d1ee2f0571757731"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
---000000000000d1ee2f0571757731
-Content-Type: text/plain; charset="UTF-8"
+On Sat, 21 Jul 2018, Tetsuo Handa wrote:
 
-I let this run for 3 days now, so it is quite a lot, there you go:
-https://nofile.io/f/egGyRjf0NPs/vmstat.tar.gz
+> > diff --git a/mm/mmap.c b/mm/mmap.c
+> > --- a/mm/mmap.c
+> > +++ b/mm/mmap.c
+> > @@ -3066,25 +3066,27 @@ void exit_mmap(struct mm_struct *mm)
+> >  	if (unlikely(mm_is_oom_victim(mm))) {
+> >  		/*
+> >  		 * Manually reap the mm to free as much memory as possible.
+> > -		 * Then, as the oom reaper does, set MMF_OOM_SKIP to disregard
+> > -		 * this mm from further consideration.  Taking mm->mmap_sem for
+> > -		 * write after setting MMF_OOM_SKIP will guarantee that the oom
+> > -		 * reaper will not run on this mm again after mmap_sem is
+> > -		 * dropped.
+> > -		 *
+> >  		 * Nothing can be holding mm->mmap_sem here and the above call
+> >  		 * to mmu_notifier_release(mm) ensures mmu notifier callbacks in
+> >  		 * __oom_reap_task_mm() will not block.
+> >  		 *
+> > +		 * This sets MMF_UNSTABLE to avoid racing with the oom reaper.
+> >  		 * This needs to be done before calling munlock_vma_pages_all(),
+> >  		 * which clears VM_LOCKED, otherwise the oom reaper cannot
+> > -		 * reliably test it.
+> > +		 * reliably test for it.  If the oom reaper races with
+> > +		 * munlock_vma_pages_all(), this can result in a kernel oops if
+> > +		 * a pmd is zapped, for example, after follow_page_mask() has
+> > +		 * checked pmd_none().
+> >  		 */
+> >  		mutex_lock(&oom_lock);
+> >  		__oom_reap_task_mm(mm);
+> >  		mutex_unlock(&oom_lock);
+> 
+> I don't like holding oom_lock for full teardown of an mm, for an OOM victim's mm
+> might have multiple TB memory which could take long time.
+> 
 
-There is one thing I forgot to mention: the hosts perform find and du (I
-mean the commands, finding files and disk usage)
-on the HDDs every night, starting from 00:20 AM up until in the morning
-07:45 AM, for maintenance and stats.
+This patch does not involve deltas for oom_lock here, it can certainly be 
+changed on top of this patch.  I'm not attempting to address any oom_lock 
+issue here.  It should pose no roadblock for you.
 
-During this period the buffers/caches raise again as you may see from the
-logs, so find/du do fill them.
-Nevertheless as the day passes both decrease again until low values are
-reached.
-I disabled find/du for the night on 19->20th July to compare.
+I only propose this patch now since it fixes millions of processes being 
+oom killed unnecessarily, it was in -mm before a NACK for the most trivial 
+fixes that have now been squashed into it, and is actually tested.
 
-I have to say that this really low usage (300MB/xGB) occured just once
-after I upgraded from 4.16 to 4.17, not sure
-why, where one can still see from the logs that the buffers/cache is not
-using up the entire available RAM.
+> >  
+> > -		set_bit(MMF_OOM_SKIP, &mm->flags);
+> > +		/*
+> > +		 * Taking mm->mmap_sem for write after setting MMF_UNSTABLE will
+> > +		 * guarantee that the oom reaper will not run on this mm again
+> > +		 * after mmap_sem is dropped.
+> > +		 */
+> >  		down_write(&mm->mmap_sem);
+> >  		up_write(&mm->mmap_sem);
+> >  	}
+> 
+> 
+> 
+> > -#define MAX_OOM_REAP_RETRIES 10
+> >  static void oom_reap_task(struct task_struct *tsk)
+> >  {
+> > -	int attempts = 0;
+> >  	struct mm_struct *mm = tsk->signal->oom_mm;
+> >  
+> > -	/* Retry the down_read_trylock(mmap_sem) a few times */
+> > -	while (attempts++ < MAX_OOM_REAP_RETRIES && !oom_reap_task_mm(tsk, mm))
+> > -		schedule_timeout_idle(HZ/10);
+> > +	/*
+> > +	 * If this mm has either been fully unmapped, or the oom reaper has
+> > +	 * given up on it, nothing left to do except drop the refcount.
+> > +	 */
+> > +	if (test_bit(MMF_OOM_SKIP, &mm->flags))
+> > +		goto drop;
+> >  
+> > -	if (attempts <= MAX_OOM_REAP_RETRIES ||
+> > -	    test_bit(MMF_OOM_SKIP, &mm->flags))
+> > -		goto done;
+> > +	/*
+> > +	 * If this mm has already been reaped, doing so again will not likely
+> > +	 * free additional memory.
+> > +	 */
+> > +	if (!test_bit(MMF_UNSTABLE, &mm->flags))
+> > +		oom_reap_task_mm(tsk, mm);
+> 
+> This is still wrong. If preempted immediately after set_bit(MMF_UNSTABLE, &mm->flags) from
+> __oom_reap_task_mm() from exit_mmap(), oom_reap_task() can give up before reclaiming any memory.
 
-This low usage occured the last time on that one host when I mentioned that
-I had to 2>drop_caches again in my
-previous message, so this is still an issue even on the latest kernel.
+If there is a single thread holding onto the mm and has reached 
+exit_mmap() and is in the process of starting oom reaping itself, there's 
+no advantage to the oom reaper trying to oom reap it.  The thread in 
+exit_mmap() will take care of it, __oom_reap_task_mm() does not block and 
+oom_free_timeout_ms allows for enough time for that memory freeing to 
+occur.  The oom reaper will not set MMF_OOM_SKIP until the timeout has 
+expired.
 
-The other host (the one that was not measured with the vmstat logs) has
-currently 600MB/14GB, 34GB of free RAM.
-Both were reset with drop_caches at the same time. From the looks of this
-the really low usage will occur again
-somewhat shortly, it just did not come up during measurement. However, the
-RAM should be full anyway, true?
-
-
-
-
-
-2018-07-16 18:45 GMT+02:00 Michal Hocko <mhocko@kernel.org>:
-
-> On Mon 16-07-18 18:33:57, Marinko Catovic wrote:
-> > how periodically do you want them? I assumed this some-hours and days
-> > snapshots would be sufficient.
->
-> Every 10s should be reasonable even for a long term monitoring.
->
-> > any particular command with or without grep perhaps?
->
-> while true
-> do
->         cp /proc/vmstat vmstat.$(date +%s)
->         sleep 10s
-> done
-> --
-> Michal Hocko
-> SUSE Labs
->
-
---000000000000d1ee2f0571757731
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><div>I let this run for 3 days now, so it is quite a lot, =
-there you go: <a href=3D"https://nofile.io/f/egGyRjf0NPs/vmstat.tar.gz">htt=
-ps://nofile.io/f/egGyRjf0NPs/vmstat.tar.gz</a></div><div><br></div><div>The=
-re is one thing I forgot to mention: the hosts perform find and du (I mean =
-the commands, finding files and disk usage)</div><div>on the HDDs every nig=
-ht, starting from 00:20 AM up until in the morning 07:45 AM, for maintenanc=
-e and stats.</div><div><br></div><div>During this period the buffers/caches=
- raise again as you may see from the logs, so find/du do fill them.</div><d=
-iv>Nevertheless as the day passes both decrease again until low values are =
-reached.</div><div>I disabled find/du for the night on 19-&gt;20th July to =
-compare.<br></div><div><br></div><div>I have to say that this really low us=
-age (300MB/xGB) occured just once after I upgraded from 4.16 to 4.17, not s=
-ure</div><div>why, where one can still see from the logs that the buffers/c=
-ache is not using up the entire available RAM.</div><div><br></div><div>Thi=
-s low usage occured the last time on that one host when I mentioned that I =
-had to 2&gt;drop_caches again in my</div><div>previous message, so this is =
-still an issue even on the latest kernel.</div><div><br></div><div>The othe=
-r host (the one that was not measured with the vmstat logs) has currently 6=
-00MB/14GB, 34GB of free RAM.</div><div>Both were reset with drop_caches at =
-the same time. From the looks of this the really low usage will occur again=
-</div><div>somewhat shortly, it just did not come up during measurement. Ho=
-wever, the RAM should be full anyway, true?</div><div><br></div><div><br></=
-div><div><br></div><div><br></div><div class=3D"gmail_extra"><br><div class=
-=3D"gmail_quote">2018-07-16 18:45 GMT+02:00 Michal Hocko <span dir=3D"ltr">=
-&lt;<a href=3D"mailto:mhocko@kernel.org" target=3D"_blank">mhocko@kernel.or=
-g</a>&gt;</span>:<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 =
-0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><span class=3D"">On Mon=
- 16-07-18 18:33:57, Marinko Catovic wrote:<br>
-&gt; how periodically do you want them? I assumed this some-hours and days<=
-br>
-&gt; snapshots would be sufficient.<br>
-<br>
-</span>Every 10s should be reasonable even for a long term monitoring.<br>
-<span class=3D""><br>
-&gt; any particular command with or without grep perhaps?<br>
-<br>
-</span>while true<br>
-do<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 cp /proc/vmstat vmstat.$(date +%s)<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 sleep 10s<br>
-done<br>
-<div class=3D"HOEnZb"><div class=3D"h5">-- <br>
-Michal Hocko<br>
-SUSE Labs<br>
-</div></div></blockquote></div><br></div></div>
-
---000000000000d1ee2f0571757731--
+As I said before, you could make a case for extending the timeout once 
+MMF_UNSTABLE has been set.  It practice, we haven't encountered a case 
+where that matters.  But that's trivial to do if you would prefer.
