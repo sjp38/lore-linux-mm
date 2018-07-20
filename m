@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BB4B6B000A
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 12:22:41 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id b9-v6so4733712edn.18
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 09:22:41 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id e21-v6si2661183edj.214.2018.07.20.09.22.40
+	by kanga.kvack.org (Postfix) with ESMTP id 183C36B000C
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 12:22:42 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id w10-v6so4902009eds.7
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 09:22:42 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id 5-v6si1931338edo.397.2018.07.20.09.22.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 20 Jul 2018 09:22:40 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 1/3] perf/core: Make sure the ring-buffer is mapped in all page-tables
-Date: Fri, 20 Jul 2018 18:22:22 +0200
-Message-Id: <1532103744-31902-2-git-send-email-joro@8bytes.org>
+Subject: [PATCH 2/3] x86/entry/32: Check for VM86 mode in slow-path check
+Date: Fri, 20 Jul 2018 18:22:23 +0200
+Message-Id: <1532103744-31902-3-git-send-email-joro@8bytes.org>
 In-Reply-To: <1532103744-31902-1-git-send-email-joro@8bytes.org>
 References: <1532103744-31902-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,51 +22,44 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-The ring-buffer is accessed in the NMI handler, so we better
-avoid faulting on it. Sync the vmalloc range with all
-page-tables in system to make sure everyone has it mapped.
+The SWITCH_TO_KERNEL_STACK macro only checks for CPL == 0 to
+go down the slow and paranoid entry path. The problem is
+that this check also returns true when coming from VM86
+mode. This is not a problem by itself, as the paranoid path
+handles VM86 stack-frames just fine, but it is not necessary
+as the normal code path handles VM86 mode as well (and
+faster).
 
-This fixes a WARN_ON_ONCE() that can be triggered with PTI
-enabled on x86-32:
-
-	WARNING: CPU: 4 PID: 0 at arch/x86/mm/fault.c:320 vmalloc_fault+0x220/0x230
-
-This triggers because with PTI enabled on an PAE kernel the
-PMDs are no longer shared between the page-tables, so the
-vmalloc changes do not propagate automatically.
+Extend the check to include VM86 mode. This also makes an
+optimization of the paranoid path possible.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- kernel/events/ring_buffer.c | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ arch/x86/entry/entry_32.S | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
-diff --git a/kernel/events/ring_buffer.c b/kernel/events/ring_buffer.c
-index 5d3cf40..7b0e9aa 100644
---- a/kernel/events/ring_buffer.c
-+++ b/kernel/events/ring_buffer.c
-@@ -814,6 +814,9 @@ static void rb_free_work(struct work_struct *work)
+diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+index 010cdb4..2767c62 100644
+--- a/arch/x86/entry/entry_32.S
++++ b/arch/x86/entry/entry_32.S
+@@ -414,8 +414,16 @@
+ 	andl	$(0x0000ffff), PT_CS(%esp)
  
- 	vfree(base);
- 	kfree(rb);
-+
-+	/* Make sure buffer is unmapped in all page-tables */
-+	vmalloc_sync_all();
- }
+ 	/* Special case - entry from kernel mode via entry stack */
+-	testl	$SEGMENT_RPL_MASK, PT_CS(%esp)
+-	jz	.Lentry_from_kernel_\@
++#ifdef CONFIG_VM86
++	movl	PT_EFLAGS(%esp), %ecx		# mix EFLAGS and CS
++	movb	PT_CS(%esp), %cl
++	andl	$(X86_EFLAGS_VM | SEGMENT_RPL_MASK), %ecx
++#else
++	movl	PT_CS(%esp), %ecx
++	andl	$SEGMENT_RPL_MASK, %ecx
++#endif
++	cmpl	$USER_RPL, %ecx
++	jb	.Lentry_from_kernel_\@
  
- void rb_free(struct ring_buffer *rb)
-@@ -840,6 +843,13 @@ struct ring_buffer *rb_alloc(int nr_pages, long watermark, int cpu, int flags)
- 	if (!all_buf)
- 		goto fail_all_buf;
- 
-+	/*
-+	 * The buffer is accessed in NMI handlers, make sure it is
-+	 * mapped in all page-tables in the system so that we don't
-+	 * fault on the range in an NMI handler.
-+	 */
-+	vmalloc_sync_all();
-+
- 	rb->user_page = all_buf;
- 	rb->data_pages[0] = all_buf + PAGE_SIZE;
- 	if (nr_pages) {
+ 	/* Bytes to copy */
+ 	movl	$PTREGS_SIZE, %ecx
 -- 
 2.7.4
