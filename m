@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 183C36B000C
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A2EC16B000C
 	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 12:22:42 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id w10-v6so4902009eds.7
+Received: by mail-ed1-f70.google.com with SMTP id w10-v6so4902018eds.7
         for <linux-mm@kvack.org>; Fri, 20 Jul 2018 09:22:42 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id 5-v6si1931338edo.397.2018.07.20.09.22.40
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id q8-v6si2126804edn.6.2018.07.20.09.22.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jul 2018 09:22:40 -0700 (PDT)
+        Fri, 20 Jul 2018 09:22:41 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 2/3] x86/entry/32: Check for VM86 mode in slow-path check
-Date: Fri, 20 Jul 2018 18:22:23 +0200
-Message-Id: <1532103744-31902-3-git-send-email-joro@8bytes.org>
+Subject: [PATCH 3/3] x86/entry/32: Copy only ptregs on paranoid entry/exit path
+Date: Fri, 20 Jul 2018 18:22:24 +0200
+Message-Id: <1532103744-31902-4-git-send-email-joro@8bytes.org>
 In-Reply-To: <1532103744-31902-1-git-send-email-joro@8bytes.org>
 References: <1532103744-31902-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,44 +22,132 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-The SWITCH_TO_KERNEL_STACK macro only checks for CPL == 0 to
-go down the slow and paranoid entry path. The problem is
-that this check also returns true when coming from VM86
-mode. This is not a problem by itself, as the paranoid path
-handles VM86 stack-frames just fine, but it is not necessary
-as the normal code path handles VM86 mode as well (and
-faster).
+The code that switches from entry- to task-stack when we
+enter from kernel-mode copies the full entry-stack contents
+to the task-stack.
 
-Extend the check to include VM86 mode. This also makes an
-optimization of the paranoid path possible.
+That is because we don't trust that the entry-stack
+contents. But actually we can trust its contents if we are
+not scheduled between entry and exit.
 
+So do less copying and move only the ptregs over to the
+task-stack in this code-path.
+
+Suggested-by: Andy Lutomirski <luto@amacapital.net>
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ arch/x86/entry/entry_32.S | 70 +++++++++++++++++++++++++----------------------
+ 1 file changed, 38 insertions(+), 32 deletions(-)
 
 diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index 010cdb4..2767c62 100644
+index 2767c62..90166b2 100644
 --- a/arch/x86/entry/entry_32.S
 +++ b/arch/x86/entry/entry_32.S
-@@ -414,8 +414,16 @@
- 	andl	$(0x0000ffff), PT_CS(%esp)
+@@ -469,33 +469,48 @@
+ 	 * segment registers on the way back to user-space or when the
+ 	 * sysenter handler runs with eflags.tf set.
+ 	 *
+-	 * When we switch to the task-stack here, we can't trust the
+-	 * contents of the entry-stack anymore, as the exception handler
+-	 * might be scheduled out or moved to another CPU. Therefore we
+-	 * copy the complete entry-stack to the task-stack and set a
+-	 * marker in the iret-frame (bit 31 of the CS dword) to detect
+-	 * what we've done on the iret path.
++	 * When we switch to the task-stack here, we extend the
++	 * stack-frame we copy to include the entry-stack %esp and a
++	 * pseudo %ss value so that we have a full ptregs struct on the
++	 * stack. We set a marker in the frame (bit 31 of the CS dword).
+ 	 *
+-	 * On the iret path we copy everything back and switch to the
+-	 * entry-stack, so that the interrupted kernel code-path
+-	 * continues on the same stack it was interrupted with.
++	 * On the iret path we read %esp from the PT_OLDESP slot on the
++	 * stack and copy ptregs (except oldesp and oldss) to it, when
++	 * we find the marker set. Then we switch to the %esp we read,
++	 * so that the interrupted kernel code-path continues on the
++	 * same stack it was interrupted with.
+ 	 *
+ 	 * Be aware that an NMI can happen anytime in this code.
+ 	 *
++	 * Register values here are:
++	 *
+ 	 * %esi: Entry-Stack pointer (same as %esp)
+ 	 * %edi: Top of the task stack
+ 	 * %eax: CR3 on kernel entry
+ 	 */
  
- 	/* Special case - entry from kernel mode via entry stack */
--	testl	$SEGMENT_RPL_MASK, PT_CS(%esp)
--	jz	.Lentry_from_kernel_\@
-+#ifdef CONFIG_VM86
-+	movl	PT_EFLAGS(%esp), %ecx		# mix EFLAGS and CS
-+	movb	PT_CS(%esp), %cl
-+	andl	$(X86_EFLAGS_VM | SEGMENT_RPL_MASK), %ecx
-+#else
-+	movl	PT_CS(%esp), %ecx
-+	andl	$SEGMENT_RPL_MASK, %ecx
-+#endif
-+	cmpl	$USER_RPL, %ecx
-+	jb	.Lentry_from_kernel_\@
+-	/* Calculate number of bytes on the entry stack in %ecx */
+-	movl	%esi, %ecx
++	/* Allocate full pt_regs on task-stack */
++	subl	$PTREGS_SIZE, %edi
++
++	/* Switch to task-stack */
++	movl	%edi, %esp
  
- 	/* Bytes to copy */
- 	movl	$PTREGS_SIZE, %ecx
+-	/* %ecx to the top of entry-stack */
+-	andl	$(MASK_entry_stack), %ecx
+-	addl	$(SIZEOF_entry_stack), %ecx
++	/* Populate pt_regs on task-stack */
++	movl	$__KERNEL_DS, PT_OLDSS(%esp)	/* Check: Is this needed? */
+ 
+-	/* Number of bytes on the entry stack to %ecx */
+-	sub	%esi, %ecx
++	/*
++	 * Save entry-stack pointer on task-stack so that we can switch back to
++	 * it on the the iret path.
++	 */
++	movl	%esi, PT_OLDESP(%esp)
++
++	/* sizeof(pt_regs) minus space for %esp and %ss to %ecx */
++	movl	$(PTREGS_SIZE - 8), %ecx
++
++	/* Copy rest */
++	shrl	$2, %ecx
++	cld
++	rep movsl
+ 
+ 	/* Mark stackframe as coming from entry stack */
+ 	orl	$CS_FROM_ENTRY_STACK, PT_CS(%esp)
+@@ -505,16 +520,9 @@
+ 	 * so that we can switch back to it before iret.
+ 	 */
+ 	testl	$PTI_SWITCH_MASK, %eax
+-	jz	.Lcopy_pt_regs_\@
++	jz	.Lend_\@
+ 	orl	$CS_FROM_USER_CR3, PT_CS(%esp)
+ 
+-	/*
+-	 * %esi and %edi are unchanged, %ecx contains the number of
+-	 * bytes to copy. The code at .Lcopy_pt_regs_\@ will allocate
+-	 * the stack-frame on task-stack and copy everything over
+-	 */
+-	jmp .Lcopy_pt_regs_\@
+-
+ .Lend_\@:
+ .endm
+ 
+@@ -594,16 +602,14 @@
+ 	/* Clear marker from stack-frame */
+ 	andl	$(~CS_FROM_ENTRY_STACK), PT_CS(%esp)
+ 
+-	/* Copy the remaining task-stack contents to entry-stack */
++	/*
++	 * Copy the remaining 'struct ptregs' to entry-stack. Leave out
++	 * OLDESP and OLDSS as we didn't copy that over on entry.
++	 */
+ 	movl	%esp, %esi
+-	movl	PER_CPU_VAR(cpu_tss_rw + TSS_sp0), %edi
++	movl	PT_OLDESP(%esp), %edi
+ 
+-	/* Bytes on the task-stack to ecx */
+-	movl	PER_CPU_VAR(cpu_tss_rw + TSS_sp1), %ecx
+-	subl	%esi, %ecx
+-
+-	/* Allocate stack-frame on entry-stack */
+-	subl	%ecx, %edi
++	movl	$(PTREGS_SIZE - 8), %ecx
+ 
+ 	/*
+ 	 * Save future stack-pointer, we must not switch until the
 -- 
 2.7.4
