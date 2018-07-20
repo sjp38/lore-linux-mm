@@ -1,58 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 65E346B0003
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 12:13:44 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id i9-v6so3109106ljg.21
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 09:13:44 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id t20-v6si916596ljd.400.2018.07.20.09.13.41
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 06AA26B0006
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 12:22:41 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id c2-v6so4931311edi.20
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 09:22:40 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id m30-v6si1589374ede.102.2018.07.20.09.22.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jul 2018 09:13:42 -0700 (PDT)
-Date: Fri, 20 Jul 2018 09:13:19 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: cgroup-aware OOM killer, how to move forward
-Message-ID: <20180720161319.GB22645@castle.DHCP.thefacebook.com>
-References: <alpine.DEB.2.21.1807131608530.218060@chino.kir.corp.google.com>
- <20180713231630.GB17467@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
- <20180717173844.GB14909@castle.DHCP.thefacebook.com>
- <20180717194945.GM7193@dhcp22.suse.cz>
- <20180717200641.GB18762@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807171329200.12251@chino.kir.corp.google.com>
- <20180717205221.GA19862@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807200126540.119737@chino.kir.corp.google.com>
- <20180720112131.GX72677@devbig577.frc2.facebook.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20180720112131.GX72677@devbig577.frc2.facebook.com>
+        Fri, 20 Jul 2018 09:22:39 -0700 (PDT)
+From: Joerg Roedel <joro@8bytes.org>
+Subject: [PATCH 0/3] PTI for x86-32 Fixes and Updates
+Date: Fri, 20 Jul 2018 18:22:21 +0200
+Message-Id: <1532103744-31902-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, gthelen@google.com
+To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, jroedel@suse.de, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, joro@8bytes.org
 
-On Fri, Jul 20, 2018 at 04:21:31AM -0700, Tejun Heo wrote:
-> Hello,
-> 
-> On Fri, Jul 20, 2018 at 01:30:00AM -0700, David Rientjes wrote:
-> ...
-> > process chosen for oom kill.  I know that you care about the latter.  My 
-> > *only* suggestion was for the tunable to take a string instead of a 
-> > boolean so it is extensible for future use.  This seems like something so 
-> > trivial.
-> 
-> So, I'd much prefer it as boolean.  It's a fundamentally binary
-> property, either handle the cgroup as a unit when chosen as oom victim
-> or not, nothing more.  I don't see the (interface-wise) benefits of
-> preparing for further oom policy extensions.  If that happens, it
-> should be through a separate interface file.  The number of files
-> isn't the most important criteria interface is designed on.
-> 
-> Roman, can you rename it tho to memory.oom.group?  That's how other
-> interface files are scoped and it'd be better if we try to add further
-> oom related interface files later.
+Hi,
 
-Yes, sure, this looks good to me.
+here are 3 patches which update the PTI-x86-32 patches recently merged
+into the tip-tree. The patches are ordered by importance:
 
-Thanks!
+	Patch 1: Very important, it fixes a vmalloc-fault in NMI context
+		 when PTI is enabled. This is pretty unlikely to hit
+		 when starting perf on an idle machine, which is why I
+		 didn't find it earlier in my testing. I always started
+		 'perf top' first :/ But when I start 'perf top' last
+		 when the kernel-compile already runs, it hits almost
+		 immediatly.
+
+	Patch 2: Fix the 'from-kernel-check' in SWITCH_TO_KERNEL_STACK
+	         to also take VM86 into account. This is not strictly
+		 necessary because the slow-path also works for VM86
+		 mode but it is not how the code was intended to work.
+		 And it breaks when Patch 3 is applied on-top.
+
+	Patch 3: Implement the reduced copying in the paranoid
+		 entry/exit path as suggested by Andy Lutomirski while
+		 reviewing version 7 of the original patches.
+
+I have the x86/tip branch with these patches on-top running my test for
+6h now, with no issues so far. So for now it looks like there are no
+scheduling points or irq-enabled sections reached from the paranoid
+entry/exit paths and we always return to the entry-stack we came from.
+
+I keep the test running over the weekend at least.
+
+Please review.
+
+[ If Patch 1 looks good to the maintainers I suggest applying it soon,
+  before too many linux-next testers run into this issue. It is actually
+  the reason why I send out the patches _now_ and didn't wait until next
+  week when the other two patches got more testing from my side. ]
+
+Thanks,
+
+	Joerg
+
+Joerg Roedel (3):
+  perf/core: Make sure the ring-buffer is mapped in all page-tables
+  x86/entry/32: Check for VM86 mode in slow-path check
+  x86/entry/32: Copy only ptregs on paranoid entry/exit path
+
+ arch/x86/entry/entry_32.S   | 82 ++++++++++++++++++++++++++-------------------
+ kernel/events/ring_buffer.c | 10 ++++++
+ 2 files changed, 58 insertions(+), 34 deletions(-)
+
+-- 
+2.7.4
