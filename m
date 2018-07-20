@@ -1,53 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 461FE6B0003
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 04:30:03 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id a26-v6so2536951pgw.7
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 01:30:03 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id u10-v6sor441036plu.19.2018.07.20.01.30.02
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D02EA6B000A
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 04:32:22 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id q18-v6so4997288wrr.12
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 01:32:22 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z17-v6sor474446wrp.52.2018.07.20.01.32.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 20 Jul 2018 01:30:02 -0700 (PDT)
-Date: Fri, 20 Jul 2018 01:30:00 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: cgroup-aware OOM killer, how to move forward
-In-Reply-To: <20180717205221.GA19862@castle.DHCP.thefacebook.com>
-Message-ID: <alpine.DEB.2.21.1807200126540.119737@chino.kir.corp.google.com>
-References: <20180713221602.GA15005@castle.DHCP.thefacebook.com> <alpine.DEB.2.21.1807131535420.202408@chino.kir.corp.google.com> <20180713230545.GA17467@castle.DHCP.thefacebook.com> <alpine.DEB.2.21.1807131608530.218060@chino.kir.corp.google.com>
- <20180713231630.GB17467@castle.DHCP.thefacebook.com> <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com> <20180717173844.GB14909@castle.DHCP.thefacebook.com> <20180717194945.GM7193@dhcp22.suse.cz> <20180717200641.GB18762@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807171329200.12251@chino.kir.corp.google.com> <20180717205221.GA19862@castle.DHCP.thefacebook.com>
+        Fri, 20 Jul 2018 01:32:21 -0700 (PDT)
+Subject: Re: [PATCH V2 0/4] Fix kvm misconceives NVDIMM pages as reserved mmio
+References: <cover.1531241281.git.yi.z.zhang@linux.intel.com>
+ <c4e1c527-a372-bd6a-a101-5a8e9026e7c1@linux.intel.com>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <25569674-2d8f-8b54-4ba7-478b57067325@redhat.com>
+Date: Fri, 20 Jul 2018 10:32:19 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <c4e1c527-a372-bd6a-a101-5a8e9026e7c1@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, tj@kernel.org, gthelen@google.com
+To: "Zhang,Yi" <yi.z.zhang@linux.intel.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, dan.j.williams@intel.com, jack@suse.cz, hch@lst.de, yu.c.zhang@intel.com, dave.jiang@intel.com
+Cc: linux-mm@kvack.org, rkrcmar@redhat.com, yi.z.zhang@intel.com
 
-On Tue, 17 Jul 2018, Roman Gushchin wrote:
-
-> > This example is missing the usecase that I was referring to, i.e. killing 
-> > all processes attached to a subtree because the limit on a common ancestor 
-> > has been reached.
-> > 
-> > In your example, I would think that the memory.group_oom setting of /A and 
-> > /A/B are meaningless because there are no processes attached to them.
-> > 
-> > IIUC, your proposal is to select the victim by whatever means, check the 
-> > memory.group_oom setting of that victim, and then either kill the victim 
-> > or all processes attached to that local mem cgroup depending on the 
-> > setting.
+On 20/07/2018 16:11, Zhang,Yi wrote:
+> Added Jiang,Dave,
 > 
-> Sorry, I don't get what are you saying.
-> In cgroup v2 processes can't be attached to A and B.
-> There is no such thing as "local mem cgroup" at all.
-> 
+> Ping for further review, comments.
 
-Read the second paragraph, yes, there are no processes attached to either 
-mem cgroup.  I'm saying "group oom" can take on two different meanings: 
-one for the behavior when the mem cgroup reaches its limit (a direct 
-ancestor with no processes attached) and one for the mem cgrop of the 
-process chosen for oom kill.  I know that you care about the latter.  My 
-*only* suggestion was for the tunable to take a string instead of a 
-boolean so it is extensible for future use.  This seems like something so 
-trivial.
+I need an Acked-by from the MM people to merge this.  Jan, Dan?
+
+Paolo
+
+> 
+> Thanks All
+> 
+> Regards
+> Yi.
+> 
+> 
+> On 2018a1'07ae??11ae?JPY 01:01, Zhang Yi wrote:
+>> For device specific memory space, when we move these area of pfn to
+>> memory zone, we will set the page reserved flag at that time, some of
+>> these reserved for device mmio, and some of these are not, such as
+>> NVDIMM pmem.
+>>
+>> Now, we map these dev_dax or fs_dax pages to kvm for DIMM/NVDIMM
+>> backend, since these pages are reserved. the check of
+>> kvm_is_reserved_pfn() misconceives those pages as MMIO. Therefor, we
+>> introduce 2 page map types, MEMORY_DEVICE_FS_DAX/MEMORY_DEVICE_DEV_DAX,
+>> to indentify these pages are from NVDIMM pmem. and let kvm treat these
+>> as normal pages.
+>>
+>> Without this patch, Many operations will be missed due to this
+>> mistreatment to pmem pages. For example, a page may not have chance to
+>> be unpinned for KVM guest(in kvm_release_pfn_clean); not able to be
+>> marked as dirty/accessed(in kvm_set_pfn_dirty/accessed) etc.
+>>
+>> V1:
+>> https://lkml.org/lkml/2018/7/4/91
+>>
+>> V2:
+>> *Add documentation for MEMORY_DEVICE_DEV_DAX memory type in comment block
+>> *Add is_dax_page() in mm.h to differentiate the pages is from DAX device.
+>> *Remove the function kvm_is_nd_pfn().
+>>
+>> Zhang Yi (4):
+>>   kvm: remove redundant reserved page check
+>>   mm: introduce memory type MEMORY_DEVICE_DEV_DAX
+>>   mm: add a function to differentiate the pages is from DAX device
+>>     memory
+>>   kvm: add a check if pfn is from NVDIMM pmem.
+>>
+>>  drivers/dax/pmem.c       |  1 +
+>>  include/linux/memremap.h |  9 +++++++++
+>>  include/linux/mm.h       | 12 ++++++++++++
+>>  virt/kvm/kvm_main.c      | 16 ++++++++--------
+>>  4 files changed, 30 insertions(+), 8 deletions(-)
+>>
+> 
+> 
