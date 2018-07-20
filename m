@@ -1,108 +1,228 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 52AF16B0006
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 04:50:34 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id g5-v6so4411642edp.1
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 01:50:34 -0700 (PDT)
-Received: from huawei.com (szxga02-in.huawei.com. [45.249.212.188])
-        by mx.google.com with ESMTPS id c22-v6si1128318edj.78.2018.07.20.01.50.32
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E0F36B026B
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 05:00:43 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id y16-v6so5503061pgv.23
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 02:00:43 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id w15-v6si1381027pga.30.2018.07.20.02.00.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jul 2018 01:50:32 -0700 (PDT)
-From: "Zhangfei (Tyler)" <tyler.zhang@huawei.com>
-Subject: =?gb2312?B?tPC4tDogW1JGQ10gYSBxdWVzdGlvbiBhYm91dCByZXVzZSBod3BvaXNvbiBw?=
- =?gb2312?B?YWdlIGluIHNvZnRfb2ZmbGluZV9wYWdlKCk=?=
-Date: Fri, 20 Jul 2018 08:50:22 +0000
-Message-ID: <E690DE8F4F207D4EB356CAC7B78E15467E402966@DGGEMA503-MBX.china.huawei.com>
-References: <99235479-716d-4c40-8f61-8e44c242abf8.xishi.qiuxishi@alibaba-inc.com>
- <20180706081847.GA5144@hori1.linux.bs1.fc.nec.co.jp>
- <7f0ff90d-578b-2096-92c0-542a490b06a1@huawei.com>
-In-Reply-To: <7f0ff90d-578b-2096-92c0-542a490b06a1@huawei.com>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        Fri, 20 Jul 2018 02:00:42 -0700 (PDT)
+From: Wei Wang <wei.w.wang@intel.com>
+Subject: [PATCH v36 2/5] virtio_balloon: replace oom notifier with shrinker
+Date: Fri, 20 Jul 2018 16:33:02 +0800
+Message-Id: <1532075585-39067-3-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <1532075585-39067-1-git-send-email-wei.w.wang@intel.com>
+References: <1532075585-39067-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiexiuqi <xiexiuqi@huawei.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?gb2312?B?9MPPocqvKM+hyq8p?= <xishi.qiuxishi@alibaba-inc.com>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, "zy.zhengyi" <zy.zhengyi@alibaba-inc.com>, lvzhipeng <lvzhipeng@huawei.com>, meinanjing <meinanjing@huawei.com>, zhongjiang <zhongjiang@huawei.com>, Dukaitian <dukaitian@huawei.com>, Chenglongfei <chenglongfei@huawei.com>
+To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
+Cc: pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
 
-SGkgTmFveWEmeGlzaGmjug0KCVdlIGhhdmUgYSBzaW1pbGFyIHByb2JsZW0sIHRoZSBkaWZmZXJl
-bmNlIGlzIHRoYXQgd2UgZGlkIG5vdCBFbmFibGUgaHVnZXBhZ2UsIHRoZSBzb2Z0LW9mZmxpbmUg
-d2FzIGV4ZWN1dGVkIGluIHRoZSBjYXNlIG9mIG5vcm1hbCA0SyBwYWdlcywgYW5kIGZpbmFsbHkg
-dGhlIE1DRSBraWxsIHdhcyB0cmlnZ2VyZWSjqGZpbmQgaHdwb2lzb24gZmxhZyBpcyBhbHJlYWR5
-IHNldC0tPnJldCA9IFZNX0ZBVUxUX0hXUE9JU09OLS0+bW1fZmF1bHRfZXJyb3IgLS0+ZG9fc2ln
-YnVzIC0tPiBtY2Uga2lsbKOpLiBXZSBub3RpY2VkIHRoYXQgdGhlIG5ldyBwYXRjaCBtYWRlIHNv
-bWUgbW9kaWZpY2F0aW9ucyB0byB0aGUgY2FzZSBvZiBodWdlIHBhZ2Ugb2ZmbGluZSwgQnV0IGhv
-dyBjYW4gd2UgYXZvaWQgdGhpcyByYWNlIGNvbmRpdGlvbiBmb3IgdGhlIGNhc2Ugb2Ygbm9ybWFs
-IHBhZ2U/DQoNClRoYW5rc6OhDQoNCi0tLS0t08q8/tStvP4tLS0tLQ0Kt6K8/sjLOiBYaWV4aXVx
-aSANCreiy83KsbzkOiAyMDE4xOo31MIyMMjVIDE1OjUwDQrK1bz+yMs6IE5hb3lhIEhvcmlndWNo
-aSA8bi1ob3JpZ3VjaGlAYWguanAubmVjLmNvbT47IPTDz6HKryjPocqvKSA8eGlzaGkucWl1eGlz
-aGlAYWxpYmFiYS1pbmMuY29tPg0Ks63LzTogbGludXgtbW0gPGxpbnV4LW1tQGt2YWNrLm9yZz47
-IGxpbnV4LWtlcm5lbCA8bGludXgta2VybmVsQHZnZXIua2VybmVsLm9yZz47IHp5LnpoZW5neWkg
-PHp5LnpoZW5neWlAYWxpYmFiYS1pbmMuY29tPjsgWmhhbmdmZWkgKFR5bGVyKSA8dHlsZXIuemhh
-bmdAaHVhd2VpLmNvbT47IGx2emhpcGVuZyA8bHZ6aGlwZW5nQGh1YXdlaS5jb20+OyBtZWluYW5q
-aW5nIDxtZWluYW5qaW5nQGh1YXdlaS5jb20+OyB6aG9uZ2ppYW5nIDx6aG9uZ2ppYW5nQGh1YXdl
-aS5jb20+DQrW98ziOiBSZTogW1JGQ10gYSBxdWVzdGlvbiBhYm91dCByZXVzZSBod3BvaXNvbiBw
-YWdlIGluIHNvZnRfb2ZmbGluZV9wYWdlKCkNCg0KSGkgTmFveWEsIFhpc2hpLA0KDQpXZSBoYXZl
-IGEgc2ltaWxhciBwcm9ibGVtLg0KQHpoYW5nZmVpLCBjb3VsZCB5b3UgcGxlYXNlIGRlc2NyaWJl
-IHlvdXIgcHJvYmxlbSBoZXJlLg0KDQpPbiAyMDE4LzcvNiAxNjoxOCwgTmFveWEgSG9yaWd1Y2hp
-IHdyb3RlOg0KPiBPbiBGcmksIEp1bCAwNiwgMjAxOCBhdCAxMTozNzo0MUFNICswODAwLCD0w8+h
-yq8oz6HKrykgd3JvdGU6DQo+PiBUaGlzIHBhdGNoIGFkZDA1Y2VjDQo+PiAobW06IHNvZnQtb2Zm
-bGluZTogZG9uJ3QgZnJlZSB0YXJnZXQgcGFnZSBpbiBzdWNjZXNzZnVsIHBhZ2UgDQo+PiBtaWdy
-YXRpb24pIHJlbW92ZXMNCj4+IHNldF9taWdyYXRldHlwZV9pc29sYXRlKCkgYW5kIHVuc2V0X21p
-Z3JhdGV0eXBlX2lzb2xhdGUoKSBpbiANCj4+IHNvZnRfb2ZmbGluZV9wYWdlICgpLg0KPj4NCj4+
-IEFuZCB0aGlzIHBhdGNoIDI0M2FiZDViDQo+PiAobW06IGh1Z2V0bGI6IHByZXZlbnQgcmV1c2Ug
-b2YgaHdwb2lzb25lZCBmcmVlIGh1Z2VwYWdlcykgY2hhbmdlcyBpZiANCj4+ICghaXNfbWlncmF0
-ZV9pc29sYXRlX3BhZ2UocGFnZSkpIHRvIGlmICghUGFnZUhXUG9pc29uKHBhZ2UpKSwgc28gaXQg
-DQo+PiBjb3VsZCBwcmV2ZW50IHNvbWVvbmUgcmV1c2UgdGhlIGZyZWUgaHVnZXRsYiBhZ2FpbiBh
-ZnRlciBzZXQgdGhlIA0KPj4gaHdwb2lzb24gZmxhZyBpbiBzb2Z0X29mZmxpbmVfZnJlZV9wYWdl
-KCkNCj4+DQo+PiBNeSBxdWVzdGlvbiBpcyB0aGF0IGlmIHNvbWVvbmUgcmV1c2UgdGhlIGZyZWUg
-aHVnZXRsYiBhZ2FpbiBiZWZvcmUNCj4+IHNvZnRfb2ZmbGluZV9mcmVlX3BhZ2UoKSBhbmQNCj4+
-IGFmdGVyIGdldF9hbnlfcGFnZSgpLCB0aGVuIGl0IHVzZXMgdGhlIGhvcG9pc29uIHBhZ2UsIGFu
-ZCB0aGlzIG1heSANCj4+IHRyaWdnZXIgbWNlIGtpbGwgbGF0ZXIsIHJpZ2h0Pw0KPiANCj4gSGkg
-WGlzaGksDQo+IA0KPiBUaGFuayB5b3UgZm9yIHBvaW50aW5nIG91dCB0aGUgaXNzdWUuIFRoYXQn
-cyBuaWNlIGNhdGNoLg0KPiANCj4gSSB0aGluayB0aGF0IHRoZSByYWNlIGNvbmRpdGlvbiBpdHNl
-bGYgY291bGQgaGFwcGVuLCBidXQgaXQgZG9lc24ndCANCj4gbGVhZCB0byBNQ0Uga2lsbCBiZWNh
-dXNlIFBhZ2VIV1BvaXNvbiBpcyBub3QgdmlzaWJsZSB0byBIVyB3aGljaCB0cmlnZ2VycyBNQ0Uu
-DQo+IFBhZ2VIV1BvaXNvbiBmbGFnIGlzIGp1c3QgYSBmbGFnIGluIHN0cnVjdCBwYWdlIHRvIHJl
-cG9ydCB0aGUgbWVtb3J5IA0KPiBlcnJvciBmcm9tIGtlcm5lbCB0byB1c2Vyc3BhY2UuIFNvIGV2
-ZW4gaWYgYSBDUFUgaXMgYWNjZXNzaW5nIHRvIHRoZSANCj4gcGFnZSB3aG9zZSBzdHJ1Y3QgcGFn
-ZSBoYXMgUGFnZUhXUG9pc29uIHNldCwgdGhhdCBkb2Vzbid0IGNhdXNlIGEgTUNFIA0KPiB1bmxl
-c3MgdGhlIHBhZ2UgaXMgcGh5c2ljYWxseSBicm9rZW4uDQo+IFRoZSB0eXBlIG9mIG1lbW9yeSBl
-cnJvciB0aGF0IHNvZnQgb2ZmbGluZSB0cmllcyB0byBoYW5kbGUgaXMgDQo+IGNvcnJlY3RlZCBv
-bmUgd2hpY2ggaXMgbm90IGEgZmFpbHVyZSB5ZXQgYWx0aG91Z2ggaXQncyBzdGFydGluZyB0byB3
-ZWFyLg0KPiBTbyBzdWNoIFBhZ2VIV1BvaXNvbiBwYWdlIGNhbiBiZSByZXVzZWQsIGJ1dCB0aGF0
-J3Mgbm90IGNyaXRpY2FsIA0KPiBiZWNhdXNlIHRoZSBwYWdlIGlzIGZyZWVkIGF0IHNvbWUgcG9p
-bnQgYWZ0ZXJ3b3JkIGFuZCBlcnJvciBjb250YWlubWVudCBjb21wbGV0ZXMuDQo+IA0KPiBIb3dl
-dmVyLCBJIG5vdGljZWQgdGhhdCB0aGVyZSdzIGEgc21hbGwgcGFpbiBpbiBmcmVlIGh1Z2V0bGIg
-Y2FzZS4NCj4gV2UgY2FsbCBkaXNzb2x2ZV9mcmVlX2h1Z2VfcGFnZSgpIGluIHNvZnRfb2ZmbGlu
-ZV9mcmVlX3BhZ2UoKSB3aGljaCANCj4gbW92ZXMgdGhlIFBhZ2VIV1BvaXNvbiBmbGFnIGZyb20g
-dGhlIGhlYWQgcGFnZSB0byB0aGUgcmF3IGVycm9yIHBhZ2UuDQo+IElmIHRoZSByZXBvcnRlZCBy
-YWNlIGhhcHBlbnMsIGRpc3NvbHZlX2ZyZWVfaHVnZV9wYWdlKCkganVzdCByZXR1cm4gDQo+IHdp
-dGhvdXQgZG9pbmcgYW55IGRpc3NvbHZlIHdvcmsgYmVjYXVzZSAiaWYgKFBhZ2VIdWdlKHBhZ2Up
-ICYmICFwYWdlX2NvdW50KHBhZ2UpKSINCj4gYmxvY2sgaXMgc2tpcHBlZC4NCj4gVGhlIGh1Z2Vw
-YWdlIGlzIGFsbG9jYXRlZCBhbmQgdXNlZCBhcyB1c3VhbCwgYnV0IHRoZSBjb250YWltZW50IA0K
-PiBkb2Vzbid0IGNvbXBsZXRlIGFzIGV4cGVjdGVkIGluIHRoZSBub3JtYWwgcGFnZSwgYmVjYXVz
-ZSANCj4gZnJlZV9odWdlX3BhZ2VzKCkgZG9lc24ndCBjYWxsIGRpc3NvbHZlX2ZyZWVfaHVnZV9w
-YWdlKCkgZm9yIGh3cG9pc29uIA0KPiBodWdlcGFnZS4gVGhpcyBpcyBub3QgY3JpdGljYWwgYmVj
-YXVzZSBzdWNoIGVycm9yIGh1Z2VwYWdlIGp1c3QgcmVzaWRlIA0KPiBpbiBmcmVlIGh1Z2VwYWdl
-IGxpc3QuIEJ1dCB0aGlzIG1pZ2h0IGxvb2tzIGxpa2UgYSBraW5kIG9mIG1lbW9yeSANCj4gbGVh
-ay4gQW5kIGV2ZW4gd29yc2Ugd2hlbiBodWdlcGFnZSBwb29sIGlzIHNocmlua2VkIGFuZCB0aGUg
-aHdwb2lzb24gDQo+IGh1Z2VwYWdlIGlzIGZyZWVkLCB0aGUgUGFnZUhXUG9pc29uIGZsYWcgaXMg
-c3RpbGwgb24gdGhlIGhlYWQgcGFnZSB3aGljaCBpcyB1bmxpa2VseSB0byBiZSBhbiBhY3R1YWwg
-ZXJyb3IgcGFnZS4NCj4gDQo+IFNvIEkgdGhpbmsgd2UgbmVlZCBpbXByb3ZlbWVudCBoZXJlLCBo
-b3cgYWJvdXQgdGhlIGZpeCBsaWtlIGJlbG93Pw0KPiANCj4gICAobm90IHRlc3RlZCB5ZXQsIHNv
-cnJ5KQ0KPiANCj4gICBkaWZmIC0tZ2l0IGEvbW0vbWVtb3J5LWZhaWx1cmUuYyBiL21tL21lbW9y
-eS1mYWlsdXJlLmMNCj4gICAtLS0gYS9tbS9tZW1vcnktZmFpbHVyZS5jDQo+ICAgKysrIGIvbW0v
-bWVtb3J5LWZhaWx1cmUuYw0KPiAgIEBAIC0xODgzLDYgKzE4ODMsMTEgQEAgc3RhdGljIHZvaWQg
-c29mdF9vZmZsaW5lX2ZyZWVfcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSkNCj4gICAgICAgICAgIHN0
-cnVjdCBwYWdlICpoZWFkID0gY29tcG91bmRfaGVhZChwYWdlKTsNCj4gICANCj4gICAgICAgICAg
-IGlmICghVGVzdFNldFBhZ2VIV1BvaXNvbihoZWFkKSkgew0KPiAgICsgICAgICAgICAgICAgICBp
-ZiAocGFnZV9jb3VudChoZWFkKSkgew0KPiAgICsgICAgICAgICAgICAgICAgICAgICAgIENsZWFy
-UGFnZUhXUG9pc29uKGhlYWQpOw0KPiAgICsgICAgICAgICAgICAgICAgICAgICAgIHJldHVybjsN
-Cj4gICArICAgICAgICAgICAgICAgfQ0KPiAgICsNCj4gICAgICAgICAgICAgICAgICAgbnVtX3Bv
-aXNvbmVkX3BhZ2VzX2luYygpOw0KPiAgICAgICAgICAgICAgICAgICBpZiAoUGFnZUh1Z2UoaGVh
-ZCkpDQo+ICAgICAgICAgICAgICAgICAgICAgICAgICAgZGlzc29sdmVfZnJlZV9odWdlX3BhZ2Uo
-cGFnZSk7DQo+IA0KPiBUaGFua3MsDQo+IE5hb3lhIEhvcmlndWNoaQ0KPiANCj4gLg0KPiANCg0K
-LS0NClRoYW5rcywNClhpZSBYaXVRaQ0KDQo=
+The OOM notifier is getting deprecated to use for the reasons mentioned
+here by Michal Hocko: https://lkml.org/lkml/2018/7/12/314
+
+This patch replaces the virtio-balloon oom notifier with a shrinker
+to release balloon pages on memory pressure.
+
+In addition, the bug in the replaced virtballoon_oom_notify that only
+VIRTIO_BALLOON_ARRAY_PFNS_MAX (i.e 256) balloon pages can be freed
+though the user has specified more than that number is fixed in the
+shrinker_scan function.
+
+Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+Cc: Michael S. Tsirkin <mst@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+---
+ drivers/virtio/virtio_balloon.c | 113 +++++++++++++++++++++++-----------------
+ 1 file changed, 65 insertions(+), 48 deletions(-)
+
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index 9356a1a..c6fd406 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -27,7 +27,6 @@
+ #include <linux/slab.h>
+ #include <linux/module.h>
+ #include <linux/balloon_compaction.h>
+-#include <linux/oom.h>
+ #include <linux/wait.h>
+ #include <linux/mm.h>
+ #include <linux/mount.h>
+@@ -40,12 +39,12 @@
+  */
+ #define VIRTIO_BALLOON_PAGES_PER_PAGE (unsigned)(PAGE_SIZE >> VIRTIO_BALLOON_PFN_SHIFT)
+ #define VIRTIO_BALLOON_ARRAY_PFNS_MAX 256
+-#define OOM_VBALLOON_DEFAULT_PAGES 256
++#define DEFAULT_BALLOON_PAGES_TO_SHRINK 256
+ #define VIRTBALLOON_OOM_NOTIFY_PRIORITY 80
+ 
+-static int oom_pages = OOM_VBALLOON_DEFAULT_PAGES;
+-module_param(oom_pages, int, S_IRUSR | S_IWUSR);
+-MODULE_PARM_DESC(oom_pages, "pages to free on OOM");
++static unsigned long balloon_pages_to_shrink = DEFAULT_BALLOON_PAGES_TO_SHRINK;
++module_param(balloon_pages_to_shrink, ulong, 0600);
++MODULE_PARM_DESC(balloon_pages_to_shrink, "pages to free on memory presure");
+ 
+ #ifdef CONFIG_BALLOON_COMPACTION
+ static struct vfsmount *balloon_mnt;
+@@ -86,8 +85,8 @@ struct virtio_balloon {
+ 	/* Memory statistics */
+ 	struct virtio_balloon_stat stats[VIRTIO_BALLOON_S_NR];
+ 
+-	/* To register callback in oom notifier call chain */
+-	struct notifier_block nb;
++	/* To register a shrinker to shrink memory upon memory pressure */
++	struct shrinker shrinker;
+ };
+ 
+ static struct virtio_device_id id_table[] = {
+@@ -365,38 +364,6 @@ static void update_balloon_size(struct virtio_balloon *vb)
+ 		      &actual);
+ }
+ 
+-/*
+- * virtballoon_oom_notify - release pages when system is under severe
+- *			    memory pressure (called from out_of_memory())
+- * @self : notifier block struct
+- * @dummy: not used
+- * @parm : returned - number of freed pages
+- *
+- * The balancing of memory by use of the virtio balloon should not cause
+- * the termination of processes while there are pages in the balloon.
+- * If virtio balloon manages to release some memory, it will make the
+- * system return and retry the allocation that forced the OOM killer
+- * to run.
+- */
+-static int virtballoon_oom_notify(struct notifier_block *self,
+-				  unsigned long dummy, void *parm)
+-{
+-	struct virtio_balloon *vb;
+-	unsigned long *freed;
+-	unsigned num_freed_pages;
+-
+-	vb = container_of(self, struct virtio_balloon, nb);
+-	if (!virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+-		return NOTIFY_OK;
+-
+-	freed = parm;
+-	num_freed_pages = leak_balloon(vb, oom_pages);
+-	update_balloon_size(vb);
+-	*freed += num_freed_pages;
+-
+-	return NOTIFY_OK;
+-}
+-
+ static void update_balloon_stats_func(struct work_struct *work)
+ {
+ 	struct virtio_balloon *vb;
+@@ -548,6 +515,61 @@ static struct file_system_type balloon_fs = {
+ 
+ #endif /* CONFIG_BALLOON_COMPACTION */
+ 
++static unsigned long virtio_balloon_shrinker_scan(struct shrinker *shrinker,
++						  struct shrink_control *sc)
++{
++	unsigned long pages_to_free = balloon_pages_to_shrink,
++		      pages_freed = 0;
++	struct virtio_balloon *vb = container_of(shrinker,
++					struct virtio_balloon, shrinker);
++
++	/*
++	 * One invocation of leak_balloon can deflate at most
++	 * VIRTIO_BALLOON_ARRAY_PFNS_MAX balloon pages, so we call it
++	 * multiple times to deflate pages till reaching
++	 * balloon_pages_to_shrink pages.
++	 */
++	while (vb->num_pages && pages_to_free) {
++		pages_to_free = balloon_pages_to_shrink - pages_freed;
++		pages_freed += leak_balloon(vb, pages_to_free);
++	}
++	update_balloon_size(vb);
++
++	return pages_freed / VIRTIO_BALLOON_PAGES_PER_PAGE;
++}
++
++static unsigned long virtio_balloon_shrinker_count(struct shrinker *shrinker,
++						   struct shrink_control *sc)
++{
++	struct virtio_balloon *vb = container_of(shrinker,
++					struct virtio_balloon, shrinker);
++
++	/*
++	 * We continue to use VIRTIO_BALLOON_F_DEFLATE_ON_OOM to handle the
++	 * case when shrinker needs to be invoked to relieve memory pressure.
++	 */
++	if (!virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
++		return 0;
++
++	return min_t(unsigned long, vb->num_pages, balloon_pages_to_shrink) /
++	       VIRTIO_BALLOON_PAGES_PER_PAGE;
++}
++
++static void virtio_balloon_unregister_shrinker(struct virtio_balloon *vb)
++{
++	unregister_shrinker(&vb->shrinker);
++}
++
++static int virtio_balloon_register_shrinker(struct virtio_balloon *vb)
++{
++	vb->shrinker.scan_objects = virtio_balloon_shrinker_scan;
++	vb->shrinker.count_objects = virtio_balloon_shrinker_count;
++	vb->shrinker.batch = 0;
++	vb->shrinker.seeks = DEFAULT_SEEKS;
++
++	return register_shrinker(&vb->shrinker);
++}
++
+ static int virtballoon_probe(struct virtio_device *vdev)
+ {
+ 	struct virtio_balloon *vb;
+@@ -580,17 +602,10 @@ static int virtballoon_probe(struct virtio_device *vdev)
+ 	if (err)
+ 		goto out_free_vb;
+ 
+-	vb->nb.notifier_call = virtballoon_oom_notify;
+-	vb->nb.priority = VIRTBALLOON_OOM_NOTIFY_PRIORITY;
+-	err = register_oom_notifier(&vb->nb);
+-	if (err < 0)
+-		goto out_del_vqs;
+-
+ #ifdef CONFIG_BALLOON_COMPACTION
+ 	balloon_mnt = kern_mount(&balloon_fs);
+ 	if (IS_ERR(balloon_mnt)) {
+ 		err = PTR_ERR(balloon_mnt);
+-		unregister_oom_notifier(&vb->nb);
+ 		goto out_del_vqs;
+ 	}
+ 
+@@ -599,12 +614,14 @@ static int virtballoon_probe(struct virtio_device *vdev)
+ 	if (IS_ERR(vb->vb_dev_info.inode)) {
+ 		err = PTR_ERR(vb->vb_dev_info.inode);
+ 		kern_unmount(balloon_mnt);
+-		unregister_oom_notifier(&vb->nb);
+ 		vb->vb_dev_info.inode = NULL;
+ 		goto out_del_vqs;
+ 	}
+ 	vb->vb_dev_info.inode->i_mapping->a_ops = &balloon_aops;
+ #endif
++	err = virtio_balloon_register_shrinker(vb);
++	if (err)
++		goto out_del_vqs;
+ 
+ 	virtio_device_ready(vdev);
+ 
+@@ -637,7 +654,7 @@ static void virtballoon_remove(struct virtio_device *vdev)
+ {
+ 	struct virtio_balloon *vb = vdev->priv;
+ 
+-	unregister_oom_notifier(&vb->nb);
++	virtio_balloon_unregister_shrinker(vb);
+ 
+ 	spin_lock_irq(&vb->stop_update_lock);
+ 	vb->stop_update = true;
+-- 
+2.7.4
