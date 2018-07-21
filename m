@@ -1,53 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F6366B0006
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 19:51:49 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id z21-v6so8540407plo.13
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 16:51:49 -0700 (PDT)
-Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
-        by mx.google.com with ESMTPS id f12-v6si2695470pgg.653.2018.07.20.16.51.47
+	by kanga.kvack.org (Postfix) with ESMTP id 7F95F6B0008
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2018 20:09:06 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id x2-v6so8560860plv.0
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 17:09:06 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id s85-v6si2895177pfe.290.2018.07.20.17.09.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jul 2018 16:51:48 -0700 (PDT)
-Subject: Re: [PATCH] mm: thp: remove use_zero_page sysfs knob
-References: <1532110430-115278-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180720210626.5bnyddmn4avp2l3x@kshutemo-mobl1>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <3118b646-681e-a2aa-dc7b-71d4821fa50f@linux.alibaba.com>
-Date: Fri, 20 Jul 2018 16:51:31 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180720210626.5bnyddmn4avp2l3x@kshutemo-mobl1>
-Content-Type: text/plain; charset=utf-8; format=flowed
+        Fri, 20 Jul 2018 17:09:05 -0700 (PDT)
+Date: Fri, 20 Jul 2018 17:09:02 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+Message-Id: <20180720170902.d1137060c23802d55426aa03@linux-foundation.org>
+In-Reply-To: <20180716115058.5559-1-mhocko@kernel.org>
+References: <20180716115058.5559-1-mhocko@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: hughd@google.com, rientjes@google.com, aaron.lu@intel.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?UTF-8?Q?Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Felix Kuehling <felix.kuehling@amd.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, Christian =?ISO-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Rientjes <rientjes@google.com>, Leon Romanovsky <leonro@mellanox.com>
 
+On Mon, 16 Jul 2018 13:50:58 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 
-
-On 7/20/18 2:06 PM, Kirill A. Shutemov wrote:
-> On Sat, Jul 21, 2018 at 02:13:50AM +0800, Yang Shi wrote:
->> By digging into the original review, it looks use_zero_page sysfs knob
->> was added to help ease-of-testing and give user a way to mitigate
->> refcounting overhead.
->>
->> It has been a few years since the knob was added at the first place, I
->> think we are confident that it is stable enough. And, since commit
->> 6fcb52a56ff60 ("thp: reduce usage of huge zero page's atomic counter"),
->> it looks refcounting overhead has been reduced significantly.
->>
->> Other than the above, the value of the knob is always 1 (enabled by
->> default), I'm supposed very few people turn it off by default.
->>
->> So, it sounds not worth to still keep this knob around.
-> I don't think that having the knob around is huge maintenance burden.
-> And since it helped to workaround a security bug relative recently I would
-> rather keep it.
-
-I agree to keep it for a while to let that security bug cool down, 
-however, if there is no user anymore, it sounds pointless to still keep 
-a dead knob.
-
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> There are several blockable mmu notifiers which might sleep in
+> mmu_notifier_invalidate_range_start and that is a problem for the
+> oom_reaper because it needs to guarantee a forward progress so it cannot
+> depend on any sleepable locks.
+> 
+> ...
 >
+> @@ -571,7 +565,12 @@ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>  
+>  	trace_start_task_reaping(tsk->pid);
+>  
+> -	__oom_reap_task_mm(mm);
+> +	/* failed to reap part of the address space. Try again later */
+> +	if (!__oom_reap_task_mm(mm)) {
+> +		up_read(&mm->mmap_sem);
+> +		ret = false;
+> +		goto unlock_oom;
+> +	}
+
+This function is starting to look a bit screwy.
+
+: static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+: {
+: 	if (!down_read_trylock(&mm->mmap_sem)) {
+: 		trace_skip_task_reaping(tsk->pid);
+: 		return false;
+: 	}
+: 
+: 	/*
+: 	 * MMF_OOM_SKIP is set by exit_mmap when the OOM reaper can't
+: 	 * work on the mm anymore. The check for MMF_OOM_SKIP must run
+: 	 * under mmap_sem for reading because it serializes against the
+: 	 * down_write();up_write() cycle in exit_mmap().
+: 	 */
+: 	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
+: 		up_read(&mm->mmap_sem);
+: 		trace_skip_task_reaping(tsk->pid);
+: 		return true;
+: 	}
+: 
+: 	trace_start_task_reaping(tsk->pid);
+: 
+: 	/* failed to reap part of the address space. Try again later */
+: 	if (!__oom_reap_task_mm(mm)) {
+: 		up_read(&mm->mmap_sem);
+: 		return true;
+: 	}
+: 
+: 	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+: 			task_pid_nr(tsk), tsk->comm,
+: 			K(get_mm_counter(mm, MM_ANONPAGES)),
+: 			K(get_mm_counter(mm, MM_FILEPAGES)),
+: 			K(get_mm_counter(mm, MM_SHMEMPAGES)));
+: 	up_read(&mm->mmap_sem);
+: 
+: 	trace_finish_task_reaping(tsk->pid);
+: 	return true;
+: }
+
+- Undocumented return value.
+
+- comment "failed to reap part..." is misleading - sounds like it's
+  referring to something which happened in the past, is in fact
+  referring to something which might happen in the future.
+
+- fails to call trace_finish_task_reaping() in one case
+
+- code duplication.
+
+
+I'm thinking it wants to be something like this?
+
+: /*
+:  * Return true if we successfully acquired (then released) mmap_sem
+:  */
+: static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+: {
+: 	if (!down_read_trylock(&mm->mmap_sem)) {
+: 		trace_skip_task_reaping(tsk->pid);
+: 		return false;
+: 	}
+: 
+: 	/*
+: 	 * MMF_OOM_SKIP is set by exit_mmap when the OOM reaper can't
+: 	 * work on the mm anymore. The check for MMF_OOM_SKIP must run
+: 	 * under mmap_sem for reading because it serializes against the
+: 	 * down_write();up_write() cycle in exit_mmap().
+: 	 */
+: 	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
+: 		trace_skip_task_reaping(tsk->pid);
+: 		goto out;
+: 	}
+: 
+: 	trace_start_task_reaping(tsk->pid);
+: 
+: 	if (!__oom_reap_task_mm(mm)) {
+: 		/* Failed to reap part of the address space. Try again later */
+: 		goto finish;
+: 	}
+: 
+: 	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+: 			task_pid_nr(tsk), tsk->comm,
+: 			K(get_mm_counter(mm, MM_ANONPAGES)),
+: 			K(get_mm_counter(mm, MM_FILEPAGES)),
+: 			K(get_mm_counter(mm, MM_SHMEMPAGES)));
+: finish:
+: 	trace_finish_task_reaping(tsk->pid);
+: out:
+: 	up_read(&mm->mmap_sem);
+: 	return true;
+: }
+
+- Increases mmap_sem hold time a little by moving
+  trace_finish_task_reaping() inside the locked region.  So sue me ;)
+
+- Sharing the finish: path means that the trace event won't
+  distinguish between the two sources of finishing.
+
+Please take a look?
