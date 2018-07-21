@@ -1,97 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F9F56B0003
-	for <linux-mm@kvack.org>; Sat, 21 Jul 2018 12:06:32 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id u1-v6so7254225wrs.18
-        for <linux-mm@kvack.org>; Sat, 21 Jul 2018 09:06:32 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id m10-v6si3397406wrh.299.2018.07.21.09.06.30
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E35576B0006
+	for <linux-mm@kvack.org>; Sat, 21 Jul 2018 12:11:59 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id o24-v6so10641532iob.20
+        for <linux-mm@kvack.org>; Sat, 21 Jul 2018 09:11:59 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e82-v6sor1313503ioe.350.2018.07.21.09.11.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 21 Jul 2018 09:06:30 -0700 (PDT)
-Date: Sat, 21 Jul 2018 18:06:19 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH 2/3] x86/entry/32: Check for VM86 mode in slow-path check
-Message-ID: <20180721160619.GA19856@amd>
-References: <1532103744-31902-1-git-send-email-joro@8bytes.org>
- <1532103744-31902-3-git-send-email-joro@8bytes.org>
+        (Google Transport Security);
+        Sat, 21 Jul 2018 09:11:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="opJtzjQTFsWo+cga"
-Content-Disposition: inline
-In-Reply-To: <1532103744-31902-3-git-send-email-joro@8bytes.org>
+References: <37267986-A987-4AD7-96CE-C1D2F116A4AC@sinenomine.net>
+ <20180720125146.02db0f40b4edc716c6f080d2@linux-foundation.org>
+ <20180720195746.GD7697@redhat.com> <20180720200124.GB2736@bombadil.infradead.org>
+ <20180720201706.GE7697@redhat.com>
+In-Reply-To: <20180720201706.GE7697@redhat.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Sat, 21 Jul 2018 09:11:46 -0700
+Message-ID: <CAA9_cmf0tGZJGWWnoBR6078Wy_RUe6OnFChp+DEk5TwE6k1gqQ@mail.gmail.com>
+Subject: Re: [PATCH v4 0/8] mm: Rework hmm to use devm_memremap_pages and
+ other fixes
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, jroedel@suse.de, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, mvitale@sinenomine.net, linux-mm <linux-mm@kvack.org>, dan.j.williams@intel.org, jgorse@sinenomine.net, release-team@openafs.org
 
+On Fri, Jul 20, 2018 at 1:17 PM Jerome Glisse <jglisse@redhat.com> wrote:
+>
+> On Fri, Jul 20, 2018 at 01:01:24PM -0700, Matthew Wilcox wrote:
+> > On Fri, Jul 20, 2018 at 03:57:47PM -0400, Jerome Glisse wrote:
+> > > On Fri, Jul 20, 2018 at 12:51:46PM -0700, Andrew Morton wrote:
+> > > > Problem is, that patch is eighth in a series which we're waiting for
+> > > > Jerome to review and the changelog starts with "Now that all producers
+> > > > of dev_pagemap instances in the kernel are properly converted to
+> > > > EXPORT_SYMBOL_GPL...".
+> > >
+> > > I am fine with the patchset modulo GPL, i did review it in the past
+> > > but i did not formaly reply as i was opose to the GPL changes. So my
+> > > only objection is with the GPL export, everything else looks fine.
+> >
+> > Everyone from the mm side who's looked at these patches agrees that it
+> > reaches far too far into the guts of the mm to be anything other than
+> > exposing internals.  It's not credible to claim that a module written that
+> > uses these interfaces is anything other than a derived work of the kernel.
+> >
+> > I feel these patches should be merged over Jerome's objections.
+>
+> I feel that people do not understand how far reaching this is. It means
+> that any new devices with memory supporting new system bus like CAPI or
+> CCIX will need to have a GPL driver. This is a departure of current
+> state of affair where we allow non GPL driver to exist.
 
---opJtzjQTFsWo+cga
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Proprietary GPU driver vendors have done just fine without us adding
+explicit new mechanisms for them to consume.
 
-Hi!
+> Moreover I have argue that HMM abstract the internal mm and by doing so
+> allow anyone to update the mm code without having to worried about driver
+> which use HMM. Thus disproving that user of HMM are tie to mm internal.
 
-> The SWITCH_TO_KERNEL_STACK macro only checks for CPL =3D=3D 0 to
-> go down the slow and paranoid entry path. The problem is
-> that this check also returns true when coming from VM86
-> mode. This is not a problem by itself, as the paranoid path
-> handles VM86 stack-frames just fine, but it is not necessary
-> as the normal code path handles VM86 mode as well (and
-> faster).
->=20
-> Extend the check to include VM86 mode. This also makes an
-> optimization of the paranoid path possible.
->=20
-> Signed-off-by: Joerg Roedel <jroedel@suse.de>
-> ---
->  arch/x86/entry/entry_32.S | 12 ++++++++++--
->  1 file changed, 10 insertions(+), 2 deletions(-)
->=20
-> diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-> index 010cdb4..2767c62 100644
-> --- a/arch/x86/entry/entry_32.S
-> +++ b/arch/x86/entry/entry_32.S
-> @@ -414,8 +414,16 @@
->  	andl	$(0x0000ffff), PT_CS(%esp)
-> =20
->  	/* Special case - entry from kernel mode via entry stack */
-> -	testl	$SEGMENT_RPL_MASK, PT_CS(%esp)
-> -	jz	.Lentry_from_kernel_\@
-> +#ifdef CONFIG_VM86
-> +	movl	PT_EFLAGS(%esp), %ecx		# mix EFLAGS and CS
-> +	movb	PT_CS(%esp), %cl
-> +	andl	$(X86_EFLAGS_VM | SEGMENT_RPL_MASK), %ecx
-> +#else
-> +	movl	PT_CS(%esp), %ecx
-> +	andl	$SEGMENT_RPL_MASK, %ecx
-> +#endif
-> +	cmpl	$USER_RPL, %ecx
-> +	jb	.Lentry_from_kernel_\@
+No, HMM has has deployed a GPL-bypass shim into the kernel.
 
-Would it make sense to jump to the slow path as we did, and them jump
-back if VM86 is detected?
+> Also to make thing perfectly clear i am a strong proponent of open
+> source and i rather have a GPL driver but at the same time i do not want
+> linux kernel to become second citizen because it can not support new
+> devices ...
 
-Because VM86 is not really used often these days, and moving partial
-registers results in short code but IIRC it will be rather slow.
-
-								Pavel
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
-
---opJtzjQTFsWo+cga
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAltTWfsACgkQMOfwapXb+vKVGACeI9NdVcZTy/Fm7pXV6TV/7gqH
-Uu0An2ln3dlg2bBDomHRNz30cXj7GbYG
-=/5m4
------END PGP SIGNATURE-----
-
---opJtzjQTFsWo+cga--
+HMM diminishes the letter and the spirit of EXPORT_SYMBOL_GPL, it
+grants access to and consumes GPL-only infrastructure written by me
+and others.
