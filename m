@@ -1,82 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E5B966B0003
-	for <linux-mm@kvack.org>; Sat, 21 Jul 2018 16:09:46 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id g12-v6so10989683ioh.5
-        for <linux-mm@kvack.org>; Sat, 21 Jul 2018 13:09:46 -0700 (PDT)
-Received: from sonic301-32.consmr.mail.ne1.yahoo.com (sonic301-32.consmr.mail.ne1.yahoo.com. [66.163.184.201])
-        by mx.google.com with ESMTPS id b3-v6si1089286ioa.51.2018.07.21.13.09.45
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A04FF6B0003
+	for <linux-mm@kvack.org>; Sat, 21 Jul 2018 17:07:05 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id e21-v6so12421784itc.5
+        for <linux-mm@kvack.org>; Sat, 21 Jul 2018 14:07:05 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r70-v6sor1677341ioi.299.2018.07.21.14.07.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 21 Jul 2018 13:09:45 -0700 (PDT)
-Date: Sat, 21 Jul 2018 20:09:43 +0000 (UTC)
-From: john terragon <terragonjohn@yahoo.com>
-Message-ID: <1114810711.347852.1532203783155@mail.yahoo.com>
-In-Reply-To: <f20b1529-fcb9-8d0a-6259-fe76977e00d6@gmail.com>
-References: <bug-200105-8545@https.bugzilla.kernel.org/> <bug-200105-8545-FomWhXSVhq@https.bugzilla.kernel.org/> <191624267.262238.1532074743289@mail.yahoo.com> <f20b1529-fcb9-8d0a-6259-fe76977e00d6@gmail.com>
-Subject: Re: [Bug 200105] High paging activity as soon as the swap is
- touched (with steps and code to reproduce it)
+        (Google Transport Security);
+        Sat, 21 Jul 2018 14:07:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+References: <1532103744-31902-1-git-send-email-joro@8bytes.org>
+ <1532103744-31902-2-git-send-email-joro@8bytes.org> <CALCETrXJX8tPVgD=Ce41534uneAAobm-HyjeGwVYgJDJ_+-bDw@mail.gmail.com>
+ <20180720174846.GF18541@8bytes.org> <CALCETrUj4cLpOKUbJUfLqKJFkjAgeraE=ORQ-e-bKU+AHda0=Q@mail.gmail.com>
+ <20180720213700.gh6d2qd2ck6nt4ax@suse.de> <D89602E9-E620-4AF0-822C-206D7F0BA071@amacapital.net>
+In-Reply-To: <D89602E9-E620-4AF0-822C-206D7F0BA071@amacapital.net>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Sat, 21 Jul 2018 14:06:52 -0700
+Message-ID: <CA+55aFyjFjdeAwAOu-WsE=yk_+cAaaOvp4-DSEHDaWG+1g_BSA@mail.gmail.com>
+Subject: Re: [PATCH 1/3] perf/core: Make sure the ring-buffer is mapped in all page-tables
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, Daniel Jordan <lkmldmj@gmail.com>
-Cc: "bugzilla-daemon@bugzilla.kernel.org" <bugzilla-daemon@bugzilla.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Daniel Jordan <daniel.m.jordan@oracle.com>, Michal Hocko <mhocko@kernel.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Joerg Roedel <jroedel@suse.de>, Andrew Lutomirski <luto@kernel.org>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Anvin <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>
 
-I'll add a couple of points to Daniel's summary:
-=C2=A0
-
-1) initially I performed the test with the memeaters within a gui (KDE, but=
- I tried gnome too). The system freezes occur when the
-test is performed within a gui.
-
-
-2) Then, to isolate what seemed to be more symptoms (the freezes) than the =
-problem itself, I started to perform the test using just text consoles. In =
-these conditions there are no big, visible, system freezes. Although one of=
- the tools used to snapshot vmstat (Michal's read_vmstat) complains with me=
-ssages like "it took 28s to snapshot!" or something like that, so maybe the=
-re are still slowdowns.
-
-
-3) Anyways,=C2=A0 both in gui and text "mode", the test always causes a hug=
-e swap activity which seems to be disproportionate given the low pressure t=
-he vm is put under (tried as low as 4Mb/s allocation rate).
-
-
-4) These are the swap configurations in which the huge swap activity occurs=
+On Fri, Jul 20, 2018 at 3:20 PM Andy Lutomirski <luto@amacapital.net> wrote=
 :
+> Thanks for digging!  The problem was presumably that vmalloc_fault() will=
+ IRET and re-enable NMIs on the way out.
+>  But we=E2=80=99ve supported page faults on user memory in NMI handlers o=
+n 32-bit and 64-bit for quite a while, and it=E2=80=99s fine now.
+>
+> I would remove the warning, re-test, and revert the other patch.
 
+Agreed. I don't think we have any issues with page faults during NMI
+any more.  Afaik the kprobe people depend on it.
 
--luks encrypted swap partition
+That said, 64-bit mode has that scary PV-op case
+(arch_flush_lazy_mmu_mode). Being PV mode, I can't find it in myself
+to worry about it, I'm assuming it's ok.
 
-
--dmcrypt plain swap partition
-
-
--unencrypted swapfile located inside an encrypted, luks or dmcrypt plain, f=
-ilesystem
-
-
-5) The test does not cause any huge swap activity under these swap configs =
-*when performed without a gui*:
-
-
-a) unencrypted swap partition
-
-
-b) encrypted swap file located inside and unencryted ext4 filesystem (that =
-is ext4 directly on=C2=A0 the partition and the directory
-in which the swapfile resides is encrypted with fs-level encryption, thus n=
-o dm-crypt involved).
-
-
-6) I was particularly happy about b) above because it seemed to be a viable=
- workaround, but sadly I have to report that, although the
-test does not causes large swap activity with b), minute-long system freeze=
-s are occurring during normal usage even with b).
-These seem to be the same kind of freezes that prompted me to find a way to=
- reliably reproduce them under controlled conditions.
-I haven't yet performed the test with b)+gui, though, only b)+text console =
-as I wrote in 5.
+                Linus
