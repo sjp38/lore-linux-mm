@@ -1,159 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E5E56B0003
-	for <linux-mm@kvack.org>; Sat, 21 Jul 2018 01:10:41 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id s3-v6so8908112plp.21
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2018 22:10:41 -0700 (PDT)
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 562756B0003
+	for <linux-mm@kvack.org>; Sat, 21 Jul 2018 10:39:09 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id v80-v6so8181389ywc.13
+        for <linux-mm@kvack.org>; Sat, 21 Jul 2018 07:39:09 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j28-v6sor931033pgi.84.2018.07.20.22.10.39
+        by mx.google.com with SMTPS id w190-v6sor1183154ybg.115.2018.07.21.07.39.07
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 20 Jul 2018 22:10:39 -0700 (PDT)
-Date: Fri, 20 Jul 2018 22:10:30 -0700
-From: William Ziener-Dignazio <wdignazio@gmail.com>
-Subject: Re: [PATCH] Add option to configure default zswap compressor
- algorithm.
-Message-ID: <20180721051030.GA24838@Judea>
-References: <20180701065616.3512-1-wdignazio@gmail.com>
- <CAH9O0xF8bL+DdQyPV8LeorxjVESB6ehXxAJBmm39veQ0aqmbCQ@mail.gmail.com>
- <CALZtONAfH2jLKsAet9Tv=6GSTM643V_vL=Lq5v4sgr3-bpp5rA@mail.gmail.com>
+        Sat, 21 Jul 2018 07:39:07 -0700 (PDT)
+Subject: Re: [Bug 200105] High paging activity as soon as the swap is touched
+ (with steps and code to reproduce it)
+References: <bug-200105-8545@https.bugzilla.kernel.org/>
+ <bug-200105-8545-FomWhXSVhq@https.bugzilla.kernel.org/>
+ <191624267.262238.1532074743289@mail.yahoo.com>
+From: Daniel Jordan <lkmldmj@gmail.com>
+Message-ID: <f20b1529-fcb9-8d0a-6259-fe76977e00d6@gmail.com>
+Date: Sat, 21 Jul 2018 10:39:05 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALZtONAfH2jLKsAet9Tv=6GSTM643V_vL=Lq5v4sgr3-bpp5rA@mail.gmail.com>
+In-Reply-To: <191624267.262238.1532074743289@mail.yahoo.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: sjenning@redhat.com, linux-mm@kvack.org
+To: john terragon <terragonjohn@yahoo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "bugzilla-daemon@bugzilla.kernel.org" <bugzilla-daemon@bugzilla.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Daniel Jordan <daniel.m.jordan@oracle.com>, Michal Hocko <mhocko@kernel.org>
 
-On Thu, Jul 19, 2018 at 06:00:33PM -0400, Dan Streetman wrote:
-> On Sun, Jul 15, 2018 at 12:22 AM Will Dignazio <wdignazio@gmail.com> wrote:
-> >
-> > Apologies for bumping. I also should give a better description:
-> >
-> > This patch introduces a configuration option for the default cryptographic compression algorithm used by zswap. Previous to this patch, one would use the default compression algorithm until changed from userspace. This patch allows a compilation time change, which will remain the default from boot until changed.
-> >
-> > On Sat, Jun 30, 2018 at 11:56 PM Will Ziener-Dignazio <wdignazio@gmail.com> wrote:
-> >>
-> >>     - Add Kconfig option for default compressor algorithm
-> >>     - Add the deflate and LZ4 algorithms as default options
-> >>
-> >> Signed-off-by: Will Ziener-Dignazio <wdignazio@gmail.com>
-> >> ---
-> >>  mm/Kconfig | 35 ++++++++++++++++++++++++++++++++++-
-> >>  mm/zswap.c | 11 ++++++++++-
-> >>  2 files changed, 44 insertions(+), 2 deletions(-)
-> >>
-> >> diff --git a/mm/Kconfig b/mm/Kconfig
-> >> index ce95491abd6a..09df6650e96a 100644
-> >> --- a/mm/Kconfig
-> >> +++ b/mm/Kconfig
-> >> @@ -535,7 +535,6 @@ config MEM_SOFT_DIRTY
-> >>  config ZSWAP
-> >>         bool "Compressed cache for swap pages (EXPERIMENTAL)"
-> >>         depends on FRONTSWAP && CRYPTO=y
-> >> -       select CRYPTO_LZO
-> >>         select ZPOOL
-> >>         default n
-> >>         help
-> >> @@ -552,6 +551,40 @@ config ZSWAP
-> >>           they have not be fully explored on the large set of potential
-> >>           configurations and workloads that exist.
-> >>
-> >> +choice
-> >> +       prompt "Compressed cache cryptographic compression algorithm"
-> >> +       default ZSWAP_COMPRESSOR_DEFAULT_LZO
-> >> +       depends on ZSWAP
-> >> +       help
-> >> +         The default cyptrographic compression algorithm to use for
-> >> +         compressed swap pages.
-> >> +
-> >> +config ZSWAP_COMPRESSOR_DEFAULT_LZO
-> >> +       bool "lzo"
-> >> +       select CRYPTO_LZO
-> >> +       help
-> >> +         This option sets the default zswap compression algorithm to LZO,
-> >> +         the Lempel-Ziv-Oberhumer algorithm. This algorthm focuses on
-> >> +         decompression speed, but has a lower compression ratio.
-> >> +
-> >> +config ZSWAP_COMPRESSOR_DEFAULT_DEFLATE
-> >> +       bool "deflate"
-> >> +       select CRYPTO_DEFLATE
-> >> +       help
-> >> +         This option sets the default zswap compression algorithm to DEFLATE.
-> >> +         This algorithm balances compression and decompression speed to
-> >> +         compresstion ratio.
-> >> +
-> >> +config ZSWAP_COMPRESSOR_DEFAULT_LZ4
-> >> +       bool "lz4"
-> >> +       select CRYPTO_LZ4
-> >> +       help
-> >> +         This option sets the default zswap compression algorithm to LZ4.
-> >> +         This algorithm focuses on high compression speed, but has a lower
-> >> +         compression ratio and decompression speed.
-> >> +
-> >> +endchoice
->
-> would it be better to just use a free-form config string?  these 3
+On 07/20/2018 04:19 AM, john terragon wrote:
+> 
+> On Friday, July 20, 2018, 2:03:48 AM GMT+2, bugzilla-daemon@bugzilla.kernel.org <bugzilla-daemon@bugzilla.kernel.org> wrote:
+>  >
+>  >https://bugzilla.kernel.org/show_bug.cgi?id=200105 <https://bugzilla.kernel.org/show_bug.cgi?id=200105>
+>  >
+>  >--- Comment #42 from Andrew Morton (akpm@linux-foundation.org <mailto:akpm@linux-foundation.org>) ---
+>  >Sorry, but nobody reads bugzilla.A  I tried to switch this discussion to an
+>  >email thread for a reason!
+>  >
+>  >Please resend all this (useful) info in reply to the email thread which I
+>  >created for this purpose.
+> 
+> I'll resend the last message and attachments. Anyone interested on the previous "episodes" go read
+> https://bugzilla.kernel.org/show_bug.cgi?id=200105
 
-I wouldn't think this is better from a user/developer perspective. I'd prefer
-it if we could ensure that no matter what input is given, the kernel will not
-boot into an error condition (which requires userspace reconfiguration).
+The summary is that John has put together a reliable reproducer for a problem he's seeing where on high memory usage any of his desktop systems with SSDs hang for around a minute, completely unresponsive, and swaps out 2-3x more memory than the system is allocating.
 
-> choices don't cover all the current crypto compression algs...it's
-> missing zlib, 842, lz4hc, and (newly added) zstd, and if any algs are
+John's issue only happens using a LUKS encrypted swap partition, unencrypted swap or swap encrypted without LUKS works fine.
 
-Yes this is my bad, and somewhat lazy on my part. My initial thought was to
-grab only the most popular algorithms.... in retrospect I should have included
-them all.
+In one test (out5.txt) where most system memory is taken by anon pages beforehand, the heavy direct reclaim that Michal noticed lasts for 24 seconds, during which on average if I've crunched my numbers right, John's test program was allocating at 4MiB/s, the system overall (pgalloc_normal) was allocating at 235MiB/s, and the system was swapping out (pswpout) at 673MiB/s.  pgalloc_normal and pswpout stay roughly the same each second, no big swings.
 
-> added in the future, it's unlikely this choices list would be updated
-> at the same time.  Doesn't hardcoding a few choices here seem
-> limiting?  if we're going to allow selecting the default, it should
-> allow selecting any of the available compressors as default, no?
->
+Is the disparity between allocation and swapout rate expected?
 
-Ideally, the list is auto-generated from the list of cryptographic compression
-algorithms supported and enabled by the kernel.
+John ran perf during another test right before the last test program was started (this doesn't include the initial large allocation bringing the system close to swapping).  The top five allocators (kmem:mm_page_alloc):
 
-> The help text could say 'see the Cryptographic API Compression section
-> for possible choices' or something similar - or even just list out the
-> possible choices, and we can try to keep it current if any are added
-> in the future...
->
+# Overhead      Pid:Command
+# ........  .......................
+#
+     48.45%     2005:memeater     # the test program
+     32.08%       73:kswapd0
+      3.16%     1957:perf_4.17
+      1.41%     1748:watch
+      1.16%     2043:free
 
-Agreed, will do.
+So it seems to be just reclaim activity, but why so much when the test program only allocates at 4MiB/s?
 
-Thanks for your review!
+John, adding -g to perf record would show call stacks.
 
-> >> +
-> >>  config ZPOOL
-> >>         tristate "Common API for compressed memory storage"
-> >>         default n
-> >> diff --git a/mm/zswap.c b/mm/zswap.c
-> >> index 7d34e69507e3..30f9f25da4d0 100644
-> >> --- a/mm/zswap.c
-> >> +++ b/mm/zswap.c
-> >> @@ -91,7 +91,16 @@ static struct kernel_param_ops zswap_enabled_param_ops = {
-> >>  module_param_cb(enabled, &zswap_enabled_param_ops, &zswap_enabled, 0644);
-> >>
-> >>  /* Crypto compressor to use */
-> >> -#define ZSWAP_COMPRESSOR_DEFAULT "lzo"
-> >> +#if defined(CONFIG_ZSWAP_COMPRESSOR_DEFAULT_LZO)
-> >> +  #define ZSWAP_COMPRESSOR_DEFAULT "lzo"
-> >> +#elif defined(CONFIG_ZSWAP_COMPRESSOR_DEFAULT_DEFLATE)
-> >> +  #define ZSWAP_COMPRESSOR_DEFAULT "deflate"
-> >> +#elif defined(CONFIG_ZSWAP_COMPRESSOR_DEFAULT_LZ4)
-> >> +  #define ZSWAP_COMPRESSOR_DEFAULT "lz4"
-> >> +#else
-> >> +  #error "Default zswap compression algorithm not defined."
-> >> +#endif
-> >> +
-> >>  static char *zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
-> >>  static int zswap_compressor_param_set(const char *,
-> >>                                       const struct kernel_param *);
-> >> --
-> >> 2.18.0
-> >>
-> > --
-> > Bytes Go In, Words Go Out
+
+I'll be away for 2.5 weeks so won't be able to get back to this until then.
