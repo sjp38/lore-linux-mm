@@ -1,93 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 733846B0003
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 18:42:34 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id w1-v6so1335334ply.12
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 15:42:34 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l7-v6sor2433641pgk.232.2018.07.23.15.42.33
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 225116B000A
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 18:55:00 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id g5-v6so1164161pgv.12
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 15:55:00 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 64-v6si10024702pgd.509.2018.07.23.15.54.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 23 Jul 2018 15:42:33 -0700 (PDT)
-Date: Mon, 23 Jul 2018 15:42:22 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 23 Jul 2018 15:54:58 -0700 (PDT)
+Date: Mon, 23 Jul 2018 15:54:54 -0700
+From: Matthew Wilcox <willy@infradead.org>
 Subject: Re: kernel BUG at mm/shmem.c:LINE!
-In-Reply-To: <20180723203628.GA18236@bombadil.infradead.org>
-Message-ID: <alpine.LSU.2.11.1807231531240.2545@eggly.anvils>
-References: <000000000000d624c605705e9010@google.com> <20180709143610.GD2662@bombadil.infradead.org> <alpine.LSU.2.11.1807221856350.5536@eggly.anvils> <20180723140150.GA31843@bombadil.infradead.org> <alpine.LSU.2.11.1807231111310.1698@eggly.anvils>
+Message-ID: <20180723225454.GC18236@bombadil.infradead.org>
+References: <000000000000d624c605705e9010@google.com>
+ <20180709143610.GD2662@bombadil.infradead.org>
+ <alpine.LSU.2.11.1807221856350.5536@eggly.anvils>
+ <20180723140150.GA31843@bombadil.infradead.org>
+ <alpine.LSU.2.11.1807231111310.1698@eggly.anvils>
  <20180723203628.GA18236@bombadil.infradead.org>
+ <alpine.LSU.2.11.1807231531240.2545@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1807231531240.2545@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Hugh Dickins <hughd@google.com>, syzbot <syzbot+b8e0dfee3fd8c9012771@syzkaller.appspotmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
+To: Hugh Dickins <hughd@google.com>
+Cc: syzbot <syzbot+b8e0dfee3fd8c9012771@syzkaller.appspotmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
 
-On Mon, 23 Jul 2018, Matthew Wilcox wrote:
-> On Mon, Jul 23, 2018 at 12:14:41PM -0700, Hugh Dickins wrote:
-> > On Mon, 23 Jul 2018, Matthew Wilcox wrote:
-> > > On Sun, Jul 22, 2018 at 07:28:01PM -0700, Hugh Dickins wrote:
-> > > > Whether or not that fixed syzbot's kernel BUG at mm/shmem.c:815!
-> > > > I don't know, but I'm afraid it has not fixed linux-next breakage of
-> > > > huge tmpfs: I get a similar page_to_pgoff BUG at mm/filemap.c:1466!
-> > > > 
-> > > > Please try something like
-> > > > mount -o remount,huge=always /dev/shm
-> > > > cp /dev/zero /dev/shm
-> > > > 
-> > > > Writing soon crashes in find_lock_entry(), looking up offset 0x201
-> > > > but getting the page for offset 0x3c1 instead.
-> > > 
-> > > Hmm.  I don't see a crash while running that command,
-> > 
-> > Thanks for looking.
-> > 
-> > It is the VM_BUG_ON_PAGE(page_to_pgoff(page) != offset, page)
-> > in find_lock_entry(). Perhaps you didn't have CONFIG_DEBUG_VM=y
-> > on this occasion? Or you don't think of an oops as a kernel crash,
-> > and didn't notice it in dmesg? I see now that I've arranged for oops
-> > to crash, since I don't like to miss them myself; but it is a very
-> > clean oops, no locks held, so can just kill the process and continue.
+On Mon, Jul 23, 2018 at 03:42:22PM -0700, Hugh Dickins wrote:
+> On Mon, 23 Jul 2018, Matthew Wilcox wrote:
+> > I figured out a fix and pushed it to the 'ida' branch in
+> > git://git.infradead.org/users/willy/linux-dax.git
 > 
-> Usually I run with that turned on, but somehow in my recent messing
-> with my test system, that got turned off.  Once I turned it back on,
-> it spots the bug instantly.
-> 
-> > Or is there something more mysterious stopping it from showing up for
-> > you? It's repeatable for me. When not crashing, that "cp" should fill
-> > up about half of RAM before it hits the implicit tmpfs volume limit;
-> > but I am assuming a not entirely fragmented machine - it does need
-> > to allocate two 2MB pages before hitting the VM_BUG_ON_PAGE().
-> 
-> I tried that too, before noticing that DEBUG_VM was off; raised my test
-> VM's memory from 2GB to 8GB.
-> 
-> > Are you sure that those pages are free, rather than most of them tails
-> > of one of the two compound pages involved? I think it's the same in your
-> > rewrite of struct page, the compound_head field (lru.next), with its low
-> > bit set, were how to recognize a tail page.
-> 
-> Yes, PageTail was set, and so was TAIL_MAPPING (0xdead0000000000400).
-> What was going on was the first 2MB page was being stored at indices
-> 0-511, then the second 2MB page was being stored at indices 64-575
-> instead of 512-1023.
-> 
-> I figured out a fix and pushed it to the 'ida' branch in
-> git://git.infradead.org/users/willy/linux-dax.git
+> Great, thanks a lot for sorting that out so quickly. But I've cloned
+> the tree and don't see today's patch, so assume you've folded the fix
+> into an existing commit? If possible, please append the diff of today's
+> fix to this thread so that we can try it out. Or if that's difficult,
+> please at least tell which files were modified, then I can probably
+> work it out from the diff of those files against mmotm.
 
-Great, thanks a lot for sorting that out so quickly. But I've cloned
-the tree and don't see today's patch, so assume you've folded the fix
-into an existing commit? If possible, please append the diff of today's
-fix to this thread so that we can try it out. Or if that's difficult,
-please at least tell which files were modified, then I can probably
-work it out from the diff of those files against mmotm.
+Sure!  It's just this:
 
-Thanks,
-Hugh
+diff --git a/lib/xarray.c b/lib/xarray.c
+index 32a9c2a6a9e9..383c410997eb 100644
+--- a/lib/xarray.c
++++ b/lib/xarray.c
+@@ -660,6 +660,8 @@ void xas_create_range(struct xa_state *xas)
+ 	unsigned char sibs = xas->xa_sibs;
+ 
+ 	xas->xa_index |= ((sibs + 1) << shift) - 1;
++	if (!xas_top(xas->xa_node) && xas->xa_node->shift == xas->xa_shift)
++		xas->xa_offset |= sibs;
+ 	xas->xa_shift = 0;
+ 	xas->xa_sibs = 0;
+ 
 
-> 
-> It won't be in linux-next tomorrow because the nvdimm people have
-> just dumped a pile of patches into their tree that conflict with
-> the XArray-DAX rewrite, so Stephen has pulled the XArray tree out
-> of linux-next temporarily.  I didn't have time to sort out the merge
-> conflict today because I judged your bug report more important.
+The only other things changed are the test suite, and removing an
+unnecessary change, so they can be ignored:
+
+diff --git a/lib/test_xarray.c b/lib/test_xarray.c
+index 8a67d4bb1788..ec06c3ca19e9 100644
+--- a/lib/test_xarray.c
++++ b/lib/test_xarray.c
+@@ -695,19 +695,20 @@ static noinline void check_move(struct xarray *xa)
+ 		check_move_small(xa, (1UL << i) - 1);
+ }
+ 
+-static noinline void check_create_range_1(struct xarray *xa,
++static noinline void xa_store_many_order(struct xarray *xa,
+ 		unsigned long index, unsigned order)
+ {
+ 	XA_STATE_ORDER(xas, xa, index, order);
+-	unsigned int i;
++	unsigned int i = 0;
+ 
+ 	do {
+ 		xas_lock(&xas);
++		XA_BUG_ON(xa, xas_find_conflict(&xas));
+ 		xas_create_range(&xas);
+ 		if (xas_error(&xas))
+ 			goto unlock;
+ 		for (i = 0; i < (1U << order); i++) {
+-			xas_store(&xas, xa + i);
++			XA_BUG_ON(xa, xas_store(&xas, xa_mk_value(index + i)));
+ 			xas_next(&xas);
+ 		}
+ unlock:
+@@ -715,7 +716,29 @@ static noinline void check_create_range_1(struct xarray *xa,
+ 	} while (xas_nomem(&xas, GFP_KERNEL));
+ 
+ 	XA_BUG_ON(xa, xas_error(&xas));
+-	xa_destroy(xa);
++}
++
++static noinline void check_create_range_1(struct xarray *xa,
++		unsigned long index, unsigned order)
++{
++	unsigned long i;
++
++	xa_store_many_order(xa, index, order);
++	for (i = index; i < index + (1UL << order); i++)
++		xa_erase_value(xa, i);
++	XA_BUG_ON(xa, !xa_empty(xa));
++}
++
++static noinline void check_create_range_2(struct xarray *xa, unsigned order)
++{
++	unsigned long i;
++	unsigned long nr = 1UL << order;
++
++	for (i = 0; i < nr * nr; i += nr)
++		xa_store_many_order(xa, i, order);
++	for (i = 0; i < nr * nr; i++)
++		xa_erase_value(xa, i);
++	XA_BUG_ON(xa, !xa_empty(xa));
+ }
+ 
+ static noinline void check_create_range(struct xarray *xa)
+@@ -729,6 +752,8 @@ static noinline void check_create_range(struct xarray *xa)
+ 		check_create_range_1(xa, 2U << order, order);
+ 		check_create_range_1(xa, 3U << order, order);
+ 		check_create_range_1(xa, 1U << 24, order);
++		if (order < 10)
++			check_create_range_2(xa, order);
+ 	}
+ }
+ 
+diff --git a/mm/shmem.c b/mm/shmem.c
+index af2d7fa05af7..3ac507803787 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -589,8 +589,8 @@ static int shmem_add_to_page_cache(struct page *page,
+ 	VM_BUG_ON(expected && PageTransHuge(page));
+ 
+ 	page_ref_add(page, nr);
+-	page->index = index;
+ 	page->mapping = mapping;
++	page->index = index;
+ 
+ 	do {
+ 		void *entry;
