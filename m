@@ -1,52 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 767B06B0003
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 10:01:56 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id 66-v6so436307plb.18
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 07:01:56 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id r73-v6si8942052pfk.83.2018.07.23.07.01.53
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 526E86B0006
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 10:07:40 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id u68-v6so548111qku.5
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 07:07:40 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id n83-v6si790580qki.267.2018.07.23.07.07.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 23 Jul 2018 07:01:53 -0700 (PDT)
-Date: Mon, 23 Jul 2018 07:01:50 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: kernel BUG at mm/shmem.c:LINE!
-Message-ID: <20180723140150.GA31843@bombadil.infradead.org>
-References: <000000000000d624c605705e9010@google.com>
- <20180709143610.GD2662@bombadil.infradead.org>
- <alpine.LSU.2.11.1807221856350.5536@eggly.anvils>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Jul 2018 07:07:38 -0700 (PDT)
+Date: Mon, 23 Jul 2018 17:07:23 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v36 0/5] Virtio-balloon: support free page reporting
+Message-ID: <20180723122342-mutt-send-email-mst@kernel.org>
+References: <1532075585-39067-1-git-send-email-wei.w.wang@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1807221856350.5536@eggly.anvils>
+In-Reply-To: <1532075585-39067-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: syzbot <syzbot+b8e0dfee3fd8c9012771@syzkaller.appspotmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com, dgilbert@redhat.com
 
-On Sun, Jul 22, 2018 at 07:28:01PM -0700, Hugh Dickins wrote:
-> Whether or not that fixed syzbot's kernel BUG at mm/shmem.c:815!
-> I don't know, but I'm afraid it has not fixed linux-next breakage of
-> huge tmpfs: I get a similar page_to_pgoff BUG at mm/filemap.c:1466!
+On Fri, Jul 20, 2018 at 04:33:00PM +0800, Wei Wang wrote:
+> This patch series is separated from the previous "Virtio-balloon
+> Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_HINT,  
+> implemented by this series enables the virtio-balloon driver to report
+> hints of guest free pages to the host. It can be used to accelerate live
+> migration of VMs. Here is an introduction of this usage:
 > 
-> Please try something like
-> mount -o remount,huge=always /dev/shm
-> cp /dev/zero /dev/shm
+> Live migration needs to transfer the VM's memory from the source machine
+> to the destination round by round. For the 1st round, all the VM's memory
+> is transferred. From the 2nd round, only the pieces of memory that were
+> written by the guest (after the 1st round) are transferred. One method
+> that is popularly used by the hypervisor to track which part of memory is
+> written is to write-protect all the guest memory.
 > 
-> Writing soon crashes in find_lock_entry(), looking up offset 0x201
-> but getting the page for offset 0x3c1 instead.
+> This feature enables the optimization by skipping the transfer of guest
+> free pages during VM live migration. It is not concerned that the memory
+> pages are used after they are given to the hypervisor as a hint of the
+> free pages, because they will be tracked by the hypervisor and transferred
+> in the subsequent round if they are used and written.
+> 
+> * Tests
+> - Test Environment
+>     Host: Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz
+>     Guest: 8G RAM, 4 vCPU
+>     Migration setup: migrate_set_speed 100G, migrate_set_downtime 2 second
+> 
+> - Test Results
+>     - Idle Guest Live Migration Time (results are averaged over 10 runs):
+>         - Optimization v.s. Legacy = 409ms vs 1757ms --> ~77% reduction
+> 	(setting page poisoning zero and enabling ksm don't affect the
+>          comparison result)
+>     - Guest with Linux Compilation Workload (make bzImage -j4):
+>         - Live Migration Time (average)
+>           Optimization v.s. Legacy = 1407ms v.s. 2528ms --> ~44% reduction
+>         - Linux Compilation Time
+>           Optimization v.s. Legacy = 5min4s v.s. 5min12s
+>           --> no obvious difference
 
-Hmm.  I don't see a crash while running that command, but I do see an RCU
-stall in find_get_entries() called from shmem_undo_range() when running
-'cp' the second time -- ie while truncating the /dev/shm/zero file.
-Maybe I'm seeing the same bug as you, and maybe I'm seeing a different
-one.  Do we have a shmem test suite somewhere?
+I'd like to see dgilbert's take on whether this kind of gain
+justifies adding a PV interfaces, and what kind of guest workload
+is appropriate.
 
-> I've spent a while on it, but better turn over to you, Matthew:
-> my guess is that xas_create_range() does not create the layout
-> you expect from it.
+Cc'd.
 
-I've dumped the XArray tree on my machine and it actually looks fine
-*except* that the pages pointed to are free!  That indicates to me I
-screwed up somebody's reference count somewhere.
+
+> ChangeLog:
+> v35->v36:
+>     - remove the mm patch, as Linus has a suggestion to get free page
+>       addresses via allocation, instead of reading from the free page
+>       list.
+>     - virtio-balloon:
+>         - replace oom notifier with shrinker;
+>         - the guest to host communication interface remains the same as
+>           v32.
+> 	- allocate free page blocks and send to host one by one, and free
+>           them after sending all the pages.
+> 
+> For ChangeLogs from v22 to v35, please reference
+> https://lwn.net/Articles/759413/
+> 
+> For ChangeLogs before v21, please reference
+> https://lwn.net/Articles/743660/
+> 
+> Wei Wang (5):
+>   virtio-balloon: remove BUG() in init_vqs
+>   virtio_balloon: replace oom notifier with shrinker
+>   virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
+>   mm/page_poison: expose page_poisoning_enabled to kernel modules
+>   virtio-balloon: VIRTIO_BALLOON_F_PAGE_POISON
+> 
+>  drivers/virtio/virtio_balloon.c     | 456 ++++++++++++++++++++++++++++++------
+>  include/uapi/linux/virtio_balloon.h |   7 +
+>  mm/page_poison.c                    |   6 +
+>  3 files changed, 394 insertions(+), 75 deletions(-)
+> 
+> -- 
+> 2.7.4
