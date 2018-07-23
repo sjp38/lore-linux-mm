@@ -1,57 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 243E86B0003
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 07:09:32 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id c2-v6so287667edi.20
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 04:09:32 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C212F6B0006
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 07:19:52 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id x2-v6so187992plv.0
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 04:19:52 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l17-v6si1708812edr.310.2018.07.23.04.09.30
+        by mx.google.com with ESMTPS id v190-v6si8615556pgd.668.2018.07.23.04.19.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jul 2018 04:09:30 -0700 (PDT)
-Date: Mon, 23 Jul 2018 13:09:28 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 00/14] mm: Asynchronous + multithreaded memmap init
- for ZONE_DEVICE
-Message-ID: <20180723110928.GC31229@dhcp22.suse.cz>
-References: <153176041838.12695.3365448145295112857.stgit@dwillia2-desk3.amr.corp.intel.com>
- <CAGM2rea9AwQGaf1JiV_SDDKTKyP_n+dG9Z20gtTZEkuZPFnXFQ@mail.gmail.com>
- <CAPcyv4jo91jKjwn-M7cOhG=6vJ3c-QCyp0W+T+CtmiKGyZP1ng@mail.gmail.com>
- <CAGM2reacO1HF91yH8OR5w5AdZwPgwfSFfjDNBsHbP66v1rEg=g@mail.gmail.com>
- <20180717155006.GL7193@dhcp22.suse.cz>
- <CAA9_cmez_vrjBYvcpXT_5ziQ2CqRFzPbEWMO2kdmjW0rWhkaCA@mail.gmail.com>
- <20180718120529.GY7193@dhcp22.suse.cz>
- <3f43729d-fd4e-a488-e04d-026ef5a28dd9@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3f43729d-fd4e-a488-e04d-026ef5a28dd9@intel.com>
+        Mon, 23 Jul 2018 04:19:51 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH 2/4] mm: proc/pid/smaps: factor out mem stats gathering
+Date: Mon, 23 Jul 2018 13:19:31 +0200
+Message-Id: <20180723111933.15443-3-vbabka@suse.cz>
+In-Reply-To: <20180723111933.15443-1-vbabka@suse.cz>
+References: <20180723111933.15443-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, pasha.tatashin@oracle.com, dalias@libc.org, Jan Kara <jack@suse.cz>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, "H. Peter Anvin" <hpa@zytor.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, the arch/x86 maintainers <x86@kernel.org>, Matthew Wilcox <willy@infradead.org>, daniel.m.jordan@oracle.com, Ingo Molnar <mingo@redhat.com>, fenghua.yu@intel.com, Jerome Glisse <jglisse@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "Luck, Tony" <tony.luck@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Daniel Colascione <dancol@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>, linux-api@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu 19-07-18 11:41:10, Dave Hansen wrote:
-> On 07/18/2018 05:05 AM, Michal Hocko wrote:
-> > On Tue 17-07-18 10:32:32, Dan Williams wrote:
-> >> On Tue, Jul 17, 2018 at 8:50 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > [...]
-> >>> Is there any reason that this work has to target the next merge window?
-> >>> The changelog is not really specific about that.
-> >>
-> >> Same reason as any other change in this space, hardware availability
-> >> continues to increase. These patches are a direct response to end user
-> >> reports of unacceptable init latency with current kernels.
-> > 
-> > Do you have any reference please?
-> 
-> Are you looking for the actual end-user reports?  This was more of a
-> case of the customer plugging in some persistent memory DIMMs, noticing
-> the boot delta and calling the folks who sold them the DIMMs (Intel).
+To prepare for handling /proc/pid/smaps_rollup differently from /proc/pid/smaps
+factor out vma mem stats gathering from show_smap() - it will be used by both.
 
-But this doesn't sound like something to rush a solution for in the
-upcoming merge windown, does it?
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ fs/proc/task_mmu.c | 55 ++++++++++++++++++++++++++--------------------
+ 1 file changed, 31 insertions(+), 24 deletions(-)
 
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index a3f98ca50981..d2ca88c92d9d 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -702,14 +702,9 @@ static int smaps_hugetlb_range(pte_t *pte, unsigned long hmask,
+ }
+ #endif /* HUGETLB_PAGE */
+ 
+-#define SEQ_PUT_DEC(str, val) \
+-		seq_put_decimal_ull_width(m, str, (val) >> 10, 8)
+-static int show_smap(struct seq_file *m, void *v)
++static void smap_gather_stats(struct vm_area_struct *vma,
++			     struct mem_size_stats *mss)
+ {
+-	struct proc_maps_private *priv = m->private;
+-	struct vm_area_struct *vma = v;
+-	struct mem_size_stats mss_stack;
+-	struct mem_size_stats *mss;
+ 	struct mm_walk smaps_walk = {
+ 		.pmd_entry = smaps_pte_range,
+ #ifdef CONFIG_HUGETLB_PAGE
+@@ -717,23 +712,6 @@ static int show_smap(struct seq_file *m, void *v)
+ #endif
+ 		.mm = vma->vm_mm,
+ 	};
+-	int ret = 0;
+-	bool rollup_mode;
+-	bool last_vma;
+-
+-	if (priv->rollup) {
+-		rollup_mode = true;
+-		mss = priv->rollup;
+-		if (mss->first) {
+-			mss->first_vma_start = vma->vm_start;
+-			mss->first = false;
+-		}
+-		last_vma = !m_next_vma(priv, vma);
+-	} else {
+-		rollup_mode = false;
+-		memset(&mss_stack, 0, sizeof(mss_stack));
+-		mss = &mss_stack;
+-	}
+ 
+ 	smaps_walk.private = mss;
+ 
+@@ -765,6 +743,35 @@ static int show_smap(struct seq_file *m, void *v)
+ 	walk_page_vma(vma, &smaps_walk);
+ 	if (vma->vm_flags & VM_LOCKED)
+ 		mss->pss_locked += mss->pss;
++}
++
++#define SEQ_PUT_DEC(str, val) \
++		seq_put_decimal_ull_width(m, str, (val) >> 10, 8)
++static int show_smap(struct seq_file *m, void *v)
++{
++	struct proc_maps_private *priv = m->private;
++	struct vm_area_struct *vma = v;
++	struct mem_size_stats mss_stack;
++	struct mem_size_stats *mss;
++	int ret = 0;
++	bool rollup_mode;
++	bool last_vma;
++
++	if (priv->rollup) {
++		rollup_mode = true;
++		mss = priv->rollup;
++		if (mss->first) {
++			mss->first_vma_start = vma->vm_start;
++			mss->first = false;
++		}
++		last_vma = !m_next_vma(priv, vma);
++	} else {
++		rollup_mode = false;
++		memset(&mss_stack, 0, sizeof(mss_stack));
++		mss = &mss_stack;
++	}
++
++	smap_gather_stats(vma, mss);
+ 
+ 	if (!rollup_mode) {
+ 		show_map_vma(m, vma);
 -- 
-Michal Hocko
-SUSE Labs
+2.18.0
