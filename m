@@ -1,176 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 959166B0271
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 18:00:26 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id d10-v6so1259200pll.22
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 15:00:26 -0700 (PDT)
-Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id j124-v6si9784072pfg.157.2018.07.23.15.00.23
+	by kanga.kvack.org (Postfix) with ESMTP id 4DDA56B0003
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 18:07:33 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id b9-v6so1294499pla.19
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 15:07:33 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id p2-v6si10736819pli.289.2018.07.23.15.07.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jul 2018 15:00:25 -0700 (PDT)
-Subject: Re: [RFC v5 0/2] mm: zap pages with read mmap_sem in munmap for large
- mapping
-References: <1531956101-8526-1-git-send-email-yang.shi@linux.alibaba.com>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <d0535691-4abb-b53a-64cf-1ee0ea59fd22@linux.alibaba.com>
-Date: Mon, 23 Jul 2018 15:00:05 -0700
+        Mon, 23 Jul 2018 15:07:32 -0700 (PDT)
+Subject: Re: [PATCH 0/3] PTI for x86-32 Fixes and Updates
+References: <1532103744-31902-1-git-send-email-joro@8bytes.org>
+ <20180723140925.GA4285@amd>
+ <CA+55aFynT9Sp7CbnB=GqLbns7GFZbv3pDSQm_h0jFvJpz3ES+g@mail.gmail.com>
+ <20180723213830.GA4632@amd> <20180723215958.jozblzq4sv7gp7uj@treble>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <f654c085-d07c-5047-0d59-e2f88b00e921@intel.com>
+Date: Mon, 23 Jul 2018 15:07:13 -0700
 MIME-Version: 1.0
-In-Reply-To: <1531956101-8526-1-git-send-email-yang.shi@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180723215958.jozblzq4sv7gp7uj@treble>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Josh Poimboeuf <jpoimboe@redhat.com>, Pavel Machek <pavel@ucw.cz>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Anvin <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, Joerg Roedel <jroedel@suse.de>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>
 
-Hi folks,
+On 07/23/2018 02:59 PM, Josh Poimboeuf wrote:
+> On Mon, Jul 23, 2018 at 11:38:30PM +0200, Pavel Machek wrote:
+>> But for now I'd like at least "global" option of turning pti on/off
+>> during runtime for benchmarking. Let me see...
+>>
+>> Something like this, or is it going to be way more complex? Does
+>> anyone have patch by chance?
+> RHEL/CentOS has a global PTI enable/disable, which uses stop_machine().
 
-
-Any comment on this version?
-
-
-Thanks,
-
-Yang
-
-
-On 7/18/18 4:21 PM, Yang Shi wrote:
-> Background:
-> Recently, when we ran some vm scalability tests on machines with large memory,
-> we ran into a couple of mmap_sem scalability issues when unmapping large memory
-> space, please refer to https://lkml.org/lkml/2017/12/14/733 and
-> https://lkml.org/lkml/2018/2/20/576.
->
->
-> History:
-> Then akpm suggested to unmap large mapping section by section and drop mmap_sem
-> at a time to mitigate it (see https://lkml.org/lkml/2018/3/6/784).
->
-> V1 patch series was submitted to the mailing list per Andrew's suggestion
-> (see https://lkml.org/lkml/2018/3/20/786). Then I received a lot great feedback
-> and suggestions.
->
-> Then this topic was discussed on LSFMM summit 2018. In the summit, Michal Hocko
-> suggested (also in the v1 patches review) to try "two phases" approach. Zapping
-> pages with read mmap_sem, then doing via cleanup with write mmap_sem (for
-> discussion detail, see https://lwn.net/Articles/753269/)
->
->
-> Approach:
-> Zapping pages is the most time consuming part, according to the suggestion from
-> Michal Hocko [1], zapping pages can be done with holding read mmap_sem, like
-> what MADV_DONTNEED does. Then re-acquire write mmap_sem to cleanup vmas.
->
-> But, we can't call MADV_DONTNEED directly, since there are two major drawbacks:
->    * The unexpected state from PF if it wins the race in the middle of munmap.
->      It may return zero page, instead of the content or SIGSEGV.
->    * Cana??t handle VM_LOCKED | VM_HUGETLB | VM_PFNMAP and uprobe mappings, which
->      is a showstopper from akpm
->
-> But, some part may need write mmap_sem, for example, vma splitting. So,
-> the design is as follows:
->          acquire write mmap_sem
->          lookup vmas (find and split vmas)
->          detach vmas
->          deal with special mappings
->          downgrade_write
->
->          zap pages
->          free page tables
->          release mmap_sem
->
-> The vm events with read mmap_sem may come in during page zapping, but
-> since vmas have been detached before, they, i.e. page fault, gup, etc,
-> will not be able to find valid vma, then just return SIGSEGV or -EFAULT
-> as expected.
->
-> If the vma has VM_LOCKED | VM_HUGETLB | VM_PFNMAP or uprobe, they are
-> considered as special mappings. They will be dealt with before zapping
-> pages with write mmap_sem held. Basically, just update vm_flags.
->
-> And, since they are also manipulated by unmap_single_vma() which is
-> called by unmap_vma() with read mmap_sem held in this case, to
-> prevent from updating vm_flags in read critical section, a new
-> parameter, called "skip_flags" is added to unmap_region(), unmap_vmas()
-> and unmap_single_vma(). If it is true, then just skip unmap those
-> special mappings. Currently, the only place which pass true to this
-> parameter is us.
->
-> With this approach we don't have to re-acquire mmap_sem again to clean
-> up vmas to avoid race window which might get the address space changed.
->
-> And, since the lock acquire/release cost is managed to the minimum and
-> almost as same as before, the optimization could be extended to any size
-> of mapping without incuring significant penalty to small mappings.
->
-> For the time being, just do this in munmap syscall path. Other vm_munmap() or
-> do_munmap() call sites (i.e mmap, mremap, etc) remain intact for stability
-> reason.
->
-> Changelog:
-> v4 -> v5:
-> * Detach vmas before zapping pages so that we don't have to use VM_DEAD to mark
->    a being unmapping vma since they have been detached from rbtree when zapping
->    pages. Per Kirill
-> * Eliminate VM_DEAD stuff
-> * With this change we don't have to re-acquire write mmap_sem to do cleanup.
->    So, we could eliminate a potential race window
-> * Eliminate PUD_SIZE check, and extend this optimization to all size
->
-> v3 -> v4:
-> * Extend check_stable_address_space to check VM_DEAD as Michal suggested
-> * Deal with vm_flags update of VM_LOCKED | VM_HUGETLB | VM_PFNMAP and uprobe
->    mappings with exclusive lock held. The actual unmapping is still done with read
->    mmap_sem to solve akpm's concern
-> * Clean up vmas with calling do_munmap to prevent from race condition by not
->    carrying vmas as Kirill suggested
-> * Extracted more common code
-> * Solved some code cleanup comments from akpm
-> * Dropped uprobe and arch specific code, now all the changes are mm only
-> * Still keep PUD_SIZE threshold, if everyone thinks it is better to extend to all
->    sizes or smaller size, will remove it
-> * Make this optimization 64 bit only explicitly per akpm's suggestion
->
-> v2 -> v3:
-> * Refactor do_munmap code to extract the common part per Peter's sugestion
-> * Introduced VM_DEAD flag per Michal's suggestion. Just handled VM_DEAD in
->    x86's page fault handler for the time being. Other architectures will be covered
->    once the patch series is reviewed
-> * Now lookup vma (find and split) and set VM_DEAD flag with write mmap_sem, then
->    zap mapping with read mmap_sem, then clean up pgtables and vmas with write
->    mmap_sem per Peter's suggestion
->
-> v1 -> v2:
-> * Re-implemented the code per the discussion on LSFMM summit
->
->
-> Regression and performance data:
-> Did the below regression test with setting thresh to 4K manually in the code:
->    * Full LTP
->    * Trinity (munmap/all vm syscalls)
->    * Stress-ng: mmap/mmapfork/mmapfixed/mmapaddr/mmapmany/vm
->    * mm-tests: kernbench, phpbench, sysbench-mariadb, will-it-scale
->    * vm-scalability
->
-> With the patches, exclusive mmap_sem hold time when munmap a 80GB address
-> space on a machine with 32 cores of E5-2680 @ 2.70GHz dropped to us level
-> from second.
->
-> munmap_test-15002 [008]   594.380138: funcgraph_entry: |  vm_munmap_zap_rlock() {
-> munmap_test-15002 [008]   594.380146: funcgraph_entry:      !2485684 us |    unmap_region();
-> munmap_test-15002 [008]   596.865836: funcgraph_exit:       !2485692 us |  }
->
-> Here the excution time of unmap_region() is used to evaluate the time of
-> holding read mmap_sem, then the remaining time is used with holding
-> exclusive lock.
->
-> Yang Shi (2):
->        mm: refactor do_munmap() to extract the common part
->        mm: mmap: zap pages with read mmap_sem in munmap
->
->   include/linux/mm.h |   2 +-
->   mm/memory.c        |  35 +++++++++++++-----
->   mm/mmap.c          | 219 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-----------------------
->   3 files changed, 199 insertions(+), 57 deletions(-)
+Let's not forget PTI's NX-for-userspace in the kernel page tables.  That
+provides Spectre V2 mitigation as well as Meltdown.
