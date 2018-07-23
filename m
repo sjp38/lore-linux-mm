@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 36D6B6B000C
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 38B7C6B000E
 	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 07:19:53 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id e1-v6so155982pld.23
+Received: by mail-pl0-f71.google.com with SMTP id 31-v6so180248pld.6
         for <linux-mm@kvack.org>; Mon, 23 Jul 2018 04:19:53 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e132-v6si8626691pfg.171.2018.07.23.04.19.51
+        by mx.google.com with ESMTPS id b13-v6si8457409pgb.356.2018.07.23.04.19.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 23 Jul 2018 04:19:51 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 1/4] mm: /proc/pid/*maps remove is_pid and related wrappers
-Date: Mon, 23 Jul 2018 13:19:30 +0200
-Message-Id: <20180723111933.15443-2-vbabka@suse.cz>
+Subject: [PATCH 4/4] mm: proc/pid/smaps_rollup: convert to single value seq_file
+Date: Mon, 23 Jul 2018 13:19:33 +0200
+Message-Id: <20180723111933.15443-5-vbabka@suse.cz>
 In-Reply-To: <20180723111933.15443-1-vbabka@suse.cz>
 References: <20180723111933.15443-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,367 +20,228 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Daniel Colascione <dancol@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>, linux-api@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-Commit b76437579d13 ("procfs: mark thread stack correctly in proc/<pid>/maps")
-introduced differences between /proc/PID/maps and /proc/PID/task/TID/maps to
-mark thread stacks properly, and this was also done for smaps and numa_maps.
-However it didn't work properly and was ultimately removed by commit
-b18cb64ead40 ("fs/proc: Stop trying to report thread stacks").
+The /proc/pid/smaps_rollup file is currently implemented via the
+m_start/m_next/m_stop seq_file iterators shared with the other maps files,
+that iterate over vma's. However, the rollup file doesn't print anything
+for each vma, only accumulate the stats.
 
-Now the is_pid parameter for the related show_*() functions is unused and we
-can remove it together with wrapper functions and ops structures that differ
-for PID and TID cases only in this parameter.
+There are some issues with the current code as reported in [1] - the
+accumulated stats can get skewed if seq_file start()/stop() op is called
+multiple times, if show() is called multiple times, and after seeks to
+non-zero position.
 
+Patch [1] fixed those within existing design, but I believe it is
+fundamentally wrong to expose the vma iterators to the seq_file mechanism
+when smaps_rollup shows logically a single set of values for the whole
+address space.
+
+This patch thus refactors the code to provide a single "value" at offset 0,
+with vma iteration to gather the stats done internally. This fixes the
+situations where results are skewed, and simplifies the code, especially
+in show_smap(), at the expense of somewhat less code reuse.
+
+[1] https://marc.info/?l=linux-mm&m=151927723128134&w=2
+
+Reported-by: Daniel Colascione <dancol@google.com>
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- fs/proc/base.c       |   6 +--
- fs/proc/internal.h   |   3 --
- fs/proc/task_mmu.c   | 114 +++++--------------------------------------
- fs/proc/task_nommu.c |  39 ++-------------
- 4 files changed, 18 insertions(+), 144 deletions(-)
+ fs/proc/task_mmu.c | 136 ++++++++++++++++++++++++++++-----------------
+ 1 file changed, 86 insertions(+), 50 deletions(-)
 
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index aaffc0c30216..ad047977ed04 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -3309,12 +3309,12 @@ static const struct pid_entry tid_base_stuff[] = {
- 	REG("cmdline",   S_IRUGO, proc_pid_cmdline_ops),
- 	ONE("stat",      S_IRUGO, proc_tid_stat),
- 	ONE("statm",     S_IRUGO, proc_pid_statm),
--	REG("maps",      S_IRUGO, proc_tid_maps_operations),
-+	REG("maps",      S_IRUGO, proc_pid_maps_operations),
- #ifdef CONFIG_PROC_CHILDREN
- 	REG("children",  S_IRUGO, proc_tid_children_operations),
- #endif
- #ifdef CONFIG_NUMA
--	REG("numa_maps", S_IRUGO, proc_tid_numa_maps_operations),
-+	REG("numa_maps", S_IRUGO, proc_pid_numa_maps_operations),
- #endif
- 	REG("mem",       S_IRUSR|S_IWUSR, proc_mem_operations),
- 	LNK("cwd",       proc_cwd_link),
-@@ -3324,7 +3324,7 @@ static const struct pid_entry tid_base_stuff[] = {
- 	REG("mountinfo",  S_IRUGO, proc_mountinfo_operations),
- #ifdef CONFIG_PROC_PAGE_MONITOR
- 	REG("clear_refs", S_IWUSR, proc_clear_refs_operations),
--	REG("smaps",     S_IRUGO, proc_tid_smaps_operations),
-+	REG("smaps",     S_IRUGO, proc_pid_smaps_operations),
- 	REG("smaps_rollup", S_IRUGO, proc_pid_smaps_rollup_operations),
- 	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
- #endif
-diff --git a/fs/proc/internal.h b/fs/proc/internal.h
-index da3dbfa09e79..0c538769512a 100644
---- a/fs/proc/internal.h
-+++ b/fs/proc/internal.h
-@@ -297,12 +297,9 @@ struct proc_maps_private {
- struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode);
- 
- extern const struct file_operations proc_pid_maps_operations;
--extern const struct file_operations proc_tid_maps_operations;
- extern const struct file_operations proc_pid_numa_maps_operations;
--extern const struct file_operations proc_tid_numa_maps_operations;
- extern const struct file_operations proc_pid_smaps_operations;
- extern const struct file_operations proc_pid_smaps_rollup_operations;
--extern const struct file_operations proc_tid_smaps_operations;
- extern const struct file_operations proc_clear_refs_operations;
- extern const struct file_operations proc_pagemap_operations;
- 
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index dfd73a4616ce..a3f98ca50981 100644
+index 1d6d315fd31b..31109e67804c 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
-@@ -294,7 +294,7 @@ static void show_vma_header_prefix(struct seq_file *m,
- }
+@@ -404,7 +404,6 @@ const struct file_operations proc_pid_maps_operations = {
  
- static void
--show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
-+show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	struct file *file = vma->vm_file;
-@@ -357,35 +357,18 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
- 	seq_putc(m, '\n');
- }
- 
--static int show_map(struct seq_file *m, void *v, int is_pid)
-+static int show_map(struct seq_file *m, void *v)
- {
--	show_map_vma(m, v, is_pid);
-+	show_map_vma(m, v);
- 	m_cache_vma(m, v);
- 	return 0;
- }
- 
--static int show_pid_map(struct seq_file *m, void *v)
--{
--	return show_map(m, v, 1);
--}
--
--static int show_tid_map(struct seq_file *m, void *v)
--{
--	return show_map(m, v, 0);
--}
--
- static const struct seq_operations proc_pid_maps_op = {
- 	.start	= m_start,
- 	.next	= m_next,
- 	.stop	= m_stop,
--	.show	= show_pid_map
--};
--
--static const struct seq_operations proc_tid_maps_op = {
--	.start	= m_start,
--	.next	= m_next,
--	.stop	= m_stop,
--	.show	= show_tid_map
-+	.show	= show_map
+ #ifdef CONFIG_PROC_PAGE_MONITOR
+ struct mem_size_stats {
+-	bool first;
+ 	unsigned long resident;
+ 	unsigned long shared_clean;
+ 	unsigned long shared_dirty;
+@@ -418,11 +417,12 @@ struct mem_size_stats {
+ 	unsigned long swap;
+ 	unsigned long shared_hugetlb;
+ 	unsigned long private_hugetlb;
+-	unsigned long first_vma_start;
++	unsigned long last_vma_end;
+ 	u64 pss;
+ 	u64 pss_locked;
+ 	u64 swap_pss;
+ 	bool check_shmem_swap;
++	bool finished;
  };
  
- static int pid_maps_open(struct inode *inode, struct file *file)
-@@ -393,11 +376,6 @@ static int pid_maps_open(struct inode *inode, struct file *file)
- 	return do_maps_open(inode, file, &proc_pid_maps_op);
- }
+ static void smaps_account(struct mem_size_stats *mss, struct page *page,
+@@ -775,58 +775,57 @@ static void __show_smap(struct seq_file *m, struct mem_size_stats *mss)
  
--static int tid_maps_open(struct inode *inode, struct file *file)
--{
--	return do_maps_open(inode, file, &proc_tid_maps_op);
--}
--
- const struct file_operations proc_pid_maps_operations = {
- 	.open		= pid_maps_open,
- 	.read		= seq_read,
-@@ -405,13 +383,6 @@ const struct file_operations proc_pid_maps_operations = {
- 	.release	= proc_map_release,
- };
- 
--const struct file_operations proc_tid_maps_operations = {
--	.open		= tid_maps_open,
--	.read		= seq_read,
--	.llseek		= seq_lseek,
--	.release	= proc_map_release,
--};
--
- /*
-  * Proportional Set Size(PSS): my share of RSS.
-  *
-@@ -733,7 +704,7 @@ static int smaps_hugetlb_range(pte_t *pte, unsigned long hmask,
- 
- #define SEQ_PUT_DEC(str, val) \
- 		seq_put_decimal_ull_width(m, str, (val) >> 10, 8)
--static int show_smap(struct seq_file *m, void *v, int is_pid)
-+static int show_smap(struct seq_file *m, void *v)
+ static int show_smap(struct seq_file *m, void *v)
  {
- 	struct proc_maps_private *priv = m->private;
+-	struct proc_maps_private *priv = m->private;
  	struct vm_area_struct *vma = v;
-@@ -796,7 +767,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 		mss->pss_locked += mss->pss;
+-	struct mem_size_stats mss_stack;
+-	struct mem_size_stats *mss;
+-	int ret = 0;
+-	bool rollup_mode;
+-	bool last_vma;
+-
+-	if (priv->rollup) {
+-		rollup_mode = true;
+-		mss = priv->rollup;
+-		if (mss->first) {
+-			mss->first_vma_start = vma->vm_start;
+-			mss->first = false;
+-		}
+-		last_vma = !m_next_vma(priv, vma);
+-	} else {
+-		rollup_mode = false;
+-		memset(&mss_stack, 0, sizeof(mss_stack));
+-		mss = &mss_stack;
+-	}
++	struct mem_size_stats mss;
  
- 	if (!rollup_mode) {
--		show_map_vma(m, vma, is_pid);
-+		show_map_vma(m, vma);
- 	} else if (last_vma) {
- 		show_vma_header_prefix(
- 			m, mss->first_vma_start, vma->vm_end, 0, 0, 0, 0);
-@@ -845,28 +816,11 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+-	smap_gather_stats(vma, mss);
++	memset(&mss, 0, sizeof(mss));
+ 
+-	if (!rollup_mode) {
+-		show_map_vma(m, vma);
+-	} else if (last_vma) {
+-		show_vma_header_prefix(
+-			m, mss->first_vma_start, vma->vm_end, 0, 0, 0, 0);
+-		seq_pad(m, ' ');
+-		seq_puts(m, "[rollup]\n");
+-	} else {
+-		ret = SEQ_SKIP;
+-	}
++	smap_gather_stats(vma, &mss);
+ 
+-	if (!rollup_mode) {
+-		SEQ_PUT_DEC("Size:           ", vma->vm_end - vma->vm_start);
+-		SEQ_PUT_DEC(" kB\nKernelPageSize: ", vma_kernel_pagesize(vma));
+-		SEQ_PUT_DEC(" kB\nMMUPageSize:    ", vma_mmu_pagesize(vma));
+-		seq_puts(m, " kB\n");
+-	}
++	show_map_vma(m, vma);
+ 
+-	if (!rollup_mode || last_vma)
+-		__show_smap(m, mss);
++	SEQ_PUT_DEC("Size:           ", vma->vm_end - vma->vm_start);
++	SEQ_PUT_DEC(" kB\nKernelPageSize: ", vma_kernel_pagesize(vma));
++	SEQ_PUT_DEC(" kB\nMMUPageSize:    ", vma_mmu_pagesize(vma));
++	seq_puts(m, " kB\n");
++
++	__show_smap(m, &mss);
++
++	if (arch_pkeys_enabled())
++		seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
++	show_smap_vma_flags(m, vma);
+ 
+-	if (!rollup_mode) {
+-		if (arch_pkeys_enabled())
+-			seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
+-		show_smap_vma_flags(m, vma);
+-	}
+ 	m_cache_vma(m, vma);
+-	return ret;
++
++	return 0;
++}
++
++static int show_smaps_rollup(struct seq_file *m, void *v)
++{
++	struct proc_maps_private *priv = m->private;
++	struct mem_size_stats *mss = priv->rollup;
++	struct vm_area_struct *vma;
++
++	/*
++	 * We might be called multiple times when e.g. the seq buffer
++	 * overflows. Gather the stats only once.
++	 */
++	if (!mss->finished) {
++		for (vma = priv->mm->mmap; vma; vma = vma->vm_next) {
++			smap_gather_stats(vma, mss);
++			mss->last_vma_end = vma->vm_end;
++		}
++		mss->finished = true;
++	}
++
++	show_vma_header_prefix(m, priv->mm->mmap->vm_start,
++			       mss->last_vma_end, 0, 0, 0, 0);
++	seq_pad(m, ' ');
++	seq_puts(m, "[rollup]\n");
++
++	__show_smap(m, mss);
++
++	return 0;
  }
  #undef SEQ_PUT_DEC
  
--static int show_pid_smap(struct seq_file *m, void *v)
--{
--	return show_smap(m, v, 1);
--}
--
--static int show_tid_smap(struct seq_file *m, void *v)
--{
--	return show_smap(m, v, 0);
--}
--
- static const struct seq_operations proc_pid_smaps_op = {
- 	.start	= m_start,
- 	.next	= m_next,
- 	.stop	= m_stop,
--	.show	= show_pid_smap
--};
--
--static const struct seq_operations proc_tid_smaps_op = {
--	.start	= m_start,
--	.next	= m_next,
--	.stop	= m_stop,
--	.show	= show_tid_smap
-+	.show	= show_smap
+@@ -837,6 +836,44 @@ static const struct seq_operations proc_pid_smaps_op = {
+ 	.show	= show_smap
  };
  
++static void *smaps_rollup_start(struct seq_file *m, loff_t *ppos)
++{
++	struct proc_maps_private *priv = m->private;
++	struct mm_struct *mm;
++
++	if (*ppos != 0)
++		return NULL;
++
++	priv->task = get_proc_task(priv->inode);
++	if (!priv->task)
++		return ERR_PTR(-ESRCH);
++
++	mm = priv->mm;
++	if (!mm || !mmget_not_zero(mm))
++		return NULL;
++
++	memset(priv->rollup, 0, sizeof(*priv->rollup));
++
++	down_read(&mm->mmap_sem);
++	hold_task_mempolicy(priv);
++
++	return mm;
++}
++
++static void *smaps_rollup_next(struct seq_file *m, void *v, loff_t *pos)
++{
++	(*pos)++;
++	vma_stop(m->private);
++	return NULL;
++}
++
++static const struct seq_operations proc_pid_smaps_rollup_op = {
++	.start	= smaps_rollup_start,
++	.next	= smaps_rollup_next,
++	.stop	= m_stop,
++	.show	= show_smaps_rollup
++};
++
  static int pid_smaps_open(struct inode *inode, struct file *file)
-@@ -893,11 +847,6 @@ static int pid_smaps_rollup_open(struct inode *inode, struct file *file)
+ {
+ 	return do_maps_open(inode, file, &proc_pid_smaps_op);
+@@ -846,18 +883,17 @@ static int pid_smaps_rollup_open(struct inode *inode, struct file *file)
+ {
+ 	struct seq_file *seq;
+ 	struct proc_maps_private *priv;
+-	int ret = do_maps_open(inode, file, &proc_pid_smaps_op);
++	int ret = do_maps_open(inode, file, &proc_pid_smaps_rollup_op);
+ 
+ 	if (ret < 0)
+ 		return ret;
+ 	seq = file->private_data;
+ 	priv = seq->private;
+-	priv->rollup = kzalloc(sizeof(*priv->rollup), GFP_KERNEL);
++	priv->rollup = kmalloc(sizeof(*priv->rollup), GFP_KERNEL);
+ 	if (!priv->rollup) {
+ 		proc_map_release(inode, file);
+ 		return -ENOMEM;
+ 	}
+-	priv->rollup->first = true;
  	return 0;
  }
  
--static int tid_smaps_open(struct inode *inode, struct file *file)
--{
--	return do_maps_open(inode, file, &proc_tid_smaps_op);
--}
--
- const struct file_operations proc_pid_smaps_operations = {
- 	.open		= pid_smaps_open,
- 	.read		= seq_read,
-@@ -912,13 +861,6 @@ const struct file_operations proc_pid_smaps_rollup_operations = {
- 	.release	= proc_map_release,
- };
- 
--const struct file_operations proc_tid_smaps_operations = {
--	.open		= tid_smaps_open,
--	.read		= seq_read,
--	.llseek		= seq_lseek,
--	.release	= proc_map_release,
--};
--
- enum clear_refs_types {
- 	CLEAR_REFS_ALL = 1,
- 	CLEAR_REFS_ANON,
-@@ -1728,7 +1670,7 @@ static int gather_hugetlb_stats(pte_t *pte, unsigned long hmask,
- /*
-  * Display pages allocated per node and memory policy via /proc.
-  */
--static int show_numa_map(struct seq_file *m, void *v, int is_pid)
-+static int show_numa_map(struct seq_file *m, void *v)
- {
- 	struct numa_maps_private *numa_priv = m->private;
- 	struct proc_maps_private *proc_priv = &numa_priv->proc_maps;
-@@ -1812,45 +1754,17 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	return 0;
- }
- 
--static int show_pid_numa_map(struct seq_file *m, void *v)
--{
--	return show_numa_map(m, v, 1);
--}
--
--static int show_tid_numa_map(struct seq_file *m, void *v)
--{
--	return show_numa_map(m, v, 0);
--}
--
- static const struct seq_operations proc_pid_numa_maps_op = {
- 	.start  = m_start,
- 	.next   = m_next,
- 	.stop   = m_stop,
--	.show   = show_pid_numa_map,
-+	.show   = show_numa_map,
- };
- 
--static const struct seq_operations proc_tid_numa_maps_op = {
--	.start  = m_start,
--	.next   = m_next,
--	.stop   = m_stop,
--	.show   = show_tid_numa_map,
--};
--
--static int numa_maps_open(struct inode *inode, struct file *file,
--			  const struct seq_operations *ops)
--{
--	return proc_maps_open(inode, file, ops,
--				sizeof(struct numa_maps_private));
--}
--
- static int pid_numa_maps_open(struct inode *inode, struct file *file)
- {
--	return numa_maps_open(inode, file, &proc_pid_numa_maps_op);
--}
--
--static int tid_numa_maps_open(struct inode *inode, struct file *file)
--{
--	return numa_maps_open(inode, file, &proc_tid_numa_maps_op);
-+	return proc_maps_open(inode, file, &proc_pid_numa_maps_op,
-+				sizeof(struct numa_maps_private));
- }
- 
- const struct file_operations proc_pid_numa_maps_operations = {
-@@ -1860,10 +1774,4 @@ const struct file_operations proc_pid_numa_maps_operations = {
- 	.release	= proc_map_release,
- };
- 
--const struct file_operations proc_tid_numa_maps_operations = {
--	.open		= tid_numa_maps_open,
--	.read		= seq_read,
--	.llseek		= seq_lseek,
--	.release	= proc_map_release,
--};
- #endif /* CONFIG_NUMA */
-diff --git a/fs/proc/task_nommu.c b/fs/proc/task_nommu.c
-index 5b62f57bd9bc..0b63d68dedb2 100644
---- a/fs/proc/task_nommu.c
-+++ b/fs/proc/task_nommu.c
-@@ -142,8 +142,7 @@ static int is_stack(struct vm_area_struct *vma)
- /*
-  * display a single VMA to a sequenced file
-  */
--static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma,
--			  int is_pid)
-+static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	unsigned long ino = 0;
-@@ -189,22 +188,11 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma,
- /*
-  * display mapping lines for a particular process's /proc/pid/maps
-  */
--static int show_map(struct seq_file *m, void *_p, int is_pid)
-+static int show_map(struct seq_file *m, void *_p)
- {
- 	struct rb_node *p = _p;
- 
--	return nommu_vma_show(m, rb_entry(p, struct vm_area_struct, vm_rb),
--			      is_pid);
--}
--
--static int show_pid_map(struct seq_file *m, void *_p)
--{
--	return show_map(m, _p, 1);
--}
--
--static int show_tid_map(struct seq_file *m, void *_p)
--{
--	return show_map(m, _p, 0);
-+	return nommu_vma_show(m, rb_entry(p, struct vm_area_struct, vm_rb));
- }
- 
- static void *m_start(struct seq_file *m, loff_t *pos)
-@@ -260,14 +248,7 @@ static const struct seq_operations proc_pid_maps_ops = {
- 	.start	= m_start,
- 	.next	= m_next,
- 	.stop	= m_stop,
--	.show	= show_pid_map
--};
--
--static const struct seq_operations proc_tid_maps_ops = {
--	.start	= m_start,
--	.next	= m_next,
--	.stop	= m_stop,
--	.show	= show_tid_map
-+	.show	= show_map
- };
- 
- static int maps_open(struct inode *inode, struct file *file,
-@@ -308,11 +289,6 @@ static int pid_maps_open(struct inode *inode, struct file *file)
- 	return maps_open(inode, file, &proc_pid_maps_ops);
- }
- 
--static int tid_maps_open(struct inode *inode, struct file *file)
--{
--	return maps_open(inode, file, &proc_tid_maps_ops);
--}
--
- const struct file_operations proc_pid_maps_operations = {
- 	.open		= pid_maps_open,
- 	.read		= seq_read,
-@@ -320,10 +296,3 @@ const struct file_operations proc_pid_maps_operations = {
- 	.release	= map_release,
- };
- 
--const struct file_operations proc_tid_maps_operations = {
--	.open		= tid_maps_open,
--	.read		= seq_read,
--	.llseek		= seq_lseek,
--	.release	= map_release,
--};
--
 -- 
 2.18.0
