@@ -1,70 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 296AC6B0003
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 08:55:57 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id l1-v6so397391edi.11
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 05:55:57 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EAC56B0006
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 09:02:38 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id b12-v6so385065edi.12
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 06:02:38 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d40-v6si3151612ede.253.2018.07.23.05.55.55
+        by mx.google.com with ESMTPS id i2-v6si1990478edt.286.2018.07.23.06.02.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jul 2018 05:55:55 -0700 (PDT)
-Date: Mon, 23 Jul 2018 14:55:54 +0200
+        Mon, 23 Jul 2018 06:02:36 -0700 (PDT)
+Date: Mon, 23 Jul 2018 15:02:35 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: post linux 4.4 vm oom kill, lockup and thrashing woes
-Message-ID: <20180723125554.GE31229@dhcp22.suse.cz>
-References: <20180710120755.3gmin4rogheqb3u5@schmorp.de>
- <20180710123222.GK14284@dhcp22.suse.cz>
- <20180717234549.4ng2expfkgaranuq@schmorp.de>
- <20180718083808.GR7193@dhcp22.suse.cz>
- <20180722233437.34e5ckq5pp24gsod@schmorp.de>
+Subject: Re: [Bug 200105] High paging activity as soon as the swap is touched
+ (with steps and code to reproduce it)
+Message-ID: <20180723130235.GF31229@dhcp22.suse.cz>
+References: <bug-200105-8545@https.bugzilla.kernel.org/>
+ <bug-200105-8545-FomWhXSVhq@https.bugzilla.kernel.org/>
+ <191624267.262238.1532074743289@mail.yahoo.com>
+ <f20b1529-fcb9-8d0a-6259-fe76977e00d6@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180722233437.34e5ckq5pp24gsod@schmorp.de>
+In-Reply-To: <f20b1529-fcb9-8d0a-6259-fe76977e00d6@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marc Lehmann <schmorp@schmorp.de>
-Cc: linux-mm@kvack.org
+To: Daniel Jordan <lkmldmj@gmail.com>
+Cc: john terragon <terragonjohn@yahoo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "bugzilla-daemon@bugzilla.kernel.org" <bugzilla-daemon@bugzilla.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-On Mon 23-07-18 01:34:37, Marc Lehmann wrote:
-> On Wed, Jul 18, 2018 at 10:38:08AM +0200, Michal Hocko <mhocko@kernel.org> wrote:
-> > > http://data.plan9.de/kvm_oom.txt
-> > 
-> > That is something to bring up with kvm guys. Order-6 pages are
-> > considered costly and success of the allocation is by no means
-> > guaranteed. Unike for orders smaller than 4 they do not trigger the oom
-> > killer though.
+[I am really sorry to be slow on responding]
+
+On Sat 21-07-18 10:39:05, Daniel Jordan wrote:
+> John's issue only happens using a LUKS encrypted swap partition,
+> unencrypted swap or swap encrypted without LUKS works fine.
 > 
-> So 4 is the magic barrier, good to know.
-
-Yeah, scientifically proven. Or something along those lines.
-
-> In any case, as I said, it's just
-> an example of various allocations that fail unexpectedly after 4.4, and it's
-> by no means just nvidia.
-
-Large allocation failures shouldn't be directly related to the OOM
-changes at the time. There were many compaction fixes/enhancements
-introduced at the time and later which should help those though.
-
-Having more examples should help us to work with specific subsystems
-on a more appropriate fix. Depending on large order allocations has
-always been suboptimal if not outright wrong.
-
+> In one test (out5.txt) where most system memory is taken by anon pages
+> beforehand, the heavy direct reclaim that Michal noticed lasts for 24
+> seconds, during which on average if I've crunched my numbers right,
+> John's test program was allocating at 4MiB/s, the system overall
+> (pgalloc_normal) was allocating at 235MiB/s, and the system was
+> swapping out (pswpout) at 673MiB/s. pgalloc_normal and pswpout stay
+> roughly the same each second, no big swings.
+>
+> Is the disparity between allocation and swapout rate expected?
 > 
-> > vmalloc fallback would be a good alternative. Unfortunatelly I am not
-> > able to find which allocation is that. What does faddr2line kvm_dev_ioctl_create_vm+0x40
-> > say?
+> John ran perf during another test right before the last test program
+> was started (this doesn't include the initial large allocation
+> bringing the system close to swapping).  The top five allocators
+> (kmem:mm_page_alloc):
 > 
-> I suspect I can't run this for an installed kernel without sources/object
-> files? In this case a precompiled kernel from ubuntu mainline-ppa.
-> Running faddr2line kvm.ko ... just gives me:
-> 
->    kvm_dev_ioctl_create_vm+0x40/0x5d1:
->    kvm_dev_ioctl_create_vm at ??:?
+> # Overhead      Pid:Command
+> # ........  .......................
+> #
+>     48.45%     2005:memeater     # the test program
+>     32.08%       73:kswapd0
+>      3.16%     1957:perf_4.17
+>      1.41%     1748:watch
+>      1.16%     2043:free
 
-You need a vmlinux with debuginfo compiled IIRC.
+Huh, kswapd allocating memory sounds really wrong here. Is it possible
+that the swap device driver is double buffering and allocating a new
+page for each one to swap out?
 -- 
 Michal Hocko
 SUSE Labs
