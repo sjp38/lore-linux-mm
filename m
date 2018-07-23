@@ -1,144 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B6B806B0269
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 10:17:51 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id s18-v6so489332edr.15
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 07:17:51 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f12-v6si6537039eds.462.2018.07.23.07.17.50
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 013A16B0003
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 10:36:12 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id z6-v6so564483qto.4
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 07:36:11 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id b191-v6si1033126qka.238.2018.07.23.07.36.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jul 2018 07:17:50 -0700 (PDT)
-Date: Mon, 23 Jul 2018 16:17:48 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: cgroup-aware OOM killer, how to move forward
-Message-ID: <20180723141748.GH31229@dhcp22.suse.cz>
-References: <alpine.DEB.2.21.1807131608530.218060@chino.kir.corp.google.com>
- <20180713231630.GB17467@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
- <20180717173844.GB14909@castle.DHCP.thefacebook.com>
- <20180717194945.GM7193@dhcp22.suse.cz>
- <20180717200641.GB18762@castle.DHCP.thefacebook.com>
- <20180718081230.GP7193@dhcp22.suse.cz>
- <20180718152846.GA6840@castle.DHCP.thefacebook.com>
- <20180719073843.GL7193@dhcp22.suse.cz>
- <20180719170543.GA21770@castle.DHCP.thefacebook.com>
+        Mon, 23 Jul 2018 07:36:11 -0700 (PDT)
+Date: Mon, 23 Jul 2018 15:36:05 +0100
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [PATCH v36 0/5] Virtio-balloon: support free page reporting
+Message-ID: <20180723143604.GB2457@work-vm>
+References: <1532075585-39067-1-git-send-email-wei.w.wang@intel.com>
+ <20180723122342-mutt-send-email-mst@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180719170543.GA21770@castle.DHCP.thefacebook.com>
+In-Reply-To: <20180723122342-mutt-send-email-mst@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>, hannes@cmpxchg.org, tj@kernel.org
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org, gthelen@google.com
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
 
-On Thu 19-07-18 10:05:47, Roman Gushchin wrote:
-> On Thu, Jul 19, 2018 at 09:38:43AM +0200, Michal Hocko wrote:
-> > On Wed 18-07-18 08:28:50, Roman Gushchin wrote:
-> > > On Wed, Jul 18, 2018 at 10:12:30AM +0200, Michal Hocko wrote:
-> > > > On Tue 17-07-18 13:06:42, Roman Gushchin wrote:
-> > > > > On Tue, Jul 17, 2018 at 09:49:46PM +0200, Michal Hocko wrote:
-> > > > > > On Tue 17-07-18 10:38:45, Roman Gushchin wrote:
-> > > > > > [...]
-> > > > > > > Let me show my proposal on examples. Let's say we have the following hierarchy,
-> > > > > > > and the biggest process (or the process with highest oom_score_adj) is in D.
-> > > > > > > 
-> > > > > > >   /
-> > > > > > >   |
-> > > > > > >   A
-> > > > > > >   |
-> > > > > > >   B
-> > > > > > >  / \
-> > > > > > > C   D
-> > > > > > > 
-> > > > > > > Let's look at different examples and intended behavior:
-> > > > > > > 1) system-wide OOM
-> > > > > > >   - default settings: the biggest process is killed
-> > > > > > >   - D/memory.group_oom=1: all processes in D are killed
-> > > > > > >   - A/memory.group_oom=1: all processes in A are killed
-> > > > > > > 2) memcg oom in B
-> > > > > > >   - default settings: the biggest process is killed
-> > > > > > >   - A/memory.group_oom=1: the biggest process is killed
-> > > > > > 
-> > > > > > Huh? Why would you even consider A here when the oom is below it?
-> > > > > > /me confused
-> > > > > 
-> > > > > I do not.
-> > > > > This is exactly a counter-example: A's memory.group_oom
-> > > > > is not considered at all in this case,
-> > > > > because A is above ooming cgroup.
-> > > > 
-> > > > OK, it confused me.
-> > > > 
-> > > > > > 
-> > > > > > >   - B/memory.group_oom=1: all processes in B are killed
-> > > > > > 
-> > > > > >     - B/memory.group_oom=0 &&
-> > > > > > >   - D/memory.group_oom=1: all processes in D are killed
-> > > > > > 
-> > > > > > What about?
-> > > > > >     - B/memory.group_oom=1 && D/memory.group_oom=0
-> > > > > 
-> > > > > All tasks in B are killed.
-> > > > 
-> > > > so essentially find a task, traverse the memcg hierarchy from the
-> > > > victim's memcg up to the oom root as long as memcg.group_oom = 1?
-> > > > If the resulting memcg.group_oom == 1 then kill the whole sub tree.
-> > > > Right?
-> > > 
-> > > Yes.
-> > > 
-> > > > 
-> > > > > Group_oom set to 1 means that the workload can't tolerate
-> > > > > killing of a random process, so in this case it's better
-> > > > > to guarantee consistency for B.
-> > > > 
-> > > > OK, but then if D itself is OOM then we do not care about consistency
-> > > > all of the sudden? I have hard time to think about a sensible usecase.
-> > > 
-> > > I mean if traversing the hierarchy up to the oom root we meet
-> > > a memcg with group_oom set to 0, we shouldn't stop traversing.
+* Michael S. Tsirkin (mst@redhat.com) wrote:
+> On Fri, Jul 20, 2018 at 04:33:00PM +0800, Wei Wang wrote:
+> > This patch series is separated from the previous "Virtio-balloon
+> > Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_HINT,  
+> > implemented by this series enables the virtio-balloon driver to report
+> > hints of guest free pages to the host. It can be used to accelerate live
+> > migration of VMs. Here is an introduction of this usage:
 > > 
-> > Well, I am still fighting with the semantic of group, no-group, group
-> > configuration. Why does it make any sense? In other words when can we
-> > consider a cgroup to be a indivisible workload for one oom context while
-> > it is fine to lose head or arm from another?
+> > Live migration needs to transfer the VM's memory from the source machine
+> > to the destination round by round. For the 1st round, all the VM's memory
+> > is transferred. From the 2nd round, only the pieces of memory that were
+> > written by the guest (after the 1st round) are transferred. One method
+> > that is popularly used by the hypervisor to track which part of memory is
+> > written is to write-protect all the guest memory.
+> > 
+> > This feature enables the optimization by skipping the transfer of guest
+> > free pages during VM live migration. It is not concerned that the memory
+> > pages are used after they are given to the hypervisor as a hint of the
+> > free pages, because they will be tracked by the hypervisor and transferred
+> > in the subsequent round if they are used and written.
+> > 
+> > * Tests
+> > - Test Environment
+> >     Host: Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz
+> >     Guest: 8G RAM, 4 vCPU
+> >     Migration setup: migrate_set_speed 100G, migrate_set_downtime 2 second
+> > 
+> > - Test Results
+> >     - Idle Guest Live Migration Time (results are averaged over 10 runs):
+> >         - Optimization v.s. Legacy = 409ms vs 1757ms --> ~77% reduction
+> > 	(setting page poisoning zero and enabling ksm don't affect the
+> >          comparison result)
+> >     - Guest with Linux Compilation Workload (make bzImage -j4):
+> >         - Live Migration Time (average)
+> >           Optimization v.s. Legacy = 1407ms v.s. 2528ms --> ~44% reduction
+> >         - Linux Compilation Time
+> >           Optimization v.s. Legacy = 5min4s v.s. 5min12s
+> >           --> no obvious difference
 > 
-> Hm, so the question is should we traverse up to the OOMing cgroup,
-> or up to the first cgroup with memory.group_oom=0?
+> I'd like to see dgilbert's take on whether this kind of gain
+> justifies adding a PV interfaces, and what kind of guest workload
+> is appropriate.
 > 
-> I looked at an example, and it *might* be the latter is better,
-> especially if we'll make the default value inheritable.
-> 
-> Let's say we have a sub-tree with a workload and some control stuff.
-> Workload is tolerable to OOM's (we can handle it in userspace, for
-> example), but the control stuff is not.
-> Then it probably makes no sense to kill the entire sub-tree,
-> if a task in C has to be killed. But makes perfect sense if we
-> have to kill a task in B.
-> 
->   /
->   |
->   A, delegated sub-tree, group_oom=1
->  / \
-> B   C, workload, group_oom=0
-> ^
-> some control stuff here, group_oom=1
-> 
-> Does this makes sense?
+> Cc'd.
 
-I am not sure. If you are going to delegate then you are basically
-losing control of the group_oom at A-level. Is this good? What if I
-_want_ to tear down the whole thing if it starts misbehaving because I
-do not trust it?
+Well, 44% is great ... although the measurement is a bit weird.
 
-The more I think about it the more I am concluding that we should start
-with a more contrained model and require that once parent is
-group_oom == 1 then children have to as well. If we ever find a usecase
-to require a different scheme we can weaker it later. We cannot do that
-other way around.
+a) A 2 second downtime is very large; 300-500ms is more normal
+b) I'm not sure what the 'average' is  - is that just between a bunch of
+repeated migrations?
+c) What load was running in the guest during the live migration?
 
-Tejun, Johannes what do you think about that?
--- 
-Michal Hocko
-SUSE Labs
+An interesting measurement to add would be to do the same test but
+with a VM with a lot more RAM but the same load;  you'd hope the gain
+would be even better.
+It would be interesting, especially because the users who are interested
+are people creating VMs allocated with lots of extra memory (for the
+worst case) but most of the time migrating when it's fairly idle.
+
+Dave
+
+> 
+> 
+> > ChangeLog:
+> > v35->v36:
+> >     - remove the mm patch, as Linus has a suggestion to get free page
+> >       addresses via allocation, instead of reading from the free page
+> >       list.
+> >     - virtio-balloon:
+> >         - replace oom notifier with shrinker;
+> >         - the guest to host communication interface remains the same as
+> >           v32.
+> > 	- allocate free page blocks and send to host one by one, and free
+> >           them after sending all the pages.
+> > 
+> > For ChangeLogs from v22 to v35, please reference
+> > https://lwn.net/Articles/759413/
+> > 
+> > For ChangeLogs before v21, please reference
+> > https://lwn.net/Articles/743660/
+> > 
+> > Wei Wang (5):
+> >   virtio-balloon: remove BUG() in init_vqs
+> >   virtio_balloon: replace oom notifier with shrinker
+> >   virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
+> >   mm/page_poison: expose page_poisoning_enabled to kernel modules
+> >   virtio-balloon: VIRTIO_BALLOON_F_PAGE_POISON
+> > 
+> >  drivers/virtio/virtio_balloon.c     | 456 ++++++++++++++++++++++++++++++------
+> >  include/uapi/linux/virtio_balloon.h |   7 +
+> >  mm/page_poison.c                    |   6 +
+> >  3 files changed, 394 insertions(+), 75 deletions(-)
+> > 
+> > -- 
+> > 2.7.4
+--
+Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
