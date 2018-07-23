@@ -1,355 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 94A476B000C
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 01:57:17 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id l26-v6so16689696oii.14
-        for <linux-mm@kvack.org>; Sun, 22 Jul 2018 22:57:17 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 13-v6si5613381ois.104.2018.07.22.22.57.16
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 401BF6B0269
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 02:14:06 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id cf17-v6so12960786plb.2
+        for <linux-mm@kvack.org>; Sun, 22 Jul 2018 23:14:06 -0700 (PDT)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id d32-v6si7068457pla.329.2018.07.22.23.14.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 22 Jul 2018 22:57:16 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6N5rvHj071019
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 01:57:15 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2kd7vejxdr-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 01:57:15 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Mon, 23 Jul 2018 06:57:13 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 4/4] ia64: switch to NO_BOOTMEM
-Date: Mon, 23 Jul 2018 08:56:58 +0300
-In-Reply-To: <1532325418-22617-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1532325418-22617-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1532325418-22617-5-git-send-email-rppt@linux.vnet.ibm.com>
+        Sun, 22 Jul 2018 23:14:05 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [RFC] a question about reuse hwpoison page in
+ soft_offline_page()
+Date: Mon, 23 Jul 2018 06:11:14 +0000
+Message-ID: <20180723061114.GB26102@hori1.linux.bs1.fc.nec.co.jp>
+References: <99235479-716d-4c40-8f61-8e44c242abf8.xishi.qiuxishi@alibaba-inc.com>
+ <20180706081847.GA5144@hori1.linux.bs1.fc.nec.co.jp>
+ <7f0ff90d-578b-2096-92c0-542a490b06a1@huawei.com>
+ <E690DE8F4F207D4EB356CAC7B78E15467E402966@DGGEMA503-MBX.china.huawei.com>
+In-Reply-To: <E690DE8F4F207D4EB356CAC7B78E15467E402966@DGGEMA503-MBX.china.huawei.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <2755DAE82F59324FA4C63B8967DC17D3@gisp.nec.co.jp>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-ia64@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: "Zhangfei (Tyler)" <tyler.zhang@huawei.com>
+Cc: Xiexiuqi <xiexiuqi@huawei.com>, =?utf-8?B?6KOY56iA55+zKOeogOefsyk=?= <xishi.qiuxishi@alibaba-inc.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, "zy.zhengyi" <zy.zhengyi@alibaba-inc.com>, lvzhipeng <lvzhipeng@huawei.com>, meinanjing <meinanjing@huawei.com>, zhongjiang <zhongjiang@huawei.com>, Dukaitian <dukaitian@huawei.com>, Chenglongfei <chenglongfei@huawei.com>
 
-Since ia64 already uses memblock to register available physical memory it
-is only required to move the calls to register_active_ranges() that wrap
-memblock_add_node() earlier and replace bootmem memory reservations with
-memblock_reserve(). Of course, all the code that find the place to put the
-bootmem bitmap is removed.
-
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
- arch/ia64/Kconfig        |  1 +
- arch/ia64/kernel/setup.c | 11 ++++++-
- arch/ia64/mm/contig.c    | 71 ++++------------------------------------------
- arch/ia64/mm/discontig.c | 74 ++++--------------------------------------------
- 4 files changed, 22 insertions(+), 135 deletions(-)
-
-diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
-index ff86142..107b138 100644
---- a/arch/ia64/Kconfig
-+++ b/arch/ia64/Kconfig
-@@ -31,6 +31,7 @@ config IA64
- 	select HAVE_ARCH_TRACEHOOK
- 	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
-+	select NO_BOOTMEM
- 	select HAVE_VIRT_CPU_ACCOUNTING
- 	select ARCH_HAS_DMA_MARK_CLEAN
- 	select ARCH_HAS_SG_CHAIN
-diff --git a/arch/ia64/kernel/setup.c b/arch/ia64/kernel/setup.c
-index ad43cbf..b042d0c 100644
---- a/arch/ia64/kernel/setup.c
-+++ b/arch/ia64/kernel/setup.c
-@@ -32,6 +32,7 @@
- #include <linux/delay.h>
- #include <linux/cpu.h>
- #include <linux/kernel.h>
-+#include <linux/memblock.h>
- #include <linux/reboot.h>
- #include <linux/sched/mm.h>
- #include <linux/sched/clock.h>
-@@ -383,8 +384,16 @@ reserve_memory (void)
- 
- 	sort_regions(rsvd_region, num_rsvd_regions);
- 	num_rsvd_regions = merge_regions(rsvd_region, num_rsvd_regions);
--}
- 
-+	/* reserve all regions except the end of memory marker with meblock */
-+	for (n = 0; n < num_rsvd_regions - 1; n++) {
-+		struct rsvd_region *region = &rsvd_region[n];
-+		phys_addr_t addr = __pa(region->start);
-+		phys_addr_t size = region->end - region->start;
-+
-+		memblock_reserve(addr, size);
-+	}
-+}
- 
- /**
-  * find_initrd - get initrd parameters from the boot parameter structure
-diff --git a/arch/ia64/mm/contig.c b/arch/ia64/mm/contig.c
-index 1835144..e2e40bb 100644
---- a/arch/ia64/mm/contig.c
-+++ b/arch/ia64/mm/contig.c
-@@ -34,53 +34,6 @@ static unsigned long max_gap;
- /* physical address where the bootmem map is located */
- unsigned long bootmap_start;
- 
--/**
-- * find_bootmap_location - callback to find a memory area for the bootmap
-- * @start: start of region
-- * @end: end of region
-- * @arg: unused callback data
-- *
-- * Find a place to put the bootmap and return its starting address in
-- * bootmap_start.  This address must be page-aligned.
-- */
--static int __init
--find_bootmap_location (u64 start, u64 end, void *arg)
--{
--	u64 needed = *(unsigned long *)arg;
--	u64 range_start, range_end, free_start;
--	int i;
--
--#if IGNORE_PFN0
--	if (start == PAGE_OFFSET) {
--		start += PAGE_SIZE;
--		if (start >= end)
--			return 0;
--	}
--#endif
--
--	free_start = PAGE_OFFSET;
--
--	for (i = 0; i < num_rsvd_regions; i++) {
--		range_start = max(start, free_start);
--		range_end   = min(end, rsvd_region[i].start & PAGE_MASK);
--
--		free_start = PAGE_ALIGN(rsvd_region[i].end);
--
--		if (range_end <= range_start)
--			continue; /* skip over empty range */
--
--		if (range_end - range_start >= needed) {
--			bootmap_start = __pa(range_start);
--			return -1;	/* done */
--		}
--
--		/* nothing more available in this segment */
--		if (range_end == end)
--			return 0;
--	}
--	return 0;
--}
--
- #ifdef CONFIG_SMP
- static void *cpu_data;
- /**
-@@ -196,8 +149,6 @@ setup_per_cpu_areas(void)
- void __init
- find_memory (void)
- {
--	unsigned long bootmap_size;
--
- 	reserve_memory();
- 
- 	/* first find highest page frame number */
-@@ -205,21 +156,12 @@ find_memory (void)
- 	max_low_pfn = 0;
- 	efi_memmap_walk(find_max_min_low_pfn, NULL);
- 	max_pfn = max_low_pfn;
--	/* how many bytes to cover all the pages */
--	bootmap_size = bootmem_bootmap_pages(max_pfn) << PAGE_SHIFT;
- 
--	/* look for a location to hold the bootmap */
--	bootmap_start = ~0UL;
--	efi_memmap_walk(find_bootmap_location, &bootmap_size);
--	if (bootmap_start == ~0UL)
--		panic("Cannot find %ld bytes for bootmap\n", bootmap_size);
--
--	bootmap_size = init_bootmem_node(NODE_DATA(0),
--			(bootmap_start >> PAGE_SHIFT), 0, max_pfn);
--
--	/* Free all available memory, then mark bootmem-map as being in use. */
--	efi_memmap_walk(filter_rsvd_memory, free_bootmem);
--	reserve_bootmem(bootmap_start, bootmap_size, BOOTMEM_DEFAULT);
-+#ifdef CONFIG_VIRTUAL_MEM_MAP
-+	efi_memmap_walk(filter_memory, register_active_ranges);
-+#else
-+	memblock_add_node(0, PFN_PHYS(max_low_pfn), 0);
-+#endif
- 
- 	find_initrd();
- 
-@@ -244,7 +186,6 @@ paging_init (void)
- 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
- 
- #ifdef CONFIG_VIRTUAL_MEM_MAP
--	efi_memmap_walk(filter_memory, register_active_ranges);
- 	efi_memmap_walk(find_largest_hole, (u64 *)&max_gap);
- 	if (max_gap < LARGE_GAP) {
- 		vmem_map = (struct page *) 0;
-@@ -268,8 +209,6 @@ paging_init (void)
- 
- 		printk("Virtual mem_map starts at 0x%p\n", mem_map);
- 	}
--#else /* !CONFIG_VIRTUAL_MEM_MAP */
--	memblock_add_node(0, PFN_PHYS(max_low_pfn), 0);
- #endif /* !CONFIG_VIRTUAL_MEM_MAP */
- 	free_area_init_nodes(max_zone_pfns);
- 	zero_page_memmap_ptr = virt_to_page(ia64_imva(empty_zero_page));
-diff --git a/arch/ia64/mm/discontig.c b/arch/ia64/mm/discontig.c
-index 8e99d8e..1928d57 100644
---- a/arch/ia64/mm/discontig.c
-+++ b/arch/ia64/mm/discontig.c
-@@ -20,6 +20,7 @@
- #include <linux/nmi.h>
- #include <linux/swap.h>
- #include <linux/bootmem.h>
-+#include <linux/memblock.h>
- #include <linux/acpi.h>
- #include <linux/efi.h>
- #include <linux/nodemask.h>
-@@ -264,7 +265,6 @@ static void __init fill_pernode(int node, unsigned long pernode,
- {
- 	void *cpu_data;
- 	int cpus = early_nr_cpus_node(node);
--	struct bootmem_data *bdp = &bootmem_node_data[node];
- 
- 	mem_data[node].pernode_addr = pernode;
- 	mem_data[node].pernode_size = pernodesize;
-@@ -279,8 +279,6 @@ static void __init fill_pernode(int node, unsigned long pernode,
- 
- 	mem_data[node].node_data = __va(pernode);
- 	pernode += L1_CACHE_ALIGN(sizeof(struct ia64_node_data));
--
--	pgdat_list[node]->bdata = bdp;
- 	pernode += L1_CACHE_ALIGN(sizeof(pg_data_t));
- 
- 	cpu_data = per_cpu_node_setup(cpu_data, node);
-@@ -320,14 +318,11 @@ static int __init find_pernode_space(unsigned long start, unsigned long len,
- 				     int node)
- {
- 	unsigned long spfn, epfn;
--	unsigned long pernodesize = 0, pernode, pages, mapsize;
-+	unsigned long pernodesize = 0, pernode;
- 
- 	spfn = start >> PAGE_SHIFT;
- 	epfn = (start + len) >> PAGE_SHIFT;
- 
--	pages = mem_data[node].max_pfn - mem_data[node].min_pfn;
--	mapsize = bootmem_bootmap_pages(pages) << PAGE_SHIFT;
--
- 	/*
- 	 * Make sure this memory falls within this node's usable memory
- 	 * since we may have thrown some away in build_maps().
-@@ -347,32 +342,13 @@ static int __init find_pernode_space(unsigned long start, unsigned long len,
- 	pernode = NODEDATA_ALIGN(start, node);
- 
- 	/* Is this range big enough for what we want to store here? */
--	if (start + len > (pernode + pernodesize + mapsize))
-+	if (start + len > (pernode + pernodesize))
- 		fill_pernode(node, pernode, pernodesize);
- 
- 	return 0;
- }
- 
- /**
-- * free_node_bootmem - free bootmem allocator memory for use
-- * @start: physical start of range
-- * @len: length of range
-- * @node: node where this range resides
-- *
-- * Simply calls the bootmem allocator to free the specified ranged from
-- * the given pg_data_t's bdata struct.  After this function has been called
-- * for all the entries in the EFI memory map, the bootmem allocator will
-- * be ready to service allocation requests.
-- */
--static int __init free_node_bootmem(unsigned long start, unsigned long len,
--				    int node)
--{
--	free_bootmem_node(pgdat_list[node], start, len);
--
--	return 0;
--}
--
--/**
-  * reserve_pernode_space - reserve memory for per-node space
-  *
-  * Reserve the space used by the bootmem maps & per-node space in the boot
-@@ -381,28 +357,17 @@ static int __init free_node_bootmem(unsigned long start, unsigned long len,
-  */
- static void __init reserve_pernode_space(void)
- {
--	unsigned long base, size, pages;
--	struct bootmem_data *bdp;
-+	unsigned long base, size;
- 	int node;
- 
- 	for_each_online_node(node) {
--		pg_data_t *pdp = pgdat_list[node];
--
- 		if (node_isset(node, memory_less_mask))
- 			continue;
- 
--		bdp = pdp->bdata;
--
--		/* First the bootmem_map itself */
--		pages = mem_data[node].max_pfn - mem_data[node].min_pfn;
--		size = bootmem_bootmap_pages(pages) << PAGE_SHIFT;
--		base = __pa(bdp->node_bootmem_map);
--		reserve_bootmem_node(pdp, base, size, BOOTMEM_DEFAULT);
--
- 		/* Now the per-node space */
- 		size = mem_data[node].pernode_size;
- 		base = __pa(mem_data[node].pernode_addr);
--		reserve_bootmem_node(pdp, base, size, BOOTMEM_DEFAULT);
-+		memblock_reserve(base, size);
- 	}
- }
- 
-@@ -522,6 +487,7 @@ void __init find_memory(void)
- 	int node;
- 
- 	reserve_memory();
-+	efi_memmap_walk(filter_memory, register_active_ranges);
- 
- 	if (num_online_nodes() == 0) {
- 		printk(KERN_ERR "node info missing!\n");
-@@ -541,34 +507,6 @@ void __init find_memory(void)
- 		if (mem_data[node].min_pfn)
- 			node_clear(node, memory_less_mask);
- 
--	efi_memmap_walk(filter_memory, register_active_ranges);
--
--	/*
--	 * Initialize the boot memory maps in reverse order since that's
--	 * what the bootmem allocator expects
--	 */
--	for (node = MAX_NUMNODES - 1; node >= 0; node--) {
--		unsigned long pernode, pernodesize, map;
--		struct bootmem_data *bdp;
--
--		if (!node_online(node))
--			continue;
--		else if (node_isset(node, memory_less_mask))
--			continue;
--
--		bdp = &bootmem_node_data[node];
--		pernode = mem_data[node].pernode_addr;
--		pernodesize = mem_data[node].pernode_size;
--		map = pernode + pernodesize;
--
--		init_bootmem_node(pgdat_list[node],
--				  map>>PAGE_SHIFT,
--				  mem_data[node].min_pfn,
--				  mem_data[node].max_pfn);
--	}
--
--	efi_memmap_walk(filter_rsvd_memory, free_node_bootmem);
--
- 	reserve_pernode_space();
- 	memory_less_nodes();
- 	initialize_pernode_data();
--- 
-2.7.4
+T24gRnJpLCBKdWwgMjAsIDIwMTggYXQgMDg6NTA6MjJBTSArMDAwMCwgWmhhbmdmZWkgKFR5bGVy
+KSB3cm90ZToNCj4gSGkgTmFveWEmeGlzaGnvvJoNCj4gCVdlIGhhdmUgYSBzaW1pbGFyIHByb2Js
+ZW0sIHRoZSBkaWZmZXJlbmNlIGlzIHRoYXQgd2UgZGlkIG5vdCBFbmFibGUgaHVnZXBhZ2UsIHRo
+ZSBzb2Z0LW9mZmxpbmUgd2FzIGV4ZWN1dGVkIGluIHRoZSBjYXNlIG9mIG5vcm1hbCA0SyBwYWdl
+cywgYW5kIGZpbmFsbHkgdGhlIE1DRSBraWxsIHdhcyB0cmlnZ2VyZWTvvIhmaW5kIGh3cG9pc29u
+IGZsYWcgaXMgYWxyZWFkeSBzZXQtLT5yZXQgPSBWTV9GQVVMVF9IV1BPSVNPTi0tPm1tX2ZhdWx0
+X2Vycm9yIC0tPmRvX3NpZ2J1cyAtLT4gbWNlIGtpbGzvvIkuIFdlIG5vdGljZWQgdGhhdCB0aGUg
+bmV3IHBhdGNoIG1hZGUgc29tZSBtb2RpZmljYXRpb25zIHRvIHRoZSBjYXNlIG9mIGh1Z2UgcGFn
+ZSBvZmZsaW5lLCBCdXQgaG93IGNhbiB3ZSBhdm9pZCB0aGlzIHJhY2UgY29uZGl0aW9uIGZvciB0
+aGUgY2FzZSBvZiBub3JtYWwgcGFnZT8NCg0KSGkgVHlsZXIsDQoNCkxhdGVzdCB2ZXJzaW9uIG9m
+IHRoZSBmaXggaXMgYXZhaWxhYmxlIG9uIGh0dHBzOi8vbGttbC5vcmcvbGttbC8yMDE4LzcvMTcv
+NjAuDQpJJ20gc3RpbGwgZGlzY3Vzc2luZyB3aXRoIE1pY2hhbCBhYm91dCBiZXR0ZXIgZGVzaWdu
+IG9mIHRoaXMgYXJlYSwgYnV0DQpJIHRoaW5rIHdlJ2xsIGdvIHdpdGggdGhpcyBmb3Igc2hvcnQg
+dGVybSBmaXguDQoNClRoYW5rcywNCk5hb3lhIEhvcmlndWNoaQ0KDQo+IA0KPiAtLS0tLemCruS7
+tuWOn+S7ti0tLS0tDQo+IOWPkeS7tuS6ujogWGlleGl1cWkgDQo+IOWPkemAgeaXtumXtDogMjAx
+OOW5tDfmnIgyMOaXpSAxNTo1MA0KPiDmlLbku7bkuro6IE5hb3lhIEhvcmlndWNoaSA8bi1ob3Jp
+Z3VjaGlAYWguanAubmVjLmNvbT47IOijmOeogOefsyjnqIDnn7MpIDx4aXNoaS5xaXV4aXNoaUBh
+bGliYWJhLWluYy5jb20+DQo+IOaKhOmAgTogbGludXgtbW0gPGxpbnV4LW1tQGt2YWNrLm9yZz47
+IGxpbnV4LWtlcm5lbCA8bGludXgta2VybmVsQHZnZXIua2VybmVsLm9yZz47IHp5LnpoZW5neWkg
+PHp5LnpoZW5neWlAYWxpYmFiYS1pbmMuY29tPjsgWmhhbmdmZWkgKFR5bGVyKSA8dHlsZXIuemhh
+bmdAaHVhd2VpLmNvbT47IGx2emhpcGVuZyA8bHZ6aGlwZW5nQGh1YXdlaS5jb20+OyBtZWluYW5q
+aW5nIDxtZWluYW5qaW5nQGh1YXdlaS5jb20+OyB6aG9uZ2ppYW5nIDx6aG9uZ2ppYW5nQGh1YXdl
+aS5jb20+DQo+IOS4u+mimDogUmU6IFtSRkNdIGEgcXVlc3Rpb24gYWJvdXQgcmV1c2UgaHdwb2lz
+b24gcGFnZSBpbiBzb2Z0X29mZmxpbmVfcGFnZSgpDQo+IA0KPiBIaSBOYW95YSwgWGlzaGksDQo+
+IA0KPiBXZSBoYXZlIGEgc2ltaWxhciBwcm9ibGVtLg0KPiBAemhhbmdmZWksIGNvdWxkIHlvdSBw
+bGVhc2UgZGVzY3JpYmUgeW91ciBwcm9ibGVtIGhlcmUuDQo+IA0KPiBPbiAyMDE4LzcvNiAxNjox
+OCwgTmFveWEgSG9yaWd1Y2hpIHdyb3RlOg0KPiA+IE9uIEZyaSwgSnVsIDA2LCAyMDE4IGF0IDEx
+OjM3OjQxQU0gKzA4MDAsIOijmOeogOefsyjnqIDnn7MpIHdyb3RlOg0KPiA+PiBUaGlzIHBhdGNo
+IGFkZDA1Y2VjDQo+ID4+IChtbTogc29mdC1vZmZsaW5lOiBkb24ndCBmcmVlIHRhcmdldCBwYWdl
+IGluIHN1Y2Nlc3NmdWwgcGFnZSANCj4gPj4gbWlncmF0aW9uKSByZW1vdmVzDQo+ID4+IHNldF9t
+aWdyYXRldHlwZV9pc29sYXRlKCkgYW5kIHVuc2V0X21pZ3JhdGV0eXBlX2lzb2xhdGUoKSBpbiAN
+Cj4gPj4gc29mdF9vZmZsaW5lX3BhZ2UgKCkuDQo+ID4+DQo+ID4+IEFuZCB0aGlzIHBhdGNoIDI0
+M2FiZDViDQo+ID4+IChtbTogaHVnZXRsYjogcHJldmVudCByZXVzZSBvZiBod3BvaXNvbmVkIGZy
+ZWUgaHVnZXBhZ2VzKSBjaGFuZ2VzIGlmIA0KPiA+PiAoIWlzX21pZ3JhdGVfaXNvbGF0ZV9wYWdl
+KHBhZ2UpKSB0byBpZiAoIVBhZ2VIV1BvaXNvbihwYWdlKSksIHNvIGl0IA0KPiA+PiBjb3VsZCBw
+cmV2ZW50IHNvbWVvbmUgcmV1c2UgdGhlIGZyZWUgaHVnZXRsYiBhZ2FpbiBhZnRlciBzZXQgdGhl
+IA0KPiA+PiBod3BvaXNvbiBmbGFnIGluIHNvZnRfb2ZmbGluZV9mcmVlX3BhZ2UoKQ0KPiA+Pg0K
+PiA+PiBNeSBxdWVzdGlvbiBpcyB0aGF0IGlmIHNvbWVvbmUgcmV1c2UgdGhlIGZyZWUgaHVnZXRs
+YiBhZ2FpbiBiZWZvcmUNCj4gPj4gc29mdF9vZmZsaW5lX2ZyZWVfcGFnZSgpIGFuZA0KPiA+PiBh
+ZnRlciBnZXRfYW55X3BhZ2UoKSwgdGhlbiBpdCB1c2VzIHRoZSBob3BvaXNvbiBwYWdlLCBhbmQg
+dGhpcyBtYXkgDQo+ID4+IHRyaWdnZXIgbWNlIGtpbGwgbGF0ZXIsIHJpZ2h0Pw0KPiA+IA0KPiA+
+IEhpIFhpc2hpLA0KPiA+IA0KPiA+IFRoYW5rIHlvdSBmb3IgcG9pbnRpbmcgb3V0IHRoZSBpc3N1
+ZS4gVGhhdCdzIG5pY2UgY2F0Y2guDQo+ID4gDQo+ID4gSSB0aGluayB0aGF0IHRoZSByYWNlIGNv
+bmRpdGlvbiBpdHNlbGYgY291bGQgaGFwcGVuLCBidXQgaXQgZG9lc24ndCANCj4gPiBsZWFkIHRv
+IE1DRSBraWxsIGJlY2F1c2UgUGFnZUhXUG9pc29uIGlzIG5vdCB2aXNpYmxlIHRvIEhXIHdoaWNo
+IHRyaWdnZXJzIE1DRS4NCj4gPiBQYWdlSFdQb2lzb24gZmxhZyBpcyBqdXN0IGEgZmxhZyBpbiBz
+dHJ1Y3QgcGFnZSB0byByZXBvcnQgdGhlIG1lbW9yeSANCj4gPiBlcnJvciBmcm9tIGtlcm5lbCB0
+byB1c2Vyc3BhY2UuIFNvIGV2ZW4gaWYgYSBDUFUgaXMgYWNjZXNzaW5nIHRvIHRoZSANCj4gPiBw
+YWdlIHdob3NlIHN0cnVjdCBwYWdlIGhhcyBQYWdlSFdQb2lzb24gc2V0LCB0aGF0IGRvZXNuJ3Qg
+Y2F1c2UgYSBNQ0UgDQo+ID4gdW5sZXNzIHRoZSBwYWdlIGlzIHBoeXNpY2FsbHkgYnJva2VuLg0K
+PiA+IFRoZSB0eXBlIG9mIG1lbW9yeSBlcnJvciB0aGF0IHNvZnQgb2ZmbGluZSB0cmllcyB0byBo
+YW5kbGUgaXMgDQo+ID4gY29ycmVjdGVkIG9uZSB3aGljaCBpcyBub3QgYSBmYWlsdXJlIHlldCBh
+bHRob3VnaCBpdCdzIHN0YXJ0aW5nIHRvIHdlYXIuDQo+ID4gU28gc3VjaCBQYWdlSFdQb2lzb24g
+cGFnZSBjYW4gYmUgcmV1c2VkLCBidXQgdGhhdCdzIG5vdCBjcml0aWNhbCANCj4gPiBiZWNhdXNl
+IHRoZSBwYWdlIGlzIGZyZWVkIGF0IHNvbWUgcG9pbnQgYWZ0ZXJ3b3JkIGFuZCBlcnJvciBjb250
+YWlubWVudCBjb21wbGV0ZXMuDQo+ID4gDQo+ID4gSG93ZXZlciwgSSBub3RpY2VkIHRoYXQgdGhl
+cmUncyBhIHNtYWxsIHBhaW4gaW4gZnJlZSBodWdldGxiIGNhc2UuDQo+ID4gV2UgY2FsbCBkaXNz
+b2x2ZV9mcmVlX2h1Z2VfcGFnZSgpIGluIHNvZnRfb2ZmbGluZV9mcmVlX3BhZ2UoKSB3aGljaCAN
+Cj4gPiBtb3ZlcyB0aGUgUGFnZUhXUG9pc29uIGZsYWcgZnJvbSB0aGUgaGVhZCBwYWdlIHRvIHRo
+ZSByYXcgZXJyb3IgcGFnZS4NCj4gPiBJZiB0aGUgcmVwb3J0ZWQgcmFjZSBoYXBwZW5zLCBkaXNz
+b2x2ZV9mcmVlX2h1Z2VfcGFnZSgpIGp1c3QgcmV0dXJuIA0KPiA+IHdpdGhvdXQgZG9pbmcgYW55
+IGRpc3NvbHZlIHdvcmsgYmVjYXVzZSAiaWYgKFBhZ2VIdWdlKHBhZ2UpICYmICFwYWdlX2NvdW50
+KHBhZ2UpKSINCj4gPiBibG9jayBpcyBza2lwcGVkLg0KPiA+IFRoZSBodWdlcGFnZSBpcyBhbGxv
+Y2F0ZWQgYW5kIHVzZWQgYXMgdXN1YWwsIGJ1dCB0aGUgY29udGFpbWVudCANCj4gPiBkb2Vzbid0
+IGNvbXBsZXRlIGFzIGV4cGVjdGVkIGluIHRoZSBub3JtYWwgcGFnZSwgYmVjYXVzZSANCj4gPiBm
+cmVlX2h1Z2VfcGFnZXMoKSBkb2Vzbid0IGNhbGwgZGlzc29sdmVfZnJlZV9odWdlX3BhZ2UoKSBm
+b3IgaHdwb2lzb24gDQo+ID4gaHVnZXBhZ2UuIFRoaXMgaXMgbm90IGNyaXRpY2FsIGJlY2F1c2Ug
+c3VjaCBlcnJvciBodWdlcGFnZSBqdXN0IHJlc2lkZSANCj4gPiBpbiBmcmVlIGh1Z2VwYWdlIGxp
+c3QuIEJ1dCB0aGlzIG1pZ2h0IGxvb2tzIGxpa2UgYSBraW5kIG9mIG1lbW9yeSANCj4gPiBsZWFr
+LiBBbmQgZXZlbiB3b3JzZSB3aGVuIGh1Z2VwYWdlIHBvb2wgaXMgc2hyaW5rZWQgYW5kIHRoZSBo
+d3BvaXNvbiANCj4gPiBodWdlcGFnZSBpcyBmcmVlZCwgdGhlIFBhZ2VIV1BvaXNvbiBmbGFnIGlz
+IHN0aWxsIG9uIHRoZSBoZWFkIHBhZ2Ugd2hpY2ggaXMgdW5saWtlbHkgdG8gYmUgYW4gYWN0dWFs
+IGVycm9yIHBhZ2UuDQo+ID4gDQo+ID4gU28gSSB0aGluayB3ZSBuZWVkIGltcHJvdmVtZW50IGhl
+cmUsIGhvdyBhYm91dCB0aGUgZml4IGxpa2UgYmVsb3c/DQo+ID4gDQo+ID4gICAobm90IHRlc3Rl
+ZCB5ZXQsIHNvcnJ5KQ0KPiA+IA0KPiA+ICAgZGlmZiAtLWdpdCBhL21tL21lbW9yeS1mYWlsdXJl
+LmMgYi9tbS9tZW1vcnktZmFpbHVyZS5jDQo+ID4gICAtLS0gYS9tbS9tZW1vcnktZmFpbHVyZS5j
+DQo+ID4gICArKysgYi9tbS9tZW1vcnktZmFpbHVyZS5jDQo+ID4gICBAQCAtMTg4Myw2ICsxODgz
+LDExIEBAIHN0YXRpYyB2b2lkIHNvZnRfb2ZmbGluZV9mcmVlX3BhZ2Uoc3RydWN0IHBhZ2UgKnBh
+Z2UpDQo+ID4gICAgICAgICAgIHN0cnVjdCBwYWdlICpoZWFkID0gY29tcG91bmRfaGVhZChwYWdl
+KTsNCj4gPiAgIA0KPiA+ICAgICAgICAgICBpZiAoIVRlc3RTZXRQYWdlSFdQb2lzb24oaGVhZCkp
+IHsNCj4gPiAgICsgICAgICAgICAgICAgICBpZiAocGFnZV9jb3VudChoZWFkKSkgew0KPiA+ICAg
+KyAgICAgICAgICAgICAgICAgICAgICAgQ2xlYXJQYWdlSFdQb2lzb24oaGVhZCk7DQo+ID4gICAr
+ICAgICAgICAgICAgICAgICAgICAgICByZXR1cm47DQo+ID4gICArICAgICAgICAgICAgICAgfQ0K
+PiA+ICAgKw0KPiA+ICAgICAgICAgICAgICAgICAgIG51bV9wb2lzb25lZF9wYWdlc19pbmMoKTsN
+Cj4gPiAgICAgICAgICAgICAgICAgICBpZiAoUGFnZUh1Z2UoaGVhZCkpDQo+ID4gICAgICAgICAg
+ICAgICAgICAgICAgICAgICBkaXNzb2x2ZV9mcmVlX2h1Z2VfcGFnZShwYWdlKTsNCj4gPiANCj4g
+PiBUaGFua3MsDQo+ID4gTmFveWEgSG9yaWd1Y2hpDQo+ID4gDQo+ID4gLg0KPiA+IA0KPiANCj4g
+LS0NCj4gVGhhbmtzLA0KPiBYaWUgWGl1UWkNCj4g
