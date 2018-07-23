@@ -1,40 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DDA56B0003
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 18:07:33 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id b9-v6so1294499pla.19
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 15:07:33 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id p2-v6si10736819pli.289.2018.07.23.15.07.32
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B69B26B0007
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 18:34:59 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id 66-v6so1317663plb.18
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 15:34:59 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s24-v6sor2837912pfm.12.2018.07.23.15.34.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jul 2018 15:07:32 -0700 (PDT)
-Subject: Re: [PATCH 0/3] PTI for x86-32 Fixes and Updates
-References: <1532103744-31902-1-git-send-email-joro@8bytes.org>
- <20180723140925.GA4285@amd>
- <CA+55aFynT9Sp7CbnB=GqLbns7GFZbv3pDSQm_h0jFvJpz3ES+g@mail.gmail.com>
- <20180723213830.GA4632@amd> <20180723215958.jozblzq4sv7gp7uj@treble>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <f654c085-d07c-5047-0d59-e2f88b00e921@intel.com>
-Date: Mon, 23 Jul 2018 15:07:13 -0700
+        (Google Transport Security);
+        Mon, 23 Jul 2018 15:34:58 -0700 (PDT)
+Date: Mon, 23 Jul 2018 15:34:56 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch -mm] mm, vmacache: hash addresses based on pmd fix
+Message-ID: <alpine.DEB.2.21.1807231532290.109445@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20180723215958.jozblzq4sv7gp7uj@treble>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Poimboeuf <jpoimboe@redhat.com>, Pavel Machek <pavel@ucw.cz>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Anvin <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, Joerg Roedel <jroedel@suse.de>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild-all@01.org, lkp@intel.com, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
 
-On 07/23/2018 02:59 PM, Josh Poimboeuf wrote:
-> On Mon, Jul 23, 2018 at 11:38:30PM +0200, Pavel Machek wrote:
->> But for now I'd like at least "global" option of turning pti on/off
->> during runtime for benchmarking. Let me see...
->>
->> Something like this, or is it going to be way more complex? Does
->> anyone have patch by chance?
-> RHEL/CentOS has a global PTI enable/disable, which uses stop_machine().
+- use PMD_SHIFT only if CONFIG_MMU is used, otherwise there is only pgdir, 
+per kbuild test robot
 
-Let's not forget PTI's NX-for-userspace in the kernel page tables.  That
-provides Spectre V2 mitigation as well as Meltdown.
+- fix vmacache_find_exact() for correct formal name, per me
+
+- only check vma->vm_mm == mm for CONFIG_DEBUG_VM_VMACACHE, per akpm
+
+Tested for {allnoconfig, defconfig} on alpha, arc, arm, arm64, c6x, h8300, 
+i386, ia64, m68k, microblaze, mips, mips, nds32, nios2, parisc, powerpc, 
+riscv, s390, sh, sparc, um, and xtensa.
+
+Reported-by: kbuild test robot <lkp@intel.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/vmacache.c | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/mm/vmacache.c b/mm/vmacache.c
+--- a/mm/vmacache.c
++++ b/mm/vmacache.c
+@@ -6,12 +6,18 @@
+ #include <linux/sched/task.h>
+ #include <linux/mm.h>
+ #include <linux/vmacache.h>
++#include <asm/pgtable.h>
+ 
+ /*
+- * Hash based on the pmd of addr.  Provides a good hit rate for workloads with
+- * spatial locality.
++ * Hash based on the pmd of addr if configured with MMU, which provides a good
++ * hit rate for workloads with spatial locality.  Otherwise, use pages.
+  */
+-#define VMACACHE_HASH(addr) ((addr >> PMD_SHIFT) & VMACACHE_MASK)
++#ifdef CONFIG_MMU
++#define VMACACHE_SHIFT	PMD_SHIFT
++#else
++#define VMACACHE_SHIFT	PAGE_SHIFT
++#endif
++#define VMACACHE_HASH(addr) ((addr >> VMACACHE_SHIFT) & VMACACHE_MASK)
+ 
+ /*
+  * Flush vma caches for threads that share a given mm.
+@@ -105,8 +111,10 @@ struct vm_area_struct *vmacache_find(struct mm_struct *mm, unsigned long addr)
+ 		struct vm_area_struct *vma = current->vmacache.vmas[idx];
+ 
+ 		if (vma) {
++#ifdef CONFIG_DEBUG_VM_VMACACHE
+ 			if (WARN_ON_ONCE(vma->vm_mm != mm))
+ 				break;
++#endif
+ 			if (vma->vm_start <= addr && vma->vm_end > addr) {
+ 				count_vm_vmacache_event(VMACACHE_FIND_HITS);
+ 				return vma;
+@@ -124,7 +132,7 @@ struct vm_area_struct *vmacache_find_exact(struct mm_struct *mm,
+ 					   unsigned long start,
+ 					   unsigned long end)
+ {
+-	int idx = VMACACHE_HASH(addr);
++	int idx = VMACACHE_HASH(start);
+ 	int i;
+ 
+ 	count_vm_vmacache_event(VMACACHE_FIND_CALLS);
