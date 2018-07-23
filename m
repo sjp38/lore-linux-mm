@@ -1,78 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AD2C6B0006
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 13:20:49 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id x9-v6so959372qto.18
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 10:20:49 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id v84-v6si3695317qkl.344.2018.07.23.10.20.48
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 23D266B000A
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 13:25:03 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id t1-v6so838335ply.16
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 10:25:03 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id d2-v6si8433010pla.359.2018.07.23.10.25.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jul 2018 10:20:48 -0700 (PDT)
-Subject: Re: [PATCH v1 0/2] mm/kdump: exclude reserved pages in dumps
-References: <20180720123422.10127-1-david@redhat.com>
- <9f46f0ed-e34c-73be-60ca-c892fb19ed08@suse.cz>
- <20180723123043.GD31229@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <8daae80c-871e-49b6-1cf1-1f0886d3935d@redhat.com>
-Date: Mon, 23 Jul 2018 19:20:43 +0200
+        Mon, 23 Jul 2018 10:25:02 -0700 (PDT)
+Date: Mon, 23 Jul 2018 10:22:49 -0700
+From: Alison Schofield <alison.schofield@intel.com>
+Subject: Re: [PATCHv5 10/19] x86/mm: Implement page_keyid() using page_ext
+Message-ID: <20180723172249.GA13530@alison-desk.jf.intel.com>
+References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
+ <20180717112029.42378-11-kirill.shutemov@linux.intel.com>
+ <2166be55-3491-f620-5eb0-6f671a53645f@intel.com>
+ <20180723094517.7sxt62p3h75htppw@kshutemo-mobl1>
 MIME-Version: 1.0
-In-Reply-To: <20180723123043.GD31229@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180723094517.7sxt62p3h75htppw@kshutemo-mobl1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Dave Young <dyoung@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Miles Chen <miles.chen@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Tesarik <ptesarik@suse.cz>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Dave Hansen <dave.hansen@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 23.07.2018 14:30, Michal Hocko wrote:
-> On Mon 23-07-18 13:45:18, Vlastimil Babka wrote:
->> On 07/20/2018 02:34 PM, David Hildenbrand wrote:
->>> Dumping tools (like makedumpfile) right now don't exclude reserved pages.
->>> So reserved pages might be access by dump tools although nobody except
->>> the owner should touch them.
->>
->> Are you sure about that? Or maybe I understand wrong. Maybe it changed
->> recently, but IIRC pages that are backing memmap (struct pages) are also
->> PG_reserved. And you definitely do want those in the dump.
+On Mon, Jul 23, 2018 at 12:45:17PM +0300, Kirill A. Shutemov wrote:
+> On Wed, Jul 18, 2018 at 04:38:02PM -0700, Dave Hansen wrote:
+> > On 07/17/2018 04:20 AM, Kirill A. Shutemov wrote:
+> > > Store KeyID in bits 31:16 of extended page flags. These bits are unused.
+> > 
+> > I'd love a two sentence remind of what page_ext is and why you chose to
+> > use it.  Yes, you need this.  No, not everybody that you want to review
+> > this patch set knows what it is or why you chose it.
 > 
-> You are right. reserve_bootmem_region will make all early bootmem
-> allocations (including those backing memmaps) PageReserved. I have asked
-> several times but I haven't seen a satisfactory answer yet. Why do we
-> even care for kdump about those. If they are reserved the nobody should
-> really look at those specific struct pages and manipulate them. Kdump
-> tools are using a kernel interface to read the content. If the specific
-> content is backed by a non-existing memory then they should simply not
-> return anything.
+> Okay.
 > 
+> > > page_keyid() returns zero until page_ext is ready.
+> > 
+> > Is there any implication of this?  Or does it not matter because we
+> > don't run userspace until after page_ext initialization is done?
+> 
+> It matters in sense that we shouldn't reference page_ext before it's
+> initialized otherwise we will get garbage and crash.
+> 
+> > > page_ext initializer enables static branch to indicate that
+> > 
+> > 			"enables a static branch"
+> > 
+> > > page_keyid() can use page_ext. The same static branch will gate MKTME
+> > > readiness in general.
+> > 
+> > Can you elaborate on this a bit?  It would also be a nice place to hint
+> > to the folks working hard on the APIs to ensure she checks this.
+> 
+> Okay.
 
-"new kernel" provides an interface to read memory from "old kernel".
+At API init time we can check if (MKTME_ENABLED &&  mktme_nr_keyids > 0)
+Sounds like this is another dependency we need to check and 'wait' on?
+It happens after MKTME_ENABLED is set?  Let me know.
 
-The new kernel has no idea about
-- which memory was added/online in the old kernel
-- where struct pages of the old kernel are and what their content is
-- which memory is save to touch and which not
-
-Dump tools figure all that out by interpreting the VMCORE. They e.g.
-identify "struct pages" and see if they should be dumped. The "new
-kernel" only allows to read that memory. It cannot hinder to crash the
-system (e.g. if a dump tool would try to read a hwpoison page).
-
-So how should the "new kernel" know if a page can be touched or not?
-
-The *only* way would be to have an interface to the hypervisor where we
-"sense" if a memory location is safe to touch. I remember that xen or
-hyper-v does that - they fake a zero page in that case, after querying
-the hypervisor. But this does not sound like a clean approach to me,
-especially es we need yet another hypervisor interface to sense for
-memory provided via "some" device.
-
-If we can find a way to just tag pages as "don't touch", it would be the
-easiest and cleanest solution in my opinion.
-
--- 
-
-Thanks,
-
-David / dhildenb
+> 
+> > > We don't yet set KeyID for the page. It will come in the following
+> > > patch that implements prep_encrypted_page(). All pages have KeyID-0 for
+> > > now.
+> > 
+> > It also wouldn't hurt to mention why you don't use an X86_FEATURE_* for
+> > this rather than an explicit static branch.  I'm sure the x86
+> > maintainers will be curious.
+> 
+> Sure.
+> 
+> -- 
+>  Kirill A. Shutemov
