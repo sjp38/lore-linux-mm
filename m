@@ -1,50 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EB6216B000A
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 17:23:43 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id w1-v6so1225899plq.8
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 14:23:43 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id u30-v6si9624395pfl.87.2018.07.23.14.23.42
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D8FF86B000D
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 17:29:17 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id o60-v6so887330edd.13
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 14:29:17 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id v27-v6si5706148eda.162.2018.07.23.14.29.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jul 2018 14:23:42 -0700 (PDT)
-Date: Mon, 23 Jul 2018 16:23:39 -0500
-From: Richard Kuo <rkuo@codeaurora.org>
-Subject: Re: [PATCH] hexagon: switch to NO_BOOTMEM
-Message-ID: <20180723212339.GA12771@codeaurora.org>
-References: <1531726998-10971-1-git-send-email-rppt@linux.vnet.ibm.com>
+        Mon, 23 Jul 2018 14:29:16 -0700 (PDT)
+Date: Mon, 23 Jul 2018 14:28:58 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [patch v3 -mm 3/6] mm, memcg: add hierarchical usage oom policy
+Message-ID: <20180723212855.GA25062@castle>
+References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com>
+ <alpine.DEB.2.20.1803151351140.55261@chino.kir.corp.google.com>
+ <alpine.DEB.2.20.1803161405410.209509@chino.kir.corp.google.com>
+ <alpine.DEB.2.20.1803221451370.17056@chino.kir.corp.google.com>
+ <alpine.DEB.2.21.1807131604560.217600@chino.kir.corp.google.com>
+ <alpine.DEB.2.21.1807131605590.217600@chino.kir.corp.google.com>
+ <20180716181613.GA28327@castle>
+ <alpine.DEB.2.21.1807162101170.157949@chino.kir.corp.google.com>
+ <alpine.DEB.2.21.1807231331510.105582@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1531726998-10971-1-git-send-email-rppt@linux.vnet.ibm.com>
+In-Reply-To: <alpine.DEB.2.21.1807231331510.105582@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-hexagon@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-
-On Mon, Jul 16, 2018 at 10:43:18AM +0300, Mike Rapoport wrote:
-> This patch adds registration of the system memory with memblock, eliminates
-> bootmem initialization and converts early memory reservations from bootmem
-> to memblock.
+On Mon, Jul 23, 2018 at 01:33:19PM -0700, David Rientjes wrote:
+> On Mon, 16 Jul 2018, David Rientjes wrote:
 > 
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> > > And "tree" is different. It actually changes how the selection algorithm works,
+> > > and sub-tree settings do matter in this case.
+> > > 
+> > 
+> > "Tree" is considering the entity as a single indivisible memory consumer, 
+> > it is compared with siblings based on its hierarhical usage.  It has 
+> > cgroup oom policy.
+> > 
+> > It would be possible to separate this out, if you'd prefer, to account 
+> > an intermediate cgroup as the largest descendant or the sum of all 
+> > descendants.  I hadn't found a usecase for that, however, but it doesn't 
+> > mean there isn't one.  If you'd like, I can introduce another tunable.
+> > 
+> 
+> Roman, I'm trying to make progress so that the cgroup aware oom killer is 
+> in a state that it can be merged.  Would you prefer a second tunable here 
+> to specify a cgroup's points includes memory from its subtree?
 
-Sorry for the delay, and thanks for this patch.
+Hi, David!
 
-I think the first memblock_reserve should use ARCH_PFN_OFFSET instead of
-PHYS_OFFSET.
+It's hard to tell, because I don't have a clear picture of what you're
+suggesting now. My biggest concern about your last version was that it's hard
+to tell what oom_policy really defines. Each value has it's own application
+rules, which is a bit messy (some values are meaningful for OOMing cgroup only,
+other are reading on hierarchy traversal).
+If you know how to make it clear and non-contradictory,
+please, describe the proposed interface.
 
-If you can amend that I'd be happy to take it through my tree or it can go
-through any other.
+> 
+> It would be helpful if you would also review the rest of the patchset.
 
+I think, that we should focus on interface semantics right now.
+If we can't agree on how the things should work, it makes no sense
+to discuss the implementation.
 
-Thanks,
-Richard Kuo
-
-
--- 
-Employee of Qualcomm Innovation Center, Inc.
-Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum, 
-a Linux Foundation Collaborative Project
+Thanks!
