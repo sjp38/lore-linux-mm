@@ -1,123 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 013A16B0003
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 10:36:12 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id z6-v6so564483qto.4
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 07:36:11 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id b191-v6si1033126qka.238.2018.07.23.07.36.10
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FAB96B0003
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 11:09:34 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id q141-v6so426753ywg.5
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 08:09:34 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id k8-v6sor2307734ybd.88.2018.07.23.08.09.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jul 2018 07:36:11 -0700 (PDT)
-Date: Mon, 23 Jul 2018 15:36:05 +0100
-From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v36 0/5] Virtio-balloon: support free page reporting
-Message-ID: <20180723143604.GB2457@work-vm>
-References: <1532075585-39067-1-git-send-email-wei.w.wang@intel.com>
- <20180723122342-mutt-send-email-mst@kernel.org>
+        (Google Transport Security);
+        Mon, 23 Jul 2018 08:09:32 -0700 (PDT)
+Date: Mon, 23 Jul 2018 08:09:29 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: cgroup-aware OOM killer, how to move forward
+Message-ID: <20180723150929.GD1934745@devbig577.frc2.facebook.com>
+References: <20180713231630.GB17467@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
+ <20180717173844.GB14909@castle.DHCP.thefacebook.com>
+ <20180717194945.GM7193@dhcp22.suse.cz>
+ <20180717200641.GB18762@castle.DHCP.thefacebook.com>
+ <20180718081230.GP7193@dhcp22.suse.cz>
+ <20180718152846.GA6840@castle.DHCP.thefacebook.com>
+ <20180719073843.GL7193@dhcp22.suse.cz>
+ <20180719170543.GA21770@castle.DHCP.thefacebook.com>
+ <20180723141748.GH31229@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180723122342-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20180723141748.GH31229@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>, hannes@cmpxchg.org, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org, gthelen@google.com
 
-* Michael S. Tsirkin (mst@redhat.com) wrote:
-> On Fri, Jul 20, 2018 at 04:33:00PM +0800, Wei Wang wrote:
-> > This patch series is separated from the previous "Virtio-balloon
-> > Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_HINT,  
-> > implemented by this series enables the virtio-balloon driver to report
-> > hints of guest free pages to the host. It can be used to accelerate live
-> > migration of VMs. Here is an introduction of this usage:
-> > 
-> > Live migration needs to transfer the VM's memory from the source machine
-> > to the destination round by round. For the 1st round, all the VM's memory
-> > is transferred. From the 2nd round, only the pieces of memory that were
-> > written by the guest (after the 1st round) are transferred. One method
-> > that is popularly used by the hypervisor to track which part of memory is
-> > written is to write-protect all the guest memory.
-> > 
-> > This feature enables the optimization by skipping the transfer of guest
-> > free pages during VM live migration. It is not concerned that the memory
-> > pages are used after they are given to the hypervisor as a hint of the
-> > free pages, because they will be tracked by the hypervisor and transferred
-> > in the subsequent round if they are used and written.
-> > 
-> > * Tests
-> > - Test Environment
-> >     Host: Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz
-> >     Guest: 8G RAM, 4 vCPU
-> >     Migration setup: migrate_set_speed 100G, migrate_set_downtime 2 second
-> > 
-> > - Test Results
-> >     - Idle Guest Live Migration Time (results are averaged over 10 runs):
-> >         - Optimization v.s. Legacy = 409ms vs 1757ms --> ~77% reduction
-> > 	(setting page poisoning zero and enabling ksm don't affect the
-> >          comparison result)
-> >     - Guest with Linux Compilation Workload (make bzImage -j4):
-> >         - Live Migration Time (average)
-> >           Optimization v.s. Legacy = 1407ms v.s. 2528ms --> ~44% reduction
-> >         - Linux Compilation Time
-> >           Optimization v.s. Legacy = 5min4s v.s. 5min12s
-> >           --> no obvious difference
+Hello,
+
+On Mon, Jul 23, 2018 at 04:17:48PM +0200, Michal Hocko wrote:
+> I am not sure. If you are going to delegate then you are basically
+> losing control of the group_oom at A-level. Is this good? What if I
+> _want_ to tear down the whole thing if it starts misbehaving because I
+> do not trust it?
 > 
-> I'd like to see dgilbert's take on whether this kind of gain
-> justifies adding a PV interfaces, and what kind of guest workload
-> is appropriate.
+> The more I think about it the more I am concluding that we should start
+> with a more contrained model and require that once parent is
+> group_oom == 1 then children have to as well. If we ever find a usecase
+> to require a different scheme we can weaker it later. We cannot do that
+> other way around.
 > 
-> Cc'd.
+> Tejun, Johannes what do you think about that?
 
-Well, 44% is great ... although the measurement is a bit weird.
+I'd find the cgroup closest to the root which has the oom group set
+and kill the entire subtree.  There's no reason to put any
+restrictions on what each cgroup can configure.  The only thing which
+matters is is that the effective behavior is what the highest in the
+ancestry configures, and, at the system level, it'd conceptually map
+to panic_on_oom.
 
-a) A 2 second downtime is very large; 300-500ms is more normal
-b) I'm not sure what the 'average' is  - is that just between a bunch of
-repeated migrations?
-c) What load was running in the guest during the live migration?
+Thanks.
 
-An interesting measurement to add would be to do the same test but
-with a VM with a lot more RAM but the same load;  you'd hope the gain
-would be even better.
-It would be interesting, especially because the users who are interested
-are people creating VMs allocated with lots of extra memory (for the
-worst case) but most of the time migrating when it's fairly idle.
-
-Dave
-
-> 
-> 
-> > ChangeLog:
-> > v35->v36:
-> >     - remove the mm patch, as Linus has a suggestion to get free page
-> >       addresses via allocation, instead of reading from the free page
-> >       list.
-> >     - virtio-balloon:
-> >         - replace oom notifier with shrinker;
-> >         - the guest to host communication interface remains the same as
-> >           v32.
-> > 	- allocate free page blocks and send to host one by one, and free
-> >           them after sending all the pages.
-> > 
-> > For ChangeLogs from v22 to v35, please reference
-> > https://lwn.net/Articles/759413/
-> > 
-> > For ChangeLogs before v21, please reference
-> > https://lwn.net/Articles/743660/
-> > 
-> > Wei Wang (5):
-> >   virtio-balloon: remove BUG() in init_vqs
-> >   virtio_balloon: replace oom notifier with shrinker
-> >   virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
-> >   mm/page_poison: expose page_poisoning_enabled to kernel modules
-> >   virtio-balloon: VIRTIO_BALLOON_F_PAGE_POISON
-> > 
-> >  drivers/virtio/virtio_balloon.c     | 456 ++++++++++++++++++++++++++++++------
-> >  include/uapi/linux/virtio_balloon.h |   7 +
-> >  mm/page_poison.c                    |   6 +
-> >  3 files changed, 394 insertions(+), 75 deletions(-)
-> > 
-> > -- 
-> > 2.7.4
---
-Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+-- 
+tejun
