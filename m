@@ -1,80 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 356536B0003
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 02:44:45 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id d18-v6so5429991edp.0
-        for <linux-mm@kvack.org>; Sun, 22 Jul 2018 23:44:45 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 043E76B0005
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 03:03:11 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id r9-v6so7541391edh.14
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 00:03:10 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k2-v6si1227239eda.433.2018.07.22.23.44.43
+        by mx.google.com with ESMTPS id w13-v6si13661eds.45.2018.07.23.00.03.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 22 Jul 2018 23:44:43 -0700 (PDT)
-Date: Mon, 23 Jul 2018 08:44:41 +0200
+        Mon, 23 Jul 2018 00:03:09 -0700 (PDT)
+Date: Mon, 23 Jul 2018 09:03:06 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: memcg: fix use after free in mem_cgroup_iter()
-Message-ID: <20180723064441.GA17905@dhcp22.suse.cz>
-References: <1531994807-25639-1-git-send-email-jing.xia@unisoc.com>
- <20180719104345.GV7193@dhcp22.suse.cz>
- <CALvZod55Ku7U3soLtuYY_HL2_mMp5+OT-hngdZkPRGN9xm1a9Q@mail.gmail.com>
+Subject: Re: [PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+Message-ID: <20180723070306.GB17905@dhcp22.suse.cz>
+References: <20180716115058.5559-1-mhocko@kernel.org>
+ <20180720170902.d1137060c23802d55426aa03@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALvZod55Ku7U3soLtuYY_HL2_mMp5+OT-hngdZkPRGN9xm1a9Q@mail.gmail.com>
+In-Reply-To: <20180720170902.d1137060c23802d55426aa03@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: jing.xia.mail@gmail.com, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, chunyan.zhang@unisoc.com, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Felix Kuehling <felix.kuehling@amd.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Rientjes <rientjes@google.com>, Leon Romanovsky <leonro@mellanox.com>
 
-On Thu 19-07-18 09:23:10, Shakeel Butt wrote:
-> On Thu, Jul 19, 2018 at 3:43 AM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > [CC Andrew]
-> >
-> > On Thu 19-07-18 18:06:47, Jing Xia wrote:
-> > > It was reported that a kernel crash happened in mem_cgroup_iter(),
-> > > which can be triggered if the legacy cgroup-v1 non-hierarchical
-> > > mode is used.
-> > >
-> > > Unable to handle kernel paging request at virtual address 6b6b6b6b6b6b8f
-> > > ......
-> > > Call trace:
-> > >   mem_cgroup_iter+0x2e0/0x6d4
-> > >   shrink_zone+0x8c/0x324
-> > >   balance_pgdat+0x450/0x640
-> > >   kswapd+0x130/0x4b8
-> > >   kthread+0xe8/0xfc
-> > >   ret_from_fork+0x10/0x20
-> > >
-> > >   mem_cgroup_iter():
-> > >       ......
-> > >       if (css_tryget(css))    <-- crash here
-> > >           break;
-> > >       ......
-> > >
-> > > The crashing reason is that mem_cgroup_iter() uses the memcg object
-> > > whose pointer is stored in iter->position, which has been freed before
-> > > and filled with POISON_FREE(0x6b).
-> > >
-> > > And the root cause of the use-after-free issue is that
-> > > invalidate_reclaim_iterators() fails to reset the value of
-> > > iter->position to NULL when the css of the memcg is released in non-
-> > > hierarchical mode.
-> >
-> > Well, spotted!
-> >
-> > I suspect
-> > Fixes: 6df38689e0e9 ("mm: memcontrol: fix possible memcg leak due to interrupted reclaim")
-> >
-> > but maybe it goes further into past. I also suggest
-> > Cc: stable
-> >
-> > even though the non-hierarchical mode is strongly discouraged.
-> 
-> Why not set root_mem_cgroup's use_hierarchy to true by default on
-> init? If someone wants non-hierarchical mode, they can explicitly set
-> it to false.
+On Fri 20-07-18 17:09:02, Andrew Morton wrote:
+[...]
+> Please take a look?
 
-We do not change defaults under users feet usually.
+Are you OK to have these in a separate patch?
+
 -- 
 Michal Hocko
 SUSE Labs
