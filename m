@@ -1,72 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D8FF86B000D
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 17:29:17 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id o60-v6so887330edd.13
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 14:29:17 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id v27-v6si5706148eda.162.2018.07.23.14.29.16
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E25A26B0003
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 17:33:11 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id e93-v6so1256100plb.5
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 14:33:11 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c16-v6sor2661213pgl.324.2018.07.23.14.33.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jul 2018 14:29:16 -0700 (PDT)
-Date: Mon, 23 Jul 2018 14:28:58 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [patch v3 -mm 3/6] mm, memcg: add hierarchical usage oom policy
-Message-ID: <20180723212855.GA25062@castle>
-References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com>
- <alpine.DEB.2.20.1803151351140.55261@chino.kir.corp.google.com>
- <alpine.DEB.2.20.1803161405410.209509@chino.kir.corp.google.com>
- <alpine.DEB.2.20.1803221451370.17056@chino.kir.corp.google.com>
- <alpine.DEB.2.21.1807131604560.217600@chino.kir.corp.google.com>
- <alpine.DEB.2.21.1807131605590.217600@chino.kir.corp.google.com>
- <20180716181613.GA28327@castle>
- <alpine.DEB.2.21.1807162101170.157949@chino.kir.corp.google.com>
- <alpine.DEB.2.21.1807231331510.105582@chino.kir.corp.google.com>
+        (Google Transport Security);
+        Mon, 23 Jul 2018 14:33:10 -0700 (PDT)
+Date: Mon, 23 Jul 2018 14:33:08 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: thp: remove use_zero_page sysfs knob
+In-Reply-To: <alpine.DEB.2.21.1807231323460.105582@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.21.1807231427550.103523@chino.kir.corp.google.com>
+References: <1532110430-115278-1-git-send-email-yang.shi@linux.alibaba.com> <20180720123243.6dfc95ba061cd06e05c0262e@linux-foundation.org> <alpine.DEB.2.21.1807201300290.224013@chino.kir.corp.google.com> <3238b5d2-fd89-a6be-0382-027a24a4d3ad@linux.alibaba.com>
+ <alpine.DEB.2.21.1807201401390.231119@chino.kir.corp.google.com> <20180722035156.GA12125@bombadil.infradead.org> <alpine.DEB.2.21.1807231323460.105582@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1807231331510.105582@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>, Andrew Morton <akpm@linux-foundation.org>, kirill@shutemov.name, hughd@google.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jul 23, 2018 at 01:33:19PM -0700, David Rientjes wrote:
-> On Mon, 16 Jul 2018, David Rientjes wrote:
-> 
-> > > And "tree" is different. It actually changes how the selection algorithm works,
-> > > and sub-tree settings do matter in this case.
+On Mon, 23 Jul 2018, David Rientjes wrote:
+
+> > > The huge zero page can be reclaimed under memory pressure and, if it is, 
+> > > it is attempted to be allocted again with gfp flags that attempt memory 
+> > > compaction that can become expensive.  If we are constantly under memory 
+> > > pressure, it gets freed and reallocated millions of times always trying to 
+> > > compact memory both directly and by kicking kcompactd in the background.
 > > > 
+> > > It likely should also be per node.
 > > 
-> > "Tree" is considering the entity as a single indivisible memory consumer, 
-> > it is compared with siblings based on its hierarhical usage.  It has 
-> > cgroup oom policy.
-> > 
-> > It would be possible to separate this out, if you'd prefer, to account 
-> > an intermediate cgroup as the largest descendant or the sum of all 
-> > descendants.  I hadn't found a usecase for that, however, but it doesn't 
-> > mean there isn't one.  If you'd like, I can introduce another tunable.
+> > Have you benchmarked making the non-huge zero page per-node?
 > > 
 > 
-> Roman, I'm trying to make progress so that the cgroup aware oom killer is 
-> in a state that it can be merged.  Would you prefer a second tunable here 
-> to specify a cgroup's points includes memory from its subtree?
-
-Hi, David!
-
-It's hard to tell, because I don't have a clear picture of what you're
-suggesting now. My biggest concern about your last version was that it's hard
-to tell what oom_policy really defines. Each value has it's own application
-rules, which is a bit messy (some values are meaningful for OOMing cgroup only,
-other are reading on hierarchy traversal).
-If you know how to make it clear and non-contradictory,
-please, describe the proposed interface.
-
+> Not since we disable it :)  I will, though.  The more concerning issue for 
+> us, modulo CVE-2017-1000405, is the cpu cost of constantly directly 
+> compacting memory for allocating the hzp in real time after it has been 
+> reclaimed.  We've observed this happening tens or hundreds of thousands 
+> of times on some systems.  It will be 2MB per node on x86 if the data 
+> suggests we should make it NUMA aware, I don't think the cost is too high 
+> to leave it persistently available even under memory pressure if 
+> use_zero_page is enabled.
 > 
-> It would be helpful if you would also review the rest of the patchset.
 
-I think, that we should focus on interface semantics right now.
-If we can't agree on how the things should work, it makes no sense
-to discuss the implementation.
+Measuring access latency to 4GB of memory on Naples I observe ~6.7% 
+slower access latency intrasocket and ~14% slower intersocket.
 
-Thanks!
+use_zero_page is currently a simple thp flag, meaning it rejects writes 
+where val != !!val, so perhaps it would be best to overload it with 
+additional options?  I can imagine 0x2 defining persistent allocation so 
+that the hzp is not freed when the refcount goes to 0 and 0x4 defining if 
+the hzp should be per node.  Implementing persistent allocation fixes our 
+concern with it, so I'd like to start there.  Comments?
