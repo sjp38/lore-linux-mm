@@ -1,89 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DF23A6B0008
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 06:48:52 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id c23-v6so14242pfi.3
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 03:48:52 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 243E86B0003
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 07:09:32 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id c2-v6so287667edi.20
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 04:09:32 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d19-v6si9470740pfm.226.2018.07.23.03.48.51
+        by mx.google.com with ESMTPS id l17-v6si1708812edr.310.2018.07.23.04.09.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jul 2018 03:48:51 -0700 (PDT)
-Date: Mon, 23 Jul 2018 12:48:47 +0200
+        Mon, 23 Jul 2018 04:09:30 -0700 (PDT)
+Date: Mon, 23 Jul 2018 13:09:28 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v1 1/2] mm: clarify semantics of reserved pages
-Message-ID: <20180723104847.GB31229@dhcp22.suse.cz>
-References: <20180720123422.10127-1-david@redhat.com>
- <20180720123422.10127-2-david@redhat.com>
+Subject: Re: [PATCH v2 00/14] mm: Asynchronous + multithreaded memmap init
+ for ZONE_DEVICE
+Message-ID: <20180723110928.GC31229@dhcp22.suse.cz>
+References: <153176041838.12695.3365448145295112857.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <CAGM2rea9AwQGaf1JiV_SDDKTKyP_n+dG9Z20gtTZEkuZPFnXFQ@mail.gmail.com>
+ <CAPcyv4jo91jKjwn-M7cOhG=6vJ3c-QCyp0W+T+CtmiKGyZP1ng@mail.gmail.com>
+ <CAGM2reacO1HF91yH8OR5w5AdZwPgwfSFfjDNBsHbP66v1rEg=g@mail.gmail.com>
+ <20180717155006.GL7193@dhcp22.suse.cz>
+ <CAA9_cmez_vrjBYvcpXT_5ziQ2CqRFzPbEWMO2kdmjW0rWhkaCA@mail.gmail.com>
+ <20180718120529.GY7193@dhcp22.suse.cz>
+ <3f43729d-fd4e-a488-e04d-026ef5a28dd9@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180720123422.10127-2-david@redhat.com>
+In-Reply-To: <3f43729d-fd4e-a488-e04d-026ef5a28dd9@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Huang Ying <ying.huang@intel.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Miles Chen <miles.chen@mediatek.com>, Dave Young <dyoung@redhat.com>, Baoquan He <bhe@redhat.com>, =?iso-8859-1?Q?Marc-Andr=E9?= Lureau <marcandre.lureau@redhat.com>, Petr Tesarik <ptesarik@suse.cz>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, pasha.tatashin@oracle.com, dalias@libc.org, Jan Kara <jack@suse.cz>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, "H. Peter Anvin" <hpa@zytor.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, the arch/x86 maintainers <x86@kernel.org>, Matthew Wilcox <willy@infradead.org>, daniel.m.jordan@oracle.com, Ingo Molnar <mingo@redhat.com>, fenghua.yu@intel.com, Jerome Glisse <jglisse@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "Luck, Tony" <tony.luck@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
 
-On Fri 20-07-18 14:34:21, David Hildenbrand wrote:
-> The reserved bit once was used to hinder pages from getting swapped. While
-> this still works,
+On Thu 19-07-18 11:41:10, Dave Hansen wrote:
+> On 07/18/2018 05:05 AM, Michal Hocko wrote:
+> > On Tue 17-07-18 10:32:32, Dan Williams wrote:
+> >> On Tue, Jul 17, 2018 at 8:50 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > [...]
+> >>> Is there any reason that this work has to target the next merge window?
+> >>> The changelog is not really specific about that.
+> >>
+> >> Same reason as any other change in this space, hardware availability
+> >> continues to increase. These patches are a direct response to end user
+> >> reports of unacceptable init latency with current kernels.
+> > 
+> > Do you have any reference please?
+> 
+> Are you looking for the actual end-user reports?  This was more of a
+> case of the customer plugging in some persistent memory DIMMs, noticing
+> the boot delta and calling the folks who sold them the DIMMs (Intel).
 
-Does it? There is no single PageReserved check in the reclaim path. I
-have no idea when we stopped checking but it must be loooong ago.
-
-> the semantics are a little bit stronger nowadays: The
-> page should never be touched by anybody in the system except by the owner.
-> The original comment already gave a hint about that.
-> 
-> So especially, these pages should also not be dumped by dumping tools.
-> Let's make that more clear by updating the comment.
-> 
-> This will be useful especially in the future in virtual environments where
-> pages marked with the reserved bit might no longer be accessible.
-> 
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Matthew Wilcox <mawilcox@microsoft.com>
-> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> Cc: David Hildenbrand <david@redhat.com>
-> Cc: Huang Ying <ying.huang@intel.com>
-> Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
-> Cc: Miles Chen <miles.chen@mediatek.com>
-> Cc: Dave Young <dyoung@redhat.com>
-> Cc: Baoquan He <bhe@redhat.com>
-> Cc: "Marc-Andre Lureau" <marcandre.lureau@redhat.com>
-> Cc: Petr Tesarik <ptesarik@suse.cz>
-> Signed-off-by: David Hildenbrand <david@redhat.com>
-
-Anyway
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-for this change
-> ---
->  include/linux/page-flags.h | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 901943e4754b..ba81e11a868c 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -17,8 +17,8 @@
->  /*
->   * Various page->flags bits:
->   *
-> - * PG_reserved is set for special pages, which can never be swapped out. Some
-> - * of them might not even exist...
-> + * PG_reserved is set for special pages, which should never be touched (read/
-> + * write) by anybody except their owner. Some of them might not even exist.
->   *
->   * The PG_private bitflag is set on pagecache pages if they contain filesystem
->   * specific data (which is normally at page->private). It can be used by
-> -- 
-> 2.17.1
-> 
+But this doesn't sound like something to rush a solution for in the
+upcoming merge windown, does it?
 
 -- 
 Michal Hocko
