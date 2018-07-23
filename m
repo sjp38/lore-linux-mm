@@ -1,76 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F7016B0007
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 10:12:05 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id n4-v6so490528edr.5
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 07:12:05 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h9-v6si5165366edl.176.2018.07.23.07.12.03
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 779796B0010
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 10:13:26 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id l11-v6so561819qkk.0
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 07:13:26 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id b49-v6si2030029qta.299.2018.07.23.07.13.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jul 2018 07:12:03 -0700 (PDT)
-Date: Mon, 23 Jul 2018 16:12:02 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: cgroup-aware OOM killer, how to move forward
-Message-ID: <20180723141202.GG31229@dhcp22.suse.cz>
-References: <20180713231630.GB17467@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
- <20180717173844.GB14909@castle.DHCP.thefacebook.com>
- <20180717194945.GM7193@dhcp22.suse.cz>
- <20180717200641.GB18762@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807171329200.12251@chino.kir.corp.google.com>
- <20180717205221.GA19862@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1807200126540.119737@chino.kir.corp.google.com>
- <20180720112131.GX72677@devbig577.frc2.facebook.com>
- <alpine.DEB.2.21.1807201321040.231119@chino.kir.corp.google.com>
+        Mon, 23 Jul 2018 07:13:19 -0700 (PDT)
+Date: Mon, 23 Jul 2018 17:13:11 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v36 2/5] virtio_balloon: replace oom notifier with
+ shrinker
+Message-ID: <20180723170826-mutt-send-email-mst@kernel.org>
+References: <1532075585-39067-1-git-send-email-wei.w.wang@intel.com>
+ <1532075585-39067-3-git-send-email-wei.w.wang@intel.com>
+ <20180722174125-mutt-send-email-mst@kernel.org>
+ <5B55AE56.5030404@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1807201321040.231119@chino.kir.corp.google.com>
+In-Reply-To: <5B55AE56.5030404@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, gthelen@google.com
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
 
-On Fri 20-07-18 13:28:56, David Rientjes wrote:
-> On Fri, 20 Jul 2018, Tejun Heo wrote:
+On Mon, Jul 23, 2018 at 06:30:46PM +0800, Wei Wang wrote:
+> On 07/22/2018 10:48 PM, Michael S. Tsirkin wrote:
+> > On Fri, Jul 20, 2018 at 04:33:02PM +0800, Wei Wang wrote:
+> > > +static unsigned long virtio_balloon_shrinker_scan(struct shrinker *shrinker,
+> > > +						  struct shrink_control *sc)
+> > > +{
+> > > +	unsigned long pages_to_free = balloon_pages_to_shrink,
+> > > +		      pages_freed = 0;
+> > > +	struct virtio_balloon *vb = container_of(shrinker,
+> > > +					struct virtio_balloon, shrinker);
+> > > +
+> > > +	/*
+> > > +	 * One invocation of leak_balloon can deflate at most
+> > > +	 * VIRTIO_BALLOON_ARRAY_PFNS_MAX balloon pages, so we call it
+> > > +	 * multiple times to deflate pages till reaching
+> > > +	 * balloon_pages_to_shrink pages.
+> > > +	 */
+> > > +	while (vb->num_pages && pages_to_free) {
+> > > +		pages_to_free = balloon_pages_to_shrink - pages_freed;
+> > > +		pages_freed += leak_balloon(vb, pages_to_free);
+> > > +	}
+> > > +	update_balloon_size(vb);
+> > Are you sure that this is never called if count returned 0?
 > 
-> > > process chosen for oom kill.  I know that you care about the latter.  My 
-> > > *only* suggestion was for the tunable to take a string instead of a 
-> > > boolean so it is extensible for future use.  This seems like something so 
-> > > trivial.
+> Yes. Please see do_shrink_slab, it just returns if count is 0.
+> 
 > > 
-> > So, I'd much prefer it as boolean.  It's a fundamentally binary
-> > property, either handle the cgroup as a unit when chosen as oom victim
-> > or not, nothing more.
+> > > +
+> > > +	return pages_freed / VIRTIO_BALLOON_PAGES_PER_PAGE;
+> > > +}
+> > > +
+> > > +static unsigned long virtio_balloon_shrinker_count(struct shrinker *shrinker,
+> > > +						   struct shrink_control *sc)
+> > > +{
+> > > +	struct virtio_balloon *vb = container_of(shrinker,
+> > > +					struct virtio_balloon, shrinker);
+> > > +
+> > > +	/*
+> > > +	 * We continue to use VIRTIO_BALLOON_F_DEFLATE_ON_OOM to handle the
+> > > +	 * case when shrinker needs to be invoked to relieve memory pressure.
+> > > +	 */
+> > > +	if (!virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+> > > +		return 0;
+> > So why not skip notifier registration when deflate on oom
+> > is clear?
 > 
-> With the single hierarchy mandate of cgroup v2, the need arises to 
-> separate processes from a single job into subcontainers for use with 
-> controllers other than mem cgroup.  In that case, we have no functionality 
-> to oom kill all processes in the subtree.
+> Sounds good, thanks.
 > 
-> A boolean can kill all processes attached to the victim's mem cgroup, but 
-> cannot kill all processes in a subtree if the limit of a common ancestor 
-> is reached.  The common ancestor is needed to enforce a single memory 
-> limit but allow for processes to be constrained separately with other 
-> controllers. 
+> 
+> >   	vb->vb_dev_info.inode->i_mapping->a_ops = &balloon_aops;
+> >   #endif
+> > +	err = virtio_balloon_register_shrinker(vb);
+> > +	if (err)
+> > +		goto out_del_vqs;
+> > So we can get scans before device is ready. Leak will fail
+> > then. Why not register later after device is ready?
+> 
+> Probably no.
+> 
+> - it would be better not to set device ready when register_shrinker failed.
 
-I think you misunderstood the proposed semantic. oom.group is a property
-of any (including inter-node) memcg. Once set all the processes in its
-domain are killed in one go because they are considered indivisible
-workload. Note how this doesn't tell anything about _how_ we select
-a victim. That is not important and an in fact an implementation
-detail. All we care about is that a selected victim is a part of an
-indivisible workload and we have to tear down all of it. Future
-extensions can talk more about how we select the victim but the
-fundamental property of a group to be indivisible workload or a group of
-semi raleted processes is a 0/1 IMHO.
+That's very rare so I won't be too worried.
 
-Now there still are questions to iron out for that model. E.g. should
-we allow to make a subtree of oom.group == 1 to be group == 0? In other
-words something would be indivisible workload for one OOM context while
-it is not for more restrictive OOM scope. If yes, then what is the
-usecase?
--- 
-Michal Hocko
-SUSE Labs
+> - When the device isn't ready, ballooning won't happen, that is,
+> vb->num_pages will be 0, which results in shrinker_count=0 and shrinker_scan
+> won't be called.
+> 
+> So I think it would be better to have shrinker registered before
+> device_ready.
+> 
+> Best,
+> Wei
