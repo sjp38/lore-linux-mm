@@ -1,122 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 239CC6B0008
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 11:35:38 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id d18-v6so698509qtj.20
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 08:35:38 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i24-v6sor4147424qvi.9.2018.07.23.08.35.36
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DC3296B0003
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 12:12:09 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id g15-v6so700883plo.11
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 09:12:09 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id y2-v6si9215698pga.141.2018.07.23.09.12.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 23 Jul 2018 08:35:36 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Jul 2018 09:12:08 -0700 (PDT)
+Subject: Re: [PATCH v6 06/13] mm, dev_pagemap: Do not clear ->mapping on final
+ put
+References: <153154376846.34503.15480221419473501643.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <153154380137.34503.3754023882460956800.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: Dave Jiang <dave.jiang@intel.com>
+Message-ID: <3fcb3c8a-2a41-7c78-edde-066c10110d34@intel.com>
+Date: Mon, 23 Jul 2018 09:12:06 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180723152323.GA3699@cmpxchg.org>
-References: <20180712172942.10094-1-hannes@cmpxchg.org> <20180712172942.10094-3-hannes@cmpxchg.org>
- <CAK8P3a3Nsmt54-ed_gWNev3CBS6_Sv5QGOw4G0sY4ZXOi1R4_Q@mail.gmail.com> <20180723152323.GA3699@cmpxchg.org>
-From: Arnd Bergmann <arnd@arndb.de>
-Date: Mon, 23 Jul 2018 17:35:35 +0200
-Message-ID: <CAK8P3a15K-TXYuFX-ZsJiroqA1GWX2XS4ioZSjcjJYgh1b_xSA@mail.gmail.com>
-Subject: Re: [PATCH 02/10] mm: workingset: tell cache transitions from
- workingset thrashing
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <153154380137.34503.3754023882460956800.stgit@dwillia2-desk3.amr.corp.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Suren Baghdasaryan <surenb@google.com>, Mike Galbraith <efault@gmx.de>, Will Deacon <will.deacon@arm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kernel-team@fb.com, Linux-MM <linux-mm@kvack.org>, Vinayak Menon <vinmenon@codeaurora.org>, Ingo Molnar <mingo@redhat.com>, Shakeel Butt <shakeelb@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Christopher Lameter <cl@linux.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, hch@lst.de
 
-On Mon, Jul 23, 2018 at 5:23 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Mon, Jul 23, 2018 at 03:36:09PM +0200, Arnd Bergmann wrote:
->> On Thu, Jul 12, 2018 at 7:29 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
->> In file included from /git/arm-soc/include/linux/kernel.h:10,
->>                  from /git/arm-soc/arch/arm64/mm/init.c:20:
->> /git/arm-soc/arch/arm64/mm/init.c: In function 'mem_init':
->> /git/arm-soc/include/linux/compiler.h:357:38: error: call to
->> '__compiletime_assert_618' declared with attribute error: BUILD_BUG_ON
->> failed: sizeof(struct page) > (1 << STRUCT_PAGE_MAX_SHIFT)
->
-> This BUILD_BUG_ON() is to make sure we're sizing the VMEMMAP struct
-> page array properly (address space divided by struct page size).
->
-> From the code:
->
-> /*
->  * Log2 of the upper bound of the size of a struct page. Used for sizing
->  * the vmemmap region only, does not affect actual memory footprint.
->  * We don't use sizeof(struct page) directly since taking its size here
->  * requires its definition to be available at this point in the inclusion
->  * chain, and it may not be a power of 2 in the first place.
->  */
-> #define STRUCT_PAGE_MAX_SHIFT   6
->
-...
-> However, the check isn't conditional on that config option. And when
-> VMEMMAP is disabled, we need 22 additional bits to identify the sparse
-> memory sections in page->flags as well:
->
->> CONFIG_NODES_SHIFT=2
->> # CONFIG_ARCH_USES_PG_UNCACHED is not set
->> CONFIG_MEMORY_FAILURE=y
->> CONFIG_IDLE_PAGE_TRACKING=y
->>
->> #define MAX_NR_ZONES 3
->> #define ZONES_SHIFT 2
->> #define MAX_PHYSMEM_BITS 52
->> #define SECTION_SIZE_BITS 30
->> #define SECTIONS_WIDTH 22
->
-> ^^^ Those we get back with VMEMMAP enabled.
->
-> So for configs for which the check is intended, it passes. We just
-> need to make it conditional to those.
+Jerome,
+Is it possible to get an ack for this? Thanks!
 
-Ok, thanks for the analysis, I had missed that and was about to
-send a different patch to increase STRUCT_PAGE_MAX_SHIFT
-in some configurations, which is not as good.
-
-> From 1d24635a6c7cd395bad5c29a3b9e5d2e98d9ab84 Mon Sep 17 00:00:00 2001
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Date: Mon, 23 Jul 2018 10:18:23 -0400
-> Subject: [PATCH] arm64: fix vmemmap BUILD_BUG_ON() triggering on !vmemmap
->  setups
->
-> Arnd reports the following arm64 randconfig build error with the PSI
-> patches that add another page flag:
->
-
-You could add further text here that I had just added to my
-patch description (not sent):
-
-    Further experiments show that the build error already existed before,
-    but was only triggered with larger values of CONFIG_NR_CPU and/or
-    CONFIG_NODES_SHIFT that might be used in actual configurations but
-    not in randconfig builds.
-
-    With longer CPU and node masks, I could recreate the problem with
-    kernels as old as linux-4.7 when arm64 NUMA support got added.
-
-    Cc: stable@vger.kernel.org
-    Fixes: 1a2db300348b ("arm64, numa: Add NUMA support for arm64 platforms.")
-    Fixes: 3e1907d5bf5a ("arm64: mm: move vmemmap region right below
-the linear region")
-
->  arch/arm64/mm/init.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
->
-> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-> index 1b18b4722420..72c9b6778b0a 100644
-> --- a/arch/arm64/mm/init.c
-> +++ b/arch/arm64/mm/init.c
-> @@ -611,11 +611,13 @@ void __init mem_init(void)
->         BUILD_BUG_ON(TASK_SIZE_32                       > TASK_SIZE_64);
->  #endif
->
-> +#ifndef CONFIG_SPARSEMEM_VMEMMAP
->         /*
-
-I tested it on two broken configurations, and found that you have
-a typo here, it should be 'ifdef', not 'ifndef'. With that change, it
-seems to build fine.
-
-Tested-by: Arnd Bergmann <arnd@arndb.de>
-
-      Arnd
+On 07/13/2018 09:50 PM, Dan Williams wrote:
+> MEMORY_DEVICE_FS_DAX relies on typical page semantics whereby ->mapping
+> is only ever cleared by truncation, not final put.
+> 
+> Without this fix dax pages may forget their mapping association at the
+> end of every page pin event.
+> 
+> Move this atypical behavior that HMM wants into the HMM ->page_free()
+> callback.
+> 
+> Cc: <stable@vger.kernel.org>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: JA(C)rA'me Glisse <jglisse@redhat.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Fixes: d2c997c0f145 ("fs, dax: use page->mapping...")
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  kernel/memremap.c |    1 -
+>  mm/hmm.c          |    2 ++
+>  2 files changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/kernel/memremap.c b/kernel/memremap.c
+> index 5857267a4af5..62603634a1d2 100644
+> --- a/kernel/memremap.c
+> +++ b/kernel/memremap.c
+> @@ -339,7 +339,6 @@ void __put_devmap_managed_page(struct page *page)
+>  		__ClearPageActive(page);
+>  		__ClearPageWaiters(page);
+>  
+> -		page->mapping = NULL;
+>  		mem_cgroup_uncharge(page);
+>  
+>  		page->pgmap->page_free(page, page->pgmap->data);
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index de7b6bf77201..f9d1d89dec4d 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -963,6 +963,8 @@ static void hmm_devmem_free(struct page *page, void *data)
+>  {
+>  	struct hmm_devmem *devmem = data;
+>  
+> +	page->mapping = NULL;
+> +
+>  	devmem->ops->free(devmem, page);
+>  }
+>  
+> 
+> _______________________________________________
+> Linux-nvdimm mailing list
+> Linux-nvdimm@lists.01.org
+> https://lists.01.org/mailman/listinfo/linux-nvdimm
+> 
