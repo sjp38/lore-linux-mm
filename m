@@ -1,47 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F09D16B0006
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 08:30:45 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id o60-v6so373802edd.13
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 05:30:45 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f13-v6si143795edb.49.2018.07.23.05.30.44
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B60956B0008
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 08:46:07 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id m25-v6so262542pgv.22
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 05:46:07 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id y62-v6si8970145pfd.254.2018.07.23.05.46.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jul 2018 05:30:44 -0700 (PDT)
-Date: Mon, 23 Jul 2018 14:30:43 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v1 0/2] mm/kdump: exclude reserved pages in dumps
-Message-ID: <20180723123043.GD31229@dhcp22.suse.cz>
-References: <20180720123422.10127-1-david@redhat.com>
- <9f46f0ed-e34c-73be-60ca-c892fb19ed08@suse.cz>
+        Mon, 23 Jul 2018 05:46:06 -0700 (PDT)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.4 037/107] x86/mm: Factor out LDT init from context init
+Date: Mon, 23 Jul 2018 14:41:31 +0200
+Message-Id: <20180723122414.735940678@linuxfoundation.org>
+In-Reply-To: <20180723122413.003644357@linuxfoundation.org>
+References: <20180723122413.003644357@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <9f46f0ed-e34c-73be-60ca-c892fb19ed08@suse.cz>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Dave Young <dyoung@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?iso-8859-1?Q?Marc-Andr=E9?= Lureau <marcandre.lureau@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Miles Chen <miles.chen@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Tesarik <ptesarik@suse.cz>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave@sr71.net>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, "Srivatsa S. Bhat" <srivatsa@csail.mit.edu>, "Matt Helsley (VMware)" <matt.helsley@gmail.com>, Alexey Makhalov <amakhalov@vmware.com>, Bo Gan <ganb@vmware.com>
 
-On Mon 23-07-18 13:45:18, Vlastimil Babka wrote:
-> On 07/20/2018 02:34 PM, David Hildenbrand wrote:
-> > Dumping tools (like makedumpfile) right now don't exclude reserved pages.
-> > So reserved pages might be access by dump tools although nobody except
-> > the owner should touch them.
-> 
-> Are you sure about that? Or maybe I understand wrong. Maybe it changed
-> recently, but IIRC pages that are backing memmap (struct pages) are also
-> PG_reserved. And you definitely do want those in the dump.
+4.4-stable review patch.  If anyone has any objections, please let me know.
 
-You are right. reserve_bootmem_region will make all early bootmem
-allocations (including those backing memmaps) PageReserved. I have asked
-several times but I haven't seen a satisfactory answer yet. Why do we
-even care for kdump about those. If they are reserved the nobody should
-really look at those specific struct pages and manipulate them. Kdump
-tools are using a kernel interface to read the content. If the specific
-content is backed by a non-existing memory then they should simply not
-return anything.
--- 
-Michal Hocko
-SUSE Labs
+------------------
+
+From: Dave Hansen <dave.hansen@linux.intel.com>
+
+commit 39a0526fb3f7d93433d146304278477eb463f8af upstream
+
+The arch-specific mm_context_t is a great place to put
+protection-key allocation state.
+
+But, we need to initialize the allocation state because pkey 0 is
+always "allocated".  All of the runtime initialization of
+mm_context_t is done in *_ldt() manipulation functions.  This
+renames the existing LDT functions like this:
+
+	init_new_context() -> init_new_context_ldt()
+	destroy_context() -> destroy_context_ldt()
+
+and makes init_new_context() and destroy_context() available for
+generic use.
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Dave Hansen <dave@sr71.net>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/20160212210234.DB34FCC5@viggo.jf.intel.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Srivatsa S. Bhat <srivatsa@csail.mit.edu>
+Reviewed-by: Matt Helsley (VMware) <matt.helsley@gmail.com>
+Reviewed-by: Alexey Makhalov <amakhalov@vmware.com>
+Reviewed-by: Bo Gan <ganb@vmware.com>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+---
+
+ arch/x86/include/asm/mmu_context.h |   21 ++++++++++++++++-----
+ arch/x86/kernel/ldt.c              |    4 ++--
+ 2 files changed, 18 insertions(+), 7 deletions(-)
+
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -52,15 +52,15 @@ struct ldt_struct {
+ /*
+  * Used for LDT copy/destruction.
+  */
+-int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
+-void destroy_context(struct mm_struct *mm);
++int init_new_context_ldt(struct task_struct *tsk, struct mm_struct *mm);
++void destroy_context_ldt(struct mm_struct *mm);
+ #else	/* CONFIG_MODIFY_LDT_SYSCALL */
+-static inline int init_new_context(struct task_struct *tsk,
+-				   struct mm_struct *mm)
++static inline int init_new_context_ldt(struct task_struct *tsk,
++				       struct mm_struct *mm)
+ {
+ 	return 0;
+ }
+-static inline void destroy_context(struct mm_struct *mm) {}
++static inline void destroy_context_ldt(struct mm_struct *mm) {}
+ #endif
+ 
+ static inline void load_mm_ldt(struct mm_struct *mm)
+@@ -102,6 +102,17 @@ static inline void enter_lazy_tlb(struct
+ 		this_cpu_write(cpu_tlbstate.state, TLBSTATE_LAZY);
+ }
+ 
++static inline int init_new_context(struct task_struct *tsk,
++				   struct mm_struct *mm)
++{
++	init_new_context_ldt(tsk, mm);
++	return 0;
++}
++static inline void destroy_context(struct mm_struct *mm)
++{
++	destroy_context_ldt(mm);
++}
++
+ extern void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ 		      struct task_struct *tsk);
+ 
+--- a/arch/x86/kernel/ldt.c
++++ b/arch/x86/kernel/ldt.c
+@@ -119,7 +119,7 @@ static void free_ldt_struct(struct ldt_s
+  * we do not have to muck with descriptors here, that is
+  * done in switch_mm() as needed.
+  */
+-int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
++int init_new_context_ldt(struct task_struct *tsk, struct mm_struct *mm)
+ {
+ 	struct ldt_struct *new_ldt;
+ 	struct mm_struct *old_mm;
+@@ -160,7 +160,7 @@ out_unlock:
+  *
+  * 64bit: Don't touch the LDT register - we're already in the next thread.
+  */
+-void destroy_context(struct mm_struct *mm)
++void destroy_context_ldt(struct mm_struct *mm)
+ {
+ 	free_ldt_struct(mm->context.ldt);
+ 	mm->context.ldt = NULL;
