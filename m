@@ -1,103 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EF966B0003
-	for <linux-mm@kvack.org>; Sun, 22 Jul 2018 21:52:14 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id j9-v6so13423583qtn.22
-        for <linux-mm@kvack.org>; Sun, 22 Jul 2018 18:52:14 -0700 (PDT)
-Received: from o2.20qt.s2shared.sendgrid.net (o2.20qt.s2shared.sendgrid.net. [167.89.106.65])
-        by mx.google.com with ESMTPS id 2-v6si677380qkk.198.2018.07.22.18.52.13
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C9FBB6B0003
+	for <linux-mm@kvack.org>; Sun, 22 Jul 2018 22:28:13 -0400 (EDT)
+Received: by mail-yb0-f197.google.com with SMTP id i15-v6so9092749ybk.18
+        for <linux-mm@kvack.org>; Sun, 22 Jul 2018 19:28:13 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o203-v6sor1940952ybb.3.2018.07.22.19.28.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 22 Jul 2018 18:52:13 -0700 (PDT)
-Subject: Re: [Bug 200627] New: Stutters and high kernel CPU usage from
- list_lru_count_one when cache fills memory
-From: Kevin Liu <kevin@potatofrom.space>
-References: <bug-200627-27@https.bugzilla.kernel.org/>
- <20180722164034.62bf461029073a21e591b8c3@linux-foundation.org>
- <5166980c-210e-2e68-974a-9115e5c72543@potatofrom.space>
- <63e10f4d-ad8f-8d02-2f78-caf01eaa72c1@potatofrom.space>
-Message-ID: <a38b9753-58c5-b128-8d40-abb49f690e4c@potatofrom.space>
-Date: Mon, 23 Jul 2018 01:52:12 +0000 (UTC)
-Mime-Version: 1.0
-In-Reply-To: <63e10f4d-ad8f-8d02-2f78-caf01eaa72c1@potatofrom.space>
-Content-type: multipart/alternative; boundary="----------=_1532310732-30692-657"
+        (Google Transport Security);
+        Sun, 22 Jul 2018 19:28:12 -0700 (PDT)
+Date: Sun, 22 Jul 2018 19:28:01 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: kernel BUG at mm/shmem.c:LINE!
+In-Reply-To: <20180709143610.GD2662@bombadil.infradead.org>
+Message-ID: <alpine.LSU.2.11.1807221856350.5536@eggly.anvils>
+References: <000000000000d624c605705e9010@google.com> <20180709143610.GD2662@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: syzbot <syzbot+b8e0dfee3fd8c9012771@syzkaller.appspotmail.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
 
-This is a multi-part message in MIME format...
+On Mon, 9 Jul 2018, Matthew Wilcox wrote:
+> On Fri, Jul 06, 2018 at 06:19:02PM -0700, syzbot wrote:
+> > Hello,
+> > 
+> > syzbot found the following crash on:
+> > 
+> > HEAD commit:    526674536360 Add linux-next specific files for 20180706
+> > git tree:       linux-next
+> > console output: https://syzkaller.appspot.com/x/log.txt?x=116d16fc400000
+> > kernel config:  https://syzkaller.appspot.com/x/.config?x=c8d1cfc0cb798e48
+> > dashboard link: https://syzkaller.appspot.com/bug?extid=b8e0dfee3fd8c9012771
+> > compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+> > syzkaller repro:https://syzkaller.appspot.com/x/repro.syz?x=170e462c400000
+> > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=15f1ba2c400000
+> > 
+> > IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> > Reported-by: syzbot+b8e0dfee3fd8c9012771@syzkaller.appspotmail.com
+> 
+> #syz fix: shmem: Convert shmem_add_to_page_cache to XArray
 
-------------=_1532310732-30692-657
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+I don't see the patch, but I do see a diff in shmem_add_to_page_cache()
+between mmotm 4.18.0-rc3-mm1 and current mmotm 4.18.0-rc5-mm1,
+relating to use of xas_create_range().
 
-Correction - after using 4.14.53 for a while, I do actually see
-list_lru_count_one at the top, but only at ~10% overhead. The
-responsiveness is slightly degraded, but still better than how it was on
-4.18-rc4.
+Whether or not that fixed syzbot's kernel BUG at mm/shmem.c:815!
+I don't know, but I'm afraid it has not fixed linux-next breakage of
+huge tmpfs: I get a similar page_to_pgoff BUG at mm/filemap.c:1466!
 
-On 07/22/2018 08:02 PM, Kevin Liu wrote:
-> Sorry, not sure if the previous message registered on bugzilla due to
-> the pgp signature? Including it below.
-> 
-> On 07/22/2018 07:44 PM, Kevin Liu wrote:
->>> How recently?  Were earlier kernels better behaved?
->> I've seen this issue both on Linux 4.16.15 (admittedly using the -ck
->> patchset) and on vanilla Linux 4.18-rc4 (which is what I'm currently using).
->>
->> I'm fairly certain that it did not occur on Linux 4.14.50, which I used
->> previously, but I will boot back into it to double-check and let you know.
->>
-> 
-> And yes, booted back into Linux 4.14.54, there appears to be no issue --
-> list_lru_count_one reaches 6% overhead at most:
-> 
-> Overhead  Shared Object                     Symbol
-> 
->    5.91%  [kernel]                          [k] list_lru_count_one
-> 
->    5.13%  [kernel]                          [k] nmi
-> 
->    4.08%  [kernel]                          [k] read_hpet
-> 
->    1.26%  zma                               [.] Zone::CheckAlarms
-> 
->    1.16%  [kernel]                          [k] _raw_spin_lock
-> 
->    1.07%  restic                            [.] 0x00000000002e696c
-> 
->    1.06%  .perf-wrapped                     [.] hpp__sort_overhead
-> 
-> 
+Please try something like
+mount -o remount,huge=always /dev/shm
+cp /dev/zero /dev/shm
 
-------------=_1532310732-30692-657
-Content-Type: text/html; charset="utf-8"
-Content-Disposition: inline
-Content-Transfer-Encoding: 7bit
+Writing soon crashes in find_lock_entry(), looking up offset 0x201
+but getting the page for offset 0x3c1 instead.
 
-<html><body>
-<p>Correction &ndash; after using 4.14.53 for a while, I do actually see list_lru_count_one at the top, but only at ~10% overhead. The responsiveness is slightly degraded, but still better than how it was on 4.18-rc4.</p>
-<p>On 07/22/2018 08:02 PM, Kevin Liu wrote:</p>
-<blockquote><p>Sorry, not sure if the previous message registered on bugzilla due to the pgp signature? Including it below.</p>
-<p>On 07/22/2018 07:44 PM, Kevin Liu wrote:</p>
-<blockquote><blockquote><p>How recently?  Were earlier kernels better behaved?</p></blockquote>
-<pre>I've seen this issue both on Linux 4.16.15 (admittedly using the -ck
-patchset) and on vanilla Linux 4.18-rc4 (which is what I'm currently using).</pre>
-<pre>I'm fairly certain that it did not occur on Linux 4.14.50, which I used
-previously, but I will boot back into it to double-check and let you know.</pre></blockquote>
-<p>And yes, booted back into Linux 4.14.54, there appears to be no issue &mdash; list_lru_count_one reaches 6% overhead at most:</p>
-<p>Overhead  Shared Object                     Symbol</p>
-<pre>5.91%  [kernel]                          [k] list_lru_count_one</pre>
-<pre>5.13%  [kernel]                          [k] nmi</pre>
-<pre>4.08%  [kernel]                          [k] read_hpet</pre>
-<pre>1.26%  zma                               [.] Zone::CheckAlarms</pre>
-<pre>1.16%  [kernel]                          [k] _raw_spin_lock</pre>
-<pre>1.07%  restic                            [.] 0x00000000002e696c</pre>
-<pre>1.06%  .perf-wrapped                     [.] hpp__sort_overhead</pre></blockquote>
+I've spent a while on it, but better turn over to you, Matthew:
+my guess is that xas_create_range() does not create the layout
+you expect from it.
 
-<img src="https://u7890171.ct.sendgrid.net/wf/open?upn=oDb6ny51mUB6FExYn3rQhuayDepTyfldPWjLmUXQBZG9LladNsOnpWDRPAblLtV7fMj0nu-2BD50vogStfgZ1JRVSbov2uLQLeO8m5ZFD9JwT6gkT4hx7ImR2Jt-2F7ZS2jqhTIf95HO2euk8O3BSoxBOd-2BOBuN3BW0LjPZafXP-2BdwSdPR54kghZroYPJ5K136PMxfzz5q-2F1UX4Ng0XH5bvmxMQbp2wwYQ6AZ262Fr8VxMU-3D" alt="" width="1" height="1" border="0" style="height:1px !important;width:1px !important;border-width:0 !important;margin-top:0 !important;margin-bottom:0 !important;margin-right:0 !important;margin-left:0 !important;padding-top:0 !important;padding-bottom:0 !important;padding-right:0 !important;padding-left:0 !important;"/>
-</body></html>
-
-------------=_1532310732-30692-657--
+Thanks,
+Hugh
