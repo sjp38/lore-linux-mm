@@ -1,247 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 38B7C6B000E
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 07:19:53 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id 31-v6so180248pld.6
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 04:19:53 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b13-v6si8457409pgb.356.2018.07.23.04.19.51
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 549AB6B026B
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 07:26:29 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id h5-v6so148503pgs.13
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 04:26:29 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id h89-v6si7976997pld.378.2018.07.23.04.26.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jul 2018 04:19:51 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 4/4] mm: proc/pid/smaps_rollup: convert to single value seq_file
-Date: Mon, 23 Jul 2018 13:19:33 +0200
-Message-Id: <20180723111933.15443-5-vbabka@suse.cz>
-In-Reply-To: <20180723111933.15443-1-vbabka@suse.cz>
-References: <20180723111933.15443-1-vbabka@suse.cz>
+        Mon, 23 Jul 2018 04:26:28 -0700 (PDT)
+Date: Mon, 23 Jul 2018 13:26:24 +0200
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [RESEND] Spectre-v2 (IBPB/IBRS) and SSBD fixes for 4.4.y
+Message-ID: <20180723112624.GA29710@kroah.com>
+References: <153156030832.10043.13438231886571087086.stgit@srivatsa-ubuntu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <153156030832.10043.13438231886571087086.stgit@srivatsa-ubuntu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Daniel Colascione <dancol@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>, linux-api@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
+To: "Srivatsa S. Bhat" <srivatsa@csail.mit.edu>
+Cc: stable@vger.kernel.org, Denys Vlasenko <dvlasenk@redhat.com>, Bo Gan <ganb@vmware.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@suse.de>, Thomas Gleixner <tglx@linutronix.de>, Ricardo Neri <ricardo.neri-calderon@linux.intel.com>, Tom Lendacky <thomas.lendacky@amd.com>, ak@linux.intel.com, linux-tip-commits@vger.kernel.org, Jia Zhang <qianyue.zj@alibaba-inc.com>, Josh Poimboeuf <jpoimboe@redhat.com>, xen-devel@lists.xenproject.org, =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@amacapital.net>, Arnaldo Carvalho de Melo <acme@redhat.com>, Sherry Hurwitz <sherry.hurwitz@amd.com>, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, Shuah Khan <shuahkh@osg.samsung.com>, Oleg Nesterov <oleg@redhat.com>, torvalds@linux-foundation.org, dwmw@amazon.co.uk, karahmed@amazon.de, Borislav Petkov <bp@alien8.de>, dave.hansen@linux.intel.com, linux@dominikbrodowski.net, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Joerg Roedel <joro@8bytes.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Kyle Huey <me@kylehuey.com>, Will Drewry <wad@chromium.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Brian Gerst <brgerst@gmail.com>, Kristen Carlson Accardi <kristen@linux.intel.com>, Thomas Garnier <thgarnie@google.com>, Andrew Morton <akpm@linux-foundation.org>, Joe Konno <joe.konno@linux.intel.com>, kvm <kvm@vger.kernel.org>, Piotr Luc <piotr.luc@intel.com>, boris.ostrovsky@oracle.com, Jan Beulich <jbeulich@suse.com>, arjan@linux.intel.com, Alexander Kuleshov <kuleshovmail@gmail.com>, Juergen Gross <jgross@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, =?iso-8859-1?Q?J=F6rg?= Otte <jrg.otte@gmail.com>, tim.c.chen@linux.intel.com, Alexander Sergeyev <sergeev917@gmail.com>, Josh Triplett <josh@joshtriplett.org>, gnomes@lxorguk.ukuu.org.uk, Tony Luck <tony.luck@intel.com>, Laura Abbott <labbott@fedoraproject.org>, dave.hansen@intel.com, Ingo Molnar <mingo@kernel.org>, Mike Galbraith <efault@gmx.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alexey Makhalov <amakhalov@vmware.com>, Dave Hansen <dave@sr71.net>, ashok.raj@intel.com, Mel Gorman <mgorman@suse.de>, =?iso-8859-1?Q?Micka=EBlSala=FCn?= <mic@digikod.net>, Fenghua Yu <fenghua.yu@intel.com>, "Matt Helsley (VMware)" <matt.helsley@gmail.com>, Vince Weaver <vincent.weaver@maine.edu>, Prarit Bhargava <prarit@redhat.com>, rostedt@goodmis.org, Dan Williams <dan.j.williams@intel.com>, Jim Mattson <jmattson@google.com>, Dave Young <dyoung@redhat.com>, linux-edac <linux-edac@vger.kernel.org>, Jon Masters <jcm@redhat.com>, Jiri Kosina <jkosina@suse.cz>, Andy Lutomirski <luto@kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, Jiri Olsa <jolsa@redhat.com>, arjan.van.de.ven@intel.com, sironi@amazon.de, Frederic Weisbecker <fweisbec@gmail.com>, Kyle Huey <khuey@kylehuey.com>, Alexander Popov <alpopov@ptsecurity.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Nadav Amit <nadav.amit@gmail.com>, Yazen Ghannam <Yazen.Ghannam@amd.com>, Wanpeng Li <kernellwp@gmail.com>, Stephane Eranian <eranian@google.com>, David Woodhouse <dwmw2@infradead.org>, srivatsab@vmware.com
 
-The /proc/pid/smaps_rollup file is currently implemented via the
-m_start/m_next/m_stop seq_file iterators shared with the other maps files,
-that iterate over vma's. However, the rollup file doesn't print anything
-for each vma, only accumulate the stats.
+On Sat, Jul 14, 2018 at 02:25:43AM -0700, Srivatsa S. Bhat wrote:
+> Hi Greg,
+> 
+> This patch series is a backport of the Spectre-v2 fixes (IBPB/IBRS)
+> and patches for the Speculative Store Bypass vulnerability to 4.4.y
+> (they apply cleanly on top of 4.4.140).
+> 
+> I used 4.9.y as my reference when backporting to 4.4.y (as I thought
+> that would minimize the amount of fixing up necessary). Unfortunately
+> I had to skip the KVM fixes for these vulnerabilities, as the KVM
+> codebase is drastically different in 4.4 as compared to 4.9. (I tried
+> my best to backport them initially, but wasn't confident that they
+> were correct, so I decided to drop them from this series).
+> 
+> You'll notice that the initial few patches in this series include
+> cleanups etc., that are non-critical to IBPB/IBRS/SSBD. Most of these
+> patches are aimed at getting the cpufeature.h vs cpufeatures.h split
+> into 4.4, since a lot of the subsequent patches update these headers.
+> On my first attempt to backport these patches to 4.4.y, I had actually
+> tried to do all the updates on the cpufeature.h file itself, but it
+> started getting very cumbersome, so I resorted to backporting the
+> cpufeature.h vs cpufeatures.h split and their dependencies as well. I
+> think apart from these initial patches, the rest of the patchset
+> doesn't have all that much noise. 
+> 
+> This patchset has been tested on both Intel and AMD machines (Intel
+> Xeon CPU E5-2660 v4 and AMD EPYC 7281 16-Core Processor, respectively)
+> with updated microcode. All the patch backports have been
+> independently reviewed by Matt Helsley, Alexey Makhalov and Bo Gan.
+> 
+> I would appreciate if you could kindly consider these patches for
+> review and inclusion in a future 4.4.y release.
 
-There are some issues with the current code as reported in [1] - the
-accumulated stats can get skewed if seq_file start()/stop() op is called
-multiple times, if show() is called multiple times, and after seeks to
-non-zero position.
+Given no one has complained about these yet, I've queued them all up,
+including the 2 extra ones you sent afterward.
 
-Patch [1] fixed those within existing design, but I believe it is
-fundamentally wrong to expose the vma iterators to the seq_file mechanism
-when smaps_rollup shows logically a single set of values for the whole
-address space.
+Let's see what breaks :)
 
-This patch thus refactors the code to provide a single "value" at offset 0,
-with vma iteration to gather the stats done internally. This fixes the
-situations where results are skewed, and simplifies the code, especially
-in show_smap(), at the expense of somewhat less code reuse.
+thanks,
 
-[1] https://marc.info/?l=linux-mm&m=151927723128134&w=2
-
-Reported-by: Daniel Colascione <dancol@google.com>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- fs/proc/task_mmu.c | 136 ++++++++++++++++++++++++++++-----------------
- 1 file changed, 86 insertions(+), 50 deletions(-)
-
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 1d6d315fd31b..31109e67804c 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -404,7 +404,6 @@ const struct file_operations proc_pid_maps_operations = {
- 
- #ifdef CONFIG_PROC_PAGE_MONITOR
- struct mem_size_stats {
--	bool first;
- 	unsigned long resident;
- 	unsigned long shared_clean;
- 	unsigned long shared_dirty;
-@@ -418,11 +417,12 @@ struct mem_size_stats {
- 	unsigned long swap;
- 	unsigned long shared_hugetlb;
- 	unsigned long private_hugetlb;
--	unsigned long first_vma_start;
-+	unsigned long last_vma_end;
- 	u64 pss;
- 	u64 pss_locked;
- 	u64 swap_pss;
- 	bool check_shmem_swap;
-+	bool finished;
- };
- 
- static void smaps_account(struct mem_size_stats *mss, struct page *page,
-@@ -775,58 +775,57 @@ static void __show_smap(struct seq_file *m, struct mem_size_stats *mss)
- 
- static int show_smap(struct seq_file *m, void *v)
- {
--	struct proc_maps_private *priv = m->private;
- 	struct vm_area_struct *vma = v;
--	struct mem_size_stats mss_stack;
--	struct mem_size_stats *mss;
--	int ret = 0;
--	bool rollup_mode;
--	bool last_vma;
--
--	if (priv->rollup) {
--		rollup_mode = true;
--		mss = priv->rollup;
--		if (mss->first) {
--			mss->first_vma_start = vma->vm_start;
--			mss->first = false;
--		}
--		last_vma = !m_next_vma(priv, vma);
--	} else {
--		rollup_mode = false;
--		memset(&mss_stack, 0, sizeof(mss_stack));
--		mss = &mss_stack;
--	}
-+	struct mem_size_stats mss;
- 
--	smap_gather_stats(vma, mss);
-+	memset(&mss, 0, sizeof(mss));
- 
--	if (!rollup_mode) {
--		show_map_vma(m, vma);
--	} else if (last_vma) {
--		show_vma_header_prefix(
--			m, mss->first_vma_start, vma->vm_end, 0, 0, 0, 0);
--		seq_pad(m, ' ');
--		seq_puts(m, "[rollup]\n");
--	} else {
--		ret = SEQ_SKIP;
--	}
-+	smap_gather_stats(vma, &mss);
- 
--	if (!rollup_mode) {
--		SEQ_PUT_DEC("Size:           ", vma->vm_end - vma->vm_start);
--		SEQ_PUT_DEC(" kB\nKernelPageSize: ", vma_kernel_pagesize(vma));
--		SEQ_PUT_DEC(" kB\nMMUPageSize:    ", vma_mmu_pagesize(vma));
--		seq_puts(m, " kB\n");
--	}
-+	show_map_vma(m, vma);
- 
--	if (!rollup_mode || last_vma)
--		__show_smap(m, mss);
-+	SEQ_PUT_DEC("Size:           ", vma->vm_end - vma->vm_start);
-+	SEQ_PUT_DEC(" kB\nKernelPageSize: ", vma_kernel_pagesize(vma));
-+	SEQ_PUT_DEC(" kB\nMMUPageSize:    ", vma_mmu_pagesize(vma));
-+	seq_puts(m, " kB\n");
-+
-+	__show_smap(m, &mss);
-+
-+	if (arch_pkeys_enabled())
-+		seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
-+	show_smap_vma_flags(m, vma);
- 
--	if (!rollup_mode) {
--		if (arch_pkeys_enabled())
--			seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
--		show_smap_vma_flags(m, vma);
--	}
- 	m_cache_vma(m, vma);
--	return ret;
-+
-+	return 0;
-+}
-+
-+static int show_smaps_rollup(struct seq_file *m, void *v)
-+{
-+	struct proc_maps_private *priv = m->private;
-+	struct mem_size_stats *mss = priv->rollup;
-+	struct vm_area_struct *vma;
-+
-+	/*
-+	 * We might be called multiple times when e.g. the seq buffer
-+	 * overflows. Gather the stats only once.
-+	 */
-+	if (!mss->finished) {
-+		for (vma = priv->mm->mmap; vma; vma = vma->vm_next) {
-+			smap_gather_stats(vma, mss);
-+			mss->last_vma_end = vma->vm_end;
-+		}
-+		mss->finished = true;
-+	}
-+
-+	show_vma_header_prefix(m, priv->mm->mmap->vm_start,
-+			       mss->last_vma_end, 0, 0, 0, 0);
-+	seq_pad(m, ' ');
-+	seq_puts(m, "[rollup]\n");
-+
-+	__show_smap(m, mss);
-+
-+	return 0;
- }
- #undef SEQ_PUT_DEC
- 
-@@ -837,6 +836,44 @@ static const struct seq_operations proc_pid_smaps_op = {
- 	.show	= show_smap
- };
- 
-+static void *smaps_rollup_start(struct seq_file *m, loff_t *ppos)
-+{
-+	struct proc_maps_private *priv = m->private;
-+	struct mm_struct *mm;
-+
-+	if (*ppos != 0)
-+		return NULL;
-+
-+	priv->task = get_proc_task(priv->inode);
-+	if (!priv->task)
-+		return ERR_PTR(-ESRCH);
-+
-+	mm = priv->mm;
-+	if (!mm || !mmget_not_zero(mm))
-+		return NULL;
-+
-+	memset(priv->rollup, 0, sizeof(*priv->rollup));
-+
-+	down_read(&mm->mmap_sem);
-+	hold_task_mempolicy(priv);
-+
-+	return mm;
-+}
-+
-+static void *smaps_rollup_next(struct seq_file *m, void *v, loff_t *pos)
-+{
-+	(*pos)++;
-+	vma_stop(m->private);
-+	return NULL;
-+}
-+
-+static const struct seq_operations proc_pid_smaps_rollup_op = {
-+	.start	= smaps_rollup_start,
-+	.next	= smaps_rollup_next,
-+	.stop	= m_stop,
-+	.show	= show_smaps_rollup
-+};
-+
- static int pid_smaps_open(struct inode *inode, struct file *file)
- {
- 	return do_maps_open(inode, file, &proc_pid_smaps_op);
-@@ -846,18 +883,17 @@ static int pid_smaps_rollup_open(struct inode *inode, struct file *file)
- {
- 	struct seq_file *seq;
- 	struct proc_maps_private *priv;
--	int ret = do_maps_open(inode, file, &proc_pid_smaps_op);
-+	int ret = do_maps_open(inode, file, &proc_pid_smaps_rollup_op);
- 
- 	if (ret < 0)
- 		return ret;
- 	seq = file->private_data;
- 	priv = seq->private;
--	priv->rollup = kzalloc(sizeof(*priv->rollup), GFP_KERNEL);
-+	priv->rollup = kmalloc(sizeof(*priv->rollup), GFP_KERNEL);
- 	if (!priv->rollup) {
- 		proc_map_release(inode, file);
- 		return -ENOMEM;
- 	}
--	priv->rollup->first = true;
- 	return 0;
- }
- 
--- 
-2.18.0
+greg k-h
