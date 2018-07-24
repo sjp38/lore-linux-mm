@@ -1,68 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A08A6B0003
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 09:06:09 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id l1-v6so1757530edi.11
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 06:06:09 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a11-v6si1138593edr.122.2018.07.24.06.06.07
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DA266B0005
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 09:08:40 -0400 (EDT)
+Received: by mail-yb0-f199.google.com with SMTP id c8-v6so2006638ybi.19
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 06:08:40 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t6-v6sor2607015ywg.25.2018.07.24.06.08.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jul 2018 06:06:08 -0700 (PDT)
-Date: Tue, 24 Jul 2018 15:06:06 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v1 0/2] mm/kdump: exclude reserved pages in dumps
-Message-ID: <20180724130606.GJ28386@dhcp22.suse.cz>
-References: <20180720123422.10127-1-david@redhat.com>
- <9f46f0ed-e34c-73be-60ca-c892fb19ed08@suse.cz>
- <20180723123043.GD31229@dhcp22.suse.cz>
- <dca091d3-4c3d-eff5-57f8-a9a45050198d@suse.cz>
- <20180724111913.GH28386@dhcp22.suse.cz>
- <d14d7a45-91fd-63ef-ea57-513752af1f9e@suse.cz>
+        (Google Transport Security);
+        Tue, 24 Jul 2018 06:08:39 -0700 (PDT)
+Date: Tue, 24 Jul 2018 06:08:36 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: cgroup-aware OOM killer, how to move forward
+Message-ID: <20180724130836.GH1934745@devbig577.frc2.facebook.com>
+References: <20180717173844.GB14909@castle.DHCP.thefacebook.com>
+ <20180717194945.GM7193@dhcp22.suse.cz>
+ <20180717200641.GB18762@castle.DHCP.thefacebook.com>
+ <20180718081230.GP7193@dhcp22.suse.cz>
+ <20180718152846.GA6840@castle.DHCP.thefacebook.com>
+ <20180719073843.GL7193@dhcp22.suse.cz>
+ <20180719170543.GA21770@castle.DHCP.thefacebook.com>
+ <20180723141748.GH31229@dhcp22.suse.cz>
+ <20180723150929.GD1934745@devbig577.frc2.facebook.com>
+ <20180724073230.GE28386@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d14d7a45-91fd-63ef-ea57-513752af1f9e@suse.cz>
+In-Reply-To: <20180724073230.GE28386@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Dave Young <dyoung@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?iso-8859-1?Q?Marc-Andr=E9?= Lureau <marcandre.lureau@redhat.com>, Matthew Wilcox <willy@infradead.org>, Miles Chen <miles.chen@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Tesarik <ptesarik@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>, hannes@cmpxchg.org, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org, gthelen@google.com
 
-On Tue 24-07-18 14:22:06, Vlastimil Babka wrote:
-> On 07/24/2018 01:19 PM, Michal Hocko wrote:
-> >> When creating a crashdump, I definitely need the pages containing memmap
-> >> included in the dump, so I can inspect the struct pages. But this is a
-> >> bit recursive issue, so I'll try making it clearer:
-> >>
-> >> 1) there are kernel pages with data (e.g. slab) that I typically need in
-> >> the dump, and are not PageReserved
-> >> 2) there are struct pages for pages 1) in the memmap that physically
-> >> hold the pageflags for 1), and these are PageReserved
-> >> 3) there are struct pages for pages 2) somewhere else in the memmap,
-> >> physically hold the pageflags for 2). They are probably also
-> >> PageReserved themselves ? and self-referencing.
-> >>
-> >> Excluding PageReserved from dump means there won't be cases 2) and 3) in
-> >> the dump, which at least for case 2) is making such dump almost useless
-> >> in many cases.
-> > 
-> > Yes, we cannot simply exclude all PageReserved pages. I was merely
-> > suggesting to rule out new special PageReserved pages that are denoting 
-> > offline pages. The same could be applied to HWPoison pages
+Hello,
+
+On Tue, Jul 24, 2018 at 09:32:30AM +0200, Michal Hocko wrote:
+> > I'd find the cgroup closest to the root which has the oom group set
+> > and kill the entire subtree.
 > 
-> So how about marking them with some "page type" that we got after
-> Matthew's struct page reorg? I assume the pages we're talking about are
-> in a state that they don't need the mapcount/mapping field or whatever
-> unions with the page type... but I guess some care would be needed to
-> not have false positives when the union field is actually used but
-> happens to look like the new type.
+> Yes, this is what we have been discussing. In fact it would match the
+> behavior which is still sitting in the mmotm tree where we compare
+> groups.
 
-The idea was to use PageReserved because those pages are generally
-ignored by MM and then reuse some parts of the struct page. It belongs
-to the owner of the page and nothing should be really used from it at
-the time when you mark it offline. So pagetype or something else is
-merely an implementation detail.
+Yeah, I'd too.  Everyone except David seems to agree that that's a
+good enough approach for now.
+
+> > There's no reason to put any
+> > restrictions on what each cgroup can configure.  The only thing which
+> > matters is is that the effective behavior is what the highest in the
+> > ancestry configures, and, at the system level, it'd conceptually map
+> > to panic_on_oom.
+> 
+> Hmm, so do we inherit group_oom? If not, how do we prevent from
+> unexpected behavior?
+
+Hmm... I guess we're debating two options here.  Please consider the
+following hierarchy.
+
+      R
+      |
+      A (group oom == 1)
+     / \
+    B   C
+    |
+    D
+
+1. No matter what B, C or D sets, as long as A sets group oom, any oom
+   kill inside A's subtree kills the entire subtree.
+
+2. A's group oom policy applies iff the source of the OOM is either at
+   or above A - ie. iff the OOM is system-wide or caused by memory.max
+   of A.
+
+In #1, it doesn't matter what B, C or D sets, so it's kinda moot to
+discuss whether they inherit A's setting or not.  A's is, if set,
+always overriding.  In #2, what B, C or D sets matters if they also
+set their own memory.max, so there's no reason for them to inherit
+anything.
+
+I'm actually okay with either option.  #2 is more flexible than #1 but
+given that this is a cgroup owned property which is likely to be set
+on per-application basis, #1 is likely good enough.
+
+IIRC, we did #2 in the original implementation and the simplified one
+is doing #1, right?
+
+Thanks.
 
 -- 
-Michal Hocko
-SUSE Labs
+tejun
