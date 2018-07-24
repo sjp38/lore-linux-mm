@@ -1,70 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B597B6B0275
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 05:08:07 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id j4-v6so2174744pgq.16
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 02:08:07 -0700 (PDT)
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 482056B0276
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 05:13:14 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id t10-v6so1819232ywc.7
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 02:13:14 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u37-v6sor2419241pgk.366.2018.07.24.02.08.06
+        by mx.google.com with SMTPS id l130-v6sor2483929ywe.10.2018.07.24.02.13.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 24 Jul 2018 02:08:06 -0700 (PDT)
-Date: Tue, 24 Jul 2018 12:08:00 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: thp: remove use_zero_page sysfs knob
-Message-ID: <20180724090800.g43mmfnuuqwczzb2@kshutemo-mobl1>
-References: <1532110430-115278-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180720123243.6dfc95ba061cd06e05c0262e@linux-foundation.org>
- <alpine.DEB.2.21.1807201300290.224013@chino.kir.corp.google.com>
- <3238b5d2-fd89-a6be-0382-027a24a4d3ad@linux.alibaba.com>
- <alpine.DEB.2.21.1807201401390.231119@chino.kir.corp.google.com>
- <20180722035156.GA12125@bombadil.infradead.org>
- <alpine.DEB.2.21.1807231323460.105582@chino.kir.corp.google.com>
- <alpine.DEB.2.21.1807231427550.103523@chino.kir.corp.google.com>
+        Tue, 24 Jul 2018 02:13:12 -0700 (PDT)
+Date: Tue, 24 Jul 2018 02:12:58 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: kernel BUG at mm/shmem.c:LINE!
+In-Reply-To: <20180723225454.GC18236@bombadil.infradead.org>
+Message-ID: <alpine.LSU.2.11.1807240121590.1105@eggly.anvils>
+References: <000000000000d624c605705e9010@google.com> <20180709143610.GD2662@bombadil.infradead.org> <alpine.LSU.2.11.1807221856350.5536@eggly.anvils> <20180723140150.GA31843@bombadil.infradead.org> <alpine.LSU.2.11.1807231111310.1698@eggly.anvils>
+ <20180723203628.GA18236@bombadil.infradead.org> <alpine.LSU.2.11.1807231531240.2545@eggly.anvils> <20180723225454.GC18236@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1807231427550.103523@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Yang Shi <yang.shi@linux.alibaba.com>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Hugh Dickins <hughd@google.com>, syzbot <syzbot+b8e0dfee3fd8c9012771@syzkaller.appspotmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
 
-On Mon, Jul 23, 2018 at 02:33:08PM -0700, David Rientjes wrote:
-> On Mon, 23 Jul 2018, David Rientjes wrote:
-> 
-> > > > The huge zero page can be reclaimed under memory pressure and, if it is, 
-> > > > it is attempted to be allocted again with gfp flags that attempt memory 
-> > > > compaction that can become expensive.  If we are constantly under memory 
-> > > > pressure, it gets freed and reallocated millions of times always trying to 
-> > > > compact memory both directly and by kicking kcompactd in the background.
-> > > > 
-> > > > It likely should also be per node.
-> > > 
-> > > Have you benchmarked making the non-huge zero page per-node?
-> > > 
+On Mon, 23 Jul 2018, Matthew Wilcox wrote:
+> On Mon, Jul 23, 2018 at 03:42:22PM -0700, Hugh Dickins wrote:
+> > On Mon, 23 Jul 2018, Matthew Wilcox wrote:
+> > > I figured out a fix and pushed it to the 'ida' branch in
+> > > git://git.infradead.org/users/willy/linux-dax.git
 > > 
-> > Not since we disable it :)  I will, though.  The more concerning issue for 
-> > us, modulo CVE-2017-1000405, is the cpu cost of constantly directly 
-> > compacting memory for allocating the hzp in real time after it has been 
-> > reclaimed.  We've observed this happening tens or hundreds of thousands 
-> > of times on some systems.  It will be 2MB per node on x86 if the data 
-> > suggests we should make it NUMA aware, I don't think the cost is too high 
-> > to leave it persistently available even under memory pressure if 
-> > use_zero_page is enabled.
-> > 
+> > Great, thanks a lot for sorting that out so quickly. But I've cloned
+> > the tree and don't see today's patch, so assume you've folded the fix
+> > into an existing commit? If possible, please append the diff of today's
+> > fix to this thread so that we can try it out. Or if that's difficult,
+> > please at least tell which files were modified, then I can probably
+> > work it out from the diff of those files against mmotm.
 > 
-> Measuring access latency to 4GB of memory on Naples I observe ~6.7% 
-> slower access latency intrasocket and ~14% slower intersocket.
+> Sure!  It's just this:
 > 
-> use_zero_page is currently a simple thp flag, meaning it rejects writes 
-> where val != !!val, so perhaps it would be best to overload it with 
-> additional options?  I can imagine 0x2 defining persistent allocation so 
-> that the hzp is not freed when the refcount goes to 0 and 0x4 defining if 
-> the hzp should be per node.  Implementing persistent allocation fixes our 
-> concern with it, so I'd like to start there.  Comments?
+> diff --git a/lib/xarray.c b/lib/xarray.c
+> index 32a9c2a6a9e9..383c410997eb 100644
+> --- a/lib/xarray.c
+> +++ b/lib/xarray.c
+> @@ -660,6 +660,8 @@ void xas_create_range(struct xa_state *xas)
+>  	unsigned char sibs = xas->xa_sibs;
+>  
+>  	xas->xa_index |= ((sibs + 1) << shift) - 1;
+> +	if (!xas_top(xas->xa_node) && xas->xa_node->shift == xas->xa_shift)
+> +		xas->xa_offset |= sibs;
+>  	xas->xa_shift = 0;
+>  	xas->xa_sibs = 0;
 
-Why not a separate files?
+Yes, that's a big improvement, the huge "cp" is now fine, thank you.
 
--- 
- Kirill A. Shutemov
+I've updated my xfstests tree, and tried that on mmotm with this patch.
+The few failures are exactly the same as on 4.18-rc6, whether mounting
+tmpfs as huge or not. But four of the tests, generic/{340,345,346,354}
+crash (oops) on 4.18-rc5-mm1 + your patch above, but pass on 4.18-rc6.
+
+That was simply with non-huge tmpfs: I just patched them out and didn't
+try for whether they crash with huge tmpfs too: probably they do, but
+that won't be very interesting until the non-huge crashes are fixed.
+
+I paid no attention to where the crashes were, I was just pressing on
+to skip the problem tests to get as full a run as possible, with that
+list of what's problematic and needs further investigation.
+
+To test non-huge tmpfs (as root), I wrap xfstests' check script as
+follows (you'll want to mkdir or substitute somewhere else for /xft):
+
+export FSTYP=tmpfs
+export DISABLE_UDF_TEST=1
+export TEST_DEV=tmpfs1:
+export TEST_DIR=/xft
+export SCRATCH_DEV=tmpfs2:
+export SCRATCH_MNT=/mnt
+mount -t $FSTYP -o size=1088M $TEST_DEV $TEST_DIR || exit $?
+./check "$@" # typically "-g auto"
+umount /xft /mnt 2>/dev/null
+
+But don't bother with "-g auto" for the moment: I have workarounds in
+for a few of them, generic/{027,213,449}, which we need not get into
+right now (without them, two of those tests can take close to forever).
+
+To test huge tmpfs (as root), I wrap xfstests' check script as:
+
+export FSTYP=tmpfs
+export DISABLE_UDF_TEST=1
+export TEST_DEV=tmpfs1:
+export TEST_DIR=/xft
+export SCRATCH_DEV=tmpfs2:
+export SCRATCH_MNT=/mnt
+export TMPFS_MOUNT_OPTIONS="-o size=1088M,huge=always"
+mount -t $FSTYP $TMPFS_MOUNT_OPTIONS $TEST_DEV $TEST_DIR || exit $?
+./check "$@" # typically "-g auto"
+umount /xft /mnt 2>/dev/null
+
+Hugh
