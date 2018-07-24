@@ -1,115 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E3276B0008
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 17:09:28 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id w23-v6so3303060pgv.1
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 14:09:28 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id l26-v6si11795489pfo.325.2018.07.24.14.09.26
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D6AD16B000C
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 17:18:46 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id l1-v6so2257959edi.11
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 14:18:46 -0700 (PDT)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id o34-v6si10041636edd.427.2018.07.24.14.18.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 24 Jul 2018 14:09:27 -0700 (PDT)
-Date: Tue, 24 Jul 2018 14:09:23 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] RFC: clear 1G pages with streaming stores on x86
-Message-ID: <20180724210923.GA20168@bombadil.infradead.org>
-References: <20180724204639.26934-1-cannonmatthews@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Jul 2018 14:18:45 -0700 (PDT)
+Date: Tue, 24 Jul 2018 23:18:42 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH 0/3] PTI for x86-32 Fixes and Updates
+Message-ID: <20180724211842.GB29308@amd>
+References: <1532103744-31902-1-git-send-email-joro@8bytes.org>
+ <20180723140925.GA4285@amd>
+ <CA+55aFynT9Sp7CbnB=GqLbns7GFZbv3pDSQm_h0jFvJpz3ES+g@mail.gmail.com>
+ <20180723213830.GA4632@amd>
+ <39A1C149-DA03-46D1-801F-0205DCD69A36@amacapital.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="mxv5cy4qt+RJ9ypb"
 Content-Disposition: inline
-In-Reply-To: <20180724204639.26934-1-cannonmatthews@google.com>
+In-Reply-To: <39A1C149-DA03-46D1-801F-0205DCD69A36@amacapital.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cannon Matthews <cannonmatthews@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andres Lagar-Cavilla <andreslc@google.com>, Salman Qazi <sqazi@google.com>, Paul Turner <pjt@google.com>, David Matlack <dmatlack@google.com>, Peter Feiner <pfeiner@google.com>, Alain Trinh <nullptr@google.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Anvin <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, =?iso-8859-1?Q?J=FCrgen_Gro=DF?= <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, Joerg Roedel <jroedel@suse.de>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>
 
-On Tue, Jul 24, 2018 at 01:46:39PM -0700, Cannon Matthews wrote:
-> Reimplement clear_gigantic_page() to clear gigabytes pages using the
-> non-temporal streaming store instructions that bypass the cache
-> (movnti), since an entire 1GiB region will not fit in the cache anyway.
-> 
-> Doing an mlock() on a 512GiB 1G-hugetlb region previously would take on
-> average 134 seconds, about 260ms/GiB which is quite slow. Using `movnti`
-> and optimizing the control flow over the constituent small pages, this
-> can be improved roughly by a factor of 3-4x, with the 512GiB mlock()
-> taking only 34 seconds on average, or 67ms/GiB.
 
-This is great data ...
+--mxv5cy4qt+RJ9ypb
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> - The calls to cond_resched() have been reduced from between every 4k
-> page to every 64, as between all of the 256K page seemed overly
-> frequent.  Does this seem like an appropriate frequency? On an idle
-> system with many spare CPUs it get's rescheduled typically once or twice
-> out of the 4096 times it calls cond_resched(), which seems like it is
-> maybe the right amount, but more insight from a scheduling/latency point
-> of view would be helpful.
+On Mon 2018-07-23 14:50:50, Andy Lutomirski wrote:
+>=20
+>=20
+> > On Jul 23, 2018, at 2:38 PM, Pavel Machek <pavel@ucw.cz> wrote:
+> >=20
+> >> On Mon 2018-07-23 12:00:08, Linus Torvalds wrote:
+> >>> On Mon, Jul 23, 2018 at 7:09 AM Pavel Machek <pavel@ucw.cz> wrote:
+> >>>=20
+> >>> Meanwhile... it looks like gcc is not slowed down significantly, but
+> >>> other stuff sees 30% .. 40% slowdowns... which is rather
+> >>> significant.
+> >>=20
+> >> That is more or less expected.
+> >>=20
+> >> Gcc spends about 90+% of its time in user space, and the system calls
+> >> it *does* do tend to be "real work" (open/read/etc). And modern gcc's
+> >> no longer have the pipe between cpp and cc1, so they don't have that
+> >> issue either (which would have sjhown the PTI slowdown a lot more)
+> >>=20
+> >> Some other loads will do a lot more time traversing the user/kernel
+> >> boundary, and in 32-bit mode you won't be able to take advantage of
+> >> the address space ID's, so you really get the full effect.
+> >=20
+> > Understood. Just -- bzip2 should include quite a lot of time in
+> > userspace, too.=20
+> >=20
+> >>> Would it be possible to have per-process control of kpti? I have
+> >>> some processes where trading of speed for security would make sense.
+> >>=20
+> >> That was pretty extensively discussed, and no sane model for it was
+> >> ever agreed upon.  Some people wanted it per-thread, others per-mm,
+> >> and it wasn't clear how to set it either and how it should inherit
+> >> across fork/exec, and what the namespace rules etc should be.
+> >>=20
+> >> You absolutely need to inherit it (so that you can say "I trust this
+> >> session" or whatever), but at the same time you *don't* want to
+> >> inherit if you have a server you trust that then spawns user processes
+> >> (think "I want systemd to not have the overhead, but the user
+> >> processes it spawns obviously do need protection").
+> >>=20
+> >> It was just a morass. Nothing came out of it.  I guess people can
+> >> discuss it again, but it's not simple.
+> >=20
+> > I agree it is not easy. OTOH -- 30% of user-visible performance is a
+> > _lot_. That is worth spending man-years on...  Ok, problem is not as
+> > severe on modern CPUs with address space ID's, but...
+> >=20
+> > What I want is "if A can ptrace B, and B has pti disabled, A can have
+> > pti disabled as well". Now.. I see someone may want to have it
+> > per-thread, because for stuff like javascript JIT, thread may have
+> > rights to call ptrace, but is unable to call ptrace because JIT
+> > removed that ability... hmm...
+>=20
+> No, you don=E2=80=99t want that. The problem is that Meltdown isn=E2=80=
+=99t a problem that exists in isolation. It=E2=80=99s very plausible that J=
+avaScript code could trigger a speculation attack that, with PTI off, could=
+ read kernel memory.
 
-... which makes the lack of data here disappointing -- what're the
-comparable timings if you do check every 4kB or every 64kB instead of
-every 256kB?
+Ok, you are right. It is more tricky then I thought.
 
-> The assembly code for the __clear_page_nt routine is more or less
-> taken directly from the output of gcc with -O3 for this function with
-> some tweaks to support arbitrary sizes and moving memory barriers:
-> 
-> void clear_page_nt_64i (void *page)
-> {
->   for (int i = 0; i < GiB /sizeof(long long int); ++i)
->     {
->       _mm_stream_si64 (((long long int*)page) + i, 0);
->     }
->   sfence();
-> }
-> 
-> In general I would love to hear any thoughts and feedback on this
-> approach and any ways it could be improved.
-> 
-> Some specific questions:
-> 
-> - What is the appropriate method for defining an arch specific
-> implementation like this, is the #ifndef code sufficient, and did stuff
-> land in appropriate files?
-> 
-> - Are there any obvious pitfalls or caveats that have not been
-> considered? In particular the iterator over mem_map_next() seemed like a
-> no-op on x86, but looked like it could be important in certain
-> configurations or architectures I am not familiar with.
-> 
-> - Are there any x86_64 implementations that do not support SSE2
-> instructions like `movnti` ? What is the appropriate way to detect and
-> code around that if so?
+Still, I probably don't need to run grep's and cat's with PTI
+on. Chromium (etc) probably needs it. Python interpretter running my
+own code probably does not.
 
-No.  SSE2 was introduced with the Pentium 4, before x86-64.  The XMM
-registers are used as part of the x86-64 calling conventions, so SSE2
-is mandatory for x86-64 implementations.
+Yes, my Thinkpad X60 is probably thermal-throttled. It is not really
+new machine. I switched to T40p for now :-).
 
-> - Is there anything that could be improved about the assembly code? I
-> originally wrote it in C and don't have much experience hand writing x86
-> asm, which seems riddled with optimization pitfalls.
+What is the "worst" case people are seeing?
+time dd if=3D/dev/zero of=3D/dev/null bs=3D1 count=3D10000000
+can reproduce 3x slowdown, but that's basically microbenchmark.
 
-I suspect it might be slightly faster if implemented as inline asm in the
-x86 clear_gigantic_page() implementation instead of a function call.
-Might not affect performance a lot though.
+root-only per-process enable/disable of kpti should not be too hard to
+do. Would there be interest in that?
 
-> - Is the highmem codepath really necessary? would 1GiB pages really be
-> of much use on a highmem system? We recently removed some other parts of
-> the code that support HIGHMEM for gigantic pages (see:
-> http://lkml.kernel.org/r/20180711195913.1294-1-mike.kravetz@oracle.com)
-> so this seems like a logical continuation.
+Best regards,
 
-PAE paging doesn't support 1GB pages, so there's no need for it on x86.
+								Pavel
+--
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 7206a634270b..2515cae4af4e 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -70,6 +70,7 @@
->  #include <linux/dax.h>
->  #include <linux/oom.h>
-> 
-> +
->  #include <asm/io.h>
->  #include <asm/mmu_context.h>
->  #include <asm/pgalloc.h>
+--mxv5cy4qt+RJ9ypb
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
 
-Spurious.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iEYEARECAAYFAltXl7IACgkQMOfwapXb+vKkRQCfTP3tSQsIpQiIYF3/7KW+67l/
+PZYAnjaG42dv7CN8Jr3OMHjQVH73pfJ7
+=1WCR
+-----END PGP SIGNATURE-----
+
+--mxv5cy4qt+RJ9ypb--
