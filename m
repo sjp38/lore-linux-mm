@@ -1,37 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6373C6B0003
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 16:16:45 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id y26-v6so3508661iob.19
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 13:16:45 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b62-v6sor1010862ith.6.2018.07.24.13.16.44
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E8476B0006
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 16:32:48 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id e93-v6so3686136plb.5
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 13:32:48 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c18-v6sor3451727pgd.80.2018.07.24.13.32.46
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 24 Jul 2018 13:16:44 -0700 (PDT)
+        Tue, 24 Jul 2018 13:32:47 -0700 (PDT)
+Date: Tue, 24 Jul 2018 13:32:44 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: thp: remove use_zero_page sysfs knob
+In-Reply-To: <20180724090800.g43mmfnuuqwczzb2@kshutemo-mobl1>
+Message-ID: <alpine.DEB.2.21.1807241331540.185034@chino.kir.corp.google.com>
+References: <1532110430-115278-1-git-send-email-yang.shi@linux.alibaba.com> <20180720123243.6dfc95ba061cd06e05c0262e@linux-foundation.org> <alpine.DEB.2.21.1807201300290.224013@chino.kir.corp.google.com> <3238b5d2-fd89-a6be-0382-027a24a4d3ad@linux.alibaba.com>
+ <alpine.DEB.2.21.1807201401390.231119@chino.kir.corp.google.com> <20180722035156.GA12125@bombadil.infradead.org> <alpine.DEB.2.21.1807231323460.105582@chino.kir.corp.google.com> <alpine.DEB.2.21.1807231427550.103523@chino.kir.corp.google.com>
+ <20180724090800.g43mmfnuuqwczzb2@kshutemo-mobl1>
 MIME-Version: 1.0
-References: <20180724121139.62570-1-kirill.shutemov@linux.intel.com>
- <20180724121139.62570-2-kirill.shutemov@linux.intel.com> <20180724130308.bbd46afc3703af4c5e1d6868@linux-foundation.org>
-In-Reply-To: <20180724130308.bbd46afc3703af4c5e1d6868@linux-foundation.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 24 Jul 2018 13:16:33 -0700
-Message-ID: <CA+55aFz1Vj3b2w-nOBdV5=WwsCYhSBprjPjGog6=_=q75Z5Z-w@mail.gmail.com>
-Subject: Re: [PATCHv3 1/3] mm: Introduce vma_init()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Matthew Wilcox <willy@infradead.org>, Yang Shi <yang.shi@linux.alibaba.com>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jul 24, 2018 at 1:03 PM Andrew Morton <akpm@linux-foundation.org> wrote:
->
->
-> I'd sleep better if this became a kmem_cache_alloc() and the memset
-> was moved into vma_init().
+On Tue, 24 Jul 2018, Kirill A. Shutemov wrote:
 
-Yeah, with the vma_init(), I guess the advantage of using
-kmem_cache_zalloc() is pretty dubious.
+> > use_zero_page is currently a simple thp flag, meaning it rejects writes 
+> > where val != !!val, so perhaps it would be best to overload it with 
+> > additional options?  I can imagine 0x2 defining persistent allocation so 
+> > that the hzp is not freed when the refcount goes to 0 and 0x4 defining if 
+> > the hzp should be per node.  Implementing persistent allocation fixes our 
+> > concern with it, so I'd like to start there.  Comments?
+> 
+> Why not a separate files?
+> 
 
-Make it so.
-
-        Linus
+That works as well.  I'll write a patch for persistent allocation first to 
+address our most immediate need.
