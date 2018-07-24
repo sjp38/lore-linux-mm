@@ -1,99 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 482056B0276
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 05:13:14 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id t10-v6so1819232ywc.7
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 02:13:14 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l130-v6sor2483929ywe.10.2018.07.24.02.13.12
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DB476B0279
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 05:18:44 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id j11-v6so2768431qtp.0
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 02:18:44 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id z12-v6si911513qva.223.2018.07.24.02.18.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 24 Jul 2018 02:13:12 -0700 (PDT)
-Date: Tue, 24 Jul 2018 02:12:58 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: kernel BUG at mm/shmem.c:LINE!
-In-Reply-To: <20180723225454.GC18236@bombadil.infradead.org>
-Message-ID: <alpine.LSU.2.11.1807240121590.1105@eggly.anvils>
-References: <000000000000d624c605705e9010@google.com> <20180709143610.GD2662@bombadil.infradead.org> <alpine.LSU.2.11.1807221856350.5536@eggly.anvils> <20180723140150.GA31843@bombadil.infradead.org> <alpine.LSU.2.11.1807231111310.1698@eggly.anvils>
- <20180723203628.GA18236@bombadil.infradead.org> <alpine.LSU.2.11.1807231531240.2545@eggly.anvils> <20180723225454.GC18236@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Jul 2018 02:18:43 -0700 (PDT)
+Subject: Re: [PATCH v1 0/2] mm/kdump: exclude reserved pages in dumps
+References: <20180720123422.10127-1-david@redhat.com>
+ <9f46f0ed-e34c-73be-60ca-c892fb19ed08@suse.cz>
+ <20180723123043.GD31229@dhcp22.suse.cz>
+ <8daae80c-871e-49b6-1cf1-1f0886d3935d@redhat.com>
+ <20180724072536.GB28386@dhcp22.suse.cz>
+ <d4528eb7-9d8b-4073-afad-d8dd1390aa91@redhat.com>
+ <20180724085358.GG28386@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <aae9f664-2a49-9e71-6eb5-a63f535c2079@redhat.com>
+Date: Tue, 24 Jul 2018 11:18:39 +0200
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20180724085358.GG28386@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Hugh Dickins <hughd@google.com>, syzbot <syzbot+b8e0dfee3fd8c9012771@syzkaller.appspotmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Dave Young <dyoung@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Miles Chen <miles.chen@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Tesarik <ptesarik@suse.cz>
 
-On Mon, 23 Jul 2018, Matthew Wilcox wrote:
-> On Mon, Jul 23, 2018 at 03:42:22PM -0700, Hugh Dickins wrote:
-> > On Mon, 23 Jul 2018, Matthew Wilcox wrote:
-> > > I figured out a fix and pushed it to the 'ida' branch in
-> > > git://git.infradead.org/users/willy/linux-dax.git
-> > 
-> > Great, thanks a lot for sorting that out so quickly. But I've cloned
-> > the tree and don't see today's patch, so assume you've folded the fix
-> > into an existing commit? If possible, please append the diff of today's
-> > fix to this thread so that we can try it out. Or if that's difficult,
-> > please at least tell which files were modified, then I can probably
-> > work it out from the diff of those files against mmotm.
+On 24.07.2018 10:53, Michal Hocko wrote:
+> On Tue 24-07-18 10:46:20, David Hildenbrand wrote:
+>> On 24.07.2018 09:25, Michal Hocko wrote:
+>>> On Mon 23-07-18 19:20:43, David Hildenbrand wrote:
+>>>> On 23.07.2018 14:30, Michal Hocko wrote:
+>>>>> On Mon 23-07-18 13:45:18, Vlastimil Babka wrote:
+>>>>>> On 07/20/2018 02:34 PM, David Hildenbrand wrote:
+>>>>>>> Dumping tools (like makedumpfile) right now don't exclude reserved pages.
+>>>>>>> So reserved pages might be access by dump tools although nobody except
+>>>>>>> the owner should touch them.
+>>>>>>
+>>>>>> Are you sure about that? Or maybe I understand wrong. Maybe it changed
+>>>>>> recently, but IIRC pages that are backing memmap (struct pages) are also
+>>>>>> PG_reserved. And you definitely do want those in the dump.
+>>>>>
+>>>>> You are right. reserve_bootmem_region will make all early bootmem
+>>>>> allocations (including those backing memmaps) PageReserved. I have asked
+>>>>> several times but I haven't seen a satisfactory answer yet. Why do we
+>>>>> even care for kdump about those. If they are reserved the nobody should
+>>>>> really look at those specific struct pages and manipulate them. Kdump
+>>>>> tools are using a kernel interface to read the content. If the specific
+>>>>> content is backed by a non-existing memory then they should simply not
+>>>>> return anything.
+>>>>>
+>>>>
+>>>> "new kernel" provides an interface to read memory from "old kernel".
+>>>>
+>>>> The new kernel has no idea about
+>>>> - which memory was added/online in the old kernel
+>>>> - where struct pages of the old kernel are and what their content is
+>>>> - which memory is save to touch and which not
+>>>>
+>>>> Dump tools figure all that out by interpreting the VMCORE. They e.g.
+>>>> identify "struct pages" and see if they should be dumped. The "new
+>>>> kernel" only allows to read that memory. It cannot hinder to crash the
+>>>> system (e.g. if a dump tool would try to read a hwpoison page).
+>>>>
+>>>> So how should the "new kernel" know if a page can be touched or not?
+>>>
+>>> I am sorry I am not familiar with kdump much. But from what I remember
+>>> it reads from /proc/vmcore and implementation of this interface should
+>>> simply return EINVAL or alike when you try to dump inaccessible memory
+>>> range.
+>>
+>> I assume the main problem with this approach is that we would always
+>> have to fallback to reading old memory from vmcore page by page. e.g.
+>> makedumpfile will always try to read bigger bunches. I also assume the
+>> reason HWPOISON is handled in dump tools instead of in the kernel using
+>> the mechanism you describe is the case.
 > 
-> Sure!  It's just this:
+> Is falling back to page-by-page for some ranges a real problem? I mean
+> most of pages will simply be there so you can go in larger chunks. Once
+> you get EINVAL, you just fall back to page-by-page for that particular
+> range.
 > 
-> diff --git a/lib/xarray.c b/lib/xarray.c
-> index 32a9c2a6a9e9..383c410997eb 100644
-> --- a/lib/xarray.c
-> +++ b/lib/xarray.c
-> @@ -660,6 +660,8 @@ void xas_create_range(struct xa_state *xas)
->  	unsigned char sibs = xas->xa_sibs;
->  
->  	xas->xa_index |= ((sibs + 1) << shift) - 1;
-> +	if (!xas_top(xas->xa_node) && xas->xa_node->shift == xas->xa_shift)
-> +		xas->xa_offset |= sibs;
->  	xas->xa_shift = 0;
->  	xas->xa_sibs = 0;
 
-Yes, that's a big improvement, the huge "cp" is now fine, thank you.
+Looking at makedumpfile code, I assume implementation wise it should be
+possible. They always try to read 256 pages at a time. If we get an
+-EINVAL (-EIO?) we could fallback to reading page by page.
 
-I've updated my xfstests tree, and tried that on mmotm with this patch.
-The few failures are exactly the same as on 4.18-rc6, whether mounting
-tmpfs as huge or not. But four of the tests, generic/{340,345,346,354}
-crash (oops) on 4.18-rc5-mm1 + your patch above, but pass on 4.18-rc6.
+This implies having to properly handle exceptions when accessing memory.
+Not sure if that will be easy. Maybe is_ram_page() is the better
+alternative, because it hinders us from trying to read invalid memory
+(or memory with random content) in the first place.
 
-That was simply with non-huge tmpfs: I just patched them out and didn't
-try for whether they crash with huge tmpfs too: probably they do, but
-that won't be very interesting until the non-huge crashes are fixed.
+Will have to think about this and look into the details.
 
-I paid no attention to where the crashes were, I was just pressing on
-to skip the problem tests to get as full a run as possible, with that
-list of what's problematic and needs further investigation.
+-- 
 
-To test non-huge tmpfs (as root), I wrap xfstests' check script as
-follows (you'll want to mkdir or substitute somewhere else for /xft):
+Thanks,
 
-export FSTYP=tmpfs
-export DISABLE_UDF_TEST=1
-export TEST_DEV=tmpfs1:
-export TEST_DIR=/xft
-export SCRATCH_DEV=tmpfs2:
-export SCRATCH_MNT=/mnt
-mount -t $FSTYP -o size=1088M $TEST_DEV $TEST_DIR || exit $?
-./check "$@" # typically "-g auto"
-umount /xft /mnt 2>/dev/null
-
-But don't bother with "-g auto" for the moment: I have workarounds in
-for a few of them, generic/{027,213,449}, which we need not get into
-right now (without them, two of those tests can take close to forever).
-
-To test huge tmpfs (as root), I wrap xfstests' check script as:
-
-export FSTYP=tmpfs
-export DISABLE_UDF_TEST=1
-export TEST_DEV=tmpfs1:
-export TEST_DIR=/xft
-export SCRATCH_DEV=tmpfs2:
-export SCRATCH_MNT=/mnt
-export TMPFS_MOUNT_OPTIONS="-o size=1088M,huge=always"
-mount -t $FSTYP $TMPFS_MOUNT_OPTIONS $TEST_DEV $TEST_DIR || exit $?
-./check "$@" # typically "-g auto"
-umount /xft /mnt 2>/dev/null
-
-Hugh
+David / dhildenb
