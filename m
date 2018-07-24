@@ -1,78 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 332486B0003
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 01:47:15 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id 20-v6so3171454ois.21
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 22:47:15 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id s62-v6si7163092oig.134.2018.07.23.22.47.13
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 047DF6B0003
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 03:22:41 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id b9-v6so1286005edn.18
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 00:22:40 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a12-v6si5053587edm.339.2018.07.24.00.22.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jul 2018 22:47:13 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6O5ismR007325
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 01:47:12 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2kdqxass68-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 01:47:12 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Tue, 24 Jul 2018 06:47:10 +0100
-Date: Tue, 24 Jul 2018 08:47:04 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH] hexagon: switch to NO_BOOTMEM
-References: <1531726998-10971-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20180723212339.GA12771@codeaurora.org>
+        Tue, 24 Jul 2018 00:22:39 -0700 (PDT)
+Date: Tue, 24 Jul 2018 09:22:37 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v1 0/2] mm/kdump: exclude reserved pages in dumps
+Message-ID: <20180724072237.GA28386@dhcp22.suse.cz>
+References: <20180720123422.10127-1-david@redhat.com>
+ <9f46f0ed-e34c-73be-60ca-c892fb19ed08@suse.cz>
+ <f8d7b5f9-e5ee-0625-f53d-50d1841e1388@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180723212339.GA12771@codeaurora.org>
-Message-Id: <20180724054704.GA16933@rapoport-lnx>
+In-Reply-To: <f8d7b5f9-e5ee-0625-f53d-50d1841e1388@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Kuo <rkuo@codeaurora.org>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-hexagon@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Hildenbrand <david@redhat.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Dave Young <dyoung@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?iso-8859-1?Q?Marc-Andr=E9?= Lureau <marcandre.lureau@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Miles Chen <miles.chen@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Tesarik <ptesarik@suse.cz>
 
-On Mon, Jul 23, 2018 at 04:23:39PM -0500, Richard Kuo wrote:
-> 
-> On Mon, Jul 16, 2018 at 10:43:18AM +0300, Mike Rapoport wrote:
-> > This patch adds registration of the system memory with memblock, eliminates
-> > bootmem initialization and converts early memory reservations from bootmem
-> > to memblock.
+On Mon 23-07-18 19:12:58, David Hildenbrand wrote:
+> On 23.07.2018 13:45, Vlastimil Babka wrote:
+> > On 07/20/2018 02:34 PM, David Hildenbrand wrote:
+> >> Dumping tools (like makedumpfile) right now don't exclude reserved pages.
+> >> So reserved pages might be access by dump tools although nobody except
+> >> the owner should touch them.
 > > 
-> > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> > Are you sure about that? Or maybe I understand wrong. Maybe it changed
+> > recently, but IIRC pages that are backing memmap (struct pages) are also
+> > PG_reserved. And you definitely do want those in the dump.
 > 
-> Sorry for the delay, and thanks for this patch.
+> I proposed a new flag/value to mask pages that are logically offline but
+> Michal wanted me to go into this direction.
 > 
-> I think the first memblock_reserve should use ARCH_PFN_OFFSET instead of
-> PHYS_OFFSET.
+> While we can special case struct pages in dump tools ("we have to
+> read/interpret them either way, so we can also dump them"), it smells
+> like my original attempt was cleaner. Michal?
 
-memblock_reserve gets physical address rather than a pfn.
-
-If I read arch/hexagon/include/asm/mem-layout.h correctly, the PHYS_OFFSET
-*is* the physical address of the RAM and ARCH_PFN_OFFSET is the first pfn:
-
-#define PHYS_PFN_OFFSET	(PHYS_OFFSET >> PAGE_SHIFT)
-#define ARCH_PFN_OFFSET	PHYS_PFN_OFFSET
-
-Did I miss something?
- 
-> If you can amend that I'd be happy to take it through my tree or it can go
-> through any other.
-> 
-> 
-> Thanks,
-> Richard Kuo
-> 
-> 
-> -- 
-> Employee of Qualcomm Innovation Center, Inc.
-> Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum, 
-> a Linux Foundation Collaborative Project
-> 
+But we do not have many page flags spare and even if we have one or two
+this doesn't look like the use for them. So I still think we should try
+the PageReserved way.
 
 -- 
-Sincerely yours,
-Mike.
+Michal Hocko
+SUSE Labs
