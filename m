@@ -1,79 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A94E6B0003
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 18:36:39 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id e19-v6so3386006pgv.11
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 15:36:39 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id u4-v6si11582015pgu.546.2018.07.24.15.36.37
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C9416B0006
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 18:38:41 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id a70-v6so4816919qkb.16
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 15:38:41 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m63-v6sor6131176qkd.12.2018.07.24.15.38.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jul 2018 15:36:37 -0700 (PDT)
-Date: Tue, 24 Jul 2018 15:36:21 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3] mm: Change return type int to vm_fault_t for fault
- handlers
-Message-Id: <20180724153621.e7eed7faa1d265eee73a7031@linux-foundation.org>
-In-Reply-To: <20180604171727.GA20279@jordon-HP-15-Notebook-PC>
-References: <20180604171727.GA20279@jordon-HP-15-Notebook-PC>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (Google Transport Security);
+        Tue, 24 Jul 2018 15:38:40 -0700 (PDT)
+Subject: Re: freepage accounting bug with CMA/migrate isolation
+References: <86bea4f7-229a-7cbb-1e8a-7e6d96f0f087@oracle.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <92636e32-c71b-0092-02bf-a802065075ef@redhat.com>
+Date: Tue, 24 Jul 2018 15:38:37 -0700
+MIME-Version: 1.0
+In-Reply-To: <86bea4f7-229a-7cbb-1e8a-7e6d96f0f087@oracle.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: willy@infradead.org, viro@zeniv.linux.org.uk, hughd@google.com, mhocko@suse.com, ross.zwisler@linux.intel.com, zi.yan@cs.rutgers.edu, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, gregkh@linuxfoundation.org, mark.rutland@arm.com, riel@redhat.com, pasha.tatashin@oracle.com, jschoenh@amazon.de, kstewart@linuxfoundation.org, rientjes@google.com, tglx@linutronix.de, peterz@infradead.org, mgorman@suse.de, yang.s@alibaba-inc.com, minchan@kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>
 
-On Mon, 4 Jun 2018 22:47:27 +0530 Souptick Joarder <jrdr.linux@gmail.com> wrote:
-
-> Use new return type vm_fault_t for fault handler. For
-> now, this is just documenting that the function returns
-> a VM_FAULT value rather than an errno. Once all instances
-> are converted, vm_fault_t will become a distinct type.
+On 07/23/2018 09:24 PM, Mike Kravetz wrote:
+> With v4.17, I can see an issue like those addressed in commits 3c605096d315
+> ("mm/page_alloc: restrict max order of merging on isolated pageblock")
+> and d9dddbf55667 ("mm/page_alloc: prevent merging between isolated and
+> other pageblocks").  After running a CMA stress test for a while, I see:
+>    MemTotal:        8168384 kB
+>    MemFree:         8457232 kB
+>    MemAvailable:    9204844 kB
+> If I let the test run, MemFree and MemAvailable will continue to grow.
 > 
-> Ref-> commit 1c8f422059ae ("mm: change return type to vm_fault_t")
+> I am certain the issue is with pageblocks of migratetype ISOLATED.  If
+> I disable all special 'is_migrate_isolate' checks in freepage accounting,
+> the issue goes away.  Further, I am pretty sure the issue has to do with
+> pageblock merging and or page orders spanning pageblocks.  If I make
+> pageblock_order equal MAX_ORDER-1, the issue also goes away.
 > 
-> The aim is to change the return type of finish_fault()
-> and handle_mm_fault() to vm_fault_t type. As part of
-> that clean up return type of all other recursively called
-> functions have been changed to vm_fault_t type.
+> Just looking for suggesting in where/how to debug.  I've been hacking on
+> this without much success.
+> --
+> Mike Kravetz
 > 
-> The places from where handle_mm_fault() is getting invoked
-> will be change to vm_fault_t type but in a separate patch.
-> 
-> vmf_error() is the newly introduce inline function
-> in 4.17-rc6.
 
-Looks OK.
+If you revert d883c6cf3b39 ("Revert "mm/cma: manage the memory of the CMA
+area by using the ZONE_MOVABLE"") do you still see the issue? I thought
+there was another isolation edge case which was fixed by that series.
 
-For some reason the shmem.c changes are already present.
-
-One incidental fixup:
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm-change-return-type-int-to-vm_fault_t-for-fault-handlers-fix
-
-don't shadow outer local `ret' in __do_huge_pmd_anonymous_page()
-
---- a/mm/huge_memory.c~mm-change-return-type-int-to-vm_fault_t-for-fault-handlers-fix
-+++ a/mm/huge_memory.c
-@@ -584,15 +584,15 @@ static vm_fault_t __do_huge_pmd_anonymou
- 
- 		/* Deliver the page fault to userland */
- 		if (userfaultfd_missing(vma)) {
--			vm_fault_t ret;
-+			vm_fault_t ret2;
- 
- 			spin_unlock(vmf->ptl);
- 			mem_cgroup_cancel_charge(page, memcg, true);
- 			put_page(page);
- 			pte_free(vma->vm_mm, pgtable);
--			ret = handle_userfault(vmf, VM_UFFD_MISSING);
--			VM_BUG_ON(ret & VM_FAULT_FALLBACK);
--			return ret;
-+			ret2 = handle_userfault(vmf, VM_UFFD_MISSING);
-+			VM_BUG_ON(ret2 & VM_FAULT_FALLBACK);
-+			return ret2;
- 		}
- 
- 		entry = mk_huge_pmd(page, vma->vm_page_prot);
+Thanks,
+Laura
