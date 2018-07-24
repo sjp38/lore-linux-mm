@@ -1,86 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 91D996B0273
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 04:54:02 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id f13-v6so1459130edr.10
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 01:54:02 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t18-v6si698329edf.80.2018.07.24.01.54.01
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B597B6B0275
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 05:08:07 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id j4-v6so2174744pgq.16
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 02:08:07 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u37-v6sor2419241pgk.366.2018.07.24.02.08.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jul 2018 01:54:01 -0700 (PDT)
-Date: Tue, 24 Jul 2018 10:53:58 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v1 0/2] mm/kdump: exclude reserved pages in dumps
-Message-ID: <20180724085358.GG28386@dhcp22.suse.cz>
-References: <20180720123422.10127-1-david@redhat.com>
- <9f46f0ed-e34c-73be-60ca-c892fb19ed08@suse.cz>
- <20180723123043.GD31229@dhcp22.suse.cz>
- <8daae80c-871e-49b6-1cf1-1f0886d3935d@redhat.com>
- <20180724072536.GB28386@dhcp22.suse.cz>
- <d4528eb7-9d8b-4073-afad-d8dd1390aa91@redhat.com>
+        (Google Transport Security);
+        Tue, 24 Jul 2018 02:08:06 -0700 (PDT)
+Date: Tue, 24 Jul 2018 12:08:00 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: thp: remove use_zero_page sysfs knob
+Message-ID: <20180724090800.g43mmfnuuqwczzb2@kshutemo-mobl1>
+References: <1532110430-115278-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20180720123243.6dfc95ba061cd06e05c0262e@linux-foundation.org>
+ <alpine.DEB.2.21.1807201300290.224013@chino.kir.corp.google.com>
+ <3238b5d2-fd89-a6be-0382-027a24a4d3ad@linux.alibaba.com>
+ <alpine.DEB.2.21.1807201401390.231119@chino.kir.corp.google.com>
+ <20180722035156.GA12125@bombadil.infradead.org>
+ <alpine.DEB.2.21.1807231323460.105582@chino.kir.corp.google.com>
+ <alpine.DEB.2.21.1807231427550.103523@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d4528eb7-9d8b-4073-afad-d8dd1390aa91@redhat.com>
+In-Reply-To: <alpine.DEB.2.21.1807231427550.103523@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Dave Young <dyoung@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?iso-8859-1?Q?Marc-Andr=E9?= Lureau <marcandre.lureau@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Miles Chen <miles.chen@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Tesarik <ptesarik@suse.cz>
+To: David Rientjes <rientjes@google.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Yang Shi <yang.shi@linux.alibaba.com>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 24-07-18 10:46:20, David Hildenbrand wrote:
-> On 24.07.2018 09:25, Michal Hocko wrote:
-> > On Mon 23-07-18 19:20:43, David Hildenbrand wrote:
-> >> On 23.07.2018 14:30, Michal Hocko wrote:
-> >>> On Mon 23-07-18 13:45:18, Vlastimil Babka wrote:
-> >>>> On 07/20/2018 02:34 PM, David Hildenbrand wrote:
-> >>>>> Dumping tools (like makedumpfile) right now don't exclude reserved pages.
-> >>>>> So reserved pages might be access by dump tools although nobody except
-> >>>>> the owner should touch them.
-> >>>>
-> >>>> Are you sure about that? Or maybe I understand wrong. Maybe it changed
-> >>>> recently, but IIRC pages that are backing memmap (struct pages) are also
-> >>>> PG_reserved. And you definitely do want those in the dump.
-> >>>
-> >>> You are right. reserve_bootmem_region will make all early bootmem
-> >>> allocations (including those backing memmaps) PageReserved. I have asked
-> >>> several times but I haven't seen a satisfactory answer yet. Why do we
-> >>> even care for kdump about those. If they are reserved the nobody should
-> >>> really look at those specific struct pages and manipulate them. Kdump
-> >>> tools are using a kernel interface to read the content. If the specific
-> >>> content is backed by a non-existing memory then they should simply not
-> >>> return anything.
-> >>>
-> >>
-> >> "new kernel" provides an interface to read memory from "old kernel".
-> >>
-> >> The new kernel has no idea about
-> >> - which memory was added/online in the old kernel
-> >> - where struct pages of the old kernel are and what their content is
-> >> - which memory is save to touch and which not
-> >>
-> >> Dump tools figure all that out by interpreting the VMCORE. They e.g.
-> >> identify "struct pages" and see if they should be dumped. The "new
-> >> kernel" only allows to read that memory. It cannot hinder to crash the
-> >> system (e.g. if a dump tool would try to read a hwpoison page).
-> >>
-> >> So how should the "new kernel" know if a page can be touched or not?
-> > 
-> > I am sorry I am not familiar with kdump much. But from what I remember
-> > it reads from /proc/vmcore and implementation of this interface should
-> > simply return EINVAL or alike when you try to dump inaccessible memory
-> > range.
+On Mon, Jul 23, 2018 at 02:33:08PM -0700, David Rientjes wrote:
+> On Mon, 23 Jul 2018, David Rientjes wrote:
 > 
-> I assume the main problem with this approach is that we would always
-> have to fallback to reading old memory from vmcore page by page. e.g.
-> makedumpfile will always try to read bigger bunches. I also assume the
-> reason HWPOISON is handled in dump tools instead of in the kernel using
-> the mechanism you describe is the case.
+> > > > The huge zero page can be reclaimed under memory pressure and, if it is, 
+> > > > it is attempted to be allocted again with gfp flags that attempt memory 
+> > > > compaction that can become expensive.  If we are constantly under memory 
+> > > > pressure, it gets freed and reallocated millions of times always trying to 
+> > > > compact memory both directly and by kicking kcompactd in the background.
+> > > > 
+> > > > It likely should also be per node.
+> > > 
+> > > Have you benchmarked making the non-huge zero page per-node?
+> > > 
+> > 
+> > Not since we disable it :)  I will, though.  The more concerning issue for 
+> > us, modulo CVE-2017-1000405, is the cpu cost of constantly directly 
+> > compacting memory for allocating the hzp in real time after it has been 
+> > reclaimed.  We've observed this happening tens or hundreds of thousands 
+> > of times on some systems.  It will be 2MB per node on x86 if the data 
+> > suggests we should make it NUMA aware, I don't think the cost is too high 
+> > to leave it persistently available even under memory pressure if 
+> > use_zero_page is enabled.
+> > 
+> 
+> Measuring access latency to 4GB of memory on Naples I observe ~6.7% 
+> slower access latency intrasocket and ~14% slower intersocket.
+> 
+> use_zero_page is currently a simple thp flag, meaning it rejects writes 
+> where val != !!val, so perhaps it would be best to overload it with 
+> additional options?  I can imagine 0x2 defining persistent allocation so 
+> that the hzp is not freed when the refcount goes to 0 and 0x4 defining if 
+> the hzp should be per node.  Implementing persistent allocation fixes our 
+> concern with it, so I'd like to start there.  Comments?
 
-Is falling back to page-by-page for some ranges a real problem? I mean
-most of pages will simply be there so you can go in larger chunks. Once
-you get EINVAL, you just fall back to page-by-page for that particular
-range.
+Why not a separate files?
+
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
