@@ -1,94 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 91F886B0007
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 11:51:27 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id t10-v6so2402614ywc.7
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 08:51:27 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h63-v6sor2760381ybc.125.2018.07.24.08.51.26
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F2C226B000C
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 11:53:09 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id r9-v6so1988993edh.14
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 08:53:09 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id z9-v6si1472666edm.201.2018.07.24.08.53.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 24 Jul 2018 08:51:26 -0700 (PDT)
-Date: Tue, 24 Jul 2018 11:54:15 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 09/10] psi: cgroup support
-Message-ID: <20180724155415.GB11598@cmpxchg.org>
-References: <20180712172942.10094-1-hannes@cmpxchg.org>
- <20180712172942.10094-10-hannes@cmpxchg.org>
- <20180717154059.GB2476@hirez.programming.kicks-ass.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Jul 2018 08:53:08 -0700 (PDT)
+Date: Tue, 24 Jul 2018 08:52:51 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: cgroup-aware OOM killer, how to move forward
+Message-ID: <20180724155248.GA24429@castle>
+References: <20180724073230.GE28386@dhcp22.suse.cz>
+ <20180724130836.GH1934745@devbig577.frc2.facebook.com>
+ <20180724132640.GL28386@dhcp22.suse.cz>
+ <20180724133110.GJ1934745@devbig577.frc2.facebook.com>
+ <20180724135022.GO28386@dhcp22.suse.cz>
+ <20180724135528.GK1934745@devbig577.frc2.facebook.com>
+ <20180724142554.GQ28386@dhcp22.suse.cz>
+ <20180724142820.GL1934745@devbig577.frc2.facebook.com>
+ <20180724144351.GR28386@dhcp22.suse.cz>
+ <20180724144940.GN1934745@devbig577.frc2.facebook.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20180717154059.GB2476@hirez.programming.kicks-ass.net>
+In-Reply-To: <20180724144940.GN1934745@devbig577.frc2.facebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Tejun Heo <tj@kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>, hannes@cmpxchg.org, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org, gthelen@google.com
 
-Hi Peter,
-
-On Tue, Jul 17, 2018 at 05:40:59PM +0200, Peter Zijlstra wrote:
-> On Thu, Jul 12, 2018 at 01:29:41PM -0400, Johannes Weiner wrote:
-> > +/**
-> > + * cgroup_move_task - move task to a different cgroup
-> > + * @task: the task
-> > + * @to: the target css_set
-> > + *
-> > + * Move task to a new cgroup and safely migrate its associated stall
-> > + * state between the different groups.
-> > + *
-> > + * This function acquires the task's rq lock to lock out concurrent
-> > + * changes to the task's scheduling state and - in case the task is
-> > + * running - concurrent changes to its stall state.
-> > + */
-> > +void cgroup_move_task(struct task_struct *task, struct css_set *to)
-> > +{
-> > +	unsigned int task_flags = 0;
-> > +	struct rq_flags rf;
-> > +	struct rq *rq;
-> > +	u64 now;
-> > +
-> > +	rq = task_rq_lock(task, &rf);
-> > +
-> > +	if (task_on_rq_queued(task)) {
-> > +		task_flags = TSK_RUNNING;
-> > +	} else if (task->in_iowait) {
-> > +		task_flags = TSK_IOWAIT;
-> > +	}
-> > +	if (task->flags & PF_MEMSTALL)
-> > +		task_flags |= TSK_MEMSTALL;
-> > +
-> > +	if (task_flags) {
-> > +		update_rq_clock(rq);
-> > +		now = rq_clock(rq);
-> > +		psi_task_change(task, now, task_flags, 0);
-> > +	}
-> > +
-> > +	/*
-> > +	 * Lame to do this here, but the scheduler cannot be locked
-> > +	 * from the outside, so we move cgroups from inside sched/.
-> > +	 */
-> > +	rcu_assign_pointer(task->cgroups, to);
-> > +
-> > +	if (task_flags)
-> > +		psi_task_change(task, now, 0, task_flags);
-> > +
-> > +	task_rq_unlock(rq, task, &rf);
-> > +}
+On Tue, Jul 24, 2018 at 07:49:40AM -0700, Tejun Heo wrote:
+> Hello, Michal.
 > 
-> Why is that not part of cpu_cgroup_attach() / sched_move_task() ?
+> On Tue, Jul 24, 2018 at 04:43:51PM +0200, Michal Hocko wrote:
+> > If yes, then I do not see it ;) Mostly because panic_on_oom doesn't have
+> > any scope. It is all or nothing thing. You can only control whether
+> > memcg OOMs should be considered or not because this is inherently
+> > dangerous to be the case by default.
+> 
+> Oh yeah, so, panic_on_oom is like group oom on the root cgroup, right?
+> If 1, it treats the whole system as a single unit and kills it no
+> matter the oom domain.  If 2, it only does so if the oom is not caused
+> by restrictions in subdomains.
+> 
+> > oom_group has a scope and that scope is exactly what we are trying to
+> > find a proper semantic for. And especially what to do if descendants in
+> > the hierarchy disagree with parent(s). While I do not see a sensible
+> > configuration where the scope of the OOM should define the workload is
+> > indivisible I would like to prevent from "carved in stone" semantic that
+> > couldn't be changed later.
+> 
+> And we can scope it down the same way down the cgroup hierarchy.
+> 
+> > So IMHO the best option would be to simply inherit the group_oom to
+> > children. This would allow users to do their weird stuff but the default
+> > configuration would be consistent.
 
-Hm, there is some overlap, but it's not the same operation.
+I think, that the problem occurs because of the default value (0).
 
-cpu_cgroup_attach() handles rq migration between cgroups that have the
-cpu controller enabled, but psi needs to migrate task counts around
-for memory and IO as well, as we always need to know nr_runnable.
+Let's imagine we can make default to 1.
+It means, that by default we kill the whole sub-tree up to the top-level
+cgroup, and it does guarantee consistency.
+If on some level userspace _knows_ how to handle OOM, it opts-out
+by setting oom.group to 0.
 
-The cpu controller is super expensive, though, and e.g. we had to
-disable it for cost purposes while still running psi, so it wouldn't
-be great to need full hierarchical per-cgroup scheduling policy just
-to know the runnable count in a group.
-
-Likewise, I don't think we'd want to change the cgroup core to call
-->attach for *all* cgroups and have the callback figure out whether
-the controller is actually enabled on them or not for this one case.
+E.g. systemd _knows_ that services working in systems slice are
+independent and knows how to detect that they are dead and restart.
+So, it sets system.slice/memory.oom.group to 0.
