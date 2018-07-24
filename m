@@ -1,69 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 34BC16B026B
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 03:32:33 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id b25-v6so1344585eds.17
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 00:32:33 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n38-v6si2185295edn.443.2018.07.24.00.32.31
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 221626B026D
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 03:36:46 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id z11-v6so805372wma.4
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 00:36:46 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v16-v6sor4259539wrr.24.2018.07.24.00.36.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jul 2018 00:32:31 -0700 (PDT)
-Date: Tue, 24 Jul 2018 09:32:30 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: cgroup-aware OOM killer, how to move forward
-Message-ID: <20180724073230.GE28386@dhcp22.suse.cz>
-References: <alpine.DEB.2.21.1807162115180.157949@chino.kir.corp.google.com>
- <20180717173844.GB14909@castle.DHCP.thefacebook.com>
- <20180717194945.GM7193@dhcp22.suse.cz>
- <20180717200641.GB18762@castle.DHCP.thefacebook.com>
- <20180718081230.GP7193@dhcp22.suse.cz>
- <20180718152846.GA6840@castle.DHCP.thefacebook.com>
- <20180719073843.GL7193@dhcp22.suse.cz>
- <20180719170543.GA21770@castle.DHCP.thefacebook.com>
- <20180723141748.GH31229@dhcp22.suse.cz>
- <20180723150929.GD1934745@devbig577.frc2.facebook.com>
+        (Google Transport Security);
+        Tue, 24 Jul 2018 00:36:44 -0700 (PDT)
+Date: Tue, 24 Jul 2018 09:36:41 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v6 11/13] x86/mm/pat: Prepare {reserve, free}_memtype()
+ for "decoy" addresses
+Message-ID: <20180724073641.GA15984@gmail.com>
+References: <153154376846.34503.15480221419473501643.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <153154382700.34503.10197588570935341739.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180723150929.GD1934745@devbig577.frc2.facebook.com>
+In-Reply-To: <153154382700.34503.10197588570935341739.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>, hannes@cmpxchg.org, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org, gthelen@google.com
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@lists.01.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@alien8.de>, linux-edac@vger.kernel.org, x86@kernel.org, hch@lst.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 23-07-18 08:09:29, Tejun Heo wrote:
-> Hello,
+
+* Dan Williams <dan.j.williams@intel.com> wrote:
+
+> In preparation for using set_memory_uc() instead set_memory_np() for
+> isolating poison from speculation, teach the memtype code to sanitize
+> physical addresses vs __PHYSICAL_MASK.
 > 
-> On Mon, Jul 23, 2018 at 04:17:48PM +0200, Michal Hocko wrote:
-> > I am not sure. If you are going to delegate then you are basically
-> > losing control of the group_oom at A-level. Is this good? What if I
-> > _want_ to tear down the whole thing if it starts misbehaving because I
-> > do not trust it?
-> > 
-> > The more I think about it the more I am concluding that we should start
-> > with a more contrained model and require that once parent is
-> > group_oom == 1 then children have to as well. If we ever find a usecase
-> > to require a different scheme we can weaker it later. We cannot do that
-> > other way around.
-> > 
-> > Tejun, Johannes what do you think about that?
+> The motivation for using set_memory_uc() for this case is to allow
+> ongoing access to persistent memory pages via the pmem-driver +
+> memcpy_mcsafe() until the poison is repaired.
 > 
-> I'd find the cgroup closest to the root which has the oom group set
-> and kill the entire subtree.
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Cc: Tony Luck <tony.luck@intel.com>
+> Cc: Borislav Petkov <bp@alien8.de>
+> Cc: <linux-edac@vger.kernel.org>
+> Cc: <x86@kernel.org>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  arch/x86/mm/pat.c |   16 ++++++++++++++++
+>  1 file changed, 16 insertions(+)
+> 
+> diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+> index 1555bd7d3449..6788ffa990f8 100644
+> --- a/arch/x86/mm/pat.c
+> +++ b/arch/x86/mm/pat.c
+> @@ -512,6 +512,17 @@ static int free_ram_pages_type(u64 start, u64 end)
+>  	return 0;
+>  }
+>  
+> +static u64 sanitize_phys(u64 address)
+> +{
+> +	/*
+> +	 * When changing the memtype for pages containing poison allow
+> +	 * for a "decoy" virtual address (bit 63 clear) passed to
+> +	 * set_memory_X(). __pa() on a "decoy" address results in a
+> +	 * physical address with it 63 set.
+> +	 */
+> +	return address & __PHYSICAL_MASK;
 
-Yes, this is what we have been discussing. In fact it would match the
-behavior which is still sitting in the mmotm tree where we compare
-groups.
+s/it/bit
 
-> There's no reason to put any
-> restrictions on what each cgroup can configure.  The only thing which
-> matters is is that the effective behavior is what the highest in the
-> ancestry configures, and, at the system level, it'd conceptually map
-> to panic_on_oom.
+Thanks,
 
-Hmm, so do we inherit group_oom? If not, how do we prevent from
-unexpected behavior?
--- 
-Michal Hocko
-SUSE Labs
+	Ingo
