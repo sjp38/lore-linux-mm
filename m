@@ -1,96 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 052366B0003
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 16:53:53 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id r20-v6so2619783pgv.20
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 13:53:52 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a10-v6si11256861pff.304.2018.07.24.13.53.51
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2789A6B0266
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 16:55:36 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id e93-v6so3717059plb.5
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 13:55:36 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p128-v6sor3470170pga.26.2018.07.24.13.55.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jul 2018 13:53:51 -0700 (PDT)
-Date: Tue, 24 Jul 2018 13:53:50 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] RFC: clear 1G pages with streaming stores on x86
-Message-Id: <20180724135350.91a90f4f8742ec59c42721c3@linux-foundation.org>
-In-Reply-To: <20180724204639.26934-1-cannonmatthews@google.com>
-References: <20180724204639.26934-1-cannonmatthews@google.com>
-Mime-Version: 1.0
+        (Google Transport Security);
+        Tue, 24 Jul 2018 13:55:35 -0700 (PDT)
+Date: Tue, 24 Jul 2018 13:55:33 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm, oom: remove oom_lock from oom_reaper
+In-Reply-To: <20180719075922.13784-1-mhocko@kernel.org>
+Message-ID: <alpine.DEB.2.21.1807241355200.191886@chino.kir.corp.google.com>
+References: <20180719075922.13784-1-mhocko@kernel.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cannon Matthews <cannonmatthews@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andres Lagar-Cavilla <andreslc@google.com>, Salman Qazi <sqazi@google.com>, Paul Turner <pjt@google.com>, David Matlack <dmatlack@google.com>, Peter Feiner <pfeiner@google.com>, Alain Trinh <nullptr@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Tue, 24 Jul 2018 13:46:39 -0700 Cannon Matthews <cannonmatthews@google.com> wrote:
+On Thu, 19 Jul 2018, Michal Hocko wrote:
 
-> Reimplement clear_gigantic_page() to clear gigabytes pages using the
-> non-temporal streaming store instructions that bypass the cache
-> (movnti), since an entire 1GiB region will not fit in the cache anyway.
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> ...
+> oom_reaper used to rely on the oom_lock since e2fe14564d33 ("oom_reaper:
+> close race with exiting task"). We do not really need the lock anymore
+> though. 212925802454 ("mm: oom: let oom_reap_task and exit_mmap run
+> concurrently") has removed serialization with the exit path based on the
+> mm reference count and so we do not really rely on the oom_lock anymore.
 > 
-> Tested:
-> 	Time to `mlock()` a 512GiB region on broadwell CPU
-> 				AVG time (s)	% imp.	ms/page
-> 	clear_page_erms		133.584		-	261
-> 	clear_page_nt		34.154		74.43%	67
-
-A gigantic improvement!
-
-> --- a/arch/x86/include/asm/page_64.h
-> +++ b/arch/x86/include/asm/page_64.h
-> @@ -56,6 +56,9 @@ static inline void clear_page(void *page)
+> Tetsuo was arguing that at least MMF_OOM_SKIP should be set under the
+> lock to prevent from races when the page allocator didn't manage to get
+> the freed (reaped) memory in __alloc_pages_may_oom but it sees the flag
+> later on and move on to another victim. Although this is possible in
+> principle let's wait for it to actually happen in real life before we
+> make the locking more complex again.
 > 
->  void copy_page(void *to, void *from);
+> Therefore remove the oom_lock for oom_reaper paths (both exit_mmap and
+> oom_reap_task_mm). The reaper serializes with exit_mmap by mmap_sem +
+> MMF_OOM_SKIP flag. There is no synchronization with out_of_memory path
+> now.
 > 
-> +#define __HAVE_ARCH_CLEAR_GIGANTIC_PAGE
-> +void __clear_page_nt(void *page, u64 page_size);
+> Suggested-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Nit: the modern way is
-
-#ifndef __clear_page_nt
-void __clear_page_nt(void *page, u64 page_size);
-#define __clear_page_nt __clear_page_nt
-#endif
-
-Not sure why, really.  I guess it avoids adding two symbols and 
-having to remember and maintain the relationship between them.
-
-> --- /dev/null
-> +++ b/arch/x86/lib/clear_gigantic_page.c
-> @@ -0,0 +1,30 @@
-> +#include <asm/page.h>
-> +
-> +#include <linux/kernel.h>
-> +#include <linux/mm.h>
-> +#include <linux/sched.h>
-> +
-> +#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
-> +#define PAGES_BETWEEN_RESCHED 64
-> +void clear_gigantic_page(struct page *page,
-> +				unsigned long addr,
-> +				unsigned int pages_per_huge_page)
-> +{
-> +	int i;
-> +	void *dest = page_to_virt(page);
-> +	int resched_count = 0;
-> +
-> +	BUG_ON(pages_per_huge_page % PAGES_BETWEEN_RESCHED != 0);
-> +	BUG_ON(!dest);
-> +
-> +	might_sleep();
-
-cond_resched() already does might_sleep() - it doesn't seem needed here.
-
-> +	for (i = 0; i < pages_per_huge_page; i += PAGES_BETWEEN_RESCHED) {
-> +		__clear_page_nt(dest + (i * PAGE_SIZE),
-> +				PAGES_BETWEEN_RESCHED * PAGE_SIZE);
-> +		resched_count += cond_resched();
-> +	}
-> +	/* __clear_page_nt requrires and `sfence` barrier. */
-> +	wmb();
-> +	pr_debug("clear_gigantic_page: rescheduled %d times\n", resched_count);
-> +}
-> +#endif
+Acked-by: David Rientjes <rientjes@google.com>
