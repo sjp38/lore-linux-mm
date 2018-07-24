@@ -1,111 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5609C6B0010
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 09:23:32 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id m197-v6so4111848oig.18
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 06:23:32 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id e125-v6si7483836oif.165.2018.07.24.06.23.31
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A71F6B026B
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 09:26:45 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id b9-v6so2918621pla.19
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 06:26:45 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i5-v6si10886839pgg.84.2018.07.24.06.26.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jul 2018 06:23:31 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6ODIleN008490
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 09:23:30 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ke3r5uyb2-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 09:23:30 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Tue, 24 Jul 2018 14:23:28 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 2/2] um: switch to NO_BOOTMEM
-Date: Tue, 24 Jul 2018 16:23:14 +0300
-In-Reply-To: <1532438594-4530-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1532438594-4530-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1532438594-4530-3-git-send-email-rppt@linux.vnet.ibm.com>
+        Tue, 24 Jul 2018 06:26:44 -0700 (PDT)
+Date: Tue, 24 Jul 2018 15:26:40 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: cgroup-aware OOM killer, how to move forward
+Message-ID: <20180724132640.GL28386@dhcp22.suse.cz>
+References: <20180717194945.GM7193@dhcp22.suse.cz>
+ <20180717200641.GB18762@castle.DHCP.thefacebook.com>
+ <20180718081230.GP7193@dhcp22.suse.cz>
+ <20180718152846.GA6840@castle.DHCP.thefacebook.com>
+ <20180719073843.GL7193@dhcp22.suse.cz>
+ <20180719170543.GA21770@castle.DHCP.thefacebook.com>
+ <20180723141748.GH31229@dhcp22.suse.cz>
+ <20180723150929.GD1934745@devbig577.frc2.facebook.com>
+ <20180724073230.GE28386@dhcp22.suse.cz>
+ <20180724130836.GH1934745@devbig577.frc2.facebook.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180724130836.GH1934745@devbig577.frc2.facebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-um@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>, hannes@cmpxchg.org, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org, gthelen@google.com
 
-Replace bootmem initialization with memblock_add and memblock_reserve calls
-and explicit initialization of {min,max}_low_pfn.
+On Tue 24-07-18 06:08:36, Tejun Heo wrote:
+> Hello,
+> 
+> On Tue, Jul 24, 2018 at 09:32:30AM +0200, Michal Hocko wrote:
+[...]
+> > > There's no reason to put any
+> > > restrictions on what each cgroup can configure.  The only thing which
+> > > matters is is that the effective behavior is what the highest in the
+> > > ancestry configures, and, at the system level, it'd conceptually map
+> > > to panic_on_oom.
+> > 
+> > Hmm, so do we inherit group_oom? If not, how do we prevent from
+> > unexpected behavior?
+> 
+> Hmm... I guess we're debating two options here.  Please consider the
+> following hierarchy.
+> 
+>       R
+>       |
+>       A (group oom == 1)
+>      / \
+>     B   C
+>     |
+>     D
+> 
+> 1. No matter what B, C or D sets, as long as A sets group oom, any oom
+>    kill inside A's subtree kills the entire subtree.
+> 
+> 2. A's group oom policy applies iff the source of the OOM is either at
+>    or above A - ie. iff the OOM is system-wide or caused by memory.max
+>    of A.
+> 
+> In #1, it doesn't matter what B, C or D sets, so it's kinda moot to
+> discuss whether they inherit A's setting or not.  A's is, if set,
+> always overriding.  In #2, what B, C or D sets matters if they also
+> set their own memory.max, so there's no reason for them to inherit
+> anything.
+> 
+> I'm actually okay with either option.  #2 is more flexible than #1 but
+> given that this is a cgroup owned property which is likely to be set
+> on per-application basis, #1 is likely good enough.
+> 
+> IIRC, we did #2 in the original implementation and the simplified one
+> is doing #1, right?
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
- arch/um/Kconfig.common   |  2 ++
- arch/um/kernel/physmem.c | 20 +++++++++-----------
- 2 files changed, 11 insertions(+), 11 deletions(-)
-
-diff --git a/arch/um/Kconfig.common b/arch/um/Kconfig.common
-index 07f84c8..1487957 100644
---- a/arch/um/Kconfig.common
-+++ b/arch/um/Kconfig.common
-@@ -8,6 +8,8 @@ config UML
- 	select HAVE_UID16
- 	select HAVE_FUTEX_CMPXCHG if FUTEX
- 	select HAVE_DEBUG_KMEMLEAK
-+	select HAVE_MEMBLOCK
-+	select NO_BOOTMEM
- 	select GENERIC_IRQ_SHOW
- 	select GENERIC_CPU_DEVICES
- 	select GENERIC_CLOCKEVENTS
-diff --git a/arch/um/kernel/physmem.c b/arch/um/kernel/physmem.c
-index 0eaec0e..296a91a 100644
---- a/arch/um/kernel/physmem.c
-+++ b/arch/um/kernel/physmem.c
-@@ -5,6 +5,7 @@
- 
- #include <linux/module.h>
- #include <linux/bootmem.h>
-+#include <linux/memblock.h>
- #include <linux/mm.h>
- #include <linux/pfn.h>
- #include <asm/page.h>
-@@ -80,23 +81,18 @@ void __init setup_physmem(unsigned long start, unsigned long reserve_end,
- 			  unsigned long len, unsigned long long highmem)
- {
- 	unsigned long reserve = reserve_end - start;
--	unsigned long pfn = PFN_UP(__pa(reserve_end));
--	unsigned long delta = (len - reserve) >> PAGE_SHIFT;
--	unsigned long offset, bootmap_size;
--	long map_size;
-+	long map_size = len - reserve;
- 	int err;
- 
--	offset = reserve_end - start;
--	map_size = len - offset;
- 	if(map_size <= 0) {
- 		os_warn("Too few physical memory! Needed=%lu, given=%lu\n",
--			offset, len);
-+			reserve, len);
- 		exit(1);
- 	}
- 
- 	physmem_fd = create_mem_file(len + highmem);
- 
--	err = os_map_memory((void *) reserve_end, physmem_fd, offset,
-+	err = os_map_memory((void *) reserve_end, physmem_fd, reserve,
- 			    map_size, 1, 1, 1);
- 	if (err < 0) {
- 		os_warn("setup_physmem - mapping %ld bytes of memory at 0x%p "
-@@ -113,9 +109,11 @@ void __init setup_physmem(unsigned long start, unsigned long reserve_end,
- 	os_write_file(physmem_fd, __syscall_stub_start, PAGE_SIZE);
- 	os_fsync_file(physmem_fd);
- 
--	bootmap_size = init_bootmem(pfn, pfn + delta);
--	free_bootmem(__pa(reserve_end) + bootmap_size,
--		     len - bootmap_size - reserve);
-+	memblock_add(__pa(start), len + highmem);
-+	memblock_reserve(__pa(start), reserve);
-+
-+	min_low_pfn = PFN_UP(__pa(reserve_end));
-+	max_low_pfn = min_low_pfn + (map_size >> PAGE_SHIFT);
- }
- 
- int phys_mapping(unsigned long phys, unsigned long long *offset_out)
+No, we've been discussing #2 unless I have misunderstood something.
+I find it rather non-intuitive that a property outside of the oom domain
+controls the behavior inside the domain. I will keep thinking about that
+though.
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
