@@ -1,81 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 27CC56B0007
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 19:22:09 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id b9-v6so1404891pla.19
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 16:22:09 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z4-v6sor2683760pgf.206.2018.07.23.16.22.07
+	by kanga.kvack.org (Postfix) with ESMTP id A68A16B0003
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2018 21:45:09 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id y8-v6so1643497plp.17
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2018 18:45:09 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id y9-v6si8766605pgv.290.2018.07.23.18.45.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 23 Jul 2018 16:22:07 -0700 (PDT)
-Date: Mon, 23 Jul 2018 16:22:06 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v3 -mm 3/6] mm, memcg: add hierarchical usage oom
- policy
-In-Reply-To: <20180723212855.GA25062@castle>
-Message-ID: <alpine.DEB.2.21.1807231614530.196032@chino.kir.corp.google.com>
-References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com> <alpine.DEB.2.20.1803151351140.55261@chino.kir.corp.google.com> <alpine.DEB.2.20.1803161405410.209509@chino.kir.corp.google.com> <alpine.DEB.2.20.1803221451370.17056@chino.kir.corp.google.com>
- <alpine.DEB.2.21.1807131604560.217600@chino.kir.corp.google.com> <alpine.DEB.2.21.1807131605590.217600@chino.kir.corp.google.com> <20180716181613.GA28327@castle> <alpine.DEB.2.21.1807162101170.157949@chino.kir.corp.google.com>
- <alpine.DEB.2.21.1807231331510.105582@chino.kir.corp.google.com> <20180723212855.GA25062@castle>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Jul 2018 18:45:08 -0700 (PDT)
+Message-ID: <5B5685A0.9040005@intel.com>
+Date: Tue, 24 Jul 2018 09:49:20 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Subject: Re: [PATCH v36 2/5] virtio_balloon: replace oom notifier with shrinker
+References: <1532075585-39067-1-git-send-email-wei.w.wang@intel.com> <1532075585-39067-3-git-send-email-wei.w.wang@intel.com> <20180722174125-mutt-send-email-mst@kernel.org> <5B55AE56.5030404@intel.com> <20180723170826-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20180723170826-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
 
-On Mon, 23 Jul 2018, Roman Gushchin wrote:
+On 07/23/2018 10:13 PM, Michael S. Tsirkin wrote:
+>>>    	vb->vb_dev_info.inode->i_mapping->a_ops = &balloon_aops;
+>>>    #endif
+>>> +	err = virtio_balloon_register_shrinker(vb);
+>>> +	if (err)
+>>> +		goto out_del_vqs;
+>>> So we can get scans before device is ready. Leak will fail
+>>> then. Why not register later after device is ready?
+>> Probably no.
+>>
+>> - it would be better not to set device ready when register_shrinker failed.
+> That's very rare so I won't be too worried.
 
-> > Roman, I'm trying to make progress so that the cgroup aware oom killer is 
-> > in a state that it can be merged.  Would you prefer a second tunable here 
-> > to specify a cgroup's points includes memory from its subtree?
-> 
-> Hi, David!
-> 
-> It's hard to tell, because I don't have a clear picture of what you're
-> suggesting now.
+Just a little confused with the point here. "very rare" means it still 
+could happen (even it's a corner case), and if that happens, we got 
+something wrong functionally. So it will be a bug if we change like 
+that, right?
 
-Each patch specifies what it does rather elaborately.  If there's 
-confusion on what this patch, or any of the patches in this patchset, is 
-motivated by or addresses, please call it out specifically.
+Still couldn't understand the reason of changing shrinker_register after 
+device_ready (the original oom notifier was registered before setting 
+device ready too)?
+(I think the driver won't get shrinker_scan called if device isn't ready 
+because of the reasons below)
 
-> My biggest concern about your last version was that it's hard
-> to tell what oom_policy really defines. Each value has it's own application
-> rules, which is a bit messy (some values are meaningful for OOMing cgroup only,
-> other are reading on hierarchy traversal).
-> If you know how to make it clear and non-contradictory,
-> please, describe the proposed interface.
-> 
+>> - When the device isn't ready, ballooning won't happen, that is,
+>> vb->num_pages will be 0, which results in shrinker_count=0 and shrinker_scan
+>> won't be called.
 
-As my initial response stated, "tree" has cgroup aware properties but it 
-considers the subtree usage as its own.  I do not know of any usecase, 
-today or in the future, that would want subtree usage accounted to its own 
-when being considered as a single indivisible memory consumer yet still 
-want per-process oom kill selection.
-
-If you do not prefer that overloading, I can break the two out from one 
-another such that one tunable defines cgroup vs process, and another 
-defines subtree usage being considered or not.  That's a perfectly fine 
-suggestion and I have no problem implementing it.  The only reason I did 
-not was because I do not know of any user that would want process && 
-subtree and that would reduce the number of files for mem cgroup by one.
-
-If you'd like me to separate these out by adding another tunable, please 
-let me know.  We will already have another tunable later, but is not 
-required for this to be merged as the cover letter states, to allow the 
-user to adjust the calculation for a subtree such that it may protect 
-important cgroups that are allowed to use more memory than others.
-
-> > It would be helpful if you would also review the rest of the patchset.
-> 
-> I think, that we should focus on interface semantics right now.
-> If we can't agree on how the things should work, it makes no sense
-> to discuss the implementation.
-> 
-
-Yes, I have urged that we consider the interface in both the 
-memory.oom_group discussion as well as the discussion here, which is why 
-this patchset removes the mount option, does not lock down the entire 
-hierarchy into a single policy, and is extensible to be generally useful 
-outside of very special usecases.
+Best,
+Wei
