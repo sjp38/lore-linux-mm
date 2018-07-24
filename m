@@ -1,52 +1,1281 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5640D6B0010
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 03:29:40 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id t17-v6so1350365edr.21
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 00:29:40 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w11-v6si2237739edq.75.2018.07.24.00.29.39
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 24EE86B0269
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 03:30:02 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id n4-v6so197180pgp.8
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 00:30:02 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y28-v6sor2948090pgk.228.2018.07.24.00.29.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jul 2018 00:29:39 -0700 (PDT)
-Date: Tue, 24 Jul 2018 09:29:37 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 00/14] mm: Asynchronous + multithreaded memmap init
- for ZONE_DEVICE
-Message-ID: <20180724072937.GD28386@dhcp22.suse.cz>
-References: <153176041838.12695.3365448145295112857.stgit@dwillia2-desk3.amr.corp.intel.com>
- <CAGM2rea9AwQGaf1JiV_SDDKTKyP_n+dG9Z20gtTZEkuZPFnXFQ@mail.gmail.com>
- <CAPcyv4jo91jKjwn-M7cOhG=6vJ3c-QCyp0W+T+CtmiKGyZP1ng@mail.gmail.com>
- <CAGM2reacO1HF91yH8OR5w5AdZwPgwfSFfjDNBsHbP66v1rEg=g@mail.gmail.com>
- <20180717155006.GL7193@dhcp22.suse.cz>
- <CAA9_cmez_vrjBYvcpXT_5ziQ2CqRFzPbEWMO2kdmjW0rWhkaCA@mail.gmail.com>
- <20180718120529.GY7193@dhcp22.suse.cz>
- <3f43729d-fd4e-a488-e04d-026ef5a28dd9@intel.com>
- <20180723110928.GC31229@dhcp22.suse.cz>
- <510a1213-e391-bad6-4239-60fa477aaac0@intel.com>
+        (Google Transport Security);
+        Tue, 24 Jul 2018 00:29:59 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <510a1213-e391-bad6-4239-60fa477aaac0@intel.com>
+In-Reply-To: <000000000000c9dc440571b9b390@google.com>
+References: <000000000000c9dc440571b9b390@google.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Tue, 24 Jul 2018 09:29:37 +0200
+Message-ID: <CACT4Y+Zs_XNvvDG2_ARzsRbrO6G17bcu2NNhPDXqYLbs=SCqRQ@mail.gmail.com>
+Subject: Re: KASAN: stack-out-of-bounds Read in vma_interval_tree_insert (2)
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, pasha.tatashin@oracle.com, dalias@libc.org, Jan Kara <jack@suse.cz>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, "H. Peter Anvin" <hpa@zytor.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, the arch/x86 maintainers <x86@kernel.org>, Matthew Wilcox <willy@infradead.org>, daniel.m.jordan@oracle.com, Ingo Molnar <mingo@redhat.com>, fenghua.yu@intel.com, Jerome Glisse <jglisse@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "Luck, Tony" <tony.luck@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+To: syzbot <syzbot+e64265a0e24946cf1c0d@syzkaller.appspotmail.com>, Daniel Borkmann <daniel@iogearbox.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>, vasyl gomonovych <gomonovych@gmail.com>, Jerome Glisse <jglisse@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "Michael S. Tsirkin" <mst@redhat.com>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>
 
-On Mon 23-07-18 09:15:32, Dave Hansen wrote:
-> On 07/23/2018 04:09 AM, Michal Hocko wrote:
-> > On Thu 19-07-18 11:41:10, Dave Hansen wrote:
-> >> Are you looking for the actual end-user reports?  This was more of a
-> >> case of the customer plugging in some persistent memory DIMMs, noticing
-> >> the boot delta and calling the folks who sold them the DIMMs (Intel).
-> > But this doesn't sound like something to rush a solution for in the
-> > upcoming merge windown, does it?
-> 
-> No, we should not rush it.  We'll try to rework it properly.
+On Tue, Jul 24, 2018 at 9:28 AM, syzbot
+<syzbot+e64265a0e24946cf1c0d@syzkaller.appspotmail.com> wrote:
+> Hello,
+>
+> syzbot found the following crash on:
+>
+> HEAD commit:    8ae71e76cf1f Merge branch 'bpf-offload-sharing'
+> git tree:       bpf-next
+> console output: https://syzkaller.appspot.com/x/log.txt?x=17fca5d0400000
+> kernel config:  https://syzkaller.appspot.com/x/.config?x=89129667b46496c3
+> dashboard link: https://syzkaller.appspot.com/bug?extid=e64265a0e24946cf1c0d
+> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+>
+> Unfortunately, I don't have any reproducer for this crash yet.
+>
+> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> Reported-by: syzbot+e64265a0e24946cf1c0d@syzkaller.appspotmail.com
 
-Thanks a lot Dave! I definitely do not mean to block this at all. I just
-really do not like to have the code even more cluttered than we have
-now.
--- 
-Michal Hocko
-SUSE Labs
+#syz fix: bpf: sockhash, disallow bpf_tcp_close and update in parallel
+
+> skbuff: bad partial csum: csum=256/65280 len=851
+> ==================================================================
+> BUG: KASAN: stack-out-of-bounds in vma_interval_tree_insert+0x23e/0x2a0
+> mm/interval_tree.c:24
+> ------------[ cut here ]------------
+> Read of size 8 at addr ffff8801cf1778d8 by task blkid/6772
+> do_IRQ(): syz-executor2 has overflown the kernel stack
+> (cur:ffff8801cf190000,sp:ffff8801ce38e2d8,irq stk
+> top-bottom:ffff8801daf00080-ffff8801daf08000,exception stk
+> top-bottom:fffffe0000038080-fffffe0000042000,ip:__x86_indirect_thunk_rax+0x10/0x20)
+>
+> WARNING: CPU: 1 PID: 6760 at arch/x86/kernel/irq_64.c:63
+> stack_overflow_check arch/x86/kernel/irq_64.c:60 [inline]
+> WARNING: CPU: 1 PID: 6760 at arch/x86/kernel/irq_64.c:63
+> handle_irq+0x1fb/0x2e7 arch/x86/kernel/irq_64.c:72
+> CPU: 0 PID: 6772 Comm: blkid Not tainted 4.18.0-rc3+ #58
+> Kernel panic - not syncing: panic_on_warn set ...
+>
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> Call Trace:
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1c9/0x2b4 lib/dump_stack.c:113
+>  print_address_description+0x6c/0x20b mm/kasan/report.c:256
+>  kasan_report_error mm/kasan/report.c:354 [inline]
+>  kasan_report.cold.7+0x242/0x2fe mm/kasan/report.c:412
+>  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:433
+>  vma_interval_tree_insert+0x23e/0x2a0 mm/interval_tree.c:24
+>  __vma_link_file+0xe4/0x1b0 mm/mmap.c:599
+>  vma_link+0xcd/0x170 mm/mmap.c:625
+>  mmap_region+0xe69/0x1890 mm/mmap.c:1785
+>  do_mmap+0xa06/0x1320 mm/mmap.c:1535
+>  do_mmap_pgoff include/linux/mm.h:2287 [inline]
+>  vm_mmap_pgoff+0x213/0x2c0 mm/util.c:357
+>  ksys_mmap_pgoff+0x4da/0x660 mm/mmap.c:1585
+>  __do_sys_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
+>  __se_sys_mmap arch/x86/kernel/sys_x86_64.c:91 [inline]
+>  __x64_sys_mmap+0xe9/0x1b0 arch/x86/kernel/sys_x86_64.c:91
+>  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x7f5b200f43ea
+> Code:
+> blkid: Corrupted page table at address 7f5b200f43c0
+> PGD 1cf3f8067 P4D 1cf3f8067 PUD 1ce8fb067 PMD 41b58ab3
+> Bad pagetable: 0009 [#1] SMP KASAN
+> CPU: 0 PID: 6772 Comm: blkid Not tainted 4.18.0-rc3+ #58
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92af4f0 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92af530 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92af530
+> RBP: ffff8801a92af520 R08: ffff8801cae44480 R09: ffffed0035255ea6
+> R10: ffffed0035255ead R11: ffff8801a92af56f R12: 0000000000000040
+> R13: 00007ffffffff000 R14: 00007f5b200f43c0 R15: ffff8801cae44480
+> FS:  0000000000000000(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00007f5b200f43c0 CR3: 00000001caa5c000 CR4: 00000000001406f0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> Call Trace:
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_stack+0x38/0x3a arch/x86/kernel/dumpstack.c:292
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1c9/0x2b4 lib/dump_stack.c:113
+>  print_address_description+0x6c/0x20b mm/kasan/report.c:256
+>  kasan_report_error mm/kasan/report.c:354 [inline]
+>  kasan_report.cold.7+0x242/0x2fe mm/kasan/report.c:412
+>  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:433
+>  vma_interval_tree_insert+0x23e/0x2a0 mm/interval_tree.c:24
+>  __vma_link_file+0xe4/0x1b0 mm/mmap.c:599
+>  vma_link+0xcd/0x170 mm/mmap.c:625
+>  mmap_region+0xe69/0x1890 mm/mmap.c:1785
+>  do_mmap+0xa06/0x1320 mm/mmap.c:1535
+>  do_mmap_pgoff include/linux/mm.h:2287 [inline]
+>  vm_mmap_pgoff+0x213/0x2c0 mm/util.c:357
+>  ksys_mmap_pgoff+0x4da/0x660 mm/mmap.c:1585
+>  __do_sys_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
+>  __se_sys_mmap arch/x86/kernel/sys_x86_64.c:91 [inline]
+>  __x64_sys_mmap+0xe9/0x1b0 arch/x86/kernel/sys_x86_64.c:91
+>  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x7f5b200f43ea
+> Code:
+> blkid: Corrupted page table at address 7f5b200f43c0
+> PGD 1cf3f8067 P4D 1cf3f8067 PUD 1ce8fb067 PMD 41b58ab3
+> Bad pagetable: 0009 [#2] SMP KASAN
+> CPU: 0 PID: 6772 Comm: blkid Not tainted 4.18.0-rc3+ #58
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92aef28 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92aef68 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92aef68
+> RBP: ffff8801a92aef58 R08: ffff8801cae44480 R09: ffffed0035255ded
+> R10: ffffed0035255df4 R11: ffff8801a92aefa7 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+> FS:  0000000000000000(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00007f5b200f43c0 CR3: 00000001caa5c000 CR4: 00000000001406f0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> Call Trace:
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92af4f0 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92af530 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92af530
+> RBP: ffff8801a92af520 R08: ffff8801cae44480 R09: ffffed0035255ea6
+> R10: ffffed0035255ead R11: ffff8801a92af56f R12: 0000000000000040
+> R13: 00007ffffffff000 R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_stack+0x38/0x3a arch/x86/kernel/dumpstack.c:292
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1c9/0x2b4 lib/dump_stack.c:113
+>  print_address_description+0x6c/0x20b mm/kasan/report.c:256
+>  kasan_report_error mm/kasan/report.c:354 [inline]
+>  kasan_report.cold.7+0x242/0x2fe mm/kasan/report.c:412
+>  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:433
+>  vma_interval_tree_insert+0x23e/0x2a0 mm/interval_tree.c:24
+>  __vma_link_file+0xe4/0x1b0 mm/mmap.c:599
+>  vma_link+0xcd/0x170 mm/mmap.c:625
+>  mmap_region+0xe69/0x1890 mm/mmap.c:1785
+>  do_mmap+0xa06/0x1320 mm/mmap.c:1535
+>  do_mmap_pgoff include/linux/mm.h:2287 [inline]
+>  vm_mmap_pgoff+0x213/0x2c0 mm/util.c:357
+>  ksys_mmap_pgoff+0x4da/0x660 mm/mmap.c:1585
+>  __do_sys_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
+>  __se_sys_mmap arch/x86/kernel/sys_x86_64.c:91 [inline]
+>  __x64_sys_mmap+0xe9/0x1b0 arch/x86/kernel/sys_x86_64.c:91
+>  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x7f5b200f43ea
+> Code:
+> blkid: Corrupted page table at address 7f5b200f43c0
+> PGD 1cf3f8067 P4D 1cf3f8067 PUD 1ce8fb067 PMD 41b58ab3
+> Bad pagetable: 0009 [#3] SMP KASAN
+> CPU: 0 PID: 6772 Comm: blkid Not tainted 4.18.0-rc3+ #58
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ae958 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ae998 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ae998
+> RBP: ffff8801a92ae988 R08: ffff8801cae44480 R09: ffffed0035255d33
+> R10: ffffed0035255d3a R11: ffff8801a92ae9d7 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+> FS:  0000000000000000(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00007f5b200f43c0 CR3: 00000001caa5c000 CR4: 00000000001406f0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> Call Trace:
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92aef28 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92aef68 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92aef68
+> RBP: ffff8801a92aef58 R08: ffff8801cae44480 R09: ffffed0035255ded
+> R10: ffffed0035255df4 R11: ffff8801a92aefa7 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92af4f0 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92af530 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92af530
+> RBP: ffff8801a92af520 R08: ffff8801cae44480 R09: ffffed0035255ea6
+> R10: ffffed0035255ead R11: ffff8801a92af56f R12: 0000000000000040
+> R13: 00007ffffffff000 R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_stack+0x38/0x3a arch/x86/kernel/dumpstack.c:292
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1c9/0x2b4 lib/dump_stack.c:113
+>  print_address_description+0x6c/0x20b mm/kasan/report.c:256
+>  kasan_report_error mm/kasan/report.c:354 [inline]
+>  kasan_report.cold.7+0x242/0x2fe mm/kasan/report.c:412
+>  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:433
+>  vma_interval_tree_insert+0x23e/0x2a0 mm/interval_tree.c:24
+>  __vma_link_file+0xe4/0x1b0 mm/mmap.c:599
+>  vma_link+0xcd/0x170 mm/mmap.c:625
+>  mmap_region+0xe69/0x1890 mm/mmap.c:1785
+>  do_mmap+0xa06/0x1320 mm/mmap.c:1535
+>  do_mmap_pgoff include/linux/mm.h:2287 [inline]
+>  vm_mmap_pgoff+0x213/0x2c0 mm/util.c:357
+>  ksys_mmap_pgoff+0x4da/0x660 mm/mmap.c:1585
+>  __do_sys_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
+>  __se_sys_mmap arch/x86/kernel/sys_x86_64.c:91 [inline]
+>  __x64_sys_mmap+0xe9/0x1b0 arch/x86/kernel/sys_x86_64.c:91
+>  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x7f5b200f43ea
+> Code:
+> blkid: Corrupted page table at address 7f5b200f43c0
+> PGD 1cf3f8067 P4D 1cf3f8067 PUD 1ce8fb067 PMD 41b58ab3
+> Bad pagetable: 0009 [#4] SMP KASAN
+> CPU: 0 PID: 6772 Comm: blkid Not tainted 4.18.0-rc3+ #58
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ae388 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ae3c8 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ae3c8
+> RBP: ffff8801a92ae3b8 R08: ffff8801cae44480 R09: ffffed0035255c79
+> R10: ffffed0035255c80 R11: ffff8801a92ae407 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+> FS:  0000000000000000(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00007f5b200f43c0 CR3: 00000001caa5c000 CR4: 00000000001406f0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> Call Trace:
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ae958 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ae998 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ae998
+> RBP: ffff8801a92ae988 R08: ffff8801cae44480 R09: ffffed0035255d33
+> R10: ffffed0035255d3a R11: ffff8801a92ae9d7 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92aef28 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92aef68 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92aef68
+> RBP: ffff8801a92aef58 R08: ffff8801cae44480 R09: ffffed0035255ded
+> R10: ffffed0035255df4 R11: ffff8801a92aefa7 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92af4f0 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92af530 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92af530
+> RBP: ffff8801a92af520 R08: ffff8801cae44480 R09: ffffed0035255ea6
+> R10: ffffed0035255ead R11: ffff8801a92af56f R12: 0000000000000040
+> R13: 00007ffffffff000 R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_stack+0x38/0x3a arch/x86/kernel/dumpstack.c:292
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1c9/0x2b4 lib/dump_stack.c:113
+>  print_address_description+0x6c/0x20b mm/kasan/report.c:256
+>  kasan_report_error mm/kasan/report.c:354 [inline]
+>  kasan_report.cold.7+0x242/0x2fe mm/kasan/report.c:412
+>  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:433
+>  vma_interval_tree_insert+0x23e/0x2a0 mm/interval_tree.c:24
+>  __vma_link_file+0xe4/0x1b0 mm/mmap.c:599
+>  vma_link+0xcd/0x170 mm/mmap.c:625
+>  mmap_region+0xe69/0x1890 mm/mmap.c:1785
+>  do_mmap+0xa06/0x1320 mm/mmap.c:1535
+>  do_mmap_pgoff include/linux/mm.h:2287 [inline]
+>  vm_mmap_pgoff+0x213/0x2c0 mm/util.c:357
+>  ksys_mmap_pgoff+0x4da/0x660 mm/mmap.c:1585
+>  __do_sys_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
+>  __se_sys_mmap arch/x86/kernel/sys_x86_64.c:91 [inline]
+>  __x64_sys_mmap+0xe9/0x1b0 arch/x86/kernel/sys_x86_64.c:91
+>  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x7f5b200f43ea
+> Code:
+> blkid: Corrupted page table at address 7f5b200f43c0
+> PGD 1cf3f8067 P4D 1cf3f8067 PUD 1ce8fb067 PMD 41b58ab3
+> Bad pagetable: 0009 [#5] SMP KASAN
+> CPU: 0 PID: 6772 Comm: blkid Not tainted 4.18.0-rc3+ #58
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92addb8 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92addf8 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92addf8
+> RBP: ffff8801a92adde8 R08: ffff8801cae44480 R09: ffffed0035255bbf
+> R10: ffffed0035255bc6 R11: ffff8801a92ade37 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+> FS:  0000000000000000(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00007f5b200f43c0 CR3: 00000001caa5c000 CR4: 00000000001406f0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> Call Trace:
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ae388 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ae3c8 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ae3c8
+> RBP: ffff8801a92ae3b8 R08: ffff8801cae44480 R09: ffffed0035255c79
+> R10: ffffed0035255c80 R11: ffff8801a92ae407 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ae958 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ae998 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ae998
+> RBP: ffff8801a92ae988 R08: ffff8801cae44480 R09: ffffed0035255d33
+> R10: ffffed0035255d3a R11: ffff8801a92ae9d7 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92aef28 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92aef68 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92aef68
+> RBP: ffff8801a92aef58 R08: ffff8801cae44480 R09: ffffed0035255ded
+> R10: ffffed0035255df4 R11: ffff8801a92aefa7 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92af4f0 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92af530 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92af530
+> RBP: ffff8801a92af520 R08: ffff8801cae44480 R09: ffffed0035255ea6
+> R10: ffffed0035255ead R11: ffff8801a92af56f R12: 0000000000000040
+> R13: 00007ffffffff000 R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_stack+0x38/0x3a arch/x86/kernel/dumpstack.c:292
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1c9/0x2b4 lib/dump_stack.c:113
+>  print_address_description+0x6c/0x20b mm/kasan/report.c:256
+>  kasan_report_error mm/kasan/report.c:354 [inline]
+>  kasan_report.cold.7+0x242/0x2fe mm/kasan/report.c:412
+>  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:433
+>  vma_interval_tree_insert+0x23e/0x2a0 mm/interval_tree.c:24
+>  __vma_link_file+0xe4/0x1b0 mm/mmap.c:599
+>  vma_link+0xcd/0x170 mm/mmap.c:625
+>  mmap_region+0xe69/0x1890 mm/mmap.c:1785
+>  do_mmap+0xa06/0x1320 mm/mmap.c:1535
+>  do_mmap_pgoff include/linux/mm.h:2287 [inline]
+>  vm_mmap_pgoff+0x213/0x2c0 mm/util.c:357
+>  ksys_mmap_pgoff+0x4da/0x660 mm/mmap.c:1585
+>  __do_sys_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
+>  __se_sys_mmap arch/x86/kernel/sys_x86_64.c:91 [inline]
+>  __x64_sys_mmap+0xe9/0x1b0 arch/x86/kernel/sys_x86_64.c:91
+>  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x7f5b200f43ea
+> Code:
+> blkid: Corrupted page table at address 7f5b200f43c0
+> PGD 1cf3f8067 P4D 1cf3f8067 PUD 1ce8fb067 PMD 41b58ab3
+> Bad pagetable: 0009 [#6] SMP KASAN
+> CPU: 0 PID: 6772 Comm: blkid Not tainted 4.18.0-rc3+ #58
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ad7e8 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ad828 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ad828
+> RBP: ffff8801a92ad818 R08: ffff8801cae44480 R09: ffffed0035255b05
+> R10: ffffed0035255b0c R11: ffff8801a92ad867 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+> FS:  0000000000000000(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00007f5b200f43c0 CR3: 00000001caa5c000 CR4: 00000000001406f0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> Call Trace:
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92addb8 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92addf8 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92addf8
+> RBP: ffff8801a92adde8 R08: ffff8801cae44480 R09: ffffed0035255bbf
+> R10: ffffed0035255bc6 R11: ffff8801a92ade37 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ae388 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ae3c8 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ae3c8
+> RBP: ffff8801a92ae3b8 R08: ffff8801cae44480 R09: ffffed0035255c79
+> R10: ffffed0035255c80 R11: ffff8801a92ae407 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ae958 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ae998 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ae998
+> RBP: ffff8801a92ae988 R08: ffff8801cae44480 R09: ffffed0035255d33
+> R10: ffffed0035255d3a R11: ffff8801a92ae9d7 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92aef28 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92aef68 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92aef68
+> RBP: ffff8801a92aef58 R08: ffff8801cae44480 R09: ffffed0035255ded
+> R10: ffffed0035255df4 R11: ffff8801a92aefa7 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92af4f0 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92af530 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92af530
+> RBP: ffff8801a92af520 R08: ffff8801cae44480 R09: ffffed0035255ea6
+> R10: ffffed0035255ead R11: ffff8801a92af56f R12: 0000000000000040
+> R13: 00007ffffffff000 R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_stack+0x38/0x3a arch/x86/kernel/dumpstack.c:292
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1c9/0x2b4 lib/dump_stack.c:113
+>  print_address_description+0x6c/0x20b mm/kasan/report.c:256
+>  kasan_report_error mm/kasan/report.c:354 [inline]
+>  kasan_report.cold.7+0x242/0x2fe mm/kasan/report.c:412
+>  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:433
+>  vma_interval_tree_insert+0x23e/0x2a0 mm/interval_tree.c:24
+>  __vma_link_file+0xe4/0x1b0 mm/mmap.c:599
+>  vma_link+0xcd/0x170 mm/mmap.c:625
+>  mmap_region+0xe69/0x1890 mm/mmap.c:1785
+>  do_mmap+0xa06/0x1320 mm/mmap.c:1535
+>  do_mmap_pgoff include/linux/mm.h:2287 [inline]
+>  vm_mmap_pgoff+0x213/0x2c0 mm/util.c:357
+>  ksys_mmap_pgoff+0x4da/0x660 mm/mmap.c:1585
+>  __do_sys_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
+>  __se_sys_mmap arch/x86/kernel/sys_x86_64.c:91 [inline]
+>  __x64_sys_mmap+0xe9/0x1b0 arch/x86/kernel/sys_x86_64.c:91
+>  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x7f5b200f43ea
+> Code:
+> blkid: Corrupted page table at address 7f5b200f43c0
+> PGD 1cf3f8067 P4D 1cf3f8067 PUD 1ce8fb067 PMD 41b58ab3
+> Bad pagetable: 0009 [#7] SMP KASAN
+> CPU: 0 PID: 6772 Comm: blkid Not tainted 4.18.0-rc3+ #58
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ad218 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ad258 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ad258
+> RBP: ffff8801a92ad248 R08: ffff8801cae44480 R09: ffffed0035255a4b
+> R10: ffffed0035255a52 R11: ffff8801a92ad297 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+> FS:  0000000000000000(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00007f5b200f43c0 CR3: 00000001caa5c000 CR4: 00000000001406f0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> Call Trace:
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ad7e8 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ad828 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ad828
+> RBP: ffff8801a92ad818 R08: ffff8801cae44480 R09: ffffed0035255b05
+> R10: ffffed0035255b0c R11: ffff8801a92ad867 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92addb8 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92addf8 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92addf8
+> RBP: ffff8801a92adde8 R08: ffff8801cae44480 R09: ffffed0035255bbf
+> R10: ffffed0035255bc6 R11: ffff8801a92ade37 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ae388 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ae3c8 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ae3c8
+> RBP: ffff8801a92ae3b8 R08: ffff8801cae44480 R09: ffffed0035255c79
+> R10: ffffed0035255c80 R11: ffff8801a92ae407 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ae958 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ae998 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ae998
+> RBP: ffff8801a92ae988 R08: ffff8801cae44480 R09: ffffed0035255d33
+> R10: ffffed0035255d3a R11: ffff8801a92ae9d7 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92aef28 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92aef68 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92aef68
+> RBP: ffff8801a92aef58 R08: ffff8801cae44480 R09: ffffed0035255ded
+> R10: ffffed0035255df4 R11: ffff8801a92aefa7 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92af4f0 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92af530 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92af530
+> RBP: ffff8801a92af520 R08: ffff8801cae44480 R09: ffffed0035255ea6
+> R10: ffffed0035255ead R11: ffff8801a92af56f R12: 0000000000000040
+> R13: 00007ffffffff000 R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_stack+0x38/0x3a arch/x86/kernel/dumpstack.c:292
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1c9/0x2b4 lib/dump_stack.c:113
+>  print_address_description+0x6c/0x20b mm/kasan/report.c:256
+>  kasan_report_error mm/kasan/report.c:354 [inline]
+>  kasan_report.cold.7+0x242/0x2fe mm/kasan/report.c:412
+>  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:433
+>  vma_interval_tree_insert+0x23e/0x2a0 mm/interval_tree.c:24
+>  __vma_link_file+0xe4/0x1b0 mm/mmap.c:599
+>  vma_link+0xcd/0x170 mm/mmap.c:625
+>  mmap_region+0xe69/0x1890 mm/mmap.c:1785
+>  do_mmap+0xa06/0x1320 mm/mmap.c:1535
+>  do_mmap_pgoff include/linux/mm.h:2287 [inline]
+>  vm_mmap_pgoff+0x213/0x2c0 mm/util.c:357
+>  ksys_mmap_pgoff+0x4da/0x660 mm/mmap.c:1585
+>  __do_sys_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
+>  __se_sys_mmap arch/x86/kernel/sys_x86_64.c:91 [inline]
+>  __x64_sys_mmap+0xe9/0x1b0 arch/x86/kernel/sys_x86_64.c:91
+>  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x7f5b200f43ea
+> Code:
+> blkid: Corrupted page table at address 7f5b200f43c0
+> PGD 1cf3f8067 P4D 1cf3f8067 PUD 1ce8fb067 PMD 41b58ab3
+> Bad pagetable: 0009 [#8] SMP KASAN
+> CPU: 0 PID: 6772 Comm: blkid Not tainted 4.18.0-rc3+ #58
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92acc48 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92acc88 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92acc88
+> RBP: ffff8801a92acc78 R08: ffff8801cae44480 R09: ffffed0035255991
+> R10: ffffed0035255998 R11: ffff8801a92accc7 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+> FS:  0000000000000000(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00007f5b200f43c0 CR3: 00000001caa5c000 CR4: 00000000001406f0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> Call Trace:
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ad218 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ad258 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ad258
+> RBP: ffff8801a92ad248 R08: ffff8801cae44480 R09: ffffed0035255a4b
+> R10: ffffed0035255a52 R11: ffff8801a92ad297 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ad7e8 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ad828 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ad828
+> RBP: ffff8801a92ad818 R08: ffff8801cae44480 R09: ffffed0035255b05
+> R10: ffffed0035255b0c R11: ffff8801a92ad867 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92addb8 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92addf8 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92addf8
+> RBP: ffff8801a92adde8 R08: ffff8801cae44480 R09: ffffed0035255bbf
+> R10: ffffed0035255bc6 R11: ffff8801a92ade37 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ae388 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ae3c8 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ae3c8
+> RBP: ffff8801a92ae3b8 R08: ffff8801cae44480 R09: ffffed0035255c79
+> R10: ffffed0035255c80 R11: ffff8801a92ae407 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ae958 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ae998 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ae998
+> RBP: ffff8801a92ae988 R08: ffff8801cae44480 R09: ffffed0035255d33
+> R10: ffffed0035255d3a R11: ffff8801a92ae9d7 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92aef28 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92aef68 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92aef68
+> RBP: ffff8801a92aef58 R08: ffff8801cae44480 R09: ffffed0035255ded
+> R10: ffffed0035255df4 R11: ffff8801a92aefa7 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92af4f0 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92af530 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92af530
+> RBP: ffff8801a92af520 R08: ffff8801cae44480 R09: ffffed0035255ea6
+> R10: ffffed0035255ead R11: ffff8801a92af56f R12: 0000000000000040
+> R13: 00007ffffffff000 R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_stack+0x38/0x3a arch/x86/kernel/dumpstack.c:292
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1c9/0x2b4 lib/dump_stack.c:113
+>  print_address_description+0x6c/0x20b mm/kasan/report.c:256
+>  kasan_report_error mm/kasan/report.c:354 [inline]
+>  kasan_report.cold.7+0x242/0x2fe mm/kasan/report.c:412
+>  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:433
+>  vma_interval_tree_insert+0x23e/0x2a0 mm/interval_tree.c:24
+>  __vma_link_file+0xe4/0x1b0 mm/mmap.c:599
+>  vma_link+0xcd/0x170 mm/mmap.c:625
+>  mmap_region+0xe69/0x1890 mm/mmap.c:1785
+>  do_mmap+0xa06/0x1320 mm/mmap.c:1535
+>  do_mmap_pgoff include/linux/mm.h:2287 [inline]
+>  vm_mmap_pgoff+0x213/0x2c0 mm/util.c:357
+>  ksys_mmap_pgoff+0x4da/0x660 mm/mmap.c:1585
+>  __do_sys_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
+>  __se_sys_mmap arch/x86/kernel/sys_x86_64.c:91 [inline]
+>  __x64_sys_mmap+0xe9/0x1b0 arch/x86/kernel/sys_x86_64.c:91
+>  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x7f5b200f43ea
+> Code:
+> blkid: Corrupted page table at address 7f5b200f43c0
+> PGD 1cf3f8067 P4D 1cf3f8067 PUD 1ce8fb067 PMD 41b58ab3
+> Bad pagetable: 0009 [#9] SMP KASAN
+> CPU: 0 PID: 6772 Comm: blkid Not tainted 4.18.0-rc3+ #58
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ac678 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ac6b8 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ac6b8
+> RBP: ffff8801a92ac6a8 R08: ffff8801cae44480 R09: ffffed00352558d7
+> R10: ffffed00352558de R11: ffff8801a92ac6f7 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+> FS:  0000000000000000(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00007f5b200f43c0 CR3: 00000001caa5c000 CR4: 00000000001406f0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> Call Trace:
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92acc48 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92acc88 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92acc88
+> RBP: ffff8801a92acc78 R08: ffff8801cae44480 R09: ffffed0035255991
+> R10: ffffed0035255998 R11: ffff8801a92accc7 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 83
+> RSP: 0018:ffff8801a92ad218 EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffff8801a92ad258 RCX: 0000000000000040
+> RDX: 0000000000000040 RSI: 00007f5b200f43c0 RDI: ffff8801a92ad258
+> RBP: ffff8801a92ad248 R08: ffff8801cae44480 R09: ffffed0035255a4b
+> R10: ffffed0035255a52 R11: ffff8801a92ad297 R12: 0000000000000040
+> R13: ffffffffffffffff R14: 00007f5b200f43c0 R15: ffff8801cae44480
+>  show_opcodes+0x44/0xbe arch/x86/kernel/dumpstack.c:104
+>  show_ip+0x35/0x3a arch/x86/kernel/dumpstack.c:125
+>  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:130
+>  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+>  show_regs_if_on_stack.constprop.10+0x36/0x39
+> arch/x86/kernel/dumpstack.c:148
+>  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:273
+>  show_regs.cold.12+0x1a/0x1f arch/x86/kernel/dumpstack.c:419
+>  __die+0x65/0xb4 arch/x86/kernel/dumpstack.c:379
+>  pgtable_bad+0xd7/0x130 arch/x86/mm/fault.c:698
+>  __do_page_fault+0x87b/0xe50 arch/x86/mm/fault.c:1270
+>  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1471
+>  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1160
+> RIP: 0010:copy_user_enhanced_fast_string+0xe/0x20
+> arch/x86/lib/copy_user_64.S:180
+> Code: 89 d1 c1 e9 03 83 e2 07 f3 48 a5 89 d1 f3 a4 31 c0 0f 1f 00 c3 0f 1f
+> 80 00 00 00 00 0f 1f 00 83 fa 40 0f 82 70 ff ff ff 89 d1 <f3> a4 31 c0 0f 1f
+> 00 c3 66 2e 0f 1f 84 00 00
+>
+> ---
+> This bug is generated by a bot. It may contain errors.
+> See https://goo.gl/tpsmEJ for more information about syzbot.
+> syzbot engineers can be reached at syzkaller@googlegroups.com.
+>
+> syzbot will keep track of this bug report. See:
+> https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with
+> syzbot.
+>
+> --
+> You received this message because you are subscribed to the Google Groups
+> "syzkaller-bugs" group.
+> To unsubscribe from this group and stop receiving emails from it, send an
+> email to syzkaller-bugs+unsubscribe@googlegroups.com.
+> To view this discussion on the web visit
+> https://groups.google.com/d/msgid/syzkaller-bugs/000000000000c9dc440571b9b390%40google.com.
+> For more options, visit https://groups.google.com/d/optout.
