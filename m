@@ -1,86 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DF9606B0006
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 11:46:08 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id n21-v6so2465256plp.9
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 08:46:08 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id i61-v6si11001184plb.138.2018.07.24.08.46.07
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 91F886B0007
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 11:51:27 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id t10-v6so2402614ywc.7
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 08:51:27 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h63-v6sor2760381ybc.125.2018.07.24.08.51.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jul 2018 08:46:07 -0700 (PDT)
-Subject: Re: [PATCH v6 11/13] x86/mm/pat: Prepare {reserve, free}_memtype()
- for "decoy" addresses
-References: <153154376846.34503.15480221419473501643.stgit@dwillia2-desk3.amr.corp.intel.com>
- <153154382700.34503.10197588570935341739.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180724073641.GA15984@gmail.com>
-From: Dave Jiang <dave.jiang@intel.com>
-Message-ID: <896ea559-8fe5-9b2a-e763-407fae55cc01@intel.com>
-Date: Tue, 24 Jul 2018 08:46:06 -0700
+        (Google Transport Security);
+        Tue, 24 Jul 2018 08:51:26 -0700 (PDT)
+Date: Tue, 24 Jul 2018 11:54:15 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 09/10] psi: cgroup support
+Message-ID: <20180724155415.GB11598@cmpxchg.org>
+References: <20180712172942.10094-1-hannes@cmpxchg.org>
+ <20180712172942.10094-10-hannes@cmpxchg.org>
+ <20180717154059.GB2476@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <20180724073641.GA15984@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180717154059.GB2476@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>, Dan Williams <dan.j.williams@intel.com>
-Cc: Tony Luck <tony.luck@intel.com>, linux-nvdimm@lists.01.org, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, linux-fsdevel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, hch@lst.de, linux-edac@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
+Hi Peter,
 
+On Tue, Jul 17, 2018 at 05:40:59PM +0200, Peter Zijlstra wrote:
+> On Thu, Jul 12, 2018 at 01:29:41PM -0400, Johannes Weiner wrote:
+> > +/**
+> > + * cgroup_move_task - move task to a different cgroup
+> > + * @task: the task
+> > + * @to: the target css_set
+> > + *
+> > + * Move task to a new cgroup and safely migrate its associated stall
+> > + * state between the different groups.
+> > + *
+> > + * This function acquires the task's rq lock to lock out concurrent
+> > + * changes to the task's scheduling state and - in case the task is
+> > + * running - concurrent changes to its stall state.
+> > + */
+> > +void cgroup_move_task(struct task_struct *task, struct css_set *to)
+> > +{
+> > +	unsigned int task_flags = 0;
+> > +	struct rq_flags rf;
+> > +	struct rq *rq;
+> > +	u64 now;
+> > +
+> > +	rq = task_rq_lock(task, &rf);
+> > +
+> > +	if (task_on_rq_queued(task)) {
+> > +		task_flags = TSK_RUNNING;
+> > +	} else if (task->in_iowait) {
+> > +		task_flags = TSK_IOWAIT;
+> > +	}
+> > +	if (task->flags & PF_MEMSTALL)
+> > +		task_flags |= TSK_MEMSTALL;
+> > +
+> > +	if (task_flags) {
+> > +		update_rq_clock(rq);
+> > +		now = rq_clock(rq);
+> > +		psi_task_change(task, now, task_flags, 0);
+> > +	}
+> > +
+> > +	/*
+> > +	 * Lame to do this here, but the scheduler cannot be locked
+> > +	 * from the outside, so we move cgroups from inside sched/.
+> > +	 */
+> > +	rcu_assign_pointer(task->cgroups, to);
+> > +
+> > +	if (task_flags)
+> > +		psi_task_change(task, now, 0, task_flags);
+> > +
+> > +	task_rq_unlock(rq, task, &rf);
+> > +}
+> 
+> Why is that not part of cpu_cgroup_attach() / sched_move_task() ?
 
-On 07/24/2018 12:36 AM, Ingo Molnar wrote:
-> 
-> * Dan Williams <dan.j.williams@intel.com> wrote:
-> 
->> In preparation for using set_memory_uc() instead set_memory_np() for
->> isolating poison from speculation, teach the memtype code to sanitize
->> physical addresses vs __PHYSICAL_MASK.
->>
->> The motivation for using set_memory_uc() for this case is to allow
->> ongoing access to persistent memory pages via the pmem-driver +
->> memcpy_mcsafe() until the poison is repaired.
->>
->> Cc: Thomas Gleixner <tglx@linutronix.de>
->> Cc: Ingo Molnar <mingo@redhat.com>
->> Cc: "H. Peter Anvin" <hpa@zytor.com>
->> Cc: Tony Luck <tony.luck@intel.com>
->> Cc: Borislav Petkov <bp@alien8.de>
->> Cc: <linux-edac@vger.kernel.org>
->> Cc: <x86@kernel.org>
->> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
->> ---
->>  arch/x86/mm/pat.c |   16 ++++++++++++++++
->>  1 file changed, 16 insertions(+)
->>
->> diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
->> index 1555bd7d3449..6788ffa990f8 100644
->> --- a/arch/x86/mm/pat.c
->> +++ b/arch/x86/mm/pat.c
->> @@ -512,6 +512,17 @@ static int free_ram_pages_type(u64 start, u64 end)
->>  	return 0;
->>  }
->>  
->> +static u64 sanitize_phys(u64 address)
->> +{
->> +	/*
->> +	 * When changing the memtype for pages containing poison allow
->> +	 * for a "decoy" virtual address (bit 63 clear) passed to
->> +	 * set_memory_X(). __pa() on a "decoy" address results in a
->> +	 * physical address with it 63 set.
->> +	 */
->> +	return address & __PHYSICAL_MASK;
-> 
-> s/it/bit
+Hm, there is some overlap, but it's not the same operation.
 
-Thanks Ingo! I'll update when I pull in the patch.
+cpu_cgroup_attach() handles rq migration between cgroups that have the
+cpu controller enabled, but psi needs to migrate task counts around
+for memory and IO as well, as we always need to know nr_runnable.
 
-> 
-> Thanks,
-> 
-> 	Ingo
-> _______________________________________________
-> Linux-nvdimm mailing list
-> Linux-nvdimm@lists.01.org
-> https://lists.01.org/mailman/listinfo/linux-nvdimm
-> 
+The cpu controller is super expensive, though, and e.g. we had to
+disable it for cost purposes while still running psi, so it wouldn't
+be great to need full hierarchical per-cgroup scheduling policy just
+to know the runnable count in a group.
+
+Likewise, I don't think we'd want to change the cgroup core to call
+->attach for *all* cgroups and have the callback figure out whether
+the controller is actually enabled on them or not for this one case.
