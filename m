@@ -1,100 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AFA076B026E
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 04:08:57 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id w1-v6so2336095plq.8
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 01:08:57 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id 64-v6si10439354plk.257.2018.07.24.01.08.56
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D7926B0271
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 04:46:30 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id x204-v6so2884646qka.6
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 01:46:30 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id 18-v6si431215qkx.280.2018.07.24.01.46.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jul 2018 01:08:56 -0700 (PDT)
-Message-ID: <5B56DF81.4030606@intel.com>
-Date: Tue, 24 Jul 2018 16:12:49 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        Tue, 24 Jul 2018 01:46:29 -0700 (PDT)
+Subject: Re: [PATCH v1 0/2] mm/kdump: exclude reserved pages in dumps
+References: <20180720123422.10127-1-david@redhat.com>
+ <9f46f0ed-e34c-73be-60ca-c892fb19ed08@suse.cz>
+ <20180723123043.GD31229@dhcp22.suse.cz>
+ <8daae80c-871e-49b6-1cf1-1f0886d3935d@redhat.com>
+ <20180724072536.GB28386@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <d4528eb7-9d8b-4073-afad-d8dd1390aa91@redhat.com>
+Date: Tue, 24 Jul 2018 10:46:20 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH v36 0/5] Virtio-balloon: support free page reporting
-References: <1532075585-39067-1-git-send-email-wei.w.wang@intel.com> <20180723122342-mutt-send-email-mst@kernel.org> <20180723143604.GB2457@work-vm>
-In-Reply-To: <20180723143604.GB2457@work-vm>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180724072536.GB28386@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Dave Young <dyoung@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Miles Chen <miles.chen@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Tesarik <ptesarik@suse.cz>
 
-On 07/23/2018 10:36 PM, Dr. David Alan Gilbert wrote:
-> * Michael S. Tsirkin (mst@redhat.com) wrote:
->> On Fri, Jul 20, 2018 at 04:33:00PM +0800, Wei Wang wrote:
->>> This patch series is separated from the previous "Virtio-balloon
->>> Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_HINT,
->>> implemented by this series enables the virtio-balloon driver to report
->>> hints of guest free pages to the host. It can be used to accelerate live
->>> migration of VMs. Here is an introduction of this usage:
+On 24.07.2018 09:25, Michal Hocko wrote:
+> On Mon 23-07-18 19:20:43, David Hildenbrand wrote:
+>> On 23.07.2018 14:30, Michal Hocko wrote:
+>>> On Mon 23-07-18 13:45:18, Vlastimil Babka wrote:
+>>>> On 07/20/2018 02:34 PM, David Hildenbrand wrote:
+>>>>> Dumping tools (like makedumpfile) right now don't exclude reserved pages.
+>>>>> So reserved pages might be access by dump tools although nobody except
+>>>>> the owner should touch them.
+>>>>
+>>>> Are you sure about that? Or maybe I understand wrong. Maybe it changed
+>>>> recently, but IIRC pages that are backing memmap (struct pages) are also
+>>>> PG_reserved. And you definitely do want those in the dump.
 >>>
->>> Live migration needs to transfer the VM's memory from the source machine
->>> to the destination round by round. For the 1st round, all the VM's memory
->>> is transferred. From the 2nd round, only the pieces of memory that were
->>> written by the guest (after the 1st round) are transferred. One method
->>> that is popularly used by the hypervisor to track which part of memory is
->>> written is to write-protect all the guest memory.
+>>> You are right. reserve_bootmem_region will make all early bootmem
+>>> allocations (including those backing memmaps) PageReserved. I have asked
+>>> several times but I haven't seen a satisfactory answer yet. Why do we
+>>> even care for kdump about those. If they are reserved the nobody should
+>>> really look at those specific struct pages and manipulate them. Kdump
+>>> tools are using a kernel interface to read the content. If the specific
+>>> content is backed by a non-existing memory then they should simply not
+>>> return anything.
 >>>
->>> This feature enables the optimization by skipping the transfer of guest
->>> free pages during VM live migration. It is not concerned that the memory
->>> pages are used after they are given to the hypervisor as a hint of the
->>> free pages, because they will be tracked by the hypervisor and transferred
->>> in the subsequent round if they are used and written.
->>>
->>> * Tests
->>> - Test Environment
->>>      Host: Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz
->>>      Guest: 8G RAM, 4 vCPU
->>>      Migration setup: migrate_set_speed 100G, migrate_set_downtime 2 second
->>>
->>> - Test Results
->>>      - Idle Guest Live Migration Time (results are averaged over 10 runs):
->>>          - Optimization v.s. Legacy = 409ms vs 1757ms --> ~77% reduction
->>> 	(setting page poisoning zero and enabling ksm don't affect the
->>>           comparison result)
->>>      - Guest with Linux Compilation Workload (make bzImage -j4):
->>>          - Live Migration Time (average)
->>>            Optimization v.s. Legacy = 1407ms v.s. 2528ms --> ~44% reduction
->>>          - Linux Compilation Time
->>>            Optimization v.s. Legacy = 5min4s v.s. 5min12s
->>>            --> no obvious difference
->> I'd like to see dgilbert's take on whether this kind of gain
->> justifies adding a PV interfaces, and what kind of guest workload
->> is appropriate.
 >>
->> Cc'd.
-> Well, 44% is great ... although the measurement is a bit weird.
->
-> a) A 2 second downtime is very large; 300-500ms is more normal
+>> "new kernel" provides an interface to read memory from "old kernel".
+>>
+>> The new kernel has no idea about
+>> - which memory was added/online in the old kernel
+>> - where struct pages of the old kernel are and what their content is
+>> - which memory is save to touch and which not
+>>
+>> Dump tools figure all that out by interpreting the VMCORE. They e.g.
+>> identify "struct pages" and see if they should be dumped. The "new
+>> kernel" only allows to read that memory. It cannot hinder to crash the
+>> system (e.g. if a dump tool would try to read a hwpoison page).
+>>
+>> So how should the "new kernel" know if a page can be touched or not?
+> 
+> I am sorry I am not familiar with kdump much. But from what I remember
+> it reads from /proc/vmcore and implementation of this interface should
+> simply return EINVAL or alike when you try to dump inaccessible memory
+> range.
 
-No problem, I will set downtime to 400ms for the tests.
+I assume the main problem with this approach is that we would always
+have to fallback to reading old memory from vmcore page by page. e.g.
+makedumpfile will always try to read bigger bunches. I also assume the
+reason HWPOISON is handled in dump tools instead of in the kernel using
+the mechanism you describe is the case.
 
-> b) I'm not sure what the 'average' is  - is that just between a bunch of
-> repeated migrations?
+One way to avoid this would be to silently "read zero". Although not
+nice, it avoids having to touch dump tools.
 
-Yes, just repeatedly ("source<---->destination" migration) do the tests 
-and get an averaged result.
+E.g. fs/proc/vmcore.c:read_from_oldmem() has a hook called
+"pfn_is_ram()". This is the hook for XEN I mentioned previously.
 
+-> register_oldmem_pfn_is_ram()
 
-> c) What load was running in the guest during the live migration?
+However this callback right now assumes that there is a "global
+hypervisor implemented way of checking whether a page is accessible". We
+don't want anything like that in KVM.
 
-The first one above just uses a guest without running any specific 
-workload (named idle guests).
-The second one uses a guest with the Linux compilation workload running.
+I could imagine extending this register mechanism in a way that
+- we can have multiple callbacks
+- we can return something like "Yes" / "No" / "Don't know"
 
->
-> An interesting measurement to add would be to do the same test but
-> with a VM with a lot more RAM but the same load;  you'd hope the gain
-> would be even better.
-> It would be interesting, especially because the users who are interested
-> are people creating VMs allocated with lots of extra memory (for the
-> worst case) but most of the time migrating when it's fairly idle.
+So we could have multiple devices (controlling a memory area) register
+there and when called, they could see if they are responsible for that
+area and query the hypervisor (e.g. using virtio).
 
-OK. I will add tests of a guest with larger memory.
+Might be complicated but the last resort.
 
-Best,
-Wei
+-- 
+
+Thanks,
+
+David / dhildenb
