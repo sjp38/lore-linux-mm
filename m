@@ -1,43 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 63CBE6B026F
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 03:40:03 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id d1-v6so1718298wrr.4
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 00:40:03 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l14-v6sor232265wmh.68.2018.07.24.00.40.02
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AFA076B026E
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 04:08:57 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id w1-v6so2336095plq.8
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 01:08:57 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id 64-v6si10439354plk.257.2018.07.24.01.08.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 24 Jul 2018 00:40:02 -0700 (PDT)
-Date: Tue, 24 Jul 2018 09:39:58 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v6 00/13] mm: Teach memory_failure() about ZONE_DEVICE
- pages
-Message-ID: <20180724073958.GB15984@gmail.com>
-References: <153154376846.34503.15480221419473501643.stgit@dwillia2-desk3.amr.corp.intel.com>
- <b9602b1b-97d3-b9c1-cc85-5b73b67e2e03@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Jul 2018 01:08:56 -0700 (PDT)
+Message-ID: <5B56DF81.4030606@intel.com>
+Date: Tue, 24 Jul 2018 16:12:49 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b9602b1b-97d3-b9c1-cc85-5b73b67e2e03@intel.com>
+Subject: Re: [PATCH v36 0/5] Virtio-balloon: support free page reporting
+References: <1532075585-39067-1-git-send-email-wei.w.wang@intel.com> <20180723122342-mutt-send-email-mst@kernel.org> <20180723143604.GB2457@work-vm>
+In-Reply-To: <20180723143604.GB2457@work-vm>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jiang <dave.jiang@intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, Tony Luck <tony.luck@intel.com>, Jan Kara <jack@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, x86@kernel.org, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Borislav Petkov <bp@alien8.de>, Matthew Wilcox <willy@infradead.org>, "H. Peter Anvin" <hpa@zytor.com>, linux-fsdevel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Christoph Hellwig <hch@lst.de>, linux-edac@vger.kernel.org
+To: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
+
+On 07/23/2018 10:36 PM, Dr. David Alan Gilbert wrote:
+> * Michael S. Tsirkin (mst@redhat.com) wrote:
+>> On Fri, Jul 20, 2018 at 04:33:00PM +0800, Wei Wang wrote:
+>>> This patch series is separated from the previous "Virtio-balloon
+>>> Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_HINT,
+>>> implemented by this series enables the virtio-balloon driver to report
+>>> hints of guest free pages to the host. It can be used to accelerate live
+>>> migration of VMs. Here is an introduction of this usage:
+>>>
+>>> Live migration needs to transfer the VM's memory from the source machine
+>>> to the destination round by round. For the 1st round, all the VM's memory
+>>> is transferred. From the 2nd round, only the pieces of memory that were
+>>> written by the guest (after the 1st round) are transferred. One method
+>>> that is popularly used by the hypervisor to track which part of memory is
+>>> written is to write-protect all the guest memory.
+>>>
+>>> This feature enables the optimization by skipping the transfer of guest
+>>> free pages during VM live migration. It is not concerned that the memory
+>>> pages are used after they are given to the hypervisor as a hint of the
+>>> free pages, because they will be tracked by the hypervisor and transferred
+>>> in the subsequent round if they are used and written.
+>>>
+>>> * Tests
+>>> - Test Environment
+>>>      Host: Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz
+>>>      Guest: 8G RAM, 4 vCPU
+>>>      Migration setup: migrate_set_speed 100G, migrate_set_downtime 2 second
+>>>
+>>> - Test Results
+>>>      - Idle Guest Live Migration Time (results are averaged over 10 runs):
+>>>          - Optimization v.s. Legacy = 409ms vs 1757ms --> ~77% reduction
+>>> 	(setting page poisoning zero and enabling ksm don't affect the
+>>>           comparison result)
+>>>      - Guest with Linux Compilation Workload (make bzImage -j4):
+>>>          - Live Migration Time (average)
+>>>            Optimization v.s. Legacy = 1407ms v.s. 2528ms --> ~44% reduction
+>>>          - Linux Compilation Time
+>>>            Optimization v.s. Legacy = 5min4s v.s. 5min12s
+>>>            --> no obvious difference
+>> I'd like to see dgilbert's take on whether this kind of gain
+>> justifies adding a PV interfaces, and what kind of guest workload
+>> is appropriate.
+>>
+>> Cc'd.
+> Well, 44% is great ... although the measurement is a bit weird.
+>
+> a) A 2 second downtime is very large; 300-500ms is more normal
+
+No problem, I will set downtime to 400ms for the tests.
+
+> b) I'm not sure what the 'average' is  - is that just between a bunch of
+> repeated migrations?
+
+Yes, just repeatedly ("source<---->destination" migration) do the tests 
+and get an averaged result.
 
 
-* Dave Jiang <dave.jiang@intel.com> wrote:
+> c) What load was running in the guest during the live migration?
 
-> Ingo,
-> Is it possible to ack the x86 bits in this patch series? I'm hoping to
-> get this pulled through the libnvdimm tree for 4.19. Thanks!
+The first one above just uses a guest without running any specific 
+workload (named idle guests).
+The second one uses a guest with the Linux compilation workload running.
 
-With the minor typo fixed in the first patch, both patches are looking good to me:
+>
+> An interesting measurement to add would be to do the same test but
+> with a VM with a lot more RAM but the same load;  you'd hope the gain
+> would be even better.
+> It would be interesting, especially because the users who are interested
+> are people creating VMs allocated with lots of extra memory (for the
+> worst case) but most of the time migrating when it's fairly idle.
 
-  Acked-by: Ingo Molnar <mingo@kernel.org>
+OK. I will add tests of a guest with larger memory.
 
-Assuming that it gets properly tested, etc.
-
-Thanks,
-
-	Ingo
+Best,
+Wei
