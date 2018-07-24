@@ -1,97 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 16CCE6B0008
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 09:13:49 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id m4-v6so2558623pgq.19
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 06:13:49 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z3-v6si10863441plb.228.2018.07.24.06.13.47
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B01D86B000C
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 09:23:24 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id w12-v6so4131252oie.12
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 06:23:24 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id t82-v6si7987639oif.341.2018.07.24.06.23.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jul 2018 06:13:48 -0700 (PDT)
-Date: Tue, 24 Jul 2018 15:13:43 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v1 0/2] mm/kdump: exclude reserved pages in dumps
-Message-ID: <20180724131343.GK28386@dhcp22.suse.cz>
-References: <20180720123422.10127-1-david@redhat.com>
- <9f46f0ed-e34c-73be-60ca-c892fb19ed08@suse.cz>
- <20180723123043.GD31229@dhcp22.suse.cz>
- <8daae80c-871e-49b6-1cf1-1f0886d3935d@redhat.com>
- <20180724072536.GB28386@dhcp22.suse.cz>
- <8eb22489-fa6b-9825-bc63-07867a40d59b@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8eb22489-fa6b-9825-bc63-07867a40d59b@redhat.com>
+        Tue, 24 Jul 2018 06:23:23 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6ODIdGv122085
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 09:23:23 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2ke49wa0cc-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 09:23:22 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 24 Jul 2018 14:23:21 +0100
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH 0/2] um: switch to NO_BOOTMEM
+Date: Tue, 24 Jul 2018 16:23:12 +0300
+Message-Id: <1532438594-4530-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Dave Young <dyoung@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?iso-8859-1?Q?Marc-Andr=E9?= Lureau <marcandre.lureau@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Miles Chen <miles.chen@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Tesarik <ptesarik@suse.cz>
+To: Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-um@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On Tue 24-07-18 14:17:12, David Hildenbrand wrote:
-> On 24.07.2018 09:25, Michal Hocko wrote:
-> > On Mon 23-07-18 19:20:43, David Hildenbrand wrote:
-> >> On 23.07.2018 14:30, Michal Hocko wrote:
-> >>> On Mon 23-07-18 13:45:18, Vlastimil Babka wrote:
-> >>>> On 07/20/2018 02:34 PM, David Hildenbrand wrote:
-> >>>>> Dumping tools (like makedumpfile) right now don't exclude reserved pages.
-> >>>>> So reserved pages might be access by dump tools although nobody except
-> >>>>> the owner should touch them.
-> >>>>
-> >>>> Are you sure about that? Or maybe I understand wrong. Maybe it changed
-> >>>> recently, but IIRC pages that are backing memmap (struct pages) are also
-> >>>> PG_reserved. And you definitely do want those in the dump.
-> >>>
-> >>> You are right. reserve_bootmem_region will make all early bootmem
-> >>> allocations (including those backing memmaps) PageReserved. I have asked
-> >>> several times but I haven't seen a satisfactory answer yet. Why do we
-> >>> even care for kdump about those. If they are reserved the nobody should
-> >>> really look at those specific struct pages and manipulate them. Kdump
-> >>> tools are using a kernel interface to read the content. If the specific
-> >>> content is backed by a non-existing memory then they should simply not
-> >>> return anything.
-> >>>
-> >>
-> >> "new kernel" provides an interface to read memory from "old kernel".
-> >>
-> >> The new kernel has no idea about
-> >> - which memory was added/online in the old kernel
-> >> - where struct pages of the old kernel are and what their content is
-> >> - which memory is save to touch and which not
-> >>
-> >> Dump tools figure all that out by interpreting the VMCORE. They e.g.
-> >> identify "struct pages" and see if they should be dumped. The "new
-> >> kernel" only allows to read that memory. It cannot hinder to crash the
-> >> system (e.g. if a dump tool would try to read a hwpoison page).
-> >>
-> >> So how should the "new kernel" know if a page can be touched or not?
-> > 
-> > I am sorry I am not familiar with kdump much. But from what I remember
-> > it reads from /proc/vmcore and implementation of this interface should
-> > simply return EINVAL or alike when you try to dump inaccessible memory
-> > range.
-> 
-> Oh, and BTW, while something like -EINVAL could work, we usually don't
-> want to try to read certain pages at all (e.g. ballooned pages -
-> accessing the page might work but involves quite some overhead in the
-> hypervisor).
-> 
-> So we should either handle this in dump tools (reserved + ...?) or while
-> doing the read similar to XEN (is_ram_page()).
+Hi,
 
-Yes, I think this is the proper way. Just test for PageOnline
-in read_from_oldmem/copy_oldmem_page. Btw. we already page
-pfn_to_online_page which performs the per-section online/offline
-status. This should be extendable to consider your new PageOffline
-state.
- 
-> I wonder if we could convert the early allocated memory (PG_reserved) at
-> some point (buddy initialized) into ordinary "simply allocated" memory.
+These patches convert UML to use NO_BOOTMEM.
+Tested on x86-64.
 
-I do not think so. There is good reason why we keep them reserved. There
-are many pfn walkers that simply shouldn't touch those pages. Maybe we
-can achieve a page reserve type for all usages but that will be a larger
-project I am afraid.
+Mike Rapoport (2):
+  um: setup_physmem: stop using global variables
+  um: switch to NO_BOOTMEM
+
+ arch/um/Kconfig.common   |  2 ++
+ arch/um/kernel/physmem.c | 22 ++++++++++------------
+ 2 files changed, 12 insertions(+), 12 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+2.7.4
