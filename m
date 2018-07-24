@@ -1,146 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D7B16B0003
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 10:13:23 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id e14-v6so3243736qtp.17
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 07:13:23 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id b185-v6si332479qkd.289.2018.07.24.07.13.21
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D69BC6B0006
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 10:17:53 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id d18-v6so2244686wrq.21
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 07:17:53 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 204-v6si1223343wmv.181.2018.07.24.07.17.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jul 2018 07:13:21 -0700 (PDT)
-Subject: Re: [PATCH v1 0/2] mm/kdump: exclude reserved pages in dumps
-References: <20180720123422.10127-1-david@redhat.com>
- <9f46f0ed-e34c-73be-60ca-c892fb19ed08@suse.cz>
- <20180723123043.GD31229@dhcp22.suse.cz>
- <8daae80c-871e-49b6-1cf1-1f0886d3935d@redhat.com>
- <20180724072536.GB28386@dhcp22.suse.cz>
- <8eb22489-fa6b-9825-bc63-07867a40d59b@redhat.com>
- <20180724131343.GK28386@dhcp22.suse.cz>
- <af5353ee-319e-17ec-3a39-df997a5adf43@redhat.com>
- <20180724133530.GN28386@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <6c753cae-f8b6-5563-e5ba-7c1fefdeb74e@redhat.com>
-Date: Tue, 24 Jul 2018 16:13:09 +0200
+        Tue, 24 Jul 2018 07:17:52 -0700 (PDT)
+Date: Tue, 24 Jul 2018 16:17:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+Message-ID: <20180724141747.GP28386@dhcp22.suse.cz>
+References: <20180716115058.5559-1-mhocko@kernel.org>
+ <20180720170902.d1137060c23802d55426aa03@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20180724133530.GN28386@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180720170902.d1137060c23802d55426aa03@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Dave Young <dyoung@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Miles Chen <miles.chen@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Tesarik <ptesarik@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Felix Kuehling <felix.kuehling@amd.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Rientjes <rientjes@google.com>, Leon Romanovsky <leonro@mellanox.com>
 
-On 24.07.2018 15:35, Michal Hocko wrote:
-> On Tue 24-07-18 15:27:51, David Hildenbrand wrote:
->> On 24.07.2018 15:13, Michal Hocko wrote:
->>> On Tue 24-07-18 14:17:12, David Hildenbrand wrote:
->>>> On 24.07.2018 09:25, Michal Hocko wrote:
->>>>> On Mon 23-07-18 19:20:43, David Hildenbrand wrote:
->>>>>> On 23.07.2018 14:30, Michal Hocko wrote:
->>>>>>> On Mon 23-07-18 13:45:18, Vlastimil Babka wrote:
->>>>>>>> On 07/20/2018 02:34 PM, David Hildenbrand wrote:
->>>>>>>>> Dumping tools (like makedumpfile) right now don't exclude reserved pages.
->>>>>>>>> So reserved pages might be access by dump tools although nobody except
->>>>>>>>> the owner should touch them.
->>>>>>>>
->>>>>>>> Are you sure about that? Or maybe I understand wrong. Maybe it changed
->>>>>>>> recently, but IIRC pages that are backing memmap (struct pages) are also
->>>>>>>> PG_reserved. And you definitely do want those in the dump.
->>>>>>>
->>>>>>> You are right. reserve_bootmem_region will make all early bootmem
->>>>>>> allocations (including those backing memmaps) PageReserved. I have asked
->>>>>>> several times but I haven't seen a satisfactory answer yet. Why do we
->>>>>>> even care for kdump about those. If they are reserved the nobody should
->>>>>>> really look at those specific struct pages and manipulate them. Kdump
->>>>>>> tools are using a kernel interface to read the content. If the specific
->>>>>>> content is backed by a non-existing memory then they should simply not
->>>>>>> return anything.
->>>>>>>
->>>>>>
->>>>>> "new kernel" provides an interface to read memory from "old kernel".
->>>>>>
->>>>>> The new kernel has no idea about
->>>>>> - which memory was added/online in the old kernel
->>>>>> - where struct pages of the old kernel are and what their content is
->>>>>> - which memory is save to touch and which not
->>>>>>
->>>>>> Dump tools figure all that out by interpreting the VMCORE. They e.g.
->>>>>> identify "struct pages" and see if they should be dumped. The "new
->>>>>> kernel" only allows to read that memory. It cannot hinder to crash the
->>>>>> system (e.g. if a dump tool would try to read a hwpoison page).
->>>>>>
->>>>>> So how should the "new kernel" know if a page can be touched or not?
->>>>>
->>>>> I am sorry I am not familiar with kdump much. But from what I remember
->>>>> it reads from /proc/vmcore and implementation of this interface should
->>>>> simply return EINVAL or alike when you try to dump inaccessible memory
->>>>> range.
->>>>
->>>> Oh, and BTW, while something like -EINVAL could work, we usually don't
->>>> want to try to read certain pages at all (e.g. ballooned pages -
->>>> accessing the page might work but involves quite some overhead in the
->>>> hypervisor).
->>>>
->>>> So we should either handle this in dump tools (reserved + ...?) or while
->>>> doing the read similar to XEN (is_ram_page()).
->>>
->>> Yes, I think this is the proper way. Just test for PageOnline
->>> in read_from_oldmem/copy_oldmem_page. Btw. we already page
->>> pfn_to_online_page which performs the per-section online/offline
->>> status. This should be extendable to consider your new PageOffline
->>> state.
->>
->> That is the important bit:
->>
->> What the new kernel sees is not what the old kernel saw.
->>
->> Checking for pfn_to_online_page() from
->> read_from_oldmem/copy_oldmem_page() is plain wrong.
->>
->> E.g. ACPI hotplug memory is not even added in the new kernel - see
->> "acpi_no_memhotplug" which is used in kdump environments.
->>
->> The only thing we can do is
->> - query the hypervisor
->> - try to access and get an exception
+On Fri 20-07-18 17:09:02, Andrew Morton wrote:
+[...]
+> - Undocumented return value.
 > 
-> But we do preserve struct page's (aka memmap) from the crash kernel,
-> don't we? So you have the whole state there. Or am I missing something?
+> - comment "failed to reap part..." is misleading - sounds like it's
+>   referring to something which happened in the past, is in fact
+>   referring to something which might happen in the future.
 > 
+> - fails to call trace_finish_task_reaping() in one case
+> 
+> - code duplication.
+> 
+> - Increases mmap_sem hold time a little by moving
+>   trace_finish_task_reaping() inside the locked region.  So sue me ;)
+> 
+> - Sharing the finish: path means that the trace event won't
+>   distinguish between the two sources of finishing.
+> 
+> Please take a look?
 
-Yes, they are preserved but we don't interpret them, that is up to dump
-tools. We only provide access to the vmcore, which includes read/writing
-the memory indicated in it. The struct pages are simply part of the
-vmcore. Completely hidden from the new kernel.
+oom_reap_task_mm should return false when __oom_reap_task_mm return
+false. This is what my patch did but it seems this changed by
+http://www.ozlabs.org/~akpm/mmotm/broken-out/mm-oom-remove-oom_lock-from-oom_reaper.patch
+so that one should be fixed.
 
-Finding/interpreting the struct pages is not (and most probably should
-never) be done in the kernel.
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 104ef4a01a55..88657e018714 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -565,7 +565,7 @@ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 	/* failed to reap part of the address space. Try again later */
+ 	if (!__oom_reap_task_mm(mm)) {
+ 		up_read(&mm->mmap_sem);
+-		return true;
++		return false;
+ 	}
+ 
+ 	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
 
-E.g. The old kernel could be a different kernel version, different
-memory configuration (!SPARSE, SPARSE ...), page flags could be
-different ... it's not a straight forward access.
 
-That's why dump tools interpret struct pages instead. And also why I
-want a simple identifier in them so user space dump tools can figure out
-"this page is better not to be touched, the content is stale or not
-accessible".
+On top of that the proposed cleanup looks as follows:
 
-So I see right now:
-
-- Pg_reserved + e.g. new page type (or some other unique identifier in
-  combination with Pg_reserved)
- -> Avoid reads of pages we know are offline
-- extend is_ram_page()
- -> Fake zero memory for pages we know are offline
-
-Or even both (avoid reading and don't crash the kernel if it is being done).
-
-I am not a friend of the "try to access and get an exception" approach.
-
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 88657e018714..4e185a282b3d 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -541,8 +541,16 @@ bool __oom_reap_task_mm(struct mm_struct *mm)
+ 	return ret;
+ }
+ 
++/*
++ * Reaps the address space of the give task.
++ *
++ * Returns true on success and false if none or part of the address space
++ * has been reclaimed and the caller should retry later.
++ */
+ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ {
++	bool ret = true;
++
+ 	if (!down_read_trylock(&mm->mmap_sem)) {
+ 		trace_skip_task_reaping(tsk->pid);
+ 		return false;
+@@ -555,28 +563,28 @@ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 	 * down_write();up_write() cycle in exit_mmap().
+ 	 */
+ 	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
+-		up_read(&mm->mmap_sem);
+ 		trace_skip_task_reaping(tsk->pid);
+-		return true;
++		goto out_unlock;
+ 	}
+ 
+ 	trace_start_task_reaping(tsk->pid);
+ 
+ 	/* failed to reap part of the address space. Try again later */
+-	if (!__oom_reap_task_mm(mm)) {
+-		up_read(&mm->mmap_sem);
+-		return false;
+-	}
++	ret = __oom_reap_task_mm(mm);
++	if (!ret)
++		goto out_finish;
+ 
+ 	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+ 			task_pid_nr(tsk), tsk->comm,
+ 			K(get_mm_counter(mm, MM_ANONPAGES)),
+ 			K(get_mm_counter(mm, MM_FILEPAGES)),
+ 			K(get_mm_counter(mm, MM_SHMEMPAGES)));
++out_finish:
++	trace_finish_task_reaping(tsk->pid);
++out_unlock:
+ 	up_read(&mm->mmap_sem);
+ 
+-	trace_finish_task_reaping(tsk->pid);
+-	return true;
++	return ret;
+ }
+ 
+ #define MAX_OOM_REAP_RETRIES 10
 -- 
-
-Thanks,
-
-David / dhildenb
+Michal Hocko
+SUSE Labs
