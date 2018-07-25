@@ -1,140 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C168B6B0003
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 22:46:49 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id q18-v6so3325868wrr.12
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 19:46:49 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u185-v6sor755369wmg.63.2018.07.24.19.46.48
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 900776B0006
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 22:48:28 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id e21-v6so4298289itc.5
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 19:48:28 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id h5-v6si9407443jad.11.2018.07.24.19.48.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 24 Jul 2018 19:46:48 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Jul 2018 19:48:27 -0700 (PDT)
+Subject: Re: freepage accounting bug with CMA/migrate isolation
+References: <86bea4f7-229a-7cbb-1e8a-7e6d96f0f087@oracle.com>
+ <92636e32-c71b-0092-02bf-a802065075ef@redhat.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <1384e612-e664-6278-af22-9113c12f76d8@oracle.com>
+Date: Tue, 24 Jul 2018 17:46:11 -0700
 MIME-Version: 1.0
-References: <20180724204639.26934-1-cannonmatthews@google.com> <20180724210923.GA20168@bombadil.infradead.org>
-In-Reply-To: <20180724210923.GA20168@bombadil.infradead.org>
-From: Cannon Matthews <cannonmatthews@google.com>
-Date: Tue, 24 Jul 2018 19:46:36 -0700
-Message-ID: <CAJfu=Uf5AgpM9=-+kdk6Cn=kRCUtqMjc38+K0NUSDo-QAS8=jg@mail.gmail.com>
-Subject: Re: [PATCH] RFC: clear 1G pages with streaming stores on x86
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <92636e32-c71b-0092-02bf-a802065075ef@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: willy@infradead.org
-Cc: mhocko@kernel.org, mike.kravetz@oracle.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andres Lagar-Cavilla <andreslc@google.com>, sqazi@google.com, Paul Turner <pjt@google.com>, David Matlack <dmatlack@google.com>, Peter Feiner <pfeiner@google.com>, nullptr@google.com
+To: Laura Abbott <labbott@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>
 
-On Tue, Jul 24, 2018 at 2:09 PM Matthew Wilcox <willy@infradead.org> wrote:
->
-> On Tue, Jul 24, 2018 at 01:46:39PM -0700, Cannon Matthews wrote:
-> > Reimplement clear_gigantic_page() to clear gigabytes pages using the
-> > non-temporal streaming store instructions that bypass the cache
-> > (movnti), since an entire 1GiB region will not fit in the cache anyway.
-> >
-> > Doing an mlock() on a 512GiB 1G-hugetlb region previously would take on
-> > average 134 seconds, about 260ms/GiB which is quite slow. Using `movnti`
-> > and optimizing the control flow over the constituent small pages, this
-> > can be improved roughly by a factor of 3-4x, with the 512GiB mlock()
-> > taking only 34 seconds on average, or 67ms/GiB.
->
-> This is great data ...
-Thanks!
->
-> > - The calls to cond_resched() have been reduced from between every 4k
-> > page to every 64, as between all of the 256K page seemed overly
-> > frequent.  Does this seem like an appropriate frequency? On an idle
-> > system with many spare CPUs it get's rescheduled typically once or twice
-> > out of the 4096 times it calls cond_resched(), which seems like it is
-> > maybe the right amount, but more insight from a scheduling/latency point
-> > of view would be helpful.
->
-> ... which makes the lack of data here disappointing -- what're the
-> comparable timings if you do check every 4kB or every 64kB instead of
-> every 256kB?
+On 07/24/2018 03:38 PM, Laura Abbott wrote:
+> On 07/23/2018 09:24 PM, Mike Kravetz wrote:
+>> With v4.17, I can see an issue like those addressed in commits 3c605096d315
+>> ("mm/page_alloc: restrict max order of merging on isolated pageblock")
+>> and d9dddbf55667 ("mm/page_alloc: prevent merging between isolated and
+>> other pageblocks").  After running a CMA stress test for a while, I see:
+>>    MemTotal:        8168384 kB
+>>    MemFree:         8457232 kB
+>>    MemAvailable:    9204844 kB
+>> If I let the test run, MemFree and MemAvailable will continue to grow.
+>>
+>> I am certain the issue is with pageblocks of migratetype ISOLATED.  If
+>> I disable all special 'is_migrate_isolate' checks in freepage accounting,
+>> the issue goes away.  Further, I am pretty sure the issue has to do with
+>> pageblock merging and or page orders spanning pageblocks.  If I make
+>> pageblock_order equal MAX_ORDER-1, the issue also goes away.
+>>
+>> Just looking for suggesting in where/how to debug.  I've been hacking on
+>> this without much success.
+>> -- 
+>> Mike Kravetz
+>>
+> 
+> If you revert d883c6cf3b39 ("Revert "mm/cma: manage the memory of the CMA
+> area by using the ZONE_MOVABLE"") do you still see the issue? I thought
+> there was another isolation edge case which was fixed by that series.
+> 
 
-Fair enough, my data was lacking in that axis. I ran a bunch of trials
-with different
-sizes and included that in the v2 patch description.
+Thanks Laura,
 
-TL;DR: It doesn't seem to make a significant difference in
-performance, but might
-need more trials to know with more confidence.
+Reverting that patch certainly seems to help.  Although, I'm guessing there
+is still some accounting issue even with the patch reverted.
 
->
-> > The assembly code for the __clear_page_nt routine is more or less
-> > taken directly from the output of gcc with -O3 for this function with
-> > some tweaks to support arbitrary sizes and moving memory barriers:
-> >
-> > void clear_page_nt_64i (void *page)
-> > {
-> >   for (int i = 0; i < GiB /sizeof(long long int); ++i)
-> >     {
-> >       _mm_stream_si64 (((long long int*)page) + i, 0);
-> >     }
-> >   sfence();
-> > }
-> >
-> > In general I would love to hear any thoughts and feedback on this
-> > approach and any ways it could be improved.
-> >
-> > Some specific questions:
-> >
-> > - What is the appropriate method for defining an arch specific
-> > implementation like this, is the #ifndef code sufficient, and did stuff
-> > land in appropriate files?
-> >
-> > - Are there any obvious pitfalls or caveats that have not been
-> > considered? In particular the iterator over mem_map_next() seemed like a
-> > no-op on x86, but looked like it could be important in certain
-> > configurations or architectures I am not familiar with.
-> >
-> > - Are there any x86_64 implementations that do not support SSE2
-> > instructions like `movnti` ? What is the appropriate way to detect and
-> > code around that if so?
->
-> No.  SSE2 was introduced with the Pentium 4, before x86-64.  The XMM
-> registers are used as part of the x86-64 calling conventions, so SSE2
-> is mandatory for x86-64 implementations.
+Right after boot,
+MemTotal:        8168380 kB
+MemFree:         7233360 kB
+MemAvailable:    7317704 kB
 
-Awesome, good to know.
+After stress testing for a couple hours,
+MemTotal:        8168380 kB
+MemFree:         7848468 kB
+MemAvailable:    7634856 kB
 
->
-> > - Is there anything that could be improved about the assembly code? I
-> > originally wrote it in C and don't have much experience hand writing x86
-> > asm, which seems riddled with optimization pitfalls.
->
-> I suspect it might be slightly faster if implemented as inline asm in the
-> x86 clear_gigantic_page() implementation instead of a function call.
-> Might not affect performance a lot though.
+While looking at the code, I did not like the way set_migratetype_isolate
+may 'isolate' more than pageblock_nr_pages if there is a > pageblock_order
+sized free page.  This seems to work because alloc_contig_range always
+aligns to MAX_ORDER-1.  But, I'd like to change this and see if it helps.
 
-I can try to experiment with that tomorrow. Since the performance doesn't vary
-much on an idle machine when you make one function call for the whole GiB
-or 256K of them for each 4K page I would suspect it won't matter much.
-
->
-> > - Is the highmem codepath really necessary? would 1GiB pages really be
-> > of much use on a highmem system? We recently removed some other parts of
-> > the code that support HIGHMEM for gigantic pages (see:
-> > http://lkml.kernel.org/r/20180711195913.1294-1-mike.kravetz@oracle.com)
-> > so this seems like a logical continuation.
->
-> PAE paging doesn't support 1GB pages, so there's no need for it on x86.
-
-Excellent. Do you happen to know if/when it is necessary on any other
-architectures?
-
->
-> > diff --git a/mm/memory.c b/mm/memory.c
-> > index 7206a634270b..2515cae4af4e 100644
-> > --- a/mm/memory.c
-> > +++ b/mm/memory.c
-> > @@ -70,6 +70,7 @@
-> >  #include <linux/dax.h>
-> >  #include <linux/oom.h>
-> >
-> > +
-> >  #include <asm/io.h>
-> >  #include <asm/mmu_context.h>
-> >  #include <asm/pgalloc.h>
->
-> Spurious.
->
-Thanks for catching that, removed.
+-- 
+Mike Kravetz
