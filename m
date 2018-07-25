@@ -1,62 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DA8496B02C1
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 10:28:07 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id q18-v6so4258532wrr.12
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 07:28:07 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y2-v6sor1244008wmg.19.2018.07.25.07.28.06
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F6E96B02C3
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 10:38:57 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id n21-v6so4805615plp.9
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 07:38:57 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id k26-v6si10857933pfk.199.2018.07.25.07.38.55
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 25 Jul 2018 07:28:06 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 25 Jul 2018 07:38:56 -0700 (PDT)
+Date: Wed, 25 Jul 2018 07:38:50 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v2] RFC: clear 1G pages with streaming stores on x86
+Message-ID: <20180725143850.GA2886@bombadil.infradead.org>
+References: <20180724210923.GA20168@bombadil.infradead.org>
+ <20180725023728.44630-1-cannonmatthews@google.com>
+ <DF4PR8401MB11806B9D2A7FE04B1F5ECBF8AB540@DF4PR8401MB1180.NAMPRD84.PROD.OUTLOOK.COM>
 MIME-Version: 1.0
-References: <20180724224635.143944-1-shakeelb@google.com> <CAOm-9arFu63A9YJ6yVtm6_LdtbRKZg1Q3dz8WugdkBBQfoOWYw@mail.gmail.com>
-In-Reply-To: <CAOm-9arFu63A9YJ6yVtm6_LdtbRKZg1Q3dz8WugdkBBQfoOWYw@mail.gmail.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Wed, 25 Jul 2018 07:27:50 -0700
-Message-ID: <CALvZod7Fqj_pJ2sn+XiDsoDX4jBLM22iGUrB9PeJXg+8S5xExQ@mail.gmail.com>
-Subject: Re: [PATCH] memcg: reduce memcg tree traversals for stats collection
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <DF4PR8401MB11806B9D2A7FE04B1F5ECBF8AB540@DF4PR8401MB1180.NAMPRD84.PROD.OUTLOOK.COM>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bmerry@ska.ac.za
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
+Cc: Cannon Matthews <cannonmatthews@google.com>, Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andres Lagar-Cavilla <andreslc@google.com>, Salman Qazi <sqazi@google.com>, Paul Turner <pjt@google.com>, David Matlack <dmatlack@google.com>, Peter Feiner <pfeiner@google.com>, Alain Trinh <nullptr@google.com>
 
-On Wed, Jul 25, 2018 at 4:26 AM Bruce Merry <bmerry@ska.ac.za> wrote:
->
-> On 25 July 2018 at 00:46, Shakeel Butt <shakeelb@google.com> wrote:
-> > I ran a simple benchmark which reads the root_mem_cgroup's stat file
-> > 1000 times in the presense of 2500 memcgs on cgroup-v1. The results are:
-> >
-> > Without the patch:
-> > $ time ./read-root-stat-1000-times
-> >
-> > real    0m1.663s
-> > user    0m0.000s
-> > sys     0m1.660s
-> >
-> > With the patch:
-> > $ time ./read-root-stat-1000-times
-> >
-> > real    0m0.468s
-> > user    0m0.000s
-> > sys     0m0.467s
->
-> Thanks for cc'ing me. I've tried this patch using my test case and the
-> results are interesting. With the patch applied, running my script
-> only generates about 8000 new cgroups, compared to 40,000 before -
-> presumably because the optimisation has altered the timing.
->
-> On the other hand, if I run the script 5 times to generate 40000
-> zombie cgroups, the time to get stats for the root cgroup (cgroup-v1)
-> is almost unchanged at around 18ms (was 20ms, but there were slightly
-> more cgroups as well), compared to the almost 4x speedup you're seeing
-> in your test.
->
+On Wed, Jul 25, 2018 at 05:02:46AM +0000, Elliott, Robert (Persistent Memory) wrote:
+> Even with that, one CPU core won't saturate the memory bus; multiple
+> CPU cores (preferably on the same NUMA node as the memory) need to
+> share the work.
 
-Hi Bruce, I think your script is trying to create zombies, so, the
-experiments after that script will be non-deterministic. Why not just
-create 40k cgroups ,no need for zombies, and the see how much this
-patch affects reading stats.
-
-Shakeel
+It's probably OK to not saturate the memory bus; it'd be nice if other
+cores were allowed to get work done.  If your workload is single-threaded,
+you're right, of course, but who has a single-threaded workload these
+days?!
