@@ -1,103 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FA3D6B026B
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 02:41:23 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id n68-v6so4809826ite.8
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 23:41:23 -0700 (PDT)
-Received: from mail.wingtech.com (mail.wingtech.com. [180.166.216.14])
-        by mx.google.com with ESMTPS id f20-v6si2782046itf.70.2018.07.24.23.41.21
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E224C6B026D
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 02:56:16 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id o60-v6so2701832edd.13
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 23:56:16 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c10-v6si817286edk.121.2018.07.24.23.56.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 24 Jul 2018 23:41:22 -0700 (PDT)
-Date: Wed, 25 Jul 2018 14:40:32 +0800
-From: "zhaowuyun@wingtech.com" <zhaowuyun@wingtech.com>
-Subject: [PATCH] [PATCH] mm: disable preemption before swapcache_free
-References: <2018072514375722198958@wingtech.com>
-Mime-Version: 1.0
-Message-ID: <2018072514403228778860@wingtech.com>
-Content-Type: text/plain;
-	charset="utf-8"
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Jul 2018 23:56:15 -0700 (PDT)
+Subject: Re: [PATCH 4/4] mm: proc/pid/smaps_rollup: convert to single value
+ seq_file
+References: <20180723111933.15443-1-vbabka@suse.cz>
+ <20180723111933.15443-5-vbabka@suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <cb1d1965-9a13-e80f-dfde-a5d3bf9f510c@suse.cz>
+Date: Wed, 25 Jul 2018 08:53:53 +0200
+MIME-Version: 1.0
+In-Reply-To: <20180723111933.15443-5-vbabka@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman <mgorman@techsingularity.net>, akpm <akpm@linux-foundation.org>, minchan <minchan@kernel.org>
-Cc: vinmenon <vinmenon@codeaurora.org>, mhocko <mhocko@suse.com>, hannes <hannes@cmpxchg.org>, "hillf.zj" <hillf.zj@alibaba-inc.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>
+Cc: Daniel Colascione <dancol@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org
 
-RnJvbTogemhhb3d1eXVuIDx6aGFvd3V5dW5Ad2luZ3RlY2guY29tPgrCoAppc3N1ZSBpcyB0aGF0
-IHRoZXJlIGFyZSB0d28gcHJvY2Vzc2VzIEEgYW5kIEIsIEEgaXMga3dvcmtlci91MTY6OApub3Jt
-YWwgcHJpb3JpdHksIEIgaXMgQXVkaW9UcmFjaywgUlQgcHJpb3JpdHksIHRoZXkgYXJlIG9uIHRo
-ZQpzYW1lIENQVSAzLgrCoApUaGUgdGFzayBBIHByZWVtcHRlZCBieSB0YXNrIEIgaW4gdGhlIG1v
-bWVudAphZnRlciBfX2RlbGV0ZV9mcm9tX3N3YXBfY2FjaGUocGFnZSkgYW5kIGJlZm9yZSBzd2Fw
-Y2FjaGVfZnJlZShzd2FwKS4KwqAKVGhlIHRhc2sgQiBkb2VzIF9fcmVhZF9zd2FwX2NhY2hlX2Fz
-eW5jIGluIHRoZSBkbyB7fSB3aGlsZSBsb29wLCBpdAp3aWxsIG5ldmVyIGZpbmQgdGhlIHBhZ2Ug
-ZnJvbSBzd2FwcGVyX3NwYWNlIGJlY2F1c2UgdGhlIHBhZ2UgaXMgcmVtb3ZlZApieSB0aGUgdGFz
-ayBBLCBhbmQgaXQgd2lsbCBuZXZlciBzdWNlc3NmdWxseSBpbiBzd2FwY2FjaGVfcHJlcGFyZSBi
-ZWNhdXNlCnRoZSBlbnRyeSBpcyBFRVhJU1QuCsKgClRoZSB0YXNrIEIgdGhlbiBzdHVjayBpbiB0
-aGUgbG9vcCBpbmZpbml0ZWx5IGJlY2F1c2UgaXQgaXMgYSBSVCB0YXNrLApubyBvbmUgY2FuIHBy
-ZWVtcHQgaXQuCsKgCnNvIG5lZWQgdG8gZGlzYWJsZSBwcmVlbXB0aW9uIHVudGlsIHRoZSBzd2Fw
-Y2FjaGVfZnJlZSBleGVjdXRlZC4KwqAKVEFTSyBBOgo9PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PQpQcm9jZXNzOiBrd29ya2VyL3UxNjo4LCBjcHU6
-IDMgcGlkOiAyMDI4OSBzdGFydDogMHhmZmZmZmZjMDM4NWY4ZTAwCj09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09CsKgwqDCoCBUYXNrIG5hbWU6IGt3
-b3JrZXIvdTE2OjggcGlkOiAyMDI4OSBjcHU6IDMgc3RhcnQ6IGZmZmZmZmMwMzg1ZjhlMDAKwqDC
-oMKgIHN0YXRlOiAweDAgZXhpdF9zdGF0ZTogMHgwIHN0YWNrIGJhc2U6IDB4ZmZmZmZmYzAxMmJh
-MDAwMCBQcmlvOiAxMjAKwqDCoMKgIFN0YWNrOgrCoMKgwqAgWzxmZmZmZmY4MGJjYTg2MWE0Pl0g
-X19zd2l0Y2hfdG8rMHg5MArCoMKgwqAgWzxmZmZmZmY4MGJkODNlZGRjPl0gX19zY2hlZHVsZSsw
-eDI5YwrCoMKgwqAgWzxmZmZmZmY4MGJkODNmNjAwPl0gcHJlZW1wdF9zY2hlZHVsZV9jb21tb24r
-MHgyNArCoMKgwqAgWzxmZmZmZmY4MGJkODNmNjNjPl0gcHJlZW1wdF9zY2hlZHVsZS5wYXJ0LjE2
-OSsweDFjCsKgwqDCoCBbPGZmZmZmZjgwYmQ4M2Y2NjQ+XSBwcmVlbXB0X3NjaGVkdWxlKzB4MjAK
-wqDCoMKgIFs8ZmZmZmZmODBiZDg0Mzk2Yz5dIF9yYXdfc3Bpbl91bmxvY2tfaXJxcmVzdG9yZSsw
-eDQwCsKgwqDCoCBbPGZmZmZmZjgwYmNiYzQ3MTA+XSBfX3JlbW92ZV9tYXBwaW5nKzB4MTc0CsKg
-wqDCoCBbPGZmZmZmZjgwYmNiYzc2OTg+XSBzaHJpbmtfcGFnZV9saXN0KzB4ODk0CsKgwqDCoCBb
-PGZmZmZmZjgwYmNiYzdkN2M+XSByZWNsYWltX3BhZ2VzX2Zyb21fbGlzdCsweGM4CsKgwqDCoCBb
-PGZmZmZmZjgwYmNjN2I5MTA+XSByZWNsYWltX3B0ZV9yYW5nZSsweDE1OArCoMKgwqAgWzxmZmZm
-ZmY4MGJjYmY0NWQ0Pl0gd2Fsa19wZ2RfcmFuZ2UrMHhkNArCoMKgwqAgWzxmZmZmZmY4MGJjYmY0
-NzZjPl0gd2Fsa19wYWdlX3JhbmdlKzB4NzQKwqDCoMKgIFs8ZmZmZmZmODBiY2M3Y2Q2ND5dIHJl
-Y2xhaW1fdGFza19hbm9uKzB4ZGMKwqDCoMKgIFs8ZmZmZmZmODBiY2MwYTRjND5dIHN3YXBfZm4r
-MHgxYjgKwqDCoMKgIFs8ZmZmZmZmODBiY2FjMmU4OD5dIHByb2Nlc3Nfb25lX3dvcmsrMHgxNjgK
-wqDCoMKgIFs8ZmZmZmZmODBiY2FjMzNhMD5dIHdvcmtlcl90aHJlYWQrMHgyMjQKwqDCoMKgIFs8
-ZmZmZmZmODBiY2FjOTg2ND5dIGt0aHJlYWQrMHhlMArCoMKgwqAgWzxmZmZmZmY4MGJjYTgzNmUw
-Pl0gcmV0X2Zyb21fZm9yaysweDEwCsKgClRBU0sgQjoKWzUzNTQ3OC43MjQyNDldIENQVTogMyBQ
-SUQ6IDQ2NDUgQ29tbTogQXVkaW9UcmFjayBUYWludGVkOiBHRsKgwqDCoCBVRCBXwqAgTyA0Ljku
-ODItcGVyZisgIzEKWzUzNTQ3OC43MjQzODVdIEhhcmR3YXJlIG5hbWU6IFF1YWxjb21tIFRlY2hu
-b2xvZ2llcywgSW5jLiBTRE00NTAgUE1JNjMyIE1UUCBTMyAoRFQpCls1MzU0NzguNzI0NDc5XSB0
-YXNrOiBmZmZmZmZjMDI2Y2UyYTAwIHRhc2suc3RhY2s6IGZmZmZmZmMwMTJlMTQwMDAKWzUzNTQ3
-OC43MjQ1MzddIFBDIGlzIGF0IF9fcmVhZF9zd2FwX2NhY2hlX2FzeW5jKzB4MTU0LzB4MjVjCls1
-MzU0NzguNzI0NjMwXSBMUiBpcyBhdCBfX3JlYWRfc3dhcF9jYWNoZV9hc3luYysweDljLzB4MjVj
-Ci4uLgpbNTM1NDc4LjczNTU0Nl0gWzxmZmZmZmY4MGJjYmY5OTcwPl0gX19yZWFkX3N3YXBfY2Fj
-aGVfYXN5bmMrMHgxNTQvMHgyNWMKWzUzNTQ3OC43MzU1OTldIFs8ZmZmZmZmODBiY2JmOWE5OD5d
-IHJlYWRfc3dhcF9jYWNoZV9hc3luYysweDIwLzB4NTQKWzUzNTQ3OC43MzU2OTddIFs8ZmZmZmZm
-ODBiY2JmOWIyND5dIHN3YXBpbl9yZWFkYWhlYWQrMHg1OC8weDIxOApbNTM1NDc4LjczNTc5N10g
-WzxmZmZmZmY4MGJjYmU1MjQwPl0gZG9fc3dhcF9wYWdlKzB4M2M0LzB4NGQwCls1MzU0NzguNzM1
-ODUwXSBbPGZmZmZmZjgwYmNiZTZiZjg+XSBoYW5kbGVfbW1fZmF1bHQrMHgzNjQvMHhiYTQKWzUz
-NTQ3OC43MzU5NDldIFs8ZmZmZmZmODBiY2E5YjVhOD5dIGRvX3BhZ2VfZmF1bHQrMHgyYTAvMHgz
-OGMKWzUzNTQ3OC43MzYwMDNdIFs8ZmZmZmZmODBiY2E5Yjc5Yz5dIGRvX3RyYW5zbGF0aW9uX2Zh
-dWx0KzB4NDAvMHg0OApbNTM1NDc4LjczNjEwMF0gWzxmZmZmZmY4MGJjYTgxMzQwPl0gZG9fbWVt
-X2Fib3J0KzB4NTAvMHhjOArCoApDaGFuZ2UtSWQ6IEkzNmQ5ZGY3Y2NmZjc3YzU4OWI3MTU3MjI1
-NDEwMjY5YzY3NWE4NTA0ClNpZ25lZC1vZmYtYnk6IHpoYW93dXl1biA8emhhb3d1eXVuQHdpbmd0
-ZWNoLmNvbT4KLS0tCm1tL3Ztc2Nhbi5jIHwgOSArKysrKysrKysKMSBmaWxlIGNoYW5nZWQsIDkg
-aW5zZXJ0aW9ucygrKQrCoApkaWZmIC0tZ2l0IGEvbW0vdm1zY2FuLmMgYi9tbS92bXNjYW4uYwpp
-bmRleCAyNzQwOTczLi5hY2VkZTAwMiAxMDA2NDQKLS0tIGEvbW0vdm1zY2FuLmMKKysrIGIvbW0v
-dm1zY2FuLmMKQEAgLTY3NCw2ICs2NzQsMTIgQEAgc3RhdGljIGludCBfX3JlbW92ZV9tYXBwaW5n
-KHN0cnVjdCBhZGRyZXNzX3NwYWNlICptYXBwaW5nLCBzdHJ1Y3QgcGFnZSAqcGFnZSwKQlVHX09O
-KCFQYWdlTG9ja2VkKHBhZ2UpKTsKQlVHX09OKG1hcHBpbmcgIT0gcGFnZV9tYXBwaW5nKHBhZ2Up
-KTsKKwkvKgorCSogcHJlZW1wdGlvbiBtdXN0IGJlIGRpc2FibGVkIHRvIHByb3RlY3QgY3VycmVu
-dCB0YXNrIHByZWVtcHRlZCBiZWZvcmUKKwkqIHN3YXBjYWNoZV9mcmVlKHN3YXApIGludm9rZWQg
-YnkgdGhlIHRhc2sgd2hpY2ggZG8gdGhlCisJKiBfX3JlYWRfc3dhcF9jYWNoZV9hc3luYyBqb2Ig
-b24gdGhlIHNhbWUgcGFnZQorCSovCisJcHJlZW1wdF9kaXNhYmxlKCk7CnNwaW5fbG9ja19pcnFz
-YXZlKCZtYXBwaW5nLT50cmVlX2xvY2ssIGZsYWdzKTsKLyoKKiBUaGUgbm9uIHJhY3kgY2hlY2sg
-Zm9yIGEgYnVzeSBwYWdlLgpAQCAtNzE0LDYgKzcyMCw3IEBAIHN0YXRpYyBpbnQgX19yZW1vdmVf
-bWFwcGluZyhzdHJ1Y3QgYWRkcmVzc19zcGFjZSAqbWFwcGluZywgc3RydWN0IHBhZ2UgKnBhZ2Us
-Cl9fZGVsZXRlX2Zyb21fc3dhcF9jYWNoZShwYWdlKTsKc3Bpbl91bmxvY2tfaXJxcmVzdG9yZSgm
-bWFwcGluZy0+dHJlZV9sb2NrLCBmbGFncyk7CnN3YXBjYWNoZV9mcmVlKHN3YXApOworCXByZWVt
-cHRfZW5hYmxlKCk7Cn0gZWxzZSB7CnZvaWQgKCpmcmVlcGFnZSkoc3RydWN0IHBhZ2UgKik7CnZv
-aWQgKnNoYWRvdyA9IE5VTEw7CkBAIC03NDAsNiArNzQ3LDcgQEAgc3RhdGljIGludCBfX3JlbW92
-ZV9tYXBwaW5nKHN0cnVjdCBhZGRyZXNzX3NwYWNlICptYXBwaW5nLCBzdHJ1Y3QgcGFnZSAqcGFn
-ZSwKc2hhZG93ID0gd29ya2luZ3NldF9ldmljdGlvbihtYXBwaW5nLCBwYWdlKTsKX19kZWxldGVf
-ZnJvbV9wYWdlX2NhY2hlKHBhZ2UsIHNoYWRvdyk7CnNwaW5fdW5sb2NrX2lycXJlc3RvcmUoJm1h
-cHBpbmctPnRyZWVfbG9jaywgZmxhZ3MpOworCXByZWVtcHRfZW5hYmxlKCk7CmlmIChmcmVlcGFn
-ZSAhPSBOVUxMKQpmcmVlcGFnZShwYWdlKTsKQEAgLTc0OSw2ICs3NTcsNyBAQCBzdGF0aWMgaW50
-IF9fcmVtb3ZlX21hcHBpbmcoc3RydWN0IGFkZHJlc3Nfc3BhY2UgKm1hcHBpbmcsIHN0cnVjdCBw
-YWdlICpwYWdlLApjYW5ub3RfZnJlZToKc3Bpbl91bmxvY2tfaXJxcmVzdG9yZSgmbWFwcGluZy0+
-dHJlZV9sb2NrLCBmbGFncyk7CisJcHJlZW1wdF9lbmFibGUoKTsKcmV0dXJuIDA7Cn0KLS0KMS45
-LjEKwqA=
+I moved the reply to this thread since the "added to -mm tree"
+notification Alexey replied to in <20180724182908.GD27053@avx2> has
+reduced CC list and is not linked to the patch postings.
+
+On 07/24/2018 08:29 PM, Alexey Dobriyan wrote:
+> On Mon, Jul 23, 2018 at 04:55:48PM -0700, akpm@linux-foundation.org wrote:
+>> The patch titled
+>>      Subject: mm: /proc/pid/smaps_rollup: convert to single value seq_file
+>> has been added to the -mm tree.  Its filename is
+>>      mm-proc-pid-smaps_rollup-convert-to-single-value-seq_file.patch
+> 
+>> Subject: mm: /proc/pid/smaps_rollup: convert to single value seq_file
+>>
+>> The /proc/pid/smaps_rollup file is currently implemented via the
+>> m_start/m_next/m_stop seq_file iterators shared with the other maps files,
+>> that iterate over vma's.  However, the rollup file doesn't print anything
+>> for each vma, only accumulate the stats.
+> 
+> What I don't understand why keep seq_ops then and not do all the work in
+> ->show hook.  Currently /proc/*/smaps_rollup is at ~500 bytes so with
+> minimum 1 page seq buffer, no buffer resizing is possible.
+
+Hmm IIUC seq_file also provides the buffer and handles feeding the data
+from there to the user process, which might have called read() with a smaller
+buffer than that. So I would rather not avoid the seq_file infrastructure.
+Or you're saying it could be converted to single_open()? Maybe, with more work.
+
+>> +static int show_smaps_rollup(struct seq_file *m, void *v)
+>> +{
+>> +	struct proc_maps_private *priv = m->private;
+>> +	struct mem_size_stats *mss = priv->rollup;
+>> +	struct vm_area_struct *vma;
+>> +
+>> +	/*
+>> +	 * We might be called multiple times when e.g. the seq buffer
+>> +	 * overflows. Gather the stats only once.
+> 
+> It doesn't!
+
+Because the buffer is 1 page and the data is ~500 bytes as you said above?
+Agreed, but I wouldn't want to depend on data not growing in the future or
+the initial buffer not getting smaller. I could extend the comment that this
+is theoretical for now?
+ 
+>> +	if (!mss->finished) {
+>> +		for (vma = priv->mm->mmap; vma; vma = vma->vm_next) {
+>> +			smap_gather_stats(vma, mss);
+>> +			mss->last_vma_end = vma->vm_end;
+>>  		}
+>> -		last_vma = !m_next_vma(priv, vma);
+>> -	} else {
+>> -		rollup_mode = false;
+>> -		memset(&mss_stack, 0, sizeof(mss_stack));
+>> -		mss = &mss_stack;
