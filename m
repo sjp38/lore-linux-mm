@@ -1,55 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C3EA56B026F
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 03:40:13 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id r9-v6so2743934edh.14
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 00:40:13 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a24-v6si340134eda.125.2018.07.25.00.40.11
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 047916B0271
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 03:58:12 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id t138-v6so6897757oih.5
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 00:58:11 -0700 (PDT)
+Received: from mail.wingtech.com (mail.wingtech.com. [180.166.216.14])
+        by mx.google.com with ESMTPS id t62-v6si9703651oig.270.2018.07.25.00.58.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jul 2018 00:40:12 -0700 (PDT)
-Date: Wed, 25 Jul 2018 09:40:09 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] [PATCH] mm: disable preemption before swapcache_free
-Message-ID: <20180725074009.GU28386@dhcp22.suse.cz>
-References: <2018072514375722198958@wingtech.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2018072514375722198958@wingtech.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 25 Jul 2018 00:58:10 -0700 (PDT)
+Date: Wed, 25 Jul 2018 15:57:55 +0800
+From: "zhaowuyun@wingtech.com" <zhaowuyun@wingtech.com>
+Subject: Re: Re: [PATCH] [PATCH] mm: disable preemption before swapcache_free
+References: <2018072514375722198958@wingtech.com>,
+	<20180725074009.GU28386@dhcp22.suse.cz>
+Mime-Version: 1.0
+Message-ID: <2018072515575576668668@wingtech.com>
+Content-Type: text/plain;
+	charset="utf-8"
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "zhaowuyun@wingtech.com" <zhaowuyun@wingtech.com>
+To: Michal Hocko <mhocko@kernel.org>
 Cc: mgorman <mgorman@techsingularity.net>, akpm <akpm@linux-foundation.org>, minchan <minchan@kernel.org>, vinmenon <vinmenon@codeaurora.org>, hannes <hannes@cmpxchg.org>, "hillf.zj" <hillf.zj@alibaba-inc.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Wed 25-07-18 14:37:58, zhaowuyun@wingtech.com wrote:
-[...]
-> Change-Id: I36d9df7ccff77c589b7157225410269c675a8504
-
-What is this?
-
-> Signed-off-by: zhaowuyun <zhaowuyun@wingtech.com>
-> ---
-> mm/vmscan.c | 9 +++++++++
-> 1 file changed, 9 insertions(+)
->  
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 2740973..acede002 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -674,6 +674,12 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
-> BUG_ON(!PageLocked(page));
-> BUG_ON(mapping != page_mapping(page));
-> + /*
-> + * preemption must be disabled to protect current task preempted before
-> + * swapcache_free(swap) invoked by the task which do the
-> + * __read_swap_cache_async job on the same page
-> + */
-> + preempt_disable();
-> spin_lock_irqsave(&mapping->tree_lock, flags);
-
-Hmm, but spin_lock_irqsave already implies the disabled preemption.
--- 
-Michal Hocko
-SUSE Labs
+VGhhdCBpcyBhIEJVRyB3ZSBmb3VuZCBpbiBtbS92bXNjYW4uYyBhdCBLRVJORUwgVkVSU0lPTiA0
+LjkuODIKU3VtYXJ5IGlzIFRBU0sgQSAobm9ybWFsIHByaW9yaXR5KSBkb2luZyBfX3JlbW92ZV9t
+YXBwaW5nIHBhZ2UgcHJlZW1wdGVkIGJ5IFRBU0sgQiAoUlQgcHJpb3JpdHkpIGRvaW5nIF9fcmVh
+ZF9zd2FwX2NhY2hlX2FzeW5jLAp0aGUgVEFTSyBBIHByZWVtcHRlZCBiZWZvcmUgc3dhcGNhY2hl
+X2ZyZWUsIGxlZnQgU1dBUF9IQVNfQ0FDSEUgZmxhZyBpbiB0aGUgc3dhcCBjYWNoZSwKdGhlIFRB
+U0sgQiB3aGljaCBkb2luZyBfX3JlYWRfc3dhcF9jYWNoZV9hc3luYywgd2lsbCBub3Qgc3VjY2Vz
+cyBhdCBzd2FwY2FjaGVfcHJlcGFyZShlbnRyeSkgYmVjYXVzZSB0aGUgc3dhcCBjYWNoZSB3YXMg
+ZXhpc3QsIHRoZW4gaXQgd2lsbCBsb29wIGZvcmV2ZXIgYmVjYXVzZSBpdCBpcyBhIFJUIHRocmVh
+ZC4uLgp0aGUgc3BpbiBsb2NrIHVubG9ja2VkIGJlZm9yZSBzd2FwY2FjaGVfZnJlZSwgc28gZGlz
+YWJsZSBwcmVlbXB0aW9uIHVudGlsIHN3YXBjYWNoZV9mcmVlIGV4ZWN1dGVkIC4uLgoKc3RydWN0
+IHBhZ2UgKl9fcmVhZF9zd2FwX2NhY2hlX2FzeW5jKHN3cF9lbnRyeV90IGVudHJ5LCBnZnBfdCBn
+ZnBfbWFzaywKwqAgwqAgwqAgwqAgwqAgwqAgc3RydWN0IHZtX2FyZWFfc3RydWN0ICp2bWEsIHVu
+c2lnbmVkIGxvbmcgYWRkciwKwqAgwqAgwqAgwqAgwqAgwqAgYm9vbCAqbmV3X3BhZ2VfYWxsb2Nh
+dGVkKQp7CsKgIMKgIHN0cnVjdCBwYWdlICpmb3VuZF9wYWdlLCAqbmV3X3BhZ2UgPSBOVUxMOwrC
+oCDCoCBzdHJ1Y3QgYWRkcmVzc19zcGFjZSAqc3dhcHBlcl9zcGFjZSA9IHN3YXBfYWRkcmVzc19z
+cGFjZShlbnRyeSk7CsKgIMKgIGludCBlcnI7CsKgIMKgICpuZXdfcGFnZV9hbGxvY2F0ZWQgPSBm
+YWxzZTsKCsKgIMKgIGRvIHsKwqAgwqAgwqAgwqAgLyoKwqAgwqAgwqAgwqAgwqAqIEZpcnN0IGNo
+ZWNrIHRoZSBzd2FwIGNhY2hlLiDCoFNpbmNlIHRoaXMgaXMgbm9ybWFsbHkKwqAgwqAgwqAgwqAg
+wqAqIGNhbGxlZCBhZnRlciBsb29rdXBfc3dhcF9jYWNoZSgpIGZhaWxlZCwgcmUtY2FsbGluZwrC
+oCDCoCDCoCDCoCDCoCogdGhhdCB3b3VsZCBjb25mdXNlIHN0YXRpc3RpY3MuCsKgIMKgIMKgIMKg
+IMKgKi8KwqAgwqAgwqAgwqAgZm91bmRfcGFnZSA9IGZpbmRfZ2V0X3BhZ2Uoc3dhcHBlcl9zcGFj
+ZSwgc3dwX29mZnNldChlbnRyeSkpOwrCoCDCoCDCoCDCoCBpZiAoZm91bmRfcGFnZSkKwqAgwqAg
+wqAgwqAgwqAgwqAgYnJlYWs7CgrCoCDCoCDCoCDCoCAvKgrCoCDCoCDCoCDCoCDCoCogR2V0IGEg
+bmV3IHBhZ2UgdG8gcmVhZCBpbnRvIGZyb20gc3dhcC4KwqAgwqAgwqAgwqAgwqAqLwrCoCDCoCDC
+oCDCoCBpZiAoIW5ld19wYWdlKSB7CsKgIMKgIMKgIMKgIMKgIMKgIG5ld19wYWdlID0gYWxsb2Nf
+cGFnZV92bWEoZ2ZwX21hc2ssIHZtYSwgYWRkcik7CsKgIMKgIMKgIMKgIMKgIMKgIGlmICghbmV3
+X3BhZ2UpCsKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGJyZWFrOyDCoCDCoCDCoCDCoC8qIE91dCBv
+ZiBtZW1vcnkgKi8KwqAgwqAgwqAgwqAgfQoKwqAgwqAgwqAgwqAgLyoKwqAgwqAgwqAgwqAgwqAq
+IGNhbGwgcmFkaXhfdHJlZV9wcmVsb2FkKCkgd2hpbGUgd2UgY2FuIHdhaXQuCsKgIMKgIMKgIMKg
+IMKgKi8KwqAgwqAgwqAgwqAgZXJyID0gcmFkaXhfdHJlZV9tYXliZV9wcmVsb2FkKGdmcF9tYXNr
+ICYgR0ZQX0tFUk5FTCk7CsKgIMKgIMKgIMKgIGlmIChlcnIpCsKgIMKgIMKgIMKgIMKgIMKgIGJy
+ZWFrOwoKwqAgwqAgwqAgwqAgLyoKwqAgwqAgwqAgwqAgwqAqIFN3YXAgZW50cnkgbWF5IGhhdmUg
+YmVlbiBmcmVlZCBzaW5jZSBvdXIgY2FsbGVyIG9ic2VydmVkIGl0LgrCoCDCoCDCoCDCoCDCoCov
+CsKgIMKgIMKgIMKgIGVyciA9IHN3YXBjYWNoZV9wcmVwYXJlKGVudHJ5KTsKwqAgwqAgwqAgwqAg
+aWYgKGVyciA9PSAtRUVYSVNUKSB7CsKgIMKgIMKgIMKgIMKgIMKgIHJhZGl4X3RyZWVfcHJlbG9h
+ZF9lbmQoKTsKwqAgwqAgwqAgwqAgwqAgwqAgLyoKwqAgwqAgwqAgwqAgwqAgwqAgwqAqIFdlIG1p
+Z2h0IHJhY2UgYWdhaW5zdCBnZXRfc3dhcF9wYWdlKCkgYW5kIHN0dW1ibGUKwqAgwqAgwqAgwqAg
+wqAgwqAgwqAqIGFjcm9zcyBhIFNXQVBfSEFTX0NBQ0hFIHN3YXBfbWFwIGVudHJ5IHdob3NlIHBh
+Z2UKwqAgwqAgwqAgwqAgwqAgwqAgwqAqIGhhcyBub3QgYmVlbiBicm91Z2h0IGludG8gdGhlIHN3
+YXBjYWNoZSB5ZXQsIHdoaWxlCsKgIMKgIMKgIMKgIMKgIMKgIMKgKiB0aGUgb3RoZXIgZW5kIGlz
+IHNjaGVkdWxlZCBhd2F5IHdhaXRpbmcgb24gZGlzY2FyZArCoCDCoCDCoCDCoCDCoCDCoCDCoCog
+SS9PIGNvbXBsZXRpb24gYXQgc2Nhbl9zd2FwX21hcCgpLgrCoCDCoCDCoCDCoCDCoCDCoCDCoCoK
+wqAgwqAgwqAgwqAgwqAgwqAgwqAqIEluIG9yZGVyIHRvIGF2b2lkIHR1cm5pbmcgdGhpcyB0cmFu
+c2l0b3J5IHN0YXRlCsKgIMKgIMKgIMKgIMKgIMKgIMKgKiBpbnRvIGEgcGVybWFuZW50IGxvb3Ag
+YXJvdW5kIHRoaXMgLUVFWElTVCBjYXNlCsKgIMKgIMKgIMKgIMKgIMKgIMKgKiBpZiAhQ09ORklH
+X1BSRUVNUFQgYW5kIHRoZSBJL08gY29tcGxldGlvbiBoYXBwZW5zCsKgIMKgIMKgIMKgIMKgIMKg
+IMKgKiB0byBiZSB3YWl0aW5nIG9uIHRoZSBDUFUgd2FpdHF1ZXVlIHdoZXJlIHdlIGFyZSBub3cK
+wqAgwqAgwqAgwqAgwqAgwqAgwqAqIGJ1c3kgbG9vcGluZywgd2UganVzdCBjb25kaXRpb25hbGx5
+IGludm9rZSB0aGUKwqAgwqAgwqAgwqAgwqAgwqAgwqAqIHNjaGVkdWxlciBoZXJlLCBpZiB0aGVy
+ZSBhcmUgc29tZSBtb3JlIGltcG9ydGFudArCoCDCoCDCoCDCoCDCoCDCoCDCoCogdGFza3MgdG8g
+cnVuLgrCoCDCoCDCoCDCoCDCoCDCoCDCoCovCsKgIMKgIMKgIMKgIMKgIMKgIGNvbmRfcmVzY2hl
+ZCgpOwrCoCDCoCDCoCDCoCDCoCDCoCBjb250aW51ZTsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAvLyB3aWxsIGxv
+b3AgaW5maW5pdGVsecKgCsKgIMKgIMKgIMKgIH0KCnpoYW93dXl1bkB3aW5ndGVjaC5jb20KwqAK
+RnJvbTrCoE1pY2hhbCBIb2NrbwpEYXRlOsKgMjAxOC0wNy0yNcKgMTU6NDAKVG86wqB6aGFvd3V5
+dW5Ad2luZ3RlY2guY29tCkNDOsKgbWdvcm1hbjsgYWtwbTsgbWluY2hhbjsgdmlubWVub247IGhh
+bm5lczsgaGlsbGYuemo7IGxpbnV4LW1tOyBsaW51eC1rZXJuZWwKU3ViamVjdDrCoFJlOiBbUEFU
+Q0hdIFtQQVRDSF0gbW06IGRpc2FibGUgcHJlZW1wdGlvbiBiZWZvcmUgc3dhcGNhY2hlX2ZyZWUK
+T24gV2VkIDI1LTA3LTE4IDE0OjM3OjU4LCB6aGFvd3V5dW5Ad2luZ3RlY2guY29tIHdyb3RlOgpb
+Li4uXQo+IENoYW5nZS1JZDogSTM2ZDlkZjdjY2ZmNzdjNTg5YjcxNTcyMjU0MTAyNjljNjc1YTg1
+MDQKwqAKV2hhdCBpcyB0aGlzPwrCoAo+IFNpZ25lZC1vZmYtYnk6IHpoYW93dXl1biA8emhhb3d1
+eXVuQHdpbmd0ZWNoLmNvbT4KPiAtLS0KPiBtbS92bXNjYW4uYyB8IDkgKysrKysrKysrCj4gMSBm
+aWxlIGNoYW5nZWQsIDkgaW5zZXJ0aW9ucygrKQo+wqAKPiBkaWZmIC0tZ2l0IGEvbW0vdm1zY2Fu
+LmMgYi9tbS92bXNjYW4uYwo+IGluZGV4IDI3NDA5NzMuLmFjZWRlMDAyIDEwMDY0NAo+IC0tLSBh
+L21tL3Ztc2Nhbi5jCj4gKysrIGIvbW0vdm1zY2FuLmMKPiBAQCAtNjc0LDYgKzY3NCwxMiBAQCBz
+dGF0aWMgaW50IF9fcmVtb3ZlX21hcHBpbmcoc3RydWN0IGFkZHJlc3Nfc3BhY2UgKm1hcHBpbmcs
+IHN0cnVjdCBwYWdlICpwYWdlLAo+IEJVR19PTighUGFnZUxvY2tlZChwYWdlKSk7Cj4gQlVHX09O
+KG1hcHBpbmcgIT0gcGFnZV9tYXBwaW5nKHBhZ2UpKTsKPiArIC8qCj4gKyAqIHByZWVtcHRpb24g
+bXVzdCBiZSBkaXNhYmxlZCB0byBwcm90ZWN0IGN1cnJlbnQgdGFzayBwcmVlbXB0ZWQgYmVmb3Jl
+Cj4gKyAqIHN3YXBjYWNoZV9mcmVlKHN3YXApIGludm9rZWQgYnkgdGhlIHRhc2sgd2hpY2ggZG8g
+dGhlCj4gKyAqIF9fcmVhZF9zd2FwX2NhY2hlX2FzeW5jIGpvYiBvbiB0aGUgc2FtZSBwYWdlCj4g
+KyAqLwo+ICsgcHJlZW1wdF9kaXNhYmxlKCk7Cj4gc3Bpbl9sb2NrX2lycXNhdmUoJm1hcHBpbmct
+PnRyZWVfbG9jaywgZmxhZ3MpOwrCoApIbW0sIGJ1dCBzcGluX2xvY2tfaXJxc2F2ZSBhbHJlYWR5
+IGltcGxpZXMgdGhlIGRpc2FibGVkIHByZWVtcHRpb24uCi0tCk1pY2hhbCBIb2NrbwpTVVNFIExh
+YnM=
