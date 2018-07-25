@@ -1,117 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A41D06B0006
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 15:52:41 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id j4-v6so5430744pgq.16
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 12:52:41 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id t10-v6si13326978plh.306.2018.07.25.12.52.40
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2986B6B0003
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 17:03:27 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id c23-v6so1115949pfi.3
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 14:03:27 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id o4-v6si14140241pgb.279.2018.07.25.14.03.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jul 2018 12:52:40 -0700 (PDT)
-Date: Wed, 25 Jul 2018 12:52:39 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 200651] New: cgroups iptables-restor: vmalloc: allocation
- failure
-Message-Id: <20180725125239.b591e4df270145f9064fe2c5@linux-foundation.org>
-In-Reply-To: <bug-200651-27@https.bugzilla.kernel.org/>
-References: <bug-200651-27@https.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 25 Jul 2018 14:03:25 -0700 (PDT)
+Date: Wed, 25 Jul 2018 14:03:23 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v14 00/74] Convert page cache to XArray
+Message-ID: <20180725210323.GB1366@bombadil.infradead.org>
+References: <20180617020052.4759-1-willy@infradead.org>
+ <20180619031257.GA12527@linux.intel.com>
+ <20180619092230.GA1438@bombadil.infradead.org>
+ <20180619164037.GA6679@linux.intel.com>
+ <20180619171638.GE1438@bombadil.infradead.org>
+ <20180627110529.GA19606@bombadil.infradead.org>
+ <20180627194438.GA20774@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180627194438.GA20774@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gnikolov@icdsoft.com
-Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, netfilter-devel@vger.kernel.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
+On Wed, Jun 27, 2018 at 01:44:38PM -0600, Ross Zwisler wrote:
+> On Wed, Jun 27, 2018 at 04:05:29AM -0700, Matthew Wilcox wrote:
+> > On Tue, Jun 19, 2018 at 10:16:38AM -0700, Matthew Wilcox wrote:
+> > > I think I see a bug.  No idea if it's the one you're hitting ;-)
+> > > 
+> > > I had been intending to not use the 'entry' to decide whether we were
+> > > waiting on a 2MB or 4kB page, but rather the xas.  I shelved that idea,
+> > > but not before dropping the DAX_PMD flag being passed from the PMD
+> > > pagefault caller.  So if I put that back ...
+> > 
+> > Did you get a chance to test this?
+> 
+> With this patch it doesn't deadlock, but the test dies with a SIGBUS and we
+> hit a WARN_ON in the DAX code:
+> 
+> WARNING: CPU: 5 PID: 1678 at fs/dax.c:226 get_unlocked_entry+0xf7/0x120
+> 
+> I don't have a lot of time this week to debug further.  The quickest path to
+> victory is probably for you to get this reproducing in your test setup.  Does
+> XFS + DAX + generic/340 pass for you?
 
-On Wed, 25 Jul 2018 11:42:57 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
-
-> https://bugzilla.kernel.org/show_bug.cgi?id=200651
-> 
->             Bug ID: 200651
->            Summary: cgroups iptables-restor: vmalloc: allocation failure
-
-Thanks.  Please do note the above request.
-
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: 4.14
->           Hardware: All
->                 OS: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: Other
->           Assignee: akpm@linux-foundation.org
->           Reporter: gnikolov@icdsoft.com
->         Regression: No
-> 
-> Created attachment 277505
->   --> https://bugzilla.kernel.org/attachment.cgi?id=277505&action=edit
-> iptables save
-> 
-> After creating large number of cgroups and under memory pressure, iptables
-> command fails with following error:
-> 
-> "iptables-restor: vmalloc: allocation failure, allocated 3047424 of 3465216
-> bytes, mode:0x14010c0(GFP_KERNEL|__GFP_NORETRY), nodemask=(null)"
-
-I'm not sure what the problem is here, apart from iptables being
-over-optimistic about vmalloc()'s abilities.
-
-Are cgroups having any impact on this, or is it simply vmalloc arena
-fragmentation, and the iptables code should use some data structure
-more sophisticated than a massive array?
-
-Maybe all that ccgroup metadata is contributing to the arena
-fragmentation, but that allocations will be small and the two systems
-should be able to live alongside, by being realistic about vmalloc.
-
-> System which is used to reproduce the bug is with 2 vcpus and 2GB of ram, but
-> it happens on more powerfull systems.
-> 
-> Steps to reproduce:
-> 
-> mkdir /cgroup
-> mount cgroup -t cgroup -omemory,pids,blkio,cpuacct /cgroup
-> for a in `seq 1 1000`; do for b in `seq 1 4` ; do mkdir -p
-> "/cgroup/user/$a/$b"; done; done
-> 
-> Then in separate consoles
-> 
-> cat /dev/vda > /dev/null
-> ./test
-> ./test
-> i=0;while sleep 0 ; do iptables-restore < iptables.save ; i=$(($i+1)); echo $i;
-> done
-> 
-> Here is the source of "test" program and attached iptables.save. It happens
-> also with smaller iptables.save file.
-> 
-> #include <stdio.h>
-> #include <stdlib.h>
-> 
-> int main(void) {
-> 
->     srand(time(NULL));
->     int i = 0, j = 0, randnum=0;
->     int arr[6] = { 3072, 7168, 15360 , 31744, 64512, 130048}; 
->     while(1) {
-> 
->         for (i = 0; i < 6 ; i++) {
-> 
->             int *ptr = (int*) malloc(arr[i] * 93);  
-> 
->             for(j = 0 ; j < arr[i] * 93 / sizeof(int); j++) {
->                 *(ptr+j) = j+1;
->             }
-> 
->             free(ptr);
->         }
->     }       
-> }
-> 
+I now have generic/340 passing.  I've pushed a new version to
+git://git.infradead.org/users/willy/linux-dax.git xarray
