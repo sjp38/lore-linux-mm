@@ -1,58 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 357F56B0006
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 17:12:29 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id g5-v6so5572656pgq.5
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 14:12:29 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id d37-v6si7516347plb.430.2018.07.25.14.12.28
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 357446B0008
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 17:16:46 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id g15-v6so6216754plo.11
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 14:16:46 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id y62-v6si15516313pfd.254.2018.07.25.14.16.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jul 2018 14:12:28 -0700 (PDT)
-Date: Wed, 25 Jul 2018 15:12:26 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v14 00/74] Convert page cache to XArray
-Message-ID: <20180725211226.GA12326@linux.intel.com>
-References: <20180617020052.4759-1-willy@infradead.org>
- <20180619031257.GA12527@linux.intel.com>
- <20180619092230.GA1438@bombadil.infradead.org>
- <20180619164037.GA6679@linux.intel.com>
- <20180619171638.GE1438@bombadil.infradead.org>
- <20180627110529.GA19606@bombadil.infradead.org>
- <20180627194438.GA20774@linux.intel.com>
- <20180725210323.GB1366@bombadil.infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180725210323.GB1366@bombadil.infradead.org>
+        Wed, 25 Jul 2018 14:16:45 -0700 (PDT)
+Date: Wed, 25 Jul 2018 14:16:43 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] [PATCH] mm: disable preemption before swapcache_free
+Message-Id: <20180725141643.6d9ba86a9698bc2580836618@linux-foundation.org>
+In-Reply-To: <2018072514375722198958@wingtech.com>
+References: <2018072514375722198958@wingtech.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net
+To: "zhaowuyun@wingtech.com" <zhaowuyun@wingtech.com>
+Cc: mgorman <mgorman@techsingularity.net>, minchan <minchan@kernel.org>, vinmenon <vinmenon@codeaurora.org>, mhocko <mhocko@suse.com>, hannes <hannes@cmpxchg.org>, "hillf.zj" <hillf.zj@alibaba-inc.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
 
-On Wed, Jul 25, 2018 at 02:03:23PM -0700, Matthew Wilcox wrote:
-> On Wed, Jun 27, 2018 at 01:44:38PM -0600, Ross Zwisler wrote:
-> > On Wed, Jun 27, 2018 at 04:05:29AM -0700, Matthew Wilcox wrote:
-> > > On Tue, Jun 19, 2018 at 10:16:38AM -0700, Matthew Wilcox wrote:
-> > > > I think I see a bug.  No idea if it's the one you're hitting ;-)
-> > > > 
-> > > > I had been intending to not use the 'entry' to decide whether we were
-> > > > waiting on a 2MB or 4kB page, but rather the xas.  I shelved that idea,
-> > > > but not before dropping the DAX_PMD flag being passed from the PMD
-> > > > pagefault caller.  So if I put that back ...
-> > > 
-> > > Did you get a chance to test this?
-> > 
-> > With this patch it doesn't deadlock, but the test dies with a SIGBUS and we
-> > hit a WARN_ON in the DAX code:
-> > 
-> > WARNING: CPU: 5 PID: 1678 at fs/dax.c:226 get_unlocked_entry+0xf7/0x120
-> > 
-> > I don't have a lot of time this week to debug further.  The quickest path to
-> > victory is probably for you to get this reproducing in your test setup.  Does
-> > XFS + DAX + generic/340 pass for you?
-> 
-> I now have generic/340 passing.  I've pushed a new version to
-> git://git.infradead.org/users/willy/linux-dax.git xarray
+On Wed, 25 Jul 2018 14:37:58 +0800 "zhaowuyun@wingtech.com" <zhaowuyun@wingtech.com> wrote:
 
-Thanks, I'll throw it in my test setup.
+> From: zhaowuyun <zhaowuyun@wingtech.com>
+>  
+> issue is that there are two processes A and B, A is kworker/u16:8
+> normal priority, B is AudioTrack, RT priority, they are on the
+> same CPU 3.
+>  
+> The task A preempted by task B in the moment
+> after __delete_from_swap_cache(page) and before swapcache_free(swap).
+>  
+> The task B does __read_swap_cache_async in the do {} while loop, it
+> will never find the page from swapper_space because the page is removed
+> by the task A, and it will never sucessfully in swapcache_prepare because
+> the entry is EEXIST.
+>  
+> The task B then stuck in the loop infinitely because it is a RT task,
+> no one can preempt it.
+>  
+> so need to disable preemption until the swapcache_free executed.
+
+Yes, right, sorry, I must have merged cbab0e4eec299 in my sleep. 
+cond_resched() is a no-op in the presence of realtime policy threads
+and using to attempt to yield to a different thread it in this fashion
+is broken.
+
+Disabling preemption on the other side of the race should fix things,
+but it's using a bandaid to plug the leakage from the earlier bandaid. 
+The proper way to coordinate threads is to use a sleeping lock, such
+as a mutex, or some other wait/wakeup mechanism.
+
+And once that's done, we can hopefully eliminate the do loop from
+__read_swap_cache_async().  That also services ENOMEM from
+radix_tree_insert(), but __add_to_swap_cache() appears to handle that
+OK and we shouldn't just loop around retrying the insert and the
+radix_tree_preload() should ensure that radix_tree_insert() never fails
+anyway.  Unless we're calling __read_swap_cache_async() with screwy
+gfp_flags from somewhere.
