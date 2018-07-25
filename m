@@ -1,102 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4230E6B02AE
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 09:33:14 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id j18-v6so5013651iog.7
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 06:33:14 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id d13-v6si8786229ioc.151.2018.07.25.06.33.12
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jul 2018 06:33:12 -0700 (PDT)
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6PDSkmM104748
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 13:33:11 GMT
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by aserp2120.oracle.com with ESMTP id 2kbvsnwd1t-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 13:33:10 +0000
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w6PDX8nv000999
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 13:33:08 GMT
-Received: from abhmp0008.oracle.com (abhmp0008.oracle.com [141.146.116.14])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w6PDX8os006556
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 13:33:08 GMT
-Received: by mail-oi0-f46.google.com with SMTP id w126-v6so13880106oie.7
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 06:33:07 -0700 (PDT)
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 939846B02B0
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 09:44:20 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id p11-v6so7430900oih.17
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 06:44:20 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id n82-v6si9845133oih.318.2018.07.25.06.44.18
+        for <linux-mm@kvack.org>;
+        Wed, 25 Jul 2018 06:44:18 -0700 (PDT)
+Subject: Re: [PATCH v4 13/17] khwasan: add hooks implementation
+References: <cover.1530018818.git.andreyknvl@google.com>
+ <a2a93370d43ec85b02abaf8d007a15b464212221.1530018818.git.andreyknvl@google.com>
+From: "Vincenzo Frascino@Foss" <vincenzo.frascino@arm.com>
+Message-ID: <09cb5553-d84a-0e62-5174-315c14b88833@arm.com>
+Date: Wed, 25 Jul 2018 14:44:10 +0100
 MIME-Version: 1.0
-References: <20180724235520.10200-1-pasha.tatashin@oracle.com>
- <20180724235520.10200-3-pasha.tatashin@oracle.com> <20180725121459.GA16987@techadventures.net>
-In-Reply-To: <20180725121459.GA16987@techadventures.net>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Wed, 25 Jul 2018 09:32:31 -0400
-Message-ID: <CAGM2reZJHc4NYFnQPxJ3wwYXAnicVSqZzndHHpZFeeKHAmzY2Q@mail.gmail.com>
-Subject: Re: [PATCH 2/3] mm: calculate deferred pages after skipping mirrored memory
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <a2a93370d43ec85b02abaf8d007a15b464212221.1530018818.git.andreyknvl@google.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: osalvador@techadventures.net
-Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, kirill.shutemov@linux.intel.com, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, Souptick Joarder <jrdr.linux@gmail.com>, bhe@redhat.com, gregkh@linuxfoundation.org, Vlastimil Babka <vbabka@suse.cz>, Wei Yang <richard.weiyang@gmail.com>, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, abdhalee@linux.vnet.ibm.com, mpe@ellerman.id.au
+To: Andrey Konovalov <andreyknvl@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
+Cc: Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jann Horn <jannh@google.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Mark Brand <markbrand@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
 
-On Wed, Jul 25, 2018 at 8:15 AM Oscar Salvador
-<osalvador@techadventures.net> wrote:
+On 06/26/2018 02:15 PM, Andrey Konovalov wrote:
+
+> @@ -325,18 +341,41 @@ void kasan_init_slab_obj(struct kmem_cache *cache, const void *object)
+>   
+>   void *kasan_slab_alloc(struct kmem_cache *cache, void *object, gfp_t flags)
+>   {
+> -	return kasan_kmalloc(cache, object, cache->object_size, flags);
+> +	object = kasan_kmalloc(cache, object, cache->object_size, flags);
+> +	if (IS_ENABLED(CONFIG_KASAN_HW) && unlikely(cache->ctor)) {
+> +		/*
+> +		 * Cache constructor might use object's pointer value to
+> +		 * initialize some of its fields.
+> +		 */
+> +		cache->ctor(object);
 >
-> On Tue, Jul 24, 2018 at 07:55:19PM -0400, Pavel Tatashin wrote:
-> > update_defer_init() should be called only when struct page is about to be
-> > initialized. Because it counts number of initialized struct pages, but
-> > there we may skip struct pages if there is some mirrored memory.
-> >
-> > So move, update_defer_init() after checking for mirrored memory.
-> >
-> > Also, rename update_defer_init() to defer_init() and reverse the return
-> > boolean to emphasize that this is a boolean function, that tells that the
-> > reset of memmap initialization should be deferred.
-> >
-> > Make this function self-contained: do not pass number of already
-> > initialized pages in this zone by using static counters.
-> >
-> > Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> > ---
-> >  mm/page_alloc.c | 40 ++++++++++++++++++++--------------------
-> >  1 file changed, 20 insertions(+), 20 deletions(-)
-> >
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index cea749b26394..86c678cec6bd 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -306,24 +306,28 @@ static inline bool __meminit early_page_uninitialised(unsigned long pfn)
-> >  }
-> >
-> >  /*
-> > - * Returns false when the remaining initialisation should be deferred until
-> > + * Returns true when the remaining initialisation should be deferred until
-> >   * later in the boot cycle when it can be parallelised.
-> >   */
-> > -static inline bool update_defer_init(pg_data_t *pgdat,
-> > -                             unsigned long pfn, unsigned long zone_end,
-> > -                             unsigned long *nr_initialised)
-> > +static inline bool defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
-> >  {
-> > +     static unsigned long prev_end_pfn, nr_initialised;
-> > +
-> > +     if (prev_end_pfn != end_pfn) {
-> > +             prev_end_pfn = end_pfn;
-> > +             nr_initialised = 0;
-> > +     }
-> Hi Pavel,
->
-> What about a comment explaining that "if".
-> I am not the brightest one, so it took me a bit to figure out that we got that "if" there
-> because now that the variables are static, we need to somehow track whenever we change to
-> another zone.
+This seams breaking the kmem_cache_create() contract: "The @ctor is run 
+when new pages are allocated by the cache." 
+(https://elixir.bootlin.com/linux/v3.7/source/mm/slab_common.c#L83)
 
-Hi Oscar,
+Since there might be preexisting code relying on it, this could lead to 
+global side effects. Did you verify that this is not the case?
 
-Hm, yeah a comment would be appropriate here. I will send an updated
-patch. I will also change the functions from inline to normal
-functions as Andrew pointed out: it is not a good idea to use statics
-in inline functions.
+Another concern is performance related if we consider this solution 
+suitable for "near-production", since with the current implementation 
+you call the ctor (where present) on an object multiple times and this 
+ends up memsetting and repopulating the memory every time (i.e. inode.c: 
+inode_init_once). Do you know what is the performance impact?
 
-Thank you,
-Pavel
+-- 
+Regards,
+Vincenzo
