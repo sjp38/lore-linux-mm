@@ -1,97 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 728706B0006
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 21:18:04 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id j15-v6so636649pfi.10
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 18:18:04 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id u13-v6si11223271plq.320.2018.07.24.18.18.03
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 34F9A6B0008
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 21:19:56 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id u22-v6so5217952qkk.10
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 18:19:56 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id a63-v6si1436364qkh.63.2018.07.24.18.19.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jul 2018 18:18:03 -0700 (PDT)
-Date: Tue, 24 Jul 2018 18:18:00 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/3] mm: move mirrored memory specific code outside of
- memmap_init_zone
-Message-Id: <20180724181800.3f25fdf8bcf0d8fd05ea1f43@linux-foundation.org>
-In-Reply-To: <20180724235520.10200-4-pasha.tatashin@oracle.com>
+        Tue, 24 Jul 2018 18:19:55 -0700 (PDT)
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6P1Js4X154204
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 01:19:54 GMT
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by userp2120.oracle.com with ESMTP id 2kbwfpuby8-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 01:19:54 +0000
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w6P1JqPw018295
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 01:19:53 GMT
+Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w6P1Jq7x002839
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 01:19:52 GMT
+Received: by mail-oi0-f53.google.com with SMTP id i12-v6so11019148oik.2
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 18:19:52 -0700 (PDT)
+MIME-Version: 1.0
 References: <20180724235520.10200-1-pasha.tatashin@oracle.com>
-	<20180724235520.10200-4-pasha.tatashin@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20180724235520.10200-3-pasha.tatashin@oracle.com> <20180724181218.13a1ed1d7a3e9a37e35707a9@linux-foundation.org>
+In-Reply-To: <20180724181218.13a1ed1d7a3e9a37e35707a9@linux-foundation.org>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Tue, 24 Jul 2018 21:19:11 -0400
+Message-ID: <CAGM2reb9CLpq1cqPLVqYXEfUqBtCt4V0OL_F=CKCyJXqV88NcQ@mail.gmail.com>
+Subject: Re: [PATCH 2/3] mm: calculate deferred pages after skipping mirrored memory
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, bhe@redhat.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net, abdhalee@linux.vnet.ibm.com, mpe@ellerman.id.au
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, LKML <linux-kernel@vger.kernel.org>, kirill.shutemov@linux.intel.com, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, Souptick Joarder <jrdr.linux@gmail.com>, bhe@redhat.com, gregkh@linuxfoundation.org, Vlastimil Babka <vbabka@suse.cz>, Wei Yang <richard.weiyang@gmail.com>, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net, abdhalee@linux.vnet.ibm.com, mpe@ellerman.id.au
 
-On Tue, 24 Jul 2018 19:55:20 -0400 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
+On Tue, Jul 24, 2018 at 9:12 PM Andrew Morton <akpm@linux-foundation.org> wrote:
+>
+> On Tue, 24 Jul 2018 19:55:19 -0400 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
+>
+> > update_defer_init() should be called only when struct page is about to be
+> > initialized. Because it counts number of initialized struct pages, but
+> > there we may skip struct pages if there is some mirrored memory.
+>
+> What are the runtime effects of this error?
 
-> memmap_init_zone, is getting complex, because it is called from different
-> contexts: hotplug, and during boot, and also because it must handle some
-> architecture quirks. One of them is mirroed memory.
-> 
-> Move the code that decides whether to skip mirrored memory outside of
-> memmap_init_zone, into a separate function.
+I found this bug by reading the code. The effect is that fewer than
+expected struct pages are initialized early in boot, and it is
+possible that in some corner cases we may fail to boot when mirrored
+pages are used. The deferred on demand code should somewhat mitigate
+this. But, this still brings some inconsistencies compared to when
+booting without mirrored pages, so it is better to fix.
 
-Conflicts a bit with the page_alloc.c hunk from
-http://ozlabs.org/~akpm/mmots/broken-out/mm-page_alloc-remain-memblock_next_valid_pfn-on-arm-arm64.patch.  Please check my fixup:
-
-void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
-		unsigned long start_pfn, enum memmap_context context,
-		struct vmem_altmap *altmap)
-{
-	unsigned long pfn, end_pfn = start_pfn + size;
-	struct page *page;
-
-	if (highest_memmap_pfn < end_pfn - 1)
-		highest_memmap_pfn = end_pfn - 1;
-
-	/*
-	 * Honor reservation requested by the driver for this ZONE_DEVICE
-	 * memory
-	 */
-	if (altmap && start_pfn == altmap->base_pfn)
-		start_pfn += altmap->reserve;
-
-	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-		/*
-		 * There can be holes in boot-time mem_map[]s handed to this
-		 * function.  They do not exist on hotplugged memory.
-		 */
-		if (context == MEMMAP_EARLY) {
-			if (!early_pfn_valid(pfn)) {
-				pfn = next_valid_pfn(pfn) - 1;
-				continue;
-			}
-			if (!early_pfn_in_nid(pfn, nid))
-				continue;
-			if (overlap_memmap_init(zone, &pfn))
-				continue;
-			if (defer_init(nid, pfn, end_pfn))
-				break;
-		}
-
-		page = pfn_to_page(pfn);
-		__init_single_page(page, pfn, zone, nid);
-		if (context == MEMMAP_HOTPLUG)
-			SetPageReserved(page);
-
-		/*
-		 * Mark the block movable so that blocks are reserved for
-		 * movable at startup. This will force kernel allocations
-		 * to reserve their blocks rather than leaking throughout
-		 * the address space during boot when many long-lived
-		 * kernel allocations are made.
-		 *
-		 * bitmap is created for zone's valid pfn range. but memmap
-		 * can be created for invalid pages (for alignment)
-		 * check here not to call set_pageblock_migratetype() against
-		 * pfn out of zone.
-		 */
-		if (!(pfn & (pageblock_nr_pages - 1))) {
-			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
-			cond_resched();
-		}
-	}
-}
+Pavel
