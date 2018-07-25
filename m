@@ -1,88 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3886B6B0003
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 01:02:51 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id m197-v6so6459373oig.18
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 22:02:51 -0700 (PDT)
-Received: from g4t3425.houston.hpe.com (g4t3425.houston.hpe.com. [15.241.140.78])
-        by mx.google.com with ESMTPS id u142-v6si3043425oif.412.2018.07.24.22.02.49
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 28B2D6B0006
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 01:28:21 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id o60-v6so2627187edd.13
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 22:28:21 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id y39-v6si6389623edb.120.2018.07.24.22.28.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jul 2018 22:02:49 -0700 (PDT)
-From: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
-Subject: RE: [PATCH v2] RFC: clear 1G pages with streaming stores on x86
-Date: Wed, 25 Jul 2018 05:02:46 +0000
-Message-ID: <DF4PR8401MB11806B9D2A7FE04B1F5ECBF8AB540@DF4PR8401MB1180.NAMPRD84.PROD.OUTLOOK.COM>
-References: <20180724210923.GA20168@bombadil.infradead.org>
- <20180725023728.44630-1-cannonmatthews@google.com>
-In-Reply-To: <20180725023728.44630-1-cannonmatthews@google.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        Tue, 24 Jul 2018 22:28:19 -0700 (PDT)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6P5NZsc112781
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 01:28:17 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2kehqkkayy-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 01:28:17 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Wed, 25 Jul 2018 06:28:14 +0100
+Date: Wed, 25 Jul 2018 08:28:09 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH] hexagon: switch to NO_BOOTMEM
+References: <1531726998-10971-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <20180723212339.GA12771@codeaurora.org>
+ <20180724054704.GA16933@rapoport-lnx>
+ <20180725021255.GF12771@codeaurora.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180725021255.GF12771@codeaurora.org>
+Message-Id: <20180725052809.GA25188@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cannon Matthews <cannonmatthews@google.com>, Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, "Kirill A.
- Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andres Lagar-Cavilla <andreslc@google.com>, Salman Qazi <sqazi@google.com>, Paul Turner <pjt@google.com>, David Matlack <dmatlack@google.com>, Peter Feiner <pfeiner@google.com>, Alain Trinh <nullptr@google.com>
+To: Richard Kuo <rkuo@codeaurora.org>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-hexagon@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-DQoNCj4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogbGludXgta2VybmVsLW93
-bmVyQHZnZXIua2VybmVsLm9yZyA8bGludXgta2VybmVsLQ0KPiBvd25lckB2Z2VyLmtlcm5lbC5v
-cmc+IE9uIEJlaGFsZiBPZiBDYW5ub24gTWF0dGhld3MNCj4gU2VudDogVHVlc2RheSwgSnVseSAy
-NCwgMjAxOCA5OjM3IFBNDQo+IFN1YmplY3Q6IFJlOiBbUEFUQ0ggdjJdIFJGQzogY2xlYXIgMUcg
-cGFnZXMgd2l0aCBzdHJlYW1pbmcgc3RvcmVzIG9uDQo+IHg4Ng0KPiANCj4gUmVpbXBsZW1lbnQg
-Y2xlYXJfZ2lnYW50aWNfcGFnZSgpIHRvIGNsZWFyIGdpZ2FieXRlcyBwYWdlcyB1c2luZyB0aGUN
-Cj4gbm9uLXRlbXBvcmFsIHN0cmVhbWluZyBzdG9yZSBpbnN0cnVjdGlvbnMgdGhhdCBieXBhc3Mg
-dGhlIGNhY2hlDQo+IChtb3ZudGkpLCBzaW5jZSBhbiBlbnRpcmUgMUdpQiByZWdpb24gd2lsbCBu
-b3QgZml0IGluIHRoZSBjYWNoZQ0KPiBhbnl3YXkuDQo+DQo+IERvaW5nIGFuIG1sb2NrKCkgb24g
-YSA1MTJHaUIgMUctaHVnZXRsYiByZWdpb24gcHJldmlvdXNseSB3b3VsZCB0YWtlDQo+IG9uIGF2
-ZXJhZ2UgMTM0IHNlY29uZHMsIGFib3V0IDI2MG1zL0dpQiB3aGljaCBpcyBxdWl0ZSBzbG93LiBV
-c2luZw0KPiBgbW92bnRpYCBhbmQgb3B0aW1pemluZyB0aGUgY29udHJvbCBmbG93IG92ZXIgdGhl
-IGNvbnN0aXR1ZW50IHNtYWxsDQo+IHBhZ2VzLCB0aGlzIGNhbiBiZSBpbXByb3ZlZCByb3VnaGx5
-IGJ5IGEgZmFjdG9yIG9mIDMtNHgsIHdpdGggdGhlDQo+IDUxMkdpQiBtbG9jaygpIHRha2luZyBv
-bmx5IDM0IHNlY29uZHMgb24gYXZlcmFnZSwgb3IgNjdtcy9HaUIuDQoNCi4uLg0KPiAtIEFyZSB0
-aGVyZSBhbnkgb2J2aW91cyBwaXRmYWxscyBvciBjYXZlYXRzIHRoYXQgaGF2ZSBub3QgYmVlbg0K
-PiBjb25zaWRlcmVkPyANCg0KTm90ZSB0aGF0IEtpcmlsbCBhdHRlbXB0ZWQgc29tZXRoaW5nIGxp
-a2UgdGhpcyBpbiAyMDEyIC0gc2VlDQpodHRwczovL3d3dy5zcGluaWNzLm5ldC9saXN0cy9saW51
-eC1tbS9tc2c0MDU3NS5odG1sDQoNCi4uLg0KPiArKysgYi9hcmNoL3g4Ni9saWIvY2xlYXJfZ2ln
-YW50aWNfcGFnZS5jDQo+IEBAIC0wLDAgKzEsMjkgQEANCj4gKyNpbmNsdWRlIDxhc20vcGFnZS5o
-Pg0KPiArDQo+ICsjaW5jbHVkZSA8bGludXgva2VybmVsLmg+DQo+ICsjaW5jbHVkZSA8bGludXgv
-bW0uaD4NCj4gKyNpbmNsdWRlIDxsaW51eC9zY2hlZC5oPg0KPiArDQo+ICsjaWYgZGVmaW5lZChD
-T05GSUdfVFJBTlNQQVJFTlRfSFVHRVBBR0UpIHx8DQo+IGRlZmluZWQoQ09ORklHX0hVR0VUTEJG
-UykNCj4gKyNkZWZpbmUgUEFHRVNfQkVUV0VFTl9SRVNDSEVEIDY0DQo+ICt2b2lkIGNsZWFyX2dp
-Z2FudGljX3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UsDQo+ICsJCQkJdW5zaWduZWQgbG9uZyBhZGRy
-LA0KDQpUaGUgcHJldmlvdXMgYXR0ZW1wdCB1c2VkIGNhY2hlYWJsZSBzdG9yZXMgaW4gdGhlIHBh
-Z2UgY29udGFpbmluZw0KYWRkciB0byBwcmV2ZW50IGFuIGluZXZpdGFibGUgY2FjaGUgbWlzcyBh
-ZnRlciB0aGUgY2xlYXJpbmcgY29tcGxldGVzLg0KVGhpcyBmdW5jdGlvbiBpcyBub3QgdXNpbmcg
-YWRkciBhdCBhbGwuDQoNCj4gKwkJCQl1bnNpZ25lZCBpbnQgcGFnZXNfcGVyX2h1Z2VfcGFnZSkN
-Cj4gK3sNCj4gKwlpbnQgaTsNCj4gKwl2b2lkICpkZXN0ID0gcGFnZV90b192aXJ0KHBhZ2UpOw0K
-PiArCWludCByZXNjaGVkX2NvdW50ID0gMDsNCj4gKw0KPiArCUJVR19PTihwYWdlc19wZXJfaHVn
-ZV9wYWdlICUgUEFHRVNfQkVUV0VFTl9SRVNDSEVEICE9IDApOw0KPiArCUJVR19PTighZGVzdCk7
-DQoNCkFyZSB0aG9zZSByZWFsbHkgcG9zc2libGUgY29uZGl0aW9ucz8gIElzIHRoZXJlIGEgc2Fm
-ZXIgZmFsbGJhY2sNCnRoYW4gY3Jhc2hpbmcgdGhlIHdob2xlIGtlcm5lbD8NCg0KPiArDQo+ICsJ
-Zm9yIChpID0gMDsgaSA8IHBhZ2VzX3Blcl9odWdlX3BhZ2U7IGkgKz0NCj4gUEFHRVNfQkVUV0VF
-Tl9SRVNDSEVEKSB7DQo+ICsJCV9fY2xlYXJfcGFnZV9udChkZXN0ICsgKGkgKiBQQUdFX1NJWkUp
-LA0KPiArCQkJCVBBR0VTX0JFVFdFRU5fUkVTQ0hFRCAqIFBBR0VfU0laRSk7DQo+ICsJCXJlc2No
-ZWRfY291bnQgKz0gY29uZF9yZXNjaGVkKCk7DQo+ICsJfQ0KPiArCS8qIF9fY2xlYXJfcGFnZV9u
-dCByZXF1cmlyZXMgYW5kIGBzZmVuY2VgIGJhcnJpZXIuICovDQoNCnJlcXVpcmVzIGFuDQoNCi4u
-Lg0KPiBkaWZmIC0tZ2l0IGEvYXJjaC94ODYvbGliL2NsZWFyX3BhZ2VfNjQuUw0KLi4uDQo+ICsv
-Kg0KPiArICogWmVybyBtZW1vcnkgdXNpbmcgbm9uIHRlbXBvcmFsIHN0b3JlcywgYnlwYXNzaW5n
-IHRoZSBjYWNoZS4NCj4gKyAqIFJlcXVpcmVzIGFuIGBzZmVuY2VgICh3bWIoKSkgYWZ0ZXJ3YXJk
-cy4NCj4gKyAqICVyZGkgLSBkZXN0aW5hdGlvbi4NCj4gKyAqICVyc2kgLSBwYWdlIHNpemUuIE11
-c3QgYmUgNjQgYml0IGFsaWduZWQuDQo+ICsqLw0KPiArRU5UUlkoX19jbGVhcl9wYWdlX250KQ0K
-PiArCWxlYXEJKCVyZGksJXJzaSksICVyZHgNCj4gKwl4b3JsCSVlYXgsICVlYXgNCj4gKwkucDJh
-bGlnbiA0LCwxMA0KPiArCS5wMmFsaWduIDMNCj4gKy5MMjoNCj4gKwltb3ZudGkJJXJheCwgKCVy
-ZGkpDQo+ICsJYWRkcQkkOCwgJXJkaQ0KDQpBbHNvIGNvbnNpZGVyIHVzaW5nIHRoZSBBVlggdm1v
-dm50ZHEgaW5zdHJ1Y3Rpb24gKGlmIGF2YWlsYWJsZSksIHRoZQ0KbW9zdCByZWNlbnQgb2Ygd2hp
-Y2ggZG9lcyA2NC1ieXRlIChjYWNoZSBsaW5lKSBzaXplZCB0cmFuc2ZlcnMgdG8NCnptbSByZWdp
-c3RlcnMuIFRoZXJlJ3MgYSBoZWZ0eSBjb250ZXh0IHN3aXRjaGluZyBvdmVyaGVhZCAoZS5nLiwN
-CjMwNCBjbG9ja3MpLCBidXQgaXQgbWlnaHQgYmUgd29ydGh3aGlsZSBmb3IgMSBHaUIgKHdoaWNo
-DQppcyAxNiw3NzcsMjE2IGNhY2hlIGxpbmVzKS4NCg0KZ2xpYmMgbWVtY3B5KCkgbWFrZXMgdGhh
-dCBjaG9pY2UgZm9yIHRyYW5zZmVycyA+IDc1JSBvZiB0aGUgTDMgY2FjaGUNCnNpemUgZGl2aWRl
-ZCBieSB0aGUgbnVtYmVyIG9mIGNvcmVzLiAgKGxhc3QgSSB0cmllZCwgaXQgd2FzIHN0aWxsDQpz
-ZWxlY3RpbmcgInJlcCBzdG9zYiIgZm9yIGxhcmdlIG1lbXNldCgpcywgYWx0aG91Z2ggaXQgaGFz
-IGFuDQpBVlgtNTEyIGZ1bmN0aW9uIGF2YWlsYWJsZSkNCg0KRXZlbiB3aXRoIHRoYXQsIG9uZSBD
-UFUgY29yZSB3b24ndCBzYXR1cmF0ZSB0aGUgbWVtb3J5IGJ1czsgbXVsdGlwbGUNCkNQVSBjb3Jl
-cyAocHJlZmVyYWJseSBvbiB0aGUgc2FtZSBOVU1BIG5vZGUgYXMgdGhlIG1lbW9yeSkgbmVlZCB0
-bw0Kc2hhcmUgdGhlIHdvcmsuDQoNCi0tLQ0KUm9iZXJ0IEVsbGlvdHQsIEhQRSBQZXJzaXN0ZW50
-IE1lbW9yeQ0KDQoNCg0K
+On Tue, Jul 24, 2018 at 09:12:55PM -0500, Richard Kuo wrote:
+> On Tue, Jul 24, 2018 at 08:47:04AM +0300, Mike Rapoport wrote:
+> > On Mon, Jul 23, 2018 at 04:23:39PM -0500, Richard Kuo wrote:
+> > > 
+> > > On Mon, Jul 16, 2018 at 10:43:18AM +0300, Mike Rapoport wrote:
+> > > > This patch adds registration of the system memory with memblock, eliminates
+> > > > bootmem initialization and converts early memory reservations from bootmem
+> > > > to memblock.
+> > > > 
+> > > > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> > > 
+> > > Sorry for the delay, and thanks for this patch.
+> > > 
+> > > I think the first memblock_reserve should use ARCH_PFN_OFFSET instead of
+> > > PHYS_OFFSET.
+> > 
+> > memblock_reserve gets physical address rather than a pfn.
+> > 
+> > If I read arch/hexagon/include/asm/mem-layout.h correctly, the PHYS_OFFSET
+> > *is* the physical address of the RAM and ARCH_PFN_OFFSET is the first pfn:
+> > 
+> > #define PHYS_PFN_OFFSET	(PHYS_OFFSET >> PAGE_SHIFT)
+> > #define ARCH_PFN_OFFSET	PHYS_PFN_OFFSET
+> > 
+> > Did I miss something?
+> 
+> Sorry, I should have been more clear.  In the size calculation, it's
+> subtracting the unshifted PHYS_OFFSET from the start page number, which
+> I'm pretty sure is wrong.
+
+Yeah, you're right. I've missed that one.
+ 
+> Thanks,
+> Richard Kuo
+> 
+> 
+> -- 
+> Employee of Qualcomm Innovation Center, Inc.
+> Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum, 
+> a Linux Foundation Collaborative Project
+> 
+
+-- 
+Sincerely yours,
+Mike.
