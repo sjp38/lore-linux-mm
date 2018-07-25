@@ -1,63 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 127896B0282
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 07:26:23 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id y17-v6so2964035eds.22
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 04:26:23 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id c25-v6si2756109eda.128.2018.07.25.04.26.21
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B99C6B0284
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 07:26:25 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id r9-v6so2985645edh.14
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 04:26:25 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id z14-v6si2313709edd.127.2018.07.25.04.26.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jul 2018 04:26:21 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6PBPINE086226
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 07:26:19 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2keqphhaw5-1
+        Wed, 25 Jul 2018 04:26:24 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6PBOAEf047745
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 07:26:22 -0400
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2keq0ckhfg-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 07:26:19 -0400
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 07:26:22 -0400
 Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 25 Jul 2018 12:26:17 +0100
+	Wed, 25 Jul 2018 12:26:20 +0100
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 0/7] memory management documentation updates
-Date: Wed, 25 Jul 2018 14:26:03 +0300
-Message-Id: <1532517970-16409-1-git-send-email-rppt@linux.vnet.ibm.com>
+Subject: [PATCH 1/7] mm/util: make strndup_user description a kernel-doc comment
+Date: Wed, 25 Jul 2018 14:26:04 +0300
+In-Reply-To: <1532517970-16409-1-git-send-email-rppt@linux.vnet.ibm.com>
+References: <1532517970-16409-1-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1532517970-16409-2-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-Hi,
+The description of the strndup_user function misses '*' character at the
+beginning of the comment to be proper kernel-doc. Add the missing
+character.
 
-Here are several updates to the mm documentation.
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+---
+ mm/util.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Aside from really minor changes in the first three patches, the updates
-are:
-
-* move the documentation of kstrdup and friends to "String Manipulation"
-  section
-* split memory management API into a separate .rst file
-* adjust formating of the GFP flags description and include it in the
-  reference documentation.
-
-Mike Rapoport (7):
-  mm/util: make strndup_user description a kernel-doc comment
-  mm/util: add kernel-doc for kvfree
-  docs/core-api: kill trailing whitespace in kernel-api.rst
-  docs/core-api: move *{str,mem}dup* to "String Manipulation"
-  docs/core-api: split memory management API to a separate file
-  docs/mm: make GFP flags descriptions usable as kernel-doc
-  docs/core-api: mm-api: add section about GFP flags
-
- Documentation/core-api/index.rst      |   1 +
- Documentation/core-api/kernel-api.rst |  59 +------
- Documentation/core-api/mm-api.rst     |  76 +++++++++
- include/linux/gfp.h                   | 291 ++++++++++++++++++----------------
- mm/util.c                             |   9 +-
- 5 files changed, 243 insertions(+), 193 deletions(-)
- create mode 100644 Documentation/core-api/mm-api.rst
-
+diff --git a/mm/util.c b/mm/util.c
+index 3351659..6809014 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -196,7 +196,7 @@ void *vmemdup_user(const void __user *src, size_t len)
+ }
+ EXPORT_SYMBOL(vmemdup_user);
+ 
+-/*
++/**
+  * strndup_user - duplicate an existing string from user space
+  * @s: The string to duplicate
+  * @n: Maximum number of bytes to copy, including the trailing NUL.
 -- 
 2.7.4
