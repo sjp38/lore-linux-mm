@@ -1,58 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 24DBA6B0286
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 89CF06B0289
 	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 07:26:27 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id w185-v6so7233156oig.19
+Received: by mail-vk0-f71.google.com with SMTP id j80-v6so2756883vke.22
         for <linux-mm@kvack.org>; Wed, 25 Jul 2018 04:26:27 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id t194-v6si10212244oif.388.2018.07.25.04.26.26
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o188-v6sor4988240vkg.36.2018.07.25.04.26.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        (Google Transport Security);
         Wed, 25 Jul 2018 04:26:26 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6PBOH14082943
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 07:26:25 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2kep26pc9h-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 07:26:25 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 25 Jul 2018 12:26:21 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 2/7] mm/util: add kernel-doc for kvfree
-Date: Wed, 25 Jul 2018 14:26:05 +0300
-In-Reply-To: <1532517970-16409-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1532517970-16409-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1532517970-16409-3-git-send-email-rppt@linux.vnet.ibm.com>
+MIME-Version: 1.0
+In-Reply-To: <20180724224635.143944-1-shakeelb@google.com>
+References: <20180724224635.143944-1-shakeelb@google.com>
+From: Bruce Merry <bmerry@ska.ac.za>
+Date: Wed, 25 Jul 2018 13:26:25 +0200
+Message-ID: <CAOm-9arFu63A9YJ6yVtm6_LdtbRKZg1Q3dz8WugdkBBQfoOWYw@mail.gmail.com>
+Subject: Re: [PATCH] memcg: reduce memcg tree traversals for stats collection
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, Linux MM <linux-mm@kvack.org>
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
- mm/util.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+On 25 July 2018 at 00:46, Shakeel Butt <shakeelb@google.com> wrote:
+> I ran a simple benchmark which reads the root_mem_cgroup's stat file
+> 1000 times in the presense of 2500 memcgs on cgroup-v1. The results are:
+>
+> Without the patch:
+> $ time ./read-root-stat-1000-times
+>
+> real    0m1.663s
+> user    0m0.000s
+> sys     0m1.660s
+>
+> With the patch:
+> $ time ./read-root-stat-1000-times
+>
+> real    0m0.468s
+> user    0m0.000s
+> sys     0m0.467s
 
-diff --git a/mm/util.c b/mm/util.c
-index 6809014..d2890a4 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -434,6 +434,13 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
- }
- EXPORT_SYMBOL(kvmalloc_node);
- 
-+/**
-+ * kvfree - free memory allocated with kvmalloc
-+ * @addr: pointer returned by kvmalloc
-+ *
-+ * If the memory is allocated from vmalloc area it is freed with vfree().
-+ * Otherwise kfree() is used.
-+ */
- void kvfree(const void *addr)
- {
- 	if (is_vmalloc_addr(addr))
+Thanks for cc'ing me. I've tried this patch using my test case and the
+results are interesting. With the patch applied, running my script
+only generates about 8000 new cgroups, compared to 40,000 before -
+presumably because the optimisation has altered the timing.
+
+On the other hand, if I run the script 5 times to generate 40000
+zombie cgroups, the time to get stats for the root cgroup (cgroup-v1)
+is almost unchanged at around 18ms (was 20ms, but there were slightly
+more cgroups as well), compared to the almost 4x speedup you're seeing
+in your test.
+
+Regards
+Bruce
 -- 
-2.7.4
+Bruce Merry
+Senior Science Processing Developer
+SKA South Africa
