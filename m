@@ -1,131 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E11A06B02BC
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 10:07:07 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id az8-v6so5486186plb.15
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 07:07:07 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g14-v6sor4030662pgh.236.2018.07.25.07.07.06
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AB1046B02BE
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 10:20:47 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id z18-v6so6522208qki.22
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 07:20:47 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id e2-v6si1537389qki.380.2018.07.25.07.20.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 25 Jul 2018 07:07:06 -0700 (PDT)
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: [RFC PATCH 4/4] powerpc/64s/radix: optimise TLB flush with precise TLB ranges in mmu_gather
-Date: Thu, 26 Jul 2018 00:06:41 +1000
-Message-Id: <20180725140641.30372-5-npiggin@gmail.com>
-In-Reply-To: <20180725140641.30372-1-npiggin@gmail.com>
-References: <20180725140641.30372-1-npiggin@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Jul 2018 07:20:46 -0700 (PDT)
+Subject: Re: [PATCH v1 0/2] mm/kdump: exclude reserved pages in dumps
+References: <20180720123422.10127-1-david@redhat.com>
+ <9f46f0ed-e34c-73be-60ca-c892fb19ed08@suse.cz>
+ <20180723123043.GD31229@dhcp22.suse.cz>
+ <8daae80c-871e-49b6-1cf1-1f0886d3935d@redhat.com>
+ <20180724072536.GB28386@dhcp22.suse.cz>
+ <8eb22489-fa6b-9825-bc63-07867a40d59b@redhat.com>
+ <20180724131343.GK28386@dhcp22.suse.cz>
+ <af5353ee-319e-17ec-3a39-df997a5adf43@redhat.com>
+ <20180724133530.GN28386@dhcp22.suse.cz>
+ <6c753cae-f8b6-5563-e5ba-7c1fefdeb74e@redhat.com>
+ <20180725135147.GN28386@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <344d5f15-c621-9973-561e-6ed96b29ea88@redhat.com>
+Date: Wed, 25 Jul 2018 16:20:41 +0200
+MIME-Version: 1.0
+In-Reply-To: <20180725135147.GN28386@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Nicholas Piggin <npiggin@gmail.com>, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Dave Young <dyoung@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Miles Chen <miles.chen@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Tesarik <ptesarik@suse.cz>
 
-The mmu_gather APIs keep track of the invalidated address range, and
-the generic page table freeing accessors expand the invalidated range
-to cover the addresses corresponding to the page tables even if there
-are no ptes and therefore no TLB entries to invalidate. This is done
-for architectures that have paging structure caches that are
-invalidated with their TLB invalidate instructions (e.g., x86).
+On 25.07.2018 15:51, Michal Hocko wrote:
+> On Tue 24-07-18 16:13:09, David Hildenbrand wrote:
+> [...]
+>> So I see right now:
+>>
+>> - Pg_reserved + e.g. new page type (or some other unique identifier in
+>>   combination with Pg_reserved)
+>>  -> Avoid reads of pages we know are offline
+>> - extend is_ram_page()
+>>  -> Fake zero memory for pages we know are offline
+>>
+>> Or even both (avoid reading and don't crash the kernel if it is being done).
+> 
+> I really fail to see how that can work without kernel being aware of
+> PageOffline. What will/should happen if you run an old kdump tool on a
+> kernel with this partially offline memory?
+> 
 
-powerpc/64s/radix does have a "page walk cache" (PWC), but it is
-invalidated with a specific instruction and tracked independently in
-the mmu_gather (using the need_flush_all flag to indicate PWC must be
-flushed). Therefore TLB invalidation does not have to be expanded to
-cover freed page tables.
+New kernel with old dump tool:
 
-This patch defines p??_free_tlb functions for 64s, which do not expand
-the TLB flush range over page table pages. This brings the number of
-tlbiel instructions required by a kernel compile from 33M to 25M, most
-avoided from exec => shift_arg_pages().
+a) we have not fixed up is_ram_page()
 
-Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
----
- arch/powerpc/include/asm/tlb.h | 34 ++++++++++++++++++++++++++++++++++
- arch/powerpc/mm/tlb-radix.c    | 10 ++++++++++
- include/asm-generic/tlb.h      |  5 +++++
- 3 files changed, 49 insertions(+)
+-> crash, as we access memory we shouldn't
 
-diff --git a/arch/powerpc/include/asm/tlb.h b/arch/powerpc/include/asm/tlb.h
-index 9138baccebb0..5d3107f2b014 100644
---- a/arch/powerpc/include/asm/tlb.h
-+++ b/arch/powerpc/include/asm/tlb.h
-@@ -30,6 +30,40 @@
- #define __tlb_remove_tlb_entry	__tlb_remove_tlb_entry
- #define tlb_remove_check_page_size_change tlb_remove_check_page_size_change
- 
-+#ifdef CONFIG_PPC_BOOK3S_64
-+/*
-+ * powerpc book3s hash does not have page table structure caches, and
-+ * radix requires explicit management with PWC invalidate tlb type, so
-+ * there is no need to expand the mmu_gather range over invalidated page
-+ * table pages like the generic code does.
-+ */
-+
-+#define pte_free_tlb(tlb, ptep, address)			\
-+	do {							\
-+		__pte_free_tlb(tlb, ptep, address);		\
-+	} while (0)
-+
-+#define pmd_free_tlb(tlb, pmdp, address)			\
-+	do {							\
-+		__pmd_free_tlb(tlb, pmdp, address);		\
-+	} while (0)
-+
-+#define pud_free_tlb(tlb, pudp, address)			\
-+	do {							\
-+		__pud_free_tlb(tlb, pudp, address);		\
-+	} while (0)
-+
-+/*
-+ * Radix sets need_flush_all when page table pages have been unmapped
-+ * and the PWC needs flushing. Generic code must call our tlb_flush
-+ * even on empty ranges in this case.
-+ *
-+ * This will always be false for hash.
-+ */
-+#define arch_tlb_mustflush(tlb) (tlb->need_flush_all)
-+
-+#endif
-+
- extern void tlb_flush(struct mmu_gather *tlb);
- 
- /* Get the generic bits... */
-diff --git a/arch/powerpc/mm/tlb-radix.c b/arch/powerpc/mm/tlb-radix.c
-index 1135b43a597c..238b20a513e7 100644
---- a/arch/powerpc/mm/tlb-radix.c
-+++ b/arch/powerpc/mm/tlb-radix.c
-@@ -862,6 +862,16 @@ void radix__tlb_flush(struct mmu_gather *tlb)
- 	unsigned long start = tlb->start;
- 	unsigned long end = tlb->end;
- 
-+	/*
-+	 * This can happen if need_flush_all is set due to a page table
-+	 * invalidate, but no ptes under it freed (see arch_tlb_mustflush).
-+	 * Set end = start to prevent any TLB flushing here (only PWC).
-+	 */
-+	if (!end) {
-+		WARN_ON_ONCE(!tlb->need_flush_all);
-+		end = start;
-+	}
-+
- 	/*
- 	 * if page size is not something we understand, do a full mm flush
- 	 *
-diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
-index b320c0cc8996..a55ef1425f0d 100644
---- a/include/asm-generic/tlb.h
-+++ b/include/asm-generic/tlb.h
-@@ -285,6 +285,11 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
-  * http://lkml.kernel.org/r/CA+55aFzBggoXtNXQeng5d_mRoDnaMBE5Y+URs+PHR67nUpMtaw@mail.gmail.com
-  *
-  * For now w.r.t page table cache, mark the range_size as PAGE_SIZE
-+ *
-+ * Update: powerpc (Book3S 64-bit, radix MMU) has an architected page table
-+ * cache (called PWC), and invalidates it specifically. It sets the
-+ * need_flush_all flag to indicate the PWC requires flushing, so it defines
-+ * its own p??_free_tlb functions which do not expand the TLB range.
-  */
- 
- #ifndef pte_free_tlb
+b) we have fixed up is_ram_page()
+
+-> We have a callback to check for applicable memory in the hypervisor
+whether the parts are accessible / online or not accessible / offline.
+(e.g. via a device driver that controls a certain memory region)
+
+-> Don't read, but fake a page full of 0
+
+
+So instead of the kernel being aware of it, it asks via is_ram_page()
+the hypervisor.
+
+
+I don't think a) is a problem. AFAICS, we have to update makedumpfile
+for every new kernel. We can perform changes and update makedumpfile
+to be compatible with new dump tools.
+
+E.g. remember SECTION_IS_ONLINE you introduced ? It broke dump
+tools and required
+
+commit 4bf4f2b0a855ccf4c7ffe13290778e92b2f5bbc9
+Author: Pratyush Anand <panand@redhat.com>
+Date:   Thu Aug 17 12:47:13 2017 +0900
+
+    [PATCH v2] Fix SECTION_MAP_MASK for kernel >= v.13
+    
+    * Required for kernel 4.13
+    
+    commit 2d070eab2e82 "mm: consider zone which is not fully populated to
+    have holes" added a new flag SECTION_IS_ONLINE and therefore
+    SECTION_MAP_MASK has been changed. We are not able to find correct
+    mem_map in makedumpfile for kernel version v4.13-rc1 and onward because
+    of the above kernel change.
+    
+    This patch fixes the MASK value keeping the code backward compatible
+    
+    Signed-off-by: Pratyush Anand <panand@redhat.com>
+
+
+Same would apply for the new combination of PageReserved + X, where we
+tell dump tools to exclude this page.
+
 -- 
-2.17.0
+
+Thanks,
+
+David / dhildenb
