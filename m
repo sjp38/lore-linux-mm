@@ -1,278 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D71716B0008
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 22:37:44 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id o24-v6so4056267iob.20
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 19:37:44 -0700 (PDT)
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id n19-v6sor4199855iob.363.2018.07.24.19.37.43
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C168B6B0003
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2018 22:46:49 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id q18-v6so3325868wrr.12
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2018 19:46:49 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u185-v6sor755369wmg.63.2018.07.24.19.46.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 24 Jul 2018 19:37:43 -0700 (PDT)
+        Tue, 24 Jul 2018 19:46:48 -0700 (PDT)
 MIME-Version: 1.0
-Date: Tue, 24 Jul 2018 19:37:28 -0700
+References: <20180724204639.26934-1-cannonmatthews@google.com> <20180724210923.GA20168@bombadil.infradead.org>
 In-Reply-To: <20180724210923.GA20168@bombadil.infradead.org>
-Message-Id: <20180725023728.44630-1-cannonmatthews@google.com>
-References: <20180724210923.GA20168@bombadil.infradead.org>
-Subject: Re: [PATCH v2] RFC: clear 1G pages with streaming stores on x86
 From: Cannon Matthews <cannonmatthews@google.com>
+Date: Tue, 24 Jul 2018 19:46:36 -0700
+Message-ID: <CAJfu=Uf5AgpM9=-+kdk6Cn=kRCUtqMjc38+K0NUSDo-QAS8=jg@mail.gmail.com>
+Subject: Re: [PATCH] RFC: clear 1G pages with streaming stores on x86
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andres Lagar-Cavilla <andreslc@google.com>, Salman Qazi <sqazi@google.com>, Paul Turner <pjt@google.com>, David Matlack <dmatlack@google.com>, Peter Feiner <pfeiner@google.com>, Alain Trinh <nullptr@google.com>, Cannon Matthews <cannonmatthews@google.com>
+To: willy@infradead.org
+Cc: mhocko@kernel.org, mike.kravetz@oracle.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andres Lagar-Cavilla <andreslc@google.com>, sqazi@google.com, Paul Turner <pjt@google.com>, David Matlack <dmatlack@google.com>, Peter Feiner <pfeiner@google.com>, nullptr@google.com
 
-Reimplement clear_gigantic_page() to clear gigabytes pages using the
-non-temporal streaming store instructions that bypass the cache
-(movnti), since an entire 1GiB region will not fit in the cache anyway.
+On Tue, Jul 24, 2018 at 2:09 PM Matthew Wilcox <willy@infradead.org> wrote:
+>
+> On Tue, Jul 24, 2018 at 01:46:39PM -0700, Cannon Matthews wrote:
+> > Reimplement clear_gigantic_page() to clear gigabytes pages using the
+> > non-temporal streaming store instructions that bypass the cache
+> > (movnti), since an entire 1GiB region will not fit in the cache anyway.
+> >
+> > Doing an mlock() on a 512GiB 1G-hugetlb region previously would take on
+> > average 134 seconds, about 260ms/GiB which is quite slow. Using `movnti`
+> > and optimizing the control flow over the constituent small pages, this
+> > can be improved roughly by a factor of 3-4x, with the 512GiB mlock()
+> > taking only 34 seconds on average, or 67ms/GiB.
+>
+> This is great data ...
+Thanks!
+>
+> > - The calls to cond_resched() have been reduced from between every 4k
+> > page to every 64, as between all of the 256K page seemed overly
+> > frequent.  Does this seem like an appropriate frequency? On an idle
+> > system with many spare CPUs it get's rescheduled typically once or twice
+> > out of the 4096 times it calls cond_resched(), which seems like it is
+> > maybe the right amount, but more insight from a scheduling/latency point
+> > of view would be helpful.
+>
+> ... which makes the lack of data here disappointing -- what're the
+> comparable timings if you do check every 4kB or every 64kB instead of
+> every 256kB?
 
-Doing an mlock() on a 512GiB 1G-hugetlb region previously would take on
-average 134 seconds, about 260ms/GiB which is quite slow. Using `movnti`
-and optimizing the control flow over the constituent small pages, this
-can be improved roughly by a factor of 3-4x, with the 512GiB mlock()
-taking only 34 seconds on average, or 67ms/GiB.
+Fair enough, my data was lacking in that axis. I ran a bunch of trials
+with different
+sizes and included that in the v2 patch description.
 
-The assembly code for the __clear_page_nt routine is more or less
-taken directly from the output of gcc with -O3 for this function with
-some tweaks to support arbitrary sizes and moving memory barriers:
+TL;DR: It doesn't seem to make a significant difference in
+performance, but might
+need more trials to know with more confidence.
 
-void clear_page_nt_64i (void *page)
-{
-  for (int i = 0; i < GiB /sizeof(long long int); ++i)
-    {
-      _mm_stream_si64 (((long long int*)page) + i, 0);
-    }
-  sfence();
-}
+>
+> > The assembly code for the __clear_page_nt routine is more or less
+> > taken directly from the output of gcc with -O3 for this function with
+> > some tweaks to support arbitrary sizes and moving memory barriers:
+> >
+> > void clear_page_nt_64i (void *page)
+> > {
+> >   for (int i = 0; i < GiB /sizeof(long long int); ++i)
+> >     {
+> >       _mm_stream_si64 (((long long int*)page) + i, 0);
+> >     }
+> >   sfence();
+> > }
+> >
+> > In general I would love to hear any thoughts and feedback on this
+> > approach and any ways it could be improved.
+> >
+> > Some specific questions:
+> >
+> > - What is the appropriate method for defining an arch specific
+> > implementation like this, is the #ifndef code sufficient, and did stuff
+> > land in appropriate files?
+> >
+> > - Are there any obvious pitfalls or caveats that have not been
+> > considered? In particular the iterator over mem_map_next() seemed like a
+> > no-op on x86, but looked like it could be important in certain
+> > configurations or architectures I am not familiar with.
+> >
+> > - Are there any x86_64 implementations that do not support SSE2
+> > instructions like `movnti` ? What is the appropriate way to detect and
+> > code around that if so?
+>
+> No.  SSE2 was introduced with the Pentium 4, before x86-64.  The XMM
+> registers are used as part of the x86-64 calling conventions, so SSE2
+> is mandatory for x86-64 implementations.
 
-In general I would love to hear any thoughts and feedback on this
-approach and any ways it could be improved.
+Awesome, good to know.
 
-Some specific questions:
+>
+> > - Is there anything that could be improved about the assembly code? I
+> > originally wrote it in C and don't have much experience hand writing x86
+> > asm, which seems riddled with optimization pitfalls.
+>
+> I suspect it might be slightly faster if implemented as inline asm in the
+> x86 clear_gigantic_page() implementation instead of a function call.
+> Might not affect performance a lot though.
 
-- What is the appropriate method for defining an arch specific
-implementation like this, is the #ifndef code sufficient, and did stuff
-land in appropriate files?
+I can try to experiment with that tomorrow. Since the performance doesn't vary
+much on an idle machine when you make one function call for the whole GiB
+or 256K of them for each 4K page I would suspect it won't matter much.
 
-- Are there any obvious pitfalls or caveats that have not been
-considered? In particular the iterator over mem_map_next() seemed like a
-no-op on x86, but looked like it could be important in certain
-configurations or architectures I am not familiar with.
+>
+> > - Is the highmem codepath really necessary? would 1GiB pages really be
+> > of much use on a highmem system? We recently removed some other parts of
+> > the code that support HIGHMEM for gigantic pages (see:
+> > http://lkml.kernel.org/r/20180711195913.1294-1-mike.kravetz@oracle.com)
+> > so this seems like a logical continuation.
+>
+> PAE paging doesn't support 1GB pages, so there's no need for it on x86.
 
-- Is there anything that could be improved about the assembly code? I
-originally wrote it in C and don't have much experience hand writing x86
-asm, which seems riddled with optimization pitfalls.
+Excellent. Do you happen to know if/when it is necessary on any other
+architectures?
 
-- Is the highmem codepath really necessary? would 1GiB pages really be
-of much use on a highmem system? We recently removed some other parts of
-the code that support HIGHMEM for gigantic pages (see:
-http://lkml.kernel.org/r/20180711195913.1294-1-mike.kravetz@oracle.com)
-so this seems like a logical continuation.
-
-- The calls to cond_resched() have been reduced from between every 4k
-page to every 64, as between all of the 256K page seemed overly
-frequent.  Does this seem like an appropriate frequency? On an idle
-system with many spare CPUs it get's rescheduled typically once or twice
-out of the 4096 times it calls cond_resched(), which seems like it is
-maybe the right amount, but more insight from a scheduling/latency point
-of view would be helpful. See the "Tested:" section below for some more data.
-
-- Any other thoughts on the change overall and ways that this could
-be made more generally useful, and designed to be easily extensible to
-other platforms with non-temporal instructions and 1G pages, or any
-additional pitfalls I have not thought to consider.
-
-Tested:
-	Time to `mlock()` a 512GiB region on broadwell CPU
-				AVG time (s)	% imp.	ms/page
-	clear_page_erms		133.584		-	261
-	clear_page_nt		34.154		74.43%	67
-
-For a more in depth look at how the frequency we call cond_resched() affects
-the time this takes, I tested both on an idle system, and a system running
-`stress -c N` program to overcommit CPU to ~115%, and ran 10 replications of
-the 512GiB mlock test.
-
-Unfortunately there wasn't as clear of a pattern as I had hoped. On an
-otherwise idle system there is no substantive difference different values of
-PAGES_BETWEEN_RESCHED.
-
-On a stressed system, there appears to be a pattern, that resembles something
-of a bell curve: constantly offering to yield, or never yielding until the end
-produces the fastest results, but yielding infrequently increases latency to a
-slight degree.
-
-That being said, it's not clear this is actually a significant difference, the
-std deviation is occasionally quite high, and perhaps a larger sample set would
-be more informative. From looking at the log messages indicating the number of
-times cond_resched() returned 1, there wasn't that much variance, with it
-usually being 1 or 2 when idle, and only increasing to ~4-7 when stressed.
-
-
-	PAGES_BETWEEN_RESCHED	state	AVG	stddev
-	1	4 KiB		idle	36.086	1.920
-	16	64 KiB		idle	34.797	1.702
-	32	128 KiB		idle	35.104	1.752
-	64	256 KiB		idle	34.468	0.661
-	512	2048 KiB	idle	36.427	0.946
-	2048	8192 KiB	idle	34.988	2.406
-	262144	1048576 KiB	idle	36.792	0.193
-	infin	512 GiB		idle	38.817	0.238  [causes softlockup]
-	1	4 KiB		stress 	55.562	0.661
-	16	64 KiB		stress 	57.509	0.248
-	32	128 KiB		stress 	69.265	3.913
-	64	256 KiB		stress 	70.217	4.534
-	512	2048 KiB	stress 	68.474	1.708
-	2048	8192 KiB	stress 	70.806	1.068
-	262144	1048576 KiB	stress 	55.217	1.184
-	infin	512 GiB		stress 	55.062	0.291  [causes softlockup]
-
-Signed-off-by: Cannon Matthews <cannonmatthews@google.com>
----
-
-v2:
- - Removed question about SSE2 Availability.
- - Changed #ifndef symbol to match function
- - removed spurious newlines
- - Expanded Tested: field to include additional timings for different sizes
-   between cond_resched().
-
- arch/x86/include/asm/page_64.h     |  5 +++++
- arch/x86/lib/Makefile              |  2 +-
- arch/x86/lib/clear_gigantic_page.c | 29 +++++++++++++++++++++++++++++
- arch/x86/lib/clear_page_64.S       | 20 ++++++++++++++++++++
- include/linux/mm.h                 |  3 +++
- mm/memory.c                        |  4 +++-
- 6 files changed, 61 insertions(+), 2 deletions(-)
- create mode 100644 arch/x86/lib/clear_gigantic_page.c
-
-diff --git a/arch/x86/include/asm/page_64.h b/arch/x86/include/asm/page_64.h
-index 939b1cff4a7b..177196d6abc7 100644
---- a/arch/x86/include/asm/page_64.h
-+++ b/arch/x86/include/asm/page_64.h
-@@ -56,6 +56,11 @@ static inline void clear_page(void *page)
-
- void copy_page(void *to, void *from);
-
-+#ifndef __clear_page_nt
-+void __clear_page_nt(void *page, u64 page_size);
-+#define __clear_page_nt __clear_page_nt
-+#endif  /* __clear_page_nt */
-+
- #endif	/* !__ASSEMBLY__ */
-
- #ifdef CONFIG_X86_VSYSCALL_EMULATION
-diff --git a/arch/x86/lib/Makefile b/arch/x86/lib/Makefile
-index 25a972c61b0a..4ba395234088 100644
---- a/arch/x86/lib/Makefile
-+++ b/arch/x86/lib/Makefile
-@@ -44,7 +44,7 @@ endif
- else
-         obj-y += iomap_copy_64.o
-         lib-y += csum-partial_64.o csum-copy_64.o csum-wrappers_64.o
--        lib-y += clear_page_64.o copy_page_64.o
-+        lib-y += clear_page_64.o copy_page_64.o clear_gigantic_page.o
-         lib-y += memmove_64.o memset_64.o
-         lib-y += copy_user_64.o
- 	lib-y += cmpxchg16b_emu.o
-diff --git a/arch/x86/lib/clear_gigantic_page.c b/arch/x86/lib/clear_gigantic_page.c
-new file mode 100644
-index 000000000000..0d51e38b5be0
---- /dev/null
-+++ b/arch/x86/lib/clear_gigantic_page.c
-@@ -0,0 +1,29 @@
-+#include <asm/page.h>
-+
-+#include <linux/kernel.h>
-+#include <linux/mm.h>
-+#include <linux/sched.h>
-+
-+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
-+#define PAGES_BETWEEN_RESCHED 64
-+void clear_gigantic_page(struct page *page,
-+				unsigned long addr,
-+				unsigned int pages_per_huge_page)
-+{
-+	int i;
-+	void *dest = page_to_virt(page);
-+	int resched_count = 0;
-+
-+	BUG_ON(pages_per_huge_page % PAGES_BETWEEN_RESCHED != 0);
-+	BUG_ON(!dest);
-+
-+	for (i = 0; i < pages_per_huge_page; i += PAGES_BETWEEN_RESCHED) {
-+		__clear_page_nt(dest + (i * PAGE_SIZE),
-+				PAGES_BETWEEN_RESCHED * PAGE_SIZE);
-+		resched_count += cond_resched();
-+	}
-+	/* __clear_page_nt requrires and `sfence` barrier. */
-+	wmb();
-+	pr_debug("clear_gigantic_page: rescheduled %d times\n", resched_count);
-+}
-+#endif
-diff --git a/arch/x86/lib/clear_page_64.S b/arch/x86/lib/clear_page_64.S
-index 88acd349911b..81a39804ac72 100644
---- a/arch/x86/lib/clear_page_64.S
-+++ b/arch/x86/lib/clear_page_64.S
-@@ -49,3 +49,23 @@ ENTRY(clear_page_erms)
- 	ret
- ENDPROC(clear_page_erms)
- EXPORT_SYMBOL_GPL(clear_page_erms)
-+
-+/*
-+ * Zero memory using non temporal stores, bypassing the cache.
-+ * Requires an `sfence` (wmb()) afterwards.
-+ * %rdi - destination.
-+ * %rsi - page size. Must be 64 bit aligned.
-+*/
-+ENTRY(__clear_page_nt)
-+	leaq	(%rdi,%rsi), %rdx
-+	xorl	%eax, %eax
-+	.p2align 4,,10
-+	.p2align 3
-+.L2:
-+	movnti	%rax, (%rdi)
-+	addq	$8, %rdi
-+	cmpq	%rdx, %rdi
-+	jne	.L2
-+	ret
-+ENDPROC(__clear_page_nt)
-+EXPORT_SYMBOL(__clear_page_nt)
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a0fbb9ffe380..d10ac4e7ef6a 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2729,6 +2729,9 @@ enum mf_action_page_type {
- };
-
- #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
-+extern void clear_gigantic_page(struct page *page,
-+			 unsigned long addr,
-+			 unsigned int pages_per_huge_page);
- extern void clear_huge_page(struct page *page,
- 			    unsigned long addr_hint,
- 			    unsigned int pages_per_huge_page);
-diff --git a/mm/memory.c b/mm/memory.c
-index 7206a634270b..e43a3a446380 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -4568,7 +4568,8 @@ EXPORT_SYMBOL(__might_fault);
- #endif
-
- #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
--static void clear_gigantic_page(struct page *page,
-+#ifndef __clear_page_nt
-+void clear_gigantic_page(struct page *page,
- 				unsigned long addr,
- 				unsigned int pages_per_huge_page)
- {
-@@ -4582,6 +4583,7 @@ static void clear_gigantic_page(struct page *page,
- 		clear_user_highpage(p, addr + i * PAGE_SIZE);
- 	}
- }
-+#endif  /* __clear_page_nt */
- void clear_huge_page(struct page *page,
- 		     unsigned long addr_hint, unsigned int pages_per_huge_page)
- {
---
-2.18.0.233.g985f88cf7e-goog
+>
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index 7206a634270b..2515cae4af4e 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -70,6 +70,7 @@
+> >  #include <linux/dax.h>
+> >  #include <linux/oom.h>
+> >
+> > +
+> >  #include <asm/io.h>
+> >  #include <asm/mmu_context.h>
+> >  #include <asm/pgalloc.h>
+>
+> Spurious.
+>
+Thanks for catching that, removed.
