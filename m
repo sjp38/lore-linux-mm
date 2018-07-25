@@ -1,59 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 828456B0296
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 07:48:50 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id v2-v6so3999761wrr.10
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 04:48:50 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r3-v6sor990334wmb.35.2018.07.25.04.48.49
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E42B6B026A
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 07:58:10 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id i26-v6so3029190edr.4
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 04:58:10 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s35-v6si1193669edm.70.2018.07.25.04.58.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 25 Jul 2018 04:48:49 -0700 (PDT)
-Date: Wed, 25 Jul 2018 13:48:47 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH 3/3] mm: move mirrored memory specific code outside of
- memmap_init_zone
-Message-ID: <20180725114847.GA16691@techadventures.net>
-References: <20180724235520.10200-1-pasha.tatashin@oracle.com>
- <20180724235520.10200-4-pasha.tatashin@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Jul 2018 04:58:09 -0700 (PDT)
+Date: Wed, 25 Jul 2018 13:58:07 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: cgroup-aware OOM killer, how to move forward
+Message-ID: <20180725115807.GF28386@dhcp22.suse.cz>
+References: <20180724073230.GE28386@dhcp22.suse.cz>
+ <20180724130836.GH1934745@devbig577.frc2.facebook.com>
+ <20180724132640.GL28386@dhcp22.suse.cz>
+ <20180724133110.GJ1934745@devbig577.frc2.facebook.com>
+ <20180724135022.GO28386@dhcp22.suse.cz>
+ <20180724135528.GK1934745@devbig577.frc2.facebook.com>
+ <20180724142554.GQ28386@dhcp22.suse.cz>
+ <20180724142820.GL1934745@devbig577.frc2.facebook.com>
+ <20180724144351.GR28386@dhcp22.suse.cz>
+ <20180724144940.GN1934745@devbig577.frc2.facebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180724235520.10200-4-pasha.tatashin@oracle.com>
+In-Reply-To: <20180724144940.GN1934745@devbig577.frc2.facebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, bhe@redhat.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, abdhalee@linux.vnet.ibm.com, mpe@ellerman.id.au
+To: Tejun Heo <tj@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>, hannes@cmpxchg.org, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org, gthelen@google.com
 
-On Tue, Jul 24, 2018 at 07:55:20PM -0400, Pavel Tatashin wrote:
-> memmap_init_zone, is getting complex, because it is called from different
-> contexts: hotplug, and during boot, and also because it must handle some
-> architecture quirks. One of them is mirroed memory.
+On Tue 24-07-18 07:49:40, Tejun Heo wrote:
+> Hello, Michal.
 > 
-> Move the code that decides whether to skip mirrored memory outside of
-> memmap_init_zone, into a separate function.
+> On Tue, Jul 24, 2018 at 04:43:51PM +0200, Michal Hocko wrote:
+[...]
+> > So IMHO the best option would be to simply inherit the group_oom to
+> > children. This would allow users to do their weird stuff but the default
+> > configuration would be consistent.
 > 
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Persistent config inheritance is a big no no.  It really sucks because
+> it makes the inherited state sticky and there's no way of telling why
+> the current setting is the way it is without knowing the past
+> configurations of the hierarchy.  We actually had a pretty bad
+> incident due to memcg swappiness inheritance recently (top level
+> cgroups would inherit sysctl swappiness during boot before sysctl
+> initialized them and then post-boot it isn't clear why the settings
+> are the way they're).
+> 
+> Nothing in cgroup2 does persistent inheritance.  If something explicit
+> is necessary, we do .effective so that the effective config is clearly
+> visible.
+> 
+> > A more restrictive variant would be to disallow changing children to
+> > mismatch the parent oom_group == 1. This would have a slight advantage
+> > that those users would get back to us with their usecases and we can
+> > either loose the restriction or explain that what they are doing is
+> > questionable and help with a more appropriate configuration.
+> 
+> That's a nack too because across delegation, from a child pov, it
+> isn't clear why it can't change configs and it's also easy to
+> introduce a situation where a child can lock its ancestors out of
+> chanding their configs.
 
-Hi Pavel,
-
-this looks good to me.
-Over the past days I thought if it would make sense to have two
-memmap_init_zone functions, one for hotplug and another one for early init,
-so we could get rid of the altmap stuff in the early init, and also the 
-MEMMAP_EARLY/HOTPLUG context thing could be gone.
-
-But I think that they would just share too much of the code, so I do not think
-it is worth.
-
-I am working to do that for free_area_init_core, let us see what I come up with.
-
-Anyway, this looks nicer, so thanks for that.
-I also gave it a try, and early init and memhotplug code seems to work fine.
-
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
-
-Thanks
+OK, fair points. I will keep thinking about this some more. I still
+cannot shake a bad feeling about the semantic and how poor users are
+going to scratch their heads what the heck is going on here. I will
+follow up in other email where we are discussing both options once
+I am able to sort this out myself.
 -- 
-Oscar Salvador
-SUSE L3
+Michal Hocko
+SUSE Labs
