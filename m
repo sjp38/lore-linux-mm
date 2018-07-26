@@ -1,105 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DB8326B0008
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 15:56:02 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id k21-v6so2140413qtj.23
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 12:56:02 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r126-v6sor1045654qkc.77.2018.07.26.12.56.01
+	by kanga.kvack.org (Postfix) with ESMTP id CF37D6B0273
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 15:56:16 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id i23-v6so2180242qtf.9
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 12:56:16 -0700 (PDT)
+Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
+        by mx.google.com with ESMTPS id c56-v6si2194253qtc.342.2018.07.26.12.56.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 26 Jul 2018 12:56:01 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Jul 2018 12:56:15 -0700 (PDT)
+Subject: Re: [PATCH 1/3] dmapool: improve scalability of dma_pool_alloc
+References: <15ff502d-d840-1003-6c45-bc17f0d81262@cybernetics.com>
+ <CAHp75VcXVgAtUWY5yRBFg85C5NPN2BAFyAfAkPLkKq5+SsNHpg@mail.gmail.com>
+From: Tony Battersby <tonyb@cybernetics.com>
+Message-ID: <2a04ee8b-478d-39f1-09a0-1b2f8c6ee8c6@cybernetics.com>
+Date: Thu, 26 Jul 2018 15:56:12 -0400
 MIME-Version: 1.0
-References: <1531727262-11520-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20180726070355.GD8477@rapoport-lnx> <20180726172005.pgjmkvwz2lpflpor@pburton-laptop>
-In-Reply-To: <20180726172005.pgjmkvwz2lpflpor@pburton-laptop>
-From: "Fancer's opinion" <fancer.lancer@gmail.com>
-Date: Thu, 26 Jul 2018 22:55:53 +0300
-Message-ID: <CAMPMW8p092oXk1w+SVjgx-ZH+46piAY8xgYPDfLUwLCkBm-TVw@mail.gmail.com>
-Subject: Re: [PATCH] mips: switch to NO_BOOTMEM
-Content-Type: multipart/alternative; boundary="00000000000077705e0571ec627c"
+In-Reply-To: <CAHp75VcXVgAtUWY5yRBFg85C5NPN2BAFyAfAkPLkKq5+SsNHpg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Burton <Paul.Burton@mips.com>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, Linux-MIPS <linux-mips@linux-mips.org>, Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>, Huacai Chen <chenhc@lemote.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Shevchenko <andy.shevchenko@gmail.com>
+Cc: Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Matthew Wilcox <willy@infradead.org>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
 
---00000000000077705e0571ec627c
-Content-Type: text/plain; charset="UTF-8"
-
-Hello, folks
-Regarding the no_bootmem patchset I've sent earlier.
-I'm terribly sorry about huge delay with response. I got sucked in a new
-project, so just didn't have a time to proceed with the series, answer to
-the questions and resend the set.
-If it is still relevant and needed for community, I can get back to the
-series on the next week, answer to the Mett's questions (sorry, man, for
-doing it so long), rebase it on top of the kernel 4.18 and resend the new
-version. We also can try to combine it with this patch, if it is found
-convenient.
-
-Regards,
--Sergey
-
-
-On Thu, 26 Jul 2018, 20:20 Paul Burton, <paul.burton@mips.com> wrote:
-
-> Hi Mike,
->
-> On Thu, Jul 26, 2018 at 10:03:56AM +0300, Mike Rapoport wrote:
-> > Any comments on this?
->
-> I haven't looked at this in detail yet, but there was a much larger
-> series submitted to accomplish this not too long ago, which needed
-> another revision:
+On 07/26/2018 03:37 PM, Andy Shevchenko wrote:
+> On Thu, Jul 26, 2018 at 9:54 PM, Tony Battersby <tonyb@cybernetics.com> wrote:
+>> dma_pool_alloc() scales poorly when allocating a large number of pages
+>> because it does a linear scan of all previously-allocated pages before
+>> allocating a new one.  Improve its scalability by maintaining a separate
+>> list of pages that have free blocks ready to (re)allocate.  In big O
+>> notation, this improves the algorithm from O(n^2) to O(n).
 >
 >
-> https://patchwork.linux-mips.org/project/linux-mips/list/?series=787&state=*
+>>         spin_lock_irqsave(&pool->lock, flags);
+>> -       list_for_each_entry(page, &pool->page_list, page_list) {
+>> -               if (page->offset < pool->allocation)
+>> -                       goto ready;
+>> +       if (!list_empty(&pool->avail_page_list)) {
+>> +               page = list_first_entry(&pool->avail_page_list,
+>> +                                       struct dma_page,
+>> +                                       avail_page_link);
+>> +               goto ready;
+>>         }
+> It looks like
 >
-> Given that, I'd be (pleasantly) surprised if this one smaller patch is
-> enough.
+> page = list_first_entry_or_null();
+> if (page)
+>  goto ready;
 >
-> Thanks,
->     Paul
+> Though I don't know which one produces better code in the result.
 >
+> >From reader prospective of view I would go with my variant.
 
---00000000000077705e0571ec627c
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Thanks, I didn't know about list_first_entry_or_null().
 
-<div dir=3D"auto">Hello, folks<div dir=3D"auto">Regarding the no_bootmem pa=
-tchset I&#39;ve sent earlier.</div><div dir=3D"auto">I&#39;m terribly sorry=
- about huge delay with response. I got sucked in a new project, so just did=
-n&#39;t have a time to proceed with the series, answer to the questions and=
- resend the set.</div><div dir=3D"auto">If it is still relevant and needed =
-for community, I can get back to the series on the next week, answer to the=
- Mett&#39;s questions (sorry, man, for doing it so long), rebase it on top =
-of the kernel 4.18 and resend the new version. We also can try to combine i=
-t with this patch, if it is found convenient.</div><div dir=3D"auto"><br></=
-div><div dir=3D"auto">Regards,</div><div dir=3D"auto">-Sergey</div><div dir=
-=3D"auto"><br></div></div><br><div class=3D"gmail_quote"><div dir=3D"ltr">O=
-n Thu, 26 Jul 2018, 20:20 Paul Burton, &lt;<a href=3D"mailto:paul.burton@mi=
-ps.com">paul.burton@mips.com</a>&gt; wrote:<br></div><blockquote class=3D"g=
-mail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-l=
-eft:1ex">Hi Mike,<br>
-<br>
-On Thu, Jul 26, 2018 at 10:03:56AM +0300, Mike Rapoport wrote:<br>
-&gt; Any comments on this?<br>
-<br>
-I haven&#39;t looked at this in detail yet, but there was a much larger<br>
-series submitted to accomplish this not too long ago, which needed<br>
-another revision:<br>
-<br>
-=C2=A0 =C2=A0 <a href=3D"https://patchwork.linux-mips.org/project/linux-mip=
-s/list/?series=3D787&amp;state=3D*" rel=3D"noreferrer noreferrer" target=3D=
-"_blank">https://patchwork.linux-mips.org/project/linux-mips/list/?series=
-=3D787&amp;state=3D*</a><br>
-<br>
-Given that, I&#39;d be (pleasantly) surprised if this one smaller patch is<=
-br>
-enough.<br>
-<br>
-Thanks,<br>
-=C2=A0 =C2=A0 Paul<br>
-</blockquote></div>
+>
+>> +       /* This test checks if the page is already in avail_page_list. */
+>> +       if (list_empty(&page->avail_page_link))
+>> +               list_add(&page->avail_page_link, &pool->avail_page_list);
+> How can you be sure that the page you are testing for is the first one?
+>
+> It seems you are relying on the fact that in the list should be either
+> 0 or 1 page. In that case what's the point to have a list?
+>
+That would be true if the test were "if (list_empty(&pool->avail_page_list))".A  But it is testing the list pointers in the item rather than the list pointers in the pool.A  It may be a bit confusing if you have never seen that usage before, which is why I added a comment.A  Basically, if you use list_del_init() instead of list_del(), then you can use list_empty() on the item itself to test if the item is present in a list or not.A  For example, the comments in list.h warn not to use list_empty() on the entry after just list_del():
 
---00000000000077705e0571ec627c--
+/**
+ * list_del - deletes entry from list.
+ * @entry: the element to delete from the list.
+ * Note: list_empty() on entry does not return true after this, the entry is
+ * in an undefined state.
+ */
