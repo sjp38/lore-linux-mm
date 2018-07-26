@@ -1,59 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 902596B000C
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 04:19:50 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id c2-v6so494436edi.20
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 01:19:50 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m13-v6si837089edd.103.2018.07.26.01.19.49
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F17946B026A
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 04:22:45 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id x9-v6so645214qto.18
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 01:22:45 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id f20-v6si678605qtp.48.2018.07.26.01.22.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jul 2018 01:19:49 -0700 (PDT)
-Date: Thu, 26 Jul 2018 10:19:47 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Showing /sys/fs/cgroup/memory/memory.stat very slow on some
- machines
-Message-ID: <20180726081947.GA28386@dhcp22.suse.cz>
-References: <CAOm-9arwY3VLUx5189JAR9J7B=Miad9nQjjet_VNdT3i+J+5FA@mail.gmail.com>
- <20180717212307.d6803a3b0bbfeb32479c1e26@linux-foundation.org>
- <20180718104230.GC1431@dhcp22.suse.cz>
- <CAOm-9aqeKZ7+Jvhc5DxEEzbk4T0iQx8gZ=O1vy6YXnbOkncFsg@mail.gmail.com>
- <CALvZod7_vPwqyLBxiecZtREEeY4hioCGnZWVhQx9wVdM8CFcog@mail.gmail.com>
- <CAOm-9aprLokqi6awMvi0NbkriZBpmvnBA81QhOoHnK7ZEA96fw@mail.gmail.com>
- <CALvZod4ag02N6QPwRQCYv663hj05Z6vtrK8=XEE6uWHQCL4yRw@mail.gmail.com>
- <CAOm-9arxtTwNxXzmb8nN+N_UtjiuH0XkpkVPFHpi3EOYXvZYVA@mail.gmail.com>
- <dda7b095-db84-7e69-a03e-d8ce64fc9b8e@gmail.com>
- <CAOm-9ar2zzxZvZ9A0Yu0knn_LNcHsck72wXShFXutYvAN2qu9Q@mail.gmail.com>
+        Thu, 26 Jul 2018 01:22:45 -0700 (PDT)
+Subject: Re: [PATCH v1 0/2] mm/kdump: exclude reserved pages in dumps
+References: <20180720123422.10127-1-david@redhat.com>
+ <9f46f0ed-e34c-73be-60ca-c892fb19ed08@suse.cz>
+ <f8d7b5f9-e5ee-0625-f53d-50d1841e1388@redhat.com>
+ <20180724072237.GA28386@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <e5264f8e-2bb5-7a9b-6352-ad18f04d49c2@redhat.com>
+Date: Thu, 26 Jul 2018 10:22:41 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAOm-9ar2zzxZvZ9A0Yu0knn_LNcHsck72wXShFXutYvAN2qu9Q@mail.gmail.com>
+In-Reply-To: <20180724072237.GA28386@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bruce Merry <bmerry@ska.ac.za>
-Cc: "Singh, Balbir" <bsingharora@gmail.com>, Shakeel Butt <shakeelb@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Dave Young <dyoung@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Miles Chen <miles.chen@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Tesarik <ptesarik@suse.cz>
 
-On Thu 26-07-18 08:41:35, Bruce Merry wrote:
-> On 26 July 2018 at 02:55, Singh, Balbir <bsingharora@gmail.com> wrote:
-> > Do you by any chance have use_hierarch=1? memcg_stat_show should just rely on counters inside the memory cgroup and the the LRU sizes for each node.
+On 24.07.2018 09:22, Michal Hocko wrote:
+> On Mon 23-07-18 19:12:58, David Hildenbrand wrote:
+>> On 23.07.2018 13:45, Vlastimil Babka wrote:
+>>> On 07/20/2018 02:34 PM, David Hildenbrand wrote:
+>>>> Dumping tools (like makedumpfile) right now don't exclude reserved pages.
+>>>> So reserved pages might be access by dump tools although nobody except
+>>>> the owner should touch them.
+>>>
+>>> Are you sure about that? Or maybe I understand wrong. Maybe it changed
+>>> recently, but IIRC pages that are backing memmap (struct pages) are also
+>>> PG_reserved. And you definitely do want those in the dump.
+>>
+>> I proposed a new flag/value to mask pages that are logically offline but
+>> Michal wanted me to go into this direction.
+>>
+>> While we can special case struct pages in dump tools ("we have to
+>> read/interpret them either way, so we can also dump them"), it smells
+>> like my original attempt was cleaner. Michal?
 > 
-> Yes, /sys/fs/cgroup/memory/memory.use_hierarchy is 1. I assume systemd
-> is doing that.
+> But we do not have many page flags spare and even if we have one or two
+> this doesn't look like the use for them. So I still think we should try
+> the PageReserved way.
+> 
 
-And this is actually good. Non hierarchical behavior is discouraged.
-The real problem is that we are keeping way too many zombie memcgs
-around and waiting for memory pressure to reclaim them and so they go
-away on their own.
+So as a summary, the only real approach that would be acceptable is
+using PageReserved + some other identifier to mark pages as "logically
+offline".
 
-As I've tried to explain in other email force_empty before removing the
-memcg should help.
+I wonder what identifier could be used, as this has to be consistent for
+all reserved pages (to avoid false positives).
 
-Fixing this properly would require quite some heavy lifting AFAICS. We
-would basically have to move zombies out of the way which is not hard
-but we do not want to hide their current memory consumption so we would
-have to somehow move their stats to the parent. And then we are back to
-reparenting which has been removed by b2052564e66d ("mm: memcontrol:
-continue cache reclaim from offlined groups").
+Using other pageflags in combination might be possible, but then we have
+to make assumptions about all users of PageReserved right now.
+
+As far as I can see (and as has been discussed), page_type could be
+used. If we don't want to consume a new bit, we could overload/reuse the
+"PG_balloon" bit.
+
+
+E.g. "PG_balloon" set -> exclude page from dump
+
+PG_balloon + !PG_reserved -> ballooned page (state as of now)
+PG_balloon + PG_reserved -> offline page
+
+This way, even pages inflated by virtio_balloon would not be touched.
+
+Opinions?
+
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David / dhildenb
