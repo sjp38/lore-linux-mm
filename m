@@ -1,75 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CF37D6B0273
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 15:56:16 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id i23-v6so2180242qtf.9
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 12:56:16 -0700 (PDT)
-Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
-        by mx.google.com with ESMTPS id c56-v6si2194253qtc.342.2018.07.26.12.56.14
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5735C6B0003
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 16:04:32 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id u1-v6so1407817ywg.6
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 13:04:32 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b14-v6sor599796ybm.84.2018.07.26.13.04.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jul 2018 12:56:15 -0700 (PDT)
-Subject: Re: [PATCH 1/3] dmapool: improve scalability of dma_pool_alloc
-References: <15ff502d-d840-1003-6c45-bc17f0d81262@cybernetics.com>
- <CAHp75VcXVgAtUWY5yRBFg85C5NPN2BAFyAfAkPLkKq5+SsNHpg@mail.gmail.com>
-From: Tony Battersby <tonyb@cybernetics.com>
-Message-ID: <2a04ee8b-478d-39f1-09a0-1b2f8c6ee8c6@cybernetics.com>
-Date: Thu, 26 Jul 2018 15:56:12 -0400
+        (Google Transport Security);
+        Thu, 26 Jul 2018 13:04:28 -0700 (PDT)
+Date: Thu, 26 Jul 2018 16:07:18 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 0/10] psi: pressure stall information for CPU, memory,
+ and IO v2
+Message-ID: <20180726200718.GA23307@cmpxchg.org>
+References: <20180712172942.10094-1-hannes@cmpxchg.org>
+ <CAKTCnzmt_CnfZMMdK9_-rBrL4kUmoE70nVbnE58CJp++FP0CCQ@mail.gmail.com>
+ <20180724151519.GA11598@cmpxchg.org>
+ <268c2b08-6c90-de2b-d693-1270bb186713@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAHp75VcXVgAtUWY5yRBFg85C5NPN2BAFyAfAkPLkKq5+SsNHpg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <268c2b08-6c90-de2b-d693-1270bb186713@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Shevchenko <andy.shevchenko@gmail.com>
-Cc: Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Matthew Wilcox <willy@infradead.org>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
+To: "Singh, Balbir" <bsingharora@gmail.com>
+Cc: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, surenb@google.com, Vinayak Menon <vinmenon@codeaurora.org>, Christoph Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm <linux-mm@kvack.org>, cgroups@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kernel-team@fb.com
 
-On 07/26/2018 03:37 PM, Andy Shevchenko wrote:
-> On Thu, Jul 26, 2018 at 9:54 PM, Tony Battersby <tonyb@cybernetics.com> wrote:
->> dma_pool_alloc() scales poorly when allocating a large number of pages
->> because it does a linear scan of all previously-allocated pages before
->> allocating a new one.  Improve its scalability by maintaining a separate
->> list of pages that have free blocks ready to (re)allocate.  In big O
->> notation, this improves the algorithm from O(n^2) to O(n).
->
->
->>         spin_lock_irqsave(&pool->lock, flags);
->> -       list_for_each_entry(page, &pool->page_list, page_list) {
->> -               if (page->offset < pool->allocation)
->> -                       goto ready;
->> +       if (!list_empty(&pool->avail_page_list)) {
->> +               page = list_first_entry(&pool->avail_page_list,
->> +                                       struct dma_page,
->> +                                       avail_page_link);
->> +               goto ready;
->>         }
-> It looks like
->
-> page = list_first_entry_or_null();
-> if (page)
->  goto ready;
->
-> Though I don't know which one produces better code in the result.
->
-> >From reader prospective of view I would go with my variant.
+On Thu, Jul 26, 2018 at 11:07:32AM +1000, Singh, Balbir wrote:
+> On 7/25/18 1:15 AM, Johannes Weiner wrote:
+> > On Tue, Jul 24, 2018 at 07:14:02AM +1000, Balbir Singh wrote:
+> >> Does the mechanism scale? I am a little concerned about how frequently
+> >> this infrastructure is monitored/read/acted upon.
+> > 
+> > I expect most users to poll in the frequency ballpark of the running
+> > averages (10s, 1m, 5m). Our OOMD defaults to 5s polling of the 10s
+> > average; we collect the 1m average once per minute from our machines
+> > and cgroups to log the system/workload health trends in our fleet.
+> > 
+> > Suren has been experimenting with adaptive polling down to the
+> > millisecond range on Android.
+> > 
+> 
+> I think this is a bad way of doing things, polling only adds to
+> overheads, there needs to be an event driven mechanism and the
+> selection of the events need to happen in user space.
 
-Thanks, I didn't know about list_first_entry_or_null().
+Of course, I'm not saying you should be doing this, and in fact Suren
+and I were talking about notification/event infrastructure.
 
->
->> +       /* This test checks if the page is already in avail_page_list. */
->> +       if (list_empty(&page->avail_page_link))
->> +               list_add(&page->avail_page_link, &pool->avail_page_list);
-> How can you be sure that the page you are testing for is the first one?
->
-> It seems you are relying on the fact that in the list should be either
-> 0 or 1 page. In that case what's the point to have a list?
->
-That would be true if the test were "if (list_empty(&pool->avail_page_list))".A  But it is testing the list pointers in the item rather than the list pointers in the pool.A  It may be a bit confusing if you have never seen that usage before, which is why I added a comment.A  Basically, if you use list_del_init() instead of list_del(), then you can use list_empty() on the item itself to test if the item is present in a list or not.A  For example, the comments in list.h warn not to use list_empty() on the entry after just list_del():
+You asked if this scales and I'm telling you it's not impossible to
+read at such frequencies.
 
-/**
- * list_del - deletes entry from list.
- * @entry: the element to delete from the list.
- * Note: list_empty() on entry does not return true after this, the entry is
- * in an undefined state.
- */
+Maybe you can clarify your question.
+
+> >> Why aren't existing mechanisms sufficient
+> > 
+> > Our existing stuff gives a lot of indication when something *may* be
+> > an issue, like the rate of page reclaim, the number of refaults, the
+> > average number of active processes, one task waiting on a resource.
+> > 
+> > But the real difference between an issue and a non-issue is how much
+> > it affects your overall goal of making forward progress or reacting to
+> > a request in time. And that's the only thing users really care
+> > about. It doesn't matter whether my system is doing 2314 or 6723 page
+> > refaults per minute, or scanned 8495 pages recently. I need to know
+> > whether I'm losing 1% or 20% of my time on overcommitted memory.
+> > 
+> > Delayacct is time-based, so it's a step in the right direction, but it
+> > doesn't aggregate tasks and CPUs into compound productivity states to
+> > tell you if only parts of your workload are seeing delays (which is
+> > often tolerable for the purpose of ensuring maximum HW utilization) or
+> > your system overall is not making forward progress. That aggregation
+> > isn't something you can do in userspace with polled delayacct data.
+> 
+> By aggregation you mean cgroup aggregation?
+
+System-wide and per cgroup.
