@@ -1,39 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 14A706B000C
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 03:04:24 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id u11-v6so618843oif.22
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 00:04:24 -0700 (PDT)
-Received: from mail.wingtech.com (mail.wingtech.com. [180.166.216.14])
-        by mx.google.com with ESMTPS id b185-v6si403248oif.189.2018.07.26.00.04.22
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EFE46B0003
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 03:19:03 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id w1-v6so648195ply.12
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 00:19:03 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e65-v6si652451plb.167.2018.07.26.00.19.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 26 Jul 2018 00:04:23 -0700 (PDT)
-Date: Thu, 26 Jul 2018 15:03:23 +0800
-From: "zhaowuyun@wingtech.com" <zhaowuyun@wingtech.com>
-Subject: Re: Re: [PATCH] [PATCH] mm: disable preemption before swapcache_free
-References: <2018072514375722198958@wingtech.com>,
-	<20180725141643.6d9ba86a9698bc2580836618@linux-foundation.org>,
-	<2018072610214038358990@wingtech.com>,
-	<20180726060640.GQ28386@dhcp22.suse.cz>
-Mime-Version: 1.0
-Message-ID: <20180726150323057627100@wingtech.com>
-Content-Type: text/plain;
-	charset="utf-8"
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Jul 2018 00:19:02 -0700 (PDT)
+Subject: Re: [Bug 200651] New: cgroups iptables-restor: vmalloc: allocation
+ failure
+References: <bug-200651-27@https.bugzilla.kernel.org/>
+ <20180725125239.b591e4df270145f9064fe2c5@linux-foundation.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <cd474b37-263f-b186-2024-507a9a4e12ae@suse.cz>
+Date: Thu, 26 Jul 2018 09:18:57 +0200
+MIME-Version: 1.0
+In-Reply-To: <20180725125239.b591e4df270145f9064fe2c5@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm <akpm@linux-foundation.org>, mgorman <mgorman@techsingularity.net>, minchan <minchan@kernel.org>, vinmenon <vinmenon@codeaurora.org>, hannes <hannes@cmpxchg.org>, "hillf.zj" <hillf.zj@alibaba-inc.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, gnikolov@icdsoft.com
+Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, netfilter-devel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>
 
-Pk9uIFRodSAyNi0wNy0xOCAxMDoyMTo0MCwgemhhb3d1eXVuQHdpbmd0ZWNoLmNvbSB3cm90ZToK
-PlsuLi5dCj4+IE91ciBwcm9qZWN0IHJlYWxseSBuZWVkcyBhIGZpeCB0byB0aGlzIGlzc3VlCj4K
-PkNvdWxkIHlvdSBiZSBtb3JlIHNwZWNpZmljIHdoeT8gTXkgdW5kZXJzdGFuZGluZyBpcyB0aGF0
-IFJUIHRhc2tzCj51c3VhbGx5IGhhdmUgYWxsIHRoZSBtZW1vcnkgbWxvY2tlZCBvdGhlcndpc2Ug
-YWxsIHRoZSByZWFsIHRpbWUKPmV4cGVjdGF0aW9ucyBhcmUgZ29uZSBhbHJlYWR5Lgo+LS0KPk1p
-Y2hhbCBIb2Nrbwo+U1VTRSBMYWJzIAoKClRoZSBSVCB0aHJlYWQgaXMgY3JlYXRlZCBieSBhIHBy
-b2Nlc3Mgd2l0aCBub3JtYWwgcHJpb3JpdHksIGFuZCB0aGUgcHJvY2VzcyB3YXMgc2xlZXAsIAp0
-aGVuIHNvbWUgdGFzayBuZWVkcyB0aGUgUlQgdGhyZWFkIHRvIGRvIHNvbWV0aGluZywgc28gdGhl
-IHByb2Nlc3MgY3JlYXRlIHRoaXMgdGhyZWFkLCBhbmQgc2V0IGl0IHRvIFJUIHBvbGljeS4KSSB0
-aGluayB0aGF0IGlzIHRoZSByZWFzb24gd2h5IFJUIHRhc2sgd291bGQgcmVhZCB0aGUgc3dhcC4K
-CgotLS0tLS0tLS0tLS0tLQp6aGFvd3V5dW5Ad2luZ3RlY2guY29t
+On 07/25/2018 09:52 PM, Andrew Morton wrote:
+> (switched to email.  Please respond via emailed reply-to-all, not via the
+> bugzilla web interface).
+> 
+> On Wed, 25 Jul 2018 11:42:57 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+> 
+>> https://bugzilla.kernel.org/show_bug.cgi?id=200651
+>>
+>>             Bug ID: 200651
+>>            Summary: cgroups iptables-restor: vmalloc: allocation failure
+> 
+> Thanks.  Please do note the above request.
+> 
+>>            Product: Memory Management
+>>            Version: 2.5
+>>     Kernel Version: 4.14
+>>           Hardware: All
+>>                 OS: Linux
+>>               Tree: Mainline
+>>             Status: NEW
+>>           Severity: normal
+>>           Priority: P1
+>>          Component: Other
+>>           Assignee: akpm@linux-foundation.org
+>>           Reporter: gnikolov@icdsoft.com
+>>         Regression: No
+>>
+>> Created attachment 277505
+>>   --> https://bugzilla.kernel.org/attachment.cgi?id=277505&action=edit
+>> iptables save
+>>
+>> After creating large number of cgroups and under memory pressure, iptables
+>> command fails with following error:
+>>
+>> "iptables-restor: vmalloc: allocation failure, allocated 3047424 of 3465216
+>> bytes, mode:0x14010c0(GFP_KERNEL|__GFP_NORETRY), nodemask=(null)"
+
+This is likely the kvmalloc() in xt_alloc_table_info(). Between 4.13 and
+4.17 it shouldn't use __GFP_NORETRY, but looks like commit 0537250fdc6c
+("netfilter: x_tables: make allocation less aggressive") was backported
+to 4.14. Removing __GFP_NORETRY might help here, but bring back other
+issues. Less than 4MB is not that much though, maybe find some "sane"
+limit and use __GFP_NORETRY only above that?
+
+> I'm not sure what the problem is here, apart from iptables being
+> over-optimistic about vmalloc()'s abilities.
+> 
+> Are cgroups having any impact on this, or is it simply vmalloc arena
+> fragmentation, and the iptables code should use some data structure
+> more sophisticated than a massive array?
+> 
+> Maybe all that ccgroup metadata is contributing to the arena
+> fragmentation, but that allocations will be small and the two systems
+> should be able to live alongside, by being realistic about vmalloc.
+> 
+>> System which is used to reproduce the bug is with 2 vcpus and 2GB of ram, but
+>> it happens on more powerfull systems.
+>>
+>> Steps to reproduce:
+>>
+>> mkdir /cgroup
+>> mount cgroup -t cgroup -omemory,pids,blkio,cpuacct /cgroup
+>> for a in `seq 1 1000`; do for b in `seq 1 4` ; do mkdir -p
+>> "/cgroup/user/$a/$b"; done; done
+>>
+>> Then in separate consoles
+>>
+>> cat /dev/vda > /dev/null
+>> ./test
+>> ./test
+>> i=0;while sleep 0 ; do iptables-restore < iptables.save ; i=$(($i+1)); echo $i;
+>> done
+>>
+>> Here is the source of "test" program and attached iptables.save. It happens
+>> also with smaller iptables.save file.
+>>
+>> #include <stdio.h>
+>> #include <stdlib.h>
+>>
+>> int main(void) {
+>>
+>>     srand(time(NULL));
+>>     int i = 0, j = 0, randnum=0;
+>>     int arr[6] = { 3072, 7168, 15360 , 31744, 64512, 130048}; 
+>>     while(1) {
+>>
+>>         for (i = 0; i < 6 ; i++) {
+>>
+>>             int *ptr = (int*) malloc(arr[i] * 93);  
+>>
+>>             for(j = 0 ; j < arr[i] * 93 / sizeof(int); j++) {
+>>                 *(ptr+j) = j+1;
+>>             }
+>>
+>>             free(ptr);
+>>         }
+>>     }       
+>> }
+>>
+> 
