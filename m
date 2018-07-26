@@ -1,92 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 811766B000E
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 04:27:29 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id w18-v6so789440plp.3
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 01:27:29 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C5FC6B0274
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 04:30:45 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id r9-v6so509635edh.14
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 01:30:44 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o23-v6si683749pgv.518.2018.07.26.01.27.28
+        by mx.google.com with ESMTPS id e18-v6si1014837edb.332.2018.07.26.01.30.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jul 2018 01:27:28 -0700 (PDT)
-Date: Thu, 26 Jul 2018 10:27:23 +0200
+        Thu, 26 Jul 2018 01:30:43 -0700 (PDT)
+Date: Thu, 26 Jul 2018 10:30:42 +0200
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH v1 0/2] mm/kdump: exclude reserved pages in dumps
-Message-ID: <20180726082723.GB28386@dhcp22.suse.cz>
-References: <20180723123043.GD31229@dhcp22.suse.cz>
- <8daae80c-871e-49b6-1cf1-1f0886d3935d@redhat.com>
- <20180724072536.GB28386@dhcp22.suse.cz>
- <8eb22489-fa6b-9825-bc63-07867a40d59b@redhat.com>
- <20180724131343.GK28386@dhcp22.suse.cz>
- <af5353ee-319e-17ec-3a39-df997a5adf43@redhat.com>
- <20180724133530.GN28386@dhcp22.suse.cz>
- <6c753cae-f8b6-5563-e5ba-7c1fefdeb74e@redhat.com>
- <20180725135147.GN28386@dhcp22.suse.cz>
- <344d5f15-c621-9973-561e-6ed96b29ea88@redhat.com>
+Message-ID: <20180726083042.GC28386@dhcp22.suse.cz>
+References: <20180720123422.10127-1-david@redhat.com>
+ <9f46f0ed-e34c-73be-60ca-c892fb19ed08@suse.cz>
+ <f8d7b5f9-e5ee-0625-f53d-50d1841e1388@redhat.com>
+ <20180724072237.GA28386@dhcp22.suse.cz>
+ <e5264f8e-2bb5-7a9b-6352-ad18f04d49c2@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <344d5f15-c621-9973-561e-6ed96b29ea88@redhat.com>
+In-Reply-To: <e5264f8e-2bb5-7a9b-6352-ad18f04d49c2@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Hildenbrand <david@redhat.com>
 Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Dave Young <dyoung@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?iso-8859-1?Q?Marc-Andr=E9?= Lureau <marcandre.lureau@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Miles Chen <miles.chen@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Tesarik <ptesarik@suse.cz>
 
-On Wed 25-07-18 16:20:41, David Hildenbrand wrote:
-> On 25.07.2018 15:51, Michal Hocko wrote:
-> > On Tue 24-07-18 16:13:09, David Hildenbrand wrote:
-> > [...]
-> >> So I see right now:
+On Thu 26-07-18 10:22:41, David Hildenbrand wrote:
+> On 24.07.2018 09:22, Michal Hocko wrote:
+> > On Mon 23-07-18 19:12:58, David Hildenbrand wrote:
+> >> On 23.07.2018 13:45, Vlastimil Babka wrote:
+> >>> On 07/20/2018 02:34 PM, David Hildenbrand wrote:
+> >>>> Dumping tools (like makedumpfile) right now don't exclude reserved pages.
+> >>>> So reserved pages might be access by dump tools although nobody except
+> >>>> the owner should touch them.
+> >>>
+> >>> Are you sure about that? Or maybe I understand wrong. Maybe it changed
+> >>> recently, but IIRC pages that are backing memmap (struct pages) are also
+> >>> PG_reserved. And you definitely do want those in the dump.
 > >>
-> >> - Pg_reserved + e.g. new page type (or some other unique identifier in
-> >>   combination with Pg_reserved)
-> >>  -> Avoid reads of pages we know are offline
-> >> - extend is_ram_page()
-> >>  -> Fake zero memory for pages we know are offline
+> >> I proposed a new flag/value to mask pages that are logically offline but
+> >> Michal wanted me to go into this direction.
 > >>
-> >> Or even both (avoid reading and don't crash the kernel if it is being done).
+> >> While we can special case struct pages in dump tools ("we have to
+> >> read/interpret them either way, so we can also dump them"), it smells
+> >> like my original attempt was cleaner. Michal?
 > > 
-> > I really fail to see how that can work without kernel being aware of
-> > PageOffline. What will/should happen if you run an old kdump tool on a
-> > kernel with this partially offline memory?
+> > But we do not have many page flags spare and even if we have one or two
+> > this doesn't look like the use for them. So I still think we should try
+> > the PageReserved way.
 > > 
 > 
-> New kernel with old dump tool:
+> So as a summary, the only real approach that would be acceptable is
+> using PageReserved + some other identifier to mark pages as "logically
+> offline".
 > 
-> a) we have not fixed up is_ram_page()
+> I wonder what identifier could be used, as this has to be consistent for
+> all reserved pages (to avoid false positives).
 > 
-> -> crash, as we access memory we shouldn't
-
-this is not acceptable, right? You do not want to crash your crash
-kernel ;)
-
-> b) we have fixed up is_ram_page()
+> Using other pageflags in combination might be possible, but then we have
+> to make assumptions about all users of PageReserved right now.
 > 
-> -> We have a callback to check for applicable memory in the hypervisor
-> whether the parts are accessible / online or not accessible / offline.
-> (e.g. via a device driver that controls a certain memory region)
-> 
-> -> Don't read, but fake a page full of 0
+> As far as I can see (and as has been discussed), page_type could be
+> used. If we don't want to consume a new bit, we could overload/reuse the
+> "PG_balloon" bit.
 > 
 > 
-> So instead of the kernel being aware of it, it asks via is_ram_page()
-> the hypervisor.
+> E.g. "PG_balloon" set -> exclude page from dump
 
-I am still confused why do we even care about hypervisor. What if
-somebody wants to have partial memory hotplug on native OS?
- 
-> I don't think a) is a problem. AFAICS, we have to update makedumpfile
-> for every new kernel. We can perform changes and update makedumpfile
-> to be compatible with new dump tools.
-
-Not really. You simply do not crash the kernel just because you are
-trying to dump the already crashed kernel.
-
-> E.g. remember SECTION_IS_ONLINE you introduced ? It broke dump
-> tools and required
-
-But has it crashed the kernel when reading the dump? If yes then the
-whole dumping is fragile as hell...
+Does each user of PG_balloon check for PG_reserved? If this is the case
+then yes this would be OK.
 -- 
 Michal Hocko
 SUSE Labs
