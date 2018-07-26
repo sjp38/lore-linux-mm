@@ -1,200 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D93BC6B026E
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 04:05:32 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id n21-v6so742001plp.9
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 01:05:32 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 85F286B0006
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 04:12:05 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id d18-v6so501132edp.0
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 01:12:05 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a1-v6si721546pld.63.2018.07.26.01.05.31
+        by mx.google.com with ESMTPS id r6-v6si829775edh.327.2018.07.26.01.12.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jul 2018 01:05:31 -0700 (PDT)
-Date: Thu, 26 Jul 2018 10:05:00 +0200
+        Thu, 26 Jul 2018 01:12:04 -0700 (PDT)
+Date: Thu, 26 Jul 2018 10:12:00 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3 2/5] mm: access zone->node via zone_to_nid() and
- zone_set_nid()
-Message-ID: <20180726080500.GX28386@dhcp22.suse.cz>
+Subject: Re: [PATCH v3 4/5] mm/page_alloc: Move initialization of node and
+ zones to an own function
+Message-ID: <20180726081200.GY28386@dhcp22.suse.cz>
 References: <20180725220144.11531-1-osalvador@techadventures.net>
- <20180725220144.11531-3-osalvador@techadventures.net>
+ <20180725220144.11531-5-osalvador@techadventures.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180725220144.11531-3-osalvador@techadventures.net>
+In-Reply-To: <20180725220144.11531-5-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: osalvador@techadventures.net
 Cc: akpm@linux-foundation.org, vbabka@suse.cz, pasha.tatashin@oracle.com, mgorman@techsingularity.net, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.j.williams@intel.com, Oscar Salvador <osalvador@suse.de>
 
-On Thu 26-07-18 00:01:41, osalvador@techadventures.net wrote:
-> From: Pavel Tatashin <pasha.tatashin@oracle.com>
+On Thu 26-07-18 00:01:43, osalvador@techadventures.net wrote:
+> From: Oscar Salvador <osalvador@suse.de>
 > 
-> zone->node is configured only when CONFIG_NUMA=y, so it is a good idea to
-> have inline functions to access this field in order to avoid ifdef's in
-> c files.
+> Currently, whenever a new node is created/re-used from the memhotplug path,
+> we call free_area_init_node()->free_area_init_core().
+> But there is some code that we do not really need to run when we are coming
+> from such path.
 > 
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
-> Reviewed-by: Oscar Salvador <osalvador@suse.de>
-
-My previous [1] question is not addressed in the changelog but I will
-not insist. If there is any reason to resubmit this then please
-consider.
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-[1] http://lkml.kernel.org/r/20180719134018.GB7193@dhcp22.suse.cz
-
-> ---
->  include/linux/mm.h     |  9 ---------
->  include/linux/mmzone.h | 26 ++++++++++++++++++++------
->  mm/mempolicy.c         |  4 ++--
->  mm/mm_init.c           |  9 ++-------
->  mm/page_alloc.c        | 10 ++++------
->  5 files changed, 28 insertions(+), 30 deletions(-)
+> free_area_init_core() performs the following actions:
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 726e71475144..6954ad183159 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -940,15 +940,6 @@ static inline int page_zone_id(struct page *page)
->  	return (page->flags >> ZONEID_PGSHIFT) & ZONEID_MASK;
->  }
->  
-> -static inline int zone_to_nid(struct zone *zone)
-> -{
-> -#ifdef CONFIG_NUMA
-> -	return zone->node;
-> -#else
-> -	return 0;
-> -#endif
-> -}
-> -
->  #ifdef NODE_NOT_IN_PAGE_FLAGS
->  extern int page_to_nid(const struct page *page);
->  #else
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index ae1a034c3e2c..17fdff3bfb41 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -842,6 +842,25 @@ static inline bool populated_zone(struct zone *zone)
->  	return zone->present_pages;
->  }
->  
-> +#ifdef CONFIG_NUMA
-> +static inline int zone_to_nid(struct zone *zone)
+> 1) Initializes pgdat internals, such as spinlock, waitqueues and more.
+> 2) Account # nr_all_pages and nr_kernel_pages. These values are used later on
+>    when creating hash tables.
+> 3) Account number of managed_pages per zone, substracting dma_reserved and memmap pages.
+> 4) Initializes some fields of the zone structure data
+> 5) Calls init_currently_empty_zone to initialize all the freelists
+> 6) Calls memmap_init to initialize all pages belonging to certain zone
+> 
+> When called from memhotplug path, free_area_init_core() only performs actions #1 and #4.
+> 
+> Action #2 is pointless as the zones do not have any pages since either the node was freed,
+> or we are re-using it, eitherway all zones belonging to this node should have 0 pages.
+> For the same reason, action #3 results always in manages_pages being 0.
+> 
+> Action #5 and #6 are performed later on when onlining the pages:
+>  online_pages()->move_pfn_range_to_zone()->init_currently_empty_zone()
+>  online_pages()->move_pfn_range_to_zone()->memmap_init_zone()
+> 
+> This patch moves the node/zone initializtion to their own function, so it allows us
+> to create a small version of free_area_init_core(next patch), where we only perform:
+> 
+> 1) Initialization of pgdat internals, such as spinlock, waitqueues and more
+> 4) Initialization of some fields of the zone structure data
+> 
+> This patch only introduces these two functions.
+
+OK, this looks definitely better. I will have to check that all the
+required state is initialized properly. Considering the above
+explanation I would simply fold the follow up patch into this one. It is
+not so large it would get hard to review and you would make it clear why
+the work is done.
+
+> +/*
+> + * Set up the zone data structures:
+> + *   - mark all pages reserved
+> + *   - mark all memory queues empty
+> + *   - clear the memory bitmaps
+> + *
+> + * NOTE: pgdat should get zeroed by caller.
+> + * NOTE: this function is only called during early init.
+> + */
+> +static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+
+now that this function is called only from the early init code we can
+make it s@__paginginit@__init@ AFAICS.
+
 > +{
-> +	return zone->node;
-> +}
-> +
-> +static inline void zone_set_nid(struct zone *zone, int nid)
-> +{
-> +	zone->node = nid;
-> +}
-> +#else
-> +static inline int zone_to_nid(struct zone *zone)
-> +{
-> +	return 0;
-> +}
-> +
-> +static inline void zone_set_nid(struct zone *zone, int nid) {}
-> +#endif
-> +
->  extern int movable_zone;
+> +	enum zone_type j;
+> +	int nid = pgdat->node_id;
 >  
->  #ifdef CONFIG_HIGHMEM
-> @@ -957,12 +976,7 @@ static inline int zonelist_zone_idx(struct zoneref *zoneref)
+> +	pgdat_init_internals(pgdat);
+>  	pgdat->per_cpu_nodestats = &boot_nodestats;
 >  
->  static inline int zonelist_node_idx(struct zoneref *zoneref)
->  {
-> -#ifdef CONFIG_NUMA
-> -	/* zone_to_nid not available in this context */
-> -	return zoneref->zone->node;
-> -#else
-> -	return 0;
-> -#endif /* CONFIG_NUMA */
-> +	return zone_to_nid(zoneref->zone);
->  }
->  
->  struct zoneref *__next_zones_zonelist(struct zoneref *z,
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index f0fcf70bcec7..8c1c09b3852a 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1784,7 +1784,7 @@ unsigned int mempolicy_slab_node(void)
->  		zonelist = &NODE_DATA(node)->node_zonelists[ZONELIST_FALLBACK];
->  		z = first_zones_zonelist(zonelist, highest_zoneidx,
->  							&policy->v.nodes);
-> -		return z->zone ? z->zone->node : node;
-> +		return z->zone ? zone_to_nid(z->zone) : node;
->  	}
->  
->  	default:
-> @@ -2326,7 +2326,7 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
->  				node_zonelist(numa_node_id(), GFP_HIGHUSER),
->  				gfp_zone(GFP_HIGHUSER),
->  				&pol->v.nodes);
-> -		polnid = z->zone->node;
-> +		polnid = zone_to_nid(z->zone);
->  		break;
->  
->  	default:
-> diff --git a/mm/mm_init.c b/mm/mm_init.c
-> index 5b72266b4b03..6838a530789b 100644
-> --- a/mm/mm_init.c
-> +++ b/mm/mm_init.c
-> @@ -53,13 +53,8 @@ void __init mminit_verify_zonelist(void)
->  				zone->name);
->  
->  			/* Iterate the zonelist */
-> -			for_each_zone_zonelist(zone, z, zonelist, zoneid) {
-> -#ifdef CONFIG_NUMA
-> -				pr_cont("%d:%s ", zone->node, zone->name);
-> -#else
-> -				pr_cont("0:%s ", zone->name);
-> -#endif /* CONFIG_NUMA */
-> -			}
-> +			for_each_zone_zonelist(zone, z, zonelist, zoneid)
-> +				pr_cont("%d:%s ", zone_to_nid(zone), zone->name);
->  			pr_cont("\n");
->  		}
->  	}
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 8a73305f7c55..10b754fba5fa 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2909,10 +2909,10 @@ static inline void zone_statistics(struct zone *preferred_zone, struct zone *z)
->  	if (!static_branch_likely(&vm_numa_stat_key))
->  		return;
->  
-> -	if (z->node != numa_node_id())
-> +	if (zone_to_nid(z) != numa_node_id())
->  		local_stat = NUMA_OTHER;
->  
-> -	if (z->node == preferred_zone->node)
-> +	if (zone_to_nid(z) == zone_to_nid(preferred_zone))
->  		__inc_numa_state(z, NUMA_HIT);
->  	else {
->  		__inc_numa_state(z, NUMA_MISS);
-> @@ -5287,7 +5287,7 @@ int local_memory_node(int node)
->  	z = first_zones_zonelist(node_zonelist(node, GFP_KERNEL),
->  				   gfp_zone(GFP_KERNEL),
->  				   NULL);
-> -	return z->zone->node;
-> +	return zone_to_nid(z->zone);
->  }
->  #endif
->  
-> @@ -6311,9 +6311,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+>  	for (j = 0; j < MAX_NR_ZONES; j++) {
+> @@ -6310,13 +6326,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+>  		 * when the bootmem allocator frees pages into the buddy system.
 >  		 * And all highmem pages will be managed by the buddy system.
 >  		 */
->  		zone->managed_pages = freesize;
-> -#ifdef CONFIG_NUMA
-> -		zone->node = nid;
-> -#endif
-> +		zone_set_nid(zone, nid);
->  		zone->name = zone_names[j];
->  		zone->zone_pgdat = pgdat;
->  		spin_lock_init(&zone->lock);
+> -		zone->managed_pages = freesize;
+> -		zone_set_nid(zone, nid);
+> -		zone->name = zone_names[j];
+> -		zone->zone_pgdat = pgdat;
+> -		spin_lock_init(&zone->lock);
+> -		zone_seqlock_init(zone);
+> -		zone_pcp_init(zone);
+> +		zone_init_internals(zone, j, nid, freesize);
+>  
+>  		if (!size)
+>  			continue;
 > -- 
 > 2.13.6
 > 
