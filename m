@@ -1,62 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D59286B0271
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 15:45:59 -0400 (EDT)
-Received: by mail-ua0-f200.google.com with SMTP id c13-v6so834682uao.8
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 12:45:59 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g64-v6sor789930uag.179.2018.07.26.12.45.59
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FA816B0006
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 15:50:16 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id x2-v6so1553966pgp.4
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 12:50:16 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id x21-v6si1934867pll.24.2018.07.26.12.50.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 26 Jul 2018 12:45:59 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1288e597-a67a-25b3-b7c6-db883ca67a25@cybernetics.com>
-References: <1288e597-a67a-25b3-b7c6-db883ca67a25@cybernetics.com>
-From: Andy Shevchenko <andy.shevchenko@gmail.com>
-Date: Thu, 26 Jul 2018 22:45:58 +0300
-Message-ID: <CAHp75VcpM5W7+xgVy6nZf2hOXD8ghy5bwoJpAFse_ccp7OopNA@mail.gmail.com>
-Subject: Re: [PATCH 2/3] dmapool: improve scalability of dma_pool_free
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Jul 2018 12:50:14 -0700 (PDT)
+Date: Thu, 26 Jul 2018 12:50:13 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v1 0/2] mm/kdump: exclude reserved pages in dumps
+Message-Id: <20180726125013.ea82bfa3194386733b3943ab@linux-foundation.org>
+In-Reply-To: <21c31952-7632-b8e1-aa33-d124ce96b88e@redhat.com>
+References: <20180720123422.10127-1-david@redhat.com>
+	<9f46f0ed-e34c-73be-60ca-c892fb19ed08@suse.cz>
+	<f8d7b5f9-e5ee-0625-f53d-50d1841e1388@redhat.com>
+	<20180724072237.GA28386@dhcp22.suse.cz>
+	<e5264f8e-2bb5-7a9b-6352-ad18f04d49c2@redhat.com>
+	<20180726083042.GC28386@dhcp22.suse.cz>
+	<21c31952-7632-b8e1-aa33-d124ce96b88e@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Battersby <tonyb@cybernetics.com>
-Cc: Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Matthew Wilcox <willy@infradead.org>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
+To: David Hildenbrand <david@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Baoquan He <bhe@redhat.com>, Dave Young <dyoung@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?ISO-8859-1?Q?Marc-Andr=E9?= Lureau <marcandre.lureau@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Miles Chen <miles.chen@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Tesarik <ptesarik@suse.cz>
 
-On Thu, Jul 26, 2018 at 9:54 PM, Tony Battersby <tonyb@cybernetics.com> wrote:
-> dma_pool_free() scales poorly when the pool contains many pages because
-> pool_find_page() does a linear scan of all allocated pages.  Improve its
-> scalability by replacing the linear scan with a red-black tree lookup.
-> In big O notation, this improves the algorithm from O(n^2) to O(n * log n).
+On Thu, 26 Jul 2018 10:45:54 +0200 David Hildenbrand <david@redhat.com> wrote:
 
-Few style related comments.
+> > Does each user of PG_balloon check for PG_reserved? If this is the case
+> > then yes this would be OK.
+> > 
+> 
+> I can only spot one user of PageBalloon() at all (fs/proc/page.c) ,
+> which makes me wonder if this bit is actually still relevant. I think
+> the last "real" user was removed with
+> 
+> commit b1123ea6d3b3da25af5c8a9d843bd07ab63213f4
+> Author: Minchan Kim <minchan@kernel.org>
+> Date:   Tue Jul 26 15:23:09 2016 -0700
+> 
+>     mm: balloon: use general non-lru movable page feature
+> 
+>     Now, VM has a feature to migrate non-lru movable pages so balloon
+>     doesn't need custom migration hooks in migrate.c and compaction.c.
+> 
+> 
+> The only user of PG_balloon in general is
+> "include/linux/balloon_compaction.h", used effectively only by
+> virtio_balloon.
+> 
+> All such pages are allocated via balloon_page_alloc() and never set
+> reserved.
+> 
+> So to me it looks like PG_balloon could be easily reused, especially to
+> also exclude virtio-balloon pages from dumps.
 
-> I moved some code from dma_pool_destroy() into pool_free_page() to avoid code
-> repetition.
-
-I would rather split that part as a separate preparatory change which
-doesn't change the behaviour.
-
->  #include <linux/string.h>
->  #include <linux/types.h>
->  #include <linux/wait.h>
-
-> +#include <linux/rbtree.h>
-
-It looks misordered.
-
-> +               struct dma_page *this_page =
-> +                       container_of(*node, struct dma_page, page_node);
-
-#define to_dma_page() container_of() ?
-
-> +                       WARN(1,
-> +                            "%s: %s: DMA address overlap: old 0x%llx new 0x%llx len %zu\n",
-> +                            pool->dev ? dev_name(pool->dev) : "(nodev)",
-> +                            pool->name, (u64) this_page->dma, (u64) dma,
-
-Use proper %p extensions for the DMA addresses:
-https://elixir.bootlin.com/linux/latest/source/Documentation/core-api/printk-formats.rst#L150
-
--- 
-With Best Regards,
-Andy Shevchenko
+Agree.  Maintaining a thingy for page-types.c which hardly anyone uses
+(surely) isn't sufficient justification for consuming a page flag.  We
+should check with the virtio developers first, but this does seem to be
+begging to be reclaimed.
