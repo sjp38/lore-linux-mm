@@ -1,133 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 72CC56B0010
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 15:35:34 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id j12-v6so830420uaq.16
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 12:35:34 -0700 (PDT)
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E34E26B026A
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 15:35:35 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id c27-v6so2285704qkj.3
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 12:35:35 -0700 (PDT)
 Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id x72-v6si748474vkd.96.2018.07.26.12.35.33
+        by mx.google.com with ESMTPS id d17-v6si2189644qtd.64.2018.07.26.12.35.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jul 2018 12:35:33 -0700 (PDT)
+        Thu, 26 Jul 2018 12:35:34 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v2 2/3] mm: calculate deferred pages after skipping mirrored memory
-Date: Thu, 26 Jul 2018 15:35:08 -0400
-Message-Id: <20180726193509.3326-3-pasha.tatashin@oracle.com>
+Subject: [PATCH v2 3/3] mm: move mirrored memory specific code outside of memmap_init_zone
+Date: Thu, 26 Jul 2018 15:35:09 -0400
+Message-Id: <20180726193509.3326-4-pasha.tatashin@oracle.com>
 In-Reply-To: <20180726193509.3326-1-pasha.tatashin@oracle.com>
 References: <20180726193509.3326-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, bhe@redhat.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net, pasha.tatashin@oracle.com, abdhalee@linux.vnet.ibm.com, mpe@ellerman.id.au
 
-update_defer_init() should be called only when struct page is about to be
-initialized. Because it counts number of initialized struct pages, but
-there we may skip struct pages if there is some mirrored memory.
+memmap_init_zone, is getting complex, because it is called from different
+contexts: hotplug, and during boot, and also because it must handle some
+architecture quirks. One of them is mirroed memory.
 
-So move, update_defer_init() after checking for mirrored memory.
-
-Also, rename update_defer_init() to defer_init() and reverse the return
-boolean to emphasize that this is a boolean function, that tells that the
-reset of memmap initialization should be deferred.
-
-Make this function self-contained: do not pass number of already
-initialized pages in this zone by using static counters.
+Move the code that decides whether to skip mirrored memory outside of
+memmap_init_zone, into a separate function.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
 ---
- mm/page_alloc.c | 45 +++++++++++++++++++++++++--------------------
- 1 file changed, 25 insertions(+), 20 deletions(-)
+ mm/page_alloc.c | 74 +++++++++++++++++++++++--------------------------
+ 1 file changed, 34 insertions(+), 40 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6796dacd46ac..4946c73e549b 100644
+index 4946c73e549b..02e4b84038f8 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -306,24 +306,33 @@ static inline bool __meminit early_page_uninitialised(unsigned long pfn)
- }
- 
- /*
-- * Returns false when the remaining initialisation should be deferred until
-+ * Returns true when the remaining initialisation should be deferred until
-  * later in the boot cycle when it can be parallelised.
-  */
--static inline bool update_defer_init(pg_data_t *pgdat,
--				unsigned long pfn, unsigned long zone_end,
--				unsigned long *nr_initialised)
-+static bool __meminit
-+defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
- {
-+	static unsigned long prev_end_pfn, nr_initialised;
-+
-+	/*
-+	 * prev_end_pfn static that contains the end of previous zone
-+	 * No need to protect because called very early in boot before smp_init.
-+	 */
-+	if (prev_end_pfn != end_pfn) {
-+		prev_end_pfn = end_pfn;
-+		nr_initialised = 0;
-+	}
-+
- 	/* Always populate low zones for address-constrained allocations */
--	if (zone_end < pgdat_end_pfn(pgdat))
--		return true;
--	(*nr_initialised)++;
--	if ((*nr_initialised > pgdat->static_init_pgcnt) &&
--	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
--		pgdat->first_deferred_pfn = pfn;
-+	if (end_pfn < pgdat_end_pfn(NODE_DATA(nid)))
- 		return false;
-+	nr_initialised++;
-+	if ((nr_initialised > NODE_DATA(nid)->static_init_pgcnt) &&
-+	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
-+		NODE_DATA(nid)->first_deferred_pfn = pfn;
-+		return true;
- 	}
--
--	return true;
-+	return false;
- }
- #else
- static inline bool early_page_uninitialised(unsigned long pfn)
-@@ -331,11 +340,9 @@ static inline bool early_page_uninitialised(unsigned long pfn)
- 	return false;
- }
- 
--static inline bool update_defer_init(pg_data_t *pgdat,
--				unsigned long pfn, unsigned long zone_end,
--				unsigned long *nr_initialised)
-+static inline bool defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
- {
--	return true;
-+	return false;
- }
+@@ -5456,6 +5456,30 @@ void __ref build_all_zonelists(pg_data_t *pgdat)
  #endif
+ }
  
-@@ -5459,9 +5466,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
++/* If zone is ZONE_MOVABLE but memory is mirrored, it is an overlapped init */
++static bool __meminit
++overlap_memmap_init(unsigned long zone, unsigned long *pfn)
++{
++#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
++	static struct memblock_region *r;
++
++	if (mirrored_kernelcore && zone == ZONE_MOVABLE) {
++		if (!r || *pfn >= memblock_region_memory_end_pfn(r)) {
++			for_each_memblock(memory, r) {
++				if (*pfn < memblock_region_memory_end_pfn(r))
++					break;
++			}
++		}
++		if (*pfn >= memblock_region_memory_base_pfn(r) &&
++		    memblock_is_mirror(r)) {
++			*pfn = memblock_region_memory_end_pfn(r);
++			return true;
++		}
++	}
++#endif
++	return false;
++}
++
+ /*
+  * Initially all pages are reserved - free ones are freed
+  * up by free_all_bootmem() once the early boot process is
+@@ -5465,12 +5489,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 		unsigned long start_pfn, enum memmap_context context,
  		struct vmem_altmap *altmap)
  {
- 	unsigned long end_pfn = start_pfn + size;
--	pg_data_t *pgdat = NODE_DATA(nid);
- 	unsigned long pfn;
--	unsigned long nr_initialised = 0;
+-	unsigned long end_pfn = start_pfn + size;
+-	unsigned long pfn;
++	unsigned long pfn, end_pfn = start_pfn + size;
  	struct page *page;
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 	struct memblock_region *r = NULL, *tmp;
-@@ -5492,8 +5497,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+-	struct memblock_region *r = NULL, *tmp;
+-#endif
  
- 		if (!early_pfn_in_nid(pfn, nid))
- 			continue;
--		if (!update_defer_init(pgdat, pfn, end_pfn, &nr_initialised))
+ 	if (highest_memmap_pfn < end_pfn - 1)
+ 		highest_memmap_pfn = end_pfn - 1;
+@@ -5487,42 +5507,19 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 		 * There can be holes in boot-time mem_map[]s handed to this
+ 		 * function.  They do not exist on hotplugged memory.
+ 		 */
+-		if (context != MEMMAP_EARLY)
+-			goto not_early;
+-
+-		if (!early_pfn_valid(pfn)) {
+-			pfn = next_valid_pfn(pfn) - 1;
+-			continue;
+-		}
+-
+-		if (!early_pfn_in_nid(pfn, nid))
+-			continue;
+-
+-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+-		/*
+-		 * Check given memblock attribute by firmware which can affect
+-		 * kernel memory layout.  If zone==ZONE_MOVABLE but memory is
+-		 * mirrored, it's an overlapped memmap init. skip it.
+-		 */
+-		if (mirrored_kernelcore && zone == ZONE_MOVABLE) {
+-			if (!r || pfn >= memblock_region_memory_end_pfn(r)) {
+-				for_each_memblock(memory, tmp)
+-					if (pfn < memblock_region_memory_end_pfn(tmp))
+-						break;
+-				r = tmp;
+-			}
+-			if (pfn >= memblock_region_memory_base_pfn(r) &&
+-			    memblock_is_mirror(r)) {
+-				/* already initialized as NORMAL */
+-				pfn = memblock_region_memory_end_pfn(r);
++		if (context == MEMMAP_EARLY) {
++			if (!early_pfn_valid(pfn)) {
++				pfn = next_valid_pfn(pfn) - 1;
+ 				continue;
+ 			}
++			if (!early_pfn_in_nid(pfn, nid))
++				continue;
++			if (overlap_memmap_init(zone, &pfn))
++				continue;
++			if (defer_init(nid, pfn, end_pfn))
++				break;
+ 		}
+-#endif
+-		if (defer_init(nid, pfn, end_pfn))
 -			break;
  
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 		/*
-@@ -5516,6 +5519,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 			}
- 		}
- #endif
-+		if (defer_init(nid, pfn, end_pfn))
-+			break;
- 
- not_early:
+-not_early:
  		page = pfn_to_page(pfn);
+ 		__init_single_page(page, pfn, zone, nid);
+ 		if (context == MEMMAP_HOTPLUG)
+@@ -5539,9 +5536,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 		 * can be created for invalid pages (for alignment)
+ 		 * check here not to call set_pageblock_migratetype() against
+ 		 * pfn out of zone.
+-		 *
+-		 * Please note that MEMMAP_HOTPLUG path doesn't clear memmap
+-		 * because this is done early in sparse_add_one_section
+ 		 */
+ 		if (!(pfn & (pageblock_nr_pages - 1))) {
+ 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
 -- 
 2.18.0
