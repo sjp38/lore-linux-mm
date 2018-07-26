@@ -1,109 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 289606B0005
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 11:39:44 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id n68-v6so2343631ite.8
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 08:39:44 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id 194-v6si1055779itj.38.2018.07.26.08.39.42
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 462316B0005
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 12:26:43 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id d18-v6so1072257edp.0
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 09:26:43 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b9-v6sor1177956edi.14.2018.07.26.09.26.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jul 2018 08:39:43 -0700 (PDT)
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6QFXuhj141343
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 15:39:42 GMT
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by userp2130.oracle.com with ESMTP id 2kbv8tbpyf-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 15:39:42 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w6QFdf8E004467
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 15:39:41 GMT
-Received: from abhmp0015.oracle.com (abhmp0015.oracle.com [141.146.116.21])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w6QFdfue013103
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 15:39:41 GMT
-Received: by mail-oi0-f41.google.com with SMTP id w126-v6so3720569oie.7
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 08:39:40 -0700 (PDT)
+        (Google Transport Security);
+        Thu, 26 Jul 2018 09:26:41 -0700 (PDT)
+Date: Thu, 26 Jul 2018 19:26:37 +0300
+From: Alexey Dobriyan <adobriyan@gmail.com>
+Subject: Re: [PATCH 4/4] mm: proc/pid/smaps_rollup: convert to single value
+ seq_file
+Message-ID: <20180726162637.GB25227@avx2>
+References: <20180723111933.15443-1-vbabka@suse.cz>
+ <20180723111933.15443-5-vbabka@suse.cz>
+ <cb1d1965-9a13-e80f-dfde-a5d3bf9f510c@suse.cz>
 MIME-Version: 1.0
-References: <20180724235520.10200-1-pasha.tatashin@oracle.com>
- <20180724235520.10200-3-pasha.tatashin@oracle.com> <20180724183142.d20798b43fd1215f6165649c@linux-foundation.org>
- <CAGM2reb4vT59uUkMkJVBx9-GEYQs287oTG08aRwKtjfJ1BVrjA@mail.gmail.com> <20180725143007.25d5bff352872aba90ca731b@linux-foundation.org>
-In-Reply-To: <20180725143007.25d5bff352872aba90ca731b@linux-foundation.org>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Thu, 26 Jul 2018 11:39:04 -0400
-Message-ID: <CAGM2reZ-DLcSw_DnBFfR8yvZBxpT4W1pUPo5+R6HDNvumx-nsA@mail.gmail.com>
-Subject: Re: [PATCH 2/3] mm: calculate deferred pages after skipping mirrored memory
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <cb1d1965-9a13-e80f-dfde-a5d3bf9f510c@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, LKML <linux-kernel@vger.kernel.org>, kirill.shutemov@linux.intel.com, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, Souptick Joarder <jrdr.linux@gmail.com>, bhe@redhat.com, gregkh@linuxfoundation.org, Vlastimil Babka <vbabka@suse.cz>, Wei Yang <richard.weiyang@gmail.com>, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net, abdhalee@linux.vnet.ibm.com, mpe@ellerman.id.au
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Daniel Colascione <dancol@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org
 
-On Wed, Jul 25, 2018 at 5:30 PM Andrew Morton <akpm@linux-foundation.org> wrote:
->
-> On Tue, 24 Jul 2018 21:46:25 -0400 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
->
-> > > > +static inline bool defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
-> > > >  {
-> > > > +     static unsigned long prev_end_pfn, nr_initialised;
-> > >
-> > > So answer me quick, what happens with a static variable in an inlined
-> > > function?  Is there one copy kernel-wide?  One copy per invocation
-> > > site?  One copy per compilation unit?
-> > >
-> > > Well I didn't know so I wrote a little test.  One copy per compilation
-> > > unit (.o file), it appears.
-> > >
-> > > It's OK in this case because the function is in .c (and has only one
-> > > call site).  But if someone moves it into a header and uses it from a
-> > > different .c file, they have problems.
-> > >
-> > > So it's dangerous, and poor practice.  I'll make this non-static
-> > > __meminit.
-> >
-> > I agree, it should not be moved to header it is dangerous.
-> >
-> > But, on the other hand this is a hot-path. memmap_init_zone() might
-> > need to go through billions of struct pages early in boot, and I did
-> > not want us to waste time on function calls. With defer_init() this is
-> > not a problem, because if CONFIG_DEFERRED_STRUCT_PAGE_INIT is set
-> > memmap_init_zone() won't have much work to do, but for
-> > overlap_memmap_init() this is a problem, especially because I expect
-> > compiler to optimize the pfn dereference usage in inline function.
->
-> Well.  The compiler will just go and inline defer_init() anwyay - it
-> has a single callsite and is in the same __meminint section as its
-> calling function.  My gcc-7.2.0 does this.  Marking it noninline
-> __meminit is basically syntactic fluff designed to encourage people to
-> think twice.
+On Wed, Jul 25, 2018 at 08:53:53AM +0200, Vlastimil Babka wrote:
+> I moved the reply to this thread since the "added to -mm tree"
+> notification Alexey replied to in <20180724182908.GD27053@avx2> has
+> reduced CC list and is not linked to the patch postings.
+> 
+> On 07/24/2018 08:29 PM, Alexey Dobriyan wrote:
+> > On Mon, Jul 23, 2018 at 04:55:48PM -0700, akpm@linux-foundation.org wrote:
+> >> The patch titled
+> >>      Subject: mm: /proc/pid/smaps_rollup: convert to single value seq_file
+> >> has been added to the -mm tree.  Its filename is
+> >>      mm-proc-pid-smaps_rollup-convert-to-single-value-seq_file.patch
+> > 
+> >> Subject: mm: /proc/pid/smaps_rollup: convert to single value seq_file
+> >>
+> >> The /proc/pid/smaps_rollup file is currently implemented via the
+> >> m_start/m_next/m_stop seq_file iterators shared with the other maps files,
+> >> that iterate over vma's.  However, the rollup file doesn't print anything
+> >> for each vma, only accumulate the stats.
+> > 
+> > What I don't understand why keep seq_ops then and not do all the work in
+> > ->show hook.  Currently /proc/*/smaps_rollup is at ~500 bytes so with
+> > minimum 1 page seq buffer, no buffer resizing is possible.
+> 
+> Hmm IIUC seq_file also provides the buffer and handles feeding the data
+> from there to the user process, which might have called read() with a smaller
+> buffer than that. So I would rather not avoid the seq_file infrastructure.
+> Or you're saying it could be converted to single_open()? Maybe, with more work.
 
-Makes sense. I will do the change in the next version of the patches.
+Prefereably yes.
 
->
-> > >
-> > > --- a/mm/page_alloc.c~mm-calculate-deferred-pages-after-skipping-mirrored-memory-fix
-> > > +++ a/mm/page_alloc.c
-> > > @@ -309,7 +309,8 @@ static inline bool __meminit early_page_
-> > >   * Returns true when the remaining initialisation should be deferred until
-> > >   * later in the boot cycle when it can be parallelised.
-> > >   */
-> > > -static inline bool defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
-> > > +static bool __meminit
-> > > +defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
-> > >  {
-> > >         static unsigned long prev_end_pfn, nr_initialised;
-> > >
-> > >
-> > > Also, what locking protects these statics?  Our knowledge that this
-> > > code is single-threaded, presumably?
-> >
-> > Correct, this is called only from "context == MEMMAP_EARLY", way
-> > before smp_init().
->
-> Might be worth a little comment to put readers minds at ease.
+There are 2 ways to using seq_file:
+* introduce seq_operations and iterate over objects printing them one by one,
+* use single_open and 1 ->show hook and do all the work of collecting
+  data there and print once.
 
-Will add it.
+  /proc/*/smaps_rollup is suited for variant 2 because variant 1 is
+  designed for printing arbitrary amount of data.
 
-Thank you,
-Pavel
+
+> >> +static int show_smaps_rollup(struct seq_file *m, void *v)
+> >> +{
+> >> +	struct proc_maps_private *priv = m->private;
+> >> +	struct mem_size_stats *mss = priv->rollup;
+> >> +	struct vm_area_struct *vma;
+> >> +
+> >> +	/*
+> >> +	 * We might be called multiple times when e.g. the seq buffer
+> >> +	 * overflows. Gather the stats only once.
+> > 
+> > It doesn't!
+> 
+> Because the buffer is 1 page and the data is ~500 bytes as you said above?
+> Agreed, but I wouldn't want to depend on data not growing in the future or
+> the initial buffer not getting smaller. I could extend the comment that this
+> is theoretical for now?
+
+Given the rate of growth I wouldn't be concerned.
+
+> >> +	if (!mss->finished) {
+> >> +		for (vma = priv->mm->mmap; vma; vma = vma->vm_next) {
+> >> +			smap_gather_stats(vma, mss);
+> >> +			mss->last_vma_end = vma->vm_end;
+> >>  		}
+> >> -		last_vma = !m_next_vma(priv, vma);
+> >> -	} else {
+> >> -		rollup_mode = false;
+> >> -		memset(&mss_stack, 0, sizeof(mss_stack));
+> >> -		mss = &mss_stack;
