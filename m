@@ -1,72 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BE966B0274
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 13:33:12 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id j189-v6so1904886oih.11
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 10:33:12 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id m83-v6si1339711oik.0.2018.07.26.10.33.10
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 832826B0003
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 13:52:20 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id z5-v6so1144427edr.19
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 10:52:20 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b16-v6si1608362eds.55.2018.07.26.10.52.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jul 2018 10:33:10 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6QHSodn015106
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 13:33:10 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2kfhj3be8w-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 13:33:09 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Thu, 26 Jul 2018 18:33:07 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH v3 7/7] docs/core-api: mm-api: add section about GFP flags
-Date: Thu, 26 Jul 2018 20:32:40 +0300
-In-Reply-To: <1532626360-16650-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1532626360-16650-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1532626360-16650-8-git-send-email-rppt@linux.vnet.ibm.com>
+        Thu, 26 Jul 2018 10:52:19 -0700 (PDT)
+Date: Thu, 26 Jul 2018 19:52:12 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3 2/5] mm: access zone->node via zone_to_nid() and
+ zone_set_nid()
+Message-ID: <20180726175212.GQ28386@dhcp22.suse.cz>
+References: <20180725220144.11531-1-osalvador@techadventures.net>
+ <20180725220144.11531-3-osalvador@techadventures.net>
+ <20180726080500.GX28386@dhcp22.suse.cz>
+ <20180726081215.GC22028@techadventures.net>
+ <20180726151420.uigttpoclcka6h4h@xakep.localdomain>
+ <20180726164304.GP28386@dhcp22.suse.cz>
+ <CAGM2reatUAekg=e9FQM1-UVLOSBKb74-FYo7FcPqO_WaR7AmOQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGM2reatUAekg=e9FQM1-UVLOSBKb74-FYo7FcPqO_WaR7AmOQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: osalvador@techadventures.net, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, dan.j.williams@intel.com, osalvador@suse.de
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
- Documentation/core-api/mm-api.rst | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+On Thu 26-07-18 13:18:46, Pavel Tatashin wrote:
+> > > OpenGrok was used to find places where zone->node is accessed. A public one
+> > > is available here: http://src.illumos.org/source/
+> >
+> > I assume that tool uses some pattern matching or similar so steps to use
+> > the tool to get your results would be more helpful. This is basically
+> > the same thing as coccinelle generated patches.
+> 
+> OpenGrok is very easy to use, it is source browser, similar to cscope
+> except obviously you can't edit the browsed code. I could have used
+> cscope just as well here.
 
-diff --git a/Documentation/core-api/mm-api.rst b/Documentation/core-api/mm-api.rst
-index b5913aa..46ae353 100644
---- a/Documentation/core-api/mm-api.rst
-+++ b/Documentation/core-api/mm-api.rst
-@@ -14,6 +14,27 @@ User Space Memory Access
- .. kernel-doc:: mm/util.c
-    :functions: get_user_pages_fast
- 
-+Memory Allocation Controls
-+==========================
-+
-+Functions which need to allocate memory often use GFP flags to express
-+how that memory should be allocated. The GFP acronym stands for "get
-+free pages", the underlying memory allocation function. Not every GFP
-+flag is allowed to every function which may allocate memory. Most
-+users will want to use a plain ``GFP_KERNEL``.
-+
-+.. kernel-doc:: include/linux/gfp.h
-+   :doc: Page mobility and placement hints
-+
-+.. kernel-doc:: include/linux/gfp.h
-+   :doc: Watermark modifiers
-+
-+.. kernel-doc:: include/linux/gfp.h
-+   :doc: Reclaim modifiers
-+
-+.. kernel-doc:: include/linux/gfp.h
-+   :doc: Common combinations
-+
- The Slab Cache
- ==============
- 
+OK, then I misunderstood. I thought it was some kind of c aware grep
+that found all the usage for you. If this is cscope like then it is not
+worth mentioning in the changelog. 
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
