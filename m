@@ -1,84 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E43546B0266
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 03:31:33 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id r20-v6so531953pgv.20
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 00:31:33 -0700 (PDT)
-Received: from mxct.zte.com.cn (out1.zte.com.cn. [202.103.147.172])
-        by mx.google.com with ESMTPS id m12-v6si690970pgd.334.2018.07.26.00.31.32
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B048D6B0006
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 03:35:01 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id c2-v6so446186edi.20
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 00:35:01 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e2-v6si726629edc.442.2018.07.26.00.35.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jul 2018 00:31:32 -0700 (PDT)
-From: Jiang Biao <jiang.biao2@zte.com.cn>
-Subject: [PATCH v2] mm: fix page_freeze_refs and page_unfreeze_refs in comments.
-Date: Thu, 26 Jul 2018 15:30:26 +0800
-Message-Id: <1532590226-106038-1-git-send-email-jiang.biao2@zte.com.cn>
+        Thu, 26 Jul 2018 00:35:00 -0700 (PDT)
+Subject: Re: [Bug 200651] New: cgroups iptables-restor: vmalloc: allocation
+ failure
+References: <bug-200651-27@https.bugzilla.kernel.org/>
+ <20180725125239.b591e4df270145f9064fe2c5@linux-foundation.org>
+ <cd474b37-263f-b186-2024-507a9a4e12ae@suse.cz>
+ <20180726072622.GS28386@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <67d5e4ef-c040-6852-ad93-6f2528df0982@suse.cz>
+Date: Thu, 26 Jul 2018 09:34:58 +0200
+MIME-Version: 1.0
+In-Reply-To: <20180726072622.GS28386@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, n-horiguchi@ah.jp.nec.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jiang.biao2@zte.com.cn, zhong.weidong@zte.com.cn
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, gnikolov@icdsoft.com, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, netfilter-devel@vger.kernel.org
 
-page_freeze_refs/page_unfreeze_refs have already been relplaced by
-page_ref_freeze/page_ref_unfreeze , but they are not modified in
-the comments.
+On 07/26/2018 09:26 AM, Michal Hocko wrote:
+> On Thu 26-07-18 09:18:57, Vlastimil Babka wrote:
+>> On 07/25/2018 09:52 PM, Andrew Morton wrote:
+>>> (switched to email.  Please respond via emailed reply-to-all, not via the
+>>> bugzilla web interface).
+>>>
+>>> On Wed, 25 Jul 2018 11:42:57 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+>>>
+>>>> https://bugzilla.kernel.org/show_bug.cgi?id=200651
+>>>>
+>>>>             Bug ID: 200651
+>>>>            Summary: cgroups iptables-restor: vmalloc: allocation failure
+>>>
+>>> Thanks.  Please do note the above request.
+>>>
+>>>>            Product: Memory Management
+>>>>            Version: 2.5
+>>>>     Kernel Version: 4.14
+>>>>           Hardware: All
+>>>>                 OS: Linux
+>>>>               Tree: Mainline
+>>>>             Status: NEW
+>>>>           Severity: normal
+>>>>           Priority: P1
+>>>>          Component: Other
+>>>>           Assignee: akpm@linux-foundation.org
+>>>>           Reporter: gnikolov@icdsoft.com
+>>>>         Regression: No
+>>>>
+>>>> Created attachment 277505
+>>>>   --> https://bugzilla.kernel.org/attachment.cgi?id=277505&action=edit
+>>>> iptables save
+>>>>
+>>>> After creating large number of cgroups and under memory pressure, iptables
+>>>> command fails with following error:
+>>>>
+>>>> "iptables-restor: vmalloc: allocation failure, allocated 3047424 of 3465216
+>>>> bytes, mode:0x14010c0(GFP_KERNEL|__GFP_NORETRY), nodemask=(null)"
+>>
+>> This is likely the kvmalloc() in xt_alloc_table_info(). Between 4.13 and
+>> 4.17 it shouldn't use __GFP_NORETRY, but looks like commit 0537250fdc6c
+>> ("netfilter: x_tables: make allocation less aggressive") was backported
+>> to 4.14. Removing __GFP_NORETRY might help here, but bring back other
+>> issues. Less than 4MB is not that much though, maybe find some "sane"
+>> limit and use __GFP_NORETRY only above that?
+> 
+> I have seen the same report via http://lkml.kernel.org/r/df6f501c-8546-1f55-40b1-7e3a8f54d872@icdsoft.com
+> and the reported confirmed that kvmalloc is not a real culprit
+> http://lkml.kernel.org/r/d99a9598-808a-6968-4131-c3949b752004@icdsoft.com
 
-Signed-off-by: Jiang Biao <jiang.biao2@zte.com.cn>
----
-v1: fix comments in vmscan.
-v2: fix other two places and fix typoes.
-
- mm/ksm.c            | 4 ++--
- mm/memory-failure.c | 2 +-
- mm/vmscan.c         | 2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
-
-diff --git a/mm/ksm.c b/mm/ksm.c
-index a6d43cf..4c39cb67 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -703,7 +703,7 @@ static struct page *get_ksm_page(struct stable_node *stable_node, bool lock_it)
- 	 * We cannot do anything with the page while its refcount is 0.
- 	 * Usually 0 means free, or tail of a higher-order page: in which
- 	 * case this node is no longer referenced, and should be freed;
--	 * however, it might mean that the page is under page_freeze_refs().
-+	 * however, it might mean that the page is under page_ref_freeze().
- 	 * The __remove_mapping() case is easy, again the node is now stale;
- 	 * but if page is swapcache in migrate_page_move_mapping(), it might
- 	 * still be our page, in which case it's essential to keep the node.
-@@ -714,7 +714,7 @@ static struct page *get_ksm_page(struct stable_node *stable_node, bool lock_it)
- 		 * work here too.  We have chosen the !PageSwapCache test to
- 		 * optimize the common case, when the page is or is about to
- 		 * be freed: PageSwapCache is cleared (under spin_lock_irq)
--		 * in the freeze_refs section of __remove_mapping(); but Anon
-+		 * in the ref_freeze section of __remove_mapping(); but Anon
- 		 * page->mapping reset to NULL later, in free_pages_prepare().
- 		 */
- 		if (!PageSwapCache(page))
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 9d142b9..c83a174 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1167,7 +1167,7 @@ int memory_failure(unsigned long pfn, int flags)
- 	 *    R/W the page; let's pray that the page has been
- 	 *    used and will be freed some time later.
- 	 * In fact it's dangerous to directly bump up page count from 0,
--	 * that may make page_freeze_refs()/page_unfreeze_refs() mismatch.
-+	 * that may make page_ref_freeze()/page_ref_unfreeze() mismatch.
- 	 */
- 	if (!(flags & MF_COUNT_INCREASED) && !get_hwpoison_page(p)) {
- 		if (is_free_buddy_page(p)) {
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 03822f8..02d0c20 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -744,7 +744,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
- 		refcount = 2;
- 	if (!page_ref_freeze(page, refcount))
- 		goto cannot_free;
--	/* note: atomic_cmpxchg in page_freeze_refs provides the smp_rmb */
-+	/* note: atomic_cmpxchg in page_ref_freeze provides the smp_rmb */
- 	if (unlikely(PageDirty(page))) {
- 		page_ref_unfreeze(page, refcount);
- 		goto cannot_free;
--- 
-2.7.4
+Hmm but that was revert of eacd86ca3b03 ("net/netfilter/x_tables.c: use
+kvmalloc() in xt_alloc_table_info()") which was the 4.13 commit that
+removed __GFP_NORETRY (there's no __GFP_NORETRY under net/netfilter in
+v4.14). I assume it was reverted on top of vanilla v4.14 as there would
+be conflict on the stable with 0537250fdc6c backport. So what should be
+tested to be sure is either vanilla v4.14 without stable backports, or
+latest v4.14.y with revert of 0537250fdc6c.
