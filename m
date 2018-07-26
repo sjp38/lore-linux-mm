@@ -1,53 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 104AF6B0003
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 23:47:30 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id h7-v6so689482itj.7
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 20:47:30 -0700 (PDT)
-Received: from mtlfep01.bell.net (belmont79srvr.owm.bell.net. [184.150.200.79])
-        by mx.google.com with ESMTPS id w3-v6si146226iop.105.2018.07.25.20.47.28
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C90F16B0003
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 00:14:05 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id t17-v6so270261edr.21
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 21:14:05 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id t40-v6si522780edm.33.2018.07.25.21.14.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 25 Jul 2018 20:47:28 -0700 (PDT)
-Received: from bell.net mtlfep01 184.150.200.30 by mtlfep01.bell.net
-          with ESMTP
-          id <20180726034728.DDOD10498.mtlfep01.bell.net@mtlspm02.bell.net>
-          for <linux-mm@kvack.org>; Wed, 25 Jul 2018 23:47:28 -0400
-Message-ID: <0432580c68060ed979433a04416cc19307fc5511.camel@sympatico.ca>
-Subject: Re: [PATCH 0/3] PTI for x86-32 Fixes and Updates
-From: "David H. Gutteridge" <dhgutteridge@sympatico.ca>
-Date: Wed, 25 Jul 2018 23:47:21 -0400
-In-Reply-To: <20180723072951.qesrz5pdnngtk455@suse.de>
-References: <1532103744-31902-1-git-send-email-joro@8bytes.org>
-	 <14206a19d597881b2490eb3fea47ee97be17ca93.camel@sympatico.ca>
-	 <20180723072951.qesrz5pdnngtk455@suse.de>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Jul 2018 21:14:04 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6Q4DZMx123923
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 00:14:02 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2kf2bjrvka-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 00:14:02 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Thu, 26 Jul 2018 05:14:01 +0100
+Date: Thu, 26 Jul 2018 07:13:54 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2] hexagon: switch to NO_BOOTMEM
+References: <1532496594-26353-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <20180726014457.GH12771@codeaurora.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180726014457.GH12771@codeaurora.org>
+Message-Id: <20180726041353.GA8477@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <jroedel@suse.de>
-Cc: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>
+To: Richard Kuo <rkuo@codeaurora.org>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-hexagon@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 2018-07-23 at 09:29 +0200, Joerg Roedel wrote:
-> Hey David,
+On Wed, Jul 25, 2018 at 08:44:57PM -0500, Richard Kuo wrote:
+> On Wed, Jul 25, 2018 at 08:29:54AM +0300, Mike Rapoport wrote:
+> > This patch adds registration of the system memory with memblock, eliminates
+> > bootmem initialization and converts early memory reservations from bootmem
+> > to memblock.
+> > 
+> > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> > ---
+> > v2: fix calculation of the reserved memory size
+> > 
+> >  arch/hexagon/Kconfig   |  3 +++
+> >  arch/hexagon/mm/init.c | 20 ++++++++------------
+> >  2 files changed, 11 insertions(+), 12 deletions(-)
+> > 
 > 
-> On Sun, Jul 22, 2018 at 11:49:00PM -0400, David H. Gutteridge wrote:
-> > Unfortunately, I can trigger a bug in KVM+QEMU with the Bochs VGA
-> > driver. (This is the same VM definition I shared with you in a PM
-> > back on Feb. 20th, except note that 4.18 kernels won't successfully
-> > boot with QEMU's IDE device, so I'm using SATA instead. That's a
-> > regression totally unrelated to your change sets, or to the general
-> > booting issue with 4.18 RC5, since it occurs in vanilla RC4 as
-> > well.)
+> Looks good, I can take this through my tree.
+ 
+Thanks. The hexagon tree seems the most appropriate :)
+ 
+> Acked-by: Richard Kuo <rkuo@codeaurora.org>
 > 
-> Yes, this needs the fixes in the tip/x86/mm branch as well. Can you
-> that branch in and test again, please?
 
-Sorry, I didn't realize I needed those changes, too. I've re-tested
-with those applied and haven't encountered any issues. I'm now
-re-testing again with your newer patch set from the 25th. No issues
-so far with those, either; I'll confirm in that email thread after
-the laptop has seen some more use.
-
-Dave
+-- 
+Sincerely yours,
+Mike.
