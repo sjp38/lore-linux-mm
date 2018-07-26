@@ -1,96 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 646486B026A
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 03:42:23 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id i24-v6so457358edq.16
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 00:42:23 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EB0C6B026C
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 03:44:33 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id j14-v6so469751edr.2
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 00:44:33 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t11-v6si786789edt.159.2018.07.26.00.42.21
+        by mx.google.com with ESMTPS id g3-v6si823367edg.360.2018.07.26.00.44.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jul 2018 00:42:22 -0700 (PDT)
-Date: Thu, 26 Jul 2018 09:42:19 +0200
+        Thu, 26 Jul 2018 00:44:32 -0700 (PDT)
+Date: Thu, 26 Jul 2018 09:44:30 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [Bug 200651] New: cgroups iptables-restor: vmalloc: allocation
- failure
-Message-ID: <20180726074219.GU28386@dhcp22.suse.cz>
-References: <bug-200651-27@https.bugzilla.kernel.org/>
- <20180725125239.b591e4df270145f9064fe2c5@linux-foundation.org>
- <cd474b37-263f-b186-2024-507a9a4e12ae@suse.cz>
- <20180726072622.GS28386@dhcp22.suse.cz>
- <67d5e4ef-c040-6852-ad93-6f2528df0982@suse.cz>
+Subject: Re: Re: [PATCH] [PATCH] mm: disable preemption before swapcache_free
+Message-ID: <20180726074430.GV28386@dhcp22.suse.cz>
+References: <2018072514375722198958@wingtech.com>
+ <20180725141643.6d9ba86a9698bc2580836618@linux-foundation.org>
+ <2018072610214038358990@wingtech.com>
+ <20180726060640.GQ28386@dhcp22.suse.cz>
+ <20180726150323057627100@wingtech.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <67d5e4ef-c040-6852-ad93-6f2528df0982@suse.cz>
+In-Reply-To: <20180726150323057627100@wingtech.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, gnikolov@icdsoft.com, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, netfilter-devel@vger.kernel.org
+To: "zhaowuyun@wingtech.com" <zhaowuyun@wingtech.com>
+Cc: akpm <akpm@linux-foundation.org>, mgorman <mgorman@techsingularity.net>, minchan <minchan@kernel.org>, vinmenon <vinmenon@codeaurora.org>, hannes <hannes@cmpxchg.org>, "hillf.zj" <hillf.zj@alibaba-inc.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
 
-On Thu 26-07-18 09:34:58, Vlastimil Babka wrote:
-> On 07/26/2018 09:26 AM, Michal Hocko wrote:
-> > On Thu 26-07-18 09:18:57, Vlastimil Babka wrote:
-> >> On 07/25/2018 09:52 PM, Andrew Morton wrote:
-> >>> (switched to email.  Please respond via emailed reply-to-all, not via the
-> >>> bugzilla web interface).
-> >>>
-> >>> On Wed, 25 Jul 2018 11:42:57 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
-> >>>
-> >>>> https://bugzilla.kernel.org/show_bug.cgi?id=200651
-> >>>>
-> >>>>             Bug ID: 200651
-> >>>>            Summary: cgroups iptables-restor: vmalloc: allocation failure
-> >>>
-> >>> Thanks.  Please do note the above request.
-> >>>
-> >>>>            Product: Memory Management
-> >>>>            Version: 2.5
-> >>>>     Kernel Version: 4.14
-> >>>>           Hardware: All
-> >>>>                 OS: Linux
-> >>>>               Tree: Mainline
-> >>>>             Status: NEW
-> >>>>           Severity: normal
-> >>>>           Priority: P1
-> >>>>          Component: Other
-> >>>>           Assignee: akpm@linux-foundation.org
-> >>>>           Reporter: gnikolov@icdsoft.com
-> >>>>         Regression: No
-> >>>>
-> >>>> Created attachment 277505
-> >>>>   --> https://bugzilla.kernel.org/attachment.cgi?id=277505&action=edit
-> >>>> iptables save
-> >>>>
-> >>>> After creating large number of cgroups and under memory pressure, iptables
-> >>>> command fails with following error:
-> >>>>
-> >>>> "iptables-restor: vmalloc: allocation failure, allocated 3047424 of 3465216
-> >>>> bytes, mode:0x14010c0(GFP_KERNEL|__GFP_NORETRY), nodemask=(null)"
-> >>
-> >> This is likely the kvmalloc() in xt_alloc_table_info(). Between 4.13 and
-> >> 4.17 it shouldn't use __GFP_NORETRY, but looks like commit 0537250fdc6c
-> >> ("netfilter: x_tables: make allocation less aggressive") was backported
-> >> to 4.14. Removing __GFP_NORETRY might help here, but bring back other
-> >> issues. Less than 4MB is not that much though, maybe find some "sane"
-> >> limit and use __GFP_NORETRY only above that?
-> > 
-> > I have seen the same report via http://lkml.kernel.org/r/df6f501c-8546-1f55-40b1-7e3a8f54d872@icdsoft.com
-> > and the reported confirmed that kvmalloc is not a real culprit
-> > http://lkml.kernel.org/r/d99a9598-808a-6968-4131-c3949b752004@icdsoft.com
+On Thu 26-07-18 15:03:23, zhaowuyun@wingtech.com wrote:
+> >On Thu 26-07-18 10:21:40, zhaowuyun@wingtech.com wrote:
+> >[...]
+> >> Our project really needs a fix to this issue
+> >
+> >Could you be more specific why? My understanding is that RT tasks
+> >usually have all the memory mlocked otherwise all the real time
+> >expectations are gone already.
+> >--
+> >Michal Hocko
+> >SUSE Labs 
 > 
-> Hmm but that was revert of eacd86ca3b03 ("net/netfilter/x_tables.c: use
-> kvmalloc() in xt_alloc_table_info()") which was the 4.13 commit that
-> removed __GFP_NORETRY (there's no __GFP_NORETRY under net/netfilter in
-> v4.14). I assume it was reverted on top of vanilla v4.14 as there would
-> be conflict on the stable with 0537250fdc6c backport. So what should be
-> tested to be sure is either vanilla v4.14 without stable backports, or
-> latest v4.14.y with revert of 0537250fdc6c.
+> 
+> The RT thread is created by a process with normal priority, and the process was sleep, 
+> then some task needs the RT thread to do something, so the process create this thread, and set it to RT policy.
+> I think that is the reason why RT task would read the swap.
 
-But 0537250fdc6c simply restored the previous NORETRY behavior from
-before eacd86ca3b03. So whatever causes these issues doesn't seem to be
-directly related to the kvmalloc change. Or do I miss what you are
-saying?
+OK I see. This design is quite fragile though. You are opening ticket to
+priority inversions and what not.
+
+Anyway, the underlying swap issue should be fixed. Unfortunatelly I do
+not have a great idea how to do that properly.
 
 -- 
 Michal Hocko
