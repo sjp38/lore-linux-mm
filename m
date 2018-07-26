@@ -1,72 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3828D6B0006
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 13:56:14 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id k204-v6so144702ite.1
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 10:56:14 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id r13-v6si1133850ioo.111.2018.07.26.10.56.13
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 91F8F6B0008
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 14:10:41 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id b5-v6so1737629ple.20
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 11:10:41 -0700 (PDT)
+Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
+        by mx.google.com with ESMTPS id g18-v6si1604782plo.341.2018.07.26.11.10.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jul 2018 10:56:13 -0700 (PDT)
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6QHrjRH054012
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 17:56:12 GMT
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by userp2120.oracle.com with ESMTP id 2kbwfq46c5-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 17:56:12 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w6QHuB97027616
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 17:56:11 GMT
-Received: from abhmp0005.oracle.com (abhmp0005.oracle.com [141.146.116.11])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w6QHuBTX031364
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 17:56:11 GMT
-Received: by mail-oi0-f46.google.com with SMTP id n84-v6so4504465oib.9
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 10:56:11 -0700 (PDT)
-MIME-Version: 1.0
-References: <20180725220144.11531-1-osalvador@techadventures.net>
- <20180725220144.11531-3-osalvador@techadventures.net> <20180726080500.GX28386@dhcp22.suse.cz>
- <20180726081215.GC22028@techadventures.net> <20180726151420.uigttpoclcka6h4h@xakep.localdomain>
- <20180726164304.GP28386@dhcp22.suse.cz> <CAGM2reatUAekg=e9FQM1-UVLOSBKb74-FYo7FcPqO_WaR7AmOQ@mail.gmail.com>
- <20180726175212.GQ28386@dhcp22.suse.cz>
-In-Reply-To: <20180726175212.GQ28386@dhcp22.suse.cz>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Thu, 26 Jul 2018 13:55:34 -0400
-Message-ID: <CAGM2reY2HAo3UDzw=P8ue0jJmRRZou-osyJwWjXt6vtC+CF8Ug@mail.gmail.com>
-Subject: Re: [PATCH v3 2/5] mm: access zone->node via zone_to_nid() and zone_set_nid()
-Content-Type: text/plain; charset="UTF-8"
+        Thu, 26 Jul 2018 11:10:40 -0700 (PDT)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [RFC v6 PATCH 1/2] mm: refactor do_munmap() to extract the common part
+Date: Fri, 27 Jul 2018 02:10:13 +0800
+Message-Id: <1532628614-111702-2-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <1532628614-111702-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1532628614-111702-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: osalvador@techadventures.net, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, dan.j.williams@intel.com, osalvador@suse.de
+To: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jul 26, 2018 at 1:52 PM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Thu 26-07-18 13:18:46, Pavel Tatashin wrote:
-> > > > OpenGrok was used to find places where zone->node is accessed. A public one
-> > > > is available here: http://src.illumos.org/source/
-> > >
-> > > I assume that tool uses some pattern matching or similar so steps to use
-> > > the tool to get your results would be more helpful. This is basically
-> > > the same thing as coccinelle generated patches.
-> >
-> > OpenGrok is very easy to use, it is source browser, similar to cscope
-> > except obviously you can't edit the browsed code. I could have used
-> > cscope just as well here.
->
-> OK, then I misunderstood. I thought it was some kind of c aware grep
-> that found all the usage for you. If this is cscope like then it is not
-> worth mentioning in the changelog.
+Introduces three new helper functions:
+  * munmap_addr_sanity()
+  * munmap_lookup_vma()
+  * munmap_mlock_vma()
 
-That's what I thought :) Oscar, will you remove the comment about
-opengrok, or should I paste a new patch?
+They will be used by do_munmap() and the new do_munmap with zapping
+large mapping early in the later patch.
 
-Thank you,
-Pavel
+There is no functional change, just code refactor.
 
-> --
-> Michal Hocko
-> SUSE Labs
->
+Reviewed-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+ mm/mmap.c | 120 ++++++++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 82 insertions(+), 38 deletions(-)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index d1eb87e..2504094 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2686,34 +2686,44 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	return __split_vma(mm, vma, addr, new_below);
+ }
+ 
+-/* Munmap is split into 2 main parts -- this part which finds
+- * what needs doing, and the areas themselves, which do the
+- * work.  This now handles partial unmappings.
+- * Jeremy Fitzhardinge <jeremy@goop.org>
+- */
+-int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+-	      struct list_head *uf)
++static inline bool munmap_addr_sanity(unsigned long start, size_t len)
+ {
+-	unsigned long end;
+-	struct vm_area_struct *vma, *prev, *last;
+-
+ 	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE-start)
+-		return -EINVAL;
++		return false;
+ 
+-	len = PAGE_ALIGN(len);
+-	if (len == 0)
+-		return -EINVAL;
++	if (PAGE_ALIGN(len) == 0)
++		return false;
++
++	return true;
++}
++
++/*
++ * munmap_lookup_vma: find the first overlap vma and split overlap vmas.
++ * @mm: mm_struct
++ * @vma: the first overlapping vma
++ * @prev: vma's prev
++ * @start: start address
++ * @end: end address
++ *
++ * returns 1 if successful, 0 or errno otherwise
++ */
++static int munmap_lookup_vma(struct mm_struct *mm, struct vm_area_struct **vma,
++			     struct vm_area_struct **prev, unsigned long start,
++			     unsigned long end)
++{
++	struct vm_area_struct *tmp, *last;
+ 
+ 	/* Find the first overlapping VMA */
+-	vma = find_vma(mm, start);
+-	if (!vma)
++	tmp = find_vma(mm, start);
++	if (!tmp)
+ 		return 0;
+-	prev = vma->vm_prev;
+-	/* we have  start < vma->vm_end  */
++
++	*prev = tmp->vm_prev;
++
++	/* we have start < vma->vm_end  */
+ 
+ 	/* if it doesn't overlap, we have nothing.. */
+-	end = start + len;
+-	if (vma->vm_start >= end)
++	if (tmp->vm_start >= end)
+ 		return 0;
+ 
+ 	/*
+@@ -2723,7 +2733,7 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 	 * unmapped vm_area_struct will remain in use: so lower split_vma
+ 	 * places tmp vma above, and higher split_vma places tmp vma below.
+ 	 */
+-	if (start > vma->vm_start) {
++	if (start > tmp->vm_start) {
+ 		int error;
+ 
+ 		/*
+@@ -2731,13 +2741,14 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 		 * not exceed its limit; but let map_count go just above
+ 		 * its limit temporarily, to help free resources as expected.
+ 		 */
+-		if (end < vma->vm_end && mm->map_count >= sysctl_max_map_count)
++		if (end < tmp->vm_end &&
++		    mm->map_count > sysctl_max_map_count)
+ 			return -ENOMEM;
+ 
+-		error = __split_vma(mm, vma, start, 0);
++		error = __split_vma(mm, tmp, start, 0);
+ 		if (error)
+ 			return error;
+-		prev = vma;
++		*prev = tmp;
+ 	}
+ 
+ 	/* Does it split the last one? */
+@@ -2747,7 +2758,48 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 		if (error)
+ 			return error;
+ 	}
+-	vma = prev ? prev->vm_next : mm->mmap;
++
++	*vma = *prev ? (*prev)->vm_next : mm->mmap;
++
++	return 1;
++}
++
++static inline void munmap_mlock_vma(struct vm_area_struct *vma,
++				    unsigned long end)
++{
++	struct vm_area_struct *tmp = vma;
++
++	while (tmp && tmp->vm_start < end) {
++		if (tmp->vm_flags & VM_LOCKED) {
++			vma->vm_mm->locked_vm -= vma_pages(tmp);
++			munlock_vma_pages_all(tmp);
++		}
++		tmp = tmp->vm_next;
++	}
++}
++
++/* Munmap is split into 2 main parts -- this part which finds
++ * what needs doing, and the areas themselves, which do the
++ * work.  This now handles partial unmappings.
++ * Jeremy Fitzhardinge <jeremy@goop.org>
++ */
++int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
++	      struct list_head *uf)
++{
++	unsigned long end;
++	struct vm_area_struct *vma = NULL, *prev;
++	int ret = 0;
++
++	if (!munmap_addr_sanity(start, len))
++		return -EINVAL;
++
++	len = PAGE_ALIGN(len);
++
++	end = start + len;
++
++	ret = munmap_lookup_vma(mm, &vma, &prev, start, end);
++	if (ret != 1)
++		return ret;
+ 
+ 	if (unlikely(uf)) {
+ 		/*
+@@ -2759,24 +2811,16 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 		 * split, despite we could. This is unlikely enough
+ 		 * failure that it's not worth optimizing it for.
+ 		 */
+-		int error = userfaultfd_unmap_prep(vma, start, end, uf);
+-		if (error)
+-			return error;
++		ret = userfaultfd_unmap_prep(vma, start, end, uf);
++		if (ret)
++			return ret;
+ 	}
+ 
+ 	/*
+ 	 * unlock any mlock()ed ranges before detaching vmas
+ 	 */
+-	if (mm->locked_vm) {
+-		struct vm_area_struct *tmp = vma;
+-		while (tmp && tmp->vm_start < end) {
+-			if (tmp->vm_flags & VM_LOCKED) {
+-				mm->locked_vm -= vma_pages(tmp);
+-				munlock_vma_pages_all(tmp);
+-			}
+-			tmp = tmp->vm_next;
+-		}
+-	}
++	if (mm->locked_vm)
++		munmap_mlock_vma(vma, end);
+ 
+ 	/*
+ 	 * Remove the vma's, and unmap the actual pages
+-- 
+1.8.3.1
