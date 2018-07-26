@@ -1,55 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 11CAA6B0003
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 13:19:27 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id k9-v6so1660685iob.16
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 10:19:27 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id t13-v6si1454470itt.105.2018.07.26.10.19.25
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CF72C6B0006
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 13:20:10 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id y26-v6so1678343iob.19
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 10:20:10 -0700 (PDT)
+Received: from NAM04-SN1-obe.outbound.protection.outlook.com (mail-eopbgr700129.outbound.protection.outlook.com. [40.107.70.129])
+        by mx.google.com with ESMTPS id u23-v6si1062925iog.184.2018.07.26.10.20.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jul 2018 10:19:25 -0700 (PDT)
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6QHJNj2058017
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 17:19:24 GMT
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by aserp2120.oracle.com with ESMTP id 2kbvsp42u1-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 17:19:24 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w6QHJNUV011317
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 17:19:24 GMT
-Received: from abhmp0018.oracle.com (abhmp0018.oracle.com [141.146.116.24])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w6QHJNP1017669
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 17:19:23 GMT
-Received: by mail-oi0-f51.google.com with SMTP id v8-v6so4315285oie.5
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 10:19:23 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 26 Jul 2018 10:20:09 -0700 (PDT)
+Date: Thu, 26 Jul 2018 10:20:05 -0700
+From: Paul Burton <paul.burton@mips.com>
+Subject: Re: [PATCH] mips: switch to NO_BOOTMEM
+Message-ID: <20180726172005.pgjmkvwz2lpflpor@pburton-laptop>
+References: <1531727262-11520-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <20180726070355.GD8477@rapoport-lnx>
 MIME-Version: 1.0
-References: <20180725220144.11531-1-osalvador@techadventures.net>
- <20180725220144.11531-3-osalvador@techadventures.net> <20180726080500.GX28386@dhcp22.suse.cz>
- <20180726081215.GC22028@techadventures.net> <20180726151420.uigttpoclcka6h4h@xakep.localdomain>
- <20180726164304.GP28386@dhcp22.suse.cz>
-In-Reply-To: <20180726164304.GP28386@dhcp22.suse.cz>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Thu, 26 Jul 2018 13:18:46 -0400
-Message-ID: <CAGM2reatUAekg=e9FQM1-UVLOSBKb74-FYo7FcPqO_WaR7AmOQ@mail.gmail.com>
-Subject: Re: [PATCH v3 2/5] mm: access zone->node via zone_to_nid() and zone_set_nid()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180726070355.GD8477@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: osalvador@techadventures.net, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, dan.j.williams@intel.com, osalvador@suse.de
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: linux-mips@linux-mips.org, Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>, Huacai Chen <chenhc@lemote.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Serge Semin <fancer.lancer@gmail.com>
 
-> > OpenGrok was used to find places where zone->node is accessed. A public one
-> > is available here: http://src.illumos.org/source/
->
-> I assume that tool uses some pattern matching or similar so steps to use
-> the tool to get your results would be more helpful. This is basically
-> the same thing as coccinelle generated patches.
+Hi Mike,
 
-OpenGrok is very easy to use, it is source browser, similar to cscope
-except obviously you can't edit the browsed code. I could have used
-cscope just as well here.
+On Thu, Jul 26, 2018 at 10:03:56AM +0300, Mike Rapoport wrote:
+> Any comments on this?
 
-Pavel
+I haven't looked at this in detail yet, but there was a much larger
+series submitted to accomplish this not too long ago, which needed
+another revision:
+
+    https://patchwork.linux-mips.org/project/linux-mips/list/?series=787&state=*
+
+Given that, I'd be (pleasantly) surprised if this one smaller patch is
+enough.
+
+Thanks,
+    Paul
