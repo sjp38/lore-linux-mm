@@ -1,43 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 302DE6B0003
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 19:35:51 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id n19-v6so5732686pgv.14
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 16:35:51 -0700 (PDT)
-Received: from mxhk.zte.com.cn (mxhk.zte.com.cn. [63.217.80.70])
-        by mx.google.com with ESMTPS id g70-v6si16172089pfe.4.2018.07.25.16.35.49
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 17BC96B0005
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 20:55:22 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id v9-v6so3594pff.4
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 17:55:22 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 95-v6sor1386910pld.114.2018.07.25.17.55.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jul 2018 16:35:49 -0700 (PDT)
-From: Jiang Biao <jiang.biao2@zte.com.cn>
-Subject: [PATCH] mm/vmscan: fix page_freeze_refs in comment.
-Date: Thu, 26 Jul 2018 07:34:17 +0800
-Message-Id: <1532561657-98783-1-git-send-email-jiang.biao2@zte.com.cn>
+        (Google Transport Security);
+        Wed, 25 Jul 2018 17:55:16 -0700 (PDT)
+Subject: Re: Showing /sys/fs/cgroup/memory/memory.stat very slow on some
+ machines
+References: <CAOm-9arwY3VLUx5189JAR9J7B=Miad9nQjjet_VNdT3i+J+5FA@mail.gmail.com>
+ <20180717212307.d6803a3b0bbfeb32479c1e26@linux-foundation.org>
+ <20180718104230.GC1431@dhcp22.suse.cz>
+ <CAOm-9aqeKZ7+Jvhc5DxEEzbk4T0iQx8gZ=O1vy6YXnbOkncFsg@mail.gmail.com>
+ <CALvZod7_vPwqyLBxiecZtREEeY4hioCGnZWVhQx9wVdM8CFcog@mail.gmail.com>
+ <CAOm-9aprLokqi6awMvi0NbkriZBpmvnBA81QhOoHnK7ZEA96fw@mail.gmail.com>
+ <CALvZod4ag02N6QPwRQCYv663hj05Z6vtrK8=XEE6uWHQCL4yRw@mail.gmail.com>
+ <CAOm-9arxtTwNxXzmb8nN+N_UtjiuH0XkpkVPFHpi3EOYXvZYVA@mail.gmail.com>
+From: "Singh, Balbir" <bsingharora@gmail.com>
+Message-ID: <dda7b095-db84-7e69-a03e-d8ce64fc9b8e@gmail.com>
+Date: Thu, 26 Jul 2018 10:55:08 +1000
+MIME-Version: 1.0
+In-Reply-To: <CAOm-9arxtTwNxXzmb8nN+N_UtjiuH0XkpkVPFHpi3EOYXvZYVA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jiang.biao2@zte.com.cn, zhong.weidong@zte.com.cn
+To: Bruce Merry <bmerry@ska.ac.za>, Shakeel Butt <shakeelb@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-page_freeze_refs has already been relplaced by page_ref_freeze, but
-it is not modified in the comment.
 
-Signed-off-by: Jiang Biao <jiang.biao2@zte.com.cn>
----
- mm/vmscan.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 03822f8..d29e207 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -744,7 +744,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
- 		refcount = 2;
- 	if (!page_ref_freeze(page, refcount))
- 		goto cannot_free;
--	/* note: atomic_cmpxchg in page_freeze_refs provides the smp_rmb */
-+	/* note: atomic_cmpxchg in page_refs_freeze provides the smp_rmb */
- 	if (unlikely(PageDirty(page))) {
- 		page_ref_unfreeze(page, refcount);
- 		goto cannot_free;
--- 
-2.7.4
+On 7/19/18 3:40 AM, Bruce Merry wrote:
+> On 18 July 2018 at 17:49, Shakeel Butt <shakeelb@google.com> wrote:
+>> On Wed, Jul 18, 2018 at 8:37 AM Bruce Merry <bmerry@ska.ac.za> wrote:
+>>> That sounds promising. Is there any way to tell how many zombies there
+>>> are, and is there any way to deliberately create zombies? If I can
+>>> produce zombies that might give me a reliable way to reproduce the
+>>> problem, which could then sensibly be tested against newer kernel
+>>> versions.
+>>>
+>>
+>> Yes, very easy to produce zombies, though I don't think kernel
+>> provides any way to tell how many zombies exist on the system.
+>>
+>> To create a zombie, first create a memcg node, enter that memcg,
+>> create a tmpfs file of few KiBs, exit the memcg and rmdir the memcg.
+>> That memcg will be a zombie until you delete that tmpfs file.
+> 
+> Thanks, that makes sense. I'll see if I can reproduce the issue. Do
+> you expect the same thing to happen with normal (non-tmpfs) files that
+> are sitting in the page cache, and/or dentries?
+> 
+
+Do you by any chance have use_hierarch=1? memcg_stat_show should just rely on counters inside the memory cgroup and the the LRU sizes for each node.
+
+Balbir Singh.
