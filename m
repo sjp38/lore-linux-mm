@@ -1,57 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D77606B000D
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 12:43:08 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id l1-v6so1069793edi.11
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 09:43:08 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k35-v6si1580174edd.227.2018.07.26.09.43.07
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D5D36B0010
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 12:50:38 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id w14-v6so1857061qkw.2
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 09:50:38 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id x67-v6si1678712qkc.134.2018.07.26.09.50.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jul 2018 09:43:07 -0700 (PDT)
-Date: Thu, 26 Jul 2018 18:43:04 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3 2/5] mm: access zone->node via zone_to_nid() and
- zone_set_nid()
-Message-ID: <20180726164304.GP28386@dhcp22.suse.cz>
-References: <20180725220144.11531-1-osalvador@techadventures.net>
- <20180725220144.11531-3-osalvador@techadventures.net>
- <20180726080500.GX28386@dhcp22.suse.cz>
- <20180726081215.GC22028@techadventures.net>
- <20180726151420.uigttpoclcka6h4h@xakep.localdomain>
+        Thu, 26 Jul 2018 09:50:37 -0700 (PDT)
+Subject: Re: freepage accounting bug with CMA/migrate isolation
+References: <86bea4f7-229a-7cbb-1e8a-7e6d96f0f087@oracle.com>
+ <efc17c04-8498-29c8-56bb-9cbad897f0d8@suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <fb90a412-ead7-0ada-c443-2bd1c41f2614@oracle.com>
+Date: Thu, 26 Jul 2018 09:50:32 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180726151420.uigttpoclcka6h4h@xakep.localdomain>
+In-Reply-To: <efc17c04-8498-29c8-56bb-9cbad897f0d8@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Oscar Salvador <osalvador@techadventures.net>, akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.j.williams@intel.com, Oscar Salvador <osalvador@suse.de>
+To: Vlastimil Babka <vbabka@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>, Laura Abbott <labbott@redhat.com>
 
-On Thu 26-07-18 11:14:20, Pavel Tatashin wrote:
-> Hi Oscar,
+On 07/26/2018 05:28 AM, Vlastimil Babka wrote:
+> On 07/24/2018 06:24 AM, Mike Kravetz wrote:
+>> With v4.17, I can see an issue like those addressed in commits 3c605096d315
+>> ("mm/page_alloc: restrict max order of merging on isolated pageblock")
+>> and d9dddbf55667 ("mm/page_alloc: prevent merging between isolated and
+>> other pageblocks").  After running a CMA stress test for a while, I see:
+>>   MemTotal:        8168384 kB
+>>   MemFree:         8457232 kB
+>>   MemAvailable:    9204844 kB
+>> If I let the test run, MemFree and MemAvailable will continue to grow.
+>>
+>> I am certain the issue is with pageblocks of migratetype ISOLATED.  If
+>> I disable all special 'is_migrate_isolate' checks in freepage accounting,
+>> the issue goes away.
 > 
-> Below is updated patch, with comment about OpenGrok and Acked-by Michal added.
-> 
-> Thank you,
-> Pavel
-> 
-> >From cca1b083d78d0ff99cce6dfaf12f6380d76390c7 Mon Sep 17 00:00:00 2001
-> From: Pavel Tatashin <pasha.tatashin@oracle.com>
-> Date: Thu, 26 Jul 2018 00:01:41 +0200
-> Subject: [PATCH] mm: access zone->node via zone_to_nid() and zone_set_nid()
-> 
-> zone->node is configured only when CONFIG_NUMA=y, so it is a good idea to
-> have inline functions to access this field in order to avoid ifdef's in
-> c files.
-> 
-> OpenGrok was used to find places where zone->node is accessed. A public one
-> is available here: http://src.illumos.org/source/
+> That means you count isolated pages as freepages, right?
 
-I assume that tool uses some pattern matching or similar so steps to use
-the tool to get your results would be more helpful. This is basically
-the same thing as coccinelle generated patches.
+Yes,  I know it is not correct.  But, just wanted to eliminate the
+isolated pageblock special case for experimentation.
 
+>> Further, I am pretty sure the issue has to do with
+>> pageblock merging and or page orders spanning pageblocks.  If I make
+>> pageblock_order equal MAX_ORDER-1, the issue also goes away.
+> 
+> Interesting, that should only matter in __free_one_page(). Do you have
+> page guards enabled?
+
+Nope, no page guards.
+Do note that in this case, I added back all the special 'is_migrate_isolate'
+checks.  So, just stock 4.17 with the change to make pageblock_order equal
+MAX_ORDER-1.
+
+>> Just looking for suggesting in where/how to debug.  I've been hacking on
+>> this without much success.
+
+As mentioned in my reply to Laura, I noticed that move_freepages_block()
+can move more than a pageblock of pages.  This is the case where page_order
+of the (first) free page is > pageblock_order.  Should only happen in the
+set_migratetype_isolate case as unset has that check you added.  This
+generally 'works' as alloc_contig_range rounds up to MAX_ORDER(-1).  So,
+set and unset migrate isolate tend to balance out.  But, I am wondering
+if there might be some kind of race where someone could mess with those
+pageblocks (and freepage counts) while we drop the zone lock.  Trying to
+put together a quick hack to test this theory, but it is more complicated
+that first thought. :)
 -- 
-Michal Hocko
-SUSE Labs
+Mike Kravetz
