@@ -1,50 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BD76C6B000C
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 03:38:09 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id o25-v6so609235wmh.1
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 00:38:09 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q12-v6sor235616wrs.3.2018.07.26.00.38.08
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 646486B026A
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 03:42:23 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id i24-v6so457358edq.16
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 00:42:23 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t11-v6si786789edt.159.2018.07.26.00.42.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 26 Jul 2018 00:38:08 -0700 (PDT)
-Date: Thu, 26 Jul 2018 09:38:07 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH v3 5/5] mm/page_alloc: Introduce memhotplug version of
- free_area_init_core
-Message-ID: <20180726073807.GA22028@techadventures.net>
-References: <20180725220144.11531-1-osalvador@techadventures.net>
- <20180725220144.11531-6-osalvador@techadventures.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Jul 2018 00:42:22 -0700 (PDT)
+Date: Thu, 26 Jul 2018 09:42:19 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [Bug 200651] New: cgroups iptables-restor: vmalloc: allocation
+ failure
+Message-ID: <20180726074219.GU28386@dhcp22.suse.cz>
+References: <bug-200651-27@https.bugzilla.kernel.org/>
+ <20180725125239.b591e4df270145f9064fe2c5@linux-foundation.org>
+ <cd474b37-263f-b186-2024-507a9a4e12ae@suse.cz>
+ <20180726072622.GS28386@dhcp22.suse.cz>
+ <67d5e4ef-c040-6852-ad93-6f2528df0982@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180725220144.11531-6-osalvador@techadventures.net>
+In-Reply-To: <67d5e4ef-c040-6852-ad93-6f2528df0982@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, mgorman@techsingularity.net, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.j.williams@intel.com, Oscar Salvador <osalvador@suse.de>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, gnikolov@icdsoft.com, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, netfilter-devel@vger.kernel.org
 
-On Thu, Jul 26, 2018 at 12:01:44AM +0200, osalvador@techadventures.net wrote:
->  extern void free_initmem(void);
-> +extern void free_area_init_core_hotplug(int nid);
+On Thu 26-07-18 09:34:58, Vlastimil Babka wrote:
+> On 07/26/2018 09:26 AM, Michal Hocko wrote:
+> > On Thu 26-07-18 09:18:57, Vlastimil Babka wrote:
+> >> On 07/25/2018 09:52 PM, Andrew Morton wrote:
+> >>> (switched to email.  Please respond via emailed reply-to-all, not via the
+> >>> bugzilla web interface).
+> >>>
+> >>> On Wed, 25 Jul 2018 11:42:57 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+> >>>
+> >>>> https://bugzilla.kernel.org/show_bug.cgi?id=200651
+> >>>>
+> >>>>             Bug ID: 200651
+> >>>>            Summary: cgroups iptables-restor: vmalloc: allocation failure
+> >>>
+> >>> Thanks.  Please do note the above request.
+> >>>
+> >>>>            Product: Memory Management
+> >>>>            Version: 2.5
+> >>>>     Kernel Version: 4.14
+> >>>>           Hardware: All
+> >>>>                 OS: Linux
+> >>>>               Tree: Mainline
+> >>>>             Status: NEW
+> >>>>           Severity: normal
+> >>>>           Priority: P1
+> >>>>          Component: Other
+> >>>>           Assignee: akpm@linux-foundation.org
+> >>>>           Reporter: gnikolov@icdsoft.com
+> >>>>         Regression: No
+> >>>>
+> >>>> Created attachment 277505
+> >>>>   --> https://bugzilla.kernel.org/attachment.cgi?id=277505&action=edit
+> >>>> iptables save
+> >>>>
+> >>>> After creating large number of cgroups and under memory pressure, iptables
+> >>>> command fails with following error:
+> >>>>
+> >>>> "iptables-restor: vmalloc: allocation failure, allocated 3047424 of 3465216
+> >>>> bytes, mode:0x14010c0(GFP_KERNEL|__GFP_NORETRY), nodemask=(null)"
+> >>
+> >> This is likely the kvmalloc() in xt_alloc_table_info(). Between 4.13 and
+> >> 4.17 it shouldn't use __GFP_NORETRY, but looks like commit 0537250fdc6c
+> >> ("netfilter: x_tables: make allocation less aggressive") was backported
+> >> to 4.14. Removing __GFP_NORETRY might help here, but bring back other
+> >> issues. Less than 4MB is not that much though, maybe find some "sane"
+> >> limit and use __GFP_NORETRY only above that?
+> > 
+> > I have seen the same report via http://lkml.kernel.org/r/df6f501c-8546-1f55-40b1-7e3a8f54d872@icdsoft.com
+> > and the reported confirmed that kvmalloc is not a real culprit
+> > http://lkml.kernel.org/r/d99a9598-808a-6968-4131-c3949b752004@icdsoft.com
+> 
+> Hmm but that was revert of eacd86ca3b03 ("net/netfilter/x_tables.c: use
+> kvmalloc() in xt_alloc_table_info()") which was the 4.13 commit that
+> removed __GFP_NORETRY (there's no __GFP_NORETRY under net/netfilter in
+> v4.14). I assume it was reverted on top of vanilla v4.14 as there would
+> be conflict on the stable with 0537250fdc6c backport. So what should be
+> tested to be sure is either vanilla v4.14 without stable backports, or
+> latest v4.14.y with revert of 0537250fdc6c.
 
-The declaration should be wrapped with an #ifdef CONFIG_MEMORY_HOTPLUG.
-
-> +void __paginginit free_area_init_core_hotplug(int nid)
-> +{
-> +	enum zone_type j;
-> +	pg_data_t *pgdat = NODE_DATA(nid);
-> +
-> +	pgdat_init_internals(pgdat);
-> +	for(j = 0; j < MAX_NR_ZONES; j++) {
-> +		struct zone *zone = pgdat->node_zones + j;
-> +		zone_init_internals(zone, j, nid, 0);
-> +	}
-> +}
-
-The same applies here
+But 0537250fdc6c simply restored the previous NORETRY behavior from
+before eacd86ca3b03. So whatever causes these issues doesn't seem to be
+directly related to the kvmalloc change. Or do I miss what you are
+saying?
 
 -- 
-Oscar Salvador
-SUSE L3
+Michal Hocko
+SUSE Labs
