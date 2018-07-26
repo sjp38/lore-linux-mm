@@ -1,147 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E34E26B026A
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 15:35:35 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id c27-v6so2285704qkj.3
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 12:35:35 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id d17-v6si2189644qtd.64.2018.07.26.12.35.34
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A7E86B026D
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 15:37:17 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id d134-v6so1070565vkf.5
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 12:37:17 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j203-v6sor849175vke.129.2018.07.26.12.37.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jul 2018 12:35:34 -0700 (PDT)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v2 3/3] mm: move mirrored memory specific code outside of memmap_init_zone
-Date: Thu, 26 Jul 2018 15:35:09 -0400
-Message-Id: <20180726193509.3326-4-pasha.tatashin@oracle.com>
-In-Reply-To: <20180726193509.3326-1-pasha.tatashin@oracle.com>
-References: <20180726193509.3326-1-pasha.tatashin@oracle.com>
+        (Google Transport Security);
+        Thu, 26 Jul 2018 12:37:16 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <15ff502d-d840-1003-6c45-bc17f0d81262@cybernetics.com>
+References: <15ff502d-d840-1003-6c45-bc17f0d81262@cybernetics.com>
+From: Andy Shevchenko <andy.shevchenko@gmail.com>
+Date: Thu, 26 Jul 2018 22:37:15 +0300
+Message-ID: <CAHp75VcXVgAtUWY5yRBFg85C5NPN2BAFyAfAkPLkKq5+SsNHpg@mail.gmail.com>
+Subject: Re: [PATCH 1/3] dmapool: improve scalability of dma_pool_alloc
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, bhe@redhat.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, osalvador@techadventures.net, pasha.tatashin@oracle.com, abdhalee@linux.vnet.ibm.com, mpe@ellerman.id.au
+To: Tony Battersby <tonyb@cybernetics.com>
+Cc: Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Matthew Wilcox <willy@infradead.org>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
 
-memmap_init_zone, is getting complex, because it is called from different
-contexts: hotplug, and during boot, and also because it must handle some
-architecture quirks. One of them is mirroed memory.
+On Thu, Jul 26, 2018 at 9:54 PM, Tony Battersby <tonyb@cybernetics.com> wrote:
+> dma_pool_alloc() scales poorly when allocating a large number of pages
+> because it does a linear scan of all previously-allocated pages before
+> allocating a new one.  Improve its scalability by maintaining a separate
+> list of pages that have free blocks ready to (re)allocate.  In big O
+> notation, this improves the algorithm from O(n^2) to O(n).
 
-Move the code that decides whether to skip mirrored memory outside of
-memmap_init_zone, into a separate function.
 
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
----
- mm/page_alloc.c | 74 +++++++++++++++++++++++--------------------------
- 1 file changed, 34 insertions(+), 40 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4946c73e549b..02e4b84038f8 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5456,6 +5456,30 @@ void __ref build_all_zonelists(pg_data_t *pgdat)
- #endif
- }
- 
-+/* If zone is ZONE_MOVABLE but memory is mirrored, it is an overlapped init */
-+static bool __meminit
-+overlap_memmap_init(unsigned long zone, unsigned long *pfn)
-+{
-+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-+	static struct memblock_region *r;
-+
-+	if (mirrored_kernelcore && zone == ZONE_MOVABLE) {
-+		if (!r || *pfn >= memblock_region_memory_end_pfn(r)) {
-+			for_each_memblock(memory, r) {
-+				if (*pfn < memblock_region_memory_end_pfn(r))
-+					break;
-+			}
-+		}
-+		if (*pfn >= memblock_region_memory_base_pfn(r) &&
-+		    memblock_is_mirror(r)) {
-+			*pfn = memblock_region_memory_end_pfn(r);
-+			return true;
-+		}
-+	}
-+#endif
-+	return false;
-+}
-+
- /*
-  * Initially all pages are reserved - free ones are freed
-  * up by free_all_bootmem() once the early boot process is
-@@ -5465,12 +5489,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		unsigned long start_pfn, enum memmap_context context,
- 		struct vmem_altmap *altmap)
- {
--	unsigned long end_pfn = start_pfn + size;
--	unsigned long pfn;
-+	unsigned long pfn, end_pfn = start_pfn + size;
- 	struct page *page;
--#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
--	struct memblock_region *r = NULL, *tmp;
--#endif
- 
- 	if (highest_memmap_pfn < end_pfn - 1)
- 		highest_memmap_pfn = end_pfn - 1;
-@@ -5487,42 +5507,19 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		 * There can be holes in boot-time mem_map[]s handed to this
- 		 * function.  They do not exist on hotplugged memory.
- 		 */
--		if (context != MEMMAP_EARLY)
--			goto not_early;
--
--		if (!early_pfn_valid(pfn)) {
--			pfn = next_valid_pfn(pfn) - 1;
--			continue;
--		}
--
--		if (!early_pfn_in_nid(pfn, nid))
--			continue;
--
--#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
--		/*
--		 * Check given memblock attribute by firmware which can affect
--		 * kernel memory layout.  If zone==ZONE_MOVABLE but memory is
--		 * mirrored, it's an overlapped memmap init. skip it.
--		 */
--		if (mirrored_kernelcore && zone == ZONE_MOVABLE) {
--			if (!r || pfn >= memblock_region_memory_end_pfn(r)) {
--				for_each_memblock(memory, tmp)
--					if (pfn < memblock_region_memory_end_pfn(tmp))
--						break;
--				r = tmp;
--			}
--			if (pfn >= memblock_region_memory_base_pfn(r) &&
--			    memblock_is_mirror(r)) {
--				/* already initialized as NORMAL */
--				pfn = memblock_region_memory_end_pfn(r);
-+		if (context == MEMMAP_EARLY) {
-+			if (!early_pfn_valid(pfn)) {
-+				pfn = next_valid_pfn(pfn) - 1;
- 				continue;
- 			}
-+			if (!early_pfn_in_nid(pfn, nid))
-+				continue;
-+			if (overlap_memmap_init(zone, &pfn))
-+				continue;
-+			if (defer_init(nid, pfn, end_pfn))
-+				break;
- 		}
--#endif
--		if (defer_init(nid, pfn, end_pfn))
--			break;
- 
--not_early:
- 		page = pfn_to_page(pfn);
- 		__init_single_page(page, pfn, zone, nid);
- 		if (context == MEMMAP_HOTPLUG)
-@@ -5539,9 +5536,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		 * can be created for invalid pages (for alignment)
- 		 * check here not to call set_pageblock_migratetype() against
- 		 * pfn out of zone.
--		 *
--		 * Please note that MEMMAP_HOTPLUG path doesn't clear memmap
--		 * because this is done early in sparse_add_one_section
- 		 */
- 		if (!(pfn & (pageblock_nr_pages - 1))) {
- 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+>         spin_lock_irqsave(&pool->lock, flags);
+> -       list_for_each_entry(page, &pool->page_list, page_list) {
+> -               if (page->offset < pool->allocation)
+> -                       goto ready;
+
+> +       if (!list_empty(&pool->avail_page_list)) {
+> +               page = list_first_entry(&pool->avail_page_list,
+> +                                       struct dma_page,
+> +                                       avail_page_link);
+> +               goto ready;
+>         }
+
+It looks like
+
+page = list_first_entry_or_null();
+if (page)
+ goto ready;
+
+Though I don't know which one produces better code in the result.
+
+>From reader prospective of view I would go with my variant.
+
+
+> +       /* This test checks if the page is already in avail_page_list. */
+> +       if (list_empty(&page->avail_page_link))
+> +               list_add(&page->avail_page_link, &pool->avail_page_list);
+
+How can you be sure that the page you are testing for is the first one?
+
+It seems you are relying on the fact that in the list should be either
+0 or 1 page. In that case what's the point to have a list?
+
 -- 
-2.18.0
+With Best Regards,
+Andy Shevchenko
