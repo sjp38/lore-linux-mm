@@ -1,55 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AE89F6B0008
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 04:12:17 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id y18-v6so629108wma.9
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 01:12:17 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 79-v6sor210647wme.33.2018.07.26.01.12.16
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 902596B000C
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 04:19:50 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id c2-v6so494436edi.20
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 01:19:50 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m13-v6si837089edd.103.2018.07.26.01.19.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 26 Jul 2018 01:12:16 -0700 (PDT)
-Date: Thu, 26 Jul 2018 10:12:15 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH v3 2/5] mm: access zone->node via zone_to_nid() and
- zone_set_nid()
-Message-ID: <20180726081215.GC22028@techadventures.net>
-References: <20180725220144.11531-1-osalvador@techadventures.net>
- <20180725220144.11531-3-osalvador@techadventures.net>
- <20180726080500.GX28386@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Jul 2018 01:19:49 -0700 (PDT)
+Date: Thu, 26 Jul 2018 10:19:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Showing /sys/fs/cgroup/memory/memory.stat very slow on some
+ machines
+Message-ID: <20180726081947.GA28386@dhcp22.suse.cz>
+References: <CAOm-9arwY3VLUx5189JAR9J7B=Miad9nQjjet_VNdT3i+J+5FA@mail.gmail.com>
+ <20180717212307.d6803a3b0bbfeb32479c1e26@linux-foundation.org>
+ <20180718104230.GC1431@dhcp22.suse.cz>
+ <CAOm-9aqeKZ7+Jvhc5DxEEzbk4T0iQx8gZ=O1vy6YXnbOkncFsg@mail.gmail.com>
+ <CALvZod7_vPwqyLBxiecZtREEeY4hioCGnZWVhQx9wVdM8CFcog@mail.gmail.com>
+ <CAOm-9aprLokqi6awMvi0NbkriZBpmvnBA81QhOoHnK7ZEA96fw@mail.gmail.com>
+ <CALvZod4ag02N6QPwRQCYv663hj05Z6vtrK8=XEE6uWHQCL4yRw@mail.gmail.com>
+ <CAOm-9arxtTwNxXzmb8nN+N_UtjiuH0XkpkVPFHpi3EOYXvZYVA@mail.gmail.com>
+ <dda7b095-db84-7e69-a03e-d8ce64fc9b8e@gmail.com>
+ <CAOm-9ar2zzxZvZ9A0Yu0knn_LNcHsck72wXShFXutYvAN2qu9Q@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180726080500.GX28386@dhcp22.suse.cz>
+In-Reply-To: <CAOm-9ar2zzxZvZ9A0Yu0knn_LNcHsck72wXShFXutYvAN2qu9Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, pasha.tatashin@oracle.com, mgorman@techsingularity.net, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.j.williams@intel.com, Oscar Salvador <osalvador@suse.de>
+To: Bruce Merry <bmerry@ska.ac.za>
+Cc: "Singh, Balbir" <bsingharora@gmail.com>, Shakeel Butt <shakeelb@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On Thu, Jul 26, 2018 at 10:05:00AM +0200, Michal Hocko wrote:
-> On Thu 26-07-18 00:01:41, osalvador@techadventures.net wrote:
-> > From: Pavel Tatashin <pasha.tatashin@oracle.com>
-> > 
-> > zone->node is configured only when CONFIG_NUMA=y, so it is a good idea to
-> > have inline functions to access this field in order to avoid ifdef's in
-> > c files.
-> > 
-> > Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> > Signed-off-by: Oscar Salvador <osalvador@suse.de>
-> > Reviewed-by: Oscar Salvador <osalvador@suse.de>
+On Thu 26-07-18 08:41:35, Bruce Merry wrote:
+> On 26 July 2018 at 02:55, Singh, Balbir <bsingharora@gmail.com> wrote:
+> > Do you by any chance have use_hierarch=1? memcg_stat_show should just rely on counters inside the memory cgroup and the the LRU sizes for each node.
 > 
-> My previous [1] question is not addressed in the changelog but I will
-> not insist. If there is any reason to resubmit this then please
-> consider.
+> Yes, /sys/fs/cgroup/memory/memory.use_hierarchy is 1. I assume systemd
+> is doing that.
 
-Oh, sorry, I missed that.
-If I resubmit a new version, I can include the information about
-opengrok, although it would be better if Pavel comments on it,
-as I have no clue about the software.
+And this is actually good. Non hierarchical behavior is discouraged.
+The real problem is that we are keeping way too many zombie memcgs
+around and waiting for memory pressure to reclaim them and so they go
+away on their own.
 
-If not, maybe Andrew can grab it?
+As I've tried to explain in other email force_empty before removing the
+memcg should help.
 
-Thanks
+Fixing this properly would require quite some heavy lifting AFAICS. We
+would basically have to move zombies out of the way which is not hard
+but we do not want to hide their current memory consumption so we would
+have to somehow move their stats to the parent. And then we are back to
+reparenting which has been removed by b2052564e66d ("mm: memcontrol:
+continue cache reclaim from offlined groups").
 -- 
-Oscar Salvador
-SUSE L3
+Michal Hocko
+SUSE Labs
