@@ -1,53 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 27A746B0003
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 08:02:27 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id a9-v6so922915wrw.20
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 05:02:27 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id g16-v6sor506908wrq.40.2018.07.26.05.02.25
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C36E6B0006
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 08:22:15 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id b8-v6so1231350oib.4
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 05:22:15 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id w72-v6si853956oif.253.2018.07.26.05.22.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 26 Jul 2018 05:02:25 -0700 (PDT)
-Date: Thu, 26 Jul 2018 14:02:24 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH v3 5/5] mm/page_alloc: Introduce memhotplug version of
- free_area_init_core
-Message-ID: <20180726120224.GA8302@techadventures.net>
-References: <20180725220144.11531-1-osalvador@techadventures.net>
- <20180725220144.11531-6-osalvador@techadventures.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180725220144.11531-6-osalvador@techadventures.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Jul 2018 05:22:14 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6QCJGRe133457
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 08:22:13 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2kfe1k8j5y-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 08:22:13 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Thu, 26 Jul 2018 13:22:11 +0100
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH v2 1/7] mm/util: make strndup_user description a kernel-doc comment
+Date: Thu, 26 Jul 2018 15:21:56 +0300
+In-Reply-To: <1532607722-17079-1-git-send-email-rppt@linux.vnet.ibm.com>
+References: <1532607722-17079-1-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1532607722-17079-2-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, mgorman@techsingularity.net, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.j.williams@intel.com, Oscar Salvador <osalvador@suse.de>
+To: Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <willy@infradead.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On Thu, Jul 26, 2018 at 12:01:44AM +0200, osalvador@techadventures.net wrote:
-> -	 */
-> +         * When memory is hot-added, all the memory is in offline state. So
-> +         * clear all zones' present_pages because they will be updated in
-> +         * online_pages() and offline_pages().
-> +         */
+The description of the strndup_user function misses '*' character at the
+beginning of the comment to be proper kernel-doc. Add the missing
+character.
 
-Sigh..., I should have run checkpatch. Tabs are missing there
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+---
+ mm/util.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-
-> +void __paginginit free_area_init_core_hotplug(int nid)
-> +{
-> +	enum zone_type j;
-> +	pg_data_t *pgdat = NODE_DATA(nid);
-> +
-> +	pgdat_init_internals(pgdat);
-> +	for(j = 0; j < MAX_NR_ZONES; j++) {
-
-And missing a space here.
-
-Sorry, I will fix all this up in the next re-submission once I got feedback. 
-
-Thanks
+diff --git a/mm/util.c b/mm/util.c
+index 3351659..6809014 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -196,7 +196,7 @@ void *vmemdup_user(const void __user *src, size_t len)
+ }
+ EXPORT_SYMBOL(vmemdup_user);
+ 
+-/*
++/**
+  * strndup_user - duplicate an existing string from user space
+  * @s: The string to duplicate
+  * @n: Maximum number of bytes to copy, including the trailing NUL.
 -- 
-Oscar Salvador
-SUSE L3
+2.7.4
