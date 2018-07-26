@@ -1,87 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FFCE6B0276
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 04:31:35 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id s18-v6so508955edr.15
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 01:31:35 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w30-v6si1055162eda.448.2018.07.26.01.31.33
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 012526B0278
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 04:37:42 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id o18-v6so673676qtm.11
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 01:37:41 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id w44-v6si715543qtg.179.2018.07.26.01.37.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jul 2018 01:31:33 -0700 (PDT)
-Subject: Re: [Bug 200651] New: cgroups iptables-restor: vmalloc: allocation
- failure
-References: <bug-200651-27@https.bugzilla.kernel.org/>
- <20180725125239.b591e4df270145f9064fe2c5@linux-foundation.org>
- <cd474b37-263f-b186-2024-507a9a4e12ae@suse.cz>
- <20180726072622.GS28386@dhcp22.suse.cz>
- <67d5e4ef-c040-6852-ad93-6f2528df0982@suse.cz>
- <20180726074219.GU28386@dhcp22.suse.cz>
- <36043c6b-4960-8001-4039-99525dcc3e05@suse.cz>
- <20180726080301.GW28386@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <ed7090ad-5004-3133-3faf-607d2a9fa90a@suse.cz>
-Date: Thu, 26 Jul 2018 10:31:32 +0200
+        Thu, 26 Jul 2018 01:37:41 -0700 (PDT)
+Subject: Re: [PATCH v1 0/2] mm/kdump: exclude reserved pages in dumps
+References: <20180723123043.GD31229@dhcp22.suse.cz>
+ <8daae80c-871e-49b6-1cf1-1f0886d3935d@redhat.com>
+ <20180724072536.GB28386@dhcp22.suse.cz>
+ <8eb22489-fa6b-9825-bc63-07867a40d59b@redhat.com>
+ <20180724131343.GK28386@dhcp22.suse.cz>
+ <af5353ee-319e-17ec-3a39-df997a5adf43@redhat.com>
+ <20180724133530.GN28386@dhcp22.suse.cz>
+ <6c753cae-f8b6-5563-e5ba-7c1fefdeb74e@redhat.com>
+ <20180725135147.GN28386@dhcp22.suse.cz>
+ <344d5f15-c621-9973-561e-6ed96b29ea88@redhat.com>
+ <20180726082723.GB28386@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <60975612-9b91-65dd-03d8-579ba23a6c01@redhat.com>
+Date: Thu, 26 Jul 2018 10:37:33 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180726080301.GW28386@dhcp22.suse.cz>
+In-Reply-To: <20180726082723.GB28386@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, gnikolov@icdsoft.com, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, netfilter-devel@vger.kernel.org
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Dave Young <dyoung@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Miles Chen <miles.chen@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Tesarik <ptesarik@suse.cz>
 
-On 07/26/2018 10:03 AM, Michal Hocko wrote:
-> On Thu 26-07-18 09:50:45, Vlastimil Babka wrote:
->> On 07/26/2018 09:42 AM, Michal Hocko wrote:
->>> On Thu 26-07-18 09:34:58, Vlastimil Babka wrote:
->>>> On 07/26/2018 09:26 AM, Michal Hocko wrote:
->>>>> On Thu 26-07-18 09:18:57, Vlastimil Babka wrote:
->>>>>> On 07/25/2018 09:52 PM, Andrew Morton wrote:
->>>>>>
->>>>>> This is likely the kvmalloc() in xt_alloc_table_info(). Between 4.13 and
->>>>>> 4.17 it shouldn't use __GFP_NORETRY, but looks like commit 0537250fdc6c
->>>>>> ("netfilter: x_tables: make allocation less aggressive") was backported
->>>>>> to 4.14. Removing __GFP_NORETRY might help here, but bring back other
->>>>>> issues. Less than 4MB is not that much though, maybe find some "sane"
->>>>>> limit and use __GFP_NORETRY only above that?
->>>>>
->>>>> I have seen the same report via http://lkml.kernel.org/r/df6f501c-8546-1f55-40b1-7e3a8f54d872@icdsoft.com
->>>>> and the reported confirmed that kvmalloc is not a real culprit
->>>>> http://lkml.kernel.org/r/d99a9598-808a-6968-4131-c3949b752004@icdsoft.com
+On 26.07.2018 10:27, Michal Hocko wrote:
+> On Wed 25-07-18 16:20:41, David Hildenbrand wrote:
+>> On 25.07.2018 15:51, Michal Hocko wrote:
+>>> On Tue 24-07-18 16:13:09, David Hildenbrand wrote:
+>>> [...]
+>>>> So I see right now:
 >>>>
->>>> Hmm but that was revert of eacd86ca3b03 ("net/netfilter/x_tables.c: use
->>>> kvmalloc() in xt_alloc_table_info()") which was the 4.13 commit that
->>>> removed __GFP_NORETRY (there's no __GFP_NORETRY under net/netfilter in
->>>> v4.14). I assume it was reverted on top of vanilla v4.14 as there would
->>>> be conflict on the stable with 0537250fdc6c backport. So what should be
->>>> tested to be sure is either vanilla v4.14 without stable backports, or
->>>> latest v4.14.y with revert of 0537250fdc6c.
+>>>> - Pg_reserved + e.g. new page type (or some other unique identifier in
+>>>>   combination with Pg_reserved)
+>>>>  -> Avoid reads of pages we know are offline
+>>>> - extend is_ram_page()
+>>>>  -> Fake zero memory for pages we know are offline
+>>>>
+>>>> Or even both (avoid reading and don't crash the kernel if it is being done).
 >>>
->>> But 0537250fdc6c simply restored the previous NORETRY behavior from
->>> before eacd86ca3b03. So whatever causes these issues doesn't seem to be
->>> directly related to the kvmalloc change. Or do I miss what you are
->>> saying?
+>>> I really fail to see how that can work without kernel being aware of
+>>> PageOffline. What will/should happen if you run an old kdump tool on a
+>>> kernel with this partially offline memory?
+>>>
 >>
->> I'm saying that although it's not a regression, as you say (the
->> vmalloc() there was only for a few kernel versions called without
->> __GFP_NORETRY), it's still possible that removing __GFP_NORETRY will fix
->> the issue and thus we will rule out other possibilities.
+>> New kernel with old dump tool:
+>>
+>> a) we have not fixed up is_ram_page()
+>>
+>> -> crash, as we access memory we shouldn't
 > 
-> http://lkml.kernel.org/r/d99a9598-808a-6968-4131-c3949b752004@icdsoft.com
-> claims that reverting eacd86ca3b03 didn't really help.
+> this is not acceptable, right? You do not want to crash your crash
+> kernel ;)
 
-Of course not. eacd86ca3b03 *removed* __GFP_NORETRY, so the revert
-reintroduced it. I tried to explain it in the quoted part above starting
-with "Hmm but that was revert of eacd86ca3b03 ...". What I'm saying is
-that eacd86ca3b03 might have actually *fixed* (or rather prevented) this
-alloc failure, if there was not 0537250fdc6c and its 4.14 stable
-backport (the kernel bugzilla report says 4.14, I'm assuming new enough
-stable to contain 0537250fdc6c as the failure message contains
-__GFP_NORETRY).
+Well, the same can happen today with PageHWPoison. The "new" kernel will
+happily access such pages and crash as far as I understand (it has has
+no idea of the old struct pages). Of course, this is "less likely" than
+what I describe.
 
-The mail you reference also says "seems that old version is masking
-errors", which confirms that we are indeed looking at the right
-vmalloc(), because eacd86ca3b03 also removed __GFP_NOWARN there (and
-thus the revert reintroduced it).
+> 
+>> b) we have fixed up is_ram_page()
+>>
+>> -> We have a callback to check for applicable memory in the hypervisor
+>> whether the parts are accessible / online or not accessible / offline.
+>> (e.g. via a device driver that controls a certain memory region)
+>>
+>> -> Don't read, but fake a page full of 0
+>>
+>>
+>> So instead of the kernel being aware of it, it asks via is_ram_page()
+>> the hypervisor.
+> 
+> I am still confused why do we even care about hypervisor. What if
+> somebody wants to have partial memory hotplug on native OS?
+
+Good point I was ignoring so far (too much focusing on my use case I
+assume). So for these, we would have to catch illegal accesses and
+
+a) report them (-EINVAL / - EIO) as you said
+b) fake a zero page
+
+I assume catching illegal accesses should be possible. Might require
+some work across all architectures.
+
+Still, dump tools should in addition not even try to read if possible.
+
+>  
+>> I don't think a) is a problem. AFAICS, we have to update makedumpfile
+>> for every new kernel. We can perform changes and update makedumpfile
+>> to be compatible with new dump tools.
+> 
+> Not really. You simply do not crash the kernel just because you are
+> trying to dump the already crashed kernel.
+> 
+>> E.g. remember SECTION_IS_ONLINE you introduced ? It broke dump
+>> tools and required
+> 
+> But has it crashed the kernel when reading the dump? If yes then the
+> whole dumping is fragile as hell...
+
+No, I think it simply didn't work. At least that's what I assume ;) I
+was rather saying that dump tools may have to be fixed up to work with a
+new kernel.
+
+
+-- 
+
+Thanks,
+
+David / dhildenb
