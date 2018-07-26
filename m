@@ -1,108 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DA8C36B0006
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 04:45:58 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id v65-v6so734229qka.23
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 01:45:58 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id n10-v6si696739qke.302.2018.07.26.01.45.58
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B03246B0008
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 04:48:09 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id i26-v6so532308edr.4
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 01:48:09 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c9-v6si1039686edn.411.2018.07.26.01.48.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jul 2018 01:45:58 -0700 (PDT)
-Subject: Re: [PATCH v1 0/2] mm/kdump: exclude reserved pages in dumps
-References: <20180720123422.10127-1-david@redhat.com>
- <9f46f0ed-e34c-73be-60ca-c892fb19ed08@suse.cz>
- <f8d7b5f9-e5ee-0625-f53d-50d1841e1388@redhat.com>
- <20180724072237.GA28386@dhcp22.suse.cz>
- <e5264f8e-2bb5-7a9b-6352-ad18f04d49c2@redhat.com>
- <20180726083042.GC28386@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <21c31952-7632-b8e1-aa33-d124ce96b88e@redhat.com>
-Date: Thu, 26 Jul 2018 10:45:54 +0200
+        Thu, 26 Jul 2018 01:48:08 -0700 (PDT)
+Subject: Re: [Bug 200651] New: cgroups iptables-restor: vmalloc: allocation
+ failure
+From: Vlastimil Babka <vbabka@suse.cz>
+References: <bug-200651-27@https.bugzilla.kernel.org/>
+ <20180725125239.b591e4df270145f9064fe2c5@linux-foundation.org>
+ <cd474b37-263f-b186-2024-507a9a4e12ae@suse.cz>
+ <20180726072622.GS28386@dhcp22.suse.cz>
+ <67d5e4ef-c040-6852-ad93-6f2528df0982@suse.cz>
+ <20180726074219.GU28386@dhcp22.suse.cz>
+ <36043c6b-4960-8001-4039-99525dcc3e05@suse.cz>
+ <20180726080301.GW28386@dhcp22.suse.cz>
+ <ed7090ad-5004-3133-3faf-607d2a9fa90a@suse.cz>
+Message-ID: <d69d7a82-5b70-051f-a517-f602c3ef1fd7@suse.cz>
+Date: Thu, 26 Jul 2018 10:48:07 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180726083042.GC28386@dhcp22.suse.cz>
+In-Reply-To: <ed7090ad-5004-3133-3faf-607d2a9fa90a@suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Dave Young <dyoung@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Miles Chen <miles.chen@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Tesarik <ptesarik@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, gnikolov@icdsoft.com, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, netfilter-devel@vger.kernel.org
 
-On 26.07.2018 10:30, Michal Hocko wrote:
-> On Thu 26-07-18 10:22:41, David Hildenbrand wrote:
->> On 24.07.2018 09:22, Michal Hocko wrote:
->>> On Mon 23-07-18 19:12:58, David Hildenbrand wrote:
->>>> On 23.07.2018 13:45, Vlastimil Babka wrote:
->>>>> On 07/20/2018 02:34 PM, David Hildenbrand wrote:
->>>>>> Dumping tools (like makedumpfile) right now don't exclude reserved pages.
->>>>>> So reserved pages might be access by dump tools although nobody except
->>>>>> the owner should touch them.
+On 07/26/2018 10:31 AM, Vlastimil Babka wrote:
+> On 07/26/2018 10:03 AM, Michal Hocko wrote:
+>> On Thu 26-07-18 09:50:45, Vlastimil Babka wrote:
+>>> On 07/26/2018 09:42 AM, Michal Hocko wrote:
+>>>> On Thu 26-07-18 09:34:58, Vlastimil Babka wrote:
+>>>>> On 07/26/2018 09:26 AM, Michal Hocko wrote:
+>>>>>> On Thu 26-07-18 09:18:57, Vlastimil Babka wrote:
+>>>>>>> On 07/25/2018 09:52 PM, Andrew Morton wrote:
+>>>>>>>
+>>>>>>> This is likely the kvmalloc() in xt_alloc_table_info(). Between 4.13 and
+>>>>>>> 4.17 it shouldn't use __GFP_NORETRY, but looks like commit 0537250fdc6c
+>>>>>>> ("netfilter: x_tables: make allocation less aggressive") was backported
+>>>>>>> to 4.14. Removing __GFP_NORETRY might help here, but bring back other
+>>>>>>> issues. Less than 4MB is not that much though, maybe find some "sane"
+>>>>>>> limit and use __GFP_NORETRY only above that?
+>>>>>>
+>>>>>> I have seen the same report via http://lkml.kernel.org/r/df6f501c-8546-1f55-40b1-7e3a8f54d872@icdsoft.com
+>>>>>> and the reported confirmed that kvmalloc is not a real culprit
+>>>>>> http://lkml.kernel.org/r/d99a9598-808a-6968-4131-c3949b752004@icdsoft.com
 >>>>>
->>>>> Are you sure about that? Or maybe I understand wrong. Maybe it changed
->>>>> recently, but IIRC pages that are backing memmap (struct pages) are also
->>>>> PG_reserved. And you definitely do want those in the dump.
+>>>>> Hmm but that was revert of eacd86ca3b03 ("net/netfilter/x_tables.c: use
+>>>>> kvmalloc() in xt_alloc_table_info()") which was the 4.13 commit that
+>>>>> removed __GFP_NORETRY (there's no __GFP_NORETRY under net/netfilter in
+>>>>> v4.14). I assume it was reverted on top of vanilla v4.14 as there would
+>>>>> be conflict on the stable with 0537250fdc6c backport. So what should be
+>>>>> tested to be sure is either vanilla v4.14 without stable backports, or
+>>>>> latest v4.14.y with revert of 0537250fdc6c.
 >>>>
->>>> I proposed a new flag/value to mask pages that are logically offline but
->>>> Michal wanted me to go into this direction.
->>>>
->>>> While we can special case struct pages in dump tools ("we have to
->>>> read/interpret them either way, so we can also dump them"), it smells
->>>> like my original attempt was cleaner. Michal?
+>>>> But 0537250fdc6c simply restored the previous NORETRY behavior from
+>>>> before eacd86ca3b03. So whatever causes these issues doesn't seem to be
+>>>> directly related to the kvmalloc change. Or do I miss what you are
+>>>> saying?
 >>>
->>> But we do not have many page flags spare and even if we have one or two
->>> this doesn't look like the use for them. So I still think we should try
->>> the PageReserved way.
->>>
+>>> I'm saying that although it's not a regression, as you say (the
+>>> vmalloc() there was only for a few kernel versions called without
+>>> __GFP_NORETRY), it's still possible that removing __GFP_NORETRY will fix
+>>> the issue and thus we will rule out other possibilities.
 >>
->> So as a summary, the only real approach that would be acceptable is
->> using PageReserved + some other identifier to mark pages as "logically
->> offline".
->>
->> I wonder what identifier could be used, as this has to be consistent for
->> all reserved pages (to avoid false positives).
->>
->> Using other pageflags in combination might be possible, but then we have
->> to make assumptions about all users of PageReserved right now.
->>
->> As far as I can see (and as has been discussed), page_type could be
->> used. If we don't want to consume a new bit, we could overload/reuse the
->> "PG_balloon" bit.
->>
->>
->> E.g. "PG_balloon" set -> exclude page from dump
+>> http://lkml.kernel.org/r/d99a9598-808a-6968-4131-c3949b752004@icdsoft.com
+>> claims that reverting eacd86ca3b03 didn't really help.
+
+Ah, I see, that mail thread references a different kernel bugzilla
+#200639 which doesn't mention 4.14, but outright blames commit
+eacd86ca3b03. Yet the alloc fail message contains __GFP_NORETRY, so I
+still suspect the kernel also had 0537250fdc6c backport. Georgi can you
+please clarify which exact kernel version had the alloc failures, and
+how exactly you tested the revert (which version was the baseline for
+revert). Thanks.
+
+> Of course not. eacd86ca3b03 *removed* __GFP_NORETRY, so the revert
+> reintroduced it. I tried to explain it in the quoted part above starting
+> with "Hmm but that was revert of eacd86ca3b03 ...". What I'm saying is
+> that eacd86ca3b03 might have actually *fixed* (or rather prevented) this
+> alloc failure, if there was not 0537250fdc6c and its 4.14 stable
+> backport (the kernel bugzilla report says 4.14, I'm assuming new enough
+> stable to contain 0537250fdc6c as the failure message contains
+> __GFP_NORETRY).
 > 
-> Does each user of PG_balloon check for PG_reserved? If this is the case
-> then yes this would be OK.
+> The mail you reference also says "seems that old version is masking
+> errors", which confirms that we are indeed looking at the right
+> vmalloc(), because eacd86ca3b03 also removed __GFP_NOWARN there (and
+> thus the revert reintroduced it).
 > 
-
-I can only spot one user of PageBalloon() at all (fs/proc/page.c) ,
-which makes me wonder if this bit is actually still relevant. I think
-the last "real" user was removed with
-
-commit b1123ea6d3b3da25af5c8a9d843bd07ab63213f4
-Author: Minchan Kim <minchan@kernel.org>
-Date:   Tue Jul 26 15:23:09 2016 -0700
-
-    mm: balloon: use general non-lru movable page feature
-
-    Now, VM has a feature to migrate non-lru movable pages so balloon
-    doesn't need custom migration hooks in migrate.c and compaction.c.
-
-
-The only user of PG_balloon in general is
-"include/linux/balloon_compaction.h", used effectively only by
-virtio_balloon.
-
-All such pages are allocated via balloon_page_alloc() and never set
-reserved.
-
-So to me it looks like PG_balloon could be easily reused, especially to
-also exclude virtio-balloon pages from dumps.
-
-
--- 
-
-Thanks,
-
-David / dhildenb
+> 
