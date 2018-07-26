@@ -1,51 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A21B36B0007
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 12:40:31 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id c2-v6so1102067ybl.16
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 09:40:31 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i16-v6sor422033yba.105.2018.07.26.09.40.30
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 05B496B000A
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2018 12:41:54 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id i24-v6so1079769edq.16
+        for <linux-mm@kvack.org>; Thu, 26 Jul 2018 09:41:53 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n6-v6si1061956edb.59.2018.07.26.09.41.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 26 Jul 2018 09:40:30 -0700 (PDT)
-Date: Thu, 26 Jul 2018 09:40:20 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: kernel BUG at mm/shmem.c:LINE!
-In-Reply-To: <20180726143353.GA27612@bombadil.infradead.org>
-Message-ID: <alpine.LSU.2.11.1807260936040.1101@eggly.anvils>
-References: <000000000000d624c605705e9010@google.com> <20180709143610.GD2662@bombadil.infradead.org> <alpine.LSU.2.11.1807221856350.5536@eggly.anvils> <20180723140150.GA31843@bombadil.infradead.org> <alpine.LSU.2.11.1807231111310.1698@eggly.anvils>
- <20180723203628.GA18236@bombadil.infradead.org> <alpine.LSU.2.11.1807231531240.2545@eggly.anvils> <20180723225454.GC18236@bombadil.infradead.org> <alpine.LSU.2.11.1807240121590.1105@eggly.anvils> <alpine.LSU.2.11.1807252334420.1212@eggly.anvils>
- <20180726143353.GA27612@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Jul 2018 09:41:52 -0700 (PDT)
+Date: Thu, 26 Jul 2018 18:41:50 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 7/7] docs/core-api: mm-api: add section about GFP flags
+Message-ID: <20180726164150.GO28386@dhcp22.suse.cz>
+References: <1532607722-17079-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1532607722-17079-8-git-send-email-rppt@linux.vnet.ibm.com>
+ <20180726130106.GC3504@bombadil.infradead.org>
+ <20180726142039.GA23627@dhcp22.suse.cz>
+ <20180726151852.GF8477@rapoport-lnx>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180726151852.GF8477@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Hugh Dickins <hughd@google.com>, syzbot <syzbot+b8e0dfee3fd8c9012771@syzkaller.appspotmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 26 Jul 2018, Matthew Wilcox wrote:
-> On Wed, Jul 25, 2018 at 11:53:15PM -0700, Hugh Dickins wrote:
+On Thu 26-07-18 18:18:53, Mike Rapoport wrote:
+> On Thu, Jul 26, 2018 at 04:20:39PM +0200, Michal Hocko wrote:
+> > On Thu 26-07-18 06:01:06, Matthew Wilcox wrote:
+> > > On Thu, Jul 26, 2018 at 03:22:02PM +0300, Mike Rapoport wrote:
+> > > > +Memory Allocation Controls
+> > > > +==========================
+> > > 
+> > > Perhaps call this section "Memory Allocation Flags" instead?
+> > > 
+> > > > +Linux provides a variety of APIs for memory allocation from direct
+> > > > +calls to page allocator through slab caches and vmalloc to allocators
+> > > > +of compressed memory. Although these allocators have different
+> > > > +semantics and are used in different circumstances, they all share the
+> > > > +GFP (get free page) flags that control behavior of each allocation
+> > > > +request.
+> > > 
+> > > While this isn't /wrong/, I think it might not be the most useful way
+> > > of explaining what the GFP flags are to someone who's just come across
+> > > them in some remote part of the kernel.  How about this paragraph instead?
+> > > 
+> > >   Functions which need to allocate memory often use GFP flags to express
+> > >   how that memory should be allocated.  The GFP acronym stands for "get
+> > >   free pages", the underlying memory allocation function.
+> > 
+> > OK.
+> > 
+> > >   Not every GFP
+> > >   flag is allowed to every function which may allocate memory.  Most
+> > >   users will want to use a plain ``GFP_KERNEL`` or ``GFP_ATOMIC``.
+> > 
+> > Or rather than mentioning the two just use "Useful GFP flag
+> > combinations" comment segment from gfp.h
 > 
-> and fixing the bug differently ;-)  But many thanks for spotting it!
-
-I thought you might :)
-
+> The comment there includes GFP_DMA, GFP_NOIO etc so I'd prefer Matthew's
+> version and maybe even omit GFP_ATOMIC from it.
 > 
-> I'll look into the next bug you reported ...
+> Some grepping shows that roughly 80% of allocations are GFP_KERNEL, 12% are
+> GFP_ATOMIC and ... I didn't count the usage of other flags ;-)
 
-No need: that idea now works a lot better when I use the initialized
-"start", instead of the uninitialized "index".
-
-Hugh
-
---- mmotm/mm/khugepaged.c	2018-07-20 17:54:41.978805312 -0700
-+++ linux/mm/khugepaged.c	2018-07-26 09:20:22.416949014 -0700
-@@ -1352,6 +1352,7 @@ static void collapse_shmem(struct mm_str
- 			goto out;
- 	} while (1);
- 
-+	xas_set(&xas, start);
- 	for (index = start; index < end; index++) {
- 		struct page *page = xas_next(&xas);
- 
+Well, I will certainly not insist... I don't know who is the expected
+audience of this documentation. That section was meant for kernel
+developers to know which of the high level flags to use.
+-- 
+Michal Hocko
+SUSE Labs
