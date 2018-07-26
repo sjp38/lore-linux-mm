@@ -1,61 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 17BC96B0005
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 20:55:22 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id v9-v6so3594pff.4
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 17:55:22 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D99B6B0006
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2018 21:07:44 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id az8-v6so29381plb.15
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2018 18:07:44 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 95-v6sor1386910pld.114.2018.07.25.17.55.16
+        by mx.google.com with SMTPS id y4-v6sor4270986pgy.326.2018.07.25.18.07.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 25 Jul 2018 17:55:16 -0700 (PDT)
-Subject: Re: Showing /sys/fs/cgroup/memory/memory.stat very slow on some
- machines
-References: <CAOm-9arwY3VLUx5189JAR9J7B=Miad9nQjjet_VNdT3i+J+5FA@mail.gmail.com>
- <20180717212307.d6803a3b0bbfeb32479c1e26@linux-foundation.org>
- <20180718104230.GC1431@dhcp22.suse.cz>
- <CAOm-9aqeKZ7+Jvhc5DxEEzbk4T0iQx8gZ=O1vy6YXnbOkncFsg@mail.gmail.com>
- <CALvZod7_vPwqyLBxiecZtREEeY4hioCGnZWVhQx9wVdM8CFcog@mail.gmail.com>
- <CAOm-9aprLokqi6awMvi0NbkriZBpmvnBA81QhOoHnK7ZEA96fw@mail.gmail.com>
- <CALvZod4ag02N6QPwRQCYv663hj05Z6vtrK8=XEE6uWHQCL4yRw@mail.gmail.com>
- <CAOm-9arxtTwNxXzmb8nN+N_UtjiuH0XkpkVPFHpi3EOYXvZYVA@mail.gmail.com>
+        Wed, 25 Jul 2018 18:07:40 -0700 (PDT)
+Subject: Re: [PATCH 0/10] psi: pressure stall information for CPU, memory, and
+ IO v2
+References: <20180712172942.10094-1-hannes@cmpxchg.org>
+ <CAKTCnzmt_CnfZMMdK9_-rBrL4kUmoE70nVbnE58CJp++FP0CCQ@mail.gmail.com>
+ <20180724151519.GA11598@cmpxchg.org>
 From: "Singh, Balbir" <bsingharora@gmail.com>
-Message-ID: <dda7b095-db84-7e69-a03e-d8ce64fc9b8e@gmail.com>
-Date: Thu, 26 Jul 2018 10:55:08 +1000
+Message-ID: <268c2b08-6c90-de2b-d693-1270bb186713@gmail.com>
+Date: Thu, 26 Jul 2018 11:07:32 +1000
 MIME-Version: 1.0
-In-Reply-To: <CAOm-9arxtTwNxXzmb8nN+N_UtjiuH0XkpkVPFHpi3EOYXvZYVA@mail.gmail.com>
+In-Reply-To: <20180724151519.GA11598@cmpxchg.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-GB
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bruce Merry <bmerry@ska.ac.za>, Shakeel Butt <shakeelb@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, surenb@google.com, Vinayak Menon <vinmenon@codeaurora.org>, Christoph Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm <linux-mm@kvack.org>, cgroups@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kernel-team@fb.com
 
 
 
-On 7/19/18 3:40 AM, Bruce Merry wrote:
-> On 18 July 2018 at 17:49, Shakeel Butt <shakeelb@google.com> wrote:
->> On Wed, Jul 18, 2018 at 8:37 AM Bruce Merry <bmerry@ska.ac.za> wrote:
->>> That sounds promising. Is there any way to tell how many zombies there
->>> are, and is there any way to deliberately create zombies? If I can
->>> produce zombies that might give me a reliable way to reproduce the
->>> problem, which could then sensibly be tested against newer kernel
->>> versions.
->>>
->>
->> Yes, very easy to produce zombies, though I don't think kernel
->> provides any way to tell how many zombies exist on the system.
->>
->> To create a zombie, first create a memcg node, enter that memcg,
->> create a tmpfs file of few KiBs, exit the memcg and rmdir the memcg.
->> That memcg will be a zombie until you delete that tmpfs file.
+On 7/25/18 1:15 AM, Johannes Weiner wrote:
+> Hi Balbir,
 > 
-> Thanks, that makes sense. I'll see if I can reproduce the issue. Do
-> you expect the same thing to happen with normal (non-tmpfs) files that
-> are sitting in the page cache, and/or dentries?
+> On Tue, Jul 24, 2018 at 07:14:02AM +1000, Balbir Singh wrote:
+>> Does the mechanism scale? I am a little concerned about how frequently
+>> this infrastructure is monitored/read/acted upon.
+> 
+> I expect most users to poll in the frequency ballpark of the running
+> averages (10s, 1m, 5m). Our OOMD defaults to 5s polling of the 10s
+> average; we collect the 1m average once per minute from our machines
+> and cgroups to log the system/workload health trends in our fleet.
+> 
+> Suren has been experimenting with adaptive polling down to the
+> millisecond range on Android.
 > 
 
-Do you by any chance have use_hierarch=1? memcg_stat_show should just rely on counters inside the memory cgroup and the the LRU sizes for each node.
+I think this is a bad way of doing things, polling only adds to overheads, there needs to be an event driven mechanism and the selection of the events need to happen in user space.
+
+>> Why aren't existing mechanisms sufficient
+> 
+> Our existing stuff gives a lot of indication when something *may* be
+> an issue, like the rate of page reclaim, the number of refaults, the
+> average number of active processes, one task waiting on a resource.
+> 
+> But the real difference between an issue and a non-issue is how much
+> it affects your overall goal of making forward progress or reacting to
+> a request in time. And that's the only thing users really care
+> about. It doesn't matter whether my system is doing 2314 or 6723 page
+> refaults per minute, or scanned 8495 pages recently. I need to know
+> whether I'm losing 1% or 20% of my time on overcommitted memory.
+> 
+> Delayacct is time-based, so it's a step in the right direction, but it
+> doesn't aggregate tasks and CPUs into compound productivity states to
+> tell you if only parts of your workload are seeing delays (which is
+> often tolerable for the purpose of ensuring maximum HW utilization) or
+> your system overall is not making forward progress. That aggregation
+> isn't something you can do in userspace with polled delayacct data.
+
+By aggregation you mean cgroup aggregation?
+
+> 
+>> -- why is the avg delay calculation in the kernel?
+> 
+> For one, as per above, most users will probably be using the standard
+> averaging windows, and we already have this highly optimizd
+> infrastructure from the load average. I don't see why we shouldn't use
+> that instead of exporting an obscure number that requires most users
+> to have an additional library or copy-paste the loadavg code.
+> 
+> I also mentioned the OOM killer as a likely in-kernel user of the
+> pressure percentages to protect from memory livelocks out of the box,
+> in which case we have to do this calculation in the kernel anyway.
+> 
+>> There is no talk about the overhead this introduces in general, may be
+>> the details are in the patches. I'll read through them
+> 
+> I sent an email on benchmarks and overhead in one of the subthreads, I
+> will include that information in the cover letter in v3.
+> 
+> https://lore.kernel.org/lkml/20180718215644.GB2838@cmpxchg.org/
+
+Thanks, I'll take a look
 
 Balbir Singh.
