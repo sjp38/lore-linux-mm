@@ -1,63 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EFA956B0006
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 17:23:52 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id p7-v6so1909721wrv.15
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 14:23:52 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id l8-v6si4164405wrv.161.2018.07.27.14.23.51
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C867B6B0008
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 17:27:23 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id d25-v6so4982628qtp.10
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 14:27:23 -0700 (PDT)
+Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
+        by mx.google.com with ESMTPS id k5-v6si337158qkb.28.2018.07.27.14.27.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jul 2018 14:23:51 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6RLIW2v017642
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 17:23:50 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2kgb0ngg6u-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 17:23:49 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Fri, 27 Jul 2018 22:23:48 +0100
-Date: Sat, 28 Jul 2018 00:23:40 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mips: switch to NO_BOOTMEM
-References: <1531727262-11520-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20180726070355.GD8477@rapoport-lnx>
- <20180726172005.pgjmkvwz2lpflpor@pburton-laptop>
+        Fri, 27 Jul 2018 14:27:23 -0700 (PDT)
+Subject: Re: [PATCH 2/3] dmapool: improve scalability of dma_pool_free
+References: <1288e597-a67a-25b3-b7c6-db883ca67a25@cybernetics.com>
+ <20180726194209.GB12992@bombadil.infradead.org>
+ <b3430dd4-a4d6-28f1-09a1-82e0bf4a3b83@cybernetics.com>
+ <20180727000708.GA785@bombadil.infradead.org>
+ <cae33099-3147-5014-ab4e-c22a4d66dc49@cybernetics.com>
+ <20180727152322.GB13348@bombadil.infradead.org>
+ <acdc2e32-466c-61d3-145f-80bfba2c6739@cybernetics.com>
+From: Tony Battersby <tonyb@cybernetics.com>
+Message-ID: <88d362b7-1d53-b430-1741-b48cbc0a7887@cybernetics.com>
+Date: Fri, 27 Jul 2018 17:27:20 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180726172005.pgjmkvwz2lpflpor@pburton-laptop>
-Message-Id: <20180727212339.GC17745@rapoport-lnx>
+In-Reply-To: <acdc2e32-466c-61d3-145f-80bfba2c6739@cybernetics.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Burton <paul.burton@mips.com>
-Cc: linux-mips@linux-mips.org, Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>, Huacai Chen <chenhc@lemote.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Serge Semin <fancer.lancer@gmail.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
 
-On Thu, Jul 26, 2018 at 10:20:05AM -0700, Paul Burton wrote:
-> Hi Mike,
-> 
-> On Thu, Jul 26, 2018 at 10:03:56AM +0300, Mike Rapoport wrote:
-> > Any comments on this?
-> 
-> I haven't looked at this in detail yet, but there was a much larger
-> series submitted to accomplish this not too long ago, which needed
-> another revision:
-> 
->     https://patchwork.linux-mips.org/project/linux-mips/list/?series=787&state=*
-> 
-> Given that, I'd be (pleasantly) surprised if this one smaller patch is
-> enough.
+On 07/27/2018 03:38 PM, Tony Battersby wrote:
+> But the bigger problem is that my first patch adds another list_head to
+> the dma_page for the avail_page_link to make allocations faster.A  I
+> suppose we could make the lists singly-linked instead of doubly-linked
+> to save space.
+>
 
-I didn't test it on the real hardware, so I could have missed something.
-I've looked at Sergey's patches, largely we are doing the same things. 
- 
-> Thanks,
->     Paul
-> 
+I managed to redo my dma_pool_alloc() patch to make avail_page_list
+singly-linked instead of doubly-linked.A  But the problem with making
+either list singly-linked is that it would no longer be possible to call
+pool_free_page() any time other than dma_pool_destroy() without scanning
+the lists to remove the page from them, which would make pruning
+arbitrary free pages slower (adding back a O(n^2)).A  But the current
+code doesn't do that anyway, and in fact it has a comment in
+dma_pool_free() to "resist the temptation" to prune free pages.A  And yet
+it seems like it might be reasonable for someone to add such code in the
+future if there are a whole lot of free pages, so I am hesitant to make
+it more difficult.
 
--- 
-Sincerely yours,
-Mike.
+So my question is: when I post v2 of the patchset, should I send the
+doubly-linked version or the singly-linked version, in anticipation that
+someone else might want to take it further and move everything into
+struct page as you suggest?
