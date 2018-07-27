@@ -1,114 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A9A16B0003
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 17:17:40 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id t10-v6so3919702wrs.17
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 14:17:40 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id d12-v6si4610151wra.117.2018.07.27.14.17.38
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EFA956B0006
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 17:23:52 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id p7-v6so1909721wrv.15
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 14:23:52 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id l8-v6si4164405wrv.161.2018.07.27.14.23.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jul 2018 14:17:38 -0700 (PDT)
-From: Jane Chu <jane.chu@oracle.com>
-Subject: [PATCH] ipc/shm.c add ->pagesize function to shm_vm_ops
-Date: Fri, 27 Jul 2018 15:17:27 -0600
-Message-Id: <20180727211727.5020-1-jane.chu@oracle.com>
+        Fri, 27 Jul 2018 14:23:51 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6RLIW2v017642
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 17:23:50 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2kgb0ngg6u-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 17:23:49 -0400
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Fri, 27 Jul 2018 22:23:48 +0100
+Date: Sat, 28 Jul 2018 00:23:40 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mips: switch to NO_BOOTMEM
+References: <1531727262-11520-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <20180726070355.GD8477@rapoport-lnx>
+ <20180726172005.pgjmkvwz2lpflpor@pburton-laptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180726172005.pgjmkvwz2lpflpor@pburton-laptop>
+Message-Id: <20180727212339.GC17745@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: dan.j.williams@intel.com, mhocko@suse.com, jack@suse.cz, jglisse@redhat.com, mike.kravetz@oracle.com, dave@stgolabs.net, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, jane.chu@oracle.com
+To: Paul Burton <paul.burton@mips.com>
+Cc: linux-mips@linux-mips.org, Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>, Huacai Chen <chenhc@lemote.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Serge Semin <fancer.lancer@gmail.com>
 
-Commit 05ea88608d4e13 (mm, hugetlbfs: introduce ->pagesize() to
-vm_operations_struct) adds a new ->pagesize() function to
-hugetlb_vm_ops, intended to cover all hugetlbfs backed files.
+On Thu, Jul 26, 2018 at 10:20:05AM -0700, Paul Burton wrote:
+> Hi Mike,
+> 
+> On Thu, Jul 26, 2018 at 10:03:56AM +0300, Mike Rapoport wrote:
+> > Any comments on this?
+> 
+> I haven't looked at this in detail yet, but there was a much larger
+> series submitted to accomplish this not too long ago, which needed
+> another revision:
+> 
+>     https://patchwork.linux-mips.org/project/linux-mips/list/?series=787&state=*
+> 
+> Given that, I'd be (pleasantly) surprised if this one smaller patch is
+> enough.
 
-With System V shared memory model, if "huge page" is specified,
-the "shared memory" is backed by hugetlbfs files, but the mappings
-initiated via shmget/shmat have their original vm_ops overwritten
-with shm_vm_ops, so we need to add a ->pagesize function to shm_vm_ops.
-Otherwise, vma_kernel_pagesize() returns PAGE_SIZE given a hugetlbfs
-backed vma, result in below BUG:
-
-fs/hugetlbfs/inode.c
-        443             if (unlikely(page_mapped(page))) {
-        444                     BUG_ON(truncate_op);
-
-[  242.268342] hugetlbfs: oracle (4592): Using mlock ulimits for SHM_HUGETLB is deprecated
-[  282.653208] ------------[ cut here ]------------
-[  282.708447] kernel BUG at fs/hugetlbfs/inode.c:444!
-[  282.818957] Modules linked in: nfsv3 rpcsec_gss_krb5 nfsv4 ...
-[  284.025873] CPU: 35 PID: 5583 Comm: oracle_5583_sbt Not tainted 4.14.35-1829.el7uek.x86_64 #2
-[  284.246609] task: ffff9bf0507aaf80 task.stack: ffffa9e625628000
-[  284.317455] RIP: 0010:remove_inode_hugepages+0x3db/0x3e2
-....
-[  285.292389] Call Trace:
-[  285.321630]  hugetlbfs_evict_inode+0x1e/0x3e
-[  285.372707]  evict+0xdb/0x1af
-[  285.408185]  iput+0x1a2/0x1f7
-[  285.443661]  dentry_unlink_inode+0xc6/0xf0
-[  285.492661]  __dentry_kill+0xd8/0x18d
-[  285.536459]  dput+0x1b5/0x1ed
-[  285.571939]  __fput+0x18b/0x216
-[  285.609495]  ____fput+0xe/0x10
-[  285.646030]  task_work_run+0x90/0xa7
-[  285.688788]  exit_to_usermode_loop+0xdd/0x116
-[  285.740905]  do_syscall_64+0x187/0x1ae
-[  285.785740]  entry_SYSCALL_64_after_hwframe+0x150/0x0
-
-Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
-Signed-off-by: Jane Chu <jane.chu@oracle.com>
----
- include/linux/mm.h |  7 +++++++
- ipc/shm.c          | 12 ++++++++++++
- 2 files changed, 19 insertions(+)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a0fbb9ffe380..0c759379f2d9 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -387,6 +387,13 @@ enum page_entry_size {
-  * These are the virtual MM functions - opening of an area, closing and
-  * unmapping it (needed to keep files on disk up-to-date etc), pointer
-  * to the functions called when a no-page or a wp-page exception occurs.
-+ *
-+ * Note, when a new function is introduced to vm_operations_struct and
-+ * added to hugetlb_vm_ops, please consider adding the function to
-+ * shm_vm_ops. This is because under System V memory model, though
-+ * mappings created via shmget/shmat with "huge page" specified are
-+ * backed by hugetlbfs files, their original vm_ops are overwritten with
-+ * shm_vm_ops.
-  */
- struct vm_operations_struct {
- 	void (*open)(struct vm_area_struct * area);
-diff --git a/ipc/shm.c b/ipc/shm.c
-index 051a3e1fb8df..fefa00d310fb 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -427,6 +427,17 @@ static int shm_split(struct vm_area_struct *vma, unsigned long addr)
- 	return 0;
- }
+I didn't test it on the real hardware, so I could have missed something.
+I've looked at Sergey's patches, largely we are doing the same things. 
  
-+static unsigned long shm_pagesize(struct vm_area_struct *vma)
-+{
-+	struct file *file = vma->vm_file;
-+	struct shm_file_data *sfd = shm_file_data(file);
-+
-+	if (sfd->vm_ops->pagesize)
-+		return sfd->vm_ops->pagesize(vma);
-+
-+	return PAGE_SIZE;
-+}
-+
- #ifdef CONFIG_NUMA
- static int shm_set_policy(struct vm_area_struct *vma, struct mempolicy *new)
- {
-@@ -554,6 +565,7 @@ static const struct vm_operations_struct shm_vm_ops = {
- 	.close	= shm_close,	/* callback for when the vm-area is released */
- 	.fault	= shm_fault,
- 	.split	= shm_split,
-+	.pagesize = shm_pagesize,
- #if defined(CONFIG_NUMA)
- 	.set_policy = shm_set_policy,
- 	.get_policy = shm_get_policy,
+> Thanks,
+>     Paul
+> 
+
 -- 
-2.15.GIT
+Sincerely yours,
+Mike.
