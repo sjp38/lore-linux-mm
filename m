@@ -1,74 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BCF756B000A
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 15:56:03 -0400 (EDT)
-Received: by mail-yb0-f198.google.com with SMTP id d4-v6so3066311ybl.3
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 12:56:03 -0700 (PDT)
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 733506B0003
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 16:19:51 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id i77-v6so3270762ywe.19
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 13:19:51 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 62-v6sor1338440ybe.127.2018.07.27.12.55.57
+        by mx.google.com with SMTPS id e62-v6sor1154297ywa.174.2018.07.27.13.19.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 27 Jul 2018 12:55:57 -0700 (PDT)
-Date: Fri, 27 Jul 2018 15:58:48 -0400
+        Fri, 27 Jul 2018 13:19:45 -0700 (PDT)
+Date: Fri, 27 Jul 2018 16:22:36 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: terminate the reclaim early when direct reclaiming
-Message-ID: <20180727195848.GA12399@cmpxchg.org>
-References: <1532683165-19416-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+Subject: Re: Making direct reclaim fail when thrashing
+Message-ID: <20180727202236.GB12399@cmpxchg.org>
+References: <20180727162143.26466-1-drake@endlessm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1532683165-19416-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+In-Reply-To: <20180727162143.26466-1-drake@endlessm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhaoyang Huang <huangzhaoyang@gmail.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org
+To: Daniel Drake <drake@endlessm.com>
+Cc: mhocko@kernel.org, linux-mm@kvack.org, linux@endlessm.com, linux-kernel@vger.kernel.org
 
-Hi Zhaoyang,
+On Fri, Jul 27, 2018 at 11:21:43AM -0500, Daniel Drake wrote:
+> Split from the thread
+>   [PATCH 0/10] psi: pressure stall information for CPU, memory, and IO v2
+> where we were discussing if/how to make the direct reclaim codepath
+> fail if we're excessively thrashing, so that the OOM killer might
+> step in. This is potentially desirable when the thrashing is so bad
+> that the UI stops responding, causing the user to pull the plug.
+> 
+> On Tue, Jul 17, 2018 at 7:23 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > mm/workingset.c allows for tracking when an actual page got evicted.
+> > workingset_refault tells us whether a give filemap fault is a recent
+> > refault and activates the page if that is the case. So what you need is
+> > to note how many refaulted pages we have on the active LRU list. If that
+> > is a large part of the list and if the inactive list is really small
+> > then we know we are trashing. This all sounds much easier than it will
+> > eventually turn out to be of course but I didn't really get to play with
+> > this much.
 
-On Fri, Jul 27, 2018 at 05:19:25PM +0800, Zhaoyang Huang wrote:
-> This patch try to let the direct reclaim finish earlier than it used
-> to be. The problem comes from We observing that the direct reclaim
-> took a long time to finish when memcg is enabled. By debugging, we
-> find that the reason is the softlimit is too low to meet the loop
-> end criteria. So we add two barriers to judge if it has reclaimed
-> enough memory as same criteria as it is in shrink_lruvec:
-> 1. for each memcg softlimit reclaim.
-> 2. before starting the global reclaim in shrink_zone.
+I've mentioned it in the other thread, but whether refaults are a
+performance/latency problem depends 99% on your available IO capacity
+and the IO patterns. On a highly contended IO device, refaults of a
+single unfortunately located page can lead to multi-second stalls. On
+an idle SSD, thousands of refaults might not be noticable to the user.
 
-Yes, the soft limit reclaim cycle is fairly aggressive and can
-introduce quite some allocation latency into the system. Let me say
-right up front, though, that we've spend hours in conference sessions
-and phone calls trying to fix this and could never agree on
-anything. You might have better luck trying cgroup2 which implements
-memory.low in a more scalable manner. (Due to the default value of 0
-instead of infinitity, it can use a smoother 2-pass reclaim cycle.)
-
-On your patch specifically:
-
-should_continue_reclaim() is for compacting higher order pages. It
-assumes you have already made a full reclaim cycle and returns false
-for most allocations without checking any sort of reclaim progress.
-
-You may end up in a situation where soft limit reclaim finds nothing,
-and you still abort without trying a regular reclaim cycle. That can
-trigger the OOM killer while there is still plenty of reclaimable
-memory in other groups.
-
-So if you want to fix this, you'd have to look for a different
-threshold for soft limit reclaim and. Maybe something like this
-already works:
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index ee91e8cbeb5a..5b2388fa6bc4 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2786,7 +2786,8 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
- 						&nr_soft_scanned);
- 			sc->nr_reclaimed += nr_soft_reclaimed;
- 			sc->nr_scanned += nr_soft_scanned;
--			/* need some check for avoid more shrink_zone() */
-+			if (nr_soft_reclaimed)
-+				continue;
- 		}
- 
- 		/* See comment about same check for global reclaim above */
+Without measuring how much time these events take out of your day, you
+can't really tell eif they're a problem or not. The event rate or the
+proportion between pages and refaults doesn't carry that signal.
