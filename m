@@ -1,52 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 733506B0003
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 16:19:51 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id i77-v6so3270762ywe.19
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 13:19:51 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e62-v6sor1154297ywa.174.2018.07.27.13.19.45
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A9A16B0003
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 17:17:40 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id t10-v6so3919702wrs.17
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 14:17:40 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id d12-v6si4610151wra.117.2018.07.27.14.17.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 27 Jul 2018 13:19:45 -0700 (PDT)
-Date: Fri, 27 Jul 2018 16:22:36 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: Making direct reclaim fail when thrashing
-Message-ID: <20180727202236.GB12399@cmpxchg.org>
-References: <20180727162143.26466-1-drake@endlessm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180727162143.26466-1-drake@endlessm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 Jul 2018 14:17:38 -0700 (PDT)
+From: Jane Chu <jane.chu@oracle.com>
+Subject: [PATCH] ipc/shm.c add ->pagesize function to shm_vm_ops
+Date: Fri, 27 Jul 2018 15:17:27 -0600
+Message-Id: <20180727211727.5020-1-jane.chu@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Drake <drake@endlessm.com>
-Cc: mhocko@kernel.org, linux-mm@kvack.org, linux@endlessm.com, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: dan.j.williams@intel.com, mhocko@suse.com, jack@suse.cz, jglisse@redhat.com, mike.kravetz@oracle.com, dave@stgolabs.net, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, jane.chu@oracle.com
 
-On Fri, Jul 27, 2018 at 11:21:43AM -0500, Daniel Drake wrote:
-> Split from the thread
->   [PATCH 0/10] psi: pressure stall information for CPU, memory, and IO v2
-> where we were discussing if/how to make the direct reclaim codepath
-> fail if we're excessively thrashing, so that the OOM killer might
-> step in. This is potentially desirable when the thrashing is so bad
-> that the UI stops responding, causing the user to pull the plug.
-> 
-> On Tue, Jul 17, 2018 at 7:23 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > mm/workingset.c allows for tracking when an actual page got evicted.
-> > workingset_refault tells us whether a give filemap fault is a recent
-> > refault and activates the page if that is the case. So what you need is
-> > to note how many refaulted pages we have on the active LRU list. If that
-> > is a large part of the list and if the inactive list is really small
-> > then we know we are trashing. This all sounds much easier than it will
-> > eventually turn out to be of course but I didn't really get to play with
-> > this much.
+Commit 05ea88608d4e13 (mm, hugetlbfs: introduce ->pagesize() to
+vm_operations_struct) adds a new ->pagesize() function to
+hugetlb_vm_ops, intended to cover all hugetlbfs backed files.
 
-I've mentioned it in the other thread, but whether refaults are a
-performance/latency problem depends 99% on your available IO capacity
-and the IO patterns. On a highly contended IO device, refaults of a
-single unfortunately located page can lead to multi-second stalls. On
-an idle SSD, thousands of refaults might not be noticable to the user.
+With System V shared memory model, if "huge page" is specified,
+the "shared memory" is backed by hugetlbfs files, but the mappings
+initiated via shmget/shmat have their original vm_ops overwritten
+with shm_vm_ops, so we need to add a ->pagesize function to shm_vm_ops.
+Otherwise, vma_kernel_pagesize() returns PAGE_SIZE given a hugetlbfs
+backed vma, result in below BUG:
 
-Without measuring how much time these events take out of your day, you
-can't really tell eif they're a problem or not. The event rate or the
-proportion between pages and refaults doesn't carry that signal.
+fs/hugetlbfs/inode.c
+        443             if (unlikely(page_mapped(page))) {
+        444                     BUG_ON(truncate_op);
+
+[  242.268342] hugetlbfs: oracle (4592): Using mlock ulimits for SHM_HUGETLB is deprecated
+[  282.653208] ------------[ cut here ]------------
+[  282.708447] kernel BUG at fs/hugetlbfs/inode.c:444!
+[  282.818957] Modules linked in: nfsv3 rpcsec_gss_krb5 nfsv4 ...
+[  284.025873] CPU: 35 PID: 5583 Comm: oracle_5583_sbt Not tainted 4.14.35-1829.el7uek.x86_64 #2
+[  284.246609] task: ffff9bf0507aaf80 task.stack: ffffa9e625628000
+[  284.317455] RIP: 0010:remove_inode_hugepages+0x3db/0x3e2
+....
+[  285.292389] Call Trace:
+[  285.321630]  hugetlbfs_evict_inode+0x1e/0x3e
+[  285.372707]  evict+0xdb/0x1af
+[  285.408185]  iput+0x1a2/0x1f7
+[  285.443661]  dentry_unlink_inode+0xc6/0xf0
+[  285.492661]  __dentry_kill+0xd8/0x18d
+[  285.536459]  dput+0x1b5/0x1ed
+[  285.571939]  __fput+0x18b/0x216
+[  285.609495]  ____fput+0xe/0x10
+[  285.646030]  task_work_run+0x90/0xa7
+[  285.688788]  exit_to_usermode_loop+0xdd/0x116
+[  285.740905]  do_syscall_64+0x187/0x1ae
+[  285.785740]  entry_SYSCALL_64_after_hwframe+0x150/0x0
+
+Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
+Signed-off-by: Jane Chu <jane.chu@oracle.com>
+---
+ include/linux/mm.h |  7 +++++++
+ ipc/shm.c          | 12 ++++++++++++
+ 2 files changed, 19 insertions(+)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a0fbb9ffe380..0c759379f2d9 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -387,6 +387,13 @@ enum page_entry_size {
+  * These are the virtual MM functions - opening of an area, closing and
+  * unmapping it (needed to keep files on disk up-to-date etc), pointer
+  * to the functions called when a no-page or a wp-page exception occurs.
++ *
++ * Note, when a new function is introduced to vm_operations_struct and
++ * added to hugetlb_vm_ops, please consider adding the function to
++ * shm_vm_ops. This is because under System V memory model, though
++ * mappings created via shmget/shmat with "huge page" specified are
++ * backed by hugetlbfs files, their original vm_ops are overwritten with
++ * shm_vm_ops.
+  */
+ struct vm_operations_struct {
+ 	void (*open)(struct vm_area_struct * area);
+diff --git a/ipc/shm.c b/ipc/shm.c
+index 051a3e1fb8df..fefa00d310fb 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -427,6 +427,17 @@ static int shm_split(struct vm_area_struct *vma, unsigned long addr)
+ 	return 0;
+ }
+ 
++static unsigned long shm_pagesize(struct vm_area_struct *vma)
++{
++	struct file *file = vma->vm_file;
++	struct shm_file_data *sfd = shm_file_data(file);
++
++	if (sfd->vm_ops->pagesize)
++		return sfd->vm_ops->pagesize(vma);
++
++	return PAGE_SIZE;
++}
++
+ #ifdef CONFIG_NUMA
+ static int shm_set_policy(struct vm_area_struct *vma, struct mempolicy *new)
+ {
+@@ -554,6 +565,7 @@ static const struct vm_operations_struct shm_vm_ops = {
+ 	.close	= shm_close,	/* callback for when the vm-area is released */
+ 	.fault	= shm_fault,
+ 	.split	= shm_split,
++	.pagesize = shm_pagesize,
+ #if defined(CONFIG_NUMA)
+ 	.set_policy = shm_set_policy,
+ 	.get_policy = shm_get_policy,
+-- 
+2.15.GIT
