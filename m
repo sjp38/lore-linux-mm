@@ -1,176 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DFC46B0007
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 12:21:54 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id r2-v6so3227240pgp.3
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 09:21:54 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 021C36B000A
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 12:33:05 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id a26-v6so3215748pgw.7
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 09:33:04 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d129-v6sor1231247pfc.144.2018.07.27.09.21.52
+        by mx.google.com with SMTPS id j24-v6sor1402647pfe.146.2018.07.27.09.33.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 27 Jul 2018 09:21:52 -0700 (PDT)
-From: Daniel Drake <drake@endlessm.com>
-Subject: Making direct reclaim fail when thrashing
-Date: Fri, 27 Jul 2018 11:21:43 -0500
-Message-Id: <20180727162143.26466-1-drake@endlessm.com>
+        Fri, 27 Jul 2018 09:33:03 -0700 (PDT)
+Date: Sat, 28 Jul 2018 02:32:55 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH resend] powerpc/64s: fix page table fragment refcount
+ race vs speculative references
+Message-ID: <20180728023255.720d594c@roar.ozlabs.ibm.com>
+In-Reply-To: <20180727153834.GC13348@bombadil.infradead.org>
+References: <20180727114817.27190-1-npiggin@gmail.com>
+	<20180727134156.GA13348@bombadil.infradead.org>
+	<20180728002906.531d0211@roar.ozlabs.ibm.com>
+	<20180727153834.GC13348@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: hannes@cmpxchg.org, linux-mm@kvack.org, linux@endlessm.com, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linuxppc-dev@lists.ozlabs.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>, linux-mm@kvack.org
 
-Split from the thread
-  [PATCH 0/10] psi: pressure stall information for CPU, memory, and IO v2
-where we were discussing if/how to make the direct reclaim codepath
-fail if we're excessively thrashing, so that the OOM killer might
-step in. This is potentially desirable when the thrashing is so bad
-that the UI stops responding, causing the user to pull the plug.
+On Fri, 27 Jul 2018 08:38:35 -0700
+Matthew Wilcox <willy@infradead.org> wrote:
 
-On Tue, Jul 17, 2018 at 7:23 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> mm/workingset.c allows for tracking when an actual page got evicted.
-> workingset_refault tells us whether a give filemap fault is a recent
-> refault and activates the page if that is the case. So what you need is
-> to note how many refaulted pages we have on the active LRU list. If that
-> is a large part of the list and if the inactive list is really small
-> then we know we are trashing. This all sounds much easier than it will
-> eventually turn out to be of course but I didn't really get to play with
-> this much.
+> On Sat, Jul 28, 2018 at 12:29:06AM +1000, Nicholas Piggin wrote:
+> > On Fri, 27 Jul 2018 06:41:56 -0700
+> > Matthew Wilcox <willy@infradead.org> wrote:
+> >   
+> > > On Fri, Jul 27, 2018 at 09:48:17PM +1000, Nicholas Piggin wrote:  
+> > > > The page table fragment allocator uses the main page refcount racily
+> > > > with respect to speculative references. A customer observed a BUG due
+> > > > to page table page refcount underflow in the fragment allocator. This
+> > > > can be caused by the fragment allocator set_page_count stomping on a
+> > > > speculative reference, and then the speculative failure handler
+> > > > decrements the new reference, and the underflow eventually pops when
+> > > > the page tables are freed.    
+> > > 
+> > > Oof.  Can't you fix this instead by using page_ref_add() instead of
+> > > set_page_count()?  
+> > 
+> > It's ugly doing it that way. The problem is we have a page table
+> > destructor and that would be missed if the spec ref was the last
+> > put. In practice with RCU page table freeing maybe you can say
+> > there will be no spec ref there (unless something changes), but
+> > still it just seems much simpler doing this and avoiding any
+> > complexity or relying on other synchronization.  
+> 
+> I don't want to rely on the speculative reference not happening by the
+> time the page table is torn down; that's way too black-magic for me.
+> Another possibility would be to use, say, the top 16 bits of the
+> atomic for your counter and call the dtor once the atomic is below 64k.
+> I'm also thinking about overhauling the dtor system so it's not tied to
+> compound pages; anyone with a bit in page_type would be able to use it.
+> That way you'd always get your dtor called, even if the speculative
+> reference was the last one.
 
-Apologies in advance for any silly mistakes or terrible code that
-follows, as I am not familiar in this part of the kernel.
+Yeah we could look at doing either of those if necessary.
 
-As mentioned in my last mail, knowing if a page on the active list was
-refaulted into place appears not trivial, because the eviction information
-was lost upon refault (it was stored in the page cache shadow entry).
+> 
+> > > > Any objection to the struct page change to grab the arch specific
+> > > > page table page word for powerpc to use? If not, then this should
+> > > > go via powerpc tree because it's inconsequential for core mm.    
+> > > 
+> > > I want (eventually) to get to the point where every struct page carries
+> > > a pointer to the struct mm that it belongs to.  It's good for debugging
+> > > as well as handling memory errors in page tables.  
+> > 
+> > That doesn't seem like it should be a problem, there's some spare
+> > words there for arch independent users.  
+> 
+> Could you take one of the spare words instead then?  My intent was to
+> just take the 'x86 pgds only' comment off that member.  _pt_pad_2 looks
+> ideal because it'll be initialised to 0 and you'll return it to 0 by
+> the time you're done.
 
-Here I'm experimenting by adding another tag to the page cache radix tree,
-tagging pages that were activated in the refault path.
+It doesn't matter for powerpc where the atomic_t goes, so I'm fine with
+moving it. But could you juggle the fields with your patch instead? I
+thought it would be nice to using this field that has been already
+tested on x86 not to overlap with any other data for
+bug fix that'll have to be widely backported.
 
-And then in get_scan_count I'm checking how many active pages have that
-tag, and also looking at the size of the active and inactive lists.
-
-It has a performance blow (probably due to looping over the whole
-active list and doing lots of locking?) but I figured it might serve
-as one step forward.
-
-The results are not exactly as I would expect. Upon launching 20
-processes that allocate and memset 100mb RAM each, exhausting all RAM
-(and no swap available), the kernel starts thrashing and I get numbers
-like:
-
- get_scan_count lru1 active=422714 inactive=19595 refaulted=0
- get_scan_count lru3 active=832 inactive=757 refaulted=21
-
-Lots of active anonymous pages (lru1), and none refaulted, perhaps
-not surprising because it can't swap them out, no swap available.
-
-But only few file pages on the lists (lru3), and only a tiny number
-of refaulted ones, which doesn't line up with your suggestion of
-detecting when a large part of the active list is made up of refaulted
-pages.
-
-Any further suggestions appreciated.
-
-Thanks
-Daniel
----
- include/linux/fs.h         |  1 +
- include/linux/radix-tree.h |  2 +-
- mm/filemap.c               |  2 ++
- mm/vmscan.c                | 37 +++++++++++++++++++++++++++++++++++++
- 4 files changed, 41 insertions(+), 1 deletion(-)
-
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index d85ac9d24bb3..45f94ffd1c67 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -462,6 +462,7 @@ struct block_device {
- #define PAGECACHE_TAG_DIRTY	0
- #define PAGECACHE_TAG_WRITEBACK	1
- #define PAGECACHE_TAG_TOWRITE	2
-+#define PAGECACHE_TAG_REFAULTED	3
- 
- int mapping_tagged(struct address_space *mapping, int tag);
- 
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index 34149e8b5f73..86eccb71ef7e 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -65,7 +65,7 @@ static inline bool radix_tree_is_internal_node(void *ptr)
- 
- /*** radix-tree API starts here ***/
- 
--#define RADIX_TREE_MAX_TAGS 3
-+#define RADIX_TREE_MAX_TAGS 4
- 
- #ifndef RADIX_TREE_MAP_SHIFT
- #define RADIX_TREE_MAP_SHIFT	(CONFIG_BASE_SMALL ? 4 : 6)
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 250f675dcfb2..9a686570dc75 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -917,6 +917,8 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
- 		 */
- 		if (!(gfp_mask & __GFP_WRITE) &&
- 		    shadow && workingset_refault(shadow)) {
-+			radix_tree_tag_set(&mapping->i_pages, page_index(page),
-+					   PAGECACHE_TAG_REFAULTED);
- 			SetPageActive(page);
- 			workingset_activation(page);
- 		} else
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 03822f86f288..79bc810b43bb 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2102,6 +2102,30 @@ enum scan_balance {
- 	SCAN_FILE,
- };
- 
-+
-+static int count_refaulted(struct lruvec *lruvec, enum lru_list lru) {
-+	int nr_refaulted = 0;
-+	struct page *page;
-+
-+	list_for_each_entry(page, &lruvec->lists[lru], lru) {
-+		/* Lookup page cache entry from page following the approach
-+		 * taken in __set_page_dirty_nobuffers */
-+		unsigned long flags;
-+		struct address_space *mapping = page_mapping(page);
-+		if (!mapping)
-+			continue;
-+
-+		xa_lock_irqsave(&mapping->i_pages, flags);
-+		BUG_ON(page_mapping(page) != mapping);
-+		nr_refaulted += radix_tree_tag_get(&mapping->i_pages,
-+						   page_index(page),
-+						   PAGECACHE_TAG_REFAULTED);
-+		xa_unlock_irqrestore(&mapping->i_pages, flags);
-+	}
-+
-+	return nr_refaulted;
-+}
-+
- /*
-  * Determine how aggressively the anon and file LRU lists should be
-  * scanned.  The relative value of each set of LRU lists is determined
-@@ -2270,6 +2294,19 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 		unsigned long size;
- 		unsigned long scan;
- 
-+		if (lru == LRU_ACTIVE_ANON || lru == LRU_ACTIVE_FILE) {
-+			int nr_refaulted;
-+			unsigned long inactive, active;
-+
-+			nr_refaulted  = count_refaulted(lruvec, lru);
-+			active = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
-+			inactive = lruvec_lru_size(lruvec, lru - 1,
-+						   sc->reclaim_idx);
-+			pr_err("get_scan_count lru%d active=%ld inactive=%ld "
-+			      "refaulted=%d\n",
-+			       lru, active, inactive, nr_refaulted);
-+		}
-+
- 		size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
- 		scan = size >> sc->priority;
- 		/*
--- 
-2.17.1
+Thanks,
+Nick
