@@ -1,95 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 206D16B0006
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 15:38:36 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id u68-v6so5166755qku.5
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 12:38:36 -0700 (PDT)
-Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
-        by mx.google.com with ESMTPS id w31-v6si4610888qtg.3.2018.07.27.12.38.34
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BCF756B000A
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 15:56:03 -0400 (EDT)
+Received: by mail-yb0-f198.google.com with SMTP id d4-v6so3066311ybl.3
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 12:56:03 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 62-v6sor1338440ybe.127.2018.07.27.12.55.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jul 2018 12:38:34 -0700 (PDT)
-Subject: Re: [PATCH 2/3] dmapool: improve scalability of dma_pool_free
-References: <1288e597-a67a-25b3-b7c6-db883ca67a25@cybernetics.com>
- <20180726194209.GB12992@bombadil.infradead.org>
- <b3430dd4-a4d6-28f1-09a1-82e0bf4a3b83@cybernetics.com>
- <20180727000708.GA785@bombadil.infradead.org>
- <cae33099-3147-5014-ab4e-c22a4d66dc49@cybernetics.com>
- <20180727152322.GB13348@bombadil.infradead.org>
-From: Tony Battersby <tonyb@cybernetics.com>
-Message-ID: <acdc2e32-466c-61d3-145f-80bfba2c6739@cybernetics.com>
-Date: Fri, 27 Jul 2018 15:38:32 -0400
+        (Google Transport Security);
+        Fri, 27 Jul 2018 12:55:57 -0700 (PDT)
+Date: Fri, 27 Jul 2018 15:58:48 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: terminate the reclaim early when direct reclaiming
+Message-ID: <20180727195848.GA12399@cmpxchg.org>
+References: <1532683165-19416-1-git-send-email-zhaoyang.huang@spreadtrum.com>
 MIME-Version: 1.0
-In-Reply-To: <20180727152322.GB13348@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1532683165-19416-1-git-send-email-zhaoyang.huang@spreadtrum.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
+To: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org
 
-On 07/27/2018 11:23 AM, Matthew Wilcox wrote:
-> On Fri, Jul 27, 2018 at 09:23:30AM -0400, Tony Battersby wrote:
->> On 07/26/2018 08:07 PM, Matthew Wilcox wrote:
->>> If you're up for more major surgery, then I think we can put all the
->>> information currently stored in dma_page into struct page.  Something
->>> like this:
->>>
->>> +++ b/include/linux/mm_types.h
->>> @@ -152,6 +152,12 @@ struct page {
->>>                         unsigned long hmm_data;
->>>                         unsigned long _zd_pad_1;        /* uses mapping */
->>>                 };
->>> +               struct {        /* dma_pool pages */
->>> +                       struct list_head dma_list;
->>> +                       unsigned short in_use;
->>> +                       unsigned short offset;
->>> +                       dma_addr_t dma;
->>> +               };
->>>  
->>>                 /** @rcu_head: You can use this to free a page by RCU. */
->>>                 struct rcu_head rcu_head;
->>>
->>> page_list -> dma_list
->>> vaddr goes away (page_to_virt() exists)
->>> dma -> dma
->>> in_use and offset shrink from 4 bytes to 2.
->>>
->>> Some 32-bit systems have a 64-bit dma_addr_t, and on those systems,
->>> this will be 8 + 2 + 2 + 8 = 20 bytes.  On 64-bit systems, it'll be
->>> 16 + 2 + 2 + 4 bytes of padding + 8 = 32 bytes (we have 40 available).
->>>
->>>
->> offset at least needs more bits, since allocations can be multi-page.A 
-> Ah, rats.  That means we have to use the mapcount union too:
->
+Hi Zhaoyang,
 
-Actually, on second thought, if I understand it correctly, a multi-page
-allocation will never be split up and returned as multiple
-sub-allocations, so the offset shouldn't be needed for that case.A  The
-offset should only be needed when splitting a PAGE_SIZE-allocation into
-smaller sub-allocations.A  The current code uses the offset
-unconditionally though, so it would need major changes to remove the
-dependence.A  So a 16-bit offset might work.
+On Fri, Jul 27, 2018 at 05:19:25PM +0800, Zhaoyang Huang wrote:
+> This patch try to let the direct reclaim finish earlier than it used
+> to be. The problem comes from We observing that the direct reclaim
+> took a long time to finish when memcg is enabled. By debugging, we
+> find that the reason is the softlimit is too low to meet the loop
+> end criteria. So we add two barriers to judge if it has reclaimed
+> enough memory as same criteria as it is in shrink_lruvec:
+> 1. for each memcg softlimit reclaim.
+> 2. before starting the global reclaim in shrink_zone.
 
-As for sanity checking, I suppose having the dma address in the page
-could provide something for dma_pool_free() to check against (in fact it
-is already there under DMAPOOL_DEBUG).
+Yes, the soft limit reclaim cycle is fairly aggressive and can
+introduce quite some allocation latency into the system. Let me say
+right up front, though, that we've spend hours in conference sessions
+and phone calls trying to fix this and could never agree on
+anything. You might have better luck trying cgroup2 which implements
+memory.low in a more scalable manner. (Due to the default value of 0
+instead of infinitity, it can use a smoother 2-pass reclaim cycle.)
 
-But the bigger problem is that my first patch adds another list_head to
-the dma_page for the avail_page_link to make allocations faster.A  I
-suppose we could make the lists singly-linked instead of doubly-linked
-to save space.
+On your patch specifically:
 
-Wouldn't using the mapcount union make it problematic for userspace to
-mmap() the returned DMA buffers?A  I am not sure if any drivers allow
-that to be done or not.A  I have heard of drivers in userspace, drivers
-with DMA ring buffers, etc.A  I don't want to audit the whole kernel tree
-to know if it would be safe.A  As you have seen, at least mpt3sas is
-doing unexpected things with dma pools.
+should_continue_reclaim() is for compacting higher order pages. It
+assumes you have already made a full reclaim cycle and returns false
+for most allocations without checking any sort of reclaim progress.
 
-So maybe it could be done, but you are right, it would involve major
-surgery.A  My current in-development patch to implement your intial
-suggestion is pretty small and it works.A  So I'm not sure if I want to
-take it further or not.A  Lots of other things to do...
+You may end up in a situation where soft limit reclaim finds nothing,
+and you still abort without trying a regular reclaim cycle. That can
+trigger the OOM killer while there is still plenty of reclaimable
+memory in other groups.
+
+So if you want to fix this, you'd have to look for a different
+threshold for soft limit reclaim and. Maybe something like this
+already works:
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index ee91e8cbeb5a..5b2388fa6bc4 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2786,7 +2786,8 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+ 						&nr_soft_scanned);
+ 			sc->nr_reclaimed += nr_soft_reclaimed;
+ 			sc->nr_scanned += nr_soft_scanned;
+-			/* need some check for avoid more shrink_zone() */
++			if (nr_soft_reclaimed)
++				continue;
+ 		}
+ 
+ 		/* See comment about same check for global reclaim above */
