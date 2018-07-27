@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 167076B000D
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 10:03:35 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id 40-v6so1580346wrb.23
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 07:03:35 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 128CF6B000D
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 10:03:36 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id s15-v6so3186416wrn.16
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 07:03:36 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x25-v6sor1136791wmc.70.2018.07.27.07.03.33
+        by mx.google.com with SMTPS id v1-v6sor1011379wmc.53.2018.07.27.07.03.34
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 27 Jul 2018 07:03:33 -0700 (PDT)
+        Fri, 27 Jul 2018 07:03:34 -0700 (PDT)
 From: osalvador@techadventures.net
-Subject: [PATCH v4 0/4] Refactor free_area_init_core and add free_area_init_core_hotplug
-Date: Fri, 27 Jul 2018 16:03:21 +0200
-Message-Id: <20180727140325.11881-1-osalvador@techadventures.net>
+Subject: [PATCH v4 3/4] mm/page_alloc: Inline function to handle CONFIG_DEFERRED_STRUCT_PAGE_INIT
+Date: Fri, 27 Jul 2018 16:03:24 +0200
+Message-Id: <20180727140325.11881-4-osalvador@techadventures.net>
+In-Reply-To: <20180727140325.11881-1-osalvador@techadventures.net>
+References: <20180727140325.11881-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
@@ -20,47 +22,60 @@ Cc: mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, mgorman@techsing
 
 From: Oscar Salvador <osalvador@suse.de>
 
-Changes:
+Let us move the code between CONFIG_DEFERRED_STRUCT_PAGE_INIT
+to an inline function.
+Not having an ifdef in the function makes the code more readable.
 
-v3 -> v4:
-        - Unify patch-5 and patch-4
-        - Make free_area_init_core __init (Suggested by Michal)
-        - Make zone_init_internals __paginginit (Suggested by Pavel)
-        - Add Reviewed-by/Acked-by:
+Signed-off-by: Oscar Salvador <osalvador@suse.de>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+---
+ mm/page_alloc.c | 25 ++++++++++++++++---------
+ 1 file changed, 16 insertions(+), 9 deletions(-)
 
-v2 -> v3:
-        - Think better about split free_area_init_core for
-          memhotplug/early init context (Suggested by Michal)
-
-This patchset does three things:
-
- 1) Clean up/refactor free_area_init_core/free_area_init_node
-    by moving the ifdefery out of the functions.
- 2) Move the pgdat/zone initialization in free_area_init_core to its
-    own function.
- 3) Introduce free_area_init_core_hotplug, a small subset of free_area_init_core,
-    which is only called from memhotlug code path.
-    In this way, we have:
-
-    free_area_init_core: called during early initialization
-    free_area_init_core_hotplug: called whenever a new node is allocated/re-used (memhotplug path)
-
-Oscar Salvador (3):
-  mm/page_alloc: Move ifdefery out of free_area_init_core
-  mm/page_alloc: Inline function to handle
-    CONFIG_DEFERRED_STRUCT_PAGE_INIT
-  mm/page_alloc: Introduce free_area_init_core_hotplug
-
-Pavel Tatashin (1):
-  mm: access zone->node via zone_to_nid() and zone_set_nid()
-
- include/linux/mm.h     |  13 ++---
- include/linux/mmzone.h |  26 +++++++---
- mm/memory_hotplug.c    |  16 ++----
- mm/mempolicy.c         |   4 +-
- mm/mm_init.c           |   9 +---
- mm/page_alloc.c        | 134 +++++++++++++++++++++++++++++++++++--------------
- 6 files changed, 130 insertions(+), 72 deletions(-)
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 10b754fba5fa..4e84a17a5030 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6376,6 +6376,21 @@ static void __ref alloc_node_mem_map(struct pglist_data *pgdat)
+ static void __ref alloc_node_mem_map(struct pglist_data *pgdat) { }
+ #endif /* CONFIG_FLAT_NODE_MEM_MAP */
+ 
++#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
++static inline void pgdat_set_deferred_range(pg_data_t *pgdat)
++{
++	/*
++	 * We start only with one section of pages, more pages are added as
++	 * needed until the rest of deferred pages are initialized.
++	 */
++	pgdat->static_init_pgcnt = min_t(unsigned long, PAGES_PER_SECTION,
++						pgdat->node_spanned_pages);
++	pgdat->first_deferred_pfn = ULONG_MAX;
++}
++#else
++static inline void pgdat_set_deferred_range(pg_data_t *pgdat) {}
++#endif
++
+ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+ 		unsigned long node_start_pfn, unsigned long *zholes_size)
+ {
+@@ -6401,16 +6416,8 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+ 				  zones_size, zholes_size);
+ 
+ 	alloc_node_mem_map(pgdat);
++	pgdat_set_deferred_range(pgdat);
+ 
+-#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+-	/*
+-	 * We start only with one section of pages, more pages are added as
+-	 * needed until the rest of deferred pages are initialized.
+-	 */
+-	pgdat->static_init_pgcnt = min_t(unsigned long, PAGES_PER_SECTION,
+-					 pgdat->node_spanned_pages);
+-	pgdat->first_deferred_pfn = ULONG_MAX;
+-#endif
+ 	free_area_init_core(pgdat);
+ }
+ 
 -- 
 2.13.6
