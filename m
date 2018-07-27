@@ -1,103 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C3BAC6B0007
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 11:23:28 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id b9-v6so3102766pgq.17
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 08:23:28 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id w25-v6si4191917pga.58.2018.07.27.08.23.27
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 07F116B000A
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 11:24:56 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id o24-v6so3827597iob.20
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 08:24:56 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id 19-v6si3216389itk.86.2018.07.27.08.24.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 27 Jul 2018 08:23:27 -0700 (PDT)
-Date: Fri, 27 Jul 2018 08:23:22 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 2/3] dmapool: improve scalability of dma_pool_free
-Message-ID: <20180727152322.GB13348@bombadil.infradead.org>
-References: <1288e597-a67a-25b3-b7c6-db883ca67a25@cybernetics.com>
- <20180726194209.GB12992@bombadil.infradead.org>
- <b3430dd4-a4d6-28f1-09a1-82e0bf4a3b83@cybernetics.com>
- <20180727000708.GA785@bombadil.infradead.org>
- <cae33099-3147-5014-ab4e-c22a4d66dc49@cybernetics.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 Jul 2018 08:24:54 -0700 (PDT)
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6RFNk5I164204
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 15:24:54 GMT
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by userp2130.oracle.com with ESMTP id 2kbv8tfqpk-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 15:24:53 +0000
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w6RFOqUG017393
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 15:24:52 GMT
+Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w6RFOqp6001759
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 15:24:52 GMT
+Received: by mail-oi0-f42.google.com with SMTP id l10-v6so9723396oii.0
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 08:24:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <cae33099-3147-5014-ab4e-c22a4d66dc49@cybernetics.com>
+References: <20180727140325.11881-1-osalvador@techadventures.net> <20180727140325.11881-5-osalvador@techadventures.net>
+In-Reply-To: <20180727140325.11881-5-osalvador@techadventures.net>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Fri, 27 Jul 2018 11:24:15 -0400
+Message-ID: <CAGM2reY-uUTBYUY9XhhQqm6CRWjFsH0fxJ1H7D3+-0Lbyy8HTg@mail.gmail.com>
+Subject: Re: [PATCH v4 4/4] mm/page_alloc: Introduce free_area_init_core_hotplug
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Battersby <tonyb@cybernetics.com>
-Cc: Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
+To: osalvador@techadventures.net
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, dan.j.williams@intel.com, osalvador@suse.de
 
-On Fri, Jul 27, 2018 at 09:23:30AM -0400, Tony Battersby wrote:
-> On 07/26/2018 08:07 PM, Matthew Wilcox wrote:
-> > If you're up for more major surgery, then I think we can put all the
-> > information currently stored in dma_page into struct page.  Something
-> > like this:
-> >
-> > +++ b/include/linux/mm_types.h
-> > @@ -152,6 +152,12 @@ struct page {
-> >                         unsigned long hmm_data;
-> >                         unsigned long _zd_pad_1;        /* uses mapping */
-> >                 };
-> > +               struct {        /* dma_pool pages */
-> > +                       struct list_head dma_list;
-> > +                       unsigned short in_use;
-> > +                       unsigned short offset;
-> > +                       dma_addr_t dma;
-> > +               };
-> >  
-> >                 /** @rcu_head: You can use this to free a page by RCU. */
-> >                 struct rcu_head rcu_head;
-> >
-> > page_list -> dma_list
-> > vaddr goes away (page_to_virt() exists)
-> > dma -> dma
-> > in_use and offset shrink from 4 bytes to 2.
-> >
-> > Some 32-bit systems have a 64-bit dma_addr_t, and on those systems,
-> > this will be 8 + 2 + 2 + 8 = 20 bytes.  On 64-bit systems, it'll be
-> > 16 + 2 + 2 + 4 bytes of padding + 8 = 32 bytes (we have 40 available).
-> >
-> >
-> offset at least needs more bits, since allocations can be multi-page. 
+Hi Oscar,
 
-Ah, rats.  That means we have to use the mapcount union too:
+>  static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
 
-+++ b/include/linux/mm_types.h
-@@ -152,6 +152,11 @@ struct page {
-                        unsigned long hmm_data;
-                        unsigned long _zd_pad_1;        /* uses mapping */
-                };
-+               struct {        /* dma_pool pages */
-+                       struct list_head dma_list;
-+                       unsigned int dma_in_use;
-+                       dma_addr_t dma;
-+               };
- 
-                /** @rcu_head: You can use this to free a page by RCU. */
-                struct rcu_head rcu_head;
-@@ -174,6 +179,7 @@ struct page {
- 
-                unsigned int active;            /* SLAB */
-                int units;                      /* SLOB */
-+               unsigned int dma_offset;        /* dma_pool */
-        };
- 
-        /* Usage count. *DO NOT USE DIRECTLY*. See page_ref.h */
+Remove __ref from this function and add it to
+free_area_init_core_hotplug() instead, as that is the only function
+from a different section. This will reduce the scope of ref, and no
+need to place reset_node_managed_pages() into a different section as
+it is compiled only when CONFIG_MEMORY_HOTPLUG=y
 
+> +#ifdef CONFIG_MEMORY_HOTPLUG
+> +void __paginginit free_area_init_core_hotplug(int nid)
+> +{
+> +       enum zone_type j;
+> +       pg_data_t *pgdat = NODE_DATA(nid);
+> +
+> +       pgdat_init_internals(pgdat);
+> +       for (j = 0; j < MAX_NR_ZONES; j++) {
+> +               struct zone *zone = pgdat->node_zones + j;
+> +               zone_init_internals(zone, j, nid, 0);
+> +       }
+> +}
 
-> See the following from mpt3sas:
-> 
-> cat /sys/devices/pci0000:80/0000:80:07.0/0000:85:00.0/pools
-> (manually cleaned up column alignment)
-> poolinfo - 0.1
-> reply_post_free_array pool  1      21     192     1
-> reply_free pool             1      1      41728   1
-> reply pool                  1      1      1335296 1
-> sense pool                  1      1      970272  1
-> chain pool                  373959 386048 128     12064
-> reply_post_free pool        12     12     166528  12
->                                           ^size^
+Style: I would write the for() loop above like this:
 
-Wow, that's a pretty weird way to use the dmapool.  It'd be more efficient
-to just call dma_alloc_coherent() directly.
+        for (i = 0; i < MAX_NR_ZONES; i++)
+                zone_init_internals(&pgdat->node_zones[i], i, nid, 0);
+
+Other than this all good:
+Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+
+Thank you,
+Pavel
