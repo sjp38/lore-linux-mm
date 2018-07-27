@@ -1,77 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DDE1F6B000A
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 09:50:37 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id b185-v6so4294615qkg.19
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 06:50:37 -0700 (PDT)
-Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
-        by mx.google.com with ESMTPS id o20-v6si4068167qtb.83.2018.07.27.06.50.37
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C3646B000E
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 10:03:35 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id w2-v6so3310164wrt.13
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 07:03:35 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o7-v6sor910116wmh.47.2018.07.27.07.03.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jul 2018 06:50:37 -0700 (PDT)
-Subject: Re: [PATCH 1/3] dmapool: improve scalability of dma_pool_alloc
-References: <15ff502d-d840-1003-6c45-bc17f0d81262@cybernetics.com>
- <CAHp75VcXVgAtUWY5yRBFg85C5NPN2BAFyAfAkPLkKq5+SsNHpg@mail.gmail.com>
- <2a04ee8b-478d-39f1-09a0-1b2f8c6ee8c6@cybernetics.com>
-From: Tony Battersby <tonyb@cybernetics.com>
-Message-ID: <2a7cf138-3c2e-6db8-de87-7f4689404adb@cybernetics.com>
-Date: Fri, 27 Jul 2018 09:50:34 -0400
-MIME-Version: 1.0
-In-Reply-To: <2a04ee8b-478d-39f1-09a0-1b2f8c6ee8c6@cybernetics.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+        (Google Transport Security);
+        Fri, 27 Jul 2018 07:03:33 -0700 (PDT)
+From: osalvador@techadventures.net
+Subject: [PATCH v4 1/4] mm/page_alloc: Move ifdefery out of free_area_init_core
+Date: Fri, 27 Jul 2018 16:03:22 +0200
+Message-Id: <20180727140325.11881-2-osalvador@techadventures.net>
+In-Reply-To: <20180727140325.11881-1-osalvador@techadventures.net>
+References: <20180727140325.11881-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Shevchenko <andy.shevchenko@gmail.com>
-Cc: Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Matthew Wilcox <willy@infradead.org>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, mgorman@techsingularity.net, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.j.williams@intel.com, Oscar Salvador <osalvador@suse.de>
 
+From: Oscar Salvador <osalvador@suse.de>
 
-> That would be true if the test were "if
-> (list_empty(&pool->avail_page_list))".A  But it is testing the list
-> pointers in the item rather than the list pointers in the pool.A  It may
-> be a bit confusing if you have never seen that usage before, which is
-> why I added a comment.A  Basically, if you use list_del_init() instead of
-> list_del(), then you can use list_empty() on the item itself to test if
-> the item is present in a list or not.A  For example, the comments in
-> list.h warn not to use list_empty() on the entry after just list_del():
->
-> /**
->  * list_del - deletes entry from list.
->  * @entry: the element to delete from the list.
->  * Note: list_empty() on entry does not return true after this, the entry is
->  * in an undefined state.
->  */
+Moving the #ifdefs out of the function makes it easier to follow.
 
-Sorry for the crappy line length (fixed above).A  Should have just used
-Preformat in Thunderbird like always rather than following
-Documentation/process/email-clients.rst and changing mailnews.wraplength
-from 72 to 0.
+Signed-off-by: Oscar Salvador <osalvador@suse.de>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+---
+ mm/page_alloc.c | 50 +++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 37 insertions(+), 13 deletions(-)
 
-Anyway, I have been using list_del_init() for a long time in various
-places, but now I can't find where any of its useful features are
-documented.A  I will have to submit a separate patch to add more
-documentation for it.A  I find it useful for two things.
-
-1) If you use list_del_init(), you can delete an item from a list
-multiple times without checking if it has already been deleted.A  So the
-following is safe:
-
-list_add(entry, list);
-list_del_init(entry);
-list_del_init(entry);
-
-That would not be safe if just using list_del().
-
-2) If you use list_del_init(), you can test if an item is present in a
-list using list_empty() on the entry.A  So:
-
-list_add(entry, list);
-/* list_empty(entry) is false */
-list_del_init(entry);
-/* list_empty(entry) is true */
-
-That would not work if using just list_del().
-
-Since the list_empty() name is unintuitive for this purpose, it might be
-useful to add a new macro for this use case.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index e357189cd24a..8a73305f7c55 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6206,6 +6206,37 @@ static unsigned long __paginginit calc_memmap_size(unsigned long spanned_pages,
+ 	return PAGE_ALIGN(pages * sizeof(struct page)) >> PAGE_SHIFT;
+ }
+ 
++#ifdef CONFIG_NUMA_BALANCING
++static void pgdat_init_numabalancing(struct pglist_data *pgdat)
++{
++	spin_lock_init(&pgdat->numabalancing_migrate_lock);
++	pgdat->numabalancing_migrate_nr_pages = 0;
++	pgdat->numabalancing_migrate_next_window = jiffies;
++}
++#else
++static void pgdat_init_numabalancing(struct pglist_data *pgdat) {}
++#endif
++
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static void pgdat_init_split_queue(struct pglist_data *pgdat)
++{
++	spin_lock_init(&pgdat->split_queue_lock);
++	INIT_LIST_HEAD(&pgdat->split_queue);
++	pgdat->split_queue_len = 0;
++}
++#else
++static void pgdat_init_split_queue(struct pglist_data *pgdat) {}
++#endif
++
++#ifdef CONFIG_COMPACTION
++static void pgdat_init_kcompactd(struct pglist_data *pgdat)
++{
++	init_waitqueue_head(&pgdat->kcompactd_wait);
++}
++#else
++static void pgdat_init_kcompactd(struct pglist_data *pgdat) {}
++#endif
++
+ /*
+  * Set up the zone data structures:
+  *   - mark all pages reserved
+@@ -6220,21 +6251,14 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ 	int nid = pgdat->node_id;
+ 
+ 	pgdat_resize_init(pgdat);
+-#ifdef CONFIG_NUMA_BALANCING
+-	spin_lock_init(&pgdat->numabalancing_migrate_lock);
+-	pgdat->numabalancing_migrate_nr_pages = 0;
+-	pgdat->numabalancing_migrate_next_window = jiffies;
+-#endif
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-	spin_lock_init(&pgdat->split_queue_lock);
+-	INIT_LIST_HEAD(&pgdat->split_queue);
+-	pgdat->split_queue_len = 0;
+-#endif
++
++	pgdat_init_numabalancing(pgdat);
++	pgdat_init_split_queue(pgdat);
++	pgdat_init_kcompactd(pgdat);
++
+ 	init_waitqueue_head(&pgdat->kswapd_wait);
+ 	init_waitqueue_head(&pgdat->pfmemalloc_wait);
+-#ifdef CONFIG_COMPACTION
+-	init_waitqueue_head(&pgdat->kcompactd_wait);
+-#endif
++
+ 	pgdat_page_ext_init(pgdat);
+ 	spin_lock_init(&pgdat->lru_lock);
+ 	lruvec_init(node_lruvec(pgdat));
+-- 
+2.13.6
