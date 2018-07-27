@@ -1,55 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C867B6B0008
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 17:27:23 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id d25-v6so4982628qtp.10
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 14:27:23 -0700 (PDT)
-Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
-        by mx.google.com with ESMTPS id k5-v6si337158qkb.28.2018.07.27.14.27.23
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 918596B000D
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 17:27:30 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id l26-v6so5175850oii.14
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 14:27:30 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id h77-v6si3479760oig.370.2018.07.27.14.27.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jul 2018 14:27:23 -0700 (PDT)
-Subject: Re: [PATCH 2/3] dmapool: improve scalability of dma_pool_free
-References: <1288e597-a67a-25b3-b7c6-db883ca67a25@cybernetics.com>
- <20180726194209.GB12992@bombadil.infradead.org>
- <b3430dd4-a4d6-28f1-09a1-82e0bf4a3b83@cybernetics.com>
- <20180727000708.GA785@bombadil.infradead.org>
- <cae33099-3147-5014-ab4e-c22a4d66dc49@cybernetics.com>
- <20180727152322.GB13348@bombadil.infradead.org>
- <acdc2e32-466c-61d3-145f-80bfba2c6739@cybernetics.com>
-From: Tony Battersby <tonyb@cybernetics.com>
-Message-ID: <88d362b7-1d53-b430-1741-b48cbc0a7887@cybernetics.com>
-Date: Fri, 27 Jul 2018 17:27:20 -0400
+        Fri, 27 Jul 2018 14:27:29 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6RLIVNs090044
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 17:27:28 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2kg6d0kn1w-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 17:27:28 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Fri, 27 Jul 2018 22:27:26 +0100
+Date: Sat, 28 Jul 2018 00:27:21 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 6/7] docs/mm: make GFP flags descriptions usable as
+ kernel-doc
+References: <1532626360-16650-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1532626360-16650-7-git-send-email-rppt@linux.vnet.ibm.com>
+ <20180726160825.0667af9f@lwn.net>
 MIME-Version: 1.0
-In-Reply-To: <acdc2e32-466c-61d3-145f-80bfba2c6739@cybernetics.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180726160825.0667af9f@lwn.net>
+Message-Id: <20180727212720.GD17745@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 07/27/2018 03:38 PM, Tony Battersby wrote:
-> But the bigger problem is that my first patch adds another list_head to
-> the dma_page for the avail_page_link to make allocations faster.A  I
-> suppose we could make the lists singly-linked instead of doubly-linked
-> to save space.
->
+On Thu, Jul 26, 2018 at 04:08:25PM -0600, Jonathan Corbet wrote:
+> On Thu, 26 Jul 2018 20:32:39 +0300
+> Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+> 
+> > This patch adds DOC: headings for GFP flag descriptions and adjusts the
+> > formatting to fit sphinx expectations of paragraphs.
+> 
+> So I think this is a great thing to do.  Adding cross references from
+> places where GFP flags are expected would be even better.  I do have one
+> little concern, though...
+> 
+> > - * __GFP_MOVABLE (also a zone modifier) indicates that the page can be
+> > - *   moved by page migration during memory compaction or can be reclaimed.
+> > + * %__GFP_MOVABLE (also a zone modifier) indicates that the page can be
+> > + * moved by page migration during memory compaction or can be reclaimed.
+> 
+> There are Certain Developers who get rather bent out of shape when they
+> feel that excessive markup is degrading the readability of the plain-text
+> documentation.  I have a suspicion that all of these % signs might turn
+> out to be one of those places.  People have been trained to expect them in
+> function documentation, but that's not quite what we have here.
+> 
+> I won't insist on this, but I would suggest that, in this particular case,
+> it might be better for that markup to come out.
 
-I managed to redo my dma_pool_alloc() patch to make avail_page_list
-singly-linked instead of doubly-linked.A  But the problem with making
-either list singly-linked is that it would no longer be possible to call
-pool_free_page() any time other than dma_pool_destroy() without scanning
-the lists to remove the page from them, which would make pruning
-arbitrary free pages slower (adding back a O(n^2)).A  But the current
-code doesn't do that anyway, and in fact it has a comment in
-dma_pool_free() to "resist the temptation" to prune free pages.A  And yet
-it seems like it might be reasonable for someone to add such code in the
-future if there are a whole lot of free pages, so I am hesitant to make
-it more difficult.
+No problem with removing % signs, but the whitespace changes are necessary,
+otherwise the generated html gets weird.
+ 
+> Then we have the same old question of who applies these.  I'd love to have
+> an ack from somebody who can speak for mm - or a statement that these will
+> go through another tree.  Preferably quickly so that this stuff can get
+> in through the upcoming merge window.
 
-So my question is: when I post v2 of the patchset, should I send the
-doubly-linked version or the singly-linked version, in anticipation that
-someone else might want to take it further and move everything into
-struct page as you suggest?
+> Thanks,
+> 
+> jon
+> 
+
+-- 
+Sincerely yours,
+Mike.
