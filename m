@@ -1,44 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3204C6B0010
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 17:29:35 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id n19-v6so3628390pgv.14
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 14:29:35 -0700 (PDT)
-Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
-        by mx.google.com with ESMTPS id i8-v6si4720368pgj.33.2018.07.27.14.29.34
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AE6C86B0269
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 17:35:57 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id d134-v6so2488239vkf.5
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 14:35:57 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t184-v6sor2076784vkt.1.2018.07.27.14.35.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jul 2018 14:29:34 -0700 (PDT)
-Date: Fri, 27 Jul 2018 15:29:32 -0600
-From: Jonathan Corbet <corbet@lwn.net>
-Subject: Re: [PATCH v3 6/7] docs/mm: make GFP flags descriptions usable as
- kernel-doc
-Message-ID: <20180727152932.0ead76d1@lwn.net>
-In-Reply-To: <20180727212720.GD17745@rapoport-lnx>
-References: <1532626360-16650-1-git-send-email-rppt@linux.vnet.ibm.com>
-	<1532626360-16650-7-git-send-email-rppt@linux.vnet.ibm.com>
-	<20180726160825.0667af9f@lwn.net>
-	<20180727212720.GD17745@rapoport-lnx>
+        (Google Transport Security);
+        Fri, 27 Jul 2018 14:35:56 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <88d362b7-1d53-b430-1741-b48cbc0a7887@cybernetics.com>
+References: <1288e597-a67a-25b3-b7c6-db883ca67a25@cybernetics.com>
+ <20180726194209.GB12992@bombadil.infradead.org> <b3430dd4-a4d6-28f1-09a1-82e0bf4a3b83@cybernetics.com>
+ <20180727000708.GA785@bombadil.infradead.org> <cae33099-3147-5014-ab4e-c22a4d66dc49@cybernetics.com>
+ <20180727152322.GB13348@bombadil.infradead.org> <acdc2e32-466c-61d3-145f-80bfba2c6739@cybernetics.com>
+ <88d362b7-1d53-b430-1741-b48cbc0a7887@cybernetics.com>
+From: Andy Shevchenko <andy.shevchenko@gmail.com>
+Date: Sat, 28 Jul 2018 00:35:55 +0300
+Message-ID: <CAHp75VcjMg2RABg4F3u=wpgQvGK8qr-4wxeRNmJtfMAE2VRRAw@mail.gmail.com>
+Subject: Re: [PATCH 2/3] dmapool: improve scalability of dma_pool_free
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tony Battersby <tonyb@cybernetics.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
 
-On Sat, 28 Jul 2018 00:27:21 +0300
-Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+On Sat, Jul 28, 2018 at 12:27 AM, Tony Battersby <tonyb@cybernetics.com> wrote:
+> On 07/27/2018 03:38 PM, Tony Battersby wrote:
+>> But the bigger problem is that my first patch adds another list_head to
+>> the dma_page for the avail_page_link to make allocations faster.  I
+>> suppose we could make the lists singly-linked instead of doubly-linked
+>> to save space.
+>>
+>
+> I managed to redo my dma_pool_alloc() patch to make avail_page_list
+> singly-linked instead of doubly-linked.
 
-> > I won't insist on this, but I would suggest that, in this particular case,
-> > it might be better for that markup to come out.  
-> 
-> No problem with removing % signs, but the whitespace changes are necessary,
-> otherwise the generated html gets weird.
+Are you relying on llist.h implementation?
 
-The whitespace changes are fine - it's really just the % markup I was
-commenting on.
+Btw, did you see quicklist.h?
 
-Thanks,
 
-jon
+-- 
+With Best Regards,
+Andy Shevchenko
