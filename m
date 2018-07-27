@@ -1,76 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 967BE6B0003
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 07:15:36 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id c2-v6so2063313edi.20
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 04:15:36 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b13-v6si1482035edk.422.2018.07.27.04.15.34
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C83E6B0003
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 07:48:29 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id g5-v6so2834955pgq.5
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 04:48:29 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d37-v6sor867290pla.28.2018.07.27.04.48.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jul 2018 04:15:34 -0700 (PDT)
-Subject: Re: Caching/buffers become useless after some time
-References: <CADF2uSrW=Z=7NeA4qRwStoARGeT1y33QSP48Loc1u8XSdpMJOA@mail.gmail.com>
- <20180712113411.GB328@dhcp22.suse.cz>
- <CADF2uSqDDt3X_LHEQnc5xzHpqJ66E5gncogwR45bmZsNHxV55A@mail.gmail.com>
- <CADF2uSr-uFz+AAhcwP7ORgGgtLohayBtpDLxx9kcADDxaW8hWw@mail.gmail.com>
- <20180716162337.GY17280@dhcp22.suse.cz>
- <CADF2uSpEZTqD7pUp1t77GNTT+L=M3Ycir2+gsZg3kf5=y-5_-Q@mail.gmail.com>
- <20180716164500.GZ17280@dhcp22.suse.cz>
- <CADF2uSpkOqCU5hO9y4708TvpJ5JvkXjZ-M1o+FJr2v16AZP3Vw@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <c33fba55-3e86-d40f-efe0-0fc908f303bd@suse.cz>
-Date: Fri, 27 Jul 2018 13:15:33 +0200
-MIME-Version: 1.0
-In-Reply-To: <CADF2uSpkOqCU5hO9y4708TvpJ5JvkXjZ-M1o+FJr2v16AZP3Vw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Fri, 27 Jul 2018 04:48:28 -0700 (PDT)
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: [PATCH resend] powerpc/64s: fix page table fragment refcount race vs speculative references
+Date: Fri, 27 Jul 2018 21:48:17 +1000
+Message-Id: <20180727114817.27190-1-npiggin@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marinko Catovic <marinko.catovic@gmail.com>, linux-mm@kvack.org
+To: linuxppc-dev@lists.ozlabs.org
+Cc: Nicholas Piggin <npiggin@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>, linux-mm@kvack.org
 
-On 07/21/2018 12:03 AM, Marinko Catovic wrote:
-> I let this run for 3 days now, so it is quite a lot, there you go:
-> https://nofile.io/f/egGyRjf0NPs/vmstat.tar.gz
+The page table fragment allocator uses the main page refcount racily
+with respect to speculative references. A customer observed a BUG due
+to page table page refcount underflow in the fragment allocator. This
+can be caused by the fragment allocator set_page_count stomping on a
+speculative reference, and then the speculative failure handler
+decrements the new reference, and the underflow eventually pops when
+the page tables are freed.
 
-The stats show that compaction has very bad results. Between first and
-last snapshot, compact_fail grew by 80k and compact_success by 1300.
-High-order allocations will thus cycle between (failing) compaction and
-reclaim that removes the buffer/caches from memory.
+Fix this by using a dedicated field in the struct page for the page
+table fragment allocator.
 
-Since dropping slab caches helps, I suspect it's either the slab pages
-(which cannot be migrated for compaction) being spread over all memory,
-making it impossible to assemble high-order pages, or some slab objects
-are pinning file pages making them also impossible to be migrated.
+Fixes: 5c1f6ee9a31c ("powerpc: Reduce PTE table memory wastage")
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
+---
 
-> There is one thing I forgot to mention: the hosts perform find and du (I
-> mean the commands, finding files and disk usage)
-> on the HDDs every night, starting from 00:20 AM up until in the morning
-> 07:45 AM, for maintenance and stats.
-> 
-> During this period the buffers/caches raise again as you may see from
-> the logs, so find/du do fill them.
-> Nevertheless as the day passes both decrease again until low values are
-> reached.
-> I disabled find/du for the night on 19->20th July to compare.
-> 
-> I have to say that this really low usage (300MB/xGB) occured just once
-> after I upgraded from 4.16 to 4.17, not sure
-> why, where one can still see from the logs that the buffers/cache is not
-> using up the entire available RAM.
-> 
-> This low usage occured the last time on that one host when I mentioned
-> that I had to 2>drop_caches again in my
-> previous message, so this is still an issue even on the latest kernel.
-> 
-> The other host (the one that was not measured with the vmstat logs) has
-> currently 600MB/14GB, 34GB of free RAM.
-> Both were reset with drop_caches at the same time. From the looks of
-> this the really low usage will occur again
-> somewhat shortly, it just did not come up during measurement. However,
-> the RAM should be full anyway, true?
+Any objection to the struct page change to grab the arch specific
+page table page word for powerpc to use? If not, then this should
+go via powerpc tree because it's inconsequential for core mm.
 
-Can you provide (a single snapshot) /proc/pagetypeinfo and
-/proc/slabinfo from a system that's currently experiencing the issue,
-also with /proc/vmstat and /proc/zoneinfo to verify? Thanks.
+Thanks,
+Nick
+
+ arch/powerpc/mm/mmu_context_book3s64.c |  8 ++++----
+ arch/powerpc/mm/pgtable-book3s64.c     | 17 +++++++++++------
+ include/linux/mm_types.h               |  5 ++++-
+ 3 files changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/arch/powerpc/mm/mmu_context_book3s64.c b/arch/powerpc/mm/mmu_context_book3s64.c
+index f3d4b4a0e561..3bb5cec03d1f 100644
+--- a/arch/powerpc/mm/mmu_context_book3s64.c
++++ b/arch/powerpc/mm/mmu_context_book3s64.c
+@@ -200,9 +200,9 @@ static void pte_frag_destroy(void *pte_frag)
+ 	/* drop all the pending references */
+ 	count = ((unsigned long)pte_frag & ~PAGE_MASK) >> PTE_FRAG_SIZE_SHIFT;
+ 	/* We allow PTE_FRAG_NR fragments from a PTE page */
+-	if (page_ref_sub_and_test(page, PTE_FRAG_NR - count)) {
++	if (atomic_sub_and_test(PTE_FRAG_NR - count, &page->pt_frag_refcount)) {
+ 		pgtable_page_dtor(page);
+-		free_unref_page(page);
++		__free_page(page);
+ 	}
+ }
+ 
+@@ -215,9 +215,9 @@ static void pmd_frag_destroy(void *pmd_frag)
+ 	/* drop all the pending references */
+ 	count = ((unsigned long)pmd_frag & ~PAGE_MASK) >> PMD_FRAG_SIZE_SHIFT;
+ 	/* We allow PTE_FRAG_NR fragments from a PTE page */
+-	if (page_ref_sub_and_test(page, PMD_FRAG_NR - count)) {
++	if (atomic_sub_and_test(PMD_FRAG_NR - count, &page->pt_frag_refcount)) {
+ 		pgtable_pmd_page_dtor(page);
+-		free_unref_page(page);
++		__free_page(page);
+ 	}
+ }
+ 
+diff --git a/arch/powerpc/mm/pgtable-book3s64.c b/arch/powerpc/mm/pgtable-book3s64.c
+index 4afbfbb64bfd..78d0b3d5ebad 100644
+--- a/arch/powerpc/mm/pgtable-book3s64.c
++++ b/arch/powerpc/mm/pgtable-book3s64.c
+@@ -270,6 +270,8 @@ static pmd_t *__alloc_for_pmdcache(struct mm_struct *mm)
+ 		return NULL;
+ 	}
+ 
++	atomic_set(&page->pt_frag_refcount, 1);
++
+ 	ret = page_address(page);
+ 	/*
+ 	 * if we support only one fragment just return the
+@@ -285,7 +287,7 @@ static pmd_t *__alloc_for_pmdcache(struct mm_struct *mm)
+ 	 * count.
+ 	 */
+ 	if (likely(!mm->context.pmd_frag)) {
+-		set_page_count(page, PMD_FRAG_NR);
++		atomic_set(&page->pt_frag_refcount, PMD_FRAG_NR);
+ 		mm->context.pmd_frag = ret + PMD_FRAG_SIZE;
+ 	}
+ 	spin_unlock(&mm->page_table_lock);
+@@ -308,9 +310,10 @@ void pmd_fragment_free(unsigned long *pmd)
+ {
+ 	struct page *page = virt_to_page(pmd);
+ 
+-	if (put_page_testzero(page)) {
++	BUG_ON(atomic_read(&page->pt_frag_refcount) <= 0);
++	if (atomic_dec_and_test(&page->pt_frag_refcount)) {
+ 		pgtable_pmd_page_dtor(page);
+-		free_unref_page(page);
++		__free_page(page);
+ 	}
+ }
+ 
+@@ -352,6 +355,7 @@ static pte_t *__alloc_for_ptecache(struct mm_struct *mm, int kernel)
+ 			return NULL;
+ 	}
+ 
++	atomic_set(&page->pt_frag_refcount, 1);
+ 
+ 	ret = page_address(page);
+ 	/*
+@@ -367,7 +371,7 @@ static pte_t *__alloc_for_ptecache(struct mm_struct *mm, int kernel)
+ 	 * count.
+ 	 */
+ 	if (likely(!mm->context.pte_frag)) {
+-		set_page_count(page, PTE_FRAG_NR);
++		atomic_set(&page->pt_frag_refcount, PTE_FRAG_NR);
+ 		mm->context.pte_frag = ret + PTE_FRAG_SIZE;
+ 	}
+ 	spin_unlock(&mm->page_table_lock);
+@@ -390,10 +394,11 @@ void pte_fragment_free(unsigned long *table, int kernel)
+ {
+ 	struct page *page = virt_to_page(table);
+ 
+-	if (put_page_testzero(page)) {
++	BUG_ON(atomic_read(&page->pt_frag_refcount) <= 0);
++	if (atomic_dec_and_test(&page->pt_frag_refcount)) {
+ 		if (!kernel)
+ 			pgtable_page_dtor(page);
+-		free_unref_page(page);
++		__free_page(page);
+ 	}
+ }
+ 
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 99ce070e7dcb..22651e124071 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -139,7 +139,10 @@ struct page {
+ 			unsigned long _pt_pad_1;	/* compound_head */
+ 			pgtable_t pmd_huge_pte; /* protected by page->ptl */
+ 			unsigned long _pt_pad_2;	/* mapping */
+-			struct mm_struct *pt_mm;	/* x86 pgds only */
++			union {
++				struct mm_struct *pt_mm; /* x86 pgds only */
++				atomic_t pt_frag_refcount; /* powerpc */
++			};
+ #if ALLOC_SPLIT_PTLOCKS
+ 			spinlock_t *ptl;
+ #else
+-- 
+2.17.0
