@@ -1,76 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 51A316B0007
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 07:56:48 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id n22-v6so2672077wmc.6
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 04:56:48 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h3-v6sor1602716wro.4.2018.07.27.04.56.46
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0318C6B0003
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 09:23:34 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id w14-v6so4249412qkw.2
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 06:23:33 -0700 (PDT)
+Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
+        by mx.google.com with ESMTPS id c79-v6si3670231qkg.128.2018.07.27.06.23.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 27 Jul 2018 04:56:47 -0700 (PDT)
-Date: Fri, 27 Jul 2018 13:56:45 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH v2 2/3] mm: calculate deferred pages after skipping
- mirrored memory
-Message-ID: <20180727115645.GA13637@techadventures.net>
-References: <20180726193509.3326-1-pasha.tatashin@oracle.com>
- <20180726193509.3326-3-pasha.tatashin@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 Jul 2018 06:23:32 -0700 (PDT)
+Subject: Re: [PATCH 2/3] dmapool: improve scalability of dma_pool_free
+References: <1288e597-a67a-25b3-b7c6-db883ca67a25@cybernetics.com>
+ <20180726194209.GB12992@bombadil.infradead.org>
+ <b3430dd4-a4d6-28f1-09a1-82e0bf4a3b83@cybernetics.com>
+ <20180727000708.GA785@bombadil.infradead.org>
+From: Tony Battersby <tonyb@cybernetics.com>
+Message-ID: <cae33099-3147-5014-ab4e-c22a4d66dc49@cybernetics.com>
+Date: Fri, 27 Jul 2018 09:23:30 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180726193509.3326-3-pasha.tatashin@oracle.com>
+In-Reply-To: <20180727000708.GA785@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, jrdr.linux@gmail.com, bhe@redhat.com, gregkh@linuxfoundation.org, vbabka@suse.cz, richard.weiyang@gmail.com, dave.hansen@intel.com, rientjes@google.com, mingo@kernel.org, abdhalee@linux.vnet.ibm.com, mpe@ellerman.id.au
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
 
-On Thu, Jul 26, 2018 at 03:35:08PM -0400, Pavel Tatashin wrote:
-> update_defer_init() should be called only when struct page is about to be
-> initialized. Because it counts number of initialized struct pages, but
-> there we may skip struct pages if there is some mirrored memory.
-> 
-> So move, update_defer_init() after checking for mirrored memory.
-> 
-> Also, rename update_defer_init() to defer_init() and reverse the return
-> boolean to emphasize that this is a boolean function, that tells that the
-> reset of memmap initialization should be deferred.
-> 
-> Make this function self-contained: do not pass number of already
-> initialized pages in this zone by using static counters.
-> 
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> ---
->  mm/page_alloc.c | 45 +++++++++++++++++++++++++--------------------
->  1 file changed, 25 insertions(+), 20 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 6796dacd46ac..4946c73e549b 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -306,24 +306,33 @@ static inline bool __meminit early_page_uninitialised(unsigned long pfn)
->  }
+On 07/26/2018 08:07 PM, Matthew Wilcox wrote:
+> On Thu, Jul 26, 2018 at 04:06:05PM -0400, Tony Battersby wrote:
+>> On 07/26/2018 03:42 PM, Matthew Wilcox wrote:
+>>> On Thu, Jul 26, 2018 at 02:54:56PM -0400, Tony Battersby wrote:
+>>>> dma_pool_free() scales poorly when the pool contains many pages because
+>>>> pool_find_page() does a linear scan of all allocated pages.  Improve its
+>>>> scalability by replacing the linear scan with a red-black tree lookup. 
+>>>> In big O notation, this improves the algorithm from O(n^2) to O(n * log n).
+>>> This is a lot of code to get us to O(n * log(n)) when we can use less
+>>> code to go to O(n).  dma_pool_free() is passed the virtual address.
+>>> We can go from virtual address to struct page with virt_to_page().
+>>> In struct page, we have 5 words available (20/40 bytes), and it's trivial
+>>> to use one of them to point to the struct dma_page.
+>>>
+>> Thanks for the tip.A  I will give that a try.
+> If you're up for more major surgery, then I think we can put all the
+> information currently stored in dma_page into struct page.  Something
+> like this:
+>
+> +++ b/include/linux/mm_types.h
+> @@ -152,6 +152,12 @@ struct page {
+>                         unsigned long hmm_data;
+>                         unsigned long _zd_pad_1;        /* uses mapping */
+>                 };
+> +               struct {        /* dma_pool pages */
+> +                       struct list_head dma_list;
+> +                       unsigned short in_use;
+> +                       unsigned short offset;
+> +                       dma_addr_t dma;
+> +               };
 >  
->  /*
-> - * Returns false when the remaining initialisation should be deferred until
-> + * Returns true when the remaining initialisation should be deferred until
->   * later in the boot cycle when it can be parallelised.
->   */
-> -static inline bool update_defer_init(pg_data_t *pgdat,
-> -				unsigned long pfn, unsigned long zone_end,
-> -				unsigned long *nr_initialised)
-> +static bool __meminit
-> +defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
+>                 /** @rcu_head: You can use this to free a page by RCU. */
+>                 struct rcu_head rcu_head;
+>
+> page_list -> dma_list
+> vaddr goes away (page_to_virt() exists)
+> dma -> dma
+> in_use and offset shrink from 4 bytes to 2.
+>
+> Some 32-bit systems have a 64-bit dma_addr_t, and on those systems,
+> this will be 8 + 2 + 2 + 8 = 20 bytes.  On 64-bit systems, it'll be
+> 16 + 2 + 2 + 4 bytes of padding + 8 = 32 bytes (we have 40 available).
+>
+>
+offset at least needs more bits, since allocations can be multi-page.A 
+See the following from mpt3sas:
 
-Hi Pavel,
+cat /sys/devices/pci0000:80/0000:80:07.0/0000:85:00.0/pools
+(manually cleaned up column alignment)
+poolinfo - 0.1
+reply_post_free_array pool  1      21     192     1
+reply_free pool             1      1      41728   1
+reply pool                  1      1      1335296 1
+sense pool                  1      1      970272  1
+chain pool                  373959 386048 128     12064
+reply_post_free pool        12     12     166528  12
+                                          ^size^
 
-maybe I do not understand properly the __init/__meminit macros, but should not
-"defer_init" be __init instead of __meminit?
-I think that functions marked as __meminit are not freed up, right?
+In my initial implementation I also added a pointer from struct page to
+the dma_pool so that dma_pool_free() could sanity-check that the page
+really belongs to the pool, as in:
 
-Besides that, this looks good to me:
+pg = virt_to_page(vaddr);
+if (unlikely(pg->dma_pool != pool)) {
+	handle error...
+}
+page = pg->dma_page;
 
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
--- 
-Oscar Salvador
-SUSE L3
+The linked-list search previously implemented that check as a
+by-product, and I didn't want to lose it.A  It all seems to be working so
+far.
