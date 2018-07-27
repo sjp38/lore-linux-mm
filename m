@@ -1,129 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EBC656B0003
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 15:28:47 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id i77-v6so3173808ywe.19
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 12:28:47 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a15-v6sor1213581ybm.23.2018.07.27.12.28.44
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 206D16B0006
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 15:38:36 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id u68-v6so5166755qku.5
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 12:38:36 -0700 (PDT)
+Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
+        by mx.google.com with ESMTPS id w31-v6si4610888qtg.3.2018.07.27.12.38.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 27 Jul 2018 12:28:44 -0700 (PDT)
-Date: Fri, 27 Jul 2018 15:31:34 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] memcg: Remove memcg_cgroup::id from IDR on
- mem_cgroup_css_alloc() failure
-Message-ID: <20180727193134.GA10996@cmpxchg.org>
-References: <06931a83-91d2-3dcf-31cf-0b98d82e957f@virtuozzo.com>
- <20180413112036.GH17484@dhcp22.suse.cz>
- <6dbc33bb-f3d5-1a46-b454-13c6f5865fcd@virtuozzo.com>
- <20180413113855.GI17484@dhcp22.suse.cz>
- <8a81c801-35c8-767d-54b0-df9f1ca0abc0@virtuozzo.com>
- <20180413115454.GL17484@dhcp22.suse.cz>
- <abfd4903-c455-fac2-7ed6-73707cda64d1@virtuozzo.com>
- <20180413121433.GM17484@dhcp22.suse.cz>
- <20180413125101.GO17484@dhcp22.suse.cz>
- <20180726162512.6056b5d7c1d2a5fbff6ce214@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 Jul 2018 12:38:34 -0700 (PDT)
+Subject: Re: [PATCH 2/3] dmapool: improve scalability of dma_pool_free
+References: <1288e597-a67a-25b3-b7c6-db883ca67a25@cybernetics.com>
+ <20180726194209.GB12992@bombadil.infradead.org>
+ <b3430dd4-a4d6-28f1-09a1-82e0bf4a3b83@cybernetics.com>
+ <20180727000708.GA785@bombadil.infradead.org>
+ <cae33099-3147-5014-ab4e-c22a4d66dc49@cybernetics.com>
+ <20180727152322.GB13348@bombadil.infradead.org>
+From: Tony Battersby <tonyb@cybernetics.com>
+Message-ID: <acdc2e32-466c-61d3-145f-80bfba2c6739@cybernetics.com>
+Date: Fri, 27 Jul 2018 15:38:32 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180726162512.6056b5d7c1d2a5fbff6ce214@linux-foundation.org>
+In-Reply-To: <20180727152322.GB13348@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Kirill Tkhai <ktkhai@virtuozzo.com>, vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
 
-On Thu, Jul 26, 2018 at 04:25:12PM -0700, Andrew Morton wrote:
-> On Fri, 13 Apr 2018 14:51:01 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-> 
-> > On Fri 13-04-18 14:14:33, Michal Hocko wrote:
-> > [...]
-> > > Well, this is probably a matter of taste. I will not argue. I will not
-> > > object if Johannes is OK with your patch. But the whole thing confused
-> > > hell out of me so I would rather un-clutter it...
-> > 
-> > In other words, this
-> > 
-> 
-> This discussion has rather petered out.  afaict we're waiting for
-> hannes to offer an opinion?
-> 
-> 
-> From: Kirill Tkhai <ktkhai@virtuozzo.com>
-> Subject: memcg: remove memcg_cgroup::id from IDR on mem_cgroup_css_alloc() failure
-> 
-> In case of memcg_online_kmem() failure, memcg_cgroup::id remains hashed in
-> mem_cgroup_idr even after memcg memory is freed.  This leads to leak of ID
-> in mem_cgroup_idr.
-> 
-> This patch adds removal into mem_cgroup_css_alloc(), which fixes the
-> problem.  For better readability, it adds a generic helper which is used
-> in mem_cgroup_alloc() and mem_cgroup_id_put_many() as well.
-> 
-> Link: http://lkml.kernel.org/r/152354470916.22460.14397070748001974638.stgit@localhost.localdomain
-> Fixes 73f576c04b94 ("mm: memcontrol: fix cgroup creation failure after many small jobs")
-> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+On 07/27/2018 11:23 AM, Matthew Wilcox wrote:
+> On Fri, Jul 27, 2018 at 09:23:30AM -0400, Tony Battersby wrote:
+>> On 07/26/2018 08:07 PM, Matthew Wilcox wrote:
+>>> If you're up for more major surgery, then I think we can put all the
+>>> information currently stored in dma_page into struct page.  Something
+>>> like this:
+>>>
+>>> +++ b/include/linux/mm_types.h
+>>> @@ -152,6 +152,12 @@ struct page {
+>>>                         unsigned long hmm_data;
+>>>                         unsigned long _zd_pad_1;        /* uses mapping */
+>>>                 };
+>>> +               struct {        /* dma_pool pages */
+>>> +                       struct list_head dma_list;
+>>> +                       unsigned short in_use;
+>>> +                       unsigned short offset;
+>>> +                       dma_addr_t dma;
+>>> +               };
+>>>  
+>>>                 /** @rcu_head: You can use this to free a page by RCU. */
+>>>                 struct rcu_head rcu_head;
+>>>
+>>> page_list -> dma_list
+>>> vaddr goes away (page_to_virt() exists)
+>>> dma -> dma
+>>> in_use and offset shrink from 4 bytes to 2.
+>>>
+>>> Some 32-bit systems have a 64-bit dma_addr_t, and on those systems,
+>>> this will be 8 + 2 + 2 + 8 = 20 bytes.  On 64-bit systems, it'll be
+>>> 16 + 2 + 2 + 4 bytes of padding + 8 = 32 bytes (we have 40 available).
+>>>
+>>>
+>> offset at least needs more bits, since allocations can be multi-page.A 
+> Ah, rats.  That means we have to use the mapcount union too:
+>
 
-I also do wonder if we can do it cleaner, but since it's a fix I don't
-want that discussion to hold things up:
+Actually, on second thought, if I understand it correctly, a multi-page
+allocation will never be split up and returned as multiple
+sub-allocations, so the offset shouldn't be needed for that case.A  The
+offset should only be needed when splitting a PAGE_SIZE-allocation into
+smaller sub-allocations.A  The current code uses the offset
+unconditionally though, so it would need major changes to remove the
+dependence.A  So a 16-bit offset might work.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+As for sanity checking, I suppose having the dma address in the page
+could provide something for dma_pool_free() to check against (in fact it
+is already there under DMAPOOL_DEBUG).
 
-That said, the lifetime of the root reference on the ID is the online
-state, we put that in css_offline. Is there a reason we need to have
-the ID ready and the memcg in the IDR before onlining it? Can we do
-something like this and not mess with the alloc/free sequence at all?
+But the bigger problem is that my first patch adds another list_head to
+the dma_page for the avail_page_link to make allocations faster.A  I
+suppose we could make the lists singly-linked instead of doubly-linked
+to save space.
 
-Michal, Vladimir, am I missing something?
+Wouldn't using the mapcount union make it problematic for userspace to
+mmap() the returned DMA buffers?A  I am not sure if any drivers allow
+that to be done or not.A  I have heard of drivers in userspace, drivers
+with DMA ring buffers, etc.A  I don't want to audit the whole kernel tree
+to know if it would be safe.A  As you have seen, at least mpt3sas is
+doing unexpected things with dma pools.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index c59519d600ea..865e6d41d3d1 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4144,12 +4144,6 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
- 	if (!memcg)
- 		return NULL;
- 
--	memcg->id.id = idr_alloc(&mem_cgroup_idr, NULL,
--				 1, MEM_CGROUP_ID_MAX,
--				 GFP_KERNEL);
--	if (memcg->id.id < 0)
--		goto fail;
--
- 	memcg->stat_cpu = alloc_percpu(struct mem_cgroup_stat_cpu);
- 	if (!memcg->stat_cpu)
- 		goto fail;
-@@ -4176,11 +4170,8 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
- #ifdef CONFIG_CGROUP_WRITEBACK
- 	INIT_LIST_HEAD(&memcg->cgwb_list);
- #endif
--	idr_replace(&mem_cgroup_idr, memcg, memcg->id.id);
- 	return memcg;
- fail:
--	if (memcg->id.id > 0)
--		idr_remove(&mem_cgroup_idr, memcg->id.id);
- 	__mem_cgroup_free(memcg);
- 	return NULL;
- }
-@@ -4246,10 +4237,17 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
- static int mem_cgroup_css_online(struct cgroup_subsys_state *css)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-+	int i;
-+
-+	i = idr_alloc(&mem_cgroup_idr, memcg, 1, MEM_CGROUP_ID_MAX, GFP_KERNEL);
-+	if (i < 0)
-+		return i;
- 
- 	/* Online state pins memcg ID, memcg ID pins CSS */
-+	memcg->id.id = i;
- 	atomic_set(&memcg->id.ref, 1);
- 	css_get(css);
-+
- 	return 0;
- }
- 
+So maybe it could be done, but you are right, it would involve major
+surgery.A  My current in-development patch to implement your intial
+suggestion is pretty small and it works.A  So I'm not sure if I want to
+take it further or not.A  Lots of other things to do...
