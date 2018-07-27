@@ -1,65 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 323BF6B000A
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 18:07:04 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id g7-v6so5088969qtp.19
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 15:07:04 -0700 (PDT)
-Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
-        by mx.google.com with ESMTPS id n57-v6si828320qtf.327.2018.07.27.15.07.03
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EE126B0003
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 19:40:52 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id r10-v6so6821528itc.2
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 16:40:52 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d124-v6sor1723975iog.305.2018.07.27.16.40.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jul 2018 15:07:03 -0700 (PDT)
-Subject: Re: [PATCH 2/3] dmapool: improve scalability of dma_pool_free
-References: <1288e597-a67a-25b3-b7c6-db883ca67a25@cybernetics.com>
- <20180726194209.GB12992@bombadil.infradead.org>
- <b3430dd4-a4d6-28f1-09a1-82e0bf4a3b83@cybernetics.com>
- <20180727000708.GA785@bombadil.infradead.org>
- <cae33099-3147-5014-ab4e-c22a4d66dc49@cybernetics.com>
- <20180727152322.GB13348@bombadil.infradead.org>
- <acdc2e32-466c-61d3-145f-80bfba2c6739@cybernetics.com>
- <88d362b7-1d53-b430-1741-b48cbc0a7887@cybernetics.com>
- <CAHp75VcjMg2RABg4F3u=wpgQvGK8qr-4wxeRNmJtfMAE2VRRAw@mail.gmail.com>
-From: Tony Battersby <tonyb@cybernetics.com>
-Message-ID: <dd582095-c8f8-3103-ccd8-37bea89e7e1a@cybernetics.com>
-Date: Fri, 27 Jul 2018 18:07:00 -0400
+        (Google Transport Security);
+        Fri, 27 Jul 2018 16:40:50 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAHp75VcjMg2RABg4F3u=wpgQvGK8qr-4wxeRNmJtfMAE2VRRAw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+In-Reply-To: <20180726200718.GA23307@cmpxchg.org>
+References: <20180712172942.10094-1-hannes@cmpxchg.org> <CAKTCnzmt_CnfZMMdK9_-rBrL4kUmoE70nVbnE58CJp++FP0CCQ@mail.gmail.com>
+ <20180724151519.GA11598@cmpxchg.org> <268c2b08-6c90-de2b-d693-1270bb186713@gmail.com>
+ <20180726200718.GA23307@cmpxchg.org>
+From: Suren Baghdasaryan <surenb@google.com>
+Date: Fri, 27 Jul 2018 16:40:49 -0700
+Message-ID: <CAJuCfpEkCD3b+3T4R1TbyTMSajCv3_TXX64TYy7WRgt8tu3TTA@mail.gmail.com>
+Subject: Re: [PATCH 0/10] psi: pressure stall information for CPU, memory, and
+ IO v2
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Shevchenko <andy.shevchenko@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: "Singh, Balbir" <bsingharora@gmail.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Vinayak Menon <vinmenon@codeaurora.org>, Christoph Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm <linux-mm@kvack.org>, cgroups@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kernel-team@fb.com
 
-On 07/27/2018 05:35 PM, Andy Shevchenko wrote:
-> On Sat, Jul 28, 2018 at 12:27 AM, Tony Battersby <tonyb@cybernetics.com> wrote:
->> On 07/27/2018 03:38 PM, Tony Battersby wrote:
->>> But the bigger problem is that my first patch adds another list_head to
->>> the dma_page for the avail_page_link to make allocations faster.  I
->>> suppose we could make the lists singly-linked instead of doubly-linked
->>> to save space.
->>>
->> I managed to redo my dma_pool_alloc() patch to make avail_page_list
->> singly-linked instead of doubly-linked.
-> Are you relying on llist.h implementation?
+On Thu, Jul 26, 2018 at 1:07 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> On Thu, Jul 26, 2018 at 11:07:32AM +1000, Singh, Balbir wrote:
+>> On 7/25/18 1:15 AM, Johannes Weiner wrote:
+>> > On Tue, Jul 24, 2018 at 07:14:02AM +1000, Balbir Singh wrote:
+>> >> Does the mechanism scale? I am a little concerned about how frequently
+>> >> this infrastructure is monitored/read/acted upon.
+>> >
+>> > I expect most users to poll in the frequency ballpark of the running
+>> > averages (10s, 1m, 5m). Our OOMD defaults to 5s polling of the 10s
+>> > average; we collect the 1m average once per minute from our machines
+>> > and cgroups to log the system/workload health trends in our fleet.
+>> >
+>> > Suren has been experimenting with adaptive polling down to the
+>> > millisecond range on Android.
+>> >
+>>
+>> I think this is a bad way of doing things, polling only adds to
+>> overheads, there needs to be an event driven mechanism and the
+>> selection of the events need to happen in user space.
 >
-> Btw, did you see quicklist.h?
->
->
-I looked over include/linux/*list* to see if there was a suitable
-implementation I could use.A  llist.h makes a big deal about having a
-lock-less implementation with atomic instructions, which seemed like
-overkill.A  I didn't see anything else suitable, so I just went with my
-own implementation.A  Singly-linked lists are simple enough.A  And a quick
-"grep -i singly include/linux/*" shows precedent in bi_next, fl_next,
-fa_next, etc.
+> Of course, I'm not saying you should be doing this, and in fact Suren
+> and I were talking about notification/event infrastructure.
 
-Thanks for pointing out quicklist.h.A  At first I thought you were
-confused since you were talking about linked list implementations and
-quicklist.h sounds like a linked list implementation but isn't.A  But now
-I see that it is doing simple memory allocation/free, so that is the
-relevance to dmapool.A  Incidentally it looks like it is also using a
-singly-linked list to store the list of free pages, but it is much
-simpler because it doesn't try to sub-divide the pages into smaller
-allocations.
+I implemented a psi-monitor prototype which allows userspace to
+specify the max PSI stall it can tolerate (in terms of % of time spent
+on memory management). When that threshold is breached an event to
+userspace is generated. I'm still testing it but early results look
+promising. I'm planning to send it upstream when it's ready and after
+the main PSI patchset is merged.
+
+>
+> You asked if this scales and I'm telling you it's not impossible to
+> read at such frequencies.
+>
+
+Yes it's doable. One usecase might be to poll at a higher rate for a
+short period of time immediately after the initial event is received
+to clarify the short-term signal dynamics.
+
+> Maybe you can clarify your question.
+>
+>> >> Why aren't existing mechanisms sufficient
+>> >
+>> > Our existing stuff gives a lot of indication when something *may* be
+>> > an issue, like the rate of page reclaim, the number of refaults, the
+>> > average number of active processes, one task waiting on a resource.
+>> >
+>> > But the real difference between an issue and a non-issue is how much
+>> > it affects your overall goal of making forward progress or reacting to
+>> > a request in time. And that's the only thing users really care
+>> > about. It doesn't matter whether my system is doing 2314 or 6723 page
+>> > refaults per minute, or scanned 8495 pages recently. I need to know
+>> > whether I'm losing 1% or 20% of my time on overcommitted memory.
+>> >
+>> > Delayacct is time-based, so it's a step in the right direction, but it
+>> > doesn't aggregate tasks and CPUs into compound productivity states to
+>> > tell you if only parts of your workload are seeing delays (which is
+>> > often tolerable for the purpose of ensuring maximum HW utilization) or
+>> > your system overall is not making forward progress. That aggregation
+>> > isn't something you can do in userspace with polled delayacct data.
+>>
+>> By aggregation you mean cgroup aggregation?
+>
+> System-wide and per cgroup.
