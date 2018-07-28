@@ -1,93 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C30C76B0003
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 20:40:27 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id j80-v6so2607015vke.22
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 17:40:27 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id a1-v6si2712317uah.80.2018.07.27.17.40.25
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DB636B0003
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 22:00:19 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id d12-v6so3879873pgv.12
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 19:00:19 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id 80-v6si5392675pgf.604.2018.07.27.19.00.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jul 2018 17:40:26 -0700 (PDT)
-Subject: Re: [PATCH] ipc/shm.c add ->pagesize function to shm_vm_ops
-References: <20180727211727.5020-1-jane.chu@oracle.com>
- <20180727145009.5dde68fb680ec148a7504f37@linux-foundation.org>
-From: Jane Chu <jane.chu@oracle.com>
-Message-ID: <6ea01f10-066a-6fe6-bf82-3a3b4ddf1175@oracle.com>
-Date: Fri, 27 Jul 2018 17:40:16 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180727145009.5dde68fb680ec148a7504f37@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+        Fri, 27 Jul 2018 19:00:17 -0700 (PDT)
+From: "Wang, Wei W" <wei.w.wang@intel.com>
+Subject: RE: [PATCH v2 0/2] virtio-balloon: some improvements
+Date: Sat, 28 Jul 2018 02:00:13 +0000
+Message-ID: <286AC319A985734F985F78AFA26841F7397114A2@SHSMSX101.ccr.corp.intel.com>
+References: <1532683495-31974-1-git-send-email-wei.w.wang@intel.com>
+ <20180727170605-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20180727170605-mutt-send-email-mst@kernel.org>
 Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: dan.j.williams@intel.com, mhocko@suse.com, jack@suse.cz, jglisse@redhat.com, mike.kravetz@oracle.com, dave@stgolabs.net, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Jane Chu <jane.chu@oracle.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-Hi, Andrew,
+On Friday, July 27, 2018 10:06 PM, Michael S. Tsirkin wrote:
+> On Fri, Jul 27, 2018 at 05:24:53PM +0800, Wei Wang wrote:
+> > This series is split from the "Virtio-balloon: support free page
+> > reporting" series to make some improvements.
+> >
+> > v1->v2 ChangeLog:
+> > - register the shrinker when VIRTIO_BALLOON_F_DEFLATE_ON_OOM is
+> negotiated.
+> >
+> > Wei Wang (2):
+> >   virtio-balloon: remove BUG() in init_vqs
+> >   virtio_balloon: replace oom notifier with shrinker
+>=20
+> Thanks!
+> Given it's very late in the release cycle, I'll merge this for the next L=
+inux
+> release.
 
-On 7/27/2018 2:50 PM, Andrew Morton wrote:
+No problem. Thanks!
 
-> On Fri, 27 Jul 2018 15:17:27 -0600 Jane Chu <jane.chu@oracle.com> wrote:
->
->> Commit 05ea88608d4e13 (mm, hugetlbfs: introduce ->pagesize() to
->> vm_operations_struct) adds a new ->pagesize() function to
->> hugetlb_vm_ops, intended to cover all hugetlbfs backed files.
-> That was merged three months ago.  Can you suggest why this was only
-> noticed now?
-
-The issue was recently reported by a QA engineer running Oracle database
-test in Oracle Linux. He first noticed the issue in upstream 4.17, then 4.18,
-but because the issue wasn't in Oracle product, it wasn't reported, not
-until I cherry picked the patch into Oracle Linux recently.
-
-> What workload triggered this?  I see no cc:stable, but 4.17 is affected?
-
-It's Oracle database workload. Large shared memory segments(SGAs) were created
-and shared among dozens to hundreds of processes. The crash occurs when the
-test stops the database workload.  I do not have access to the test source.
-Yes, 4.17 is affected.
-
->> With System V shared memory model, if "huge page" is specified,
->> the "shared memory" is backed by hugetlbfs files, but the mappings
->> initiated via shmget/shmat have their original vm_ops overwritten
->> with shm_vm_ops, so we need to add a ->pagesize function to shm_vm_ops.
->> Otherwise, vma_kernel_pagesize() returns PAGE_SIZE given a hugetlbfs
->> backed vma, result in below BUG:
->>
->> fs/hugetlbfs/inode.c
->>          443             if (unlikely(page_mapped(page))) {
->>          444                     BUG_ON(truncate_op);
-> OK, help me out here.  How does an incorrect return value from
-> vma_kernel_pagesize() result in remove_inode_hugepages() deciding that
-> it's truncating a mapped page?
-
-To be honest, I don't have a satisfactory answer to how the wrong
-pagesize causes a page that's about to be truncated remain mapped.
-I relied on the hind sight of BUG_ON(truncate_op).
-
-At a time I inserted dump_stack() into vma_kernel_pagesize() as Mike
-suggested to try to dig out more,
-
-unsigned long vma_kernel_pagesize(struct vm_area_struct *vma)
-{
--       if (vma->vm_ops && vma->vm_ops->pagesize)
-+       if (vma->vm_ops && vma->vm_ops->pagesize) {
-                 return vma->vm_ops->pagesize(vma);
-+        } else if (is_vm_hugetlb_page(vma)) {
-+               struct hstate *hstate;
-+               dump_stack();
-+               hstate = hstate_vma(vma);
-+               return 1UL << huge_page_shift(hstate);
-+       }
-         return PAGE_SIZE;
-}
-
-There were too many stack traces that clogged the console, I didn't
-capture the entire output, perhaps I should go back to capture them.
-
-Any other ideas?
-
-Regards,
--jane
+Best,
+Wei
