@@ -1,91 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EE126B0003
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 19:40:52 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id r10-v6so6821528itc.2
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 16:40:52 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d124-v6sor1723975iog.305.2018.07.27.16.40.50
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C30C76B0003
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2018 20:40:27 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id j80-v6so2607015vke.22
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2018 17:40:27 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id a1-v6si2712317uah.80.2018.07.27.17.40.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 27 Jul 2018 16:40:50 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 Jul 2018 17:40:26 -0700 (PDT)
+Subject: Re: [PATCH] ipc/shm.c add ->pagesize function to shm_vm_ops
+References: <20180727211727.5020-1-jane.chu@oracle.com>
+ <20180727145009.5dde68fb680ec148a7504f37@linux-foundation.org>
+From: Jane Chu <jane.chu@oracle.com>
+Message-ID: <6ea01f10-066a-6fe6-bf82-3a3b4ddf1175@oracle.com>
+Date: Fri, 27 Jul 2018 17:40:16 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180726200718.GA23307@cmpxchg.org>
-References: <20180712172942.10094-1-hannes@cmpxchg.org> <CAKTCnzmt_CnfZMMdK9_-rBrL4kUmoE70nVbnE58CJp++FP0CCQ@mail.gmail.com>
- <20180724151519.GA11598@cmpxchg.org> <268c2b08-6c90-de2b-d693-1270bb186713@gmail.com>
- <20180726200718.GA23307@cmpxchg.org>
-From: Suren Baghdasaryan <surenb@google.com>
-Date: Fri, 27 Jul 2018 16:40:49 -0700
-Message-ID: <CAJuCfpEkCD3b+3T4R1TbyTMSajCv3_TXX64TYy7WRgt8tu3TTA@mail.gmail.com>
-Subject: Re: [PATCH 0/10] psi: pressure stall information for CPU, memory, and
- IO v2
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180727145009.5dde68fb680ec148a7504f37@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: "Singh, Balbir" <bsingharora@gmail.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Vinayak Menon <vinmenon@codeaurora.org>, Christoph Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm <linux-mm@kvack.org>, cgroups@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kernel-team@fb.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: dan.j.williams@intel.com, mhocko@suse.com, jack@suse.cz, jglisse@redhat.com, mike.kravetz@oracle.com, dave@stgolabs.net, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Jane Chu <jane.chu@oracle.com>
 
-On Thu, Jul 26, 2018 at 1:07 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Thu, Jul 26, 2018 at 11:07:32AM +1000, Singh, Balbir wrote:
->> On 7/25/18 1:15 AM, Johannes Weiner wrote:
->> > On Tue, Jul 24, 2018 at 07:14:02AM +1000, Balbir Singh wrote:
->> >> Does the mechanism scale? I am a little concerned about how frequently
->> >> this infrastructure is monitored/read/acted upon.
->> >
->> > I expect most users to poll in the frequency ballpark of the running
->> > averages (10s, 1m, 5m). Our OOMD defaults to 5s polling of the 10s
->> > average; we collect the 1m average once per minute from our machines
->> > and cgroups to log the system/workload health trends in our fleet.
->> >
->> > Suren has been experimenting with adaptive polling down to the
->> > millisecond range on Android.
->> >
+Hi, Andrew,
+
+On 7/27/2018 2:50 PM, Andrew Morton wrote:
+
+> On Fri, 27 Jul 2018 15:17:27 -0600 Jane Chu <jane.chu@oracle.com> wrote:
+>
+>> Commit 05ea88608d4e13 (mm, hugetlbfs: introduce ->pagesize() to
+>> vm_operations_struct) adds a new ->pagesize() function to
+>> hugetlb_vm_ops, intended to cover all hugetlbfs backed files.
+> That was merged three months ago.  Can you suggest why this was only
+> noticed now?
+
+The issue was recently reported by a QA engineer running Oracle database
+test in Oracle Linux. He first noticed the issue in upstream 4.17, then 4.18,
+but because the issue wasn't in Oracle product, it wasn't reported, not
+until I cherry picked the patch into Oracle Linux recently.
+
+> What workload triggered this?  I see no cc:stable, but 4.17 is affected?
+
+It's Oracle database workload. Large shared memory segments(SGAs) were created
+and shared among dozens to hundreds of processes. The crash occurs when the
+test stops the database workload.  I do not have access to the test source.
+Yes, 4.17 is affected.
+
+>> With System V shared memory model, if "huge page" is specified,
+>> the "shared memory" is backed by hugetlbfs files, but the mappings
+>> initiated via shmget/shmat have their original vm_ops overwritten
+>> with shm_vm_ops, so we need to add a ->pagesize function to shm_vm_ops.
+>> Otherwise, vma_kernel_pagesize() returns PAGE_SIZE given a hugetlbfs
+>> backed vma, result in below BUG:
 >>
->> I think this is a bad way of doing things, polling only adds to
->> overheads, there needs to be an event driven mechanism and the
->> selection of the events need to happen in user space.
->
-> Of course, I'm not saying you should be doing this, and in fact Suren
-> and I were talking about notification/event infrastructure.
+>> fs/hugetlbfs/inode.c
+>>          443             if (unlikely(page_mapped(page))) {
+>>          444                     BUG_ON(truncate_op);
+> OK, help me out here.  How does an incorrect return value from
+> vma_kernel_pagesize() result in remove_inode_hugepages() deciding that
+> it's truncating a mapped page?
 
-I implemented a psi-monitor prototype which allows userspace to
-specify the max PSI stall it can tolerate (in terms of % of time spent
-on memory management). When that threshold is breached an event to
-userspace is generated. I'm still testing it but early results look
-promising. I'm planning to send it upstream when it's ready and after
-the main PSI patchset is merged.
+To be honest, I don't have a satisfactory answer to how the wrong
+pagesize causes a page that's about to be truncated remain mapped.
+I relied on the hind sight of BUG_ON(truncate_op).
 
->
-> You asked if this scales and I'm telling you it's not impossible to
-> read at such frequencies.
->
+At a time I inserted dump_stack() into vma_kernel_pagesize() as Mike
+suggested to try to dig out more,
 
-Yes it's doable. One usecase might be to poll at a higher rate for a
-short period of time immediately after the initial event is received
-to clarify the short-term signal dynamics.
+unsigned long vma_kernel_pagesize(struct vm_area_struct *vma)
+{
+-       if (vma->vm_ops && vma->vm_ops->pagesize)
++       if (vma->vm_ops && vma->vm_ops->pagesize) {
+                 return vma->vm_ops->pagesize(vma);
++        } else if (is_vm_hugetlb_page(vma)) {
++               struct hstate *hstate;
++               dump_stack();
++               hstate = hstate_vma(vma);
++               return 1UL << huge_page_shift(hstate);
++       }
+         return PAGE_SIZE;
+}
 
-> Maybe you can clarify your question.
->
->> >> Why aren't existing mechanisms sufficient
->> >
->> > Our existing stuff gives a lot of indication when something *may* be
->> > an issue, like the rate of page reclaim, the number of refaults, the
->> > average number of active processes, one task waiting on a resource.
->> >
->> > But the real difference between an issue and a non-issue is how much
->> > it affects your overall goal of making forward progress or reacting to
->> > a request in time. And that's the only thing users really care
->> > about. It doesn't matter whether my system is doing 2314 or 6723 page
->> > refaults per minute, or scanned 8495 pages recently. I need to know
->> > whether I'm losing 1% or 20% of my time on overcommitted memory.
->> >
->> > Delayacct is time-based, so it's a step in the right direction, but it
->> > doesn't aggregate tasks and CPUs into compound productivity states to
->> > tell you if only parts of your workload are seeing delays (which is
->> > often tolerable for the purpose of ensuring maximum HW utilization) or
->> > your system overall is not making forward progress. That aggregation
->> > isn't something you can do in userspace with polled delayacct data.
->>
->> By aggregation you mean cgroup aggregation?
->
-> System-wide and per cgroup.
+There were too many stack traces that clogged the console, I didn't
+capture the entire output, perhaps I should go back to capture them.
+
+Any other ideas?
+
+Regards,
+-jane
