@@ -1,46 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EA286B0006
-	for <linux-mm@kvack.org>; Sun, 29 Jul 2018 15:26:27 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id u22-v6so1688026lji.9
-        for <linux-mm@kvack.org>; Sun, 29 Jul 2018 12:26:27 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n12-v6sor1986061ljj.100.2018.07.29.12.26.25
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D7236B0003
+	for <linux-mm@kvack.org>; Sun, 29 Jul 2018 19:18:05 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id n194-v6so6766058itn.0
+        for <linux-mm@kvack.org>; Sun, 29 Jul 2018 16:18:05 -0700 (PDT)
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id b15-v6sor4092339jah.132.2018.07.29.16.18.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 29 Jul 2018 12:26:25 -0700 (PDT)
-Date: Sun, 29 Jul 2018 22:26:21 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH] memcg: Remove memcg_cgroup::id from IDR on
- mem_cgroup_css_alloc() failure
-Message-ID: <20180729192621.py4znecoinw5mqcp@esperanza>
-References: <20180413112036.GH17484@dhcp22.suse.cz>
- <6dbc33bb-f3d5-1a46-b454-13c6f5865fcd@virtuozzo.com>
- <20180413113855.GI17484@dhcp22.suse.cz>
- <8a81c801-35c8-767d-54b0-df9f1ca0abc0@virtuozzo.com>
- <20180413115454.GL17484@dhcp22.suse.cz>
- <abfd4903-c455-fac2-7ed6-73707cda64d1@virtuozzo.com>
- <20180413121433.GM17484@dhcp22.suse.cz>
- <20180413125101.GO17484@dhcp22.suse.cz>
- <20180726162512.6056b5d7c1d2a5fbff6ce214@linux-foundation.org>
- <20180727193134.GA10996@cmpxchg.org>
+        Sun, 29 Jul 2018 16:18:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180727193134.GA10996@cmpxchg.org>
+Date: Sun, 29 Jul 2018 16:18:03 -0700
+In-Reply-To: <00000000000047116205715df655@google.com>
+Message-ID: <0000000000007f198105722b8e15@google.com>
+Subject: Re: KASAN: use-after-free Read in generic_perform_write
+From: syzbot <syzbot+b173e77096a8ba815511@syzkaller.appspotmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Kirill Tkhai <ktkhai@virtuozzo.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: ak@linux.intel.com, akpm@linux-foundation.org, asmadeus@codewreck.org, jack@suse.cz, jlayton@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com, v9fs-developer@lists.sourceforge.net, willy@infradead.org
 
-On Fri, Jul 27, 2018 at 03:31:34PM -0400, Johannes Weiner wrote:
-> That said, the lifetime of the root reference on the ID is the online
-> state, we put that in css_offline. Is there a reason we need to have
-> the ID ready and the memcg in the IDR before onlining it?
+syzbot has found a reproducer for the following crash on:
 
-I fail to see any reason for this in the code.
+HEAD commit:    d1e0b8e0cb7a Add linux-next specific files for 20180725
+git tree:       linux-next
+console output: https://syzkaller.appspot.com/x/log.txt?x=10eff978400000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=eef3552c897e4d33
+dashboard link: https://syzkaller.appspot.com/bug?extid=b173e77096a8ba815511
+compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+syzkaller repro:https://syzkaller.appspot.com/x/repro.syz?x=171d9578400000
+C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=132d14b4400000
 
-> Can we do something like this and not mess with the alloc/free
-> sequence at all?
+IMPORTANT: if you fix the bug, please add the following tag to the commit:
+Reported-by: syzbot+b173e77096a8ba815511@syzkaller.appspotmail.com
 
-I guess so, and this definitely looks better to me.
+RDX: 0000000000000030 RSI: 0000000020011fd2 RDI: 0000000000000004
+RBP: 00000000006dbc40 R08: 00000000006dbc40 R09: 0000000000000000
+R10: 00007fc1cd74ccf0 R11: 0000000000000246 R12: 00000000006dbc4c
+R13: 00007fffabd5ea5f R14: 00007fc1cd74d9c0 R15: 00000000006dbd4c
+==================================================================
+BUG: KASAN: use-after-free in memcpy include/linux/string.h:345 [inline]
+BUG: KASAN: use-after-free in iov_iter_copy_from_user_atomic+0xb8d/0xfa0  
+lib/iov_iter.c:916
+Read of size 21 at addr ffff8801ad780d60 by task kworker/0:1/13
+
+CPU: 0 PID: 13 Comm: kworker/0:1 Not tainted 4.18.0-rc6-next-20180725+ #18
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+Workqueue: events p9_write_work
+Call Trace:
+  __dump_stack lib/dump_stack.c:77 [inline]
+  dump_stack+0x1c9/0x2b4 lib/dump_stack.c:113
+  print_address_description+0x6c/0x20b mm/kasan/report.c:256
+  kasan_report_error mm/kasan/report.c:354 [inline]
+  kasan_report.cold.7+0x242/0x30d mm/kasan/report.c:412
+  check_memory_region_inline mm/kasan/kasan.c:260 [inline]
+  check_memory_region+0x13e/0x1b0 mm/kasan/kasan.c:267
+  memcpy+0x23/0x50 mm/kasan/kasan.c:302
+  memcpy include/linux/string.h:345 [inline]
+  iov_iter_copy_from_user_atomic+0xb8d/0xfa0 lib/iov_iter.c:916
+  generic_perform_write+0x469/0x6c0 mm/filemap.c:3147
+  __generic_file_write_iter+0x26e/0x630 mm/filemap.c:3264
+  ext4_file_write_iter+0x390/0x1450 fs/ext4/file.c:266
+  call_write_iter include/linux/fs.h:1807 [inline]
+  new_sync_write fs/read_write.c:474 [inline]
+  __vfs_write+0x6af/0x9d0 fs/read_write.c:487
+  vfs_write+0x1fc/0x560 fs/read_write.c:549
+  kernel_write+0xab/0x120 fs/read_write.c:526
+  p9_fd_write net/9p/trans_fd.c:432 [inline]
+  p9_write_work+0x6f1/0xd50 net/9p/trans_fd.c:481
+  process_one_work+0xc73/0x1ba0 kernel/workqueue.c:2153
+  worker_thread+0x189/0x13c0 kernel/workqueue.c:2296
+  kthread+0x345/0x410 kernel/kthread.c:246
+  ret_from_fork+0x3a/0x50 arch/x86/entry/entry_64.S:415
+
+Allocated by task 4438:
+  save_stack+0x43/0xd0 mm/kasan/kasan.c:448
+  set_track mm/kasan/kasan.c:460 [inline]
+  kasan_kmalloc+0xc4/0xe0 mm/kasan/kasan.c:553
+  __do_kmalloc mm/slab.c:3718 [inline]
+  __kmalloc+0x14e/0x760 mm/slab.c:3727
+  kmalloc include/linux/slab.h:518 [inline]
+  p9_fcall_alloc+0x1e/0x90 net/9p/client.c:237
+  p9_tag_alloc net/9p/client.c:266 [inline]
+  p9_client_prepare_req.part.8+0x107/0xa00 net/9p/client.c:647
+  p9_client_prepare_req net/9p/client.c:682 [inline]
+  p9_client_rpc+0x247/0x1420 net/9p/client.c:682
+  p9_client_version net/9p/client.c:897 [inline]
+  p9_client_create+0xd76/0x1631 net/9p/client.c:981
+  v9fs_session_init+0x21a/0x1a80 fs/9p/v9fs.c:400
+  v9fs_mount+0x7c/0x900 fs/9p/vfs_super.c:135
+  legacy_get_tree+0x131/0x460 fs/fs_context.c:674
+  vfs_get_tree+0x1cb/0x5c0 fs/super.c:1762
+  do_new_mount fs/namespace.c:2629 [inline]
+  do_mount+0x6f2/0x1e20 fs/namespace.c:2953
+  ksys_mount+0x12d/0x140 fs/namespace.c:3169
+  __do_sys_mount fs/namespace.c:3183 [inline]
+  __se_sys_mount fs/namespace.c:3180 [inline]
+  __x64_sys_mount+0xbe/0x150 fs/namespace.c:3180
+  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+
+Freed by task 4438:
+  save_stack+0x43/0xd0 mm/kasan/kasan.c:448
+  set_track mm/kasan/kasan.c:460 [inline]
+  __kasan_slab_free+0x11a/0x170 mm/kasan/kasan.c:521
+  kasan_slab_free+0xe/0x10 mm/kasan/kasan.c:528
+  __cache_free mm/slab.c:3498 [inline]
+  kfree+0xd9/0x260 mm/slab.c:3813
+  p9_free_req+0xb5/0x120 net/9p/client.c:338
+  p9_client_rpc+0xb20/0x1420 net/9p/client.c:746
+  p9_client_version net/9p/client.c:897 [inline]
+  p9_client_create+0xd76/0x1631 net/9p/client.c:981
+  v9fs_session_init+0x21a/0x1a80 fs/9p/v9fs.c:400
+  v9fs_mount+0x7c/0x900 fs/9p/vfs_super.c:135
+  legacy_get_tree+0x131/0x460 fs/fs_context.c:674
+  vfs_get_tree+0x1cb/0x5c0 fs/super.c:1762
+  do_new_mount fs/namespace.c:2629 [inline]
+  do_mount+0x6f2/0x1e20 fs/namespace.c:2953
+  ksys_mount+0x12d/0x140 fs/namespace.c:3169
+  __do_sys_mount fs/namespace.c:3183 [inline]
+  __se_sys_mount fs/namespace.c:3180 [inline]
+  __x64_sys_mount+0xbe/0x150 fs/namespace.c:3180
+  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+
+The buggy address belongs to the object at ffff8801ad780d40
+  which belongs to the cache kmalloc-16384 of size 16384
+The buggy address is located 32 bytes inside of
+  16384-byte region [ffff8801ad780d40, ffff8801ad784d40)
+The buggy address belongs to the page:
+page:ffffea0006b5e000 count:1 mapcount:0 mapping:ffff8801dac02200 index:0x0  
+compound_mapcount: 0
+flags: 0x2fffc0000008100(slab|head)
+raw: 02fffc0000008100 ffffea00072e3008 ffffea0006c75408 ffff8801dac02200
+raw: 0000000000000000 ffff8801ad780d40 0000000100000001 0000000000000000
+page dumped because: kasan: bad access detected
+
+Memory state around the buggy address:
+  ffff8801ad780c00: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
+  ffff8801ad780c80: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
+> ffff8801ad780d00: fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb fb
+                                                        ^
+  ffff8801ad780d80: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+  ffff8801ad780e00: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+==================================================================
