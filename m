@@ -1,41 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EBDA6B026A
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 11:43:19 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id f13-v6so7699863pgs.15
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 08:43:19 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id b8-v6si10750439plb.125.2018.07.30.08.43.12
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FEDE6B026D
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 11:44:29 -0400 (EDT)
+Received: by mail-yb0-f199.google.com with SMTP id x13-v6so7000932ybl.17
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 08:44:29 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a9-v6sor2503586ywb.528.2018.07.30.08.44.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 30 Jul 2018 08:43:12 -0700 (PDT)
-Date: Mon, 30 Jul 2018 08:43:10 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v14 00/74] Convert page cache to XArray
-Message-ID: <20180730154310.GA4685@bombadil.infradead.org>
-References: <20180617020052.4759-1-willy@infradead.org>
- <20180619031257.GA12527@linux.intel.com>
- <20180619092230.GA1438@bombadil.infradead.org>
- <20180619164037.GA6679@linux.intel.com>
- <20180619171638.GE1438@bombadil.infradead.org>
- <20180627110529.GA19606@bombadil.infradead.org>
- <20180627194438.GA20774@linux.intel.com>
- <20180725210323.GB1366@bombadil.infradead.org>
- <20180727172035.GA13586@linux.intel.com>
+        (Google Transport Security);
+        Mon, 30 Jul 2018 08:44:28 -0700 (PDT)
+Date: Mon, 30 Jul 2018 08:44:24 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] mm,page_alloc: PF_WQ_WORKER threads must sleep at
+ should_reclaim_retry().
+Message-ID: <20180730154424.GG1206094@devbig004.ftw2.facebook.com>
+References: <ca3da8b8-1bb5-c302-b190-fa6cebab58ca@I-love.SAKURA.ne.jp>
+ <20180726113958.GE28386@dhcp22.suse.cz>
+ <55c9da7f-e448-964a-5b50-47f89a24235b@i-love.sakura.ne.jp>
+ <20180730093257.GG24267@dhcp22.suse.cz>
+ <9158a23e-7793-7735-e35c-acd540ca59bf@i-love.sakura.ne.jp>
+ <20180730144647.GX24267@dhcp22.suse.cz>
+ <20180730145425.GE1206094@devbig004.ftw2.facebook.com>
+ <0018ac3b-94ee-5f09-e4e0-df53d2cbc925@i-love.sakura.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180727172035.GA13586@linux.intel.com>
+In-Reply-To: <0018ac3b-94ee-5f09-e4e0-df53d2cbc925@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, zwisler@kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Michal Hocko <mhocko@kernel.org>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jul 27, 2018 at 11:20:35AM -0600, Ross Zwisler wrote:
-> Okay, the next failure I'm hitting is with DAX + XFS + generic/344.  It
-> doesn't happen every time, but I can usually recreate it within 10 iterations
-> of the test.  Here's the failure:
+Hello,
 
-Thanks.  I've made some progress with this; the WARNing is coming from
-a vm_insert_* mkwrite call.  Inserting sufficient debugging code has
-let me determine we still have a zero_pfn in the page table when we're
-trying to insert a new PFN.
+On Tue, Jul 31, 2018 at 12:25:04AM +0900, Tetsuo Handa wrote:
+> WQ_MEM_RECLAIM guarantees that "struct task_struct" is preallocated. But
+> WQ_MEM_RECLAIM does not guarantee that the pending work is started as soon
+> as an item was queued. Same rule applies to both WQ_MEM_RECLAIM workqueues 
+> and !WQ_MEM_RECLAIM workqueues regarding when to start a pending work (i.e.
+> when schedule_timeout_*() is called).
+> 
+> Is this correct?
+
+WQ_MEM_RECLAIM guarantees that there's always gonna exist at least one
+kworker running the workqueue.  But all per-cpu kworkers are subject
+to concurrency limiting execution - ie. if there are any per-cpu
+actively running on a cpu, no futher kworkers will be scheduled.
+
+> >              We can add timeout mechanism to workqueue so that it
+> > kicks off other kworkers if one of them is in running state for too
+> > long, but idk, if there's an indefinite busy loop condition in kernel
+> > threads, we really should get rid of them and hung task watchdog is
+> > pretty effective at finding these cases (at least with preemption
+> > disabled).
+> 
+> Currently the page allocator has a path which can loop forever with
+> only cond_resched().
+
+Yeah, workqueue can choke on things like that and kthread indefinitely
+busy looping doesn't do anybody any good.
+
+Thanks.
+
+-- 
+tejun
