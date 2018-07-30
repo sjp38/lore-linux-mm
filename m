@@ -1,64 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3923F6B0003
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 12:29:31 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id h26-v6so289037eds.14
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 09:29:31 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTPS id g8-v6si3759019edg.399.2018.07.30.09.29.29
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 32C136B0006
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 12:36:03 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id 31-v6so9363134pld.6
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 09:36:03 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o1-v6sor3338939pfk.89.2018.07.30.09.36.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jul 2018 09:29:29 -0700 (PDT)
-Date: Mon, 30 Jul 2018 18:29:27 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v2] RFC: clear 1G pages with streaming stores on x86
-Message-ID: <20180730162926.GD11890@nazgul.tnic>
-References: <20180724210923.GA20168@bombadil.infradead.org>
- <20180725023728.44630-1-cannonmatthews@google.com>
+        (Google Transport Security);
+        Mon, 30 Jul 2018 09:36:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20180725023728.44630-1-cannonmatthews@google.com>
+References: <CA+icZUVQZtvLg6XGwnS-4Zgv+tkCGWw5Ue8_585H_xNOofX76Q@mail.gmail.com>
+ <20180730091934.omn2vj6eyh6kaecs@lakrids.cambridge.arm.com>
+ <CA+icZUUicAr5hBB9oGtuLhygP4pf39YV9hhrg7GpJQUibZu=ig@mail.gmail.com> <20180730094622.av7wlyrkl3rn37mp@lakrids.cambridge.arm.com>
+In-Reply-To: <20180730094622.av7wlyrkl3rn37mp@lakrids.cambridge.arm.com>
+From: Nick Desaulniers <ndesaulniers@google.com>
+Date: Mon, 30 Jul 2018 09:35:48 -0700
+Message-ID: <CAKwvOdmjD2fvZjZzkehB7ULG06z6Nqs5PjaoEzmyr51wBKQL+w@mail.gmail.com>
+Subject: Re: [llvmlinux] clang fails on linux-next since commit 8bf705d13039
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cannon Matthews <cannonmatthews@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andres Lagar-Cavilla <andreslc@google.com>, Salman Qazi <sqazi@google.com>, Paul Turner <pjt@google.com>, David Matlack <dmatlack@google.com>, Peter Feiner <pfeiner@google.com>, Alain Trinh <nullptr@google.com>
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: sedat.dilek@gmail.com, Matthias Kaehlcke <mka@chromium.org>, Dmitry Vyukov <dvyukov@google.com>, Greg Hackmann <ghackmann@google.com>, Luis Lozano <llozano@google.com>, Michael Davidson <md@google.com>, Paul Lawrence <paullawrence@google.com>, Sami Tolvanen <samitolvanen@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Ingo Molnar <mingo@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, llvmlinux@lists.linuxfoundation.org, sil2review@lists.osadl.org, JBeulich@suse.com, Peter Zijlstra <peterz@infradead.org>, Kees Cook <keescook@chromium.org>, Colin Ian King <colin.king@canonical.com>
 
-On Tue, Jul 24, 2018 at 07:37:28PM -0700, Cannon Matthews wrote:
-> diff --git a/arch/x86/lib/clear_page_64.S b/arch/x86/lib/clear_page_64.S
-> index 88acd349911b..81a39804ac72 100644
-> --- a/arch/x86/lib/clear_page_64.S
-> +++ b/arch/x86/lib/clear_page_64.S
-> @@ -49,3 +49,23 @@ ENTRY(clear_page_erms)
->  	ret
->  ENDPROC(clear_page_erms)
->  EXPORT_SYMBOL_GPL(clear_page_erms)
-> +
-> +/*
-> + * Zero memory using non temporal stores, bypassing the cache.
-> + * Requires an `sfence` (wmb()) afterwards.
-> + * %rdi - destination.
-> + * %rsi - page size. Must be 64 bit aligned.
-> +*/
-> +ENTRY(__clear_page_nt)
-> +	leaq	(%rdi,%rsi), %rdx
-> +	xorl	%eax, %eax
-> +	.p2align 4,,10
-> +	.p2align 3
-> +.L2:
-> +	movnti	%rax, (%rdi)
-> +	addq	$8, %rdi
-> +	cmpq	%rdx, %rdi
-> +	jne	.L2
-> +	ret
-> +ENDPROC(__clear_page_nt)
-> +EXPORT_SYMBOL(__clear_page_nt)
+On Mon, Jul 30, 2018 at 2:46 AM Mark Rutland <mark.rutland@arm.com> wrote:
+>
+> On Mon, Jul 30, 2018 at 11:40:49AM +0200, Sedat Dilek wrote:
+> > What are your plans to have...
+> >
+> > 4d2b25f630c7 locking/atomics: Instrument cmpxchg_double*()
+> > f9881cc43b11 locking/atomics: Instrument xchg()
+> > df79ed2c0643 locking/atomics: Simplify cmpxchg() instrumentation
+> > 00d5551cc4ee locking/atomics/x86: Reduce arch_cmpxchg64*() instrumentation
+> >
+> > ...for example in Linux 4.18 or 4.17.y?
+>
+> I have no plans to have these backported.
 
-EXPORT_SYMBOL_GPL like the other functions in that file.
+If they help us compile with clang, we'll backport to 4.17, 4.14, 4.9,
+and 4.4 stable.  From
+https://github.com/ClangBuiltLinux/linux/issues/3#issuecomment-408839428,
+it sounds like that is the case.
 
 -- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
---
+Thanks,
+~Nick Desaulniers
