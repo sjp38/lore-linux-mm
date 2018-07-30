@@ -1,54 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 19B936B000A
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 12:40:12 -0400 (EDT)
-Received: by mail-lj1-f197.google.com with SMTP id z24-v6so2820661lji.16
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 09:40:12 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d192-v6sor1136550lfd.176.2018.07.30.09.40.07
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EE6F76B000D
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 12:45:12 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id n21-v6so9398536plp.9
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 09:45:12 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h34-v6si10890948pld.355.2018.07.30.09.45.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 30 Jul 2018 09:40:08 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 Jul 2018 09:45:11 -0700 (PDT)
+Date: Mon, 30 Jul 2018 09:44:59 -0700
+From: Davidlohr Bueso <dave@stgolabs.net>
+Subject: Re: [PATCH] ipc/shm.c add ->pagesize function to shm_vm_ops
+Message-ID: <20180730164459.zduhnk7itoldqnom@linux-r8p5>
+References: <20180727211727.5020-1-jane.chu@oracle.com>
 MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-In-Reply-To: <CAKwvOdmjD2fvZjZzkehB7ULG06z6Nqs5PjaoEzmyr51wBKQL+w@mail.gmail.com>
-References: <CA+icZUVQZtvLg6XGwnS-4Zgv+tkCGWw5Ue8_585H_xNOofX76Q@mail.gmail.com>
- <20180730091934.omn2vj6eyh6kaecs@lakrids.cambridge.arm.com>
- <CA+icZUUicAr5hBB9oGtuLhygP4pf39YV9hhrg7GpJQUibZu=ig@mail.gmail.com>
- <20180730094622.av7wlyrkl3rn37mp@lakrids.cambridge.arm.com> <CAKwvOdmjD2fvZjZzkehB7ULG06z6Nqs5PjaoEzmyr51wBKQL+w@mail.gmail.com>
-From: Sedat Dilek <sedat.dilek@gmail.com>
-Date: Mon, 30 Jul 2018 18:40:06 +0200
-Message-ID: <CA+icZUUR+smEp439Z1TCfBA=_AL+DrNgRxP6i5gb9DqksEAXzg@mail.gmail.com>
-Subject: Re: [llvmlinux] clang fails on linux-next since commit 8bf705d13039
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <20180727211727.5020-1-jane.chu@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nick Desaulniers <ndesaulniers@google.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, Matthias Kaehlcke <mka@chromium.org>, Dmitry Vyukov <dvyukov@google.com>, Greg Hackmann <ghackmann@google.com>, Luis Lozano <llozano@google.com>, Michael Davidson <md@google.com>, Paul Lawrence <paullawrence@google.com>, Sami Tolvanen <samitolvanen@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Ingo Molnar <mingo@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, llvmlinux@lists.linuxfoundation.org, sil2review@lists.osadl.org, JBeulich@suse.com, Peter Zijlstra <peterz@infradead.org>, Kees Cook <keescook@chromium.org>, Colin Ian King <colin.king@canonical.com>
+To: Jane Chu <jane.chu@oracle.com>
+Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com, jack@suse.cz, jglisse@redhat.com, mike.kravetz@oracle.com, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
 
-On Mon, Jul 30, 2018 at 6:35 PM, Nick Desaulniers
-<ndesaulniers@google.com> wrote:
-> On Mon, Jul 30, 2018 at 2:46 AM Mark Rutland <mark.rutland@arm.com> wrote:
->>
->> On Mon, Jul 30, 2018 at 11:40:49AM +0200, Sedat Dilek wrote:
->> > What are your plans to have...
->> >
->> > 4d2b25f630c7 locking/atomics: Instrument cmpxchg_double*()
->> > f9881cc43b11 locking/atomics: Instrument xchg()
->> > df79ed2c0643 locking/atomics: Simplify cmpxchg() instrumentation
->> > 00d5551cc4ee locking/atomics/x86: Reduce arch_cmpxchg64*() instrumentation
->> >
->> > ...for example in Linux 4.18 or 4.17.y?
->>
->> I have no plans to have these backported.
+On Fri, 27 Jul 2018, Jane Chu wrote:
+
+>Commit 05ea88608d4e13 (mm, hugetlbfs: introduce ->pagesize() to
+>vm_operations_struct) adds a new ->pagesize() function to
+>hugetlb_vm_ops, intended to cover all hugetlbfs backed files.
 >
-> If they help us compile with clang, we'll backport to 4.17, 4.14, 4.9,
-> and 4.4 stable.  From
-> https://github.com/ClangBuiltLinux/linux/issues/3#issuecomment-408839428,
-> it sounds like that is the case.
+>With System V shared memory model, if "huge page" is specified,
+>the "shared memory" is backed by hugetlbfs files, but the mappings
+>initiated via shmget/shmat have their original vm_ops overwritten
+>with shm_vm_ops, so we need to add a ->pagesize function to shm_vm_ops.
+>Otherwise, vma_kernel_pagesize() returns PAGE_SIZE given a hugetlbfs
+>backed vma, result in below BUG:
 >
+>fs/hugetlbfs/inode.c
+>        443             if (unlikely(page_mapped(page))) {
+>        444                     BUG_ON(truncate_op);
+>
+>[  242.268342] hugetlbfs: oracle (4592): Using mlock ulimits for SHM_HUGETLB is deprecated
+>[  282.653208] ------------[ cut here ]------------
+>[  282.708447] kernel BUG at fs/hugetlbfs/inode.c:444!
+>[  282.818957] Modules linked in: nfsv3 rpcsec_gss_krb5 nfsv4 ...
+>[  284.025873] CPU: 35 PID: 5583 Comm: oracle_5583_sbt Not tainted 4.14.35-1829.el7uek.x86_64 #2
+>[  284.246609] task: ffff9bf0507aaf80 task.stack: ffffa9e625628000
+>[  284.317455] RIP: 0010:remove_inode_hugepages+0x3db/0x3e2
+>....
+>[  285.292389] Call Trace:
+>[  285.321630]  hugetlbfs_evict_inode+0x1e/0x3e
+>[  285.372707]  evict+0xdb/0x1af
+>[  285.408185]  iput+0x1a2/0x1f7
+>[  285.443661]  dentry_unlink_inode+0xc6/0xf0
+>[  285.492661]  __dentry_kill+0xd8/0x18d
+>[  285.536459]  dput+0x1b5/0x1ed
+>[  285.571939]  __fput+0x18b/0x216
+>[  285.609495]  ____fput+0xe/0x10
+>[  285.646030]  task_work_run+0x90/0xa7
+>[  285.688788]  exit_to_usermode_loop+0xdd/0x116
+>[  285.740905]  do_syscall_64+0x187/0x1ae
+>[  285.785740]  entry_SYSCALL_64_after_hwframe+0x150/0x0
+>
+>Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
+>Signed-off-by: Jane Chu <jane.chu@oracle.com>
 
-I am doing a CONFIG_HARDENED_USERCOPY=n build right now and see
-tommorow if it boots on bare metal.
-
-- sed@ -
+Acked-by: Davidlohr Bueso <dbueso@suse.de>
