@@ -1,126 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B86326B0010
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 09:51:54 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id v65-v6so11055821qka.23
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 06:51:54 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id h55-v6si3406714qvd.35.2018.07.30.06.51.52
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CBB26B0269
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 09:57:50 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id a26-v6so7509665pgw.7
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 06:57:50 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r65-v6si11414036pfe.298.2018.07.30.06.57.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jul 2018 06:51:52 -0700 (PDT)
-Subject: Re: [PATCH v1] mm: inititalize struct pages when adding a section
-References: <20180727165454.27292-1-david@redhat.com>
- <20180730113029.GM24267@dhcp22.suse.cz>
- <6cc416e7-522c-a67e-2706-f37aadff084f@redhat.com>
- <20180730120529.GN24267@dhcp22.suse.cz>
- <7b58af7b-5187-2c76-b458-b0f49875a1fc@redhat.com>
- <CAGM2reahiWj5LFq1npRpwK2k-4K-L9hr3AHUV9uYcmT2s3Bnuw@mail.gmail.com>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <56e97799-fbe1-9546-46ab-a9b8ee8794e0@redhat.com>
-Date: Mon, 30 Jul 2018 15:51:45 +0200
+        Mon, 30 Jul 2018 06:57:49 -0700 (PDT)
+Date: Mon, 30 Jul 2018 15:57:44 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [Bug 200651] New: cgroups iptables-restor: vmalloc: allocation
+ failure
+Message-ID: <20180730135744.GT24267@dhcp22.suse.cz>
+References: <cd474b37-263f-b186-2024-507a9a4e12ae@suse.cz>
+ <20180726072622.GS28386@dhcp22.suse.cz>
+ <67d5e4ef-c040-6852-ad93-6f2528df0982@suse.cz>
+ <20180726074219.GU28386@dhcp22.suse.cz>
+ <36043c6b-4960-8001-4039-99525dcc3e05@suse.cz>
+ <20180726080301.GW28386@dhcp22.suse.cz>
+ <ed7090ad-5004-3133-3faf-607d2a9fa90a@suse.cz>
+ <d69d7a82-5b70-051f-a517-f602c3ef1fd7@suse.cz>
+ <98788618-94dc-5837-d627-8bbfa1ddea57@icdsoft.com>
+ <ff19099f-e0f5-d2b2-e124-cc12d2e05dc1@icdsoft.com>
 MIME-Version: 1.0
-In-Reply-To: <CAGM2reahiWj5LFq1npRpwK2k-4K-L9hr3AHUV9uYcmT2s3Bnuw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <ff19099f-e0f5-d2b2-e124-cc12d2e05dc1@icdsoft.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: mhocko@kernel.org, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, gregkh@linuxfoundation.org, mingo@kernel.org, Andrew Morton <akpm@linux-foundation.org>, dan.j.williams@intel.com, jack@suse.cz, mawilcox@microsoft.com, jglisse@redhat.com, Souptick Joarder <jrdr.linux@gmail.com>, kirill.shutemov@linux.intel.com, Vlastimil Babka <vbabka@suse.cz>, osalvador@techadventures.net, yasu.isimatu@gmail.com, malat@debian.org, Mel Gorman <mgorman@suse.de>, iamjoonsoo.kim@lge.com
+To: Georgi Nikolov <gnikolov@icdsoft.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, netfilter-devel@vger.kernel.org
 
-On 30.07.2018 15:30, Pavel Tatashin wrote:
-> On Mon, Jul 30, 2018 at 8:11 AM David Hildenbrand <david@redhat.com> wrote:
->>
->> On 30.07.2018 14:05, Michal Hocko wrote:
->>> On Mon 30-07-18 13:53:06, David Hildenbrand wrote:
->>>> On 30.07.2018 13:30, Michal Hocko wrote:
->>>>> On Fri 27-07-18 18:54:54, David Hildenbrand wrote:
->>>>>> Right now, struct pages are inititalized when memory is onlined, not
->>>>>> when it is added (since commit d0dc12e86b31 ("mm/memory_hotplug: optimize
->>>>>> memory hotplug")).
->>>>>>
->>>>>> remove_memory() will call arch_remove_memory(). Here, we usually access
->>>>>> the struct page to get the zone of the pages.
->>>>>>
->>>>>> So effectively, we access stale struct pages in case we remove memory that
->>>>>> was never onlined. So let's simply inititalize them earlier, when the
->>>>>> memory is added. We only have to take care of updating the zone once we
->>>>>> know it. We can use a dummy zone for that purpose.
->>>>>
->>>>> I have considered something like this when I was reworking memory
->>>>> hotplug to not associate struct pages with zone before onlining and I
->>>>> considered this to be rather fragile. I would really not like to get
->>>>> back to that again if possible.
->>>>>
->>>>>> So effectively, all pages will already be initialized and set to
->>>>>> reserved after memory was added but before it was onlined (and even the
->>>>>> memblock is added). We only inititalize pages once, to not degrade
->>>>>> performance.
->>>>>
->>>>> To be honest, I would rather see d0dc12e86b31 reverted. It is late in
->>>>> the release cycle and if the patch is buggy then it should be reverted
->>>>> rather than worked around. I found the optimization not really
->>>>> convincing back then and this is still the case TBH.
->>>>>
->>>>
->>>> If I am not wrong, that's already broken in 4.17, no? What about that?
->>>
->>> Ohh, I thought this was merged in 4.18.
->>> $ git describe --contains d0dc12e86b31 --match="v*"
->>> v4.17-rc1~99^2~44
->>>
->>> proves me wrong. This means that the fix is not so urgent as I thought.
->>> If you can figure out a reasonable fix then it should be preferable to
->>> the revert.
->>>
->>> Fake zone sounds too hackish to me though.
->>>
->>
->> If I am not wrong, that's the same we had before d0dc12e86b31 but now it
->> is explicit and only one single value for all kernel configs
->> ("ZONE_NORMAL").
->>
->> Before d0dc12e86b31, struct pages were initialized to 0. So it was
->> (depending on the config) ZONE_DMA, ZONE_DMA32 or ZONE_NORMAL.
->>
->> Now the value is random and might not even be a valid zone.
+On Mon 30-07-18 16:37:07, Georgi Nikolov wrote:
+> On 07/26/2018 12:02 PM, Georgi Nikolov wrote:
+[...]
+> > Here is the patch applied to this version which masks errors:
+> >
+> > --- net/netfilter/x_tables.c    2018-06-18 14:18:21.138347416 +0300
+> > +++ net/netfilter/x_tables.c    2018-07-26 11:58:01.721932962 +0300
+> > @@ -1059,9 +1059,19 @@
+> >       * than shoot all processes down before realizing there is nothing
+> >       * more to reclaim.
+> >       */
+> > -    info = kvmalloc(sz, GFP_KERNEL | __GFP_NORETRY);
+> > +/*    info = kvmalloc(sz, GFP_KERNEL | __GFP_NORETRY);
+> >      if (!info)
+> >          return NULL;
+> > +*/
+> > +
+> > +    if (sz <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
+> > +        info = kmalloc(sz, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
+> > +    if (!info) {
+> > +        info = __vmalloc(sz, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY,
+> > +         PAGE_KERNEL);
+> > +        if (!info)
+> > +        return NULL;
+> > +    }
+> >  
+> >      memset(info, 0, sizeof(*info));
+> >      info->size = size;
+> >
+> >
+> > I will try to reproduce it with only
+> >
+> > info = kvmalloc(sz, GFP_KERNEL);
+> >
+> > Regards,
+> >
+> > --
+> > Georgi Nikolov
+> >
 > 
-> Hi David,
+> Hello,
 > 
-> Have you figured out why we access struct pages during hot-unplug for
-> offlined memory? Also, a panic trace would be useful in the patch.
+> Without GFP_NORETRY problem disappears.
 
-__remove_pages() needs a zone as of now (e.g. to recalculate if the zone
-is contiguous). This zone is taken from the first page of memory to be
-removed. If the struct pages are uninitialized that value is random and
-we might even get an invalid zone.
+Hmm, there are two allocation paths which have __GFP_NORETRY here.
+I expect you have removed both of them, right?
 
-The zone is also used to locate pgdat.
+kvmalloc implicitly performs __GFP_NORETRY on kmalloc path but it
+doesn't have it for the vmalloc fallback. This would match
+kvmalloc(GFP_KERNEL). I thought you were testing this code path
+previously but there is some confusion flying around because you have
+claimed that the regressions started with eacd86ca3b036. If the
+regression is really with __GFP_NORETRY being used for the vmalloc
+fallback which would be kvmalloc(GFP_KERNEL | __GFP_NORETRY) then
+I am still confused because that would match the original code.
 
-No stack trace available so far, I'm just reading the code and try to
-understand how this whole memory hotplug/unplug machinery works.
+> What is correct way to fix it.
+> - inside xt_alloc_table_info remove GFP_NORETRY from kvmalloc or add
+> this flag only for sizes bigger than some threshold
 
-> 
-> As I understand the bug may occur only when hotremove is enabled, and
-> default onlining of added memory is disabled. Is this correct? I
+This would reintroduce issue fixed by 0537250fdc6c8. Note that
+kvmalloc(GFP_KERNEL | __GFP_NORETRY) is more or less equivalent to the
+original code (well, except for __GFP_NOWARN).
 
-Yes, or if onlining fails.
+> - inside kvmalloc_node remove GFP_NORETRY from
+> __vmalloc_node_flags_caller (i don't know if it honors this flag, or
+> the problem is elsewhere)
 
-> suspect the reason we have not heard about this bug is that it is rare
-> to add memory and not to online it.
+No, not really. This is basically equivalent to kvmalloc(GFP_KERNEL).
 
-I assume so, most distros online all memory that is available as it is
-being added.
-
-> 
-> Thank you,
-> Pavel
-> 
-
-
+I strongly suspect that this is not a regression in this code but rather
+a side effect of larger memory fragmentation caused by something else.
+In any case do you see this failure also without artificial test case
+with a standard workload?
 -- 
-
-Thanks,
-
-David / dhildenb
+Michal Hocko
+SUSE Labs
