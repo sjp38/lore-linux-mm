@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 960DB6B0008
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9361F6B0006
 	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 06:18:06 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id u21-v6so7641684wmc.8
+Received: by mail-wm0-f69.google.com with SMTP id s25-v6so5264786wmh.1
         for <linux-mm@kvack.org>; Mon, 30 Jul 2018 03:18:06 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w8-v6sor4657719wrn.16.2018.07.30.03.18.04
+        by mx.google.com with SMTPS id g2-v6sor4479957wru.26.2018.07.30.03.18.05
         for <linux-mm@kvack.org>
         (Google Transport Security);
         Mon, 30 Jul 2018 03:18:05 -0700 (PDT)
 From: osalvador@techadventures.net
-Subject: [PATCH v5 2/4] mm: access zone->node via zone_to_nid() and zone_set_nid()
-Date: Mon, 30 Jul 2018 12:17:55 +0200
-Message-Id: <20180730101757.28058-3-osalvador@techadventures.net>
+Subject: [PATCH v5 3/4] mm/page_alloc: Inline function to handle CONFIG_DEFERRED_STRUCT_PAGE_INIT
+Date: Mon, 30 Jul 2018 12:17:56 +0200
+Message-Id: <20180730101757.28058-4-osalvador@techadventures.net>
 In-Reply-To: <20180730101757.28058-1-osalvador@techadventures.net>
 References: <20180730101757.28058-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
@@ -20,166 +20,62 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, mgorman@techsingularity.net, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.j.williams@intel.com, david@redhat.com, Oscar Salvador <osalvador@suse.de>
 
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
+From: Oscar Salvador <osalvador@suse.de>
 
-zone->node is configured only when CONFIG_NUMA=y, so it is a good idea to
-have inline functions to access this field in order to avoid ifdef's in
-c files.
+Let us move the code between CONFIG_DEFERRED_STRUCT_PAGE_INIT
+to an inline function.
+Not having an ifdef in the function makes the code more readable.
 
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Signed-off-by: Oscar Salvador <osalvador@suse.de>
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
 Acked-by: Michal Hocko <mhocko@suse.com>
+Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 ---
- include/linux/mm.h     |  9 ---------
- include/linux/mmzone.h | 26 ++++++++++++++++++++------
- mm/mempolicy.c         |  4 ++--
- mm/mm_init.c           |  9 ++-------
- mm/page_alloc.c        | 10 ++++------
- 5 files changed, 28 insertions(+), 30 deletions(-)
+ mm/page_alloc.c | 25 ++++++++++++++++---------
+ 1 file changed, 16 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 726e71475144..6954ad183159 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -940,15 +940,6 @@ static inline int page_zone_id(struct page *page)
- 	return (page->flags >> ZONEID_PGSHIFT) & ZONEID_MASK;
- }
- 
--static inline int zone_to_nid(struct zone *zone)
--{
--#ifdef CONFIG_NUMA
--	return zone->node;
--#else
--	return 0;
--#endif
--}
--
- #ifdef NODE_NOT_IN_PAGE_FLAGS
- extern int page_to_nid(const struct page *page);
- #else
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index ae1a034c3e2c..17fdff3bfb41 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -842,6 +842,25 @@ static inline bool populated_zone(struct zone *zone)
- 	return zone->present_pages;
- }
- 
-+#ifdef CONFIG_NUMA
-+static inline int zone_to_nid(struct zone *zone)
-+{
-+	return zone->node;
-+}
-+
-+static inline void zone_set_nid(struct zone *zone, int nid)
-+{
-+	zone->node = nid;
-+}
-+#else
-+static inline int zone_to_nid(struct zone *zone)
-+{
-+	return 0;
-+}
-+
-+static inline void zone_set_nid(struct zone *zone, int nid) {}
-+#endif
-+
- extern int movable_zone;
- 
- #ifdef CONFIG_HIGHMEM
-@@ -957,12 +976,7 @@ static inline int zonelist_zone_idx(struct zoneref *zoneref)
- 
- static inline int zonelist_node_idx(struct zoneref *zoneref)
- {
--#ifdef CONFIG_NUMA
--	/* zone_to_nid not available in this context */
--	return zoneref->zone->node;
--#else
--	return 0;
--#endif /* CONFIG_NUMA */
-+	return zone_to_nid(zoneref->zone);
- }
- 
- struct zoneref *__next_zones_zonelist(struct zoneref *z,
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index f0fcf70bcec7..8c1c09b3852a 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1784,7 +1784,7 @@ unsigned int mempolicy_slab_node(void)
- 		zonelist = &NODE_DATA(node)->node_zonelists[ZONELIST_FALLBACK];
- 		z = first_zones_zonelist(zonelist, highest_zoneidx,
- 							&policy->v.nodes);
--		return z->zone ? z->zone->node : node;
-+		return z->zone ? zone_to_nid(z->zone) : node;
- 	}
- 
- 	default:
-@@ -2326,7 +2326,7 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
- 				node_zonelist(numa_node_id(), GFP_HIGHUSER),
- 				gfp_zone(GFP_HIGHUSER),
- 				&pol->v.nodes);
--		polnid = z->zone->node;
-+		polnid = zone_to_nid(z->zone);
- 		break;
- 
- 	default:
-diff --git a/mm/mm_init.c b/mm/mm_init.c
-index 5b72266b4b03..6838a530789b 100644
---- a/mm/mm_init.c
-+++ b/mm/mm_init.c
-@@ -53,13 +53,8 @@ void __init mminit_verify_zonelist(void)
- 				zone->name);
- 
- 			/* Iterate the zonelist */
--			for_each_zone_zonelist(zone, z, zonelist, zoneid) {
--#ifdef CONFIG_NUMA
--				pr_cont("%d:%s ", zone->node, zone->name);
--#else
--				pr_cont("0:%s ", zone->name);
--#endif /* CONFIG_NUMA */
--			}
-+			for_each_zone_zonelist(zone, z, zonelist, zoneid)
-+				pr_cont("%d:%s ", zone_to_nid(zone), zone->name);
- 			pr_cont("\n");
- 		}
- 	}
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8a73305f7c55..10b754fba5fa 100644
+index 10b754fba5fa..4e84a17a5030 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -2909,10 +2909,10 @@ static inline void zone_statistics(struct zone *preferred_zone, struct zone *z)
- 	if (!static_branch_likely(&vm_numa_stat_key))
- 		return;
+@@ -6376,6 +6376,21 @@ static void __ref alloc_node_mem_map(struct pglist_data *pgdat)
+ static void __ref alloc_node_mem_map(struct pglist_data *pgdat) { }
+ #endif /* CONFIG_FLAT_NODE_MEM_MAP */
  
--	if (z->node != numa_node_id())
-+	if (zone_to_nid(z) != numa_node_id())
- 		local_stat = NUMA_OTHER;
++#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
++static inline void pgdat_set_deferred_range(pg_data_t *pgdat)
++{
++	/*
++	 * We start only with one section of pages, more pages are added as
++	 * needed until the rest of deferred pages are initialized.
++	 */
++	pgdat->static_init_pgcnt = min_t(unsigned long, PAGES_PER_SECTION,
++						pgdat->node_spanned_pages);
++	pgdat->first_deferred_pfn = ULONG_MAX;
++}
++#else
++static inline void pgdat_set_deferred_range(pg_data_t *pgdat) {}
++#endif
++
+ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+ 		unsigned long node_start_pfn, unsigned long *zholes_size)
+ {
+@@ -6401,16 +6416,8 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+ 				  zones_size, zholes_size);
  
--	if (z->node == preferred_zone->node)
-+	if (zone_to_nid(z) == zone_to_nid(preferred_zone))
- 		__inc_numa_state(z, NUMA_HIT);
- 	else {
- 		__inc_numa_state(z, NUMA_MISS);
-@@ -5287,7 +5287,7 @@ int local_memory_node(int node)
- 	z = first_zones_zonelist(node_zonelist(node, GFP_KERNEL),
- 				   gfp_zone(GFP_KERNEL),
- 				   NULL);
--	return z->zone->node;
-+	return zone_to_nid(z->zone);
- }
- #endif
+ 	alloc_node_mem_map(pgdat);
++	pgdat_set_deferred_range(pgdat);
  
-@@ -6311,9 +6311,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
- 		 * And all highmem pages will be managed by the buddy system.
- 		 */
- 		zone->managed_pages = freesize;
--#ifdef CONFIG_NUMA
--		zone->node = nid;
+-#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+-	/*
+-	 * We start only with one section of pages, more pages are added as
+-	 * needed until the rest of deferred pages are initialized.
+-	 */
+-	pgdat->static_init_pgcnt = min_t(unsigned long, PAGES_PER_SECTION,
+-					 pgdat->node_spanned_pages);
+-	pgdat->first_deferred_pfn = ULONG_MAX;
 -#endif
-+		zone_set_nid(zone, nid);
- 		zone->name = zone_names[j];
- 		zone->zone_pgdat = pgdat;
- 		spin_lock_init(&zone->lock);
+ 	free_area_init_core(pgdat);
+ }
+ 
 -- 
 2.13.6
