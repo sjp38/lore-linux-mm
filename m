@@ -1,122 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D4A56B0003
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 04:04:02 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id z13-v6so9140075wrt.19
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 01:04:02 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i66-v6si9823925wmi.87.2018.07.30.01.03.59
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 527756B0006
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 04:17:23 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id a70-v6so10468567qkb.16
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 01:17:23 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id l6-v6si9710948qvi.12.2018.07.30.01.17.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jul 2018 01:04:00 -0700 (PDT)
-Date: Mon, 30 Jul 2018 10:03:57 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: cgroup-aware OOM killer, how to move forward
-Message-ID: <20180730080357.GA24267@dhcp22.suse.cz>
-References: <20180717200641.GB18762@castle.DHCP.thefacebook.com>
- <20180718081230.GP7193@dhcp22.suse.cz>
- <20180718152846.GA6840@castle.DHCP.thefacebook.com>
- <20180719073843.GL7193@dhcp22.suse.cz>
- <20180719170543.GA21770@castle.DHCP.thefacebook.com>
- <20180723141748.GH31229@dhcp22.suse.cz>
- <20180723150929.GD1934745@devbig577.frc2.facebook.com>
- <20180724073230.GE28386@dhcp22.suse.cz>
- <20180724130836.GH1934745@devbig577.frc2.facebook.com>
- <20180724132640.GL28386@dhcp22.suse.cz>
+        Mon, 30 Jul 2018 01:17:22 -0700 (PDT)
+Subject: Re: [PATCH v1 0/2] mm/kdump: exclude reserved pages in dumps
+References: <20180720123422.10127-1-david@redhat.com>
+ <9f46f0ed-e34c-73be-60ca-c892fb19ed08@suse.cz>
+ <f8d7b5f9-e5ee-0625-f53d-50d1841e1388@redhat.com>
+ <20180724072237.GA28386@dhcp22.suse.cz>
+ <e5264f8e-2bb5-7a9b-6352-ad18f04d49c2@redhat.com>
+ <20180726083042.GC28386@dhcp22.suse.cz>
+ <21c31952-7632-b8e1-aa33-d124ce96b88e@redhat.com>
+ <20180726125013.ea82bfa3194386733b3943ab@linux-foundation.org>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <22a1eb66-0263-a23e-eddf-eb15ac6ebf99@redhat.com>
+Date: Mon, 30 Jul 2018 10:17:16 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180724132640.GL28386@dhcp22.suse.cz>
+In-Reply-To: <20180726125013.ea82bfa3194386733b3943ab@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>, hannes@cmpxchg.org, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org, gthelen@google.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Baoquan He <bhe@redhat.com>, Dave Young <dyoung@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Miles Chen <miles.chen@mediatek.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Tesarik <ptesarik@suse.cz>
 
-On Tue 24-07-18 15:26:40, Michal Hocko wrote:
-> On Tue 24-07-18 06:08:36, Tejun Heo wrote:
-> > Hello,
-> > 
-> > On Tue, Jul 24, 2018 at 09:32:30AM +0200, Michal Hocko wrote:
-> [...]
-> > > > There's no reason to put any
-> > > > restrictions on what each cgroup can configure.  The only thing which
-> > > > matters is is that the effective behavior is what the highest in the
-> > > > ancestry configures, and, at the system level, it'd conceptually map
-> > > > to panic_on_oom.
-> > > 
-> > > Hmm, so do we inherit group_oom? If not, how do we prevent from
-> > > unexpected behavior?
-> > 
-> > Hmm... I guess we're debating two options here.  Please consider the
-> > following hierarchy.
-> > 
-> >       R
-> >       |
-> >       A (group oom == 1)
-> >      / \
-> >     B   C
-> >     |
-> >     D
-> > 
-> > 1. No matter what B, C or D sets, as long as A sets group oom, any oom
-> >    kill inside A's subtree kills the entire subtree.
-> > 
-> > 2. A's group oom policy applies iff the source of the OOM is either at
-> >    or above A - ie. iff the OOM is system-wide or caused by memory.max
-> >    of A.
-> > 
-> > In #1, it doesn't matter what B, C or D sets, so it's kinda moot to
-> > discuss whether they inherit A's setting or not.  A's is, if set,
-> > always overriding.  In #2, what B, C or D sets matters if they also
-> > set their own memory.max, so there's no reason for them to inherit
-> > anything.
-> > 
-> > I'm actually okay with either option.  #2 is more flexible than #1 but
-> > given that this is a cgroup owned property which is likely to be set
-> > on per-application basis, #1 is likely good enough.
-> > 
-> > IIRC, we did #2 in the original implementation and the simplified one
-> > is doing #1, right?
+On 26.07.2018 21:50, Andrew Morton wrote:
+> On Thu, 26 Jul 2018 10:45:54 +0200 David Hildenbrand <david@redhat.com> wrote:
 > 
-> No, we've been discussing #2 unless I have misunderstood something.
-> I find it rather non-intuitive that a property outside of the oom domain
-> controls the behavior inside the domain. I will keep thinking about that
-> though.
+>>> Does each user of PG_balloon check for PG_reserved? If this is the case
+>>> then yes this would be OK.
+>>>
+>>
+>> I can only spot one user of PageBalloon() at all (fs/proc/page.c) ,
+>> which makes me wonder if this bit is actually still relevant. I think
+>> the last "real" user was removed with
+>>
+>> commit b1123ea6d3b3da25af5c8a9d843bd07ab63213f4
+>> Author: Minchan Kim <minchan@kernel.org>
+>> Date:   Tue Jul 26 15:23:09 2016 -0700
+>>
+>>     mm: balloon: use general non-lru movable page feature
+>>
+>>     Now, VM has a feature to migrate non-lru movable pages so balloon
+>>     doesn't need custom migration hooks in migrate.c and compaction.c.
+>>
+>>
+>> The only user of PG_balloon in general is
+>> "include/linux/balloon_compaction.h", used effectively only by
+>> virtio_balloon.
+>>
+>> All such pages are allocated via balloon_page_alloc() and never set
+>> reserved.
+>>
+>> So to me it looks like PG_balloon could be easily reused, especially to
+>> also exclude virtio-balloon pages from dumps.
+> 
+> Agree.  Maintaining a thingy for page-types.c which hardly anyone uses
+> (surely) isn't sufficient justification for consuming a page flag.  We
+> should check with the virtio developers first, but this does seem to be
+> begging to be reclaimed.
 
-So the more I think about it the more I am convinced that 1 is simply
-wrong for the reason I've mentioned above. Consulting a property outside
-of the oom hierarchy is tricky and non-intuitive.
+Okay, I'll be looking into reusing this flag to mark pages as
+fake/logical offline (e.g. "PG_offline"), so it can be used by
 
-So the implementation should be
-	oom_group = NULL;
-	memcg = mem_cgroup_from_task(oom_victim);
-	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
-		if (memcg->group_oom)
-			oom_group = memcg;
-		if (memcg == root)
-			break;
-	}
+- memory onlining/offlining code ("page is offline" e.g. PG_reserved &&
+  PG_offline)
+- balloon drivers ("page is logically offline" e.g. !PG_reserved &&
+  PG_offline)
 
-And the documented semantic
-oom.group - denotes a memory cgroup (or subhierarchy) which represents
-an indivisble workload and should any process be selected as an oom
-victim due to an OOM even (at this cgroup level or above) then all
-processes belonging to the group/hierarchy are killed together.
+In dump tools, we can then skip reading these pages ("page not used by
+the system, might contain stale data or might not even be accessible").
 
-Please be careful when defining differen oom.group policies within the
-same hierarchy because OOM events at different hierarchy levels can 
-have surprising effects. Example
-	R
-	|
-	A (oom.group = 1)
-       / \
-      B   C (oom.group = 0)
+Can you drop these two patches for now? I'll try to rework patch nr 1 to
+more closely match what PG_reserved actually means. Patch nr 2 might no
+longer be necessary if we agree on something like PG_offline.
 
-oom victim living in B resp. C.
-
-OOM event at R - (e.g. global OOM) or A will kill all tasks in A subtree.
-OOM event at B resp. C will only kill a single process from those
-memcgs. 
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David / dhildenb
