@@ -1,60 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A2D836B0008
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 11:29:53 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id i26-v6so2544460edr.4
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 08:29:53 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id s29-v6si3805156edd.58.2018.07.30.08.29.51
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CD0F6B000D
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 11:37:44 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id i23-v6so10741110qtf.9
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 08:37:44 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u21-v6sor5503640qte.45.2018.07.30.08.37.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jul 2018 08:29:52 -0700 (PDT)
-Date: Mon, 30 Jul 2018 08:29:33 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: cgroup-aware OOM killer, how to move forward
-Message-ID: <20180730152928.GA3076@castle>
-References: <20180718152846.GA6840@castle.DHCP.thefacebook.com>
- <20180719073843.GL7193@dhcp22.suse.cz>
- <20180719170543.GA21770@castle.DHCP.thefacebook.com>
- <20180723141748.GH31229@dhcp22.suse.cz>
- <20180723150929.GD1934745@devbig577.frc2.facebook.com>
- <20180724073230.GE28386@dhcp22.suse.cz>
- <20180724130836.GH1934745@devbig577.frc2.facebook.com>
- <20180724132640.GL28386@dhcp22.suse.cz>
- <20180730080357.GA24267@dhcp22.suse.cz>
- <20180730140241.GA1206094@devbig004.ftw2.facebook.com>
+        (Google Transport Security);
+        Mon, 30 Jul 2018 08:37:41 -0700 (PDT)
+Date: Mon, 30 Jul 2018 11:40:35 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 0/10] psi: pressure stall information for CPU, memory,
+ and IO v2
+Message-ID: <20180730154035.GC4567@cmpxchg.org>
+References: <20180712172942.10094-1-hannes@cmpxchg.org>
+ <20180727220123.GB18879@amd>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180730140241.GA1206094@devbig004.ftw2.facebook.com>
+In-Reply-To: <20180727220123.GB18879@amd>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Michal Hocko <mhocko@kernel.org>, hannes@cmpxchg.org, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org, gthelen@google.com
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Mon, Jul 30, 2018 at 07:04:26AM -0700, Tejun Heo wrote:
-> Hello,
-> 
-> On Mon, Jul 30, 2018 at 10:03:57AM +0200, Michal Hocko wrote:
-> > Please be careful when defining differen oom.group policies within the
-> > same hierarchy because OOM events at different hierarchy levels can 
-> > have surprising effects. Example
-> > 	R
-> > 	|
-> > 	A (oom.group = 1)
-> >        / \
-> >       B   C (oom.group = 0)
+On Sat, Jul 28, 2018 at 12:01:23AM +0200, Pavel Machek wrote:
+> > 		How do you use this feature?
 > > 
-> > oom victim living in B resp. C.
-> > 
-> > OOM event at R - (e.g. global OOM) or A will kill all tasks in A subtree.
-> > OOM event at B resp. C will only kill a single process from those
-> > memcgs. 
+> > A kernel with CONFIG_PSI=y will create a /proc/pressure directory with
+> > 3 files: cpu, memory, and io. If using cgroup2, cgroups will also
 > 
-> That behavior makes perfect sense to me and it maps to panic_on_oom==2
-> which works.  Roman, what do you think?
+> Could we get the config named CONFIG_PRESSURE to match /proc/pressure?
+> "PSI" is little too terse...
 
-I'm totally fine with this behavior, this is what I've suggested initially.
-I'll post the patchset soon.
+I'd rather have the internal config symbol match the naming scheme in
+the code, where psi is a shorter, unique token as copmared to e.g.
+pressure, press, prsr, etc.
 
-Thanks!
+The prompt text that the user primarily sees spells out "Pressure", so
+I don't think this is confusing.
