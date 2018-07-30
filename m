@@ -1,87 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B54F6B0003
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 13:59:38 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id q18-v6so10123929wrr.12
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 10:59:38 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id z5-v6si134507wmd.93.2018.07.30.10.59.37
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 13B826B0010
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 14:01:41 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id q11-v6so11510955oih.15
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 11:01:41 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id 126-v6si7619072oih.306.2018.07.30.11.01.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jul 2018 10:59:37 -0700 (PDT)
-Date: Mon, 30 Jul 2018 19:59:36 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH 0/10] psi: pressure stall information for CPU, memory,
- and IO v2
-Message-ID: <20180730175936.GA2416@amd>
-References: <20180712172942.10094-1-hannes@cmpxchg.org>
- <20180727220123.GB18879@amd>
- <20180730154035.GC4567@cmpxchg.org>
- <20180730173940.GB881@amd>
- <20180730175120.GJ1206094@devbig004.ftw2.facebook.com>
+        Mon, 30 Jul 2018 11:01:39 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: [PATCH 0/3] introduce memory.oom.group
+Date: Mon, 30 Jul 2018 11:00:57 -0700
+Message-ID: <20180730180100.25079-1-guro@fb.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="IS0zKkzwUGydFO0o"
-Content-Disposition: inline
-In-Reply-To: <20180730175120.GJ1206094@devbig004.ftw2.facebook.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Suren Baghdasaryan <surenb@google.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>
 
+This is a tiny implementation of cgroup-aware OOM killer,
+which adds an ability to kill a cgroup as a single unit
+and so guarantee the integrity of the workload.
 
---IS0zKkzwUGydFO0o
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Although it has only a limited functionality in comparison
+to what now resides in the mm tree (it doesn't change
+the victim task selection algorithm, doesn't look
+at memory stas on cgroup level, etc), it's also much
+simpler and more straightforward. So, hopefully, we can
+avoid having long debates here, as we had with the full
+implementation.
 
-On Mon 2018-07-30 10:51:20, Tejun Heo wrote:
-> Hello,
->=20
-> On Mon, Jul 30, 2018 at 07:39:40PM +0200, Pavel Machek wrote:
-> > > I'd rather have the internal config symbol match the naming scheme in
-> > > the code, where psi is a shorter, unique token as copmared to e.g.
-> > > pressure, press, prsr, etc.
-> >=20
-> > I'd do "pressure", really. Yes, psi is shorter, but I'd say that
-> > length is not really important there.
->=20
-> This is an extreme bikeshedding without any relevance.  You can make
-> suggestions but please lay it to the rest.  There isn't any general
-> consensus against the current name and you're just trying to push your
-> favorite name without proper justifications after contributing nothing
-> to the project.  Please stop.
+As it doesn't prevent any futher development,
+and implements an useful and complete feature,
+it looks as a sane way forward.
 
-Its true I have no interest in psi. But I'm trying to use same kernel
-you are trying to "improve" and I was confused enough by seing
-"CONFIG_PSI". And yes, my association was "pounds per square inch" and
-"what is it doing here".
+This patchset is against Linus's tree to avoid conflicts
+with the cgroup-aware OOM killer patchset in the mm tree.
 
-So I'm asking you to change the name.
+Two first patches are already in the mm tree.
+The first one ("mm: introduce mem_cgroup_put() helper")
+is totally fine, and the second's commit message has to be
+changed to reflect that it's not a part of old patchset
+anymore.
 
-USB is well known acronym, so it is okay to have CONFIG_USB. PSI is
-also well known -- but means something else.
+Roman Gushchin (3):
+  mm: introduce mem_cgroup_put() helper
+  mm, oom: refactor oom_kill_process()
+  mm, oom: introduce memory.oom.group
 
-And the code kind-of acknowledges that acronym is unknown, by having
-/proc/pressure.
+ Documentation/admin-guide/cgroup-v2.rst |  16 ++++
+ include/linux/memcontrol.h              |  22 +++++
+ mm/memcontrol.c                         |  84 ++++++++++++++++++
+ mm/oom_kill.c                           | 152 ++++++++++++++++++++------------
+ 4 files changed, 216 insertions(+), 58 deletions(-)
 
-So please just fix it.
-									Pavel
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
-
---IS0zKkzwUGydFO0o
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAltfUggACgkQMOfwapXb+vKAvgCfQE/kZZxaNG37MoP55aHmHCeO
-XIEAn0L3Iqd7uuiqMrYzFwuLGN0MMs/N
-=bq/s
------END PGP SIGNATURE-----
-
---IS0zKkzwUGydFO0o--
+-- 
+2.14.4
