@@ -1,88 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B3936B000A
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 08:11:37 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id d14-v6so10158029qtn.12
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 05:11:37 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id q30-v6si7930626qtb.403.2018.07.30.05.11.35
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BF8726B0003
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 08:28:45 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id k22-v6so2678758lji.0
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 05:28:45 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j21-v6sor2393201ljh.38.2018.07.30.05.28.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jul 2018 05:11:36 -0700 (PDT)
-Subject: Re: [PATCH v1] mm: inititalize struct pages when adding a section
-References: <20180727165454.27292-1-david@redhat.com>
- <20180730113029.GM24267@dhcp22.suse.cz>
- <6cc416e7-522c-a67e-2706-f37aadff084f@redhat.com>
- <20180730120529.GN24267@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <7b58af7b-5187-2c76-b458-b0f49875a1fc@redhat.com>
-Date: Mon, 30 Jul 2018 14:11:30 +0200
+        (Google Transport Security);
+        Mon, 30 Jul 2018 05:28:43 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180730120529.GN24267@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Reply-To: sedat.dilek@gmail.com
+In-Reply-To: <20180730094622.av7wlyrkl3rn37mp@lakrids.cambridge.arm.com>
+References: <CA+icZUVQZtvLg6XGwnS-4Zgv+tkCGWw5Ue8_585H_xNOofX76Q@mail.gmail.com>
+ <20180730091934.omn2vj6eyh6kaecs@lakrids.cambridge.arm.com>
+ <CA+icZUUicAr5hBB9oGtuLhygP4pf39YV9hhrg7GpJQUibZu=ig@mail.gmail.com> <20180730094622.av7wlyrkl3rn37mp@lakrids.cambridge.arm.com>
+From: Sedat Dilek <sedat.dilek@gmail.com>
+Date: Mon, 30 Jul 2018 14:28:42 +0200
+Message-ID: <CA+icZUVEYs0Y+vdwB9o8bQf3QiOGJ_vZKnD3LGXVeAsok95S6w@mail.gmail.com>
+Subject: Re: [llvmlinux] clang fails on linux-next since commit 8bf705d13039
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ingo Molnar <mingo@kernel.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Souptick Joarder <jrdr.linux@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Oscar Salvador <osalvador@techadventures.net>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Mathieu Malaterre <malat@debian.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Matthias Kaehlcke <mka@chromium.org>, Dmitry Vyukov <dvyukov@google.com>, Greg Hackmann <ghackmann@google.com>, Luis Lozano <llozano@google.com>, Michael Davidson <md@google.com>, Nick Desaulniers <ndesaulniers@google.com>, Paul Lawrence <paullawrence@google.com>, Sami Tolvanen <samitolvanen@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Ingo Molnar <mingo@kernel.org>, linux-mm@kvack.org, llvmlinux@lists.linuxfoundation.org, sil2review@lists.osadl.org, Jan Beulich <JBeulich@suse.com>, Peter Zijlstra <peterz@infradead.org>, Kees Cook <keescook@chromium.org>, Colin King <colin.king@canonical.com>
 
-On 30.07.2018 14:05, Michal Hocko wrote:
-> On Mon 30-07-18 13:53:06, David Hildenbrand wrote:
->> On 30.07.2018 13:30, Michal Hocko wrote:
->>> On Fri 27-07-18 18:54:54, David Hildenbrand wrote:
->>>> Right now, struct pages are inititalized when memory is onlined, not
->>>> when it is added (since commit d0dc12e86b31 ("mm/memory_hotplug: optimize
->>>> memory hotplug")).
->>>>
->>>> remove_memory() will call arch_remove_memory(). Here, we usually access
->>>> the struct page to get the zone of the pages.
->>>>
->>>> So effectively, we access stale struct pages in case we remove memory that
->>>> was never onlined. So let's simply inititalize them earlier, when the
->>>> memory is added. We only have to take care of updating the zone once we
->>>> know it. We can use a dummy zone for that purpose.
->>>
->>> I have considered something like this when I was reworking memory
->>> hotplug to not associate struct pages with zone before onlining and I
->>> considered this to be rather fragile. I would really not like to get
->>> back to that again if possible.
->>>
->>>> So effectively, all pages will already be initialized and set to
->>>> reserved after memory was added but before it was onlined (and even the
->>>> memblock is added). We only inititalize pages once, to not degrade
->>>> performance.
->>>
->>> To be honest, I would rather see d0dc12e86b31 reverted. It is late in
->>> the release cycle and if the patch is buggy then it should be reverted
->>> rather than worked around. I found the optimization not really
->>> convincing back then and this is still the case TBH.
->>>
+On Mon, Jul 30, 2018 at 11:46 AM, Mark Rutland <mark.rutland@arm.com> wrote:
+> On Mon, Jul 30, 2018 at 11:40:49AM +0200, Sedat Dilek wrote:
+>> What are your plans to have...
 >>
->> If I am not wrong, that's already broken in 4.17, no? What about that?
-> 
-> Ohh, I thought this was merged in 4.18.
-> $ git describe --contains d0dc12e86b31 --match="v*"
-> v4.17-rc1~99^2~44
-> 
-> proves me wrong. This means that the fix is not so urgent as I thought.
-> If you can figure out a reasonable fix then it should be preferable to
-> the revert.
-> 
-> Fake zone sounds too hackish to me though.
-> 
+>> 4d2b25f630c7 locking/atomics: Instrument cmpxchg_double*()
+>> f9881cc43b11 locking/atomics: Instrument xchg()
+>> df79ed2c0643 locking/atomics: Simplify cmpxchg() instrumentation
+>> 00d5551cc4ee locking/atomics/x86: Reduce arch_cmpxchg64*() instrumentation
+>>
+>> ...for example in Linux 4.18 or 4.17.y?
+>
+> I have no plans to have these backported.
+>
 
-If I am not wrong, that's the same we had before d0dc12e86b31 but now it
-is explicit and only one single value for all kernel configs
-("ZONE_NORMAL").
+I guess this is 4.19 material?
 
-Before d0dc12e86b31, struct pages were initialized to 0. So it was
-(depending on the config) ZONE_DMA, ZONE_DMA32 or ZONE_NORMAL.
+Not sure, if I will try a "backport" myself or wait for the fix in clang.
 
-Now the value is random and might not even be a valid zone.
+Thanks Mark.
 
--- 
-
-Thanks,
-
-David / dhildenb
+Regards,
+- Sedat -
