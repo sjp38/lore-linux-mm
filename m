@@ -1,75 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 19F3C6B0003
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 10:40:51 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id n4-v6so2504107edr.5
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 07:40:51 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 37-v6si3768214edt.319.2018.07.30.07.40.49
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C3686B0006
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 10:42:33 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id f64-v6so11347394qkb.20
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 07:42:33 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id j128-v6si11320934qkf.209.2018.07.30.07.42.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jul 2018 07:40:49 -0700 (PDT)
-Date: Mon, 30 Jul 2018 16:40:48 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: Caching/buffers become useless after some time
-Message-ID: <20180730144048.GW24267@dhcp22.suse.cz>
-References: <CADF2uSrW=Z=7NeA4qRwStoARGeT1y33QSP48Loc1u8XSdpMJOA@mail.gmail.com>
- <20180712113411.GB328@dhcp22.suse.cz>
- <CADF2uSqDDt3X_LHEQnc5xzHpqJ66E5gncogwR45bmZsNHxV55A@mail.gmail.com>
- <CADF2uSr-uFz+AAhcwP7ORgGgtLohayBtpDLxx9kcADDxaW8hWw@mail.gmail.com>
- <20180716162337.GY17280@dhcp22.suse.cz>
- <CADF2uSpEZTqD7pUp1t77GNTT+L=M3Ycir2+gsZg3kf5=y-5_-Q@mail.gmail.com>
- <20180716164500.GZ17280@dhcp22.suse.cz>
- <CADF2uSpkOqCU5hO9y4708TvpJ5JvkXjZ-M1o+FJr2v16AZP3Vw@mail.gmail.com>
- <c33fba55-3e86-d40f-efe0-0fc908f303bd@suse.cz>
+        Mon, 30 Jul 2018 07:42:31 -0700 (PDT)
+Subject: Re: [PATCH v1] mm: inititalize struct pages when adding a section
+References: <20180727165454.27292-1-david@redhat.com>
+ <20180730113029.GM24267@dhcp22.suse.cz>
+ <6cc416e7-522c-a67e-2706-f37aadff084f@redhat.com>
+ <20180730120529.GN24267@dhcp22.suse.cz>
+ <7b58af7b-5187-2c76-b458-b0f49875a1fc@redhat.com>
+ <CAGM2reahiWj5LFq1npRpwK2k-4K-L9hr3AHUV9uYcmT2s3Bnuw@mail.gmail.com>
+ <56e97799-fbe1-9546-46ab-a9b8ee8794e0@redhat.com>
+ <20180730141058.GV24267@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <80641d1a-72fe-26b2-7927-98fcac5e5d71@redhat.com>
+Date: Mon, 30 Jul 2018 16:42:27 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <c33fba55-3e86-d40f-efe0-0fc908f303bd@suse.cz>
+In-Reply-To: <20180730141058.GV24267@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Marinko Catovic <marinko.catovic@gmail.com>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, gregkh@linuxfoundation.org, mingo@kernel.org, Andrew Morton <akpm@linux-foundation.org>, dan.j.williams@intel.com, jack@suse.cz, mawilcox@microsoft.com, jglisse@redhat.com, Souptick Joarder <jrdr.linux@gmail.com>, kirill.shutemov@linux.intel.com, Vlastimil Babka <vbabka@suse.cz>, osalvador@techadventures.net, yasu.isimatu@gmail.com, malat@debian.org, Mel Gorman <mgorman@suse.de>, iamjoonsoo.kim@lge.com
 
-On Fri 27-07-18 13:15:33, Vlastimil Babka wrote:
-> On 07/21/2018 12:03 AM, Marinko Catovic wrote:
-> > I let this run for 3 days now, so it is quite a lot, there you go:
-> > https://nofile.io/f/egGyRjf0NPs/vmstat.tar.gz
+On 30.07.2018 16:10, Michal Hocko wrote:
+> On Mon 30-07-18 15:51:45, David Hildenbrand wrote:
+>> On 30.07.2018 15:30, Pavel Tatashin wrote:
+> [...]
+>>> Hi David,
+>>>
+>>> Have you figured out why we access struct pages during hot-unplug for
+>>> offlined memory? Also, a panic trace would be useful in the patch.
+>>
+>> __remove_pages() needs a zone as of now (e.g. to recalculate if the zone
+>> is contiguous). This zone is taken from the first page of memory to be
+>> removed. If the struct pages are uninitialized that value is random and
+>> we might even get an invalid zone.
+>>
+>> The zone is also used to locate pgdat.
+>>
+>> No stack trace available so far, I'm just reading the code and try to
+>> understand how this whole memory hotplug/unplug machinery works.
 > 
-> The stats show that compaction has very bad results. Between first and
-> last snapshot, compact_fail grew by 80k and compact_success by 1300.
-> High-order allocations will thus cycle between (failing) compaction and
-> reclaim that removes the buffer/caches from memory.
+> Yes this is a mess (evolution of the code called otherwise ;) [1].
 
-I guess you are right. I've just looked at random large direct reclaim activity
-$ grep -w pgscan_direct  vmstat*| awk  '{diff=$2-old; if (old && diff > 100000) printf "%s %d\n", $1, diff; old=$2}'
-vmstat.1531957422:pgscan_direct 114334
-vmstat.1532047588:pgscan_direct 111796
+So I guess I should not feel bad if I am having problems understanding
+all the details? ;)
 
-$ paste-with-diff.sh vmstat.1532047578 vmstat.1532047588 | grep "pgscan\|pgsteal\|compact\|pgalloc" | sort
-# counter			value1		value2-value1
-compact_daemon_free_scanned     2628160139      0
-compact_daemon_migrate_scanned  797948703       0
-compact_daemon_wake     23634   0
-compact_fail    124806  108
-compact_free_scanned    226181616304    295560271
-compact_isolated        2881602028      480577
-compact_migrate_scanned 147900786550    27834455
-compact_stall   146749  108
-compact_success 21943   0
-pgalloc_dma     0       0
-pgalloc_dma32   1577060946      10752
-pgalloc_movable 0       0
-pgalloc_normal  29389246430     343249
-pgscan_direct   737335028       111796
-pgscan_direct_throttle  0       0
-pgscan_kswapd   1177909394      0
-pgsteal_direct  704542843       111784
-pgsteal_kswapd  898170720       0
+> Functionality has been just added on top of not very well thought
+> through bases. This is a nice example of it. We are trying to get a zone
+> to 1) special case zone_device 2) recalculate zone state. The first
+> shouldn't be really needed because we should simply rely on altmap.
+> Whether it is used for zone device or not. 2) shouldn't be really needed
+> if the section is offline and we can check that trivially.
+> 
 
-There is zero kswapd activity so this must have been higher order
-allocation activity and all the direct compaction failed so we keep
-reclaiming.
+About 2, I am not sure if this is the case and that easy. To me it looks
+more like remove_pages() fixes up things that should be done in
+offline_pages(). Especially, if the same memory was onlined/offlined to
+different zones we might be in trouble (looking at code on a very high
+level view).
+
+"if the section is offline and we can check that trivially" is not was
+is being used here. It is "of the section was online and is now offline".
+
+Accessing a zone when removing memory sounds very wrong. offline_pages()
+should cleanup everything that online_pages() did.
+
+Removing memory with pages that are still online should not be allowed.
+And I think this is already enforced via check_memblock_offlined_cb().
+
+> [1] on the other hand I can see why people were reluctant to understand
+> the mess and rather tweak their tiny thing on top...
+> 
+
+
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David / dhildenb
