@@ -1,69 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B9BCF6B026D
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 14:02:26 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id k21-v6so10902508qtj.23
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 11:02:26 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id a44-v6si5773946qtc.270.2018.07.30.11.01.58
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A9516B0271
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 14:05:24 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id b141-v6so7522705ywh.12
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 11:05:24 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e13-v6sor3069034ybr.73.2018.07.30.11.05.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jul 2018 11:01:58 -0700 (PDT)
-From: Roman Gushchin <guro@fb.com>
-Subject: [PATCH 1/3] mm: introduce mem_cgroup_put() helper
-Date: Mon, 30 Jul 2018 11:00:58 -0700
-Message-ID: <20180730180100.25079-2-guro@fb.com>
-In-Reply-To: <20180730180100.25079-1-guro@fb.com>
-References: <20180730180100.25079-1-guro@fb.com>
+        (Google Transport Security);
+        Mon, 30 Jul 2018 11:05:23 -0700 (PDT)
+Date: Mon, 30 Jul 2018 11:05:20 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 0/10] psi: pressure stall information for CPU, memory,
+ and IO v2
+Message-ID: <20180730180520.GL1206094@devbig004.ftw2.facebook.com>
+References: <20180712172942.10094-1-hannes@cmpxchg.org>
+ <20180727220123.GB18879@amd>
+ <20180730154035.GC4567@cmpxchg.org>
+ <20180730173940.GB881@amd>
+ <20180730175120.GJ1206094@devbig004.ftw2.facebook.com>
+ <dfc3c810-8918-add4-b818-8b9c294f5ea4@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <dfc3c810-8918-add4-b818-8b9c294f5ea4@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>, Shakeel Butt <shakeelb@google.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: Pavel Machek <pavel@ucw.cz>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Suren Baghdasaryan <surenb@google.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Introduce the mem_cgroup_put() helper, which helps to eliminate guarding
-memcg css release with "#ifdef CONFIG_MEMCG" in multiple places.
+Hello,
 
-Link: http://lkml.kernel.org/r/20180623000600.5818-2-guro@fb.com
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Reviewed-by: Shakeel Butt <shakeelb@google.com>
-Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
-Cc: Shakeel Butt <shakeelb@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
----
- include/linux/memcontrol.h | 9 +++++++++
- 1 file changed, 9 insertions(+)
+On Mon, Jul 30, 2018 at 10:54:05AM -0700, Randy Dunlap wrote:
+> I'd say he's trying to make something that is readable and easier to
+> understand for users.
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 6c6fb116e925..e53e00cdbe3f 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -375,6 +375,11 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
- 	return css ? container_of(css, struct mem_cgroup, css) : NULL;
- }
- 
-+static inline void mem_cgroup_put(struct mem_cgroup *memcg)
-+{
-+	css_put(&memcg->css);
-+}
-+
- #define mem_cgroup_from_counter(counter, member)	\
- 	container_of(counter, struct mem_cgroup, member)
- 
-@@ -837,6 +842,10 @@ static inline bool task_in_mem_cgroup(struct task_struct *task,
- 	return true;
- }
- 
-+static inline void mem_cgroup_put(struct mem_cgroup *memcg)
-+{
-+}
-+
- static inline struct mem_cgroup *
- mem_cgroup_iter(struct mem_cgroup *root,
- 		struct mem_cgroup *prev,
+Sure, it's perfectly fine to make those suggestions and discuss but
+the counter points have already been discussed (e.g. PSI is a known
+acronym associated with pressure and internal symbols all use them for
+brevity and uniqueness).  There's no clear technically winning choice
+here and it's a decision of a relatively low importance given that
+it's confined to kernel config.  I can't see any merit in turning it
+into a last-word match.
+
+Thanks.
+
 -- 
-2.14.4
+tejun
