@@ -1,106 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 92C8F6B0003
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 02:48:24 -0400 (EDT)
-Received: by mail-lj1-f198.google.com with SMTP id w7-v6so2454766ljh.15
-        for <linux-mm@kvack.org>; Sun, 29 Jul 2018 23:48:24 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y18-v6sor2206023ljh.106.2018.07.29.23.48.22
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BF5B36B0003
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 03:08:23 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id y13-v6so8402858iop.3
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 00:08:23 -0700 (PDT)
+Received: from torfep01.bell.net (simcoe207srvr.owm.bell.net. [184.150.200.207])
+        by mx.google.com with ESMTPS id v126-v6si6891867iod.82.2018.07.30.00.08.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 29 Jul 2018 23:48:23 -0700 (PDT)
-MIME-Version: 1.0
-References: <CA+55aFxpFefwVdTGVML99PSFUqwpJXPx5LVCA3D=g2t2_QLNsA@mail.gmail.com>
-In-Reply-To: <CA+55aFxpFefwVdTGVML99PSFUqwpJXPx5LVCA3D=g2t2_QLNsA@mail.gmail.com>
-From: Amit Pundir <amit.pundir@linaro.org>
-Date: Mon, 30 Jul 2018 12:17:46 +0530
-Message-ID: <CAMi1Hd0fJuAgP09_KkbjyGwszOXmxcPybKyBxP3U1y5JUqxxSw@mail.gmail.com>
-Subject: Re: Linux 4.18-rc7
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 30 Jul 2018 00:08:20 -0700 (PDT)
+Received: from bell.net torfep01 184.150.200.158 by torfep01.bell.net
+          with ESMTP
+          id <20180730070820.HGLT3030.torfep01.bell.net@torspm02.bell.net>
+          for <linux-mm@kvack.org>; Mon, 30 Jul 2018 03:08:20 -0400
+Message-ID: <2bc48efc86800949761b8f4d3a165a9f9c25c57e.camel@sympatico.ca>
+Subject: Re: [PATCH 0/3] PTI x86-32 Updates and Fixes
+From: "David H. Gutteridge" <dhgutteridge@sympatico.ca>
+Date: Mon, 30 Jul 2018 03:08:14 -0400
+In-Reply-To: <1532533683-5988-1-git-send-email-joro@8bytes.org>
+References: <1532533683-5988-1-git-send-email-joro@8bytes.org>
 Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, aarcange@redhat.com, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
+To: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, jroedel@suse.de, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>
 
-On Mon, 30 Jul 2018 at 03:39, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> So unless something odd happens, this should be the last rc for 4.18.
->
-> Nothing particularly odd happened this last week - we got the usual
-> random set of various minor fixes all over. About two thirds of it is
-> drivers - networking, staging and usb stands out, but there's a little
-> bit of stuff all over (clk, block, gpu, nvme..).
->
-> Outside of drivers, the bulk is some core networking stuff, with
-> random changes elsewhere (minor arch updates, filesystems, core
-> kernel, test scripts).
->
-> The appended shortlog gives a flavor of the details.
->
->                   Linus
->
-> ---
-> Kirill A. Shutemov (3):
->       mm: introduce vma_init()
->       mm: use vma_init() to initialize VMAs on stack and data segments
->       mm: fix vma_is_anonymous() false-positives
+On Wed, 2018-07-25 at 17:48 +0200, Joerg Roedel wrote:
+> Hi,
+> 
+> here are three patches on-top of tip/x86/pti to update the
+> vmallo_fault() fix and also with another important fix.
+> 
+> The first two patches remove the WARN_ON_ONCE(in_nmi) from
+> the vmalloc_fault() function and revert the previous fix, as
+> discussed at the last patch-set.
+> 
+> The third patch is an important fix for a silent memory
+> corruption issue found by the trinity fuzzer, which did take
+> a while to track down. But I found it and with the fix the
+> fuzzer already runs for couple of hours now and the VM is
+> still alive.
+> 
+> Regards,
+> 
+> 	Joerg
+> 
+> Joerg Roedel (3):
+>   x86/mm: Remove in_nmi() warning from vmalloc_fault()
+>   Revert "perf/core: Make sure the ring-buffer is mapped in all
+>     page-tables"
+>   x86/kexec: Allocate 8k PGDs for PTI
+> 
+>  arch/x86/kernel/machine_kexec_32.c |  5 +++--
+>  arch/x86/mm/fault.c                |  2 --
+>  kernel/events/ring_buffer.c        | 16 ----------------
+>  3 files changed, 3 insertions(+), 20 deletions(-)
 
-Hi, I have run into AOSP userspace crash with v4.18-rc7, leading to
-above mm patches. bfd40eaff5ab ("mm: fix vma_is_anonymous()
-false-positives") to be specific. The same userspace is working fine
-with v4.18-rc6.
+Hi Joerg,
 
-I didn't yet look into what is going wrong from userspace point of
-view, but I just wanted to give you a heads up on this. I'll be happy
-to assist in further debugging/diagnosis if required.
+I've found no significant issues in my testing of this patch set.
+The only minor thing I noted is that in your previous "v8" patch set
+([PATCH 38/39] x86/mm/pti: Add Warning when booting on a PCID capable
+CPU), it reports the warning on non-PCID capable CPUs: I think you
+intended a bitwise "&", not a logical "&&" in the if statement?
 
-Here is the crash log from logcat, if it helps:
-F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
-F DEBUG   : Build fingerprint:
-'Android/db410c32_only/db410c32_only:Q/OC-MR1/102:userdebug/test-key
-F DEBUG   : Revision: '0'
-F DEBUG   : ABI: 'arm'
-F DEBUG   : pid: 2261, tid: 2261, name: zygote  >>> zygote <<<
-F DEBUG   : signal 7 (SIGBUS), code 2 (BUS_ADRERR), fault addr 0xec00008
-.. <snip> ..
-F DEBUG   : backtrace:
-F DEBUG   :     #00 pc 00001c04  /system/lib/libc.so (memset+48)
-F DEBUG   :     #01 pc 0010c513  /system/lib/libart.so
-(create_mspace_with_base+82)
-F DEBUG   :     #02 pc 0015c601  /system/lib/libart.so
-(art::gc::space::DlMallocSpace::CreateMspace(void*, unsigned int,
-unsigned int)+40)
-F DEBUG   :     #03 pc 0015c3ed  /system/lib/libart.so
-(art::gc::space::DlMallocSpace::CreateFromMemMap(art::MemMap*,
-std::__1::basic_string<char, std::__
-1::char_traits<char>, std::__1::allocator<char>> const&, unsigned int,
-unsigned int, unsigned int, unsigned int, bool)+36)
-F DEBUG   :     #04 pc 0013c9ab  /system/lib/libart.so
-(art::gc::Heap::Heap(unsigned int, unsigned int, unsigned int,
-unsigned int, double, double, unsigned int, unsigned int,
-std::__1::basic_string<char, std::__1::char_traits<char>,
-std::__1::allocator<char>> const&, art::InstructionSet,
-art::gc::CollectorType, art::gc::CollectorType,
-art::gc::space::LargeObjectSpaceType, unsigned int, unsigned int,
-unsigned int, bool, unsigned int, unsigned int, bool, bool, bool,
-bool, bool, bool, bool, bool, bool, bool, bool, unsigned long
-long)+1674)
-DEBUG   :     #05 pc 00318201  /system/lib/libart.so
-(art::Runtime::Init(art::RuntimeArgumentMap&&)+7036)
-DEBUG   :     #06 pc 0031af19  /system/lib/libart.so
-(art::Runtime::Create(std::__1::vector<std::__1::pair<std::__1::basic_string<char,
-std::__1::char_traits<char>, std::__1::allocator<char>>, void const*>,
-std::__1::allocator<std::__1::pair<std::__1::basic_string<char,
-std::__1::char_traits<char>, std::__1::allocator<char>>, void
-const*>>> const&, bool)+68)
-F DEBUG   :     #07 pc 0023c353  /system/lib/libart.so (JNI_CreateJavaVM+658)
-F DEBUG   :     #08 pc 0000205f  /system/lib/libandroid_runtime.so
-(android::AndroidRuntime::startVm(_JavaVM**, _JNIEnv**, bool)+5038)
-F DEBUG   :     #09 pc 00002381  /system/lib/libandroid_runtime.so
-(android::AndroidRuntime::start(char const*,
-android::Vector<android::String8> const&, bool)+196)
-F DEBUG   :     #10 pc 0000046b  /system/bin/app_process32 (main+702)
+Tested-by: David H. Gutteridge <dhgutteridge@sympatico.ca>
 
 Regards,
-Amit Pundir
+
+Dave
