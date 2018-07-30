@@ -1,67 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A27DB6B0006
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 04:53:56 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id l4-v6so7489804wme.7
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 01:53:56 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AEE06B000A
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 04:58:54 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id q21-v6so2863513pff.21
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 01:58:54 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o5-v6si891960wre.145.2018.07.30.01.53.54
+        by mx.google.com with ESMTPS id o4-v6si11363222pfh.168.2018.07.30.01.58.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jul 2018 01:53:55 -0700 (PDT)
-Subject: Re: [PATCH 4/4] mm: proc/pid/smaps_rollup: convert to single value
- seq_file
-References: <20180723111933.15443-1-vbabka@suse.cz>
- <20180723111933.15443-5-vbabka@suse.cz>
- <cb1d1965-9a13-e80f-dfde-a5d3bf9f510c@suse.cz> <20180726162637.GB25227@avx2>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <bf4525b0-fd5b-4c4c-2cb3-adee3dd95a48@suse.cz>
-Date: Mon, 30 Jul 2018 10:53:53 +0200
+        Mon, 30 Jul 2018 01:58:53 -0700 (PDT)
+Date: Mon, 30 Jul 2018 10:58:51 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] ipc/shm.c add ->pagesize function to shm_vm_ops
+Message-ID: <20180730085851.GB24267@dhcp22.suse.cz>
+References: <20180727211727.5020-1-jane.chu@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20180726162637.GB25227@avx2>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180727211727.5020-1-jane.chu@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexey Dobriyan <adobriyan@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Daniel Colascione <dancol@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org
+To: Jane Chu <jane.chu@oracle.com>
+Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, mike.kravetz@oracle.com, dave@stgolabs.net, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
 
-On 07/26/2018 06:26 PM, Alexey Dobriyan wrote:
-> On Wed, Jul 25, 2018 at 08:53:53AM +0200, Vlastimil Babka wrote:
->> I moved the reply to this thread since the "added to -mm tree"
->> notification Alexey replied to in <20180724182908.GD27053@avx2> has
->> reduced CC list and is not linked to the patch postings.
->>
->> On 07/24/2018 08:29 PM, Alexey Dobriyan wrote:
->>> On Mon, Jul 23, 2018 at 04:55:48PM -0700, akpm@linux-foundation.org wrote:
->>>> The patch titled
->>>>      Subject: mm: /proc/pid/smaps_rollup: convert to single value seq_file
->>>> has been added to the -mm tree.  Its filename is
->>>>      mm-proc-pid-smaps_rollup-convert-to-single-value-seq_file.patch
->>>
->>>> Subject: mm: /proc/pid/smaps_rollup: convert to single value seq_file
->>>>
->>>> The /proc/pid/smaps_rollup file is currently implemented via the
->>>> m_start/m_next/m_stop seq_file iterators shared with the other maps files,
->>>> that iterate over vma's.  However, the rollup file doesn't print anything
->>>> for each vma, only accumulate the stats.
->>>
->>> What I don't understand why keep seq_ops then and not do all the work in
->>> ->show hook.  Currently /proc/*/smaps_rollup is at ~500 bytes so with
->>> minimum 1 page seq buffer, no buffer resizing is possible.
->>
->> Hmm IIUC seq_file also provides the buffer and handles feeding the data
->> from there to the user process, which might have called read() with a smaller
->> buffer than that. So I would rather not avoid the seq_file infrastructure.
->> Or you're saying it could be converted to single_open()? Maybe, with more work.
+On Fri 27-07-18 15:17:27, Jane Chu wrote:
+> Commit 05ea88608d4e13 (mm, hugetlbfs: introduce ->pagesize() to
+> vm_operations_struct) adds a new ->pagesize() function to
+> hugetlb_vm_ops, intended to cover all hugetlbfs backed files.
 > 
-> Prefereably yes.
+> With System V shared memory model, if "huge page" is specified,
+> the "shared memory" is backed by hugetlbfs files, but the mappings
+> initiated via shmget/shmat have their original vm_ops overwritten
+> with shm_vm_ops, so we need to add a ->pagesize function to shm_vm_ops.
+> Otherwise, vma_kernel_pagesize() returns PAGE_SIZE given a hugetlbfs
+> backed vma, result in below BUG:
+> 
+> fs/hugetlbfs/inode.c
+>         443             if (unlikely(page_mapped(page))) {
+>         444                     BUG_ON(truncate_op);
+> 
+> [  242.268342] hugetlbfs: oracle (4592): Using mlock ulimits for SHM_HUGETLB is deprecated
+> [  282.653208] ------------[ cut here ]------------
+> [  282.708447] kernel BUG at fs/hugetlbfs/inode.c:444!
+> [  282.818957] Modules linked in: nfsv3 rpcsec_gss_krb5 nfsv4 ...
+> [  284.025873] CPU: 35 PID: 5583 Comm: oracle_5583_sbt Not tainted 4.14.35-1829.el7uek.x86_64 #2
+> [  284.246609] task: ffff9bf0507aaf80 task.stack: ffffa9e625628000
+> [  284.317455] RIP: 0010:remove_inode_hugepages+0x3db/0x3e2
+> ....
+> [  285.292389] Call Trace:
+> [  285.321630]  hugetlbfs_evict_inode+0x1e/0x3e
+> [  285.372707]  evict+0xdb/0x1af
+> [  285.408185]  iput+0x1a2/0x1f7
+> [  285.443661]  dentry_unlink_inode+0xc6/0xf0
+> [  285.492661]  __dentry_kill+0xd8/0x18d
+> [  285.536459]  dput+0x1b5/0x1ed
+> [  285.571939]  __fput+0x18b/0x216
+> [  285.609495]  ____fput+0xe/0x10
+> [  285.646030]  task_work_run+0x90/0xa7
+> [  285.688788]  exit_to_usermode_loop+0xdd/0x116
+> [  285.740905]  do_syscall_64+0x187/0x1ae
+> [  285.785740]  entry_SYSCALL_64_after_hwframe+0x150/0x0
+> 
+> Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
+> Signed-off-by: Jane Chu <jane.chu@oracle.com>
 
-OK here it is. Sending as a new patch instead of delta, as that's easier
-to review - the delta is significant. Line stats wise it's the same.
-Again a bit less boilerplate thans to no special seq_ops, a bit more
-copy/paste in the open and release functions. But I guess it's better
-overall.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-----8>----
+with Cc: stable and Fixes: tag as suggested by Mike.
+
+I also agree with Matthew that the comment should be associated with
+hugetlb_vm_ops/shm_vm_ops.
+
+Thanks!
+
+> ---
+>  include/linux/mm.h |  7 +++++++
+>  ipc/shm.c          | 12 ++++++++++++
+>  2 files changed, 19 insertions(+)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index a0fbb9ffe380..0c759379f2d9 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -387,6 +387,13 @@ enum page_entry_size {
+>   * These are the virtual MM functions - opening of an area, closing and
+>   * unmapping it (needed to keep files on disk up-to-date etc), pointer
+>   * to the functions called when a no-page or a wp-page exception occurs.
+> + *
+> + * Note, when a new function is introduced to vm_operations_struct and
+> + * added to hugetlb_vm_ops, please consider adding the function to
+> + * shm_vm_ops. This is because under System V memory model, though
+> + * mappings created via shmget/shmat with "huge page" specified are
+> + * backed by hugetlbfs files, their original vm_ops are overwritten with
+> + * shm_vm_ops.
+>   */
+>  struct vm_operations_struct {
+>  	void (*open)(struct vm_area_struct * area);
+> diff --git a/ipc/shm.c b/ipc/shm.c
+> index 051a3e1fb8df..fefa00d310fb 100644
+> --- a/ipc/shm.c
+> +++ b/ipc/shm.c
+> @@ -427,6 +427,17 @@ static int shm_split(struct vm_area_struct *vma, unsigned long addr)
+>  	return 0;
+>  }
+>  
+> +static unsigned long shm_pagesize(struct vm_area_struct *vma)
+> +{
+> +	struct file *file = vma->vm_file;
+> +	struct shm_file_data *sfd = shm_file_data(file);
+> +
+> +	if (sfd->vm_ops->pagesize)
+> +		return sfd->vm_ops->pagesize(vma);
+> +
+> +	return PAGE_SIZE;
+> +}
+> +
+>  #ifdef CONFIG_NUMA
+>  static int shm_set_policy(struct vm_area_struct *vma, struct mempolicy *new)
+>  {
+> @@ -554,6 +565,7 @@ static const struct vm_operations_struct shm_vm_ops = {
+>  	.close	= shm_close,	/* callback for when the vm-area is released */
+>  	.fault	= shm_fault,
+>  	.split	= shm_split,
+> +	.pagesize = shm_pagesize,
+>  #if defined(CONFIG_NUMA)
+>  	.set_policy = shm_set_policy,
+>  	.get_policy = shm_get_policy,
+> -- 
+> 2.15.GIT
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
