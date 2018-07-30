@@ -1,57 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 664256B000C
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 10:10:59 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id 136-v6so13219842itw.5
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 07:10:59 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id n129-v6si8926494iof.54.2018.07.30.07.10.58
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EAB16B000E
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 10:11:01 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id z5-v6so2464982edr.19
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 07:11:01 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i31-v6si292615edd.265.2018.07.30.07.10.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jul 2018 07:10:58 -0700 (PDT)
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6UE8pjR181213
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 14:10:57 GMT
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by userp2120.oracle.com with ESMTP id 2kgh4pvk71-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 14:10:57 +0000
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w6UEAtZj009169
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 14:10:55 GMT
-Received: from abhmp0004.oracle.com (abhmp0004.oracle.com [141.146.116.10])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w6UEAtf7015008
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 14:10:55 GMT
-Received: by mail-oi0-f50.google.com with SMTP id b15-v6so21442995oib.10
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 07:10:54 -0700 (PDT)
+        Mon, 30 Jul 2018 07:10:59 -0700 (PDT)
+Date: Mon, 30 Jul 2018 16:10:58 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v1] mm: inititalize struct pages when adding a section
+Message-ID: <20180730141058.GV24267@dhcp22.suse.cz>
+References: <20180727165454.27292-1-david@redhat.com>
+ <20180730113029.GM24267@dhcp22.suse.cz>
+ <6cc416e7-522c-a67e-2706-f37aadff084f@redhat.com>
+ <20180730120529.GN24267@dhcp22.suse.cz>
+ <7b58af7b-5187-2c76-b458-b0f49875a1fc@redhat.com>
+ <CAGM2reahiWj5LFq1npRpwK2k-4K-L9hr3AHUV9uYcmT2s3Bnuw@mail.gmail.com>
+ <56e97799-fbe1-9546-46ab-a9b8ee8794e0@redhat.com>
 MIME-Version: 1.0
-References: <20180730133718.28683-1-osalvador@techadventures.net>
-In-Reply-To: <20180730133718.28683-1-osalvador@techadventures.net>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Mon, 30 Jul 2018 10:10:18 -0400
-Message-ID: <CAGM2reYo+3ONoLQqD8tQMMKuQ5ZPJf6CjpcahHeMtNQ-B1FuRA@mail.gmail.com>
-Subject: Re: [PATCH] mm: Remove zone_id() and make use of zone_idx() in is_dev_zone()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56e97799-fbe1-9546-46ab-a9b8ee8794e0@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: osalvador@techadventures.net
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Stephen Rothwell <sfr@canb.auug.org.au>, rientjes@google.com, kemi.wang@intel.com, jia.he@hxt-semitech.com, =?UTF-8?B?UGV0ciBUZXNhxZnDrWs=?= <ptesarik@suse.com>, aryabinin@virtuozzo.com, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, dan.j.williams@intel.com, osalvador@suse.de
+To: David Hildenbrand <david@redhat.com>
+Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, gregkh@linuxfoundation.org, mingo@kernel.org, Andrew Morton <akpm@linux-foundation.org>, dan.j.williams@intel.com, jack@suse.cz, mawilcox@microsoft.com, jglisse@redhat.com, Souptick Joarder <jrdr.linux@gmail.com>, kirill.shutemov@linux.intel.com, Vlastimil Babka <vbabka@suse.cz>, osalvador@techadventures.net, yasu.isimatu@gmail.com, malat@debian.org, Mel Gorman <mgorman@suse.de>, iamjoonsoo.kim@lge.com
 
-On Mon, Jul 30, 2018 at 9:37 AM <osalvador@techadventures.net> wrote:
+On Mon 30-07-18 15:51:45, David Hildenbrand wrote:
+> On 30.07.2018 15:30, Pavel Tatashin wrote:
+[...]
+> > Hi David,
+> > 
+> > Have you figured out why we access struct pages during hot-unplug for
+> > offlined memory? Also, a panic trace would be useful in the patch.
+> 
+> __remove_pages() needs a zone as of now (e.g. to recalculate if the zone
+> is contiguous). This zone is taken from the first page of memory to be
+> removed. If the struct pages are uninitialized that value is random and
+> we might even get an invalid zone.
 >
-> From: Oscar Salvador <osalvador@suse.de>
->
-> is_dev_zone() is using zone_id() to check if the zone is ZONE_DEVICE.
-> zone_id() looks pretty much the same as zone_idx(), and while the use of
-> zone_idx() is quite spread in the kernel, zone_id() is only being
-> used by is_dev_zone().
->
-> This patch removes zone_id() and makes is_dev_zone() use zone_idx()
-> to check the zone, so we do not have two things with the same
-> functionality around.
->
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> The zone is also used to locate pgdat.
+> 
+> No stack trace available so far, I'm just reading the code and try to
+> understand how this whole memory hotplug/unplug machinery works.
 
-Thank you:
-Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Yes this is a mess (evolution of the code called otherwise ;) [1].
+Functionality has been just added on top of not very well thought
+through bases. This is a nice example of it. We are trying to get a zone
+to 1) special case zone_device 2) recalculate zone state. The first
+shouldn't be really needed because we should simply rely on altmap.
+Whether it is used for zone device or not. 2) shouldn't be really needed
+if the section is offline and we can check that trivially.
+
+[1] on the other hand I can see why people were reluctant to understand
+the mess and rather tweak their tiny thing on top...
+-- 
+Michal Hocko
+SUSE Labs
