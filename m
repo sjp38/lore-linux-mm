@@ -1,49 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A82DC6B0003
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 08:57:15 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id 13-v6so10837235oiq.1
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 05:57:15 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id k189-v6si7638331oib.416.2018.07.30.05.57.11
-        for <linux-mm@kvack.org>;
-        Mon, 30 Jul 2018 05:57:11 -0700 (PDT)
-Date: Mon, 30 Jul 2018 13:57:05 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [llvmlinux] clang fails on linux-next since commit 8bf705d13039
-Message-ID: <20180730125705.wmyo3qqj4ro32ner@lakrids.cambridge.arm.com>
-References: <CA+icZUVQZtvLg6XGwnS-4Zgv+tkCGWw5Ue8_585H_xNOofX76Q@mail.gmail.com>
- <20180730091934.omn2vj6eyh6kaecs@lakrids.cambridge.arm.com>
- <CA+icZUUicAr5hBB9oGtuLhygP4pf39YV9hhrg7GpJQUibZu=ig@mail.gmail.com>
- <20180730094622.av7wlyrkl3rn37mp@lakrids.cambridge.arm.com>
- <CA+icZUVEYs0Y+vdwB9o8bQf3QiOGJ_vZKnD3LGXVeAsok95S6w@mail.gmail.com>
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F36D6B0006
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 09:01:43 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id e25-v6so3109569pfn.19
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 06:01:43 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u10-v6sor3578817plu.19.2018.07.30.06.01.41
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 30 Jul 2018 06:01:41 -0700 (PDT)
+Date: Mon, 30 Jul 2018 16:01:34 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: Linux 4.18-rc7
+Message-ID: <20180730130134.yvn5tcmoavuxtwt5@kshutemo-mobl1>
+References: <CA+55aFxpFefwVdTGVML99PSFUqwpJXPx5LVCA3D=g2t2_QLNsA@mail.gmail.com>
+ <CAMi1Hd0fJuAgP09_KkbjyGwszOXmxcPybKyBxP3U1y5JUqxxSw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+icZUVEYs0Y+vdwB9o8bQf3QiOGJ_vZKnD3LGXVeAsok95S6w@mail.gmail.com>
+In-Reply-To: <CAMi1Hd0fJuAgP09_KkbjyGwszOXmxcPybKyBxP3U1y5JUqxxSw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sedat Dilek <sedat.dilek@gmail.com>
-Cc: Matthias Kaehlcke <mka@chromium.org>, Dmitry Vyukov <dvyukov@google.com>, Greg Hackmann <ghackmann@google.com>, Luis Lozano <llozano@google.com>, Michael Davidson <md@google.com>, Nick Desaulniers <ndesaulniers@google.com>, Paul Lawrence <paullawrence@google.com>, Sami Tolvanen <samitolvanen@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Ingo Molnar <mingo@kernel.org>, linux-mm@kvack.org, llvmlinux@lists.linuxfoundation.org, sil2review@lists.osadl.org, Jan Beulich <JBeulich@suse.com>, Peter Zijlstra <peterz@infradead.org>, Kees Cook <keescook@chromium.org>, Colin King <colin.king@canonical.com>
+To: Amit Pundir <amit.pundir@linaro.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, aarcange@redhat.com, Linus Torvalds <torvalds@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, youling 257 <youling257@gmail.com>
 
-On Mon, Jul 30, 2018 at 02:28:42PM +0200, Sedat Dilek wrote:
-> On Mon, Jul 30, 2018 at 11:46 AM, Mark Rutland <mark.rutland@arm.com> wrote:
-> > On Mon, Jul 30, 2018 at 11:40:49AM +0200, Sedat Dilek wrote:
-> >> What are your plans to have...
-> >>
-> >> 4d2b25f630c7 locking/atomics: Instrument cmpxchg_double*()
-> >> f9881cc43b11 locking/atomics: Instrument xchg()
-> >> df79ed2c0643 locking/atomics: Simplify cmpxchg() instrumentation
-> >> 00d5551cc4ee locking/atomics/x86: Reduce arch_cmpxchg64*() instrumentation
-> >>
-> >> ...for example in Linux 4.18 or 4.17.y?
+On Mon, Jul 30, 2018 at 12:17:46PM +0530, Amit Pundir wrote:
+> On Mon, 30 Jul 2018 at 03:39, Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
 > >
-> > I have no plans to have these backported.
+> > So unless something odd happens, this should be the last rc for 4.18.
 > >
+> > Nothing particularly odd happened this last week - we got the usual
+> > random set of various minor fixes all over. About two thirds of it is
+> > drivers - networking, staging and usb stands out, but there's a little
+> > bit of stuff all over (clk, block, gpu, nvme..).
+> >
+> > Outside of drivers, the bulk is some core networking stuff, with
+> > random changes elsewhere (minor arch updates, filesystems, core
+> > kernel, test scripts).
+> >
+> > The appended shortlog gives a flavor of the details.
+> >
+> >                   Linus
+> >
+> > ---
+> > Kirill A. Shutemov (3):
+> >       mm: introduce vma_init()
+> >       mm: use vma_init() to initialize VMAs on stack and data segments
+> >       mm: fix vma_is_anonymous() false-positives
 > 
-> I guess this is 4.19 material?
+> Hi, I have run into AOSP userspace crash with v4.18-rc7, leading to
+> above mm patches. bfd40eaff5ab ("mm: fix vma_is_anonymous()
+> false-positives") to be specific. The same userspace is working fine
+> with v4.18-rc6.
+> 
+> I didn't yet look into what is going wrong from userspace point of
+> view, but I just wanted to give you a heads up on this. I'll be happy
+> to assist in further debugging/diagnosis if required.
 
-Yes. the above 4 commits are all queued for v4.19.
+Youling reported basically the same bug with zygote crashing, but on
+x86-64.
 
-Thanks,
-Mark.
+I think I missed vma_set_anonymous() somewhere, but I fail to see where.
+
+Could you check if removing 'vma->vm_ops = &dummy_vm_ops;" from vma_init
+makes the problem go away?
+
+Any chance the code that crashes can be run under strace?
+
+> Here is the crash log from logcat, if it helps:
+> F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+> F DEBUG   : Build fingerprint:
+> 'Android/db410c32_only/db410c32_only:Q/OC-MR1/102:userdebug/test-key
+> F DEBUG   : Revision: '0'
+> F DEBUG   : ABI: 'arm'
+> F DEBUG   : pid: 2261, tid: 2261, name: zygote  >>> zygote <<<
+> F DEBUG   : signal 7 (SIGBUS), code 2 (BUS_ADRERR), fault addr 0xec00008
+> .. <snip> ..
+> F DEBUG   : backtrace:
+> F DEBUG   :     #00 pc 00001c04  /system/lib/libc.so (memset+48)
+> F DEBUG   :     #01 pc 0010c513  /system/lib/libart.so
+> (create_mspace_with_base+82)
+> F DEBUG   :     #02 pc 0015c601  /system/lib/libart.so
+> (art::gc::space::DlMallocSpace::CreateMspace(void*, unsigned int,
+> unsigned int)+40)
+> F DEBUG   :     #03 pc 0015c3ed  /system/lib/libart.so
+> (art::gc::space::DlMallocSpace::CreateFromMemMap(art::MemMap*,
+> std::__1::basic_string<char, std::__
+> 1::char_traits<char>, std::__1::allocator<char>> const&, unsigned int,
+> unsigned int, unsigned int, unsigned int, bool)+36)
+> F DEBUG   :     #04 pc 0013c9ab  /system/lib/libart.so
+> (art::gc::Heap::Heap(unsigned int, unsigned int, unsigned int,
+> unsigned int, double, double, unsigned int, unsigned int,
+> std::__1::basic_string<char, std::__1::char_traits<char>,
+> std::__1::allocator<char>> const&, art::InstructionSet,
+> art::gc::CollectorType, art::gc::CollectorType,
+> art::gc::space::LargeObjectSpaceType, unsigned int, unsigned int,
+> unsigned int, bool, unsigned int, unsigned int, bool, bool, bool,
+> bool, bool, bool, bool, bool, bool, bool, bool, unsigned long
+> long)+1674)
+> DEBUG   :     #05 pc 00318201  /system/lib/libart.so
+> (art::Runtime::Init(art::RuntimeArgumentMap&&)+7036)
+> DEBUG   :     #06 pc 0031af19  /system/lib/libart.so
+> (art::Runtime::Create(std::__1::vector<std::__1::pair<std::__1::basic_string<char,
+> std::__1::char_traits<char>, std::__1::allocator<char>>, void const*>,
+> std::__1::allocator<std::__1::pair<std::__1::basic_string<char,
+> std::__1::char_traits<char>, std::__1::allocator<char>>, void
+> const*>>> const&, bool)+68)
+> F DEBUG   :     #07 pc 0023c353  /system/lib/libart.so (JNI_CreateJavaVM+658)
+> F DEBUG   :     #08 pc 0000205f  /system/lib/libandroid_runtime.so
+> (android::AndroidRuntime::startVm(_JavaVM**, _JNIEnv**, bool)+5038)
+> F DEBUG   :     #09 pc 00002381  /system/lib/libandroid_runtime.so
+> (android::AndroidRuntime::start(char const*,
+> android::Vector<android::String8> const&, bool)+196)
+> F DEBUG   :     #10 pc 0000046b  /system/bin/app_process32 (main+702)
+> 
+> Regards,
+> Amit Pundir
+> 
+
+-- 
+ Kirill A. Shutemov
