@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AC1A6B026F
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 02:12:05 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id e3-v6so11119211wrr.8
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 23:12:05 -0700 (PDT)
-Received: from relay6-d.mail.gandi.net (relay6-d.mail.gandi.net. [217.70.183.198])
-        by mx.google.com with ESMTPS id b6-v6si12681640wrw.461.2018.07.30.23.12.03
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 059A46B0271
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 02:13:11 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id o25-v6so965089wmh.1
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 23:13:10 -0700 (PDT)
+Received: from relay3-d.mail.gandi.net (relay3-d.mail.gandi.net. [217.70.183.195])
+        by mx.google.com with ESMTPS id w68-v6si989008wmw.169.2018.07.30.23.13.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 30 Jul 2018 23:12:03 -0700 (PDT)
+        Mon, 30 Jul 2018 23:13:08 -0700 (PDT)
 From: Alexandre Ghiti <alex@ghiti.fr>
-Subject: [PATCH v5 08/11] hugetlb: Introduce generic version of prepare_hugepage_range
-Date: Tue, 31 Jul 2018 06:01:52 +0000
-Message-Id: <20180731060155.16915-9-alex@ghiti.fr>
+Subject: [PATCH v5 09/11] hugetlb: Introduce generic version of huge_ptep_set_wrprotect
+Date: Tue, 31 Jul 2018 06:01:53 +0000
+Message-Id: <20180731060155.16915-10-alex@ghiti.fr>
 In-Reply-To: <20180731060155.16915-1-alex@ghiti.fr>
 References: <20180731060155.16915-1-alex@ghiti.fr>
 Sender: owner-linux-mm@kvack.org
@@ -20,216 +20,215 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, mike.kravetz@oracle.com, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, tony.luck@intel.com, fenghua.yu@intel.com, ralf@linux-mips.org, paul.burton@mips.com, jhogan@kernel.org, jejb@parisc-linux.org, deller@gmx.de, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, ysato@users.sourceforge.jp, dalias@libc.org, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, arnd@arndb.de, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org
 Cc: Alexandre Ghiti <alex@ghiti.fr>
 
-arm, arm64, powerpc, sparc, x86 architectures use the same version of
-prepare_hugepage_range, so move this generic implementation into
+arm, ia64, mips, sh, x86 architectures use the same version
+of huge_ptep_set_wrprotect, so move this generic implementation into
 asm-generic/hugetlb.h.
+Note: powerpc uses twice for book3s/32 and nohash/32 the same version as
+the above architectures, but the modification was not straightforward
+and hence has not been done.
 
 Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
 Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- arch/arm/include/asm/hugetlb.h     | 11 -----------
- arch/arm64/include/asm/hugetlb.h   | 11 -----------
- arch/ia64/include/asm/hugetlb.h    |  1 +
- arch/mips/include/asm/hugetlb.h    |  1 +
- arch/parisc/include/asm/hugetlb.h  |  1 +
- arch/powerpc/include/asm/hugetlb.h | 15 ---------------
- arch/sh/include/asm/hugetlb.h      |  1 +
- arch/sparc/include/asm/hugetlb.h   | 16 ----------------
- arch/x86/include/asm/hugetlb.h     | 15 ---------------
- include/asm-generic/hugetlb.h      | 15 +++++++++++++++
- 10 files changed, 19 insertions(+), 68 deletions(-)
+ arch/arm/include/asm/hugetlb-3level.h        | 6 ------
+ arch/arm64/include/asm/hugetlb.h             | 1 +
+ arch/ia64/include/asm/hugetlb.h              | 6 ------
+ arch/mips/include/asm/hugetlb.h              | 6 ------
+ arch/parisc/include/asm/hugetlb.h            | 1 +
+ arch/powerpc/include/asm/book3s/32/pgtable.h | 2 ++
+ arch/powerpc/include/asm/book3s/64/pgtable.h | 1 +
+ arch/powerpc/include/asm/nohash/32/pgtable.h | 2 ++
+ arch/powerpc/include/asm/nohash/64/pgtable.h | 1 +
+ arch/sh/include/asm/hugetlb.h                | 6 ------
+ arch/sparc/include/asm/hugetlb.h             | 1 +
+ arch/x86/include/asm/hugetlb.h               | 6 ------
+ include/asm-generic/hugetlb.h                | 8 ++++++++
+ 13 files changed, 17 insertions(+), 30 deletions(-)
 
-diff --git a/arch/arm/include/asm/hugetlb.h b/arch/arm/include/asm/hugetlb.h
-index 9ca14227eeb7..3fcef21ff2c2 100644
---- a/arch/arm/include/asm/hugetlb.h
-+++ b/arch/arm/include/asm/hugetlb.h
-@@ -33,17 +33,6 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
- 	return 0;
+diff --git a/arch/arm/include/asm/hugetlb-3level.h b/arch/arm/include/asm/hugetlb-3level.h
+index b897541520ef..8247cd6a2ac6 100644
+--- a/arch/arm/include/asm/hugetlb-3level.h
++++ b/arch/arm/include/asm/hugetlb-3level.h
+@@ -37,12 +37,6 @@ static inline pte_t huge_ptep_get(pte_t *ptep)
+ 	return retval;
  }
  
--static inline int prepare_hugepage_range(struct file *file,
--					 unsigned long addr, unsigned long len)
+-static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+-					   unsigned long addr, pte_t *ptep)
 -{
--	struct hstate *h = hstate_file(file);
--	if (len & ~huge_page_mask(h))
--		return -EINVAL;
--	if (addr & ~huge_page_mask(h))
--		return -EINVAL;
--	return 0;
+-	ptep_set_wrprotect(mm, addr, ptep);
 -}
 -
- static inline void arch_clear_hugepage_flags(struct page *page)
- {
- 	clear_bit(PG_dcache_clean, &page->flags);
+ static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+ 					     unsigned long addr, pte_t *ptep,
+ 					     pte_t pte, int dirty)
 diff --git a/arch/arm64/include/asm/hugetlb.h b/arch/arm64/include/asm/hugetlb.h
-index 1fd64ebf0cd7..3e7f6e69b28d 100644
+index 3e7f6e69b28d..f4f69ae5466e 100644
 --- a/arch/arm64/include/asm/hugetlb.h
 +++ b/arch/arm64/include/asm/hugetlb.h
-@@ -31,17 +31,6 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
- 	return 0;
- }
- 
--static inline int prepare_hugepage_range(struct file *file,
--					 unsigned long addr, unsigned long len)
--{
--	struct hstate *h = hstate_file(file);
--	if (len & ~huge_page_mask(h))
--		return -EINVAL;
--	if (addr & ~huge_page_mask(h))
--		return -EINVAL;
--	return 0;
--}
--
- static inline void arch_clear_hugepage_flags(struct page *page)
- {
- 	clear_bit(PG_dcache_clean, &page->flags);
+@@ -48,6 +48,7 @@ extern int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+ #define __HAVE_ARCH_HUGE_PTEP_GET_AND_CLEAR
+ extern pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+ 				     unsigned long addr, pte_t *ptep);
++#define __HAVE_ARCH_HUGE_PTEP_SET_WRPROTECT
+ extern void huge_ptep_set_wrprotect(struct mm_struct *mm,
+ 				    unsigned long addr, pte_t *ptep);
+ #define __HAVE_ARCH_HUGE_PTEP_CLEAR_FLUSH
 diff --git a/arch/ia64/include/asm/hugetlb.h b/arch/ia64/include/asm/hugetlb.h
-index 82fe3d7a38d9..cbe296271030 100644
+index cbe296271030..49d1f7949f3a 100644
 --- a/arch/ia64/include/asm/hugetlb.h
 +++ b/arch/ia64/include/asm/hugetlb.h
-@@ -9,6 +9,7 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
- 			    unsigned long end, unsigned long floor,
- 			    unsigned long ceiling);
+@@ -27,12 +27,6 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
+ {
+ }
  
-+#define __HAVE_ARCH_PREPARE_HUGEPAGE_RANGE
- int prepare_hugepage_range(struct file *file,
- 			unsigned long addr, unsigned long len);
- 
+-static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+-					   unsigned long addr, pte_t *ptep)
+-{
+-	ptep_set_wrprotect(mm, addr, ptep);
+-}
+-
+ static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+ 					     unsigned long addr, pte_t *ptep,
+ 					     pte_t pte, int dirty)
 diff --git a/arch/mips/include/asm/hugetlb.h b/arch/mips/include/asm/hugetlb.h
-index b3d6bb53ee6e..6ff2531cfb1d 100644
+index 6ff2531cfb1d..3dcf5debf8c4 100644
 --- a/arch/mips/include/asm/hugetlb.h
 +++ b/arch/mips/include/asm/hugetlb.h
-@@ -18,6 +18,7 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
- 	return 0;
+@@ -63,12 +63,6 @@ static inline int huge_pte_none(pte_t pte)
+ 	return !val || (val == (unsigned long)invalid_pte_table);
  }
  
-+#define __HAVE_ARCH_PREPARE_HUGEPAGE_RANGE
- static inline int prepare_hugepage_range(struct file *file,
- 					 unsigned long addr,
- 					 unsigned long len)
+-static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+-					   unsigned long addr, pte_t *ptep)
+-{
+-	ptep_set_wrprotect(mm, addr, ptep);
+-}
+-
+ static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+ 					     unsigned long addr,
+ 					     pte_t *ptep, pte_t pte,
 diff --git a/arch/parisc/include/asm/hugetlb.h b/arch/parisc/include/asm/hugetlb.h
-index 5a102d7251e4..fb7e0fd858a3 100644
+index fb7e0fd858a3..9c3950ca2974 100644
 --- a/arch/parisc/include/asm/hugetlb.h
 +++ b/arch/parisc/include/asm/hugetlb.h
-@@ -22,6 +22,7 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
-  * If the arch doesn't supply something else, assume that hugepage
-  * size aligned regions are ok without further preparation.
-  */
-+#define __HAVE_ARCH_PREPARE_HUGEPAGE_RANGE
- static inline int prepare_hugepage_range(struct file *file,
- 			unsigned long addr, unsigned long len)
+@@ -39,6 +39,7 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
  {
-diff --git a/arch/powerpc/include/asm/hugetlb.h b/arch/powerpc/include/asm/hugetlb.h
-index 7123599089c6..69c14ecac133 100644
---- a/arch/powerpc/include/asm/hugetlb.h
-+++ b/arch/powerpc/include/asm/hugetlb.h
-@@ -117,21 +117,6 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
- 			    unsigned long end, unsigned long floor,
- 			    unsigned long ceiling);
- 
--/*
-- * If the arch doesn't supply something else, assume that hugepage
-- * size aligned regions are ok without further preparation.
-- */
--static inline int prepare_hugepage_range(struct file *file,
--			unsigned long addr, unsigned long len)
--{
--	struct hstate *h = hstate_file(file);
--	if (len & ~huge_page_mask(h))
--		return -EINVAL;
--	if (addr & ~huge_page_mask(h))
--		return -EINVAL;
--	return 0;
--}
--
- #define __HAVE_ARCH_HUGE_PTEP_GET_AND_CLEAR
- static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
- 					    unsigned long addr, pte_t *ptep)
-diff --git a/arch/sh/include/asm/hugetlb.h b/arch/sh/include/asm/hugetlb.h
-index 54f65094efe6..f1bbd255ee43 100644
---- a/arch/sh/include/asm/hugetlb.h
-+++ b/arch/sh/include/asm/hugetlb.h
-@@ -15,6 +15,7 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
-  * If the arch doesn't supply something else, assume that hugepage
-  * size aligned regions are ok without further preparation.
-  */
-+#define __HAVE_ARCH_PREPARE_HUGEPAGE_RANGE
- static inline int prepare_hugepage_range(struct file *file,
- 			unsigned long addr, unsigned long len)
- {
-diff --git a/arch/sparc/include/asm/hugetlb.h b/arch/sparc/include/asm/hugetlb.h
-index f661362376e0..2101ea217f33 100644
---- a/arch/sparc/include/asm/hugetlb.h
-+++ b/arch/sparc/include/asm/hugetlb.h
-@@ -26,22 +26,6 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
- 	return 0;
  }
  
--/*
-- * If the arch doesn't supply something else, assume that hugepage
-- * size aligned regions are ok without further preparation.
-- */
--static inline int prepare_hugepage_range(struct file *file,
--			unsigned long addr, unsigned long len)
--{
--	struct hstate *h = hstate_file(file);
--
--	if (len & ~huge_page_mask(h))
--		return -EINVAL;
--	if (addr & ~huge_page_mask(h))
--		return -EINVAL;
--	return 0;
--}
--
- #define __HAVE_ARCH_HUGE_PTEP_CLEAR_FLUSH
- static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
- 					 unsigned long addr, pte_t *ptep)
-diff --git a/arch/x86/include/asm/hugetlb.h b/arch/x86/include/asm/hugetlb.h
-index 3cd3a2c9840e..59c056adb3c9 100644
---- a/arch/x86/include/asm/hugetlb.h
-+++ b/arch/x86/include/asm/hugetlb.h
-@@ -13,21 +13,6 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
- 	return 0;
- }
++#define __HAVE_ARCH_HUGE_PTEP_SET_WRPROTECT
+ void huge_ptep_set_wrprotect(struct mm_struct *mm,
+ 					   unsigned long addr, pte_t *ptep);
  
--/*
-- * If the arch doesn't supply something else, assume that hugepage
-- * size aligned regions are ok without further preparation.
-- */
--static inline int prepare_hugepage_range(struct file *file,
--			unsigned long addr, unsigned long len)
--{
--	struct hstate *h = hstate_file(file);
--	if (len & ~huge_page_mask(h))
--		return -EINVAL;
--	if (addr & ~huge_page_mask(h))
--		return -EINVAL;
--	return 0;
--}
--
+diff --git a/arch/powerpc/include/asm/book3s/32/pgtable.h b/arch/powerpc/include/asm/book3s/32/pgtable.h
+index 02f5acd7ccc4..d2cd1d0226e9 100644
+--- a/arch/powerpc/include/asm/book3s/32/pgtable.h
++++ b/arch/powerpc/include/asm/book3s/32/pgtable.h
+@@ -228,6 +228,8 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
+ {
+ 	pte_update(ptep, (_PAGE_RW | _PAGE_HWWRITE), _PAGE_RO);
+ }
++
++#define __HAVE_ARCH_HUGE_PTEP_SET_WRPROTECT
  static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
  					   unsigned long addr, pte_t *ptep)
  {
+diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
+index 42aafba7a308..7d957f7c47cd 100644
+--- a/arch/powerpc/include/asm/book3s/64/pgtable.h
++++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+@@ -451,6 +451,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
+ 		pte_update(mm, addr, ptep, 0, _PAGE_PRIVILEGED, 0);
+ }
+ 
++#define __HAVE_ARCH_HUGE_PTEP_SET_WRPROTECT
+ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+ 					   unsigned long addr, pte_t *ptep)
+ {
+diff --git a/arch/powerpc/include/asm/nohash/32/pgtable.h b/arch/powerpc/include/asm/nohash/32/pgtable.h
+index 7c46a98cc7f4..f39e200d9591 100644
+--- a/arch/powerpc/include/asm/nohash/32/pgtable.h
++++ b/arch/powerpc/include/asm/nohash/32/pgtable.h
+@@ -249,6 +249,8 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
+ {
+ 	pte_update(ptep, (_PAGE_RW | _PAGE_HWWRITE), _PAGE_RO);
+ }
++
++#define __HAVE_ARCH_HUGE_PTEP_SET_WRPROTECT
+ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+ 					   unsigned long addr, pte_t *ptep)
+ {
+diff --git a/arch/powerpc/include/asm/nohash/64/pgtable.h b/arch/powerpc/include/asm/nohash/64/pgtable.h
+index dd0c7236208f..69fbf7e9b4db 100644
+--- a/arch/powerpc/include/asm/nohash/64/pgtable.h
++++ b/arch/powerpc/include/asm/nohash/64/pgtable.h
+@@ -238,6 +238,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
+ 	pte_update(mm, addr, ptep, _PAGE_RW, 0, 0);
+ }
+ 
++#define __HAVE_ARCH_HUGE_PTEP_SET_WRPROTECT
+ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+ 					   unsigned long addr, pte_t *ptep)
+ {
+diff --git a/arch/sh/include/asm/hugetlb.h b/arch/sh/include/asm/hugetlb.h
+index f1bbd255ee43..8df4004977b9 100644
+--- a/arch/sh/include/asm/hugetlb.h
++++ b/arch/sh/include/asm/hugetlb.h
+@@ -32,12 +32,6 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
+ {
+ }
+ 
+-static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+-					   unsigned long addr, pte_t *ptep)
+-{
+-	ptep_set_wrprotect(mm, addr, ptep);
+-}
+-
+ static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+ 					     unsigned long addr, pte_t *ptep,
+ 					     pte_t pte, int dirty)
+diff --git a/arch/sparc/include/asm/hugetlb.h b/arch/sparc/include/asm/hugetlb.h
+index 2101ea217f33..c41754a113f3 100644
+--- a/arch/sparc/include/asm/hugetlb.h
++++ b/arch/sparc/include/asm/hugetlb.h
+@@ -32,6 +32,7 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
+ {
+ }
+ 
++#define __HAVE_ARCH_HUGE_PTEP_SET_WRPROTECT
+ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+ 					   unsigned long addr, pte_t *ptep)
+ {
+diff --git a/arch/x86/include/asm/hugetlb.h b/arch/x86/include/asm/hugetlb.h
+index 59c056adb3c9..a3f781f7a264 100644
+--- a/arch/x86/include/asm/hugetlb.h
++++ b/arch/x86/include/asm/hugetlb.h
+@@ -13,12 +13,6 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
+ 	return 0;
+ }
+ 
+-static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+-					   unsigned long addr, pte_t *ptep)
+-{
+-	ptep_set_wrprotect(mm, addr, ptep);
+-}
+-
+ static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+ 					     unsigned long addr, pte_t *ptep,
+ 					     pte_t pte, int dirty)
 diff --git a/include/asm-generic/hugetlb.h b/include/asm-generic/hugetlb.h
-index cd9697672b79..6c0c8b0c71e0 100644
+index 6c0c8b0c71e0..9b9039845278 100644
 --- a/include/asm-generic/hugetlb.h
 +++ b/include/asm-generic/hugetlb.h
-@@ -87,4 +87,19 @@ static inline pte_t huge_pte_wrprotect(pte_t pte)
+@@ -102,4 +102,12 @@ static inline int prepare_hugepage_range(struct file *file,
  }
  #endif
  
-+#ifndef __HAVE_ARCH_PREPARE_HUGEPAGE_RANGE
-+static inline int prepare_hugepage_range(struct file *file,
-+		unsigned long addr, unsigned long len)
++#ifndef __HAVE_ARCH_HUGE_PTEP_SET_WRPROTECT
++static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
++		unsigned long addr, pte_t *ptep)
 +{
-+	struct hstate *h = hstate_file(file);
-+
-+	if (len & ~huge_page_mask(h))
-+		return -EINVAL;
-+	if (addr & ~huge_page_mask(h))
-+		return -EINVAL;
-+
-+	return 0;
++	ptep_set_wrprotect(mm, addr, ptep);
 +}
 +#endif
 +
