@@ -1,89 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 278AD6B026D
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 10:57:27 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id t26-v6so4887534pfh.0
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 07:57:27 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B5CC96B026F
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 10:58:13 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id i16-v6so12387218wrr.9
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 07:58:13 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j4-v6sor3838280pgh.210.2018.07.31.07.57.25
+        by mx.google.com with SMTPS id q6-v6sor3793488wrm.53.2018.07.31.07.58.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 31 Jul 2018 07:57:25 -0700 (PDT)
-Date: Tue, 31 Jul 2018 17:57:19 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: Linux 4.18-rc7
-Message-ID: <20180731145718.pbyy3qkp2a2yvucs@kshutemo-mobl1>
-References: <CA+55aFxpFefwVdTGVML99PSFUqwpJXPx5LVCA3D=g2t2_QLNsA@mail.gmail.com>
- <CAMi1Hd0fJuAgP09_KkbjyGwszOXmxcPybKyBxP3U1y5JUqxxSw@mail.gmail.com>
- <20180730130134.yvn5tcmoavuxtwt5@kshutemo-mobl1>
- <CA+55aFwxwCPZs=h5wy-5PELwfBVuTETm+wuZB5cM2SDoXJi68g@mail.gmail.com>
- <alpine.LSU.2.11.1807301410470.4805@eggly.anvils>
- <CA+55aFx3qR1FW0T3na25NrwLZAvpOdUEUJa879CnaJT2ZPfhkg@mail.gmail.com>
- <20180731062927.hjknfcb2cj3bwd7b@kshutemo-mobl1>
+        Tue, 31 Jul 2018 07:58:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180731062927.hjknfcb2cj3bwd7b@kshutemo-mobl1>
+References: <20180730180100.25079-1-guro@fb.com> <20180730180100.25079-2-guro@fb.com>
+ <20180731084509.GE4557@dhcp22.suse.cz>
+In-Reply-To: <20180731084509.GE4557@dhcp22.suse.cz>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Tue, 31 Jul 2018 07:58:00 -0700
+Message-ID: <CALvZod75t+uK=FDtpuBCMZCk7cb4vQMy7DpXQ53Aj7ZLiYsTQQ@mail.gmail.com>
+Subject: Re: [PATCH 1/3] mm: introduce mem_cgroup_put() helper
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, Amit Pundir <amit.pundir@linaro.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, John Stultz <john.stultz@linaro.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, youling257@gmail.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>, Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On Tue, Jul 31, 2018 at 09:29:27AM +0300, Kirill A. Shutemov wrote:
-> On Mon, Jul 30, 2018 at 06:01:26PM -0700, Linus Torvalds wrote:
-> > On Mon, Jul 30, 2018 at 2:53 PM Hugh Dickins <hughd@google.com> wrote:
-> > >
-> > > I have no problem with reverting -rc7's vma_is_anonymous() series.
-> > 
-> > I don't think we need to revert the whole series: I think the rest are
-> > all fairly obvious cleanups, and shouldn't really have any semantic
-> > changes.
-> > 
-> > It's literally only that last patch in the series that then changes
-> > that meaning of "vm_ops". And I don't really _mind_ that last step
-> > either, but since we don't know exactly what it was that it broke, and
-> > we're past rc7, I don't think we really have any option but the revert
-> > it.
-> > 
-> > And if we revert it, I think we need to just remove the
-> > VM_BUG_ON_VMA() that it was supposed to fix. Because I do think that
-> > it is quite likely that the real bug is that overzealous BUG_ON(),
-> > since I can't see any reason why anonymous mappings should be special
-> > there.
-> > 
-> > But I'm certainly also ok with re-visiting that commit later.  I just
-> > think that right _now_ the above is my preferred plan.
-> > 
-> > Kirill?
-> 
-> Considering the timing, I'm okay with reverting the last patch with
-> dropping the VM_BUG_ON_VMA().
-> 
-> But in the end I would like to see strong vma_is_anonymous().
-> 
-> The VM_BUG_ON_VMA() is only triggerable by the test case because
-> vma_is_anonymous() false-positive in fault path and we get anon-THP
-> allocated in file-private mapping.
-> 
-> I don't see immediately how this may trigger other crashes.
-> But it definitely looks wrong.
-> 
-> > > I'm all for deleting that VM_BUG_ON_VMA() in zap_pmd_range(), it was
-> > > just a compromise with those who wanted to keep something there;
-> > > I don't think we even need a WARN_ON_ONCE() now.
-> > 
-> > So to me it looks like a historical check that simply doesn't
-> > "normally" trigger, but there's no reason I can see why we should care
-> > about the case it tests against.
-> 
-> I'll think more on what could go wrong with __split_huge_pmd() called on
-> anon-THP page without mmap_sem(). It's not yet clear cut to me.
+On Tue, Jul 31, 2018 at 1:45 AM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Mon 30-07-18 11:00:58, Roman Gushchin wrote:
+> > Introduce the mem_cgroup_put() helper, which helps to eliminate guarding
+> > memcg css release with "#ifdef CONFIG_MEMCG" in multiple places.
+>
+> Is there any reason for this to be a separate patch? I usually do not
+> like to add helpers without their users because this makes review
+> harder. This one is quite trivial to fit into Patch3 easilly.
+>
 
-I think not having mmap_sem taken at least on read when we call
-__split_huge_pmd() opens possiblity of race with khugepaged:
-khugepaged can collapse the page back to THP as soon as we drop ptl.
-As result pmd_none_or_trans_huge_or_clear_bad() would return true and we
-basically leave the THP behind, not zapped.
+The helper function introduced in this change is also used in the
+remote charging patches, so, I asked Roman to separate this change out
+and thus can be merged independently.
 
--- 
- Kirill A. Shutemov
+Shakeel
+
+> > Link: http://lkml.kernel.org/r/20180623000600.5818-2-guro@fb.com
+> > Signed-off-by: Roman Gushchin <guro@fb.com>
+> > Reviewed-by: Shakeel Butt <shakeelb@google.com>
+> > Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Shakeel Butt <shakeelb@google.com>
+> > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > Cc: Michal Hocko <mhocko@kernel.org>
+> > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> > Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
+> > ---
+> >  include/linux/memcontrol.h | 9 +++++++++
+> >  1 file changed, 9 insertions(+)
+> >
+> > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> > index 6c6fb116e925..e53e00cdbe3f 100644
+> > --- a/include/linux/memcontrol.h
+> > +++ b/include/linux/memcontrol.h
+> > @@ -375,6 +375,11 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
+> >       return css ? container_of(css, struct mem_cgroup, css) : NULL;
+> >  }
+> >
+> > +static inline void mem_cgroup_put(struct mem_cgroup *memcg)
+> > +{
+> > +     css_put(&memcg->css);
+> > +}
+> > +
+> >  #define mem_cgroup_from_counter(counter, member)     \
+> >       container_of(counter, struct mem_cgroup, member)
+> >
+> > @@ -837,6 +842,10 @@ static inline bool task_in_mem_cgroup(struct task_struct *task,
+> >       return true;
+> >  }
+> >
+> > +static inline void mem_cgroup_put(struct mem_cgroup *memcg)
+> > +{
+> > +}
+> > +
+> >  static inline struct mem_cgroup *
+> >  mem_cgroup_iter(struct mem_cgroup *root,
+> >               struct mem_cgroup *prev,
+> > --
+> > 2.14.4
+> >
+>
+> --
+> Michal Hocko
+> SUSE Labs
