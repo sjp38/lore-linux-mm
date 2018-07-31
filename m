@@ -1,262 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 70BE66B000D
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 07:19:00 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id t10-v6so11567142wrs.17
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 04:19:00 -0700 (PDT)
-Received: from relay2-d.mail.gandi.net (relay2-d.mail.gandi.net. [217.70.183.194])
-        by mx.google.com with ESMTPS id e26-v6si4274427wra.250.2018.07.31.04.18.58
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 542706B0010
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 07:19:27 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id z20-v6so2234541edq.10
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 04:19:27 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u29-v6si3895747edl.395.2018.07.31.04.19.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 31 Jul 2018 04:18:58 -0700 (PDT)
-Subject: Re: [PATCH v5 09/11] hugetlb: Introduce generic version of
- huge_ptep_set_wrprotect
-References: <20180731060155.16915-1-alex@ghiti.fr>
- <20180731060155.16915-10-alex@ghiti.fr>
- <87h8kfhg7o.fsf@concordia.ellerman.id.au>
-From: Alexandre Ghiti <alex@ghiti.fr>
-Message-ID: <6acb1389-6998-bafb-cf69-174fd522c04c@ghiti.fr>
-Date: Tue, 31 Jul 2018 13:17:03 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Jul 2018 04:19:26 -0700 (PDT)
+Date: Tue, 31 Jul 2018 13:19:24 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm: terminate the reclaim early when direct reclaiming
+Message-ID: <20180731111924.GI4557@dhcp22.suse.cz>
+References: <1533035368-30911-1-git-send-email-zhaoyang.huang@spreadtrum.com>
 MIME-Version: 1.0
-In-Reply-To: <87h8kfhg7o.fsf@concordia.ellerman.id.au>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1533035368-30911-1-git-send-email-zhaoyang.huang@spreadtrum.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, mike.kravetz@oracle.com, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, tony.luck@intel.com, fenghua.yu@intel.com, ralf@linux-mips.org, paul.burton@mips.com, jhogan@kernel.org, jejb@parisc-linux.org, deller@gmx.de, benh@kernel.crashing.org, ysato@users.sourceforge.jp, dalias@libc.org, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, arnd@arndb.de, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, "aneesh.kumar@linux.ibm.com" <aneesh.kumar@linux.ibm.com>
+To: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org
 
+On Tue 31-07-18 19:09:28, Zhaoyang Huang wrote:
+> This patch try to let the direct reclaim finish earlier than it used
+> to be. The problem comes from We observing that the direct reclaim
+> took a long time to finish when memcg is enabled. By debugging, we
+> find that the reason is the softlimit is too low to meet the loop
+> end criteria. So we add two barriers to judge if it has reclaimed
+> enough memory as same criteria as it is in shrink_lruvec:
+> 1. for each memcg softlimit reclaim.
+> 2. before starting the global reclaim in shrink_zone.
 
-On 07/31/2018 12:06 PM, Michael Ellerman wrote:
-> Alexandre Ghiti <alex@ghiti.fr> writes:
->
->> arm, ia64, mips, sh, x86 architectures use the same version
->> of huge_ptep_set_wrprotect, so move this generic implementation into
->> asm-generic/hugetlb.h.
->> Note: powerpc uses twice for book3s/32 and nohash/32 the same version as
->> the above architectures, but the modification was not straightforward
->> and hence has not been done.
-> Do you remember what the problem was there?
->
-> It looks like you should just be able to drop them like the others. I
-> assume there's some header spaghetti that causes problems though?
+Then I would really recommend to not use soft limit at all. It has
+always been aggressive. I have propose to make it less so in the past we
+have decided to go that way because we simply do not know whether
+somebody depends on that behavior. Your changelog doesn't really tell
+the whole story. Why is this a problem all of the sudden? Nothing has
+really changed recently AFAICT. Cgroup v1 interface is mostly for
+backward compatibility, we have much better ways to accomplish
+workloads isolation in cgroup v2.
 
-Yes, the header spaghetti frightened me a bit. Maybe I should have tried 
-harder: I can try to remove them and find the right defconfigs to 
-compile both to begin with. And to guarantee the functionality is 
-preserved, can I use the testsuite of libhugetlbfs with qemu ?
+So why does it matter all of the sudden?
 
-Alex
+Besides that EXPORT_SYMBOL for such a low level functionality as the
+memory reclaim is a big no-no.
 
->
-> cheers
->
->
->> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
->> Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
->> ---
->>   arch/arm/include/asm/hugetlb-3level.h        | 6 ------
->>   arch/arm64/include/asm/hugetlb.h             | 1 +
->>   arch/ia64/include/asm/hugetlb.h              | 6 ------
->>   arch/mips/include/asm/hugetlb.h              | 6 ------
->>   arch/parisc/include/asm/hugetlb.h            | 1 +
->>   arch/powerpc/include/asm/book3s/32/pgtable.h | 2 ++
->>   arch/powerpc/include/asm/book3s/64/pgtable.h | 1 +
->>   arch/powerpc/include/asm/nohash/32/pgtable.h | 2 ++
->>   arch/powerpc/include/asm/nohash/64/pgtable.h | 1 +
->>   arch/sh/include/asm/hugetlb.h                | 6 ------
->>   arch/sparc/include/asm/hugetlb.h             | 1 +
->>   arch/x86/include/asm/hugetlb.h               | 6 ------
->>   include/asm-generic/hugetlb.h                | 8 ++++++++
->>   13 files changed, 17 insertions(+), 30 deletions(-)
->>
->> diff --git a/arch/arm/include/asm/hugetlb-3level.h b/arch/arm/include/asm/hugetlb-3level.h
->> index b897541520ef..8247cd6a2ac6 100644
->> --- a/arch/arm/include/asm/hugetlb-3level.h
->> +++ b/arch/arm/include/asm/hugetlb-3level.h
->> @@ -37,12 +37,6 @@ static inline pte_t huge_ptep_get(pte_t *ptep)
->>   	return retval;
->>   }
->>   
->> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
->> -					   unsigned long addr, pte_t *ptep)
->> -{
->> -	ptep_set_wrprotect(mm, addr, ptep);
->> -}
->> -
->>   static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
->>   					     unsigned long addr, pte_t *ptep,
->>   					     pte_t pte, int dirty)
->> diff --git a/arch/arm64/include/asm/hugetlb.h b/arch/arm64/include/asm/hugetlb.h
->> index 3e7f6e69b28d..f4f69ae5466e 100644
->> --- a/arch/arm64/include/asm/hugetlb.h
->> +++ b/arch/arm64/include/asm/hugetlb.h
->> @@ -48,6 +48,7 @@ extern int huge_ptep_set_access_flags(struct vm_area_struct *vma,
->>   #define __HAVE_ARCH_HUGE_PTEP_GET_AND_CLEAR
->>   extern pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
->>   				     unsigned long addr, pte_t *ptep);
->> +#define __HAVE_ARCH_HUGE_PTEP_SET_WRPROTECT
->>   extern void huge_ptep_set_wrprotect(struct mm_struct *mm,
->>   				    unsigned long addr, pte_t *ptep);
->>   #define __HAVE_ARCH_HUGE_PTEP_CLEAR_FLUSH
->> diff --git a/arch/ia64/include/asm/hugetlb.h b/arch/ia64/include/asm/hugetlb.h
->> index cbe296271030..49d1f7949f3a 100644
->> --- a/arch/ia64/include/asm/hugetlb.h
->> +++ b/arch/ia64/include/asm/hugetlb.h
->> @@ -27,12 +27,6 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
->>   {
->>   }
->>   
->> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
->> -					   unsigned long addr, pte_t *ptep)
->> -{
->> -	ptep_set_wrprotect(mm, addr, ptep);
->> -}
->> -
->>   static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
->>   					     unsigned long addr, pte_t *ptep,
->>   					     pte_t pte, int dirty)
->> diff --git a/arch/mips/include/asm/hugetlb.h b/arch/mips/include/asm/hugetlb.h
->> index 6ff2531cfb1d..3dcf5debf8c4 100644
->> --- a/arch/mips/include/asm/hugetlb.h
->> +++ b/arch/mips/include/asm/hugetlb.h
->> @@ -63,12 +63,6 @@ static inline int huge_pte_none(pte_t pte)
->>   	return !val || (val == (unsigned long)invalid_pte_table);
->>   }
->>   
->> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
->> -					   unsigned long addr, pte_t *ptep)
->> -{
->> -	ptep_set_wrprotect(mm, addr, ptep);
->> -}
->> -
->>   static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
->>   					     unsigned long addr,
->>   					     pte_t *ptep, pte_t pte,
->> diff --git a/arch/parisc/include/asm/hugetlb.h b/arch/parisc/include/asm/hugetlb.h
->> index fb7e0fd858a3..9c3950ca2974 100644
->> --- a/arch/parisc/include/asm/hugetlb.h
->> +++ b/arch/parisc/include/asm/hugetlb.h
->> @@ -39,6 +39,7 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
->>   {
->>   }
->>   
->> +#define __HAVE_ARCH_HUGE_PTEP_SET_WRPROTECT
->>   void huge_ptep_set_wrprotect(struct mm_struct *mm,
->>   					   unsigned long addr, pte_t *ptep);
->>   
->> diff --git a/arch/powerpc/include/asm/book3s/32/pgtable.h b/arch/powerpc/include/asm/book3s/32/pgtable.h
->> index 02f5acd7ccc4..d2cd1d0226e9 100644
->> --- a/arch/powerpc/include/asm/book3s/32/pgtable.h
->> +++ b/arch/powerpc/include/asm/book3s/32/pgtable.h
->> @@ -228,6 +228,8 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
->>   {
->>   	pte_update(ptep, (_PAGE_RW | _PAGE_HWWRITE), _PAGE_RO);
->>   }
->> +
->> +#define __HAVE_ARCH_HUGE_PTEP_SET_WRPROTECT
->>   static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
->>   					   unsigned long addr, pte_t *ptep)
->>   {
->> diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
->> index 42aafba7a308..7d957f7c47cd 100644
->> --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
->> +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
->> @@ -451,6 +451,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
->>   		pte_update(mm, addr, ptep, 0, _PAGE_PRIVILEGED, 0);
->>   }
->>   
->> +#define __HAVE_ARCH_HUGE_PTEP_SET_WRPROTECT
->>   static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
->>   					   unsigned long addr, pte_t *ptep)
->>   {
->> diff --git a/arch/powerpc/include/asm/nohash/32/pgtable.h b/arch/powerpc/include/asm/nohash/32/pgtable.h
->> index 7c46a98cc7f4..f39e200d9591 100644
->> --- a/arch/powerpc/include/asm/nohash/32/pgtable.h
->> +++ b/arch/powerpc/include/asm/nohash/32/pgtable.h
->> @@ -249,6 +249,8 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
->>   {
->>   	pte_update(ptep, (_PAGE_RW | _PAGE_HWWRITE), _PAGE_RO);
->>   }
->> +
->> +#define __HAVE_ARCH_HUGE_PTEP_SET_WRPROTECT
->>   static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
->>   					   unsigned long addr, pte_t *ptep)
->>   {
->> diff --git a/arch/powerpc/include/asm/nohash/64/pgtable.h b/arch/powerpc/include/asm/nohash/64/pgtable.h
->> index dd0c7236208f..69fbf7e9b4db 100644
->> --- a/arch/powerpc/include/asm/nohash/64/pgtable.h
->> +++ b/arch/powerpc/include/asm/nohash/64/pgtable.h
->> @@ -238,6 +238,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
->>   	pte_update(mm, addr, ptep, _PAGE_RW, 0, 0);
->>   }
->>   
->> +#define __HAVE_ARCH_HUGE_PTEP_SET_WRPROTECT
->>   static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
->>   					   unsigned long addr, pte_t *ptep)
->>   {
->> diff --git a/arch/sh/include/asm/hugetlb.h b/arch/sh/include/asm/hugetlb.h
->> index f1bbd255ee43..8df4004977b9 100644
->> --- a/arch/sh/include/asm/hugetlb.h
->> +++ b/arch/sh/include/asm/hugetlb.h
->> @@ -32,12 +32,6 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
->>   {
->>   }
->>   
->> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
->> -					   unsigned long addr, pte_t *ptep)
->> -{
->> -	ptep_set_wrprotect(mm, addr, ptep);
->> -}
->> -
->>   static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
->>   					     unsigned long addr, pte_t *ptep,
->>   					     pte_t pte, int dirty)
->> diff --git a/arch/sparc/include/asm/hugetlb.h b/arch/sparc/include/asm/hugetlb.h
->> index 2101ea217f33..c41754a113f3 100644
->> --- a/arch/sparc/include/asm/hugetlb.h
->> +++ b/arch/sparc/include/asm/hugetlb.h
->> @@ -32,6 +32,7 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
->>   {
->>   }
->>   
->> +#define __HAVE_ARCH_HUGE_PTEP_SET_WRPROTECT
->>   static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
->>   					   unsigned long addr, pte_t *ptep)
->>   {
->> diff --git a/arch/x86/include/asm/hugetlb.h b/arch/x86/include/asm/hugetlb.h
->> index 59c056adb3c9..a3f781f7a264 100644
->> --- a/arch/x86/include/asm/hugetlb.h
->> +++ b/arch/x86/include/asm/hugetlb.h
->> @@ -13,12 +13,6 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
->>   	return 0;
->>   }
->>   
->> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
->> -					   unsigned long addr, pte_t *ptep)
->> -{
->> -	ptep_set_wrprotect(mm, addr, ptep);
->> -}
->> -
->>   static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
->>   					     unsigned long addr, pte_t *ptep,
->>   					     pte_t pte, int dirty)
->> diff --git a/include/asm-generic/hugetlb.h b/include/asm-generic/hugetlb.h
->> index 6c0c8b0c71e0..9b9039845278 100644
->> --- a/include/asm-generic/hugetlb.h
->> +++ b/include/asm-generic/hugetlb.h
->> @@ -102,4 +102,12 @@ static inline int prepare_hugepage_range(struct file *file,
->>   }
->>   #endif
->>   
->> +#ifndef __HAVE_ARCH_HUGE_PTEP_SET_WRPROTECT
->> +static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
->> +		unsigned long addr, pte_t *ptep)
->> +{
->> +	ptep_set_wrprotect(mm, addr, ptep);
->> +}
->> +#endif
->> +
->>   #endif /* _ASM_GENERIC_HUGETLB_H */
->> -- 
->> 2.16.2
+So without a much better explanation and with a low level symbol
+exported NAK from me.
+
+> 
+> Signed-off-by: Zhaoyang Huang <zhaoyang.huang@spreadtrum.com>
+> ---
+>  include/linux/memcontrol.h |  3 ++-
+>  mm/memcontrol.c            |  3 +++
+>  mm/vmscan.c                | 38 +++++++++++++++++++++++++++++++++++++-
+>  3 files changed, 42 insertions(+), 2 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 6c6fb11..a7e82c7 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -325,7 +325,8 @@ void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg,
+>  void mem_cgroup_uncharge_list(struct list_head *page_list);
+>  
+>  void mem_cgroup_migrate(struct page *oldpage, struct page *newpage);
+> -
+> +bool direct_reclaim_reach_watermark(pg_data_t *pgdat, unsigned long nr_reclaimed,
+> +			unsigned long nr_scanned, gfp_t gfp_mask, int order);
+>  static struct mem_cgroup_per_node *
+>  mem_cgroup_nodeinfo(struct mem_cgroup *memcg, int nid)
+>  {
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 8c0280b..e4efd46 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2577,6 +2577,9 @@ unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
+>  			(next_mz == NULL ||
+>  			loop > MEM_CGROUP_MAX_SOFT_LIMIT_RECLAIM_LOOPS))
+>  			break;
+> +		if (direct_reclaim_reach_watermark(pgdat, nr_reclaimed,
+> +					*total_scanned, gfp_mask, order))
+> +			break;
+>  	} while (!nr_reclaimed);
+>  	if (next_mz)
+>  		css_put(&next_mz->memcg->css);
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 03822f8..19503f3 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2518,6 +2518,34 @@ static bool pgdat_memcg_congested(pg_data_t *pgdat, struct mem_cgroup *memcg)
+>  		(memcg && memcg_congested(pgdat, memcg));
+>  }
+>  
+> +bool direct_reclaim_reach_watermark(pg_data_t *pgdat, unsigned long nr_reclaimed,
+> +		unsigned long nr_scanned, gfp_t gfp_mask,
+> +		int order)
+> +{
+> +	struct scan_control sc = {
+> +		.gfp_mask = gfp_mask,
+> +		.order = order,
+> +		.priority = DEF_PRIORITY,
+> +		.nr_reclaimed = nr_reclaimed,
+> +		.nr_scanned = nr_scanned,
+> +	};
+> +	if (!current_is_kswapd())
+> +		return false;
+> +	if (!IS_ENABLED(CONFIG_COMPACTION))
+> +		return false;
+> +	/*
+> +	 * In fact, we add 1 to nr_reclaimed and nr_scanned to let should_continue_reclaim
+> +	 * NOT return by finding they are zero, which means compaction_suitable()
+> +	 * takes effect here to judge if we have reclaimed enough pages for passing
+> +	 * the watermark and no necessary to check other memcg anymore.
+> +	 */
+> +	if (!should_continue_reclaim(pgdat,
+> +				sc.nr_reclaimed + 1, sc.nr_scanned + 1, &sc))
+> +		return true;
+> +	return false;
+> +}
+> +EXPORT_SYMBOL(direct_reclaim_reach_watermark);
+> +
+>  static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+>  {
+>  	struct reclaim_state *reclaim_state = current->reclaim_state;
+> @@ -2802,7 +2830,15 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+>  			sc->nr_scanned += nr_soft_scanned;
+>  			/* need some check for avoid more shrink_zone() */
+>  		}
+> -
+> +		/*
+> +		 * we maybe have stolen enough pages from soft limit reclaim, so we return
+> +		 * back if we are direct reclaim
+> +		 */
+> +		if (direct_reclaim_reach_watermark(zone->zone_pgdat, sc->nr_reclaimed,
+> +						sc->nr_scanned, sc->gfp_mask, sc->order)) {
+> +			sc->gfp_mask = orig_mask;
+> +			return;
+> +		}
+>  		/* See comment about same check for global reclaim above */
+>  		if (zone->zone_pgdat == last_pgdat)
+>  			continue;
+> -- 
+> 1.9.1
+
+-- 
+Michal Hocko
+SUSE Labs
