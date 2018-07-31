@@ -1,65 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BDBB6B0005
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 19:39:12 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id a26-v6so9984430pgw.7
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 16:39:12 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id f8-v6si14328601plb.381.2018.07.31.16.39.11
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F1856B000A
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 19:52:04 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id g5-v6so4003315edp.1
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 16:52:04 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id n12-v6si7650644edr.216.2018.07.31.16.52.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Jul 2018 16:39:11 -0700 (PDT)
-Date: Tue, 31 Jul 2018 16:39:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] memcg: Remove memcg_cgroup::id from IDR on
- mem_cgroup_css_alloc() failure
-Message-Id: <20180731163908.603d7a27c6534341e1afa724@linux-foundation.org>
-In-Reply-To: <20180730153113.GB4567@cmpxchg.org>
-References: <6dbc33bb-f3d5-1a46-b454-13c6f5865fcd@virtuozzo.com>
-	<20180413113855.GI17484@dhcp22.suse.cz>
-	<8a81c801-35c8-767d-54b0-df9f1ca0abc0@virtuozzo.com>
-	<20180413115454.GL17484@dhcp22.suse.cz>
-	<abfd4903-c455-fac2-7ed6-73707cda64d1@virtuozzo.com>
-	<20180413121433.GM17484@dhcp22.suse.cz>
-	<20180413125101.GO17484@dhcp22.suse.cz>
-	<20180726162512.6056b5d7c1d2a5fbff6ce214@linux-foundation.org>
-	<20180727193134.GA10996@cmpxchg.org>
-	<20180729192621.py4znecoinw5mqcp@esperanza>
-	<20180730153113.GB4567@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 31 Jul 2018 16:52:02 -0700 (PDT)
+Date: Tue, 31 Jul 2018 16:51:38 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH 0/3] introduce memory.oom.group
+Message-ID: <20180731235135.GA23436@castle.DHCP.thefacebook.com>
+References: <20180730180100.25079-1-guro@fb.com>
+ <alpine.DEB.2.21.1807301847000.198273@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.21.1807301847000.198273@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Kirill Tkhai <ktkhai@virtuozzo.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-On Mon, 30 Jul 2018 11:31:13 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
-
-> Subject: [PATCH] mm: memcontrol: simplify memcg idr allocation and error
->  unwinding
+On Mon, Jul 30, 2018 at 06:49:31PM -0700, David Rientjes wrote:
+> On Mon, 30 Jul 2018, Roman Gushchin wrote:
 > 
-> The memcg ID is allocated early in the multi-step memcg creation
-> process, which needs 2-step ID allocation and IDR publishing, as well
-> as two separate IDR cleanup/unwind sites on error.
+> > This is a tiny implementation of cgroup-aware OOM killer,
+> > which adds an ability to kill a cgroup as a single unit
+> > and so guarantee the integrity of the workload.
+> > 
+> > Although it has only a limited functionality in comparison
+> > to what now resides in the mm tree (it doesn't change
+> > the victim task selection algorithm, doesn't look
+> > at memory stas on cgroup level, etc), it's also much
+> > simpler and more straightforward. So, hopefully, we can
+> > avoid having long debates here, as we had with the full
+> > implementation.
+> > 
+> > As it doesn't prevent any futher development,
+> > and implements an useful and complete feature,
+> > it looks as a sane way forward.
+> > 
+> > This patchset is against Linus's tree to avoid conflicts
+> > with the cgroup-aware OOM killer patchset in the mm tree.
+> > 
+> > Two first patches are already in the mm tree.
+> > The first one ("mm: introduce mem_cgroup_put() helper")
+> > is totally fine, and the second's commit message has to be
+> > changed to reflect that it's not a part of old patchset
+> > anymore.
+> > 
 > 
-> Defer the IDR allocation until the last second during onlining to
-> eliminate all this complexity. There is no requirement to have the ID
-> and IDR entry earlier than that. And the root reference to the ID is
-> put in the offline path, so this matches nicely.
+> What's the plan with the cgroup aware oom killer?  It has been sitting in 
+> the -mm tree for ages with no clear path to being merged.
 
-This patch isn't aware of Kirill's later "mm, memcg: assign memcg-aware
-shrinkers bitmap to memcg", which altered mem_cgroup_css_online():
+It's because your nack, isn't it?
+Everybody else seem to be fine with it.
 
-@@ -4356,6 +4470,11 @@ static int mem_cgroup_css_online(struct
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
- 
-+	if (memcg_alloc_shrinker_maps(memcg)) {
-+		mem_cgroup_id_remove(memcg);
-+		return -ENOMEM;
-+	}
-+
- 	/* Online state pins memcg ID, memcg ID pins CSS */
- 	atomic_set(&memcg->id.ref, 1);
- 	css_get(css);
+> 
+> Are you suggesting this patchset as a preliminary series so the cgroup 
+> aware oom killer should be removed from the -mm tree and this should be 
+> merged instead?  If so, what is the plan going forward for the cgroup 
+> aware oom killer?
+
+Answered below.
+
+> 
+> Are you planning on reviewing the patchset to fix the cgroup aware oom 
+> killer at https://marc.info/?l=linux-kernel&m=153152325411865 which has 
+> been waiting for feedback since March?
+> 
+
+I already did.
+As I said, I find the proposed oom_policy interface confusing.
+I'm not sure I understand why some memcg OOMs should be handled
+by memcg-aware OOMs, while other by the traditional per-process
+logic; and why this should be set on the OOMing memcg.
+IMO this adds nothing but confusion.
+
+If it's just a way to get rid of mount option,
+it doesn't look nice to me (neither I'm fan of the mount option).
+If you need an option to evaluate a cgroup as a whole, but kill
+only one task inside (the ability we've discussed before),
+let's make it clear. It's possible with the new memory.oom.group.
+
+Despite mentioning the lack of priority tuning in the list of
+problems, you do not propose anything. I agree it's hard, but
+why mentioning then?
+
+Patches which adjust root memory cgroup accounting and NUMA
+handling should be handled separately, they are really not
+about the interface. I've nothing against them.
+
+Again, I don't like the proposed interface, it doesn't feel
+clear. I think, this is the reason, why your patchset didn't
+collect any acks since March.
+I'm not blocking any progress here, it's not on me.
+
+Anyway, at this point I really think that this patch (memory.oom.group)
+is a reasonable way forward. It implements a useful and complete feature,
+doesn't block any further development and has a clean interface.
+So, you can build memory.oom.policy on top of it.
+Does this sound good?
