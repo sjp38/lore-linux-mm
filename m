@@ -1,45 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A8A5D6B0006
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 15:02:58 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id g4-v6so4875640iti.0
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 12:02:58 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p3-v6sor1224837ita.27.2018.07.31.12.02.57
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A9C526B0008
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 15:03:44 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id v24-v6so2134859wmh.5
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 12:03:44 -0700 (PDT)
+Received: from lithops.sigma-star.at (lithops.sigma-star.at. [195.201.40.130])
+        by mx.google.com with ESMTPS id g17-v6si14747503wrc.41.2018.07.31.12.03.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 31 Jul 2018 12:02:57 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Jul 2018 12:03:43 -0700 (PDT)
+From: Richard Weinberger <richard@nod.at>
+Subject: Re: [PATCH 0/2] um: switch to NO_BOOTMEM
+Date: Tue, 31 Jul 2018 21:03:35 +0200
+Message-ID: <1574741.Uvo42kyWiX@blindfold>
+In-Reply-To: <20180731133827.GC23494@rapoport-lnx>
+References: <1532438594-4530-1-git-send-email-rppt@linux.vnet.ibm.com> <20180731133827.GC23494@rapoport-lnx>
 MIME-Version: 1.0
-References: <CAMi1Hd0fJuAgP09_KkbjyGwszOXmxcPybKyBxP3U1y5JUqxxSw@mail.gmail.com>
- <20180730130134.yvn5tcmoavuxtwt5@kshutemo-mobl1> <CA+55aFwxwCPZs=h5wy-5PELwfBVuTETm+wuZB5cM2SDoXJi68g@mail.gmail.com>
- <alpine.LSU.2.11.1807301410470.4805@eggly.anvils> <CA+55aFx3qR1FW0T3na25NrwLZAvpOdUEUJa879CnaJT2ZPfhkg@mail.gmail.com>
- <alpine.LSU.2.11.1807301940460.5904@eggly.anvils> <CALAqxLU3cmu4g+HaB6A7=VhY-hW=d9e68EZ=_4JiwX_BigzjPQ@mail.gmail.com>
- <CAMi1Hd0-2eDod4HiBifKCxY0cUUEW_A-yv7sZ7GRgL0whWQt+w@mail.gmail.com>
- <CA+55aFx=-tHXjv3gv4W=xYwM+VOHJQE5q5VyihkPK7s560x-vQ@mail.gmail.com>
- <20180731170328.ocb5oikwhwtkyzrj@kshutemo-mobl1> <20180731174349.GA12944@agluck-desk>
-In-Reply-To: <20180731174349.GA12944@agluck-desk>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 31 Jul 2018 12:02:45 -0700
-Message-ID: <CA+55aFzHRaNMHxLCEa5Zke-1FgbQ4rtHf8-HOu0zBzo4Liz88A@mail.gmail.com>
-Subject: Re: Linux 4.18-rc7
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@intel.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Amit Pundir <amit.pundir@linaro.org>, John Stultz <john.stultz@linaro.org>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, youling 257 <youling257@gmail.com>, Joel Fernandes <joelaf@google.com>, Colin Cross <ccross@google.com>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Jeff Dike <jdike@addtoit.com>, Michal Hocko <mhocko@kernel.org>, linux-um@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jul 31, 2018 at 10:43 AM Luck, Tony <tony.luck@intel.com> wrote:
->
-> If I just revert bfd40eaff5ab ("mm: fix vma_is_anonymous() false-positives")
-> then ia64 boots again.
+Am Dienstag, 31. Juli 2018, 15:38:27 CEST schrieb Mike Rapoport:
+> Any comments on this?
+> 
+> On Tue, Jul 24, 2018 at 04:23:12PM +0300, Mike Rapoport wrote:
+> > Hi,
+> > 
+> > These patches convert UML to use NO_BOOTMEM.
+> > Tested on x86-64.
+> > 
+> > Mike Rapoport (2):
+> >   um: setup_physmem: stop using global variables
+> >   um: switch to NO_BOOTMEM
+> > 
+> >  arch/um/Kconfig.common   |  2 ++
+> >  arch/um/kernel/physmem.c | 22 ++++++++++------------
+> >  2 files changed, 12 insertions(+), 12 deletions(-)
 
-Ok, so it's not just the ashmem thing.
+Acked-by: Richard Weinberger <richard@nod.at>
 
-I think I'll do an rc8 with the revert, just so that we'll have some
-time to figure this out. It's only Tuesday, but I already have 90
-commits since rc7, so this isn't the only issue we're having.
-
-I _prefer_ just the regular cadence of releases, but when I have a
-reason to delay, I'll delay.
-
-                 Linus
+Thanks,
+//richard
