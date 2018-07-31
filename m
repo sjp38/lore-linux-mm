@@ -1,79 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 814896B0003
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 23:45:50 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id y18-v6so799457wma.9
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 20:45:50 -0700 (PDT)
-Received: from mail.nethype.de (mail.nethype.de. [5.9.56.24])
-        by mx.google.com with ESMTPS id c81-v6si832282wmf.176.2018.07.30.20.45.48
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CD4AE6B0003
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 00:25:11 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id f13-v6so11235880wru.5
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 21:25:11 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t62-v6sor289345wmg.46.2018.07.30.21.25.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 30 Jul 2018 20:45:49 -0700 (PDT)
-Date: Tue, 31 Jul 2018 05:45:46 +0200
-From: Marc Lehmann <schmorp@schmorp.de>
-Subject: Re: post linux 4.4 vm oom kill, lockup and thrashing woes
-Message-ID: <20180731034546.tro4gurwebmcpuqd@schmorp.de>
-References: <20180710120755.3gmin4rogheqb3u5@schmorp.de>
- <20180710123222.GK14284@dhcp22.suse.cz>
- <20180717234549.4ng2expfkgaranuq@schmorp.de>
- <20180718083808.GR7193@dhcp22.suse.cz>
- <20180722233437.34e5ckq5pp24gsod@schmorp.de>
- <20180723125554.GE31229@dhcp22.suse.cz>
+        (Google Transport Security);
+        Mon, 30 Jul 2018 21:25:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180723125554.GE31229@dhcp22.suse.cz>
+In-Reply-To: <alpine.LSU.2.11.1807301940460.5904@eggly.anvils>
+References: <CA+55aFxpFefwVdTGVML99PSFUqwpJXPx5LVCA3D=g2t2_QLNsA@mail.gmail.com>
+ <CAMi1Hd0fJuAgP09_KkbjyGwszOXmxcPybKyBxP3U1y5JUqxxSw@mail.gmail.com>
+ <20180730130134.yvn5tcmoavuxtwt5@kshutemo-mobl1> <CA+55aFwxwCPZs=h5wy-5PELwfBVuTETm+wuZB5cM2SDoXJi68g@mail.gmail.com>
+ <alpine.LSU.2.11.1807301410470.4805@eggly.anvils> <CA+55aFx3qR1FW0T3na25NrwLZAvpOdUEUJa879CnaJT2ZPfhkg@mail.gmail.com>
+ <alpine.LSU.2.11.1807301940460.5904@eggly.anvils>
+From: John Stultz <john.stultz@linaro.org>
+Date: Mon, 30 Jul 2018 21:25:08 -0700
+Message-ID: <CALAqxLU3cmu4g+HaB6A7=VhY-hW=d9e68EZ=_4JiwX_BigzjPQ@mail.gmail.com>
+Subject: Re: Linux 4.18-rc7
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Matthew Wilcox <willy@infradead.org>, Amit Pundir <amit.pundir@linaro.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, youling257@gmail.com, Joel Fernandes <joelaf@google.com>, Colin Cross <ccross@google.com>
 
-On Mon, Jul 23, 2018 at 02:55:54PM +0200, Michal Hocko <mhocko@kernel.org> wrote:
-> 
-> Having more examples should help us to work with specific subsystems
-> on a more appropriate fix. Depending on large order allocations has
-> always been suboptimal if not outright wrong.
+On Mon, Jul 30, 2018 at 8:26 PM, Hugh Dickins <hughd@google.com> wrote:
+> On Mon, 30 Jul 2018, Linus Torvalds wrote:
+>> On Mon, Jul 30, 2018 at 2:53 PM Hugh Dickins <hughd@google.com> wrote:
+>> >
+>> > I have no problem with reverting -rc7's vma_is_anonymous() series.
+>>
+>> I don't think we need to revert the whole series: I think the rest are
+>> all fairly obvious cleanups, and shouldn't really have any semantic
+>> changes.
+>
+> Okay.
+>
+>>
+>> It's literally only that last patch in the series that then changes
+>> that meaning of "vm_ops". And I don't really _mind_ that last step
+>> either, but since we don't know exactly what it was that it broke, and
+>> we're past rc7, I don't think we really have any option but the revert
+>> it.
+>
+> It took me a long time to grasp what was happening, that that last
+> patch bfd40eaff5ab was fixing. Not quite explained in the commit.
+>
+> I think it was that by mistakenly passing the vma_is_anonymous() test,
+> create_huge_pmd() gave the MAP_PRIVATE kcov mapping a THP (instead of
+> COWing pages from kcov); which the truncate then had to split, and in
+> going to do so, again hit the mistaken vma_is_anonymous() test, BUG.
+>
+>>
+>> And if we revert it, I think we need to just remove the
+>> VM_BUG_ON_VMA() that it was supposed to fix. Because I do think that
+>> it is quite likely that the real bug is that overzealous BUG_ON(),
+>> since I can't see any reason why anonymous mappings should be special
+>> there.
+>
+> Yes, that probably has to go: but it's not clear what state it leaves
+> us in, with an anon THP being split by a truncate, without the expected
+> locking; I don't remember offhand, probably a subtler bug than that BUG,
+> which you may or may not consider an improvement.
+>
+> I fear that Kirill has not missed inserting a vma_set_anonymous() from
+> somewhere that it should be, but rather that zygote is working with some
+> special mapping which used to satisfy vma_is_anonymous(), faults supplying
+> backing pages, but now comes out as !vma_is_anonymous(), so do_fault()
+> finds !dummy_vm_ops.fault hence SIGBUS.
 
-I think this is going into the wrong direction. First of all, keep in mind
-that I have to actively work against getting more examples, as I have to keep
-things running and will employ more and more workarounds.
+I've been only casually following this thread (mostly just glad Amit
+caught it and I could avoid having to bisect the issue in my own
+Android testing), but this bit starting to shake a few old cobwebs
+loose in my brain.
 
-More importantly, however, it's all good and well if the kernel fails
-high order allocations when it has to, and it's all well to try to "fix"
-them to not happen, but let's not forget the real problem, which is linux
-thrashing, freezing or killing unrelated processes when it has no reason
-to. specifically, if I have 32Gb ram and 30GB of page cache that isn't
-locked, then linux has no conceivable reason to not satisfy even a high-order
-allocation by moving some movable pages around.
+I'm wondering if Zygote is utilizing ashmem here, and we're somehow
+traversing ashmem purged memory, or due to some setup issue the
+initial traverse isn't being zero-filled as expected?
 
-I tzhink the examples I provides should already give some insight, for
-example, doing a large mmap and faulting the pages in should not cause
-these pages to be so stubbornly locked as to cause the machine to freeze
-on a large alllocation, when it could "simply" drp a few gigabytes of
-(non-dirty!) shared file pages instead.
+ashmem ranges are created using: shmem_file_setup() and shmem_zero_setup()
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/staging/android/ashmem.c#n377
 
-It's possible that the post-4.4 vm changes are not the direct cause of this,
-but only caused a hitherto unproblematic behaviour to cause problems e.g.
-(totally made up) mmapped file data was freed in 4.4 simply because it tried
-harder, and in post-4.4 kernels the kernel prefers to lock up instead. Then
-the changes done in post-4.4 are not the cause of the problem, but simply the
-trigger, just as the higher order allocations of some subsystems are not the
-cause of the spurious oom kills, but simply the trigger.
 
-Or, to put it bluntly, no matter how badly written kvm and/or the nvidia
-subsystem,s are, the kernel has no business killing mysql on my boxes when
-it has 95% of available memory. If this were by design, then linux should
-have the ability of keeping memory free for suich uses (something like
-min_free_kbytes) and not use memory for disk cache if this memory is then
-lost to other applications.
+If we purge pages, it punches it out with:
+vfs_fallocate(range->asma->file,
+     FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+     start, end - start);
+here:
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/staging/android/ashmem.c#n447
 
-And yes, if I see more "interesting" examples, I will of course tell you
-about them :)
+But in ashmem_pin(), we don't do anything other then returning if we
+purged any page in the range.
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/staging/android/ashmem.c#n577
 
--- 
-                The choice of a       Deliantra, the free code+content MORPG
-      -----==-     _GNU_              http://www.deliantra.net
-      ----==-- _       generation
-      ---==---(_)__  __ ____  __      Marc Lehmann
-      --==---/ / _ \/ // /\ \/ /      schmorp@schmorp.de
-      -=====/_/_//_/\_,_/ /_/\_\
+And I believe the future assumption is the if we traverse those pages
+they will be zero filled (if purged or even during the initial
+traversal after mmap)
+
+Its been a long time, and I've not looked at the code in question but
+it sounds from Hugh's comments above that we might instead get a
+SIGBUS here.
+
+Looking more at the problematic patch..
+Amit: Does adding something like (whitespace damaged, apologies):
+
+index a1a0025..1af6915 100644
+--- a/drivers/staging/android/ashmem.c
++++ b/drivers/staging/android/ashmem.c
+@@ -402,7 +402,8 @@ static int ashmem_mmap(struct file *file, struct
+vm_area_struct *vma)
+                        fput(asma->file);
+                        goto out;
+                }
+-       }
++       } else
++               vma_set_anonymous(vma);
+
+        if (vma->vm_file)
+                fput(vma->vm_file);
+
+
+Seem to resolve it? (Sorry, I'd test it myself, but I'm away from my
+desk for the night).
+thanks
+-john
