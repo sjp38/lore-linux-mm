@@ -1,50 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B97CA6B0005
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 12:56:58 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id l4-v6so1999175wme.7
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 09:56:58 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h19-v6sor694569wmb.88.2018.07.31.09.56.57
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 922E86B0007
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 13:01:36 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id l23-v6so13661950qtp.1
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 10:01:36 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0135.outbound.protection.outlook.com. [104.47.1.135])
+        by mx.google.com with ESMTPS id u62-v6si8109451qkb.403.2018.07.31.10.01.35
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 31 Jul 2018 09:56:57 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 31 Jul 2018 10:01:35 -0700 (PDT)
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Subject: SLAB_TYPESAFE_BY_RCU without constructors (was Re: [PATCH v4 13/17]
+ khwasan: add hooks implementation)
+Message-ID: <e3b48104-3efb-1896-0d46-792419f49a75@virtuozzo.com>
+Date: Tue, 31 Jul 2018 20:01:30 +0300
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFx=-tHXjv3gv4W=xYwM+VOHJQE5q5VyihkPK7s560x-vQ@mail.gmail.com>
-References: <CA+55aFxpFefwVdTGVML99PSFUqwpJXPx5LVCA3D=g2t2_QLNsA@mail.gmail.com>
- <CAMi1Hd0fJuAgP09_KkbjyGwszOXmxcPybKyBxP3U1y5JUqxxSw@mail.gmail.com>
- <20180730130134.yvn5tcmoavuxtwt5@kshutemo-mobl1> <CA+55aFwxwCPZs=h5wy-5PELwfBVuTETm+wuZB5cM2SDoXJi68g@mail.gmail.com>
- <alpine.LSU.2.11.1807301410470.4805@eggly.anvils> <CA+55aFx3qR1FW0T3na25NrwLZAvpOdUEUJa879CnaJT2ZPfhkg@mail.gmail.com>
- <alpine.LSU.2.11.1807301940460.5904@eggly.anvils> <CALAqxLU3cmu4g+HaB6A7=VhY-hW=d9e68EZ=_4JiwX_BigzjPQ@mail.gmail.com>
- <CAMi1Hd0-2eDod4HiBifKCxY0cUUEW_A-yv7sZ7GRgL0whWQt+w@mail.gmail.com> <CA+55aFx=-tHXjv3gv4W=xYwM+VOHJQE5q5VyihkPK7s560x-vQ@mail.gmail.com>
-From: John Stultz <john.stultz@linaro.org>
-Date: Tue, 31 Jul 2018 09:56:55 -0700
-Message-ID: <CALAqxLXyiE=FkBBwEa0-jhyVb-sp+j8bQR7_+Af8nQw3coKjLA@mail.gmail.com>
-Subject: Re: Linux 4.18-rc7
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Amit Pundir <amit.pundir@linaro.org>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Matthew Wilcox <willy@infradead.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, youling 257 <youling257@gmail.com>, Joel Fernandes <joelaf@google.com>, Colin Cross <ccross@google.com>
+To: Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, linux-ext4@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pablo Neira Ayuso <pablo@netfilter.org>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Florian Westphal <fw@strlen.de>, "David S. Miller" <davem@davemloft.net>, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev@vger.kernel.org, Gerrit Renker <gerrit@erg.abdn.ac.uk>, dccp@vger.kernel.org, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, David Airlie <airlied@linux.ie>, intel-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, Eric Dumazet <edumazet@google.com>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>, Ursula Braun <ubraun@linux.ibm.com>, linux-s390@vger.kernel.org, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Tue, Jul 31, 2018 at 9:29 AM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> On Mon, Jul 30, 2018 at 11:40 PM Amit Pundir <amit.pundir@linaro.org> wrote:
->>
->> This ashmem change ^^ worked too.
->
-> Ok, let's go for that one and hope it's the only one.
->
-> John, can I get a proper commit message and sign-off for that ashmem change?
 
-Will do. Just doing some local testing myself to make sure all is well.
+On 07/31/2018 07:04 PM, Andrey Ryabinin wrote:
+>> Somewhat offtopic, but I can't understand how SLAB_TYPESAFE_BY_RCU
+>> slabs can be useful without ctors or at least memset(0). Objects in
+>> such slabs need to be type-stable, but I can't understand how it's
+>> possible to establish type stability without a ctor... Are these bugs?
+> 
+> Yeah, I puzzled by this too. However, I think it's hard but possible to make it work, at least in theory.
+> There must be an initializer, which consists of two parts:
+> a) initilize objects fields
+> b) expose object to the world (add it to list or something like that)
+> 
+> (a) part must somehow to be ok to race with another cpu which might already use the object.
+> (b) part must must use e.g. barriers to make sure that racy users will see previously inilized fields.
+> Racy users must have parring barrier of course.
+> 
+> But it sound fishy, and very easy to fuck up. I won't be surprised if every single one SLAB_TYPESAFE_BY_RCU user
+> without ->ctor is bogus. It certainly would be better to convert those to use ->ctor.
+> 
+> Such caches seems used by networking subsystem in proto_register():
+> 
+> 		prot->slab = kmem_cache_create_usercopy(prot->name,
+> 					prot->obj_size, 0,
+> 					SLAB_HWCACHE_ALIGN | SLAB_ACCOUNT |
+> 					prot->slab_flags,
+> 					prot->useroffset, prot->usersize,
+> 					NULL);
+> 
+> And certain protocols specify SLAB_TYPESAFE_BY_RCU in ->slab_flags, such as:
+> llc_proto, smc_proto, smc_proto6, tcp_prot, tcpv6_prot, dccp_v6_prot, dccp_v4_prot.
+> 
+> 
+> Also nf_conntrack_cachep, kernfs_node_cache, jbd2_journal_head_cache and i915_request cache.
+> 
 
-> Kirill - you mentioned that somebody reproduced a problem on x86-64
-> too. I didn't see that report. Was that some odd x86 Android setup
-> with Ashmem too, or is there something else pending?
 
-Krill mentioned "zygote crashing, but on x86-64" and zygote is Android
-so I assume it is the same issue.
+[+CC maintainer of the relevant code.]
 
-thanks
--john
+Guys, it seems that we have a lot of code using SLAB_TYPESAFE_BY_RCU cache without constructor.
+I think it's nearly impossible to use that combination without having bugs.
+It's either you don't really need the SLAB_TYPESAFE_BY_RCU, or you need to have a constructor in kmem_cache.
+
+Could you guys, please, verify your code if it's really need SLAB_TYPSAFE or constructor?
+
+E.g. the netlink code look extremely suspicious:
+
+	/*
+	 * Do not use kmem_cache_zalloc(), as this cache uses
+	 * SLAB_TYPESAFE_BY_RCU.
+	 */
+	ct = kmem_cache_alloc(nf_conntrack_cachep, gfp);
+	if (ct == NULL)
+		goto out;
+
+	spin_lock_init(&ct->lock);
+
+If nf_conntrack_cachep objects really used in rcu typesafe manner, than 'ct' returned by kmem_cache_alloc might still be
+in use by another cpu. So we just reinitialize spin_lock used by someone else?
