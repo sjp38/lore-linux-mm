@@ -1,43 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C315A6B000E
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 13:43:52 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id g24-v6so11775172plq.2
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 10:43:52 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id w11-v6si12933906plz.333.2018.07.31.10.43.51
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DC8296B0269
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 13:48:02 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id b141-v6so9738718ywh.12
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 10:48:02 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 128-v6sor3426219ybv.107.2018.07.31.10.47.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Jul 2018 10:43:51 -0700 (PDT)
-Date: Tue, 31 Jul 2018 10:43:50 -0700
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: Re: Linux 4.18-rc7
-Message-ID: <20180731174349.GA12944@agluck-desk>
-References: <CAMi1Hd0fJuAgP09_KkbjyGwszOXmxcPybKyBxP3U1y5JUqxxSw@mail.gmail.com>
- <20180730130134.yvn5tcmoavuxtwt5@kshutemo-mobl1>
- <CA+55aFwxwCPZs=h5wy-5PELwfBVuTETm+wuZB5cM2SDoXJi68g@mail.gmail.com>
- <alpine.LSU.2.11.1807301410470.4805@eggly.anvils>
- <CA+55aFx3qR1FW0T3na25NrwLZAvpOdUEUJa879CnaJT2ZPfhkg@mail.gmail.com>
- <alpine.LSU.2.11.1807301940460.5904@eggly.anvils>
- <CALAqxLU3cmu4g+HaB6A7=VhY-hW=d9e68EZ=_4JiwX_BigzjPQ@mail.gmail.com>
- <CAMi1Hd0-2eDod4HiBifKCxY0cUUEW_A-yv7sZ7GRgL0whWQt+w@mail.gmail.com>
- <CA+55aFx=-tHXjv3gv4W=xYwM+VOHJQE5q5VyihkPK7s560x-vQ@mail.gmail.com>
- <20180731170328.ocb5oikwhwtkyzrj@kshutemo-mobl1>
+        (Google Transport Security);
+        Tue, 31 Jul 2018 10:47:56 -0700 (PDT)
+Date: Tue, 31 Jul 2018 13:50:50 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2] mm: terminate the reclaim early when direct reclaiming
+Message-ID: <20180731175050.GA31657@cmpxchg.org>
+References: <1533035368-30911-1-git-send-email-zhaoyang.huang@spreadtrum.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180731170328.ocb5oikwhwtkyzrj@kshutemo-mobl1>
+In-Reply-To: <1533035368-30911-1-git-send-email-zhaoyang.huang@spreadtrum.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Amit Pundir <amit.pundir@linaro.org>, John Stultz <john.stultz@linaro.org>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, youling 257 <youling257@gmail.com>, Joel Fernandes <joelaf@google.com>, Colin Cross <ccross@google.com>
+To: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org
 
-On Tue, Jul 31, 2018 at 08:03:28PM +0300, Kirill A. Shutemov wrote:
-> But it's not the only issue unfortunately. Tony reported issue with
-> booting ia64 with the patch. I have no clue why. I rechecked everything
-> ia64-specific and looks fine to me. :-/
+On Tue, Jul 31, 2018 at 07:09:28PM +0800, Zhaoyang Huang wrote:
+> This patch try to let the direct reclaim finish earlier than it used
+> to be. The problem comes from We observing that the direct reclaim
+> took a long time to finish when memcg is enabled. By debugging, we
+> find that the reason is the softlimit is too low to meet the loop
+> end criteria. So we add two barriers to judge if it has reclaimed
+> enough memory as same criteria as it is in shrink_lruvec:
+> 1. for each memcg softlimit reclaim.
+> 2. before starting the global reclaim in shrink_zone.
+> 
+> Signed-off-by: Zhaoyang Huang <zhaoyang.huang@spreadtrum.com>
+> ---
+>  include/linux/memcontrol.h |  3 ++-
+>  mm/memcontrol.c            |  3 +++
+>  mm/vmscan.c                | 38 +++++++++++++++++++++++++++++++++++++-
+>  3 files changed, 42 insertions(+), 2 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 6c6fb11..a7e82c7 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -325,7 +325,8 @@ void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg,
+>  void mem_cgroup_uncharge_list(struct list_head *page_list);
+>  
+>  void mem_cgroup_migrate(struct page *oldpage, struct page *newpage);
+> -
+> +bool direct_reclaim_reach_watermark(pg_data_t *pgdat, unsigned long nr_reclaimed,
+> +			unsigned long nr_scanned, gfp_t gfp_mask, int order);
+>  static struct mem_cgroup_per_node *
+>  mem_cgroup_nodeinfo(struct mem_cgroup *memcg, int nid)
+>  {
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 8c0280b..e4efd46 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2577,6 +2577,9 @@ unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
+>  			(next_mz == NULL ||
+>  			loop > MEM_CGROUP_MAX_SOFT_LIMIT_RECLAIM_LOOPS))
+>  			break;
+> +		if (direct_reclaim_reach_watermark(pgdat, nr_reclaimed,
+> +					*total_scanned, gfp_mask, order))
+> +			break;
+>  	} while (!nr_reclaimed);
+>  	if (next_mz)
+>  		css_put(&next_mz->memcg->css);
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 03822f8..19503f3 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2518,6 +2518,34 @@ static bool pgdat_memcg_congested(pg_data_t *pgdat, struct mem_cgroup *memcg)
+>  		(memcg && memcg_congested(pgdat, memcg));
+>  }
+>  
+> +bool direct_reclaim_reach_watermark(pg_data_t *pgdat, unsigned long nr_reclaimed,
+> +		unsigned long nr_scanned, gfp_t gfp_mask,
+> +		int order)
+> +{
+> +	struct scan_control sc = {
+> +		.gfp_mask = gfp_mask,
+> +		.order = order,
+> +		.priority = DEF_PRIORITY,
+> +		.nr_reclaimed = nr_reclaimed,
+> +		.nr_scanned = nr_scanned,
+> +	};
+> +	if (!current_is_kswapd())
+> +		return false;
+> +	if (!IS_ENABLED(CONFIG_COMPACTION))
+> +		return false;
+> +	/*
+> +	 * In fact, we add 1 to nr_reclaimed and nr_scanned to let should_continue_reclaim
+> +	 * NOT return by finding they are zero, which means compaction_suitable()
+> +	 * takes effect here to judge if we have reclaimed enough pages for passing
+> +	 * the watermark and no necessary to check other memcg anymore.
+> +	 */
+> +	if (!should_continue_reclaim(pgdat,
+> +				sc.nr_reclaimed + 1, sc.nr_scanned + 1, &sc))
+> +		return true;
 
-If I just revert bfd40eaff5ab ("mm: fix vma_is_anonymous() false-positives")
-then ia64 boots again.
+As per the previous submission, should_continue_reclaim() is really
+not an appropriate function to use. It's for the compaction policy.
+You might be able to hack around it with faking the reclaim progress,
+but this will fail in subtle ways when people change the compaction
+policy in that function in the future.
 
--Tony
+If you use it only for the watermark check, check it explicitly.
+
+Other than that, I agree with Michal that we need much more data on
+this; what the configuration is like, what the memory situation is
+like when your problem happens, how long the stalls are, and how your
+patch helps with overreclaim etc.
