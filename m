@@ -1,59 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 17E716B0007
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 01:09:32 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id n4-v6so3080415edr.5
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 22:09:32 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r18-v6si488221edl.68.2018.07.30.22.09.30
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 79FC76B0003
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 02:03:01 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id n18-v6so953169wmc.3
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 23:03:01 -0700 (PDT)
+Received: from relay1-d.mail.gandi.net (relay1-d.mail.gandi.net. [217.70.183.193])
+        by mx.google.com with ESMTPS id l12-v6si13067108wrt.15.2018.07.30.23.02.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jul 2018 22:09:30 -0700 (PDT)
-Date: Tue, 31 Jul 2018 07:09:28 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,page_alloc: PF_WQ_WORKER threads must sleep at
- should_reclaim_retry().
-Message-ID: <20180731050928.GA4557@dhcp22.suse.cz>
-References: <55c9da7f-e448-964a-5b50-47f89a24235b@i-love.sakura.ne.jp>
- <20180730093257.GG24267@dhcp22.suse.cz>
- <9158a23e-7793-7735-e35c-acd540ca59bf@i-love.sakura.ne.jp>
- <20180730144647.GX24267@dhcp22.suse.cz>
- <20180730145425.GE1206094@devbig004.ftw2.facebook.com>
- <0018ac3b-94ee-5f09-e4e0-df53d2cbc925@i-love.sakura.ne.jp>
- <20180730154424.GG1206094@devbig004.ftw2.facebook.com>
- <20180730185110.GB24267@dhcp22.suse.cz>
- <20180730191005.GC24267@dhcp22.suse.cz>
- <6f433d59-4a56-b698-e119-682bb8bf6713@i-love.sakura.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <6f433d59-4a56-b698-e119-682bb8bf6713@i-love.sakura.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 30 Jul 2018 23:02:59 -0700 (PDT)
+From: Alexandre Ghiti <alex@ghiti.fr>
+Subject: [PATCH v5 00/11] hugetlb: Factorize hugetlb architecture primitives
+Date: Tue, 31 Jul 2018 06:01:44 +0000
+Message-Id: <20180731060155.16915-1-alex@ghiti.fr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, mike.kravetz@oracle.com, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, tony.luck@intel.com, fenghua.yu@intel.com, ralf@linux-mips.org, paul.burton@mips.com, jhogan@kernel.org, jejb@parisc-linux.org, deller@gmx.de, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, ysato@users.sourceforge.jp, dalias@libc.org, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, arnd@arndb.de, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org
+Cc: Alexandre Ghiti <alex@ghiti.fr>
 
-On Tue 31-07-18 06:01:48, Tetsuo Handa wrote:
-> On 2018/07/31 4:10, Michal Hocko wrote:
-> > Since should_reclaim_retry() should be a natural reschedule point,
-> > let's do the short sleep for PF_WQ_WORKER threads unconditionally in
-> > order to guarantee that other pending work items are started. This will
-> > workaround this problem and it is less fragile than hunting down when
-> > the sleep is missed. E.g. we used to have a sleeping point in the oom
-> > path but this has been removed recently because it caused other issues.
-> > Having a single sleeping point is more robust.
-> 
-> linux.git has not removed the sleeping point in the OOM path yet. Since removing the
-> sleeping point in the OOM path can mitigate CVE-2016-10723, please do so immediately.
+[CC linux-mm for inclusion in -mm tree] 
 
-is this an {Acked,Reviewed,Tested}-by?
+In order to reduce copy/paste of functions across architectures and then
+make riscv hugetlb port (and future ports) simpler and smaller, this
+patchset intends to factorize the numerous hugetlb primitives that are
+defined across all the architectures.
 
-I will send the patch to Andrew if the patch is ok. 
+Except for prepare_hugepage_range, this patchset moves the versions that
+are just pass-through to standard pte primitives into
+asm-generic/hugetlb.h by using the same #ifdef semantic that can be
+found in asm-generic/pgtable.h, i.e. __HAVE_ARCH_***.
 
-> (And that change will conflict with Roman's cgroup aware OOM killer patchset. But it
-> should be easy to rebase.)
+s390 architecture has not been tackled in this serie since it does not
+use asm-generic/hugetlb.h at all.
+powerpc could be factorized a bit more (cf huge_ptep_set_wrprotect).
 
-That is still a WIP so I would lose sleep over it.
+This patchset has been compiled on all addressed architectures with
+success (except for parisc, but the problem does not come from this series). 
+
+Tested-by: Helge Deller <deller@gmx.de> # parisc
+Acked-by: Paul Burton <paul.burton@mips.com> # MIPS parts
+
+Changelog:
+
+v5:
+  As suggested by Mike Kravetz, no need to move the #include
+  <asm-generic/hugetlb.h> for arm and x86 architectures, let it live at
+  the top of the file.
+
+v4:
+  Fix powerpc build error due to misplacing of #include
+  <asm-generic/hugetlb.h> outside of #ifdef CONFIG_HUGETLB_PAGE, as
+  pointed by Christophe Leroy.
+
+v1, v2, v3:
+  Same version, just problems with email provider and misuse of
+  --batch-size option of git send-email
+
+Alexandre Ghiti (11):
+  hugetlb: Harmonize hugetlb.h arch specific defines with pgtable.h
+  hugetlb: Introduce generic version of hugetlb_free_pgd_range
+  hugetlb: Introduce generic version of set_huge_pte_at
+  hugetlb: Introduce generic version of huge_ptep_get_and_clear
+  hugetlb: Introduce generic version of huge_ptep_clear_flush
+  hugetlb: Introduce generic version of huge_pte_none
+  hugetlb: Introduce generic version of huge_pte_wrprotect
+  hugetlb: Introduce generic version of prepare_hugepage_range
+  hugetlb: Introduce generic version of huge_ptep_set_wrprotect
+  hugetlb: Introduce generic version of huge_ptep_set_access_flags
+  hugetlb: Introduce generic version of huge_ptep_get
+
+ arch/arm/include/asm/hugetlb-3level.h        | 32 +---------
+ arch/arm/include/asm/hugetlb.h               | 30 ----------
+ arch/arm64/include/asm/hugetlb.h             | 39 +++---------
+ arch/ia64/include/asm/hugetlb.h              | 47 ++-------------
+ arch/mips/include/asm/hugetlb.h              | 40 +++----------
+ arch/parisc/include/asm/hugetlb.h            | 33 +++--------
+ arch/powerpc/include/asm/book3s/32/pgtable.h |  2 +
+ arch/powerpc/include/asm/book3s/64/pgtable.h |  1 +
+ arch/powerpc/include/asm/hugetlb.h           | 43 ++------------
+ arch/powerpc/include/asm/nohash/32/pgtable.h |  2 +
+ arch/powerpc/include/asm/nohash/64/pgtable.h |  1 +
+ arch/sh/include/asm/hugetlb.h                | 54 ++---------------
+ arch/sparc/include/asm/hugetlb.h             | 40 +++----------
+ arch/x86/include/asm/hugetlb.h               | 69 ----------------------
+ include/asm-generic/hugetlb.h                | 88 +++++++++++++++++++++++++++-
+ 15 files changed, 139 insertions(+), 382 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+2.16.2
