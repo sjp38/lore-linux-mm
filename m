@@ -1,83 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DD946B0008
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 08:06:11 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id i26-v6so3429448edr.4
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 05:06:11 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d4-v6si77064edc.199.2018.07.31.05.06.10
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 63DE16B0003
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 08:45:16 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id p3-v6so1497493wmc.7
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 05:45:16 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y5-v6sor5893295wrn.69.2018.07.31.05.45.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Jul 2018 05:06:10 -0700 (PDT)
-Date: Tue, 31 Jul 2018 14:06:07 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: terminate the reclaim early when direct reclaiming
-Message-ID: <20180731120607.GK4557@dhcp22.suse.cz>
-References: <1533035368-30911-1-git-send-email-zhaoyang.huang@spreadtrum.com>
- <20180731111924.GI4557@dhcp22.suse.cz>
- <CAGWkznGrc4cgMN4P5OJKGi_UV6kU_6yjV9XcPHv5MVRn11+pzw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGWkznGrc4cgMN4P5OJKGi_UV6kU_6yjV9XcPHv5MVRn11+pzw@mail.gmail.com>
+        (Google Transport Security);
+        Tue, 31 Jul 2018 05:45:14 -0700 (PDT)
+From: osalvador@techadventures.net
+Subject: [PATCH] mm: make __paginginit based on CONFIG_MEMORY_HOTPLUG
+Date: Tue, 31 Jul 2018 14:45:04 +0200
+Message-Id: <20180731124504.27582-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhaoyang Huang <huangzhaoyang@gmail.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kernel-patch-test@lists.linaro.org
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com, vbabka@suse.cz, kirill.shutemov@linux.intel.com, pasha.tatashin@oracle.com, iamjoonsoo.kim@lge.com, mgorman@suse.de, jrdr.linux@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
-On Tue 31-07-18 19:58:20, Zhaoyang Huang wrote:
-> On Tue, Jul 31, 2018 at 7:19 PM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > On Tue 31-07-18 19:09:28, Zhaoyang Huang wrote:
-> > > This patch try to let the direct reclaim finish earlier than it used
-> > > to be. The problem comes from We observing that the direct reclaim
-> > > took a long time to finish when memcg is enabled. By debugging, we
-> > > find that the reason is the softlimit is too low to meet the loop
-> > > end criteria. So we add two barriers to judge if it has reclaimed
-> > > enough memory as same criteria as it is in shrink_lruvec:
-> > > 1. for each memcg softlimit reclaim.
-> > > 2. before starting the global reclaim in shrink_zone.
-> >
-> > Then I would really recommend to not use soft limit at all. It has
-> > always been aggressive. I have propose to make it less so in the past we
-> > have decided to go that way because we simply do not know whether
-> > somebody depends on that behavior. Your changelog doesn't really tell
-> > the whole story. Why is this a problem all of the sudden? Nothing has
-> > really changed recently AFAICT. Cgroup v1 interface is mostly for
-> > backward compatibility, we have much better ways to accomplish
-> > workloads isolation in cgroup v2.
-> >
-> > So why does it matter all of the sudden?
-> >
-> > Besides that EXPORT_SYMBOL for such a low level functionality as the
-> > memory reclaim is a big no-no.
-> >
-> > So without a much better explanation and with a low level symbol
-> > exported NAK from me.
-> >
-> My test workload is from Android system, where the multimedia apps
-> require much pages. We observed that one thread of the process trapped
-> into mem_cgroup_soft_limit_reclaim within direct reclaim and also
-> blocked other thread in mmap or do_page_fault(by semphore?).
+From: Oscar Salvador <osalvador@suse.de>
 
-This requires a much more specific analysis
+__pagininit macro is being used to mark functions for:
 
-> Furthermore, we also observed other long time direct reclaim related
-> with soft limit which are supposed to cause page thrash as the
-> allocator itself is the most right of the rb_tree .
+a) Functions that we do not need to keep once the system is fully
+   initialized with regard to memory.
+b) Functions that will be needed for the memory-hotplug code,
+   and because of that we need to keep them after initialization.
 
-I do not follow.
+Right now, the condition to choose between one or the other is based on
+CONFIG_SPARSEMEM, but I think that this should be changed to be based
+on CONFIG_MEMORY_HOTPLUG.
 
-> Besides, even
-> without the soft_limit, shall the 'direct reclaim' check the watermark
-> firstly before shrink_node, for the concurrent kswapd may have
-> reclaimed enough pages for allocation.
+The reason behind this is that it can very well be that we have CONFIG_SPARSEMEM
+enabled, but not CONFIG_MEMORY_HOTPLUG, and thus, we will not need the
+functions marked as __paginginit to stay around, since no
+memory-hotplug code will call them.
 
-Yes, but the direct reclaim is also a way to throttle allocation
-requests and we want them to do at least some work. Making shortcuts
-here can easily backfire and allow somebody to runaway too quickly.
-Not that this wouldn't be possible right now but adding more heuristic
-is surely tricky and far from trivial.
+Although the amount of freed bytes is not that big, I think it will
+become more clear what __paginginit is used for.
+
+Signed-off-by: Oscar Salvador <osalvador@suse.de>
+---
+ mm/internal.h | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/mm/internal.h b/mm/internal.h
+index 33c22754d282..c9170b4f7699 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -392,10 +392,11 @@ static inline struct page *mem_map_next(struct page *iter,
+ /*
+  * FLATMEM and DISCONTIGMEM configurations use alloc_bootmem_node,
+  * so all functions starting at paging_init should be marked __init
+- * in those cases. SPARSEMEM, however, allows for memory hotplug,
+- * and alloc_bootmem_node is not used.
++ * in those cases.
++ * In case that MEMORY_HOTPLUG is enabled, we need to keep those
++ * functions around since they can be called when hot-adding memory.
+  */
+-#ifdef CONFIG_SPARSEMEM
++#ifdef CONFIG_MEMORY_HOTPLUG
+ #define __paginginit __meminit
+ #else
+ #define __paginginit __init
 -- 
-Michal Hocko
-SUSE Labs
+2.13.6
