@@ -1,75 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CCA2A6B026B
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 10:54:32 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id o6-v6so13339146qtp.15
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 07:54:32 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id d132-v6si793627qkg.18.2018.07.31.07.54.31
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 278AD6B026D
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 10:57:27 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id t26-v6so4887534pfh.0
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 07:57:27 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j4-v6sor3838280pgh.210.2018.07.31.07.57.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Jul 2018 07:54:32 -0700 (PDT)
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6VEsDoQ108123
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 14:54:31 GMT
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by aserp2130.oracle.com with ESMTP id 2kge0d1j06-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 14:54:31 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w6VEsTdq014857
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 14:54:29 GMT
-Received: from abhmp0009.oracle.com (abhmp0009.oracle.com [141.146.116.15])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w6VEsSHq022608
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 14:54:28 GMT
-Received: by mail-oi0-f42.google.com with SMTP id b15-v6so28450382oib.10
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 07:54:28 -0700 (PDT)
+        (Google Transport Security);
+        Tue, 31 Jul 2018 07:57:25 -0700 (PDT)
+Date: Tue, 31 Jul 2018 17:57:19 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: Linux 4.18-rc7
+Message-ID: <20180731145718.pbyy3qkp2a2yvucs@kshutemo-mobl1>
+References: <CA+55aFxpFefwVdTGVML99PSFUqwpJXPx5LVCA3D=g2t2_QLNsA@mail.gmail.com>
+ <CAMi1Hd0fJuAgP09_KkbjyGwszOXmxcPybKyBxP3U1y5JUqxxSw@mail.gmail.com>
+ <20180730130134.yvn5tcmoavuxtwt5@kshutemo-mobl1>
+ <CA+55aFwxwCPZs=h5wy-5PELwfBVuTETm+wuZB5cM2SDoXJi68g@mail.gmail.com>
+ <alpine.LSU.2.11.1807301410470.4805@eggly.anvils>
+ <CA+55aFx3qR1FW0T3na25NrwLZAvpOdUEUJa879CnaJT2ZPfhkg@mail.gmail.com>
+ <20180731062927.hjknfcb2cj3bwd7b@kshutemo-mobl1>
 MIME-Version: 1.0
-References: <20180731124504.27582-1-osalvador@techadventures.net>
- <CAGM2rebds=A5m1ZB1LtD7oxMzM9gjVQvm-QibHjEENmXViw5eA@mail.gmail.com>
- <20180731144157.GA1499@techadventures.net> <20180731144545.fh5syvwcecgvqul6@xakep.localdomain>
- <20180731145125.GB1499@techadventures.net>
-In-Reply-To: <20180731145125.GB1499@techadventures.net>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Tue, 31 Jul 2018 10:53:52 -0400
-Message-ID: <CAGM2reZSZHdWECr8-7pj6j=CtjWVF2oKC9SwHhMuOsDkigdzgA@mail.gmail.com>
-Subject: Re: [PATCH] mm: make __paginginit based on CONFIG_MEMORY_HOTPLUG
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180731062927.hjknfcb2cj3bwd7b@kshutemo-mobl1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: osalvador@techadventures.net
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, kirill.shutemov@linux.intel.com, iamjoonsoo.kim@lge.com, Mel Gorman <mgorman@suse.de>, Souptick Joarder <jrdr.linux@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, osalvador@suse.de
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, Amit Pundir <amit.pundir@linaro.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, John Stultz <john.stultz@linaro.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, youling257@gmail.com
 
-Thats correct on arches where no sparsemem setup_usemap() will not be
-freed up. It is a tiny function, just a few instructions. Not a big
-deal.
+On Tue, Jul 31, 2018 at 09:29:27AM +0300, Kirill A. Shutemov wrote:
+> On Mon, Jul 30, 2018 at 06:01:26PM -0700, Linus Torvalds wrote:
+> > On Mon, Jul 30, 2018 at 2:53 PM Hugh Dickins <hughd@google.com> wrote:
+> > >
+> > > I have no problem with reverting -rc7's vma_is_anonymous() series.
+> > 
+> > I don't think we need to revert the whole series: I think the rest are
+> > all fairly obvious cleanups, and shouldn't really have any semantic
+> > changes.
+> > 
+> > It's literally only that last patch in the series that then changes
+> > that meaning of "vm_ops". And I don't really _mind_ that last step
+> > either, but since we don't know exactly what it was that it broke, and
+> > we're past rc7, I don't think we really have any option but the revert
+> > it.
+> > 
+> > And if we revert it, I think we need to just remove the
+> > VM_BUG_ON_VMA() that it was supposed to fix. Because I do think that
+> > it is quite likely that the real bug is that overzealous BUG_ON(),
+> > since I can't see any reason why anonymous mappings should be special
+> > there.
+> > 
+> > But I'm certainly also ok with re-visiting that commit later.  I just
+> > think that right _now_ the above is my preferred plan.
+> > 
+> > Kirill?
+> 
+> Considering the timing, I'm okay with reverting the last patch with
+> dropping the VM_BUG_ON_VMA().
+> 
+> But in the end I would like to see strong vma_is_anonymous().
+> 
+> The VM_BUG_ON_VMA() is only triggerable by the test case because
+> vma_is_anonymous() false-positive in fault path and we get anon-THP
+> allocated in file-private mapping.
+> 
+> I don't see immediately how this may trigger other crashes.
+> But it definitely looks wrong.
+> 
+> > > I'm all for deleting that VM_BUG_ON_VMA() in zap_pmd_range(), it was
+> > > just a compromise with those who wanted to keep something there;
+> > > I don't think we even need a WARN_ON_ONCE() now.
+> > 
+> > So to me it looks like a historical check that simply doesn't
+> > "normally" trigger, but there's no reason I can see why we should care
+> > about the case it tests against.
+> 
+> I'll think more on what could go wrong with __split_huge_pmd() called on
+> anon-THP page without mmap_sem(). It's not yet clear cut to me.
 
-Pavel
-On Tue, Jul 31, 2018 at 10:51 AM Oscar Salvador
-<osalvador@techadventures.net> wrote:
->
-> On Tue, Jul 31, 2018 at 10:45:45AM -0400, Pavel Tatashin wrote:
-> > Here the patch would look like this:
-> >
-> > From e640b32dbd329bba5a785cc60050d5d7e1ca18ce Mon Sep 17 00:00:00 2001
-> > From: Pavel Tatashin <pasha.tatashin@oracle.com>
-> > Date: Tue, 31 Jul 2018 10:37:44 -0400
-> > Subject: [PATCH] mm: remove __paginginit
-> >
-> > __paginginit is the same thing as __meminit except for platforms without
-> > sparsemem, there it is defined as __init.
-> >
-> > Remove __paginginit and use __meminit. Use __ref in one single function
-> > that merges __meminit and __init sections: setup_usemap().
-> >
-> > Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
->
-> Uhm, I am probably missing something, but with this change, the functions will not be freed up
-> while freeing init memory, right?
->
-> Thanks
-> --
-> Oscar Salvador
-> SUSE L3
->
+I think not having mmap_sem taken at least on read when we call
+__split_huge_pmd() opens possiblity of race with khugepaged:
+khugepaged can collapse the page back to THP as soon as we drop ptl.
+As result pmd_none_or_trans_huge_or_clear_bad() would return true and we
+basically leave the THP behind, not zapped.
+
+-- 
+ Kirill A. Shutemov
