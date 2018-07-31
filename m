@@ -1,60 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CE0B86B0007
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 03:24:11 -0400 (EDT)
-Received: by mail-lf1-f71.google.com with SMTP id u14-v6so1569971lfu.13
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 00:24:11 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y7-v6sor2980518ljj.104.2018.07.31.00.24.10
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 853AC6B000A
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 03:28:36 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id f8-v6so3184913eds.6
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 00:28:36 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o13-v6si4213356edh.418.2018.07.31.00.28.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 31 Jul 2018 00:24:10 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Jul 2018 00:28:35 -0700 (PDT)
+Date: Tue, 31 Jul 2018 09:28:33 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: post linux 4.4 vm oom kill, lockup and thrashing woes
+Message-ID: <20180731072833.GD4557@dhcp22.suse.cz>
+References: <20180710120755.3gmin4rogheqb3u5@schmorp.de>
+ <20180710123222.GK14284@dhcp22.suse.cz>
+ <20180717234549.4ng2expfkgaranuq@schmorp.de>
+ <20180718083808.GR7193@dhcp22.suse.cz>
+ <20180722233437.34e5ckq5pp24gsod@schmorp.de>
+ <20180723125554.GE31229@dhcp22.suse.cz>
+ <20180731034546.tro4gurwebmcpuqd@schmorp.de>
 MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-In-Reply-To: <CAKwvOdmjD2fvZjZzkehB7ULG06z6Nqs5PjaoEzmyr51wBKQL+w@mail.gmail.com>
-References: <CA+icZUVQZtvLg6XGwnS-4Zgv+tkCGWw5Ue8_585H_xNOofX76Q@mail.gmail.com>
- <20180730091934.omn2vj6eyh6kaecs@lakrids.cambridge.arm.com>
- <CA+icZUUicAr5hBB9oGtuLhygP4pf39YV9hhrg7GpJQUibZu=ig@mail.gmail.com>
- <20180730094622.av7wlyrkl3rn37mp@lakrids.cambridge.arm.com> <CAKwvOdmjD2fvZjZzkehB7ULG06z6Nqs5PjaoEzmyr51wBKQL+w@mail.gmail.com>
-From: Sedat Dilek <sedat.dilek@gmail.com>
-Date: Tue, 31 Jul 2018 09:24:09 +0200
-Message-ID: <CA+icZUV7XMdo22E3NLwaR=YeL-Cqz7MXWKhu3zq0XZeCqHCH9g@mail.gmail.com>
-Subject: Re: [llvmlinux] clang fails on linux-next since commit 8bf705d13039
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180731034546.tro4gurwebmcpuqd@schmorp.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nick Desaulniers <ndesaulniers@google.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, Matthias Kaehlcke <mka@chromium.org>, Dmitry Vyukov <dvyukov@google.com>, Greg Hackmann <ghackmann@google.com>, Luis Lozano <llozano@google.com>, Michael Davidson <md@google.com>, Paul Lawrence <paullawrence@google.com>, Sami Tolvanen <samitolvanen@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Ingo Molnar <mingo@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, llvmlinux@lists.linuxfoundation.org, sil2review@lists.osadl.org, JBeulich@suse.com, Peter Zijlstra <peterz@infradead.org>, Kees Cook <keescook@chromium.org>, Colin Ian King <colin.king@canonical.com>
+To: Marc Lehmann <schmorp@schmorp.de>
+Cc: linux-mm@kvack.org
 
-On Mon, Jul 30, 2018 at 6:35 PM, Nick Desaulniers
-<ndesaulniers@google.com> wrote:
-> On Mon, Jul 30, 2018 at 2:46 AM Mark Rutland <mark.rutland@arm.com> wrote:
->>
->> On Mon, Jul 30, 2018 at 11:40:49AM +0200, Sedat Dilek wrote:
->> > What are your plans to have...
->> >
->> > 4d2b25f630c7 locking/atomics: Instrument cmpxchg_double*()
->> > f9881cc43b11 locking/atomics: Instrument xchg()
->> > df79ed2c0643 locking/atomics: Simplify cmpxchg() instrumentation
->> > 00d5551cc4ee locking/atomics/x86: Reduce arch_cmpxchg64*() instrumentation
->> >
->> > ...for example in Linux 4.18 or 4.17.y?
->>
->> I have no plans to have these backported.
->
-> If they help us compile with clang, we'll backport to 4.17, 4.14, 4.9,
-> and 4.4 stable.  From
-> https://github.com/ClangBuiltLinux/linux/issues/3#issuecomment-408839428,
-> it sounds like that is the case.
->
+On Tue 31-07-18 05:45:46, Marc Lehmann wrote:
+> On Mon, Jul 23, 2018 at 02:55:54PM +0200, Michal Hocko <mhocko@kernel.org> wrote:
+> > 
+> > Having more examples should help us to work with specific subsystems
+> > on a more appropriate fix. Depending on large order allocations has
+> > always been suboptimal if not outright wrong.
+> 
+> I think this is going into the wrong direction. First of all, keep in mind
+> that I have to actively work against getting more examples, as I have to keep
+> things running and will employ more and more workarounds.
+> 
+> More importantly, however, it's all good and well if the kernel fails
+> high order allocations when it has to, and it's all well to try to "fix"
+> them to not happen, but let's not forget the real problem, which is linux
+> thrashing, freezing or killing unrelated processes when it has no reason
+> to. specifically, if I have 32Gb ram and 30GB of page cache that isn't
+> locked, then linux has no conceivable reason to not satisfy even a high-order
+> allocation by moving some movable pages around.
 
-The commit in Linus upstream tree is...
+This is what we are trying as hard as we can though.
 
-b06ed71a624b locking/atomic, asm-generic: Add asm-generic/atomic-instrumented.h
+> I tzhink the examples I provides should already give some insight, for
+> example, doing a large mmap and faulting the pages in should not cause
+> these pages to be so stubbornly locked as to cause the machine to freeze
+> on a large alllocation, when it could "simply" drp a few gigabytes of
+> (non-dirty!) shared file pages instead.
 
-sdi@iniza:~/src/linux-kernel/linux$ git describe  --contains b06ed71a624b
-v4.17-rc1~180^2~9
+Yes we try to reclaim clean page cache quite agressively and a failing
+compaction is a reason to reclaim even more. But the life is not as
+simple. There might be different reasons why even a clean page cache is
+not migratable. E.g. when those pages are pinned by the filesystems.
 
-...so backporting makes sense for linux-stable-4.17.y?
+> It's possible that the post-4.4 vm changes are not the direct cause of this,
+> but only caused a hitherto unproblematic behaviour to cause problems e.g.
+> (totally made up) mmapped file data was freed in 4.4 simply because it tried
+> harder, and in post-4.4 kernels the kernel prefers to lock up instead. Then
+> the changes done in post-4.4 are not the cause of the problem, but simply the
+> trigger, just as the higher order allocations of some subsystems are not the
+> cause of the spurious oom kills, but simply the trigger.
 
-- sed@ -
+Well, this is really hard to tell from the data I have seen. All I can
+tell right now is that the system is fragmented heavily and there seems
+to be a hard demand for high order requests which we simply do not fail
+and rather go and oom kill. Is this good? Absolutely not but this is
+something that is really hard to change. We have historical reasons why
+non-costly (order smaller than 4) allocations basically never fail. This
+is really hard to change. The general recommendation is to simply not do
+that because it hurts. Sucks I know...
+
+> Or, to put it bluntly, no matter how badly written kvm and/or the nvidia
+> subsystem,s are, the kernel has no business killing mysql on my boxes when
+> it has 95% of available memory. If this were by design, then linux should
+> have the ability of keeping memory free for suich uses (something like
+> min_free_kbytes) and not use memory for disk cache if this memory is then
+> lost to other applications.
+
+Yes we have min_free_kbytes but fragmentation sucks. You can try to
+increase this value and it usually helps. But not unconditionally.
+
+> And yes, if I see more "interesting" examples, I will of course tell you
+> about them :)
+
+It would be good to track why the compaction doesn't help. We have some
+counters in /proc/vmstat so collecting this over time might get us some
+clue. There are also some tracepoints which might tell us more.
+
+In general though it is much preferable to reduce agreesive high order
+memory requests.
+-- 
+Michal Hocko
+SUSE Labs
