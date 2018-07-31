@@ -1,90 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A295F6B0007
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 06:17:56 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id i16-v6so11798748wrr.9
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 03:17:56 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k16-v6sor5941452wru.68.2018.07.31.03.17.54
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 32F0F6B0003
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 06:48:19 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id h7-v6so2214809itj.7
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 03:48:19 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id d20-v6si10947810iof.99.2018.07.31.03.48.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 31 Jul 2018 03:17:55 -0700 (PDT)
-Date: Tue, 31 Jul 2018 12:17:52 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH v5 4/4] mm/page_alloc: Introduce
- free_area_init_core_hotplug
-Message-ID: <20180731101752.GA473@techadventures.net>
-References: <20180730101757.28058-1-osalvador@techadventures.net>
- <20180730101757.28058-5-osalvador@techadventures.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Jul 2018 03:48:17 -0700 (PDT)
+Subject: Re: [PATCH] mm,page_alloc: PF_WQ_WORKER threads must sleep at
+ should_reclaim_retry().
+References: <55c9da7f-e448-964a-5b50-47f89a24235b@i-love.sakura.ne.jp>
+ <20180730093257.GG24267@dhcp22.suse.cz>
+ <9158a23e-7793-7735-e35c-acd540ca59bf@i-love.sakura.ne.jp>
+ <20180730144647.GX24267@dhcp22.suse.cz>
+ <20180730145425.GE1206094@devbig004.ftw2.facebook.com>
+ <0018ac3b-94ee-5f09-e4e0-df53d2cbc925@i-love.sakura.ne.jp>
+ <20180730154424.GG1206094@devbig004.ftw2.facebook.com>
+ <20180730185110.GB24267@dhcp22.suse.cz>
+ <20180730191005.GC24267@dhcp22.suse.cz>
+ <6f433d59-4a56-b698-e119-682bb8bf6713@i-love.sakura.ne.jp>
+ <20180731050928.GA4557@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <b03f09c2-f749-9c80-b4f6-d0b4a9634013@i-love.sakura.ne.jp>
+Date: Tue, 31 Jul 2018 19:47:45 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180730101757.28058-5-osalvador@techadventures.net>
+In-Reply-To: <20180731050928.GA4557@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, mgorman@techsingularity.net, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.j.williams@intel.com, david@redhat.com, Oscar Salvador <osalvador@suse.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jul 30, 2018 at 12:17:57PM +0200, osalvador@techadventures.net wrote:
-> From: Oscar Salvador <osalvador@suse.de>
-...
-> Also, since free_area_init_core/free_area_init_node will now only get called during early init, let us replace
-> __paginginit with __init, so their code gets freed up.
+On 2018/07/31 14:09, Michal Hocko wrote:
+> On Tue 31-07-18 06:01:48, Tetsuo Handa wrote:
+>> On 2018/07/31 4:10, Michal Hocko wrote:
+>>> Since should_reclaim_retry() should be a natural reschedule point,
+>>> let's do the short sleep for PF_WQ_WORKER threads unconditionally in
+>>> order to guarantee that other pending work items are started. This will
+>>> workaround this problem and it is less fragile than hunting down when
+>>> the sleep is missed. E.g. we used to have a sleeping point in the oom
+>>> path but this has been removed recently because it caused other issues.
+>>> Having a single sleeping point is more robust.
+>>
+>> linux.git has not removed the sleeping point in the OOM path yet. Since removing the
+>> sleeping point in the OOM path can mitigate CVE-2016-10723, please do so immediately.
 > 
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
-> Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> is this an {Acked,Reviewed,Tested}-by?
 
-Andrew, could you please fold the following cleanup into this patch?
-thanks
+I'm saying that "we used to have a sleeping point in the oom path but this has been
+removed recently" is not true. You need to send that patch to linux.git first if you
+want to refer that patch in this patch.
 
-Pavel, since this has your Reviewed-by, are you ok with the following on top?
+> 
+> I will send the patch to Andrew if the patch is ok. 
 
-set_pageblock_order() is only called from free_area_init_core() and sparse_init().
-sparse_init() is only called during early init, and the same applies for free_area_init_core()
-from now on (with this patchset)
+Andrew, can we send the "we used to have a sleeping point in the oom path but this has
+been removed recently" patch to linux.git ?
 
-The same goes for calc_memmap_size().
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index bb11cc23b862..c1cf088607c5 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6142,7 +6142,7 @@ static inline void setup_usemap(struct pglist_data *pgdat, struct zone *zone,
- #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
- 
- /* Initialise the number of pages represented by NR_PAGEBLOCK_BITS */
--void __paginginit set_pageblock_order(void)
-+void __init set_pageblock_order(void)
- {
- 	unsigned int order;
- 
-@@ -6170,13 +6170,13 @@ void __paginginit set_pageblock_order(void)
-  * include/linux/pageblock-flags.h for the values of pageblock_order based on
-  * the kernel config
-  */
--void __paginginit set_pageblock_order(void)
-+void __init set_pageblock_order(void)
- {
- }
- 
- #endif /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
- 
--static unsigned long __paginginit calc_memmap_size(unsigned long spanned_pages,
-+static unsigned long __init calc_memmap_size(unsigned long spanned_pages,
- 						   unsigned long present_pages)
- {
- 	unsigned long pages = spanned_pages;
-@@ -6448,7 +6448,7 @@ void __init free_area_init_node(int nid, unsigned long *zones_size,
-  * may be accessed (for example page_to_pfn() on some configuration accesses
-  * flags). We must explicitly zero those struct pages.
-  */
--void __paginginit zero_resv_unavail(void)
-+void __init zero_resv_unavail(void)
- {
- 	phys_addr_t start, end;
- 	unsigned long pfn;
-
-Thanks
--- 
-Oscar Salvador
-SUSE L3
+> 
+>> (And that change will conflict with Roman's cgroup aware OOM killer patchset. But it
+>> should be easy to rebase.)
+> 
+> That is still a WIP so I would lose sleep over it.
+> 
