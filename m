@@ -1,358 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AE0E16B000E
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 05:07:03 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id 20-v6so13260912ois.21
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 02:07:03 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j192-v6sor7754643oih.196.2018.07.31.02.07.02
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 77A426B026A
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 05:07:04 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id a26-v6so9003968pgw.7
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 02:07:04 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m193-v6si13532380pfc.312.2018.07.31.02.07.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 31 Jul 2018 02:07:02 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1533027092-15085-1-git-send-email-kernelfans@gmail.com>
-References: <1533027092-15085-1-git-send-email-kernelfans@gmail.com>
-From: "Rafael J. Wysocki" <rafael@kernel.org>
-Date: Tue, 31 Jul 2018 11:07:01 +0200
-Message-ID: <CAJZ5v0gLz4vLiiyfEsMc8FHhm3s0zGNaYRiye-1Tj85BZkv+ag@mail.gmail.com>
-Subject: Re: [PATCHv2] pm/reboot: eliminate race between reboot and suspend
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Jul 2018 02:07:03 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH v4 4/6] mm: rename and change semantics of nr_indirectly_reclaimable_bytes
+Date: Tue, 31 Jul 2018 11:06:47 +0200
+Message-Id: <20180731090649.16028-5-vbabka@suse.cz>
+In-Reply-To: <20180731090649.16028-1-vbabka@suse.cz>
+References: <20180731090649.16028-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pingfan Liu <kernelfans@gmail.com>
-Cc: Linux PM <linux-pm@vger.kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <len.brown@intel.com>, Pavel Machek <pavel@ucw.cz>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Vijayanand Jitta <vjitta@codeaurora.org>, Laura Abbott <labbott@redhat.com>, Sumit Semwal <sumit.semwal@linaro.org>
 
-On Tue, Jul 31, 2018 at 10:51 AM, Pingfan Liu <kernelfans@gmail.com> wrote:
-> At present, "systemctl suspend" and "shutdown" can run in parrallel. A
-> system can suspend after devices_shutdown(), and resume. Then the shutdown
-> task goes on to power off. This causes many devices are not really shut
-> off. Hence replacing reboot_mutex with system_transition_mutex (renamed
-> from pm_mutex) to achieve the exclusion. The renaming of pm_mutex as
-> system_transition_mutex can be better to reflect the purpose of the mutex.
->
-> Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-> Cc: Len Brown <len.brown@intel.com>
-> Cc: Pavel Machek <pavel@ucw.cz>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: linux-mm@kvack.org
-> Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-> ---
-> v1 -> v2:
->  rename pm_mutex as system_transition_mutex
+The vmstat counter NR_INDIRECTLY_RECLAIMABLE_BYTES was introduced by commit
+eb59254608bc ("mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES") with the goal of
+accounting objects that can be reclaimed, but cannot be allocated via a
+SLAB_RECLAIM_ACCOUNT cache. This is now possible via kmalloc() with
+__GFP_RECLAIMABLE flag, and the dcache external names user is converted.
 
-LGTM
+The counter is however still useful for accounting direct page allocations
+(i.e. not slab) with a shrinker, such as the ION page pool. So keep it, and:
 
-I can queue this up for 4.19 unless there are objections.
+- change granularity to pages to be more like other counters; sub-page
+  allocations should be able to use kmalloc
+- rename the counter to NR_KERNEL_MISC_RECLAIMABLE
+- expose the counter again in vmstat as "nr_kernel_misc_reclaimable"; we can
+  again remove the check for not printing "hidden" counters
 
->  Documentation/power/freezing-of-tasks.txt      | 12 ++++++------
->  Documentation/power/suspend-and-cpuhotplug.txt |  6 +++---
->  include/linux/suspend.h                        |  2 +-
->  kernel/freezer.c                               |  4 +++-
->  kernel/power/hibernate.c                       | 15 ++++++++-------
->  kernel/power/main.c                            | 12 ++++++------
->  kernel/power/suspend.c                         |  4 ++--
->  kernel/power/user.c                            |  4 ++--
->  kernel/reboot.c                                |  6 +++---
->  mm/page_alloc.c                                | 11 ++++++-----
->  10 files changed, 40 insertions(+), 36 deletions(-)
->
-> diff --git a/Documentation/power/freezing-of-tasks.txt b/Documentation/power/freezing-of-tasks.txt
-> index af00577..cd28319 100644
-> --- a/Documentation/power/freezing-of-tasks.txt
-> +++ b/Documentation/power/freezing-of-tasks.txt
-> @@ -204,26 +204,26 @@ VI. Are there any precautions to be taken to prevent freezing failures?
->
->  Yes, there are.
->
-> -First of all, grabbing the 'pm_mutex' lock to mutually exclude a piece of code
-> +First of all, grabbing the 'system_transition_mutex' lock to mutually exclude a piece of code
->  from system-wide sleep such as suspend/hibernation is not encouraged.
->  If possible, that piece of code must instead hook onto the suspend/hibernation
->  notifiers to achieve mutual exclusion. Look at the CPU-Hotplug code
->  (kernel/cpu.c) for an example.
->
-> -However, if that is not feasible, and grabbing 'pm_mutex' is deemed necessary,
-> -it is strongly discouraged to directly call mutex_[un]lock(&pm_mutex) since
-> +However, if that is not feasible, and grabbing 'system_transition_mutex' is deemed necessary,
-> +it is strongly discouraged to directly call mutex_[un]lock(&system_transition_mutex) since
->  that could lead to freezing failures, because if the suspend/hibernate code
-> -successfully acquired the 'pm_mutex' lock, and hence that other entity failed
-> +successfully acquired the 'system_transition_mutex' lock, and hence that other entity failed
->  to acquire the lock, then that task would get blocked in TASK_UNINTERRUPTIBLE
->  state. As a consequence, the freezer would not be able to freeze that task,
->  leading to freezing failure.
->
->  However, the [un]lock_system_sleep() APIs are safe to use in this scenario,
->  since they ask the freezer to skip freezing this task, since it is anyway
-> -"frozen enough" as it is blocked on 'pm_mutex', which will be released
-> +"frozen enough" as it is blocked on 'system_transition_mutex', which will be released
->  only after the entire suspend/hibernation sequence is complete.
->  So, to summarize, use [un]lock_system_sleep() instead of directly using
-> -mutex_[un]lock(&pm_mutex). That would prevent freezing failures.
-> +mutex_[un]lock(&system_transition_mutex). That would prevent freezing failures.
->
->  V. Miscellaneous
->  /sys/power/pm_freeze_timeout controls how long it will cost at most to freeze
-> diff --git a/Documentation/power/suspend-and-cpuhotplug.txt b/Documentation/power/suspend-and-cpuhotplug.txt
-> index 6f55eb9..a8751b8 100644
-> --- a/Documentation/power/suspend-and-cpuhotplug.txt
-> +++ b/Documentation/power/suspend-and-cpuhotplug.txt
-> @@ -32,7 +32,7 @@ More details follow:
->                                      sysfs file
->                                          |
->                                          v
-> -                               Acquire pm_mutex lock
-> +                               Acquire system_transition_mutex lock
->                                          |
->                                          v
->                               Send PM_SUSPEND_PREPARE
-> @@ -96,10 +96,10 @@ execution during resume):
->
->  * thaw tasks
->  * send PM_POST_SUSPEND notifications
-> -* Release pm_mutex lock.
-> +* Release system_transition_mutex lock.
->
->
-> -It is to be noted here that the pm_mutex lock is acquired at the very
-> +It is to be noted here that the system_transition_mutex lock is acquired at the very
->  beginning, when we are just starting out to suspend, and then released only
->  after the entire cycle is complete (i.e., suspend + resume).
->
-> diff --git a/include/linux/suspend.h b/include/linux/suspend.h
-> index 440b62f..5a28ac9 100644
-> --- a/include/linux/suspend.h
-> +++ b/include/linux/suspend.h
-> @@ -414,7 +414,7 @@ static inline bool hibernation_available(void) { return false; }
->  #define PM_RESTORE_PREPARE     0x0005 /* Going to restore a saved image */
->  #define PM_POST_RESTORE                0x0006 /* Restore failed */
->
-> -extern struct mutex pm_mutex;
-> +extern struct mutex system_transition_mutex;
->
->  #ifdef CONFIG_PM_SLEEP
->  void save_processor_state(void);
-> diff --git a/kernel/freezer.c b/kernel/freezer.c
-> index 6f56a9e..b162b74 100644
-> --- a/kernel/freezer.c
-> +++ b/kernel/freezer.c
-> @@ -15,7 +15,9 @@
->  atomic_t system_freezing_cnt = ATOMIC_INIT(0);
->  EXPORT_SYMBOL(system_freezing_cnt);
->
-> -/* indicate whether PM freezing is in effect, protected by pm_mutex */
-> +/* indicate whether PM freezing is in effect, protected by
-> + * system_transition_mutex
-> + */
->  bool pm_freezing;
->  bool pm_nosig_freezing;
->
-> diff --git a/kernel/power/hibernate.c b/kernel/power/hibernate.c
-> index 9c85c78..7a4979e 100644
-> --- a/kernel/power/hibernate.c
-> +++ b/kernel/power/hibernate.c
-> @@ -338,7 +338,7 @@ static int create_image(int platform_mode)
->   * hibernation_snapshot - Quiesce devices and create a hibernation image.
->   * @platform_mode: If set, use platform driver to prepare for the transition.
->   *
-> - * This routine must be called with pm_mutex held.
-> + * This routine must be called with system_transition_mutex held.
->   */
->  int hibernation_snapshot(int platform_mode)
->  {
-> @@ -500,8 +500,9 @@ static int resume_target_kernel(bool platform_mode)
->   * hibernation_restore - Quiesce devices and restore from a hibernation image.
->   * @platform_mode: If set, use platform driver to prepare for the transition.
->   *
-> - * This routine must be called with pm_mutex held.  If it is successful, control
-> - * reappears in the restored target kernel in hibernation_snapshot().
-> + * This routine must be called with system_transition_mutex held.  If it is
-> + * successful, control reappears in the restored target kernel in
-> + * hibernation_snapshot().
->   */
->  int hibernation_restore(int platform_mode)
->  {
-> @@ -805,13 +806,13 @@ static int software_resume(void)
->          * name_to_dev_t() below takes a sysfs buffer mutex when sysfs
->          * is configured into the kernel. Since the regular hibernate
->          * trigger path is via sysfs which takes a buffer mutex before
-> -        * calling hibernate functions (which take pm_mutex) this can
-> -        * cause lockdep to complain about a possible ABBA deadlock
-> +        * calling hibernate functions (which take system_transition_mutex)
-> +        * this can cause lockdep to complain about a possible ABBA deadlock
->          * which cannot happen since we're in the boot code here and
->          * sysfs can't be invoked yet. Therefore, we use a subclass
->          * here to avoid lockdep complaining.
->          */
-> -       mutex_lock_nested(&pm_mutex, SINGLE_DEPTH_NESTING);
-> +       mutex_lock_nested(&system_transition_mutex, SINGLE_DEPTH_NESTING);
->
->         if (swsusp_resume_device)
->                 goto Check_image;
-> @@ -899,7 +900,7 @@ static int software_resume(void)
->         atomic_inc(&snapshot_device_available);
->         /* For success case, the suspend path will release the lock */
->   Unlock:
-> -       mutex_unlock(&pm_mutex);
-> +       mutex_unlock(&system_transition_mutex);
->         pm_pr_dbg("Hibernation image not present or could not be loaded.\n");
->         return error;
->   Close_Finish:
-> diff --git a/kernel/power/main.c b/kernel/power/main.c
-> index d9706da..35b5082 100644
-> --- a/kernel/power/main.c
-> +++ b/kernel/power/main.c
-> @@ -15,17 +15,16 @@
->  #include <linux/workqueue.h>
->  #include <linux/debugfs.h>
->  #include <linux/seq_file.h>
-> +#include <linux/suspend.h>
->
->  #include "power.h"
->
-> -DEFINE_MUTEX(pm_mutex);
-> -
->  #ifdef CONFIG_PM_SLEEP
->
->  void lock_system_sleep(void)
->  {
->         current->flags |= PF_FREEZER_SKIP;
-> -       mutex_lock(&pm_mutex);
-> +       mutex_lock(&system_transition_mutex);
->  }
->  EXPORT_SYMBOL_GPL(lock_system_sleep);
->
-> @@ -37,8 +36,9 @@ void unlock_system_sleep(void)
->          *
->          * Reason:
->          * Fundamentally, we just don't need it, because freezing condition
-> -        * doesn't come into effect until we release the pm_mutex lock,
-> -        * since the freezer always works with pm_mutex held.
-> +        * doesn't come into effect until we release the
-> +        * system_transition_mutex lock, since the freezer always works with
-> +        * system_transition_mutex held.
->          *
->          * More importantly, in the case of hibernation,
->          * unlock_system_sleep() gets called in snapshot_read() and
-> @@ -47,7 +47,7 @@ void unlock_system_sleep(void)
->          * enter the refrigerator, thus causing hibernation to lockup.
->          */
->         current->flags &= ~PF_FREEZER_SKIP;
-> -       mutex_unlock(&pm_mutex);
-> +       mutex_unlock(&system_transition_mutex);
->  }
->  EXPORT_SYMBOL_GPL(unlock_system_sleep);
->
-> diff --git a/kernel/power/suspend.c b/kernel/power/suspend.c
-> index 8733156..9e13afe 100644
-> --- a/kernel/power/suspend.c
-> +++ b/kernel/power/suspend.c
-> @@ -556,7 +556,7 @@ static int enter_state(suspend_state_t state)
->         } else if (!valid_state(state)) {
->                 return -EINVAL;
->         }
-> -       if (!mutex_trylock(&pm_mutex))
-> +       if (!mutex_trylock(&system_transition_mutex))
->                 return -EBUSY;
->
->         if (state == PM_SUSPEND_TO_IDLE)
-> @@ -590,7 +590,7 @@ static int enter_state(suspend_state_t state)
->         pm_pr_dbg("Finishing wakeup.\n");
->         suspend_finish();
->   Unlock:
-> -       mutex_unlock(&pm_mutex);
-> +       mutex_unlock(&system_transition_mutex);
->         return error;
->  }
->
-> diff --git a/kernel/power/user.c b/kernel/power/user.c
-> index abd2255..2d8b60a 100644
-> --- a/kernel/power/user.c
-> +++ b/kernel/power/user.c
-> @@ -216,7 +216,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
->         if (!capable(CAP_SYS_ADMIN))
->                 return -EPERM;
->
-> -       if (!mutex_trylock(&pm_mutex))
-> +       if (!mutex_trylock(&system_transition_mutex))
->                 return -EBUSY;
->
->         lock_device_hotplug();
-> @@ -394,7 +394,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
->         }
->
->         unlock_device_hotplug();
-> -       mutex_unlock(&pm_mutex);
-> +       mutex_unlock(&system_transition_mutex);
->
->         return error;
->  }
-> diff --git a/kernel/reboot.c b/kernel/reboot.c
-> index e4ced88..8fb44de 100644
-> --- a/kernel/reboot.c
-> +++ b/kernel/reboot.c
-> @@ -294,7 +294,7 @@ void kernel_power_off(void)
->  }
->  EXPORT_SYMBOL_GPL(kernel_power_off);
->
-> -static DEFINE_MUTEX(reboot_mutex);
-> +DEFINE_MUTEX(system_transition_mutex);
->
->  /*
->   * Reboot system call: for obvious reasons only root may call it,
-> @@ -338,7 +338,7 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
->         if ((cmd == LINUX_REBOOT_CMD_POWER_OFF) && !pm_power_off)
->                 cmd = LINUX_REBOOT_CMD_HALT;
->
-> -       mutex_lock(&reboot_mutex);
-> +       mutex_lock(&system_transition_mutex);
->         switch (cmd) {
->         case LINUX_REBOOT_CMD_RESTART:
->                 kernel_restart(NULL);
-> @@ -389,7 +389,7 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
->                 ret = -EINVAL;
->                 break;
->         }
-> -       mutex_unlock(&reboot_mutex);
-> +       mutex_unlock(&system_transition_mutex);
->         return ret;
->  }
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index a790ef4..3674e42 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -155,16 +155,17 @@ static inline void set_pcppage_migratetype(struct page *page, int migratetype)
->   * The following functions are used by the suspend/hibernate code to temporarily
->   * change gfp_allowed_mask in order to avoid using I/O during memory allocations
->   * while devices are suspended.  To avoid races with the suspend/hibernate code,
-> - * they should always be called with pm_mutex held (gfp_allowed_mask also should
-> - * only be modified with pm_mutex held, unless the suspend/hibernate code is
-> - * guaranteed not to run in parallel with that modification).
-> + * they should always be called with system_transition_mutex held
-> + * (gfp_allowed_mask also should only be modified with system_transition_mutex
-> + * held, unless the suspend/hibernate code is guaranteed not to run in parallel
-> + * with that modification).
->   */
->
->  static gfp_t saved_gfp_mask;
->
->  void pm_restore_gfp_mask(void)
->  {
-> -       WARN_ON(!mutex_is_locked(&pm_mutex));
-> +       WARN_ON(!mutex_is_locked(&system_transition_mutex));
->         if (saved_gfp_mask) {
->                 gfp_allowed_mask = saved_gfp_mask;
->                 saved_gfp_mask = 0;
-> @@ -173,7 +174,7 @@ void pm_restore_gfp_mask(void)
->
->  void pm_restrict_gfp_mask(void)
->  {
-> -       WARN_ON(!mutex_is_locked(&pm_mutex));
-> +       WARN_ON(!mutex_is_locked(&system_transition_mutex));
->         WARN_ON(saved_gfp_mask);
->         saved_gfp_mask = gfp_allowed_mask;
->         gfp_allowed_mask &= ~(__GFP_IO | __GFP_FS);
-> --
-> 2.7.4
->
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: Vijayanand Jitta <vjitta@codeaurora.org>
+Cc: Laura Abbott <labbott@redhat.com>
+Cc: Sumit Semwal <sumit.semwal@linaro.org>
+Acked-by: Christoph Lameter <cl@linux.com>
+Acked-by: Roman Gushchin <guro@fb.com>
+---
+ drivers/staging/android/ion/ion_page_pool.c |  8 ++++----
+ include/linux/mmzone.h                      |  2 +-
+ mm/page_alloc.c                             | 19 +++++++------------
+ mm/util.c                                   |  3 +--
+ mm/vmstat.c                                 |  6 +-----
+ 5 files changed, 14 insertions(+), 24 deletions(-)
+
+diff --git a/drivers/staging/android/ion/ion_page_pool.c b/drivers/staging/android/ion/ion_page_pool.c
+index 9bc56eb48d2a..0d2a95957ee8 100644
+--- a/drivers/staging/android/ion/ion_page_pool.c
++++ b/drivers/staging/android/ion/ion_page_pool.c
+@@ -33,8 +33,8 @@ static void ion_page_pool_add(struct ion_page_pool *pool, struct page *page)
+ 		pool->low_count++;
+ 	}
+ 
+-	mod_node_page_state(page_pgdat(page), NR_INDIRECTLY_RECLAIMABLE_BYTES,
+-			    (1 << (PAGE_SHIFT + pool->order)));
++	mod_node_page_state(page_pgdat(page), NR_KERNEL_MISC_RECLAIMABLE,
++							1 << pool->order);
+ 	mutex_unlock(&pool->mutex);
+ }
+ 
+@@ -53,8 +53,8 @@ static struct page *ion_page_pool_remove(struct ion_page_pool *pool, bool high)
+ 	}
+ 
+ 	list_del(&page->lru);
+-	mod_node_page_state(page_pgdat(page), NR_INDIRECTLY_RECLAIMABLE_BYTES,
+-			    -(1 << (PAGE_SHIFT + pool->order)));
++	mod_node_page_state(page_pgdat(page), NR_KERNEL_MISC_RECLAIMABLE,
++							-(1 << pool->order));
+ 	return page;
+ }
+ 
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 32699b2dc52a..c2f6bc4c9e8a 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -180,7 +180,7 @@ enum node_stat_item {
+ 	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
+ 	NR_DIRTIED,		/* page dirtyings since bootup */
+ 	NR_WRITTEN,		/* page writings since bootup */
+-	NR_INDIRECTLY_RECLAIMABLE_BYTES, /* measured in bytes */
++	NR_KERNEL_MISC_RECLAIMABLE,	/* reclaimable non-slab kernel pages */
+ 	NR_VM_NODE_STAT_ITEMS
+ };
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5d800d61ddb7..91f75bf4404d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4704,6 +4704,7 @@ long si_mem_available(void)
+ 	unsigned long pagecache;
+ 	unsigned long wmark_low = 0;
+ 	unsigned long pages[NR_LRU_LISTS];
++	unsigned long reclaimable;
+ 	struct zone *zone;
+ 	int lru;
+ 
+@@ -4729,19 +4730,13 @@ long si_mem_available(void)
+ 	available += pagecache;
+ 
+ 	/*
+-	 * Part of the reclaimable slab consists of items that are in use,
+-	 * and cannot be freed. Cap this estimate at the low watermark.
++	 * Part of the reclaimable slab and other kernel memory consists of
++	 * items that are in use, and cannot be freed. Cap this estimate at the
++	 * low watermark.
+ 	 */
+-	available += global_node_page_state(NR_SLAB_RECLAIMABLE) -
+-		     min(global_node_page_state(NR_SLAB_RECLAIMABLE) / 2,
+-			 wmark_low);
+-
+-	/*
+-	 * Part of the kernel memory, which can be released under memory
+-	 * pressure.
+-	 */
+-	available += global_node_page_state(NR_INDIRECTLY_RECLAIMABLE_BYTES) >>
+-		PAGE_SHIFT;
++	reclaimable = global_node_page_state(NR_SLAB_RECLAIMABLE) +
++			global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE);
++	available += reclaimable - min(reclaimable / 2, wmark_low);
+ 
+ 	if (available < 0)
+ 		available = 0;
+diff --git a/mm/util.c b/mm/util.c
+index 3351659200e6..891f0654e7b5 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -675,8 +675,7 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+ 		 * Part of the kernel memory, which can be released
+ 		 * under memory pressure.
+ 		 */
+-		free += global_node_page_state(
+-			NR_INDIRECTLY_RECLAIMABLE_BYTES) >> PAGE_SHIFT;
++		free += global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE);
+ 
+ 		/*
+ 		 * Leave reserved pages. The pages are not for anonymous pages.
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 8ba0870ecddd..c5e52f94ba5f 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1161,7 +1161,7 @@ const char * const vmstat_text[] = {
+ 	"nr_vmscan_immediate_reclaim",
+ 	"nr_dirtied",
+ 	"nr_written",
+-	"", /* nr_indirectly_reclaimable */
++	"nr_kernel_misc_reclaimable",
+ 
+ 	/* enum writeback_stat_item counters */
+ 	"nr_dirty_threshold",
+@@ -1704,10 +1704,6 @@ static int vmstat_show(struct seq_file *m, void *arg)
+ 	unsigned long *l = arg;
+ 	unsigned long off = l - (unsigned long *)m->private;
+ 
+-	/* Skip hidden vmstat items. */
+-	if (*vmstat_text[off] == '\0')
+-		return 0;
+-
+ 	seq_puts(m, vmstat_text[off]);
+ 	seq_put_decimal_ull(m, " ", *l);
+ 	seq_putc(m, '\n');
+-- 
+2.18.0
