@@ -1,168 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 77A426B026A
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D45D6B026B
 	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 05:07:04 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id a26-v6so9003968pgw.7
+Received: by mail-pg1-f200.google.com with SMTP id u4-v6so9054741pgr.2
         for <linux-mm@kvack.org>; Tue, 31 Jul 2018 02:07:04 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m193-v6si13532380pfc.312.2018.07.31.02.07.02
+        by mx.google.com with ESMTPS id m11-v6si6161325pgk.468.2018.07.31.02.07.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 31 Jul 2018 02:07:03 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v4 4/6] mm: rename and change semantics of nr_indirectly_reclaimable_bytes
-Date: Tue, 31 Jul 2018 11:06:47 +0200
-Message-Id: <20180731090649.16028-5-vbabka@suse.cz>
+Subject: [PATCH v4 6/6] mm, slab: shorten kmalloc cache names for large sizes
+Date: Tue, 31 Jul 2018 11:06:49 +0200
+Message-Id: <20180731090649.16028-7-vbabka@suse.cz>
 In-Reply-To: <20180731090649.16028-1-vbabka@suse.cz>
 References: <20180731090649.16028-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Vijayanand Jitta <vjitta@codeaurora.org>, Laura Abbott <labbott@redhat.com>, Sumit Semwal <sumit.semwal@linaro.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>
 
-The vmstat counter NR_INDIRECTLY_RECLAIMABLE_BYTES was introduced by commit
-eb59254608bc ("mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES") with the goal of
-accounting objects that can be reclaimed, but cannot be allocated via a
-SLAB_RECLAIM_ACCOUNT cache. This is now possible via kmalloc() with
-__GFP_RECLAIMABLE flag, and the dcache external names user is converted.
+Kmalloc cache names can get quite long for large object sizes, when the sizes
+are expressed in bytes. Use 'k' and 'M' prefixes to make the names as short
+as possible e.g. in /proc/slabinfo. This works, as we mostly use power-of-two
+sizes, with exceptions only below 1k.
 
-The counter is however still useful for accounting direct page allocations
-(i.e. not slab) with a shrinker, such as the ION page pool. So keep it, and:
+Example: 'kmalloc-4194304' becomes 'kmalloc-4M'
 
-- change granularity to pages to be more like other counters; sub-page
-  allocations should be able to use kmalloc
-- rename the counter to NR_KERNEL_MISC_RECLAIMABLE
-- expose the counter again in vmstat as "nr_kernel_misc_reclaimable"; we can
-  again remove the check for not printing "hidden" counters
-
+Suggested-by: Matthew Wilcox <willy@infradead.org>
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Vijayanand Jitta <vjitta@codeaurora.org>
-Cc: Laura Abbott <labbott@redhat.com>
-Cc: Sumit Semwal <sumit.semwal@linaro.org>
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 Acked-by: Christoph Lameter <cl@linux.com>
 Acked-by: Roman Gushchin <guro@fb.com>
 ---
- drivers/staging/android/ion/ion_page_pool.c |  8 ++++----
- include/linux/mmzone.h                      |  2 +-
- mm/page_alloc.c                             | 19 +++++++------------
- mm/util.c                                   |  3 +--
- mm/vmstat.c                                 |  6 +-----
- 5 files changed, 14 insertions(+), 24 deletions(-)
+ mm/slab_common.c | 38 ++++++++++++++++++++++++++------------
+ 1 file changed, 26 insertions(+), 12 deletions(-)
 
-diff --git a/drivers/staging/android/ion/ion_page_pool.c b/drivers/staging/android/ion/ion_page_pool.c
-index 9bc56eb48d2a..0d2a95957ee8 100644
---- a/drivers/staging/android/ion/ion_page_pool.c
-+++ b/drivers/staging/android/ion/ion_page_pool.c
-@@ -33,8 +33,8 @@ static void ion_page_pool_add(struct ion_page_pool *pool, struct page *page)
- 		pool->low_count++;
- 	}
- 
--	mod_node_page_state(page_pgdat(page), NR_INDIRECTLY_RECLAIMABLE_BYTES,
--			    (1 << (PAGE_SHIFT + pool->order)));
-+	mod_node_page_state(page_pgdat(page), NR_KERNEL_MISC_RECLAIMABLE,
-+							1 << pool->order);
- 	mutex_unlock(&pool->mutex);
- }
- 
-@@ -53,8 +53,8 @@ static struct page *ion_page_pool_remove(struct ion_page_pool *pool, bool high)
- 	}
- 
- 	list_del(&page->lru);
--	mod_node_page_state(page_pgdat(page), NR_INDIRECTLY_RECLAIMABLE_BYTES,
--			    -(1 << (PAGE_SHIFT + pool->order)));
-+	mod_node_page_state(page_pgdat(page), NR_KERNEL_MISC_RECLAIMABLE,
-+							-(1 << pool->order));
- 	return page;
- }
- 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 32699b2dc52a..c2f6bc4c9e8a 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -180,7 +180,7 @@ enum node_stat_item {
- 	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
- 	NR_DIRTIED,		/* page dirtyings since bootup */
- 	NR_WRITTEN,		/* page writings since bootup */
--	NR_INDIRECTLY_RECLAIMABLE_BYTES, /* measured in bytes */
-+	NR_KERNEL_MISC_RECLAIMABLE,	/* reclaimable non-slab kernel pages */
- 	NR_VM_NODE_STAT_ITEMS
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 03f40b273ea3..a07fcb2551f6 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1050,15 +1050,15 @@ const struct kmalloc_info_struct kmalloc_info[] __initconst = {
+ 	{"kmalloc-16",             16},		{"kmalloc-32",             32},
+ 	{"kmalloc-64",             64},		{"kmalloc-128",           128},
+ 	{"kmalloc-256",           256},		{"kmalloc-512",           512},
+-	{"kmalloc-1024",         1024},		{"kmalloc-2048",         2048},
+-	{"kmalloc-4096",         4096},		{"kmalloc-8192",         8192},
+-	{"kmalloc-16384",       16384},		{"kmalloc-32768",       32768},
+-	{"kmalloc-65536",       65536},		{"kmalloc-131072",     131072},
+-	{"kmalloc-262144",     262144},		{"kmalloc-524288",     524288},
+-	{"kmalloc-1048576",   1048576},		{"kmalloc-2097152",   2097152},
+-	{"kmalloc-4194304",   4194304},		{"kmalloc-8388608",   8388608},
+-	{"kmalloc-16777216", 16777216},		{"kmalloc-33554432", 33554432},
+-	{"kmalloc-67108864", 67108864}
++	{"kmalloc-1k",           1024},		{"kmalloc-2k",           2048},
++	{"kmalloc-4k",           4096},		{"kmalloc-8k",           8192},
++	{"kmalloc-16k",         16384},		{"kmalloc-32k",         32768},
++	{"kmalloc-64k",         65536},		{"kmalloc-128k",       131072},
++	{"kmalloc-256k",       262144},		{"kmalloc-512k",       524288},
++	{"kmalloc-1M",        1048576},		{"kmalloc-2M",        2097152},
++	{"kmalloc-4M",        4194304},		{"kmalloc-8M",        8388608},
++	{"kmalloc-16M",      16777216},		{"kmalloc-32M",      33554432},
++	{"kmalloc-64M",      67108864}
  };
  
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5d800d61ddb7..91f75bf4404d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4704,6 +4704,7 @@ long si_mem_available(void)
- 	unsigned long pagecache;
- 	unsigned long wmark_low = 0;
- 	unsigned long pages[NR_LRU_LISTS];
-+	unsigned long reclaimable;
- 	struct zone *zone;
- 	int lru;
+ /*
+@@ -1108,6 +1108,21 @@ void __init setup_kmalloc_cache_index_table(void)
+ 	}
+ }
  
-@@ -4729,19 +4730,13 @@ long si_mem_available(void)
- 	available += pagecache;
++static const char *
++kmalloc_cache_name(const char *prefix, unsigned int size)
++{
++
++	static const char units[3] = "\0kM";
++	int idx = 0;
++
++	while (size >= 1024 && (size % 1024 == 0)) {
++		size /= 1024;
++		idx++;
++	}
++
++	return kasprintf(GFP_NOWAIT, "%s-%u%c", prefix, size, units[idx]);
++}
++
+ static void __init
+ new_kmalloc_cache(int idx, int type, slab_flags_t flags)
+ {
+@@ -1115,7 +1130,7 @@ new_kmalloc_cache(int idx, int type, slab_flags_t flags)
  
- 	/*
--	 * Part of the reclaimable slab consists of items that are in use,
--	 * and cannot be freed. Cap this estimate at the low watermark.
-+	 * Part of the reclaimable slab and other kernel memory consists of
-+	 * items that are in use, and cannot be freed. Cap this estimate at the
-+	 * low watermark.
- 	 */
--	available += global_node_page_state(NR_SLAB_RECLAIMABLE) -
--		     min(global_node_page_state(NR_SLAB_RECLAIMABLE) / 2,
--			 wmark_low);
--
--	/*
--	 * Part of the kernel memory, which can be released under memory
--	 * pressure.
--	 */
--	available += global_node_page_state(NR_INDIRECTLY_RECLAIMABLE_BYTES) >>
--		PAGE_SHIFT;
-+	reclaimable = global_node_page_state(NR_SLAB_RECLAIMABLE) +
-+			global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE);
-+	available += reclaimable - min(reclaimable / 2, wmark_low);
+ 	if (type == KMALLOC_RECLAIM) {
+ 		flags |= SLAB_RECLAIM_ACCOUNT;
+-		name = kasprintf(GFP_NOWAIT, "kmalloc-rcl-%u",
++		name = kmalloc_cache_name("kmalloc-rcl",
+ 						kmalloc_info[idx].size);
+ 		BUG_ON(!name);
+ 	} else {
+@@ -1164,8 +1179,7 @@ void __init create_kmalloc_caches(slab_flags_t flags)
  
- 	if (available < 0)
- 		available = 0;
-diff --git a/mm/util.c b/mm/util.c
-index 3351659200e6..891f0654e7b5 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -675,8 +675,7 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- 		 * Part of the kernel memory, which can be released
- 		 * under memory pressure.
- 		 */
--		free += global_node_page_state(
--			NR_INDIRECTLY_RECLAIMABLE_BYTES) >> PAGE_SHIFT;
-+		free += global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE);
+ 		if (s) {
+ 			unsigned int size = kmalloc_size(i);
+-			char *n = kasprintf(GFP_NOWAIT,
+-				 "dma-kmalloc-%u", size);
++			const char *n = kmalloc_cache_name("dma-kmalloc", size);
  
- 		/*
- 		 * Leave reserved pages. The pages are not for anonymous pages.
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 8ba0870ecddd..c5e52f94ba5f 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1161,7 +1161,7 @@ const char * const vmstat_text[] = {
- 	"nr_vmscan_immediate_reclaim",
- 	"nr_dirtied",
- 	"nr_written",
--	"", /* nr_indirectly_reclaimable */
-+	"nr_kernel_misc_reclaimable",
- 
- 	/* enum writeback_stat_item counters */
- 	"nr_dirty_threshold",
-@@ -1704,10 +1704,6 @@ static int vmstat_show(struct seq_file *m, void *arg)
- 	unsigned long *l = arg;
- 	unsigned long off = l - (unsigned long *)m->private;
- 
--	/* Skip hidden vmstat items. */
--	if (*vmstat_text[off] == '\0')
--		return 0;
--
- 	seq_puts(m, vmstat_text[off]);
- 	seq_put_decimal_ull(m, " ", *l);
- 	seq_putc(m, '\n');
+ 			BUG_ON(!n);
+ 			kmalloc_caches[KMALLOC_DMA][i] = create_kmalloc_cache(
 -- 
 2.18.0
