@@ -1,85 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D1B446B0007
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 21:01:39 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id g4-v6so1131151itf.6
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 18:01:39 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p3-v6sor399413ita.27.2018.07.30.18.01.38
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2301B6B0003
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 21:49:35 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id q21-v6so3947631pff.21
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 18:49:35 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w6-v6sor3110453pgb.24.2018.07.30.18.49.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 30 Jul 2018 18:01:38 -0700 (PDT)
+        Mon, 30 Jul 2018 18:49:33 -0700 (PDT)
+Date: Mon, 30 Jul 2018 18:49:31 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 0/3] introduce memory.oom.group
+In-Reply-To: <20180730180100.25079-1-guro@fb.com>
+Message-ID: <alpine.DEB.2.21.1807301847000.198273@chino.kir.corp.google.com>
+References: <20180730180100.25079-1-guro@fb.com>
 MIME-Version: 1.0
-References: <CA+55aFxpFefwVdTGVML99PSFUqwpJXPx5LVCA3D=g2t2_QLNsA@mail.gmail.com>
- <CAMi1Hd0fJuAgP09_KkbjyGwszOXmxcPybKyBxP3U1y5JUqxxSw@mail.gmail.com>
- <20180730130134.yvn5tcmoavuxtwt5@kshutemo-mobl1> <CA+55aFwxwCPZs=h5wy-5PELwfBVuTETm+wuZB5cM2SDoXJi68g@mail.gmail.com>
- <alpine.LSU.2.11.1807301410470.4805@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1807301410470.4805@eggly.anvils>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 30 Jul 2018 18:01:26 -0700
-Message-ID: <CA+55aFx3qR1FW0T3na25NrwLZAvpOdUEUJa879CnaJT2ZPfhkg@mail.gmail.com>
-Subject: Re: Linux 4.18-rc7
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Matthew Wilcox <willy@infradead.org>, Amit Pundir <amit.pundir@linaro.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, John Stultz <john.stultz@linaro.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, youling257@gmail.com
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-On Mon, Jul 30, 2018 at 2:53 PM Hugh Dickins <hughd@google.com> wrote:
->
-> I have no problem with reverting -rc7's vma_is_anonymous() series.
+On Mon, 30 Jul 2018, Roman Gushchin wrote:
 
-I don't think we need to revert the whole series: I think the rest are
-all fairly obvious cleanups, and shouldn't really have any semantic
-changes.
+> This is a tiny implementation of cgroup-aware OOM killer,
+> which adds an ability to kill a cgroup as a single unit
+> and so guarantee the integrity of the workload.
+> 
+> Although it has only a limited functionality in comparison
+> to what now resides in the mm tree (it doesn't change
+> the victim task selection algorithm, doesn't look
+> at memory stas on cgroup level, etc), it's also much
+> simpler and more straightforward. So, hopefully, we can
+> avoid having long debates here, as we had with the full
+> implementation.
+> 
+> As it doesn't prevent any futher development,
+> and implements an useful and complete feature,
+> it looks as a sane way forward.
+> 
+> This patchset is against Linus's tree to avoid conflicts
+> with the cgroup-aware OOM killer patchset in the mm tree.
+> 
+> Two first patches are already in the mm tree.
+> The first one ("mm: introduce mem_cgroup_put() helper")
+> is totally fine, and the second's commit message has to be
+> changed to reflect that it's not a part of old patchset
+> anymore.
+> 
 
-It's literally only that last patch in the series that then changes
-that meaning of "vm_ops". And I don't really _mind_ that last step
-either, but since we don't know exactly what it was that it broke, and
-we're past rc7, I don't think we really have any option but the revert
-it.
+What's the plan with the cgroup aware oom killer?  It has been sitting in 
+the -mm tree for ages with no clear path to being merged.
 
-And if we revert it, I think we need to just remove the
-VM_BUG_ON_VMA() that it was supposed to fix. Because I do think that
-it is quite likely that the real bug is that overzealous BUG_ON(),
-since I can't see any reason why anonymous mappings should be special
-there.
+Are you suggesting this patchset as a preliminary series so the cgroup 
+aware oom killer should be removed from the -mm tree and this should be 
+merged instead?  If so, what is the plan going forward for the cgroup 
+aware oom killer?
 
-But I'm certainly also ok with re-visiting that commit later.  I just
-think that right _now_ the above is my preferred plan.
-
-Kirill?
-
-> I'm all for deleting that VM_BUG_ON_VMA() in zap_pmd_range(), it was
-> just a compromise with those who wanted to keep something there;
-> I don't think we even need a WARN_ON_ONCE() now.
-
-So to me it looks like a historical check that simply doesn't
-"normally" trigger, but there's no reason I can see why we should care
-about the case it tests against.
-
-> (It remains quite interesting how exit_mmap() does not come that way,
-> and most syscalls split the vma beforehand in vma_adjust(): it's mostly
-> about madvise(,,MADV_DONTNEED), perhaps others now, which zap ptes
-> without prior splitting.)
-
-Well, in this case it's the ftruncate() path, which fundamentally
-doesn't split the vma at all (prior *or* later). But yes, madvise() is
-in the same boat - it doesn't change the vma at all, it just changes
-the contents of the vma.
-
-And exit_mmap() is special because it just tears down everything.
-
-So we do have three very distinct cases:
-
- (a) changing and thus splitting the vma itself (mprotect, munmap/mmap, mlock),
-
- (b) not changing the vma, but changing the underlying mapping
-(truncate and madvise(MADV_DONTNEED)
-
- (c) tearing down everything, and no locking needed because it's the
-last user (exit_mmap).
-
-that are different for what I think are good reasons.
-
-                   Linus
+Are you planning on reviewing the patchset to fix the cgroup aware oom 
+killer at https://marc.info/?l=linux-kernel&m=153152325411865 which has 
+been waiting for feedback since March?
