@@ -1,61 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 848406B000A
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 04:55:44 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id 2-v6so1872554plc.11
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 01:55:44 -0700 (PDT)
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E43366B000C
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 05:07:02 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id 31-v6so10942622pld.6
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 02:07:02 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v34-v6si12569366plg.491.2018.07.31.01.55.42
+        by mx.google.com with ESMTPS id 6-v6si12326820pgz.592.2018.07.31.02.07.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Jul 2018 01:55:43 -0700 (PDT)
-Subject: Re: [PATCH v3 7/7] mm, slab: shorten kmalloc cache names for large
- sizes
-References: <20180718133620.6205-1-vbabka@suse.cz>
- <20180718133620.6205-8-vbabka@suse.cz>
- <01000164ebe0d06f-8f639717-8d32-4eb9-9cc1-708332b12ca6-000000@email.amazonses.com>
+        Tue, 31 Jul 2018 02:07:01 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <9e019ae9-b6a8-c824-8913-dd02a8e6e6ce@suse.cz>
-Date: Tue, 31 Jul 2018 10:55:39 +0200
-MIME-Version: 1.0
-In-Reply-To: <01000164ebe0d06f-8f639717-8d32-4eb9-9cc1-708332b12ca6-000000@email.amazonses.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH v4 0/6] kmalloc-reclaimable caches
+Date: Tue, 31 Jul 2018 11:06:43 +0200
+Message-Id: <20180731090649.16028-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Laura Abbott <labbott@redhat.com>, Sumit Semwal <sumit.semwal@linaro.org>, Vijayanand Jitta <vjitta@codeaurora.org>
 
-On 07/30/2018 05:48 PM, Christopher Lameter wrote:
-> On Wed, 18 Jul 2018, Vlastimil Babka wrote:
-> 
->> +static const char *
->> +kmalloc_cache_name(const char *prefix, unsigned int size)
->> +{
->> +
->> +	static const char units[3] = "\0kM";
->> +	int idx = 0;
->> +
->> +	while (size >= 1024 && (size % 1024 == 0)) {
->> +		size /= 1024;
->> +		idx++;
->> +	}
->> +
->> +	return kasprintf(GFP_NOWAIT, "%s-%u%c", prefix, size, units[idx]);
->> +}
-> 
-> This is likely to occur elsewhere in the kernel. Maybe generalize it a
-> bit?
+v4 changes:
+- drop mm, slab: allocate off-slab freelists as reclaimable when appropriate
+  - per Mel, reclaiming objects from a slab doesn't guarantee that the whole
+    slab page will be freed and freelist reclaimed, so it can do more harm
+    than good
+- change KMALLOC_* constants from #define to enum, per Christoph
+- use the symbolic constants in kmalloc_type(), per Roman
+- add acks from Mel, Roman and Christoph, thanks!
+v3 changes:
+- fix missing hunk in patch 5/7
+- more verbose cover letter and patch 6/7 commit log
+v2 changes:
+- shorten cache names to kmalloc-rcl-<SIZE>
+- last patch shortens <SIZE> for all kmalloc caches to e.g. "1k", "4M"
+- include dma caches to the 2D kmalloc_caches[] array to avoid a branch
+- vmstat counter nr_indirectly_reclaimable_bytes renamed to
+  nr_kernel_misc_reclaimable, doesn't include kmalloc-rcl-*
+- /proc/meminfo counter renamed to KReclaimable, includes kmalloc-rcl*
+  and nr_kernel_misc_reclaimable
 
-I'll try later on top, as that's generic printf code then.
+Hi,
 
-> Acked-by: Christoph Lameter <cl@linux.com>
+as discussed at LSF/MM [1] here's a patchset that introduces
+kmalloc-reclaimable caches (more details in the second patch) and uses them for
+dcache external names. That allows us to repurpose the
+NR_INDIRECTLY_RECLAIMABLE_BYTES counter later in the series.
 
-Thanks for all acks.
+With patch 3/6, dcache external names are allocated from kmalloc-rcl-*
+caches, eliminating the need for manual accounting. More importantly, it
+also ensures the reclaimable kmalloc allocations are grouped in pages
+separate from the regular kmalloc allocations. The need for proper
+accounting of dcache external names has shown it's easy for misbehaving
+process to allocate lots of them, causing premature OOMs. Without the
+added grouping, it's likely that a similar workload can interleave the
+dcache external names allocations with regular kmalloc allocations
+(note: I haven't searched myself for an example of such regular kmalloc
+allocation, but I would be very surprised if there wasn't some). A
+pathological case would be e.g. one 64byte regular allocations with 63
+external dcache names in a page (64x64=4096), which means the page is
+not freed even after reclaiming after all dcache names, and the process
+can thus "steal" the whole page with single 64byte allocation.
 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-api" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> 
+If there other kmalloc users similar to dcache external names become
+identified, they can also benefit from the new functionality simply by
+adding __GFP_RECLAIMABLE to the kmalloc calls.
+
+Side benefits of the patchset (that could be also merged separately)
+include removed branch for detecting __GFP_DMA kmalloc(), and shortening
+kmalloc cache names in /proc/slabinfo output. The latter is potentially
+an ABI break in case there are tools parsing the names and expecting the
+values to be in bytes.
+
+This is how /proc/slabinfo looks like after booting in virtme:
+
+...
+kmalloc-rcl-4M         0      0 4194304    1 1024 : tunables    1    1    0 : slabdata      0      0      0
+...
+kmalloc-rcl-96         7     32    128   32    1 : tunables  120   60    8 : slabdata      1      1      0
+kmalloc-rcl-64        25    128     64   64    1 : tunables  120   60    8 : slabdata      2      2      0
+kmalloc-rcl-32         0      0     32  124    1 : tunables  120   60    8 : slabdata      0      0      0
+kmalloc-4M             0      0 4194304    1 1024 : tunables    1    1    0 : slabdata      0      0      0
+kmalloc-2M             0      0 2097152    1  512 : tunables    1    1    0 : slabdata      0      0      0
+kmalloc-1M             0      0 1048576    1  256 : tunables    1    1    0 : slabdata      0      0      0
+...
+
+/proc/vmstat with renamed nr_indirectly_reclaimable_bytes counter:
+
+...
+nr_slab_reclaimable 2817
+nr_slab_unreclaimable 1781
+...
+nr_kernel_misc_reclaimable 0
+...
+
+/proc/meminfo with new KReclaimable counter:
+
+...
+Shmem:               564 kB
+KReclaimable:      11260 kB
+Slab:              18368 kB
+SReclaimable:      11260 kB
+SUnreclaim:         7108 kB
+KernelStack:        1248 kB
+...
+
+Thanks,
+Vlastimil
+
+Vlastimil Babka (6):
+  mm, slab: combine kmalloc_caches and kmalloc_dma_caches
+  mm, slab/slub: introduce kmalloc-reclaimable caches
+  dcache: allocate external names from reclaimable kmalloc caches
+  mm: rename and change semantics of nr_indirectly_reclaimable_bytes
+  mm, proc: add KReclaimable to /proc/meminfo
+  mm, slab: shorten kmalloc cache names for large sizes
+
+ Documentation/filesystems/proc.txt          |   4 +
+ drivers/base/node.c                         |  19 ++--
+ drivers/staging/android/ion/ion_page_pool.c |   8 +-
+ fs/dcache.c                                 |  38 ++------
+ fs/proc/meminfo.c                           |  16 +--
+ include/linux/mmzone.h                      |   2 +-
+ include/linux/slab.h                        |  56 ++++++++---
+ mm/page_alloc.c                             |  19 ++--
+ mm/slab.c                                   |   4 +-
+ mm/slab_common.c                            | 103 ++++++++++++--------
+ mm/slub.c                                   |  13 +--
+ mm/util.c                                   |   3 +-
+ mm/vmstat.c                                 |   6 +-
+ 13 files changed, 163 insertions(+), 128 deletions(-)
+
+-- 
+2.18.0
