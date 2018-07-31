@@ -1,131 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E3326B0003
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 00:48:46 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id l22-v6so4767344uak.2
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 21:48:46 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id d76-v6si5296856vkd.211.2018.07.30.21.48.44
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 17E716B0007
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 01:09:32 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id n4-v6so3080415edr.5
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 22:09:32 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r18-v6si488221edl.68.2018.07.30.22.09.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jul 2018 21:48:44 -0700 (PDT)
-From: Jane Chu <jane.chu@oracle.com>
-Subject: [PATCH v2] ipc/shm.c add ->pagesize function to shm_vm_ops
-Date: Mon, 30 Jul 2018 22:48:31 -0600
-Message-Id: <20180731044831.26036-1-jane.chu@oracle.com>
+        Mon, 30 Jul 2018 22:09:30 -0700 (PDT)
+Date: Tue, 31 Jul 2018 07:09:28 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,page_alloc: PF_WQ_WORKER threads must sleep at
+ should_reclaim_retry().
+Message-ID: <20180731050928.GA4557@dhcp22.suse.cz>
+References: <55c9da7f-e448-964a-5b50-47f89a24235b@i-love.sakura.ne.jp>
+ <20180730093257.GG24267@dhcp22.suse.cz>
+ <9158a23e-7793-7735-e35c-acd540ca59bf@i-love.sakura.ne.jp>
+ <20180730144647.GX24267@dhcp22.suse.cz>
+ <20180730145425.GE1206094@devbig004.ftw2.facebook.com>
+ <0018ac3b-94ee-5f09-e4e0-df53d2cbc925@i-love.sakura.ne.jp>
+ <20180730154424.GG1206094@devbig004.ftw2.facebook.com>
+ <20180730185110.GB24267@dhcp22.suse.cz>
+ <20180730191005.GC24267@dhcp22.suse.cz>
+ <6f433d59-4a56-b698-e119-682bb8bf6713@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6f433d59-4a56-b698-e119-682bb8bf6713@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: dan.j.williams@intel.com, mhocko@suse.com, jack@suse.cz, jglisse@redhat.com, mike.kravetz@oracle.com, dave@stgolabs.net, linux-mm@kvack.org, linux-nvdimm@lists.01.org, stable@vger.kernel.org, linux-kernel@vger.kernel.org, jane.chu@oracle.com
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-05ea88608d4e13 ("mm, hugetlbfs: introduce ->pagesize() to
-vm_operations_struct") adds a new ->pagesize() function to hugetlb_vm_ops,
-intended to cover all hugetlbfs backed files.
+On Tue 31-07-18 06:01:48, Tetsuo Handa wrote:
+> On 2018/07/31 4:10, Michal Hocko wrote:
+> > Since should_reclaim_retry() should be a natural reschedule point,
+> > let's do the short sleep for PF_WQ_WORKER threads unconditionally in
+> > order to guarantee that other pending work items are started. This will
+> > workaround this problem and it is less fragile than hunting down when
+> > the sleep is missed. E.g. we used to have a sleeping point in the oom
+> > path but this has been removed recently because it caused other issues.
+> > Having a single sleeping point is more robust.
+> 
+> linux.git has not removed the sleeping point in the OOM path yet. Since removing the
+> sleeping point in the OOM path can mitigate CVE-2016-10723, please do so immediately.
 
-With System V shared memory model, if "huge page" is specified,
-the "shared memory" is backed by hugetlbfs files, but the mappings
-initiated via shmget/shmat have their original vm_ops overwritten
-with shm_vm_ops, so we need to add a ->pagesize function to shm_vm_ops.
-Otherwise, vma_kernel_pagesize() returns PAGE_SIZE given a hugetlbfs
-backed vma, result in below BUG:
+is this an {Acked,Reviewed,Tested}-by?
 
-fs/hugetlbfs/inode.c
-        443             if (unlikely(page_mapped(page))) {
-        444                     BUG_ON(truncate_op);
+I will send the patch to Andrew if the patch is ok. 
 
-[  242.268342] hugetlbfs: oracle (4592): Using mlock ulimits for SHM_HUGETLB is deprecated
-[  282.653208] ------------[ cut here ]------------
-[  282.708447] kernel BUG at fs/hugetlbfs/inode.c:444!
-[  282.818957] Modules linked in: nfsv3 rpcsec_gss_krb5 nfsv4 ...
-[  284.025873] CPU: 35 PID: 5583 Comm: oracle_5583_sbt Not tainted 4.14.35-1829.el7uek.x86_64 #2
-[  284.246609] task: ffff9bf0507aaf80 task.stack: ffffa9e625628000
-[  284.317455] RIP: 0010:remove_inode_hugepages+0x3db/0x3e2
-....
-[  285.292389] Call Trace:
-[  285.321630]  hugetlbfs_evict_inode+0x1e/0x3e
-[  285.372707]  evict+0xdb/0x1af
-[  285.408185]  iput+0x1a2/0x1f7
-[  285.443661]  dentry_unlink_inode+0xc6/0xf0
-[  285.492661]  __dentry_kill+0xd8/0x18d
-[  285.536459]  dput+0x1b5/0x1ed
-[  285.571939]  __fput+0x18b/0x216
-[  285.609495]  ____fput+0xe/0x10
-[  285.646030]  task_work_run+0x90/0xa7
-[  285.688788]  exit_to_usermode_loop+0xdd/0x116
-[  285.740905]  do_syscall_64+0x187/0x1ae
-[  285.785740]  entry_SYSCALL_64_after_hwframe+0x150/0x0
+> (And that change will conflict with Roman's cgroup aware OOM killer patchset. But it
+> should be easy to rebase.)
 
-Link: http://lkml.kernel.org/r/20180727211727.5020-1-jane.chu@oracle.com
-Fixes: 05ea88608d4e13 ("mm, hugetlbfs: introduce ->pagesize() to vm_operations_struct")
-Signed-off-by: Jane Chu <jane.chu@oracle.com>
-Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Acked-by: Davidlohr Bueso <dbueso@suse.de>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Jan Kara <jack@suse.cz>
-Cc: JA?A(C)rA?A'me Glisse <jglisse@redhat.com>
-Cc: Davidlohr Bueso <dave@stgolabs.net>
-Cc: Manfred Spraul <manfred@colorfullife.com>
-Cc: <stable@vger.kernel.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
----
- ipc/shm.c    | 12 ++++++++++++
- mm/hugetlb.c |  7 +++++++
- 2 files changed, 19 insertions(+)
-
-diff --git a/ipc/shm.c b/ipc/shm.c
-index 051a3e1fb8df..fefa00d310fb 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -427,6 +427,17 @@ static int shm_split(struct vm_area_struct *vma, unsigned long addr)
- 	return 0;
- }
- 
-+static unsigned long shm_pagesize(struct vm_area_struct *vma)
-+{
-+	struct file *file = vma->vm_file;
-+	struct shm_file_data *sfd = shm_file_data(file);
-+
-+	if (sfd->vm_ops->pagesize)
-+		return sfd->vm_ops->pagesize(vma);
-+
-+	return PAGE_SIZE;
-+}
-+
- #ifdef CONFIG_NUMA
- static int shm_set_policy(struct vm_area_struct *vma, struct mempolicy *new)
- {
-@@ -554,6 +565,7 @@ static const struct vm_operations_struct shm_vm_ops = {
- 	.close	= shm_close,	/* callback for when the vm-area is released */
- 	.fault	= shm_fault,
- 	.split	= shm_split,
-+	.pagesize = shm_pagesize,
- #if defined(CONFIG_NUMA)
- 	.set_policy = shm_set_policy,
- 	.get_policy = shm_get_policy,
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 039ddbc574e9..3103099f64fd 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -3167,6 +3167,13 @@ static vm_fault_t hugetlb_vm_op_fault(struct vm_fault *vmf)
- 	return 0;
- }
- 
-+/*
-+ * When a new function is introduced to vm_operations_struct and added
-+ * to hugetlb_vm_ops, please consider adding the function to shm_vm_ops.
-+ * This is because under System V memory model, mappings created via
-+ * shmget/shmat with "huge page" specified are backed by hugetlbfs files,
-+ * their original vm_ops are overwritten with shm_vm_ops.
-+ */
- const struct vm_operations_struct hugetlb_vm_ops = {
- 	.fault = hugetlb_vm_op_fault,
- 	.open = hugetlb_vm_op_open,
+That is still a WIP so I would lose sleep over it.
 -- 
-2.15.GIT
+Michal Hocko
+SUSE Labs
