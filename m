@@ -1,63 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2301B6B0003
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 21:49:35 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id q21-v6so3947631pff.21
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 18:49:35 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w6-v6sor3110453pgb.24.2018.07.30.18.49.33
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 504C56B0003
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2018 23:07:12 -0400 (EDT)
+Received: by mail-ua0-f198.google.com with SMTP id g12-v6so4694178ual.13
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2018 20:07:12 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id q135-v6si5823330vkd.44.2018.07.30.20.07.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 30 Jul 2018 18:49:33 -0700 (PDT)
-Date: Mon, 30 Jul 2018 18:49:31 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 0/3] introduce memory.oom.group
-In-Reply-To: <20180730180100.25079-1-guro@fb.com>
-Message-ID: <alpine.DEB.2.21.1807301847000.198273@chino.kir.corp.google.com>
-References: <20180730180100.25079-1-guro@fb.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 Jul 2018 20:07:10 -0700 (PDT)
+Subject: Re: [PATCH] ipc/shm.c add ->pagesize function to shm_vm_ops
+References: <20180727211727.5020-1-jane.chu@oracle.com>
+ <20180728190248.GA883@bombadil.infradead.org>
+From: Jane Chu <jane.chu@oracle.com>
+Message-ID: <026b057d-ec11-9273-40bc-072a8958bb64@oracle.com>
+Date: Mon, 30 Jul 2018 20:06:40 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20180728190248.GA883@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com, jack@suse.cz, jglisse@redhat.com, mike.kravetz@oracle.com, dave@stgolabs.net, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
 
-On Mon, 30 Jul 2018, Roman Gushchin wrote:
+Hi, Mathew,
 
-> This is a tiny implementation of cgroup-aware OOM killer,
-> which adds an ability to kill a cgroup as a single unit
-> and so guarantee the integrity of the workload.
-> 
-> Although it has only a limited functionality in comparison
-> to what now resides in the mm tree (it doesn't change
-> the victim task selection algorithm, doesn't look
-> at memory stas on cgroup level, etc), it's also much
-> simpler and more straightforward. So, hopefully, we can
-> avoid having long debates here, as we had with the full
-> implementation.
-> 
-> As it doesn't prevent any futher development,
-> and implements an useful and complete feature,
-> it looks as a sane way forward.
-> 
-> This patchset is against Linus's tree to avoid conflicts
-> with the cgroup-aware OOM killer patchset in the mm tree.
-> 
-> Two first patches are already in the mm tree.
-> The first one ("mm: introduce mem_cgroup_put() helper")
-> is totally fine, and the second's commit message has to be
-> changed to reflect that it's not a part of old patchset
-> anymore.
-> 
 
-What's the plan with the cgroup aware oom killer?  It has been sitting in 
-the -mm tree for ages with no clear path to being merged.
+On 7/28/2018 12:02 PM, Matthew Wilcox wrote:
+> On Fri, Jul 27, 2018 at 03:17:27PM -0600, Jane Chu wrote:
+>> +++ b/include/linux/mm.h
+>> @@ -387,6 +387,13 @@ enum page_entry_size {
+>>    * These are the virtual MM functions - opening of an area, closing and
+>>    * unmapping it (needed to keep files on disk up-to-date etc), pointer
+>>    * to the functions called when a no-page or a wp-page exception occurs.
+>> + *
+>> + * Note, when a new function is introduced to vm_operations_struct and
+>> + * added to hugetlb_vm_ops, please consider adding the function to
+>> + * shm_vm_ops. This is because under System V memory model, though
+>> + * mappings created via shmget/shmat with "huge page" specified are
+>> + * backed by hugetlbfs files, their original vm_ops are overwritten with
+>> + * shm_vm_ops.
+>>    */
+>>   struct vm_operations_struct {
+> I don't think this header file is the right place for this comment.
+> I'd think a better place for it would be at the definition of hugetlb_vm_ops.
 
-Are you suggesting this patchset as a preliminary series so the cgroup 
-aware oom killer should be removed from the -mm tree and this should be 
-merged instead?  If so, what is the plan going forward for the cgroup 
-aware oom killer?
+Agreed, will make the change.
+Thanks for reviewing!
 
-Are you planning on reviewing the patchset to fix the cgroup aware oom 
-killer at https://marc.info/?l=linux-kernel&m=153152325411865 which has 
-been waiting for feedback since March?
+-jane
