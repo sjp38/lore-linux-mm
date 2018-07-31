@@ -1,116 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 671FB6B0010
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 12:09:17 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id n17-v6so4962679pff.17
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 09:09:17 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b6-v6sor4288600plz.81.2018.07.31.09.09.16
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 53F7A6B0005
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 12:13:29 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id d14-v6so13323783qtn.12
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 09:13:29 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id 42-v6si5406177qvf.139.2018.07.31.09.13.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 31 Jul 2018 09:09:16 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Jul 2018 09:13:28 -0700 (PDT)
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w6VG4dQJ174816
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 16:13:27 GMT
+Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
+	by aserp2120.oracle.com with ESMTP id 2kggep1t6a-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 16:13:27 +0000
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w6VGDP5i003748
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 16:13:26 GMT
+Received: from abhmp0008.oracle.com (abhmp0008.oracle.com [141.146.116.14])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w6VGDPSJ014212
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 16:13:25 GMT
+Received: by mail-oi0-f49.google.com with SMTP id v8-v6so28983995oie.5
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 09:13:25 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <b6b58786-85c9-e831-5571-58b5580c84ba@virtuozzo.com>
-References: <cover.1530018818.git.andreyknvl@google.com> <a2a93370d43ec85b02abaf8d007a15b464212221.1530018818.git.andreyknvl@google.com>
- <09cb5553-d84a-0e62-5174-315c14b88833@arm.com> <CAAeHK+yC3XRPoTByhH1QPrX45pG3QY_2Q4gz=dfDgxfzu1Fyfw@mail.gmail.com>
- <8240d4f9-c8df-cfe9-119d-6e933f8b13df@virtuozzo.com> <CACT4Y+Y=61VwwETQP3FwAN16ompSNJOCyDCG6Ew1Bm5f_Fe1Lw@mail.gmail.com>
- <b6b58786-85c9-e831-5571-58b5580c84ba@virtuozzo.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 31 Jul 2018 18:08:54 +0200
-Message-ID: <CACT4Y+aUs0YMTaQx4x9QiQsMjFNZ5gUFNuMkG_hneDPTb3Nu=Q@mail.gmail.com>
-Subject: Re: [PATCH v4 13/17] khwasan: add hooks implementation
+References: <20180730101757.28058-1-osalvador@techadventures.net>
+ <20180730101757.28058-5-osalvador@techadventures.net> <20180731101752.GA473@techadventures.net>
+In-Reply-To: <20180731101752.GA473@techadventures.net>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Tue, 31 Jul 2018 12:12:49 -0400
+Message-ID: <CAGM2reade9+=5+qoCkmYrtMxDnQzoAi3u0nnHV-K5_iFmnOXmA@mail.gmail.com>
+Subject: Re: [PATCH v5 4/4] mm/page_alloc: Introduce free_area_init_core_hotplug
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>, vincenzo.frascino@arm.com, Alexander Potapenko <glider@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jann Horn <jannh@google.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Mark Brand <markbrand@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
+To: osalvador@techadventures.net
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, dan.j.williams@intel.com, david@redhat.com, osalvador@suse.de
 
-On Tue, Jul 31, 2018 at 6:04 PM, Andrey Ryabinin
-<aryabinin@virtuozzo.com> wrote:
->>>>>> @@ -325,18 +341,41 @@ void kasan_init_slab_obj(struct kmem_cache *cache,
->>>>>> const void *object)
->>>>>>     void *kasan_slab_alloc(struct kmem_cache *cache, void *object, gfp_t
->>>>>> flags)
->>>>>>   {
->>>>>> -       return kasan_kmalloc(cache, object, cache->object_size, flags);
->>>>>> +       object = kasan_kmalloc(cache, object, cache->object_size, flags);
->>>>>> +       if (IS_ENABLED(CONFIG_KASAN_HW) && unlikely(cache->ctor)) {
->>>>>> +               /*
->>>>>> +                * Cache constructor might use object's pointer value to
->>>>>> +                * initialize some of its fields.
->>>>>> +                */
->>>>>> +               cache->ctor(object);
->>>>>>
->>>>> This seams breaking the kmem_cache_create() contract: "The @ctor is run when
->>>>> new pages are allocated by the cache."
->>>>> (https://elixir.bootlin.com/linux/v3.7/source/mm/slab_common.c#L83)
->>>>>
->>>>> Since there might be preexisting code relying on it, this could lead to
->>>>> global side effects. Did you verify that this is not the case?
->>>>>
->>>>> Another concern is performance related if we consider this solution suitable
->>>>> for "near-production", since with the current implementation you call the
->>>>> ctor (where present) on an object multiple times and this ends up memsetting
->>>>> and repopulating the memory every time (i.e. inode.c: inode_init_once). Do
->>>>> you know what is the performance impact?
->>>>
->>>> We can assign tags to objects with constructors when a slab is
->>>> allocated and call constructors once as usual. The downside is that
->>>> such object would always have the same tag when it is reallocated, so
->>>> we won't catch use-after-frees.
->>>
->>> Actually you should do this for SLAB_TYPESAFE_BY_RCU slabs. Usually they are with ->ctors but there
->>> are few without constructors.
->>> We can't reinitialize or even retag them. The latter will definitely cause false-positive use-after-free reports.
->>
->> Somewhat offtopic, but I can't understand how SLAB_TYPESAFE_BY_RCU
->> slabs can be useful without ctors or at least memset(0). Objects in
->> such slabs need to be type-stable, but I can't understand how it's
->> possible to establish type stability without a ctor... Are these bugs?
+On Tue, Jul 31, 2018 at 6:17 AM Oscar Salvador
+<osalvador@techadventures.net> wrote:
 >
-> Yeah, I puzzled by this too. However, I think it's hard but possible to make it work, at least in theory.
-> There must be an initializer, which consists of two parts:
-> a) initilize objects fields
-> b) expose object to the world (add it to list or something like that)
+> On Mon, Jul 30, 2018 at 12:17:57PM +0200, osalvador@techadventures.net wrote:
+> > From: Oscar Salvador <osalvador@suse.de>
+> ...
+> > Also, since free_area_init_core/free_area_init_node will now only get called during early init, let us replace
+> > __paginginit with __init, so their code gets freed up.
+> >
+> > Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> > Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 >
-> (a) part must somehow to be ok to race with another cpu which might already use the object.
-> (b) part must must use e.g. barriers to make sure that racy users will see previously inilized fields.
-> Racy users must have parring barrier of course.
+> Andrew, could you please fold the following cleanup into this patch?
+> thanks
 >
-> But it sound fishy, and very easy to fuck up.
+> Pavel, since this has your Reviewed-by, are you ok with the following on top?
 
+Yes, Looks good to me.
 
-Agree on both fronts: theoretically possible but easy to fuck up. Even
-if it works, complexity of the code should be brain damaging and there
-are unlikely good reasons to just not be more explicit and use a ctor.
-
-
-> I won't be surprised if every single one SLAB_TYPESAFE_BY_RCU user
-> without ->ctor is bogus. It certainly would be better to convert those to use ->ctor.
-
-I have another hypothesis: they are not bogus, just don't need
-SLAB_TYPESAFE_BY_RCU :)
-
-
-> Such caches seems used by networking subsystem in proto_register():
->
->                 prot->slab = kmem_cache_create_usercopy(prot->name,
->                                         prot->obj_size, 0,
->                                         SLAB_HWCACHE_ALIGN | SLAB_ACCOUNT |
->                                         prot->slab_flags,
->                                         prot->useroffset, prot->usersize,
->                                         NULL);
->
-> And certain protocols specify SLAB_TYPESAFE_BY_RCU in ->slab_flags, such as:
-> llc_proto, smc_proto, smc_proto6, tcp_prot, tcpv6_prot, dccp_v6_prot, dccp_v4_prot.
->
->
-> Also nf_conntrack_cachep, kernfs_node_cache, jbd2_journal_head_cache and i915_request cache.
->
->
-> --
-> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
-> To post to this group, send email to kasan-dev@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/b6b58786-85c9-e831-5571-58b5580c84ba%40virtuozzo.com.
-> For more options, visit https://groups.google.com/d/optout.
+Thank you,
+Pavel
