@@ -1,89 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B5CC96B026F
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 10:58:13 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id i16-v6so12387218wrr.9
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 07:58:13 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 082B26B0271
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 11:01:18 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id g25-v6so1708545wmh.6
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 08:01:17 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q6-v6sor3793488wrm.53.2018.07.31.07.58.12
+        by mx.google.com with SMTPS id u4-v6sor6006514wrt.37.2018.07.31.08.01.16
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 31 Jul 2018 07:58:12 -0700 (PDT)
+        Tue, 31 Jul 2018 08:01:16 -0700 (PDT)
+Date: Tue, 31 Jul 2018 17:01:15 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH] mm: make __paginginit based on CONFIG_MEMORY_HOTPLUG
+Message-ID: <20180731150115.GC1499@techadventures.net>
+References: <20180731124504.27582-1-osalvador@techadventures.net>
+ <CAGM2rebds=A5m1ZB1LtD7oxMzM9gjVQvm-QibHjEENmXViw5eA@mail.gmail.com>
+ <20180731144157.GA1499@techadventures.net>
+ <20180731144545.fh5syvwcecgvqul6@xakep.localdomain>
+ <20180731145125.GB1499@techadventures.net>
+ <CAGM2reZSZHdWECr8-7pj6j=CtjWVF2oKC9SwHhMuOsDkigdzgA@mail.gmail.com>
 MIME-Version: 1.0
-References: <20180730180100.25079-1-guro@fb.com> <20180730180100.25079-2-guro@fb.com>
- <20180731084509.GE4557@dhcp22.suse.cz>
-In-Reply-To: <20180731084509.GE4557@dhcp22.suse.cz>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Tue, 31 Jul 2018 07:58:00 -0700
-Message-ID: <CALvZod75t+uK=FDtpuBCMZCk7cb4vQMy7DpXQ53Aj7ZLiYsTQQ@mail.gmail.com>
-Subject: Re: [PATCH 1/3] mm: introduce mem_cgroup_put() helper
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGM2reZSZHdWECr8-7pj6j=CtjWVF2oKC9SwHhMuOsDkigdzgA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>, Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, kirill.shutemov@linux.intel.com, iamjoonsoo.kim@lge.com, Mel Gorman <mgorman@suse.de>, Souptick Joarder <jrdr.linux@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, osalvador@suse.de
 
-On Tue, Jul 31, 2018 at 1:45 AM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Mon 30-07-18 11:00:58, Roman Gushchin wrote:
-> > Introduce the mem_cgroup_put() helper, which helps to eliminate guarding
-> > memcg css release with "#ifdef CONFIG_MEMCG" in multiple places.
->
-> Is there any reason for this to be a separate patch? I usually do not
-> like to add helpers without their users because this makes review
-> harder. This one is quite trivial to fit into Patch3 easilly.
->
+On Tue, Jul 31, 2018 at 10:53:52AM -0400, Pavel Tatashin wrote:
+> Thats correct on arches where no sparsemem setup_usemap() will not be
+> freed up. It is a tiny function, just a few instructions. Not a big
+> deal.
+> 
+> Pavel
+> On Tue, Jul 31, 2018 at 10:51 AM Oscar Salvador
+> <osalvador@techadventures.net> wrote:
+> >
+> > On Tue, Jul 31, 2018 at 10:45:45AM -0400, Pavel Tatashin wrote:
+> > > Here the patch would look like this:
+> > >
+> > > From e640b32dbd329bba5a785cc60050d5d7e1ca18ce Mon Sep 17 00:00:00 2001
+> > > From: Pavel Tatashin <pasha.tatashin@oracle.com>
+> > > Date: Tue, 31 Jul 2018 10:37:44 -0400
+> > > Subject: [PATCH] mm: remove __paginginit
+> > >
+> > > __paginginit is the same thing as __meminit except for platforms without
+> > > sparsemem, there it is defined as __init.
+> > >
+> > > Remove __paginginit and use __meminit. Use __ref in one single function
+> > > that merges __meminit and __init sections: setup_usemap().
+> > >
+> > > Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> >
+> > Uhm, I am probably missing something, but with this change, the functions will not be freed up
+> > while freeing init memory, right?
+> Thats correct on arches where no sparsemem setup_usemap() will not be
+> freed up. It is a tiny function, just a few instructions. Not a big
+> deal.
 
-The helper function introduced in this change is also used in the
-remote charging patches, so, I asked Roman to separate this change out
-and thus can be merged independently.
+I must be missing something.
 
-Shakeel
+What about:
 
-> > Link: http://lkml.kernel.org/r/20180623000600.5818-2-guro@fb.com
-> > Signed-off-by: Roman Gushchin <guro@fb.com>
-> > Reviewed-by: Shakeel Butt <shakeelb@google.com>
-> > Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: Shakeel Butt <shakeelb@google.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Michal Hocko <mhocko@kernel.org>
-> > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> > Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
-> > ---
-> >  include/linux/memcontrol.h | 9 +++++++++
-> >  1 file changed, 9 insertions(+)
-> >
-> > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> > index 6c6fb116e925..e53e00cdbe3f 100644
-> > --- a/include/linux/memcontrol.h
-> > +++ b/include/linux/memcontrol.h
-> > @@ -375,6 +375,11 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
-> >       return css ? container_of(css, struct mem_cgroup, css) : NULL;
-> >  }
-> >
-> > +static inline void mem_cgroup_put(struct mem_cgroup *memcg)
-> > +{
-> > +     css_put(&memcg->css);
-> > +}
-> > +
-> >  #define mem_cgroup_from_counter(counter, member)     \
-> >       container_of(counter, struct mem_cgroup, member)
-> >
-> > @@ -837,6 +842,10 @@ static inline bool task_in_mem_cgroup(struct task_struct *task,
-> >       return true;
-> >  }
-> >
-> > +static inline void mem_cgroup_put(struct mem_cgroup *memcg)
-> > +{
-> > +}
-> > +
-> >  static inline struct mem_cgroup *
-> >  mem_cgroup_iter(struct mem_cgroup *root,
-> >               struct mem_cgroup *prev,
-> > --
-> > 2.14.4
-> >
->
-> --
-> Michal Hocko
-> SUSE Labs
+calc_memmap_size
+free_area_init_node
+free_area_init_core
+ 
+These functions are marked with __meminit now.
+If we have CONFIG_PARSEMEM but not CONFIG_MEMORY_HOTPLUG, these functions will
+be left there.
+
+I mean, it is not that it is a big amount, but still.
+
+Do not we need something like:
+
+diff --git a/include/linux/init.h b/include/linux/init.h
+index 2538d176dd1f..3b3a88ba80ed 100644
+--- a/include/linux/init.h
++++ b/include/linux/init.h
+@@ -83,8 +83,12 @@
+ #define __exit          __section(.exit.text) __exitused __cold notrace
+ 
+ /* Used for MEMORY_HOTPLUG */
++#ifdef CONFIG_MEMORY_HOTPLUG
+ #define __meminit        __section(.meminit.text) __cold notrace \
+ 						  __latent_entropy
++#else
++#define __meminit	 __init
++#endif
+ #define __meminitdata    __section(.meminit.data)
+ #define __meminitconst   __section(.meminit.rodata)
+ #define __memexit        __section(.memexit.text) __exitused __cold notrace
+
+on top?
+
+Thanks
+-- 
+Oscar Salvador
+SUSE L3
