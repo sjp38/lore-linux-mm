@@ -1,40 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D9B9A6B0005
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 11:38:15 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id k21-v6so13231600qtj.23
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 08:38:15 -0700 (PDT)
-Received: from a9-99.smtp-out.amazonses.com (a9-99.smtp-out.amazonses.com. [54.240.9.99])
-        by mx.google.com with ESMTPS id 12-v6si1634363qkq.351.2018.07.31.08.38.14
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E8DF06B0007
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 11:51:56 -0400 (EDT)
+Received: by mail-yb0-f197.google.com with SMTP id b12-v6so8469208ybr.12
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 08:51:56 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f63-v6sor3335198ybb.106.2018.07.31.08.51.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 31 Jul 2018 08:38:14 -0700 (PDT)
-Date: Tue, 31 Jul 2018 15:38:13 +0000
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH v4 13/17] khwasan: add hooks implementation
-In-Reply-To: <CACT4Y+Y=61VwwETQP3FwAN16ompSNJOCyDCG6Ew1Bm5f_Fe1Lw@mail.gmail.com>
-Message-ID: <01000164f0fd5abc-df9ea911-9701-498c-adce-9f833e6df3ed-000000@email.amazonses.com>
-References: <cover.1530018818.git.andreyknvl@google.com> <a2a93370d43ec85b02abaf8d007a15b464212221.1530018818.git.andreyknvl@google.com> <09cb5553-d84a-0e62-5174-315c14b88833@arm.com> <CAAeHK+yC3XRPoTByhH1QPrX45pG3QY_2Q4gz=dfDgxfzu1Fyfw@mail.gmail.com>
- <8240d4f9-c8df-cfe9-119d-6e933f8b13df@virtuozzo.com> <CACT4Y+Y=61VwwETQP3FwAN16ompSNJOCyDCG6Ew1Bm5f_Fe1Lw@mail.gmail.com>
+        (Google Transport Security);
+        Tue, 31 Jul 2018 08:51:53 -0700 (PDT)
+Date: Tue, 31 Jul 2018 11:54:47 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 0/3] introduce memory.oom.group
+Message-ID: <20180731155447.GA28424@cmpxchg.org>
+References: <20180730180100.25079-1-guro@fb.com>
+ <alpine.DEB.2.21.1807301847000.198273@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.21.1807301847000.198273@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrey Konovalov <andreyknvl@google.com>, vincenzo.frascino@arm.com, Alexander Potapenko <glider@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jann Horn <jannh@google.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Mark Brand <markbrand@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-On Tue, 31 Jul 2018, Dmitry Vyukov wrote:
+On Mon, Jul 30, 2018 at 06:49:31PM -0700, David Rientjes wrote:
+> On Mon, 30 Jul 2018, Roman Gushchin wrote:
+> 
+> > This is a tiny implementation of cgroup-aware OOM killer,
+> > which adds an ability to kill a cgroup as a single unit
+> > and so guarantee the integrity of the workload.
+> > 
+> > Although it has only a limited functionality in comparison
+> > to what now resides in the mm tree (it doesn't change
+> > the victim task selection algorithm, doesn't look
+> > at memory stas on cgroup level, etc), it's also much
+> > simpler and more straightforward. So, hopefully, we can
+> > avoid having long debates here, as we had with the full
+> > implementation.
+> > 
+> > As it doesn't prevent any futher development,
+> > and implements an useful and complete feature,
+> > it looks as a sane way forward.
+> > 
+> > This patchset is against Linus's tree to avoid conflicts
+> > with the cgroup-aware OOM killer patchset in the mm tree.
+> > 
+> > Two first patches are already in the mm tree.
+> > The first one ("mm: introduce mem_cgroup_put() helper")
+> > is totally fine, and the second's commit message has to be
+> > changed to reflect that it's not a part of old patchset
+> > anymore.
+> 
+> What's the plan with the cgroup aware oom killer?  It has been sitting in 
+> the -mm tree for ages with no clear path to being merged.
+> 
+> Are you suggesting this patchset as a preliminary series so the cgroup 
+> aware oom killer should be removed from the -mm tree and this should be 
+> merged instead?  If so, what is the plan going forward for the cgroup 
+> aware oom killer?
+> 
+> Are you planning on reviewing the patchset to fix the cgroup aware oom 
+> killer at https://marc.info/?l=linux-kernel&m=153152325411865 which has 
+> been waiting for feedback since March?
 
-> > Actually you should do this for SLAB_TYPESAFE_BY_RCU slabs. Usually they are with ->ctors but there
-> > are few without constructors.
-> > We can't reinitialize or even retag them. The latter will definitely cause false-positive use-after-free reports.
->
-> Somewhat offtopic, but I can't understand how SLAB_TYPESAFE_BY_RCU
-> slabs can be useful without ctors or at least memset(0). Objects in
-> such slabs need to be type-stable, but I can't understand how it's
-> possible to establish type stability without a ctor... Are these bugs?
-> Or I am missing something subtle? What would be a canonical usage of
-> SLAB_TYPESAFE_BY_RCU slab without a ctor?
+I would say it's been waiting for feedback since March because every
+person that could give meaningful feedback on it, incl. the memcg and
+cgroup maintainers, is happy with Roman's current patches in -mm, is
+not convinced by the arguments you have made over months of
+discussions, and has serious reservations about the configurable OOM
+policies you propose as follow-up fix to Roman's patches.
 
-True that sounds fishy. Would someone post a list of SLAB_TYPESAFE_BY_RCU
-slabs without ctors?
+This pared-down version of the patches proposed here is to accomodate
+you and table discussions about policy for now. But your patchset is
+highly unlikely to gain any sort of traction in the future.
+
+Also I don't think there is any controversy here over what the way
+forward should be. Roman's patches should have been merged months ago.
