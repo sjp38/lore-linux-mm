@@ -1,62 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A9586B000D
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 10:25:18 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id n194-v6so2792896itn.0
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 07:25:18 -0700 (PDT)
-Received: from us.icdsoft.com (us.icdsoft.com. [192.252.146.184])
-        by mx.google.com with ESMTPS id p65-v6si10457414iop.187.2018.07.31.07.25.15
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E9D6D6B0005
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 10:42:00 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id l4-v6so1709284wme.7
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 07:42:00 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x15-v6sor626047wmh.68.2018.07.31.07.41.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Jul 2018 07:25:15 -0700 (PDT)
-Subject: Re: [Bug 200651] New: cgroups iptables-restor: vmalloc: allocation
- failure
-References: <ed7090ad-5004-3133-3faf-607d2a9fa90a@suse.cz>
- <d69d7a82-5b70-051f-a517-f602c3ef1fd7@suse.cz>
- <98788618-94dc-5837-d627-8bbfa1ddea57@icdsoft.com>
- <ff19099f-e0f5-d2b2-e124-cc12d2e05dc1@icdsoft.com>
- <20180730135744.GT24267@dhcp22.suse.cz>
- <89ea4f56-6253-4f51-0fb7-33d7d4b60cfa@icdsoft.com>
- <20180730183820.GA24267@dhcp22.suse.cz>
- <56597af4-73c6-b549-c5d5-b3a2e6441b8e@icdsoft.com>
- <6838c342-2d07-3047-e723-2b641bc6bf79@suse.cz>
- <8105b7b3-20d3-5931-9f3c-2858021a4e12@icdsoft.com>
- <20180731140520.kpotpihqsmiwhh7l@breakpoint.cc>
-From: Georgi Nikolov <gnikolov@icdsoft.com>
-Message-ID: <9cee281e-e6f4-20d1-401c-3c8b6fb744db@icdsoft.com>
-Date: Tue, 31 Jul 2018 17:25:04 +0300
+        (Google Transport Security);
+        Tue, 31 Jul 2018 07:41:59 -0700 (PDT)
+Date: Tue, 31 Jul 2018 16:41:57 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH] mm: make __paginginit based on CONFIG_MEMORY_HOTPLUG
+Message-ID: <20180731144157.GA1499@techadventures.net>
+References: <20180731124504.27582-1-osalvador@techadventures.net>
+ <CAGM2rebds=A5m1ZB1LtD7oxMzM9gjVQvm-QibHjEENmXViw5eA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180731140520.kpotpihqsmiwhh7l@breakpoint.cc>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGM2rebds=A5m1ZB1LtD7oxMzM9gjVQvm-QibHjEENmXViw5eA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Westphal <fw@strlen.de>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, netfilter-devel@vger.kernel.org
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, kirill.shutemov@linux.intel.com, iamjoonsoo.kim@lge.com, Mel Gorman <mgorman@suse.de>, Souptick Joarder <jrdr.linux@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, osalvador@suse.de
 
-On 07/31/2018 05:05 PM, Florian Westphal wrote:
-> Georgi Nikolov <gnikolov@icdsoft.com> wrote:
->>> No, I think that's rather for the netfilter folks to decide. However,=
- it
->>> seems there has been the debate already [1] and it was not found. The=
+On Tue, Jul 31, 2018 at 08:49:11AM -0400, Pavel Tatashin wrote:
+> Hi Oscar,
+> 
+> Have you looked into replacing __paginginit via __meminit ? What is
+> the reason to keep both?
+Hi Pavel,
 
->>> conclusion was that __GFP_NORETRY worked fine before, so it should wo=
-rk
->>> again after it's added back. But now we know that it doesn't...
->>>
->>> [1] https://lore.kernel.org/lkml/20180130140104.GE21609@dhcp22.suse.c=
-z/T/#u
->> Yes i see. I will add Florian Westphal to CC list. netfilter-devel is
->> already in this list so probably have to wait for their opinion.
-> It hasn't changed, I think having OOM killer zap random processes
-> just because userspace wants to import large iptables ruleset is not a
-> good idea.
-And what about passing GFP_NORETRY only above some reasonable threshold?
-Or situation has to be handled in userspace.
+Actually, thinking a bit more about this, it might make sense to remove
+__paginginit altogether and keep only __meminit.
+Looking at the original commit, I think that it was put as a way to abstract it.
 
+After the patchset [1] has been applied, only two functions marked as __paginginit
+remain, so it will be less hassle to replace that with __meminit.
 
-Regards,
+I will send a v2 tomorrow to be applied on top of [1].
 
---
-Georgi Nikolov
+[1] https://patchwork.kernel.org/patch/10548861/
+
+Thanks
+-- 
+Oscar Salvador
+SUSE L3
