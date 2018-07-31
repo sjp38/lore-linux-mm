@@ -1,84 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 34C006B0007
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 09:23:24 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id m185-v6so2743883itm.1
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 06:23:24 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w131-v6sor1075646ith.92.2018.07.31.06.23.22
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 72B166B000A
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 09:38:38 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id s18-v6so3506850edr.15
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 06:38:38 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id s19-v6si6493538edc.383.2018.07.31.06.38.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 31 Jul 2018 06:23:22 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Jul 2018 06:38:36 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w6VDJFbu111705
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 09:38:35 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2kjqapmdu6-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2018 09:38:35 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 31 Jul 2018 14:38:33 +0100
+Date: Tue, 31 Jul 2018 16:38:27 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH 0/2] um: switch to NO_BOOTMEM
+References: <1532438594-4530-1-git-send-email-rppt@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <CAAeHK+yWF05XoU+0iuJoXAL3cWgdtxbeLoBz169yP12W4LkcQw@mail.gmail.com>
-References: <cover.1529507994.git.andreyknvl@google.com> <CAAeHK+zqtyGzd_CZ7qKZKU-uZjZ1Pkmod5h8zzbN0xCV26nSfg@mail.gmail.com>
- <20180626172900.ufclp2pfrhwkxjco@armageddon.cambridge.arm.com>
- <CAAeHK+yqWKTdTG+ymZ2-5XKiDANV+fmUjnQkRy-5tpgphuLJRA@mail.gmail.com>
- <CAAeHK+wJbbCZd+-X=9oeJgsqQJiq8h+Aagz3SQMPaAzCD+pvFw@mail.gmail.com> <CAAeHK+yWF05XoU+0iuJoXAL3cWgdtxbeLoBz169yP12W4LkcQw@mail.gmail.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Tue, 31 Jul 2018 15:23:21 +0200
-Message-ID: <CAAeHK+y95YJZ6yEw0icsz7ScFYP=x5V+__8J0BG9T3vyB1J1xA@mail.gmail.com>
-Subject: Re: [PATCH v4 0/7] arm64: untag user pointers passed to the kernel
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1532438594-4530-1-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <20180731133827.GC23494@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-doc@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
+To: Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-um@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jul 16, 2018 at 1:25 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-> So the checker reports ~100 different places where a __user pointer
-> being casted. I've looked through them and found 3 places where we
-> need to add untagging. Source code lines below come from 4.18-rc2+
-> (6f0d349d).
->
-> Place 1:
->
-> arch/arm64/mm/fault.c:302:34: warning: user pointer cast
-> current->thread.fault_address = (unsigned long)info->si_addr;
->
-> Compare a pointer with TASK_SIZE (1 << 48) to check whether it lies in
-> the kernel or in user space. Need to untag the address before
-> performing a comparison.
->
-> Place 2:
->
-> fs/namespace.c:2736:21: warning: user pointer cast
-> size = TASK_SIZE - (unsigned long)data;
->
-> A similar check performed by subtracting a pointer from TASK_SIZE.
-> Need to untag before subtracting.
->
-> Place 3:
->
-> drivers/usb/core/devio.c:1407:29: warning: user pointer cast
-> unsigned long uurb_start = (unsigned long)uurb->buffer;
-> drivers/usb/core/devio.c:1636:31: warning: user pointer cast
-> unsigned long uurb_start = (unsigned long)uurb->buffer;
-> drivers/usb/core/devio.c:1715:30: warning: user pointer cast
-> unsigned long uurb_start = (unsigned long)uurb->buffer;
->
-> The device keeps list of mmapped areas and searches them for provided
-> __user pointer. Need to untag before searching.
->
-> There are also a few cases of memory syscalls operating on __user
-> pointers instead of unsigned longs like mmap:
->
-> ipc/shm.c:1355:23: warning: user pointer cast
-> unsigned long addr = (unsigned long)shmaddr;
-> ipc/shm.c:1566:23: warning: user pointer cast
-> unsigned long addr = (unsigned long)shmaddr;
-> mm/migrate.c:1586:10: warning: user pointer cast
-> addr = (unsigned long)p;
-> mm/migrate.c:1660:24: warning: user pointer cast
-> unsigned long addr = (unsigned long)(*pages);
->
-> If we don't add untagging to mmap, we probably don't need it here.
->
-> The rest of reported places look fine as is. Full annotated results of
-> running the checker are here [2].
->
-> I'll add the 3 patches with fixes to v5 of this patchset.
->
-> Catalin, WDYT?
+Any comments on this?
 
-ping
+On Tue, Jul 24, 2018 at 04:23:12PM +0300, Mike Rapoport wrote:
+> Hi,
+> 
+> These patches convert UML to use NO_BOOTMEM.
+> Tested on x86-64.
+> 
+> Mike Rapoport (2):
+>   um: setup_physmem: stop using global variables
+>   um: switch to NO_BOOTMEM
+> 
+>  arch/um/Kconfig.common   |  2 ++
+>  arch/um/kernel/physmem.c | 22 ++++++++++------------
+>  2 files changed, 12 insertions(+), 12 deletions(-)
+> 
+> -- 
+> 2.7.4
+> 
+
+-- 
+Sincerely yours,
+Mike.
