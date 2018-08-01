@@ -1,70 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DA436B0005
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 11:31:25 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id r20-v6so11147776pgv.20
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 08:31:25 -0700 (PDT)
-Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
-        by mx.google.com with ESMTPS id o8-v6si11511551pgo.2.2018.08.01.08.31.22
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F3D56B0007
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 11:32:31 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id p5-v6so6801348pfh.11
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 08:32:31 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id j5-v6si17388612pgt.226.2018.08.01.08.32.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Aug 2018 08:31:22 -0700 (PDT)
-Message-ID: <5B61D243.9050608@huawei.com>
-Date: Wed, 1 Aug 2018 23:31:15 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        Wed, 01 Aug 2018 08:32:30 -0700 (PDT)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [PATCH] ia64: Make stack VMA anonymous
+Date: Wed, 1 Aug 2018 15:32:28 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F7D38B551@ORSMSX110.amr.corp.intel.com>
+References: <20180801130801.30095-1-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20180801130801.30095-1-kirill.shutemov@linux.intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: [Question] A novel case happened when using mempool allocate memory.
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Laura Abbott <labbott@redhat.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Hi,  Everyone
+> IA64 allocates stack in a custom way. Stack has to be marked as
+> anonymous otherwise the process will be killed with SIGBUS on the first
+> access to the stack.
+>
+> Add missing vma_set_anonymous().
 
- I ran across the following novel case similar to memory leak in linux-4.1 stable when allocating
- memory object by kmem_cache_alloc.   it rarely can be reproduced.
+That does the trick. Applied this patch on top of -rc7 and ia64 boots again=
+.
 
-I create a specific  mempool with 24k size based on the slab.  it can not be merged with
-other kmem cache.  I  record the allocation and free usage by atomic_add/sub.    After a while,
-I watch the specific slab consume most of total memory.   After halting the code execution.
-The counter of allocation and free is equal.  Therefore,  I am sure that module have released
-all meory resource.  but the statistic of specific slab is very high but stable by checking /proc/slabinfo.
+Tested-by: Tony Luck <tony.luck@intel.com>
 
-but It is strange that the specific slab will free get back all memory when unregister the module.
-I got the following information from specific slab data structure when halt the module execution.
-
-
-kmem_cache_node                                                          kmem_cache
-
-nr_partial = 1,                                                             min_partial = 7
-partial = {                                                                    cpu_partial = 2
-        next = 0xffff7c00085cae20                             object_size = 24576
-        prev = 0xffff7c00085cae20
-},
-
-nr_slabs = {
-    counter = 365610
- },
-
-total_objects = {
- counter = 365610
-},
-
-full = {
-      next =  0xffff8013e44f75f0,
-     prev =  0xffff8013e44f75f0
-},
-
->From the above restricted information , we can know that the node full list is empty.  and partial list only
-have a  slab.   A slab contain a object.  I think that most of slab stay in the cpu_partial
-list even though it seems to be impossible theoretically.  because I come to the conclusion based on the case
-that slab take up the memory will be release when unregister the moudle.
-
-but I check the code(mm/slub.c) carefully . I can not find any clue to prove my assumption.
-I will be appreciate if anyone have any idea about the case. 
-
-
-Thanks
-zhong jiang
+-Tony
