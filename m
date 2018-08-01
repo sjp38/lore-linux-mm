@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 66C4A6B0280
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 11:17:33 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id 99-v6so17243881qkr.14
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 08:17:33 -0700 (PDT)
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E38F6B0282
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 11:17:35 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id l23-v6so16120811qtp.1
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 08:17:35 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o22-v6sor8425358qka.169.2018.08.01.08.17.32
+        by mx.google.com with SMTPS id m20-v6sor7870356qvm.25.2018.08.01.08.17.34
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 01 Aug 2018 08:17:32 -0700 (PDT)
+        Wed, 01 Aug 2018 08:17:34 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 6/9] sched: sched.h: make rq locking and clock functions available in stats.h
-Date: Wed,  1 Aug 2018 11:19:55 -0400
-Message-Id: <20180801151958.32590-7-hannes@cmpxchg.org>
+Subject: [PATCH 7/9] sched: introduce this_rq_lock_irq()
+Date: Wed,  1 Aug 2018 11:19:56 -0400
+Message-Id: <20180801151958.32590-8-hannes@cmpxchg.org>
 In-Reply-To: <20180801151958.32590-1-hannes@cmpxchg.org>
 References: <20180801151958.32590-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,211 +20,53 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Daniel Drake <drake@endlessm.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, Peter Enderborg <peter.enderborg@sony.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-kernel/sched/sched.h includes "stats.h" half-way through the file. The
-next patch introduces users of sched.h's rq locking functions and
-update_rq_clock() in kernel/sched/stats.h. Move those definitions up
-in the file so they are available in stats.h.
+do_sched_yield() disables IRQs, looks up this_rq() and locks it. The
+next patch is adding another site with the same pattern, so provide a
+convenience function for it.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- kernel/sched/sched.h | 164 +++++++++++++++++++++----------------------
- 1 file changed, 82 insertions(+), 82 deletions(-)
+ kernel/sched/core.c  |  4 +---
+ kernel/sched/sched.h | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 3 deletions(-)
 
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 211890edf37e..9586a8141f16 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -4960,9 +4960,7 @@ static void do_sched_yield(void)
+ 	struct rq_flags rf;
+ 	struct rq *rq;
+ 
+-	local_irq_disable();
+-	rq = this_rq();
+-	rq_lock(rq, &rf);
++	rq = this_rq_lock_irq(&rf);
+ 
+ 	schedstat_inc(rq->yld_count);
+ 	current->sched_class->yield_task(rq);
 diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index cb467c221b15..b8f038497240 100644
+index b8f038497240..bc798c7cb4d4 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -919,6 +919,8 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
- #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
- #define raw_rq()		raw_cpu_ptr(&runqueues)
- 
-+extern void update_rq_clock(struct rq *rq);
-+
- static inline u64 __rq_clock_broken(struct rq *rq)
- {
- 	return READ_ONCE(rq->clock);
-@@ -1037,6 +1039,86 @@ static inline void rq_repin_lock(struct rq *rq, struct rq_flags *rf)
- #endif
+@@ -1119,6 +1119,18 @@ rq_unlock(struct rq *rq, struct rq_flags *rf)
+ 	raw_spin_unlock(&rq->lock);
  }
  
-+struct rq *__task_rq_lock(struct task_struct *p, struct rq_flags *rf)
-+	__acquires(rq->lock);
-+
-+struct rq *task_rq_lock(struct task_struct *p, struct rq_flags *rf)
-+	__acquires(p->pi_lock)
-+	__acquires(rq->lock);
-+
-+static inline void __task_rq_unlock(struct rq *rq, struct rq_flags *rf)
-+	__releases(rq->lock)
-+{
-+	rq_unpin_lock(rq, rf);
-+	raw_spin_unlock(&rq->lock);
-+}
-+
-+static inline void
-+task_rq_unlock(struct rq *rq, struct task_struct *p, struct rq_flags *rf)
-+	__releases(rq->lock)
-+	__releases(p->pi_lock)
-+{
-+	rq_unpin_lock(rq, rf);
-+	raw_spin_unlock(&rq->lock);
-+	raw_spin_unlock_irqrestore(&p->pi_lock, rf->flags);
-+}
-+
-+static inline void
-+rq_lock_irqsave(struct rq *rq, struct rq_flags *rf)
++static inline struct rq *
++this_rq_lock_irq(struct rq_flags *rf)
 +	__acquires(rq->lock)
 +{
-+	raw_spin_lock_irqsave(&rq->lock, rf->flags);
-+	rq_pin_lock(rq, rf);
-+}
++	struct rq *rq;
 +
-+static inline void
-+rq_lock_irq(struct rq *rq, struct rq_flags *rf)
-+	__acquires(rq->lock)
-+{
-+	raw_spin_lock_irq(&rq->lock);
-+	rq_pin_lock(rq, rf);
-+}
-+
-+static inline void
-+rq_lock(struct rq *rq, struct rq_flags *rf)
-+	__acquires(rq->lock)
-+{
-+	raw_spin_lock(&rq->lock);
-+	rq_pin_lock(rq, rf);
-+}
-+
-+static inline void
-+rq_relock(struct rq *rq, struct rq_flags *rf)
-+	__acquires(rq->lock)
-+{
-+	raw_spin_lock(&rq->lock);
-+	rq_repin_lock(rq, rf);
-+}
-+
-+static inline void
-+rq_unlock_irqrestore(struct rq *rq, struct rq_flags *rf)
-+	__releases(rq->lock)
-+{
-+	rq_unpin_lock(rq, rf);
-+	raw_spin_unlock_irqrestore(&rq->lock, rf->flags);
-+}
-+
-+static inline void
-+rq_unlock_irq(struct rq *rq, struct rq_flags *rf)
-+	__releases(rq->lock)
-+{
-+	rq_unpin_lock(rq, rf);
-+	raw_spin_unlock_irq(&rq->lock);
-+}
-+
-+static inline void
-+rq_unlock(struct rq *rq, struct rq_flags *rf)
-+	__releases(rq->lock)
-+{
-+	rq_unpin_lock(rq, rf);
-+	raw_spin_unlock(&rq->lock);
++	local_irq_disable();
++	rq = this_rq();
++	rq_lock(rq, rf);
++	return rq;
 +}
 +
  #ifdef CONFIG_NUMA
  enum numa_topology_type {
  	NUMA_DIRECT,
-@@ -1670,8 +1752,6 @@ static inline void sub_nr_running(struct rq *rq, unsigned count)
- 	sched_update_tick_dependency(rq);
- }
- 
--extern void update_rq_clock(struct rq *rq);
--
- extern void activate_task(struct rq *rq, struct task_struct *p, int flags);
- extern void deactivate_task(struct rq *rq, struct task_struct *p, int flags);
- 
-@@ -1752,86 +1832,6 @@ static inline void sched_rt_avg_update(struct rq *rq, u64 rt_delta) { }
- static inline void sched_avg_update(struct rq *rq) { }
- #endif
- 
--struct rq *__task_rq_lock(struct task_struct *p, struct rq_flags *rf)
--	__acquires(rq->lock);
--
--struct rq *task_rq_lock(struct task_struct *p, struct rq_flags *rf)
--	__acquires(p->pi_lock)
--	__acquires(rq->lock);
--
--static inline void __task_rq_unlock(struct rq *rq, struct rq_flags *rf)
--	__releases(rq->lock)
--{
--	rq_unpin_lock(rq, rf);
--	raw_spin_unlock(&rq->lock);
--}
--
--static inline void
--task_rq_unlock(struct rq *rq, struct task_struct *p, struct rq_flags *rf)
--	__releases(rq->lock)
--	__releases(p->pi_lock)
--{
--	rq_unpin_lock(rq, rf);
--	raw_spin_unlock(&rq->lock);
--	raw_spin_unlock_irqrestore(&p->pi_lock, rf->flags);
--}
--
--static inline void
--rq_lock_irqsave(struct rq *rq, struct rq_flags *rf)
--	__acquires(rq->lock)
--{
--	raw_spin_lock_irqsave(&rq->lock, rf->flags);
--	rq_pin_lock(rq, rf);
--}
--
--static inline void
--rq_lock_irq(struct rq *rq, struct rq_flags *rf)
--	__acquires(rq->lock)
--{
--	raw_spin_lock_irq(&rq->lock);
--	rq_pin_lock(rq, rf);
--}
--
--static inline void
--rq_lock(struct rq *rq, struct rq_flags *rf)
--	__acquires(rq->lock)
--{
--	raw_spin_lock(&rq->lock);
--	rq_pin_lock(rq, rf);
--}
--
--static inline void
--rq_relock(struct rq *rq, struct rq_flags *rf)
--	__acquires(rq->lock)
--{
--	raw_spin_lock(&rq->lock);
--	rq_repin_lock(rq, rf);
--}
--
--static inline void
--rq_unlock_irqrestore(struct rq *rq, struct rq_flags *rf)
--	__releases(rq->lock)
--{
--	rq_unpin_lock(rq, rf);
--	raw_spin_unlock_irqrestore(&rq->lock, rf->flags);
--}
--
--static inline void
--rq_unlock_irq(struct rq *rq, struct rq_flags *rf)
--	__releases(rq->lock)
--{
--	rq_unpin_lock(rq, rf);
--	raw_spin_unlock_irq(&rq->lock);
--}
--
--static inline void
--rq_unlock(struct rq *rq, struct rq_flags *rf)
--	__releases(rq->lock)
--{
--	rq_unpin_lock(rq, rf);
--	raw_spin_unlock(&rq->lock);
--}
--
- #ifdef CONFIG_SMP
- #ifdef CONFIG_PREEMPT
- 
 -- 
 2.18.0
