@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A96536B000A
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B594E6B000D
 	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 11:10:37 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id j9-v6so15787661qtn.22
+Received: by mail-qt0-f197.google.com with SMTP id b7-v6so16072968qtp.14
         for <linux-mm@kvack.org>; Wed, 01 Aug 2018 08:10:37 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f85-v6sor8353769qke.88.2018.08.01.08.10.31
+        by mx.google.com with SMTPS id 35-v6sor8112669qty.41.2018.08.01.08.10.35
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 01 Aug 2018 08:10:31 -0700 (PDT)
+        Wed, 01 Aug 2018 08:10:35 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 2/9] mm: workingset: tell cache transitions from workingset thrashing
-Date: Wed,  1 Aug 2018 11:13:01 -0400
-Message-Id: <20180801151308.32234-3-hannes@cmpxchg.org>
+Subject: [PATCH 4/9] sched: loadavg: consolidate LOAD_INT, LOAD_FRAC, CALC_LOAD
+Date: Wed,  1 Aug 2018 11:13:03 -0400
+Message-Id: <20180801151308.32234-5-hannes@cmpxchg.org>
 In-Reply-To: <20180801151308.32234-1-hannes@cmpxchg.org>
 References: <20180801151308.32234-1-hannes@cmpxchg.org>
 Reply-To: "[PATCH 0/9]"@kvack.org, "psi:pressure"@kvack.org,
@@ -23,422 +23,184 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Daniel Drake <drake@endlessm.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, Peter Enderborg <peter.enderborg@sony.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Refaults happen during transitions between workingsets as well as
-in-place thrashing. Knowing the difference between the two has a range
-of applications, including measuring the impact of memory shortage on
-the system performance, as well as the ability to smarter balance
-pressure between the filesystem cache and the swap-backed workingset.
-
-During workingset transitions, inactive cache refaults and pushes out
-established active cache. When that active cache isn't stale, however,
-and also ends up refaulting, that's bonafide thrashing.
-
-Introduce a new page flag that tells on eviction whether the page has
-been active or not in its lifetime. This bit is then stored in the
-shadow entry, to classify refaults as transitioning or thrashing.
-
-How many page->flags does this leave us with on 32-bit?
-
-	20 bits are always page flags
-
-	21 if you have an MMU
-
-	23 with the zone bits for DMA, Normal, HighMem, Movable
-
-	29 with the sparsemem section bits
-
-	30 if PAE is enabled
-
-	31 with this patch.
-
-So on 32-bit PAE, that leaves 1 bit for distinguishing two NUMA
-nodes. If that's not enough, the system can switch to discontigmem and
-re-gain the 6 or 7 sparsemem section bits.
+There are several definitions of those functions/macros in places that
+mess with fixed-point load averages. Provide an official version.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- include/linux/mmzone.h         |  1 +
- include/linux/page-flags.h     |  5 +-
- include/linux/swap.h           |  2 +-
- include/trace/events/mmflags.h |  1 +
- mm/filemap.c                   |  9 ++--
- mm/huge_memory.c               |  1 +
- mm/memcontrol.c                |  2 +
- mm/migrate.c                   |  2 +
- mm/swap_state.c                |  1 +
- mm/vmscan.c                    |  1 +
- mm/vmstat.c                    |  1 +
- mm/workingset.c                | 95 ++++++++++++++++++++++------------
- 12 files changed, 79 insertions(+), 42 deletions(-)
+ .../platforms/cell/cpufreq_spudemand.c        |  2 +-
+ arch/powerpc/platforms/cell/spufs/sched.c     |  9 +++-----
+ arch/s390/appldata/appldata_os.c              |  4 ----
+ drivers/cpuidle/governors/menu.c              |  4 ----
+ fs/proc/loadavg.c                             |  3 ---
+ include/linux/sched/loadavg.h                 | 21 +++++++++++++++----
+ kernel/debug/kdb/kdb_main.c                   |  7 +------
+ kernel/sched/loadavg.c                        | 15 -------------
+ 8 files changed, 22 insertions(+), 43 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 32699b2dc52a..6af87946d241 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -163,6 +163,7 @@ enum node_stat_item {
- 	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
- 	WORKINGSET_REFAULT,
- 	WORKINGSET_ACTIVATE,
-+	WORKINGSET_RESTORE,
- 	WORKINGSET_NODERECLAIM,
- 	NR_ANON_MAPPED,	/* Mapped anonymous pages */
- 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index e34a27727b9a..7af1c3c15d8e 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -69,13 +69,14 @@
-  */
- enum pageflags {
- 	PG_locked,		/* Page is locked. Don't touch. */
--	PG_error,
- 	PG_referenced,
- 	PG_uptodate,
- 	PG_dirty,
- 	PG_lru,
- 	PG_active,
-+	PG_workingset,
- 	PG_waiters,		/* Page has waiters, check its waitqueue. Must be bit #7 and in the same byte as "PG_locked" */
-+	PG_error,
- 	PG_slab,
- 	PG_owner_priv_1,	/* Owner use. If pagecache, fs may use*/
- 	PG_arch_1,
-@@ -280,6 +281,8 @@ PAGEFLAG(Dirty, dirty, PF_HEAD) TESTSCFLAG(Dirty, dirty, PF_HEAD)
- PAGEFLAG(LRU, lru, PF_HEAD) __CLEARPAGEFLAG(LRU, lru, PF_HEAD)
- PAGEFLAG(Active, active, PF_HEAD) __CLEARPAGEFLAG(Active, active, PF_HEAD)
- 	TESTCLEARFLAG(Active, active, PF_HEAD)
-+PAGEFLAG(Workingset, workingset, PF_HEAD)
-+	TESTCLEARFLAG(Workingset, workingset, PF_HEAD)
- __PAGEFLAG(Slab, slab, PF_NO_TAIL)
- __PAGEFLAG(SlobFree, slob_free, PF_NO_TAIL)
- PAGEFLAG(Checked, checked, PF_NO_COMPOUND)	   /* Used by some filesystems */
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 2417d288e016..d8c47dcdec6f 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -296,7 +296,7 @@ struct vma_swap_readahead {
+diff --git a/arch/powerpc/platforms/cell/cpufreq_spudemand.c b/arch/powerpc/platforms/cell/cpufreq_spudemand.c
+index 882944c36ef5..5d8e8b6bb1cc 100644
+--- a/arch/powerpc/platforms/cell/cpufreq_spudemand.c
++++ b/arch/powerpc/platforms/cell/cpufreq_spudemand.c
+@@ -49,7 +49,7 @@ static int calc_freq(struct spu_gov_info_struct *info)
+ 	cpu = info->policy->cpu;
+ 	busy_spus = atomic_read(&cbe_spu_info[cpu_to_node(cpu)].busy_spus);
  
- /* linux/mm/workingset.c */
- void *workingset_eviction(struct address_space *mapping, struct page *page);
--bool workingset_refault(void *shadow);
-+void workingset_refault(struct page *page, void *shadow);
- void workingset_activation(struct page *page);
+-	CALC_LOAD(info->busy_spus, EXP, busy_spus * FIXED_1);
++	info->busy_spus = calc_load(info->busy_spus, EXP, busy_spus * FIXED_1);
+ 	pr_debug("cpu %d: busy_spus=%d, info->busy_spus=%ld\n",
+ 			cpu, busy_spus, info->busy_spus);
  
- /* Do not use directly, use workingset_lookup_update */
-diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
-index a81cffb76d89..a1675d43777e 100644
---- a/include/trace/events/mmflags.h
-+++ b/include/trace/events/mmflags.h
-@@ -88,6 +88,7 @@
- 	{1UL << PG_dirty,		"dirty"		},		\
- 	{1UL << PG_lru,			"lru"		},		\
- 	{1UL << PG_active,		"active"	},		\
-+	{1UL << PG_workingset,		"workingset"	},		\
- 	{1UL << PG_slab,		"slab"		},		\
- 	{1UL << PG_owner_priv_1,	"owner_priv_1"	},		\
- 	{1UL << PG_arch_1,		"arch_1"	},		\
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 0604cb02e6f3..bd36b7226cf4 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -915,12 +915,9 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
- 		 * data from the working set, only to cache data that will
- 		 * get overwritten with something else, is a waste of memory.
- 		 */
--		if (!(gfp_mask & __GFP_WRITE) &&
--		    shadow && workingset_refault(shadow)) {
--			SetPageActive(page);
--			workingset_activation(page);
--		} else
--			ClearPageActive(page);
-+		WARN_ON_ONCE(PageActive(page));
-+		if (!(gfp_mask & __GFP_WRITE) && shadow)
-+			workingset_refault(page, shadow);
- 		lru_cache_add(page);
+diff --git a/arch/powerpc/platforms/cell/spufs/sched.c b/arch/powerpc/platforms/cell/spufs/sched.c
+index ccc421503363..70101510b19d 100644
+--- a/arch/powerpc/platforms/cell/spufs/sched.c
++++ b/arch/powerpc/platforms/cell/spufs/sched.c
+@@ -987,9 +987,9 @@ static void spu_calc_load(void)
+ 	unsigned long active_tasks; /* fixed-point */
+ 
+ 	active_tasks = count_active_contexts() * FIXED_1;
+-	CALC_LOAD(spu_avenrun[0], EXP_1, active_tasks);
+-	CALC_LOAD(spu_avenrun[1], EXP_5, active_tasks);
+-	CALC_LOAD(spu_avenrun[2], EXP_15, active_tasks);
++	spu_avenrun[0] = calc_load(spu_avenrun[0], EXP_1, active_tasks);
++	spu_avenrun[1] = calc_load(spu_avenrun[1], EXP_5, active_tasks);
++	spu_avenrun[2] = calc_load(spu_avenrun[2], EXP_15, active_tasks);
+ }
+ 
+ static void spusched_wake(struct timer_list *unused)
+@@ -1071,9 +1071,6 @@ void spuctx_switch_state(struct spu_context *ctx,
  	}
- 	return ret;
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index b9f3dbd885bd..c67ecf77ea8b 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2370,6 +2370,7 @@ static void __split_huge_page_tail(struct page *head, int tail,
- 			 (1L << PG_mlocked) |
- 			 (1L << PG_uptodate) |
- 			 (1L << PG_active) |
-+			 (1L << PG_workingset) |
- 			 (1L << PG_locked) |
- 			 (1L << PG_unevictable) |
- 			 (1L << PG_dirty)));
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 2bd3df3d101a..c59519d600ea 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5283,6 +5283,8 @@ static int memory_stat_show(struct seq_file *m, void *v)
- 		   stat[WORKINGSET_REFAULT]);
- 	seq_printf(m, "workingset_activate %lu\n",
- 		   stat[WORKINGSET_ACTIVATE]);
-+	seq_printf(m, "workingset_restore %lu\n",
-+		   stat[WORKINGSET_RESTORE]);
- 	seq_printf(m, "workingset_nodereclaim %lu\n",
- 		   stat[WORKINGSET_NODERECLAIM]);
+ }
  
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 8c0af0f7cab1..a6a9114e62dc 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -682,6 +682,8 @@ void migrate_page_states(struct page *newpage, struct page *page)
- 		SetPageActive(newpage);
- 	} else if (TestClearPageUnevictable(page))
- 		SetPageUnevictable(newpage);
-+	if (PageWorkingset(page))
-+		SetPageWorkingset(newpage);
- 	if (PageChecked(page))
- 		SetPageChecked(newpage);
- 	if (PageMappedToDisk(page))
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 07f9aa2340c3..2721ef8862d1 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -451,6 +451,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- 			/*
- 			 * Initiate read into locked page and return.
- 			 */
-+			SetPageWorkingset(new_page);
- 			lru_cache_add_anon(new_page);
- 			*new_page_allocated = true;
- 			return new_page;
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9270a4370d54..8d1ad48ffbcd 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1976,6 +1976,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 		}
+-#define LOAD_INT(x) ((x) >> FSHIFT)
+-#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+-
+ static int show_spu_loadavg(struct seq_file *s, void *private)
+ {
+ 	int a, b, c;
+diff --git a/arch/s390/appldata/appldata_os.c b/arch/s390/appldata/appldata_os.c
+index 433a994b1a89..54f375627532 100644
+--- a/arch/s390/appldata/appldata_os.c
++++ b/arch/s390/appldata/appldata_os.c
+@@ -25,10 +25,6 @@
  
- 		ClearPageActive(page);	/* we are de-activating */
-+		SetPageWorkingset(page);
- 		list_add(&page->lru, &l_inactive);
- 	}
+ #include "appldata.h"
  
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index a2b9518980ce..507dc9c01b88 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1145,6 +1145,7 @@ const char * const vmstat_text[] = {
- 	"nr_isolated_file",
- 	"workingset_refault",
- 	"workingset_activate",
-+	"workingset_restore",
- 	"workingset_nodereclaim",
- 	"nr_anon_pages",
- 	"nr_mapped",
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 53759a3cf99a..ef6be3d92116 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -121,7 +121,7 @@
-  * the only thing eating into inactive list space is active pages.
-  *
-  *
-- *		Activating refaulting pages
-+ *		Refaulting inactive pages
-  *
-  * All that is known about the active list is that the pages have been
-  * accessed more than once in the past.  This means that at any given
-@@ -134,6 +134,10 @@
-  * used less frequently than the refaulting page - or even not used at
-  * all anymore.
-  *
-+ * That means if inactive cache is refaulting with a suitable refault
-+ * distance, we assume the cache workingset is transitioning and put
-+ * pressure on the current active list.
-+ *
-  * If this is wrong and demotion kicks in, the pages which are truly
-  * used more frequently will be reactivated while the less frequently
-  * used once will be evicted from memory.
-@@ -141,6 +145,14 @@
-  * But if this is right, the stale pages will be pushed out of memory
-  * and the used pages get to stay in cache.
-  *
-+ *		Refaulting active pages
-+ *
-+ * If on the other hand the refaulting pages have recently been
-+ * deactivated, it means that the active list is no longer protecting
-+ * actively used cache from reclaim. The cache is NOT transitioning to
-+ * a different workingset; the existing workingset is thrashing in the
-+ * space allocated to the page cache.
-+ *
-  *
-  *		Implementation
-  *
-@@ -156,8 +168,7 @@
-  */
- 
- #define EVICTION_SHIFT	(RADIX_TREE_EXCEPTIONAL_ENTRY + \
--			 NODES_SHIFT +	\
--			 MEM_CGROUP_ID_SHIFT)
-+			 1 + NODES_SHIFT + MEM_CGROUP_ID_SHIFT)
- #define EVICTION_MASK	(~0UL >> EVICTION_SHIFT)
- 
+-
+-#define LOAD_INT(x) ((x) >> FSHIFT)
+-#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+-
  /*
-@@ -170,23 +181,28 @@
-  */
- static unsigned int bucket_order __read_mostly;
- 
--static void *pack_shadow(int memcgid, pg_data_t *pgdat, unsigned long eviction)
-+static void *pack_shadow(int memcgid, pg_data_t *pgdat, unsigned long eviction,
-+			 bool workingset)
- {
- 	eviction >>= bucket_order;
- 	eviction = (eviction << MEM_CGROUP_ID_SHIFT) | memcgid;
- 	eviction = (eviction << NODES_SHIFT) | pgdat->node_id;
-+	eviction = (eviction << 1) | workingset;
- 	eviction = (eviction << RADIX_TREE_EXCEPTIONAL_SHIFT);
- 
- 	return (void *)(eviction | RADIX_TREE_EXCEPTIONAL_ENTRY);
- }
- 
- static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
--			  unsigned long *evictionp)
-+			  unsigned long *evictionp, bool *workingsetp)
- {
- 	unsigned long entry = (unsigned long)shadow;
- 	int memcgid, nid;
-+	bool workingset;
- 
- 	entry >>= RADIX_TREE_EXCEPTIONAL_SHIFT;
-+	workingset = entry & 1;
-+	entry >>= 1;
- 	nid = entry & ((1UL << NODES_SHIFT) - 1);
- 	entry >>= NODES_SHIFT;
- 	memcgid = entry & ((1UL << MEM_CGROUP_ID_SHIFT) - 1);
-@@ -195,6 +211,7 @@ static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
- 	*memcgidp = memcgid;
- 	*pgdat = NODE_DATA(nid);
- 	*evictionp = entry << bucket_order;
-+	*workingsetp = workingset;
- }
- 
- /**
-@@ -207,8 +224,8 @@ static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
-  */
- void *workingset_eviction(struct address_space *mapping, struct page *page)
- {
--	struct mem_cgroup *memcg = page_memcg(page);
- 	struct pglist_data *pgdat = page_pgdat(page);
-+	struct mem_cgroup *memcg = page_memcg(page);
- 	int memcgid = mem_cgroup_id(memcg);
- 	unsigned long eviction;
- 	struct lruvec *lruvec;
-@@ -220,30 +237,30 @@ void *workingset_eviction(struct address_space *mapping, struct page *page)
- 
- 	lruvec = mem_cgroup_lruvec(pgdat, memcg);
- 	eviction = atomic_long_inc_return(&lruvec->inactive_age);
--	return pack_shadow(memcgid, pgdat, eviction);
-+	return pack_shadow(memcgid, pgdat, eviction, PageWorkingset(page));
- }
- 
- /**
-  * workingset_refault - evaluate the refault of a previously evicted page
-+ * @page: the freshly allocated replacement page
-  * @shadow: shadow entry of the evicted page
+  * OS data
   *
-  * Calculates and evaluates the refault distance of the previously
-  * evicted page in the context of the node it was allocated in.
-- *
-- * Returns %true if the page should be activated, %false otherwise.
-  */
--bool workingset_refault(void *shadow)
-+void workingset_refault(struct page *page, void *shadow)
+diff --git a/drivers/cpuidle/governors/menu.c b/drivers/cpuidle/governors/menu.c
+index 1bfe03ceb236..3738b670df7a 100644
+--- a/drivers/cpuidle/governors/menu.c
++++ b/drivers/cpuidle/governors/menu.c
+@@ -133,10 +133,6 @@ struct menu_device {
+ 	int		interval_ptr;
+ };
+ 
+-
+-#define LOAD_INT(x) ((x) >> FSHIFT)
+-#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+-
+ static inline int get_loadavg(unsigned long load)
  {
- 	unsigned long refault_distance;
-+	struct pglist_data *pgdat;
- 	unsigned long active_file;
- 	struct mem_cgroup *memcg;
- 	unsigned long eviction;
- 	struct lruvec *lruvec;
- 	unsigned long refault;
--	struct pglist_data *pgdat;
-+	bool workingset;
- 	int memcgid;
+ 	return LOAD_INT(load) * 10 + LOAD_FRAC(load) / 10;
+diff --git a/fs/proc/loadavg.c b/fs/proc/loadavg.c
+index b572cc865b92..8bee50a97c0f 100644
+--- a/fs/proc/loadavg.c
++++ b/fs/proc/loadavg.c
+@@ -10,9 +10,6 @@
+ #include <linux/seqlock.h>
+ #include <linux/time.h>
  
--	unpack_shadow(shadow, &memcgid, &pgdat, &eviction);
-+	unpack_shadow(shadow, &memcgid, &pgdat, &eviction, &workingset);
+-#define LOAD_INT(x) ((x) >> FSHIFT)
+-#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+-
+ static int loadavg_proc_show(struct seq_file *m, void *v)
+ {
+ 	unsigned long avnrun[3];
+diff --git a/include/linux/sched/loadavg.h b/include/linux/sched/loadavg.h
+index 80bc84ba5d2a..cc9cc62bb1f8 100644
+--- a/include/linux/sched/loadavg.h
++++ b/include/linux/sched/loadavg.h
+@@ -22,10 +22,23 @@ extern void get_avenrun(unsigned long *loads, unsigned long offset, int shift);
+ #define EXP_5		2014		/* 1/exp(5sec/5min) */
+ #define EXP_15		2037		/* 1/exp(5sec/15min) */
  
- 	rcu_read_lock();
- 	/*
-@@ -263,41 +280,51 @@ bool workingset_refault(void *shadow)
- 	 * configurations instead.
- 	 */
- 	memcg = mem_cgroup_from_id(memcgid);
--	if (!mem_cgroup_disabled() && !memcg) {
--		rcu_read_unlock();
--		return false;
--	}
-+	if (!mem_cgroup_disabled() && !memcg)
-+		goto out;
- 	lruvec = mem_cgroup_lruvec(pgdat, memcg);
- 	refault = atomic_long_read(&lruvec->inactive_age);
- 	active_file = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE, MAX_NR_ZONES);
- 
- 	/*
--	 * The unsigned subtraction here gives an accurate distance
--	 * across inactive_age overflows in most cases.
-+	 * Calculate the refault distance
- 	 *
--	 * There is a special case: usually, shadow entries have a
--	 * short lifetime and are either refaulted or reclaimed along
--	 * with the inode before they get too old.  But it is not
--	 * impossible for the inactive_age to lap a shadow entry in
--	 * the field, which can then can result in a false small
--	 * refault distance, leading to a false activation should this
--	 * old entry actually refault again.  However, earlier kernels
--	 * used to deactivate unconditionally with *every* reclaim
--	 * invocation for the longest time, so the occasional
--	 * inappropriate activation leading to pressure on the active
--	 * list is not a problem.
-+	 * The unsigned subtraction here gives an accurate distance
-+	 * across inactive_age overflows in most cases. There is a
-+	 * special case: usually, shadow entries have a short lifetime
-+	 * and are either refaulted or reclaimed along with the inode
-+	 * before they get too old.  But it is not impossible for the
-+	 * inactive_age to lap a shadow entry in the field, which can
-+	 * then can result in a false small refault distance, leading
-+	 * to a false activation should this old entry actually
-+	 * refault again.  However, earlier kernels used to deactivate
-+	 * unconditionally with *every* reclaim invocation for the
-+	 * longest time, so the occasional inappropriate activation
-+	 * leading to pressure on the active list is not a problem.
- 	 */
- 	refault_distance = (refault - eviction) & EVICTION_MASK;
- 
- 	inc_lruvec_state(lruvec, WORKINGSET_REFAULT);
- 
--	if (refault_distance <= active_file) {
--		inc_lruvec_state(lruvec, WORKINGSET_ACTIVATE);
--		rcu_read_unlock();
--		return true;
-+	/*
-+	 * Compare the distance to the existing workingset size. We
-+	 * don't act on pages that couldn't stay resident even if all
-+	 * the memory was available to the page cache.
-+	 */
-+	if (refault_distance > active_file)
-+		goto out;
+-#define CALC_LOAD(load,exp,n) \
+-	load *= exp; \
+-	load += n*(FIXED_1-exp); \
+-	load >>= FSHIFT;
++/*
++ * a1 = a0 * e + a * (1 - e)
++ */
++static inline unsigned long
++calc_load(unsigned long load, unsigned long exp, unsigned long active)
++{
++	unsigned long newload;
 +
-+	SetPageActive(page);
-+	atomic_long_inc(&lruvec->inactive_age);
-+	inc_lruvec_state(lruvec, WORKINGSET_ACTIVATE);
++	newload = load * exp + active * (FIXED_1 - exp);
++	if (active >= load)
++		newload += FIXED_1-1;
 +
-+	/* Page was active prior to eviction */
-+	if (workingset) {
-+		SetPageWorkingset(page);
-+		inc_lruvec_state(lruvec, WORKINGSET_RESTORE);
++	return newload / FIXED_1;
++}
++
++#define LOAD_INT(x) ((x) >> FSHIFT)
++#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+ 
+ extern void calc_global_load(unsigned long ticks);
+ 
+diff --git a/kernel/debug/kdb/kdb_main.c b/kernel/debug/kdb/kdb_main.c
+index e405677ee08d..a8f5aca5eb5e 100644
+--- a/kernel/debug/kdb/kdb_main.c
++++ b/kernel/debug/kdb/kdb_main.c
+@@ -2556,16 +2556,11 @@ static int kdb_summary(int argc, const char **argv)
  	}
-+out:
- 	rcu_read_unlock();
--	return false;
+ 	kdb_printf("%02ld:%02ld\n", val.uptime/(60*60), (val.uptime/60)%60);
+ 
+-	/* lifted from fs/proc/proc_misc.c::loadavg_read_proc() */
+-
+-#define LOAD_INT(x) ((x) >> FSHIFT)
+-#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+ 	kdb_printf("load avg   %ld.%02ld %ld.%02ld %ld.%02ld\n",
+ 		LOAD_INT(val.loads[0]), LOAD_FRAC(val.loads[0]),
+ 		LOAD_INT(val.loads[1]), LOAD_FRAC(val.loads[1]),
+ 		LOAD_INT(val.loads[2]), LOAD_FRAC(val.loads[2]));
+-#undef LOAD_INT
+-#undef LOAD_FRAC
++
+ 	/* Display in kilobytes */
+ #define K(x) ((x) << (PAGE_SHIFT - 10))
+ 	kdb_printf("\nMemTotal:       %8lu kB\nMemFree:        %8lu kB\n"
+diff --git a/kernel/sched/loadavg.c b/kernel/sched/loadavg.c
+index a171c1258109..54fbdfb2d86c 100644
+--- a/kernel/sched/loadavg.c
++++ b/kernel/sched/loadavg.c
+@@ -91,21 +91,6 @@ long calc_load_fold_active(struct rq *this_rq, long adjust)
+ 	return delta;
  }
  
- /**
+-/*
+- * a1 = a0 * e + a * (1 - e)
+- */
+-static unsigned long
+-calc_load(unsigned long load, unsigned long exp, unsigned long active)
+-{
+-	unsigned long newload;
+-
+-	newload = load * exp + active * (FIXED_1 - exp);
+-	if (active >= load)
+-		newload += FIXED_1-1;
+-
+-	return newload / FIXED_1;
+-}
+-
+ #ifdef CONFIG_NO_HZ_COMMON
+ /*
+  * Handle NO_HZ for the global load-average.
 -- 
 2.18.0
