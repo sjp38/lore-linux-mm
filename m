@@ -1,41 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E5F446B000A
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 13:28:15 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id q3-v6so17641339qki.4
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 10:28:15 -0700 (PDT)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E08E6B000D
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 13:29:13 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id u68-v6so17632353qku.5
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 10:29:13 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 28-v6sor8092446qvt.118.2018.08.01.10.28.14
+        by mx.google.com with SMTPS id i16-v6sor9390807qti.122.2018.08.01.10.29.11
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 01 Aug 2018 10:28:14 -0700 (PDT)
-Date: Wed, 1 Aug 2018 13:31:08 -0400
+        Wed, 01 Aug 2018 10:29:12 -0700 (PDT)
+Date: Wed, 1 Aug 2018 13:32:06 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/3] mm: introduce mem_cgroup_put() helper
-Message-ID: <20180801173108.GA11386@cmpxchg.org>
+Subject: Re: [PATCH 2/3] mm, oom: refactor oom_kill_process()
+Message-ID: <20180801173206.GB11386@cmpxchg.org>
 References: <20180730180100.25079-1-guro@fb.com>
- <20180730180100.25079-2-guro@fb.com>
+ <20180730180100.25079-3-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180730180100.25079-2-guro@fb.com>
+In-Reply-To: <20180730180100.25079-3-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Jul 30, 2018 at 11:00:58AM -0700, Roman Gushchin wrote:
-> Introduce the mem_cgroup_put() helper, which helps to eliminate guarding
-> memcg css release with "#ifdef CONFIG_MEMCG" in multiple places.
+On Mon, Jul 30, 2018 at 11:00:59AM -0700, Roman Gushchin wrote:
+> oom_kill_process() consists of two logical parts: the first one is
+> responsible for considering task's children as a potential victim and
+> printing the debug information.  The second half is responsible for
+> sending SIGKILL to all tasks sharing the mm struct with the given victim.
 > 
-> Link: http://lkml.kernel.org/r/20180623000600.5818-2-guro@fb.com
+> This commit splits oom_kill_process() with an intention to re-use the the
+> second half: __oom_kill_process().
+> 
+> The cgroup-aware OOM killer will kill multiple tasks belonging to the
+> victim cgroup.  We don't need to print the debug information for the each
+> task, as well as play with task selection (considering task's children),
+> so we can't use the existing oom_kill_process().
+> 
+> Link: http://lkml.kernel.org/r/20171130152824.1591-2-guro@fb.com
 > Signed-off-by: Roman Gushchin <guro@fb.com>
-> Reviewed-by: Shakeel Butt <shakeelb@google.com>
-> Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Shakeel Butt <shakeelb@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: David Rientjes <rientjes@google.com>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Tejun Heo <tj@kernel.org>
 > Cc: Michal Hocko <mhocko@kernel.org>
 > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
+
+This is pretty straight-forward.
 
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
