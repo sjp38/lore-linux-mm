@@ -1,108 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F0746B0005
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 12:03:15 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id y13-v6so6208882ita.8
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 09:03:15 -0700 (PDT)
-Received: from us.icdsoft.com (us.icdsoft.com. [192.252.146.184])
-        by mx.google.com with ESMTPS id l16-v6si3934713itl.138.2018.08.01.09.03.13
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E6A76B0006
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 12:16:32 -0400 (EDT)
+Received: by mail-lj1-f200.google.com with SMTP id z24-v6so4417205lji.16
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 09:16:32 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f15-v6sor4096069ljj.73.2018.08.01.09.16.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Aug 2018 09:03:13 -0700 (PDT)
-Subject: Re: [Bug 200651] New: cgroups iptables-restor: vmalloc: allocation
- failure
-References: <98788618-94dc-5837-d627-8bbfa1ddea57@icdsoft.com>
- <ff19099f-e0f5-d2b2-e124-cc12d2e05dc1@icdsoft.com>
- <20180730135744.GT24267@dhcp22.suse.cz>
- <89ea4f56-6253-4f51-0fb7-33d7d4b60cfa@icdsoft.com>
- <20180730183820.GA24267@dhcp22.suse.cz>
- <56597af4-73c6-b549-c5d5-b3a2e6441b8e@icdsoft.com>
- <6838c342-2d07-3047-e723-2b641bc6bf79@suse.cz>
- <8105b7b3-20d3-5931-9f3c-2858021a4e12@icdsoft.com>
- <20180731140520.kpotpihqsmiwhh7l@breakpoint.cc>
- <e5b24629-0296-5a4d-577a-c25d1c52b03b@suse.cz>
- <20180801083349.GF16767@dhcp22.suse.cz>
-From: Georgi Nikolov <gnikolov@icdsoft.com>
-Message-ID: <e5c5e965-a6bc-d61f-97fc-78da287b5d94@icdsoft.com>
-Date: Wed, 1 Aug 2018 19:03:03 +0300
+        (Google Transport Security);
+        Wed, 01 Aug 2018 09:16:30 -0700 (PDT)
+Date: Wed, 1 Aug 2018 19:16:26 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH] memcg: Remove memcg_cgroup::id from IDR on
+ mem_cgroup_css_alloc() failure
+Message-ID: <20180801161626.j2575eru2x3lukfj@esperanza>
+References: <20180413113855.GI17484@dhcp22.suse.cz>
+ <8a81c801-35c8-767d-54b0-df9f1ca0abc0@virtuozzo.com>
+ <20180413115454.GL17484@dhcp22.suse.cz>
+ <abfd4903-c455-fac2-7ed6-73707cda64d1@virtuozzo.com>
+ <20180413121433.GM17484@dhcp22.suse.cz>
+ <20180413125101.GO17484@dhcp22.suse.cz>
+ <20180726162512.6056b5d7c1d2a5fbff6ce214@linux-foundation.org>
+ <20180727193134.GA10996@cmpxchg.org>
+ <20180729192621.py4znecoinw5mqcp@esperanza>
+ <20180730153113.GB4567@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20180801083349.GF16767@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180730153113.GB4567@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
-Cc: Florian Westphal <fw@strlen.de>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, netfilter-devel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Kirill Tkhai <ktkhai@virtuozzo.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Mon, Jul 30, 2018 at 11:31:13AM -0400, Johannes Weiner wrote:
+> On Sun, Jul 29, 2018 at 10:26:21PM +0300, Vladimir Davydov wrote:
+> > On Fri, Jul 27, 2018 at 03:31:34PM -0400, Johannes Weiner wrote:
+> > > That said, the lifetime of the root reference on the ID is the online
+> > > state, we put that in css_offline. Is there a reason we need to have
+> > > the ID ready and the memcg in the IDR before onlining it?
+> > 
+> > I fail to see any reason for this in the code.
+> 
+> Me neither, thanks for double checking.
+> 
+> The patch also survives stress testing cgroup creation and destruction
+> with the script from 73f576c04b94 ("mm: memcontrol: fix cgroup
+> creation failure after many small jobs").
+> 
+> > > Can we do something like this and not mess with the alloc/free
+> > > sequence at all?
+> > 
+> > I guess so, and this definitely looks better to me.
+> 
+> Cool, then I think we should merge Kirill's patch as the fix and mine
+> as a follow-up cleanup.
+> 
+> ---
+> 
+> From b4106ea1f163479da805eceada60c942bd66e524 Mon Sep 17 00:00:00 2001
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Date: Mon, 30 Jul 2018 11:03:55 -0400
+> Subject: [PATCH] mm: memcontrol: simplify memcg idr allocation and error
+>  unwinding
+> 
+> The memcg ID is allocated early in the multi-step memcg creation
+> process, which needs 2-step ID allocation and IDR publishing, as well
+> as two separate IDR cleanup/unwind sites on error.
+> 
+> Defer the IDR allocation until the last second during onlining to
+> eliminate all this complexity. There is no requirement to have the ID
+> and IDR entry earlier than that. And the root reference to the ID is
+> put in the offline path, so this matches nicely.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-*Georgi Nikolov*
-System Administrator
-www.icdsoft.com <http://www.icdsoft.com>
-
-On 08/01/2018 11:33 AM, Michal Hocko wrote:
-> On Wed 01-08-18 09:34:23, Vlastimil Babka wrote:
->> On 07/31/2018 04:05 PM, Florian Westphal wrote:
->>> Georgi Nikolov <gnikolov@icdsoft.com> wrote:
->>>>> No, I think that's rather for the netfilter folks to decide. Howeve=
-r, it
->>>>> seems there has been the debate already [1] and it was not found. T=
-he
->>>>> conclusion was that __GFP_NORETRY worked fine before, so it should =
-work
->>>>> again after it's added back. But now we know that it doesn't...
->>>>>
->>>>> [1] https://lore.kernel.org/lkml/20180130140104.GE21609@dhcp22.suse=
-=2Ecz/T/#u
->>>> Yes i see. I will add Florian Westphal to CC list. netfilter-devel i=
-s
->>>> already in this list so probably have to wait for their opinion.
->>> It hasn't changed, I think having OOM killer zap random processes
->>> just because userspace wants to import large iptables ruleset is not =
-a
->>> good idea.
->> If we denied the allocation instead of OOM (e.g. by using
->> __GFP_RETRY_MAYFAIL), a slightly smaller one may succeed, still leavin=
-g
->> the system without much memory, so it will invoke OOM killer sooner or=
-
->> later anyway.
->>
->> I don't see any silver-bullet solution, unfortunately. If this can be
->> abused by (multiple) namespaces, then they have to be contained by
->> kmemcg as that's the generic mechanism intended for this. Then we coul=
-d
->> use the __GFP_RETRY_MAYFAIL.
->> The only limit we could impose to outright deny the allocation (to
->> prevent obvious bugs/admin mistakes or abuses) could be based on the
->> amount of RAM, as was suggested in the old thread.
-
-Can we make this configurable - on/off switch or size above which
-to pass GFP_NORETRY. Probably hard coded based on amount of RAM is a
-good idea too.
-
->> __GFP_NORETRY might look like a good match at first sight as that stop=
-s
->> allocating when "reclaim becomes hard" which means the system is still=
-
->> relatively far from OOM. But it's not reliable in principle, and as th=
-is
->> bug report shows. That's fine when __GFP_NORETRY is used for optimisti=
-c
->> allocations that have some other fallback (e.g. huge page with fallbac=
-k
->> to base page), but far from ideal when failure means returning -ENOMEM=
-
->> to userspace.
-> I absolutely agree. The whole __GFP_NORETRY is quite dubious TBH. I hav=
-e
-> used it to get the original behavior because the change wasn't really
-> intended to make functional changes. But consideg ring this requires
-> higher privileges then I fail to see where the distrust comes from. If
-> this is really about untrusted root in a namespace then the proper way
-> is to use __GFP_ACCOUNT and limit that via kmemc.
->
-> __GFP_NORETRY can fail really easily if the kswapd doesn't keep the pac=
-e
-> with the allocations which might be completely unrelated to this
-> particular request.
+Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
