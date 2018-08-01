@@ -1,71 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CA436B0269
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 11:52:59 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id q3-v6so17356082qki.4
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 08:52:59 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 902386B026D
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 11:53:22 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id t4-v6so13884577plo.0
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 08:53:22 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d14-v6sor7882999qvj.63.2018.08.01.08.52.58
+        by mx.google.com with SMTPS id q4-v6sor4658921pgp.111.2018.08.01.08.53.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 01 Aug 2018 08:52:58 -0700 (PDT)
-Date: Wed, 1 Aug 2018 11:55:52 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] memcg: Remove memcg_cgroup::id from IDR on
- mem_cgroup_css_alloc() failure
-Message-ID: <20180801155552.GA8600@cmpxchg.org>
-References: <8a81c801-35c8-767d-54b0-df9f1ca0abc0@virtuozzo.com>
- <20180413115454.GL17484@dhcp22.suse.cz>
- <abfd4903-c455-fac2-7ed6-73707cda64d1@virtuozzo.com>
- <20180413121433.GM17484@dhcp22.suse.cz>
- <20180413125101.GO17484@dhcp22.suse.cz>
- <20180726162512.6056b5d7c1d2a5fbff6ce214@linux-foundation.org>
- <20180727193134.GA10996@cmpxchg.org>
- <20180729192621.py4znecoinw5mqcp@esperanza>
- <20180730153113.GB4567@cmpxchg.org>
- <20180731163908.603d7a27c6534341e1afa724@linux-foundation.org>
+        Wed, 01 Aug 2018 08:53:21 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180731163908.603d7a27c6534341e1afa724@linux-foundation.org>
+In-Reply-To: <CANn89i+KtwtLvSw1c=Ux8okKP+XyMxzYbuKhYb2qhYeMw=NTzg@mail.gmail.com>
+References: <e3b48104-3efb-1896-0d46-792419f49a75@virtuozzo.com>
+ <01000164f169bc6b-c73a8353-d7d9-47ec-a782-90aadcb86bfb-000000@email.amazonses.com>
+ <CA+55aFzHR1+YbDee6Cduo6YXHO9LKmLN1wP=MVzbP41nxUb5=g@mail.gmail.com>
+ <CA+55aFzYLgyNp1jsqsvUOjwZdO_1Piqj=iB=rzDShjScdNtkbg@mail.gmail.com>
+ <30ee6c72-dc90-275a-8e23-54221f393cb0@virtuozzo.com> <c03fd1ca-0169-4492-7d6f-2df7a91bff5e@gmail.com>
+ <CACT4Y+bLbDunoz+0qB=atbQXJ9Gu3N6+UXPwNnqMbq5RyZu1mQ@mail.gmail.com>
+ <cf751136-c459-853a-0210-abf16f54ad17@gmail.com> <CACT4Y+b6aCHMTQD21fSf2AMZoH5g8p-FuCVHviMLF00uFV+zGg@mail.gmail.com>
+ <01000164f60f3f12-b1253c6e-ee57-49fc-aed8-0944ab4fd7a2-000000@email.amazonses.com>
+ <CANn89i+KtwtLvSw1c=Ux8okKP+XyMxzYbuKhYb2qhYeMw=NTzg@mail.gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 1 Aug 2018 17:53:00 +0200
+Message-ID: <CACT4Y+axXa3HXG7ZoJSmP-g2QqtnvQ77oUZuioX-V9Ydi-56Dw@mail.gmail.com>
+Subject: Re: SLAB_TYPESAFE_BY_RCU without constructors (was Re: [PATCH v4
+ 13/17] khwasan: add hooks implementation)
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Kirill Tkhai <ktkhai@virtuozzo.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Eric Dumazet <edumazet@google.com>
+Cc: Christoph Lameter <cl@linux.com>, Eric Dumazet <eric.dumazet@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Linus Torvalds <torvalds@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, linux-ext4@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pablo Neira Ayuso <pablo@netfilter.org>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Florian Westphal <fw@strlen.de>, David Miller <davem@davemloft.net>, NetFilter <netfilter-devel@vger.kernel.org>, coreteam@netfilter.org, netdev <netdev@vger.kernel.org>, Gerrit Renker <gerrit@erg.abdn.ac.uk>, dccp@vger.kernel.org, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, David Airlie <airlied@linux.ie>, intel-gfx <intel-gfx@lists.freedesktop.org>, DRI <dri-devel@lists.freedesktop.org>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>, Ursula Braun <ubraun@linux.ibm.com>, linux-s390 <linux-s390@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>
 
-On Tue, Jul 31, 2018 at 04:39:08PM -0700, Andrew Morton wrote:
-> On Mon, 30 Jul 2018 11:31:13 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
-> 
-> > Subject: [PATCH] mm: memcontrol: simplify memcg idr allocation and error
-> >  unwinding
-> > 
-> > The memcg ID is allocated early in the multi-step memcg creation
-> > process, which needs 2-step ID allocation and IDR publishing, as well
-> > as two separate IDR cleanup/unwind sites on error.
-> > 
-> > Defer the IDR allocation until the last second during onlining to
-> > eliminate all this complexity. There is no requirement to have the ID
-> > and IDR entry earlier than that. And the root reference to the ID is
-> > put in the offline path, so this matches nicely.
-> 
-> This patch isn't aware of Kirill's later "mm, memcg: assign memcg-aware
-> shrinkers bitmap to memcg", which altered mem_cgroup_css_online():
-> 
-> @@ -4356,6 +4470,11 @@ static int mem_cgroup_css_online(struct
->  {
->  	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
->  
-> +	if (memcg_alloc_shrinker_maps(memcg)) {
-> +		mem_cgroup_id_remove(memcg);
-> +		return -ENOMEM;
-> +	}
-> +
->  	/* Online state pins memcg ID, memcg ID pins CSS */
->  	atomic_set(&memcg->id.ref, 1);
->  	css_get(css);
-> 
+On Wed, Aug 1, 2018 at 5:37 PM, Eric Dumazet <edumazet@google.com> wrote:
+> On Wed, Aug 1, 2018 at 8:15 AM Christopher Lameter <cl@linux.com> wrote:
+>>
+>> On Wed, 1 Aug 2018, Dmitry Vyukov wrote:
+>>
+>> > But we are trading 1 indirect call for comparable overhead removed
+>> > from much more common path. The path that does ctors is also calling
+>> > into page alloc, which is much more expensive.
+>> > So ctor should be a net win on performance front, no?
+>>
+>> ctor would make it esier to review the flow and guarantee that the object
+>> always has certain fields set as required before any use by the subsystem.
+>>
+>> ctors are run once on allocation of the slab page for all objects in it.
+>>
+>> ctors are not called duiring allocation and freeing of objects from the
+>> slab page. So we could avoid the intialization of the spinlock on each
+>> object allocation which actually should be faster.
+>
+>
+> This strategy might have been a win 30 years ago when cpu had no
+> caches (or too small anyway)
+>
+> What probability is that the 60 bytes around the spinlock are not
+> touched after the object is freshly allocated ?
+>
+> -> None
+>
+> Writing 60 bytes  in one cache line instead of 64 has really the same
+> cost. The cache line miss is the real killer.
+>
+> Feel free to write the patches, test them,  but I doubt you will have any gain.
+>
+> Remember btw that TCP sockets can be either completely fresh
+> (socket() call, using memset() to clear the whole object),
+> or clones (accept() thus copying the parent socket)
+>
+> The idea of having a ctor() would only be a win if all the fields that
+> can be initialized in the ctor are contiguous and fill an integral
+> number of cache lines.
 
-Hm, that looks out of place too. The bitmaps are allocated for the
-entire lifetime of the css, not just while it's online.
+Code size can have some visible performance impact too.
 
-Any objections to the following fixup to that patch?
+But either way, what you say only means that ctors are not necessary
+significantly faster. But your original point was that they are
+slower.
+If they are not slower, then what Andrey said seems to make sense:
+some gain on code comprehension front re type-stability invariant +
+some gain on performance front (even if not too big) and no downsides.
