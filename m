@@ -1,83 +1,283 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 87DC76B0005
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 07:41:26 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id d10-v6so14127789wrw.6
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 04:41:26 -0700 (PDT)
-Received: from Chamillionaire.breakpoint.cc (Chamillionaire.breakpoint.cc. [2a01:7a0:2:106d:670::1])
-        by mx.google.com with ESMTPS id l18-v6si3368816wme.197.2018.08.01.04.41.24
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 428B96B0007
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 07:47:31 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id g15-v6so562595edm.11
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 04:47:31 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s21-v6si5403368eda.324.2018.08.01.04.47.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 01 Aug 2018 04:41:25 -0700 (PDT)
-Date: Wed, 1 Aug 2018 13:40:48 +0200
-From: Florian Westphal <fw@strlen.de>
-Subject: Re: SLAB_TYPESAFE_BY_RCU without constructors (was Re: [PATCH v4
- 13/17] khwasan: add hooks implementation)
-Message-ID: <20180801114048.ufkr7zwmir7ps3vl@breakpoint.cc>
-References: <e3b48104-3efb-1896-0d46-792419f49a75@virtuozzo.com>
- <01000164f169bc6b-c73a8353-d7d9-47ec-a782-90aadcb86bfb-000000@email.amazonses.com>
- <CA+55aFzHR1+YbDee6Cduo6YXHO9LKmLN1wP=MVzbP41nxUb5=g@mail.gmail.com>
- <CA+55aFzYLgyNp1jsqsvUOjwZdO_1Piqj=iB=rzDShjScdNtkbg@mail.gmail.com>
- <CACT4Y+aYZumcc-Od5T1AnP4mwn8-FaWfxvfb93MnNwQPqG8TDw@mail.gmail.com>
- <CACT4Y+ZkgqDT77dshHg+hBtc9YPW-eZ8wVQA9LTDQ6q_y99oiQ@mail.gmail.com>
- <20180801103537.d36t3snzulyuge7g@breakpoint.cc>
- <CACT4Y+aHWpgDZygXv=smWwdVMWfjpedyajuVvvLDGMK-wFD5Lw@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Aug 2018 04:47:29 -0700 (PDT)
+Date: Wed, 1 Aug 2018 13:47:26 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v5 4/4] mm/page_alloc: Introduce
+ free_area_init_core_hotplug
+Message-ID: <20180801114726.GL16767@dhcp22.suse.cz>
+References: <20180730101757.28058-1-osalvador@techadventures.net>
+ <20180730101757.28058-5-osalvador@techadventures.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CACT4Y+aHWpgDZygXv=smWwdVMWfjpedyajuVvvLDGMK-wFD5Lw@mail.gmail.com>
+In-Reply-To: <20180730101757.28058-5-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Florian Westphal <fw@strlen.de>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, linux-ext4@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pablo Neira Ayuso <pablo@netfilter.org>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, David Miller <davem@davemloft.net>, NetFilter <netfilter-devel@vger.kernel.org>, coreteam@netfilter.org, Network Development <netdev@vger.kernel.org>, Gerrit Renker <gerrit@erg.abdn.ac.uk>, dccp@vger.kernel.org, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Dave Airlie <airlied@linux.ie>, intel-gfx <intel-gfx@lists.freedesktop.org>, DRI <dri-devel@lists.freedesktop.org>, Eric Dumazet <edumazet@google.com>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>, Ursula Braun <ubraun@linux.ibm.com>, linux-s390 <linux-s390@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>
+To: osalvador@techadventures.net
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, pasha.tatashin@oracle.com, mgorman@techsingularity.net, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.j.williams@intel.com, david@redhat.com, Oscar Salvador <osalvador@suse.de>
 
-Dmitry Vyukov <dvyukov@google.com> wrote:
-> On Wed, Aug 1, 2018 at 12:35 PM, Florian Westphal <fw@strlen.de> wrote:
-> > Dmitry Vyukov <dvyukov@google.com> wrote:
-> >> Still can't grasp all details.
-> >> There is state that we read without taking ct->ct_general.use ref
-> >> first, namely ct->state and what's used by nf_ct_key_equal.
-> >> So let's say the entry we want to find is in the list, but
-> >> ____nf_conntrack_find finds a wrong entry earlier because all state it
-> >> looks at is random garbage, so it returns the wrong entry to
-> >> __nf_conntrack_find_get.
-> >
-> > If an entry can be found, it can't be random garbage.
-> > We never link entries into global table until state has been set up.
+On Mon 30-07-18 12:17:57, osalvador@techadventures.net wrote:
+> From: Oscar Salvador <osalvador@suse.de>
 > 
-> But... we don't hold a reference to the entry. So say it's in the
-> table with valid state, now ____nf_conntrack_find discovers it, now
-> the entry is removed and reused a dozen of times will all associated
-> state reinitialization. And nf_ct_key_equal looks at it concurrently
-> and decides if it's the entry we are looking for or now. I think
-> unless we hold a ref to the entry, it's state needs to be considered
-> random garbage for correctness reasoning.
+> Currently, whenever a new node is created/re-used from the memhotplug path,
+> we call free_area_init_node()->free_area_init_core().
+> But there is some code that we do not really need to run when we are coming
+> from such path.
+> 
+> free_area_init_core() performs the following actions:
+> 
+> 1) Initializes pgdat internals, such as spinlock, waitqueues and more.
+> 2) Account # nr_all_pages and # nr_kernel_pages. These values are used later on
+>    when creating hash tables.
+> 3) Account number of managed_pages per zone, substracting dma_reserved and memmap pages.
+> 4) Initializes some fields of the zone structure data
+> 5) Calls init_currently_empty_zone to initialize all the freelists
+> 6) Calls memmap_init to initialize all pages belonging to certain zone
+> 
+> When called from memhotplug path, free_area_init_core() only performs actions #1 and #4.
+> 
+> Action #2 is pointless as the zones do not have any pages since either the node was freed,
+> or we are re-using it, eitherway all zones belonging to this node should have 0 pages.
+> For the same reason, action #3 results always in manages_pages being 0.
+> 
+> Action #5 and #6 are performed later on when onlining the pages:
+>  online_pages()->move_pfn_range_to_zone()->init_currently_empty_zone()
+>  online_pages()->move_pfn_range_to_zone()->memmap_init_zone()
+> 
+> This patch does two things:
+> 
+> First, moves the node/zone initializtion to their own function, so it allows us
+> to create a small version of free_area_init_core, where we only perform:
+> 
+> 1) Initialization of pgdat internals, such as spinlock, waitqueues and more
+> 4) Initialization of some fields of the zone structure data
+> 
+> These two functions are: pgdat_init_internals() and zone_init_internals().
+> 
+> The second thing this patch does, is to introduce free_area_init_core_hotplug(),
+> the memhotplug version of free_area_init_core():
+> 
+> Currently, we call free_area_init_node() from the memhotplug path.
+> In there, we set some pgdat's fields, and call calculate_node_totalpages().
+> calculate_node_totalpages() calculates the # of pages the node has.
+> 
+> Since the node is either new, or we are re-using it, the zones belonging to
+> this node should not have any pages, so there is no point to calculate this now.
+> 
+> Actually, we re-set these values to 0 later on with the calls to:
+> 
+> reset_node_managed_pages()
+> reset_node_present_pages()
+> 
+> The # of pages per node and the # of pages per zone will be calculated when
+> onlining the pages:
+> 
+> online_pages()->move_pfn_range()->move_pfn_range_to_zone()->resize_zone_range()
+> online_pages()->move_pfn_range()->move_pfn_range_to_zone()->resize_pgdat_range()
+> 
+> Also, since free_area_init_core/free_area_init_node will now only get called during early init, let us replace
+> __paginginit with __init, so their code gets freed up.
 
-It checks if it might be the entry we're looking for.
+The split up makes sense to me. Sections attributes can be handled on
+top. Btw. free_area_init_core_hotplug declaration could have gone into
+include/linux/memory_hotplug.h to save the ifdef
 
-If this was complete random garbage, scheme would not work, as then
-we could have entry that isn't in table, has nonzero refcount, but
-has its confirmed bit set.
+> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 
-I don't see how that would be possible, any reallocation
-makes sure ct->status has CONFIRMED bit clear before setting refcount
-to nonzero value.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-I think this is the scenario you hint at is:
-1. nf_ct_key_equal is true
-2. the entry is free'd (or was already free'd)
-3. we return NULL to caller due to atomic_inc_not_zero() failure
+> ---
+>  include/linux/mm.h  |  6 ++++-
+>  mm/memory_hotplug.c | 16 ++++--------
+>  mm/page_alloc.c     | 71 +++++++++++++++++++++++++++++++++++++----------------
+>  3 files changed, 60 insertions(+), 33 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 6954ad183159..af3222785347 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1998,10 +1998,14 @@ static inline spinlock_t *pud_lock(struct mm_struct *mm, pud_t *pud)
+>  
+>  extern void __init pagecache_init(void);
+>  extern void free_area_init(unsigned long * zones_size);
+> -extern void free_area_init_node(int nid, unsigned long * zones_size,
+> +extern void __init free_area_init_node(int nid, unsigned long * zones_size,
+>  		unsigned long zone_start_pfn, unsigned long *zholes_size);
+>  extern void free_initmem(void);
+>  
+> +#ifdef CONFIG_MEMORY_HOTPLUG
+> +extern void __ref free_area_init_core_hotplug(int nid);
+> +#endif
+> +
+>  /*
+>   * Free reserved pages within range [PAGE_ALIGN(start), end & PAGE_MASK)
+>   * into the buddy system. The freed pages will be poisoned with pattern
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 4eb6e824a80c..9eea6e809a4e 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -982,8 +982,6 @@ static void reset_node_present_pages(pg_data_t *pgdat)
+>  static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
+>  {
+>  	struct pglist_data *pgdat;
+> -	unsigned long zones_size[MAX_NR_ZONES] = {0};
+> -	unsigned long zholes_size[MAX_NR_ZONES] = {0};
+>  	unsigned long start_pfn = PFN_DOWN(start);
+>  
+>  	pgdat = NODE_DATA(nid);
+> @@ -1006,8 +1004,11 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
+>  
+>  	/* we can use NODE_DATA(nid) from here */
+>  
+> +	pgdat->node_id = nid;
+> +	pgdat->node_start_pfn = start_pfn;
+> +
+>  	/* init node's zones as empty zones, we don't have any present pages.*/
+> -	free_area_init_node(nid, zones_size, start_pfn, zholes_size);
+> +	free_area_init_core_hotplug(nid);
+>  	pgdat->per_cpu_nodestats = alloc_percpu(struct per_cpu_nodestat);
+>  
+>  	/*
+> @@ -1017,18 +1018,11 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
+>  	build_all_zonelists(pgdat);
+>  
+>  	/*
+> -	 * zone->managed_pages is set to an approximate value in
+> -	 * free_area_init_core(), which will cause
+> -	 * /sys/device/system/node/nodeX/meminfo has wrong data.
+> -	 * So reset it to 0 before any memory is onlined.
+> -	 */
+> -	reset_node_managed_pages(pgdat);
+> -
+> -	/*
+>  	 * When memory is hot-added, all the memory is in offline state. So
+>  	 * clear all zones' present_pages because they will be updated in
+>  	 * online_pages() and offline_pages().
+>  	 */
+> +	reset_node_managed_pages(pgdat);
+>  	reset_node_present_pages(pgdat);
+>  
+>  	return pgdat;
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 4e84a17a5030..b2ccade42020 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6237,21 +6237,9 @@ static void pgdat_init_kcompactd(struct pglist_data *pgdat)
+>  static void pgdat_init_kcompactd(struct pglist_data *pgdat) {}
+>  #endif
+>  
+> -/*
+> - * Set up the zone data structures:
+> - *   - mark all pages reserved
+> - *   - mark all memory queues empty
+> - *   - clear the memory bitmaps
+> - *
+> - * NOTE: pgdat should get zeroed by caller.
+> - */
+> -static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+> +static void __paginginit pgdat_init_internals(struct pglist_data *pgdat)
+>  {
+> -	enum zone_type j;
+> -	int nid = pgdat->node_id;
+> -
+>  	pgdat_resize_init(pgdat);
+> -
+>  	pgdat_init_numabalancing(pgdat);
+>  	pgdat_init_split_queue(pgdat);
+>  	pgdat_init_kcompactd(pgdat);
+> @@ -6262,7 +6250,54 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+>  	pgdat_page_ext_init(pgdat);
+>  	spin_lock_init(&pgdat->lru_lock);
+>  	lruvec_init(node_lruvec(pgdat));
+> +}
+> +
+> +static void __paginginit zone_init_internals(struct zone *zone, enum zone_type idx, int nid,
+> +							unsigned long remaining_pages)
+> +{
+> +	zone->managed_pages = remaining_pages;
+> +	zone_set_nid(zone, nid);
+> +	zone->name = zone_names[idx];
+> +	zone->zone_pgdat = NODE_DATA(nid);
+> +	spin_lock_init(&zone->lock);
+> +	zone_seqlock_init(zone);
+> +	zone_pcp_init(zone);
+> +}
+> +
+> +/*
+> + * Set up the zone data structures
+> + * - init pgdat internals
+> + * - init all zones belonging to this node
+> + *
+> + * NOTE: this function is only called during memory hotplug
+> + */
+> +#ifdef CONFIG_MEMORY_HOTPLUG
+> +void __ref free_area_init_core_hotplug(int nid)
+> +{
+> +	enum zone_type z;
+> +	pg_data_t *pgdat = NODE_DATA(nid);
+> +
+> +	pgdat_init_internals(pgdat);
+> +	for (z = 0; z < MAX_NR_ZONES; z++)
+> +		zone_init_internals(&pgdat->node_zones[z], z, nid, 0);
+> +}
+> +#endif
+> +
+> +/*
+> + * Set up the zone data structures:
+> + *   - mark all pages reserved
+> + *   - mark all memory queues empty
+> + *   - clear the memory bitmaps
+> + *
+> + * NOTE: pgdat should get zeroed by caller.
+> + * NOTE: this function is only called during early init.
+> + */
+> +static void __init free_area_init_core(struct pglist_data *pgdat)
+> +{
+> +	enum zone_type j;
+> +	int nid = pgdat->node_id;
+>  
+> +	pgdat_init_internals(pgdat);
+>  	pgdat->per_cpu_nodestats = &boot_nodestats;
+>  
+>  	for (j = 0; j < MAX_NR_ZONES; j++) {
+> @@ -6310,13 +6345,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+>  		 * when the bootmem allocator frees pages into the buddy system.
+>  		 * And all highmem pages will be managed by the buddy system.
+>  		 */
+> -		zone->managed_pages = freesize;
+> -		zone_set_nid(zone, nid);
+> -		zone->name = zone_names[j];
+> -		zone->zone_pgdat = pgdat;
+> -		spin_lock_init(&zone->lock);
+> -		zone_seqlock_init(zone);
+> -		zone_pcp_init(zone);
+> +		zone_init_internals(zone, j, nid, freesize);
+>  
+>  		if (!size)
+>  			continue;
+> @@ -6391,7 +6420,7 @@ static inline void pgdat_set_deferred_range(pg_data_t *pgdat)
+>  static inline void pgdat_set_deferred_range(pg_data_t *pgdat) {}
+>  #endif
+>  
+> -void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+> +void __init free_area_init_node(int nid, unsigned long *zones_size,
+>  		unsigned long node_start_pfn, unsigned long *zholes_size)
+>  {
+>  	pg_data_t *pgdat = NODE_DATA(nid);
+> -- 
+> 2.13.6
+> 
 
-but i fail to see how thats wrong?
-
-Sure, we could restart lookup but how would that help?
-
-We'd not find the 'candidate' entry again.
-
-We might find entry that has been inserted at this very instant but
-newly allocated entries are only inserted into global table until the skb that
-created the nf_conn object has made it through the network stack
-(postrouting for fowarded, or input for local delivery).
-
-So, the likelyhood of such restart finding another candidate is close to 0,
-and won't prevent 'insert race' from happening.
+-- 
+Michal Hocko
+SUSE Labs
