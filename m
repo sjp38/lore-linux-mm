@@ -1,78 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E6A76B0006
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 12:16:32 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id z24-v6so4417205lji.16
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 09:16:32 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f15-v6sor4096069ljj.73.2018.08.01.09.16.29
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C95566B000A
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 12:22:03 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id x26-v6so16273333qtb.2
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 09:22:03 -0700 (PDT)
+Received: from a9-46.smtp-out.amazonses.com (a9-46.smtp-out.amazonses.com. [54.240.9.46])
+        by mx.google.com with ESMTPS id r3-v6si1653020qtr.45.2018.08.01.09.22.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 01 Aug 2018 09:16:30 -0700 (PDT)
-Date: Wed, 1 Aug 2018 19:16:26 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH] memcg: Remove memcg_cgroup::id from IDR on
- mem_cgroup_css_alloc() failure
-Message-ID: <20180801161626.j2575eru2x3lukfj@esperanza>
-References: <20180413113855.GI17484@dhcp22.suse.cz>
- <8a81c801-35c8-767d-54b0-df9f1ca0abc0@virtuozzo.com>
- <20180413115454.GL17484@dhcp22.suse.cz>
- <abfd4903-c455-fac2-7ed6-73707cda64d1@virtuozzo.com>
- <20180413121433.GM17484@dhcp22.suse.cz>
- <20180413125101.GO17484@dhcp22.suse.cz>
- <20180726162512.6056b5d7c1d2a5fbff6ce214@linux-foundation.org>
- <20180727193134.GA10996@cmpxchg.org>
- <20180729192621.py4znecoinw5mqcp@esperanza>
- <20180730153113.GB4567@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 01 Aug 2018 09:22:02 -0700 (PDT)
+Date: Wed, 1 Aug 2018 16:22:02 +0000
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: SLAB_TYPESAFE_BY_RCU without constructors (was Re: [PATCH v4
+ 13/17] khwasan: add hooks implementation)
+In-Reply-To: <CANn89i+KtwtLvSw1c=Ux8okKP+XyMxzYbuKhYb2qhYeMw=NTzg@mail.gmail.com>
+Message-ID: <01000164f64bd525-be13e04f-18a9-4f7f-a44b-0c0fcec33b71-000000@email.amazonses.com>
+References: <e3b48104-3efb-1896-0d46-792419f49a75@virtuozzo.com> <01000164f169bc6b-c73a8353-d7d9-47ec-a782-90aadcb86bfb-000000@email.amazonses.com> <CA+55aFzHR1+YbDee6Cduo6YXHO9LKmLN1wP=MVzbP41nxUb5=g@mail.gmail.com> <CA+55aFzYLgyNp1jsqsvUOjwZdO_1Piqj=iB=rzDShjScdNtkbg@mail.gmail.com>
+ <30ee6c72-dc90-275a-8e23-54221f393cb0@virtuozzo.com> <c03fd1ca-0169-4492-7d6f-2df7a91bff5e@gmail.com> <CACT4Y+bLbDunoz+0qB=atbQXJ9Gu3N6+UXPwNnqMbq5RyZu1mQ@mail.gmail.com> <cf751136-c459-853a-0210-abf16f54ad17@gmail.com> <CACT4Y+b6aCHMTQD21fSf2AMZoH5g8p-FuCVHviMLF00uFV+zGg@mail.gmail.com>
+ <01000164f60f3f12-b1253c6e-ee57-49fc-aed8-0944ab4fd7a2-000000@email.amazonses.com> <CANn89i+KtwtLvSw1c=Ux8okKP+XyMxzYbuKhYb2qhYeMw=NTzg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180730153113.GB4567@cmpxchg.org>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Kirill Tkhai <ktkhai@virtuozzo.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Eric Dumazet <edumazet@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Linus Torvalds <torvalds@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, jack@suse.com, linux-ext4@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pablo Neira Ayuso <pablo@netfilter.org>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Florian Westphal <fw@strlen.de>, David Miller <davem@davemloft.net>, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev <netdev@vger.kernel.org>, Gerrit Renker <gerrit@erg.abdn.ac.uk>, dccp@vger.kernel.org, jani.nikula@linux.intel.com, joonas.lahtinen@linux.intel.com, rodrigo.vivi@intel.com, airlied@linux.ie, intel-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>, Ursula Braun <ubraun@linux.ibm.com>, linux-s390@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>
 
-On Mon, Jul 30, 2018 at 11:31:13AM -0400, Johannes Weiner wrote:
-> On Sun, Jul 29, 2018 at 10:26:21PM +0300, Vladimir Davydov wrote:
-> > On Fri, Jul 27, 2018 at 03:31:34PM -0400, Johannes Weiner wrote:
-> > > That said, the lifetime of the root reference on the ID is the online
-> > > state, we put that in css_offline. Is there a reason we need to have
-> > > the ID ready and the memcg in the IDR before onlining it?
-> > 
-> > I fail to see any reason for this in the code.
-> 
-> Me neither, thanks for double checking.
-> 
-> The patch also survives stress testing cgroup creation and destruction
-> with the script from 73f576c04b94 ("mm: memcontrol: fix cgroup
-> creation failure after many small jobs").
-> 
-> > > Can we do something like this and not mess with the alloc/free
-> > > sequence at all?
-> > 
-> > I guess so, and this definitely looks better to me.
-> 
-> Cool, then I think we should merge Kirill's patch as the fix and mine
-> as a follow-up cleanup.
-> 
-> ---
-> 
-> From b4106ea1f163479da805eceada60c942bd66e524 Mon Sep 17 00:00:00 2001
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Date: Mon, 30 Jul 2018 11:03:55 -0400
-> Subject: [PATCH] mm: memcontrol: simplify memcg idr allocation and error
->  unwinding
-> 
-> The memcg ID is allocated early in the multi-step memcg creation
-> process, which needs 2-step ID allocation and IDR publishing, as well
-> as two separate IDR cleanup/unwind sites on error.
-> 
-> Defer the IDR allocation until the last second during onlining to
-> eliminate all this complexity. There is no requirement to have the ID
-> and IDR entry earlier than that. And the root reference to the ID is
-> put in the offline path, so this matches nicely.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+On Wed, 1 Aug 2018, Eric Dumazet wrote:
 
-Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+> The idea of having a ctor() would only be a win if all the fields that
+> can be initialized in the ctor are contiguous and fill an integral
+> number of cache lines.
+
+Ok. Its reducing code size and makes the object status more consistent.
+Isn't that enough?
