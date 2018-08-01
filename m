@@ -1,50 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DA046B000A
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 07:52:21 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id z23-v6so3737977wma.2
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 04:52:21 -0700 (PDT)
-Received: from relay3-d.mail.gandi.net (relay3-d.mail.gandi.net. [217.70.183.195])
-        by mx.google.com with ESMTPS id 63-v6si3675585wmz.191.2018.08.01.04.52.15
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B7616B000D
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 07:52:57 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id z13-v6so14481793wrq.3
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 04:52:57 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r1-v6sor7298610wrm.62.2018.08.01.04.52.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 01 Aug 2018 04:52:15 -0700 (PDT)
-Subject: Re: [PATCH v5 00/11] hugetlb: Factorize hugetlb architecture
- primitives
-References: <20180731060155.16915-1-alex@ghiti.fr>
- <20180731160640.11306628@doriath>
-From: Alexandre Ghiti <alex@ghiti.fr>
-Message-ID: <1cee9f98-4cff-3e42-6cc8-088310e406d9@ghiti.fr>
-Date: Wed, 1 Aug 2018 13:50:49 +0200
+        (Google Transport Security);
+        Wed, 01 Aug 2018 04:52:56 -0700 (PDT)
+Date: Wed, 1 Aug 2018 13:52:54 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH v5 4/4] mm/page_alloc: Introduce
+ free_area_init_core_hotplug
+Message-ID: <20180801115254.GA7145@techadventures.net>
+References: <20180730101757.28058-1-osalvador@techadventures.net>
+ <20180730101757.28058-5-osalvador@techadventures.net>
+ <20180801114726.GL16767@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180731160640.11306628@doriath>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180801114726.GL16767@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: linux-mm@kvack.org, mike.kravetz@oracle.com, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, tony.luck@intel.com, fenghua.yu@intel.com, ralf@linux-mips.org, paul.burton@mips.com, jhogan@kernel.org, jejb@parisc-linux.org, deller@gmx.de, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, ysato@users.sourceforge.jp, dalias@libc.org, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, arnd@arndb.de, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, pasha.tatashin@oracle.com, mgorman@techsingularity.net, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.j.williams@intel.com, david@redhat.com, Oscar Salvador <osalvador@suse.de>
 
-On 07/31/2018 10:06 PM, Luiz Capitulino wrote:
-> On Tue, 31 Jul 2018 06:01:44 +0000
-> Alexandre Ghiti <alex@ghiti.fr> wrote:
->
->> [CC linux-mm for inclusion in -mm tree]
->>
->> In order to reduce copy/paste of functions across architectures and then
->> make riscv hugetlb port (and future ports) simpler and smaller, this
->> patchset intends to factorize the numerous hugetlb primitives that are
->> defined across all the architectures.
-> [...]
->
->>   15 files changed, 139 insertions(+), 382 deletions(-)
-> I imagine you're mostly interested in non-x86 review at this point, but
-> as this series is looking amazing:
->
-> Reviewed-by: Luiz Capitulino <lcapitulino@redhat.com>
+On Wed, Aug 01, 2018 at 01:47:26PM +0200, Michal Hocko wrote:
+> 
+> The split up makes sense to me. Sections attributes can be handled on
+> top. Btw. free_area_init_core_hotplug declaration could have gone into
+> include/linux/memory_hotplug.h to save the ifdef
 
-It's always good to have another feedback :)
-Thanks for your review Luiz,
+You are right, I will fix this up.
 
-Alex
+> 
+> > Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> > Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> 
+> Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks Michal!
+
+Since Pavel and I agreed on putting a patch of his which removes __paginginit
+into this patchset, I will send out a v6 in a few minutes.
+
+-- 
+Oscar Salvador
+SUSE L3
