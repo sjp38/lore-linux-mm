@@ -1,71 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DA7A6B026F
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 08:41:57 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id s18-v6so4528604edr.15
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 05:41:57 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 7-v6si7981117edm.229.2018.08.01.05.41.55
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E3CB6B0005
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 09:08:17 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id j15-v6so6625246pfi.10
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 06:08:17 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id j135-v6si18107384pfd.207.2018.08.01.06.08.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Aug 2018 05:41:56 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w71Cespj143398
-	for <linux-mm@kvack.org>; Wed, 1 Aug 2018 08:41:54 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2kkbm3bv5t-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 01 Aug 2018 08:41:54 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 1 Aug 2018 13:41:51 +0100
-Date: Wed, 1 Aug 2018 15:41:45 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/2] um: switch to NO_BOOTMEM
-References: <1532438594-4530-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20180731133827.GC23494@rapoport-lnx>
- <1574741.Uvo42kyWiX@blindfold>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1574741.Uvo42kyWiX@blindfold>
-Message-Id: <20180801124144.GF24836@rapoport-lnx>
+        Wed, 01 Aug 2018 06:08:16 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] ia64: Make stack VMA anonymous
+Date: Wed,  1 Aug 2018 16:08:01 +0300
+Message-Id: <20180801130801.30095-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Weinberger <richard@nod.at>
-Cc: Jeff Dike <jdike@addtoit.com>, Michal Hocko <mhocko@kernel.org>, linux-um@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hi Richard,
+IA64 allocates stack in a custom way. Stack has to be marked as
+anonymous otherwise the process will be killed with SIGBUS on the first
+access to the stack.
 
-On Tue, Jul 31, 2018 at 09:03:35PM +0200, Richard Weinberger wrote:
-> Am Dienstag, 31. Juli 2018, 15:38:27 CEST schrieb Mike Rapoport:
-> > Any comments on this?
-> > 
-> > On Tue, Jul 24, 2018 at 04:23:12PM +0300, Mike Rapoport wrote:
-> > > Hi,
-> > > 
-> > > These patches convert UML to use NO_BOOTMEM.
-> > > Tested on x86-64.
-> > > 
-> > > Mike Rapoport (2):
-> > >   um: setup_physmem: stop using global variables
-> > >   um: switch to NO_BOOTMEM
-> > > 
-> > >  arch/um/Kconfig.common   |  2 ++
-> > >  arch/um/kernel/physmem.c | 22 ++++++++++------------
-> > >  2 files changed, 12 insertions(+), 12 deletions(-)
-> 
-> Acked-by: Richard Weinberger <richard@nod.at>
+Add missing vma_set_anonymous().
 
-Thanks!
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reported-by: Tony Luck <tony.luck@intel.com>
+Fixes: bfd40eaff5ab ("mm: fix vma_is_anonymous() false-positives")
+---
+ arch/ia64/mm/init.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-Can you please merge this through the uml tree?
- 
-> Thanks,
-> //richard
-> 
-
+diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+index e6c6dfd98de2..99044db28040 100644
+--- a/arch/ia64/mm/init.c
++++ b/arch/ia64/mm/init.c
+@@ -116,6 +116,7 @@ ia64_init_addr_space (void)
+ 	 */
+ 	vma = vm_area_alloc(current->mm);
+ 	if (vma) {
++		vma_set_anonymous(vma);
+ 		vma->vm_start = current->thread.rbs_bot & PAGE_MASK;
+ 		vma->vm_end = vma->vm_start + PAGE_SIZE;
+ 		vma->vm_flags = VM_DATA_DEFAULT_FLAGS|VM_GROWSUP|VM_ACCOUNT;
 -- 
-Sincerely yours,
-Mike.
+2.18.0
