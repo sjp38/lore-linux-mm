@@ -1,105 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DAED6B0005
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 13:15:18 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id y4-v6so14402317iol.2
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 10:15:18 -0700 (PDT)
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A33466B0007
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 13:19:02 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id m185-v6so6688067itm.1
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 10:19:02 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e133-v6sor5630849ioa.63.2018.08.01.10.15.16
+        by mx.google.com with SMTPS id y19-v6sor1789054ita.139.2018.08.01.10.19.01
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 01 Aug 2018 10:15:17 -0700 (PDT)
+        Wed, 01 Aug 2018 10:19:01 -0700 (PDT)
 MIME-Version: 1.0
-References: <CAMi1Hd0fJuAgP09_KkbjyGwszOXmxcPybKyBxP3U1y5JUqxxSw@mail.gmail.com>
- <20180730130134.yvn5tcmoavuxtwt5@kshutemo-mobl1> <CA+55aFwxwCPZs=h5wy-5PELwfBVuTETm+wuZB5cM2SDoXJi68g@mail.gmail.com>
- <alpine.LSU.2.11.1807301410470.4805@eggly.anvils> <CA+55aFx3qR1FW0T3na25NrwLZAvpOdUEUJa879CnaJT2ZPfhkg@mail.gmail.com>
- <alpine.LSU.2.11.1807301940460.5904@eggly.anvils> <CALAqxLU3cmu4g+HaB6A7=VhY-hW=d9e68EZ=_4JiwX_BigzjPQ@mail.gmail.com>
- <CAMi1Hd0-2eDod4HiBifKCxY0cUUEW_A-yv7sZ7GRgL0whWQt+w@mail.gmail.com>
- <CA+55aFx=-tHXjv3gv4W=xYwM+VOHJQE5q5VyihkPK7s560x-vQ@mail.gmail.com>
- <20180731170328.ocb5oikwhwtkyzrj@kshutemo-mobl1> <20180731174349.GA12944@agluck-desk>
-In-Reply-To: <20180731174349.GA12944@agluck-desk>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 1 Aug 2018 10:15:05 -0700
-Message-ID: <CA+55aFxJpJvcYKos-sVTsn9q4wK0-m4up1SXrcqfbXHKxaKxjg@mail.gmail.com>
-Subject: Re: Linux 4.18-rc7
+References: <e3b48104-3efb-1896-0d46-792419f49a75@virtuozzo.com>
+ <01000164f169bc6b-c73a8353-d7d9-47ec-a782-90aadcb86bfb-000000@email.amazonses.com>
+ <CA+55aFzHR1+YbDee6Cduo6YXHO9LKmLN1wP=MVzbP41nxUb5=g@mail.gmail.com>
+ <CA+55aFzYLgyNp1jsqsvUOjwZdO_1Piqj=iB=rzDShjScdNtkbg@mail.gmail.com>
+ <30ee6c72-dc90-275a-8e23-54221f393cb0@virtuozzo.com> <c03fd1ca-0169-4492-7d6f-2df7a91bff5e@gmail.com>
+ <CACT4Y+bLbDunoz+0qB=atbQXJ9Gu3N6+UXPwNnqMbq5RyZu1mQ@mail.gmail.com>
+ <cf751136-c459-853a-0210-abf16f54ad17@gmail.com> <CACT4Y+b6aCHMTQD21fSf2AMZoH5g8p-FuCVHviMLF00uFV+zGg@mail.gmail.com>
+ <01000164f60f3f12-b1253c6e-ee57-49fc-aed8-0944ab4fd7a2-000000@email.amazonses.com>
+ <CANn89i+KtwtLvSw1c=Ux8okKP+XyMxzYbuKhYb2qhYeMw=NTzg@mail.gmail.com>
+ <01000164f64bd525-be13e04f-18a9-4f7f-a44b-0c0fcec33b71-000000@email.amazonses.com>
+ <bf435a04-b689-ec5a-f5df-f47807b43316@gmail.com> <CACT4Y+akncPCAZ2pUX3xEpUPELQAei1XzYByB8Dohfz-Ve0k5w@mail.gmail.com>
+In-Reply-To: <CACT4Y+akncPCAZ2pUX3xEpUPELQAei1XzYByB8Dohfz-Ve0k5w@mail.gmail.com>
+From: Eric Dumazet <edumazet@google.com>
+Date: Wed, 1 Aug 2018 10:18:49 -0700
+Message-ID: <CANn89iKSwt-1j_p3XvoMTv2NpjJsiv6p7c=xkYKG+zDzcS9hgQ@mail.gmail.com>
+Subject: Re: SLAB_TYPESAFE_BY_RCU without constructors (was Re: [PATCH v4
+ 13/17] khwasan: add hooks implementation)
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@intel.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Amit Pundir <amit.pundir@linaro.org>, John Stultz <john.stultz@linaro.org>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, youling 257 <youling257@gmail.com>, Joel Fernandes <joelaf@google.com>, Colin Cross <ccross@google.com>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Christoph Lameter <cl@linux.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Linus Torvalds <torvalds@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, jack@suse.com, linux-ext4@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pablo Neira Ayuso <pablo@netfilter.org>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Florian Westphal <fw@strlen.de>, David Miller <davem@davemloft.net>, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev <netdev@vger.kernel.org>, Gerrit Renker <gerrit@erg.abdn.ac.uk>, dccp@vger.kernel.org, jani.nikula@linux.intel.com, joonas.lahtinen@linux.intel.com, rodrigo.vivi@intel.com, airlied@linux.ie, intel-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>, Ursula Braun <ubraun@linux.ibm.com>, linux-s390@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>
 
-On Tue, Jul 31, 2018 at 10:43 AM Luck, Tony <tony.luck@intel.com> wrote:
+On Wed, Aug 1, 2018 at 9:47 AM Dmitry Vyukov <dvyukov@google.com> wrote:
 >
-> On Tue, Jul 31, 2018 at 08:03:28PM +0300, Kirill A. Shutemov wrote:
-> > But it's not the only issue unfortunately. Tony reported issue with
-> > booting ia64 with the patch. I have no clue why. I rechecked everything
-> > ia64-specific and looks fine to me. :-/
->
-> If I just revert bfd40eaff5ab ("mm: fix vma_is_anonymous() false-positives")
-> then ia64 boots again.
+> Proving with numbers is required for a claimed performance improvement
+> at the cost of code degradation/increase. For a win-win change there
+> is really nothing to prove.
 
-Ok, I'd love to have more information about this, but I'm assuming
-that Tony isn't running some odd ia64 version of Android, so there's
-definitely something else than just the ashmem thing going on. Either
-it's some odd ia64-specific special vma, or it's just something
-triggered on an ia64 boot that nobody else noticed or cared about.
+You have to _prove_ it is a win-win.
 
-And I was just going to do the final revert and started this email to
-say so, when I looked at the obvious candidate: the
-ia64_init_addr_space() function. Trivially fixed.
+It is not sufficient to claim it is a win-win.
 
-But as I was doing that, I also noticed another problem with the vma
-series: the vma_init() conversion of automatic variables is buggy.
-Commit 2c4541e24c55 ("mm: use vma_init() to initialize VMAs on stack
-and data segments") is really bad, because it never grew the memset()
-that was discussed, and the patch that was applied was the original
-one - so vma_init() only initializes a couple of fields. As a result,
-doing things like this:
-
--       struct vm_area_struct vma = { .vm_mm = mm };
-+       struct vm_area_struct vma;
-
-+       vma_init(&vma, mm);
-
-is just completely wrong, because it actually initializes much less
-than it used to, and leaves most of the vma filled with random stack
-garbage. In particular, it now fills with garbage the fields that TLB
-flushing really can care about: things like vm_flags that says "is
-this perhaps an executable-only mapping that only needs to flush the
-ITLB?"
-
-I don't actually believe that we should do vma_init() on those
-on-stack vma's anyway, since they aren't "real" vma's. They are
-literally crafted just for TLB flushing - filling in the vm_mm (and
-sometimes vm_flags) pointers so that the TLB flushing knows what to
-do.
-
-So using "vma_init()" on them is actively detrimental as things stand
-right now. The reason I looked at them was that I was trying to see
-who actually uses "vm_area_alloc()" and "vma_init()" right now that
-would be affected by that commit bfd40eaff5ab ("mm: fix
-vma_is_anonymous() false-positives") outside of actual
-honest-to-goodness device file mmaps.
-
-Anyway, the upshot of all this is that I think I know what the ia64
-problem was, and John sent the patch for the ashmem case, and I'm
-going to hold off reverting that vma_is_anonymous() false-positives
-commit after all.
-
-I'm still unhappy about the vma_init() ones, and I have not decided
-how to go with those. Either the memset() in vma_init(), or just
-reverting the (imho unnecessary) commit 2c4541e24c55. Kirill, Andrew,
-comments?
-
-Tony, can you please double-check my commit ebad825cdd4e ("ia64: mark
-special ia64 memory areas anonymous") fixes things for  you? I didn't
-even compile it, but it really looks so obvious that I just committed
-it directly. It's not pushed out yet (I'm doing the normal full build
-test because of the ashmem commit first), but it should be out in
-about 20 minutes when my testing has finished.
-
-I'd like to get this sorted out asap, although at this point I still
-think that I'll have to do an rc8 even though I feel like we may have
-caught everything.
-
-                        Linus
+Sorry, but I do have bugs to take care of.
