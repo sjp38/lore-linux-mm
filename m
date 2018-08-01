@@ -1,71 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D9116B0008
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 16:58:56 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id n7-v6so151869pgv.9
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 13:58:56 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 83BE46B0003
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 17:25:25 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id p5-v6so33986pfh.11
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 14:25:25 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b9-v6sor3225135pgj.323.2018.08.01.13.58.54
+        by mx.google.com with SMTPS id f191-v6sor7329pfc.144.2018.08.01.14.25.24
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 01 Aug 2018 13:58:54 -0700 (PDT)
-Date: Wed, 1 Aug 2018 23:58:49 +0300
+        Wed, 01 Aug 2018 14:25:24 -0700 (PDT)
+Date: Thu, 2 Aug 2018 00:25:18 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Subject: Re: Linux 4.18-rc7
-Message-ID: <20180801205848.6mgcfux4b63svj3n@kshutemo-mobl1>
-References: <alpine.LSU.2.11.1807301410470.4805@eggly.anvils>
- <CA+55aFx3qR1FW0T3na25NrwLZAvpOdUEUJa879CnaJT2ZPfhkg@mail.gmail.com>
- <alpine.LSU.2.11.1807301940460.5904@eggly.anvils>
+Message-ID: <20180801212518.jjdwf53p3sj4b455@kshutemo-mobl1>
+References: <alpine.LSU.2.11.1807301940460.5904@eggly.anvils>
  <CALAqxLU3cmu4g+HaB6A7=VhY-hW=d9e68EZ=_4JiwX_BigzjPQ@mail.gmail.com>
  <CAMi1Hd0-2eDod4HiBifKCxY0cUUEW_A-yv7sZ7GRgL0whWQt+w@mail.gmail.com>
  <CA+55aFx=-tHXjv3gv4W=xYwM+VOHJQE5q5VyihkPK7s560x-vQ@mail.gmail.com>
  <20180731170328.ocb5oikwhwtkyzrj@kshutemo-mobl1>
  <20180731174349.GA12944@agluck-desk>
  <CA+55aFxJpJvcYKos-sVTsn9q4wK0-m4up1SXrcqfbXHKxaKxjg@mail.gmail.com>
- <alpine.LSU.2.11.1808011042090.14313@eggly.anvils>
+ <CA+55aFz0eKks=v872LA-tDx4qcmBtxTYXbeztZcWbgx6SeQHNg@mail.gmail.com>
+ <20180801205156.zv45fcveexwa2dqs@kshutemo-mobl1>
+ <CA+55aFzDxsUU8jUyJN7J35TfeUh7n2xRDjEbW-A-2Fq1CDYQ0w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1808011042090.14313@eggly.anvils>
+In-Reply-To: <CA+55aFzDxsUU8jUyJN7J35TfeUh7n2xRDjEbW-A-2Fq1CDYQ0w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Amit Pundir <amit.pundir@linaro.org>, John Stultz <john.stultz@linaro.org>, Matthew Wilcox <willy@infradead.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, youling 257 <youling257@gmail.com>, Joel Fernandes <joelaf@google.com>, Colin Cross <ccross@google.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Tony Luck <tony.luck@intel.com>, Amit Pundir <amit.pundir@linaro.org>, John Stultz <john.stultz@linaro.org>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, youling 257 <youling257@gmail.com>, Joel Fernandes <joelaf@google.com>, Colin Cross <ccross@google.com>
 
-On Wed, Aug 01, 2018 at 11:31:52AM -0700, Hugh Dickins wrote:
-> On Wed, 1 Aug 2018, Linus Torvalds wrote:
-> > 
-> > Anyway, the upshot of all this is that I think I know what the ia64
-> > problem was, and John sent the patch for the ashmem case, and I'm
-> > going to hold off reverting that vma_is_anonymous() false-positives
-> > commit after all.
+On Wed, Aug 01, 2018 at 01:56:19PM -0700, Linus Torvalds wrote:
+> On Wed, Aug 1, 2018 at 1:52 PM Kirill A. Shutemov <kirill@shutemov.name> wrote:
+> >
+> > Is there a reason why we pass vma to flush_tlb_range?
 > 
-> I'd better send deletion of zap_pmd_range()'s VM_BUG_ON_VMA(): below
-> (but I've no proprietorial interest, if you prefer to do your own).
-
-Agreed.
-
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-
-> John's patch is good, and originally I thought it was safe from that
-> VM_BUG_ON_VMA(), because the /dev/ashmem fd exposed to the user is
-> disconnected from the vm_file in the vma, and madvise(,,MADV_REMOVE)
-> insists on VM_SHARED. But afterwards read John's earlier mail,
-> drawing attention to the vfs_fallocate() in there: I may be wrong,
-> and I don't know if Android has THP in the config anyway, but it looks
-> to me like an unmap_mapping_range() from ashmem's vfs_fallocate()
-> could hit precisely the VM_BUG_ON_VMA(), once it's vma_is_anonymous().
+> Yes. It's even in that patch.
 > 
-> (I'm not familiar with ashmem, and I certainly don't understand the
-> role of MAP_PRIVATE ashmem mappings - hole-punch's zap_pte_range()
-> should end up leaving any anon pages in place; but the presence of
-> the BUG is requiring us all to understand too much too quickly.)
+> The fact is, real MM users *have* a vma, and passing it in to the TLB
+> flushing is the right thing to do. That allows architectures that care
+> (mainly powerpc, I think) to notice that "hey, this range only had
+> execute permissions, so I only need to flush the ITLB".
+> 
+> The people who use tlb_flush_range() any other way are doing an
+> arch-specific hack.  It's not how tlb_flush_range() was defined, and
+> it's not how you can use it in general.
 
-Hugh, do you see any reason why ashmem shouldn't have vm_ops ==
-shmem_vm_ops?
+Okay, I see.
 
-I don't understand ashmem, but I feel uncomfortable that we have this
-sneaky way to create an anonymous VMA. It feels wrong to me.
+ARM, unicore32 and xtensa avoid iTLB flush for non-executable VMAs.
+
+> 
+> > It's not obvious to me what information from VMA can be useful for an
+> > implementation.
+> 
+> See the patch I sent, which had this as part of it:
+> 
+> -                * XXX fix me: flush_tlb_range() should take an mm
+> pointer instead of a
+> -                * vma pointer.
+> +                * flush_tlb_range() takes a vma instead of a mm pointer because
+> +                * some architectures want the vm_flags for ITLB/DTLB flush.
+> 
+> because I wanted to educate people about why the interface was what it
+> was, and the "fixme" was bogus shit.
+
+I didn't noticied this. Sorry.
 
 -- 
  Kirill A. Shutemov
