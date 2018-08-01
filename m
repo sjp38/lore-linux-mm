@@ -1,121 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 077586B026A
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 12:35:40 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id m197-v6so17121450oig.18
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 09:35:40 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 128-v6si11307907oif.171.2018.08.01.09.35.38
-        for <linux-mm@kvack.org>;
-        Wed, 01 Aug 2018 09:35:38 -0700 (PDT)
-Date: Wed, 1 Aug 2018 17:35:39 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address
- sanitizer
-Message-ID: <20180801163538.GA10800@arm.com>
-References: <cover.1530018818.git.andreyknvl@google.com>
- <20180628105057.GA26019@e103592.cambridge.arm.com>
- <CAAeHK+w0T43+h3xqU4a-qutxd-qiEhsvk0eaZpmAn-T0hpaLZQ@mail.gmail.com>
- <20180629110709.GA17859@arm.com>
- <CAAeHK+wHd8B2nhat-Z2Y2=s4NVobPG7vjr2CynjFhqPTwQRepQ@mail.gmail.com>
- <20180703173608.GF27243@arm.com>
- <CAAeHK+wTcH+2hgm_BTkLLdn1GkjBtkhQ=vPWZCncJ6KenqgKpg@mail.gmail.com>
- <CAAeHK+xc1E64tXEEHoXqOuUNZ7E_kVyho3_mNZTCc+LTGHYFdA@mail.gmail.com>
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A4D96B0005
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 12:37:44 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id 133-v6so11976567ywq.4
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 09:37:44 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id 62-v6si4425492ybw.621.2018.08.01.09.37.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Aug 2018 09:37:42 -0700 (PDT)
+Date: Wed, 1 Aug 2018 09:37:23 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH v13 0/7] cgroup-aware OOM killer
+Message-ID: <20180801163718.GA23539@castle>
+References: <0d018c7e-a3de-a23a-3996-bed8b28b1e4a@i-love.sakura.ne.jp>
+ <20180716220918.GA3898@castle.DHCP.thefacebook.com>
+ <201807170055.w6H0tHn5075670@www262.sakura.ne.jp>
+ <ede70c6a-620b-f835-d66c-b4608fe0ef54@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <CAAeHK+xc1E64tXEEHoXqOuUNZ7E_kVyho3_mNZTCc+LTGHYFdA@mail.gmail.com>
+In-Reply-To: <ede70c6a-620b-f835-d66c-b4608fe0ef54@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Dave Martin <Dave.Martin@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jann Horn <jannh@google.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Mark Brand <markbrand@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@vger.kernel.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Andrey,
-
-On Tue, Jul 31, 2018 at 03:22:13PM +0200, Andrey Konovalov wrote:
-> On Wed, Jul 18, 2018 at 7:16 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-> > On Tue, Jul 3, 2018 at 7:36 PM, Will Deacon <will.deacon@arm.com> wrote:
-> >> Hmm, but elsewhere in this thread, Evgenii is motivating the need for this
-> >> patch set precisely because the lower overhead means it's suitable for
-> >> "near-production" use. So I don't think writing this off as a debugging
-> >> feature is the right approach, and we instead need to put effort into
-> >> analysing the impact of address tags on the kernel as a whole. Playing
-> >> whack-a-mole with subtle tag issues sounds like the worst possible outcome
-> >> for the long-term.
-> >
-> > I don't see a way to find cases where pointer tags would matter
-> > statically, so I've implemented the dynamic approach that I mentioned
-> > above. I've instrumented all pointer comparisons/subtractions in an
-> > LLVM compiler pass and used a kernel module that would print a bug
-> > report whenever two pointers with different tags are being
-> > compared/subtracted (ignoring comparisons with NULL pointers and with
-> > pointers obtained by casting an error code to a pointer type). Then I
-> > tried booting the kernel in QEMU and on an Odroid C2 board and I ran
-> > syzkaller overnight.
-> >
-> > This yielded the following results.
-> >
-> > ======
-> >
-> > The two places that look interesting are:
-> >
-> > is_vmalloc_addr in include/linux/mm.h (already mentioned by Catalin)
-> > is_kernel_rodata in mm/util.c
-> >
-> > Here we compare a pointer with some fixed untagged values to make sure
-> > that the pointer lies in a particular part of the kernel address
-> > space. Since KWHASAN doesn't add tags to pointers that belong to
-> > rodata or vmalloc regions, this should work as is. To make sure I've
-> > added debug checks to those two functions that check that the result
-> > doesn't change whether we operate on pointers with or without
-> > untagging.
-> >
-> > ======
-> >
-> > A few other cases that don't look that interesting:
-> >
-> > Comparing pointers to achieve unique sorting order of pointee objects
-> > (e.g. sorting locks addresses before performing a double lock):
-> >
-> > tty_ldisc_lock_pair_timeout in drivers/tty/tty_ldisc.c
-> > pipe_double_lock in fs/pipe.c
-> > unix_state_double_lock in net/unix/af_unix.c
-> > lock_two_nondirectories in fs/inode.c
-> > mutex_lock_double in kernel/events/core.c
-> >
-> > ep_cmp_ffd in fs/eventpoll.c
-> > fsnotify_compare_groups fs/notify/mark.c
-> >
-> > Nothing needs to be done here, since the tags embedded into pointers
-> > don't change, so the sorting order would still be unique.
-> >
-> > Check that a pointer belongs to some particular allocation:
-> >
-> > is_sibling_entry lib/radix-tree.c
-> > object_is_on_stack in include/linux/sched/task_stack.h
-> >
-> > Nothing needs to be here either, since two pointers can only belong to
-> > the same allocation if they have the same tag.
-> >
-> > ======
-> >
-> > Will, Catalin, WDYT?
+On Tue, Jul 31, 2018 at 11:14:01PM +0900, Tetsuo Handa wrote:
+> On 2018/07/17 9:55, Tetsuo Handa wrote:
+> >> I don't get, why it's necessary to drop the cgroup oom killer to merge your fix?
+> >> I'm happy to help with rebasing and everything else.
+> > 
+> > Yes, I wish you rebase your series on top of OOM lockup (CVE-2016-10723) mitigation
+> > patch ( https://marc.info/?l=linux-mm&m=153112243424285&w=4 ). It is a trivial change
+> > and easy to cleanly backport (if applied before your series).
+> > 
+> > Also, I expect you to check whether my cleanup patch which removes "abort" path
+> > ( [PATCH 1/2] at https://marc.info/?l=linux-mm&m=153119509215026&w=4 ) helps
+> > simplifying your series. I don't know detailed behavior of your series, but I
+> > assume that your series do not kill threads which current thread should not wait
+> > for MMF_OOM_SKIP.
 > 
-> ping
+> syzbot is hitting WARN(1) due to mem_cgroup_out_of_memory() == false.
+> https://urldefense.proofpoint.com/v2/url?u=https-3A__syzkaller.appspot.com_bug-3Fid-3Dea8c7912757d253537375e981b61749b2da69258&d=DwICJg&c=5VD0RTtNlTh3ycd41b3MUw&r=i6WobKxbeG3slzHSIOxTVtYIJw7qjCE6S0spDTKL-J4&m=h9FJRAWtCmDLT-cVwvXKCYIUVRSrD--0XFJE-OnNY64&s=If6eFu6MlYjnfLXeg5_S-3tuhCZhSMv8_qfSrMfwOQ0&e=
+> 
+> I can't tell what change is triggering this race. Maybe removal of oom_lock from
+> the oom reaper made more likely to hit. But anyway I suspect that
+> 
+> static bool oom_kill_memcg_victim(struct oom_control *oc)
+> {
+>         if (oc->chosen_memcg == NULL || oc->chosen_memcg == INFLIGHT_VICTIM)
+>                 return oc->chosen_memcg; // <= This line is still broken
+> 
+> because
+> 
+>                 /* We have one or more terminating processes at this point. */
+>                 oc->chosen_task = INFLIGHT_VICTIM;
+> 
+> is not called.
+> 
+> Also, that patch is causing confusion by reviving schedule_timeout_killable(1)
+> with oom_lock held.
+> 
+> Can we temporarily drop cgroup-aware OOM killer from linux-next.git and
+> apply my cleanup patch? Since the merge window is approaching, I really want to
+> see how next -rc1 would look like...
 
-Thanks for tracking these cases down and going through each of them. The
-obvious follow-up question is: how do we ensure that we keep on top of
-this in mainline? Are you going to repeat your experiment at every kernel
-release or every -rc or something else? I really can't see how we can
-maintain this in the long run, especially given that the coverage we have
-is only dynamic -- do you have an idea of how much coverage you're actually
-getting for, say, a defconfig+modules build?
+Hi Tetsuo!
 
-I'd really like to enable pointer tagging in the kernel, I'm just still
-failing to see how we can do it in a controlled manner where we can reason
-about the semantic changes using something other than a best-effort,
-case-by-case basis which is likely to be fragile and error-prone.
-Unfortunately, if that's all we have, then this gets relegated to a
-debug feature, which sort of defeats the point in my opinion.
+Has this cleanup patch been acked by somebody?
+Which problem does it solve?
+Dropping patches for making a cleanup (if it's a cleanup) sounds a bit strange.
 
-Will
+Anyway, there is a good chance that current cgroup-aware OOM killer
+implementation will be replaced by a lightweight version (memory.oom.group).
+Please, take a look at it, probably your cleanup will not conflict with it
+at all.
+
+Thanks!
