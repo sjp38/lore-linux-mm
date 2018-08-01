@@ -1,82 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 902386B026D
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 11:53:22 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id t4-v6so13884577plo.0
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 08:53:22 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q4-v6sor4658921pgp.111.2018.08.01.08.53.21
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F0746B0005
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 12:03:15 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id y13-v6so6208882ita.8
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 09:03:15 -0700 (PDT)
+Received: from us.icdsoft.com (us.icdsoft.com. [192.252.146.184])
+        by mx.google.com with ESMTPS id l16-v6si3934713itl.138.2018.08.01.09.03.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 01 Aug 2018 08:53:21 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Aug 2018 09:03:13 -0700 (PDT)
+Subject: Re: [Bug 200651] New: cgroups iptables-restor: vmalloc: allocation
+ failure
+References: <98788618-94dc-5837-d627-8bbfa1ddea57@icdsoft.com>
+ <ff19099f-e0f5-d2b2-e124-cc12d2e05dc1@icdsoft.com>
+ <20180730135744.GT24267@dhcp22.suse.cz>
+ <89ea4f56-6253-4f51-0fb7-33d7d4b60cfa@icdsoft.com>
+ <20180730183820.GA24267@dhcp22.suse.cz>
+ <56597af4-73c6-b549-c5d5-b3a2e6441b8e@icdsoft.com>
+ <6838c342-2d07-3047-e723-2b641bc6bf79@suse.cz>
+ <8105b7b3-20d3-5931-9f3c-2858021a4e12@icdsoft.com>
+ <20180731140520.kpotpihqsmiwhh7l@breakpoint.cc>
+ <e5b24629-0296-5a4d-577a-c25d1c52b03b@suse.cz>
+ <20180801083349.GF16767@dhcp22.suse.cz>
+From: Georgi Nikolov <gnikolov@icdsoft.com>
+Message-ID: <e5c5e965-a6bc-d61f-97fc-78da287b5d94@icdsoft.com>
+Date: Wed, 1 Aug 2018 19:03:03 +0300
 MIME-Version: 1.0
-In-Reply-To: <CANn89i+KtwtLvSw1c=Ux8okKP+XyMxzYbuKhYb2qhYeMw=NTzg@mail.gmail.com>
-References: <e3b48104-3efb-1896-0d46-792419f49a75@virtuozzo.com>
- <01000164f169bc6b-c73a8353-d7d9-47ec-a782-90aadcb86bfb-000000@email.amazonses.com>
- <CA+55aFzHR1+YbDee6Cduo6YXHO9LKmLN1wP=MVzbP41nxUb5=g@mail.gmail.com>
- <CA+55aFzYLgyNp1jsqsvUOjwZdO_1Piqj=iB=rzDShjScdNtkbg@mail.gmail.com>
- <30ee6c72-dc90-275a-8e23-54221f393cb0@virtuozzo.com> <c03fd1ca-0169-4492-7d6f-2df7a91bff5e@gmail.com>
- <CACT4Y+bLbDunoz+0qB=atbQXJ9Gu3N6+UXPwNnqMbq5RyZu1mQ@mail.gmail.com>
- <cf751136-c459-853a-0210-abf16f54ad17@gmail.com> <CACT4Y+b6aCHMTQD21fSf2AMZoH5g8p-FuCVHviMLF00uFV+zGg@mail.gmail.com>
- <01000164f60f3f12-b1253c6e-ee57-49fc-aed8-0944ab4fd7a2-000000@email.amazonses.com>
- <CANn89i+KtwtLvSw1c=Ux8okKP+XyMxzYbuKhYb2qhYeMw=NTzg@mail.gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 1 Aug 2018 17:53:00 +0200
-Message-ID: <CACT4Y+axXa3HXG7ZoJSmP-g2QqtnvQ77oUZuioX-V9Ydi-56Dw@mail.gmail.com>
-Subject: Re: SLAB_TYPESAFE_BY_RCU without constructors (was Re: [PATCH v4
- 13/17] khwasan: add hooks implementation)
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180801083349.GF16767@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <edumazet@google.com>
-Cc: Christoph Lameter <cl@linux.com>, Eric Dumazet <eric.dumazet@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Linus Torvalds <torvalds@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, linux-ext4@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pablo Neira Ayuso <pablo@netfilter.org>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Florian Westphal <fw@strlen.de>, David Miller <davem@davemloft.net>, NetFilter <netfilter-devel@vger.kernel.org>, coreteam@netfilter.org, netdev <netdev@vger.kernel.org>, Gerrit Renker <gerrit@erg.abdn.ac.uk>, dccp@vger.kernel.org, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, David Airlie <airlied@linux.ie>, intel-gfx <intel-gfx@lists.freedesktop.org>, DRI <dri-devel@lists.freedesktop.org>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>, Ursula Braun <ubraun@linux.ibm.com>, linux-s390 <linux-s390@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>
+To: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
+Cc: Florian Westphal <fw@strlen.de>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, netfilter-devel@vger.kernel.org
 
-On Wed, Aug 1, 2018 at 5:37 PM, Eric Dumazet <edumazet@google.com> wrote:
-> On Wed, Aug 1, 2018 at 8:15 AM Christopher Lameter <cl@linux.com> wrote:
->>
->> On Wed, 1 Aug 2018, Dmitry Vyukov wrote:
->>
->> > But we are trading 1 indirect call for comparable overhead removed
->> > from much more common path. The path that does ctors is also calling
->> > into page alloc, which is much more expensive.
->> > So ctor should be a net win on performance front, no?
->>
->> ctor would make it esier to review the flow and guarantee that the object
->> always has certain fields set as required before any use by the subsystem.
->>
->> ctors are run once on allocation of the slab page for all objects in it.
->>
->> ctors are not called duiring allocation and freeing of objects from the
->> slab page. So we could avoid the intialization of the spinlock on each
->> object allocation which actually should be faster.
->
->
-> This strategy might have been a win 30 years ago when cpu had no
-> caches (or too small anyway)
->
-> What probability is that the 60 bytes around the spinlock are not
-> touched after the object is freshly allocated ?
->
-> -> None
->
-> Writing 60 bytes  in one cache line instead of 64 has really the same
-> cost. The cache line miss is the real killer.
->
-> Feel free to write the patches, test them,  but I doubt you will have any gain.
->
-> Remember btw that TCP sockets can be either completely fresh
-> (socket() call, using memset() to clear the whole object),
-> or clones (accept() thus copying the parent socket)
->
-> The idea of having a ctor() would only be a win if all the fields that
-> can be initialized in the ctor are contiguous and fill an integral
-> number of cache lines.
 
-Code size can have some visible performance impact too.
+*Georgi Nikolov*
+System Administrator
+www.icdsoft.com <http://www.icdsoft.com>
 
-But either way, what you say only means that ctors are not necessary
-significantly faster. But your original point was that they are
-slower.
-If they are not slower, then what Andrey said seems to make sense:
-some gain on code comprehension front re type-stability invariant +
-some gain on performance front (even if not too big) and no downsides.
+On 08/01/2018 11:33 AM, Michal Hocko wrote:
+> On Wed 01-08-18 09:34:23, Vlastimil Babka wrote:
+>> On 07/31/2018 04:05 PM, Florian Westphal wrote:
+>>> Georgi Nikolov <gnikolov@icdsoft.com> wrote:
+>>>>> No, I think that's rather for the netfilter folks to decide. Howeve=
+r, it
+>>>>> seems there has been the debate already [1] and it was not found. T=
+he
+>>>>> conclusion was that __GFP_NORETRY worked fine before, so it should =
+work
+>>>>> again after it's added back. But now we know that it doesn't...
+>>>>>
+>>>>> [1] https://lore.kernel.org/lkml/20180130140104.GE21609@dhcp22.suse=
+=2Ecz/T/#u
+>>>> Yes i see. I will add Florian Westphal to CC list. netfilter-devel i=
+s
+>>>> already in this list so probably have to wait for their opinion.
+>>> It hasn't changed, I think having OOM killer zap random processes
+>>> just because userspace wants to import large iptables ruleset is not =
+a
+>>> good idea.
+>> If we denied the allocation instead of OOM (e.g. by using
+>> __GFP_RETRY_MAYFAIL), a slightly smaller one may succeed, still leavin=
+g
+>> the system without much memory, so it will invoke OOM killer sooner or=
+
+>> later anyway.
+>>
+>> I don't see any silver-bullet solution, unfortunately. If this can be
+>> abused by (multiple) namespaces, then they have to be contained by
+>> kmemcg as that's the generic mechanism intended for this. Then we coul=
+d
+>> use the __GFP_RETRY_MAYFAIL.
+>> The only limit we could impose to outright deny the allocation (to
+>> prevent obvious bugs/admin mistakes or abuses) could be based on the
+>> amount of RAM, as was suggested in the old thread.
+
+Can we make this configurable - on/off switch or size above which
+to pass GFP_NORETRY. Probably hard coded based on amount of RAM is a
+good idea too.
+
+>> __GFP_NORETRY might look like a good match at first sight as that stop=
+s
+>> allocating when "reclaim becomes hard" which means the system is still=
+
+>> relatively far from OOM. But it's not reliable in principle, and as th=
+is
+>> bug report shows. That's fine when __GFP_NORETRY is used for optimisti=
+c
+>> allocations that have some other fallback (e.g. huge page with fallbac=
+k
+>> to base page), but far from ideal when failure means returning -ENOMEM=
+
+>> to userspace.
+> I absolutely agree. The whole __GFP_NORETRY is quite dubious TBH. I hav=
+e
+> used it to get the original behavior because the change wasn't really
+> intended to make functional changes. But consideg ring this requires
+> higher privileges then I fail to see where the distrust comes from. If
+> this is really about untrusted root in a namespace then the proper way
+> is to use __GFP_ACCOUNT and limit that via kmemc.
+>
+> __GFP_NORETRY can fail really easily if the kswapd doesn't keep the pac=
+e
+> with the allocations which might be completely unrelated to this
+> particular request.
