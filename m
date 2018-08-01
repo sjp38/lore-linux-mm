@@ -1,80 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A4D96B0005
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 12:37:44 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id 133-v6so11976567ywq.4
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 09:37:44 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id 62-v6si4425492ybw.621.2018.08.01.09.37.42
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 34BB66B0008
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 12:47:49 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id d12-v6so11143585pgv.12
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 09:47:49 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z24-v6sor4713529pgn.109.2018.08.01.09.47.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Aug 2018 09:37:42 -0700 (PDT)
-Date: Wed, 1 Aug 2018 09:37:23 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH v13 0/7] cgroup-aware OOM killer
-Message-ID: <20180801163718.GA23539@castle>
-References: <0d018c7e-a3de-a23a-3996-bed8b28b1e4a@i-love.sakura.ne.jp>
- <20180716220918.GA3898@castle.DHCP.thefacebook.com>
- <201807170055.w6H0tHn5075670@www262.sakura.ne.jp>
- <ede70c6a-620b-f835-d66c-b4608fe0ef54@i-love.sakura.ne.jp>
+        (Google Transport Security);
+        Wed, 01 Aug 2018 09:47:48 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <ede70c6a-620b-f835-d66c-b4608fe0ef54@i-love.sakura.ne.jp>
+In-Reply-To: <bf435a04-b689-ec5a-f5df-f47807b43316@gmail.com>
+References: <e3b48104-3efb-1896-0d46-792419f49a75@virtuozzo.com>
+ <01000164f169bc6b-c73a8353-d7d9-47ec-a782-90aadcb86bfb-000000@email.amazonses.com>
+ <CA+55aFzHR1+YbDee6Cduo6YXHO9LKmLN1wP=MVzbP41nxUb5=g@mail.gmail.com>
+ <CA+55aFzYLgyNp1jsqsvUOjwZdO_1Piqj=iB=rzDShjScdNtkbg@mail.gmail.com>
+ <30ee6c72-dc90-275a-8e23-54221f393cb0@virtuozzo.com> <c03fd1ca-0169-4492-7d6f-2df7a91bff5e@gmail.com>
+ <CACT4Y+bLbDunoz+0qB=atbQXJ9Gu3N6+UXPwNnqMbq5RyZu1mQ@mail.gmail.com>
+ <cf751136-c459-853a-0210-abf16f54ad17@gmail.com> <CACT4Y+b6aCHMTQD21fSf2AMZoH5g8p-FuCVHviMLF00uFV+zGg@mail.gmail.com>
+ <01000164f60f3f12-b1253c6e-ee57-49fc-aed8-0944ab4fd7a2-000000@email.amazonses.com>
+ <CANn89i+KtwtLvSw1c=Ux8okKP+XyMxzYbuKhYb2qhYeMw=NTzg@mail.gmail.com>
+ <01000164f64bd525-be13e04f-18a9-4f7f-a44b-0c0fcec33b71-000000@email.amazonses.com>
+ <bf435a04-b689-ec5a-f5df-f47807b43316@gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 1 Aug 2018 18:47:26 +0200
+Message-ID: <CACT4Y+akncPCAZ2pUX3xEpUPELQAei1XzYByB8Dohfz-Ve0k5w@mail.gmail.com>
+Subject: Re: SLAB_TYPESAFE_BY_RCU without constructors (was Re: [PATCH v4
+ 13/17] khwasan: add hooks implementation)
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@vger.kernel.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Christopher Lameter <cl@linux.com>, Eric Dumazet <edumazet@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Linus Torvalds <torvalds@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, linux-ext4@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pablo Neira Ayuso <pablo@netfilter.org>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Florian Westphal <fw@strlen.de>, David Miller <davem@davemloft.net>, NetFilter <netfilter-devel@vger.kernel.org>, coreteam@netfilter.org, netdev <netdev@vger.kernel.org>, Gerrit Renker <gerrit@erg.abdn.ac.uk>, dccp@vger.kernel.org, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, David Airlie <airlied@linux.ie>, intel-gfx <intel-gfx@lists.freedesktop.org>, DRI <dri-devel@lists.freedesktop.org>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>, Ursula Braun <ubraun@linux.ibm.com>, linux-s390 <linux-s390@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>
 
-On Tue, Jul 31, 2018 at 11:14:01PM +0900, Tetsuo Handa wrote:
-> On 2018/07/17 9:55, Tetsuo Handa wrote:
-> >> I don't get, why it's necessary to drop the cgroup oom killer to merge your fix?
-> >> I'm happy to help with rebasing and everything else.
-> > 
-> > Yes, I wish you rebase your series on top of OOM lockup (CVE-2016-10723) mitigation
-> > patch ( https://marc.info/?l=linux-mm&m=153112243424285&w=4 ). It is a trivial change
-> > and easy to cleanly backport (if applied before your series).
-> > 
-> > Also, I expect you to check whether my cleanup patch which removes "abort" path
-> > ( [PATCH 1/2] at https://marc.info/?l=linux-mm&m=153119509215026&w=4 ) helps
-> > simplifying your series. I don't know detailed behavior of your series, but I
-> > assume that your series do not kill threads which current thread should not wait
-> > for MMF_OOM_SKIP.
-> 
-> syzbot is hitting WARN(1) due to mem_cgroup_out_of_memory() == false.
-> https://urldefense.proofpoint.com/v2/url?u=https-3A__syzkaller.appspot.com_bug-3Fid-3Dea8c7912757d253537375e981b61749b2da69258&d=DwICJg&c=5VD0RTtNlTh3ycd41b3MUw&r=i6WobKxbeG3slzHSIOxTVtYIJw7qjCE6S0spDTKL-J4&m=h9FJRAWtCmDLT-cVwvXKCYIUVRSrD--0XFJE-OnNY64&s=If6eFu6MlYjnfLXeg5_S-3tuhCZhSMv8_qfSrMfwOQ0&e=
-> 
-> I can't tell what change is triggering this race. Maybe removal of oom_lock from
-> the oom reaper made more likely to hit. But anyway I suspect that
-> 
-> static bool oom_kill_memcg_victim(struct oom_control *oc)
-> {
->         if (oc->chosen_memcg == NULL || oc->chosen_memcg == INFLIGHT_VICTIM)
->                 return oc->chosen_memcg; // <= This line is still broken
-> 
-> because
-> 
->                 /* We have one or more terminating processes at this point. */
->                 oc->chosen_task = INFLIGHT_VICTIM;
-> 
-> is not called.
-> 
-> Also, that patch is causing confusion by reviving schedule_timeout_killable(1)
-> with oom_lock held.
-> 
-> Can we temporarily drop cgroup-aware OOM killer from linux-next.git and
-> apply my cleanup patch? Since the merge window is approaching, I really want to
-> see how next -rc1 would look like...
+On Wed, Aug 1, 2018 at 6:25 PM, Eric Dumazet <eric.dumazet@gmail.com> wrote:
+> On 08/01/2018 09:22 AM, Christopher Lameter wrote:
+>> On Wed, 1 Aug 2018, Eric Dumazet wrote:
+>>
+>>> The idea of having a ctor() would only be a win if all the fields that
+>>> can be initialized in the ctor are contiguous and fill an integral
+>>> number of cache lines.
+>>
+>> Ok. Its reducing code size and makes the object status more consistent.
+>> Isn't that enough?
+>>
+>
+> Prove it ;)
+>
+> I yet have to seen actual numbers.
 
-Hi Tetsuo!
-
-Has this cleanup patch been acked by somebody?
-Which problem does it solve?
-Dropping patches for making a cleanup (if it's a cleanup) sounds a bit strange.
-
-Anyway, there is a good chance that current cgroup-aware OOM killer
-implementation will be replaced by a lightweight version (memory.oom.group).
-Please, take a look at it, probably your cleanup will not conflict with it
-at all.
-
-Thanks!
+Proving with numbers is required for a claimed performance improvement
+at the cost of code degradation/increase. For a win-win change there
+is really nothing to prove.
