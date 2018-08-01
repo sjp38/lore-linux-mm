@@ -1,45 +1,101 @@
-From: Jiri Kosina <jikos@kernel.org>
-Subject: Re: [RESEND] Spectre-v2 (IBPB/IBRS) and SSBD fixes for
- 4.4.y
-Date: Tue, 24 Jul 2018 00:06:19 +0200 (CEST)
-Message-ID: <nycvar.YFH.7.76.1807232357440.997@cbobk.fhfr.pm>
-References: <153156030832.10043.13438231886571087086.stgit@srivatsa-ubuntu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-Return-path: <xen-devel-bounces@lists.xenproject.org>
-In-Reply-To: <153156030832.10043.13438231886571087086.stgit@srivatsa-ubuntu>
-List-Unsubscribe: <https://lists.xenproject.org/mailman/options/xen-devel>,
- <mailto:xen-devel-request@lists.xenproject.org?subject=unsubscribe>
-List-Post: <mailto:xen-devel@lists.xenproject.org>
-List-Help: <mailto:xen-devel-request@lists.xenproject.org?subject=help>
-List-Subscribe: <https://lists.xenproject.org/mailman/listinfo/xen-devel>,
- <mailto:xen-devel-request@lists.xenproject.org?subject=subscribe>
-Errors-To: xen-devel-bounces@lists.xenproject.org
-Sender: "Xen-devel" <xen-devel-bounces@lists.xenproject.org>
-To: "Srivatsa S. Bhat" <srivatsa@csail.mit.edu>
-Cc: Dave Hansen <dave@sr71.net>, Wanpeng Li <kernellwp@gmail.com>, Andi Kleen <ak@linux.intel.com>, linux-tip-commits@vger.kernel.org, Piotr Luc <piotr.luc@intel.com>, Mel Gorman <mgorman@suse.de>, arjan.van.de.ven@intel.com, xen-devel@lists.xenproject.org, Alexander Sergeyev <sergeev917@gmail.com>, Brian Gerst <brgerst@gmail.com>, Andy Lutomirski <luto@kernel.org>, =?ISO-8859-15?Q?Micka=EBlSala=FCn?= <mic@digikod.net>, Thomas Gleixner <tglx@linutronix.de>, Joe Konno <joe.konno@linux.intel.com>, Laura Abbott <labbott@fedoraproject.org>, Will Drewry <wad@chromium.org>, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, Jia Zhang <qianyue.zj@alibaba-inc.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Woodhouse <dwmw@amazon.co.uk>, KarimAllah Ahmed <karahmed@amazon.de>, Dave Hansen <dave.hansen@linux.intel.com>lin
-List-Id: linux-mm.kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 092716B0005
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 01:53:07 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id t17-v6so4194500edr.21
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2018 22:53:06 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g24-v6si6930470edm.273.2018.07.31.22.53.04
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Jul 2018 22:53:05 -0700 (PDT)
+Date: Wed, 1 Aug 2018 07:53:02 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/3] mm: introduce mem_cgroup_put() helper
+Message-ID: <20180801055302.GA16767@dhcp22.suse.cz>
+References: <20180730180100.25079-1-guro@fb.com>
+ <20180730180100.25079-2-guro@fb.com>
+ <20180731084509.GE4557@dhcp22.suse.cz>
+ <CALvZod75t+uK=FDtpuBCMZCk7cb4vQMy7DpXQ53Aj7ZLiYsTQQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALvZod75t+uK=FDtpuBCMZCk7cb4vQMy7DpXQ53Aj7ZLiYsTQQ@mail.gmail.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Roman Gushchin <guro@fb.com>, Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-T24gU2F0LCAxNCBKdWwgMjAxOCwgU3JpdmF0c2EgUy4gQmhhdCB3cm90ZToKCj4gVGhpcyBwYXRj
-aCBzZXJpZXMgaXMgYSBiYWNrcG9ydCBvZiB0aGUgU3BlY3RyZS12MiBmaXhlcyAoSUJQQi9JQlJT
-KQo+IGFuZCBwYXRjaGVzIGZvciB0aGUgU3BlY3VsYXRpdmUgU3RvcmUgQnlwYXNzIHZ1bG5lcmFi
-aWxpdHkgdG8gNC40LnkKPiAodGhleSBhcHBseSBjbGVhbmx5IG9uIHRvcCBvZiA0LjQuMTQwKS4K
-CkZXSVcgLS0gbm90IHN1cmUgaG93IG11Y2ggaW5zcGlyYXRpb24geW91IHRvb2sgZnJvbSBvdXIg
-U0xFIDQuNC1iYXNlZCAKdHJlZSwgYnV0IG1vc3Qgb2YgdGhlIHN0dWZmIGlzIGFscmVhZHkgdGhl
-cmUgZm9yIHF1aXRlIHNvbWUgdGltZSAKKGluY2x1ZGluZyB0aGUgbm9uLXVwc3RyZWFtIElCUlMg
-b24ga2VybmVsIGJvdW5kYXJ5IG9uIFNLTCssIHRyYW1wb2xpbmUgCnN0YWNrIGZvciBQVEkgKHdo
-aWNoIHRoZSBvcmlnaW5hbCBwb3J0IGRpZG4ndCBoYXZlKSwgZXRjKS4KClRoZSBJQlJTIFNLTCsg
-c3R1ZmYgaGFzIG5vdCBiZWVuIHBpY2tlZCB1cCBieSBHcmVnLCBhcyBpdCdzIG5vbi11cHN0cmVh
-bSwgCmFuZCB0aGUgdHJhbXBvbGluZSBzdGFjayBJIGJlbGlldmUgd2FzIHBvaW50ZWQgb3V0IHRv
-IHN0YWJsZUAsIGJ1dCBub29uZSAKcmVhbGx5IHNhdCBkb3duIGFuZCBkaWQgdGhlIHBvcnQgKG91
-ciBjb2RlYmFzZSBpcyBkaWZmZXJlbnQgdGhhbiA0LjQueCAKc3RhYmxlIGJhc2UpLCBidXQgaXQg
-ZGVmaW5pdGVseSBzaG91bGQgYmUgZG9uZSBpZiBzb21lb25lIGhhcyB0byBwdXQgMTAwJSAKdHJ1
-c3QgaW50byB0aGUgUFRJIHBvcnQgKGVpdGhlciB0aGF0LCBvciBhdCBsZWFzdCB6ZXJvaW5nIG91
-dCB0aGUga2VybmVsIAp0aHJlYWQgdGhyZWFkIHN0YWNrIC4uLiB3ZSB1c2VkIHRvIGhhdmUgdGVt
-cG9yYXJpbHkgdGhhdCBiZWZvcmUgd2UgCnN3aXRjaGVkIG92ZXIgdG8gcHJvcGVyIGVudHJ5IHRy
-YW1wb2xpbmUgaW4gdGhpcyB2ZXJzaW9uIGFzIHdlbGwpLgoKVGhhbmtzLAoKLS0gCkppcmkgS29z
-aW5hClNVU0UgTGFicwoKCl9fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19f
-X19fX19fClhlbi1kZXZlbCBtYWlsaW5nIGxpc3QKWGVuLWRldmVsQGxpc3RzLnhlbnByb2plY3Qu
-b3JnCmh0dHBzOi8vbGlzdHMueGVucHJvamVjdC5vcmcvbWFpbG1hbi9saXN0aW5mby94ZW4tZGV2
-ZWw=
+On Tue 31-07-18 07:58:00, Shakeel Butt wrote:
+> On Tue, Jul 31, 2018 at 1:45 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Mon 30-07-18 11:00:58, Roman Gushchin wrote:
+> > > Introduce the mem_cgroup_put() helper, which helps to eliminate guarding
+> > > memcg css release with "#ifdef CONFIG_MEMCG" in multiple places.
+> >
+> > Is there any reason for this to be a separate patch? I usually do not
+> > like to add helpers without their users because this makes review
+> > harder. This one is quite trivial to fit into Patch3 easilly.
+> >
+> 
+> The helper function introduced in this change is also used in the
+> remote charging patches, so, I asked Roman to separate this change out
+> and thus can be merged independently.
+
+Ok, that was not clear from the description. Then this is ok
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+ 
+> Shakeel
+> 
+> > > Link: http://lkml.kernel.org/r/20180623000600.5818-2-guro@fb.com
+> > > Signed-off-by: Roman Gushchin <guro@fb.com>
+> > > Reviewed-by: Shakeel Butt <shakeelb@google.com>
+> > > Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+> > > Cc: Shakeel Butt <shakeelb@google.com>
+> > > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > > Cc: Michal Hocko <mhocko@kernel.org>
+> > > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> > > Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
+> > > ---
+> > >  include/linux/memcontrol.h | 9 +++++++++
+> > >  1 file changed, 9 insertions(+)
+> > >
+> > > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> > > index 6c6fb116e925..e53e00cdbe3f 100644
+> > > --- a/include/linux/memcontrol.h
+> > > +++ b/include/linux/memcontrol.h
+> > > @@ -375,6 +375,11 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
+> > >       return css ? container_of(css, struct mem_cgroup, css) : NULL;
+> > >  }
+> > >
+> > > +static inline void mem_cgroup_put(struct mem_cgroup *memcg)
+> > > +{
+> > > +     css_put(&memcg->css);
+> > > +}
+> > > +
+> > >  #define mem_cgroup_from_counter(counter, member)     \
+> > >       container_of(counter, struct mem_cgroup, member)
+> > >
+> > > @@ -837,6 +842,10 @@ static inline bool task_in_mem_cgroup(struct task_struct *task,
+> > >       return true;
+> > >  }
+> > >
+> > > +static inline void mem_cgroup_put(struct mem_cgroup *memcg)
+> > > +{
+> > > +}
+> > > +
+> > >  static inline struct mem_cgroup *
+> > >  mem_cgroup_iter(struct mem_cgroup *root,
+> > >               struct mem_cgroup *prev,
+> > > --
+> > > 2.14.4
+> > >
+> >
+> > --
+> > Michal Hocko
+> > SUSE Labs
+
+-- 
+Michal Hocko
+SUSE Labs
