@@ -1,74 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 18DC76B0006
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 18:56:08 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id h26-v6so176841eds.14
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 15:56:08 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id i20-v6si239344edj.108.2018.08.01.15.56.06
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Aug 2018 15:56:06 -0700 (PDT)
-Date: Wed, 1 Aug 2018 15:55:40 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH v13 0/7] cgroup-aware OOM killer
-Message-ID: <20180801225539.GB32269@castle.DHCP.thefacebook.com>
-References: <0d018c7e-a3de-a23a-3996-bed8b28b1e4a@i-love.sakura.ne.jp>
- <20180716220918.GA3898@castle.DHCP.thefacebook.com>
- <201807170055.w6H0tHn5075670@www262.sakura.ne.jp>
- <ede70c6a-620b-f835-d66c-b4608fe0ef54@i-love.sakura.ne.jp>
- <20180801163718.GA23539@castle>
- <de9a2bad-d80d-98a0-e155-613a34c0b7be@i-love.sakura.ne.jp>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EB3416B0008
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 18:56:49 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id j189-v6so249191oih.11
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 15:56:49 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g3-v6si158292oia.21.2018.08.01.15.56.48
+        for <linux-mm@kvack.org>;
+        Wed, 01 Aug 2018 15:56:48 -0700 (PDT)
+Subject: Re: [RFC 0/2] harden alloc_pages against bogus nid
+References: <20180801200418.1325826-1-jeremy.linton@arm.com>
+ <20180801145020.8c76a490c1bf9bef5f87078a@linux-foundation.org>
+From: Jeremy Linton <jeremy.linton@arm.com>
+Message-ID: <d9f8e9d1-2fb8-6016-5081-7e3213b23ed4@arm.com>
+Date: Wed, 1 Aug 2018 17:56:46 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <de9a2bad-d80d-98a0-e155-613a34c0b7be@i-love.sakura.ne.jp>
+In-Reply-To: <20180801145020.8c76a490c1bf9bef5f87078a@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, mhocko@suse.com, vbabka@suse.cz, Punit.Agrawal@arm.com, Lorenzo.Pieralisi@arm.com, linux-arm-kernel@lists.infradead.org, bhelgaas@google.com, linux-kernel@vger.kernel.org
 
-On Thu, Aug 02, 2018 at 07:01:28AM +0900, Tetsuo Handa wrote:
-> On 2018/08/02 1:37, Roman Gushchin wrote:
-> > On Tue, Jul 31, 2018 at 11:14:01PM +0900, Tetsuo Handa wrote:
-> >> Can we temporarily drop cgroup-aware OOM killer from linux-next.git and
-> >> apply my cleanup patch? Since the merge window is approaching, I really want to
-> >> see how next -rc1 would look like...
-> > 
-> > Hi Tetsuo!
-> > 
-> > Has this cleanup patch been acked by somebody?
-> 
-> Not yet. But since Michal considers this cleanup as "a nice shortcut"
-> ( https://marc.info/?i=20180607112836.GN32433@dhcp22.suse.cz ), I assume that
-> I will get an ACK regarding this cleanup.
-> 
-> > Which problem does it solve?
-> 
-> It simplifies tricky out_of_memory() return value decision, and
-> it also fixes a bug in your series which syzbot is pointing out.
-> 
-> > Dropping patches for making a cleanup (if it's a cleanup) sounds a bit strange.
-> 
-> What I need is a git tree which I can use as a baseline for making this cleanup.
-> linux.git is not suitable because it does not include Michal's fix, but
-> linux-next.git is not suitable because Michal's fix is overwritten by your series.
-> I want a git tree which includes Michal's fix and does not include your series.
-> 
-> > 
-> > Anyway, there is a good chance that current cgroup-aware OOM killer
-> > implementation will be replaced by a lightweight version (memory.oom.group).
-> > Please, take a look at it, probably your cleanup will not conflict with it
-> > at all.
-> 
-> Then, please drop current cgroup-aware OOM killer implementation from linux-next.git .
-> I want to see how next -rc1 would look like (for testing purpose) and want to use
-> linux-next.git as a baseline (for making this cleanup).
+Hi,
 
-I'll post memory.oom.group v2 later today, and if there will be no objections,
-I'll ask Andrew to drop current memcg-aware OOM killer and replace it
-with lightweight memory.oom.group.
+On 08/01/2018 04:50 PM, Andrew Morton wrote:
+> On Wed,  1 Aug 2018 15:04:16 -0500 Jeremy Linton <jeremy.linton@arm.com> wrote:
+> 
+>> The thread "avoid alloc memory on offline node"
+>>
+>> https://lkml.org/lkml/2018/6/7/251
+>>
+>> Asked at one point why the kzalloc_node was crashing rather than
+>> returning memory from a valid node. The thread ended up fixing
+>> the immediate causes of the crash but left open the case of bad
+>> proximity values being in DSDT tables without corrisponding
+>> SRAT/SLIT entries as is happening on another machine.
+>>
+>> Its also easy to fix that, but we should also harden the allocator
+>> sufficiently that it doesn't crash when passed an invalid node id.
+>> There are a couple possible ways to do this, and i've attached two
+>> separate patches which individually fix that problem.
+>>
+>> The first detects the offline node before calling
+>> the new_slab code path when it becomes apparent that the allocation isn't
+>> going to succeed. The second actually hardens node_zonelist() and
+>> prepare_alloc_pages() in the face of NODE_DATA(nid) returning a NULL
+>> zonelist. This latter case happens if the node has never been initialized
+>> or is possibly out of range. There are other places (NODE_DATA &
+>> online_node) which should be checking if the node id's are > MAX_NUMNODES.
+>>
+> 
+> What is it that leads to a caller requesting memory from an invalid
+> node?  A race against offlining?  If so then that's a lack of
+> appropriate locking, isn't it?
 
-These changes will be picked by linux-next in few days.
+There were a couple unrelated cases, both having to do with the PXN 
+associated with a PCI port. The first case AFAIK, the domain wasn't 
+really invalid if the entire SRAT was parsed and nodes created even when 
+there weren't associated CPUs. The second case (a different machine) is 
+simply a PXN value that is completely invalid (no associated 
+SLIT/SRAT/etc entries) due to firmware making a mistake when a socket 
+isn't populated.
 
-Thanks!
+There have been a few other suggested or merged patches for the 
+individual problems above, this set is just an attempt at avoiding a 
+full crash if/when another similar problem happens.
+
+
+> 
+> I don't see a problem with emitting a warning and then selecting a
+> different node so we can keep running.  But we do want that warning, so
+> we can understand the root cause and fix it?
+
+Yes, we do want to know when an invalid id is passed, i will add the 
+VM_WARN in the first one.
+
+The second one I wasn't sure about as failing prepare_alloc_pages() 
+generates a couple of error messages, but the system then continues 
+operation.
+
+I guess my question though is which method (or both/something else?) is 
+the preferred way to harden this up?
+
+Thanks for looking at this.
