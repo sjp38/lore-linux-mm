@@ -1,109 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0516C6B0008
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 03:05:53 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id m2-v6so829115plt.14
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 00:05:52 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id m129-v6si1367208pgm.629.2018.08.02.00.05.51
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D923A6B000C
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 03:06:25 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id g24-v6so852258plq.2
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 00:06:25 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id f17-v6si1117344pge.494.2018.08.02.00.06.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Aug 2018 00:05:51 -0700 (PDT)
-Message-ID: <1533193546.23760.0.camel@intel.com>
-Subject: Re: [PATCH 3/3] nios2: switch to NO_BOOTMEM
+        Thu, 02 Aug 2018 00:06:24 -0700 (PDT)
+Message-ID: <1533193580.23760.1.camel@intel.com>
+Subject: Re: [PATCH 2/3] nios2: use generic early_init_dt_add_memory_arch
 From: Ley Foon Tan <ley.foon.tan@intel.com>
-Date: Thu, 02 Aug 2018 15:05:46 +0800
-In-Reply-To: <1530710295-10774-4-git-send-email-rppt@linux.vnet.ibm.com>
+Date: Thu, 02 Aug 2018 15:06:20 +0800
+In-Reply-To: <1530710295-10774-3-git-send-email-rppt@linux.vnet.ibm.com>
 References: <1530710295-10774-1-git-send-email-rppt@linux.vnet.ibm.com>
-	 <1530710295-10774-4-git-send-email-rppt@linux.vnet.ibm.com>
+	 <1530710295-10774-3-git-send-email-rppt@linux.vnet.ibm.com>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: base64
+Content-Transfer-Encoding: quoted-printable
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mike Rapoport <rppt@linux.vnet.ibm.com>, Ley Foon Tan <lftan@altera.com>
 Cc: Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Michal Hocko <mhocko@kernel.org>, nios2-dev@lists.rocketboards.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-T24gV2VkLCAyMDE4LTA3LTA0IGF0IDE2OjE4ICswMzAwLCBNaWtlIFJhcG9wb3J0IHdyb3RlOgo+
-IFJlbW92ZSBib290bWVtIGJpdG1hcCBpbml0aWFsaXphdGlvbiBhbmQgcmVwbGFjZSByZXNlcnZl
-X2Jvb3RtZW0oKQo+IHdpdGgKPiBtZW1ibG9ja19yZXNlcnZlKCkuCj4gCj4gU2lnbmVkLW9mZi1i
-eTogTWlrZSBSYXBvcG9ydCA8cnBwdEBsaW51eC52bmV0LmlibS5jb20+Cj4gLS0tCj4gwqBhcmNo
-L25pb3MyL0tjb25maWfCoMKgwqDCoMKgwqDCoMKgfMKgwqAyICsrCj4gwqBhcmNoL25pb3MyL2tl
-cm5lbC9wcm9tLmPCoMKgfMKgwqA3IC0tLS0tLS0KPiDCoGFyY2gvbmlvczIva2VybmVsL3NldHVw
-LmMgfCAzNyArKysrKy0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCj4gwqAzIGZpbGVz
-IGNoYW5nZWQsIDcgaW5zZXJ0aW9ucygrKSwgMzkgZGVsZXRpb25zKC0pCj4gCj4gZGlmZiAtLWdp
-dCBhL2FyY2gvbmlvczIvS2NvbmZpZyBiL2FyY2gvbmlvczIvS2NvbmZpZwo+IGluZGV4IDVkYjhm
-YTEuLjY2MWY3ZjkgMTAwNjQ0Cj4gLS0tIGEvYXJjaC9uaW9zMi9LY29uZmlnCj4gKysrIGIvYXJj
-aC9uaW9zMi9LY29uZmlnCj4gQEAgLTIwLDYgKzIwLDggQEAgY29uZmlnIE5JT1MyCj4gwqDCoMKg
-wqDCoMKgwqDCoHNlbGVjdCBVU0JfQVJDSF9IQVNfSENEIGlmIFVTQl9TVVBQT1JUCj4gwqDCoMKg
-wqDCoMKgwqDCoHNlbGVjdCBDUFVfTk9fRUZGSUNJRU5UX0ZGUwo+IMKgwqDCoMKgwqDCoMKgwqBz
-ZWxlY3QgSEFWRV9NRU1CTE9DSwo+ICvCoMKgwqDCoMKgwqDCoHNlbGVjdCBBUkNIX0RJU0NBUkRf
-TUVNQkxPQ0sKPiArwqDCoMKgwqDCoMKgwqBzZWxlY3QgTk9fQk9PVE1FTQo+IAo+IMKgY29uZmln
-IEdFTkVSSUNfQ1NVTQo+IMKgwqDCoMKgwqDCoMKgwqBkZWZfYm9vbCB5Cj4gZGlmZiAtLWdpdCBh
-L2FyY2gvbmlvczIva2VybmVsL3Byb20uYyBiL2FyY2gvbmlvczIva2VybmVsL3Byb20uYwo+IGlu
-ZGV4IGJhOTZhNDkuLmE2ZDRmNzUgMTAwNjQ0Cj4gLS0tIGEvYXJjaC9uaW9zMi9rZXJuZWwvcHJv
-bS5jCj4gKysrIGIvYXJjaC9uaW9zMi9rZXJuZWwvcHJvbS5jCj4gQEAgLTMyLDEzICszMiw2IEBA
-Cj4gCj4gwqAjaW5jbHVkZSA8YXNtL3NlY3Rpb25zLmg+Cj4gCj4gLWludCBfX2luaXQgZWFybHlf
-aW5pdF9kdF9yZXNlcnZlX21lbW9yeV9hcmNoKHBoeXNfYWRkcl90IGJhc2UsCj4gcGh5c19hZGRy
-X3Qgc2l6ZSwKPiAtwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDC
-oMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoGJvb2wgbm9tYXApCj4g
-LXsKPiAtwqDCoMKgwqDCoMKgwqByZXNlcnZlX2Jvb3RtZW0oYmFzZSwgc2l6ZSwgQk9PVE1FTV9E
-RUZBVUxUKTsKPiAtwqDCoMKgwqDCoMKgwqByZXR1cm4gMDsKPiAtfQo+IC0KPiDCoHZvaWQgX19p
-bml0IGVhcmx5X2luaXRfZGV2dHJlZSh2b2lkICpwYXJhbXMpCj4gwqB7Cj4gwqDCoMKgwqDCoMKg
-wqDCoF9fYmUzMiAqZHRiID0gKHUzMiAqKV9fZHRiX3N0YXJ0Owo+IGRpZmYgLS1naXQgYS9hcmNo
-L25pb3MyL2tlcm5lbC9zZXR1cC5jIGIvYXJjaC9uaW9zMi9rZXJuZWwvc2V0dXAuYwo+IGluZGV4
-IDA5NDY4NDAuLjJkMDAxMWQgMTAwNjQ0Cj4gLS0tIGEvYXJjaC9uaW9zMi9rZXJuZWwvc2V0dXAu
-Ywo+ICsrKyBiL2FyY2gvbmlvczIva2VybmVsL3NldHVwLmMKPiBAQCAtMTQ0LDEwICsxNDQsMTEg
-QEAgYXNtbGlua2FnZSB2b2lkIF9faW5pdCBuaW9zMl9ib290X2luaXQodW5zaWduZWQKPiByNCwg
-dW5zaWduZWQgcjUsIHVuc2lnbmVkIHI2LAo+IAo+IMKgdm9pZCBfX2luaXQgc2V0dXBfYXJjaChj
-aGFyICoqY21kbGluZV9wKQo+IMKgewo+IC3CoMKgwqDCoMKgwqDCoGludCBib290bWFwX3NpemU7
-Cj4gK8KgwqDCoMKgwqDCoMKgaW50IGRyYW1fc3RhcnQ7Cj4gCj4gwqDCoMKgwqDCoMKgwqDCoGNv
-bnNvbGVfdmVyYm9zZSgpOwo+IAo+ICvCoMKgwqDCoMKgwqDCoGRyYW1fc3RhcnQgPSBtZW1ibG9j
-a19zdGFydF9vZl9EUkFNKCk7Cj4gwqDCoMKgwqDCoMKgwqDCoG1lbW9yeV9zaXplID0gbWVtYmxv
-Y2tfcGh5c19tZW1fc2l6ZSgpOwo+IMKgwqDCoMKgwqDCoMKgwqBtZW1vcnlfc3RhcnQgPSBQQUdF
-X0FMSUdOKCh1bnNpZ25lZCBsb25nKV9fcGEoX2VuZCkpOwo+IMKgwqDCoMKgwqDCoMKgwqBtZW1v
-cnlfZW5kID0gKHVuc2lnbmVkIGxvbmcpIENPTkZJR19OSU9TMl9NRU1fQkFTRSArCj4gbWVtb3J5
-X3NpemU7Cj4gQEAgLTE2NSwzOSArMTY2LDExIEBAIHZvaWQgX19pbml0IHNldHVwX2FyY2goY2hh
-ciAqKmNtZGxpbmVfcCkKPiDCoMKgwqDCoMKgwqDCoMKgbWF4X2xvd19wZm4gPSBQRk5fRE9XTiht
-ZW1vcnlfZW5kKTsKPiDCoMKgwqDCoMKgwqDCoMKgbWF4X21hcG5yID0gbWF4X2xvd19wZm47Cj4g
-Cj4gLcKgwqDCoMKgwqDCoMKgLyoKPiAtwqDCoMKgwqDCoMKgwqDCoCogZ2l2ZSBhbGwgdGhlIG1l
-bW9yeSB0byB0aGUgYm9vdG1hcCBhbGxvY2F0b3IswqDCoHRlbGwgaXQgdG8KPiBwdXQgdGhlCj4g
-LcKgwqDCoMKgwqDCoMKgwqAqIGJvb3QgbWVtX21hcCBhdCB0aGUgc3RhcnQgb2YgbWVtb3J5Cj4g
-LcKgwqDCoMKgwqDCoMKgwqAqLwo+IC3CoMKgwqDCoMKgwqDCoHByX2RlYnVnKCJpbml0X2Jvb3Rt
-ZW1fbm9kZSg/LCUjbHgsICUjeCwgJSNseClcbiIsCj4gLcKgwqDCoMKgwqDCoMKgwqDCoMKgwqDC
-oMKgwqDCoG1pbl9sb3dfcGZuLCBQRk5fRE9XTihQSFlTX09GRlNFVCksIG1heF9sb3dfcGZuKTsK
-PiAtwqDCoMKgwqDCoMKgwqBib290bWFwX3NpemUgPSBpbml0X2Jvb3RtZW1fbm9kZShOT0RFX0RB
-VEEoMCksCj4gLcKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDC
-oMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoG1pbl9sb3dfcGZuLAo+IFBGTl9ET1dOKFBI
-WVNfT0ZGU0VUKSwKPiAtwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKg
-wqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgbWF4X2xvd19wZm4pOwo+IC0KPiAt
-wqDCoMKgwqDCoMKgwqAvKgo+IC3CoMKgwqDCoMKgwqDCoMKgKiBmcmVlIHRoZSB1c2FibGUgbWVt
-b3J5LMKgwqB3ZSBoYXZlIHRvIG1ha2Ugc3VyZSB3ZSBkbyBub3QKPiBmcmVlCj4gLcKgwqDCoMKg
-wqDCoMKgwqAqIHRoZSBib290bWVtIGJpdG1hcCBzbyB3ZSB0aGVuIHJlc2VydmUgaXQgYWZ0ZXIg
-ZnJlZWluZyBpdAo+IDotKQo+IC3CoMKgwqDCoMKgwqDCoMKgKi8KPiAtwqDCoMKgwqDCoMKgwqBw
-cl9kZWJ1ZygiZnJlZV9ib290bWVtKCUjbHgsICUjbHgpXG4iLAo+IC3CoMKgwqDCoMKgwqDCoMKg
-wqDCoMKgwqDCoMKgwqBtZW1vcnlfc3RhcnQsIG1lbW9yeV9lbmQgLSBtZW1vcnlfc3RhcnQpOwo+
-IC3CoMKgwqDCoMKgwqDCoGZyZWVfYm9vdG1lbShtZW1vcnlfc3RhcnQsIG1lbW9yeV9lbmQgLSBt
-ZW1vcnlfc3RhcnQpOwo+IC0KPiAtwqDCoMKgwqDCoMKgwqAvKgo+IC3CoMKgwqDCoMKgwqDCoMKg
-KiBSZXNlcnZlIHRoZSBib290bWVtIGJpdG1hcCBpdHNlbGYgYXMgd2VsbC4gV2UgZG8gdGhpcyBp
-bgo+IHR3bwo+IC3CoMKgwqDCoMKgwqDCoMKgKiBzdGVwcyAoZmlyc3Qgc3RlcCB3YXMgaW5pdF9i
-b290bWVtKCkpIGJlY2F1c2UgdGhpcyBjYXRjaGVzCj4gLcKgwqDCoMKgwqDCoMKgwqAqIHRoZSAo
-dmVyeSB1bmxpa2VseSkgY2FzZSBvZiB1cyBhY2NpZGVudGFsbHkgaW5pdGlhbGl6aW5nCj4gdGhl
-Cj4gLcKgwqDCoMKgwqDCoMKgwqAqIGJvb3RtZW0gYWxsb2NhdG9yIHdpdGggYW4gaW52YWxpZCBS
-QU0gYXJlYS4KPiAtwqDCoMKgwqDCoMKgwqDCoCoKPiAtwqDCoMKgwqDCoMKgwqDCoCogQXJndW1l
-bnRzIGFyZSBzdGFydCwgc2l6ZQo+IC3CoMKgwqDCoMKgwqDCoMKgKi8KPiAtwqDCoMKgwqDCoMKg
-wqBwcl9kZWJ1ZygicmVzZXJ2ZV9ib290bWVtKCUjbHgsICUjeClcbiIsIG1lbW9yeV9zdGFydCwK
-PiBib290bWFwX3NpemUpOwo+IC3CoMKgwqDCoMKgwqDCoHJlc2VydmVfYm9vdG1lbShtZW1vcnlf
-c3RhcnQsIGJvb3RtYXBfc2l6ZSwgQk9PVE1FTV9ERUZBVUxUKTsKPiAtCj4gK8KgwqDCoMKgwqDC
-oMKgbWVtYmxvY2tfcmVzZXJ2ZShkcmFtX3N0YXJ0LCBtZW1vcnlfc3RhcnQgLSBkcmFtX3N0YXJ0
-KTsKPiDCoCNpZmRlZiBDT05GSUdfQkxLX0RFVl9JTklUUkQKPiDCoMKgwqDCoMKgwqDCoMKgaWYg
-KGluaXRyZF9zdGFydCkgewo+IC3CoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqByZXNlcnZl
-X2Jvb3RtZW0odmlydF90b19waHlzKCh2b2lkICopaW5pdHJkX3N0YXJ0KSwKPiAtwqDCoMKgwqDC
-oMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqBpbml0
-cmRfZW5kIC0gaW5pdHJkX3N0YXJ0LAo+IEJPT1RNRU1fREVGQVVMVCk7Cj4gK8KgwqDCoMKgwqDC
-oMKgwqDCoMKgwqDCoMKgwqDCoG1lbWJsb2NrX3Jlc2VydmUodmlydF90b19waHlzKCh2b2lkICop
-aW5pdHJkX3N0YXJ0KSwKPiArwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDC
-oMKgwqDCoMKgwqDCoMKgwqDCoMKgwqBpbml0cmRfZW5kIC0gaW5pdHJkX3N0YXJ0KTsKPiDCoMKg
-wqDCoMKgwqDCoMKgfQo+IMKgI2VuZGlmIC8qIENPTkZJR19CTEtfREVWX0lOSVRSRCAqLwo+IAo+
-IC0tCj4gMi43LjQKCkFja2VkLWJ5OiBMZXkgRm9vbiBUYW4gPGxleS5mb29uLnRhbkBpbnRlbC5j
-b20+
+On Wed, 2018-07-04 at 16:18 +0300, Mike Rapoport wrote:
+> All we have to do is to enable memblock, the generic FDT code will
+> take
+> care of the rest.
+>=20
+> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> ---
+> =C2=A0arch/nios2/Kconfig=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0|=
+=C2=A0=C2=A01 +
+> =C2=A0arch/nios2/kernel/prom.c=C2=A0=C2=A0| 10 ----------
+> =C2=A0arch/nios2/kernel/setup.c |=C2=A0=C2=A02 ++
+> =C2=A03 files changed, 3 insertions(+), 10 deletions(-)
+>=20
+> diff --git a/arch/nios2/Kconfig b/arch/nios2/Kconfig
+> index 3d4ec88..5db8fa1 100644
+> --- a/arch/nios2/Kconfig
+> +++ b/arch/nios2/Kconfig
+> @@ -19,6 +19,7 @@ config NIOS2
+> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0select SPARSE_IRQ
+> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0select USB_ARCH_HAS_HCD i=
+f USB_SUPPORT
+> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0select CPU_NO_EFFICIENT_F=
+FS
+> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0select HAVE_MEMBLOCK
+>=20
+> =C2=A0config GENERIC_CSUM
+> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0def_bool y
+> diff --git a/arch/nios2/kernel/prom.c b/arch/nios2/kernel/prom.c
+> index 8d7446a..ba96a49 100644
+> --- a/arch/nios2/kernel/prom.c
+> +++ b/arch/nios2/kernel/prom.c
+> @@ -32,16 +32,6 @@
+>=20
+> =C2=A0#include <asm/sections.h>
+>=20
+> -void __init early_init_dt_add_memory_arch(u64 base, u64 size)
+> -{
+> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0u64 kernel_start =3D (u64)virt=
+_to_phys(_text);
+> -
+> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0if (!memory_size &&
+> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0(kerne=
+l_start >=3D base) && (kernel_start < (base + size)))
+> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0memory_size =3D size;
+> -
+> -}
+> -
+> =C2=A0int __init early_init_dt_reserve_memory_arch(phys_addr_t base,
+> phys_addr_t size,
+> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0bool nomap)
+> =C2=A0{
+> diff --git a/arch/nios2/kernel/setup.c b/arch/nios2/kernel/setup.c
+> index 926a02b..0946840 100644
+> --- a/arch/nios2/kernel/setup.c
+> +++ b/arch/nios2/kernel/setup.c
+> @@ -17,6 +17,7 @@
+> =C2=A0#include <linux/sched/task.h>
+> =C2=A0#include <linux/console.h>
+> =C2=A0#include <linux/bootmem.h>
+> +#include <linux/memblock.h>
+> =C2=A0#include <linux/initrd.h>
+> =C2=A0#include <linux/of_fdt.h>
+> =C2=A0#include <linux/screen_info.h>
+> @@ -147,6 +148,7 @@ void __init setup_arch(char **cmdline_p)
+>=20
+> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0console_verbose();
+>=20
+> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0memory_size =3D memblock_phys_=
+mem_size();
+> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0memory_start =3D PAGE_ALI=
+GN((unsigned long)__pa(_end));
+> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0memory_end =3D (unsigned =
+long) CONFIG_NIOS2_MEM_BASE +
+> memory_size;
+>=20
+> --
+Acked-by: Ley Foon Tan <ley.foon.tan@intel.com>
