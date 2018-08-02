@@ -1,47 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D17A76B0003
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 03:59:35 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id m21-v6so1224660oic.7
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 00:59:35 -0700 (PDT)
-Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
-        by mx.google.com with ESMTPS id y129-v6si855691oiy.462.2018.08.02.00.59.34
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D766E6B0006
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 04:00:44 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id i26-v6so534502edr.4
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 01:00:44 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y10-v6si1041433edq.450.2018.08.02.01.00.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Aug 2018 00:59:34 -0700 (PDT)
-From: <chenjie6@huawei.com>
-Subject: [PATCH] mm:bugfix check return value of ioremap_prot
-Date: Thu, 2 Aug 2018 07:37:21 +0000
-Message-ID: <1533195441-58594-1-git-send-email-chenjie6@huawei.com>
+        Thu, 02 Aug 2018 01:00:43 -0700 (PDT)
+Date: Thu, 2 Aug 2018 10:00:41 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/3] introduce memory.oom.group
+Message-ID: <20180802080041.GB10808@dhcp22.suse.cz>
+References: <20180730180100.25079-1-guro@fb.com>
+ <alpine.DEB.2.21.1807301847000.198273@chino.kir.corp.google.com>
+ <20180731235135.GA23436@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1808011437350.38896@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.21.1808011437350.38896@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, tj@kernel.org
-Cc: akpm@linux-foundation.org, lizefan@huawei.com, chen jie <"chen jie@chenjie6"@huwei.com>, chen jie <chenjie6@huawei.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-From: chen jie <chen jie@chenjie6@huwei.com>
+On Wed 01-08-18 14:51:25, David Rientjes wrote:
+> On Tue, 31 Jul 2018, Roman Gushchin wrote:
+> 
+> > > What's the plan with the cgroup aware oom killer?  It has been sitting in 
+> > > the -mm tree for ages with no clear path to being merged.
+> > 
+> > It's because your nack, isn't it?
+> > Everybody else seem to be fine with it.
+> > 
+> 
+> If they are fine with it, I'm not sure they have tested it :)  Killing 
+> entire cgroups needlessly for mempolicy oom kills that will not free 
+> memory on target nodes is the first regression they may notice.
 
-	ioremap_prot can return NULL which could lead to an oops
+I do not remember you would be mentioning this previously. Anyway the
+older implementation has considered the nodemask in memcg_oom_badness.
+You are right that a cpuset allocation could needlessly select a memcg
+with small or no memory from the target nodemask which is something I
+could have noticed during the review. If only I didn't have to spend all
+my energy to go through repetitive arguments of yours. Anyway this would
+be quite trivial to resolve in the same function by checking
+node_isset(node, current->mems_allowed).
 
-Signed-off-by: chen jie <chenjie6@huawei.com>
----
- mm/memory.c | 3 +++
- 1 file changed, 3 insertions(+)
+Thanks for your productive feedback again.
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 7206a63..316c42e 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -4397,6 +4397,9 @@ int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
- 		return -EINVAL;
- 
- 	maddr = ioremap_prot(phys_addr, PAGE_ALIGN(len + offset), prot);
-+	if (!maddr)
-+		return -ENOMEM;
-+
- 	if (write)
- 		memcpy_toio(maddr + offset, buf, len);
- 	else
+Skipping the rest which is yet again repeating same arguments and it
+doesn't add anything new to the table.
 -- 
-1.8.3.4
+Michal Hocko
+SUSE Labs
