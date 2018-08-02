@@ -1,43 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6158C6B0003
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 16:47:26 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id j15-v6so2146854pff.12
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 13:47:26 -0700 (PDT)
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 977A36B0006
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 17:02:35 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id o12-v6so1973065pls.20
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 14:02:35 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id z5-v6si2546997pgn.105.2018.08.02.13.47.24
+        by mx.google.com with ESMTPS id i184-v6si2967824pfg.250.2018.08.02.14.02.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Aug 2018 13:47:24 -0700 (PDT)
-Date: Thu, 2 Aug 2018 13:47:23 -0700
+        Thu, 02 Aug 2018 14:02:24 -0700 (PDT)
+Date: Thu, 2 Aug 2018 14:02:22 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: Move check for SHRINKER_NUMA_AWARE to
- do_shrink_slab()
-Message-Id: <20180802134723.ecdd540c7c9338f98ee1a2c6@linux-foundation.org>
-In-Reply-To: <153320759911.18959.8842396230157677671.stgit@localhost.localdomain>
-References: <153320759911.18959.8842396230157677671.stgit@localhost.localdomain>
+Subject: Re: [PATCH] mm:bugfix check return value of ioremap_prot
+Message-Id: <20180802140222.5957911883678f8271f636aa@linux-foundation.org>
+In-Reply-To: <CAHbLzkpj9chSMFWWhSb1hTL86rWdys3a=2oHgLjp_e-mDGF1Sw@mail.gmail.com>
+References: <1533195441-58594-1-git-send-email-chenjie6@huawei.com>
+	<CAHbLzkpj9chSMFWWhSb1hTL86rWdys3a=2oHgLjp_e-mDGF1Sw@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: vdavydov.dev@gmail.com, mhocko@suse.com, aryabinin@virtuozzo.com, ying.huang@intel.com, penguin-kernel@I-love.SAKURA.ne.jp, willy@infradead.org, shakeelb@google.com, jbacik@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Yang Shi <shy828301@gmail.com>
+Cc: chenjie6@huawei.com, linux-mm@kvack.org, tj@kernel.org, lizefan@huawei.com, chen jie <"chen jie@chenjie6"@huwei.com>, Alexey Dobriyan <adobriyan@gmail.com>
 
-On Thu, 02 Aug 2018 14:00:52 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+On Thu, 2 Aug 2018 09:47:52 -0700 Yang Shi <shy828301@gmail.com> wrote:
 
-> In case of shrink_slab_memcg() we do not zero nid, when shrinker
-> is not numa-aware. This is not a real problem, since currently
-> all memcg-aware shrinkers are numa-aware too (we have two:
-> super_block shrinker and workingset shrinker), but something may
-> change in the future.
+> On Thu, Aug 2, 2018 at 12:37 AM,  <chenjie6@huawei.com> wrote:
+> > From: chen jie <chen jie@chenjie6@huwei.com>
+> >
+> >         ioremap_prot can return NULL which could lead to an oops
+> 
+> What oops? You'd better to have the oops information in your commit log.
 
-Fair enough.
+Doesn't matter much - the code is clearly buggy.
 
-> (Andrew, this may be merged to mm-iterate-only-over-charged-shrinkers-during-memcg-shrink_slab)
+Looking at the callers, I have suspicions about
+fs/proc/base.c:environ_read().  It's assuming that access_remote_vm()
+returns an errno.  But it doesn't - it returns number of bytes copied.
 
-It got a bit messy so I got lazy and queued it as a separate patch.
-
-btw, I have a note that https://lkml.org/lkml/2018/7/7/32 was caused by
-this patch series.  Is that the case and do you know if this was
-addressed?
+Alexey, could you please take a look?  While in there, I'd suggest
+adding some return value documentation to __access_remote_vm() and
+access_remote_vm().  Thanks.
