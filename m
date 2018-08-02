@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 77BF26B0008
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 04:03:10 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id y8-v6so500157edr.12
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 01:03:10 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0112.outbound.protection.outlook.com. [104.47.0.112])
-        by mx.google.com with ESMTPS id a16-v6si1711776edc.228.2018.08.02.01.03.08
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 10E1F6B000C
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 04:13:34 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id 90-v6so922565pla.18
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 01:13:34 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0098.outbound.protection.outlook.com. [104.47.1.98])
+        by mx.google.com with ESMTPS id t10-v6si442249pgn.370.2018.08.02.01.13.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 02 Aug 2018 01:03:08 -0700 (PDT)
-Subject: Re: [PATCH] memcg: Remove memcg_cgroup::id from IDR on
- mem_cgroup_css_alloc() failure
+        Thu, 02 Aug 2018 01:13:32 -0700 (PDT)
+Subject: [PATCH] memcg: Add comment to mem_cgroup_css_online()
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
 References: <20180413115454.GL17484@dhcp22.suse.cz>
  <abfd4903-c455-fac2-7ed6-73707cda64d1@virtuozzo.com>
  <20180413121433.GM17484@dhcp22.suse.cz>
@@ -22,11 +22,11 @@ References: <20180413115454.GL17484@dhcp22.suse.cz>
  <20180731163908.603d7a27c6534341e1afa724@linux-foundation.org>
  <20180801155552.GA8600@cmpxchg.org>
  <20180801162235.j3v7xipyw5afnj4x@esperanza>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <7a836e47-f0a4-6802-9b90-cc473e5ab90b@virtuozzo.com>
-Date: Thu, 2 Aug 2018 11:03:02 +0300
+ <7a836e47-f0a4-6802-9b90-cc473e5ab90b@virtuozzo.com>
+Message-ID: <521f9e5f-c436-b388-fe83-4dc870bfb489@virtuozzo.com>
+Date: Thu, 2 Aug 2018 11:13:24 +0300
 MIME-Version: 1.0
-In-Reply-To: <20180801162235.j3v7xipyw5afnj4x@esperanza>
+In-Reply-To: <7a836e47-f0a4-6802-9b90-cc473e5ab90b@virtuozzo.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -35,55 +35,24 @@ List-ID: <linux-mm.kvack.org>
 To: Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 01.08.2018 19:22, Vladimir Davydov wrote:
-> On Wed, Aug 01, 2018 at 11:55:52AM -0400, Johannes Weiner wrote:
->> On Tue, Jul 31, 2018 at 04:39:08PM -0700, Andrew Morton wrote:
->>> On Mon, 30 Jul 2018 11:31:13 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
->>>
->>>> Subject: [PATCH] mm: memcontrol: simplify memcg idr allocation and error
->>>>  unwinding
->>>>
->>>> The memcg ID is allocated early in the multi-step memcg creation
->>>> process, which needs 2-step ID allocation and IDR publishing, as well
->>>> as two separate IDR cleanup/unwind sites on error.
->>>>
->>>> Defer the IDR allocation until the last second during onlining to
->>>> eliminate all this complexity. There is no requirement to have the ID
->>>> and IDR entry earlier than that. And the root reference to the ID is
->>>> put in the offline path, so this matches nicely.
->>>
->>> This patch isn't aware of Kirill's later "mm, memcg: assign memcg-aware
->>> shrinkers bitmap to memcg", which altered mem_cgroup_css_online():
->>>
->>> @@ -4356,6 +4470,11 @@ static int mem_cgroup_css_online(struct
->>>  {
->>>  	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
->>>  
->>> +	if (memcg_alloc_shrinker_maps(memcg)) {
->>> +		mem_cgroup_id_remove(memcg);
->>> +		return -ENOMEM;
->>> +	}
->>> +
->>>  	/* Online state pins memcg ID, memcg ID pins CSS */
->>>  	atomic_set(&memcg->id.ref, 1);
->>>  	css_get(css);
->>>
->>
->> Hm, that looks out of place too. The bitmaps are allocated for the
->> entire lifetime of the css, not just while it's online.
->>
->> Any objections to the following fixup to that patch?
-> 
-> That would be incorrect. Memory cgroups that haven't been put online
-> are invisible to for_each_mem_cgroup(), which is used for expanding
-> shrinker maps of all cgroups - see memcg_expand_shrinker_maps(). So if
-> memcg_expand_shrinker_maps() is called between css_alloc and css_online,
-> it will miss this cgroup and its shrinker_map won't be reallocated to
-> fit the new id. Allocating the shrinker map in css_online guarantees
-> that it won't happen.
+Explain relationships between allocation and expanding.
 
-Yes, doubtless.
-
->Looks like this code lacks a comment...
-
-Ok.
+Suggested-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+---
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index d90993ef1d7d..34e5ff72ce87 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4703,6 +4703,11 @@ static int mem_cgroup_css_online(struct cgroup_subsys_state *css)
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+ 
++	/*
++	 * A memcg must be visible for memcg_expand_shrinker_maps()
++	 * by the time the maps are allocated. So, we allocate maps
++	 * here, when for_each_mem_cgroup() can't skip it.
++	 */
+ 	if (memcg_alloc_shrinker_maps(memcg)) {
+ 		mem_cgroup_id_remove(memcg);
+ 		return -ENOMEM;
