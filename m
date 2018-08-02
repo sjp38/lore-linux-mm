@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A291E6B026D
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 16:01:16 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id e3-v6so3030836qkj.17
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 13:01:16 -0700 (PDT)
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 864A66B026F
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 16:01:50 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id i23-v6so2527835qtf.9
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 13:01:50 -0700 (PDT)
 Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
-        by mx.google.com with ESMTPS id q13-v6si2644705qvd.106.2018.08.02.13.01.14
+        by mx.google.com with ESMTPS id o3-v6si610509qkd.87.2018.08.02.13.01.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Aug 2018 13:01:14 -0700 (PDT)
+        Thu, 02 Aug 2018 13:01:49 -0700 (PDT)
 From: Tony Battersby <tonyb@cybernetics.com>
-Subject: [PATCH v2 8/9] dmapool: reduce footprint in struct page
-Message-ID: <0ccfd31b-0a3f-9ae8-85c8-e176cd5453a9@cybernetics.com>
-Date: Thu, 2 Aug 2018 16:01:12 -0400
+Subject: [PATCH v2 9/9] [SCSI] mpt3sas: replace chain_dma_pool
+Message-ID: <bd0b747f-3424-e402-07ba-44e642937d8f@cybernetics.com>
+Date: Thu, 2 Aug 2018 16:01:47 -0400
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
@@ -21,398 +21,247 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, MPT-FusionLinux.pdl@broadcom.com
 
-This is my attempt to shrink 'dma_free_o' and 'dma_in_use' in 'struct
-page' (originally 'offset' and 'in_use' in 'struct dma_page') to 16-bit
-so that it is unnecessary to use the '_mapcount' field of 'struct
-page'.  However, it adds complexity and makes allocating and freeing up
-to 20% slower for little gain, so I am NOT recommending that it be
-merged at this time.  I am posting it just for reference in case someone
-finds it useful in the future.
+Replace chain_dma_pool with direct calls to dma_alloc_coherent() and
+dma_free_coherent().  Since the chain lookup can involve hundreds of
+thousands of allocations, it is worthwile to avoid the overhead of the
+dma_pool API.
 
-The main difficulty is supporting archs that have PAGE_SIZE > 64 KiB,
-for which a 16-bit byte offset is insufficient to cover the entire
-page.  So I took the approach of converting everything from a "byte
-offset" into a "block index".  That way the code can split any PAGE_SIZE
-into as many as 65535 blocks (one 16-bit index value is reserved for the
-list terminator).  For example, with PAGE_SIZE of 1 MiB, you get 65535
-blocks for 'size' <= 16.  But that introduces a lot of ugly math due to
-the 'boundary' checking, which makes the code slower and more complex.
-
-I wrote a standalone program that iterates over all the combinations of
-PAGE_SIZE, 'size', and 'boundary', and performs a series of consistency
-checks on pool_blk_idx_to_offset(), pool_offset_to_blk_idx(), and
-pool_initialize_free_block_list().  The math may be ugly but I am pretty
-sure it is correct.
-
-One of the nice things about this is that dma_pool_free() can do some
-additional sanity checks:
-*) Check that the offset of the passed-in address corresponds to a valid
-block offset.
-*) With DMAPOOL_DEBUG enabled, check that the number of blocks in the
-freelist exactly matches the number that should be there.  This improves
-the debug check I added in a previous patch by adding the calculation
-for pool->blks_per_alloc.
-
-NOT for merging.
+Signed-off-by: Tony Battersby <tonyb@cybernetics.com>
 ---
---- linux/include/linux/mm_types.h.orig	2018-08-01 12:25:25.000000000 -0400
-+++ linux/include/linux/mm_types.h	2018-08-01 12:25:52.000000000 -0400
-@@ -156,7 +156,8 @@ struct page {
- 		struct {	/* dma_pool pages */
- 			struct list_head dma_list;
- 			dma_addr_t dma;
--			unsigned int dma_free_o;
-+			unsigned short dma_free_idx;
-+			unsigned short dma_in_use;
- 		};
- 
- 		/** @rcu_head: You can use this to free a page by RCU. */
-@@ -180,8 +181,6 @@ struct page {
- 
- 		unsigned int active;		/* SLAB */
- 		int units;			/* SLOB */
--
--		unsigned int dma_in_use;	/* dma_pool pages */
- 	};
- 
- 	/* Usage count. *DO NOT USE DIRECTLY*. See page_ref.h */
---- linux/mm/dmapool.c.orig	2018-08-02 14:02:42.000000000 -0400
-+++ linux/mm/dmapool.c	2018-08-02 14:03:31.000000000 -0400
-@@ -51,16 +51,25 @@
- #define DMAPOOL_DEBUG 1
- #endif
- 
-+/*
-+ * This matches the type of struct page::dma_free_idx, which is 16-bit to
-+ * conserve space in struct page.
-+ */
-+typedef unsigned short pool_idx_t;
-+#define POOL_IDX_MAX USHRT_MAX
-+
- struct dma_pool {		/* the pool */
- #define POOL_FULL_IDX   0
- #define POOL_AVAIL_IDX  1
- #define POOL_N_LISTS    2
- 	struct list_head page_list[POOL_N_LISTS];
- 	spinlock_t lock;
--	size_t size;
- 	struct device *dev;
--	size_t allocation;
--	size_t boundary;
-+	unsigned int size;
-+	unsigned int allocation;
-+	unsigned int boundary_shift;
-+	unsigned int blks_per_boundary;
-+	unsigned int blks_per_alloc;
- 	char name[32];
- 	struct list_head pools;
- };
-@@ -103,9 +112,9 @@ show_pools(struct device *dev, struct de
- 		spin_unlock_irq(&pool->lock);
- 
- 		/* per-pool info, no real statistics yet */
--		temp = scnprintf(next, size, "%-16s %4u %4zu %4zu %2u\n",
-+		temp = scnprintf(next, size, "%-16s %4u %4u %4u %2u\n",
- 				 pool->name, blocks,
--				 pages * (pool->allocation / pool->size),
-+				 pages * pool->blks_per_alloc,
- 				 pool->size, pages);
- 		size -= temp;
- 		next += temp;
-@@ -141,6 +150,7 @@ static DEVICE_ATTR(pools, 0444, show_pool
- struct dma_pool *dma_pool_create(const char *name, struct device *dev,
- 				 size_t size, size_t align, size_t boundary)
- {
-+	unsigned int boundary_shift;
- 	struct dma_pool *retval;
- 	size_t allocation;
- 	bool empty = false;
-@@ -150,10 +160,10 @@ struct dma_pool *dma_pool_create(const c
- 	else if (align & (align - 1))
- 		return NULL;
- 
--	if (size == 0)
-+	if (size == 0 || size > SZ_2G)
- 		return NULL;
--	else if (size < 4)
--		size = 4;
-+	else if (size < sizeof(pool_idx_t))
-+		size = sizeof(pool_idx_t);
- 
- 	if ((size % align) != 0)
- 		size = ALIGN(size, align);
-@@ -165,6 +175,9 @@ struct dma_pool *dma_pool_create(const c
- 	else if ((boundary < size) || (boundary & (boundary - 1)))
- 		return NULL;
- 
-+	boundary_shift = get_count_order_long(min(boundary, allocation));
-+	boundary = 1U << boundary_shift;
-+
- 	retval = kmalloc_node(sizeof(*retval), GFP_KERNEL, dev_to_node(dev));
- 	if (!retval)
- 		return retval;
-@@ -177,8 +190,29 @@ struct dma_pool *dma_pool_create(const c
- 	INIT_LIST_HEAD(&retval->page_list[1]);
- 	spin_lock_init(&retval->lock);
- 	retval->size = size;
--	retval->boundary = boundary;
- 	retval->allocation = allocation;
-+	retval->boundary_shift = boundary_shift;
-+	retval->blks_per_boundary = boundary / size;
-+	retval->blks_per_alloc =
-+		(allocation / boundary) * retval->blks_per_boundary +
-+		(allocation % boundary) / size;
-+	if (boundary >= allocation || boundary % size == 0) {
-+		/*
-+		 * When the blocks are packed together, an individual block
-+		 * will never cross the boundary, so the boundary doesn't
-+		 * matter in this case.  Enable some faster codepaths that skip
-+		 * boundary calculations for a small speedup.
-+		 */
-+		retval->blks_per_boundary = 0;
-+	}
-+	if (retval->blks_per_alloc > POOL_IDX_MAX) {
-+		/*
-+		 * This would only affect archs with large PAGE_SIZE.  Limit
-+		 * the total number of blocks per allocation to avoid
-+		 * overflowing dma_in_use and dma_free_idx.
-+		 */
-+		retval->blks_per_alloc = POOL_IDX_MAX;
-+	}
- 
- 	INIT_LIST_HEAD(&retval->pools);
- 
-@@ -214,20 +248,73 @@ struct dma_pool *dma_pool_create(const c
+
+No changes since v1.
+
+The original code called _base_release_memory_pools() before "goto out"
+if dma_pool_alloc() failed, but this was unnecessary because
+mpt3sas_base_attach() will call _base_release_memory_pools() after "goto
+out_free_resources".  It may have been that way because the out-of-tree
+vendor driver (from https://www.broadcom.com/support/download-search)
+has a slightly-more-complicated error handler there that adjusts
+max_request_credit, calls _base_release_memory_pools() and then does
+"goto retry_allocation" under some circumstances, but that is missing
+from the in-tree driver.
+
+diff --git a/drivers/scsi/mpt3sas/mpt3sas_base.c b/drivers/scsi/mpt3sas/mpt3sas_base.c
+index 569392d..2cb567a 100644
+--- a/drivers/scsi/mpt3sas/mpt3sas_base.c
++++ b/drivers/scsi/mpt3sas/mpt3sas_base.c
+@@ -4224,6 +4224,134 @@ void mpt3sas_base_clear_st(struct MPT3SAS_ADAPTER *ioc,
  }
- EXPORT_SYMBOL(dma_pool_create);
  
-+/*
-+ * Convert the index of a block of size pool->size to its offset within an
-+ * allocated chunk of memory of size pool->allocation.
+ /**
++ * _base_release_chain_lookup - release chain_lookup memory pools
++ * @ioc: per adapter object
++ *
++ * Free memory allocated from _base_allocate_chain_lookup.
 + */
-+static unsigned int pool_blk_idx_to_offset(struct dma_pool *pool,
-+					   unsigned int blk_idx)
++static void
++_base_release_chain_lookup(struct MPT3SAS_ADAPTER *ioc)
 +{
-+	unsigned int offset;
++	unsigned int chains_avail = 0;
++	struct chain_tracker *ct;
++	int i, j;
 +
-+	if (pool->blks_per_boundary == 0) {
-+		offset = blk_idx * pool->size;
-+	} else {
-+		offset = ((blk_idx / pool->blks_per_boundary) <<
-+			  pool->boundary_shift) +
-+			 (blk_idx % pool->blks_per_boundary) * pool->size;
++	if (!ioc->chain_lookup)
++		return;
++
++	/*
++	 * NOTE
++	 *
++	 * To make this code easier to understand and maintain, the for loops
++	 * and the management of the chains_avail value are designed to be
++	 * similar to the _base_allocate_chain_lookup() function.  That way,
++	 * the code for freeing the memory is similar to the code for
++	 * allocating the memory.
++	 */
++	for (i = 0; i < ioc->scsiio_depth; i++) {
++		if (!ioc->chain_lookup[i].chains_per_smid)
++			break;
++
++		for (j = ioc->chains_per_prp_buffer;
++				j < ioc->chains_needed_per_io; j++) {
++			/*
++			 * If chains_avail is 0, then the chain represents a
++			 * real allocation, so free it.
++			 *
++			 * If chains_avail is nonzero, then the chain was
++			 * initialized at an offset from a previous allocation,
++			 * so don't free it.
++			 */
++			if (chains_avail == 0) {
++				ct = &ioc->chain_lookup[i].chains_per_smid[j];
++				if (ct->chain_buffer)
++					dma_free_coherent(
++						&ioc->pdev->dev,
++						ioc->chain_allocation_sz,
++						ct->chain_buffer,
++						ct->chain_buffer_dma);
++				chains_avail = ioc->chains_per_allocation;
++			}
++			chains_avail--;
++		}
++		kfree(ioc->chain_lookup[i].chains_per_smid);
 +	}
-+	return offset;
++
++	kfree(ioc->chain_lookup);
++	ioc->chain_lookup = NULL;
 +}
 +
-+/*
-+ * Convert an offset within an allocated chunk of memory of size
-+ * pool->allocation to the index of the possibly-smaller block of size
-+ * pool->size.  If the given offset is not located at the beginning of a valid
-+ * block, then the return value will be >= pool->blks_per_alloc.
++/**
++ * _base_allocate_chain_lookup - allocate chain_lookup memory pools
++ * @ioc: per adapter object
++ * @total_sz: external value that tracks total amount of memory allocated
++ *
++ * Return: 0 success, anything else error
 + */
-+static unsigned int pool_offset_to_blk_idx(struct dma_pool *pool,
-+					   unsigned int offset)
++static int
++_base_allocate_chain_lookup(struct MPT3SAS_ADAPTER *ioc, u32 *total_sz)
 +{
-+	unsigned int blk_idx;
++	unsigned int aligned_chain_segment_sz;
++	const unsigned int align = 16;
++	unsigned int chains_avail = 0;
++	struct chain_tracker *ct;
++	dma_addr_t dma_addr = 0;
++	void *vaddr = NULL;
++	int i, j;
 +
-+	if (pool->blks_per_boundary == 0) {
-+		blk_idx = (likely(offset % pool->size == 0))
-+			  ? (offset / pool->size)
-+			  : pool->blks_per_alloc;
-+	} else {
-+		unsigned int offset_within_boundary =
-+			offset & ((1U << pool->boundary_shift) - 1);
-+		unsigned int idx_within_boundary =
-+			offset_within_boundary / pool->size;
++	/* Round up the allocation size for alignment. */
++	aligned_chain_segment_sz = ioc->chain_segment_sz;
++	if (aligned_chain_segment_sz % align != 0)
++		aligned_chain_segment_sz =
++			ALIGN(aligned_chain_segment_sz, align);
 +
-+		if (likely(offset_within_boundary % pool->size == 0 &&
-+			   idx_within_boundary < pool->blks_per_boundary)) {
-+			blk_idx = (offset >> pool->boundary_shift) *
-+				  pool->blks_per_boundary +
-+				  idx_within_boundary;
-+		} else {
-+			blk_idx = pool->blks_per_alloc;
++	/* Allocate a page of chain buffers at a time. */
++	ioc->chain_allocation_sz =
++		max_t(unsigned int, aligned_chain_segment_sz, PAGE_SIZE);
++
++	/* Calculate how many chain buffers we can get from one allocation. */
++	ioc->chains_per_allocation =
++		ioc->chain_allocation_sz / aligned_chain_segment_sz;
++
++	for (i = 0; i < ioc->scsiio_depth; i++) {
++		for (j = ioc->chains_per_prp_buffer;
++				j < ioc->chains_needed_per_io; j++) {
++			/*
++			 * Check if there are any chain buffers left in the
++			 * previously-allocated block.
++			 */
++			if (chains_avail == 0) {
++				/* Allocate a new block of chain buffers. */
++				vaddr = dma_alloc_coherent(
++					&ioc->pdev->dev,
++					ioc->chain_allocation_sz,
++					&dma_addr,
++					GFP_KERNEL);
++				if (!vaddr) {
++					pr_err(MPT3SAS_FMT
++						"chain_lookup: dma_alloc_coherent failed\n",
++						ioc->name);
++					return -1;
++				}
++				chains_avail = ioc->chains_per_allocation;
++			}
++
++			ct = &ioc->chain_lookup[i].chains_per_smid[j];
++			ct->chain_buffer     = vaddr;
++			ct->chain_buffer_dma = dma_addr;
++
++			/* Go to the next chain buffer in the block. */
++			vaddr     += aligned_chain_segment_sz;
++			dma_addr  += aligned_chain_segment_sz;
++			*total_sz += ioc->chain_segment_sz;
++			chains_avail--;
 +		}
 +	}
-+	return blk_idx;
++
++	return 0;
 +}
 +
- static void pool_initialize_free_block_list(struct dma_pool *pool, void *vaddr)
++/**
+  * _base_release_memory_pools - release memory
+  * @ioc: per adapter object
+  *
+@@ -4235,8 +4363,6 @@ void mpt3sas_base_clear_st(struct MPT3SAS_ADAPTER *ioc,
+ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
  {
-+	unsigned int next_boundary = 1U << pool->boundary_shift;
- 	unsigned int offset = 0;
--	unsigned int next_boundary = pool->boundary;
-+	unsigned int i;
-+
-+	for (i = 0; i < pool->blks_per_alloc; i++) {
-+		*(pool_idx_t *)(vaddr + offset) = (pool_idx_t) i + 1;
+ 	int i = 0;
+-	int j = 0;
+-	struct chain_tracker *ct;
+ 	struct reply_post_struct *rps;
  
--	do {
--		unsigned int next = offset + pool->size;
--		if (unlikely((next + pool->size) > next_boundary)) {
--			next = next_boundary;
--			next_boundary += pool->boundary;
-+		offset += pool->size;
-+		if (unlikely((offset + pool->size) > next_boundary)) {
-+			offset = next_boundary;
-+			next_boundary += 1U << pool->boundary_shift;
- 		}
--		*(int *)(vaddr + offset) = next;
--		offset = next;
--	} while (offset < pool->allocation);
-+	}
+ 	dexitprintk(ioc, pr_info(MPT3SAS_FMT "%s\n", ioc->name,
+@@ -4326,22 +4452,7 @@ void mpt3sas_base_clear_st(struct MPT3SAS_ADAPTER *ioc,
+ 
+ 	kfree(ioc->hpr_lookup);
+ 	kfree(ioc->internal_lookup);
+-	if (ioc->chain_lookup) {
+-		for (i = 0; i < ioc->scsiio_depth; i++) {
+-			for (j = ioc->chains_per_prp_buffer;
+-			    j < ioc->chains_needed_per_io; j++) {
+-				ct = &ioc->chain_lookup[i].chains_per_smid[j];
+-				if (ct && ct->chain_buffer)
+-					dma_pool_free(ioc->chain_dma_pool,
+-						ct->chain_buffer,
+-						ct->chain_buffer_dma);
+-			}
+-			kfree(ioc->chain_lookup[i].chains_per_smid);
+-		}
+-		dma_pool_destroy(ioc->chain_dma_pool);
+-		kfree(ioc->chain_lookup);
+-		ioc->chain_lookup = NULL;
+-	}
++	_base_release_chain_lookup(ioc);
  }
  
- static struct page *pool_alloc_page(struct dma_pool *pool, gfp_t mem_flags)
-@@ -248,7 +335,7 @@ static struct page *pool_alloc_page(stru
- 
- 	page = virt_to_page(vaddr);
- 	page->dma = dma;
--	page->dma_free_o = 0;
-+	page->dma_free_idx = 0;
- 	page->dma_in_use = 0;
- 
- 	return page;
-@@ -272,8 +359,8 @@ static void pool_free_page(struct dma_po
- 	page->dma_list.next = NULL;
- 	page->dma_list.prev = NULL;
- 	page->dma = 0;
--	page->dma_free_o = 0;
--	page_mapcount_reset(page); /* clear dma_in_use */
-+	page->dma_free_idx = 0;
-+	page->dma_in_use = 0;
- 
- 	if (busy) {
- 		dev_err(pool->dev,
-@@ -342,9 +429,10 @@ EXPORT_SYMBOL(dma_pool_destroy);
- void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
- 		     dma_addr_t *handle)
- {
-+	unsigned int blk_idx;
-+	unsigned int offset;
- 	unsigned long flags;
- 	struct page *page;
--	size_t offset;
- 	void *retval;
- 	void *vaddr;
- 
-@@ -370,9 +458,10 @@ void *dma_pool_alloc(struct dma_pool *po
-  ready:
- 	vaddr = page_to_virt(page);
- 	page->dma_in_use++;
--	offset = page->dma_free_o;
--	page->dma_free_o = *(int *)(vaddr + offset);
--	if (page->dma_free_o >= pool->allocation) {
-+	blk_idx = page->dma_free_idx;
-+	offset = pool_blk_idx_to_offset(pool, blk_idx);
-+	page->dma_free_idx = *(pool_idx_t *)(vaddr + offset);
-+	if (page->dma_free_idx >= pool->blks_per_alloc) {
- 		/* Move page from the "available" list to the "full" list. */
- 		list_del(&page->dma_list);
- 		list_add(&page->dma_list, &pool->page_list[POOL_FULL_IDX]);
-@@ -383,8 +472,8 @@ void *dma_pool_alloc(struct dma_pool *po
- 	{
- 		int i;
- 		u8 *data = retval;
--		/* page->dma_free_o is stored in first 4 bytes */
--		for (i = sizeof(page->dma_free_o); i < pool->size; i++) {
-+		/* a pool_idx_t is stored at the beginning of the block */
-+		for (i = sizeof(pool_idx_t); i < pool->size; i++) {
- 			if (data[i] == POOL_POISON_FREED)
- 				continue;
- 			dev_err(pool->dev,
-@@ -426,6 +515,7 @@ void dma_pool_free(struct dma_pool *pool
- 	struct page *page;
- 	unsigned long flags;
- 	unsigned int offset;
-+	unsigned int blk_idx;
- 
- 	if (unlikely(!virt_addr_valid(vaddr))) {
- 		dev_err(pool->dev,
-@@ -438,21 +528,28 @@ void dma_pool_free(struct dma_pool *pool
- 	offset = offset_in_page(vaddr);
- 
- 	if (unlikely((dma - page->dma) != offset)) {
-+ bad_vaddr:
- 		dev_err(pool->dev,
- 			"dma_pool_free %s, %p (bad vaddr)/%pad (or bad dma)\n",
- 			pool->name, vaddr, &dma);
- 		return;
+ /**
+@@ -4784,29 +4895,8 @@ void mpt3sas_base_clear_st(struct MPT3SAS_ADAPTER *ioc,
+ 		total_sz += sz * ioc->scsiio_depth;
  	}
  
-+	blk_idx = pool_offset_to_blk_idx(pool, offset);
-+	if (unlikely(blk_idx >= pool->blks_per_alloc))
-+		goto bad_vaddr;
-+
- 	spin_lock_irqsave(&pool->lock, flags);
- #ifdef	DMAPOOL_DEBUG
- 	{
- 		void *page_vaddr = vaddr - offset;
--		unsigned int chain = page->dma_free_o;
--		size_t total_free = 0;
-+		unsigned int chain_idx = page->dma_free_idx;
-+		unsigned int n_free = 0;
-+
-+		while (chain_idx < pool->blks_per_alloc) {
-+			unsigned int chain_offset;
+-	ioc->chain_dma_pool = dma_pool_create("chain pool", &ioc->pdev->dev,
+-	    ioc->chain_segment_sz, 16, 0);
+-	if (!ioc->chain_dma_pool) {
+-		pr_err(MPT3SAS_FMT "chain_dma_pool: dma_pool_create failed\n",
+-			ioc->name);
++	if (_base_allocate_chain_lookup(ioc, &total_sz))
+ 		goto out;
+-	}
+-	for (i = 0; i < ioc->scsiio_depth; i++) {
+-		for (j = ioc->chains_per_prp_buffer;
+-				j < ioc->chains_needed_per_io; j++) {
+-			ct = &ioc->chain_lookup[i].chains_per_smid[j];
+-			ct->chain_buffer = dma_pool_alloc(
+-					ioc->chain_dma_pool, GFP_KERNEL,
+-					&ct->chain_buffer_dma);
+-			if (!ct->chain_buffer) {
+-				pr_err(MPT3SAS_FMT "chain_lookup: "
+-				" pci_pool_alloc failed\n", ioc->name);
+-				_base_release_memory_pools(ioc);
+-				goto out;
+-			}
+-		}
+-		total_sz += ioc->chain_segment_sz;
+-	}
  
--		while (chain < pool->allocation) {
--			if (unlikely(chain == offset)) {
-+			if (unlikely(chain_idx == blk_idx)) {
- 				spin_unlock_irqrestore(&pool->lock, flags);
- 				dev_err(pool->dev,
- 					"dma_pool_free %s, dma %pad already free\n",
-@@ -461,15 +558,15 @@ void dma_pool_free(struct dma_pool *pool
- 			}
+ 	dinitprintk(ioc, pr_info(MPT3SAS_FMT
+ 		"chain pool depth(%d), frame_size(%d), pool_size(%d kB)\n",
+diff --git a/drivers/scsi/mpt3sas/mpt3sas_base.h b/drivers/scsi/mpt3sas/mpt3sas_base.h
+index f02974c..7ee81d5 100644
+--- a/drivers/scsi/mpt3sas/mpt3sas_base.h
++++ b/drivers/scsi/mpt3sas/mpt3sas_base.h
+@@ -1298,7 +1298,6 @@ struct MPT3SAS_ADAPTER {
+ 	/* chain */
+ 	struct chain_lookup *chain_lookup;
+ 	struct list_head free_chain_list;
+-	struct dma_pool *chain_dma_pool;
+ 	ulong		chain_pages;
+ 	u16		max_sges_in_main_message;
+ 	u16		max_sges_in_chain_message;
+@@ -1306,6 +1305,8 @@ struct MPT3SAS_ADAPTER {
+ 	u32		chain_depth;
+ 	u16		chain_segment_sz;
+ 	u16		chains_per_prp_buffer;
++	u32		chain_allocation_sz;
++	u32		chains_per_allocation;
  
- 			/*
--			 * The calculation of the number of blocks per
--			 * allocation is actually more complicated than this
--			 * because of the boundary value.  But this comparison
--			 * does not need to be exact; it just needs to prevent
--			 * an endless loop in case a buggy driver causes a
--			 * circular loop in the freelist.
-+			 * A buggy driver could corrupt the freelist by
-+			 * use-after-free, buffer overflow, etc.  Besides
-+			 * checking for corruption, this also prevents an
-+			 * endless loop in case corruption causes a circular
-+			 * loop in the freelist.
- 			 */
--			total_free += pool->size;
--			if (unlikely(total_free >= pool->allocation)) {
-+			if (unlikely(++n_free + page->dma_in_use >
-+				     pool->blks_per_alloc)) {
-+ freelist_corrupt:
- 				spin_unlock_irqrestore(&pool->lock, flags);
- 				dev_err(pool->dev,
- 					"dma_pool_free %s, freelist corrupted\n",
-@@ -477,20 +574,24 @@ void dma_pool_free(struct dma_pool *pool
- 				return;
- 			}
- 
--			chain = *(int *)(page_vaddr + chain);
-+			chain_offset = pool_blk_idx_to_offset(pool, chain_idx);
-+			chain_idx =
-+				*(pool_idx_t *) (page_vaddr + chain_offset);
- 		}
-+		if (n_free + page->dma_in_use != pool->blks_per_alloc)
-+			goto freelist_corrupt;
- 	}
- 	memset(vaddr, POOL_POISON_FREED, pool->size);
- #endif
- 
- 	page->dma_in_use--;
--	if (page->dma_free_o >= pool->allocation) {
-+	if (page->dma_free_idx >= pool->blks_per_alloc) {
- 		/* Move page from the "full" list to the "available" list. */
- 		list_del(&page->dma_list);
- 		list_add(&page->dma_list, &pool->page_list[POOL_AVAIL_IDX]);
- 	}
--	*(int *)vaddr = page->dma_free_o;
--	page->dma_free_o = offset;
-+	*(pool_idx_t *)vaddr = page->dma_free_idx;
-+	page->dma_free_idx = blk_idx;
- 	/*
- 	 * Resist a temptation to do
- 	 *    if (!is_page_busy(page)) pool_free_page(pool, page);
+ 	/* hi-priority queue */
+ 	u16		hi_priority_smid;
