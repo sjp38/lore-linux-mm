@@ -1,41 +1,73 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Li RongQing <lirongqing@baidu.com>
-Subject: [PATCH] mm: introduce kvvirt_to_page() helper
-Date: Thu, 16 Aug 2018 17:17:37 +0800
-Message-Id: <1534411057-26276-1-git-send-email-lirongqing@baidu.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Souptick Joarder <jrdr.linux@gmail.com>
-List-ID: <linux-mm.kvack.org>
+From: Tony Battersby <tonyb-vFAe+i1/wJI5UWNf+nJyDw@public.gmane.org>
+Subject: [PATCH v2 1/9] dmapool: fix boundary comparison
+Date: Thu, 2 Aug 2018 15:56:52 -0400
+Message-ID: <f72e836c-e262-6c48-bca0-db53eaeda1a5@cybernetics.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+Content-Language: en-US
+List-Unsubscribe: <https://lists.linuxfoundation.org/mailman/options/iommu>,
+	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
+List-Archive: <http://lists.linuxfoundation.org/pipermail/iommu/>
+List-Post: <mailto:iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+List-Help: <mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
+List-Subscribe: <https://lists.linuxfoundation.org/mailman/listinfo/iommu>,
+	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
+Sender: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+Errors-To: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+To: Matthew Wilcox <willy-wEGCiKHe2LqWVfeAwA7xHQ@public.gmane.org>, Christoph Hellwig <hch-jcswGhMUV9g@public.gmane.org>, Marek Szyprowski <m.szyprowski-Sze3O3UU22JBDgjK7y7TUQ@public.gmane.org>, Sathya Prakash <sathya.prakash-dY08KVG/lbpWk0Htik3J/w@public.gmane.org>, Chaitra P B <chaitra.basappa-dY08KVG/lbpWk0Htik3J/w@public.gmane.org>, Suganath Prabu Subramani <suganath-prabu.subramani-dY08KVG/lbpWk0Htik3J/w@public.gmane.org>, iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org, linux-mm <linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org>, linux-scsi <linux-scsi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, MPT-FusionLinux.pdl-dY08KVG/lbpWk0Htik3J/w@public.gmane.org
+List-Id: linux-mm.kvack.org
 
-The new helper returns address mapping page, which has several users
-in individual subsystem, like mem_to_page in xfs_buf.c and pgv_to_page
-in af_packet.c, after this, they can be unified
+Fix the boundary comparison when constructing the list of free blocks
+for the case that 'size' is a power of two.  Since 'boundary' is also a
+power of two, that would make 'boundary' a multiple of 'size', in which
+case a single block would never cross the boundary.  This bug would
+cause some of the allocated memory to be wasted (but not leaked).
 
-Signed-off-by: Zhang Yu <zhangyu31@baidu.com>
-Signed-off-by: Li RongQing <lirongqing@baidu.com>
+Example:
+
+size       = 512
+boundary   = 2048
+allocation = 4096
+
+Address range
+   0 -  511
+ 512 - 1023
+1024 - 1535
+1536 - 2047 *
+2048 - 2559
+2560 - 3071
+3072 - 3583
+3584 - 4095 *
+
+Prior to this fix, the address ranges marked with "*" would not have
+been used even though they didn't cross the given boundary.
+
+Fixes: e34f44b3517f ("pool: Improve memory usage for devices which can't cross boundaries")
+Signed-off-by: Tony Battersby <tonyb-vFAe+i1/wJI5UWNf+nJyDw@public.gmane.org>
 ---
- include/linux/mm.h | 8 ++++++++
- 1 file changed, 8 insertions(+)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 68a5121694ef..bb34a3c71df5 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -599,6 +599,14 @@ static inline void *kvcalloc(size_t n, size_t size, gfp_t flags)
- 	return kvmalloc_array(n, size, flags | __GFP_ZERO);
- }
+As part of developing a later patch in the series ("dmapool: reduce
+footprint in struct page"), I wrote a standalone program that iterates
+over all the combinations of PAGE_SIZE, 'size', and 'boundary', and
+performs a series of consistency checks on the math in some new
+functions, and it turned up this bug.  With this change, all the
+consistency checks pass.  So I am fairly confident that this change
+doesn't break other combinations of parameters.
+
+Even though I described this as a "fix", it does not seem important
+enough to Cc: stable from a strict reading of the stable kernel rules. 
+IOW, it is not "bothering" anyone.
+
+--- linux/mm/dmapool.c.orig	2018-08-01 17:57:04.000000000 -0400
++++ linux/mm/dmapool.c	2018-08-01 17:57:16.000000000 -0400
+@@ -210,7 +210,7 @@ static void pool_initialise_page(struct 
  
-+static inline struct page *kvvirt_to_page(const void *addr)
-+{
-+	if (!is_vmalloc_addr(addr))
-+		return virt_to_page(addr);
-+	else
-+		return vmalloc_to_page(addr);
-+}
-+
- extern void kvfree(const void *addr);
- 
- static inline atomic_t *compound_mapcount_ptr(struct page *page)
--- 
-2.16.2
+ 	do {
+ 		unsigned int next = offset + pool->size;
+-		if (unlikely((next + pool->size) >= next_boundary)) {
++		if (unlikely((next + pool->size) > next_boundary)) {
+ 			next = next_boundary;
+ 			next_boundary += pool->boundary;
+ 		}
