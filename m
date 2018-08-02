@@ -1,93 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C73716B0003
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 20:14:17 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id g36-v6so255193plb.5
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 17:14:17 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id q11-v6si333861pli.86.2018.08.01.17.14.15
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 029BC6B0006
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2018 20:32:39 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id c2-v6so227202edi.20
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 17:32:38 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id d8-v6si763302edb.244.2018.08.01.17.32.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Aug 2018 17:14:16 -0700 (PDT)
-Date: Wed, 1 Aug 2018 17:14:14 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC 0/2] harden alloc_pages against bogus nid
-Message-Id: <20180801171414.30e54a106733ccaaa566388d@linux-foundation.org>
-In-Reply-To: <d9f8e9d1-2fb8-6016-5081-7e3213b23ed4@arm.com>
-References: <20180801200418.1325826-1-jeremy.linton@arm.com>
-	<20180801145020.8c76a490c1bf9bef5f87078a@linux-foundation.org>
-	<d9f8e9d1-2fb8-6016-5081-7e3213b23ed4@arm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 01 Aug 2018 17:32:37 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: [PATCH v2 0/3] introduce memory.oom.group
+Date: Wed, 1 Aug 2018 17:31:58 -0700
+Message-ID: <20180802003201.817-1-guro@fb.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeremy Linton <jeremy.linton@arm.com>
-Cc: linux-mm@kvack.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, mhocko@suse.com, vbabka@suse.cz, Punit.Agrawal@arm.com, Lorenzo.Pieralisi@arm.com, linux-arm-kernel@lists.infradead.org, bhelgaas@google.com, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>
 
-On Wed, 1 Aug 2018 17:56:46 -0500 Jeremy Linton <jeremy.linton@arm.com> wrote:
+This is a tiny implementation of cgroup-aware OOM killer,
+which adds an ability to kill a cgroup as a single unit
+and so guarantee the integrity of the workload.
 
-> Hi,
-> 
-> On 08/01/2018 04:50 PM, Andrew Morton wrote:
-> > On Wed,  1 Aug 2018 15:04:16 -0500 Jeremy Linton <jeremy.linton@arm.com> wrote:
-> > 
-> >> The thread "avoid alloc memory on offline node"
-> >>
-> >> https://lkml.org/lkml/2018/6/7/251
-> >>
-> >> Asked at one point why the kzalloc_node was crashing rather than
-> >> returning memory from a valid node. The thread ended up fixing
-> >> the immediate causes of the crash but left open the case of bad
-> >> proximity values being in DSDT tables without corrisponding
-> >> SRAT/SLIT entries as is happening on another machine.
-> >>
-> >> Its also easy to fix that, but we should also harden the allocator
-> >> sufficiently that it doesn't crash when passed an invalid node id.
-> >> There are a couple possible ways to do this, and i've attached two
-> >> separate patches which individually fix that problem.
-> >>
-> >> The first detects the offline node before calling
-> >> the new_slab code path when it becomes apparent that the allocation isn't
-> >> going to succeed. The second actually hardens node_zonelist() and
-> >> prepare_alloc_pages() in the face of NODE_DATA(nid) returning a NULL
-> >> zonelist. This latter case happens if the node has never been initialized
-> >> or is possibly out of range. There are other places (NODE_DATA &
-> >> online_node) which should be checking if the node id's are > MAX_NUMNODES.
-> >>
-> > 
-> > What is it that leads to a caller requesting memory from an invalid
-> > node?  A race against offlining?  If so then that's a lack of
-> > appropriate locking, isn't it?
-> 
-> There were a couple unrelated cases, both having to do with the PXN 
-> associated with a PCI port. The first case AFAIK, the domain wasn't 
-> really invalid if the entire SRAT was parsed and nodes created even when 
-> there weren't associated CPUs. The second case (a different machine) is 
-> simply a PXN value that is completely invalid (no associated 
-> SLIT/SRAT/etc entries) due to firmware making a mistake when a socket 
-> isn't populated.
-> 
-> There have been a few other suggested or merged patches for the 
-> individual problems above, this set is just an attempt at avoiding a 
-> full crash if/when another similar problem happens.
+Although it has only a limited functionality in comparison
+to what now resides in the mm tree (it doesn't change
+the victim task selection algorithm, doesn't look
+at memory stas on cgroup level, etc), it's also much
+simpler and more straightforward. So, hopefully, we can
+avoid having long debates here, as we had with the full
+implementation.
 
-Please add the above info to the changelog.
+As it doesn't prevent any futher development,
+and implements an useful and complete feature,
+it looks as a sane way forward.
 
-> 
-> > 
-> > I don't see a problem with emitting a warning and then selecting a
-> > different node so we can keep running.  But we do want that warning, so
-> > we can understand the root cause and fix it?
-> 
-> Yes, we do want to know when an invalid id is passed, i will add the 
-> VM_WARN in the first one.
-> 
-> The second one I wasn't sure about as failing prepare_alloc_pages() 
-> generates a couple of error messages, but the system then continues 
-> operation.
-> 
-> I guess my question though is which method (or both/something else?) is 
-> the preferred way to harden this up?
+v2->v1:
+  - added dmesg message about killing all tasks in cgroup
+  - removed an unnecessary check for memcg being NULL pointer
+  - adjusted docs and commit message
+  - rebased to linus/master
 
-The first patch looked neater.  Can we get a WARN_ON in there as well?
+--
+
+This patchset is against Linus's tree to avoid conflicts
+with the cgroup-aware OOM killer patchset in the mm tree.
+It's intended to replace it.
+
+Two first patches are already in the mm tree.
+The first one ("mm: introduce mem_cgroup_put() helper")
+is totally fine.
+Commit message of the second one has to be changed to reflect
+that it's not a part of the old patchset anymore.
+
+Roman Gushchin (3):
+  mm: introduce mem_cgroup_put() helper
+  mm, oom: refactor oom_kill_process()
+  mm, oom: introduce memory.oom.group
+
+ Documentation/admin-guide/cgroup-v2.rst |  18 ++++
+ include/linux/memcontrol.h              |  27 ++++++
+ mm/memcontrol.c                         |  93 +++++++++++++++++++
+ mm/oom_kill.c                           | 153 ++++++++++++++++++++------------
+ 4 files changed, 233 insertions(+), 58 deletions(-)
+
+-- 
+2.14.4
