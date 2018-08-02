@@ -1,58 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D766E6B0006
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 04:00:44 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id i26-v6so534502edr.4
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 01:00:44 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y10-v6si1041433edq.450.2018.08.02.01.00.43
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 77BF26B0008
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 04:03:10 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id y8-v6so500157edr.12
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 01:03:10 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0112.outbound.protection.outlook.com. [104.47.0.112])
+        by mx.google.com with ESMTPS id a16-v6si1711776edc.228.2018.08.02.01.03.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Aug 2018 01:00:43 -0700 (PDT)
-Date: Thu, 2 Aug 2018 10:00:41 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/3] introduce memory.oom.group
-Message-ID: <20180802080041.GB10808@dhcp22.suse.cz>
-References: <20180730180100.25079-1-guro@fb.com>
- <alpine.DEB.2.21.1807301847000.198273@chino.kir.corp.google.com>
- <20180731235135.GA23436@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1808011437350.38896@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 02 Aug 2018 01:03:08 -0700 (PDT)
+Subject: Re: [PATCH] memcg: Remove memcg_cgroup::id from IDR on
+ mem_cgroup_css_alloc() failure
+References: <20180413115454.GL17484@dhcp22.suse.cz>
+ <abfd4903-c455-fac2-7ed6-73707cda64d1@virtuozzo.com>
+ <20180413121433.GM17484@dhcp22.suse.cz>
+ <20180413125101.GO17484@dhcp22.suse.cz>
+ <20180726162512.6056b5d7c1d2a5fbff6ce214@linux-foundation.org>
+ <20180727193134.GA10996@cmpxchg.org>
+ <20180729192621.py4znecoinw5mqcp@esperanza>
+ <20180730153113.GB4567@cmpxchg.org>
+ <20180731163908.603d7a27c6534341e1afa724@linux-foundation.org>
+ <20180801155552.GA8600@cmpxchg.org>
+ <20180801162235.j3v7xipyw5afnj4x@esperanza>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <7a836e47-f0a4-6802-9b90-cc473e5ab90b@virtuozzo.com>
+Date: Thu, 2 Aug 2018 11:03:02 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1808011437350.38896@chino.kir.corp.google.com>
+In-Reply-To: <20180801162235.j3v7xipyw5afnj4x@esperanza>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 01-08-18 14:51:25, David Rientjes wrote:
-> On Tue, 31 Jul 2018, Roman Gushchin wrote:
+On 01.08.2018 19:22, Vladimir Davydov wrote:
+> On Wed, Aug 01, 2018 at 11:55:52AM -0400, Johannes Weiner wrote:
+>> On Tue, Jul 31, 2018 at 04:39:08PM -0700, Andrew Morton wrote:
+>>> On Mon, 30 Jul 2018 11:31:13 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+>>>
+>>>> Subject: [PATCH] mm: memcontrol: simplify memcg idr allocation and error
+>>>>  unwinding
+>>>>
+>>>> The memcg ID is allocated early in the multi-step memcg creation
+>>>> process, which needs 2-step ID allocation and IDR publishing, as well
+>>>> as two separate IDR cleanup/unwind sites on error.
+>>>>
+>>>> Defer the IDR allocation until the last second during onlining to
+>>>> eliminate all this complexity. There is no requirement to have the ID
+>>>> and IDR entry earlier than that. And the root reference to the ID is
+>>>> put in the offline path, so this matches nicely.
+>>>
+>>> This patch isn't aware of Kirill's later "mm, memcg: assign memcg-aware
+>>> shrinkers bitmap to memcg", which altered mem_cgroup_css_online():
+>>>
+>>> @@ -4356,6 +4470,11 @@ static int mem_cgroup_css_online(struct
+>>>  {
+>>>  	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+>>>  
+>>> +	if (memcg_alloc_shrinker_maps(memcg)) {
+>>> +		mem_cgroup_id_remove(memcg);
+>>> +		return -ENOMEM;
+>>> +	}
+>>> +
+>>>  	/* Online state pins memcg ID, memcg ID pins CSS */
+>>>  	atomic_set(&memcg->id.ref, 1);
+>>>  	css_get(css);
+>>>
+>>
+>> Hm, that looks out of place too. The bitmaps are allocated for the
+>> entire lifetime of the css, not just while it's online.
+>>
+>> Any objections to the following fixup to that patch?
 > 
-> > > What's the plan with the cgroup aware oom killer?  It has been sitting in 
-> > > the -mm tree for ages with no clear path to being merged.
-> > 
-> > It's because your nack, isn't it?
-> > Everybody else seem to be fine with it.
-> > 
-> 
-> If they are fine with it, I'm not sure they have tested it :)  Killing 
-> entire cgroups needlessly for mempolicy oom kills that will not free 
-> memory on target nodes is the first regression they may notice.
+> That would be incorrect. Memory cgroups that haven't been put online
+> are invisible to for_each_mem_cgroup(), which is used for expanding
+> shrinker maps of all cgroups - see memcg_expand_shrinker_maps(). So if
+> memcg_expand_shrinker_maps() is called between css_alloc and css_online,
+> it will miss this cgroup and its shrinker_map won't be reallocated to
+> fit the new id. Allocating the shrinker map in css_online guarantees
+> that it won't happen.
 
-I do not remember you would be mentioning this previously. Anyway the
-older implementation has considered the nodemask in memcg_oom_badness.
-You are right that a cpuset allocation could needlessly select a memcg
-with small or no memory from the target nodemask which is something I
-could have noticed during the review. If only I didn't have to spend all
-my energy to go through repetitive arguments of yours. Anyway this would
-be quite trivial to resolve in the same function by checking
-node_isset(node, current->mems_allowed).
+Yes, doubtless.
 
-Thanks for your productive feedback again.
+>Looks like this code lacks a comment...
 
-Skipping the rest which is yet again repeating same arguments and it
-doesn't add anything new to the table.
--- 
-Michal Hocko
-SUSE Labs
+Ok.
