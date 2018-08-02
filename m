@@ -1,96 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E7D696B0003
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 12:17:48 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id z20-v6so968311edq.10
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 09:17:48 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v13-v6si502126edk.456.2018.08.02.09.17.44
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E15D06B0003
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 12:47:08 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id d25-v6so2042028qtp.10
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 09:47:08 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 31-v6sor1206649qtx.40.2018.08.02.09.47.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Aug 2018 09:17:45 -0700 (PDT)
-Subject: Re: Caching/buffers become useless after some time
-References: <CADF2uSrW=Z=7NeA4qRwStoARGeT1y33QSP48Loc1u8XSdpMJOA@mail.gmail.com>
- <20180712113411.GB328@dhcp22.suse.cz>
- <CADF2uSqDDt3X_LHEQnc5xzHpqJ66E5gncogwR45bmZsNHxV55A@mail.gmail.com>
- <CADF2uSr-uFz+AAhcwP7ORgGgtLohayBtpDLxx9kcADDxaW8hWw@mail.gmail.com>
- <20180716162337.GY17280@dhcp22.suse.cz>
- <CADF2uSpEZTqD7pUp1t77GNTT+L=M3Ycir2+gsZg3kf5=y-5_-Q@mail.gmail.com>
- <20180716164500.GZ17280@dhcp22.suse.cz>
- <CADF2uSpkOqCU5hO9y4708TvpJ5JvkXjZ-M1o+FJr2v16AZP3Vw@mail.gmail.com>
- <c33fba55-3e86-d40f-efe0-0fc908f303bd@suse.cz>
- <20180730144048.GW24267@dhcp22.suse.cz>
- <CADF2uSr=mjVih1TB397bq1H7u3rPvo0HPqhUiG21AWu+WXFC5g@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <1f862d41-1e9f-5324-fb90-b43f598c3955@suse.cz>
-Date: Thu, 2 Aug 2018 18:15:22 +0200
+        (Google Transport Security);
+        Thu, 02 Aug 2018 09:47:07 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CADF2uSr=mjVih1TB397bq1H7u3rPvo0HPqhUiG21AWu+WXFC5g@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <153320759911.18959.8842396230157677671.stgit@localhost.localdomain>
+References: <153320759911.18959.8842396230157677671.stgit@localhost.localdomain>
+From: Yang Shi <shy828301@gmail.com>
+Date: Thu, 2 Aug 2018 09:47:06 -0700
+Message-ID: <CAHbLzkpBnNN4RBMHXzy09x1PZw4m5D99jANmjD=0GT=1tkxniQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: Move check for SHRINKER_NUMA_AWARE to do_shrink_slab()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marinko Catovic <marinko.catovic@gmail.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, mhocko@suse.com, aryabinin@virtuozzo.com, ying.huang@intel.com, penguin-kernel@i-love.sakura.ne.jp, willy@infradead.org, Shakeel Butt <shakeelb@google.com>, jbacik@fb.com, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 07/31/2018 12:08 AM, Marinko Catovic wrote:
-> 
->> Can you provide (a single snapshot) /proc/pagetypeinfo and
->> /proc/slabinfo from a system that's currently experiencing the issue,
->> also with /proc/vmstat and /proc/zoneinfo to verify? Thanks.
-> 
-> your request came in just one day after I 2>drop_caches again when the
-> ram usage
-> was really really low again. Up until now it did not reoccur on any of
-> the 2 hosts,
-> where one shows 550MB/11G with 37G of totally free ram for now - so not
-> that low
-> like last time when I dropped it, I think it was like 300M/8G or so, but
-> I hope it helps:
+On Thu, Aug 2, 2018 at 4:00 AM, Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+> In case of shrink_slab_memcg() we do not zero nid, when shrinker
+> is not numa-aware. This is not a real problem, since currently
+> all memcg-aware shrinkers are numa-aware too (we have two:
 
-Thanks.
- 
-> /proc/pagetypeinfoA  https://pastebin.com/6QWEZagL
+Actually, this is not true. huge_zero_page_shrinker is NOT numa-aware.
+deferred_split_shrinker is numa-aware.
 
-Yep, looks like fragmented by reclaimable slabs:
+Thanks,
+Yang
 
-Node    0, zone   Normal, type    Unmovable  29101  32754   8372   2790   1334    354     23      3      4      0      0 
-Node    0, zone   Normal, type      Movable 142449  83386  99426  69177  36761  12931   1378     24      0      0      0 
-Node    0, zone   Normal, type  Reclaimable 467195 530638 355045 192638  80358  15627   2029    231     18      0      0 
 
-Number of blocks type     Unmovable      Movable  Reclaimable   HighAtomic      Isolate 
-Node 0, zone      DMA            1            7            0            0            0 
-Node 0, zone    DMA32           34          703          375            0            0 
-Node 0, zone   Normal         1672        14276        15659            1            0
-
-Half of the memory is marked as reclaimable (2 megabyte) pageblocks.
-zoneinfo has nr_slab_reclaimable 1679817 so the reclaimable slabs occupy
-only 3280 (6G) pageblocks, yet they are spread over 5 times as much.
-It's also possible they pollute the Movable pageblocks as well, but the
-stats can't tell us. Either the page grouping mobility heuristics are
-broken here, or the worst case scenario happened - memory was at some point
-really wholly filled with reclaimable slabs, and the rather random reclaim
-did not result in whole pageblocks being freed.
-
-> /proc/slabinfoA  https://pastebin.com/81QAFgke
-
-Largest caches seem to be:
-# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables <limit> <batchcount> <sharedfactor> : slabdata <active_slabs> <num_slabs> <sharedavail>
-ext4_inode_cache  3107754 3759573   1080    3    1 : tunables   24   12    8 : slabdata 1253191 1253191      0
-dentry            2840237 7328181    192   21    1 : tunables  120   60    8 : slabdata 348961 348961    120
-
-The internal framentation of dentry cache is significant as well.
-Dunno if some of those objects pin movable pages as well...
-
-So looks like there's insufficient slab reclaim (shrinker activity), and
-possibly problems with page grouping by mobility heuristics as well...
-
-> /proc/vmstatA  https://pastebin.com/S7mrQx1s
-> /proc/zoneinfoA  https://pastebin.com/csGeqNyX
-> 
-> also please note - whether this makes any difference: there is no swap
-> file/partition
-> I am using this without swap space. imho this should not be necessary since
-> applications running on the hosts would not consume more than 20GB, the rest
-> should be used by buffers/cache.
-> 
+> super_block shrinker and workingset shrinker), but something may
+> change in the future.
+>
+> (Andrew, this may be merged to mm-iterate-only-over-charged-shrinkers-during-memcg-shrink_slab)
+>
+> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+> ---
+>  mm/vmscan.c |    6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index ea0a46166e8e..0d980e801b8a 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -455,6 +455,9 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+>                                           : SHRINK_BATCH;
+>         long scanned = 0, next_deferred;
+>
+> +       if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
+> +               nid = 0;
+> +
+>         freeable = shrinker->count_objects(shrinker, shrinkctl);
+>         if (freeable == 0 || freeable == SHRINK_EMPTY)
+>                 return freeable;
+> @@ -680,9 +683,6 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+>                         .memcg = memcg,
+>                 };
+>
+> -               if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
+> -                       sc.nid = 0;
+> -
+>                 ret = do_shrink_slab(&sc, shrinker, priority);
+>                 if (ret == SHRINK_EMPTY)
+>                         ret = 0;
+>
