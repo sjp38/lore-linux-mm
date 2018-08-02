@@ -1,52 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 428066B0003
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 02:57:35 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id w7-v6so304052ljh.15
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 23:57:35 -0700 (PDT)
-Received: from SELDSEGREL01.sonyericsson.com (seldsegrel01.sonyericsson.com. [37.139.156.29])
-        by mx.google.com with ESMTPS id h17-v6si464092lfi.68.2018.08.01.23.57.33
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 81F5A6B0006
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 02:59:56 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id l7-v6so308581lji.14
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2018 23:59:56 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m2-v6sor97623lfg.197.2018.08.01.23.59.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Aug 2018 23:57:33 -0700 (PDT)
-Subject: Re: [PATCH 2/9] mm: workingset: tell cache transitions from
- workingset thrashing
-References: <20180801151308.32234-1-hannes@cmpxchg.org>
- <20180801151308.32234-3-hannes@cmpxchg.org>
-From: peter enderborg <peter.enderborg@sony.com>
-Message-ID: <c0480401-fb38-0b46-6dee-a20093dff065@sony.com>
-Date: Thu, 2 Aug 2018 08:57:31 +0200
+        (Google Transport Security);
+        Wed, 01 Aug 2018 23:59:55 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180801151308.32234-3-hannes@cmpxchg.org>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Content-Language: en-GB
+References: <CAMi1Hd0fJuAgP09_KkbjyGwszOXmxcPybKyBxP3U1y5JUqxxSw@mail.gmail.com>
+ <20180730130134.yvn5tcmoavuxtwt5@kshutemo-mobl1> <CA+55aFwxwCPZs=h5wy-5PELwfBVuTETm+wuZB5cM2SDoXJi68g@mail.gmail.com>
+ <alpine.LSU.2.11.1807301410470.4805@eggly.anvils> <CA+55aFx3qR1FW0T3na25NrwLZAvpOdUEUJa879CnaJT2ZPfhkg@mail.gmail.com>
+ <alpine.LSU.2.11.1807301940460.5904@eggly.anvils> <CALAqxLU3cmu4g+HaB6A7=VhY-hW=d9e68EZ=_4JiwX_BigzjPQ@mail.gmail.com>
+ <CAMi1Hd0-2eDod4HiBifKCxY0cUUEW_A-yv7sZ7GRgL0whWQt+w@mail.gmail.com>
+ <CA+55aFx=-tHXjv3gv4W=xYwM+VOHJQE5q5VyihkPK7s560x-vQ@mail.gmail.com>
+ <20180731170328.ocb5oikwhwtkyzrj@kshutemo-mobl1> <20180731174349.GA12944@agluck-desk>
+ <CA+55aFxJpJvcYKos-sVTsn9q4wK0-m4up1SXrcqfbXHKxaKxjg@mail.gmail.com>
+In-Reply-To: <CA+55aFxJpJvcYKos-sVTsn9q4wK0-m4up1SXrcqfbXHKxaKxjg@mail.gmail.com>
+From: Amit Pundir <amit.pundir@linaro.org>
+Date: Thu, 2 Aug 2018 12:29:18 +0530
+Message-ID: <CAMi1Hd14yYr+LXTwjexMfFue9=PwoC7L8oscZhGm_eZ_is+v1A@mail.gmail.com>
+Subject: Re: Linux 4.18-rc7
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Daniel Drake <drake@endlessm.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: tony.luck@intel.com, kirill@shutemov.name, John Stultz <john.stultz@linaro.org>, Hugh Dickins <hughd@google.com>, willy@infradead.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, aarcange@redhat.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, youling 257 <youling257@gmail.com>, Joel Fernandes <joelaf@google.com>, Colin Cross <ccross@google.com>
 
-On 08/01/2018 05:13 PM, Johannes Weiner wrote:
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index e34a27727b9a..7af1c3c15d8e 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -69,13 +69,14 @@
->   */
->  enum pageflags {
->  	PG_locked,		/* Page is locked. Don't touch. */
-> -	PG_error,
->  	PG_referenced,
->  	PG_uptodate,
->  	PG_dirty,
->  	PG_lru,
->  	PG_active,
-> +	PG_workingset,
->  	PG_waiters,		/* Page has waiters, check its waitqueue. Must be bit #7 and in the same byte as "PG_locked" */
-> +	PG_error,
->  	PG_slab,
->  	PG_owner_priv_1,	/* Owner use. If pagecache, fs may use*/
->  	PG_arch_1,
-> @@ -280,6 +281,8 @@ PAGEFLAG(Dirty, dirty, PF_HEAD) TESTSCFLAG(Dirty, dirty, PF_HEAD)
-Any reason why the PG_error was moved? And dont you need to do some handling of this flag in proc/fs/page.c ?
-Some KFP_WORKINGSET ?
+On Wed, 1 Aug 2018 at 22:45, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+>
+> I'd like to get this sorted out asap, although at this point I still
+> think that I'll have to do an rc8 even though I feel like we may have
+> caught everything.
+
+No AOSP regressions in my limited smoke testing so far with
+current HEAD: 6b4703768268 ("Merge branch 'fixes' of
+git://git.armlinux.org.uk/~rmk/linux-arm"). Thanks.
+
+Regards,
+Amit Pundir
