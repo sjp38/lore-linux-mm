@@ -1,45 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 236646B0003
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 13:26:17 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id 17-v6so2649927qkz.15
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 10:26:17 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e10-v6sor1175329qvd.60.2018.08.02.10.26.14
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C4096B0003
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 14:36:51 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id v9-v6so1985506pfn.6
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 11:36:51 -0700 (PDT)
+Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
+        by mx.google.com with ESMTPS id 6-v6si2781624pgz.592.2018.08.02.11.36.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 02 Aug 2018 10:26:14 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Aug 2018 11:36:49 -0700 (PDT)
+Date: Thu, 2 Aug 2018 12:36:46 -0600
+From: Jonathan Corbet <corbet@lwn.net>
+Subject: Re: [PATCH v2 00/11] docs/mm: add boot time memory management docs
+Message-ID: <20180802123646.4cc299b5@lwn.net>
+In-Reply-To: <20180726154557.7a1677d8@lwn.net>
+References: <1530370506-21751-1-git-send-email-rppt@linux.vnet.ibm.com>
+	<20180702113255.1f7504e2@lwn.net>
+	<20180718114730.GD4302@rapoport-lnx>
+	<20180718060249.6b45605d@lwn.net>
+	<20180718170043.GA23770@rapoport-lnx>
+	<20180726154557.7a1677d8@lwn.net>
 MIME-Version: 1.0
-In-Reply-To: <CALvZod6cUJktTAGrc-q7XPRTykdWR6MfgyPXE1B=AZq9U7P31g@mail.gmail.com>
-References: <153320759911.18959.8842396230157677671.stgit@localhost.localdomain>
- <CAHbLzkpBnNN4RBMHXzy09x1PZw4m5D99jANmjD=0GT=1tkxniQ@mail.gmail.com> <CALvZod6cUJktTAGrc-q7XPRTykdWR6MfgyPXE1B=AZq9U7P31g@mail.gmail.com>
-From: Yang Shi <shy828301@gmail.com>
-Date: Thu, 2 Aug 2018 10:26:14 -0700
-Message-ID: <CAHbLzkpexLdg=eEudwxV-ztF81gs2a4HeyYb2zeAWZmV45ja4w@mail.gmail.com>
-Subject: Re: [PATCH] mm: Move check for SHRINKER_NUMA_AWARE to do_shrink_slab()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@suse.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Huang Ying <ying.huang@intel.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Matthew Wilcox <willy@infradead.org>, jbacik@fb.com, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Randy Dunlap <rdunlap@infradead.org>, linux-doc <linux-doc@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 2, 2018 at 9:54 AM, Shakeel Butt <shakeelb@google.com> wrote:
-> On Thu, Aug 2, 2018 at 9:47 AM Yang Shi <shy828301@gmail.com> wrote:
->>
->> On Thu, Aug 2, 2018 at 4:00 AM, Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
->> > In case of shrink_slab_memcg() we do not zero nid, when shrinker
->> > is not numa-aware. This is not a real problem, since currently
->> > all memcg-aware shrinkers are numa-aware too (we have two:
->>
->> Actually, this is not true. huge_zero_page_shrinker is NOT numa-aware.
->> deferred_split_shrinker is numa-aware.
->>
->
-> But both huge_zero_page_shrinker and huge_zero_page_shrinker are not
-> memcg-aware shrinkers. I think Kirill is saying all memcg-aware
-> shrinkers are also numa-aware shrinkers.
+On Thu, 26 Jul 2018 15:45:57 -0600
+Jonathan Corbet <corbet@lwn.net> wrote:
 
-Aha, thanks for reminding. Yes, I missed that memcg-aware part.
+> It seems this hasn't happened - at least, I don't see the patches in
+> linux-next.  Unless somebody says something I think I'll just go ahead and
+> merge the set.  It all still applies cleanly enough, no conflicts against
+> -next, and I'd hate to see this work fall through the cracks.
 
->
-> Shakeel
+So I have now merged this set, thanks.
+
+jon
