@@ -1,109 +1,204 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F2D936B000A
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 15:12:28 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r14-v6so2052512wmh.0
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 12:12:28 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w12-v6sor1101308wrv.24.2018.08.02.12.12.27
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 02 Aug 2018 12:12:27 -0700 (PDT)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DC2FE6B0005
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 15:22:44 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id d25-v6so3008281qkj.9
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 12:22:44 -0700 (PDT)
+Received: from outgoing-stata.csail.mit.edu (outgoing-stata.csail.mit.edu. [128.30.2.210])
+        by mx.google.com with ESMTP id z19-v6si2318609qvj.60.2018.08.02.12.22.43
+        for <linux-mm@kvack.org>;
+        Thu, 02 Aug 2018 12:22:43 -0700 (PDT)
+Subject: Re: [RESEND] Spectre-v2 (IBPB/IBRS) and SSBD fixes for 4.4.y
+References: <153156030832.10043.13438231886571087086.stgit@srivatsa-ubuntu>
+ <nycvar.YFH.7.76.1807232357440.997@cbobk.fhfr.pm>
+ <e57d5ac9-68d7-8ccf-6117-5a2f9d9e1112@csail.mit.edu>
+ <nycvar.YFH.7.76.1807242351500.997@cbobk.fhfr.pm>
+ <CAGXu5jJvTF0KXs+3J32u5v1Ba5gZd0Umgib6D6++ie+LzqnuWA@mail.gmail.com>
+From: "Srivatsa S. Bhat" <srivatsa@csail.mit.edu>
+Message-ID: <c616c38b-52cc-2f88-7ea3-00f3a572255a@csail.mit.edu>
+Date: Thu, 2 Aug 2018 12:22:00 -0700
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1808011424540.1087@eggly.anvils>
-References: <alpine.LSU.2.11.1807301410470.4805@eggly.anvils>
- <CA+55aFx3qR1FW0T3na25NrwLZAvpOdUEUJa879CnaJT2ZPfhkg@mail.gmail.com>
- <alpine.LSU.2.11.1807301940460.5904@eggly.anvils> <CALAqxLU3cmu4g+HaB6A7=VhY-hW=d9e68EZ=_4JiwX_BigzjPQ@mail.gmail.com>
- <CAMi1Hd0-2eDod4HiBifKCxY0cUUEW_A-yv7sZ7GRgL0whWQt+w@mail.gmail.com>
- <CA+55aFx=-tHXjv3gv4W=xYwM+VOHJQE5q5VyihkPK7s560x-vQ@mail.gmail.com>
- <20180731170328.ocb5oikwhwtkyzrj@kshutemo-mobl1> <20180731174349.GA12944@agluck-desk>
- <CA+55aFxJpJvcYKos-sVTsn9q4wK0-m4up1SXrcqfbXHKxaKxjg@mail.gmail.com>
- <alpine.LSU.2.11.1808011042090.14313@eggly.anvils> <20180801205848.6mgcfux4b63svj3n@kshutemo-mobl1>
- <alpine.LSU.2.11.1808011424540.1087@eggly.anvils>
-From: John Stultz <john.stultz@linaro.org>
-Date: Thu, 2 Aug 2018 12:12:24 -0700
-Message-ID: <CALAqxLWWUHhuTPa7VpAdvScRHnHT=0UcKyDuJgn=BVCaOd1Beg@mail.gmail.com>
-Subject: Re: Linux 4.18-rc7
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CAGXu5jJvTF0KXs+3J32u5v1Ba5gZd0Umgib6D6++ie+LzqnuWA@mail.gmail.com>
+Content-Type: multipart/mixed;
+ boundary="------------562F9C45402A158E7AEC19FA"
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Linus Torvalds <torvalds@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Amit Pundir <amit.pundir@linaro.org>, Matthew Wilcox <willy@infradead.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, youling 257 <youling257@gmail.com>, Joel Fernandes <joelaf@google.com>, Colin Cross <ccross@google.com>
+To: Kees Cook <keescook@chromium.org>, Jiri Kosina <jikos@kernel.org>
+Cc: Greg KH <gregkh@linuxfoundation.org>, "# 3.4.x" <stable@vger.kernel.org>, Denys Vlasenko <dvlasenk@redhat.com>, Bo Gan <ganb@vmware.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@suse.de>, Thomas Gleixner <tglx@linutronix.de>, Ricardo Neri <ricardo.neri-calderon@linux.intel.com>, Tom Lendacky <thomas.lendacky@amd.com>, Andi Kleen <ak@linux.intel.com>, linux-tip-commits@vger.kernel.org, Jia Zhang <qianyue.zj@alibaba-inc.com>, Josh Poimboeuf <jpoimboe@redhat.com>, xen-devel <xen-devel@lists.xenproject.org>, =?UTF-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@amacapital.net>, Arnaldo Carvalho de Melo <acme@redhat.com>, Sherry Hurwitz <sherry.hurwitz@amd.com>, LKML <linux-kernel@vger.kernel.org>, Shuah Khan <shuahkh@osg.samsung.com>, Oleg Nesterov <oleg@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Woodhouse <dwmw@amazon.co.uk>, KarimAllah Ahmed <karahmed@amazon.de>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, Dominik Brodowski <linux@dominikbrodowski.net>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Joerg Roedel <joro@8bytes.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Kyle Huey <me@kylehuey.com>, Will Drewry <wad@chromium.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Brian Gerst <brgerst@gmail.com>, Kristen Carlson Accardi <kristen@linux.intel.com>, Thomas Garnier <thgarnie@google.com>, Andrew Morton <akpm@linux-foundation.org>, Joe Konno <joe.konno@linux.intel.com>, kvm <kvm@vger.kernel.org>, Piotr Luc <piotr.luc@intel.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Jan Beulich <jbeulich@suse.com>, Arjan van de Ven <arjan@linux.intel.com>, Alexander Kuleshov <kuleshovmail@gmail.com>, Juergen Gross <jgross@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, =?UTF-8?Q?J=c3=b6rg_Otte?= <jrg.otte@gmail.com>, Tim Chen <tim.c.chen@linux.intel.com>, Alexander Sergeyev <sergeev917@gmail.com>, Josh Triplett <josh@joshtriplett.org>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Tony Luck <tony.luck@intel.com>, Laura Abbott <labbott@fedoraproject.org>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@kernel.org>, Mike Galbraith <efault@gmx.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alexey Makhalov <amakhalov@vmware.com>, Dave Hansen <dave@sr71.net>, ashok.raj@intel.com, Mel Gorman <mgorman@suse.de>, =?UTF-8?B?TWlja2HDq2xTYWxhw7xu?= <mic@digikod.net>, Fenghua Yu <fenghua.yu@intel.com>, "Matt Helsley (VMware)" <matt.helsley@gmail.com>, Vince Weaver <vincent.weaver@maine.edu>, Prarit Bhargava <prarit@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, Dan Williams <dan.j.williams@intel.com>, Jim Mattson <jmattson@google.com>, Greg Kroah-Hartmann <gregkh@linux-foundation.org>, Dave Young <dyoung@redhat.com>, linux-edac <linux-edac@vger.kernel.org>, Jon Masters <jcm@redhat.com>, Andy Lutomirski <luto@kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Linux-MM <linux-mm@kvack.org>, Jiri Olsa <jolsa@redhat.com>, "Van De Ven, Arjan" <arjan.van.de.ven@intel.com>, sironi@amazon.de, Frederic Weisbecker <fweisbec@gmail.com>, Kyle Huey <khuey@kylehuey.com>, Alexander Popov <alpopov@ptsecurity.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Nadav Amit <nadav.amit@gmail.com>, Yazen Ghannam <Yazen.Ghannam@amd.com>, Wanpeng Li <kernellwp@gmail.com>, Stephane Eranian <eranian@google.com>, David Woodhouse <dwmw2@infradead.org>, srivatsab@vmware.com, srinidhir@vmware.com
 
-On Wed, Aug 1, 2018 at 2:55 PM, Hugh Dickins <hughd@google.com> wrote:
-> On Wed, 1 Aug 2018, Kirill A. Shutemov wrote:
->> On Wed, Aug 01, 2018 at 11:31:52AM -0700, Hugh Dickins wrote:
->> > On Wed, 1 Aug 2018, Linus Torvalds wrote:
->> > >
->> > > Anyway, the upshot of all this is that I think I know what the ia64
->> > > problem was, and John sent the patch for the ashmem case, and I'm
->> > > going to hold off reverting that vma_is_anonymous() false-positives
->> > > commit after all.
->> >
->> > I'd better send deletion of zap_pmd_range()'s VM_BUG_ON_VMA(): below
->> > (but I've no proprietorial interest, if you prefer to do your own).
+This is a multi-part message in MIME format.
+--------------562F9C45402A158E7AEC19FA
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+
+On 7/26/18 4:09 PM, Kees Cook wrote:
+> On Tue, Jul 24, 2018 at 3:02 PM, Jiri Kosina <jikos@kernel.org> wrote:
+>> On Tue, 24 Jul 2018, Srivatsa S. Bhat wrote:
 >>
->> Agreed.
+>>> However, if you are proposing that you'd like to contribute the enhanced
+>>> PTI/Spectre (upstream) patches from the SLES 4.4 tree to 4.4 stable, and
+>>> have them merged instead of this patch series, then I would certainly
+>>> welcome it!
 >>
->> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->
-> Thanks.
->
+>> I'd in principle love us to push everything back to 4.4, but there are a
+>> few reasons (*) why that's not happening shortly.
 >>
->> > John's patch is good, and originally I thought it was safe from that
->> > VM_BUG_ON_VMA(), because the /dev/ashmem fd exposed to the user is
->> > disconnected from the vm_file in the vma, and madvise(,,MADV_REMOVE)
->> > insists on VM_SHARED. But afterwards read John's earlier mail,
->> > drawing attention to the vfs_fallocate() in there: I may be wrong,
->> > and I don't know if Android has THP in the config anyway, but it looks
->> > to me like an unmap_mapping_range() from ashmem's vfs_fallocate()
->> > could hit precisely the VM_BUG_ON_VMA(), once it's vma_is_anonymous().
->> >
->> > (I'm not familiar with ashmem, and I certainly don't understand the
->> > role of MAP_PRIVATE ashmem mappings - hole-punch's zap_pte_range()
->> > should end up leaving any anon pages in place; but the presence of
->> > the BUG is requiring us all to understand too much too quickly.)
+>> Anyway, to point out explicitly what's really needed for those folks
+>> running 4.4-stable and relying on PTI providing The Real Thing(TM), it's
+>> either a 4.4-stable port of
 >>
->> Hugh, do you see any reason why ashmem shouldn't have vm_ops ==
->> shmem_vm_ops?
->
-> I cannot immediately think of an absolute reason why not, but I'm
-> not giving it much thought; and that might turn it into a stranger
-> beast than it already is.
->
+>>         http://kernel.suse.com/cgit/kernel-source/plain/patches.suse/x86-entry-64-use-a-per-cpu-trampoline-stack.patch?id=3428a77b02b1ba03e45d8fc352ec350429f57fc7
 >>
->> I don't understand ashmem, but I feel uncomfortable that we have this
->> sneaky way to create an anonymous VMA. It feels wrong to me.
->
-> I agree it's odd, but in this respect it's no odder than /dev/zero:
-> that has exactly the same pattern of shmem_zero_setup() for VM_SHARED,
-> else vma_set_anonymous(): which made me comfortable with John's patch,
-> restoring the way it worked before.
->
-> Admittedly, the subsequent vfs_fallocate() might generate surprises;
-> and the business of doing a shmem_file_setup() first, and then undoing
-> it with a shmem_zero_setup(), looks weird - from John's old XXX comment,
+>> or making THREADINFO_GFP imply __GFP_ZERO.
+> 
+> This is true in Linus's tree now. Should be trivial to backport:
+> https://git.kernel.org/linus/e01e80634ecdd
+> 
 
-Yes, it is weird. :)
+Hi Jiri, Kees,
 
-> I think it was a quick hack to piece together some functionality they
-> needed in a hurry, which never got revisited (they wanted a name for
-> the area? maybe memfd would be good for that now).
+Thank you for suggesting the patch! I have attached the (locally
+tested) 4.4 and 4.9 backports of that patch with this mail. (The
+mainline commit applies cleanly on 4.14).
 
-So my XXX comment is to do with a change I made to ashmem in order for
-it to go into staging, compared with the original Android
-implementation. They still carry the patch to undo it here:
-https://android.googlesource.com/kernel/common.git/+/ebfc8d6476a66dc91a1b30cbfc18e67d4401af09%5E%21/
+Greg, could you please consider including them in stable 4.4, 4.9
+and 4.14?
 
-But it has more to do w/ in the shared mapping case, providing a
-cleaner way of setting the vma->vm_ops = &shmem_vm_ops without having
-to use shmem_zero_setup(), and doesn't change the behavior in the
-private mapping case.
+Thank you very much!
 
-This discussion has spurred Joel and I to chat a bit about reviving
-the effort to "properly" upstream ashmem. We're still in discussion
-but I'm thinking we might just try to add the pin/unpin functionality
-to memfd. We'll see how the discussion evolves.
+Regards,
+Srivatsa
+VMware Photon OS
 
-thanks
--john
+--------------562F9C45402A158E7AEC19FA
+Content-Type: text/plain; charset=UTF-8; x-mac-type="0"; x-mac-creator="0";
+ name="4.4-fork-unconditionally-clear-stack-on-fork.patch"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment;
+ filename="4.4-fork-unconditionally-clear-stack-on-fork.patch"
+
+RnJvbSA3ZTM5ZDhjY2JiMDg4OWMwM2NlNmRjMGRlZTBlNjNkNzhmMzdkMGE5IE1vbiBTZXAg
+MTcgMDA6MDA6MDAgMjAwMQpGcm9tOiBLZWVzIENvb2sgPGtlZXNjb29rQGNocm9taXVtLm9y
+Zz4KRGF0ZTogRnJpLCAyMCBBcHIgMjAxOCAxNDo1NTozMSAtMDcwMApTdWJqZWN0OiBbUEFU
+Q0hdIGZvcms6IHVuY29uZGl0aW9uYWxseSBjbGVhciBzdGFjayBvbiBmb3JrCgpjb21taXQg
+ZTAxZTgwNjM0ZWNkZGUxZGQxMTNhYzQzYjNhZGFkMjFiNDdmMzk1NyB1cHN0cmVhbS4KCk9u
+ZSBvZiB0aGUgY2xhc3NlcyBvZiBrZXJuZWwgc3RhY2sgY29udGVudCBsZWFrc1sxXSBpcyBl
+eHBvc2luZyB0aGUKY29udGVudHMgb2YgcHJpb3IgaGVhcCBvciBzdGFjayBjb250ZW50cyB3
+aGVuIGEgbmV3IHByb2Nlc3Mgc3RhY2sgaXMKYWxsb2NhdGVkLiAgTm9ybWFsbHksIHRob3Nl
+IHN0YWNrcyBhcmUgbm90IHplcm9lZCwgYW5kIHRoZSBvbGQgY29udGVudHMKcmVtYWluIGlu
+IHBsYWNlLiAgSW4gdGhlIGZhY2Ugb2Ygc3RhY2sgY29udGVudCBleHBvc3VyZSBmbGF3cywg
+dGhvc2UKY29udGVudHMgY2FuIGxlYWsgdG8gdXNlcnNwYWNlLgoKRml4aW5nIHRoaXMgd2ls
+bCBtYWtlIHRoZSBrZXJuZWwgbm8gbG9uZ2VyIHZ1bG5lcmFibGUgdG8gdGhlc2UgZmxhd3Ms
+IGFzCnRoZSBzdGFjayB3aWxsIGJlIHdpcGVkIGVhY2ggdGltZSBhIHN0YWNrIGlzIGFzc2ln
+bmVkIHRvIGEgbmV3IHByb2Nlc3MuClRoZXJlJ3Mgbm90IGEgbWVhbmluZ2Z1bCBjaGFuZ2Ug
+aW4gcnVudGltZSBwZXJmb3JtYW5jZTsgaXQgYWxtb3N0IGxvb2tzCmxpa2UgaXQgcHJvdmlk
+ZXMgYSBiZW5lZml0LgoKUGVyZm9ybWluZyBiYWNrLXRvLWJhY2sga2VybmVsIGJ1aWxkcyBi
+ZWZvcmU6CglSdW4gdGltZXM6IDE1Ny44NiAxNTcuMDkgMTU4LjkwIDE2MC45NCAxNjAuODAK
+CU1lYW46IDE1OS4xMgoJU3RkIERldjogMS41NAoKYW5kIGFmdGVyOgoJUnVuIHRpbWVzOiAx
+NTkuMzEgMTU3LjM0IDE1Ni43MSAxNTguMTUgMTYwLjgxCglNZWFuOiAxNTguNDYKCVN0ZCBE
+ZXY6IDEuNDYKCkluc3RlYWQgb2YgbWFraW5nIHRoaXMgYSBidWlsZCBvciBydW50aW1lIGNv
+bmZpZywgQW5keSBMdXRvbWlyc2tpCnJlY29tbWVuZGVkIHRoaXMganVzdCBiZSBlbmFibGVk
+IGJ5IGRlZmF1bHQuCgpbMV0gQSBub2lzeSBzZWFyY2ggZm9yIG1hbnkga2luZHMgb2Ygc3Rh
+Y2sgY29udGVudCBsZWFrcyBjYW4gYmUgc2VlbiBoZXJlOgpodHRwczovL2N2ZS5taXRyZS5v
+cmcvY2dpLWJpbi9jdmVrZXkuY2dpP2tleXdvcmQ9bGludXgra2VybmVsK3N0YWNrK2xlYWsK
+CkkgZGlkIHNvbWUgbW9yZSB3aXRoIHBlcmYgYW5kIGN5Y2xlIGNvdW50cyBvbiBydW5uaW5n
+IDEwMCwwMDAgZXhlY3Mgb2YKL2Jpbi90cnVlLgoKYmVmb3JlOgpDeWNsZXM6IDIxODg1ODg2
+MTU1MSAyMTg4NTMwMzYxMzAgMjE0NzI3NjEwOTY5IDIyNzY1Njg0NDEyMiAyMjQ5ODA1NDI4
+NDEKTWVhbjogIDIyMTAxNTM3OTEyMi42MApTdGQgRGV2OiA0NjYyNDg2NTUyLjQ3CgphZnRl
+cjoKQ3ljbGVzOiAyMTM4Njg5NDUwNjAgMjEzMTE5Mjc1MjA0IDIxMTgyMDE2OTQ1NiAyMjQ0
+MjY2NzMyNTkgMjI1NDg5OTg2MzQ4Ck1lYW46ICAyMTc3NDUwMDk4NjUuNDAKU3RkIERldjog
+NTkzNTU1OTI3OS45OQoKSXQgY29udGludWVzIHRvIGxvb2sgbGlrZSBpdCdzIGZhc3Rlciwg
+dGhvdWdoIHRoZSBkZXZpYXRpb24gaXMgcmF0aGVyCndpZGUsIGJ1dCBJJ20gbm90IHN1cmUg
+d2hhdCBJIGNvdWxkIGRvIHRoYXQgd291bGQgYmUgbGVzcyBub2lzeS4gIEknbQpvcGVuIHRv
+IGlkZWFzIQoKTGluazogaHR0cDovL2xrbWwua2VybmVsLm9yZy9yLzIwMTgwMjIxMDIxNjU5
+LkdBMzcwNzNAYmVhc3QKU2lnbmVkLW9mZi1ieTogS2VlcyBDb29rIDxrZWVzY29va0BjaHJv
+bWl1bS5vcmc+CkFja2VkLWJ5OiBNaWNoYWwgSG9ja28gPG1ob2Nrb0BzdXNlLmNvbT4KUmV2
+aWV3ZWQtYnk6IEFuZHJldyBNb3J0b24gPGFrcG1AbGludXgtZm91bmRhdGlvbi5vcmc+CkNj
+OiBBbmR5IEx1dG9taXJza2kgPGx1dG9Aa2VybmVsLm9yZz4KQ2M6IExhdXJhIEFiYm90dCA8
+bGFiYm90dEByZWRoYXQuY29tPgpDYzogUmFzbXVzIFZpbGxlbW9lcyA8cmFzbXVzLnZpbGxl
+bW9lc0BwcmV2YXMuZGs+CkNjOiBNZWwgR29ybWFuIDxtZ29ybWFuQHRlY2hzaW5ndWxhcml0
+eS5uZXQ+ClNpZ25lZC1vZmYtYnk6IEFuZHJldyBNb3J0b24gPGFrcG1AbGludXgtZm91bmRh
+dGlvbi5vcmc+ClNpZ25lZC1vZmYtYnk6IExpbnVzIFRvcnZhbGRzIDx0b3J2YWxkc0BsaW51
+eC1mb3VuZGF0aW9uLm9yZz4KWyBTcml2YXRzYTogQmFja3BvcnRlZCB0byA0LjQueSBdClNp
+Z25lZC1vZmYtYnk6IFNyaXZhdHNhIFMuIEJoYXQgPHNyaXZhdHNhQGNzYWlsLm1pdC5lZHU+
+ClJldmlld2VkLWJ5OiBTcmluaWRoaSBSYW8gPHNyaW5pZGhpckB2bXdhcmUuY29tPgotLS0K
+IGluY2x1ZGUvbGludXgvdGhyZWFkX2luZm8uaCB8IDYgKy0tLS0tCiAxIGZpbGUgY2hhbmdl
+ZCwgMSBpbnNlcnRpb24oKyksIDUgZGVsZXRpb25zKC0pCgpkaWZmIC0tZ2l0IGEvaW5jbHVk
+ZS9saW51eC90aHJlYWRfaW5mby5oIGIvaW5jbHVkZS9saW51eC90aHJlYWRfaW5mby5oCmlu
+ZGV4IGZmMzA3YjUuLjY0Njg5MWYgMTAwNjQ0Ci0tLSBhL2luY2x1ZGUvbGludXgvdGhyZWFk
+X2luZm8uaAorKysgYi9pbmNsdWRlL2xpbnV4L3RocmVhZF9pbmZvLmgKQEAgLTU1LDExICs1
+NSw3IEBAIGV4dGVybiBsb25nIGRvX25vX3Jlc3RhcnRfc3lzY2FsbChzdHJ1Y3QgcmVzdGFy
+dF9ibG9jayAqcGFybSk7CiAKICNpZmRlZiBfX0tFUk5FTF9fCiAKLSNpZmRlZiBDT05GSUdf
+REVCVUdfU1RBQ0tfVVNBR0UKLSMgZGVmaW5lIFRIUkVBRElORk9fR0ZQCQkoR0ZQX0tFUk5F
+TCB8IF9fR0ZQX05PVFJBQ0sgfCBfX0dGUF9aRVJPKQotI2Vsc2UKLSMgZGVmaW5lIFRIUkVB
+RElORk9fR0ZQCQkoR0ZQX0tFUk5FTCB8IF9fR0ZQX05PVFJBQ0spCi0jZW5kaWYKKyNkZWZp
+bmUgVEhSRUFESU5GT19HRlAJCShHRlBfS0VSTkVMIHwgX19HRlBfTk9UUkFDSyB8IF9fR0ZQ
+X1pFUk8pCiAKIC8qCiAgKiBmbGFnIHNldC9jbGVhci90ZXN0IHdyYXBwZXJzCi0tIAoyLjcu
+NAoK
+--------------562F9C45402A158E7AEC19FA
+Content-Type: text/plain; charset=UTF-8; x-mac-type="0"; x-mac-creator="0";
+ name="4.9-fork-unconditionally-clear-stack-on-fork.patch"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment;
+ filename="4.9-fork-unconditionally-clear-stack-on-fork.patch"
+
+RnJvbSA3ZGViY2M2NDM4YjRhMGJkYzlhN2I1MDlhNzUxMzUwZGFkODgzMzI4IE1vbiBTZXAg
+MTcgMDA6MDA6MDAgMjAwMQpGcm9tOiBLZWVzIENvb2sgPGtlZXNjb29rQGNocm9taXVtLm9y
+Zz4KRGF0ZTogRnJpLCAyMCBBcHIgMjAxOCAxNDo1NTozMSAtMDcwMApTdWJqZWN0OiBbUEFU
+Q0hdIGZvcms6IHVuY29uZGl0aW9uYWxseSBjbGVhciBzdGFjayBvbiBmb3JrCgpjb21taXQg
+ZTAxZTgwNjM0ZWNkZGUxZGQxMTNhYzQzYjNhZGFkMjFiNDdmMzk1NyB1cHN0cmVhbS4KCk9u
+ZSBvZiB0aGUgY2xhc3NlcyBvZiBrZXJuZWwgc3RhY2sgY29udGVudCBsZWFrc1sxXSBpcyBl
+eHBvc2luZyB0aGUKY29udGVudHMgb2YgcHJpb3IgaGVhcCBvciBzdGFjayBjb250ZW50cyB3
+aGVuIGEgbmV3IHByb2Nlc3Mgc3RhY2sgaXMKYWxsb2NhdGVkLiAgTm9ybWFsbHksIHRob3Nl
+IHN0YWNrcyBhcmUgbm90IHplcm9lZCwgYW5kIHRoZSBvbGQgY29udGVudHMKcmVtYWluIGlu
+IHBsYWNlLiAgSW4gdGhlIGZhY2Ugb2Ygc3RhY2sgY29udGVudCBleHBvc3VyZSBmbGF3cywg
+dGhvc2UKY29udGVudHMgY2FuIGxlYWsgdG8gdXNlcnNwYWNlLgoKRml4aW5nIHRoaXMgd2ls
+bCBtYWtlIHRoZSBrZXJuZWwgbm8gbG9uZ2VyIHZ1bG5lcmFibGUgdG8gdGhlc2UgZmxhd3Ms
+IGFzCnRoZSBzdGFjayB3aWxsIGJlIHdpcGVkIGVhY2ggdGltZSBhIHN0YWNrIGlzIGFzc2ln
+bmVkIHRvIGEgbmV3IHByb2Nlc3MuClRoZXJlJ3Mgbm90IGEgbWVhbmluZ2Z1bCBjaGFuZ2Ug
+aW4gcnVudGltZSBwZXJmb3JtYW5jZTsgaXQgYWxtb3N0IGxvb2tzCmxpa2UgaXQgcHJvdmlk
+ZXMgYSBiZW5lZml0LgoKUGVyZm9ybWluZyBiYWNrLXRvLWJhY2sga2VybmVsIGJ1aWxkcyBi
+ZWZvcmU6CglSdW4gdGltZXM6IDE1Ny44NiAxNTcuMDkgMTU4LjkwIDE2MC45NCAxNjAuODAK
+CU1lYW46IDE1OS4xMgoJU3RkIERldjogMS41NAoKYW5kIGFmdGVyOgoJUnVuIHRpbWVzOiAx
+NTkuMzEgMTU3LjM0IDE1Ni43MSAxNTguMTUgMTYwLjgxCglNZWFuOiAxNTguNDYKCVN0ZCBE
+ZXY6IDEuNDYKCkluc3RlYWQgb2YgbWFraW5nIHRoaXMgYSBidWlsZCBvciBydW50aW1lIGNv
+bmZpZywgQW5keSBMdXRvbWlyc2tpCnJlY29tbWVuZGVkIHRoaXMganVzdCBiZSBlbmFibGVk
+IGJ5IGRlZmF1bHQuCgpbMV0gQSBub2lzeSBzZWFyY2ggZm9yIG1hbnkga2luZHMgb2Ygc3Rh
+Y2sgY29udGVudCBsZWFrcyBjYW4gYmUgc2VlbiBoZXJlOgpodHRwczovL2N2ZS5taXRyZS5v
+cmcvY2dpLWJpbi9jdmVrZXkuY2dpP2tleXdvcmQ9bGludXgra2VybmVsK3N0YWNrK2xlYWsK
+CkkgZGlkIHNvbWUgbW9yZSB3aXRoIHBlcmYgYW5kIGN5Y2xlIGNvdW50cyBvbiBydW5uaW5n
+IDEwMCwwMDAgZXhlY3Mgb2YKL2Jpbi90cnVlLgoKYmVmb3JlOgpDeWNsZXM6IDIxODg1ODg2
+MTU1MSAyMTg4NTMwMzYxMzAgMjE0NzI3NjEwOTY5IDIyNzY1Njg0NDEyMiAyMjQ5ODA1NDI4
+NDEKTWVhbjogIDIyMTAxNTM3OTEyMi42MApTdGQgRGV2OiA0NjYyNDg2NTUyLjQ3CgphZnRl
+cjoKQ3ljbGVzOiAyMTM4Njg5NDUwNjAgMjEzMTE5Mjc1MjA0IDIxMTgyMDE2OTQ1NiAyMjQ0
+MjY2NzMyNTkgMjI1NDg5OTg2MzQ4Ck1lYW46ICAyMTc3NDUwMDk4NjUuNDAKU3RkIERldjog
+NTkzNTU1OTI3OS45OQoKSXQgY29udGludWVzIHRvIGxvb2sgbGlrZSBpdCdzIGZhc3Rlciwg
+dGhvdWdoIHRoZSBkZXZpYXRpb24gaXMgcmF0aGVyCndpZGUsIGJ1dCBJJ20gbm90IHN1cmUg
+d2hhdCBJIGNvdWxkIGRvIHRoYXQgd291bGQgYmUgbGVzcyBub2lzeS4gIEknbQpvcGVuIHRv
+IGlkZWFzIQoKTGluazogaHR0cDovL2xrbWwua2VybmVsLm9yZy9yLzIwMTgwMjIxMDIxNjU5
+LkdBMzcwNzNAYmVhc3QKU2lnbmVkLW9mZi1ieTogS2VlcyBDb29rIDxrZWVzY29va0BjaHJv
+bWl1bS5vcmc+CkFja2VkLWJ5OiBNaWNoYWwgSG9ja28gPG1ob2Nrb0BzdXNlLmNvbT4KUmV2
+aWV3ZWQtYnk6IEFuZHJldyBNb3J0b24gPGFrcG1AbGludXgtZm91bmRhdGlvbi5vcmc+CkNj
+OiBBbmR5IEx1dG9taXJza2kgPGx1dG9Aa2VybmVsLm9yZz4KQ2M6IExhdXJhIEFiYm90dCA8
+bGFiYm90dEByZWRoYXQuY29tPgpDYzogUmFzbXVzIFZpbGxlbW9lcyA8cmFzbXVzLnZpbGxl
+bW9lc0BwcmV2YXMuZGs+CkNjOiBNZWwgR29ybWFuIDxtZ29ybWFuQHRlY2hzaW5ndWxhcml0
+eS5uZXQ+ClNpZ25lZC1vZmYtYnk6IEFuZHJldyBNb3J0b24gPGFrcG1AbGludXgtZm91bmRh
+dGlvbi5vcmc+ClNpZ25lZC1vZmYtYnk6IExpbnVzIFRvcnZhbGRzIDx0b3J2YWxkc0BsaW51
+eC1mb3VuZGF0aW9uLm9yZz4KWyBTcml2YXRzYTogQmFja3BvcnRlZCB0byA0LjkueSBdClNp
+Z25lZC1vZmYtYnk6IFNyaXZhdHNhIFMuIEJoYXQgPHNyaXZhdHNhQGNzYWlsLm1pdC5lZHU+
+ClJldmlld2VkLWJ5OiBTcmluaWRoaSBSYW8gPHNyaW5pZGhpckB2bXdhcmUuY29tPgotLS0K
+IGluY2x1ZGUvbGludXgvdGhyZWFkX2luZm8uaCB8IDcgKy0tLS0tLQogMSBmaWxlIGNoYW5n
+ZWQsIDEgaW5zZXJ0aW9uKCspLCA2IGRlbGV0aW9ucygtKQoKZGlmZiAtLWdpdCBhL2luY2x1
+ZGUvbGludXgvdGhyZWFkX2luZm8uaCBiL2luY2x1ZGUvbGludXgvdGhyZWFkX2luZm8uaApp
+bmRleCAyODczYmFmLi41ZTY0MzY3IDEwMDY0NAotLS0gYS9pbmNsdWRlL2xpbnV4L3RocmVh
+ZF9pbmZvLmgKKysrIGIvaW5jbHVkZS9saW51eC90aHJlYWRfaW5mby5oCkBAIC01OSwxMiAr
+NTksNyBAQCBleHRlcm4gbG9uZyBkb19ub19yZXN0YXJ0X3N5c2NhbGwoc3RydWN0IHJlc3Rh
+cnRfYmxvY2sgKnBhcm0pOwogCiAjaWZkZWYgX19LRVJORUxfXwogCi0jaWZkZWYgQ09ORklH
+X0RFQlVHX1NUQUNLX1VTQUdFCi0jIGRlZmluZSBUSFJFQURJTkZPX0dGUAkJKEdGUF9LRVJO
+RUxfQUNDT1VOVCB8IF9fR0ZQX05PVFJBQ0sgfCBcCi0JCQkJIF9fR0ZQX1pFUk8pCi0jZWxz
+ZQotIyBkZWZpbmUgVEhSRUFESU5GT19HRlAJCShHRlBfS0VSTkVMX0FDQ09VTlQgfCBfX0dG
+UF9OT1RSQUNLKQotI2VuZGlmCisjZGVmaW5lIFRIUkVBRElORk9fR0ZQCShHRlBfS0VSTkVM
+X0FDQ09VTlQgfCBfX0dGUF9OT1RSQUNLIHwgX19HRlBfWkVSTykKIAogLyoKICAqIGZsYWcg
+c2V0L2NsZWFyL3Rlc3Qgd3JhcHBlcnMKLS0gCjIuNy40Cgo=
+--------------562F9C45402A158E7AEC19FA--
