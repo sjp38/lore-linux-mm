@@ -1,85 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 696E16B0006
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 11:18:54 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id d25-v6so1838755qtp.10
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 08:18:54 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id u55-v6si2143322qtj.69.2018.08.02.08.18.52
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E7D696B0003
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 12:17:48 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id z20-v6so968311edq.10
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 09:17:48 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v13-v6si502126edk.456.2018.08.02.09.17.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Aug 2018 08:18:52 -0700 (PDT)
-Date: Thu, 2 Aug 2018 18:18:49 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v2 2/2] virtio_balloon: replace oom notifier with shrinker
-Message-ID: <20180802181309-mutt-send-email-mst@kernel.org>
-References: <1532683495-31974-1-git-send-email-wei.w.wang@intel.com>
- <1532683495-31974-3-git-send-email-wei.w.wang@intel.com>
- <20180730090041.GC24267@dhcp22.suse.cz>
- <5B619599.1000307@intel.com>
- <20180801113444.GK16767@dhcp22.suse.cz>
- <5B62DDCC.3030100@intel.com>
+        Thu, 02 Aug 2018 09:17:45 -0700 (PDT)
+Subject: Re: Caching/buffers become useless after some time
+References: <CADF2uSrW=Z=7NeA4qRwStoARGeT1y33QSP48Loc1u8XSdpMJOA@mail.gmail.com>
+ <20180712113411.GB328@dhcp22.suse.cz>
+ <CADF2uSqDDt3X_LHEQnc5xzHpqJ66E5gncogwR45bmZsNHxV55A@mail.gmail.com>
+ <CADF2uSr-uFz+AAhcwP7ORgGgtLohayBtpDLxx9kcADDxaW8hWw@mail.gmail.com>
+ <20180716162337.GY17280@dhcp22.suse.cz>
+ <CADF2uSpEZTqD7pUp1t77GNTT+L=M3Ycir2+gsZg3kf5=y-5_-Q@mail.gmail.com>
+ <20180716164500.GZ17280@dhcp22.suse.cz>
+ <CADF2uSpkOqCU5hO9y4708TvpJ5JvkXjZ-M1o+FJr2v16AZP3Vw@mail.gmail.com>
+ <c33fba55-3e86-d40f-efe0-0fc908f303bd@suse.cz>
+ <20180730144048.GW24267@dhcp22.suse.cz>
+ <CADF2uSr=mjVih1TB397bq1H7u3rPvo0HPqhUiG21AWu+WXFC5g@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <1f862d41-1e9f-5324-fb90-b43f598c3955@suse.cz>
+Date: Thu, 2 Aug 2018 18:15:22 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5B62DDCC.3030100@intel.com>
+In-Reply-To: <CADF2uSr=mjVih1TB397bq1H7u3rPvo0HPqhUiG21AWu+WXFC5g@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: Michal Hocko <mhocko@kernel.org>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Marinko Catovic <marinko.catovic@gmail.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>
 
-On Thu, Aug 02, 2018 at 06:32:44PM +0800, Wei Wang wrote:
-> On 08/01/2018 07:34 PM, Michal Hocko wrote:
-> > On Wed 01-08-18 19:12:25, Wei Wang wrote:
-> > > On 07/30/2018 05:00 PM, Michal Hocko wrote:
-> > > > On Fri 27-07-18 17:24:55, Wei Wang wrote:
-> > > > > The OOM notifier is getting deprecated to use for the reasons mentioned
-> > > > > here by Michal Hocko: https://lkml.org/lkml/2018/7/12/314
-> > > > > 
-> > > > > This patch replaces the virtio-balloon oom notifier with a shrinker
-> > > > > to release balloon pages on memory pressure.
-> > > > It would be great to document the replacement. This is not a small
-> > > > change...
-> > > OK. I plan to document the following to the commit log:
-> > > 
-> > >    The OOM notifier is getting deprecated to use for the reasons:
-> > >      - As a callout from the oom context, it is too subtle and easy to
-> > >        generate bugs and corner cases which are hard to track;
-> > >      - It is called too late (after the reclaiming has been performed).
-> > >        Drivers with large amuont of reclaimable memory is expected to be
-> > >        released them at an early age of memory pressure;
-> > >      - The notifier callback isn't aware of the oom contrains;
-> > >      Link: https://lkml.org/lkml/2018/7/12/314
-> > > 
-> > >      This patch replaces the virtio-balloon oom notifier with a shrinker
-> > >      to release balloon pages on memory pressure. Users can set the amount of
-> > >      memory pages to release each time a shrinker_scan is called via the
-> > >      module parameter balloon_pages_to_shrink, and the default amount is 256
-> > >      pages. Historically, the feature VIRTIO_BALLOON_F_DEFLATE_ON_OOM has
-> > >      been used to release balloon pages on OOM. We continue to use this
-> > >      feature bit for the shrinker, so the shrinker is only registered when
-> > >      this feature bit has been negotiated with host.
-> > Do you have any numbers for how does this work in practice?
+On 07/31/2018 12:08 AM, Marinko Catovic wrote:
 > 
-> It works in this way: for example, we can set the parameter,
-> balloon_pages_to_shrink, to shrink 1GB memory once shrink scan is called.
-> Now, we have a 8GB guest, and we balloon out 7GB. When shrink scan is
-> called, the balloon driver will get back 1GB memory and give them back to
-> mm, then the ballooned memory becomes 6GB.
+>> Can you provide (a single snapshot) /proc/pagetypeinfo and
+>> /proc/slabinfo from a system that's currently experiencing the issue,
+>> also with /proc/vmstat and /proc/zoneinfo to verify? Thanks.
 > 
-> When the shrinker scan is called the second time, another 1GB will be given
-> back to mm. So the ballooned pages are given back to mm gradually.
+> your request came in just one day after I 2>drop_caches again when the
+> ram usage
+> was really really low again. Up until now it did not reoccur on any of
+> the 2 hosts,
+> where one shows 550MB/11G with 37G of totally free ram for now - so not
+> that low
+> like last time when I dropped it, I think it was like 300M/8G or so, but
+> I hope it helps:
 
-I think what's being asked here is a description of tests that
-were run. Which workloads see improved behaviour?
+Thanks.
+ 
+> /proc/pagetypeinfoA  https://pastebin.com/6QWEZagL
 
-Our behaviour under memory pressure isn't great, in particular it is not
-clear when it's safe to re-inflate the balloon, if host attempts to
-re-inflate it too soon then we still get OOM. It would be better
-if VIRTIO_BALLOON_F_DEFLATE_ON_OOM would somehow mean
-"it's ok to ask for almost all of memory, if guest needs memory from
-balloon for apps to function it can take it from the balloon".
+Yep, looks like fragmented by reclaimable slabs:
 
+Node    0, zone   Normal, type    Unmovable  29101  32754   8372   2790   1334    354     23      3      4      0      0 
+Node    0, zone   Normal, type      Movable 142449  83386  99426  69177  36761  12931   1378     24      0      0      0 
+Node    0, zone   Normal, type  Reclaimable 467195 530638 355045 192638  80358  15627   2029    231     18      0      0 
 
--- 
-MST
+Number of blocks type     Unmovable      Movable  Reclaimable   HighAtomic      Isolate 
+Node 0, zone      DMA            1            7            0            0            0 
+Node 0, zone    DMA32           34          703          375            0            0 
+Node 0, zone   Normal         1672        14276        15659            1            0
+
+Half of the memory is marked as reclaimable (2 megabyte) pageblocks.
+zoneinfo has nr_slab_reclaimable 1679817 so the reclaimable slabs occupy
+only 3280 (6G) pageblocks, yet they are spread over 5 times as much.
+It's also possible they pollute the Movable pageblocks as well, but the
+stats can't tell us. Either the page grouping mobility heuristics are
+broken here, or the worst case scenario happened - memory was at some point
+really wholly filled with reclaimable slabs, and the rather random reclaim
+did not result in whole pageblocks being freed.
+
+> /proc/slabinfoA  https://pastebin.com/81QAFgke
+
+Largest caches seem to be:
+# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables <limit> <batchcount> <sharedfactor> : slabdata <active_slabs> <num_slabs> <sharedavail>
+ext4_inode_cache  3107754 3759573   1080    3    1 : tunables   24   12    8 : slabdata 1253191 1253191      0
+dentry            2840237 7328181    192   21    1 : tunables  120   60    8 : slabdata 348961 348961    120
+
+The internal framentation of dentry cache is significant as well.
+Dunno if some of those objects pin movable pages as well...
+
+So looks like there's insufficient slab reclaim (shrinker activity), and
+possibly problems with page grouping by mobility heuristics as well...
+
+> /proc/vmstatA  https://pastebin.com/S7mrQx1s
+> /proc/zoneinfoA  https://pastebin.com/csGeqNyX
+> 
+> also please note - whether this makes any difference: there is no swap
+> file/partition
+> I am using this without swap space. imho this should not be necessary since
+> applications running on the hosts would not consume more than 20GB, the rest
+> should be used by buffers/cache.
+> 
