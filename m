@@ -1,61 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 92FE86B0005
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 06:44:05 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id c2-v6so662726edi.20
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 03:44:05 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g34-v6si2315909edd.226.2018.08.02.03.44.03
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 08BDE6B0008
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 06:53:36 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id w18-v6so1176347plp.3
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 03:53:36 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id s184-v6si1727668pgb.161.2018.08.02.03.53.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Aug 2018 03:44:04 -0700 (PDT)
-Date: Thu, 2 Aug 2018 12:44:01 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [Bug 200651] New: cgroups iptables-restor: vmalloc: allocation
- failure
-Message-ID: <20180802104401.GF10808@dhcp22.suse.cz>
-References: <20180730183820.GA24267@dhcp22.suse.cz>
- <56597af4-73c6-b549-c5d5-b3a2e6441b8e@icdsoft.com>
- <6838c342-2d07-3047-e723-2b641bc6bf79@suse.cz>
- <8105b7b3-20d3-5931-9f3c-2858021a4e12@icdsoft.com>
- <20180731140520.kpotpihqsmiwhh7l@breakpoint.cc>
- <e5b24629-0296-5a4d-577a-c25d1c52b03b@suse.cz>
- <20180801083349.GF16767@dhcp22.suse.cz>
- <e5c5e965-a6bc-d61f-97fc-78da287b5d94@icdsoft.com>
- <20180802085043.GC10808@dhcp22.suse.cz>
- <20180802092549.hooadz5e6tizns3z@salvia>
+        Thu, 02 Aug 2018 03:53:34 -0700 (PDT)
+Subject: Re: [PATCH v2 3/3] mm, oom: introduce memory.oom.group
+References: <20180802003201.817-1-guro@fb.com>
+ <20180802003201.817-4-guro@fb.com>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <879f1767-8b15-4e83-d9ef-d8df0e8b4d83@i-love.sakura.ne.jp>
+Date: Thu, 2 Aug 2018 19:53:13 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180802092549.hooadz5e6tizns3z@salvia>
+In-Reply-To: <20180802003201.817-4-guro@fb.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pablo Neira Ayuso <pablo@netfilter.org>
-Cc: Georgi Nikolov <gnikolov@icdsoft.com>, Vlastimil Babka <vbabka@suse.cz>, Florian Westphal <fw@strlen.de>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, netfilter-devel@vger.kernel.org
+To: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-On Thu 02-08-18 11:25:49, Pablo Neira Ayuso wrote:
-> On Thu, Aug 02, 2018 at 10:50:43AM +0200, Michal Hocko wrote:
-[...]
-> > diff --git a/net/netfilter/x_tables.c b/net/netfilter/x_tables.c
-> > index d0d8397c9588..b769408e04ab 100644
-> > --- a/net/netfilter/x_tables.c
-> > +++ b/net/netfilter/x_tables.c
-> > @@ -1178,12 +1178,7 @@ struct xt_table_info *xt_alloc_table_info(unsigned int size)
-> >  	if (sz < sizeof(*info) || sz >= XT_MAX_TABLE_SIZE)
-> >  		return NULL;
-> >  
-> > -	/* __GFP_NORETRY is not fully supported by kvmalloc but it should
-> > -	 * work reasonably well if sz is too large and bail out rather
-> > -	 * than shoot all processes down before realizing there is nothing
-> > -	 * more to reclaim.
-> > -	 */
-> > -	info = kvmalloc(sz, GFP_KERNEL | __GFP_NORETRY);
-> > +	info = kvmalloc(sz, GFP_KERNEL | __GFP_ACCOUNT);
+On 2018/08/02 9:32, Roman Gushchin wrote:
+> For some workloads an intervention from the OOM killer
+> can be painful. Killing a random task can bring
+> the workload into an inconsistent state.
 > 
-> I guess the large number of cgroups match is helping to consume a lot
-> of memory very quickly? We have a PATH_MAX in struct xt_cgroup_info_v1.
+> Historically, there are two common solutions for this
+> problem:
+> 1) enabling panic_on_oom,
+> 2) using a userspace daemon to monitor OOMs and kill
+>    all outstanding processes.
+> 
+> Both approaches have their downsides:
+> rebooting on each OOM is an obvious waste of capacity,
+> and handling all in userspace is tricky and requires
+> a userspace agent, which will monitor all cgroups
+> for OOMs.
 
-I really fail to see how that is related to the patch here.
--- 
-Michal Hocko
-SUSE Labs
+We could start a one-time userspace agent which handles
+an cgroup OOM event and then terminates...
+
+
+
+> +/**
+> + * mem_cgroup_get_oom_group - get a memory cgroup to clean up after OOM
+> + * @victim: task to be killed by the OOM killer
+> + * @oom_domain: memcg in case of memcg OOM, NULL in case of system-wide OOM
+> + *
+> + * Returns a pointer to a memory cgroup, which has to be cleaned up
+> + * by killing all belonging OOM-killable tasks.
+> + *
+> + * Caller has to call mem_cgroup_put() on the returned non-NULL memcg.
+> + */
+> +struct mem_cgroup *mem_cgroup_get_oom_group(struct task_struct *victim,
+> +					    struct mem_cgroup *oom_domain)
+> +{
+> +	struct mem_cgroup *oom_group = NULL;
+> +	struct mem_cgroup *memcg;
+> +
+> +	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys))
+> +		return NULL;
+> +
+> +	if (!oom_domain)
+> +		oom_domain = root_mem_cgroup;
+> +
+> +	rcu_read_lock();
+> +
+> +	memcg = mem_cgroup_from_task(victim);
+
+Isn't this racy? I guess that memcg of this "victim" can change to
+somewhere else from the one as of determining the final candidate.
+This "victim" might have already passed exit_mm()/cgroup_exit() from do_exit().
+This "victim" might be moving to a memcg which is different from the one
+determining the final candidate.
+
+> +	if (memcg == root_mem_cgroup)
+> +		goto out;
+> +
+> +	/*
+> +	 * Traverse the memory cgroup hierarchy from the victim task's
+> +	 * cgroup up to the OOMing cgroup (or root) to find the
+> +	 * highest-level memory cgroup with oom.group set.
+> +	 */
+> +	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
+> +		if (memcg->oom_group)
+> +			oom_group = memcg;
+> +
+> +		if (memcg == oom_domain)
+> +			break;
+> +	}
+> +
+> +	if (oom_group)
+> +		css_get(&oom_group->css);
+> +out:
+> +	rcu_read_unlock();
+> +
+> +	return oom_group;
+> +}
+
+
+
+> @@ -974,7 +988,23 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+>  	}
+>  	read_unlock(&tasklist_lock);
+>  
+> +	/*
+> +	 * Do we need to kill the entire memory cgroup?
+> +	 * Or even one of the ancestor memory cgroups?
+> +	 * Check this out before killing the victim task.
+> +	 */
+> +	oom_group = mem_cgroup_get_oom_group(victim, oc->memcg);
+> +
+>  	__oom_kill_process(victim);
+> +
+> +	/*
+> +	 * If necessary, kill all tasks in the selected memory cgroup.
+> +	 */
+> +	if (oom_group) {
+
+Isn't "killing a child process of the biggest memory hog" and "killing all
+processes which belongs to a memcg which the child process of the biggest
+memory hog belongs to" strange? The intent of selecting a child is to try
+to minimize lost work while the intent of oom_cgroup is to try to discard
+all work. If oom_cgroup is enabled, I feel that we should
+
+  pr_err("%s: Kill all processes in ", message);
+  pr_cont_cgroup_path(memcg->css.cgroup);
+  pr_cont(" due to memory.oom.group set\n");
+
+without
+
+  pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n", message, task_pid_nr(p), p->comm, points);
+
+(I mean, don't try to select a child).
+
+> +		mem_cgroup_print_oom_group(oom_group);
+> +		mem_cgroup_scan_tasks(oom_group, oom_kill_memcg_member, NULL);
+> +		mem_cgroup_put(oom_group);
+> +	}
+>  }
+>  
+>  /*
