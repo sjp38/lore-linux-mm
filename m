@@ -1,33 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BC34F6B0273
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 16:09:01 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id x19-v6so2107755pfh.15
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 13:09:01 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 94-v6si2335925plb.59.2018.08.02.13.09.00
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6158C6B0003
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 16:47:26 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id j15-v6so2146854pff.12
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 13:47:26 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id z5-v6si2546997pgn.105.2018.08.02.13.47.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 02 Aug 2018 13:09:00 -0700 (PDT)
-Date: Thu, 2 Aug 2018 13:08:57 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2 5/9] dmapool: rename fields in dma_page
-Message-ID: <20180802200857.GB14318@bombadil.infradead.org>
-References: <e2badcf3-c284-5c2d-6fa9-4efa4fd9f19a@cybernetics.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e2badcf3-c284-5c2d-6fa9-4efa4fd9f19a@cybernetics.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Aug 2018 13:47:24 -0700 (PDT)
+Date: Thu, 2 Aug 2018 13:47:23 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Move check for SHRINKER_NUMA_AWARE to
+ do_shrink_slab()
+Message-Id: <20180802134723.ecdd540c7c9338f98ee1a2c6@linux-foundation.org>
+In-Reply-To: <153320759911.18959.8842396230157677671.stgit@localhost.localdomain>
+References: <153320759911.18959.8842396230157677671.stgit@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Battersby <tonyb@cybernetics.com>
-Cc: Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, MPT-FusionLinux.pdl@broadcom.com
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: vdavydov.dev@gmail.com, mhocko@suse.com, aryabinin@virtuozzo.com, ying.huang@intel.com, penguin-kernel@I-love.SAKURA.ne.jp, willy@infradead.org, shakeelb@google.com, jbacik@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Aug 02, 2018 at 03:59:15PM -0400, Tony Battersby wrote:
-> Rename fields in 'struct dma_page' in preparation for moving them into
-> 'struct page'.  No functional changes.
-> 
-> in_use -> dma_in_use
-> offset -> dma_free_o
+On Thu, 02 Aug 2018 14:00:52 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
 
-I don't like dma_free_o.  dma_free_off is OK by me.
+> In case of shrink_slab_memcg() we do not zero nid, when shrinker
+> is not numa-aware. This is not a real problem, since currently
+> all memcg-aware shrinkers are numa-aware too (we have two:
+> super_block shrinker and workingset shrinker), but something may
+> change in the future.
+
+Fair enough.
+
+> (Andrew, this may be merged to mm-iterate-only-over-charged-shrinkers-during-memcg-shrink_slab)
+
+It got a bit messy so I got lazy and queued it as a separate patch.
+
+btw, I have a note that https://lkml.org/lkml/2018/7/7/32 was caused by
+this patch series.  Is that the case and do you know if this was
+addressed?
