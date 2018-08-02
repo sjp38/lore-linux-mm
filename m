@@ -1,157 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DC4B66B0010
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 07:10:42 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id v4-v6so1609473oix.2
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 04:10:42 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id m126-v6si1004823oia.283.2018.08.02.04.10.41
-        for <linux-mm@kvack.org>;
-        Thu, 02 Aug 2018 04:10:41 -0700 (PDT)
-Date: Thu, 2 Aug 2018 12:10:32 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address
- sanitizer
-Message-ID: <20180802111031.yx3x6y5d5q6drq52@armageddon.cambridge.arm.com>
-References: <cover.1530018818.git.andreyknvl@google.com>
- <20180628105057.GA26019@e103592.cambridge.arm.com>
- <CAAeHK+w0T43+h3xqU4a-qutxd-qiEhsvk0eaZpmAn-T0hpaLZQ@mail.gmail.com>
- <20180629110709.GA17859@arm.com>
- <CAAeHK+wHd8B2nhat-Z2Y2=s4NVobPG7vjr2CynjFhqPTwQRepQ@mail.gmail.com>
- <20180703173608.GF27243@arm.com>
- <CAAeHK+wTcH+2hgm_BTkLLdn1GkjBtkhQ=vPWZCncJ6KenqgKpg@mail.gmail.com>
- <CAAeHK+xc1E64tXEEHoXqOuUNZ7E_kVyho3_mNZTCc+LTGHYFdA@mail.gmail.com>
- <20180801163538.GA10800@arm.com>
- <CACT4Y+aZtph5qDsLzTDEgpQRz4_Vtg1DD-cB18qooi6D0bexDg@mail.gmail.com>
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 583A06B0005
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 07:21:17 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id r21-v6so662364edp.23
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 04:21:17 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s33-v6si1962518edb.123.2018.08.02.04.21.16
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Aug 2018 04:21:16 -0700 (PDT)
+Date: Thu, 2 Aug 2018 13:21:14 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 3/3] mm, oom: introduce memory.oom.group
+Message-ID: <20180802112114.GG10808@dhcp22.suse.cz>
+References: <20180802003201.817-1-guro@fb.com>
+ <20180802003201.817-4-guro@fb.com>
+ <879f1767-8b15-4e83-d9ef-d8df0e8b4d83@i-love.sakura.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CACT4Y+aZtph5qDsLzTDEgpQRz4_Vtg1DD-cB18qooi6D0bexDg@mail.gmail.com>
+In-Reply-To: <879f1767-8b15-4e83-d9ef-d8df0e8b4d83@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, linux-doc@vger.kernel.org, Paul Lawrence <paullawrence@google.com>, Linux Memory Management List <linux-mm@kvack.org>, Alexander Potapenko <glider@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Christoph Lameter <cl@linux.com>, Ingo Molnar <mingo@kernel.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-sparse@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Martin <Dave.Martin@arm.com>, Evgeniy Stepanov <eugenis@google.com>, Arnd Bergmann <arnd@arndb.de>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Andrey Konovalov <andreyknvl@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Kostya Serebryany <kcc@google.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nick Desaulniers <ndesaulniers@google.com>, LKML <linux-kernel@vger.kernel.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Lee Smith <Lee.Smith@arm.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-On Wed, Aug 01, 2018 at 06:52:09PM +0200, Dmitry Vyukov wrote:
-> On Wed, Aug 1, 2018 at 6:35 PM, Will Deacon <will.deacon@arm.com> wrote:
-> > On Tue, Jul 31, 2018 at 03:22:13PM +0200, Andrey Konovalov wrote:
-> >> On Wed, Jul 18, 2018 at 7:16 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-> >> > On Tue, Jul 3, 2018 at 7:36 PM, Will Deacon <will.deacon@arm.com> wrote:
-> >> >> Hmm, but elsewhere in this thread, Evgenii is motivating the need for this
-> >> >> patch set precisely because the lower overhead means it's suitable for
-> >> >> "near-production" use. So I don't think writing this off as a debugging
-> >> >> feature is the right approach, and we instead need to put effort into
-> >> >> analysing the impact of address tags on the kernel as a whole. Playing
-> >> >> whack-a-mole with subtle tag issues sounds like the worst possible outcome
-> >> >> for the long-term.
-> >> >
-> >> > I don't see a way to find cases where pointer tags would matter
-> >> > statically, so I've implemented the dynamic approach that I mentioned
-> >> > above. I've instrumented all pointer comparisons/subtractions in an
-> >> > LLVM compiler pass and used a kernel module that would print a bug
-> >> > report whenever two pointers with different tags are being
-> >> > compared/subtracted (ignoring comparisons with NULL pointers and with
-> >> > pointers obtained by casting an error code to a pointer type). Then I
-> >> > tried booting the kernel in QEMU and on an Odroid C2 board and I ran
-> >> > syzkaller overnight.
-> >> >
-> >> > This yielded the following results.
-> >> >
-> >> > ======
-> >> >
-> >> > The two places that look interesting are:
-> >> >
-> >> > is_vmalloc_addr in include/linux/mm.h (already mentioned by Catalin)
-> >> > is_kernel_rodata in mm/util.c
-> >> >
-> >> > Here we compare a pointer with some fixed untagged values to make sure
-> >> > that the pointer lies in a particular part of the kernel address
-> >> > space. Since KWHASAN doesn't add tags to pointers that belong to
-> >> > rodata or vmalloc regions, this should work as is. To make sure I've
-> >> > added debug checks to those two functions that check that the result
-> >> > doesn't change whether we operate on pointers with or without
-> >> > untagging.
-> >> >
-> >> > ======
-> >> >
-> >> > A few other cases that don't look that interesting:
-> >> >
-> >> > Comparing pointers to achieve unique sorting order of pointee objects
-> >> > (e.g. sorting locks addresses before performing a double lock):
-> >> >
-> >> > tty_ldisc_lock_pair_timeout in drivers/tty/tty_ldisc.c
-> >> > pipe_double_lock in fs/pipe.c
-> >> > unix_state_double_lock in net/unix/af_unix.c
-> >> > lock_two_nondirectories in fs/inode.c
-> >> > mutex_lock_double in kernel/events/core.c
-> >> >
-> >> > ep_cmp_ffd in fs/eventpoll.c
-> >> > fsnotify_compare_groups fs/notify/mark.c
-> >> >
-> >> > Nothing needs to be done here, since the tags embedded into pointers
-> >> > don't change, so the sorting order would still be unique.
-> >> >
-> >> > Check that a pointer belongs to some particular allocation:
-> >> >
-> >> > is_sibling_entry lib/radix-tree.c
-> >> > object_is_on_stack in include/linux/sched/task_stack.h
-> >> >
-> >> > Nothing needs to be here either, since two pointers can only belong to
-> >> > the same allocation if they have the same tag.
-> >> >
-> >> > ======
-> >> >
-> >> > Will, Catalin, WDYT?
-> >>
-> >> ping
-> >
-> > Thanks for tracking these cases down and going through each of them. The
-> > obvious follow-up question is: how do we ensure that we keep on top of
-> > this in mainline? Are you going to repeat your experiment at every kernel
-> > release or every -rc or something else? I really can't see how we can
-> > maintain this in the long run, especially given that the coverage we have
-> > is only dynamic -- do you have an idea of how much coverage you're actually
-> > getting for, say, a defconfig+modules build?
-> >
-> > I'd really like to enable pointer tagging in the kernel, I'm just still
-> > failing to see how we can do it in a controlled manner where we can reason
-> > about the semantic changes using something other than a best-effort,
-> > case-by-case basis which is likely to be fragile and error-prone.
-> > Unfortunately, if that's all we have, then this gets relegated to a
-> > debug feature, which sort of defeats the point in my opinion.
+On Thu 02-08-18 19:53:13, Tetsuo Handa wrote:
+> On 2018/08/02 9:32, Roman Gushchin wrote:
+[...]
+> > +struct mem_cgroup *mem_cgroup_get_oom_group(struct task_struct *victim,
+> > +					    struct mem_cgroup *oom_domain)
+> > +{
+> > +	struct mem_cgroup *oom_group = NULL;
+> > +	struct mem_cgroup *memcg;
+> > +
+> > +	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys))
+> > +		return NULL;
+> > +
+> > +	if (!oom_domain)
+> > +		oom_domain = root_mem_cgroup;
+> > +
+> > +	rcu_read_lock();
+> > +
+> > +	memcg = mem_cgroup_from_task(victim);
 > 
-> Well, in some cases there is no other way as resorting to dynamic testing.
-> How do we ensure that kernel does not dereference NULL pointers, does
-> not access objects after free or out of bounds?
+> Isn't this racy? I guess that memcg of this "victim" can change to
+> somewhere else from the one as of determining the final candidate.
 
-We should not confuse software bugs (like NULL pointer dereference) with
-unexpected software behaviour introduced by khwasan where pointers no
-longer represent only an address range (e.g. calling find_vmap_area())
-but rather an address and a tag. Parts of the kernel rely on pointers
-being just address ranges.
+How is this any different from the existing code? We select a victim and
+then kill it. The victim might move away and won't be part of the oom
+memcg anymore but we will still kill it. I do not remember this ever
+being a problem. Migration is a privileged operation. If you loose this
+restriction you shouldn't allow to move outside of the oom domain.
 
-It's the latter that we'd like to identify more easily and avoid subtle
-bugs or change in behaviour when running correctly written code.
+> This "victim" might have already passed exit_mm()/cgroup_exit() from do_exit().
 
-> And, yes, it's
-> constant maintenance burden resolved via dynamic testing.
-> In some sense HWASAN is better in this regard because it's like, say,
-> LOCKDEP in this regard. It's enabled only when one does dynamic
-> testing and collect, analyze and fix everything that pops up. Any
-> false positives will fail loudly (as opposed to, say, silent memory
-> corruptions due to use-after-frees), so any false positives will be
-> just first things to fix during the tool application.
+Why does this matter? The victim hasn't been killed yet so if it exists
+by its own I do not think we really have to tear the whole cgroup down.
 
-Again, you are talking about the bugs that khwasan would discover. We
-don't deny its value and false positives are acceptable here.
+> This "victim" might be moving to a memcg which is different from the one
+> determining the final candidate.
+> 
+> > +	if (memcg == root_mem_cgroup)
+> > +		goto out;
+> > +
+> > +	/*
+> > +	 * Traverse the memory cgroup hierarchy from the victim task's
+> > +	 * cgroup up to the OOMing cgroup (or root) to find the
+> > +	 * highest-level memory cgroup with oom.group set.
+> > +	 */
+> > +	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
+> > +		if (memcg->oom_group)
+> > +			oom_group = memcg;
+> > +
+> > +		if (memcg == oom_domain)
+> > +			break;
+> > +	}
+> > +
+> > +	if (oom_group)
+> > +		css_get(&oom_group->css);
+> > +out:
+> > +	rcu_read_unlock();
+> > +
+> > +	return oom_group;
+> > +}
+> 
+> 
+> 
+> > @@ -974,7 +988,23 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+> >  	}
+> >  	read_unlock(&tasklist_lock);
+> >  
+> > +	/*
+> > +	 * Do we need to kill the entire memory cgroup?
+> > +	 * Or even one of the ancestor memory cgroups?
+> > +	 * Check this out before killing the victim task.
+> > +	 */
+> > +	oom_group = mem_cgroup_get_oom_group(victim, oc->memcg);
+> > +
+> >  	__oom_kill_process(victim);
+> > +
+> > +	/*
+> > +	 * If necessary, kill all tasks in the selected memory cgroup.
+> > +	 */
+> > +	if (oom_group) {
+> 
+> Isn't "killing a child process of the biggest memory hog" and "killing all
+> processes which belongs to a memcg which the child process of the biggest
+> memory hog belongs to" strange? The intent of selecting a child is to try
+> to minimize lost work while the intent of oom_cgroup is to try to discard
+> all work. If oom_cgroup is enabled, I feel that we should
+> 
+>   pr_err("%s: Kill all processes in ", message);
+>   pr_cont_cgroup_path(memcg->css.cgroup);
+>   pr_cont(" due to memory.oom.group set\n");
+> 
+> without
+> 
+>   pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n", message, task_pid_nr(p), p->comm, points);
+> 
+> (I mean, don't try to select a child).
 
-However, not untagging a pointer when converting to long may have
-side-effects in some cases and I consider these bugs introduced by the
-khwasan support rather than bugs in the original kernel code. Ideally
-we'd need some tooling on top of khwasan to detect such shortcomings but
-I'm not sure we can do this statically, as Andrey already mentioned. For
-__user pointers, things are slightly better as we can detect the
-conversion either with sparse (modified) or some LLVM changes.
-
+Well, the child can belong into a different memcg. Whether the heuristic
+to pick up the child is sensible is another question and I do not think
+it is related to this patchset. The code works as intended, albeit being
+questionable.
 -- 
-Catalin
+Michal Hocko
+SUSE Labs
