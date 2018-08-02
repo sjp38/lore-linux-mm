@@ -1,90 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 686796B026D
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 07:56:22 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id w185-v6so1653016oig.19
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 04:56:22 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id c134-v6si1048834oig.261.2018.08.02.04.56.21
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C7EDC6B0003
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 08:14:52 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id w1-v6so1255805ply.12
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 05:14:52 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g1-v6si1336718plo.176.2018.08.02.05.14.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Aug 2018 04:56:21 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w72Bu0QD137890
-	for <linux-mm@kvack.org>; Thu, 2 Aug 2018 07:56:20 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2kky4qe8j0-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 02 Aug 2018 07:56:13 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Thu, 2 Aug 2018 12:54:07 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 2/2] sparc32: tidy up ramdisk memory reservation
-Date: Thu,  2 Aug 2018 14:53:53 +0300
-In-Reply-To: <1533210833-14748-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1533210833-14748-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1533210833-14748-3-git-send-email-rppt@linux.vnet.ibm.com>
+        Thu, 02 Aug 2018 05:14:51 -0700 (PDT)
+Date: Thu, 2 Aug 2018 14:14:46 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 3/3] mm, oom: introduce memory.oom.group
+Message-ID: <20180802121446.GK10808@dhcp22.suse.cz>
+References: <20180802003201.817-1-guro@fb.com>
+ <20180802003201.817-4-guro@fb.com>
+ <879f1767-8b15-4e83-d9ef-d8df0e8b4d83@i-love.sakura.ne.jp>
+ <20180802112114.GG10808@dhcp22.suse.cz>
+ <712a319f-c9da-230a-f2cb-af980daff704@i-love.sakura.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <712a319f-c9da-230a-f2cb-af980daff704@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "David S. Miller" <davem@davemloft.net>
-Cc: Sam Ravnborg <sam@ravnborg.org>, Michal Hocko <mhocko@kernel.org>, sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-The detection and reservation of ramdisk memory were separated to allow
-bootmem bitmap initialization after the ramdisk boundaries are detected.
-Since the bootmem initialization is removed, the reservation of ramdisk
-memory can be done immediately after its boundaries are found.
+On Thu 02-08-18 20:53:14, Tetsuo Handa wrote:
+> On 2018/08/02 20:21, Michal Hocko wrote:
+> > On Thu 02-08-18 19:53:13, Tetsuo Handa wrote:
+> >> On 2018/08/02 9:32, Roman Gushchin wrote:
+> > [...]
+> >>> +struct mem_cgroup *mem_cgroup_get_oom_group(struct task_struct *victim,
+> >>> +					    struct mem_cgroup *oom_domain)
+> >>> +{
+> >>> +	struct mem_cgroup *oom_group = NULL;
+> >>> +	struct mem_cgroup *memcg;
+> >>> +
+> >>> +	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys))
+> >>> +		return NULL;
+> >>> +
+> >>> +	if (!oom_domain)
+> >>> +		oom_domain = root_mem_cgroup;
+> >>> +
+> >>> +	rcu_read_lock();
+> >>> +
+> >>> +	memcg = mem_cgroup_from_task(victim);
+> >>
+> >> Isn't this racy? I guess that memcg of this "victim" can change to
+> >> somewhere else from the one as of determining the final candidate.
+> > 
+> > How is this any different from the existing code? We select a victim and
+> > then kill it. The victim might move away and won't be part of the oom
+> > memcg anymore but we will still kill it. I do not remember this ever
+> > being a problem. Migration is a privileged operation. If you loose this
+> > restriction you shouldn't allow to move outside of the oom domain.
+> 
+> The existing code kills one process (plus other processes sharing mm if any).
+> But oom_cgroup kills multiple processes. Thus, whether we made decision based
+> on correct memcg becomes important.
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
- arch/sparc/mm/init_32.c | 24 ++++++++++--------------
- 1 file changed, 10 insertions(+), 14 deletions(-)
+Yes but a proper configuration should already mitigate the harm because
+you shouldn't be able to migrate the task outside of the oom domain.
+	A (oom.group = 1)
+       / \
+      B   C
 
-diff --git a/arch/sparc/mm/init_32.c b/arch/sparc/mm/init_32.c
-index 5117a5e..b5d8f90 100644
---- a/arch/sparc/mm/init_32.c
-+++ b/arch/sparc/mm/init_32.c
-@@ -161,6 +161,8 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
- 		    high_pages >> (20 - PAGE_SHIFT));
- 	}
- 
-+	*pages_avail = (memblock_phys_mem_size() >> PAGE_SHIFT) - high_pages;
-+
- #ifdef CONFIG_BLK_DEV_INITRD
- 	/*
- 	 * Now have to check initial ramdisk, so that it won't pass
-@@ -176,23 +178,17 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
- 		                 	 "(0x%016lx > 0x%016lx)\ndisabling initrd\n",
- 			       initrd_end, end_of_phys_memory);
- 			initrd_start = 0;
-+		} else {
-+			/* Reserve the initrd image area. */
-+			size = initrd_end - initrd_start;
-+			memblock_reserve(initrd_start, size);
-+			*pages_avail -= PAGE_ALIGN(size) >> PAGE_SHIFT;
-+
-+			initrd_start = (initrd_start - phys_base) + PAGE_OFFSET;
-+			initrd_end = (initrd_end - phys_base) + PAGE_OFFSET;
- 		}
- 	}
- #endif
--
--	*pages_avail = (memblock_phys_mem_size() >> PAGE_SHIFT) - high_pages;
--
--#ifdef CONFIG_BLK_DEV_INITRD
--	if (initrd_start) {
--		/* Reserve the initrd image area. */
--		size = initrd_end - initrd_start;
--		memblock_reserve(initrd_start, size);
--		*pages_avail -= PAGE_ALIGN(size) >> PAGE_SHIFT;
--
--		initrd_start = (initrd_start - phys_base) + PAGE_OFFSET;
--		initrd_end = (initrd_end - phys_base) + PAGE_OFFSET;
--	}
--#endif
- 	/* Reserve the kernel text/data/bss. */
- 	size = (start_pfn << PAGE_SHIFT) - phys_base;
- 	memblock_reserve(phys_base, size);
+moving task between B and C should be harmless while moving it out of A
+subtree completely is a dubious configuration.
+
+> >> This "victim" might have already passed exit_mm()/cgroup_exit() from do_exit().
+> > 
+> > Why does this matter? The victim hasn't been killed yet so if it exists
+> > by its own I do not think we really have to tear the whole cgroup down.
+> 
+> The existing code does not send SIGKILL if find_lock_task_mm() failed. Who can
+> guarantee that the victim is not inside do_exit() yet when this code is executed?
+
+I do not follow. Why does this matter at all?
+
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
