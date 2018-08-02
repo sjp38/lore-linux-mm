@@ -1,56 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EC0906B0003
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 11:00:27 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id f9-v6so1782464ioh.1
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 08:00:27 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s62-v6sor728809jaa.64.2018.08.02.08.00.26
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 696E16B0006
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2018 11:18:54 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id d25-v6so1838755qtp.10
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2018 08:18:54 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id u55-v6si2143322qtj.69.2018.08.02.08.18.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 02 Aug 2018 08:00:26 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Aug 2018 08:18:52 -0700 (PDT)
+Date: Thu, 2 Aug 2018 18:18:49 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v2 2/2] virtio_balloon: replace oom notifier with shrinker
+Message-ID: <20180802181309-mutt-send-email-mst@kernel.org>
+References: <1532683495-31974-1-git-send-email-wei.w.wang@intel.com>
+ <1532683495-31974-3-git-send-email-wei.w.wang@intel.com>
+ <20180730090041.GC24267@dhcp22.suse.cz>
+ <5B619599.1000307@intel.com>
+ <20180801113444.GK16767@dhcp22.suse.cz>
+ <5B62DDCC.3030100@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180801174256.5mbyf33eszml4nmu@armageddon.cambridge.arm.com>
-References: <cover.1529507994.git.andreyknvl@google.com> <CAAeHK+zqtyGzd_CZ7qKZKU-uZjZ1Pkmod5h8zzbN0xCV26nSfg@mail.gmail.com>
- <20180626172900.ufclp2pfrhwkxjco@armageddon.cambridge.arm.com>
- <CAAeHK+yqWKTdTG+ymZ2-5XKiDANV+fmUjnQkRy-5tpgphuLJRA@mail.gmail.com>
- <CAAeHK+wJbbCZd+-X=9oeJgsqQJiq8h+Aagz3SQMPaAzCD+pvFw@mail.gmail.com>
- <CAAeHK+yWF05XoU+0iuJoXAL3cWgdtxbeLoBz169yP12W4LkcQw@mail.gmail.com> <20180801174256.5mbyf33eszml4nmu@armageddon.cambridge.arm.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Thu, 2 Aug 2018 17:00:25 +0200
-Message-ID: <CAAeHK+zb7vcehuX9=oxLUJVJr1ZcgmRTODQz7wsPy+rJb=3kbQ@mail.gmail.com>
-Subject: Re: [PATCH v4 0/7] arm64: untag user pointers passed to the kernel
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5B62DDCC.3030100@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, linux-doc@vger.kernel.org, Will Deacon <will.deacon@arm.com>, Kostya Serebryany <kcc@google.com>, linux-kselftest@vger.kernel.org, Chintan Pandya <cpandya@codeaurora.org>, Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>, linux-arch@vger.kernel.org, Jacob Bramley <Jacob.Bramley@arm.com>, Dmitry Vyukov <dvyukov@google.com>, Evgeniy Stepanov <eugenis@google.com>, Kees Cook <keescook@chromium.org>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, Lee Smith <Lee.Smith@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Robin Murphy <robin.murphy@arm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, akpm@linux-foundation.org
 
-On Wed, Aug 1, 2018 at 7:42 PM, Catalin Marinas <catalin.marinas@arm.com> wrote:
-> On Mon, Jul 16, 2018 at 01:25:59PM +0200, Andrey Konovalov wrote:
->> On Thu, Jun 28, 2018 at 9:30 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
->> So the checker reports ~100 different places where a __user pointer
->> being casted. I've looked through them and found 3 places where we
->> need to add untagging. Source code lines below come from 4.18-rc2+
->> (6f0d349d).
-> [...]
->> I'll add the 3 patches with fixes to v5 of this patchset.
->
-> Thanks for investigating. You can fix those three places in your code
+On Thu, Aug 02, 2018 at 06:32:44PM +0800, Wei Wang wrote:
+> On 08/01/2018 07:34 PM, Michal Hocko wrote:
+> > On Wed 01-08-18 19:12:25, Wei Wang wrote:
+> > > On 07/30/2018 05:00 PM, Michal Hocko wrote:
+> > > > On Fri 27-07-18 17:24:55, Wei Wang wrote:
+> > > > > The OOM notifier is getting deprecated to use for the reasons mentioned
+> > > > > here by Michal Hocko: https://lkml.org/lkml/2018/7/12/314
+> > > > > 
+> > > > > This patch replaces the virtio-balloon oom notifier with a shrinker
+> > > > > to release balloon pages on memory pressure.
+> > > > It would be great to document the replacement. This is not a small
+> > > > change...
+> > > OK. I plan to document the following to the commit log:
+> > > 
+> > >    The OOM notifier is getting deprecated to use for the reasons:
+> > >      - As a callout from the oom context, it is too subtle and easy to
+> > >        generate bugs and corner cases which are hard to track;
+> > >      - It is called too late (after the reclaiming has been performed).
+> > >        Drivers with large amuont of reclaimable memory is expected to be
+> > >        released them at an early age of memory pressure;
+> > >      - The notifier callback isn't aware of the oom contrains;
+> > >      Link: https://lkml.org/lkml/2018/7/12/314
+> > > 
+> > >      This patch replaces the virtio-balloon oom notifier with a shrinker
+> > >      to release balloon pages on memory pressure. Users can set the amount of
+> > >      memory pages to release each time a shrinker_scan is called via the
+> > >      module parameter balloon_pages_to_shrink, and the default amount is 256
+> > >      pages. Historically, the feature VIRTIO_BALLOON_F_DEFLATE_ON_OOM has
+> > >      been used to release balloon pages on OOM. We continue to use this
+> > >      feature bit for the shrinker, so the shrinker is only registered when
+> > >      this feature bit has been negotiated with host.
+> > Do you have any numbers for how does this work in practice?
+> 
+> It works in this way: for example, we can set the parameter,
+> balloon_pages_to_shrink, to shrink 1GB memory once shrink scan is called.
+> Now, we have a 8GB guest, and we balloon out 7GB. When shrink scan is
+> called, the balloon driver will get back 1GB memory and give them back to
+> mm, then the ballooned memory becomes 6GB.
+> 
+> When the shrinker scan is called the second time, another 1GB will be given
+> back to mm. So the ballooned pages are given back to mm gradually.
 
-OK, will do.
+I think what's being asked here is a description of tests that
+were run. Which workloads see improved behaviour?
 
-> but I was rather looking for a way to check such casting in the future
-> for newly added code. While for the khwasan we can assume it's a debug
-> option, the tagged user pointers are ABI and we need to keep it stable.
->
-> We could we actually add some macros for explicit conversion between
-> __user ptr and long and silence the warning there (I guess this would
-> work better for sparse). We can then detect new ptr to long casts as
-> they appear. I just hope that's not too intrusive.
->
-> (I haven't tried the sparse patch yet, hopefully sometime this week)
+Our behaviour under memory pressure isn't great, in particular it is not
+clear when it's safe to re-inflate the balloon, if host attempts to
+re-inflate it too soon then we still get OOM. It would be better
+if VIRTIO_BALLOON_F_DEFLATE_ON_OOM would somehow mean
+"it's ok to ask for almost all of memory, if guest needs memory from
+balloon for apps to function it can take it from the balloon".
 
-Haven't look at that sparse patch yet myself, but sounds doable.
-Should these macros go into this patchset or should they go
-separately?
+
+-- 
+MST
