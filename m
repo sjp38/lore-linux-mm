@@ -1,42 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E1486B000A
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 07:18:50 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id d14-v6so3982004qtn.12
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 04:18:50 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id g187-v6si515601qkb.320.2018.08.03.04.18.49
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AE4276B0005
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 07:25:05 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id o12-v6so3173968pls.20
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 04:25:05 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id z13-v6si5131001pfc.118.2018.08.03.04.25.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Aug 2018 04:18:49 -0700 (PDT)
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <8347.1533292272@warthog.procyon.org.uk>
-References: <8347.1533292272@warthog.procyon.org.uk> <47c34fad-5d11-53b0-4386-61be890163c5@virtuozzo.com> <153320759911.18959.8842396230157677671.stgit@localhost.localdomain> <20180802134723.ecdd540c7c9338f98ee1a2c6@linux-foundation.org>
-Subject: Re: [PATCH] mm: Move check for SHRINKER_NUMA_AWARE to do_shrink_slab()
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <12713.1533295125.1@warthog.procyon.org.uk>
-Content-Transfer-Encoding: quoted-printable
-Date: Fri, 03 Aug 2018 12:18:45 +0100
-Message-ID: <12714.1533295125@warthog.procyon.org.uk>
+        Fri, 03 Aug 2018 04:25:04 -0700 (PDT)
+From: Wei Wang <wei.w.wang@intel.com>
+Subject: [PATCH] mm/vmscan: adjust shrinkctl->nr_scanned after invoking scan_objects
+Date: Fri,  3 Aug 2018 18:56:49 +0800
+Message-Id: <1533293809-34354-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: dhowells@redhat.com, Kirill Tkhai <ktkhai@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, vdavydov.dev@gmail.com, mhocko@suse.com, aryabinin@virtuozzo.com, ying.huang@intel.com, penguin-kernel@I-love.SAKURA.ne.jp, willy@infradead.org, shakeelb@google.com, jbacik@fb.com, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, mst@redhat.com
+Cc: wei.w.wang@intel.com
 
-David Howells <dhowells@redhat.com> wrote:
+Some shrinkers may free more than the requested nr_to_scan of pages
+in one invocation of scan_objects, and some may free less than that.
 
-> But!  I'm not sure why the reproducer works at all because the umount2()=
- call
-> is *after* the chroot, so should fail on ENOENT before it even gets that
-> far.
+Currently shrinkers can either return the actual number of pages that
+have been freed via the return value of scan_objects or track that
+actual number in shrinkctl->nr_scanned. But do_shrink_slab works on an
+assumption that the actual number is always tracked via
+shrinkctl->nr_scanned, which is not true. Having checked the shrinkers
+used in the kernel, they basically return the actual number of freed
+pages via the return value of scan_objects, and most of them leave
+shrinkctl->nr_scanned unchanged after scan_objects is called.
 
-No, it shouldn't.  It did chroot() not chdir().
+So this patch adjusts shrinkctl->nr_scanned to the actual freed number
+after scan_objects is called.
 
-> In fact, umount2() can be called multiple times, apparently successfully=
-, and
-> doesn't actually unmount anything.
+Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Michael S. Tsirkin <mst@redhat.com>
+---
+ mm/vmscan.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
 
-Okay, because it chroot'd into the directory.  Should it return EBUSY thou=
-gh?
-
-David
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 03822f8..78a75b9 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -447,9 +447,13 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 		if (ret == SHRINK_STOP)
+ 			break;
+ 		freed += ret;
++		shrinkctl->nr_scanned = ret;
+ 
+ 		count_vm_events(SLABS_SCANNED, shrinkctl->nr_scanned);
+-		total_scan -= shrinkctl->nr_scanned;
++		if (total_scan > shrinkctl->nr_scanned)
++			total_scan -= shrinkctl->nr_scanned;
++		else
++			total_scan = 0;
+ 		scanned += shrinkctl->nr_scanned;
+ 
+ 		cond_resched();
+-- 
+2.7.4
