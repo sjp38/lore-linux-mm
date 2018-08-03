@@ -1,73 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 643286B0005
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 11:17:36 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id o18-v6so4454908qtm.11
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 08:17:36 -0700 (PDT)
-Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
-        by mx.google.com with ESMTPS id o2-v6si628914qkf.348.2018.08.03.08.17.35
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 48ECC6B0007
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 11:36:27 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id v26-v6so1938180eds.9
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 08:36:27 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0104.outbound.protection.outlook.com. [104.47.0.104])
+        by mx.google.com with ESMTPS id k2-v6si1355690eda.433.2018.08.03.08.36.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Aug 2018 08:17:35 -0700 (PDT)
-Subject: Re: [PATCH v2 2/9] dmapool: cleanup error messages
-References: <a9f7ca9a-38d5-12e2-7d15-ab026425e85a@cybernetics.com>
- <CAHp75Ve0su_S3ZWTtUEUohrs-iPiD1uzFOHhesLrWzJPOa2LNg@mail.gmail.com>
- <7a943124-c65e-f0ed-cc5c-20b23f021505@cybernetics.com>
-From: Tony Battersby <tonyb@cybernetics.com>
-Message-ID: <b8547f8d-ac88-3d7b-9c2d-60a2f779259e@cybernetics.com>
-Date: Fri, 3 Aug 2018 11:17:32 -0400
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 03 Aug 2018 08:36:25 -0700 (PDT)
+Subject: [PATCH] mm: Use special value SHRINKER_REGISTERING instead
+ list_empty() check
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Date: Fri, 03 Aug 2018 18:36:14 +0300
+Message-ID: <153331055842.22632.9290331685041037871.stgit@localhost.localdomain>
 MIME-Version: 1.0
-In-Reply-To: <7a943124-c65e-f0ed-cc5c-20b23f021505@cybernetics.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Shevchenko <andy.shevchenko@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
+To: akpm@linux-foundation.org, ktkhai@virtuozzo.com, vdavydov.dev@gmail.com, mhocko@suse.com, aryabinin@virtuozzo.com, ying.huang@intel.com, penguin-kernel@I-love.SAKURA.ne.jp, willy@infradead.org, shakeelb@google.com, jbacik@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 08/03/2018 09:41 AM, Tony Battersby wrote:
-> On 08/03/2018 04:56 AM, Andy Shevchenko wrote:
->> On Thu, Aug 2, 2018 at 10:57 PM, Tony Battersby <tonyb@cybernetics.com> wrote:
->>> Remove code duplication in error messages.  It is now safe to pas a NULL
->>> dev to dev_err(), so the checks to avoid doing so are no longer
->>> necessary.
->>>
->>> Example:
->>>
->>> Error message with dev != NULL:
->>>   mpt3sas 0000:02:00.0: dma_pool_destroy chain pool, (____ptrval____) busy
->>>
->>> Same error message with dev == NULL before patch:
->>>   dma_pool_destroy chain pool, (____ptrval____) busy
->>>
->>> Same error message with dev == NULL after patch:
->>>   (NULL device *): dma_pool_destroy chain pool, (____ptrval____) busy
->> Have you checked a history of this?
->>
->> I'm pretty sure this was created in an order to avoid bad looking (and
->> in some cases frightening) "NULL device *" part.
->>
->> If it it's the case, I would rather leave it as is, and even not the
->> case, I'm slightly more bent to the current state.
->>
-> I did.A  "drivers/base/dmapool.c", later moved to "mm/dmapool.c", was
-> added in linux-2.6.3, for which dev_err() did not work will a NULL dev,
-> so the check was necessary back then.A  I agree that the (NULL device *):
-> bit is ugly, but these messages should be printed only after a kernel
-> bug, so it is not like they will be making a regular appearance in
-> dmesg.A  Considering that, I think that it is better to keep it simple.
->
+The patch introduces a special value SHRINKER_REGISTERING to use instead
+of list_empty() to detect a semi-registered shrinker.
 
-My original unsubmitted patch used the following:
+This should be clearer for a reader since "list is empty"  is not
+an intuitive state of a shrinker), and this gives a better assembler
+code:
 
-+#define pool_err(pool, fmt, args...) \
-+	do { \
-+		if ((pool)->dev) \
-+			dev_err((pool)->dev, fmt, args); \
-+		else \
-+			pr_err(fmt, args); \
-+	} while (0)
+Before:
+callq  <idr_find>
+mov    %rax,%r15
+test   %rax,%rax
+je     <shrink_slab_memcg+0x1d5>
+mov    0x20(%rax),%rax
+lea    0x20(%r15),%rdx
+cmp    %rax,%rdx
+je     <shrink_slab_memcg+0xbd>
+mov    0x8(%rsp),%edx
+mov    %r15,%rsi
+lea    0x10(%rsp),%rdi
+callq  <do_shrink_slab>
 
-But then I decided to simplify it to just use dev_err().A  I still have
-the old version.A  When I submit v3 of the patchset, which would you prefer?
+After:
+callq  <idr_find>
+mov    %rax,%r15
+lea    -0x1(%rax),%rax
+cmp    $0xfffffffffffffffd,%rax
+ja     <shrink_slab_memcg+0x1cd>
+mov    0x8(%rsp),%edx
+mov    %r15,%rsi
+lea    0x10(%rsp),%rdi
+callq  ffffffff810cefd0 <do_shrink_slab>
+
+Also, improve the comment.
+
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+---
+ mm/vmscan.c |   42 ++++++++++++++++++++----------------------
+ 1 file changed, 20 insertions(+), 22 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 0d980e801b8a..c18c4acf9599 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -170,6 +170,21 @@ static LIST_HEAD(shrinker_list);
+ static DECLARE_RWSEM(shrinker_rwsem);
+ 
+ #ifdef CONFIG_MEMCG_KMEM
++
++/*
++ * There is a window between prealloc_shrinker()
++ * and register_shrinker_prepared(). We don't want
++ * to clear bit of a shrinker in such the state
++ * in shrink_slab_memcg(), since this will impose
++ * restrictions on a code registering a shrinker
++ * (they would have to guarantee, their LRU lists
++ * are empty till shrinker is completely registered).
++ * So, we use this value to detect the situation,
++ * when id is assigned, but shrinker is not completely
++ * registered yet.
++ */
++#define SHRINKER_REGISTERING ((struct shrinker *)~0UL)
++
+ static DEFINE_IDR(shrinker_idr);
+ static int shrinker_nr_max;
+ 
+@@ -179,7 +194,7 @@ static int prealloc_memcg_shrinker(struct shrinker *shrinker)
+ 
+ 	down_write(&shrinker_rwsem);
+ 	/* This may call shrinker, so it must use down_read_trylock() */
+-	id = idr_alloc(&shrinker_idr, shrinker, 0, 0, GFP_KERNEL);
++	id = idr_alloc(&shrinker_idr, SHRINKER_REGISTERING, 0, 0, GFP_KERNEL);
+ 	if (id < 0)
+ 		goto unlock;
+ 
+@@ -364,21 +379,6 @@ int prealloc_shrinker(struct shrinker *shrinker)
+ 	if (!shrinker->nr_deferred)
+ 		return -ENOMEM;
+ 
+-	/*
+-	 * There is a window between prealloc_shrinker()
+-	 * and register_shrinker_prepared(). We don't want
+-	 * to clear bit of a shrinker in such the state
+-	 * in shrink_slab_memcg(), since this will impose
+-	 * restrictions on a code registering a shrinker
+-	 * (they would have to guarantee, their LRU lists
+-	 * are empty till shrinker is completely registered).
+-	 * So, we differ the situation, when 1)a shrinker
+-	 * is semi-registered (id is assigned, but it has
+-	 * not yet linked to shrinker_list) and 2)shrinker
+-	 * is not registered (id is not assigned).
+-	 */
+-	INIT_LIST_HEAD(&shrinker->list);
+-
+ 	if (shrinker->flags & SHRINKER_MEMCG_AWARE) {
+ 		if (prealloc_memcg_shrinker(shrinker))
+ 			goto free_deferred;
+@@ -408,6 +408,7 @@ void register_shrinker_prepared(struct shrinker *shrinker)
+ {
+ 	down_write(&shrinker_rwsem);
+ 	list_add_tail(&shrinker->list, &shrinker_list);
++	idr_replace(&shrinker_idr, shrinker, shrinker->id);
+ 	up_write(&shrinker_rwsem);
+ }
+ 
+@@ -589,15 +590,12 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+ 		struct shrinker *shrinker;
+ 
+ 		shrinker = idr_find(&shrinker_idr, i);
+-		if (unlikely(!shrinker)) {
+-			clear_bit(i, map->map);
++		if (unlikely(!shrinker || shrinker == SHRINKER_REGISTERING)) {
++			if (!shrinker)
++				clear_bit(i, map->map);
+ 			continue;
+ 		}
+ 
+-		/* See comment in prealloc_shrinker() */
+-		if (unlikely(list_empty(&shrinker->list)))
+-			continue;
+-
+ 		ret = do_shrink_slab(&sc, shrinker, priority);
+ 		if (ret == SHRINK_EMPTY) {
+ 			clear_bit(i, map->map);
