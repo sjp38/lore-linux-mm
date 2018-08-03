@@ -1,40 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DFF86B000A
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 09:02:01 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id r21-v6so1706585edp.23
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 06:02:01 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b24-v6si765027edj.131.2018.08.03.06.01.59
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0387A6B0006
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 09:14:54 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id p12-v6so787300wro.7
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 06:14:53 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id f42-v6si3761242wrf.336.2018.08.03.06.14.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Aug 2018 06:01:59 -0700 (PDT)
-Subject: Re: [PATCH v6 4/5] mm/page_alloc: Inline function to handle
- CONFIG_DEFERRED_STRUCT_PAGE_INIT
-References: <20180801122348.21588-1-osalvador@techadventures.net>
- <20180801122348.21588-5-osalvador@techadventures.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <9af245b8-bf2d-4d32-053d-22d8596101b3@suse.cz>
-Date: Fri, 3 Aug 2018 15:01:57 +0200
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 03 Aug 2018 06:14:52 -0700 (PDT)
+Date: Fri, 3 Aug 2018 15:14:31 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 2/3] x86: Convert vdso to use vm_fault_t
+In-Reply-To: <CAFqt6zbgoTgw1HNp+anOYY8CiU1BPoNeeddsnGGXWY_hVOd5iQ@mail.gmail.com>
+Message-ID: <alpine.DEB.2.21.1808031503370.1745@nanos.tec.linutronix.de>
+References: <20180703123910.2180-1-willy@infradead.org> <20180703123910.2180-2-willy@infradead.org> <alpine.DEB.2.21.1807161116590.2644@nanos.tec.linutronix.de> <CAFqt6zbgoTgw1HNp+anOYY8CiU1BPoNeeddsnGGXWY_hVOd5iQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180801122348.21588-5-osalvador@techadventures.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: osalvador@techadventures.net, akpm@linux-foundation.org
-Cc: mhocko@suse.com, pasha.tatashin@oracle.com, mgorman@techsingularity.net, aaron.lu@intel.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.j.williams@intel.com, david@redhat.com, Oscar Salvador <osalvador@suse.de>
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Andy Lutomirski <luto@amacapital.net>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Brajeswar Ghosh <brajeswar.linux@gmail.com>, Sabyasachi Gupta <sabyasachi.linux@gmail.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 08/01/2018 02:23 PM, osalvador@techadventures.net wrote:
-> From: Oscar Salvador <osalvador@suse.de>
+On Fri, 3 Aug 2018, Souptick Joarder wrote:
+> On Mon, Jul 16, 2018 at 2:47 PM, Thomas Gleixner <tglx@linutronix.de> wrote:
+> > On Tue, 3 Jul 2018, Matthew Wilcox wrote:
+> >
+> >> Return vm_fault_t codes directly from the appropriate mm routines instead
+> >> of converting from errnos ourselves.  Fixes a minor bug where we'd return
+> >> SIGBUS instead of the correct OOM code if we ran out of memory allocating
+> >> page tables.
+> >>
+> >> Signed-off-by: Matthew Wilcox <willy@infradead.org>
+> >
+> > Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+> >
 > 
-> Let us move the code between CONFIG_DEFERRED_STRUCT_PAGE_INIT
-> to an inline function.
-> Not having an ifdef in the function makes the code more readable.
-> 
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Thomas, are these 3 patches part of this series will be queued
+> for 4.19 ?
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+I don't know. I expected that these go through the mm tree, but if nobody
+feels responsible, I could pick up the whole lot. But I'd like to see acks
+from the mm folks for [1/3] and [3/3]
+
+  https://lkml.kernel.org/r/20180703123910.2180-1-willy@infradead.org
+
+Thanks,
+
+	tglx
