@@ -1,48 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A9FD56B0007
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 12:10:22 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id l23-v6so4684858qtp.1
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 09:10:22 -0700 (PDT)
-Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
-        by mx.google.com with ESMTPS id g1-v6si4814234qkd.118.2018.08.03.09.10.21
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FA8E6B000D
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 12:22:21 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id u13-v6so3952518pfm.8
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 09:22:21 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id p5-v6si4931544pgb.598.2018.08.03.09.22.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Aug 2018 09:10:21 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 03 Aug 2018 09:22:20 -0700 (PDT)
+Date: Fri, 3 Aug 2018 09:22:12 -0700
+From: Matthew Wilcox <willy@infradead.org>
 Subject: Re: [PATCH v2 2/9] dmapool: cleanup error messages
+Message-ID: <20180803162212.GA4718@bombadil.infradead.org>
 References: <a9f7ca9a-38d5-12e2-7d15-ab026425e85a@cybernetics.com>
  <CAHp75Ve0su_S3ZWTtUEUohrs-iPiD1uzFOHhesLrWzJPOa2LNg@mail.gmail.com>
  <7a943124-c65e-f0ed-cc5c-20b23f021505@cybernetics.com>
  <b8547f8d-ac88-3d7b-9c2d-60a2f779259e@cybernetics.com>
  <CAHp75VcoLVkp+BkFBLSqn95=3SaV-zr8cO1eSoQsrzZtJZESNQ@mail.gmail.com>
- <CAHp75VdkFfND+Mr+L96kkGEF7K49Fr2HWezQQ3DBOQvxTLjBcw@mail.gmail.com>
-From: Tony Battersby <tonyb@cybernetics.com>
-Message-ID: <f5e210ae-e932-4b3a-6774-082e8ddce79e@cybernetics.com>
-Date: Fri, 3 Aug 2018 12:10:19 -0400
 MIME-Version: 1.0
-In-Reply-To: <CAHp75VdkFfND+Mr+L96kkGEF7K49Fr2HWezQQ3DBOQvxTLjBcw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAHp75VcoLVkp+BkFBLSqn95=3SaV-zr8cO1eSoQsrzZtJZESNQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andy Shevchenko <andy.shevchenko@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
+Cc: Tony Battersby <tonyb@cybernetics.com>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
 
-On 08/03/2018 12:01 PM, Andy Shevchenko wrote:
-> On Fri, Aug 3, 2018 at 6:59 PM, Andy Shevchenko
-> <andy.shevchenko@gmail.com> wrote:
->> On Fri, Aug 3, 2018 at 6:17 PM, Tony Battersby <tonyb@cybernetics.com> wrote:
->>> But then I decided to simplify it to just use dev_err().  I still have
->>> the old version.  When I submit v3 of the patchset, which would you prefer?
->> JFYI: git log --no-merges --grep 'NULL device \*'
-> Example:
->
-> commit b4ba97e76763c4e582e3af1079e220e93b1b0d76
-> Author: Chris Wilson <chris@chris-wilson.co.uk>
-> Date:   Fri Aug 19 08:37:50 2016 +0100
->
->    drm: Avoid calling dev_printk(.dev = NULL)
->
+On Fri, Aug 03, 2018 at 06:59:20PM +0300, Andy Shevchenko wrote:
+> >>> I'm pretty sure this was created in an order to avoid bad looking (and
+> >>> in some cases frightening) "NULL device *" part.
+> 
+> JFYI: git log --no-merges --grep 'NULL device \*'
 
-Point taken.A  I'll go with pool_err() on the next round.
+I think those commits actually argue in favour of Tony's patch to remove
+the special casing.  Is it really useful to create dma pools with a NULL
+device?
