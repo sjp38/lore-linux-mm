@@ -1,39 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 30EE06B000A
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 17:02:24 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id x2-v6so3105326pgp.4
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 14:02:24 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 581406B0005
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 17:07:51 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id m4-v6so3094661pgq.19
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 14:07:51 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q16-v6si4422141pls.404.2018.08.03.14.02.20
+        by mx.google.com with ESMTPS id 1-v6si5610577pgj.128.2018.08.03.14.07.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 03 Aug 2018 14:02:21 -0700 (PDT)
-Date: Fri, 3 Aug 2018 14:02:15 -0700
+        Fri, 03 Aug 2018 14:07:50 -0700 (PDT)
+Date: Fri, 3 Aug 2018 14:07:45 -0700
 From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2 6/9] dmapool: improve scalability of dma_pool_free
-Message-ID: <20180803210215.GA9329@bombadil.infradead.org>
-References: <eabf88b3-c40f-9973-efed-30af46f42c8d@cybernetics.com>
- <fee77a48-a86b-75eb-7648-6e6e13c3e8e8@cybernetics.com>
+Subject: Re: [PATCH v2 2/9] dmapool: cleanup error messages
+Message-ID: <20180803210745.GB9329@bombadil.infradead.org>
+References: <a9f7ca9a-38d5-12e2-7d15-ab026425e85a@cybernetics.com>
+ <CAHp75Ve0su_S3ZWTtUEUohrs-iPiD1uzFOHhesLrWzJPOa2LNg@mail.gmail.com>
+ <7a943124-c65e-f0ed-cc5c-20b23f021505@cybernetics.com>
+ <b8547f8d-ac88-3d7b-9c2d-60a2f779259e@cybernetics.com>
+ <CAHp75VcoLVkp+BkFBLSqn95=3SaV-zr8cO1eSoQsrzZtJZESNQ@mail.gmail.com>
+ <20180803162212.GA4718@bombadil.infradead.org>
+ <a2e9e4fd-2aab-bc7e-8dbb-db4ece8cd84f@cybernetics.com>
+ <f0762902-8f28-82eb-b871-337c2da290cf@cybernetics.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <fee77a48-a86b-75eb-7648-6e6e13c3e8e8@cybernetics.com>
+In-Reply-To: <f0762902-8f28-82eb-b871-337c2da290cf@cybernetics.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tony Battersby <tonyb@cybernetics.com>
-Cc: Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, MPT-FusionLinux.pdl@broadcom.com
+Cc: Andy Shevchenko <andy.shevchenko@gmail.com>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
 
-On Fri, Aug 03, 2018 at 04:05:35PM -0400, Tony Battersby wrote:
-> For v3 of the patchset, I was also considering to add a note to the
-> kernel-doc comments for dma_pool_create() to use dma_alloc_coherent()
-> directly instead of a dma pool if the driver intends to allow userspace
-> to mmap() the returned pages, due to the new use of the _mapcount union
-> in struct page.  Would you consider that useful information or pointless
-> trivia?
+On Fri, Aug 03, 2018 at 02:43:07PM -0400, Tony Battersby wrote:
+> Out of curiosity, I just tried to create a dmapool with a NULL dev and
+> it crashed on this:
+> 
+> static inline int dev_to_node(struct device *dev)
+> {
+> 	return dev->numa_node;
+> }
+> 
+> struct dma_pool *dma_pool_create(const char *name, struct device *dev,
+> 				 size_t size, size_t align, size_t boundary)
+> {
+> 	...
+> 	retval = kmalloc_node(sizeof(*retval), GFP_KERNEL, dev_to_node(dev));
+> 	...
+> }
+> 
+> So either it needs more special cases for supporting a NULL dev, or the
+> special cases can be removed since no one does that anyway.
 
-If userspace is going to map the pages, it's going to expose other things
-to userspace than the dma pages.  I'd suggest they not do this; they
-should do their own sub-allocation which only exposes to an individual
-task the data they're sure is OK for each task to see.
+Actually, it's worse.  dev_to_node() works with a NULL dev ... unless
+CONFIG_NUMA is set.  So we're leaving a timebomb by pretending to
+allow it.  Let's just 'if (!dev) return NULL;' early in create.
