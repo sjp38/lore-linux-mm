@@ -1,67 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 48FD46B0005
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 18:34:04 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id 2-v6so4012555plc.11
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 15:34:04 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id f10-v6si5675692pgk.367.2018.08.03.15.34.02
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 439066B0007
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 18:51:23 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id m2-v6so4038054plt.14
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 15:51:23 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id x16-v6si5700619pgf.311.2018.08.03.15.51.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 03 Aug 2018 15:34:02 -0700 (PDT)
-Date: Fri, 3 Aug 2018 15:33:57 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v3 2/2] slab: __GFP_ZERO is incompatible with a
- constructor
-Message-ID: <20180803223357.GA23284@bombadil.infradead.org>
-References: <20180411060320.14458-1-willy@infradead.org>
- <20180411060320.14458-3-willy@infradead.org>
- <alpine.DEB.2.20.1804110842560.3788@nuc-kabylake>
- <20180411192448.GD22494@bombadil.infradead.org>
- <alpine.DEB.2.20.1804111601090.7458@nuc-kabylake>
- <20180411235652.GA28279@bombadil.infradead.org>
- <alpine.DEB.2.20.1804120907100.11220@nuc-kabylake>
- <20180412142718.GA20398@bombadil.infradead.org>
- <20180412191322.GA21205@bombadil.infradead.org>
- <20180803212257.GA5922@roeck-us.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180803212257.GA5922@roeck-us.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 03 Aug 2018 15:51:21 -0700 (PDT)
+Date: Fri, 3 Aug 2018 15:51:20 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Use special value SHRINKER_REGISTERING instead
+ list_empty() check
+Message-Id: <20180803155120.0d65511b46c100565b4f8a2c@linux-foundation.org>
+In-Reply-To: <153331055842.22632.9290331685041037871.stgit@localhost.localdomain>
+References: <153331055842.22632.9290331685041037871.stgit@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Guenter Roeck <linux@roeck-us.net>
-Cc: Christopher Lameter <cl@linux.com>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-sh@vger.kernel.org
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: vdavydov.dev@gmail.com, mhocko@suse.com, aryabinin@virtuozzo.com, ying.huang@intel.com, penguin-kernel@I-love.SAKURA.ne.jp, willy@infradead.org, shakeelb@google.com, jbacik@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Aug 03, 2018 at 02:22:57PM -0700, Guenter Roeck wrote:
-> Hi,
+On Fri, 03 Aug 2018 18:36:14 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+
+> The patch introduces a special value SHRINKER_REGISTERING to use instead
+> of list_empty() to detect a semi-registered shrinker.
 > 
-> On Thu, Apr 12, 2018 at 12:13:22PM -0700, Matthew Wilcox wrote:
-> > From: Matthew Wilcox <mawilcox@microsoft.com>
-> > 
-> > __GFP_ZERO requests that the object be initialised to all-zeroes,
-> > while the purpose of a constructor is to initialise an object to a
-> > particular pattern.  We cannot do both.  Add a warning to catch any
-> > users who mistakenly pass a __GFP_ZERO flag when allocating a slab with
-> > a constructor.
-> > 
-> > Fixes: d07dbea46405 ("Slab allocators: support __GFP_ZERO in all allocators")
-> > Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> > Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> > Acked-by: Michal Hocko <mhocko@suse.com>
+> This should be clearer for a reader since "list is empty"  is not
+> an intuitive state of a shrinker), and this gives a better assembler
+> code:
 > 
-> Seen with v4.18-rc7-139-gef46808 and v4.18-rc7-178-g0b5b1f9a78b5 when
-> booting sh4 images in qemu:
+> Before:
+> callq  <idr_find>
+> mov    %rax,%r15
+> test   %rax,%rax
+> je     <shrink_slab_memcg+0x1d5>
+> mov    0x20(%rax),%rax
+> lea    0x20(%r15),%rdx
+> cmp    %rax,%rdx
+> je     <shrink_slab_memcg+0xbd>
+> mov    0x8(%rsp),%edx
+> mov    %r15,%rsi
+> lea    0x10(%rsp),%rdi
+> callq  <do_shrink_slab>
+> 
+> After:
+> callq  <idr_find>
+> mov    %rax,%r15
+> lea    -0x1(%rax),%rax
+> cmp    $0xfffffffffffffffd,%rax
+> ja     <shrink_slab_memcg+0x1cd>
+> mov    0x8(%rsp),%edx
+> mov    %r15,%rsi
+> lea    0x10(%rsp),%rdi
+> callq  ffffffff810cefd0 <do_shrink_slab>
+> 
+> Also, improve the comment.
 
-Thanks!  It's under discussion here:
+All this isn't terribly nice.  Why can't we avoid installing the
+shrinker into the idr until it is fully initialized?
 
-https://marc.info/?t=153301426900002&r=1&w=2
+Or extend the down_write(shrinker_rwsem) coverage so it protects the
+entire initialization, instead of only in the prealloc_memcg_shrinker()
+part of that initialization.  This is not as good - it would be better
+to do all the initialization locklessly then just install the fully
+initialized thing under the lock.
 
-also reported here with a bogus backtrace:
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -170,6 +170,21 @@ static LIST_HEAD(shrinker_list);
+>  static DECLARE_RWSEM(shrinker_rwsem);
+>  
+>  #ifdef CONFIG_MEMCG_KMEM
+> +
+> +/*
+> + * There is a window between prealloc_shrinker()
+> + * and register_shrinker_prepared(). We don't want
+> + * to clear bit of a shrinker in such the state
+> + * in shrink_slab_memcg(), since this will impose
+> + * restrictions on a code registering a shrinker
+> + * (they would have to guarantee, their LRU lists
+> + * are empty till shrinker is completely registered).
+> + * So, we use this value to detect the situation,
+> + * when id is assigned, but shrinker is not completely
+> + * registered yet.
+> + */
 
-https://marc.info/?l=linux-sh&m=153305755505935&w=2
-
-Short version: It's a bug that's been present since 2009 and nobody
-noticed until now.  And nobody's quite sure what the effect of this
-bug is.
+This comment is still quite hard to understand.  Could you please spend
+a little more time over it?
