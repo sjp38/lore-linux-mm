@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 55C456B0005
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 09:41:59 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id c6-v6so4277656qta.6
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 06:41:59 -0700 (PDT)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A2F6A6B0007
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 09:55:20 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id l13-v6so4275381qth.8
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 06:55:20 -0700 (PDT)
 Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
-        by mx.google.com with ESMTPS id i3-v6si445147qvg.215.2018.08.03.06.41.58
+        by mx.google.com with ESMTPS id p16-v6si4096801qvo.24.2018.08.03.06.55.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Aug 2018 06:41:58 -0700 (PDT)
-Subject: Re: [PATCH v2 2/9] dmapool: cleanup error messages
-References: <a9f7ca9a-38d5-12e2-7d15-ab026425e85a@cybernetics.com>
- <CAHp75Ve0su_S3ZWTtUEUohrs-iPiD1uzFOHhesLrWzJPOa2LNg@mail.gmail.com>
+        Fri, 03 Aug 2018 06:55:19 -0700 (PDT)
+Subject: Re: [PATCH v2 4/9] dmapool: improve scalability of dma_pool_alloc
+References: <1dbe6204-17fc-efd9-2381-48186cae2b94@cybernetics.com>
+ <CAHp75Vdj_jcv3j2pNf4EnzasN9zCJ1f+2aWwT2f5GKG=yFAm4Q@mail.gmail.com>
 From: Tony Battersby <tonyb@cybernetics.com>
-Message-ID: <7a943124-c65e-f0ed-cc5c-20b23f021505@cybernetics.com>
-Date: Fri, 3 Aug 2018 09:41:55 -0400
+Message-ID: <b304d118-8cca-594c-1321-bb65e39700e4@cybernetics.com>
+Date: Fri, 3 Aug 2018 09:55:17 -0400
 MIME-Version: 1.0
-In-Reply-To: <CAHp75Ve0su_S3ZWTtUEUohrs-iPiD1uzFOHhesLrWzJPOa2LNg@mail.gmail.com>
+In-Reply-To: <CAHp75Vdj_jcv3j2pNf4EnzasN9zCJ1f+2aWwT2f5GKG=yFAm4Q@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 8bit
 Content-Language: en-US
@@ -25,33 +25,29 @@ List-ID: <linux-mm.kvack.org>
 To: Andy Shevchenko <andy.shevchenko@gmail.com>
 Cc: Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
 
-On 08/03/2018 04:56 AM, Andy Shevchenko wrote:
-> On Thu, Aug 2, 2018 at 10:57 PM, Tony Battersby <tonyb@cybernetics.com> wrote:
->> Remove code duplication in error messages.  It is now safe to pas a NULL
->> dev to dev_err(), so the checks to avoid doing so are no longer
->> necessary.
->>
->> Example:
->>
->> Error message with dev != NULL:
->>   mpt3sas 0000:02:00.0: dma_pool_destroy chain pool, (____ptrval____) busy
->>
->> Same error message with dev == NULL before patch:
->>   dma_pool_destroy chain pool, (____ptrval____) busy
->>
->> Same error message with dev == NULL after patch:
->>   (NULL device *): dma_pool_destroy chain pool, (____ptrval____) busy
-> Have you checked a history of this?
+On 08/03/2018 05:02 AM, Andy Shevchenko wrote:
+> On Thu, Aug 2, 2018 at 10:58 PM, Tony Battersby <tonyb@cybernetics.com> wrote:
+>> dma_pool_alloc() scales poorly when allocating a large number of pages
+>> because it does a linear scan of all previously-allocated pages before
+>> allocating a new one.  Improve its scalability by maintaining a separate
+>> list of pages that have free blocks ready to (re)allocate.  In big O
+>> notation, this improves the algorithm from O(n^2) to O(n).
+>>  struct dma_pool {              /* the pool */
+>> +#define POOL_FULL_IDX   0
+>> +#define POOL_AVAIL_IDX  1
+>> +#define POOL_N_LISTS    2
+>> +       struct list_head page_list[POOL_N_LISTS];
+> To be consistent with naming scheme and common practice I would rather
+> name the last one as
 >
-> I'm pretty sure this was created in an order to avoid bad looking (and
-> in some cases frightening) "NULL device *" part.
+> POOL_MAX_IDX 2
+OK.
 >
-> If it it's the case, I would rather leave it as is, and even not the
-> case, I'm slightly more bent to the current state.
+>> +       INIT_LIST_HEAD(&retval->page_list[0]);
+>> +       INIT_LIST_HEAD(&retval->page_list[1]);
+> You introduced defines and don't use them.
 >
-I did.A  "drivers/base/dmapool.c", later moved to "mm/dmapool.c", was
-added in linux-2.6.3, for which dev_err() did not work will a NULL dev,
-so the check was necessary back then.A  I agree that the (NULL device *):
-bit is ugly, but these messages should be printed only after a kernel
-bug, so it is not like they will be making a regular appearance in
-dmesg.A  Considering that, I think that it is better to keep it simple.
+Just a matter of style.A  In this context, it only matters that both
+index 0 and 1 get initialized, not which index corresponds to which
+list.A  But I suppose using the defines would improve keyword search, so
+I'll change it.
