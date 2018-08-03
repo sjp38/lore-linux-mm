@@ -1,91 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id ABD0C6B000A
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 05:48:14 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id m10-v6so1719765wrn.4
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 02:48:14 -0700 (PDT)
-Received: from relay1-d.mail.gandi.net (relay1-d.mail.gandi.net. [217.70.183.193])
-        by mx.google.com with ESMTPS id s6-v6si3264999wmd.188.2018.08.03.02.48.13
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6857C6B0005
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 06:31:17 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id y130-v6so4906958qka.1
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 03:31:17 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id u3-v6si4362112qku.184.2018.08.03.03.31.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 03 Aug 2018 02:48:13 -0700 (PDT)
-Subject: Re: [PATCH v5 09/11] hugetlb: Introduce generic version of
- huge_ptep_set_wrprotect
-References: <20180731060155.16915-1-alex@ghiti.fr>
- <20180731060155.16915-10-alex@ghiti.fr>
- <87h8kfhg7o.fsf@concordia.ellerman.id.au>
- <6acb1389-6998-bafb-cf69-174fd522c04c@ghiti.fr>
- <90bf556f-144d-24b8-d2f6-70fee4a30559@ghiti.fr>
- <87muu3hlzc.fsf@concordia.ellerman.id.au>
-From: Alexandre Ghiti <alex@ghiti.fr>
-Message-ID: <ef7fbd80-84a9-0b39-f948-413dea6f6469@ghiti.fr>
-Date: Fri, 3 Aug 2018 11:47:10 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 03 Aug 2018 03:31:15 -0700 (PDT)
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <47c34fad-5d11-53b0-4386-61be890163c5@virtuozzo.com>
+References: <47c34fad-5d11-53b0-4386-61be890163c5@virtuozzo.com> <153320759911.18959.8842396230157677671.stgit@localhost.localdomain> <20180802134723.ecdd540c7c9338f98ee1a2c6@linux-foundation.org>
+Subject: Re: [PATCH] mm: Move check for SHRINKER_NUMA_AWARE to do_shrink_slab()
 MIME-Version: 1.0
-In-Reply-To: <87muu3hlzc.fsf@concordia.ellerman.id.au>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <8346.1533292272.1@warthog.procyon.org.uk>
+Content-Transfer-Encoding: quoted-printable
+Date: Fri, 03 Aug 2018 11:31:12 +0100
+Message-ID: <8347.1533292272@warthog.procyon.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, mike.kravetz@oracle.com, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, tony.luck@intel.com, fenghua.yu@intel.com, ralf@linux-mips.org, paul.burton@mips.com, jhogan@kernel.org, jejb@parisc-linux.org, deller@gmx.de, benh@kernel.crashing.org, ysato@users.sourceforge.jp, dalias@libc.org, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, arnd@arndb.de, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, "aneesh.kumar@linux.ibm.com" <aneesh.kumar@linux.ibm.com>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: dhowells@redhat.com, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, vdavydov.dev@gmail.com, mhocko@suse.com, aryabinin@virtuozzo.com, ying.huang@intel.com, penguin-kernel@I-love.SAKURA.ne.jp, willy@infradead.org, shakeelb@google.com, jbacik@fb.com, linux-mm@kvack.org
 
-Hi Michael,
+The reproducer can be reduced to:
 
-Thanks, I will then remove those two specific implementations and we'll 
-use the generic ones.
+	#define _GNU_SOURCE
+	#include <endian.h>
+	#include <stdint.h>
+	#include <string.h>
+	#include <stdio.h>
+	#include <sys/syscall.h>
+	#include <sys/stat.h>
+	#include <sys/mount.h>
+	#include <unistd.h>
+	#include <fcntl.h>
 
-I send a v6 asap.
+	const char path[] =3D "./file0";
 
-Thanks again,
+	int main()
+	{
+		mkdir(path, 0);
+		mount(path, path, "cgroup2", 0, 0);
+		chroot(path);
+		umount2(path, 0);
+		return 0;
+	}
 
-Alex
+and I've found two bugs (see attached patch).  The issue is that
+do_remount_sb() is called with fc =3D=3D NULL from umount(), but both
+cgroup_reconfigure() and do_remount_sb() dereference fc unconditionally.
 
+But!  I'm not sure why the reproducer works at all because the umount2() c=
+all
+is *after* the chroot, so should fail on ENOENT before it even gets that f=
+ar.
+In fact, umount2() can be called multiple times, apparently successfully, =
+and
+doesn't actually unmount anything.
 
-On 08/03/2018 10:51 AM, Michael Ellerman wrote:
-> Hi Alex,
->
-> Sorry missed your previous mail.
->
-> Alex Ghiti <alex@ghiti.fr> writes:
->> Ok, I tried every defconfig available:
->>
->> - for the nohash/32, I found that I could use mpc885_ads_defconfig and I
->> activated HUGETLBFS.
->> I removed the definition of huge_ptep_set_wrprotect from
->> nohash/32/pgtable.h, add an #error in
->> include/asm-generic/hugetlb.h right before the generic definition of
->> huge_ptep_set_wrprotect,
->> and fell onto it at compile-time:
->> => I'm pretty confident then that removing the definition of
->> huge_ptep_set_wrprotect does not
->> break anythingin this case.
-> Thanks, that sounds good.
->
->> - regardind book3s/32, I did not find any defconfig with
->> CONFIG_PPC_BOOK3S_32, CONFIG_PPC32
->> allowing to enable huge page support (ie CONFIG_SYS_SUPPORTS_HUGETLBFS)
->> => Do you have a defconfig that would allow me to try the same as above ?
-> I think you're right, it's dead code AFAICS.
->
-> We have:
->
-> config PPC_BOOK3S_64
->          ...
-> 	select SYS_SUPPORTS_HUGETLBFS
->
-> config PPC_FSL_BOOK3E
->          ...
-> 	select SYS_SUPPORTS_HUGETLBFS if PHYS_64BIT || PPC64
->
-> config PPC_8xx
-> 	...
-> 	select SYS_SUPPORTS_HUGETLBFS
->
->
-> So we can't ever enable HUGETLBFS for Book3S 32.
->
-> Presumably the code got copied when we split the headers apart.
->
-> So I think you can just ignore that one, and we'll delete it.
->
-> cheers
+David
+---
+diff --git a/fs/super.c b/fs/super.c
+index 3fe5d12b7697..321fbc244570 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -978,7 +978,10 @@ int do_remount_sb(struct super_block *sb, int sb_flag=
+s, void *data,
+ 	    sb->s_op->remount_fs) {
+ 		if (sb->s_op->reconfigure) {
+ 			retval =3D sb->s_op->reconfigure(sb, fc);
+-			sb_flags =3D fc->sb_flags;
++			if (fc)
++				sb_flags =3D fc->sb_flags;
++			else
++				sb_flags =3D sb->s_flags;
+ 			if (retval =3D=3D 0)
+ 				security_sb_reconfigure(fc);
+ 		} else {
+diff --git a/kernel/cgroup/cgroup.c b/kernel/cgroup/cgroup.c
+index f3238f38d152..48275fdce053 100644
+--- a/kernel/cgroup/cgroup.c
++++ b/kernel/cgroup/cgroup.c
+@@ -1796,9 +1796,11 @@ static void apply_cgroup_root_flags(unsigned int ro=
+ot_flags)
+ =
+
+ static int cgroup_reconfigure(struct kernfs_root *kf_root, struct fs_cont=
+ext *fc)
+ {
+-	struct cgroup_fs_context *ctx =3D cgroup_fc2context(fc);
++	if (fc) {
++		struct cgroup_fs_context *ctx =3D cgroup_fc2context(fc);
+ =
+
+-	apply_cgroup_root_flags(ctx->flags);
++		apply_cgroup_root_flags(ctx->flags);
++	}
+ 	return 0;
+ }
+ =
