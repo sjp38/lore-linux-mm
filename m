@@ -1,157 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 580AB6B0005
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 08:31:39 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id g26-v6so3616865pfo.7
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 05:31:39 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id 12-v6si4146798plb.203.2018.08.03.05.31.37
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F4A46B0007
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 08:47:06 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id r21-v6so1694912edp.23
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 05:47:06 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a26-v6sor1518308edn.39.2018.08.03.05.47.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Aug 2018 05:31:38 -0700 (PDT)
-From: Huang Ying <ying.huang@intel.com>
-Subject: [PATCH] swap: Use __try_to_reclaim_swap() in free_swap_and_cache()
-Date: Fri,  3 Aug 2018 20:30:14 +0800
-Message-Id: <20180803123014.15431-1-ying.huang@intel.com>
+        (Google Transport Security);
+        Fri, 03 Aug 2018 05:47:05 -0700 (PDT)
+Date: Fri, 3 Aug 2018 15:47:01 +0300
+From: Alexey Dobriyan <adobriyan@gmail.com>
+Subject: Re: [PATCH] mm:bugfix check return value of ioremap_prot
+Message-ID: <20180803124631.GA13803@avx2>
+References: <1533195441-58594-1-git-send-email-chenjie6@huawei.com>
+ <CAHbLzkpj9chSMFWWhSb1hTL86rWdys3a=2oHgLjp_e-mDGF1Sw@mail.gmail.com>
+ <20180802140222.5957911883678f8271f636aa@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20180802140222.5957911883678f8271f636aa@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>
+Cc: Yang Shi <shy828301@gmail.com>, chenjie6@huawei.com, linux-mm@kvack.org, tj@kernel.org, lizefan@huawei.com
 
-The code path to reclaim the swap entry in free_swap_and_cache() is
-almost same as that of __try_to_reclaim_swap(), the largest difference
-is just coding style.  So the support to the additional requirement of
-free_swap_and_cache() is added into __try_to_reclaim_swap(), and
-__try_to_reclaim_swap() is called in free_swap_and_cache() to delete
-the duplicated code.  This will improve code readability and reduce
-the potential bugs.
+On Thu, Aug 02, 2018 at 02:02:22PM -0700, Andrew Morton wrote:
+> On Thu, 2 Aug 2018 09:47:52 -0700 Yang Shi <shy828301@gmail.com> wrote:
+> 
+> > On Thu, Aug 2, 2018 at 12:37 AM,  <chenjie6@huawei.com> wrote:
+> > > From: chen jie <chen jie@chenjie6@huwei.com>
+> > >
+> > >         ioremap_prot can return NULL which could lead to an oops
+> > 
+> > What oops? You'd better to have the oops information in your commit log.
+> 
+> Doesn't matter much - the code is clearly buggy.
+> 
+> Looking at the callers, I have suspicions about
+> fs/proc/base.c:environ_read().  It's assuming that access_remote_vm()
+> returns an errno.  But it doesn't - it returns number of bytes copied.
+> 
+> Alexey, could you please take a look?  While in there, I'd suggest
+> adding some return value documentation to __access_remote_vm() and
+> access_remote_vm().  Thanks.
 
-There are 2 functionality differences between __try_to_reclaim_swap()
-and swap entry reclaim code of free_swap_and_cache().
-
-- free_swap_and_cache() only reclaims the swap entry if the page is
-  unmapped or swap is getting full.  The support has been added into
-  __try_to_reclaim_swap().
-
-- try_to_free_swap() (called by __try_to_reclaim_swap()) checks
-  pm_suspended_storage(), while free_swap_and_cache() not.  I think
-  this is OK.  Because the page and the swap entry can be reclaimed
-  later eventually.
-
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan@kernel.org>
----
- mm/swapfile.c | 57 +++++++++++++++++++++++++--------------------------------
- 1 file changed, 25 insertions(+), 32 deletions(-)
-
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 8ee4c93e3316..00bb4ed08410 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -104,26 +104,39 @@ static inline unsigned char swap_count(unsigned char ent)
- 	return ent & ~SWAP_HAS_CACHE;	/* may include COUNT_CONTINUED flag */
- }
- 
-+/* Reclaim the swap entry anyway if possible */
-+#define TTRS_ANYWAY		0x1
-+/*
-+ * Reclaim the swap entry if there are no more mappings of the
-+ * corresponding page
-+ */
-+#define TTRS_UNMAPPED		0x2
-+/* Reclaim the swap entry if swap is getting full*/
-+#define TTRS_FULL		0x4
-+
- /* returns 1 if swap entry is freed */
--static int
--__try_to_reclaim_swap(struct swap_info_struct *si, unsigned long offset)
-+static int __try_to_reclaim_swap(struct swap_info_struct *si,
-+				 unsigned long offset, unsigned long flags)
- {
- 	swp_entry_t entry = swp_entry(si->type, offset);
- 	struct page *page;
- 	int ret = 0;
- 
--	page = find_get_page(swap_address_space(entry), swp_offset(entry));
-+	page = find_get_page(swap_address_space(entry), offset);
- 	if (!page)
- 		return 0;
- 	/*
--	 * This function is called from scan_swap_map() and it's called
--	 * by vmscan.c at reclaiming pages. So, we hold a lock on a page, here.
--	 * We have to use trylock for avoiding deadlock. This is a special
-+	 * When this function is called from scan_swap_map_slots() and it's
-+	 * called by vmscan.c at reclaiming pages. So, we hold a lock on a page,
-+	 * here. We have to use trylock for avoiding deadlock. This is a special
- 	 * case and you should use try_to_free_swap() with explicit lock_page()
- 	 * in usual operations.
- 	 */
- 	if (trylock_page(page)) {
--		ret = try_to_free_swap(page);
-+		if ((flags & TTRS_ANYWAY) ||
-+		    ((flags & TTRS_UNMAPPED) && !page_mapped(page)) ||
-+		    ((flags & TTRS_FULL) && mem_cgroup_swap_full(page)))
-+			ret = try_to_free_swap(page);
- 		unlock_page(page);
- 	}
- 	put_page(page);
-@@ -781,7 +794,7 @@ static int scan_swap_map_slots(struct swap_info_struct *si,
- 		int swap_was_freed;
- 		unlock_cluster(ci);
- 		spin_unlock(&si->lock);
--		swap_was_freed = __try_to_reclaim_swap(si, offset);
-+		swap_was_freed = __try_to_reclaim_swap(si, offset, TTRS_ANYWAY);
- 		spin_lock(&si->lock);
- 		/* entry was freed successfully, try to use this again */
- 		if (swap_was_freed)
-@@ -1680,7 +1693,6 @@ int try_to_free_swap(struct page *page)
- int free_swap_and_cache(swp_entry_t entry)
- {
- 	struct swap_info_struct *p;
--	struct page *page = NULL;
- 	unsigned char count;
- 
- 	if (non_swap_entry(entry))
-@@ -1690,31 +1702,12 @@ int free_swap_and_cache(swp_entry_t entry)
- 	if (p) {
- 		count = __swap_entry_free(p, entry, 1);
- 		if (count == SWAP_HAS_CACHE &&
--		    !swap_page_trans_huge_swapped(p, entry)) {
--			page = find_get_page(swap_address_space(entry),
--					     swp_offset(entry));
--			if (page && !trylock_page(page)) {
--				put_page(page);
--				page = NULL;
--			}
--		} else if (!count)
-+		    !swap_page_trans_huge_swapped(p, entry))
-+			__try_to_reclaim_swap(p, swp_offset(entry),
-+					      TTRS_UNMAPPED | TTRS_FULL);
-+		else if (!count)
- 			free_swap_slot(entry);
- 	}
--	if (page) {
--		/*
--		 * Not mapped elsewhere, or swap space full? Free it!
--		 * Also recheck PageSwapCache now page is locked (above).
--		 */
--		if (PageSwapCache(page) && !PageWriteback(page) &&
--		    (!page_mapped(page) || mem_cgroup_swap_full(page)) &&
--		    !swap_page_trans_huge_swapped(p, entry)) {
--			page = compound_head(page);
--			delete_from_swap_cache(page);
--			SetPageDirty(page);
--		}
--		unlock_page(page);
--		put_page(page);
--	}
- 	return p != NULL;
- }
- 
--- 
-2.16.4
+This is true: remote VM accessors return number of bytes copied
+but ->access returns len/-E. Returning "int" is deceptive.
