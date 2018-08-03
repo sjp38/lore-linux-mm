@@ -1,173 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E79016B0007
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 04:53:38 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id t17-v6so1592336edr.21
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 01:53:38 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b15-v6si484544eda.179.2018.08.03.01.53.36
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AFF86B000A
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 04:56:03 -0400 (EDT)
+Received: by mail-ua0-f197.google.com with SMTP id t22-v6so1978039uap.19
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 01:56:03 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s28-v6sor1515931uab.252.2018.08.03.01.56.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Aug 2018 01:53:36 -0700 (PDT)
-Date: Fri, 3 Aug 2018 10:53:35 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC v6 PATCH 1/2] mm: refactor do_munmap() to extract the
- common part
-Message-ID: <20180803085335.GH27245@dhcp22.suse.cz>
-References: <1532628614-111702-1-git-send-email-yang.shi@linux.alibaba.com>
- <1532628614-111702-2-git-send-email-yang.shi@linux.alibaba.com>
+        (Google Transport Security);
+        Fri, 03 Aug 2018 01:56:02 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1532628614-111702-2-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <a9f7ca9a-38d5-12e2-7d15-ab026425e85a@cybernetics.com>
+References: <a9f7ca9a-38d5-12e2-7d15-ab026425e85a@cybernetics.com>
+From: Andy Shevchenko <andy.shevchenko@gmail.com>
+Date: Fri, 3 Aug 2018 11:56:01 +0300
+Message-ID: <CAHp75Ve0su_S3ZWTtUEUohrs-iPiD1uzFOHhesLrWzJPOa2LNg@mail.gmail.com>
+Subject: Re: [PATCH v2 2/9] dmapool: cleanup error messages
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tony Battersby <tonyb@cybernetics.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
 
-On Fri 27-07-18 02:10:13, Yang Shi wrote:
-> Introduces three new helper functions:
->   * munmap_addr_sanity()
->   * munmap_lookup_vma()
->   * munmap_mlock_vma()
-> 
-> They will be used by do_munmap() and the new do_munmap with zapping
-> large mapping early in the later patch.
-> 
-> There is no functional change, just code refactor.
-> 
-> Reviewed-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> ---
->  mm/mmap.c | 120 ++++++++++++++++++++++++++++++++++++++++++--------------------
->  1 file changed, 82 insertions(+), 38 deletions(-)
-> 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index d1eb87e..2504094 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2686,34 +2686,44 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
->  	return __split_vma(mm, vma, addr, new_below);
->  }
->  
-> -/* Munmap is split into 2 main parts -- this part which finds
-> - * what needs doing, and the areas themselves, which do the
-> - * work.  This now handles partial unmappings.
-> - * Jeremy Fitzhardinge <jeremy@goop.org>
-> - */
-> -int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
-> -	      struct list_head *uf)
-> +static inline bool munmap_addr_sanity(unsigned long start, size_t len)
+On Thu, Aug 2, 2018 at 10:57 PM, Tony Battersby <tonyb@cybernetics.com> wrote:
+> Remove code duplication in error messages.  It is now safe to pas a NULL
+> dev to dev_err(), so the checks to avoid doing so are no longer
+> necessary.
+>
+> Example:
+>
+> Error message with dev != NULL:
+>   mpt3sas 0000:02:00.0: dma_pool_destroy chain pool, (____ptrval____) busy
+>
+> Same error message with dev == NULL before patch:
+>   dma_pool_destroy chain pool, (____ptrval____) busy
+>
+> Same error message with dev == NULL after patch:
+>   (NULL device *): dma_pool_destroy chain pool, (____ptrval____) busy
 
-munmap_check_addr? Btw. why does this need to have munmap prefix at all?
-This is a general address space check.
+Have you checked a history of this?
 
->  {
-> -	unsigned long end;
-> -	struct vm_area_struct *vma, *prev, *last;
-> -
->  	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE-start)
-> -		return -EINVAL;
-> +		return false;
->  
-> -	len = PAGE_ALIGN(len);
-> -	if (len == 0)
-> -		return -EINVAL;
-> +	if (PAGE_ALIGN(len) == 0)
-> +		return false;
-> +
-> +	return true;
-> +}
-> +
-> +/*
-> + * munmap_lookup_vma: find the first overlap vma and split overlap vmas.
-> + * @mm: mm_struct
-> + * @vma: the first overlapping vma
-> + * @prev: vma's prev
-> + * @start: start address
-> + * @end: end address
+I'm pretty sure this was created in an order to avoid bad looking (and
+in some cases frightening) "NULL device *" part.
 
-This really doesn't help me to understand how to use the function.
-Why do we need both prev and vma etc...
-
-> + *
-> + * returns 1 if successful, 0 or errno otherwise
-
-This is a really weird calling convention. So what does 0 tell? /me
-checks the code. Ohh, it is nothing to do. Why cannot you simply return
-the vma. NULL implies nothing to do, ERR_PTR on error.
-
-> + */
-> +static int munmap_lookup_vma(struct mm_struct *mm, struct vm_area_struct **vma,
-> +			     struct vm_area_struct **prev, unsigned long start,
-> +			     unsigned long end)
-> +{
-> +	struct vm_area_struct *tmp, *last;
->  
->  	/* Find the first overlapping VMA */
-> -	vma = find_vma(mm, start);
-> -	if (!vma)
-> +	tmp = find_vma(mm, start);
-> +	if (!tmp)
->  		return 0;
-> -	prev = vma->vm_prev;
-> -	/* we have  start < vma->vm_end  */
-> +
-> +	*prev = tmp->vm_prev;
-
-Why do you set prev here. We might "fail" with 0 right after this
-
-> +
-> +	/* we have start < vma->vm_end  */
->  
->  	/* if it doesn't overlap, we have nothing.. */
-> -	end = start + len;
-> -	if (vma->vm_start >= end)
-> +	if (tmp->vm_start >= end)
->  		return 0;
->  
->  	/*
-> @@ -2723,7 +2733,7 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
->  	 * unmapped vm_area_struct will remain in use: so lower split_vma
->  	 * places tmp vma above, and higher split_vma places tmp vma below.
->  	 */
-> -	if (start > vma->vm_start) {
-> +	if (start > tmp->vm_start) {
->  		int error;
->  
->  		/*
-> @@ -2731,13 +2741,14 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
->  		 * not exceed its limit; but let map_count go just above
->  		 * its limit temporarily, to help free resources as expected.
->  		 */
-> -		if (end < vma->vm_end && mm->map_count >= sysctl_max_map_count)
-> +		if (end < tmp->vm_end &&
-> +		    mm->map_count > sysctl_max_map_count)
->  			return -ENOMEM;
->  
-> -		error = __split_vma(mm, vma, start, 0);
-> +		error = __split_vma(mm, tmp, start, 0);
->  		if (error)
->  			return error;
-> -		prev = vma;
-> +		*prev = tmp;
->  	}
->  
->  	/* Does it split the last one? */
-> @@ -2747,7 +2758,48 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
->  		if (error)
->  			return error;
->  	}
-> -	vma = prev ? prev->vm_next : mm->mmap;
-> +
-> +	*vma = *prev ? (*prev)->vm_next : mm->mmap;
-> +
-> +	return 1;
-> +}
-
-the patch would be much more easier to read if you didn't do vma->tmp
-renaming.
+If it it's the case, I would rather leave it as is, and even not the
+case, I'm slightly more bent to the current state.
 
 -- 
-Michal Hocko
-SUSE Labs
+With Best Regards,
+Andy Shevchenko
