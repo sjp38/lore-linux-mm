@@ -1,44 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EBCCF6B0005
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 19:03:33 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id v9-v6so4508811pff.4
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 16:03:33 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id a1-v6si6167003pgg.326.2018.08.03.16.03.31
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C3C66B000A
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 19:06:00 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id d10-v6so4036785pll.22
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 16:06:00 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id m9-v6si4437811pll.138.2018.08.03.16.05.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 03 Aug 2018 16:03:31 -0700 (PDT)
-Date: Fri, 3 Aug 2018 16:03:18 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] mm: Use special value SHRINKER_REGISTERING instead
- list_empty() check
-Message-ID: <20180803230318.GB23284@bombadil.infradead.org>
-References: <153331055842.22632.9290331685041037871.stgit@localhost.localdomain>
- <20180803155120.0d65511b46c100565b4f8a2c@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180803155120.0d65511b46c100565b4f8a2c@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 03 Aug 2018 16:05:59 -0700 (PDT)
+Date: Fri, 3 Aug 2018 16:05:57 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm:bugfix check return value of ioremap_prot
+Message-Id: <20180803160557.5d7c5f8e20b526b8bd071146@linux-foundation.org>
+In-Reply-To: <20180803124631.GA13803@avx2>
+References: <1533195441-58594-1-git-send-email-chenjie6@huawei.com>
+	<CAHbLzkpj9chSMFWWhSb1hTL86rWdys3a=2oHgLjp_e-mDGF1Sw@mail.gmail.com>
+	<20180802140222.5957911883678f8271f636aa@linux-foundation.org>
+	<20180803124631.GA13803@avx2>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, vdavydov.dev@gmail.com, mhocko@suse.com, aryabinin@virtuozzo.com, ying.huang@intel.com, penguin-kernel@I-love.SAKURA.ne.jp, shakeelb@google.com, jbacik@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: Yang Shi <shy828301@gmail.com>, chenjie6@huawei.com, linux-mm@kvack.org, tj@kernel.org, lizefan@huawei.com
 
-On Fri, Aug 03, 2018 at 03:51:20PM -0700, Andrew Morton wrote:
-> On Fri, 03 Aug 2018 18:36:14 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
-> > The patch introduces a special value SHRINKER_REGISTERING to use instead
-> > of list_empty() to detect a semi-registered shrinker.
+On Fri, 3 Aug 2018 15:47:01 +0300 Alexey Dobriyan <adobriyan@gmail.com> wrote:
+
+> On Thu, Aug 02, 2018 at 02:02:22PM -0700, Andrew Morton wrote:
+> > On Thu, 2 Aug 2018 09:47:52 -0700 Yang Shi <shy828301@gmail.com> wrote:
+> > 
+> > > On Thu, Aug 2, 2018 at 12:37 AM,  <chenjie6@huawei.com> wrote:
+> > > > From: chen jie <chen jie@chenjie6@huwei.com>
+> > > >
+> > > >         ioremap_prot can return NULL which could lead to an oops
+> > > 
+> > > What oops? You'd better to have the oops information in your commit log.
+> > 
+> > Doesn't matter much - the code is clearly buggy.
+> > 
+> > Looking at the callers, I have suspicions about
+> > fs/proc/base.c:environ_read().  It's assuming that access_remote_vm()
+> > returns an errno.  But it doesn't - it returns number of bytes copied.
+> > 
+> > Alexey, could you please take a look?  While in there, I'd suggest
+> > adding some return value documentation to __access_remote_vm() and
+> > access_remote_vm().  Thanks.
 > 
-> All this isn't terribly nice.  Why can't we avoid installing the
-> shrinker into the idr until it is fully initialized?
+> This is true: remote VM accessors return number of bytes copied
+> but ->access returns len/-E. Returning "int" is deceptive.
 
-I haven't reviewed the current state of the code in question, but the
-IDR allows you to store a NULL in order to allocate an ID.  One should
-then either call idr_remove() in order to release the ID or idr_replace()
-once the object has been fully initialised.
+It's more than deceptive - it's flat-out buggy for >4G copy attempts. 
+And highly dubious for 2G-4G copies, where it might return a negative
+int.
 
-Another way to potentially accomplish the same thing is to use
-idr_alloc_u32 which will assign the ID immediately before inserting
-the pointer into the IDR.  This only works if the caller can initialise
-everything but the ID, and can handle an ENOMEM.
+I suppose that access_remote_vm() should strictly return a ptrdiff_t,
+but we hardly ever use that.  size_t will do.
