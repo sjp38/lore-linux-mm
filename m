@@ -1,60 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EC486B026B
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 05:02:33 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id v65-v6so4599447qka.23
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 02:02:33 -0700 (PDT)
-Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50090.outbound.protection.outlook.com. [40.107.5.90])
-        by mx.google.com with ESMTPS id p79-v6si1419658qkl.154.2018.08.03.02.02.32
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4899F6B026D
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 05:02:46 -0400 (EDT)
+Received: by mail-ua0-f200.google.com with SMTP id u26-v6so1971327uan.23
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 02:02:46 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f33-v6sor1696254uaa.68.2018.08.03.02.02.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 03 Aug 2018 02:02:32 -0700 (PDT)
-Subject: Re: [PATCH] mm: Move check for SHRINKER_NUMA_AWARE to
- do_shrink_slab()
-References: <153320759911.18959.8842396230157677671.stgit@localhost.localdomain>
- <20180802134723.ecdd540c7c9338f98ee1a2c6@linux-foundation.org>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <47c34fad-5d11-53b0-4386-61be890163c5@virtuozzo.com>
-Date: Fri, 3 Aug 2018 12:02:26 +0300
+        (Google Transport Security);
+        Fri, 03 Aug 2018 02:02:45 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180802134723.ecdd540c7c9338f98ee1a2c6@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1dbe6204-17fc-efd9-2381-48186cae2b94@cybernetics.com>
+References: <1dbe6204-17fc-efd9-2381-48186cae2b94@cybernetics.com>
+From: Andy Shevchenko <andy.shevchenko@gmail.com>
+Date: Fri, 3 Aug 2018 12:02:44 +0300
+Message-ID: <CAHp75Vdj_jcv3j2pNf4EnzasN9zCJ1f+2aWwT2f5GKG=yFAm4Q@mail.gmail.com>
+Subject: Re: [PATCH v2 4/9] dmapool: improve scalability of dma_pool_alloc
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, David Howells <dhowells@redhat.com>
-Cc: vdavydov.dev@gmail.com, mhocko@suse.com, aryabinin@virtuozzo.com, ying.huang@intel.com, penguin-kernel@I-love.SAKURA.ne.jp, willy@infradead.org, shakeelb@google.com, jbacik@fb.com, linux-mm@kvack.org
+To: Tony Battersby <tonyb@cybernetics.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
 
-On 02.08.2018 23:47, Andrew Morton wrote:
-> On Thu, 02 Aug 2018 14:00:52 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
-> 
->> In case of shrink_slab_memcg() we do not zero nid, when shrinker
->> is not numa-aware. This is not a real problem, since currently
->> all memcg-aware shrinkers are numa-aware too (we have two:
->> super_block shrinker and workingset shrinker), but something may
->> change in the future.
-> 
-> Fair enough.
-> 
->> (Andrew, this may be merged to mm-iterate-only-over-charged-shrinkers-during-memcg-shrink_slab)
-> 
-> It got a bit messy so I got lazy and queued it as a separate patch.
-> 
-> btw, I have a note that https://lkml.org/lkml/2018/7/7/32 was caused by
-> this patch series.  Is that the case and do you know if this was
-> addressed?
+On Thu, Aug 2, 2018 at 10:58 PM, Tony Battersby <tonyb@cybernetics.com> wrote:
+> dma_pool_alloc() scales poorly when allocating a large number of pages
+> because it does a linear scan of all previously-allocated pages before
+> allocating a new one.  Improve its scalability by maintaining a separate
+> list of pages that have free blocks ready to (re)allocate.  In big O
+> notation, this improves the algorithm from O(n^2) to O(n).
 
-It's not related to the patchset. Bisect leads to:
+>  struct dma_pool {              /* the pool */
 
-commit c6aeb9d4c351 (HEAD, refs/bisect/bad)
-Author: David Howells <dhowells@redhat.com>
-Date:   Sun Jun 24 00:20:10 2018 +0100
+> +#define POOL_FULL_IDX   0
+> +#define POOL_AVAIL_IDX  1
+> +#define POOL_N_LISTS    2
+> +       struct list_head page_list[POOL_N_LISTS];
 
-kernfs, sysfs, cgroup, intel_rdt: Support fs_context
+To be consistent with naming scheme and common practice I would rather
+name the last one as
 
-CC David.
+POOL_MAX_IDX 2
 
-David, please see reproducer at https://lkml.org/lkml/2018/7/7/32
+> +       INIT_LIST_HEAD(&retval->page_list[0]);
+> +       INIT_LIST_HEAD(&retval->page_list[1]);
 
-Kirill
+You introduced defines and don't use them.
+
+-- 
+With Best Regards,
+Andy Shevchenko
