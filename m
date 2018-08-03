@@ -1,47 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A794A6B000D
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 13:03:21 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id b8-v6so4727824qto.16
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 10:03:21 -0700 (PDT)
-Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
-        by mx.google.com with ESMTPS id n83-v6si600994qki.267.2018.08.03.10.03.20
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D6556B0010
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 13:07:48 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id u23-v6so4478442iol.22
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 10:07:48 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id r89-v6si3741303ioi.273.2018.08.03.10.07.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Aug 2018 10:03:20 -0700 (PDT)
-Subject: Re: [PATCH v2 2/9] dmapool: cleanup error messages
-References: <a9f7ca9a-38d5-12e2-7d15-ab026425e85a@cybernetics.com>
- <CAHp75Ve0su_S3ZWTtUEUohrs-iPiD1uzFOHhesLrWzJPOa2LNg@mail.gmail.com>
- <7a943124-c65e-f0ed-cc5c-20b23f021505@cybernetics.com>
- <b8547f8d-ac88-3d7b-9c2d-60a2f779259e@cybernetics.com>
- <CAHp75VcoLVkp+BkFBLSqn95=3SaV-zr8cO1eSoQsrzZtJZESNQ@mail.gmail.com>
- <20180803162212.GA4718@bombadil.infradead.org>
-From: Tony Battersby <tonyb@cybernetics.com>
-Message-ID: <a2e9e4fd-2aab-bc7e-8dbb-db4ece8cd84f@cybernetics.com>
-Date: Fri, 3 Aug 2018 13:03:17 -0400
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 03 Aug 2018 10:07:46 -0700 (PDT)
+Date: Fri, 3 Aug 2018 19:07:33 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 8/9] psi: pressure stall information for CPU, memory, and
+ IO
+Message-ID: <20180803170733.GC2494@hirez.programming.kicks-ass.net>
+References: <20180801151958.32590-1-hannes@cmpxchg.org>
+ <20180801151958.32590-9-hannes@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20180803162212.GA4718@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180801151958.32590-9-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, Andy Shevchenko <andy.shevchenko@gmail.com>
-Cc: Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Daniel Drake <drake@endlessm.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, Peter Enderborg <peter.enderborg@sony.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 08/03/2018 12:22 PM, Matthew Wilcox wrote:
-> On Fri, Aug 03, 2018 at 06:59:20PM +0300, Andy Shevchenko wrote:
->>>>> I'm pretty sure this was created in an order to avoid bad looking (and
->>>>> in some cases frightening) "NULL device *" part.
->> JFYI: git log --no-merges --grep 'NULL device \*'
-> I think those commits actually argue in favour of Tony's patch to remove
-> the special casing.  Is it really useful to create dma pools with a NULL
-> device?
->
->
-dma_alloc_coherent() does appear to support a NULL dev, so it might make
-sense in theory.A  But I can't find any in-tree callers that actually
-pass a NULL dev to dma_pool_create().A  So for one of the dreaded (NULL
-device *) messages to show up, it would take both a new caller that
-passes a NULL dev to dma_pool_create() and a bug to cause the message to
-be printed.A  Is that worth the special casing?
+On Wed, Aug 01, 2018 at 11:19:57AM -0400, Johannes Weiner wrote:
+> +static bool psi_update_stats(struct psi_group *group)
+> +{
+> +	u64 deltas[NR_PSI_STATES - 1] = { 0, };
+> +	unsigned long missed_periods = 0;
+> +	unsigned long nonidle_total = 0;
+> +	u64 now, expires, period;
+> +	int cpu;
+> +	int s;
+> +
+> +	mutex_lock(&group->stat_lock);
+> +
+> +	/*
+> +	 * Collect the per-cpu time buckets and average them into a
+> +	 * single time sample that is normalized to wallclock time.
+> +	 *
+> +	 * For averaging, each CPU is weighted by its non-idle time in
+> +	 * the sampling period. This eliminates artifacts from uneven
+> +	 * loading, or even entirely idle CPUs.
+> +	 *
+> +	 * We don't need to synchronize against CPU hotplugging. If we
+> +	 * see a CPU that's online and has samples, we incorporate it.
+> +	 */
+> +	for_each_online_cpu(cpu) {
+
+I'm still puzzled by this.. for 99% of the machines online == possible.
+Why not always iterate possible and leave it at that? This is hardly a
+fast path.
