@@ -1,53 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A2F6A6B0007
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 09:55:20 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id l13-v6so4275381qth.8
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 06:55:20 -0700 (PDT)
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E252D6B000A
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 10:04:48 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id x204-v6so5322721qka.6
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 07:04:48 -0700 (PDT)
 Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
-        by mx.google.com with ESMTPS id p16-v6si4096801qvo.24.2018.08.03.06.55.19
+        by mx.google.com with ESMTPS id f59-v6si4414130qva.48.2018.08.03.07.04.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Aug 2018 06:55:19 -0700 (PDT)
-Subject: Re: [PATCH v2 4/9] dmapool: improve scalability of dma_pool_alloc
-References: <1dbe6204-17fc-efd9-2381-48186cae2b94@cybernetics.com>
- <CAHp75Vdj_jcv3j2pNf4EnzasN9zCJ1f+2aWwT2f5GKG=yFAm4Q@mail.gmail.com>
+        Fri, 03 Aug 2018 07:04:46 -0700 (PDT)
+Subject: Re: [PATCH v2 8/9] dmapool: reduce footprint in struct page
+References: <0ccfd31b-0a3f-9ae8-85c8-e176cd5453a9@cybernetics.com>
+ <20180802235626.GA5773@bombadil.infradead.org>
 From: Tony Battersby <tonyb@cybernetics.com>
-Message-ID: <b304d118-8cca-594c-1321-bb65e39700e4@cybernetics.com>
-Date: Fri, 3 Aug 2018 09:55:17 -0400
+Message-ID: <37abe59f-70cb-d125-b87f-49f63de6ece7@cybernetics.com>
+Date: Fri, 3 Aug 2018 10:04:44 -0400
 MIME-Version: 1.0
-In-Reply-To: <CAHp75Vdj_jcv3j2pNf4EnzasN9zCJ1f+2aWwT2f5GKG=yFAm4Q@mail.gmail.com>
+In-Reply-To: <20180802235626.GA5773@bombadil.infradead.org>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 8bit
 Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Shevchenko <andy.shevchenko@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, MPT-FusionLinux.pdl@broadcom.com
 
-On 08/03/2018 05:02 AM, Andy Shevchenko wrote:
-> On Thu, Aug 2, 2018 at 10:58 PM, Tony Battersby <tonyb@cybernetics.com> wrote:
->> dma_pool_alloc() scales poorly when allocating a large number of pages
->> because it does a linear scan of all previously-allocated pages before
->> allocating a new one.  Improve its scalability by maintaining a separate
->> list of pages that have free blocks ready to (re)allocate.  In big O
->> notation, this improves the algorithm from O(n^2) to O(n).
->>  struct dma_pool {              /* the pool */
->> +#define POOL_FULL_IDX   0
->> +#define POOL_AVAIL_IDX  1
->> +#define POOL_N_LISTS    2
->> +       struct list_head page_list[POOL_N_LISTS];
-> To be consistent with naming scheme and common practice I would rather
-> name the last one as
+On 08/02/2018 07:56 PM, Matthew Wilcox wrote:
 >
-> POOL_MAX_IDX 2
-OK.
->
->> +       INIT_LIST_HEAD(&retval->page_list[0]);
->> +       INIT_LIST_HEAD(&retval->page_list[1]);
-> You introduced defines and don't use them.
->
-Just a matter of style.A  In this context, it only matters that both
-index 0 and 1 get initialized, not which index corresponds to which
-list.A  But I suppose using the defines would improve keyword search, so
-I'll change it.
+>> One of the nice things about this is that dma_pool_free() can do some
+>> additional sanity checks:
+>> *) Check that the offset of the passed-in address corresponds to a valid
+>> block offset.
+> Can't we do that already?  Subtract the base address of the page from
+> the passed-in vaddr and check it's a multiple of pool->size?
+The gaps caused by 'boundary' make it a lot more complicated than that.A 
+See pool_offset_to_blk_idx().A  Your suggestion is the fast-path top part
+of pool_offset_to_blk_idx() where dma_pool_create() set
+blks_per_boundary to 0 to get a speed boost.A  The ugly slow case to take
+the boundary into account is the bottom part of pool_offset_to_blk_idx().
