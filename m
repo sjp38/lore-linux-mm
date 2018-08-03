@@ -1,141 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3897C6B026F
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 05:08:02 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id g11-v6so1542222edi.8
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 02:08:02 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n38-v6si108232edn.443.2018.08.03.02.08.00
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Aug 2018 02:08:00 -0700 (PDT)
-Date: Fri, 3 Aug 2018 11:07:59 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC v6 PATCH 2/2] mm: mmap: zap pages with read mmap_sem in
- munmap
-Message-ID: <20180803090759.GI27245@dhcp22.suse.cz>
-References: <1532628614-111702-1-git-send-email-yang.shi@linux.alibaba.com>
- <1532628614-111702-3-git-send-email-yang.shi@linux.alibaba.com>
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AD0906B0005
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 05:23:13 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id w128-v6so4206577oiw.14
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 02:23:13 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id l133-v6si3316194oih.280.2018.08.03.02.23.12
+        for <linux-mm@kvack.org>;
+        Fri, 03 Aug 2018 02:23:12 -0700 (PDT)
+Date: Fri, 3 Aug 2018 10:23:13 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address
+ sanitizer
+Message-ID: <20180803092312.GA17798@arm.com>
+References: <cover.1530018818.git.andreyknvl@google.com>
+ <20180628105057.GA26019@e103592.cambridge.arm.com>
+ <CAAeHK+w0T43+h3xqU4a-qutxd-qiEhsvk0eaZpmAn-T0hpaLZQ@mail.gmail.com>
+ <20180629110709.GA17859@arm.com>
+ <CAAeHK+wHd8B2nhat-Z2Y2=s4NVobPG7vjr2CynjFhqPTwQRepQ@mail.gmail.com>
+ <20180703173608.GF27243@arm.com>
+ <CAAeHK+wTcH+2hgm_BTkLLdn1GkjBtkhQ=vPWZCncJ6KenqgKpg@mail.gmail.com>
+ <CAAeHK+xc1E64tXEEHoXqOuUNZ7E_kVyho3_mNZTCc+LTGHYFdA@mail.gmail.com>
+ <20180801163538.GA10800@arm.com>
+ <CACT4Y+aZtph5qDsLzTDEgpQRz4_Vtg1DD-cB18qooi6D0bexDg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1532628614-111702-3-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <CACT4Y+aZtph5qDsLzTDEgpQRz4_Vtg1DD-cB18qooi6D0bexDg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrey Konovalov <andreyknvl@google.com>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Dave Martin <Dave.Martin@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jann Horn <jannh@google.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Mark Brand <markbrand@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
 
-On Fri 27-07-18 02:10:14, Yang Shi wrote:
-> When running some mmap/munmap scalability tests with large memory (i.e.
-> > 300GB), the below hung task issue may happen occasionally.
+On Wed, Aug 01, 2018 at 06:52:09PM +0200, Dmitry Vyukov wrote:
+> On Wed, Aug 1, 2018 at 6:35 PM, Will Deacon <will.deacon@arm.com> wrote:
+> > Thanks for tracking these cases down and going through each of them. The
+> > obvious follow-up question is: how do we ensure that we keep on top of
+> > this in mainline? Are you going to repeat your experiment at every kernel
+> > release or every -rc or something else? I really can't see how we can
+> > maintain this in the long run, especially given that the coverage we have
+> > is only dynamic -- do you have an idea of how much coverage you're actually
+> > getting for, say, a defconfig+modules build?
+> >
+> > I'd really like to enable pointer tagging in the kernel, I'm just still
+> > failing to see how we can do it in a controlled manner where we can reason
+> > about the semantic changes using something other than a best-effort,
+> > case-by-case basis which is likely to be fragile and error-prone.
+> > Unfortunately, if that's all we have, then this gets relegated to a
+> > debug feature, which sort of defeats the point in my opinion.
 > 
-> INFO: task ps:14018 blocked for more than 120 seconds.
->        Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
->  "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
-> message.
->  ps              D    0 14018      1 0x00000004
->   ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
->   ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
->   00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
->  Call Trace:
->   [<ffffffff817154d0>] ? __schedule+0x250/0x730
->   [<ffffffff817159e6>] schedule+0x36/0x80
->   [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
->   [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
->   [<ffffffff81717db0>] down_read+0x20/0x40
->   [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
->   [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
->   [<ffffffff81241d87>] __vfs_read+0x37/0x150
->   [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
->   [<ffffffff81242266>] vfs_read+0x96/0x130
->   [<ffffffff812437b5>] SyS_read+0x55/0xc0
->   [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
-> 
-> It is because munmap holds mmap_sem exclusively from very beginning to
-> all the way down to the end, and doesn't release it in the middle. When
-> unmapping large mapping, it may take long time (take ~18 seconds to
-> unmap 320GB mapping with every single page mapped on an idle machine).
-> 
-> Zapping pages is the most time consuming part, according to the
-> suggestion from Michal Hocko [1], zapping pages can be done with holding
-> read mmap_sem, like what MADV_DONTNEED does. Then re-acquire write
-> mmap_sem to cleanup vmas.
-> 
-> But, some part may need write mmap_sem, for example, vma splitting. So,
-> the design is as follows:
->         acquire write mmap_sem
->         lookup vmas (find and split vmas)
-> 	detach vmas
->         deal with special mappings
->         downgrade_write
-> 
->         zap pages
-> 	free page tables
->         release mmap_sem
-> 
-> The vm events with read mmap_sem may come in during page zapping, but
-> since vmas have been detached before, they, i.e. page fault, gup, etc,
-> will not be able to find valid vma, then just return SIGSEGV or -EFAULT
-> as expected.
-> 
-> If the vma has VM_LOCKED | VM_HUGETLB | VM_PFNMAP or uprobe, they are
-> considered as special mappings. They will be dealt with before zapping
-> pages with write mmap_sem held. Basically, just update vm_flags.
+> Well, in some cases there is no other way as resorting to dynamic testing.
+> How do we ensure that kernel does not dereference NULL pointers, does
+> not access objects after free or out of bounds? Nohow. And, yes, it's
+> constant maintenance burden resolved via dynamic testing.
 
-Well, I think it would be safer to simply fallback to the current
-implementation with these mappings and deal with them on top. This would
-make potential issues easier to bisect and partial reverts as well.
+... and the advantage of NULL pointer issues is that you're likely to see
+them as a synchronous exception at runtime, regardless of architecture and
+regardless of Kconfig options. With pointer tagging, that's certainly not
+the case, and so I don't think we can just treat issues there like we do for
+NULL pointers.
 
-> And, since they are also manipulated by unmap_single_vma() which is
-> called by unmap_vma() with read mmap_sem held in this case, to
-> prevent from updating vm_flags in read critical section, a new
-> parameter, called "skip_flags" is added to unmap_region(), unmap_vmas()
-> and unmap_single_vma(). If it is true, then just skip unmap those
-> special mappings. Currently, the only place which pass true to this
-> parameter is us.
-
-skip parameters are usually ugly and lead to more mess later on. Can we
-do without them?
-
-> With this approach we don't have to re-acquire mmap_sem again to clean
-> up vmas to avoid race window which might get the address space changed.
-
-By with this approach you mean detaching right?
-
-> And, since the lock acquire/release cost is managed to the minimum and
-> almost as same as before, the optimization could be extended to any size
-> of mapping without incurring significant penalty to small mappings.
-
-I guess you mean to say that lock downgrade approach doesn't lead to
-regressions because the overal time mmap_sem is taken is not longer?
-
-> For the time being, just do this in munmap syscall path. Other
-> vm_munmap() or do_munmap() call sites (i.e mmap, mremap, etc) remain
-> intact for stability reason.
-
-You have used this argument previously and several people have asked.
-I think it is just wrong. Either the concept is safe and all callers can
-use it or it is not and then those subtle differences should be called
-out. Your previous response was that you simply haven't tested other
-paths. Well, that is not an argument, I am afraid. The whole thing
-should be done at a proper layer. If there are some difficulties to
-achieve that for all callers then OK just be explicit about that. I can
-imagine some callers really require the exclusive look when munmap
-returns for example.
-
-> With the patches, exclusive mmap_sem hold time when munmap a 80GB
-> address space on a machine with 32 cores of E5-2680 @ 2.70GHz dropped to
-> us level from second.
-> 
-> munmap_test-15002 [008]   594.380138: funcgraph_entry: |  vm_munmap_zap_rlock() {
-> munmap_test-15002 [008]   594.380146: funcgraph_entry:      !2485684 us |    unmap_region();
-> munmap_test-15002 [008]   596.865836: funcgraph_exit:       !2485692 us |  }
-> 
-> Here the excution time of unmap_region() is used to evaluate the time of
-> holding read mmap_sem, then the remaining time is used with holding
-> exclusive lock.
-
-I will be reading through the patch and follow up on that separately.
--- 
-Michal Hocko
-SUSE Labs
+Will
