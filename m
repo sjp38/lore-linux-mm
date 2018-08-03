@@ -1,51 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AFF86B000A
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 04:56:03 -0400 (EDT)
-Received: by mail-ua0-f197.google.com with SMTP id t22-v6so1978039uap.19
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 01:56:03 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s28-v6sor1515931uab.252.2018.08.03.01.56.02
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A614F6B000D
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2018 05:00:44 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id w18-v6so2999545plp.3
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2018 02:00:44 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id h5-v6si4893081pfd.112.2018.08.03.02.00.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 03 Aug 2018 01:56:02 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <a9f7ca9a-38d5-12e2-7d15-ab026425e85a@cybernetics.com>
-References: <a9f7ca9a-38d5-12e2-7d15-ab026425e85a@cybernetics.com>
-From: Andy Shevchenko <andy.shevchenko@gmail.com>
-Date: Fri, 3 Aug 2018 11:56:01 +0300
-Message-ID: <CAHp75Ve0su_S3ZWTtUEUohrs-iPiD1uzFOHhesLrWzJPOa2LNg@mail.gmail.com>
-Subject: Re: [PATCH v2 2/9] dmapool: cleanup error messages
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 03 Aug 2018 02:00:42 -0700 (PDT)
+From: Wei Wang <wei.w.wang@intel.com>
+Subject: [PATCH v3 0/2] virtio-balloon: some improvements
+Date: Fri,  3 Aug 2018 16:32:24 +0800
+Message-Id: <1533285146-25212-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Battersby <tonyb@cybernetics.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, iommu@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, linux-scsi <linux-scsi@vger.kernel.org>, MPT-FusionLinux.pdl@broadcom.com
+To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, penguin-kernel@I-love.SAKURA.ne.jp
+Cc: wei.w.wang@intel.com
 
-On Thu, Aug 2, 2018 at 10:57 PM, Tony Battersby <tonyb@cybernetics.com> wrote:
-> Remove code duplication in error messages.  It is now safe to pas a NULL
-> dev to dev_err(), so the checks to avoid doing so are no longer
-> necessary.
->
-> Example:
->
-> Error message with dev != NULL:
->   mpt3sas 0000:02:00.0: dma_pool_destroy chain pool, (____ptrval____) busy
->
-> Same error message with dev == NULL before patch:
->   dma_pool_destroy chain pool, (____ptrval____) busy
->
-> Same error message with dev == NULL after patch:
->   (NULL device *): dma_pool_destroy chain pool, (____ptrval____) busy
+This series is split from the "Virtio-balloon: support free page
+reporting" series to make some improvements.
 
-Have you checked a history of this?
+ChangeLog:
+v2->v3:
+- shrink the balloon pages according to the amount requested by the
+  claimer, instead of using a user specified number;
+v1->v2:
+- register the shrinker when VIRTIO_BALLOON_F_DEFLATE_ON_OOM is
+  negotiated.
 
-I'm pretty sure this was created in an order to avoid bad looking (and
-in some cases frightening) "NULL device *" part.
+Wei Wang (2):
+  virtio-balloon: remove BUG() in init_vqs
+  virtio_balloon: replace oom notifier with shrinker
 
-If it it's the case, I would rather leave it as is, and even not the
-case, I'm slightly more bent to the current state.
+ drivers/virtio/virtio_balloon.c | 121 ++++++++++++++++++++++------------------
+ 1 file changed, 67 insertions(+), 54 deletions(-)
 
 -- 
-With Best Regards,
-Andy Shevchenko
+2.7.4
