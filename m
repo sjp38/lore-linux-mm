@@ -1,68 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CFF5B6B0010
-	for <linux-mm@kvack.org>; Sat,  4 Aug 2018 09:33:03 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id a10-v6so7959656itc.9
-        for <linux-mm@kvack.org>; Sat, 04 Aug 2018 06:33:03 -0700 (PDT)
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id b205-v6sor733172itg.133.2018.08.04.06.33.02
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 18E786B0269
+	for <linux-mm@kvack.org>; Sat,  4 Aug 2018 09:45:20 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id o16-v6so3775795pgv.21
+        for <linux-mm@kvack.org>; Sat, 04 Aug 2018 06:45:20 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id t11-v6si5553098plo.293.2018.08.04.06.45.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 04 Aug 2018 06:33:02 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 04 Aug 2018 06:45:18 -0700 (PDT)
+Subject: Re: WARNING in try_charge
+References: <0000000000005e979605729c1564@google.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <4660f164-b3e3-28a0-9898-718c5fa6b84d@I-love.SAKURA.ne.jp>
+Date: Sat, 4 Aug 2018 22:45:03 +0900
 MIME-Version: 1.0
-Date: Sat, 04 Aug 2018 06:33:02 -0700
-Message-ID: <0000000000005e979605729c1564@google.com>
-Subject: WARNING in try_charge
-From: syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+In-Reply-To: <0000000000005e979605729c1564@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, syzkaller-bugs@googlegroups.com, vdavydov.dev@gmail.com
+To: mhocko@kernel.org, David Rientjes <rientjes@google.com>
+Cc: syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>, cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, vdavydov.dev@gmail.com
 
-Hello,
+syzbot is hitting WARN(1) because of mem_cgroup_out_of_memory() == false.
+At first I suspected that syzbot is hitting
 
-syzbot found the following crash on:
+  static bool oom_kill_memcg_victim(struct oom_control *oc)
+  {
+          if (oc->chosen_memcg == NULL || oc->chosen_memcg == INFLIGHT_VICTIM)
+                  return oc->chosen_memcg;
 
-HEAD commit:    d1e0b8e0cb7a Add linux-next specific files for 20180725
-git tree:       linux-next
-console output: https://syzkaller.appspot.com/x/log.txt?x=15a1c770400000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=eef3552c897e4d33
-dashboard link: https://syzkaller.appspot.com/bug?extid=bab151e82a4e973fa325
-compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+case because
 
-Unfortunately, I don't have any reproducer for this crash yet.
+  /* We have one or more terminating processes at this point. */
+  oc->chosen_task = INFLIGHT_VICTIM;
 
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com
+is not called. But since that patch was dropped from next-20180803, syzbot
+seems to be hitting a different race condition
+( https://syzkaller.appspot.com/text?tag=CrashLog&x=12071654400000 ).
 
-Killed process 23767 (syz-executor2) total-vm:70472kB, anon-rss:104kB,  
-file-rss:32768kB, shmem-rss:0kB
-oom_reaper: reaped process 23767 (syz-executor2), now anon-rss:0kB,  
-file-rss:32000kB, shmem-rss:0kB
-------------[ cut here ]------------
-Memory cgroup charge failed because of no reclaimable memory! This looks  
-like a misconfiguration or a kernel bug.
-WARNING: CPU: 1 PID: 23767 at mm/memcontrol.c:1710 mem_cgroup_oom  
-mm/memcontrol.c:1709 [inline]
-WARNING: CPU: 1 PID: 23767 at mm/memcontrol.c:1710 try_charge+0x734/0x1680  
-mm/memcontrol.c:2211
-Kernel panic - not syncing: panic_on_warn set ...
+Therefore, next culprit I suspect is
 
-CPU: 1 PID: 23767 Comm: syz-executor2 Not tainted 4.18.0-rc6-next-20180725+  
-#18
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0x1c9/0x2b4 lib/dump_stack.c:113
-  panic+0x238/0x4e7 kernel/panic.c:184
+    mm, oom: remove oom_lock from oom_reaper
 
+    oom_reaper used to rely on the oom_lock since e2fe14564d33 ("oom_reaper:
+    close race with exiting task").  We do not really need the lock anymore
+    though.  212925802454 ("mm: oom: let oom_reap_task and exit_mmap run
+    concurrently") has removed serialization with the exit path based on the
+    mm reference count and so we do not really rely on the oom_lock anymore.
 
----
-This bug is generated by a bot. It may contain errors.
-See https://goo.gl/tpsmEJ for more information about syzbot.
-syzbot engineers can be reached at syzkaller@googlegroups.com.
+    Tetsuo was arguing that at least MMF_OOM_SKIP should be set under the lock
+    to prevent from races when the page allocator didn't manage to get the
+    freed (reaped) memory in __alloc_pages_may_oom but it sees the flag later
+    on and move on to another victim.  Although this is possible in principle
+    let's wait for it to actually happen in real life before we make the
+    locking more complex again.
 
-syzbot will keep track of this bug report. See:
-https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
-syzbot.
+    Therefore remove the oom_lock for oom_reaper paths (both exit_mmap and
+    oom_reap_task_mm).  The reaper serializes with exit_mmap by mmap_sem +
+    MMF_OOM_SKIP flag.  There is no synchronization with out_of_memory path
+    now.
+
+which is in next-20180803, and my "mm, oom: Fix unnecessary killing of additional processes."
+( https://marc.info/?i=1533389386-3501-4-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp )
+could mitigate it. Michal and David, please respond.
