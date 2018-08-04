@@ -1,165 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E1F66B0006
-	for <linux-mm@kvack.org>; Sat,  4 Aug 2018 09:30:06 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id q2-v6so2730237plh.12
-        for <linux-mm@kvack.org>; Sat, 04 Aug 2018 06:30:06 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 004196B0008
+	for <linux-mm@kvack.org>; Sat,  4 Aug 2018 09:30:08 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id 90-v6so4883524pla.18
+        for <linux-mm@kvack.org>; Sat, 04 Aug 2018 06:30:07 -0700 (PDT)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id v203-v6si8155178pgb.333.2018.08.04.06.30.03
+        by mx.google.com with ESMTPS id x4-v6si7158650pga.320.2018.08.04.06.30.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 04 Aug 2018 06:30:04 -0700 (PDT)
+        Sat, 04 Aug 2018 06:30:06 -0700 (PDT)
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH 1/4] mm, oom: Remove wake_oom_reaper().
-Date: Sat,  4 Aug 2018 22:29:43 +0900
-Message-Id: <1533389386-3501-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH 3/4] mm, oom: Remove unused "abort" path.
+Date: Sat,  4 Aug 2018 22:29:45 +0900
+Message-Id: <1533389386-3501-3-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <1533389386-3501-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1533389386-3501-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>, Roman Gushchin <guro@fb.com>
 
-Currently, wake_oom_reaper() is checking whether an OOM victim thread is
-already chained to the OOM victim list. But chaining one thread from each
-OOM victim process is sufficient.
-
-Since mark_oom_victim() sets signal->oom_mm for one thread from each OOM
-victim process, we can chain that OOM victim thread there. Since oom_lock
-is held during __oom_kill_process(), by replacing oom_reaper_lock with
-oom_lock, it becomes safe to use mark_oom_victim() even if MMF_OOM_SKIP is
-later set due to is_global_init() case.
+Since oom_evaluate_task() no longer aborts, we can remove no longer
+used "abort" path in the callers.
 
 Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 Cc: Michal Hocko <mhocko@kernel.org>
 Cc: David Rientjes <rientjes@google.com>
 Cc: Roman Gushchin <guro@fb.com>
 ---
- mm/oom_kill.c | 41 ++++++++++-------------------------------
- 1 file changed, 10 insertions(+), 31 deletions(-)
+ include/linux/memcontrol.h |  9 ++++-----
+ mm/memcontrol.c            | 18 +++++-------------
+ mm/oom_kill.c              | 34 ++++++++++++++++------------------
+ 3 files changed, 25 insertions(+), 36 deletions(-)
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 0e10b86..dad0409 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -486,7 +486,6 @@ bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
- static struct task_struct *oom_reaper_th;
- static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
- static struct task_struct *oom_reaper_list;
--static DEFINE_SPINLOCK(oom_reaper_lock);
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 652f602..396b01d 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -417,8 +417,8 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *,
+ 				   struct mem_cgroup *,
+ 				   struct mem_cgroup_reclaim_cookie *);
+ void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
+-int mem_cgroup_scan_tasks(struct mem_cgroup *,
+-			  int (*)(struct task_struct *, void *), void *);
++void mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
++			   void (*fn)(struct task_struct *, void *), void *arg);
  
- bool __oom_reap_task_mm(struct mm_struct *mm)
+ static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
  {
-@@ -607,7 +606,7 @@ static void oom_reap_task(struct task_struct *tsk)
- 	 */
- 	set_bit(MMF_OOM_SKIP, &mm->flags);
- 
--	/* Drop a reference taken by wake_oom_reaper */
-+	/* Drop a reference taken by mark_oom_victim(). */
- 	put_task_struct(tsk);
- }
- 
-@@ -617,12 +616,12 @@ static int oom_reaper(void *unused)
- 		struct task_struct *tsk = NULL;
- 
- 		wait_event_freezable(oom_reaper_wait, oom_reaper_list != NULL);
--		spin_lock(&oom_reaper_lock);
-+		mutex_lock(&oom_lock);
- 		if (oom_reaper_list != NULL) {
- 			tsk = oom_reaper_list;
- 			oom_reaper_list = tsk->oom_reaper_list;
- 		}
--		spin_unlock(&oom_reaper_lock);
-+		mutex_unlock(&oom_lock);
- 
- 		if (tsk)
- 			oom_reap_task(tsk);
-@@ -631,32 +630,12 @@ static int oom_reaper(void *unused)
- 	return 0;
- }
- 
--static void wake_oom_reaper(struct task_struct *tsk)
--{
--	/* tsk is already queued? */
--	if (tsk == oom_reaper_list || tsk->oom_reaper_list)
--		return;
--
--	get_task_struct(tsk);
--
--	spin_lock(&oom_reaper_lock);
--	tsk->oom_reaper_list = oom_reaper_list;
--	oom_reaper_list = tsk;
--	spin_unlock(&oom_reaper_lock);
--	trace_wake_reaper(tsk->pid);
--	wake_up(&oom_reaper_wait);
--}
--
- static int __init oom_init(void)
+@@ -917,10 +917,9 @@ static inline void mem_cgroup_iter_break(struct mem_cgroup *root,
  {
- 	oom_reaper_th = kthread_run(oom_reaper, NULL, "oom_reaper");
- 	return 0;
  }
- subsys_initcall(oom_init)
--#else
--static inline void wake_oom_reaper(struct task_struct *tsk)
--{
--}
- #endif /* CONFIG_MMU */
+ 
+-static inline int mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
+-		int (*fn)(struct task_struct *, void *), void *arg)
++static inline void mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
++		void (*fn)(struct task_struct *, void *), void *arg)
+ {
+-	return 0;
+ }
+ 
+ static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 4e3c131..f743778 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1058,17 +1058,14 @@ static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
+  * @arg: argument passed to @fn
+  *
+  * This function iterates over tasks attached to @memcg or to any of its
+- * descendants and calls @fn for each task. If @fn returns a non-zero
+- * value, the function breaks the iteration loop and returns the value.
+- * Otherwise, it will iterate over all tasks and return 0.
++ * descendants and calls @fn for each task.
+  *
+  * This function must not be called for the root memory cgroup.
+  */
+-int mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
+-			  int (*fn)(struct task_struct *, void *), void *arg)
++void mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
++			   void (*fn)(struct task_struct *, void *), void *arg)
+ {
+ 	struct mem_cgroup *iter;
+-	int ret = 0;
+ 
+ 	BUG_ON(memcg == root_mem_cgroup);
+ 
+@@ -1077,15 +1074,10 @@ int mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
+ 		struct task_struct *task;
+ 
+ 		css_task_iter_start(&iter->css, 0, &it);
+-		while (!ret && (task = css_task_iter_next(&it)))
+-			ret = fn(task, arg);
++		while ((task = css_task_iter_next(&it)))
++			fn(task, arg);
+ 		css_task_iter_end(&it);
+-		if (ret) {
+-			mem_cgroup_iter_break(memcg, iter);
+-			break;
+-		}
+ 	}
+-	return ret;
+ }
  
  /**
-@@ -682,6 +661,13 @@ static void mark_oom_victim(struct task_struct *tsk)
- 	if (!cmpxchg(&tsk->signal->oom_mm, NULL, mm)) {
- 		mmgrab(tsk->signal->oom_mm);
- 		set_bit(MMF_OOM_VICTIM, &mm->flags);
-+#ifdef CONFIG_MMU
-+		get_task_struct(tsk);
-+		tsk->oom_reaper_list = oom_reaper_list;
-+		oom_reaper_list = tsk;
-+		trace_wake_reaper(tsk->pid);
-+		wake_up(&oom_reaper_wait);
-+#endif
- 	}
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index a743a8e..783f04d 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -312,13 +312,13 @@ static enum oom_constraint constrained_alloc(struct oom_control *oc)
+ 	return CONSTRAINT_NONE;
+ }
+ 
+-static int oom_evaluate_task(struct task_struct *task, void *arg)
++static void oom_evaluate_task(struct task_struct *task, void *arg)
+ {
+ 	struct oom_control *oc = arg;
+ 	unsigned long points;
+ 
+ 	if (oom_unkillable_task(task, NULL, oc->nodemask))
+-		goto next;
++		return;
  
  	/*
-@@ -833,7 +819,6 @@ static void __oom_kill_process(struct task_struct *victim)
- {
- 	struct task_struct *p;
- 	struct mm_struct *mm;
--	bool can_oom_reap = true;
+ 	 * If task is allocating a lot of memory and has been marked to be
+@@ -331,24 +331,22 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
  
- 	p = find_lock_task_mm(victim);
- 	if (!p) {
-@@ -883,7 +868,6 @@ static void __oom_kill_process(struct task_struct *victim)
- 		if (same_thread_group(p, victim))
- 			continue;
- 		if (is_global_init(p)) {
--			can_oom_reap = false;
- 			set_bit(MMF_OOM_SKIP, &mm->flags);
- 			pr_info("oom killer %d (%s) has mm pinned by %d (%s)\n",
- 					task_pid_nr(victim), victim->comm,
-@@ -900,9 +884,6 @@ static void __oom_kill_process(struct task_struct *victim)
- 	}
- 	rcu_read_unlock();
+ 	points = oom_badness(task, NULL, oc->nodemask, oc->totalpages);
+ 	if (!points || points < oc->chosen_points)
+-		goto next;
++		return;
  
--	if (can_oom_reap)
--		wake_oom_reaper(victim);
--
- 	mmdrop(mm);
- 	put_task_struct(victim);
+ 	/* Prefer thread group leaders for display purposes */
+ 	if (points == oc->chosen_points && thread_group_leader(oc->chosen))
+-		goto next;
++		return;
+ select:
+ 	if (oc->chosen)
+ 		put_task_struct(oc->chosen);
+ 	get_task_struct(task);
+ 	oc->chosen = task;
+ 	oc->chosen_points = points;
+-next:
+-	return 0;
  }
-@@ -941,7 +922,6 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
- 	task_lock(p);
- 	if (task_will_free_mem(p)) {
- 		mark_oom_victim(p);
--		wake_oom_reaper(p);
- 		task_unlock(p);
- 		put_task_struct(p);
- 		return;
-@@ -1071,7 +1051,6 @@ bool out_of_memory(struct oom_control *oc)
- 	 */
- 	if (task_will_free_mem(current)) {
- 		mark_oom_victim(current);
--		wake_oom_reaper(current);
- 		return true;
+ 
+ /*
+  * Simple selection loop. We choose the process with the highest number of
+- * 'points'. In case scan was aborted, oc->chosen is set to -1.
++ * 'points'.
+  */
+ static void select_bad_process(struct oom_control *oc)
+ {
+@@ -359,8 +357,7 @@ static void select_bad_process(struct oom_control *oc)
+ 
+ 		rcu_read_lock();
+ 		for_each_process(p)
+-			if (oom_evaluate_task(p, oc))
+-				break;
++			oom_evaluate_task(p, oc);
+ 		rcu_read_unlock();
  	}
  
+@@ -876,13 +873,12 @@ static void __oom_kill_process(struct task_struct *victim)
+  * Kill provided task unless it's secured by setting
+  * oom_score_adj to OOM_SCORE_ADJ_MIN.
+  */
+-static int oom_kill_memcg_member(struct task_struct *task, void *unused)
++static void oom_kill_memcg_member(struct task_struct *task, void *unused)
+ {
+ 	if (task->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
+ 		get_task_struct(task);
+ 		__oom_kill_process(task);
+ 	}
+-	return 0;
+ }
+ 
+ static void oom_kill_process(struct oom_control *oc, const char *message)
+@@ -1098,14 +1094,16 @@ bool out_of_memory(struct oom_control *oc)
+ 
+ 	select_bad_process(oc);
+ 	/* Found nothing?!?! Either we hang forever, or we panic. */
+-	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
+-		dump_header(oc, NULL);
+-		panic("Out of memory and no killable processes...\n");
++	if (!oc->chosen) {
++		if (!is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
++			dump_header(oc, NULL);
++			panic("Out of memory and no killable processes...\n");
++		}
++		return false;
+ 	}
+-	if (oc->chosen && oc->chosen != (void *)-1UL)
+-		oom_kill_process(oc, !is_memcg_oom(oc) ? "Out of memory" :
+-				 "Memory cgroup out of memory");
+-	return !!oc->chosen;
++	oom_kill_process(oc, !is_memcg_oom(oc) ? "Out of memory" :
++			 "Memory cgroup out of memory");
++	return true;
+ }
+ 
+ /*
 -- 
 1.8.3.1
