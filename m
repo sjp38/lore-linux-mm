@@ -1,67 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 970476B0007
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 06:47:17 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id g18-v6so8404653pfh.20
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 03:47:17 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id 33-v6si9617771plu.283.2018.08.06.03.47.16
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 75D1B6B0269
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 06:52:49 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id z5-v6so4065850edr.19
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 03:52:49 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 92-v6si812291edg.337.2018.08.06.03.52.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Aug 2018 03:47:16 -0700 (PDT)
-Subject: Re: WARNING in try_charge
-References: <0000000000005e979605729c1564@google.com>
- <20180806091552.GE19540@dhcp22.suse.cz>
- <CACT4Y+Ystnwv4M6Uh+HBKbdADAnJ6otfR0GoA20crzqV+b2onQ@mail.gmail.com>
- <20180806094827.GH19540@dhcp22.suse.cz>
- <CACT4Y+ZEAoPWxEJ2yAf6b5cSjAm+MPx1yrk70BWHRrnDYdyb_A@mail.gmail.com>
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <884de816-671a-44d4-a6a1-2ad7eff53715@I-love.SAKURA.ne.jp>
-Date: Mon, 6 Aug 2018 19:47:00 +0900
-MIME-Version: 1.0
-In-Reply-To: <CACT4Y+ZEAoPWxEJ2yAf6b5cSjAm+MPx1yrk70BWHRrnDYdyb_A@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Mon, 06 Aug 2018 03:52:48 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w76An47W093149
+	for <linux-mm@kvack.org>; Mon, 6 Aug 2018 06:52:46 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2kpkkvuam3-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 06 Aug 2018 06:52:46 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Mon, 6 Aug 2018 11:52:44 +0100
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH v2 0/3] sparc32: switch to NO_BOOTMEM
+Date: Mon,  6 Aug 2018 13:52:32 +0300
+Message-Id: <1533552755-16679-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>, Michal Hocko <mhocko@kernel.org>
-Cc: syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: "David S. Miller" <davem@davemloft.net>
+Cc: Sam Ravnborg <sam@ravnborg.org>, Michal Hocko <mhocko@kernel.org>, sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On 2018/08/06 19:39, Dmitry Vyukov wrote:
-> On Mon, Aug 6, 2018 at 11:48 AM, Michal Hocko <mhocko@kernel.org> wrote:
->> Btw. running with the above diff on top might help us to ideantify
->> whether this is a pre-mature warning or a valid one. Still useful to
->> find out.
+Hi,
 
-Since syzbot already found a syz reproducer, you can ask syzbot to test it.
+These patches convert sparc32 to use memblock + nobootmem.
+I've made the conversion as simple as possible, just enough to allow moving
+HAVE_MEMBLOCK and NO_BOOTMEM to the common SPARC configuration.
 
-> 
-> The bug report has a reproducer, so you can run it with the patch. Or
-> ask syzbot to test your patch:
-> https://github.com/google/syzkaller/blob/master/docs/syzbot.md#testing-patches
-> Which basically boils down to saying:
-> 
-> #syz test: git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-> master
+v2 changes:
+* split whitespace changes to a separate patch
+* address Sam's comments [1]
 
-Excuse me, but this is linux-next only problem. Therefore,
+[1] https://lkml.org/lkml/2018/8/2/403
 
-#syz test: git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+Mike Rapoport (3):
+  sparc: mm/init_32: kill trailing whitespace
+  sparc32: switch to NO_BOOTMEM
+  sparc32: split ramdisk detection and reservation to a helper function
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 4603ad75c9a9..852cd3dbdcd9 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1388,6 +1388,8 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	bool ret;
- 
- 	mutex_lock(&oom_lock);
-+	pr_info("task=%s pid=%d invoked memcg oom killer. oom_victim=%d\n",
-+			current->comm, current->pid, tsk_is_oom_victim(current));
- 	ret = out_of_memory(&oc);
- 	mutex_unlock(&oom_lock);
- 	return ret;
+ arch/sparc/Kconfig      |   4 +-
+ arch/sparc/mm/init_32.c | 127 ++++++++++++++++++------------------------------
+ 2 files changed, 50 insertions(+), 81 deletions(-)
 
-F.Y.I. Waiting until __mmput() completes (with timeout using OOM score feedback)
-( https://syzkaller.appspot.com/x/patch.diff?x=101e449c400000 ) solves this race.
+-- 
+2.7.4
