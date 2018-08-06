@@ -1,51 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 53EF76B000E
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 07:32:15 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id g11-v6so3924851edi.8
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 04:32:15 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p9-v6si3578330edm.12.2018.08.06.04.32.14
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 23AA06B0006
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 07:39:55 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id u11-v6so11570698oif.22
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 04:39:55 -0700 (PDT)
+Received: from gateway21.websitewelcome.com (gateway21.websitewelcome.com. [192.185.46.109])
+        by mx.google.com with ESMTPS id h6-v6si8292073oib.203.2018.08.06.04.39.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Aug 2018 04:32:14 -0700 (PDT)
-Date: Mon, 6 Aug 2018 13:32:12 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: WARNING in try_charge
-Message-ID: <20180806113212.GK19540@dhcp22.suse.cz>
-References: <884de816-671a-44d4-a6a1-2ad7eff53715@I-love.SAKURA.ne.jp>
- <00000000000070698b0572c28ebc@google.com>
+        Mon, 06 Aug 2018 04:39:54 -0700 (PDT)
+Received: from cm15.websitewelcome.com (cm15.websitewelcome.com [100.42.49.9])
+	by gateway21.websitewelcome.com (Postfix) with ESMTP id C60B7400DC99A
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 06:39:53 -0500 (CDT)
+References: <20180804220827.GA12559@embeddedor.com>
+ <CACT4Y+arVJ4qt54LzKKoyh9+NKA+fjyCShKi82NanbovhK_mmQ@mail.gmail.com>
+From: "Gustavo A. R. Silva" <gustavo@embeddedor.com>
+Subject: Re: [PATCH] mm/kasan/kasan_init: use true and false for boolean
+ values
+Message-ID: <0413df4d-262d-fee8-f1a3-99ccf1d3a441@embeddedor.com>
+Date: Mon, 6 Aug 2018 06:39:02 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <00000000000070698b0572c28ebc@google.com>
+In-Reply-To: <CACT4Y+arVJ4qt54LzKKoyh9+NKA+fjyCShKi82NanbovhK_mmQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>
-Cc: cgroups@vger.kernel.org, dvyukov@google.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penguin-kernel@I-love.SAKURA.ne.jp, syzkaller-bugs@googlegroups.com, vdavydov.dev@gmail.com
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 06-08-18 04:27:02, syzbot wrote:
-> Hello,
-> 
-> syzbot has tested the proposed patch and the reproducer did not trigger
-> crash:
-> 
-> Reported-and-tested-by:
-> syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com
-> 
-> Tested on:
-> 
-> commit:         8c8399e0a3fb Add linux-next specific files for 20180806
-> git tree:       linux-next
-> kernel config:  https://syzkaller.appspot.com/x/.config?x=1b6bc1781e49e93e
-> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
-> patch:          https://syzkaller.appspot.com/x/patch.diff?x=14fe18e2400000
-> 
-> Note: testing is done by a robot and is best-effort only.
+Hi Dmitry,
 
-OK, so this smells like a problem in the previous group oom changes. Or
-maybe it is not very easy to reproduce?
+On 08/06/2018 04:04 AM, Dmitry Vyukov wrote:
+> On Sun, Aug 5, 2018 at 12:08 AM, Gustavo A. R. Silva
+> <gustavo@embeddedor.com> wrote:
+>> Return statements in functions returning bool should use true or false
+>> instead of an integer value.
+>>
+>> This code was detected with the help of Coccinelle.
+>>
+>> Signed-off-by: Gustavo A. R. Silva <gustavo@embeddedor.com>
+> 
+> Hi Gustavo,
+> 
+> I don't see this code in upstream tree. Is it against some other tree? Which?
+> 
 
--- 
-Michal Hocko
-SUSE Labs
+Yep. It's against linux-next.
+
+Should I use [PATCH next] in the subject next time?
+
+Thanks
+--
+Gustavo
+
+> Thanks
+> 
+>> ---
+>>  mm/kasan/kasan_init.c | 6 +++---
+>>  1 file changed, 3 insertions(+), 3 deletions(-)
+>>
+>> diff --git a/mm/kasan/kasan_init.c b/mm/kasan/kasan_init.c
+>> index 7a2a2f1..c742dc5 100644
+>> --- a/mm/kasan/kasan_init.c
+>> +++ b/mm/kasan/kasan_init.c
+>> @@ -42,7 +42,7 @@ static inline bool kasan_p4d_table(pgd_t pgd)
+>>  #else
+>>  static inline bool kasan_p4d_table(pgd_t pgd)
+>>  {
+>> -       return 0;
+>> +       return false;
+>>  }
+>>  #endif
+>>  #if CONFIG_PGTABLE_LEVELS > 3
+>> @@ -54,7 +54,7 @@ static inline bool kasan_pud_table(p4d_t p4d)
+>>  #else
+>>  static inline bool kasan_pud_table(p4d_t p4d)
+>>  {
+>> -       return 0;
+>> +       return false;
+>>  }
+>>  #endif
+>>  #if CONFIG_PGTABLE_LEVELS > 2
+>> @@ -66,7 +66,7 @@ static inline bool kasan_pmd_table(pud_t pud)
+>>  #else
+>>  static inline bool kasan_pmd_table(pud_t pud)
+>>  {
+>> -       return 0;
+>> +       return false;
+>>  }
+>>  #endif
+>>  pte_t kasan_zero_pte[PTRS_PER_PTE] __page_aligned_bss;
+>> --
+>> 2.7.4
