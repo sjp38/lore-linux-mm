@@ -1,101 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D749F6B026B
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 08:05:41 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id d22-v6so8548435pfn.3
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 05:05:41 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m14-v6sor1561127pfi.25.2018.08.06.05.05.40
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 290846B0005
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 08:46:08 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id x19-v6so8555077pfh.15
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 05:46:08 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id n21-v6si9550767plp.31.2018.08.06.05.46.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 06 Aug 2018 05:05:40 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Aug 2018 05:46:06 -0700 (PDT)
+From: "Wang, Wei W" <wei.w.wang@intel.com>
+Subject: RE: [PATCH v3 2/2] virtio_balloon: replace oom notifier with
+ shrinker
+Date: Mon, 6 Aug 2018 12:44:42 +0000
+Message-ID: <286AC319A985734F985F78AFA26841F7397222E8@SHSMSX101.ccr.corp.intel.com>
+References: <1533285146-25212-1-git-send-email-wei.w.wang@intel.com>
+ <1533285146-25212-3-git-send-email-wei.w.wang@intel.com>
+ <16c56ee5-eef7-dd5f-f2b6-e3c11df2765c@i-love.sakura.ne.jp>
+ <5B681B41.6070205@intel.com>
+ <c8d25019-1990-f0dd-c83d-e4def5b5f7fe@i-love.sakura.ne.jp>
+In-Reply-To: <c8d25019-1990-f0dd-c83d-e4def5b5f7fe@i-love.sakura.ne.jp>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <0413df4d-262d-fee8-f1a3-99ccf1d3a441@embeddedor.com>
-References: <20180804220827.GA12559@embeddedor.com> <CACT4Y+arVJ4qt54LzKKoyh9+NKA+fjyCShKi82NanbovhK_mmQ@mail.gmail.com>
- <0413df4d-262d-fee8-f1a3-99ccf1d3a441@embeddedor.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 6 Aug 2018 14:05:19 +0200
-Message-ID: <CACT4Y+YDD2M4Z1XodDxOm-SQszGhMvS+7Tzuiq2FKCG8JK2uLA@mail.gmail.com>
-Subject: Re: [PATCH] mm/kasan/kasan_init: use true and false for boolean values
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Gustavo A. R. Silva" <gustavo@embeddedor.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mst@redhat.com" <mst@redhat.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-On Mon, Aug 6, 2018 at 1:39 PM, Gustavo A. R. Silva
-<gustavo@embeddedor.com> wrote:
-> Hi Dmitry,
->
-> On 08/06/2018 04:04 AM, Dmitry Vyukov wrote:
->> On Sun, Aug 5, 2018 at 12:08 AM, Gustavo A. R. Silva
->> <gustavo@embeddedor.com> wrote:
->>> Return statements in functions returning bool should use true or false
->>> instead of an integer value.
->>>
->>> This code was detected with the help of Coccinelle.
->>>
->>> Signed-off-by: Gustavo A. R. Silva <gustavo@embeddedor.com>
->>
->> Hi Gustavo,
->>
->> I don't see this code in upstream tree. Is it against some other tree? Which?
->>
->
-> Yep. It's against linux-next.
-
-See it now.
-
-Acked-by: Dmitry Vyukov <dvyukov@google.com>
-
-Thanks
-
-> Should I use [PATCH next] in the subject next time?
-
-I dunno. I just find this part of kernel development process strange
-and confusing. Say, how should testing of kernel patches work? Usually
-today base commit is just captured by review system.
-
-> Thanks
-> --
-> Gustavo
->
->> Thanks
->>
->>> ---
->>>  mm/kasan/kasan_init.c | 6 +++---
->>>  1 file changed, 3 insertions(+), 3 deletions(-)
->>>
->>> diff --git a/mm/kasan/kasan_init.c b/mm/kasan/kasan_init.c
->>> index 7a2a2f1..c742dc5 100644
->>> --- a/mm/kasan/kasan_init.c
->>> +++ b/mm/kasan/kasan_init.c
->>> @@ -42,7 +42,7 @@ static inline bool kasan_p4d_table(pgd_t pgd)
->>>  #else
->>>  static inline bool kasan_p4d_table(pgd_t pgd)
->>>  {
->>> -       return 0;
->>> +       return false;
->>>  }
->>>  #endif
->>>  #if CONFIG_PGTABLE_LEVELS > 3
->>> @@ -54,7 +54,7 @@ static inline bool kasan_pud_table(p4d_t p4d)
->>>  #else
->>>  static inline bool kasan_pud_table(p4d_t p4d)
->>>  {
->>> -       return 0;
->>> +       return false;
->>>  }
->>>  #endif
->>>  #if CONFIG_PGTABLE_LEVELS > 2
->>> @@ -66,7 +66,7 @@ static inline bool kasan_pmd_table(pud_t pud)
->>>  #else
->>>  static inline bool kasan_pmd_table(pud_t pud)
->>>  {
->>> -       return 0;
->>> +       return false;
->>>  }
->>>  #endif
->>>  pte_t kasan_zero_pte[PTRS_PER_PTE] __page_aligned_bss;
->>> --
->>> 2.7.4
+T24gTW9uZGF5LCBBdWd1c3QgNiwgMjAxOCA2OjI5IFBNLCBUZXRzdW8gSGFuZGEgd3JvdGU6DQo+
+IE9uIDIwMTgvMDgvMDYgMTg6NTYsIFdlaSBXYW5nIHdyb3RlOg0KPiA+IE9uIDA4LzAzLzIwMTgg
+MDg6MTEgUE0sIFRldHN1byBIYW5kYSB3cm90ZToNCj4gPj4gT24gMjAxOC8wOC8wMyAxNzozMiwg
+V2VpIFdhbmcgd3JvdGU6DQo+ID4+PiArc3RhdGljIGludCB2aXJ0aW9fYmFsbG9vbl9yZWdpc3Rl
+cl9zaHJpbmtlcihzdHJ1Y3QgdmlydGlvX2JhbGxvb24NCj4gPj4+ICsqdmIpIHsNCj4gPj4+ICvC
+oMKgwqAgdmItPnNocmlua2VyLnNjYW5fb2JqZWN0cyA9IHZpcnRpb19iYWxsb29uX3Nocmlua2Vy
+X3NjYW47DQo+ID4+PiArwqDCoMKgIHZiLT5zaHJpbmtlci5jb3VudF9vYmplY3RzID0gdmlydGlv
+X2JhbGxvb25fc2hyaW5rZXJfY291bnQ7DQo+ID4+PiArwqDCoMKgIHZiLT5zaHJpbmtlci5iYXRj
+aCA9IDA7DQo+ID4+PiArwqDCoMKgIHZiLT5zaHJpbmtlci5zZWVrcyA9IERFRkFVTFRfU0VFS1M7
+DQo+ID4+IFdoeSBmbGFncyBmaWVsZCBpcyBub3Qgc2V0PyBJZiB2YiBpcyBhbGxvY2F0ZWQgYnkg
+a21hbGxvYyhHRlBfS0VSTkVMKQ0KPiA+PiBhbmQgaXMgbm93aGVyZSB6ZXJvLWNsZWFyZWQsIEtB
+U0FOIHdvdWxkIGNvbXBsYWluIGl0Lg0KPiA+DQo+ID4gQ291bGQgeW91IHBvaW50IHdoZXJlIGlu
+IHRoZSBjb2RlIHRoYXQgd291bGQgY29tcGxhaW4gaXQ/DQo+ID4gSSBvbmx5IHNlZSB0d28gc2hy
+aW5rZXIgZmxhZ3MgKE5VTUFfQVdBUkUgYW5kIE1FTUNHX0FXQVJFKSwgYW5kDQo+IHRoZXkgc2Vl
+bSBub3QgcmVsYXRlZCB0byB0aGF0Lg0KPiANCj4gV2hlcmUgaXMgdmItPnNocmlua2VyLmZsYWdz
+IGluaXRpYWxpemVkPw0KDQpJcyB0aGF0IG1hbmRhdG9yeSB0byBiZSBpbml0aWFsaXplZD8gSSBm
+aW5kIGl0J3Mgbm90IGluaXRpYWxpemVkIGluIG1vc3Qgc2hyaW5rZXJzIChlLmcuIHpzX3JlZ2lz
+dGVyX3Nocmlua2VyLCBodWdlX3plcm9fcGFnZV9zaHJpbmtlcikuDQoNCkJlc3QsDQpXZWkNCg==
