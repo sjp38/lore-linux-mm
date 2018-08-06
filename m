@@ -1,27 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F6A46B0008
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 06:34:52 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id g36-v6so8322832plb.5
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 03:34:52 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 67C616B0010
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 06:39:32 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id z3-v6so8295251plb.16
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 03:39:32 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a2-v6sor2957100pgn.2.2018.08.06.03.34.51
+        by mx.google.com with SMTPS id x187-v6sor3065855pgb.174.2018.08.06.03.39.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 06 Aug 2018 03:34:51 -0700 (PDT)
+        Mon, 06 Aug 2018 03:39:31 -0700 (PDT)
 MIME-Version: 1.0
 In-Reply-To: <20180806094827.GH19540@dhcp22.suse.cz>
 References: <0000000000005e979605729c1564@google.com> <20180806091552.GE19540@dhcp22.suse.cz>
  <CACT4Y+Ystnwv4M6Uh+HBKbdADAnJ6otfR0GoA20crzqV+b2onQ@mail.gmail.com> <20180806094827.GH19540@dhcp22.suse.cz>
 From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 6 Aug 2018 12:34:30 +0200
-Message-ID: <CACT4Y+ZJsDo1gjzHvbFVqHcrL=tFJXTAAWLs9mAJSv3+LiCdmA@mail.gmail.com>
+Date: Mon, 6 Aug 2018 12:39:09 +0200
+Message-ID: <CACT4Y+ZEAoPWxEJ2yAf6b5cSjAm+MPx1yrk70BWHRrnDYdyb_A@mail.gmail.com>
 Subject: Re: WARNING in try_charge
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: multipart/mixed; boundary="0000000000007a019c0572c1e4c7"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Dmitry Torokhov <dtor@google.com>
+Cc: syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Vladimir Davydov <vdavydov.dev@gmail.com>
+
+--0000000000007a019c0572c1e4c7
+Content-Type: text/plain; charset="UTF-8"
 
 On Mon, Aug 6, 2018 at 11:48 AM, Michal Hocko <mhocko@kernel.org> wrote:
 > On Mon 06-08-18 11:30:37, Dmitry Vyukov wrote:
@@ -36,11 +39,7 @@ On Mon, Aug 6, 2018 at 11:48 AM, Michal Hocko <mhocko@kernel.org> wrote:
 >> syzkaller really does not mind to have it.
 >
 > So what do you use it for? What do you actually test by this setting?
-
-syzkaller is kernel fuzzer, it finds kernel bugs by doing whatever is
-doable from user-space. Some of that may not make sense, but it does
-not matter because kernel should still stand still.
-
+>
 > [...]
 >> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
 >> > index 4603ad75c9a9..852cd3dbdcd9 100644
@@ -70,35 +69,36 @@ not matter because kernel should still stand still.
 > there is a general agreement that such a condition is better handled by
 > pr_err then I am fine with it. Users tend to be more sensitive on
 > WARN_ONs though.
+>
+> Btw. running with the above diff on top might help us to ideantify
+> whether this is a pre-mature warning or a valid one. Still useful to
+> find out.
 
-The docs change was acked by Greg, and Andrew took it into mm, Linus
-was CCed too. It missed the release because I guess it's comments only
-change, but otherwise it should reach upstream tree on the next merge
-window.
+The bug report has a reproducer, so you can run it with the patch. Or
+ask syzbot to test your patch:
+https://github.com/google/syzkaller/blob/master/docs/syzbot.md#testing-patches
+Which basically boils down to saying:
 
-WARN is _not_ a common way to notify users today. syzbot reports _all_
-WARN occurrences and you can see there are not many of them now
-(probably 1 another now, +dtor for that one):
-https://syzkaller.appspot.com#upstream
-There is probably some long tail that we need to fix. We really do
-want systematic testing capability. You do not want every of 2 billion
-linux users to come to you with this kernel splat, just so that you
-can explain to them that it's some programs of their machines doing
-something wrong, right?
+#syz test: git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+master
 
-WARN is really a bad way to inform a user about something. Consider a
-non-kernel developer, perhaps even non-programmer. What they see is
-"WARNING: CPU: 1 PID: 23767 at mm/memcontrol.c:1710
-try_charge+0x734/0x1680" followed by some obscure things and hex
-numbers. File:line reference is pointless, they don't what what/where
-it is. This one is slightly better because it prints "Memory cgroup
-charge failed because of no reclaimable memory! This looks like a
-misconfiguration or a kernel bug." before the warning. But still it
-says "or a kernel bug", which means that they will come to you. A much
-friendlier for user way to say this would be print a message at the
-point of misconfiguration saying what exactly is wrong, e.g. "pid $PID
-misconfigures cgroup /cgroup/path with mem.limit=0" without a stack
-trace (does not give any useful info for user). And return EINVAL if
-it can't fly at all? And then leave the "or a kernel bug" part for the
-WARNING each occurrence of which we do want to be reported to kernel
-developers.
+Note that a text patch without a base tree/commit can be useless, I
+used torvalds/linux.git but I don't know if it will apply there or
+not. Let's see.
+
+--0000000000007a019c0572c1e4c7
+Content-Type: text/x-patch; charset="US-ASCII"; name="cgroup.patch"
+Content-Disposition: attachment; filename="cgroup.patch"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_jki54m7q0
+
+ZGlmZiAtLWdpdCBhL21tL21lbWNvbnRyb2wuYyBiL21tL21lbWNvbnRyb2wuYwppbmRleCA0NjAz
+YWQ3NWM5YTkuLjg1MmNkM2RiZGNkOSAxMDA2NDQKLS0tIGEvbW0vbWVtY29udHJvbC5jCisrKyBi
+L21tL21lbWNvbnRyb2wuYwpAQCAtMTM4OCw2ICsxMzg4LDggQEAgc3RhdGljIGJvb2wgbWVtX2Nn
+cm91cF9vdXRfb2ZfbWVtb3J5KHN0cnVjdCBtZW1fY2dyb3VwICptZW1jZywgZ2ZwX3QgZ2ZwX21h
+c2ssCiAJYm9vbCByZXQ7CiAKIAltdXRleF9sb2NrKCZvb21fbG9jayk7CisJcHJfaW5mbygidGFz
+az0lcyBwaWQ9JWQgaW52b2tlZCBtZW1jZyBvb20ga2lsbGVyLiBvb21fdmljdGltPSVkXG4iLAor
+CQkJY3VycmVudC0+Y29tbSwgY3VycmVudC0+cGlkLCB0c2tfaXNfb29tX3ZpY3RpbShjdXJyZW50
+KSk7CiAJcmV0ID0gb3V0X29mX21lbW9yeSgmb2MpOwogCW11dGV4X3VubG9jaygmb29tX2xvY2sp
+OwogCXJldHVybiByZXQ7Cgo=
+--0000000000007a019c0572c1e4c7--
