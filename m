@@ -1,60 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 707016B000C
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 16:20:23 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id d18-v6so4603728edp.0
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 13:20:23 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j44-v6si7685846eda.76.2018.08.06.13.20.21
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 246D76B000E
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 16:26:46 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id z3-v6so9139425plb.16
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 13:26:46 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id u68-v6si14466172pgb.191.2018.08.06.13.26.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Aug 2018 13:20:22 -0700 (PDT)
-Date: Mon, 6 Aug 2018 22:20:17 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: SLAB_TYPESAFE_BY_RCU without constructors (was Re: [PATCH v4
- 13/17] khwasan: add hooks implementation)
-Message-ID: <20180806202017.lrzihv42b4mtcgrn@quack2.suse.cz>
-References: <e3b48104-3efb-1896-0d46-792419f49a75@virtuozzo.com>
- <01000164f169bc6b-c73a8353-d7d9-47ec-a782-90aadcb86bfb-000000@email.amazonses.com>
- <CA+55aFzHR1+YbDee6Cduo6YXHO9LKmLN1wP=MVzbP41nxUb5=g@mail.gmail.com>
- <CA+55aFzYLgyNp1jsqsvUOjwZdO_1Piqj=iB=rzDShjScdNtkbg@mail.gmail.com>
- <CACT4Y+aYZumcc-Od5T1AnP4mwn8-FaWfxvfb93MnNwQPqG8TDw@mail.gmail.com>
+        Mon, 06 Aug 2018 13:26:45 -0700 (PDT)
+Subject: Re: WARNING in try_charge
+References: <fc6e173e-8bda-269f-d44f-1c5f5215beac@I-love.SAKURA.ne.jp>
+ <0000000000006350880572c61e62@google.com>
+ <20180806174410.GB10003@dhcp22.suse.cz>
+ <20180806175627.GC10003@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <078bde8d-b1b5-f5ad-ed23-0cd94b579f9e@i-love.sakura.ne.jp>
+Date: Tue, 7 Aug 2018 05:26:23 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACT4Y+aYZumcc-Od5T1AnP4mwn8-FaWfxvfb93MnNwQPqG8TDw@mail.gmail.com>
+In-Reply-To: <20180806175627.GC10003@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, linux-ext4@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pablo Neira Ayuso <pablo@netfilter.org>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Florian Westphal <fw@strlen.de>, David Miller <davem@davemloft.net>, NetFilter <netfilter-devel@vger.kernel.org>, coreteam@netfilter.org, Network Development <netdev@vger.kernel.org>, Gerrit Renker <gerrit@erg.abdn.ac.uk>, dccp@vger.kernel.org, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Dave Airlie <airlied@linux.ie>, intel-gfx <intel-gfx@lists.freedesktop.org>, DRI <dri-devel@lists.freedesktop.org>, Eric Dumazet <edumazet@google.com>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>, Ursula Braun <ubraun@linux.ibm.com>, linux-s390 <linux-s390@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>
+To: Michal Hocko <mhocko@kernel.org>, syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>
+Cc: cgroups@vger.kernel.org, dvyukov@google.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, vdavydov.dev@gmail.com
 
-On Wed 01-08-18 10:46:35, Dmitry Vyukov wrote:
-> I guess it would be useful to have such extensive comment for each
-> SLAB_TYPESAFE_BY_RCU use explaining why it is needed and how all the
-> tricky aspects are handled.
+On 2018/08/07 2:56, Michal Hocko wrote:
+> So the oom victim indeed passed the above force path after the oom
+> invocation. But later on hit the page fault path and that behaved
+> differently and for some reason the force path hasn't triggered. I am
+> wondering how could we hit the page fault path in the first place. The
+> task is already killed! So what the hell is going on here.
 > 
-> For example, the one in jbd2 is interesting because it memsets the
-> whole object before freeing it into SLAB_TYPESAFE_BY_RCU slab:
+> I must be missing something obvious here.
 > 
-> memset(jh, JBD2_POISON_FREE, sizeof(*jh));
-> kmem_cache_free(jbd2_journal_head_cache, jh);
-> 
-> I guess there are also tricky ways how it can all work in the end
-> (type-stable state is only a byte, or we check for all possible
-> combinations of being overwritten with JBD2_POISON_FREE). But at first
-> sight it does look fishy.
+YOU ARE OBVIOUSLY MISSING MY MAIL!
 
-The RCU access is used from a single place:
-
-fs/jbd2/transaction.c: jbd2_write_access_granted()
-
-There are also quite some comments explaining why what it does is safe. The
-overwrite by JBD2_POISON_FREE is much older than this RCU stuff (honestly I
-didn't know about it until this moment) and has nothing to do with the
-safety of RCU access.
-
-								Honza
-
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+I already said this is "mm, oom: task_will_free_mem(current) should ignore MMF_OOM_SKIP for once."
+problem which you are refusing at https://www.spinics.net/lists/linux-mm/msg133774.html .
+And you again ignored my mail. Very sad...
