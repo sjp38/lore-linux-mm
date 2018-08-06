@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A0256B000A
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 12:40:58 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id k15-v6so11414278wrq.1
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 09:40:58 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D4BD6B000D
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 12:41:00 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id z23-v6so9642862wma.2
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 09:41:00 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o3-v6sor4165527wrm.12.2018.08.06.09.40.57
+        by mx.google.com with SMTPS id r10-v6sor1670160wmh.19.2018.08.06.09.40.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 06 Aug 2018 09:40:57 -0700 (PDT)
+        Mon, 06 Aug 2018 09:40:58 -0700 (PDT)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v5 02/10] uaccess: add untagged_addr definition for other arches
-Date: Mon,  6 Aug 2018 18:40:37 +0200
-Message-Id: <d57a69a1174247d52b388564b26bfdfeaed727be.1533573460.git.andreyknvl@google.com>
+Subject: [PATCH v5 03/10] arm64: untag user addresses in access_ok and __uaccess_mask_ptr
+Date: Mon,  6 Aug 2018 18:40:38 +0200
+Message-Id: <b0291dd0d487592ed5d62f6fb3e2a5bb97ddc359.1533573460.git.andreyknvl@google.com>
 In-Reply-To: <cover.1533573460.git.andreyknvl@google.com>
 References: <cover.1533573460.git.andreyknvl@google.com>
 MIME-Version: 1.0
@@ -22,32 +22,56 @@ List-ID: <linux-mm.kvack.org>
 To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrey Konovalov <andreyknvl@google.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
 Cc: Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>
 
-To allow arm64 syscalls accept tagged pointers from userspace, we must
-untag them when they are passed to the kernel. Since untagging is done in
-generic parts of the kernel, the untagged_addr macro needs to be defined
-for all architectures.
+copy_from_user (and a few other similar functions) are used to copy data
+from user memory into the kernel memory or vice versa. Since a user can
+provided a tagged pointer to one of the syscalls that use copy_from_user,
+we need to correctly handle such pointers.
 
-Define it as a noop for other architectures besides arm64.
+Do this by untagging user pointers in access_ok and in __uaccess_mask_ptr,
+before performing access validity checks.
 
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- include/linux/uaccess.h | 4 ++++
- 1 file changed, 4 insertions(+)
+ arch/arm64/include/asm/uaccess.h | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
-index efe79c1cdd47..c045b4eff95e 100644
---- a/include/linux/uaccess.h
-+++ b/include/linux/uaccess.h
-@@ -13,6 +13,10 @@
+diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
+index 2d6451cbaa86..fa7318d3d7d5 100644
+--- a/arch/arm64/include/asm/uaccess.h
++++ b/arch/arm64/include/asm/uaccess.h
+@@ -105,7 +105,8 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
+ #define untagged_addr(addr)		\
+ 	((__typeof__(addr))sign_extend64((__u64)(addr), 55))
  
- #include <asm/uaccess.h>
+-#define access_ok(type, addr, size)	__range_ok(addr, size)
++#define access_ok(type, addr, size)	\
++	__range_ok(untagged_addr(addr), size)
+ #define user_addr_max			get_fs
  
-+#ifndef untagged_addr
-+#define untagged_addr(addr) addr
-+#endif
-+
+ #define _ASM_EXTABLE(from, to)						\
+@@ -237,7 +238,8 @@ static inline void uaccess_enable_not_uao(void)
+ 
  /*
-  * Architectures should provide two primitives (raw_copy_{to,from}_user())
-  * and get rid of their private instances of copy_{to,from}_user() and
+  * Sanitise a uaccess pointer such that it becomes NULL if above the
+- * current addr_limit.
++ * current addr_limit. In case the pointer is tagged (has the top byte set),
++ * untag the pointer before checking.
+  */
+ #define uaccess_mask_ptr(ptr) (__typeof__(ptr))__uaccess_mask_ptr(ptr)
+ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
+@@ -245,10 +247,11 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
+ 	void __user *safe_ptr;
+ 
+ 	asm volatile(
+-	"	bics	xzr, %1, %2\n"
++	"	bics	xzr, %3, %2\n"
+ 	"	csel	%0, %1, xzr, eq\n"
+ 	: "=&r" (safe_ptr)
+-	: "r" (ptr), "r" (current_thread_info()->addr_limit)
++	: "r" (ptr), "r" (current_thread_info()->addr_limit),
++	  "r" (untagged_addr(ptr))
+ 	: "cc");
+ 
+ 	csdb();
 -- 
 2.18.0.597.ga71716f1ad-goog
