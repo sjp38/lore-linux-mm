@@ -1,176 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BA6BE6B0005
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 04:21:42 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id d5-v6so3941695edq.3
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 01:21:42 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 14-v6si2464134edw.36.2018.08.06.01.21.40
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 31CCB6B0007
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 04:43:01 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id l5-v6so9452016ioh.4
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 01:43:01 -0700 (PDT)
+Received: from us.icdsoft.com (us.icdsoft.com. [192.252.146.184])
+        by mx.google.com with ESMTPS id v127-v6si4164273ith.121.2018.08.06.01.42.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Aug 2018 01:21:41 -0700 (PDT)
-Date: Mon, 6 Aug 2018 10:21:39 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: Remove wake_oom_reaper().
-Message-ID: <20180806082139.GD19540@dhcp22.suse.cz>
-References: <1533302350-3398-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        Mon, 06 Aug 2018 01:42:59 -0700 (PDT)
+Subject: Re: [Bug 200651] New: cgroups iptables-restor: vmalloc: allocation
+ failure
+References: <20180730135744.GT24267@dhcp22.suse.cz>
+ <89ea4f56-6253-4f51-0fb7-33d7d4b60cfa@icdsoft.com>
+ <20180730183820.GA24267@dhcp22.suse.cz>
+ <56597af4-73c6-b549-c5d5-b3a2e6441b8e@icdsoft.com>
+ <6838c342-2d07-3047-e723-2b641bc6bf79@suse.cz>
+ <8105b7b3-20d3-5931-9f3c-2858021a4e12@icdsoft.com>
+ <20180731140520.kpotpihqsmiwhh7l@breakpoint.cc>
+ <e5b24629-0296-5a4d-577a-c25d1c52b03b@suse.cz>
+ <20180801083349.GF16767@dhcp22.suse.cz>
+ <e5c5e965-a6bc-d61f-97fc-78da287b5d94@icdsoft.com>
+ <20180802085043.GC10808@dhcp22.suse.cz>
+From: Georgi Nikolov <gnikolov@icdsoft.com>
+Message-ID: <85c86f17-6f96-6f01-2a3c-e2bad0ccb317@icdsoft.com>
+Date: Mon, 6 Aug 2018 11:42:48 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1533302350-3398-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <20180802085043.GC10808@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Florian Westphal <fw@strlen.de>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, netfilter-devel@vger.kernel.org
 
-On Fri 03-08-18 22:19:10, Tetsuo Handa wrote:
-> Currently, wake_oom_reaper() is checking whether an OOM victim thread is
-> already chained to the OOM victim list. But chaining one thread from each
-> OOM victim process is sufficient.
-> 
-> Since mark_oom_victim() sets signal->oom_mm for one thread from each OOM
-> victim process, we can chain that OOM victim thread there. Since oom_lock
-> is held during __oom_kill_process(), by replacing oom_reaper_lock with
-> oom_lock, it becomes safe to use mark_oom_victim() even if MMF_OOM_SKIP is
-> later set due to is_global_init() case.
-
-The changelog doesn't explain _why_ would we want to merge this. What is
-the actual advantage of replacing a dedicated lock by a more scoped one
-and make additional dependency here?
-
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+On 08/02/2018 11:50 AM, Michal Hocko wrote:
+> On Wed 01-08-18 19:03:03, Georgi Nikolov wrote:
+>> *Georgi Nikolov*
+>> System Administrator
+>> www.icdsoft.com <http://www.icdsoft.com>
+>>
+>> On 08/01/2018 11:33 AM, Michal Hocko wrote:
+>>> On Wed 01-08-18 09:34:23, Vlastimil Babka wrote:
+>>>> On 07/31/2018 04:05 PM, Florian Westphal wrote:
+>>>>> Georgi Nikolov <gnikolov@icdsoft.com> wrote:
+>>>>>>> No, I think that's rather for the netfilter folks to decide. However, it
+>>>>>>> seems there has been the debate already [1] and it was not found. The
+>>>>>>> conclusion was that __GFP_NORETRY worked fine before, so it should work
+>>>>>>> again after it's added back. But now we know that it doesn't...
+>>>>>>>
+>>>>>>> [1] https://lore.kernel.org/lkml/20180130140104.GE21609@dhcp22.suse.cz/T/#u
+>>>>>> Yes i see. I will add Florian Westphal to CC list. netfilter-devel is
+>>>>>> already in this list so probably have to wait for their opinion.
+>>>>> It hasn't changed, I think having OOM killer zap random processes
+>>>>> just because userspace wants to import large iptables ruleset is not a
+>>>>> good idea.
+>>>> If we denied the allocation instead of OOM (e.g. by using
+>>>> __GFP_RETRY_MAYFAIL), a slightly smaller one may succeed, still leaving
+>>>> the system without much memory, so it will invoke OOM killer sooner or
+>>>> later anyway.
+>>>>
+>>>> I don't see any silver-bullet solution, unfortunately. If this can be
+>>>> abused by (multiple) namespaces, then they have to be contained by
+>>>> kmemcg as that's the generic mechanism intended for this. Then we could
+>>>> use the __GFP_RETRY_MAYFAIL.
+>>>> The only limit we could impose to outright deny the allocation (to
+>>>> prevent obvious bugs/admin mistakes or abuses) could be based on the
+>>>> amount of RAM, as was suggested in the old thread.
+>> Can we make this configurable - on/off switch or size above which
+>> to pass GFP_NORETRY.
+> Yet another tunable? How do you decide which one to select? Seriously,
+> configuration knobs sound attractive but they are rarely a good idea.
+> Either we trust privileged users or we don't and we have kmem accounting
+> for that.
+>
+>> Probably hard coded based on amount of RAM is a good idea too.
+> How do you scale that?
+>
+> In other words, why don't we simply do the following? Note that this is
+> not tested. I have also no idea what is the lifetime of this allocation.
+> Is it bound to any specific process or is it a namespace bound? If the
+> later then the memcg OOM killer might wipe the whole memcg down without
+> making any progress. This would make the whole namespace unsuable until
+> somebody intervenes. Is this acceptable?
 > ---
->  mm/oom_kill.c | 41 ++++++++++-------------------------------
->  1 file changed, 10 insertions(+), 31 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 0e10b86..dad0409 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -486,7 +486,6 @@ bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
->  static struct task_struct *oom_reaper_th;
->  static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
->  static struct task_struct *oom_reaper_list;
-> -static DEFINE_SPINLOCK(oom_reaper_lock);
+> From 4dec96eb64954a7e58264ed551afadf62ca4c5f7 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Thu, 2 Aug 2018 10:38:57 +0200
+> Subject: [PATCH] netfilter/x_tables: do not fail xt_alloc_table_info too
+>  easilly
+>
+> eacd86ca3b03 ("net/netfilter/x_tables.c: use kvmalloc()
+> in xt_alloc_table_info()") has unintentionally fortified
+> xt_alloc_table_info allocation when __GFP_RETRY has been dropped from
+> the vmalloc fallback. Later on there was a syzbot report that this
+> can lead to OOM killer invocations when tables are too large and
+> 0537250fdc6c ("netfilter: x_tables: make allocation less aggressive")
+> has been merged to restore the original behavior. Georgi Nikolov however
+> noticed that he is not able to install his iptables anymore so this can
+> be seen as a regression.
+>
+> The primary argument for 0537250fdc6c was that this allocation path
+> shouldn't really trigger the OOM killer and kill innocent tasks. On the
+> other hand the interface requires root and as such should allow what the
+> admin asks for. Root inside a namespaces makes this more complicated
+> because those might be not trusted in general. If they are not then such
+> namespaces should be restricted anyway. Therefore drop the __GFP_NORETRY
+> and replace it by __GFP_ACCOUNT to enfore memcg constrains on it.
+>
+> Fixes: 0537250fdc6c ("netfilter: x_tables: make allocation less aggressive")
+> Reported-by: Georgi Nikolov <gnikolov@icdsoft.com>
+> Suggested-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  net/netfilter/x_tables.c | 7 +------
+>  1 file changed, 1 insertion(+), 6 deletions(-)
+>
+> diff --git a/net/netfilter/x_tables.c b/net/netfilter/x_tables.c
+> index d0d8397c9588..b769408e04ab 100644
+> --- a/net/netfilter/x_tables.c
+> +++ b/net/netfilter/x_tables.c
+> @@ -1178,12 +1178,7 @@ struct xt_table_info *xt_alloc_table_info(unsigned int size)
+>  	if (sz < sizeof(*info) || sz >= XT_MAX_TABLE_SIZE)
+>  		return NULL;
 >  
->  bool __oom_reap_task_mm(struct mm_struct *mm)
->  {
-> @@ -607,7 +606,7 @@ static void oom_reap_task(struct task_struct *tsk)
->  	 */
->  	set_bit(MMF_OOM_SKIP, &mm->flags);
+> -	/* __GFP_NORETRY is not fully supported by kvmalloc but it should
+> -	 * work reasonably well if sz is too large and bail out rather
+> -	 * than shoot all processes down before realizing there is nothing
+> -	 * more to reclaim.
+> -	 */
+> -	info = kvmalloc(sz, GFP_KERNEL | __GFP_NORETRY);
+> +	info = kvmalloc(sz, GFP_KERNEL | __GFP_ACCOUNT);
+>  	if (!info)
+>  		return NULL;
 >  
-> -	/* Drop a reference taken by wake_oom_reaper */
-> +	/* Drop a reference taken by mark_oom_victim(). */
->  	put_task_struct(tsk);
->  }
->  
-> @@ -617,12 +616,12 @@ static int oom_reaper(void *unused)
->  		struct task_struct *tsk = NULL;
->  
->  		wait_event_freezable(oom_reaper_wait, oom_reaper_list != NULL);
-> -		spin_lock(&oom_reaper_lock);
-> +		mutex_lock(&oom_lock);
->  		if (oom_reaper_list != NULL) {
->  			tsk = oom_reaper_list;
->  			oom_reaper_list = tsk->oom_reaper_list;
->  		}
-> -		spin_unlock(&oom_reaper_lock);
-> +		mutex_unlock(&oom_lock);
->  
->  		if (tsk)
->  			oom_reap_task(tsk);
-> @@ -631,32 +630,12 @@ static int oom_reaper(void *unused)
->  	return 0;
->  }
->  
-> -static void wake_oom_reaper(struct task_struct *tsk)
-> -{
-> -	/* tsk is already queued? */
-> -	if (tsk == oom_reaper_list || tsk->oom_reaper_list)
-> -		return;
-> -
-> -	get_task_struct(tsk);
-> -
-> -	spin_lock(&oom_reaper_lock);
-> -	tsk->oom_reaper_list = oom_reaper_list;
-> -	oom_reaper_list = tsk;
-> -	spin_unlock(&oom_reaper_lock);
-> -	trace_wake_reaper(tsk->pid);
-> -	wake_up(&oom_reaper_wait);
-> -}
-> -
->  static int __init oom_init(void)
->  {
->  	oom_reaper_th = kthread_run(oom_reaper, NULL, "oom_reaper");
->  	return 0;
->  }
->  subsys_initcall(oom_init)
-> -#else
-> -static inline void wake_oom_reaper(struct task_struct *tsk)
-> -{
-> -}
->  #endif /* CONFIG_MMU */
->  
->  /**
-> @@ -682,6 +661,13 @@ static void mark_oom_victim(struct task_struct *tsk)
->  	if (!cmpxchg(&tsk->signal->oom_mm, NULL, mm)) {
->  		mmgrab(tsk->signal->oom_mm);
->  		set_bit(MMF_OOM_VICTIM, &mm->flags);
-> +#ifdef CONFIG_MMU
-> +		get_task_struct(tsk);
-> +		tsk->oom_reaper_list = oom_reaper_list;
-> +		oom_reaper_list = tsk;
-> +		trace_wake_reaper(tsk->pid);
-> +		wake_up(&oom_reaper_wait);
-> +#endif
->  	}
->  
->  	/*
-> @@ -833,7 +819,6 @@ static void __oom_kill_process(struct task_struct *victim)
->  {
->  	struct task_struct *p;
->  	struct mm_struct *mm;
-> -	bool can_oom_reap = true;
->  
->  	p = find_lock_task_mm(victim);
->  	if (!p) {
-> @@ -883,7 +868,6 @@ static void __oom_kill_process(struct task_struct *victim)
->  		if (same_thread_group(p, victim))
->  			continue;
->  		if (is_global_init(p)) {
-> -			can_oom_reap = false;
->  			set_bit(MMF_OOM_SKIP, &mm->flags);
->  			pr_info("oom killer %d (%s) has mm pinned by %d (%s)\n",
->  					task_pid_nr(victim), victim->comm,
-> @@ -900,9 +884,6 @@ static void __oom_kill_process(struct task_struct *victim)
->  	}
->  	rcu_read_unlock();
->  
-> -	if (can_oom_reap)
-> -		wake_oom_reaper(victim);
-> -
->  	mmdrop(mm);
->  	put_task_struct(victim);
->  }
-> @@ -941,7 +922,6 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
->  	task_lock(p);
->  	if (task_will_free_mem(p)) {
->  		mark_oom_victim(p);
-> -		wake_oom_reaper(p);
->  		task_unlock(p);
->  		put_task_struct(p);
->  		return;
-> @@ -1071,7 +1051,6 @@ bool out_of_memory(struct oom_control *oc)
->  	 */
->  	if (task_will_free_mem(current)) {
->  		mark_oom_victim(current);
-> -		wake_oom_reaper(current);
->  		return true;
->  	}
->  
-> -- 
-> 1.8.3.1
 
--- 
-Michal Hocko
-SUSE Labs
+I will check if this change fixes the problem.
+
+Regards,
+
+--
+Georgi Nikolov
