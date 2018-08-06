@@ -1,53 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CC9F6B0007
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 06:22:06 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id q18-v6so10448957wrr.12
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 03:22:06 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v111-v6si9213704wrc.244.2018.08.06.03.22.04
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BD766B0005
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 06:29:33 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id p14-v6so11661367oip.0
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 03:29:33 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id n125-v6si8412590oih.331.2018.08.06.03.29.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Aug 2018 03:22:04 -0700 (PDT)
-Date: Mon, 6 Aug 2018 12:22:03 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm: adjust max read count in generic_file_buffered_read()
-Message-ID: <20180806102203.hmobd26cujmlfcsw@quack2.suse.cz>
-References: <20180719081726.3341-1-cgxu519@gmx.com>
- <20180719085812.sjup2odrjyuigt3l@quack2.suse.cz>
- <20180720161429.d63dccb9f66799dc0ff74dba@linux-foundation.org>
+        Mon, 06 Aug 2018 03:29:32 -0700 (PDT)
+Subject: Re: [PATCH v3 2/2] virtio_balloon: replace oom notifier with shrinker
+References: <1533285146-25212-1-git-send-email-wei.w.wang@intel.com>
+ <1533285146-25212-3-git-send-email-wei.w.wang@intel.com>
+ <16c56ee5-eef7-dd5f-f2b6-e3c11df2765c@i-love.sakura.ne.jp>
+ <5B681B41.6070205@intel.com>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <c8d25019-1990-f0dd-c83d-e4def5b5f7fe@i-love.sakura.ne.jp>
+Date: Mon, 6 Aug 2018 19:29:17 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180720161429.d63dccb9f66799dc0ff74dba@linux-foundation.org>
+In-Reply-To: <5B681B41.6070205@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Chengguang Xu <cgxu519@gmx.com>, mgorman@techsingularity.net, jlayton@redhat.com, ak@linux.intel.com, mawilcox@microsoft.com, tim.c.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org
 
-On Fri 20-07-18 16:14:29, Andrew Morton wrote:
-> On Thu, 19 Jul 2018 10:58:12 +0200 Jan Kara <jack@suse.cz> wrote:
+On 2018/08/06 18:56, Wei Wang wrote:
+> On 08/03/2018 08:11 PM, Tetsuo Handa wrote:
+>> On 2018/08/03 17:32, Wei Wang wrote:
+>>> +static int virtio_balloon_register_shrinker(struct virtio_balloon *vb)
+>>> +{
+>>> +A A A  vb->shrinker.scan_objects = virtio_balloon_shrinker_scan;
+>>> +A A A  vb->shrinker.count_objects = virtio_balloon_shrinker_count;
+>>> +A A A  vb->shrinker.batch = 0;
+>>> +A A A  vb->shrinker.seeks = DEFAULT_SEEKS;
+>> Why flags field is not set? If vb is allocated by kmalloc(GFP_KERNEL)
+>> and is nowhere zero-cleared, KASAN would complain it.
 > 
-> > On Thu 19-07-18 16:17:26, Chengguang Xu wrote:
-> > > When we try to truncate read count in generic_file_buffered_read(),
-> > > should deliver (sb->s_maxbytes - offset) as maximum count not
-> > > sb->s_maxbytes itself.
-> > > 
-> > > Signed-off-by: Chengguang Xu <cgxu519@gmx.com>
-> > 
-> > Looks good to me. You can add:
-> > 
-> > Reviewed-by: Jan Kara <jack@suse.cz>
-> 
-> Yup.
-> 
-> What are the runtime effects of this bug?
+> Could you point where in the code that would complain it?
+> I only see two shrinker flags (NUMA_AWARE and MEMCG_AWARE), and they seem not related to that.
 
-Good question. I think ->readpage() could be called for index beyond
-maximum file size supported by the filesystem leading to weird filesystem
-behavior due to overflows in internal calculations.
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Where is vb->shrinker.flags initialized?
