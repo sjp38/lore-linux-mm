@@ -1,79 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C5486B0266
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 08:00:45 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id t24-v6so1914428edq.13
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 05:00:44 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w33-v6si11138250edd.30.2018.08.06.05.00.43
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D749F6B026B
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 08:05:41 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id d22-v6so8548435pfn.3
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 05:05:41 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m14-v6sor1561127pfi.25.2018.08.06.05.05.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Aug 2018 05:00:43 -0700 (PDT)
-Date: Mon, 6 Aug 2018 14:00:42 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: Caching/buffers become useless after some time
-Message-ID: <20180806120042.GL19540@dhcp22.suse.cz>
-References: <CADF2uSpEZTqD7pUp1t77GNTT+L=M3Ycir2+gsZg3kf5=y-5_-Q@mail.gmail.com>
- <20180716164500.GZ17280@dhcp22.suse.cz>
- <CADF2uSpkOqCU5hO9y4708TvpJ5JvkXjZ-M1o+FJr2v16AZP3Vw@mail.gmail.com>
- <c33fba55-3e86-d40f-efe0-0fc908f303bd@suse.cz>
- <20180730144048.GW24267@dhcp22.suse.cz>
- <CADF2uSr=mjVih1TB397bq1H7u3rPvo0HPqhUiG21AWu+WXFC5g@mail.gmail.com>
- <1f862d41-1e9f-5324-fb90-b43f598c3955@suse.cz>
- <CADF2uSrhKG=ntFWe96YyDWF8DFGyy4Jo4YFJFs=60CBXY52nfg@mail.gmail.com>
- <30f7ec9a-e090-06f1-1851-b18b3214f5e3@suse.cz>
- <CADF2uSocjT5Oz=1Wohahjf5-58YpT2Jm2vTQKuqA=8ywBFwCaQ@mail.gmail.com>
+        (Google Transport Security);
+        Mon, 06 Aug 2018 05:05:40 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CADF2uSocjT5Oz=1Wohahjf5-58YpT2Jm2vTQKuqA=8ywBFwCaQ@mail.gmail.com>
+In-Reply-To: <0413df4d-262d-fee8-f1a3-99ccf1d3a441@embeddedor.com>
+References: <20180804220827.GA12559@embeddedor.com> <CACT4Y+arVJ4qt54LzKKoyh9+NKA+fjyCShKi82NanbovhK_mmQ@mail.gmail.com>
+ <0413df4d-262d-fee8-f1a3-99ccf1d3a441@embeddedor.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 6 Aug 2018 14:05:19 +0200
+Message-ID: <CACT4Y+YDD2M4Z1XodDxOm-SQszGhMvS+7Tzuiq2FKCG8JK2uLA@mail.gmail.com>
+Subject: Re: [PATCH] mm/kasan/kasan_init: use true and false for boolean values
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marinko Catovic <marinko.catovic@gmail.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org
+To: "Gustavo A. R. Silva" <gustavo@embeddedor.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-[Please do not top-post]
+On Mon, Aug 6, 2018 at 1:39 PM, Gustavo A. R. Silva
+<gustavo@embeddedor.com> wrote:
+> Hi Dmitry,
+>
+> On 08/06/2018 04:04 AM, Dmitry Vyukov wrote:
+>> On Sun, Aug 5, 2018 at 12:08 AM, Gustavo A. R. Silva
+>> <gustavo@embeddedor.com> wrote:
+>>> Return statements in functions returning bool should use true or false
+>>> instead of an integer value.
+>>>
+>>> This code was detected with the help of Coccinelle.
+>>>
+>>> Signed-off-by: Gustavo A. R. Silva <gustavo@embeddedor.com>
+>>
+>> Hi Gustavo,
+>>
+>> I don't see this code in upstream tree. Is it against some other tree? Which?
+>>
+>
+> Yep. It's against linux-next.
 
-On Mon 06-08-18 12:29:43, Marinko Catovic wrote:
-> > Maybe a memcg with kmemcg limit? Michal could know more.
-> 
-> Could you/Michael explain this perhaps?
+See it now.
 
-The only way how kmemcg limit could help I can think of would be to
-enforce metadata reclaim much more often. But that is rather a bad
-workaround.
+Acked-by: Dmitry Vyukov <dvyukov@google.com>
 
-> The hardware is pretty much high end datacenter grade, I really would
-> not know how this is to be related with the hardware :(
+Thanks
 
-Well, there are some drivers (mostly out-of-tree) which are high order
-hungry. You can try to trace all allocations which with order > 0 and
-see who that might be.
-# mount -t tracefs none /debug/trace/
-# echo stacktrace > /debug/trace/trace_options
-# echo "order>0" > /debug/trace/events/kmem/mm_page_alloc/filter
-# echo 1 > /debug/trace/events/kmem/mm_page_alloc/enable
-# cat /debug/trace/trace_pipe
+> Should I use [PATCH next] in the subject next time?
 
-And later this to disable tracing.
-# echo 0 > /debug/trace/events/kmem/mm_page_alloc/enable
+I dunno. I just find this part of kernel development process strange
+and confusing. Say, how should testing of kernel patches work? Usually
+today base commit is just captured by review system.
 
-> I do not understand why apparently the caching is working very much
-> fine for the beginning after a drop_caches, then degrades to low usage
-> somewhat later.
-
-Because a lot of FS metadata is fragmenting the memory and a large
-number of high order allocations which want to be served reclaim a lot
-of memory to achieve their gol. Considering a large part of memory is
-fragmented by unmovable objects there is no other way than to use
-reclaim to release that memory.
-
-> I can not possibly drop caches automatically, since
-> this requires monitoring for overload with temporary dropping traffic
-> on specific ports until the writes/reads cool down.
-
-You do not have to drop all caches. echo 2 > /proc/sys/vm/drop_caches
-should be sufficient to drop metadata only.
--- 
-Michal Hocko
-SUSE Labs
+> Thanks
+> --
+> Gustavo
+>
+>> Thanks
+>>
+>>> ---
+>>>  mm/kasan/kasan_init.c | 6 +++---
+>>>  1 file changed, 3 insertions(+), 3 deletions(-)
+>>>
+>>> diff --git a/mm/kasan/kasan_init.c b/mm/kasan/kasan_init.c
+>>> index 7a2a2f1..c742dc5 100644
+>>> --- a/mm/kasan/kasan_init.c
+>>> +++ b/mm/kasan/kasan_init.c
+>>> @@ -42,7 +42,7 @@ static inline bool kasan_p4d_table(pgd_t pgd)
+>>>  #else
+>>>  static inline bool kasan_p4d_table(pgd_t pgd)
+>>>  {
+>>> -       return 0;
+>>> +       return false;
+>>>  }
+>>>  #endif
+>>>  #if CONFIG_PGTABLE_LEVELS > 3
+>>> @@ -54,7 +54,7 @@ static inline bool kasan_pud_table(p4d_t p4d)
+>>>  #else
+>>>  static inline bool kasan_pud_table(p4d_t p4d)
+>>>  {
+>>> -       return 0;
+>>> +       return false;
+>>>  }
+>>>  #endif
+>>>  #if CONFIG_PGTABLE_LEVELS > 2
+>>> @@ -66,7 +66,7 @@ static inline bool kasan_pmd_table(pud_t pud)
+>>>  #else
+>>>  static inline bool kasan_pmd_table(pud_t pud)
+>>>  {
+>>> -       return 0;
+>>> +       return false;
+>>>  }
+>>>  #endif
+>>>  pte_t kasan_zero_pte[PTRS_PER_PTE] __page_aligned_bss;
+>>> --
+>>> 2.7.4
