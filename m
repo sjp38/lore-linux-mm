@@ -1,50 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EE1EB6B0008
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 16:34:39 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id b25-v6so4570726eds.17
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 13:34:39 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id E09DE6B0266
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 16:41:28 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id d5-v6so4624755edq.3
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 13:41:28 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u42-v6si5107457edm.404.2018.08.06.13.34.38
+        by mx.google.com with ESMTPS id i2-v6si4663784edt.286.2018.08.06.13.41.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Aug 2018 13:34:38 -0700 (PDT)
-Date: Mon, 6 Aug 2018 22:34:37 +0200
+        Mon, 06 Aug 2018 13:41:27 -0700 (PDT)
+Date: Mon, 6 Aug 2018 22:41:19 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: WARNING in try_charge
-Message-ID: <20180806203437.GK10003@dhcp22.suse.cz>
-References: <fc6e173e-8bda-269f-d44f-1c5f5215beac@I-love.SAKURA.ne.jp>
- <0000000000006350880572c61e62@google.com>
- <20180806174410.GB10003@dhcp22.suse.cz>
- <20180806175627.GC10003@dhcp22.suse.cz>
- <078bde8d-b1b5-f5ad-ed23-0cd94b579f9e@i-love.sakura.ne.jp>
+Subject: Re: [RFC v6 PATCH 2/2] mm: mmap: zap pages with read mmap_sem in
+ munmap
+Message-ID: <20180806204119.GL10003@dhcp22.suse.cz>
+References: <1532628614-111702-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1532628614-111702-3-git-send-email-yang.shi@linux.alibaba.com>
+ <20180803090759.GI27245@dhcp22.suse.cz>
+ <aff7e86d-2e48-ff58-5d5d-9c67deb68674@linux.alibaba.com>
+ <20180806094005.GG19540@dhcp22.suse.cz>
+ <76c0fc2b-fca7-9f22-214a-920ee2537898@linux.alibaba.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <078bde8d-b1b5-f5ad-ed23-0cd94b579f9e@i-love.sakura.ne.jp>
+In-Reply-To: <76c0fc2b-fca7-9f22-214a-920ee2537898@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>, cgroups@vger.kernel.org, dvyukov@google.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, vdavydov.dev@gmail.com
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 07-08-18 05:26:23, Tetsuo Handa wrote:
-> On 2018/08/07 2:56, Michal Hocko wrote:
-> > So the oom victim indeed passed the above force path after the oom
-> > invocation. But later on hit the page fault path and that behaved
-> > differently and for some reason the force path hasn't triggered. I am
-> > wondering how could we hit the page fault path in the first place. The
-> > task is already killed! So what the hell is going on here.
-> > 
-> > I must be missing something obvious here.
-> > 
-> YOU ARE OBVIOUSLY MISSING MY MAIL!
+On Mon 06-08-18 09:46:30, Yang Shi wrote:
 > 
-> I already said this is "mm, oom: task_will_free_mem(current) should ignore MMF_OOM_SKIP for once."
-> problem which you are refusing at https://www.spinics.net/lists/linux-mm/msg133774.html .
-> And you again ignored my mail. Very sad...
+> 
+> On 8/6/18 2:40 AM, Michal Hocko wrote:
+> > On Fri 03-08-18 14:01:58, Yang Shi wrote:
+> > > 
+> > > On 8/3/18 2:07 AM, Michal Hocko wrote:
+> > > > On Fri 27-07-18 02:10:14, Yang Shi wrote:
+[...]
+> > > > > If the vma has VM_LOCKED | VM_HUGETLB | VM_PFNMAP or uprobe, they are
+> > > > > considered as special mappings. They will be dealt with before zapping
+> > > > > pages with write mmap_sem held. Basically, just update vm_flags.
+> > > > Well, I think it would be safer to simply fallback to the current
+> > > > implementation with these mappings and deal with them on top. This would
+> > > > make potential issues easier to bisect and partial reverts as well.
+> > > Do you mean just call do_munmap()? It sounds ok. Although we may waste some
+> > > cycles to repeat what has done, it sounds not too bad since those special
+> > > mappings should be not very common.
+> > VM_HUGETLB is quite spread. Especially for DB workloads.
+> 
+> Wait a minute. In this way, it sounds we go back to my old implementation
+> with special handling for those mappings with write mmap_sem held, right?
 
-Your suggestion simply didn't make much sense. There is nothing like
-first check is different from the rest.
+Yes, I would really start simple and add further enhacements on top.
 -- 
 Michal Hocko
 SUSE Labs
