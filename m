@@ -1,141 +1,280 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D9846B0005
-	for <linux-mm@kvack.org>; Sun,  5 Aug 2018 23:25:34 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id q2-v6so5446707plh.12
-        for <linux-mm@kvack.org>; Sun, 05 Aug 2018 20:25:34 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id i186-v6si13240734pfb.362.2018.08.05.20.25.32
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E557A6B0005
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 02:52:41 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id q2-v6so5741704plh.12
+        for <linux-mm@kvack.org>; Sun, 05 Aug 2018 23:52:41 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y13-v6sor3719187pff.20.2018.08.05.23.52.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 05 Aug 2018 20:25:33 -0700 (PDT)
-Message-ID: <5B67C0B2.3040407@intel.com>
-Date: Mon, 06 Aug 2018 11:29:54 +0800
-From: Wei Wang <wei.w.wang@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3 2/2] virtio_balloon: replace oom notifier with shrinker
-References: <1533285146-25212-1-git-send-email-wei.w.wang@intel.com> <1533285146-25212-3-git-send-email-wei.w.wang@intel.com> <20180803221423-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20180803221423-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Sun, 05 Aug 2018 23:52:39 -0700 (PDT)
+From: Rashmica Gupta <rashmica.g@gmail.com>
+Subject: [PATCH v2] resource: Merge resources on a node when hot-adding memory
+Date: Mon,  6 Aug 2018 16:52:24 +1000
+Message-Id: <20180806065224.31383-1-rashmica.g@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, penguin-kernel@i-love.sakura.ne.jp
+To: toshi.kani@hpe.com, tglx@linutronix.de, akpm@linux-foundation.org, bp@suse.de, brijesh.singh@amd.com, thomas.lendacky@amd.com, jglisse@redhat.com, gregkh@linuxfoundation.org, baiyaowei@cmss.chinamobile.com, dan.j.williams@intel.com, mhocko@suse.com, iamjoonsoo.kim@lge.com, vbabka@suse.cz, malat@debian.org, pasha.tatashin@oracle.com, bhelgaas@google.com, osalvador@techadventures.net, yasu.isimatu@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Rashmica Gupta <rashmica.g@gmail.com>
 
-On 08/04/2018 03:15 AM, Michael S. Tsirkin wrote:
-> On Fri, Aug 03, 2018 at 04:32:26PM +0800, Wei Wang wrote:
->> The OOM notifier is getting deprecated to use for the reasons:
->> - As a callout from the oom context, it is too subtle and easy to
->>    generate bugs and corner cases which are hard to track;
->> - It is called too late (after the reclaiming has been performed).
->>    Drivers with large amuont of reclaimable memory is expected to
->>    release them at an early stage of memory pressure;
->> - The notifier callback isn't aware of oom contrains;
->> Link: https://lkml.org/lkml/2018/7/12/314
->>
->> This patch replaces the virtio-balloon oom notifier with a shrinker
->> to release balloon pages on memory pressure. The balloon pages are
->> given back to mm adaptively by returning the number of pages that the
->> reclaimer is asking for (i.e. sc->nr_to_scan).
->>
->> Currently the max possible value of sc->nr_to_scan passed to the balloon
->> shrinker is SHRINK_BATCH, which is 128. This is smaller than the
->> limitation that only VIRTIO_BALLOON_ARRAY_PFNS_MAX (256) pages can be
->> returned via one invocation of leak_balloon. But this patch still
->> considers the case that SHRINK_BATCH or shrinker->batch could be changed
->> to a value larger than VIRTIO_BALLOON_ARRAY_PFNS_MAX, which will need to
->> do multiple invocations of leak_balloon.
->>
->> Historically, the feature VIRTIO_BALLOON_F_DEFLATE_ON_OOM has been used
->> to release balloon pages on OOM. We continue to use this feature bit for
->> the shrinker, so the shrinker is only registered when this feature bit
->> has been negotiated with host.
->>
->> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
->> Cc: Michael S. Tsirkin <mst@redhat.com>
->> Cc: Michal Hocko <mhocko@kernel.org>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->
-> Could you add data at how was this tested and how did guest
-> behaviour change. Which configurations see an improvement?
->
+When hot-removing memory release_mem_region_adjustable() splits
+iomem resources if they are not the exact size of the memory being
+hot-deleted. Adding this memory back to the kernel adds a new
+resource.
 
-Yes. Please see the differences from the "*1" and "*2" cases below.
+Eg a node has memory 0x0 - 0xfffffffff. Offlining and hot-removing
+1GB from 0xf40000000 results in the single resource 0x0-0xfffffffff being
+split into two resources: 0x0-0xf3fffffff and 0xf80000000-0xfffffffff.
 
-Taking this chance, I use "*2" and "*3" to show Michal etc the 
-differences of applying and not applying the shrinker fix patch here: 
-https://lkml.org/lkml/2018/8/3/384
+When we hot-add the memory back we now have three resources:
+0x0-0xf3fffffff, 0xf40000000-0xf7fffffff, and 0xf80000000-0xfffffffff.
 
+Now if we try to remove a section of memory that overlaps these resources,
+like 2GB from 0xf40000000, release_mem_region_adjustable() fails as it
+expects the chunk of memory to be within the boundaries of a single
+resource.
 
-*1. V3 patches
-1)After inflating some amount of memory, actual=1000001536 Bytes
-free -m
-               total        used        free      shared buff/cache   
-available
-Mem:           7975        7289         514          10 171         447
-Swap:         10236           0       10236
+This patch adds a function request_resource_and_merge(). This is called
+instead of request_resource_conflict() when registering a resource in
+add_memory(). It calls request_resource_conflict() and if hot-removing is
+enabled (if it isn't we won't get resource fragmentation) we attempt to
+merge contiguous resources on the node.
 
-2) dd if=478MB_file of=/dev/null, actual=1058721792 Bytes
-free -m
-               total        used        free      shared buff/cache   
-available
-Mem:           7975        7233         102          10 639         475
-Swap:         10236           0       10236
+Signed-off-by: Rashmica Gupta <rashmica.g@gmail.com>
+---
+v1->v2: Only attempt to merge resources if hot-remove is enabled.
 
-The advantage is that the inflated pages are given back to mm based on 
-the number, i.e. ~56MB(diff "actual" above) of the reclaimer is asking 
-for. This is more adaptive.
+ include/linux/ioport.h         |   2 +
+ include/linux/memory_hotplug.h |   2 +-
+ kernel/resource.c              | 116 +++++++++++++++++++++++++++++++++++++++++
+ mm/memory_hotplug.c            |  22 ++++----
+ 4 files changed, 130 insertions(+), 12 deletions(-)
 
-
-
-*2. V2 paches, balloon_pages_to_shrink=1000000 pages (around 4GB), with 
-the shrinker fix patches applied.
-1)After inflating some amount of memory, actual=1000001536 Bytes
-free -m
-               total        used        free      shared buff/cache   
-available
-Mem:           7975        7288         530          10 157         455
-Swap:         10236           0       10236
-
-2)dd if=478MB_file of=/dev/null, actual=5096001536 Bytes
-free -m
-               total        used        free      shared buff/cache   
-available
-Mem:           7975        3381        3953          10 640        4327
-Swap:         10236           0       10236
-
-In the above example, we set 4GB to shrink to make the difference 
-obvious. Though the claimer only needs to reclaim ~56MB memory, 4GB 
-inflated pages are given back to mm, which is unnecessary. From the 
-user's perspective, it has no idea of how many pages to given back at 
-the time of setting the module parameter (balloon_pages_to_shrink). So I 
-think the above "*1" is better.
-
-
-
-*3.  V2 paches, balloon_pages_to_shrink=1000000 pages (around 4GB), 
-without the shrinker fix patches applied.
-1) After inflating some amount of memory, actual=1000001536 Bytes
-free -m
-                total        used        free      shared buff/cache   
-available
-Mem:           7975        7292         524          10 158         450
-Swap:         10236           0       10236
-
-2) dd if=478MB_file of=/dev/null, actual=8589934592 Bytes
-free -m
-              total        used        free      shared  buff/cache 
-available
-Mem:           7975          53        7281          10 640        7656
-Swap:         10236           0       10236
-
-Compared to *2, all the balloon pages are shrunk, but users expect 4GB 
-to shrink. The reason is that do_slab_shrink has a mistake in 
-calculating schrinkctl->nr_scanned, which should be the actual number of 
-pages that the shrinker has freed, but do slab_shrink still treat that 
-value as 128 (but 4GB has actually been freed).
-
-
-Best,
-Wei
+diff --git a/include/linux/ioport.h b/include/linux/ioport.h
+index da0ebaec25f0..f5b93a711e86 100644
+--- a/include/linux/ioport.h
++++ b/include/linux/ioport.h
+@@ -189,6 +189,8 @@ extern int allocate_resource(struct resource *root, struct resource *new,
+ 						       resource_size_t,
+ 						       resource_size_t),
+ 			     void *alignf_data);
++extern struct resource *request_resource_and_merge(struct resource *parent,
++						   struct resource *new, int nid);
+ struct resource *lookup_resource(struct resource *root, resource_size_t start);
+ int adjust_resource(struct resource *res, resource_size_t start,
+ 		    resource_size_t size);
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 4e9828cda7a2..9c00f97c8cc6 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -322,7 +322,7 @@ static inline void remove_memory(int nid, u64 start, u64 size) {}
+ extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
+ 		void *arg, int (*func)(struct memory_block *, void *));
+ extern int add_memory(int nid, u64 start, u64 size);
+-extern int add_memory_resource(int nid, struct resource *resource, bool online);
++extern int add_memory_resource(int nid, u64 start, u64 size, bool online);
+ extern int arch_add_memory(int nid, u64 start, u64 size,
+ 		struct vmem_altmap *altmap, bool want_memblock);
+ extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+diff --git a/kernel/resource.c b/kernel/resource.c
+index 30e1bc68503b..5967061f9cea 100644
+--- a/kernel/resource.c
++++ b/kernel/resource.c
+@@ -1621,3 +1621,119 @@ static int __init strict_iomem(char *str)
+ }
+ 
+ __setup("iomem=", strict_iomem);
++
++#ifdef CONFIG_MEMORY_HOTPLUG
++#ifdef CONFIG_MEMORY_HOTREMOVE
++/*
++ * Attempt to merge resource and it's sibling
++ */
++static int merge_resources(struct resource *res)
++{
++	struct resource *next;
++	struct resource *tmp;
++	uint64_t size;
++	int ret = -EINVAL;
++
++	next = res->sibling;
++
++	/*
++	 * Not sure how to handle two different children. So only attempt
++	 * to merge two resources if neither have children, only one has a
++	 * child or if both have the same child.
++	 */
++	if ((res->child && next->child) && (res->child != next->child))
++		return ret;
++
++	if (res->end + 1 != next->start)
++		return ret;
++
++	if (res->flags != next->flags)
++		return ret;
++
++	/* Update sibling and child of resource */
++	res->sibling = next->sibling;
++	tmp = res->child;
++	if (!res->child)
++		res->child = next->child;
++
++	size = next->end - res->start + 1;
++	ret = __adjust_resource(res, res->start, size);
++	if (ret) {
++		/* Failed so restore resource to original state */
++		res->sibling = next;
++		res->child = tmp;
++		return ret;
++	}
++
++	free_resource(next);
++
++	return ret;
++}
++
++/*
++ * Attempt to merge resources on the node
++ */
++static void merge_node_resources(int nid, struct resource *parent)
++{
++	struct resource *res;
++	uint64_t start_addr;
++	uint64_t end_addr;
++	int ret;
++
++	start_addr = node_start_pfn(nid) << PAGE_SHIFT;
++	end_addr = node_end_pfn(nid) << PAGE_SHIFT;
++
++	write_lock(&resource_lock);
++
++	/* Get the first resource */
++	res = parent->child;
++
++	while (res) {
++		/* Check that the resource is within the node */
++		if (res->start < start_addr) {
++			res = res->sibling;
++			continue;
++		}
++		/* Exit if resource is past end of node */
++		if (res->sibling->end > end_addr)
++			break;
++
++		ret = merge_resources(res);
++		if (!ret)
++			continue;
++		res = res->sibling;
++	}
++	write_unlock(&resource_lock);
++}
++#endif /* CONFIG_MEMORY_HOTREMOVE */
++
++/**
++ * request_resource_and_merge() - request an I/O or memory resource for hot-add
++ * @parent: parent resource descriptor
++ * @new: resource descriptor desired by caller
++ * @nid: node id of the node we want the resource on
++ *
++ * Returns NULL for success and conflict resource on error.
++ * If no conflict resource then attempt to merge resources on the node.
++ *
++ * This is intended to cleanup the fragmentation of resources that occurs when
++ * hot-removing memory (see release_mem_region_adjustable). If hot-removing is
++ * not enabled then there is no point trying to merge resources.
++ */
++struct resource *request_resource_and_merge(struct resource *parent,
++					    struct resource *new, int nid)
++{
++	struct resource *conflict;
++
++	conflict = request_resource_conflict(parent, new);
++
++	if (conflict)
++		return conflict;
++
++#ifdef CONFIG_MEMORY_HOTREMOVE
++	merge_node_resources(nid, parent);
++#endif /* CONFIG_MEMORY_HOTREMOVE */
++
++	return NULL;
++}
++#endif /* CONFIG_MEMORY_HOTPLUG */
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 7deb49f69e27..2e342f5ce322 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -97,7 +97,7 @@ void mem_hotplug_done(void)
+ }
+ 
+ /* add this memory to iomem resource */
+-static struct resource *register_memory_resource(u64 start, u64 size)
++static struct resource *register_memory_resource(int nid, u64 start, u64 size)
+ {
+ 	struct resource *res, *conflict;
+ 	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+@@ -108,7 +108,7 @@ static struct resource *register_memory_resource(u64 start, u64 size)
+ 	res->start = start;
+ 	res->end = start + size - 1;
+ 	res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+-	conflict =  request_resource_conflict(&iomem_resource, res);
++	conflict =  request_resource_and_merge(&iomem_resource, res, nid);
+ 	if (conflict) {
+ 		if (conflict->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY) {
+ 			pr_debug("Device unaddressable memory block "
+@@ -122,11 +122,15 @@ static struct resource *register_memory_resource(u64 start, u64 size)
+ 	return res;
+ }
+ 
+-static void release_memory_resource(struct resource *res)
++static void release_memory_resource(struct resource *res, u64 start, u64 size)
+ {
+ 	if (!res)
+ 		return;
++#ifdef CONFIG_MEMORY_HOTREMOVE
++	release_mem_region_adjustable(&iomem_resource, start, size);
++#else
+ 	release_resource(res);
++#endif
+ 	kfree(res);
+ 	return;
+ }
+@@ -1096,17 +1100,13 @@ static int online_memory_block(struct memory_block *mem, void *arg)
+ }
+ 
+ /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+-int __ref add_memory_resource(int nid, struct resource *res, bool online)
++int __ref add_memory_resource(int nid, u64 start, u64 size, bool online)
+ {
+-	u64 start, size;
+ 	pg_data_t *pgdat = NULL;
+ 	bool new_pgdat;
+ 	bool new_node;
+ 	int ret;
+ 
+-	start = res->start;
+-	size = resource_size(res);
+-
+ 	ret = check_hotplug_memory_range(start, size);
+ 	if (ret)
+ 		return ret;
+@@ -1195,13 +1195,13 @@ int __ref add_memory(int nid, u64 start, u64 size)
+ 	struct resource *res;
+ 	int ret;
+ 
+-	res = register_memory_resource(start, size);
++	res = register_memory_resource(nid, start, size);
+ 	if (IS_ERR(res))
+ 		return PTR_ERR(res);
+ 
+-	ret = add_memory_resource(nid, res, memhp_auto_online);
++	ret = add_memory_resource(nid, start, size, memhp_auto_online);
+ 	if (ret < 0)
+-		release_memory_resource(res);
++		release_memory_resource(res, start, size);
+ 	return ret;
+ }
+ EXPORT_SYMBOL_GPL(add_memory);
+-- 
+2.14.4
