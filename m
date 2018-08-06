@@ -1,57 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BC5C16B0005
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 11:52:20 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id d18-v6so10862741qtj.20
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 08:52:20 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 27-v6sor5651978qvd.58.2018.08.06.08.52.19
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9477F6B0007
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 12:02:24 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id u13-v6so8764569pfm.8
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 09:02:24 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id f15-v6si10211754pli.194.2018.08.06.09.02.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 06 Aug 2018 08:52:19 -0700 (PDT)
-Date: Mon, 6 Aug 2018 11:55:17 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: memcg: update memcg OOM messages on cgroup2
-Message-ID: <20180806155517.GB14519@cmpxchg.org>
-References: <20180803175743.GW1206094@devbig004.ftw2.facebook.com>
- <20180803203045.GA18725@castle.DHCP.thefacebook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Aug 2018 09:02:23 -0700 (PDT)
+Subject: Re: WARNING in try_charge
+References: <0000000000006350880572c61e62@google.com>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <4bf70718-59fd-dcad-c20e-8601cd665bca@i-love.sakura.ne.jp>
+Date: Tue, 7 Aug 2018 01:02:07 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180803203045.GA18725@castle.DHCP.thefacebook.com>
+In-Reply-To: <0000000000006350880572c61e62@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: mhocko@kernel.org
+Cc: syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>, cgroups@vger.kernel.org, dvyukov@google.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, vdavydov.dev@gmail.com
 
-On Fri, Aug 03, 2018 at 01:30:49PM -0700, Roman Gushchin wrote:
-> On Fri, Aug 03, 2018 at 10:57:43AM -0700, Tejun Heo wrote:
-> > +	seq_pr_info(m, "pgfault %lu\n", events[PGFAULT]);
-> > +	seq_pr_info(m, "pgmajfault %lu\n", events[PGMAJFAULT]);
-> > +
-> > +	seq_pr_info(m, "pgrefill %lu\n", events[PGREFILL]);
-> > +	seq_pr_info(m, "pgscan %lu\n", events[PGSCAN_KSWAPD] +
-> > +		    events[PGSCAN_DIRECT]);
-> > +	seq_pr_info(m, "pgsteal %lu\n", events[PGSTEAL_KSWAPD] +
-> > +		    events[PGSTEAL_DIRECT]);
-> > +	seq_pr_info(m, "pgactivate %lu\n", events[PGACTIVATE]);
-> > +	seq_pr_info(m, "pgdeactivate %lu\n", events[PGDEACTIVATE]);
-> > +	seq_pr_info(m, "pglazyfree %lu\n", events[PGLAZYFREE]);
-> > +	seq_pr_info(m, "pglazyfreed %lu\n", events[PGLAZYFREED]);
-> >  
-> > +	seq_pr_info(m, "workingset_refault %lu\n",
-> > +		    stat[WORKINGSET_REFAULT]);
-> > +	seq_pr_info(m, "workingset_activate %lu\n",
-> > +		    stat[WORKINGSET_ACTIVATE]);
-> > +	seq_pr_info(m, "workingset_nodereclaim %lu\n",
-> > +		    stat[WORKINGSET_NODERECLAIM]);
+On 2018/08/07 0:42, syzbot wrote:
+> Hello,
 > 
-> I'm not sure we need all theses stats in the oom report.
-> I'd drop the events part.
+> syzbot has tested the proposed patch but the reproducer still triggered crash:
+> WARNING in try_charge
+> 
+> Killed process 6410 (syz-executor5) total-vm:37708kB, anon-rss:2128kB, file-rss:0kB, shmem-rss:0kB
+> oom_reaper: reaped process 6410 (syz-executor5), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
+> task=syz-executor5 pid=6410 invoked memcg oom killer. oom_victim=1
+> ------------[ cut here ]------------
+> Memory cgroup charge failed because of no reclaimable memory! This looks like a misconfiguration or a kernel bug.
+> WARNING: CPU: 1 PID: 6410 at mm/memcontrol.c:1707 mem_cgroup_oom mm/memcontrol.c:1706 [inline]
+> WARNING: CPU: 1 PID: 6410 at mm/memcontrol.c:1707 try_charge+0x734/0x1680 mm/memcontrol.c:2264
+> Kernel panic - not syncing: panic_on_warn set ...
 
-This info dump usually races with ongoing reclaim and frees. The VM
-state might have changed quite a bit by the time this is all written
-out, which sometimes makes it hard to rootcause from just the state
-snapshots. Knowing what the VM was doing before the OOM is helpful.
-
-I'd prefer we keep those in.
+Michal, this is "mm, oom: task_will_free_mem(current) should ignore MMF_OOM_SKIP for once."
+problem which you are refusing at https://www.spinics.net/lists/linux-mm/msg133774.html .
