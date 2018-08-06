@@ -1,67 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4286E6B000E
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 16:52:35 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id f13-v6so11972940wru.5
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 13:52:35 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AD12D6B026A
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 16:55:21 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id z23-v6so9999678wma.2
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 13:55:21 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t130-v6si4176763wmd.124.2018.08.06.13.52.33
+        by mx.google.com with ESMTPS id f4-v6si11384433wrg.265.2018.08.06.13.55.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Aug 2018 13:52:34 -0700 (PDT)
-Date: Mon, 6 Aug 2018 22:52:32 +0200
+        Mon, 06 Aug 2018 13:55:20 -0700 (PDT)
+Date: Mon, 6 Aug 2018 22:55:19 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC v6 PATCH 2/2] mm: mmap: zap pages with read mmap_sem in
- munmap
-Message-ID: <20180806205232.GN10003@dhcp22.suse.cz>
-References: <1532628614-111702-1-git-send-email-yang.shi@linux.alibaba.com>
- <1532628614-111702-3-git-send-email-yang.shi@linux.alibaba.com>
- <20180803090759.GI27245@dhcp22.suse.cz>
- <aff7e86d-2e48-ff58-5d5d-9c67deb68674@linux.alibaba.com>
- <20180806094005.GG19540@dhcp22.suse.cz>
- <76c0fc2b-fca7-9f22-214a-920ee2537898@linux.alibaba.com>
- <20180806204119.GL10003@dhcp22.suse.cz>
- <28de768b-c740-37b3-ea5a-8e2cb07d2bdc@linux.alibaba.com>
+Subject: Re: WARNING in try_charge
+Message-ID: <20180806205519.GO10003@dhcp22.suse.cz>
+References: <fc6e173e-8bda-269f-d44f-1c5f5215beac@I-love.SAKURA.ne.jp>
+ <0000000000006350880572c61e62@google.com>
+ <20180806174410.GB10003@dhcp22.suse.cz>
+ <20180806175627.GC10003@dhcp22.suse.cz>
+ <078bde8d-b1b5-f5ad-ed23-0cd94b579f9e@i-love.sakura.ne.jp>
+ <20180806203437.GK10003@dhcp22.suse.cz>
+ <3cf8f630-73b7-20d4-8ad1-bb1c657ee30d@i-love.sakura.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <28de768b-c740-37b3-ea5a-8e2cb07d2bdc@linux.alibaba.com>
+In-Reply-To: <3cf8f630-73b7-20d4-8ad1-bb1c657ee30d@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>, cgroups@vger.kernel.org, dvyukov@google.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, vdavydov.dev@gmail.com
 
-On Mon 06-08-18 13:48:35, Yang Shi wrote:
+On Tue 07-08-18 05:46:04, Tetsuo Handa wrote:
+> On 2018/08/07 5:34, Michal Hocko wrote:
+> > On Tue 07-08-18 05:26:23, Tetsuo Handa wrote:
+> >> On 2018/08/07 2:56, Michal Hocko wrote:
+> >>> So the oom victim indeed passed the above force path after the oom
+> >>> invocation. But later on hit the page fault path and that behaved
+> >>> differently and for some reason the force path hasn't triggered. I am
+> >>> wondering how could we hit the page fault path in the first place. The
+> >>> task is already killed! So what the hell is going on here.
+> >>>
+> >>> I must be missing something obvious here.
+> >>>
+> >> YOU ARE OBVIOUSLY MISSING MY MAIL!
+> >>
+> >> I already said this is "mm, oom: task_will_free_mem(current) should ignore MMF_OOM_SKIP for once."
+> >> problem which you are refusing at https://www.spinics.net/lists/linux-mm/msg133774.html .
+> >> And you again ignored my mail. Very sad...
+> > 
+> > Your suggestion simply didn't make much sense. There is nothing like
+> > first check is different from the rest.
+> > 
 > 
+> I don't think your patch is appropriate. It avoids hitting WARN(1) but does not avoid
+> unnecessary killing of OOM victims.
 > 
-> On 8/6/18 1:41 PM, Michal Hocko wrote:
-> > On Mon 06-08-18 09:46:30, Yang Shi wrote:
-> > > 
-> > > On 8/6/18 2:40 AM, Michal Hocko wrote:
-> > > > On Fri 03-08-18 14:01:58, Yang Shi wrote:
-> > > > > On 8/3/18 2:07 AM, Michal Hocko wrote:
-> > > > > > On Fri 27-07-18 02:10:14, Yang Shi wrote:
-> > [...]
-> > > > > > > If the vma has VM_LOCKED | VM_HUGETLB | VM_PFNMAP or uprobe, they are
-> > > > > > > considered as special mappings. They will be dealt with before zapping
-> > > > > > > pages with write mmap_sem held. Basically, just update vm_flags.
-> > > > > > Well, I think it would be safer to simply fallback to the current
-> > > > > > implementation with these mappings and deal with them on top. This would
-> > > > > > make potential issues easier to bisect and partial reverts as well.
-> > > > > Do you mean just call do_munmap()? It sounds ok. Although we may waste some
-> > > > > cycles to repeat what has done, it sounds not too bad since those special
-> > > > > mappings should be not very common.
-> > > > VM_HUGETLB is quite spread. Especially for DB workloads.
-> > > Wait a minute. In this way, it sounds we go back to my old implementation
-> > > with special handling for those mappings with write mmap_sem held, right?
-> > Yes, I would really start simple and add further enhacements on top.
-> 
-> If updating vm_flags with read lock is safe in this case, we don't have to
-> do this. The only reason for this special handling is about vm_flags update.
- 
-Yes, maybe you are right that this is safe. I would still argue to have
-it in a separate patch for easier review, bisectability etc...
+> If you look at https://syzkaller.appspot.com/text?tag=CrashLog&x=15a1c770400000 , you will
+> notice that both 23766 and 23767 are killed due to task_will_free_mem(current) == false.
+> This is "unnecessary killing of additional processes".
 
+Have you noticed the mere detail that the memcg has to kill any task
+attempting the charge because the hard limit is 0? There is simply no
+other way around. You cannot charge. There is no unnecessary killing.
+Full stop. We do allow temporary breach of the hard limit just to let
+the task die and uncharge on the way out.
 -- 
 Michal Hocko
 SUSE Labs
