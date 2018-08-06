@@ -1,110 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 44F476B0003
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 12:36:10 -0400 (EDT)
-Received: by mail-lj1-f197.google.com with SMTP id j18-v6so2481878lji.1
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 09:36:10 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id y205-v6si5485065lfa.190.2018.08.06.09.36.07
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 07ED26B0007
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 12:40:57 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id d10-v6so11178290wrw.6
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 09:40:56 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l14-v6sor4460584wrq.15.2018.08.06.09.40.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Aug 2018 09:36:08 -0700 (PDT)
-Date: Mon, 6 Aug 2018 09:34:12 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH v2] mm: memcg: update memcg OOM messages on cgroup2
-Message-ID: <20180806163409.GA19960@castle>
-References: <20180803175743.GW1206094@devbig004.ftw2.facebook.com>
- <20180806161529.GA410235@devbig004.ftw2.facebook.com>
+        (Google Transport Security);
+        Mon, 06 Aug 2018 09:40:53 -0700 (PDT)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH v5 00/10] arm64: untag user pointers passed to the kernel
+Date: Mon,  6 Aug 2018 18:40:35 +0200
+Message-Id: <cover.1533573460.git.andreyknvl@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20180806161529.GA410235@devbig004.ftw2.facebook.com>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrey Konovalov <andreyknvl@google.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>
 
-On Mon, Aug 06, 2018 at 09:15:29AM -0700, Tejun Heo wrote:
-> mem_cgroup_print_oom_info() currently prints the same info for cgroup1
-> and cgroup2 OOMs.  It doesn't make much sense on cgroup2, which
-> doesn't use memsw or separate kmem accounting - the information
-> reported is both superflous and insufficient.  This patch updates the
-> memcg OOM messages on cgroup2 so that
-> 
-> * It prints memory and swap usages and limits used on cgroup2.
-> 
-> * It shows the same information as memory.stat.
-> 
-> I took out the recursive printing for cgroup2 because the amount of
-> output could be a lot and the benefits aren't clear.  An example dump
-> follows.
-> 
-> [   40.854197] stress invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=0, oo0
-> [   40.855239] stress cpuset=/ mems_allowed=0
-> [   40.855665] CPU: 6 PID: 1990 Comm: stress Not tainted 4.18.0-rc7-work+ #281
-> [   40.856260] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.11.0-2.el7 04/01/2014
-> [   40.857000] Call Trace:
-> [   40.857222]  dump_stack+0x5e/0x8b
-> [   40.857517]  dump_header+0x74/0x2fc
-> [   40.859106]  oom_kill_process+0x225/0x490
-> [   40.859449]  out_of_memory+0x111/0x530
-> [   40.859780]  mem_cgroup_out_of_memory+0x4b/0x80
-> [   40.860161]  mem_cgroup_oom_synchronize+0x3ff/0x450
-> [   40.861334]  pagefault_out_of_memory+0x2f/0x74
-> [   40.861718]  __do_page_fault+0x3de/0x460
-> [   40.862347]  page_fault+0x1e/0x30
-> [   40.862636] RIP: 0033:0x5566cd5aadd0
-> [   40.862940] Code: 0f 84 3c 02 00 00 8b 54 24 0c 31 c0 85 d2 0f 94 c0 89 04 24 41 83 fd 02 0f 8f f6
-> [   40.864558] RSP: 002b:00007ffd979ced40 EFLAGS: 00010206
-> [   40.865005] RAX: 0000000001f4f000 RBX: 00007f3a397d8010 RCX: 00007f3a397d8010
-> [   40.865615] RDX: 0000000000000000 RSI: 0000000004001000 RDI: 0000000000000000
-> [   40.866220] RBP: 00005566cd5abbb4 R08: 00000000ffffffff R09: 0000000000000000
-> [   40.866845] R10: 0000000000000022 R11: 0000000000000246 R12: ffffffffffffffff
-> [   40.867452] R13: 0000000000000002 R14: 0000000000001000 R15: 0000000004000000
-> [   40.868091] Task in /test-cgroup killed as a result of limit of /test-cgroup
-> [   40.868726] memory 33554432 (max 33554432)
-> [   40.869096] swap 0
-> [   40.869280] anon 32845824
-> [   40.869519] file 0
-> [   40.869730] kernel_stack 0
-> [   40.869966] slab 163840
-> [   40.870191] sock 0
-> [   40.870374] shmem 0
-> [   40.870566] file_mapped 0
-> [   40.870801] file_dirty 0
-> [   40.871039] file_writeback 0
-> [   40.871292] inactive_anon 0
-> [   40.871542] active_anon 32944128
-> [   40.871821] inactive_file 0
-> [   40.872077] active_file 0
-> [   40.872309] unevictable 0
-> [   40.872543] slab_reclaimable 0
-> [   40.872806] slab_unreclaimable 163840
-> [   40.873136] pgfault 8085
-> [   40.873358] pgmajfault 0
-> [   40.873589] pgrefill 0
-> [   40.873800] pgscan 0
-> [   40.873991] pgsteal 0
-> [   40.874202] pgactivate 0
-> [   40.874424] pgdeactivate 0
-> [   40.874663] pglazyfree 0
-> [   40.874881] pglazyfreed 0
-> [   40.875121] workingset_refault 0
-> [   40.875401] workingset_activate 0
-> [   40.875689] workingset_nodereclaim 0
-> [   40.875996] [ pid ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name
-> [   40.876789] [ 1969]     0  1969     5121      970    86016        0             0 bash
-> [   40.877546] [ 1989]     0  1989     1998      260    61440        0             0 stress
-> [   40.878256] [ 1990]     0  1990    18383     8055   126976        0             0 stress
-> [   40.878955] Memory cgroup out of memory: Kill process 1990 (stress) score 987 or sacrifice child
-> [   40.879803] Killed process 1990 (stress) total-vm:73532kB, anon-rss:32008kB, file-rss:212kB, shmemB
-> 
-> v2: Updated commit message to include an example dump as suggested by
->     Roman.
+arm64 has a feature called Top Byte Ignore, which allows to embed pointer
+tags into the top byte of each pointer. Userspace programs (such as
+HWASan, a memory debugging tool [1]) might use this feature and pass
+tagged user pointers to the kernel through syscalls or other interfaces.
 
-Looks good to me!
-I'd still drop the mm events output, but I'm fine with it too.
+This patch makes a few of the kernel interfaces accept tagged user
+pointers. The kernel is already able to handle user faults with tagged
+pointers and has the untagged_addr macro, which this patchset reuses.
 
-Acked-by: Roman Gushchin <guro@fb.com>
+Thanks!
 
-Thank you!
+[1] http://clang.llvm.org/docs/HardwareAssistedAddressSanitizerDesign.html
+
+Changes in v5:
+- Added 3 new patches that add untagging to places found with static
+  analysis.
+- Rebased onto 44c929e1 (4.18-rc8).
+
+Changes in v4:
+- Added a selftest for checking that passing tagged pointers to the
+  kernel succeeds.
+- Rebased onto 81e97f013 (4.18-rc1+).
+
+Changes in v3:
+- Rebased onto e5c51f30 (4.17-rc6+).
+- Added linux-arch@ to the list of recipients.
+
+Changes in v2:
+- Rebased onto 2d618bdf (4.17-rc3+).
+- Removed excessive untagging in gup.c.
+- Removed untagging pointers returned from __uaccess_mask_ptr.
+
+Changes in v1:
+- Rebased onto 4.17-rc1.
+
+Changes in RFC v2:
+- Added "#ifndef untagged_addr..." fallback in linux/uaccess.h instead of
+  defining it for each arch individually.
+- Updated Documentation/arm64/tagged-pointers.txt.
+- Dropped "mm, arm64: untag user addresses in memory syscalls".
+- Rebased onto 3eb2ce82 (4.16-rc7).
+
+Andrey Konovalov (10):
+  arm64: add type casts to untagged_addr macro
+  uaccess: add untagged_addr definition for other arches
+  arm64: untag user addresses in access_ok and __uaccess_mask_ptr
+  mm, arm64: untag user addresses in mm/gup.c
+  lib, arm64: untag addrs passed to strncpy_from_user and strnlen_user
+  arm64: untag user address in __do_user_fault
+  fs, arm64: untag user address in copy_mount_options
+  usb, arm64: untag user addresses in devio
+  arm64: update Documentation/arm64/tagged-pointers.txt
+  selftests, arm64: add a selftest for passing tagged pointers to kernel
+
+ Documentation/arm64/tagged-pointers.txt       |  5 +++--
+ arch/arm64/include/asm/uaccess.h              | 14 +++++++++-----
+ arch/arm64/mm/fault.c                         |  2 +-
+ drivers/usb/core/devio.c                      |  8 +++++---
+ fs/namespace.c                                |  2 +-
+ include/linux/uaccess.h                       |  4 ++++
+ lib/strncpy_from_user.c                       |  2 ++
+ lib/strnlen_user.c                            |  2 ++
+ mm/gup.c                                      |  4 ++++
+ tools/testing/selftests/arm64/.gitignore      |  1 +
+ tools/testing/selftests/arm64/Makefile        | 11 +++++++++++
+ .../testing/selftests/arm64/run_tags_test.sh  | 12 ++++++++++++
+ tools/testing/selftests/arm64/tags_test.c     | 19 +++++++++++++++++++
+ 13 files changed, 74 insertions(+), 12 deletions(-)
+ create mode 100644 tools/testing/selftests/arm64/.gitignore
+ create mode 100644 tools/testing/selftests/arm64/Makefile
+ create mode 100755 tools/testing/selftests/arm64/run_tags_test.sh
+ create mode 100644 tools/testing/selftests/arm64/tags_test.c
+
+-- 
+2.18.0.597.ga71716f1ad-goog
