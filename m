@@ -1,135 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 94A616B0006
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 05:31:00 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id g36-v6so8228132plb.5
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 02:31:00 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x3-v6sor2738139plv.130.2018.08.06.02.30.58
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FAFB6B0007
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 05:40:08 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id g5-v6so4020191edp.1
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 02:40:08 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 3-v6si2064157edc.284.2018.08.06.02.40.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 06 Aug 2018 02:30:59 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Aug 2018 02:40:07 -0700 (PDT)
+Date: Mon, 6 Aug 2018 11:40:05 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC v6 PATCH 2/2] mm: mmap: zap pages with read mmap_sem in
+ munmap
+Message-ID: <20180806094005.GG19540@dhcp22.suse.cz>
+References: <1532628614-111702-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1532628614-111702-3-git-send-email-yang.shi@linux.alibaba.com>
+ <20180803090759.GI27245@dhcp22.suse.cz>
+ <aff7e86d-2e48-ff58-5d5d-9c67deb68674@linux.alibaba.com>
 MIME-Version: 1.0
-In-Reply-To: <20180806091552.GE19540@dhcp22.suse.cz>
-References: <0000000000005e979605729c1564@google.com> <20180806091552.GE19540@dhcp22.suse.cz>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 6 Aug 2018 11:30:37 +0200
-Message-ID: <CACT4Y+Ystnwv4M6Uh+HBKbdADAnJ6otfR0GoA20crzqV+b2onQ@mail.gmail.com>
-Subject: Re: WARNING in try_charge
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <aff7e86d-2e48-ff58-5d5d-9c67deb68674@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 6, 2018 at 11:15 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Sat 04-08-18 06:33:02, syzbot wrote:
->> Hello,
->>
->> syzbot found the following crash on:
->>
->> HEAD commit:    d1e0b8e0cb7a Add linux-next specific files for 20180725
->> git tree:       linux-next
->> console output: https://syzkaller.appspot.com/x/log.txt?x=15a1c770400000
->> kernel config:  https://syzkaller.appspot.com/x/.config?x=eef3552c897e4d33
->> dashboard link: https://syzkaller.appspot.com/bug?extid=bab151e82a4e973fa325
->> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
->>
->> Unfortunately, I don't have any reproducer for this crash yet.
->>
->> IMPORTANT: if you fix the bug, please add the following tag to the commit:
->> Reported-by: syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com
->>
->> Killed process 23767 (syz-executor2) total-vm:70472kB, anon-rss:104kB,
->> file-rss:32768kB, shmem-rss:0kB
->> oom_reaper: reaped process 23767 (syz-executor2), now anon-rss:0kB,
->> file-rss:32000kB, shmem-rss:0kB
->
-> More interesting stuff is higher in the kernel log
-> : [  366.435015] oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=/,mems_allowed=0,oom_memcg=/ile0,task_memcg=/ile0,task=syz-executor3,pid=23766,uid=0
-> : [  366.449416] memory: usage 112kB, limit 0kB, failcnt 1605
->
-> Are you sure you want to have hard limit set to 0?
+On Fri 03-08-18 14:01:58, Yang Shi wrote:
+> 
+> 
+> On 8/3/18 2:07 AM, Michal Hocko wrote:
+> > On Fri 27-07-18 02:10:14, Yang Shi wrote:
+> > > When running some mmap/munmap scalability tests with large memory (i.e.
+> > > > 300GB), the below hung task issue may happen occasionally.
+> > > INFO: task ps:14018 blocked for more than 120 seconds.
+> > >         Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
+> > >   "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
+> > > message.
+> > >   ps              D    0 14018      1 0x00000004
+> > >    ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
+> > >    ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
+> > >    00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
+> > >   Call Trace:
+> > >    [<ffffffff817154d0>] ? __schedule+0x250/0x730
+> > >    [<ffffffff817159e6>] schedule+0x36/0x80
+> > >    [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
+> > >    [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
+> > >    [<ffffffff81717db0>] down_read+0x20/0x40
+> > >    [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
+> > >    [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
+> > >    [<ffffffff81241d87>] __vfs_read+0x37/0x150
+> > >    [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
+> > >    [<ffffffff81242266>] vfs_read+0x96/0x130
+> > >    [<ffffffff812437b5>] SyS_read+0x55/0xc0
+> > >    [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
+> > > 
+> > > It is because munmap holds mmap_sem exclusively from very beginning to
+> > > all the way down to the end, and doesn't release it in the middle. When
+> > > unmapping large mapping, it may take long time (take ~18 seconds to
+> > > unmap 320GB mapping with every single page mapped on an idle machine).
+> > > 
+> > > Zapping pages is the most time consuming part, according to the
+> > > suggestion from Michal Hocko [1], zapping pages can be done with holding
+> > > read mmap_sem, like what MADV_DONTNEED does. Then re-acquire write
+> > > mmap_sem to cleanup vmas.
+> > > 
+> > > But, some part may need write mmap_sem, for example, vma splitting. So,
+> > > the design is as follows:
+> > >          acquire write mmap_sem
+> > >          lookup vmas (find and split vmas)
+> > > 	detach vmas
+> > >          deal with special mappings
+> > >          downgrade_write
+> > > 
+> > >          zap pages
+> > > 	free page tables
+> > >          release mmap_sem
+> > > 
+> > > The vm events with read mmap_sem may come in during page zapping, but
+> > > since vmas have been detached before, they, i.e. page fault, gup, etc,
+> > > will not be able to find valid vma, then just return SIGSEGV or -EFAULT
+> > > as expected.
+> > > 
+> > > If the vma has VM_LOCKED | VM_HUGETLB | VM_PFNMAP or uprobe, they are
+> > > considered as special mappings. They will be dealt with before zapping
+> > > pages with write mmap_sem held. Basically, just update vm_flags.
+> > Well, I think it would be safer to simply fallback to the current
+> > implementation with these mappings and deal with them on top. This would
+> > make potential issues easier to bisect and partial reverts as well.
+> 
+> Do you mean just call do_munmap()? It sounds ok. Although we may waste some
+> cycles to repeat what has done, it sounds not too bad since those special
+> mappings should be not very common.
 
-syzkaller really does not mind to have it.
+VM_HUGETLB is quite spread. Especially for DB workloads.
 
-> : [  366.454963] memory+swap: usage 0kB, limit 9007199254740988kB, failcnt 0
-> : [  366.461787] kmem: usage 0kB, limit 9007199254740988kB, failcnt 0
-> : [  366.467946] Memory cgroup stats for /ile0: cache:12KB rss:0KB rss_huge:0KB shmem:0KB mapped_file:0KB dirty:0KB writeback:0KB swap:0KB inactive_anon:0KB active_anon:0KB inactive_file:0KB active_file:0KB unevictable:0KB
->
-> There are only 3 pages charged to this memcg!
->
-> : [  366.487490] Tasks state (memory values in pages):
-> : [  366.492349] [  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name
-> : [  366.501237] [  23766]     0 23766    17620     8221   126976        0             0 syz-executor3
-> : [  366.510367] [  23767]     0 23767    17618     8218   126976        0             0 syz-executor2
-> : [  366.519409] Memory cgroup out of memory: Kill process 23766 (syz-executor3) score 8252000 or sacrifice child
-> : [  366.529422] Killed process 23766 (syz-executor3) total-vm:70480kB, anon-rss:116kB, file-rss:32768kB, shmem-rss:0kB
-> : [  366.540456] oom_reaper: reaped process 23766 (syz-executor3), now anon-rss:0kB, file-rss:32000kB, shmem-rss:0kB
->
-> The oom reaper cannot reclaim file backed memory  from a large part. I
-> assume this is are shared mappings which are living outside of memcg
-> because of the counter.
->
-> : [...]
-> : [  367.085870] oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=/,mems_allowed=0,oom_memcg=/ile0,task_memcg=/ile0,task=syz-executor2,pid=23767,uid=0
-> : [  367.100073] memory: usage 112kB, limit 0kB, failcnt 1615
-> : [  367.105549] memory+swap: usage 0kB, limit 9007199254740988kB, failcnt 0
-> : [  367.112428] kmem: usage 0kB, limit 9007199254740988kB, failcnt 0
-> : [  367.118593] Memory cgroup stats for /ile0: cache:12KB rss:0KB rss_huge:0KB shmem:0KB mapped_file:0KB dirty:0KB writeback:0KB swap:0KB inactive_anon:0KB active_anon:0KB inactive_file:0KB active_file:0KB unevictable:0KB
-> : [  367.138136] Tasks state (memory values in pages):
-> : [  367.142986] [  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name
-> : [  367.151889] [  23766]     0 23766    17620     8002   126976        0             0 syz-executor3
-> : [  367.160946] [  23767]     0 23767    17618     8218   126976        0             0 syz-executor2
-> : [  367.169994] Memory cgroup out of memory: Kill process 23767 (syz-executor2) score 8249000 or sacrifice child
-> : [  367.180119] Killed process 23767 (syz-executor2) total-vm:70472kB, anon-rss:104kB, file-rss:32768kB, shmem-rss:0kB
-> : [  367.192101] oom_reaper: reaped process 23767 (syz-executor2), now anon-rss:0kB, file-rss:32000kB, shmem-rss:0kB
-> : [  367.202986] ------------[ cut here ]------------
-> : [  367.207845] Memory cgroup charge failed because of no reclaimable memory! This looks like a misconfiguration or a kernel bug.
-> : [  367.207965] WARNING: CPU: 1 PID: 23767 at mm/memcontrol.c:1710 try_charge+0x734/0x1680
-> : [  367.227540] Kernel panic - not syncing: panic_on_warn set ...
->
-> This is unexpected though. We have killed a task (23767) which is trying
-> to charge the memory which means it should
-> trigger the charge retry and that one should force the charge
->
->         /*
->          * Unlike in global OOM situations, memcg is not in a physical
->          * memory shortage.  Allow dying and OOM-killed tasks to
->          * bypass the last charges so that they can exit quickly and
->          * free their memory.
->          */
->         if (unlikely(tsk_is_oom_victim(current) ||
->                      fatal_signal_pending(current) ||
->                      current->flags & PF_EXITING))
->                 goto force;
->
-> There doesn't seem to be any other sign of OOM killer invocation which
-> could then indeed lead to the warning as there is no other task to kill
-> (both syz-executor[23] have been killed and oom_reaped already). So I
-> would be curious what happened between 367.180119 which was the last
-> successful oom invocation and 367.207845. An additional printk in
-> mem_cgroup_out_of_memory might tell us more.
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 4603ad75c9a9..852cd3dbdcd9 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1388,6 +1388,8 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
->         bool ret;
->
->         mutex_lock(&oom_lock);
-> +       pr_info("task=%s pid=%d invoked memcg oom killer. oom_victim=%d\n",
-> +                       current->comm, current->pid, tsk_is_oom_victim(current));
->         ret = out_of_memory(&oc);
->         mutex_unlock(&oom_lock);
->         return ret;
->
-> Anyway your memcg setup is indeed misconfigured. Memcg with 0 hard limit
-> and basically no memory charged by existing tasks is not going to fly
-> and the warning is exactly to call that out.
+> > > And, since they are also manipulated by unmap_single_vma() which is
+> > > called by unmap_vma() with read mmap_sem held in this case, to
+> > > prevent from updating vm_flags in read critical section, a new
+> > > parameter, called "skip_flags" is added to unmap_region(), unmap_vmas()
+> > > and unmap_single_vma(). If it is true, then just skip unmap those
+> > > special mappings. Currently, the only place which pass true to this
+> > > parameter is us.
+> > skip parameters are usually ugly and lead to more mess later on. Can we
+> > do without them?
+> 
+> We need a way to tell unmap_region() that it is called in a kind of special
+> context which updating vm_flags is not allowed. I didn't think of a better
+> way.
+> 
+> We could add a new API to do what unmap_region() does without updating
+> vm_flags, but we would have to  duplicate some code.
 
+I really didn't get to think about a better way myself but I strongly
+suspect we can do without special hacks here. Is updating flags under
+read lock a real problem? Assuming that special mappings are not really
+considered at this stage.
 
-Please-please-please do not mix kernel bugs and notices to user into
-the same bucket:
+> > > With this approach we don't have to re-acquire mmap_sem again to clean
+> > > up vmas to avoid race window which might get the address space changed.
+> > By with this approach you mean detaching right?
+> 
+> Yes, the detaching approach.
 
-https://lore.kernel.org/patchwork/patch/949071/
+Please make it explicit in the changelog.
+ 
+> > > And, since the lock acquire/release cost is managed to the minimum and
+> > > almost as same as before, the optimization could be extended to any size
+> > > of mapping without incurring significant penalty to small mappings.
+> > I guess you mean to say that lock downgrade approach doesn't lead to
+> > regressions because the overal time mmap_sem is taken is not longer?
+> 
+> Yes. And, there is not lock take/retake cost since we don't release it.
+
+Please also be explicit.
+ 
+> > > For the time being, just do this in munmap syscall path. Other
+> > > vm_munmap() or do_munmap() call sites (i.e mmap, mremap, etc) remain
+> > > intact for stability reason.
+> > You have used this argument previously and several people have asked.
+> > I think it is just wrong. Either the concept is safe and all callers can
+> > use it or it is not and then those subtle differences should be called
+> > out. Your previous response was that you simply haven't tested other
+> > paths. Well, that is not an argument, I am afraid. The whole thing
+> > should be done at a proper layer. If there are some difficulties to
+> > achieve that for all callers then OK just be explicit about that. I can
+> > imagine some callers really require the exclusive look when munmap
+> > returns for example.
+> 
+> Yes, the statement here sounds ambiguous. There are definitely some
+> difficulties to achieve that in mmap and mremap. Since they acquire write
+> mmap_sem at the very beginning, then do their stuff, which may call
+> do_munmap if overlapped address space has to be changed.
+
+Do call them out. Maybe even add a comment in the code so that people
+who would like those other paths know what they need to look at.
+
+> But, the optimized do_munmap would like to be called without mmap_sem held
+> so that we can do the optimization. So, if we want to do the similar
+> optimization for mmap/mremap path, I'm afraid we would have to redesign
+> them.
+> 
+> I assumes munmap itself is the main source of the latency issue. mmap/mremap
+> might hit the latency problem if they are trying to map or remap a huge
+> overlapped address space, but it should be rare. So, I leave them untouched.
+
+That depends on usecases very much. mremap might be called on very large
+areas as well. But let's go in smaller steps and build on top...
+-- 
+Michal Hocko
+SUSE Labs
