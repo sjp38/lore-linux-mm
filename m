@@ -1,68 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EEAB66B000D
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 11:37:56 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id j11-v6so10899624qtp.0
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 08:37:56 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j129-v6sor6125020qkc.52.2018.08.06.08.37.53
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DAB86B0266
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 11:42:04 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id w132-v6so13259989ita.6
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 08:42:04 -0700 (PDT)
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id d68-v6sor3815131iog.91.2018.08.06.08.42.02
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 06 Aug 2018 08:37:54 -0700 (PDT)
-Date: Mon, 6 Aug 2018 11:40:51 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 8/9] psi: pressure stall information for CPU, memory, and
- IO
-Message-ID: <20180806154051.GA14209@cmpxchg.org>
-References: <20180801151958.32590-1-hannes@cmpxchg.org>
- <20180801151958.32590-9-hannes@cmpxchg.org>
- <20180803165641.GA2476@hirez.programming.kicks-ass.net>
- <20180806150550.GA9888@cmpxchg.org>
- <20180806152528.GM2494@hirez.programming.kicks-ass.net>
+        Mon, 06 Aug 2018 08:42:02 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180806152528.GM2494@hirez.programming.kicks-ass.net>
+Date: Mon, 06 Aug 2018 08:42:02 -0700
+In-Reply-To: <fc6e173e-8bda-269f-d44f-1c5f5215beac@I-love.SAKURA.ne.jp>
+Message-ID: <0000000000006350880572c61e62@google.com>
+Subject: Re: WARNING in try_charge
+From: syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Daniel Drake <drake@endlessm.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, Peter Enderborg <peter.enderborg@sony.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: cgroups@vger.kernel.org, dvyukov@google.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, penguin-kernel@I-love.SAKURA.ne.jp, syzkaller-bugs@googlegroups.com, vdavydov.dev@gmail.com
 
-On Mon, Aug 06, 2018 at 05:25:28PM +0200, Peter Zijlstra wrote:
-> On Mon, Aug 06, 2018 at 11:05:50AM -0400, Johannes Weiner wrote:
-> > Argh, that's right. This needs an explicit count if we want to access
-> > it locklessly. And you already said you didn't like that this is the
-> > only state not derived purely from the task counters, so maybe this is
-> > the way to go after all.
-> > 
-> > How about something like this (untested)?
-> 
-> 
-> > +static inline void psi_switch(struct rq *rq, struct task_struct *prev,
-> > +			      struct task_struct *next)
-> > +{
-> > +	if (psi_disabled)
-> > +		return;
-> > +
-> > +	if (unlikely(prev->flags & PF_MEMSTALL))
-> > +		psi_task_change(prev, rq_clock(rq), TSK_RECLAIMING, 0);
-> > +	if (unlikely(next->flags & PF_MEMSTALL))
-> > +		psi_task_change(next, rq_clock(rq), 0, TSK_RECLAIMING);
-> > +}
-> 
-> 
-> Urgh... can't say I really like that.
-> 
-> I would really rather do that scheduler_tick() thing to avoid the remote
-> update. The tick is a lot less hot than the switch path and esp.
-> next->flags might be a cold line (prev->flags is typically the same line
-> as prev->state so we already have that, but I don't think anybody now
-> looks at next->flags or its line, so that'd be cold load).
+Hello,
 
-Okay, the tick updater sounds like a much better option then. HZ
-frequency should produce more than recent enough data.
+syzbot has tested the proposed patch but the reproducer still triggered  
+crash:
+WARNING in try_charge
 
-That means we will retain the not-so-nice PF_MEMSTALL flag test under
-rq lock, but it'll eliminate most of that memory ordering headache.
+Killed process 6410 (syz-executor5) total-vm:37708kB, anon-rss:2128kB,  
+file-rss:0kB, shmem-rss:0kB
+oom_reaper: reaped process 6410 (syz-executor5), now anon-rss:0kB,  
+file-rss:0kB, shmem-rss:0kB
+task=syz-executor5 pid=6410 invoked memcg oom killer. oom_victim=1
+------------[ cut here ]------------
+Memory cgroup charge failed because of no reclaimable memory! This looks  
+like a misconfiguration or a kernel bug.
+WARNING: CPU: 1 PID: 6410 at mm/memcontrol.c:1707 mem_cgroup_oom  
+mm/memcontrol.c:1706 [inline]
+WARNING: CPU: 1 PID: 6410 at mm/memcontrol.c:1707 try_charge+0x734/0x1680  
+mm/memcontrol.c:2264
+Kernel panic - not syncing: panic_on_warn set ...
 
-I'll do that. Thanks!
+CPU: 1 PID: 6410 Comm: syz-executor5 Not tainted 4.18.0-rc7-next-20180803+  
+#1
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+Call Trace:
+  __dump_stack lib/dump_stack.c:77 [inline]
+  dump_stack+0x1c9/0x2b4 lib/dump_stack.c:113
+  panic+0x238/0x4e7 kernel/panic.c:184
+  __warn.cold.8+0x163/0x1ba kernel/panic.c:536
+  report_bug+0x252/0x2d0 lib/bug.c:186
+  fixup_bug arch/x86/kernel/traps.c:178 [inline]
+  do_error_trap+0x1fc/0x4d0 arch/x86/kernel/traps.c:296
+  do_invalid_op+0x1b/0x20 arch/x86/kernel/traps.c:316
+  invalid_op+0x14/0x20 arch/x86/entry/entry_64.S:996
+RIP: 0010:mem_cgroup_oom mm/memcontrol.c:1706 [inline]
+RIP: 0010:try_charge+0x734/0x1680 mm/memcontrol.c:2264
+Code: 85 b8 04 00 00 8b b5 c8 fd ff ff 44 89 f2 4c 89 ff e8 00 51 ff ff 84  
+c0 0f 85 31 08 00 00 48 c7 c7 c0 17 13 87 e8 8c fd 85 ff <0f> 0b 48 8d 95  
+f8 fd ff ff 48 8b b5 c0 fd ff ff 48 b8 00 00 00 00
+RSP: 0018:ffff8801be6ef580 EFLAGS: 00010286
+RAX: 0000000000000000 RBX: ffff8801afab4c00 RCX: 0000000000000000
+RDX: 0000000000000000 RSI: ffffffff816366f1 RDI: ffff8801be6ef270
+RBP: ffff8801be6ef810 R08: ffff8801bcf48140 R09: fffffbfff0ff1238
+R10: fffffbfff0ff1238 R11: ffffffff87f891c3 R12: dffffc0000000000
+R13: ffff8801be6ef7e8 R14: 0000000000000000 R15: ffff8801afab4c00
+  mem_cgroup_try_charge+0x4ff/0xa70 mm/memcontrol.c:5916
+  mem_cgroup_try_charge_delay+0x1d/0x90 mm/memcontrol.c:5931
+  do_anonymous_page mm/memory.c:3166 [inline]
+  handle_pte_fault mm/memory.c:3971 [inline]
+  __handle_mm_fault+0x25be/0x4470 mm/memory.c:4097
+  handle_mm_fault+0x53e/0xc80 mm/memory.c:4134
+  __do_page_fault+0x620/0xe50 arch/x86/mm/fault.c:1395
+  do_page_fault+0xf6/0x8c0 arch/x86/mm/fault.c:1470
+  page_fault+0x1e/0x30 arch/x86/entry/entry_64.S:1164
+RIP: 0033:0x40e33f
+Code: Bad RIP value.
+RSP: 002b:00007ffe221246e0 EFLAGS: 00010206
+RAX: 00007fb83d11b000 RBX: 0000000000020000 RCX: 0000000000456b7a
+RDX: 0000000000021000 RSI: 0000000000021000 RDI: 0000000000000000
+RBP: 00007ffe221247c0 R08: ffffffffffffffff R09: 0000000000000000
+R10: 0000000000000000 R11: 0000000000000246 R12: 00007ffe221248b0
+R13: 00007fb83d13b700 R14: 0000000000000005 R15: 0000000000000001
+Dumping ftrace buffer:
+    (ftrace buffer empty)
+Kernel Offset: disabled
+Rebooting in 86400 seconds..
+
+
+Tested on:
+
+commit:         116b181bb646 Add linux-next specific files for 20180803
+git tree:        
+git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
+console output: https://syzkaller.appspot.com/x/log.txt?x=12447864400000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=b4f38be7c2c519d5
+compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+patch:          https://syzkaller.appspot.com/x/patch.diff?x=14c5b68c400000
