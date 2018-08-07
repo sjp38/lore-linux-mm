@@ -1,53 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BA176B0003
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 13:48:40 -0400 (EDT)
-Received: by mail-yb0-f200.google.com with SMTP id a14-v6so16525244ybl.10
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 10:48:40 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z85-v6sor396509ywg.564.2018.08.07.10.48.34
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F5566B0007
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 13:54:17 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id i24-v6so5658614edq.16
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 10:54:17 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c16-v6si1895378edt.291.2018.08.07.10.54.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 07 Aug 2018 10:48:34 -0700 (PDT)
-Date: Tue, 7 Aug 2018 13:51:32 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 0/9] psi: pressure stall information for CPU, memory, and
- IO v3
-Message-ID: <20180807175132.GA27979@cmpxchg.org>
-References: <20180801151958.32590-1-hannes@cmpxchg.org>
- <5576a988-fca9-15a5-5fa8-16f704ea20fb@sony.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Aug 2018 10:54:12 -0700 (PDT)
+Date: Tue, 7 Aug 2018 19:54:10 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm: memcg: update memcg OOM messages on cgroup2
+Message-ID: <20180807175410.GI10003@dhcp22.suse.cz>
+References: <20180803175743.GW1206094@devbig004.ftw2.facebook.com>
+ <20180806161529.GA410235@devbig004.ftw2.facebook.com>
+ <20180806200637.GJ10003@dhcp22.suse.cz>
+ <20180806201907.GH410235@devbig004.ftw2.facebook.com>
+ <20180807071332.GR10003@dhcp22.suse.cz>
+ <20180807150944.GA3978217@devbig004.ftw2.facebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5576a988-fca9-15a5-5fa8-16f704ea20fb@sony.com>
+In-Reply-To: <20180807150944.GA3978217@devbig004.ftw2.facebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peter enderborg <peter.enderborg@sony.com>
-Cc: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Daniel Drake <drake@endlessm.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
 
-On Tue, Aug 07, 2018 at 01:50:09PM +0200, peter enderborg wrote:
-> On 08/01/2018 05:19 PM, Johannes Weiner wrote:
-> >
-> > A kernel with CONFIG_PSI=y will create a /proc/pressure directory with
-> > 3 files: cpu, memory, and io. If using cgroup2, cgroups will also have
-> > cpu.pressure, memory.pressure and io.pressure files, which simply
-> > aggregate task stalls at the cgroup level instead of system-wide.
-> >
-> Usually there are objections to add more stuff to /proc. Is this an exception?
+On Tue 07-08-18 08:09:44, Tejun Heo wrote:
+> On Tue, Aug 07, 2018 at 09:13:32AM +0200, Michal Hocko wrote:
+> > > * It's the same information as memory.stat but would be in a different
+> > >   format and will likely be a bit of an eyeful.
+> > >
+> > > * It can easily become a really long line.  Each kernel log can be ~1k
+> > >   in length and there can be other limits in the log pipeline
+> > >   (e.g. netcons).
+> > 
+> > Are we getting close to those limits?
+> 
+> Yeah, I think the stats we have can already go close to or over 500
+> bytes easily, which is already pushing the netcons udp packet size
+> limit.
+> 
+> > > * The information is already multi-line and cgroup oom kills don't
+> > >   take down the system, so there's no need to worry about scroll back
+> > >   that much.  Also, not printing recursive info means the output is
+> > >   well-bound.
+> > 
+> > Well, on the other hand you can have a lot of memcgs under OOM and then
+> > swamp the log a lot.
+> 
+> idk, the info dump is already multi-line.  If we have a lot of memcgs
+> under OOM, we're already kinda messed up (e.g. we can't tell which
+> line is for which oom). 
 
-It seems like a good fit given that all other system stats of this
-type and format are there: loadavg, schedstat, diskstats, uptime etc.
+Well, I am not really worried about interleaved oom reports because they
+do use oom_lock so this shouldn't be a problem. I just meant to say that
+a lot of memcg ooms will swamp the log and having more lines doesn't
+really help.
 
-sysfs, and its concept of kernel objects and their attributes, doesn't
-really match the type of info exported here. And its breakdown of
-complex information into many directories and files can be kind of
-tedious to be honest; some information is just more human readable in
-a simple table, and still trivial to parse mechanically.
-
-It would also be nice to keep the same file format for both the system
-level and cgroups, to avoid having two separate presentations (and two
-parsers) for the same type of information at different scopes, but the
-sysfs design goals clash with the cgroupfs ones. If we exported the
-system stats at the root cgroup level, we'd still need an interface
-for !CGROUP systems, and having two ways of reading actually identical
-data would again be fairly ugly.
+That being said. I will not really push hard. If there is a general
+consensus with this output I will not stand in the way. But I believe
+that more compact oom report is both nicer and easier to read. At least
+from my POV and I have processed countless number of those.
+-- 
+Michal Hocko
+SUSE Labs
