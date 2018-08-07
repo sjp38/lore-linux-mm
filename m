@@ -1,58 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E92816B0003
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 03:13:35 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id v26-v6so5051129eds.9
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 00:13:35 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e40-v6si888540ede.100.2018.08.07.00.13.33
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 239486B0008
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 03:26:01 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id t17-v6so5051654edr.21
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 00:26:01 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h4-v6sor313092edq.9.2018.08.07.00.25.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Aug 2018 00:13:34 -0700 (PDT)
-Date: Tue, 7 Aug 2018 09:13:32 +0200
+        (Google Transport Security);
+        Tue, 07 Aug 2018 00:25:59 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: memcg: update memcg OOM messages on cgroup2
-Message-ID: <20180807071332.GR10003@dhcp22.suse.cz>
-References: <20180803175743.GW1206094@devbig004.ftw2.facebook.com>
- <20180806161529.GA410235@devbig004.ftw2.facebook.com>
- <20180806200637.GJ10003@dhcp22.suse.cz>
- <20180806201907.GH410235@devbig004.ftw2.facebook.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180806201907.GH410235@devbig004.ftw2.facebook.com>
+Subject: [PATCH] memcg, oom: be careful about races when warning about no reclaimable task
+Date: Tue,  7 Aug 2018 09:25:53 +0200
+Message-Id: <20180807072553.14941-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Dmitry Vyukov <dvyukov@google.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Mon 06-08-18 13:19:07, Tejun Heo wrote:
-> Hello, Michal.
-> 
-> On Mon, Aug 06, 2018 at 10:06:37PM +0200, Michal Hocko wrote:
-> > Is there really any reason to have each couner on a seprate line? This
-> > is just too much of an output for a single oom report. I do get why you
-> > are not really thrilled by the hierarchical numbers but can we keep
-> > counters in a single line please?
-> 
-> Hmm... maybe, but can you please consider the followings?
-> 
-> * It's the same information as memory.stat but would be in a different
->   format and will likely be a bit of an eyeful.
->
-> * It can easily become a really long line.  Each kernel log can be ~1k
->   in length and there can be other limits in the log pipeline
->   (e.g. netcons).
+From: Michal Hocko <mhocko@suse.com>
 
-Are we getting close to those limits?
+"memcg, oom: move out_of_memory back to the charge path" has added a
+warning triggered when the oom killer cannot find any eligible task
+and so there is no way to reclaim the oom memcg under its hard limit.
+Further charges for such a memcg are forced and therefore the hard limit
+isolation is weakened.
 
-> * The information is already multi-line and cgroup oom kills don't
->   take down the system, so there's no need to worry about scroll back
->   that much.  Also, not printing recursive info means the output is
->   well-bound.
+The current warning is however too eager to trigger  even when we are not
+really hitting the above condition. Syzbot[1] and Greg Thelen have noticed
+that we can hit this condition even when there is still oom victim
+pending. E.g. the following race is possible:
 
-Well, on the other hand you can have a lot of memcgs under OOM and then
-swamp the log a lot.
+memcg has two tasks taskA, taskB.
+
+CPU1 (taskA)			CPU2			CPU3 (taskB)
+try_charge
+  mem_cgroup_out_of_memory				try_charge
+      select_bad_process(taskB)
+      oom_kill_process		oom_reap_task
+				# No real memory reaped
+    				  			  mem_cgroup_out_of_memory
+				# set taskB -> MMF_OOM_SKIP
+  # retry charge
+  mem_cgroup_out_of_memory
+    oom_lock						    oom_lock
+    select_bad_process(self)
+    oom_kill_process(self)
+    oom_unlock
+							    # no eligible task
+
+In fact syzbot test triggered this situation by placing multiple tasks
+into a memcg with hard limit set to 0. So no task really had any memory
+charged to the memcg
+
+: Memory cgroup stats for /ile0: cache:0KB rss:0KB rss_huge:0KB shmem:0KB mapped_file:0KB dirty:0KB writeback:0KB swap:0KB inactive_anon:0KB active_anon:0KB inactive_file:0KB active_file:0KB unevictable:0KB
+: Tasks state (memory values in pages):
+: [  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name
+: [   6569]     0  6562     9427        1    53248        0             0 syz-executor0
+: [   6576]     0  6576     9426        0    61440        0             0 syz-executor6
+: [   6578]     0  6578     9426      534    61440        0             0 syz-executor4
+: [   6579]     0  6579     9426        0    57344        0             0 syz-executor5
+: [   6582]     0  6582     9426        0    61440        0             0 syz-executor7
+: [   6584]     0  6584     9426        0    57344        0             0 syz-executor1
+
+so in principle there is indeed nothing reclaimable in this memcg and
+this looks like a misconfiguration. On the other hand we can clearly
+kill all those tasks so it is a bit early to warn and scare users. Do
+that by checking that the current is the oom victim and bypass the
+warning then. The victim is allowed to force charge and terminate to
+release its temporal charge along the way.
+
+[1] http://lkml.kernel.org/r/0000000000005e979605729c1564@google.com
+Fixes: "memcg, oom: move out_of_memory back to the charge path"
+Noticed-by: Greg Thelen <gthelen@google.com>
+Reported-and-tested-by: syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ mm/memcontrol.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 4603ad75c9a9..1b6eed1bc404 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1703,7 +1703,8 @@ static enum oom_status mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int
+ 		return OOM_ASYNC;
+ 	}
+ 
+-	if (mem_cgroup_out_of_memory(memcg, mask, order))
++	if (mem_cgroup_out_of_memory(memcg, mask, order) ||
++			tsk_is_oom_victim(current))
+ 		return OOM_SUCCESS;
+ 
+ 	WARN(1,"Memory cgroup charge failed because of no reclaimable memory! "
 -- 
-Michal Hocko
-SUSE Labs
+2.18.0
