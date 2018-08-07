@@ -1,112 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 132056B0003
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 11:28:09 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id o18-v6so13500082qtm.11
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 08:28:09 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id d21-v6si1637813qtb.244.2018.08.07.08.28.08
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E2056B0008
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 11:37:37 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id c2-v6so5531392edi.20
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 08:37:37 -0700 (PDT)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00132.outbound.protection.outlook.com. [40.107.0.132])
+        by mx.google.com with ESMTPS id o5-v6si1491845edd.67.2018.08.07.08.37.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Aug 2018 08:28:08 -0700 (PDT)
-Subject: Re: [RFC PATCH 2/3] mm/memory_hotplug: Create __shrink_pages and move
- it to offline_pages
-References: <20180807133757.18352-1-osalvador@techadventures.net>
- <20180807133757.18352-3-osalvador@techadventures.net>
- <20180807135221.GA3301@redhat.com>
- <a6e4e654-fc95-497f-16f3-8c1550cf03d6@redhat.com>
- <20180807151957.GC3301@redhat.com>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <fd9dbd35-3bc9-ca92-0b69-b68415e27ffb@redhat.com>
-Date: Tue, 7 Aug 2018 17:28:04 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 07 Aug 2018 08:37:35 -0700 (PDT)
+Subject: [PATCH RFC 00/10] Introduce lockless shrink_slab()
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Date: Tue, 07 Aug 2018 18:37:19 +0300
+Message-ID: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
 MIME-Version: 1.0
-In-Reply-To: <20180807151957.GC3301@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: osalvador@techadventures.net, akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com, pasha.tatashin@oracle.com, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, ktkhai@virtuozzo.com, sfr@canb.auug.org.au, vdavydov.dev@gmail.com, mhocko@suse.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On 07.08.2018 17:19, Jerome Glisse wrote:
-> On Tue, Aug 07, 2018 at 04:54:57PM +0200, David Hildenbrand wrote:
->> On 07.08.2018 15:52, Jerome Glisse wrote:
->>> On Tue, Aug 07, 2018 at 03:37:56PM +0200, osalvador@techadventures.net wrote:
->>>> From: Oscar Salvador <osalvador@suse.de>
->>>
->>> [...]
->>>
->>>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->>>> index 9bd629944c91..e33555651e46 100644
->>>> --- a/mm/memory_hotplug.c
->>>> +++ b/mm/memory_hotplug.c
->>>
->>> [...]
->>>
->>>>  /**
->>>>   * __remove_pages() - remove sections of pages from a zone
->>>> - * @zone: zone from which pages need to be removed
->>>> + * @nid: node which pages belong to
->>>>   * @phys_start_pfn: starting pageframe (must be aligned to start of a section)
->>>>   * @nr_pages: number of pages to remove (must be multiple of section size)
->>>>   * @altmap: alternative device page map or %NULL if default memmap is used
->>>> @@ -548,7 +557,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
->>>>   * sure that pages are marked reserved and zones are adjust properly by
->>>>   * calling offline_pages().
->>>>   */
->>>> -int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
->>>> +int __remove_pages(int nid, unsigned long phys_start_pfn,
->>>>  		 unsigned long nr_pages, struct vmem_altmap *altmap)
->>>>  {
->>>>  	unsigned long i;
->>>> @@ -556,10 +565,9 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
->>>>  	int sections_to_remove, ret = 0;
->>>>  
->>>>  	/* In the ZONE_DEVICE case device driver owns the memory region */
->>>> -	if (is_dev_zone(zone)) {
->>>> -		if (altmap)
->>>> -			map_offset = vmem_altmap_offset(altmap);
->>>> -	} else {
->>>> +	if (altmap)
->>>> +		map_offset = vmem_altmap_offset(altmap);
->>>> +	else {
->>>
->>> This will break ZONE_DEVICE at least for HMM. While i think that
->>> altmap -> ZONE_DEVICE (ie altmap imply ZONE_DEVICE) the reverse
->>> is not true ie ZONE_DEVICE does not necessarily imply altmap. So
->>> with the above changes you change the expected behavior. You do
->>> need the zone to know if it is a ZONE_DEVICE. You could also lookup
->>> one of the struct page but my understanding is that this is what
->>> you want to avoid in the first place.
->>
->> I wonder if we could instead forward from the callers whether we are
->> dealing with ZONE_DEVICE memory (is_device ...), at least that seems
->> feasible in hmm code. Not having looked at details yet.
->>
-> 
-> Yes i believe this is doable, this add one more argument, to me it
-> looked like passing down the zone was good idea, i think with the
-> struct zone you can even remove the altmap argument.
-> 
-> Is there a reason why you do not want to pass down the struct zone ?
+After bitmaps of not-empty memcg shrinkers were implemented
+(see "[PATCH v9 00/17] Improve shrink_slab() scalability..."
+series, which is already in mm tree), all the evil in perf
+trace has moved from shrink_slab() to down_read_trylock().
+As reported by Shakeel Butt:
 
-If struct pages are not initialized (for ordinary memory, because memory
-was never onlined), the zone might be random, and e.g. ZONE_DEVICE
-although it really isn't (or worse, a not existent zone).
+     > I created 255 memcgs, 255 ext4 mounts and made each memcg create a
+     > file containing few KiBs on corresponding mount. Then in a separate
+     > memcg of 200 MiB limit ran a fork-bomb.
+     >
+     > I ran the "perf record -ag -- sleep 60" and below are the results:
+     > +  47.49%            fb.sh  [kernel.kallsyms]    [k] down_read_trylock
+     > +  30.72%            fb.sh  [kernel.kallsyms]    [k] up_read
+     > +   9.51%            fb.sh  [kernel.kallsyms]    [k] mem_cgroup_iter
+     > +   1.69%            fb.sh  [kernel.kallsyms]    [k] shrink_node_memcg
+     > +   1.35%            fb.sh  [kernel.kallsyms]    [k] mem_cgroup_protected
+     > +   1.05%            fb.sh  [kernel.kallsyms]    [k] queued_spin_lock_slowpath
+     > +   0.85%            fb.sh  [kernel.kallsyms]    [k] _raw_spin_lock
+     > +   0.78%            fb.sh  [kernel.kallsyms]    [k] lruvec_lru_size
+     > +   0.57%            fb.sh  [kernel.kallsyms]    [k] shrink_node
+     > +   0.54%            fb.sh  [kernel.kallsyms]    [k] queue_work_on
+     > +   0.46%            fb.sh  [kernel.kallsyms]    [k] shrink_slab_memcg
 
-The zone of ordinary memory will be decided once memory is onlined. So
-the zone really should not belong into memory removal code (online in
-offlining code, we would have to lie about it in case !ZONE_DEVICE here).
+The patchset continues to improve shrink_slab() scalability and makes
+it lockless completely. Here are several steps for that:
 
-> 
-> Cheers,
-> JA(C)rA'me
-> 
+1)Use SRCU to synchronize shrink_slab() and unregister_shrinker().
+  Nothing exiting is here, just srcu_read_lock() in shrink_slab()
+  and shrink_slab_memcg() and synchronize_srcu() in unregister_shrinker().
+  See [2/10] for details.
+2)The above requires to make SRCU unconditional enabled.
+  [1/10] makes this. Note, that if we can't always enable
+  SRCU, we may use percpu_rw_semaphore instead of this.
+  See comment to [2/10] for details.
+3)Convert shrinker_rwsem to mutex. Just cleanup.
+
+4)Further patches make possible to speed up unregister_shrinker()
+  by splitting it in two stages. The first stage unlinks shrinker
+  from shrinker_list and shrinker_idr, while the second finalizes
+  the thing by calling synchronize_srcu() and freeing memory.
+  Patch [4/10] actually splits unregister_shrinker(), while
+  [10/10] makes superblock shrinker to use the new helpers
+  (unregister_shrinker_delayed_{initiate,finalize}().
+
+5)Patches [5-9/10] are preparations on fs, which make possible
+  to split superblock unregistration in two stages. They sequentially
+  make super_cache_count() and super_cache_scan() safe to be called
+  on unregistering shrinker:
+
+  [cpu0]                                           [cpu1]
+  unregister_shrinker_delayed_initiate(shrinker)
+  ...                                              shrink_slab(shrinker) (OK!)
+  unregister_shrinker_delayed_finalize(shrinker)
+
+After all of this, shrink_slab() becomes lockless, while unregister_shrinker()
+remains fast at least for superblock shrinker (another shrinkers also
+can be made to unregister in the same delayed manner).
+
+(This requires "mm: Use special value SHRINKER_REGISTERING instead list_empty() check"
+ from https://lkml.org/lkml/2018/8/6/276, which is on the way to -mm tree, as said
+ by -mm tree notification message from Andrew).
+
+---
+
+Kirill Tkhai (10):
+      rcu: Make CONFIG_SRCU unconditionally enabled
+      mm: Make shrink_slab() lockless
+      mm: Convert shrinker_rwsem to mutex
+      mm: Split unregister_shrinker()
+      fs: Move list_lru_destroy() to destroy_super_work()
+      fs: Shrink only (SB_ACTIVE|SB_BORN) superblocks in super_cache_scan()
+      fs: Introduce struct super_operations::destroy_super() callback.
+      xfs: Introduce xfs_fs_destroy_super()
+      shmem: Implement shmem_destroy_super()
+      fs: Use unregister_shrinker_delayed_{initiate,finalize} for super_block shrinker
 
 
--- 
+ drivers/base/core.c                                |   42 ----------
+ fs/super.c                                         |   32 ++++----
+ fs/xfs/xfs_super.c                                 |   14 +++
+ include/linux/device.h                             |    2 
+ include/linux/fs.h                                 |    6 +
+ include/linux/rcutiny.h                            |    4 -
+ include/linux/shrinker.h                           |    2 
+ include/linux/srcu.h                               |    5 -
+ kernel/notifier.c                                  |    3 -
+ kernel/rcu/Kconfig                                 |   12 ---
+ kernel/rcu/tree.h                                  |    5 -
+ kernel/rcu/update.c                                |    4 -
+ mm/shmem.c                                         |    8 ++
+ mm/vmscan.c                                        |   82 ++++++++++----------
+ .../selftests/rcutorture/doc/TREE_RCU-kconfig.txt  |    5 -
+ 15 files changed, 89 insertions(+), 137 deletions(-)
 
-Thanks,
-
-David / dhildenb
+--
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
