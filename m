@@ -1,69 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F5566B0007
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 13:54:17 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id i24-v6so5658614edq.16
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 10:54:17 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c16-v6si1895378edt.291.2018.08.07.10.54.11
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 869836B000A
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 14:06:25 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id d10-v6so11038945pll.22
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 11:06:25 -0700 (PDT)
+Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
+        by mx.google.com with ESMTPS id y9-v6si1422008plt.302.2018.08.07.11.06.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Aug 2018 10:54:12 -0700 (PDT)
-Date: Tue, 7 Aug 2018 19:54:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: memcg: update memcg OOM messages on cgroup2
-Message-ID: <20180807175410.GI10003@dhcp22.suse.cz>
-References: <20180803175743.GW1206094@devbig004.ftw2.facebook.com>
- <20180806161529.GA410235@devbig004.ftw2.facebook.com>
- <20180806200637.GJ10003@dhcp22.suse.cz>
- <20180806201907.GH410235@devbig004.ftw2.facebook.com>
- <20180807071332.GR10003@dhcp22.suse.cz>
- <20180807150944.GA3978217@devbig004.ftw2.facebook.com>
+        Tue, 07 Aug 2018 11:06:24 -0700 (PDT)
+Subject: Re: [RFC v6 PATCH 1/2] mm: refactor do_munmap() to extract the common
+ part
+References: <1532628614-111702-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1532628614-111702-2-git-send-email-yang.shi@linux.alibaba.com>
+ <0289d239-80f1-23e1-331d-6d83f762aeb4@suse.cz>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <3d9a9eba-97a4-f317-5ee9-369349c108df@linux.alibaba.com>
+Date: Tue, 7 Aug 2018 11:06:01 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180807150944.GA3978217@devbig004.ftw2.facebook.com>
+In-Reply-To: <0289d239-80f1-23e1-331d-6d83f762aeb4@suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: Vlastimil Babka <vbabka@suse.cz>, mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 07-08-18 08:09:44, Tejun Heo wrote:
-> On Tue, Aug 07, 2018 at 09:13:32AM +0200, Michal Hocko wrote:
-> > > * It's the same information as memory.stat but would be in a different
-> > >   format and will likely be a bit of an eyeful.
-> > >
-> > > * It can easily become a really long line.  Each kernel log can be ~1k
-> > >   in length and there can be other limits in the log pipeline
-> > >   (e.g. netcons).
-> > 
-> > Are we getting close to those limits?
-> 
-> Yeah, I think the stats we have can already go close to or over 500
-> bytes easily, which is already pushing the netcons udp packet size
-> limit.
-> 
-> > > * The information is already multi-line and cgroup oom kills don't
-> > >   take down the system, so there's no need to worry about scroll back
-> > >   that much.  Also, not printing recursive info means the output is
-> > >   well-bound.
-> > 
-> > Well, on the other hand you can have a lot of memcgs under OOM and then
-> > swamp the log a lot.
-> 
-> idk, the info dump is already multi-line.  If we have a lot of memcgs
-> under OOM, we're already kinda messed up (e.g. we can't tell which
-> line is for which oom). 
 
-Well, I am not really worried about interleaved oom reports because they
-do use oom_lock so this shouldn't be a problem. I just meant to say that
-a lot of memcg ooms will swamp the log and having more lines doesn't
-really help.
 
-That being said. I will not really push hard. If there is a general
-consensus with this output I will not stand in the way. But I believe
-that more compact oom report is both nicer and easier to read. At least
-from my POV and I have processed countless number of those.
--- 
-Michal Hocko
-SUSE Labs
+On 8/7/18 7:59 AM, Vlastimil Babka wrote:
+> On 07/26/2018 08:10 PM, Yang Shi wrote:
+>> Introduces three new helper functions:
+>>    * munmap_addr_sanity()
+>>    * munmap_lookup_vma()
+>>    * munmap_mlock_vma()
+>>
+>> They will be used by do_munmap() and the new do_munmap with zapping
+>> large mapping early in the later patch.
+>>
+>> There is no functional change, just code refactor.
+>>
+>> Reviewed-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+>> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+>> ---
+>>   mm/mmap.c | 120 ++++++++++++++++++++++++++++++++++++++++++--------------------
+>>   1 file changed, 82 insertions(+), 38 deletions(-)
+>>
+>> diff --git a/mm/mmap.c b/mm/mmap.c
+>> index d1eb87e..2504094 100644
+>> --- a/mm/mmap.c
+>> +++ b/mm/mmap.c
+>> @@ -2686,34 +2686,44 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+>>   	return __split_vma(mm, vma, addr, new_below);
+>>   }
+>>   
+>> -/* Munmap is split into 2 main parts -- this part which finds
+>> - * what needs doing, and the areas themselves, which do the
+>> - * work.  This now handles partial unmappings.
+>> - * Jeremy Fitzhardinge <jeremy@goop.org>
+>> - */
+>> -int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+>> -	      struct list_head *uf)
+>> +static inline bool munmap_addr_sanity(unsigned long start, size_t len)
+> Since it's returning bool, the proper naming scheme would be something
+> like "munmap_addr_ok()". I don't know how I would replace the "munmap_"
+> prefix myself though.
+
+OK, thanks for the suggestion.
+
+>
+>>   {
+>> -	unsigned long end;
+>> -	struct vm_area_struct *vma, *prev, *last;
+>> -
+>>   	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE-start)
+>> -		return -EINVAL;
+>> +		return false;
+>>   
+>> -	len = PAGE_ALIGN(len);
+>> -	if (len == 0)
+>> -		return -EINVAL;
+>> +	if (PAGE_ALIGN(len) == 0)
+>> +		return false;
+>> +
+>> +	return true;
+>> +}
+>> +
+>> +/*
+>> + * munmap_lookup_vma: find the first overlap vma and split overlap vmas.
+>> + * @mm: mm_struct
+>> + * @vma: the first overlapping vma
+>> + * @prev: vma's prev
+>> + * @start: start address
+>> + * @end: end address
+>> + *
+>> + * returns 1 if successful, 0 or errno otherwise
+>> + */
+>> +static int munmap_lookup_vma(struct mm_struct *mm, struct vm_area_struct **vma,
+>> +			     struct vm_area_struct **prev, unsigned long start,
+>> +			     unsigned long end)
+> Agree with Michal that you could simply return vma, NULL, or error.
+> Caller can easily find out prev from that, it's not like we have to
+> count each cpu cycle here. It will be a bit less tricky code as well,
+> which is a plus.
+>
+> ...
+>> +static inline void munmap_mlock_vma(struct vm_area_struct *vma,
+>> +				    unsigned long end)
+> This function does munlock, not mlock. You could call it e.g.
+> munlock_vmas().
+
+OK
+
+>
+>> +{
+>> +	struct vm_area_struct *tmp = vma;
+>> +
+>> +	while (tmp && tmp->vm_start < end) {
+>> +		if (tmp->vm_flags & VM_LOCKED) {
+>> +			vma->vm_mm->locked_vm -= vma_pages(tmp);
+> You keep 'vma' just for the vm_mm? Better extract mm pointer first and
+> then you don't need the 'tmp'.
+
+OK
+
+Thanks,
+Yang
+
+>
+>> +			munlock_vma_pages_all(tmp);
+>> +		}
+>> +		tmp = tmp->vm_next;
+>> +	}
+>> +}
