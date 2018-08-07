@@ -1,136 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 869836B000A
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 14:06:25 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id d10-v6so11038945pll.22
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 11:06:25 -0700 (PDT)
-Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
-        by mx.google.com with ESMTPS id y9-v6si1422008plt.302.2018.08.07.11.06.23
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 30CD76B0003
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 14:24:04 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id v24-v6so23760wmh.5
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 11:24:04 -0700 (PDT)
+Received: from Chamillionaire.breakpoint.cc (Chamillionaire.breakpoint.cc. [2a01:7a0:2:106d:670::1])
+        by mx.google.com with ESMTPS id v15-v6si1439027wrm.86.2018.08.07.11.24.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Aug 2018 11:06:24 -0700 (PDT)
-Subject: Re: [RFC v6 PATCH 1/2] mm: refactor do_munmap() to extract the common
- part
-References: <1532628614-111702-1-git-send-email-yang.shi@linux.alibaba.com>
- <1532628614-111702-2-git-send-email-yang.shi@linux.alibaba.com>
- <0289d239-80f1-23e1-331d-6d83f762aeb4@suse.cz>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <3d9a9eba-97a4-f317-5ee9-369349c108df@linux.alibaba.com>
-Date: Tue, 7 Aug 2018 11:06:01 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 07 Aug 2018 11:24:02 -0700 (PDT)
+Date: Tue, 7 Aug 2018 20:23:55 +0200
+From: Florian Westphal <fw@strlen.de>
+Subject: Re: [Bug 200651] New: cgroups iptables-restor: vmalloc: allocation
+ failure
+Message-ID: <20180807182355.yjbq3vixnvmajavr@breakpoint.cc>
+References: <89ea4f56-6253-4f51-0fb7-33d7d4b60cfa@icdsoft.com>
+ <20180730183820.GA24267@dhcp22.suse.cz>
+ <56597af4-73c6-b549-c5d5-b3a2e6441b8e@icdsoft.com>
+ <6838c342-2d07-3047-e723-2b641bc6bf79@suse.cz>
+ <8105b7b3-20d3-5931-9f3c-2858021a4e12@icdsoft.com>
+ <20180731140520.kpotpihqsmiwhh7l@breakpoint.cc>
+ <e5b24629-0296-5a4d-577a-c25d1c52b03b@suse.cz>
+ <20180801083349.GF16767@dhcp22.suse.cz>
+ <e5c5e965-a6bc-d61f-97fc-78da287b5d94@icdsoft.com>
+ <20180802085043.GC10808@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <0289d239-80f1-23e1-331d-6d83f762aeb4@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180802085043.GC10808@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Georgi Nikolov <gnikolov@icdsoft.com>, Vlastimil Babka <vbabka@suse.cz>, Florian Westphal <fw@strlen.de>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, netfilter-devel@vger.kernel.org
 
+Michal Hocko <mhocko@kernel.org> wrote:
+> Subject: [PATCH] netfilter/x_tables: do not fail xt_alloc_table_info too
+>  easilly
 
+[..]
 
-On 8/7/18 7:59 AM, Vlastimil Babka wrote:
-> On 07/26/2018 08:10 PM, Yang Shi wrote:
->> Introduces three new helper functions:
->>    * munmap_addr_sanity()
->>    * munmap_lookup_vma()
->>    * munmap_mlock_vma()
->>
->> They will be used by do_munmap() and the new do_munmap with zapping
->> large mapping early in the later patch.
->>
->> There is no functional change, just code refactor.
->>
->> Reviewed-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
->> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
->> ---
->>   mm/mmap.c | 120 ++++++++++++++++++++++++++++++++++++++++++--------------------
->>   1 file changed, 82 insertions(+), 38 deletions(-)
->>
->> diff --git a/mm/mmap.c b/mm/mmap.c
->> index d1eb87e..2504094 100644
->> --- a/mm/mmap.c
->> +++ b/mm/mmap.c
->> @@ -2686,34 +2686,44 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
->>   	return __split_vma(mm, vma, addr, new_below);
->>   }
->>   
->> -/* Munmap is split into 2 main parts -- this part which finds
->> - * what needs doing, and the areas themselves, which do the
->> - * work.  This now handles partial unmappings.
->> - * Jeremy Fitzhardinge <jeremy@goop.org>
->> - */
->> -int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
->> -	      struct list_head *uf)
->> +static inline bool munmap_addr_sanity(unsigned long start, size_t len)
-> Since it's returning bool, the proper naming scheme would be something
-> like "munmap_addr_ok()". I don't know how I would replace the "munmap_"
-> prefix myself though.
+> -	/* __GFP_NORETRY is not fully supported by kvmalloc but it should
+> -	 * work reasonably well if sz is too large and bail out rather
+> -	 * than shoot all processes down before realizing there is nothing
+> -	 * more to reclaim.
+> -	 */
+> -	info = kvmalloc(sz, GFP_KERNEL | __GFP_NORETRY);
+> +	info = kvmalloc(sz, GFP_KERNEL | __GFP_ACCOUNT);
+>  	if (!info)
+>  		return NULL;
 
-OK, thanks for the suggestion.
+Acked-by: Florian Westphal <fw@strlen.de>
 
->
->>   {
->> -	unsigned long end;
->> -	struct vm_area_struct *vma, *prev, *last;
->> -
->>   	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE-start)
->> -		return -EINVAL;
->> +		return false;
->>   
->> -	len = PAGE_ALIGN(len);
->> -	if (len == 0)
->> -		return -EINVAL;
->> +	if (PAGE_ALIGN(len) == 0)
->> +		return false;
->> +
->> +	return true;
->> +}
->> +
->> +/*
->> + * munmap_lookup_vma: find the first overlap vma and split overlap vmas.
->> + * @mm: mm_struct
->> + * @vma: the first overlapping vma
->> + * @prev: vma's prev
->> + * @start: start address
->> + * @end: end address
->> + *
->> + * returns 1 if successful, 0 or errno otherwise
->> + */
->> +static int munmap_lookup_vma(struct mm_struct *mm, struct vm_area_struct **vma,
->> +			     struct vm_area_struct **prev, unsigned long start,
->> +			     unsigned long end)
-> Agree with Michal that you could simply return vma, NULL, or error.
-> Caller can easily find out prev from that, it's not like we have to
-> count each cpu cycle here. It will be a bit less tricky code as well,
-> which is a plus.
->
-> ...
->> +static inline void munmap_mlock_vma(struct vm_area_struct *vma,
->> +				    unsigned long end)
-> This function does munlock, not mlock. You could call it e.g.
-> munlock_vmas().
-
-OK
-
->
->> +{
->> +	struct vm_area_struct *tmp = vma;
->> +
->> +	while (tmp && tmp->vm_start < end) {
->> +		if (tmp->vm_flags & VM_LOCKED) {
->> +			vma->vm_mm->locked_vm -= vma_pages(tmp);
-> You keep 'vma' just for the vm_mm? Better extract mm pointer first and
-> then you don't need the 'tmp'.
-
-OK
+You can keep this acked-by in case you mangle this patch in a minor
+way such as using GFP_KERNEL_ACCOUNT.
 
 Thanks,
-Yang
-
->
->> +			munlock_vma_pages_all(tmp);
->> +		}
->> +		tmp = tmp->vm_next;
->> +	}
->> +}
+Florian
