@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A9DDD6B000C
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 11:37:46 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id s14-v6so12562813ioc.0
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 08:37:46 -0700 (PDT)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-am5eur02on0703.outbound.protection.outlook.com. [2a01:111:f400:fe07::703])
-        by mx.google.com with ESMTPS id w130-v6si407216iod.188.2018.08.07.08.37.44
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 498066B000E
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 11:37:59 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id q3-v6so17103678qki.4
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 08:37:59 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0127.outbound.protection.outlook.com. [104.47.1.127])
+        by mx.google.com with ESMTPS id m81-v6si1480353qke.299.2018.08.07.08.37.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 07 Aug 2018 08:37:44 -0700 (PDT)
-Subject: [PATCH RFC 01/10] rcu: Make CONFIG_SRCU unconditionally enabled
+        Tue, 07 Aug 2018 08:37:58 -0700 (PDT)
+Subject: [PATCH RFC 02/10] mm: Make shrink_slab() lockless
 From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Tue, 07 Aug 2018 18:37:36 +0300
-Message-ID: <153365625652.19074.8434946780002619802.stgit@localhost.localdomain>
+Date: Tue, 07 Aug 2018 18:37:46 +0300
+Message-ID: <153365626605.19074.16202958374930777592.stgit@localhost.localdomain>
 In-Reply-To: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
 References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
 MIME-Version: 1.0
@@ -22,249 +22,145 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, ktkhai@virtuozzo.com, sfr@canb.auug.org.au, vdavydov.dev@gmail.com, mhocko@suse.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-This patch kills all CONFIG_SRCU defines and
-the code under !CONFIG_SRCU.
+The patch makes shrinker list and shrinker_idr SRCU-safe
+for readers. This requires synchronize_srcu() on finalize
+stage unregistering stage, which waits till all parallel
+shrink_slab() are finished
+
+Note, that patch removes rwsem_is_contended() checks from
+the code, and this does not result in delays during
+registration, since there is no waiting at all. Unregistration
+case may be optimized by splitting unregister_shrinker()
+in tho stages, and this is made in next patches.
+
+Also, keep in mind, that in case of SRCU is not allowed
+to make unconditional (which is done in previous patch),
+it is possible to use percpu_rw_semaphore instead of it.
+percpu_down_read() will be used in shrink_slab_memcg()
+and in shrink_slab(), and consecutive calls
+
+	percpu_down_write(percpu_rwsem);
+	percpu_up_write(percpu_rwsem);
+
+will be used instead of synchronize_srcu().
 
 Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 ---
- drivers/base/core.c                                |   42 --------------------
- include/linux/device.h                             |    2 -
- include/linux/rcutiny.h                            |    4 --
- include/linux/srcu.h                               |    5 --
- kernel/notifier.c                                  |    3 -
- kernel/rcu/Kconfig                                 |   12 +-----
- kernel/rcu/tree.h                                  |    5 --
- kernel/rcu/update.c                                |    4 --
- .../selftests/rcutorture/doc/TREE_RCU-kconfig.txt  |    5 --
- 9 files changed, 3 insertions(+), 79 deletions(-)
+ mm/vmscan.c |   42 +++++++++++++-----------------------------
+ 1 file changed, 13 insertions(+), 29 deletions(-)
 
-diff --git a/drivers/base/core.c b/drivers/base/core.c
-index 04bbcd779e11..8483da53c88f 100644
---- a/drivers/base/core.c
-+++ b/drivers/base/core.c
-@@ -44,7 +44,6 @@ early_param("sysfs.deprecated", sysfs_deprecated_setup);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index da135e1acd94..9dda903a1406 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -168,6 +168,7 @@ unsigned long vm_total_pages;
  
- /* Device links support. */
+ static LIST_HEAD(shrinker_list);
+ static DECLARE_RWSEM(shrinker_rwsem);
++DEFINE_STATIC_SRCU(srcu);
  
--#ifdef CONFIG_SRCU
- static DEFINE_MUTEX(device_links_lock);
- DEFINE_STATIC_SRCU(device_links_srcu);
+ #ifdef CONFIG_MEMCG_KMEM
  
-@@ -67,30 +66,6 @@ void device_links_read_unlock(int idx)
+@@ -192,7 +193,6 @@ static int prealloc_memcg_shrinker(struct shrinker *shrinker)
+ 	int id, ret = -ENOMEM;
+ 
+ 	down_write(&shrinker_rwsem);
+-	/* This may call shrinker, so it must use down_read_trylock() */
+ 	id = idr_alloc(&shrinker_idr, SHRINKER_REGISTERING, 0, 0, GFP_KERNEL);
+ 	if (id < 0)
+ 		goto unlock;
+@@ -406,7 +406,7 @@ void free_prealloced_shrinker(struct shrinker *shrinker)
+ void register_shrinker_prepared(struct shrinker *shrinker)
  {
- 	srcu_read_unlock(&device_links_srcu, idx);
+ 	down_write(&shrinker_rwsem);
+-	list_add_tail(&shrinker->list, &shrinker_list);
++	list_add_tail_rcu(&shrinker->list, &shrinker_list);
+ 	idr_replace(&shrinker_idr, shrinker, shrinker->id);
+ 	up_write(&shrinker_rwsem);
  }
--#else /* !CONFIG_SRCU */
--static DECLARE_RWSEM(device_links_lock);
--
--static inline void device_links_write_lock(void)
--{
--	down_write(&device_links_lock);
--}
--
--static inline void device_links_write_unlock(void)
--{
--	up_write(&device_links_lock);
--}
--
--int device_links_read_lock(void)
--{
--	down_read(&device_links_lock);
--	return 0;
--}
--
--void device_links_read_unlock(int not_used)
--{
--	up_read(&device_links_lock);
--}
--#endif /* !CONFIG_SRCU */
- 
- /**
-  * device_is_dependent - Check if one device depends on another one
-@@ -317,7 +292,6 @@ static void device_link_free(struct device_link *link)
- 	kfree(link);
+@@ -432,8 +432,11 @@ void unregister_shrinker(struct shrinker *shrinker)
+ 	if (shrinker->flags & SHRINKER_MEMCG_AWARE)
+ 		unregister_memcg_shrinker(shrinker);
+ 	down_write(&shrinker_rwsem);
+-	list_del(&shrinker->list);
++	list_del_rcu(&shrinker->list);
+ 	up_write(&shrinker_rwsem);
++
++	synchronize_srcu(&srcu);
++
+ 	kfree(shrinker->nr_deferred);
+ 	shrinker->nr_deferred = NULL;
  }
- 
--#ifdef CONFIG_SRCU
- static void __device_link_free_srcu(struct rcu_head *rhead)
+@@ -567,14 +570,12 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
  {
- 	device_link_free(container_of(rhead, struct device_link, rcu_head));
-@@ -337,22 +311,6 @@ static void __device_link_del(struct kref *kref)
- 	list_del_rcu(&link->c_node);
- 	call_srcu(&device_links_srcu, &link->rcu_head, __device_link_free_srcu);
+ 	struct memcg_shrinker_map *map;
+ 	unsigned long freed = 0;
+-	int ret, i;
++	int ret, i, srcu_id;
+ 
+ 	if (!memcg_kmem_enabled() || !mem_cgroup_online(memcg))
+ 		return 0;
+ 
+-	if (!down_read_trylock(&shrinker_rwsem))
+-		return 0;
+-
++	srcu_id = srcu_read_lock(&srcu);
+ 	map = rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_map,
+ 					true);
+ 	if (unlikely(!map))
+@@ -621,14 +622,9 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+ 				memcg_set_shrinker_bit(memcg, nid, i);
+ 		}
+ 		freed += ret;
+-
+-		if (rwsem_is_contended(&shrinker_rwsem)) {
+-			freed = freed ? : 1;
+-			break;
+-		}
+ 	}
+ unlock:
+-	up_read(&shrinker_rwsem);
++	srcu_read_unlock(&srcu, srcu_id);
+ 	return freed;
  }
--#else /* !CONFIG_SRCU */
--static void __device_link_del(struct kref *kref)
--{
--	struct device_link *link = container_of(kref, struct device_link, kref);
+ #else /* CONFIG_MEMCG_KMEM */
+@@ -665,15 +661,13 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ {
+ 	struct shrinker *shrinker;
+ 	unsigned long freed = 0;
+-	int ret;
++	int srcu_id, ret;
+ 
+ 	if (!mem_cgroup_is_root(memcg))
+ 		return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
+ 
+-	if (!down_read_trylock(&shrinker_rwsem))
+-		goto out;
 -
--	dev_info(link->consumer, "Dropping the link to %s\n",
--		 dev_name(link->supplier));
--
--	if (link->flags & DL_FLAG_PM_RUNTIME)
--		pm_runtime_drop_link(link->consumer);
--
--	list_del(&link->s_node);
--	list_del(&link->c_node);
--	device_link_free(link);
--}
--#endif /* !CONFIG_SRCU */
+-	list_for_each_entry(shrinker, &shrinker_list, list) {
++	srcu_id = srcu_read_lock(&srcu);
++	list_for_each_entry_rcu(shrinker, &shrinker_list, list) {
+ 		struct shrink_control sc = {
+ 			.gfp_mask = gfp_mask,
+ 			.nid = nid,
+@@ -684,19 +678,9 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 		if (ret == SHRINK_EMPTY)
+ 			ret = 0;
+ 		freed += ret;
+-		/*
+-		 * Bail out if someone want to register a new shrinker to
+-		 * prevent the regsitration from being stalled for long periods
+-		 * by parallel ongoing shrinking.
+-		 */
+-		if (rwsem_is_contended(&shrinker_rwsem)) {
+-			freed = freed ? : 1;
+-			break;
+-		}
+ 	}
++	srcu_read_unlock(&srcu, srcu_id);
  
- /**
-  * device_link_del - Delete a link between two devices.
-diff --git a/include/linux/device.h b/include/linux/device.h
-index 8f882549edee..524dc17d67be 100644
---- a/include/linux/device.h
-+++ b/include/linux/device.h
-@@ -827,9 +827,7 @@ struct device_link {
- 	u32 flags;
- 	bool rpm_active;
- 	struct kref kref;
--#ifdef CONFIG_SRCU
- 	struct rcu_head rcu_head;
--#endif
- };
- 
- /**
-diff --git a/include/linux/rcutiny.h b/include/linux/rcutiny.h
-index 8d9a0ea8f0b5..63e2b6f2e94a 100644
---- a/include/linux/rcutiny.h
-+++ b/include/linux/rcutiny.h
-@@ -115,11 +115,7 @@ static inline void rcu_irq_exit_irqson(void) { }
- static inline void rcu_irq_enter_irqson(void) { }
- static inline void rcu_irq_exit(void) { }
- static inline void exit_rcu(void) { }
--#ifdef CONFIG_SRCU
- void rcu_scheduler_starting(void);
--#else /* #ifndef CONFIG_SRCU */
--static inline void rcu_scheduler_starting(void) { }
--#endif /* #else #ifndef CONFIG_SRCU */
- static inline void rcu_end_inkernel_boot(void) { }
- static inline bool rcu_is_watching(void) { return true; }
- 
-diff --git a/include/linux/srcu.h b/include/linux/srcu.h
-index 3e72a291c401..27238223a78e 100644
---- a/include/linux/srcu.h
-+++ b/include/linux/srcu.h
-@@ -60,11 +60,8 @@ int init_srcu_struct(struct srcu_struct *sp);
- #include <linux/srcutiny.h>
- #elif defined(CONFIG_TREE_SRCU)
- #include <linux/srcutree.h>
--#elif defined(CONFIG_SRCU)
--#error "Unknown SRCU implementation specified to kernel configuration"
- #else
--/* Dummy definition for things like notifiers.  Actual use gets link error. */
--struct srcu_struct { };
-+#error "Unknown SRCU implementation specified to kernel configuration"
- #endif
- 
- void call_srcu(struct srcu_struct *sp, struct rcu_head *head,
-diff --git a/kernel/notifier.c b/kernel/notifier.c
-index 6196af8a8223..6e4b55e74736 100644
---- a/kernel/notifier.c
-+++ b/kernel/notifier.c
-@@ -402,7 +402,6 @@ int raw_notifier_call_chain(struct raw_notifier_head *nh,
+-	up_read(&shrinker_rwsem);
+-out:
+ 	cond_resched();
+ 	return freed;
  }
- EXPORT_SYMBOL_GPL(raw_notifier_call_chain);
- 
--#ifdef CONFIG_SRCU
- /*
-  *	SRCU notifier chain routines.    Registration and unregistration
-  *	use a mutex, and call_chain is synchronized by SRCU (no locks).
-@@ -529,8 +528,6 @@ void srcu_init_notifier_head(struct srcu_notifier_head *nh)
- }
- EXPORT_SYMBOL_GPL(srcu_init_notifier_head);
- 
--#endif /* CONFIG_SRCU */
--
- static ATOMIC_NOTIFIER_HEAD(die_chain);
- 
- int notrace notify_die(enum die_val val, const char *str,
-diff --git a/kernel/rcu/Kconfig b/kernel/rcu/Kconfig
-index 9210379c0353..f52e55e33f0a 100644
---- a/kernel/rcu/Kconfig
-+++ b/kernel/rcu/Kconfig
-@@ -49,28 +49,20 @@ config RCU_EXPERT
- 
- 	  Say N if you are unsure.
- 
--config SRCU
--	bool
--	help
--	  This option selects the sleepable version of RCU. This version
--	  permits arbitrary sleeping or blocking within RCU read-side critical
--	  sections.
--
- config TINY_SRCU
- 	bool
--	default y if SRCU && TINY_RCU
-+	default y if TINY_RCU
- 	help
- 	  This option selects the single-CPU non-preemptible version of SRCU.
- 
- config TREE_SRCU
- 	bool
--	default y if SRCU && !TINY_RCU
-+	default y if !TINY_RCU
- 	help
- 	  This option selects the full-fledged version of SRCU.
- 
- config TASKS_RCU
- 	def_bool PREEMPT
--	select SRCU
- 	help
- 	  This option enables a task-based RCU implementation that uses
- 	  only voluntary context switch (not preemption!), idle, and
-diff --git a/kernel/rcu/tree.h b/kernel/rcu/tree.h
-index 4e74df768c57..b7f76400a45e 100644
---- a/kernel/rcu/tree.h
-+++ b/kernel/rcu/tree.h
-@@ -489,12 +489,7 @@ static bool rcu_nohz_full_cpu(struct rcu_state *rsp);
- static void rcu_dynticks_task_enter(void);
- static void rcu_dynticks_task_exit(void);
- 
--#ifdef CONFIG_SRCU
- void srcu_online_cpu(unsigned int cpu);
- void srcu_offline_cpu(unsigned int cpu);
--#else /* #ifdef CONFIG_SRCU */
--void srcu_online_cpu(unsigned int cpu) { }
--void srcu_offline_cpu(unsigned int cpu) { }
--#endif /* #else #ifdef CONFIG_SRCU */
- 
- #endif /* #ifndef RCU_TREE_NONCORE */
-diff --git a/kernel/rcu/update.c b/kernel/rcu/update.c
-index 39cb23d22109..90de81c98524 100644
---- a/kernel/rcu/update.c
-+++ b/kernel/rcu/update.c
-@@ -210,8 +210,6 @@ void rcu_test_sync_prims(void)
- 	synchronize_sched_expedited();
- }
- 
--#if !defined(CONFIG_TINY_RCU) || defined(CONFIG_SRCU)
--
- /*
-  * Switch to run-time mode once RCU has fully initialized.
-  */
-@@ -224,8 +222,6 @@ static int __init rcu_set_runtime_mode(void)
- }
- core_initcall(rcu_set_runtime_mode);
- 
--#endif /* #if !defined(CONFIG_TINY_RCU) || defined(CONFIG_SRCU) */
--
- #ifdef CONFIG_DEBUG_LOCK_ALLOC
- static struct lock_class_key rcu_lock_key;
- struct lockdep_map rcu_lock_map =
-diff --git a/tools/testing/selftests/rcutorture/doc/TREE_RCU-kconfig.txt b/tools/testing/selftests/rcutorture/doc/TREE_RCU-kconfig.txt
-index af6fca03602f..b4f015c3244a 100644
---- a/tools/testing/selftests/rcutorture/doc/TREE_RCU-kconfig.txt
-+++ b/tools/testing/selftests/rcutorture/doc/TREE_RCU-kconfig.txt
-@@ -73,9 +73,4 @@ CONFIG_TASKS_RCU
- 
- 	These are controlled by CONFIG_PREEMPT and/or CONFIG_SMP.
- 
--CONFIG_SRCU
--
--	Selected by CONFIG_RCU_TORTURE_TEST, so cannot disable.
--
--
- boot parameters ignored: TBD
