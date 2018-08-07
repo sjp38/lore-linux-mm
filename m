@@ -1,148 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D280F6B0005
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 20:30:49 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id g15-v6so4738751edm.11
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 17:30:49 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id h9-v6si216842edl.176.2018.08.06.17.30.46
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EB9326B0005
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 20:59:33 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id a3-v6so6307918pgv.10
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 17:59:33 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f5-v6sor4111378pff.62.2018.08.06.17.59.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Aug 2018 17:30:47 -0700 (PDT)
-Date: Mon, 6 Aug 2018 17:30:24 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH 0/3] introduce memory.oom.group
-Message-ID: <20180807003020.GA21483@castle.DHCP.thefacebook.com>
-References: <20180730180100.25079-1-guro@fb.com>
- <alpine.DEB.2.21.1807301847000.198273@chino.kir.corp.google.com>
- <20180731235135.GA23436@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1808011437350.38896@chino.kir.corp.google.com>
- <20180801224706.GA32269@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1808061405100.43071@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1808061405100.43071@chino.kir.corp.google.com>
+        (Google Transport Security);
+        Mon, 06 Aug 2018 17:59:32 -0700 (PDT)
+From: Dennis Zhou <dennisszhou@gmail.com>
+Subject: [PATCH] proc: add percpu populated pages count to meminfo
+Date: Mon,  6 Aug 2018 17:56:07 -0700
+Message-Id: <20180807005607.53950-1-dennisszhou@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Roman Gushchin <guro@fb.com>
+Cc: kernel-team@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 
-On Mon, Aug 06, 2018 at 02:34:06PM -0700, David Rientjes wrote:
-> On Wed, 1 Aug 2018, Roman Gushchin wrote:
-> 
-> > Ok, I think that what we'll do here:
-> > 1) drop the current cgroup-aware OOM killer implementation from the mm tree
-> > 2) land memory.oom.group to the mm tree (your ack will be appreciated)
-> > 3) discuss and, hopefully, agree on memory.oom.policy interface
-> > 4) land memory.oom.policy
-> > 
-> 
-> Yes, I'm fine proceeding this way, there's a clear separation between the 
-> policy and mechanism and they can be introduced independent of each other.  
-> As I said in my patchset, we can also introduce policies independent of 
-> each other and I have no objection to your design that addresses your 
-> specific usecase, with your own policy decisions, with the added caveat 
-> that we do so in a way that respects other usecases.
-> 
-> Specifically, I would ask that the following be respected:
-> 
->  - Subtrees delegated to users can still operate as they do today with
->    per-process selection (largest, or influenced by oom_score_adj) so
->    their victim selection is not changed out from under them.  This
->    requires the entire hierarchy is not locked into a specific policy,
->    and also that a subtree is not locked in a specific policy.  In other
->    words, if an oom condition occurs in a user-controlled subtree they
->    have the ability to get the same selection criteria as they do today.
-> 
->  - Policies are implemented in a way that has an extensible API so that
->    we do not unnecessarily limit or prohibit ourselves from making changes
->    in the future or from extending the functionality by introducing other
->    policy choices that are needed in the future.
-> 
-> I hope that I'm not being unrealistic in assuming that you're fine with 
-> these since it can still preserve your goals.
-> 
-> > Basically, with oom.group separated everything we need is another
-> > boolean knob, which means that the memcg should be evaluated together.
-> 
-> In a cgroup-aware oom killer world, yes, we need the ability to specify 
-> that the usage of the entire subtree should be compared as a single 
-> entity with other cgroups.  That is necessary for user subtrees but may 
-> not be necessary for top-level cgroups depending on how you structure your 
-> unified cgroup hierarchy.  So it needs to be configurable, as you suggest, 
-> and you are correct it can be different than oom.group.
-> 
-> That's not the only thing we need though, as I'm sure you were expecting 
-> me to say :)
-> 
-> We need the ability to preserve existing behavior, i.e. process based and 
-> not cgroup aware, for subtrees so that our users who have clear 
-> expectations and tune their oom_score_adj accordingly based on how the oom 
-> killer has always chosen processes for oom kill do not suddenly regress.
+From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 
-Isn't the combination of oom.group=0 and oom.evaluate_together=1 describing
-this case? This basically means that if memcg is selected as target,
-the process inside will be selected using traditional per-process approach.
+Currently, percpu memory only exposes allocation and utilization
+information via debugfs. This more or less is only really useful for
+understanding the fragmentation and allocation information at a
+per-chunk level with a few global counters. This is also gated behind a
+config. BPF and cgroup, for example, have seen an increase use causing
+increased use of percpu memory. Let's make it easier for someone to
+identify how much memory is being used.
 
-> So we need to define the policy for a subtree that is oom, and I suggest 
-> we do that as a characteristic of the cgroup that is oom ("process" vs 
-> "cgroup", and process would be the default to preserve what currently 
-> happens in a user subtree).
+This patch adds the PercpuPopulated stat to meminfo to more easily
+look up how much percpu memory is in use. This new number includes the
+cost for all backing pages and not just insight at the a unit, per
+chunk level. This stat includes only pages used to back the chunks
+themselves excluding metadata. I think excluding metadata is fair
+because the backing memory scales with the number of cpus and can
+quickly outweigh the metadata. It also makes this calculation light.
 
-I'm not entirely convinced here.
-I do agree, that some sub-tree may have a well tuned oom_score_adj,
-and it's preferable to keep the current behavior.
+Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
+---
+ fs/proc/meminfo.c      |  2 ++
+ include/linux/percpu.h |  2 ++
+ mm/percpu.c            | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 33 insertions(+)
 
-At the same time I don't like the idea to look at the policy of the OOMing
-cgroup. Why exceeding of one limit should be handled different to exceeding
-of another? This seems to be a property of workload, not a limit.
-
-> 
-> Now, as users who rely on process selection are well aware, we have 
-> oom_score_adj to influence the decision of which process to oom kill.  If 
-> our oom subtree is cgroup aware, we should have the ability to likewise 
-> influence that decision.  For example, we have high priority applications 
-> that run at the top-level that use a lot of memory and strictly oom 
-> killing them in all scenarios because they use a lot of memory isn't 
-> appropriate.  We need to be able to adjust the comparison of a cgroup (or 
-> subtree) when compared to other cgroups.
-> 
-> I've also suggested, but did not implement in my patchset because I was 
-> trying to define the API and find common ground first, that we have a need 
-> for priority based selection.  In other words, define the priority of a 
-> subtree regardless of cgroup usage.
-> 
-> So with these four things, we have
-> 
->  - an "oom.policy" tunable to define "cgroup" or "process" for that 
->    subtree (and plans for "priority" in the future),
-> 
->  - your "oom.evaluate_as_group" tunable to account the usage of the
->    subtree as the cgroup's own usage for comparison with others,
-> 
->  - an "oom.adj" to adjust the usage of the cgroup (local or subtree)
->    to protect important applications and bias against unimportant
->    applications.
-> 
-> This adds several tunables, which I didn't like, so I tried to overload 
-> oom.policy and oom.evaluate_as_group.  When I referred to separating out 
-> the subtree usage accounting into a separate tunable, that is what I have 
-> referenced above.
-
-IMO, merging multiple tunables into one doesn't make it saner.
-The real question how to make a reasonable interface with fever tunables.
-
-The reason behind introducing all these knobs is to provide
-a generic solution to define OOM handling rules, but then the
-question raises if the kernel is the best place for it.
-
-I really doubt that an interface with so many knobs has any chances
-to be merged.
-
-IMO, there should be a compromise between the simplicity (basically,
-the number of tunables and possible values) and functionality
-of the interface. You nacked my previous version, and unfortunately
-I don't have anything better so far.
-
-Thanks!
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index 2fb04846ed11..ddd5249692e9 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -7,6 +7,7 @@
+ #include <linux/mman.h>
+ #include <linux/mmzone.h>
+ #include <linux/proc_fs.h>
++#include <linux/percpu.h>
+ #include <linux/quicklist.h>
+ #include <linux/seq_file.h>
+ #include <linux/swap.h>
+@@ -121,6 +122,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 		   (unsigned long)VMALLOC_TOTAL >> 10);
+ 	show_val_kb(m, "VmallocUsed:    ", 0ul);
+ 	show_val_kb(m, "VmallocChunk:   ", 0ul);
++	show_val_kb(m, "PercpuPopulated:", pcpu_nr_populated_pages());
+ 
+ #ifdef CONFIG_MEMORY_FAILURE
+ 	seq_printf(m, "HardwareCorrupted: %5lu kB\n",
+diff --git a/include/linux/percpu.h b/include/linux/percpu.h
+index 296bbe49d5d1..1c80be42822c 100644
+--- a/include/linux/percpu.h
++++ b/include/linux/percpu.h
+@@ -149,4 +149,6 @@ extern phys_addr_t per_cpu_ptr_to_phys(void *addr);
+ 	(typeof(type) __percpu *)__alloc_percpu(sizeof(type),		\
+ 						__alignof__(type))
+ 
++extern int pcpu_nr_populated_pages(void);
++
+ #endif /* __LINUX_PERCPU_H */
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 0b6480979ac7..08a4341f30c5 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -169,6 +169,14 @@ static LIST_HEAD(pcpu_map_extend_chunks);
+  */
+ int pcpu_nr_empty_pop_pages;
+ 
++/*
++ * The number of populated pages in use by the allocator, protected by
++ * pcpu_lock.  This number is kept per a unit per chunk (i.e. when a page gets
++ * allocated/deallocated, it is allocated/deallocated in all units of a chunk
++ * and increments/decrements this count by 1).
++ */
++static int pcpu_nr_populated;
++
+ /*
+  * Balance work is used to populate or destroy chunks asynchronously.  We
+  * try to keep the number of populated free pages between
+@@ -1232,6 +1240,7 @@ static void pcpu_chunk_populated(struct pcpu_chunk *chunk, int page_start,
+ 
+ 	bitmap_set(chunk->populated, page_start, nr);
+ 	chunk->nr_populated += nr;
++	pcpu_nr_populated += nr;
+ 
+ 	if (!for_alloc) {
+ 		chunk->nr_empty_pop_pages += nr;
+@@ -1260,6 +1269,7 @@ static void pcpu_chunk_depopulated(struct pcpu_chunk *chunk,
+ 	chunk->nr_populated -= nr;
+ 	chunk->nr_empty_pop_pages -= nr;
+ 	pcpu_nr_empty_pop_pages -= nr;
++	pcpu_nr_populated -= nr;
+ }
+ 
+ /*
+@@ -2176,6 +2186,9 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	pcpu_nr_empty_pop_pages = pcpu_first_chunk->nr_empty_pop_pages;
+ 	pcpu_chunk_relocate(pcpu_first_chunk, -1);
+ 
++	/* include all regions of the first chunk */
++	pcpu_nr_populated += PFN_DOWN(size_sum);
++
+ 	pcpu_stats_chunk_alloc();
+ 	trace_percpu_create_chunk(base_addr);
+ 
+@@ -2745,6 +2758,22 @@ void __init setup_per_cpu_areas(void)
+ 
+ #endif	/* CONFIG_SMP */
+ 
++/*
++ * pcpu_nr_populated_pages - calculate total number of populated backing pages
++ *
++ * This reflects the number of pages populated to back the chunks.
++ * Metadata is excluded in the number exposed in meminfo as the number of
++ * backing pages scales with the number of cpus and can quickly outweigh the
++ * memory used for metadata.  It also keeps this calculation nice and simple.
++ *
++ * RETURNS:
++ * Total number of populated backing pages in use by the allocator.
++ */
++int pcpu_nr_populated_pages(void)
++{
++	return pcpu_nr_populated * pcpu_nr_units;
++}
++
+ /*
+  * Percpu allocator is initialized early during boot when neither slab or
+  * workqueue is available.  Plug async management until everything is up
+-- 
+2.17.1
