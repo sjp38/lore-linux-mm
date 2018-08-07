@@ -1,58 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 30CD76B0003
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 14:24:04 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id v24-v6so23760wmh.5
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 11:24:04 -0700 (PDT)
-Received: from Chamillionaire.breakpoint.cc (Chamillionaire.breakpoint.cc. [2a01:7a0:2:106d:670::1])
-        by mx.google.com with ESMTPS id v15-v6si1439027wrm.86.2018.08.07.11.24.02
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 135B36B0007
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 14:34:51 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id v9-v6so11023444pfn.6
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 11:34:51 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id 25-v6si1760466pgk.438.2018.08.07.11.34.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 07 Aug 2018 11:24:02 -0700 (PDT)
-Date: Tue, 7 Aug 2018 20:23:55 +0200
-From: Florian Westphal <fw@strlen.de>
-Subject: Re: [Bug 200651] New: cgroups iptables-restor: vmalloc: allocation
- failure
-Message-ID: <20180807182355.yjbq3vixnvmajavr@breakpoint.cc>
-References: <89ea4f56-6253-4f51-0fb7-33d7d4b60cfa@icdsoft.com>
- <20180730183820.GA24267@dhcp22.suse.cz>
- <56597af4-73c6-b549-c5d5-b3a2e6441b8e@icdsoft.com>
- <6838c342-2d07-3047-e723-2b641bc6bf79@suse.cz>
- <8105b7b3-20d3-5931-9f3c-2858021a4e12@icdsoft.com>
- <20180731140520.kpotpihqsmiwhh7l@breakpoint.cc>
- <e5b24629-0296-5a4d-577a-c25d1c52b03b@suse.cz>
- <20180801083349.GF16767@dhcp22.suse.cz>
- <e5c5e965-a6bc-d61f-97fc-78da287b5d94@icdsoft.com>
- <20180802085043.GC10808@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Aug 2018 11:34:49 -0700 (PDT)
+Subject: Re: [PATCH 2/3] x86/mm/pti: Don't clear permissions in
+ pti_clone_pmd()
+References: <1533637471-30953-1-git-send-email-joro@8bytes.org>
+ <1533637471-30953-3-git-send-email-joro@8bytes.org>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <feea2aff-91ff-89a6-9d7c-5402a1d6a27f@intel.com>
+Date: Tue, 7 Aug 2018 11:34:46 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180802085043.GC10808@dhcp22.suse.cz>
+In-Reply-To: <1533637471-30953-3-git-send-email-joro@8bytes.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Georgi Nikolov <gnikolov@icdsoft.com>, Vlastimil Babka <vbabka@suse.cz>, Florian Westphal <fw@strlen.de>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, netfilter-devel@vger.kernel.org
+To: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, jroedel@suse.de
 
-Michal Hocko <mhocko@kernel.org> wrote:
-> Subject: [PATCH] netfilter/x_tables: do not fail xt_alloc_table_info too
->  easilly
+On 08/07/2018 03:24 AM, Joerg Roedel wrote:
+> The function sets the global-bit on cloned PMD entries,
+> which only makes sense when the permissions are identical
+> between the user and the kernel page-table.
+> 
+> Further, only write-permissions are cleared for entry-text
+> and kernel-text sections, which are not writeable anyway.
 
-[..]
+I think this patch is correct, but I'd be curious if Andy remembers why
+we chose to clear _PAGE_RW on these things.  It might have been that we
+were trying to say that the *entry* code shouldn't write to this stuff,
+regardless of whether the normal kernel can.
 
-> -	/* __GFP_NORETRY is not fully supported by kvmalloc but it should
-> -	 * work reasonably well if sz is too large and bail out rather
-> -	 * than shoot all processes down before realizing there is nothing
-> -	 * more to reclaim.
-> -	 */
-> -	info = kvmalloc(sz, GFP_KERNEL | __GFP_NORETRY);
-> +	info = kvmalloc(sz, GFP_KERNEL | __GFP_ACCOUNT);
->  	if (!info)
->  		return NULL;
-
-Acked-by: Florian Westphal <fw@strlen.de>
-
-You can keep this acked-by in case you mangle this patch in a minor
-way such as using GFP_KERNEL_ACCOUNT.
-
-Thanks,
-Florian
+But, either way, I agree with the logic here that Global pages must
+share permissions between both mappings, so feel free to add my Ack.  I
+just want to make sure Andy doesn't remember some detail I'm forgetting.
