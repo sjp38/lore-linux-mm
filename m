@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 11C386B027F
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 11:39:16 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id v65-v6so16806855qka.23
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 08:39:16 -0700 (PDT)
-Received: from EUR04-VI1-obe.outbound.protection.outlook.com (mail-eopbgr80137.outbound.protection.outlook.com. [40.107.8.137])
-        by mx.google.com with ESMTPS id a125-v6si1575984qkb.47.2018.08.07.08.39.14
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E74D6B0281
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 11:39:27 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id x26-v6so13833852qtb.2
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 08:39:27 -0700 (PDT)
+Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40102.outbound.protection.outlook.com. [40.107.4.102])
+        by mx.google.com with ESMTPS id q51-v6si229545qtj.66.2018.08.07.08.39.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 07 Aug 2018 08:39:15 -0700 (PDT)
-Subject: [PATCH RFC 08/10] xfs: Introduce xfs_fs_destroy_super()
+        Tue, 07 Aug 2018 08:39:26 -0700 (PDT)
+Subject: [PATCH RFC 09/10] shmem: Implement shmem_destroy_super()
 From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Tue, 07 Aug 2018 18:39:05 +0300
-Message-ID: <153365634503.19074.14972123229522734895.stgit@localhost.localdomain>
+Date: Tue, 07 Aug 2018 18:39:15 +0300
+Message-ID: <153365635538.19074.16684830171993560909.stgit@localhost.localdomain>
 In-Reply-To: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
 References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
 MIME-Version: 1.0
@@ -22,52 +22,49 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, ktkhai@virtuozzo.com, sfr@canb.auug.org.au, vdavydov.dev@gmail.com, mhocko@suse.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-xfs_fs_nr_cached_objects() touches sb->s_fs_info,
-and this patch makes it to be destructed later.
+Similar to xfs_fs_destroy_super() implement the method
+for shmem.
 
-After this patch xfs_fs_nr_cached_objects() is safe
-for splitting unregister_shrinker(): mp->m_perag_tree
-is stable till destroy_super_work(), while iteration
-over it is already RCU-protected by internal XFS
-business.
+shmem_unused_huge_count() just touches sb->s_fs_info.
+After such the later freeing it will be safe for
+unregister_shrinker() splitting (which is made in next
+patch).
 
 Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 ---
- fs/xfs/xfs_super.c |   14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ mm/shmem.c |    8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-diff --git a/fs/xfs/xfs_super.c b/fs/xfs/xfs_super.c
-index 9e2ce4cd98e1..c1e00dd06893 100644
---- a/fs/xfs/xfs_super.c
-+++ b/fs/xfs/xfs_super.c
-@@ -1774,11 +1774,20 @@ xfs_fs_put_super(
- 	xfs_destroy_mount_workqueues(mp);
- 	xfs_close_devices(mp);
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 4829798869b6..35c65afefbc8 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -3427,6 +3427,12 @@ static void shmem_put_super(struct super_block *sb)
  
--	sb->s_fs_info = NULL;
- 	xfs_free_fsname(mp);
--	kfree(mp);
- }
- 
-+STATIC void
-+xfs_fs_destroy_super(
-+	struct super_block	*sb)
-+{
-+	if (sb->s_fs_info) {
-+		kfree(sb->s_fs_info);
-+		sb->s_fs_info = NULL;
-+	}
+ 	percpu_counter_destroy(&sbinfo->used_blocks);
+ 	mpol_put(sbinfo->mpol);
 +}
 +
++static void shmem_destroy_super(struct super_block *sb)
++{
++	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
 +
- STATIC struct dentry *
- xfs_fs_mount(
- 	struct file_system_type	*fs_type,
-@@ -1816,6 +1825,7 @@ static const struct super_operations xfs_super_operations = {
- 	.dirty_inode		= xfs_fs_dirty_inode,
- 	.drop_inode		= xfs_fs_drop_inode,
- 	.put_super		= xfs_fs_put_super,
-+	.destroy_super		= xfs_fs_destroy_super,
- 	.sync_fs		= xfs_fs_sync_fs,
- 	.freeze_fs		= xfs_fs_freeze,
- 	.unfreeze_fs		= xfs_fs_unfreeze,
+ 	kfree(sbinfo);
+ 	sb->s_fs_info = NULL;
+ }
+@@ -3504,6 +3510,7 @@ int shmem_fill_super(struct super_block *sb, void *data, size_t data_size,
+ 
+ failed:
+ 	shmem_put_super(sb);
++	shmem_destroy_super(sb);
+ 	return err;
+ }
+ 
+@@ -3630,6 +3637,7 @@ static const struct super_operations shmem_ops = {
+ 	.evict_inode	= shmem_evict_inode,
+ 	.drop_inode	= generic_delete_inode,
+ 	.put_super	= shmem_put_super,
++	.destroy_super	= shmem_destroy_super,
+ #ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
+ 	.nr_cached_objects	= shmem_unused_huge_count,
+ 	.free_cached_objects	= shmem_unused_huge_scan,
