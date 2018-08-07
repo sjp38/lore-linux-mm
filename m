@@ -1,146 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EB9326B0005
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 20:59:33 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id a3-v6so6307918pgv.10
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 17:59:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f5-v6sor4111378pff.62.2018.08.06.17.59.32
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C1B806B0003
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2018 22:16:11 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id u11-v6so13844802oif.22
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2018 19:16:11 -0700 (PDT)
+Received: from mail.wingtech.com (mail.wingtech.com. [180.166.216.14])
+        by mx.google.com with ESMTPS id f77-v6si77033oib.100.2018.08.06.19.16.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 06 Aug 2018 17:59:32 -0700 (PDT)
-From: Dennis Zhou <dennisszhou@gmail.com>
-Subject: [PATCH] proc: add percpu populated pages count to meminfo
-Date: Mon,  6 Aug 2018 17:56:07 -0700
-Message-Id: <20180807005607.53950-1-dennisszhou@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 06 Aug 2018 19:16:08 -0700 (PDT)
+Date: Tue, 7 Aug 2018 10:15:40 +0800
+From: "zhaowuyun@wingtech.com" <zhaowuyun@wingtech.com>
+Subject: Re: Re: [PATCH] [PATCH] mm: disable preemption before swapcache_free
+References: <2018072514375722198958@wingtech.com>,
+	<20180725141643.6d9ba86a9698bc2580836618@linux-foundation.org>,
+	<2018072610214038358990@wingtech.com>,
+	<20180726060640.GQ28386@dhcp22.suse.cz>,
+	<20180726150323057627100@wingtech.com>,
+	<20180726151118.db0cf8016e79bed849e549f9@linux-foundation.org>,
+	<20180727140749669129112@wingtech.com>,
+	<alpine.LSU.2.11.1808041332410.1120@eggly.anvils>
+Mime-Version: 1.0
+Message-ID: <20180807101540612373235@wingtech.com>
+Content-Type: text/plain;
+	charset="utf-8"
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Roman Gushchin <guro@fb.com>
-Cc: kernel-team@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: akpm <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, mgorman <mgorman@techsingularity.net>, minchan <minchan@kernel.org>, vinmenon <vinmenon@codeaurora.org>, hannes <hannes@cmpxchg.org>, "hillf.zj" <hillf.zj@alibaba-inc.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
-
-Currently, percpu memory only exposes allocation and utilization
-information via debugfs. This more or less is only really useful for
-understanding the fragmentation and allocation information at a
-per-chunk level with a few global counters. This is also gated behind a
-config. BPF and cgroup, for example, have seen an increase use causing
-increased use of percpu memory. Let's make it easier for someone to
-identify how much memory is being used.
-
-This patch adds the PercpuPopulated stat to meminfo to more easily
-look up how much percpu memory is in use. This new number includes the
-cost for all backing pages and not just insight at the a unit, per
-chunk level. This stat includes only pages used to back the chunks
-themselves excluding metadata. I think excluding metadata is fair
-because the backing memory scales with the number of cpus and can
-quickly outweigh the metadata. It also makes this calculation light.
-
-Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
----
- fs/proc/meminfo.c      |  2 ++
- include/linux/percpu.h |  2 ++
- mm/percpu.c            | 29 +++++++++++++++++++++++++++++
- 3 files changed, 33 insertions(+)
-
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 2fb04846ed11..ddd5249692e9 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -7,6 +7,7 @@
- #include <linux/mman.h>
- #include <linux/mmzone.h>
- #include <linux/proc_fs.h>
-+#include <linux/percpu.h>
- #include <linux/quicklist.h>
- #include <linux/seq_file.h>
- #include <linux/swap.h>
-@@ -121,6 +122,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 		   (unsigned long)VMALLOC_TOTAL >> 10);
- 	show_val_kb(m, "VmallocUsed:    ", 0ul);
- 	show_val_kb(m, "VmallocChunk:   ", 0ul);
-+	show_val_kb(m, "PercpuPopulated:", pcpu_nr_populated_pages());
- 
- #ifdef CONFIG_MEMORY_FAILURE
- 	seq_printf(m, "HardwareCorrupted: %5lu kB\n",
-diff --git a/include/linux/percpu.h b/include/linux/percpu.h
-index 296bbe49d5d1..1c80be42822c 100644
---- a/include/linux/percpu.h
-+++ b/include/linux/percpu.h
-@@ -149,4 +149,6 @@ extern phys_addr_t per_cpu_ptr_to_phys(void *addr);
- 	(typeof(type) __percpu *)__alloc_percpu(sizeof(type),		\
- 						__alignof__(type))
- 
-+extern int pcpu_nr_populated_pages(void);
-+
- #endif /* __LINUX_PERCPU_H */
-diff --git a/mm/percpu.c b/mm/percpu.c
-index 0b6480979ac7..08a4341f30c5 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -169,6 +169,14 @@ static LIST_HEAD(pcpu_map_extend_chunks);
-  */
- int pcpu_nr_empty_pop_pages;
- 
-+/*
-+ * The number of populated pages in use by the allocator, protected by
-+ * pcpu_lock.  This number is kept per a unit per chunk (i.e. when a page gets
-+ * allocated/deallocated, it is allocated/deallocated in all units of a chunk
-+ * and increments/decrements this count by 1).
-+ */
-+static int pcpu_nr_populated;
-+
- /*
-  * Balance work is used to populate or destroy chunks asynchronously.  We
-  * try to keep the number of populated free pages between
-@@ -1232,6 +1240,7 @@ static void pcpu_chunk_populated(struct pcpu_chunk *chunk, int page_start,
- 
- 	bitmap_set(chunk->populated, page_start, nr);
- 	chunk->nr_populated += nr;
-+	pcpu_nr_populated += nr;
- 
- 	if (!for_alloc) {
- 		chunk->nr_empty_pop_pages += nr;
-@@ -1260,6 +1269,7 @@ static void pcpu_chunk_depopulated(struct pcpu_chunk *chunk,
- 	chunk->nr_populated -= nr;
- 	chunk->nr_empty_pop_pages -= nr;
- 	pcpu_nr_empty_pop_pages -= nr;
-+	pcpu_nr_populated -= nr;
- }
- 
- /*
-@@ -2176,6 +2186,9 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 	pcpu_nr_empty_pop_pages = pcpu_first_chunk->nr_empty_pop_pages;
- 	pcpu_chunk_relocate(pcpu_first_chunk, -1);
- 
-+	/* include all regions of the first chunk */
-+	pcpu_nr_populated += PFN_DOWN(size_sum);
-+
- 	pcpu_stats_chunk_alloc();
- 	trace_percpu_create_chunk(base_addr);
- 
-@@ -2745,6 +2758,22 @@ void __init setup_per_cpu_areas(void)
- 
- #endif	/* CONFIG_SMP */
- 
-+/*
-+ * pcpu_nr_populated_pages - calculate total number of populated backing pages
-+ *
-+ * This reflects the number of pages populated to back the chunks.
-+ * Metadata is excluded in the number exposed in meminfo as the number of
-+ * backing pages scales with the number of cpus and can quickly outweigh the
-+ * memory used for metadata.  It also keeps this calculation nice and simple.
-+ *
-+ * RETURNS:
-+ * Total number of populated backing pages in use by the allocator.
-+ */
-+int pcpu_nr_populated_pages(void)
-+{
-+	return pcpu_nr_populated * pcpu_nr_units;
-+}
-+
- /*
-  * Percpu allocator is initialized early during boot when neither slab or
-  * workqueue is available.  Plug async management until everything is up
--- 
-2.17.1
+Cj5BbmRyZXcncyBtc2xlZXAoMSkgbWF5IGJlIGEgZ29vZCBlbm91Z2ggYmFuZGFpZCBmb3IgeW91
+LiBBbmQgSSBzaGFyZQo+TWljaGFsJ3MgZG91YnQgYWJvdXQgeW91ciBkZXNpZ24sIGluIHdoaWNo
+IGFuIFJUIHRocmVhZCBtZWV0cyBzd2FwOgo+dGhpcyBtYXkgbm90IGJlIHRoZSBsYXN0IHByb2Js
+ZW0geW91IGhhdmUgd2l0aCB0aGF0Lgo+Cj5CdXQgdGhpcyBpcyBhIHJlYWwgYnVnIHdoZW4gQ09O
+RklHX1BSRUVNUFQ9eSwgUlQgdGhyZWFkcyBvciBub3Q6IHdlCj5qdXN0IGRpZG4ndCBub3RpY2Us
+IGJlY2F1c2UgaXQncyB1c3VhbGx5IGhpZGRlbiBieSB0aGUgY29uZF9yZXNjaGVkKCkuCj4oSSB0
+aGluayB0aGF0IHdhcyBhZGRlZCBpbiAzLjEwLCBiZWNhdXNlIGluIDIuNi4yOSBJIGhhZCBiZWVu
+IGd1aWx0eSBvZgo+aW5zZXJ0aW5nIGEgZGlzY2FyZCwgYW5kIHdhaXQgZm9yIGNvbXBsZXRpb24s
+IGluIGJldHdlZW4gYWxsb2NhdGluZyBzd2FwCj5hbmQgYWRkaW5nIHRvIHN3YXAgY2FjaGU7IGJ1
+dCBTaGFvIEh1YSBmaXhlZCBteSBkaXNjYXJkIGluIDMuMTIuKSBUaGFua3MKPmEgbG90IGZvciBt
+YWtpbmcgdXMgYXdhcmUgb2YgdGhpcyBidWcuCj4KPkFmdGVyIHJlbWluZGluZyBteXNlbGYgb2Yg
+dGhlIGlzc3VlcyBoZXJlLCBJIGRpc2FncmVlIHdpdGggbXVjaCBvZiB3aGF0Cj5oYXMgYmVlbiBz
+YWlkOiB3ZSBzaGFsbCAiYWx3YXlzIiB3YW50IHRoZSBsb29wIGluIF9fcmVhZF9zd2FwX2NhY2hl
+X2FzeW5jKCkKPih0aG91Z2ggc29tZSBvZiBpdHMgZXJyb3IgaGFuZGxpbmcgaXMgcHJvYmFibHkg
+c3VwZXJmbHVvdXMgbm93LCBhZ3JlZWQpOwo+YW5kIHlvdXIgZGlzYWJsaW5nIG9mIHByZWVtcHRp
+b24gaXMgbm90IGp1c3QgYSBiYW5kYWlkLCBpdCdzIGV4YWN0bHkgdGhlCj5yaWdodCBhcHByb2Fj
+aC4KPgo+V2UgY291bGQgZG8gc29tZXRoaW5nIGhlYXZpZXIsIHBlcmhhcHMgcmVhcnJhbmdpbmcg
+dGhlIHN3YXBjYWNoZSB0cmVlIHdvcmsKPnRvIGJlIGRvbmUgdW5kZXIgc3dhcF9sb2NrIGFzIHdl
+bGwgYXMgdHJlZV9sb2NrIChJJ20gdGFsa2luZyA0LjktbGFuZ3VhZ2UpLAo+YnV0IHRoYXQncyB2
+ZXJ5IHVubGlrZWx5IHRvIGJlIGFuIGltcHJvdmVtZW50LiBEaXNhYmxpbmcgcHJlZW1wdGlvbiB5
+b2tlcwo+dGhlIHR3byBzcGlubG9ja3MgdG9nZXRoZXIgaW4gYW4gZWZmaWNpZW50IHdheSwgd2l0
+aG91dCBvdmVyaGVhZCBvbiBvdGhlcgo+cGF0aHM7IG9uIHJhcmUgb2NjYXNpb25zIHdlIHNwaW4g
+YXJvdW5kIF9fcmVhZF9zd2FwX2NhY2hlX2FzeW5jKCkgaW5zdGVhZAo+b2Ygc3Bpbm5pbmcgYXJv
+dW5kIHRvIGFjcXVpcmUgYSBzcGlubG9jay4KPgo+QnV0IHlvdXIgcGF0Y2ggaXMgaW5jb21wbGV0
+ZS4gVGhlIHNhbWUgbmVlZHMgdG8gYmUgZG9uZSBpbiBkZWxldGVfZnJvbV8KPnN3YXBfY2FjaGUo
+KSwgYW5kIHdlIHdvdWxkIGFsc28gbmVlZCB0byBwcm90ZWN0IGFnYWluc3QgcHJlZW1wdGlvbiBi
+ZXR3ZWVuCj50aGUgZ2V0X3N3YXBfcGFnZSgpIGFuZCB0aGUgYWRkX3RvX3N3YXBfY2FjaGUoKSwg
+aW4gYWRkX3RvX3N3YXAoKSBhbmQgaW4KPnNobWVtX3dyaXRlcGFnZSgpLiBUaGUgbGF0dGVyIGdl
+dHMgbWVzc3ksIGJ1dCA0LjExICh3aGVyZSBUaW0gQ2hlbiB1c2VzCj5TV0FQX0hBU19DQUNIRSBt
+b3JlIHdpZGVseSkgZ2l2ZXMgYSBnb29kIGhpbnQ6IF9fcmVhZF9zd2FwX2NhY2hlX2FzeW5jKCkK
+PmNhbGxlcnMgYXJlIG9ubHkgaW50ZXJlc3RlZCBpbiBzd2FwIGVudHJpZXMgdGhhdCBhcmUgYWxy
+ZWFkeSBpbiB1c2UgYW5kCj5zdGlsbCBpbiB1c2UuIChUaG91Z2ggc3dhcG9mZiBoYXMgdG8gYmUg
+bW9yZSBjYXJlZnVsLCBwYXJ0bHkgYmVjYXVzZSBvbmUKPm9mIGl0cyBqb2JzIGlzIHRvIGNsZWFy
+IG91dCBzd2FwLWNhY2hlLW9ubHkgZW50cmllcywgcGFydGx5IGJlY2F1c2UgdGhlCj5jdXJyZW50
+IGludGVyZmFjZSB3b3VsZCBtaXN0YWtlIGEgTlVMTCBmb3Igbm8tZW50cnkgYXMgb3V0LW9mLW1l
+bW9yeS4pCj4KPkJlbG93IGlzIHRoZSBwYXRjaCBJIHdvdWxkIGRvIGZvciA0LjkgKGRpZmZlZCBh
+Z2FpbnN0IDQuOS4xMTcpLCBhbmQgSSdtCj5zaG93aW5nIHRoYXQgYmVjYXVzZSBpdCdzIHRoZSBz
+aW1wbGVzdCBjYXNlLiBBbHRob3VnaCB0aGUgcHJpbmNpcGxlcyBzdGF5Cj50aGUgc2FtZSwgdGhl
+IGNvZGViYXNlIGhlcmUgaGFzIGdvbmUgdGhyb3VnaCBzZXZlcmFsIHNoaWZ0cywgYW5kIDQuMTkg
+d2lsbAo+cHJvYmFibHkgYmUgZGlmZmVyZW50IGFnYWluLiBTbyBJJ2xsIHRlc3QgYW5kIHBvc3Qg
+YSBwYXRjaCBhZ2FpbnN0IDQuMTktcmMKPmluIGEgZmV3IHdlZWtzIHRpbWUsIGFuZCB0aGF0IGNh
+biB0aGVuIGJlIGJhY2twb3J0ZWQgdG8gc3RhYmxlOiBidXQgd2lsbAo+bmVlZCBzZXZlcmFsIG1h
+bnVhbCBiYWNrcG9ydHMgYmVjYXVzZSBvZiB0aGUgaW50ZXJ2ZW5pbmcgY2hhbmdlcy4KPgo+SSBk
+aWQgd29uZGVyIHdoZXRoZXIganVzdCB0byBleHRlbmQgdGhlIGlycS1kaXNhYmxlZCBzZWN0aW9u
+IGluCj5kZWxldGVfZnJvbV9zd2FwX2NhY2hlKCkgZXRjOiB0aGF0J3MgZWFzeSwgYW5kIHdvcmtz
+LCBhbmQgaXMgZXZlbiBiZXR0ZXIKPnByb3RlY3Rpb24gYWdhaW5zdCBzcGlubmluZyB0b28gbG9u
+ZzsgYnV0IGl0J3Mgbm90IGFic29sdXRlbHkgbmVjZXNzYXJ5LAo+c28gYWxsIGluIGFsbCwgcHJv
+YmFibHkgYmV0dGVyIGF2b2lkZWQuIEkgZGlkIHdvbmRlciB3aGV0aGVyIHRvIHJlbW92ZQo+dGhl
+IGNvbmRfcmVzY2hlZCgpLCBidXQgaXQncyBub3QgYSBiYWQgcGxhY2UgZm9yIG9uZSwgc28gSSd2
+ZSBsZWZ0IGl0IGluLgo+Cj5XaGVuIGNoZWNraW5nIHdvcnN0IGNhc2VzIG9mIGxvb3BpbmcgYXJv
+dW5kIF9fcmVhZF9zd2FwX2NhY2hlX2FzeW5jKCksCj5hZnRlciB0aGUgcGF0Y2gsIEkgd2FzIHdv
+cnJpZWQgZm9yIGEgd2hpbGUuIEkgaGFkIG5haXZlbHkgaW1hZ2luZWQgdGhhdAo+Z29pbmcgbW9y
+ZSB0aGFuIHR3aWNlIGFyb3VuZCB0aGUgbG9vcCBzaG91bGQgYmUgdmFuaXNoaW5nbHkgcmFyZSwg
+YnV0Cj50aGF0IGlzIG5vdCBzbyBhdCBhbGwuIEJ1dCB0aGUgYmFkIGNhc2VzIEkgbG9va2VkIGlu
+dG8gd2VyZSBhbGwgdGhlIHNhbWU6Cj5hZnRlciBmb3JraW5nLCB0d28gcHJvY2Vzc2VzLCBvbiBI
+VCBzaWJsaW5ncywgZWFjaCBzZXJ2aW5nIGRvX3N3YXBfcGFnZSgpLAo+dHJ5aW5nIHRvIGJyaW5n
+IHRoZSBzYW1lIHN3YXAgaW50byBpdHMgbW0sIHdpdGggYSBzcGFyc2Ugc3dhcHBlcl9zcGFjZQo+
+dHJlZTogb25lIHByb2Nlc3MgZ2V0cyB0byBkbyBhbGwgdGhlIHdvcmsgb2YgYWxsb2NhdGluZyBu
+ZXcgcmFkaXgtdHJlZQo+bm9kZXMgYW5kIGJyaW5naW5nIHRoZW0gaW50byBELWNhY2hlLCB3aGls
+ZSB0aGUgb3RoZXIganVzdCBzcGlucyBhcm91bmQKPl9fcmVhZF9zd2FwX2NhY2hlX2FzeW5jKCkg
+c2VlaW5nIFNXQVBfSEFTX0NBQ0hFIGJ1dCBub3QgeWV0IHRoZSBwYWdlIGluCj50aGUgcmFkaXgt
+dHJlZS4gVGhhdCdzIG9rYXksIHRoYXQgbWFrZXMgc2Vuc2UuCj4KPkh1Z2gKPi0tLQo+Cj4gbW0v
+c3dhcF9zdGF0ZS5jIHzCoMKgIDI2ICsrKysrKysrKysrKystLS0tLS0tLS0tLS0tCj4gbW0vc3dh
+cGZpbGUuY8KgwqAgfMKgwqDCoCA4ICsrKysrKystCj4gbW0vdm1zY2FuLmPCoMKgwqDCoCB8wqDC
+oMKgIDMgKysrCj4gMyBmaWxlcyBjaGFuZ2VkLCAyMyBpbnNlcnRpb25zKCspLCAxNCBkZWxldGlv
+bnMoLSkKPgo+LS0tIDQuOS4xMTcvbW0vc3dhcF9zdGF0ZS5jCTIwMTYtMTItMTEgMTE6MTc6NTQu
+MDAwMDAwMDAwIC0wODAwCj4rKysgbGludXgvbW0vc3dhcF9zdGF0ZS5jCTIwMTgtMDgtMDQgMTE6
+NTA6NDYuNTc3Nzg4NzY2IC0wNzAwCj5AQCAtMjI1LDkgKzIyNSwxMSBAQCB2b2lkIGRlbGV0ZV9m
+cm9tX3N3YXBfY2FjaGUoc3RydWN0IHBhZ2UKPiBhZGRyZXNzX3NwYWNlID0gc3dhcF9hZGRyZXNz
+X3NwYWNlKGVudHJ5KTsKPiBzcGluX2xvY2tfaXJxKCZhZGRyZXNzX3NwYWNlLT50cmVlX2xvY2sp
+Owo+IF9fZGVsZXRlX2Zyb21fc3dhcF9jYWNoZShwYWdlKTsKPisJLyogRXhwZWRpdGUgc3dhcGNh
+Y2hlX2ZyZWUoKSB0byBoZWxwIF9fcmVhZF9zd2FwX2NhY2hlX2FzeW5jKCkgKi8KPisJcHJlZW1w
+dF9kaXNhYmxlKCk7Cj4gc3Bpbl91bmxvY2tfaXJxKCZhZGRyZXNzX3NwYWNlLT50cmVlX2xvY2sp
+Owo+LQo+IHN3YXBjYWNoZV9mcmVlKGVudHJ5KTsKPisJcHJlZW1wdF9lbmFibGUoKTsKPiBwdXRf
+cGFnZShwYWdlKTsKPiB9Cj4KPkBAIC0zMzcsMTkgKzMzOSwxNyBAQCBzdHJ1Y3QgcGFnZSAqX19y
+ZWFkX3N3YXBfY2FjaGVfYXN5bmMoc3dwCj4gaWYgKGVyciA9PSAtRUVYSVNUKSB7Cj4gcmFkaXhf
+dHJlZV9wcmVsb2FkX2VuZCgpOwo+IC8qCj4tCSogV2UgbWlnaHQgcmFjZSBhZ2FpbnN0IGdldF9z
+d2FwX3BhZ2UoKSBhbmQgc3R1bWJsZQo+LQkqIGFjcm9zcyBhIFNXQVBfSEFTX0NBQ0hFIHN3YXBf
+bWFwIGVudHJ5IHdob3NlIHBhZ2UKPi0JKiBoYXMgbm90IGJlZW4gYnJvdWdodCBpbnRvIHRoZSBz
+d2FwY2FjaGUgeWV0LCB3aGlsZQo+LQkqIHRoZSBvdGhlciBlbmQgaXMgc2NoZWR1bGVkIGF3YXkg
+d2FpdGluZyBvbiBkaXNjYXJkCj4tCSogSS9PIGNvbXBsZXRpb24gYXQgc2Nhbl9zd2FwX21hcCgp
+Lgo+KwkqIFdlIG1pZ2h0IHJhY2UgYWdhaW5zdCBfX2RlbGV0ZV9mcm9tX3N3YXBfY2FjaGUoKSBh
+bmQKPisJKiBzdHVtYmxlIGFjcm9zcyBhIHN3YXBfbWFwIGVudHJ5IHdob3NlIFNXQVBfSEFTX0NB
+Q0hFCj4rCSogaGFzIG5vdCB5ZXQgYmVlbiBjbGVhcmVkOiBoZW5jZSBwcmVlbXB0X2Rpc2FibGUo
+KQo+KwkqIGluIF9fcmVtb3ZlX21hcHBpbmcoKSBhbmQgZGVsZXRlX2Zyb21fc3dhcF9jYWNoZSgp
+LAo+KwkqIHNvIHRoZXkgY2Fubm90IHNjaGVkdWxlIGF3YXkgYmVmb3JlIGNsZWFyaW5nIGl0Lgo+
+ICoKPi0JKiBJbiBvcmRlciB0byBhdm9pZCB0dXJuaW5nIHRoaXMgdHJhbnNpdG9yeSBzdGF0ZQo+
+LQkqIGludG8gYSBwZXJtYW5lbnQgbG9vcCBhcm91bmQgdGhpcyAtRUVYSVNUIGNhc2UKPi0JKiBp
+ZiAhQ09ORklHX1BSRUVNUFQgYW5kIHRoZSBJL08gY29tcGxldGlvbiBoYXBwZW5zCj4tCSogdG8g
+YmUgd2FpdGluZyBvbiB0aGUgQ1BVIHdhaXRxdWV1ZSB3aGVyZSB3ZSBhcmUgbm93Cj4tCSogYnVz
+eSBsb29waW5nLCB3ZSBqdXN0IGNvbmRpdGlvbmFsbHkgaW52b2tlIHRoZQo+LQkqIHNjaGVkdWxl
+ciBoZXJlLCBpZiB0aGVyZSBhcmUgc29tZSBtb3JlIGltcG9ydGFudAo+LQkqIHRhc2tzIHRvIHJ1
+bi4KPisJKiBXZSBuZWVkIHNpbWlsYXIgcHJvdGVjdGlvbiBhZ2FpbnN0IHJhY2luZyBjYWxscyB0
+bwo+KwkqIF9fcmVhZF9zd2FwX2NhY2hlX2FzeW5jKCk6IHByZWVtcHRfZGlzYWJsZSgpIGJlZm9y
+ZQo+KwkqIHN3YXBjYWNoZV9wcmVwYXJlKCkgYWJvdmUsIHByZWVtcHRfZW5hYmxlKCkgYWZ0ZXIK
+PisJKiBfX2FkZF90b19zd2FwX2NhY2hlKCkgYmVsb3c6IHdoaWNoIGFyZSBhbHJlYWR5IGluCj4r
+CSogcmFkaXhfdHJlZV9tYXliZV9wcmVsb2FkKCksIHJhZGl4X3RyZWVfcHJlbG9hZF9lbmQoKS4K
+PiAqLwo+IGNvbmRfcmVzY2hlZCgpOwo+IGNvbnRpbnVlOwo+LS0tIDQuOS4xMTcvbW0vc3dhcGZp
+bGUuYwkyMDE4LTA4LTA0IDExOjQwOjA4LjQ2MzUwNDg0OCAtMDcwMAo+KysrIGxpbnV4L21tL3N3
+YXBmaWxlLmMJMjAxOC0wOC0wNCAxMTo1MDo0Ni41Nzc3ODg3NjYgLTA3MDAKPkBAIC0yNjcwLDcg
+KzI2NzAsMTMgQEAgc3RhdGljIGludCBfX3N3YXBfZHVwbGljYXRlKHN3cF9lbnRyeV90Cj4gLyog
+c2V0IFNXQVBfSEFTX0NBQ0hFIGlmIHRoZXJlIGlzIG5vIGNhY2hlIGFuZCBlbnRyeSBpcyB1c2Vk
+ICovCj4gaWYgKCFoYXNfY2FjaGUgJiYgY291bnQpCj4gaGFzX2NhY2hlID0gU1dBUF9IQVNfQ0FD
+SEU7Cj4tCWVsc2UgaWYgKGhhc19jYWNoZSkJLyogc29tZW9uZSBlbHNlIGFkZGVkIGNhY2hlICov
+Cj4rCS8qCj4rCSogX19yZWFkX3N3YXBfY2FjaGVfYXN5bmMoKSBjYW4gdXN1YWxseSBza2lwIGVu
+dHJpZXMgd2l0aG91dAo+KwkqIHJlYWwgdXNhZ2UgKGluY2x1ZGluZyB0aG9zZSBpbiBiZXR3ZWVu
+IGJlaW5nIGFsbG9jYXRlZCBhbmQKPisJKiBhZGRlZCB0byBzd2FwIGNhY2hlKTsgYnV0IHN3YXBv
+ZmYgKCFTV1BfV1JJVEVPSykgbXVzdCBub3QuCj4rCSovCj4rCWVsc2UgaWYgKGhhc19jYWNoZSAm
+Jgo+KwkoY291bnQgfHwgIShwLT5mbGFncyAmIFNXUF9XUklURU9LKSkpCj4gZXJyID0gLUVFWElT
+VDsKPiBlbHNlCS8qIG5vIHVzZXJzIHJlbWFpbmluZyAqLwo+IGVyciA9IC1FTk9FTlQ7Cj4tLS0g
+NC45LjExNy9tbS92bXNjYW4uYwkyMDE4LTA4LTA0IDExOjQwOjA4LjQ3MTUwNDkwMiAtMDcwMAo+
+KysrIGxpbnV4L21tL3Ztc2Nhbi5jCTIwMTgtMDgtMDQgMTE6NTA6NDYuNTc3Nzg4NzY2IC0wNzAw
+Cj5AQCAtNzA5LDggKzcwOSwxMSBAQCBzdGF0aWMgaW50IF9fcmVtb3ZlX21hcHBpbmcoc3RydWN0
+IGFkZHJlCj4gc3dwX2VudHJ5X3Qgc3dhcCA9IHsgLnZhbCA9IHBhZ2VfcHJpdmF0ZShwYWdlKSB9
+Owo+IG1lbV9jZ3JvdXBfc3dhcG91dChwYWdlLCBzd2FwKTsKPiBfX2RlbGV0ZV9mcm9tX3N3YXBf
+Y2FjaGUocGFnZSk7Cj4rCS8qIEV4cGVkaXRlIHN3YXBjYWNoZV9mcmVlKCkgZm9yIF9fcmVhZF9z
+d2FwX2NhY2hlX2FzeW5jKCkgKi8KPisJcHJlZW1wdF9kaXNhYmxlKCk7Cj4gc3Bpbl91bmxvY2tf
+aXJxcmVzdG9yZSgmbWFwcGluZy0+dHJlZV9sb2NrLCBmbGFncyk7Cj4gc3dhcGNhY2hlX2ZyZWUo
+c3dhcCk7Cj4rCXByZWVtcHRfZW5hYmxlKCk7Cj4gfSBlbHNlIHsKPiB2b2lkICgqZnJlZXBhZ2Up
+KHN0cnVjdCBwYWdlICopOwo+IHZvaWQgKnNoYWRvdyA9IE5VTEw7IAoKCkhpIEh1Z2gsCgpUaGFu
+a3MgZm9yIGFmZmlybWluZyB0aGUgbW9kaWZpY2F0aW9uIG9mIGRpc2FibGluZyBwcmVlbXB0aW9u
+IGFuZCAKcG9pbnRpbmcgb3V0IHRoZSBpbmNvbXBsZXRlbmVzcywgZGVsZXRlX2Zyb21fc3dhcF9j
+YWNoZSgpIG5lZWRzIHRoZSBzYW1lIHByb3RlY3Rpb24uCkknbSBjdXJpb3VzIGFib3V0IHRoYXQg
+d2h5IGRvbid0IHB1dMKgc3dhcGNhY2hlX2ZyZWUoc3dhcCkgdW5kZXIgcHJvdGVjdGlvbiBvZsKg
+bWFwcGluZy0+dHJlZV9sb2NrID8/Cgo=
