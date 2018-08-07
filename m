@@ -1,80 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B58E6B000C
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 10:59:05 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id l16-v6so5243140edq.18
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 07:59:05 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AF2F6B000E
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 10:59:49 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id d18-v6so5505356edp.0
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 07:59:49 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z47-v6si2063860edc.449.2018.08.07.07.59.04
+        by mx.google.com with ESMTPS id v1-v6si2382716edj.389.2018.08.07.07.59.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Aug 2018 07:59:04 -0700 (PDT)
-Date: Tue, 7 Aug 2018 16:59:00 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/3] mm/memory_hotplug: Create __shrink_pages and
- move it to offline_pages
-Message-ID: <20180807145900.GH10003@dhcp22.suse.cz>
-References: <20180807133757.18352-1-osalvador@techadventures.net>
- <20180807133757.18352-3-osalvador@techadventures.net>
- <20180807135221.GA3301@redhat.com>
+        Tue, 07 Aug 2018 07:59:47 -0700 (PDT)
+Subject: Re: [RFC v6 PATCH 1/2] mm: refactor do_munmap() to extract the common
+ part
+References: <1532628614-111702-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1532628614-111702-2-git-send-email-yang.shi@linux.alibaba.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <0289d239-80f1-23e1-331d-6d83f762aeb4@suse.cz>
+Date: Tue, 7 Aug 2018 16:59:46 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180807135221.GA3301@redhat.com>
+In-Reply-To: <1532628614-111702-2-git-send-email-yang.shi@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: osalvador@techadventures.net, akpm@linux-foundation.org, dan.j.williams@intel.com, pasha.tatashin@oracle.com, david@redhat.com, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Yang Shi <yang.shi@linux.alibaba.com>, mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 07-08-18 09:52:21, Jerome Glisse wrote:
-> On Tue, Aug 07, 2018 at 03:37:56PM +0200, osalvador@techadventures.net wrote:
-> > From: Oscar Salvador <osalvador@suse.de>
+On 07/26/2018 08:10 PM, Yang Shi wrote:
+> Introduces three new helper functions:
+>   * munmap_addr_sanity()
+>   * munmap_lookup_vma()
+>   * munmap_mlock_vma()
 > 
-> [...]
+> They will be used by do_munmap() and the new do_munmap with zapping
+> large mapping early in the later patch.
 > 
-> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > index 9bd629944c91..e33555651e46 100644
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
+> There is no functional change, just code refactor.
 > 
-> [...]
+> Reviewed-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> ---
+>  mm/mmap.c | 120 ++++++++++++++++++++++++++++++++++++++++++--------------------
+>  1 file changed, 82 insertions(+), 38 deletions(-)
 > 
-> >  /**
-> >   * __remove_pages() - remove sections of pages from a zone
-> > - * @zone: zone from which pages need to be removed
-> > + * @nid: node which pages belong to
-> >   * @phys_start_pfn: starting pageframe (must be aligned to start of a section)
-> >   * @nr_pages: number of pages to remove (must be multiple of section size)
-> >   * @altmap: alternative device page map or %NULL if default memmap is used
-> > @@ -548,7 +557,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
-> >   * sure that pages are marked reserved and zones are adjust properly by
-> >   * calling offline_pages().
-> >   */
-> > -int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
-> > +int __remove_pages(int nid, unsigned long phys_start_pfn,
-> >  		 unsigned long nr_pages, struct vmem_altmap *altmap)
-> >  {
-> >  	unsigned long i;
-> > @@ -556,10 +565,9 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
-> >  	int sections_to_remove, ret = 0;
-> >  
-> >  	/* In the ZONE_DEVICE case device driver owns the memory region */
-> > -	if (is_dev_zone(zone)) {
-> > -		if (altmap)
-> > -			map_offset = vmem_altmap_offset(altmap);
-> > -	} else {
-> > +	if (altmap)
-> > +		map_offset = vmem_altmap_offset(altmap);
-> > +	else {
-> 
-> This will break ZONE_DEVICE at least for HMM. While i think that
-> altmap -> ZONE_DEVICE (ie altmap imply ZONE_DEVICE) the reverse
-> is not true ie ZONE_DEVICE does not necessarily imply altmap. So
-> with the above changes you change the expected behavior.
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index d1eb87e..2504094 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -2686,34 +2686,44 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	return __split_vma(mm, vma, addr, new_below);
+>  }
+>  
+> -/* Munmap is split into 2 main parts -- this part which finds
+> - * what needs doing, and the areas themselves, which do the
+> - * work.  This now handles partial unmappings.
+> - * Jeremy Fitzhardinge <jeremy@goop.org>
+> - */
+> -int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+> -	      struct list_head *uf)
+> +static inline bool munmap_addr_sanity(unsigned long start, size_t len)
 
-Could you be more specific what is the expected behavior here?
-Is this about calling release_mem_region_adjustable? Why does is it not
-suitable for zone device ranges?
--- 
-Michal Hocko
-SUSE Labs
+Since it's returning bool, the proper naming scheme would be something
+like "munmap_addr_ok()". I don't know how I would replace the "munmap_"
+prefix myself though.
+
+>  {
+> -	unsigned long end;
+> -	struct vm_area_struct *vma, *prev, *last;
+> -
+>  	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE-start)
+> -		return -EINVAL;
+> +		return false;
+>  
+> -	len = PAGE_ALIGN(len);
+> -	if (len == 0)
+> -		return -EINVAL;
+> +	if (PAGE_ALIGN(len) == 0)
+> +		return false;
+> +
+> +	return true;
+> +}
+> +
+> +/*
+> + * munmap_lookup_vma: find the first overlap vma and split overlap vmas.
+> + * @mm: mm_struct
+> + * @vma: the first overlapping vma
+> + * @prev: vma's prev
+> + * @start: start address
+> + * @end: end address
+> + *
+> + * returns 1 if successful, 0 or errno otherwise
+> + */
+> +static int munmap_lookup_vma(struct mm_struct *mm, struct vm_area_struct **vma,
+> +			     struct vm_area_struct **prev, unsigned long start,
+> +			     unsigned long end)
+
+Agree with Michal that you could simply return vma, NULL, or error.
+Caller can easily find out prev from that, it's not like we have to
+count each cpu cycle here. It will be a bit less tricky code as well,
+which is a plus.
+
+...
+> +static inline void munmap_mlock_vma(struct vm_area_struct *vma,
+> +				    unsigned long end)
+
+This function does munlock, not mlock. You could call it e.g.
+munlock_vmas().
+
+> +{
+> +	struct vm_area_struct *tmp = vma;
+> +
+> +	while (tmp && tmp->vm_start < end) {
+> +		if (tmp->vm_flags & VM_LOCKED) {
+> +			vma->vm_mm->locked_vm -= vma_pages(tmp);
+
+You keep 'vma' just for the vm_mm? Better extract mm pointer first and
+then you don't need the 'tmp'.
+
+> +			munlock_vma_pages_all(tmp);
+> +		}
+> +		tmp = tmp->vm_next;
+> +	}
+> +}
