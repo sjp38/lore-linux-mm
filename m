@@ -1,65 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D7D686B000C
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 16:16:39 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id t189-v6so4121786ywg.2
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 13:16:39 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l68-v6sor483597ywb.410.2018.08.07.13.16.36
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 14D8D6B0010
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 16:21:25 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id r14-v6so195016wmh.0
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 13:21:25 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id z74-v6si2090280wrb.165.2018.08.07.13.21.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 07 Aug 2018 13:16:36 -0700 (PDT)
-Date: Tue, 7 Aug 2018 16:19:35 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] memcg, oom: be careful about races when warning about no
- reclaimable task
-Message-ID: <20180807201935.GB4251@cmpxchg.org>
-References: <20180807072553.14941-1-mhocko@kernel.org>
- <863d73ce-fae9-c117-e361-12c415c787de@i-love.sakura.ne.jp>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 07 Aug 2018 13:21:23 -0700 (PDT)
+Date: Tue, 7 Aug 2018 22:21:03 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 2/3] x86/mm/pti: Don't clear permissions in
+ pti_clone_pmd()
+In-Reply-To: <CALCETrXj1-CC-rcnM5s2SvbSFKjZPMYj0O-9d1PY0MRdGEKs-g@mail.gmail.com>
+Message-ID: <alpine.DEB.2.21.1808072218310.1672@nanos.tec.linutronix.de>
+References: <1533637471-30953-1-git-send-email-joro@8bytes.org> <1533637471-30953-3-git-send-email-joro@8bytes.org> <feea2aff-91ff-89a6-9d7c-5402a1d6a27f@intel.com> <CALCETrXj1-CC-rcnM5s2SvbSFKjZPMYj0O-9d1PY0MRdGEKs-g@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <863d73ce-fae9-c117-e361-12c415c787de@i-love.sakura.ne.jp>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Dmitry Vyukov <dvyukov@google.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Joerg Roedel <joro@8bytes.org>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, Joerg Roedel <jroedel@suse.de>
 
-On Tue, Aug 07, 2018 at 07:15:11PM +0900, Tetsuo Handa wrote:
-> On 2018/08/07 16:25, Michal Hocko wrote:
-> > @@ -1703,7 +1703,8 @@ static enum oom_status mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int
-> >  		return OOM_ASYNC;
-> >  	}
-> >  
-> > -	if (mem_cgroup_out_of_memory(memcg, mask, order))
-> > +	if (mem_cgroup_out_of_memory(memcg, mask, order) ||
-> > +			tsk_is_oom_victim(current))
-> >  		return OOM_SUCCESS;
-> >  
-> >  	WARN(1,"Memory cgroup charge failed because of no reclaimable memory! "
-> > 
+On Tue, 7 Aug 2018, Andy Lutomirski wrote:
+
+> On Tue, Aug 7, 2018 at 11:34 AM, Dave Hansen <dave.hansen@intel.com> wrote:
+> > On 08/07/2018 03:24 AM, Joerg Roedel wrote:
+> >> The function sets the global-bit on cloned PMD entries,
+> >> which only makes sense when the permissions are identical
+> >> between the user and the kernel page-table.
+> >>
+> >> Further, only write-permissions are cleared for entry-text
+> >> and kernel-text sections, which are not writeable anyway.
+> >
+> > I think this patch is correct, but I'd be curious if Andy remembers why
+> > we chose to clear _PAGE_RW on these things.  It might have been that we
+> > were trying to say that the *entry* code shouldn't write to this stuff,
+> > regardless of whether the normal kernel can.
+> >
+> > But, either way, I agree with the logic here that Global pages must
+> > share permissions between both mappings, so feel free to add my Ack.  I
+> > just want to make sure Andy doesn't remember some detail I'm forgetting.
 > 
-> I don't think this patch is appropriate. This patch only avoids hitting WARN(1).
-> This patch does not address the root cause:
-> 
-> The task_will_free_mem(current) test in out_of_memory() is returning false
-> because test_bit(MMF_OOM_SKIP, &mm->flags) test in task_will_free_mem() is
-> returning false because MMF_OOM_SKIP was already set by the OOM reaper. The OOM
-> killer does not need to start selecting next OOM victim until "current thread
-> completes __mmput()" or "it fails to complete __mmput() within reasonable
-> period".
+> I suspect it's because we used to (and maybe still do) initialize the
+> user tables before mark_read_only().
 
-I don't see why it matters whether the OOM victim exits or not, unless
-you count the memory consumed by struct task_struct.
+We still do that because we need the entry stuff working for interrupts
+early on. We now repeat the clone after mark_ro so the mask RW is not
+longer required.
 
-> According to https://syzkaller.appspot.com/text?tag=CrashLog&x=15a1c770400000 ,
-> PID=23767 selected PID=23766 as an OOM victim and the OOM reaper set MMF_OOM_SKIP
-> before PID=23766 unnecessarily selects PID=23767 as next OOM victim.
-> At uptime = 366.550949, out_of_memory() should have returned true without selecting
-> next OOM victim because tsk_is_oom_victim(current) == true.
+Thanks,
 
-The code works just fine. We have to kill tasks until we a) free
-enough memory or b) run out of tasks or c) kill current. When one of
-these outcomes is reached, we allow the charge and return.
-
-The only problem here is a warning in the wrong place.
+	tglx
