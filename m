@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 78F0A6B0277
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 11:38:23 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id g7-v6so13743587qtp.19
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 08:38:23 -0700 (PDT)
-Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40104.outbound.protection.outlook.com. [40.107.4.104])
-        by mx.google.com with ESMTPS id e64-v6si1530383qkb.255.2018.08.07.08.38.22
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E2DAC6B0279
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 11:38:37 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id b7-v6so13775280qtp.14
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 08:38:37 -0700 (PDT)
+Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40096.outbound.protection.outlook.com. [40.107.4.96])
+        by mx.google.com with ESMTPS id u27-v6si1642637qte.81.2018.08.07.08.38.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 07 Aug 2018 08:38:22 -0700 (PDT)
-Subject: [PATCH RFC 04/10] mm: Split unregister_shrinker()
+        Tue, 07 Aug 2018 08:38:37 -0700 (PDT)
+Subject: [PATCH RFC 05/10] fs: Move list_lru_destroy() to
+ destroy_super_work()
 From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Tue, 07 Aug 2018 18:38:12 +0300
-Message-ID: <153365629257.19074.5257843346605031007.stgit@localhost.localdomain>
+Date: Tue, 07 Aug 2018 18:38:23 +0300
+Message-ID: <153365630328.19074.5326096793225967868.stgit@localhost.localdomain>
 In-Reply-To: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
 References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
 MIME-Version: 1.0
@@ -22,79 +23,76 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, ktkhai@virtuozzo.com, sfr@canb.auug.org.au, vdavydov.dev@gmail.com, mhocko@suse.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-This and the next patches in this series aim to make
-time effect of synchronize_srcu() invisible for user.
-The patch splits unregister_shrinker() in two functions:
+The patch makes s_dentry_lru and s_inode_lru be destroyed
+later from the workqueue. This is preparation to split
+unregister_shrinker(super_block::s_shrink) in two stages,
+and to call finalize stage from destroy_super_work().
 
-	unregister_shrinker_delayed_initiate()
-	unregister_shrinker_delayed_finalize()
+Note, that generic filesystem shrinker unregistration
+is safe to be splitted in two stages right after this
+patch, since super_cache_count() and super_cache_scan()
+have a deal with s_dentry_lru and s_inode_lru only.
 
-and shrinker users may make the second of them to be called
-asynchronous (e.g., from workqueue). Next patches make
-superblock shrinker to follow this way, so user-visible
-umount() time won't contain delays from synchronize_srcu().
+But there are two exceptions: XFS and SHMEM, which
+define .nr_cached_objects() and .free_cached_objects()
+callbacks. These two do not allow us to do the splitting
+right after this patch. They touch fs-specific data,
+which is destroyed earlier, than destroy_super_work().
+So, we can't call unregister_shrinker_delayed_finalize()
+from destroy_super_work() because of them, and next
+patches make preparations to make this possible.
 
 Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 ---
- include/linux/shrinker.h |    2 ++
- mm/vmscan.c              |   22 ++++++++++++++++++----
- 2 files changed, 20 insertions(+), 4 deletions(-)
+ fs/super.c |   17 +++++------------
+ 1 file changed, 5 insertions(+), 12 deletions(-)
 
-diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-index 9443cafd1969..92062d1239c2 100644
---- a/include/linux/shrinker.h
-+++ b/include/linux/shrinker.h
-@@ -86,5 +86,7 @@ extern int prealloc_shrinker(struct shrinker *shrinker);
- extern void register_shrinker_prepared(struct shrinker *shrinker);
- extern int register_shrinker(struct shrinker *shrinker);
- extern void unregister_shrinker(struct shrinker *shrinker);
-+extern void unregister_shrinker_delayed_initiate(struct shrinker *shrinker);
-+extern void unregister_shrinker_delayed_finalize(struct shrinker *shrinker);
- extern void free_prealloced_shrinker(struct shrinker *shrinker);
- #endif
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 2dc274a385b9..fba4996dfe25 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -422,10 +422,7 @@ int register_shrinker(struct shrinker *shrinker)
- }
- EXPORT_SYMBOL(register_shrinker);
+diff --git a/fs/super.c b/fs/super.c
+index 426161360af3..457834278e37 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -159,6 +159,11 @@ static void destroy_super_work(struct work_struct *work)
+ 							destroy_work);
+ 	int i;
  
--/*
-- * Remove one
-- */
--void unregister_shrinker(struct shrinker *shrinker)
-+void unregister_shrinker_delayed_initiate(struct shrinker *shrinker)
- {
- 	if (!shrinker->nr_deferred)
++	WARN_ON(list_lru_count(&s->s_dentry_lru));
++	WARN_ON(list_lru_count(&s->s_inode_lru));
++	list_lru_destroy(&s->s_dentry_lru);
++	list_lru_destroy(&s->s_inode_lru);
++
+ 	for (i = 0; i < SB_FREEZE_LEVELS; i++)
+ 		percpu_free_rwsem(&s->s_writers.rw_sem[i]);
+ 	kfree(s);
+@@ -177,8 +182,6 @@ static void destroy_unused_super(struct super_block *s)
+ 	if (!s)
  		return;
-@@ -434,12 +431,29 @@ void unregister_shrinker(struct shrinker *shrinker)
- 	mutex_lock(&shrinker_mutex);
- 	list_del_rcu(&shrinker->list);
- 	mutex_unlock(&shrinker_mutex);
-+}
-+EXPORT_SYMBOL(unregister_shrinker_delayed_initiate);
-+
-+void unregister_shrinker_delayed_finalize(struct shrinker *shrinker)
-+{
-+	if (!shrinker->nr_deferred)
-+		return;
+ 	up_write(&s->s_umount);
+-	list_lru_destroy(&s->s_dentry_lru);
+-	list_lru_destroy(&s->s_inode_lru);
+ 	security_sb_free(s);
+ 	put_user_ns(s->s_user_ns);
+ 	kfree(s->s_subtype);
+@@ -283,8 +286,6 @@ static void __put_super(struct super_block *s)
+ {
+ 	if (!--s->s_count) {
+ 		list_del_init(&s->s_list);
+-		WARN_ON(s->s_dentry_lru.node);
+-		WARN_ON(s->s_inode_lru.node);
+ 		WARN_ON(!list_empty(&s->s_mounts));
+ 		security_sb_free(s);
+ 		put_user_ns(s->s_user_ns);
+@@ -327,14 +328,6 @@ void deactivate_locked_super(struct super_block *s)
+ 		unregister_shrinker(&s->s_shrink);
+ 		fs->kill_sb(s);
  
- 	synchronize_srcu(&srcu);
- 
- 	kfree(shrinker->nr_deferred);
- 	shrinker->nr_deferred = NULL;
- }
-+EXPORT_SYMBOL(unregister_shrinker_delayed_finalize);
-+
-+/*
-+ * Remove one
-+ */
-+void unregister_shrinker(struct shrinker *shrinker)
-+{
-+	unregister_shrinker_delayed_initiate(shrinker);
-+	unregister_shrinker_delayed_finalize(shrinker);
-+}
- EXPORT_SYMBOL(unregister_shrinker);
- 
- #define SHRINK_BATCH 128
+-		/*
+-		 * Since list_lru_destroy() may sleep, we cannot call it from
+-		 * put_super(), where we hold the sb_lock. Therefore we destroy
+-		 * the lru lists right now.
+-		 */
+-		list_lru_destroy(&s->s_dentry_lru);
+-		list_lru_destroy(&s->s_inode_lru);
+-
+ 		put_filesystem(fs);
+ 		put_super(s);
+ 	} else {
