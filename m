@@ -1,20 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BA6686B0003
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 07:30:18 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id z13-v6so13592580wrq.3
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 04:30:18 -0700 (PDT)
-Received: from Chamillionaire.breakpoint.cc (Chamillionaire.breakpoint.cc. [2a01:7a0:2:106d:670::1])
-        by mx.google.com with ESMTPS id 196-v6si1140918wmu.166.2018.08.07.04.30.17
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 43A726B0006
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 07:31:24 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id j14-v6so5296291edr.2
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 04:31:24 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f5-v6si1021528edn.275.2018.08.07.04.31.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 07 Aug 2018 04:30:17 -0700 (PDT)
-Date: Tue, 7 Aug 2018 13:30:13 +0200
-From: Florian Westphal <fw@strlen.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Aug 2018 04:31:23 -0700 (PDT)
 Subject: Re: [Bug 200651] New: cgroups iptables-restor: vmalloc: allocation
  failure
-Message-ID: <20180807113013.su4vjj46vh5fkiqx@breakpoint.cc>
-References: <20180731140520.kpotpihqsmiwhh7l@breakpoint.cc>
+References: <8105b7b3-20d3-5931-9f3c-2858021a4e12@icdsoft.com>
+ <20180731140520.kpotpihqsmiwhh7l@breakpoint.cc>
  <e5b24629-0296-5a4d-577a-c25d1c52b03b@suse.cz>
  <20180801083349.GF16767@dhcp22.suse.cz>
  <e5c5e965-a6bc-d61f-97fc-78da287b5d94@icdsoft.com>
@@ -24,30 +22,41 @@ References: <20180731140520.kpotpihqsmiwhh7l@breakpoint.cc>
  <20180807110951.GZ10003@dhcp22.suse.cz>
  <20180807111926.ibdkzgghn3nfugn2@breakpoint.cc>
  <20180807112641.GB10003@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <6a9460c1-cb63-27e1-dd29-da3f736cfa09@suse.cz>
+Date: Tue, 7 Aug 2018 13:31:21 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <20180807112641.GB10003@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Florian Westphal <fw@strlen.de>, Georgi Nikolov <gnikolov@icdsoft.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, netfilter-devel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Florian Westphal <fw@strlen.de>
+Cc: Georgi Nikolov <gnikolov@icdsoft.com>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, netfilter-devel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-Michal Hocko <mhocko@kernel.org> wrote:
+On 08/07/2018 01:26 PM, Michal Hocko wrote:
 > On Tue 07-08-18 13:19:26, Florian Westphal wrote:
-> > Michal Hocko <mhocko@kernel.org> wrote:
-> > > > I can't reproduce it anymore.
-> > > > If i understand correctly this way memory allocated will be
-> > > > accounted to kmem of this cgroup (if inside cgroup).
-> > > 
-> > > s@this@caller's@
-> > > 
-> > > Florian, is this patch acceptable
-> > 
-> > I am no mm expert.  Should all longlived GFP_KERNEL allocations set ACCOUNT?
+>> Michal Hocko <mhocko@kernel.org> wrote:
+>>>> I can't reproduce it anymore.
+>>>> If i understand correctly this way memory allocated will be
+>>>> accounted to kmem of this cgroup (if inside cgroup).
+>>>
+>>> s@this@caller's@
+>>>
+>>> Florian, is this patch acceptable
+>>
+>> I am no mm expert.  Should all longlived GFP_KERNEL allocations set ACCOUNT?
 > 
 > No. We should focus only on those that are under direct userspace
 > control and it can be triggered by an untrusted user.
 
-In that case patch is fine and we will need similar patches for
-nf_tables_api.c .
+Looks like the description in include/linux/gfp.h could use some details
+to guide developers, possibly also Mike's new/improved docs (+CC).
+
+>> If so, there are more places that should get same treatment.
+>> The change looks fine to me, but again, I don't know when ACCOUNT should
+>> be set in the first place.
+> 
+> see above.
+> 
