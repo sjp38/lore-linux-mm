@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BD5246B0003
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 12:44:38 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id o18-v6so4570861qtp.13
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 09:44:38 -0700 (PDT)
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EDE346B0006
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 12:45:45 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id e3-v6so16980573qkj.17
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 09:45:45 -0700 (PDT)
 Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
-        by mx.google.com with ESMTPS id k23-v6si1108544qvg.117.2018.08.07.09.44.36
+        by mx.google.com with ESMTPS id r24-v6si312050qkk.207.2018.08.07.09.45.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Aug 2018 09:44:36 -0700 (PDT)
+        Tue, 07 Aug 2018 09:45:44 -0700 (PDT)
 From: Tony Battersby <tonyb@cybernetics.com>
-Subject: [PATCH v3 00/10] mpt3sas and dmapool scalability
-Message-ID: <d48854ff-995d-228e-8356-54c141c32117@cybernetics.com>
-Date: Tue, 7 Aug 2018 12:44:34 -0400
+Subject: [PATCH v3 02/10] dmapool: remove checks for dev == NULL
+Message-ID: <99c5f149-90a7-dcc5-73a5-179ca009f914@cybernetics.com>
+Date: Tue, 7 Aug 2018 12:45:42 -0400
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
@@ -21,86 +21,112 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "MPT-FusionLinux.pdl@broadcom.com" <MPT-FusionLinux.pdl@broadcom.com>
 
-Major changes since v2:
+dmapool originally tried to support pools without a device because
+dma_alloc_coherent() supports allocations without a device.  But nobody
+ended up using dma pools without a device, so the current checks in
+dmapool.c for pool->dev == NULL are both insufficient and causing bloat.
+Remove them.
 
-*) Addressed review comments.
-
-*) Changed the description of patch #2.
-
-*) Dropped "dmapool: reduce footprint in struct page", but split off
-   parts of it for merging (patches #7 and #8) and used it to improve
-   patch #9.
-
+Signed-off-by: Tony Battersby <tonyb@cybernetics.com>
 ---
 
-drivers/scsi/mpt3sas is running into a scalability problem with the
-kernel's DMA pool implementation.  With a LSI/Broadcom SAS 9300-8i
-12Gb/s HBA and max_sgl_entries=256, during modprobe, mpt3sas does the
-equivalent of:
+Changes since v2:
+*) This was "dmapool: cleanup error messages" in v2.
+*) Remove one more check for dev == NULL in dma_pool_destroy() that is
+   unrelated to error messages.
 
-chain_dma_pool = dma_pool_create(size = 128);
-for (i = 0; i < 373959; i++)
-    {
-    dma_addr[i] = dma_pool_alloc(chain_dma_pool);
-    }
-
-And at rmmod, system shutdown, or system reboot, mpt3sas does the
-equivalent of:
-
-for (i = 0; i < 373959; i++)
-    {
-    dma_pool_free(chain_dma_pool, dma_addr[i]);
-    }
-dma_pool_destroy(chain_dma_pool);
-
-With this usage, both dma_pool_alloc() and dma_pool_free() exhibit
-O(n^2) complexity, although dma_pool_free() is much worse due to
-implementation details.  On my system, the dma_pool_free() loop above
-takes about 9 seconds to run.  Note that the problem was even worse
-before commit 74522a92bbf0 ("scsi: mpt3sas: Optimize I/O memory
-consumption in driver."), where the dma_pool_free() loop could take ~30
-seconds.
-
-mpt3sas also has some other DMA pools, but chain_dma_pool is the only
-one with so many allocations:
-
-cat /sys/devices/pci0000:80/0000:80:07.0/0000:85:00.0/pools
-(manually cleaned up column alignment)
-poolinfo - 0.1
-reply_post_free_array pool  1      21     192     1
-reply_free pool             1      1      41728   1
-reply pool                  1      1      1335296 1
-sense pool                  1      1      970272  1
-chain pool                  373959 386048 128     12064
-reply_post_free pool        12     12     166528  12
-
-The first 9 patches in this series improve the scalability of the DMA
-pool implementation, which significantly reduces the running time of the
-DMA alloc/free loops.
-
-The last patch modifies mpt3sas to replace chain_dma_pool with direct
-calls to dma_alloc_coherent() and dma_free_coherent(), which reduces
-its overhead even further.
-
-The mpt3sas patch is independent of the dmapool patches; it can be used
-with or without them.  If either the dmapool patches or the mpt3sas
-patch is applied, then "modprobe mpt3sas", "rmmod mpt3sas", and system
-shutdown/reboot with mpt3sas loaded are significantly faster.  Here are
-some benchmarks (of DMA alloc/free only, not the entire modprobe/rmmod):
-
-dma_pool_create() + dma_pool_alloc() loop, size = 128, count = 373959
-  original:        350 ms ( 1x)
-  dmapool patches:  17 ms (21x)
-  mpt3sas patch:     7 ms (51x)
-
-dma_pool_free() loop + dma_pool_destroy(), size = 128, count = 373959
-  original:        8901 ms (   1x)
-  dmapool patches:   15 ms ( 618x)
-  mpt3sas patch:      2 ms (4245x)
-
-Considering that LSI/Broadcom offer an out-of-tree vendor driver that
-works across multiple kernel versions that won't get the dmapool
-patches, it may be worth it for them to patch mpt3sas to avoid the
-problem on older kernels.  The downside is that the code is a bit more
-complicated.  So I leave it to their judgement whether they think it is
-worth it to apply the mpt3sas patch.
+--- linux/mm/dmapool.c.orig	2018-08-03 16:12:23.000000000 -0400
++++ linux/mm/dmapool.c	2018-08-03 16:13:44.000000000 -0400
+@@ -277,7 +277,7 @@ void dma_pool_destroy(struct dma_pool *p
+ 	mutex_lock(&pools_reg_lock);
+ 	mutex_lock(&pools_lock);
+ 	list_del(&pool->pools);
+-	if (pool->dev && list_empty(&pool->dev->dma_pools))
++	if (list_empty(&pool->dev->dma_pools))
+ 		empty = true;
+ 	mutex_unlock(&pools_lock);
+ 	if (empty)
+@@ -289,13 +289,9 @@ void dma_pool_destroy(struct dma_pool *p
+ 		page = list_entry(pool->page_list.next,
+ 				  struct dma_page, page_list);
+ 		if (is_page_busy(page)) {
+-			if (pool->dev)
+-				dev_err(pool->dev,
+-					"dma_pool_destroy %s, %p busy\n",
+-					pool->name, page->vaddr);
+-			else
+-				pr_err("dma_pool_destroy %s, %p busy\n",
+-				       pool->name, page->vaddr);
++			dev_err(pool->dev,
++				"dma_pool_destroy %s, %p busy\n",
++				pool->name, page->vaddr);
+ 			/* leak the still-in-use consistent memory */
+ 			list_del(&page->page_list);
+ 			kfree(page);
+@@ -357,13 +353,9 @@ void *dma_pool_alloc(struct dma_pool *po
+ 		for (i = sizeof(page->offset); i < pool->size; i++) {
+ 			if (data[i] == POOL_POISON_FREED)
+ 				continue;
+-			if (pool->dev)
+-				dev_err(pool->dev,
+-					"dma_pool_alloc %s, %p (corrupted)\n",
+-					pool->name, retval);
+-			else
+-				pr_err("dma_pool_alloc %s, %p (corrupted)\n",
+-					pool->name, retval);
++			dev_err(pool->dev,
++				"dma_pool_alloc %s, %p (corrupted)\n",
++				pool->name, retval);
+ 
+ 			/*
+ 			 * Dump the first 4 bytes even if they are not
+@@ -418,13 +410,9 @@ void dma_pool_free(struct dma_pool *pool
+ 	page = pool_find_page(pool, dma);
+ 	if (!page) {
+ 		spin_unlock_irqrestore(&pool->lock, flags);
+-		if (pool->dev)
+-			dev_err(pool->dev,
+-				"dma_pool_free %s, %p/%lx (bad dma)\n",
+-				pool->name, vaddr, (unsigned long)dma);
+-		else
+-			pr_err("dma_pool_free %s, %p/%lx (bad dma)\n",
+-			       pool->name, vaddr, (unsigned long)dma);
++		dev_err(pool->dev,
++			"dma_pool_free %s, %p/%lx (bad dma)\n",
++			pool->name, vaddr, (unsigned long)dma);
+ 		return;
+ 	}
+ 
+@@ -432,13 +420,9 @@ void dma_pool_free(struct dma_pool *pool
+ #ifdef	DMAPOOL_DEBUG
+ 	if ((dma - page->dma) != offset) {
+ 		spin_unlock_irqrestore(&pool->lock, flags);
+-		if (pool->dev)
+-			dev_err(pool->dev,
+-				"dma_pool_free %s, %p (bad vaddr)/%pad\n",
+-				pool->name, vaddr, &dma);
+-		else
+-			pr_err("dma_pool_free %s, %p (bad vaddr)/%pad\n",
+-			       pool->name, vaddr, &dma);
++		dev_err(pool->dev,
++			"dma_pool_free %s, %p (bad vaddr)/%pad\n",
++			pool->name, vaddr, &dma);
+ 		return;
+ 	}
+ 	{
+@@ -449,12 +433,9 @@ void dma_pool_free(struct dma_pool *pool
+ 				continue;
+ 			}
+ 			spin_unlock_irqrestore(&pool->lock, flags);
+-			if (pool->dev)
+-				dev_err(pool->dev, "dma_pool_free %s, dma %pad already free\n",
+-					pool->name, &dma);
+-			else
+-				pr_err("dma_pool_free %s, dma %pad already free\n",
+-				       pool->name, &dma);
++			dev_err(pool->dev,
++				"dma_pool_free %s, dma %pad already free\n",
++				pool->name, &dma);
+ 			return;
+ 		}
+ 	}
