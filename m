@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 739916B000A
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 09:38:23 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id z11-v6so10379758wma.4
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 06:38:23 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7603E6B000C
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 09:38:24 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id j6-v6so13774783wrr.15
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 06:38:24 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n198-v6sor462844wmd.1.2018.08.07.06.38.21
+        by mx.google.com with SMTPS id b139-v6sor400451wmd.16.2018.08.07.06.38.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 07 Aug 2018 06:38:22 -0700 (PDT)
+        Tue, 07 Aug 2018 06:38:23 -0700 (PDT)
 From: osalvador@techadventures.net
-Subject: [RFC PATCH 1/3] mm/memory_hotplug: Add nid parameter to arch_remove_memory
-Date: Tue,  7 Aug 2018 15:37:55 +0200
-Message-Id: <20180807133757.18352-2-osalvador@techadventures.net>
+Subject: [RFC PATCH 3/3] mm/memory_hotplug: Refactor shrink_zone/pgdat_span
+Date: Tue,  7 Aug 2018 15:37:57 +0200
+Message-Id: <20180807133757.18352-4-osalvador@techadventures.net>
 In-Reply-To: <20180807133757.18352-1-osalvador@techadventures.net>
 References: <20180807133757.18352-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
@@ -22,184 +22,217 @@ Cc: mhocko@suse.com, dan.j.williams@intel.com, pasha.tatashin@oracle.com, jgliss
 
 From: Oscar Salvador <osalvador@suse.de>
 
-This patch is only a preparation for the following-up patches.
-The idea is to remove the zone parameter and pass the nid instead.
-The zone parameter was needed because down the chain we call
-__remove_zone, which adjusts the spanned pages of a zone/node.
+This patch refactors shrink_zone_span and shrink_pgdat_span functions.
 
-online_pages() increments the spanned pages of a zone/node, so
-for consistency it is better if we move __remove_zone to offline_pages().
-With that, remove_memory() will only take care of removing the sections
-and delete the mappings.
+In case that find_smallest/biggest_section do not return any pfn,
+it means that the zone/pgdat has no online sections left, so we can
+set the respective values to 0:
+
+   zone case:
+        zone->zone_start_pfn = 0;
+        zone->spanned_pages = 0;
+
+   pgdat case:
+        pgdat->node_start_pfn = 0;
+        pgdat->node_spanned_pages = 0;
+
+Also, the check that loops over all sections to see if we have something left
+is moved to an own function, and so the code can be shared by shrink_zone_span
+and shrink_pgdat_span.
 
 Signed-off-by: Oscar Salvador <osalvador@suse.de>
 ---
- arch/ia64/mm/init.c            | 2 +-
- arch/powerpc/mm/mem.c          | 2 +-
- arch/s390/mm/init.c            | 2 +-
- arch/sh/mm/init.c              | 2 +-
- arch/x86/mm/init_32.c          | 2 +-
- arch/x86/mm/init_64.c          | 2 +-
- include/linux/memory_hotplug.h | 2 +-
- kernel/memremap.c              | 4 +++-
- mm/hmm.c                       | 4 +++-
- mm/memory_hotplug.c            | 2 +-
- 10 files changed, 14 insertions(+), 10 deletions(-)
+ mm/memory_hotplug.c | 127 +++++++++++++++++++++++++++-------------------------
+ 1 file changed, 65 insertions(+), 62 deletions(-)
 
-diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
-index e6c6dfd98de2..bc5e15045cee 100644
---- a/arch/ia64/mm/init.c
-+++ b/arch/ia64/mm/init.c
-@@ -660,7 +660,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
-index 5c8530d0c611..9e17d57a9948 100644
---- a/arch/powerpc/mm/mem.c
-+++ b/arch/powerpc/mm/mem.c
-@@ -139,7 +139,7 @@ int __meminit arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int __meminit arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int __meminit arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
-index 3fa3e5323612..bc49b560625e 100644
---- a/arch/s390/mm/init.c
-+++ b/arch/s390/mm/init.c
-@@ -240,7 +240,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
- {
- 	/*
- 	 * There is no hardware or firmware interface which could trigger a
-diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
-index 4034035fbede..55c740ab861b 100644
---- a/arch/sh/mm/init.c
-+++ b/arch/sh/mm/init.c
-@@ -454,7 +454,7 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
- #endif
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = PFN_DOWN(start);
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-index 979e0a02cbe1..9fa503f2f56c 100644
---- a/arch/x86/mm/init_32.c
-+++ b/arch/x86/mm/init_32.c
-@@ -861,7 +861,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 9b19f9a8948e..26728df07072 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -1148,7 +1148,7 @@ kernel_physical_mapping_remove(unsigned long start, unsigned long end)
- 	remove_pagetable(start, end, true, NULL);
- }
- 
--int __ref arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int __ref arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 34a28227068d..c68b03fd87bd 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -107,7 +107,7 @@ static inline bool movable_node_is_enabled(void)
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--extern int arch_remove_memory(u64 start, u64 size,
-+extern int arch_remove_memory(int nid, u64 start, u64 size,
- 		struct vmem_altmap *altmap);
- extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
- 	unsigned long nr_pages, struct vmem_altmap *altmap);
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 5b8600d39931..7a832b844f24 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -121,6 +121,7 @@ static void devm_memremap_pages_release(void *data)
- 	struct resource *res = &pgmap->res;
- 	resource_size_t align_start, align_size;
- 	unsigned long pfn;
-+	int nid;
- 
- 	for_each_device_pfn(pfn, pgmap)
- 		put_page(pfn_to_page(pfn));
-@@ -134,9 +135,10 @@ static void devm_memremap_pages_release(void *data)
- 	align_start = res->start & ~(SECTION_SIZE - 1);
- 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
- 		- align_start;
-+	nid = dev_to_node(dev);
- 
- 	mem_hotplug_begin();
--	arch_remove_memory(align_start, align_size, pgmap->altmap_valid ?
-+	arch_remove_memory(nid, align_start, align_size, pgmap->altmap_valid ?
- 			&pgmap->altmap : NULL);
- 	kasan_remove_zero_shadow(__va(align_start), align_size);
- 	mem_hotplug_done();
-diff --git a/mm/hmm.c b/mm/hmm.c
-index c968e49f7a0c..21787e480b4a 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -995,6 +995,7 @@ static void hmm_devmem_release(struct device *dev, void *data)
- 	unsigned long start_pfn, npages;
- 	struct zone *zone;
- 	struct page *page;
-+	int nid;
- 
- 	if (percpu_ref_tryget_live(&devmem->ref)) {
- 		dev_WARN(dev, "%s: page mapping is still live!\n", __func__);
-@@ -1007,12 +1008,13 @@ static void hmm_devmem_release(struct device *dev, void *data)
- 
- 	page = pfn_to_page(start_pfn);
- 	zone = page_zone(page);
-+	nid = zone->zone_pgdat->node_id;
- 
- 	mem_hotplug_begin();
- 	if (resource->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY)
- 		__remove_pages(zone, start_pfn, npages, NULL);
- 	else
--		arch_remove_memory(start_pfn << PAGE_SHIFT,
-+		arch_remove_memory(nid, start_pfn << PAGE_SHIFT,
- 				   npages << PAGE_SHIFT, NULL);
- 	mem_hotplug_done();
- 
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 9eea6e809a4e..9bd629944c91 100644
+index e33555651e46..ccac36eaac05 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -1895,7 +1895,7 @@ void __ref remove_memory(int nid, u64 start, u64 size)
- 	memblock_free(start, size);
- 	memblock_remove(start, size);
+@@ -365,6 +365,29 @@ static unsigned long find_biggest_section_pfn(int nid, struct zone *zone,
+ 	return 0;
+ }
  
--	arch_remove_memory(start, size, NULL);
-+	arch_remove_memory(nid, start, size, NULL);
++static bool has_only_holes(struct zone *zone, int nid, unsigned long zone_start_pfn,
++							unsigned long zone_end_pfn)
++{
++	unsigned long pfn;
++
++	pfn = zone_start_pfn;
++	for (; pfn < zone_end_pfn; pfn += PAGES_PER_SECTION) {
++		struct mem_section *ms = __pfn_to_section(pfn);
++
++		if (unlikely(!online_section(ms)))
++			continue;
++		if (zone && page_zone(pfn_to_page(pfn)) != zone)
++			continue;
++
++		if (pfn_to_nid(pfn) != nid)
++			continue;
++
++		return false;
++	}
++
++	return true;
++}
++
+ static void shrink_zone_span(struct zone *zone, unsigned long start_pfn,
+ 			     unsigned long end_pfn)
+ {
+@@ -372,7 +395,6 @@ static void shrink_zone_span(struct zone *zone, unsigned long start_pfn,
+ 	unsigned long z = zone_end_pfn(zone); /* zone_end_pfn namespace clash */
+ 	unsigned long zone_end_pfn = z;
+ 	unsigned long pfn;
+-	struct mem_section *ms;
+ 	int nid = zone_to_nid(zone);
  
- 	try_offline_node(nid);
+ 	zone_span_writelock(zone);
+@@ -385,10 +407,11 @@ static void shrink_zone_span(struct zone *zone, unsigned long start_pfn,
+ 		 */
+ 		pfn = find_smallest_section_pfn(nid, zone, end_pfn,
+ 						zone_end_pfn);
+-		if (pfn) {
+-			zone->zone_start_pfn = pfn;
+-			zone->spanned_pages = zone_end_pfn - pfn;
+-		}
++		if (!pfn)
++			goto only_holes;
++
++		zone->zone_start_pfn = pfn;
++		zone->spanned_pages = zone_end_pfn - pfn;
+ 	} else if (zone_end_pfn == end_pfn) {
+ 		/*
+ 		 * If the section is biggest section in the zone, it need
+@@ -398,38 +421,28 @@ static void shrink_zone_span(struct zone *zone, unsigned long start_pfn,
+ 		 */
+ 		pfn = find_biggest_section_pfn(nid, zone, zone_start_pfn,
+ 					       start_pfn);
+-		if (pfn)
+-			zone->spanned_pages = pfn - zone_start_pfn + 1;
+-	}
+-
+-	/*
+-	 * The section is not biggest or smallest mem_section in the zone, it
+-	 * only creates a hole in the zone. So in this case, we need not
+-	 * change the zone. But perhaps, the zone has only hole data. Thus
+-	 * it check the zone has only hole or not.
+-	 */
+-	pfn = zone_start_pfn;
+-	for (; pfn < zone_end_pfn; pfn += PAGES_PER_SECTION) {
+-		ms = __pfn_to_section(pfn);
+-
+-		if (unlikely(!online_section(ms)))
+-			continue;
++		if (!pfn)
++			goto only_holes;
  
+-		if (page_zone(pfn_to_page(pfn)) != zone)
+-			continue;
+-
+-		 /* If the section is current section, it continues the loop */
+-		if (start_pfn == pfn)
+-			continue;
+-
+-		/* If we find valid section, we have nothing to do */
+-		zone_span_writeunlock(zone);
+-		return;
++		zone->spanned_pages = pfn - zone_start_pfn + 1;
++	} else {
++		/*
++		 * The section is not biggest or smallest mem_section in the zone, it
++		 * only creates a hole in the zone. So in this case, we need not
++		 * change the zone. But perhaps, the zone has only hole data. Thus
++		 * it check the zone has only hole or not.
++		 */
++		if (has_only_holes(zone, nid, zone_start_pfn, zone_end_pfn))
++			goto only_holes;
+ 	}
+ 
++	goto out;
++
++only_holes:
+ 	/* The zone has no valid section */
+ 	zone->zone_start_pfn = 0;
+ 	zone->spanned_pages = 0;
++out:
+ 	zone_span_writeunlock(zone);
+ }
+ 
+@@ -440,7 +453,6 @@ static void shrink_pgdat_span(struct pglist_data *pgdat,
+ 	unsigned long p = pgdat_end_pfn(pgdat); /* pgdat_end_pfn namespace clash */
+ 	unsigned long pgdat_end_pfn = p;
+ 	unsigned long pfn;
+-	struct mem_section *ms;
+ 	int nid = pgdat->node_id;
+ 
+ 	if (pgdat_start_pfn == start_pfn) {
+@@ -452,10 +464,11 @@ static void shrink_pgdat_span(struct pglist_data *pgdat,
+ 		 */
+ 		pfn = find_smallest_section_pfn(nid, NULL, end_pfn,
+ 						pgdat_end_pfn);
+-		if (pfn) {
+-			pgdat->node_start_pfn = pfn;
+-			pgdat->node_spanned_pages = pgdat_end_pfn - pfn;
+-		}
++		if (!pfn)
++			goto only_holes;
++
++		pgdat->node_start_pfn = pfn;
++		pgdat->node_spanned_pages = pgdat_end_pfn - pfn;
+ 	} else if (pgdat_end_pfn == end_pfn) {
+ 		/*
+ 		 * If the section is biggest section in the pgdat, it need
+@@ -465,35 +478,25 @@ static void shrink_pgdat_span(struct pglist_data *pgdat,
+ 		 */
+ 		pfn = find_biggest_section_pfn(nid, NULL, pgdat_start_pfn,
+ 					       start_pfn);
+-		if (pfn)
+-			pgdat->node_spanned_pages = pfn - pgdat_start_pfn + 1;
+-	}
+-
+-	/*
+-	 * If the section is not biggest or smallest mem_section in the pgdat,
+-	 * it only creates a hole in the pgdat. So in this case, we need not
+-	 * change the pgdat.
+-	 * But perhaps, the pgdat has only hole data. Thus it check the pgdat
+-	 * has only hole or not.
+-	 */
+-	pfn = pgdat_start_pfn;
+-	for (; pfn < pgdat_end_pfn; pfn += PAGES_PER_SECTION) {
+-		ms = __pfn_to_section(pfn);
+-
+-		if (unlikely(!online_section(ms)))
+-			continue;
+-
+-		if (pfn_to_nid(pfn) != nid)
+-			continue;
++		if (!pfn)
++			goto only_holes;
+ 
+-		 /* If the section is current section, it continues the loop */
+-		if (start_pfn == pfn)
+-			continue;
+-
+-		/* If we find valid section, we have nothing to do */
+-		return;
++		pgdat->node_spanned_pages = pfn - pgdat_start_pfn + 1;
++	} else {
++		/*
++		 * If the section is not biggest or smallest mem_section in the pgdat,
++		 * it only creates a hole in the pgdat. So in this case, we need not
++		 * change the pgdat.
++		 * But perhaps, the pgdat has only hole data. Thus it check the pgdat
++		 * has only hole or not.
++		 */
++		if (has_only_holes(NULL, nid, pgdat_start_pfn, pgdat_end_pfn))
++			goto only_holes;
+ 	}
+ 
++	return;
++
++only_holes:
+ 	/* The pgdat has no valid section */
+ 	pgdat->node_start_pfn = 0;
+ 	pgdat->node_spanned_pages = 0;
 -- 
 2.13.6
