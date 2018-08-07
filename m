@@ -1,78 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A76176B026A
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 09:52:27 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id q3-v6so16789565qki.4
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 06:52:27 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id p5-v6si1348058qkf.174.2018.08.07.06.52.26
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E22016B026C
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 09:54:56 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id g5-v6so5438102edp.1
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 06:54:56 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l22-v6si1448424eda.370.2018.08.07.06.54.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Aug 2018 06:52:26 -0700 (PDT)
-Date: Tue, 7 Aug 2018 09:52:21 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [RFC PATCH 2/3] mm/memory_hotplug: Create __shrink_pages and
- move it to offline_pages
-Message-ID: <20180807135221.GA3301@redhat.com>
-References: <20180807133757.18352-1-osalvador@techadventures.net>
- <20180807133757.18352-3-osalvador@techadventures.net>
+        Tue, 07 Aug 2018 06:54:55 -0700 (PDT)
+Date: Tue, 7 Aug 2018 15:54:53 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mm: adjust max read count in generic_file_buffered_read()
+Message-ID: <20180807135453.nhatdtw25wa6dtzm@quack2.suse.cz>
+References: <20180719081726.3341-1-cgxu519@gmx.com>
+ <20180719085812.sjup2odrjyuigt3l@quack2.suse.cz>
+ <20180720161429.d63dccb9f66799dc0ff74dba@linux-foundation.org>
+ <20180806102203.hmobd26cujmlfcsw@quack2.suse.cz>
+ <20180806155927.4740babd057df9d5078281b1@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180807133757.18352-3-osalvador@techadventures.net>
+In-Reply-To: <20180806155927.4740babd057df9d5078281b1@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: osalvador@techadventures.net
-Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com, pasha.tatashin@oracle.com, david@redhat.com, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, Chengguang Xu <cgxu519@gmx.com>, mgorman@techsingularity.net, jlayton@redhat.com, ak@linux.intel.com, mawilcox@microsoft.com, tim.c.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>
 
-On Tue, Aug 07, 2018 at 03:37:56PM +0200, osalvador@techadventures.net wrote:
-> From: Oscar Salvador <osalvador@suse.de>
+On Mon 06-08-18 15:59:27, Andrew Morton wrote:
+> On Mon, 6 Aug 2018 12:22:03 +0200 Jan Kara <jack@suse.cz> wrote:
+> 
+> > On Fri 20-07-18 16:14:29, Andrew Morton wrote:
+> > > On Thu, 19 Jul 2018 10:58:12 +0200 Jan Kara <jack@suse.cz> wrote:
+> > > 
+> > > > On Thu 19-07-18 16:17:26, Chengguang Xu wrote:
+> > > > > When we try to truncate read count in generic_file_buffered_read(),
+> > > > > should deliver (sb->s_maxbytes - offset) as maximum count not
+> > > > > sb->s_maxbytes itself.
+> > > > > 
+> > > > > Signed-off-by: Chengguang Xu <cgxu519@gmx.com>
+> > > > 
+> > > > Looks good to me. You can add:
+> > > > 
+> > > > Reviewed-by: Jan Kara <jack@suse.cz>
+> > > 
+> > > Yup.
+> > > 
+> > > What are the runtime effects of this bug?
+> > 
+> > Good question. I think ->readpage() could be called for index beyond
+> > maximum file size supported by the filesystem leading to weird filesystem
+> > behavior due to overflows in internal calculations.
+> > 
+> 
+> Sure.  But is it possible for userspace to trigger this behaviour? 
+> Possibly all callers have already sanitized the arguments by this stage
+> in which case the statement is arguably redundant.
 
-[...]
+So I don't think there's any sanitization going on before
+generic_file_buffered_read(). E.g. I don't see any s_maxbytes check on
+ksys_read() -> vfs_read() -> __vfs_read() -> new_sync_read() ->
+call_read_iter() -> generic_file_read_iter() ->
+generic_file_buffered_read() path... However now thinking about this again:
+We are guaranteed i_size is within s_maxbytes (places modifying i_size
+are checking for this) and generic_file_buffered_read() stops when it
+should read beyond i_size. So in the end I don't think there's any breakage
+possible and the patch is not necessary?
 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 9bd629944c91..e33555651e46 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-
-[...]
-
->  /**
->   * __remove_pages() - remove sections of pages from a zone
-> - * @zone: zone from which pages need to be removed
-> + * @nid: node which pages belong to
->   * @phys_start_pfn: starting pageframe (must be aligned to start of a section)
->   * @nr_pages: number of pages to remove (must be multiple of section size)
->   * @altmap: alternative device page map or %NULL if default memmap is used
-> @@ -548,7 +557,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
->   * sure that pages are marked reserved and zones are adjust properly by
->   * calling offline_pages().
->   */
-> -int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
-> +int __remove_pages(int nid, unsigned long phys_start_pfn,
->  		 unsigned long nr_pages, struct vmem_altmap *altmap)
->  {
->  	unsigned long i;
-> @@ -556,10 +565,9 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
->  	int sections_to_remove, ret = 0;
->  
->  	/* In the ZONE_DEVICE case device driver owns the memory region */
-> -	if (is_dev_zone(zone)) {
-> -		if (altmap)
-> -			map_offset = vmem_altmap_offset(altmap);
-> -	} else {
-> +	if (altmap)
-> +		map_offset = vmem_altmap_offset(altmap);
-> +	else {
-
-This will break ZONE_DEVICE at least for HMM. While i think that
-altmap -> ZONE_DEVICE (ie altmap imply ZONE_DEVICE) the reverse
-is not true ie ZONE_DEVICE does not necessarily imply altmap. So
-with the above changes you change the expected behavior. You do
-need the zone to know if it is a ZONE_DEVICE. You could also lookup
-one of the struct page but my understanding is that this is what
-you want to avoid in the first place.
-
-Cheers,
-Jerome
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
