@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E74D6B0281
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 11:39:27 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id x26-v6so13833852qtb.2
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 08:39:27 -0700 (PDT)
-Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40102.outbound.protection.outlook.com. [40.107.4.102])
-        by mx.google.com with ESMTPS id q51-v6si229545qtj.66.2018.08.07.08.39.26
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F14C6B0007
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 11:39:40 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id d194-v6so16852729qkb.12
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 08:39:40 -0700 (PDT)
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50122.outbound.protection.outlook.com. [40.107.5.122])
+        by mx.google.com with ESMTPS id k8-v6si1047747qvi.241.2018.08.07.08.39.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 07 Aug 2018 08:39:26 -0700 (PDT)
-Subject: [PATCH RFC 09/10] shmem: Implement shmem_destroy_super()
+        Tue, 07 Aug 2018 08:39:39 -0700 (PDT)
+Subject: [PATCH RFC 10/10] fs: Use unregister_shrinker_delayed_{initiate,
+ finalize} for super_block shrinker
 From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Tue, 07 Aug 2018 18:39:15 +0300
-Message-ID: <153365635538.19074.16684830171993560909.stgit@localhost.localdomain>
+Date: Tue, 07 Aug 2018 18:39:27 +0300
+Message-ID: <153365636747.19074.12610817307548583381.stgit@localhost.localdomain>
 In-Reply-To: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
 References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
 MIME-Version: 1.0
@@ -22,49 +23,65 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, ktkhai@virtuozzo.com, sfr@canb.auug.org.au, vdavydov.dev@gmail.com, mhocko@suse.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-Similar to xfs_fs_destroy_super() implement the method
-for shmem.
+Previous patches made all the data, which is touched from
+super_cache_count(), destroyed from destroy_super_work():
+s_dentry_lru, s_inode_lru and super_block::s_fs_info.
 
-shmem_unused_huge_count() just touches sb->s_fs_info.
-After such the later freeing it will be safe for
-unregister_shrinker() splitting (which is made in next
-patch).
+super_cache_scan() can't be called after SB_ACTIVE is cleared
+in generic_shutdown_super().
+
+So, it safe to move heavy unregister_shrinker_delayed_finalize()
+part to delayed work, i.e. it's safe for parallel do_shrink_slab()
+to be executed between unregister_shrinker_delayed_initiate() and
+destroy_super_work()->unregister_shrinker_delayed_finalize().
+
+This makes the heavy synchronize_srcu() to do not affect on user-visible
+unregistration speed (since now it's executed from workqueue).
+
+All further time-critical for unregistration places may be written
+in the same conception.
 
 Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 ---
- mm/shmem.c |    8 ++++++++
- 1 file changed, 8 insertions(+)
+ fs/super.c         |    4 +++-
+ include/linux/fs.h |    5 +++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 4829798869b6..35c65afefbc8 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -3427,6 +3427,12 @@ static void shmem_put_super(struct super_block *sb)
+diff --git a/fs/super.c b/fs/super.c
+index c60f092538c7..33e829741ec0 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -165,6 +165,8 @@ static void destroy_super_work(struct work_struct *work)
+ 							destroy_work);
+ 	int i;
  
- 	percpu_counter_destroy(&sbinfo->used_blocks);
- 	mpol_put(sbinfo->mpol);
-+}
++	unregister_shrinker_delayed_finalize(&s->s_shrink);
 +
-+static void shmem_destroy_super(struct super_block *sb)
-+{
-+	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
-+
- 	kfree(sbinfo);
- 	sb->s_fs_info = NULL;
- }
-@@ -3504,6 +3510,7 @@ int shmem_fill_super(struct super_block *sb, void *data, size_t data_size,
+ 	WARN_ON(list_lru_count(&s->s_dentry_lru));
+ 	WARN_ON(list_lru_count(&s->s_inode_lru));
+ 	list_lru_destroy(&s->s_dentry_lru);
+@@ -334,7 +336,7 @@ void deactivate_locked_super(struct super_block *s)
+ 	struct file_system_type *fs = s->s_type;
+ 	if (atomic_dec_and_test(&s->s_active)) {
+ 		cleancache_invalidate_fs(s);
+-		unregister_shrinker(&s->s_shrink);
++		unregister_shrinker_delayed_initiate(&s->s_shrink);
+ 		fs->kill_sb(s);
  
- failed:
- 	shmem_put_super(sb);
-+	shmem_destroy_super(sb);
- 	return err;
- }
- 
-@@ -3630,6 +3637,7 @@ static const struct super_operations shmem_ops = {
- 	.evict_inode	= shmem_evict_inode,
- 	.drop_inode	= generic_delete_inode,
- 	.put_super	= shmem_put_super,
-+	.destroy_super	= shmem_destroy_super,
- #ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
- 	.nr_cached_objects	= shmem_unused_huge_count,
- 	.free_cached_objects	= shmem_unused_huge_scan,
+ 		put_filesystem(fs);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 33dfaed0a01a..8a1cd3097eef 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1902,6 +1902,11 @@ struct super_operations {
+ 	struct dquot **(*get_dquots)(struct inode *);
+ #endif
+ 	int (*bdev_try_to_free_page)(struct super_block*, struct page*, gfp_t);
++	/*
++	 * Shrinker may call these two function on destructing super_block
++	 * till unregister_shrinker_delayed_finalize() has completed
++	 * in destroy_super_work(), and they must care about that.
++	 */
+ 	long (*nr_cached_objects)(struct super_block *,
+ 				  struct shrink_control *);
+ 	long (*free_cached_objects)(struct super_block *,
