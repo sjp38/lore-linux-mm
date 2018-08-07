@@ -1,91 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DCEA6B0003
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 09:49:42 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id w1-v6so10643094plq.8
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 06:49:42 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id n70-v6si1479004pfa.320.2018.08.07.06.49.40
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A76176B026A
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 09:52:27 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id q3-v6so16789565qki.4
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 06:52:27 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id p5-v6si1348058qkf.174.2018.08.07.06.52.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Aug 2018 06:49:40 -0700 (PDT)
-Date: Tue, 7 Aug 2018 15:49:34 +0200
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [RESEND] Spectre-v2 (IBPB/IBRS) and SSBD fixes for 4.4.y
-Message-ID: <20180807134934.GA16837@kroah.com>
-References: <153156030832.10043.13438231886571087086.stgit@srivatsa-ubuntu>
- <nycvar.YFH.7.76.1807232357440.997@cbobk.fhfr.pm>
- <e57d5ac9-68d7-8ccf-6117-5a2f9d9e1112@csail.mit.edu>
- <nycvar.YFH.7.76.1807242351500.997@cbobk.fhfr.pm>
- <CAGXu5jJvTF0KXs+3J32u5v1Ba5gZd0Umgib6D6++ie+LzqnuWA@mail.gmail.com>
- <c616c38b-52cc-2f88-7ea3-00f3a572255a@csail.mit.edu>
- <CAGXu5j+Y5TNBY1WCz=4E8B5nFo2jzyswg6iaQja_92GZB+hE0w@mail.gmail.com>
- <8a87a705-97c0-eb3d-8878-8ffe052f065d@csail.mit.edu>
+        Tue, 07 Aug 2018 06:52:26 -0700 (PDT)
+Date: Tue, 7 Aug 2018 09:52:21 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [RFC PATCH 2/3] mm/memory_hotplug: Create __shrink_pages and
+ move it to offline_pages
+Message-ID: <20180807135221.GA3301@redhat.com>
+References: <20180807133757.18352-1-osalvador@techadventures.net>
+ <20180807133757.18352-3-osalvador@techadventures.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <8a87a705-97c0-eb3d-8878-8ffe052f065d@csail.mit.edu>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180807133757.18352-3-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Srivatsa S. Bhat" <srivatsa@csail.mit.edu>
-Cc: Kees Cook <keescook@chromium.org>, Jiri Kosina <jikos@kernel.org>, "# 3.4.x" <stable@vger.kernel.org>, Denys Vlasenko <dvlasenk@redhat.com>, Bo Gan <ganb@vmware.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@suse.de>, Thomas Gleixner <tglx@linutronix.de>, Ricardo Neri <ricardo.neri-calderon@linux.intel.com>, Tom Lendacky <thomas.lendacky@amd.com>, Andi Kleen <ak@linux.intel.com>, linux-tip-commits@vger.kernel.org, Jia Zhang <qianyue.zj@alibaba-inc.com>, Josh Poimboeuf <jpoimboe@redhat.com>, xen-devel <xen-devel@lists.xenproject.org>, =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@amacapital.net>, Arnaldo Carvalho de Melo <acme@redhat.com>, Sherry Hurwitz <sherry.hurwitz@amd.com>, LKML <linux-kernel@vger.kernel.org>, Shuah Khan <shuahkh@osg.samsung.com>, Oleg Nesterov <oleg@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Woodhouse <dwmw@amazon.co.uk>, KarimAllah Ahmed <karahmed@amazon.de>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, Dominik Brodowski <linux@dominikbrodowski.net>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Joerg Roedel <joro@8bytes.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Kyle Huey <me@kylehuey.com>, Will Drewry <wad@chromium.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Brian Gerst <brgerst@gmail.com>, Kristen Carlson Accardi <kristen@linux.intel.com>, Thomas Garnier <thgarnie@google.com>, Andrew Morton <akpm@linux-foundation.org>, Joe Konno <joe.konno@linux.intel.com>, kvm <kvm@vger.kernel.org>, Piotr Luc <piotr.luc@intel.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Jan Beulich <jbeulich@suse.com>, Arjan van de Ven <arjan@linux.intel.com>, Alexander Kuleshov <kuleshovmail@gmail.com>, Juergen Gross <jgross@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, =?iso-8859-1?Q?J=F6rg?= Otte <jrg.otte@gmail.com>, Tim Chen <tim.c.chen@linux.intel.com>, Alexander Sergeyev <sergeev917@gmail.com>, Josh Triplett <josh@joshtriplett.org>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Tony Luck <tony.luck@intel.com>, Laura Abbott <labbott@fedoraproject.org>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@kernel.org>, Mike Galbraith <efault@gmx.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alexey Makhalov <amakhalov@vmware.com>, Dave Hansen <dave@sr71.net>, ashok.raj@intel.com, Mel Gorman <mgorman@suse.de>, =?iso-8859-1?Q?Micka=EBlSala=FCn?= <mic@digikod.net>, Fenghua Yu <fenghua.yu@intel.com>, "Matt Helsley (VMware)" <matt.helsley@gmail.com>, Vince Weaver <vincent.weaver@maine.edu>, Prarit Bhargava <prarit@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, Dan Williams <dan.j.williams@intel.com>, Jim Mattson <jmattson@google.com>, Dave Young <dyoung@redhat.com>, linux-edac <linux-edac@vger.kernel.org>, Jon Masters <jcm@redhat.com>, Andy Lutomirski <luto@kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Linux-MM <linux-mm@kvack.org>, Jiri Olsa <jolsa@redhat.com>, "Van De Ven, Arjan" <arjan.van.de.ven@intel.com>, sironi@amazon.de, Frederic Weisbecker <fweisbec@gmail.com>, Kyle Huey <khuey@kylehuey.com>, Alexander Popov <alpopov@ptsecurity.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Nadav Amit <nadav.amit@gmail.com>, Yazen Ghannam <Yazen.Ghannam@amd.com>, Wanpeng Li <kernellwp@gmail.com>, Stephane Eranian <eranian@google.com>, David Woodhouse <dwmw2@infradead.org>, srivatsab@vmware.com, srinidhir@vmware.com, khlebnikov@yandex-team.ru, catalin.marinas@arm.com
+To: osalvador@techadventures.net
+Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com, pasha.tatashin@oracle.com, david@redhat.com, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
-On Fri, Aug 03, 2018 at 04:20:31PM -0700, Srivatsa S. Bhat wrote:
-> On 8/2/18 3:22 PM, Kees Cook wrote:
-> > On Thu, Aug 2, 2018 at 12:22 PM, Srivatsa S. Bhat
-> > <srivatsa@csail.mit.edu> wrote:
-> >> On 7/26/18 4:09 PM, Kees Cook wrote:
-> >>> On Tue, Jul 24, 2018 at 3:02 PM, Jiri Kosina <jikos@kernel.org> wrote:
-> >>>> On Tue, 24 Jul 2018, Srivatsa S. Bhat wrote:
-> >>>>
-> >>>>> However, if you are proposing that you'd like to contribute the enhanced
-> >>>>> PTI/Spectre (upstream) patches from the SLES 4.4 tree to 4.4 stable, and
-> >>>>> have them merged instead of this patch series, then I would certainly
-> >>>>> welcome it!
-> >>>>
-> >>>> I'd in principle love us to push everything back to 4.4, but there are a
-> >>>> few reasons (*) why that's not happening shortly.
-> >>>>
-> >>>> Anyway, to point out explicitly what's really needed for those folks
-> >>>> running 4.4-stable and relying on PTI providing The Real Thing(TM), it's
-> >>>> either a 4.4-stable port of
-> >>>>
-> >>>>         http://kernel.suse.com/cgit/kernel-source/plain/patches.suse/x86-entry-64-use-a-per-cpu-trampoline-stack.patch?id=3428a77b02b1ba03e45d8fc352ec350429f57fc7
-> >>>>
-> >>>> or making THREADINFO_GFP imply __GFP_ZERO.
-> >>>
-> >>> This is true in Linus's tree now. Should be trivial to backport:
-> >>> https://git.kernel.org/linus/e01e80634ecdd
-> >>>
-> >>
-> >> Hi Jiri, Kees,
-> >>
-> >> Thank you for suggesting the patch! I have attached the (locally
-> >> tested) 4.4 and 4.9 backports of that patch with this mail. (The
-> >> mainline commit applies cleanly on 4.14).
-> >>
-> >> Greg, could you please consider including them in stable 4.4, 4.9
-> >> and 4.14?
-> > 
-> > I don't think your v4.9 is sufficient: it leaves the vmapped stack
-> > uncleared. v4.9 needs ca182551857 ("kmemleak: clear stale pointers
-> > from task stacks") included in the backport (really, just adding the
-> > memset()).
-> > 
-> 
-> Ah, I see, thank you! I have attached the updated patchset for 4.9
-> with this mail.
-> 
-> > Otherwise, yup, looks good.
-> > 
-> Thank you for reviewing the patches!
+On Tue, Aug 07, 2018 at 03:37:56PM +0200, osalvador@techadventures.net wrote:
+> From: Oscar Salvador <osalvador@suse.de>
+
+[...]
+
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 9bd629944c91..e33555651e46 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+
+[...]
+
+>  /**
+>   * __remove_pages() - remove sections of pages from a zone
+> - * @zone: zone from which pages need to be removed
+> + * @nid: node which pages belong to
+>   * @phys_start_pfn: starting pageframe (must be aligned to start of a section)
+>   * @nr_pages: number of pages to remove (must be multiple of section size)
+>   * @altmap: alternative device page map or %NULL if default memmap is used
+> @@ -548,7 +557,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
+>   * sure that pages are marked reserved and zones are adjust properly by
+>   * calling offline_pages().
+>   */
+> -int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
+> +int __remove_pages(int nid, unsigned long phys_start_pfn,
+>  		 unsigned long nr_pages, struct vmem_altmap *altmap)
+>  {
+>  	unsigned long i;
+> @@ -556,10 +565,9 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
+>  	int sections_to_remove, ret = 0;
 >  
-> Regards,
-> Srivatsa
-> VMware Photon OS
+>  	/* In the ZONE_DEVICE case device driver owns the memory region */
+> -	if (is_dev_zone(zone)) {
+> -		if (altmap)
+> -			map_offset = vmem_altmap_offset(altmap);
+> -	} else {
+> +	if (altmap)
+> +		map_offset = vmem_altmap_offset(altmap);
+> +	else {
 
-These work for 4.9, do you also have a set for 4.4?
+This will break ZONE_DEVICE at least for HMM. While i think that
+altmap -> ZONE_DEVICE (ie altmap imply ZONE_DEVICE) the reverse
+is not true ie ZONE_DEVICE does not necessarily imply altmap. So
+with the above changes you change the expected behavior. You do
+need the zone to know if it is a ZONE_DEVICE. You could also lookup
+one of the struct page but my understanding is that this is what
+you want to avoid in the first place.
 
-thanks,
-
-greg k-h
+Cheers,
+Jerome
