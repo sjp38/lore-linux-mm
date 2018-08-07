@@ -1,44 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 135B36B0007
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 14:34:51 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id v9-v6so11023444pfn.6
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 11:34:51 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id 25-v6si1760466pgk.438.2018.08.07.11.34.49
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 125CD6B000A
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 14:47:45 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id v15-v6so2923570ply.20
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 11:47:45 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g34-v6sor581234pld.68.2018.08.07.11.47.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Aug 2018 11:34:49 -0700 (PDT)
-Subject: Re: [PATCH 2/3] x86/mm/pti: Don't clear permissions in
- pti_clone_pmd()
-References: <1533637471-30953-1-git-send-email-joro@8bytes.org>
- <1533637471-30953-3-git-send-email-joro@8bytes.org>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <feea2aff-91ff-89a6-9d7c-5402a1d6a27f@intel.com>
-Date: Tue, 7 Aug 2018 11:34:46 -0700
-MIME-Version: 1.0
-In-Reply-To: <1533637471-30953-3-git-send-email-joro@8bytes.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+        (Google Transport Security);
+        Tue, 07 Aug 2018 11:47:43 -0700 (PDT)
+From: Dennis Zhou <dennisszhou@gmail.com>
+Subject: [PATCH v2] proc: add percpu populated pages count to meminfo
+Date: Tue,  7 Aug 2018 11:47:23 -0700
+Message-Id: <20180807184723.74919-1-dennisszhou@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, jroedel@suse.de
+To: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Roman Gushchin <guro@fb.com>, Vlastimil Babka <vbabka@suse.cz>
+Cc: kernel-team@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linux API <linux-api@vger.kernel.org>, "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 
-On 08/07/2018 03:24 AM, Joerg Roedel wrote:
-> The function sets the global-bit on cloned PMD entries,
-> which only makes sense when the permissions are identical
-> between the user and the kernel page-table.
-> 
-> Further, only write-permissions are cleared for entry-text
-> and kernel-text sections, which are not writeable anyway.
+From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 
-I think this patch is correct, but I'd be curious if Andy remembers why
-we chose to clear _PAGE_RW on these things.  It might have been that we
-were trying to say that the *entry* code shouldn't write to this stuff,
-regardless of whether the normal kernel can.
+Currently, percpu memory only exposes allocation and utilization
+information via debugfs. This more or less is only really useful for
+understanding the fragmentation and allocation information at a
+per-chunk level with a few global counters. This is also gated behind a
+config. BPF and cgroup, for example, have seen an increase use causing
+increased use of percpu memory. Let's make it easier for someone to
+identify how much memory is being used.
 
-But, either way, I agree with the logic here that Global pages must
-share permissions between both mappings, so feel free to add my Ack.  I
-just want to make sure Andy doesn't remember some detail I'm forgetting.
+This patch adds the "Percpu" stat to meminfo to more easily look up how
+much percpu memory is in use. This number includes the cost for all
+allocated backing pages and not just isnight at the a unit, per chunk
+level. Metadata is excluded. I think excluding metadata is fair because
+the backing memory scales with the numbere of cpus and can quickly
+outweigh the metadata. It also makes this calculation light.
+
+Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
+---
+ Documentation/filesystems/proc.txt |  3 +++
+ fs/proc/meminfo.c                  |  2 ++
+ include/linux/percpu.h             |  2 ++
+ mm/percpu.c                        | 29 +++++++++++++++++++++++++++++
+ 4 files changed, 36 insertions(+)
+
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index 520f6a84cf50..490f803be1ec 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -870,6 +870,7 @@ Committed_AS:   100056 kB
+ VmallocTotal:   112216 kB
+ VmallocUsed:       428 kB
+ VmallocChunk:   111088 kB
++Percpu:          62080 kB
+ AnonHugePages:   49152 kB
+ ShmemHugePages:      0 kB
+ ShmemPmdMapped:      0 kB
+@@ -959,6 +960,8 @@ Committed_AS: The amount of memory presently allocated on the system.
+ VmallocTotal: total size of vmalloc memory area
+  VmallocUsed: amount of vmalloc area which is used
+ VmallocChunk: largest contiguous block of vmalloc area which is free
++      Percpu: Memory allocated to the percpu allocator used to back percpu
++              allocations. This stat excludes the cost of metadata.
+ 
+ ..............................................................................
+ 
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index 2fb04846ed11..edda898714eb 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -7,6 +7,7 @@
+ #include <linux/mman.h>
+ #include <linux/mmzone.h>
+ #include <linux/proc_fs.h>
++#include <linux/percpu.h>
+ #include <linux/quicklist.h>
+ #include <linux/seq_file.h>
+ #include <linux/swap.h>
+@@ -121,6 +122,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 		   (unsigned long)VMALLOC_TOTAL >> 10);
+ 	show_val_kb(m, "VmallocUsed:    ", 0ul);
+ 	show_val_kb(m, "VmallocChunk:   ", 0ul);
++	show_val_kb(m, "Percpu:         ", pcpu_nr_pages());
+ 
+ #ifdef CONFIG_MEMORY_FAILURE
+ 	seq_printf(m, "HardwareCorrupted: %5lu kB\n",
+diff --git a/include/linux/percpu.h b/include/linux/percpu.h
+index 296bbe49d5d1..70b7123f38c7 100644
+--- a/include/linux/percpu.h
++++ b/include/linux/percpu.h
+@@ -149,4 +149,6 @@ extern phys_addr_t per_cpu_ptr_to_phys(void *addr);
+ 	(typeof(type) __percpu *)__alloc_percpu(sizeof(type),		\
+ 						__alignof__(type))
+ 
++extern unsigned long pcpu_nr_pages(void);
++
+ #endif /* __LINUX_PERCPU_H */
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 0b6480979ac7..a749d4d96e3e 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -169,6 +169,14 @@ static LIST_HEAD(pcpu_map_extend_chunks);
+  */
+ int pcpu_nr_empty_pop_pages;
+ 
++/*
++ * The number of populated pages in use by the allocator, protected by
++ * pcpu_lock.  This number is kept per a unit per chunk (i.e. when a page gets
++ * allocated/deallocated, it is allocated/deallocated in all units of a chunk
++ * and increments/decrements this count by 1).
++ */
++static unsigned long pcpu_nr_populated;
++
+ /*
+  * Balance work is used to populate or destroy chunks asynchronously.  We
+  * try to keep the number of populated free pages between
+@@ -1232,6 +1240,7 @@ static void pcpu_chunk_populated(struct pcpu_chunk *chunk, int page_start,
+ 
+ 	bitmap_set(chunk->populated, page_start, nr);
+ 	chunk->nr_populated += nr;
++	pcpu_nr_populated += nr;
+ 
+ 	if (!for_alloc) {
+ 		chunk->nr_empty_pop_pages += nr;
+@@ -1260,6 +1269,7 @@ static void pcpu_chunk_depopulated(struct pcpu_chunk *chunk,
+ 	chunk->nr_populated -= nr;
+ 	chunk->nr_empty_pop_pages -= nr;
+ 	pcpu_nr_empty_pop_pages -= nr;
++	pcpu_nr_populated -= nr;
+ }
+ 
+ /*
+@@ -2176,6 +2186,9 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	pcpu_nr_empty_pop_pages = pcpu_first_chunk->nr_empty_pop_pages;
+ 	pcpu_chunk_relocate(pcpu_first_chunk, -1);
+ 
++	/* include all regions of the first chunk */
++	pcpu_nr_populated += PFN_DOWN(size_sum);
++
+ 	pcpu_stats_chunk_alloc();
+ 	trace_percpu_create_chunk(base_addr);
+ 
+@@ -2745,6 +2758,22 @@ void __init setup_per_cpu_areas(void)
+ 
+ #endif	/* CONFIG_SMP */
+ 
++/*
++ * pcpu_nr_pages - calculate total number of populated backing pages
++ *
++ * This reflects the number of pages populated to back chunks.  Metadata is
++ * excluded in the number exposed in meminfo as the number of backing pages
++ * scales with the number of cpus and can quickly outweigh the memory used for
++ * metadata.  It also keeps this calculation nice and simple.
++ *
++ * RETURNS:
++ * Total number of populated backing pages in use by the allocator.
++ */
++unsigned long pcpu_nr_pages(void)
++{
++	return pcpu_nr_populated * pcpu_nr_units;
++}
++
+ /*
+  * Percpu allocator is initialized early during boot when neither slab or
+  * workqueue is available.  Plug async management until everything is up
+-- 
+2.17.1
