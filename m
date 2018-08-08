@@ -1,125 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E254F6B0006
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 12:54:17 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id g26-v6so1686270pfo.7
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 09:54:17 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 29-v6sor1230972pfm.7.2018.08.08.09.54.16
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B5AF6B0003
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 12:58:21 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id u22-v6so2827533qkk.10
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 09:58:21 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id v129-v6si57619qkd.349.2018.08.08.09.58.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 08 Aug 2018 09:54:16 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Aug 2018 09:58:20 -0700 (PDT)
+Date: Wed, 8 Aug 2018 12:58:15 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [RFC PATCH 2/3] mm/memory_hotplug: Create __shrink_pages and
+ move it to offline_pages
+Message-ID: <20180808165814.GB3429@redhat.com>
+References: <20180807133757.18352-1-osalvador@techadventures.net>
+ <20180807133757.18352-3-osalvador@techadventures.net>
+ <20180807135221.GA3301@redhat.com>
+ <20180807145900.GH10003@dhcp22.suse.cz>
+ <20180807151810.GB3301@redhat.com>
+ <20180808064758.GB27972@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180808162752.GA26592@arm.com>
-References: <CAAeHK+w0T43+h3xqU4a-qutxd-qiEhsvk0eaZpmAn-T0hpaLZQ@mail.gmail.com>
- <20180629110709.GA17859@arm.com> <CAAeHK+wHd8B2nhat-Z2Y2=s4NVobPG7vjr2CynjFhqPTwQRepQ@mail.gmail.com>
- <20180703173608.GF27243@arm.com> <CAAeHK+wTcH+2hgm_BTkLLdn1GkjBtkhQ=vPWZCncJ6KenqgKpg@mail.gmail.com>
- <CAAeHK+xc1E64tXEEHoXqOuUNZ7E_kVyho3_mNZTCc+LTGHYFdA@mail.gmail.com>
- <20180801163538.GA10800@arm.com> <CACT4Y+aZtph5qDsLzTDEgpQRz4_Vtg1DD-cB18qooi6D0bexDg@mail.gmail.com>
- <20180803092312.GA17798@arm.com> <CACT4Y+bCen+ccU8awYyx_Tw14JNZhaP4D-jNq-WZy7itW+vpYg@mail.gmail.com>
- <20180808162752.GA26592@arm.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 8 Aug 2018 18:53:54 +0200
-Message-ID: <CACT4Y+bQxwz2fcuGqtQYkCCV75chtLvOAfM9W-HBSjkTS1q=-w@mail.gmail.com>
-Subject: Re: [PATCH v4 00/17] khwasan: kernel hardware assisted address sanitizer
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180808064758.GB27972@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Dave Martin <Dave.Martin@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jann Horn <jannh@google.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Mark Brand <markbrand@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: osalvador@techadventures.net, akpm@linux-foundation.org, dan.j.williams@intel.com, pasha.tatashin@oracle.com, david@redhat.com, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
-On Wed, Aug 8, 2018 at 6:27 PM, Will Deacon <will.deacon@arm.com> wrote:
->> >> > Thanks for tracking these cases down and going through each of them. The
->> >> > obvious follow-up question is: how do we ensure that we keep on top of
->> >> > this in mainline? Are you going to repeat your experiment at every kernel
->> >> > release or every -rc or something else? I really can't see how we can
->> >> > maintain this in the long run, especially given that the coverage we have
->> >> > is only dynamic -- do you have an idea of how much coverage you're actually
->> >> > getting for, say, a defconfig+modules build?
->> >> >
->> >> > I'd really like to enable pointer tagging in the kernel, I'm just still
->> >> > failing to see how we can do it in a controlled manner where we can reason
->> >> > about the semantic changes using something other than a best-effort,
->> >> > case-by-case basis which is likely to be fragile and error-prone.
->> >> > Unfortunately, if that's all we have, then this gets relegated to a
->> >> > debug feature, which sort of defeats the point in my opinion.
->> >>
->> >> Well, in some cases there is no other way as resorting to dynamic testing.
->> >> How do we ensure that kernel does not dereference NULL pointers, does
->> >> not access objects after free or out of bounds? Nohow. And, yes, it's
->> >> constant maintenance burden resolved via dynamic testing.
->> >
->> > ... and the advantage of NULL pointer issues is that you're likely to see
->> > them as a synchronous exception at runtime, regardless of architecture and
->> > regardless of Kconfig options. With pointer tagging, that's certainly not
->> > the case, and so I don't think we can just treat issues there like we do for
->> > NULL pointers.
->>
->> Well, let's take use-after-frees, out-of-bounds, info leaks, data
->> races is a good example, deadlocks and just logical bugs...
->
-> Ok, but it was you that brought up NULL pointers, so there's some goalpost
-> moving here.
+On Wed, Aug 08, 2018 at 08:47:58AM +0200, Michal Hocko wrote:
+> On Tue 07-08-18 11:18:10, Jerome Glisse wrote:
+> > On Tue, Aug 07, 2018 at 04:59:00PM +0200, Michal Hocko wrote:
+> > > On Tue 07-08-18 09:52:21, Jerome Glisse wrote:
+> > > > On Tue, Aug 07, 2018 at 03:37:56PM +0200, osalvador@techadventures.net wrote:
+> > > > > From: Oscar Salvador <osalvador@suse.de>
+> > > > 
+> > > > [...]
+> > > > 
+> > > > > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> > > > > index 9bd629944c91..e33555651e46 100644
+> > > > > --- a/mm/memory_hotplug.c
+> > > > > +++ b/mm/memory_hotplug.c
+> > > > 
+> > > > [...]
+> > > > 
+> > > > >  /**
+> > > > >   * __remove_pages() - remove sections of pages from a zone
+> > > > > - * @zone: zone from which pages need to be removed
+> > > > > + * @nid: node which pages belong to
+> > > > >   * @phys_start_pfn: starting pageframe (must be aligned to start of a section)
+> > > > >   * @nr_pages: number of pages to remove (must be multiple of section size)
+> > > > >   * @altmap: alternative device page map or %NULL if default memmap is used
+> > > > > @@ -548,7 +557,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
+> > > > >   * sure that pages are marked reserved and zones are adjust properly by
+> > > > >   * calling offline_pages().
+> > > > >   */
+> > > > > -int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
+> > > > > +int __remove_pages(int nid, unsigned long phys_start_pfn,
+> > > > >  		 unsigned long nr_pages, struct vmem_altmap *altmap)
+> > > > >  {
+> > > > >  	unsigned long i;
+> > > > > @@ -556,10 +565,9 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
+> > > > >  	int sections_to_remove, ret = 0;
+> > > > >  
+> > > > >  	/* In the ZONE_DEVICE case device driver owns the memory region */
+> > > > > -	if (is_dev_zone(zone)) {
+> > > > > -		if (altmap)
+> > > > > -			map_offset = vmem_altmap_offset(altmap);
+> > > > > -	} else {
+> > > > > +	if (altmap)
+> > > > > +		map_offset = vmem_altmap_offset(altmap);
+> > > > > +	else {
+> > > > 
+> > > > This will break ZONE_DEVICE at least for HMM. While i think that
+> > > > altmap -> ZONE_DEVICE (ie altmap imply ZONE_DEVICE) the reverse
+> > > > is not true ie ZONE_DEVICE does not necessarily imply altmap. So
+> > > > with the above changes you change the expected behavior.
+> > > 
+> > > Could you be more specific what is the expected behavior here?
+> > > Is this about calling release_mem_region_adjustable? Why does is it not
+> > > suitable for zone device ranges?
+> > 
+> > Correct, you should not call release_mem_region_adjustable() the device
+> > region is not part of regular iomem resource as it might not necessarily
+> > be enumerated through known ways to the kernel (ie only the device driver
+> > can discover the region and core kernel do not know about it).
+> 
+> If there is no region registered with the range then the call should be
+> mere nop, no? So why do we have to special case?
 
-I moved it only because our views on bugs seems to be somewhat
-different. I would put it all including NULL derefs into the same
-bucket of bugs. But the point I wanted to make holds if we take NULL
-derefs out of equation too, so I took them out so that we don't
-concentrate on "synchronous exceptions" only.
+IIRC this is because you can not release the resource ie the resource
+is still own by the device driver even if you hotremove the memory.
+The device driver might still be using the resource without struct page.
 
-> And as with NULL pointers, all of the issues you mention above
-> apply to other architectures and the majority of their configurations, so my
-> concerns about this feature remain.
->
->> > If you want to enable khwasan in "production" and since enabling it
->> > could potentially change the behaviour of existing code paths, the
->> > run-time validation space doubles as we'd need to get the same code
->> > coverage with and without the feature being enabled.
->>
->> This is true for just any change in configs, sysctls or just a
->> different workload. Any of this can enable new code, exiting code
->> working differently, or just working with data in new states. And we
->> have tens of thousands of bugs, so blindly deploying anything new to
->> production without proper testing is a bad idea. It's not specific to
->> HWASAN in any way. And when you enable HWASAN you actually do mean to
->> retest everything as hard as possible.
->
-> I suppose I'm trying to understand whether we have to resort to testing, or
-> whether we can do better. I'm really uncomfortable with testing as our only
-> means of getting this right because this is a non-standard, arm64-specific
-> option and I don't think it will get very much testing in mainline at all.
-> Rather, we'll get spurious bug reports from forks of -stable many releases
-> later and we'll actually be worse-off for it.
->
->> And in the end we do not seem to have any action points here, right?
->
-> Right now, it feels like this series trades one set of bugs for another,
-> so I'd like to get to a position where this new set of bugs is genuinely
-> more manageable (i.e. detectable, fixable, preventable) than the old set.
-> Unfortunately, the only suggestion seems to be "testing", which I really
-> don't find convincing :(
->
-> Could we do things like:
->
->   - Set up a dedicated arm64 test farm, running mainline and with a public
->     frontend, aimed at getting maximum coverage of the kernel with KHWASAN
->     enabled?
+> 
+> [...]
+> 
+> > Also in the case they do exist in iomem resource it is as PCIE BAR so
+> > as IORESOURCE_IO (iirc) and thus release_mem_region_adjustable() would
+> > return -EINVAL. Thought nothing bad happens because of that, only a
+> > warning message that might confuse the user.
+> 
+> I am not sure I have understood this correctly. Are you referring to the
+> current state when we would call release_mem_region_adjustable
+> unconditionally or the case that the resource would be added also for
+> zone device ranges?
+> 
+> If the former then I do not see any reason why we couldn't simply
+> refactor the code to expect a failure and drop the warning in that path.
 
-FWIW we could try to setup a syzbot instance with qemu/arm64
-emulation. We run such combination few times, but I am not sure how
-stable it will be wrt flaky timeouts/stalls/etc. If works, it will
-give instant coverage of about 1MLOC.
+Referring to newer case ie calling release_mem_region_adjustable() for
+ZONE_DEVICE too. It seems i got my recollection wrong in the sense that
+the resource is properly register as MEM but still we do not want to
+release it because the device driver might still be using the resource
+without struct page. The lifetime of the resource as memory with struct
+page and the lifetime of the resource as something use by the device
+driver are not tie together. The latter can outlive the former.
 
->   - Have an implementation of KHWASAN for other architectures? (Is this even
->     possible?)
->
->   - Have a compiler plugin to clear out the tag for pointer arithmetic?
->     Could we WARN if two pointers are compared with different tags?
->     Could we manipulate the tag on cast-to-pointer so that a mismatch would
->     be qualifier to say that pointer was created via a cast?
->
->   - ...
->
-> ?
->
-> Will
+So when we hotremove ZONE_DEVICE we do not want to release the resource
+yet just to be on safe side and avoid some other driver/kernel component
+to decide to use that resource.
+
+Cheers,
+Jerome
