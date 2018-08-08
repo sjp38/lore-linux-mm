@@ -1,56 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BB0706B000D
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 09:17:00 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id r21-v6so856835edp.23
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 06:17:00 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f10-v6si3707265edd.212.2018.08.08.06.16.58
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 52A546B0010
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 09:18:51 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id w14-v6so2233446qkw.2
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 06:18:51 -0700 (PDT)
+Received: from mail.cybernetics.com (mail.cybernetics.com. [173.71.130.66])
+        by mx.google.com with ESMTPS id i8-v6si3445827qkm.41.2018.08.08.06.18.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Aug 2018 06:16:59 -0700 (PDT)
-Date: Wed, 8 Aug 2018 15:16:58 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] memcg, oom: be careful about races when warning about no
- reclaimable task
-Message-ID: <20180808131658.GP27972@dhcp22.suse.cz>
-References: <20180807072553.14941-1-mhocko@kernel.org>
- <863d73ce-fae9-c117-e361-12c415c787de@i-love.sakura.ne.jp>
- <20180807201935.GB4251@cmpxchg.org>
- <1308e0bd-e194-7b35-484c-fc18f493f8da@i-love.sakura.ne.jp>
- <9cea37c8-ab90-2fdf-395c-efe52ff07072@i-love.sakura.ne.jp>
+        Wed, 08 Aug 2018 06:18:50 -0700 (PDT)
+Subject: Re: [PATCH v3 08/10] dmapool: improve accuracy of debug statistics
+References: <cbe2fb30-54b3-663e-4e30-448353723b8f@cybernetics.com>
+ <CAHp75Vcnf8m0zW+8Y8=fTE+F_bDjmaQpR0s2qiTdkOzqe2+fBA@mail.gmail.com>
+From: Tony Battersby <tonyb@cybernetics.com>
+Message-ID: <99f91604-f7ea-aaaa-fc15-3c1264603d0b@cybernetics.com>
+Date: Wed, 8 Aug 2018 09:18:48 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <9cea37c8-ab90-2fdf-395c-efe52ff07072@i-love.sakura.ne.jp>
+In-Reply-To: <CAHp75Vcnf8m0zW+8Y8=fTE+F_bDjmaQpR0s2qiTdkOzqe2+fBA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Dmitry Vyukov <dvyukov@google.com>, LKML <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>
+To: Andy Shevchenko <andy.shevchenko@gmail.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "MPT-FusionLinux.pdl@broadcom.com" <MPT-FusionLinux.pdl@broadcom.com>
 
-On Wed 08-08-18 21:57:13, Tetsuo Handa wrote:
-[...]
-> Also, before the OOM reaper was introduced, we waited until TIF_MEMDIE is
-> cleared from the OOM victim thread. Compared to pre OOM reaper era, giving up
-> so early is certainly a regression.
-
-We did clear TIF_MEMDIE flag after mmput() in do_exit so this was not a silver
-bullet either. Any reference on the mm_struct would lead to a similar
-problem. So could you please stop making strong stamements and start
-being reasonable?
-
-Yeah, this is racy. Nobody is claiming otherwise. All we are trying to
-say is that this area is full of dragons and before we start making it
-more complicating by covering weird cornercases we really need to see
-that those corner cases happen in real workloads. Otherwise we end up
-with a unmaintainable and fragile mess.
-
-And more importantly this is _not_ what this patch is trying to address
-so please do not go tangent again.
-
-I really do not know how to send this simply message to you. I have
-tried so many times before.
-
--- 
-Michal Hocko
-SUSE Labs
+On 08/08/2018 05:54 AM, Andy Shevchenko wrote:
+> On Tue, Aug 7, 2018 at 7:49 PM, Tony Battersby <tonyb@cybernetics.com> wrote:
+>> The "total number of blocks in pool" debug statistic currently does not
+>> take the boundary value into account, so it diverges from the "total
+>> number of blocks in use" statistic when a boundary is in effect.  Add a
+>> calculation for the number of blocks per allocation that takes the
+>> boundary into account, and use it to replace the inaccurate calculation.
+>
+>> +       retval->blks_per_alloc =
+>> +               (allocation / boundary) * (boundary / size) +
+>> +               (allocation % boundary) / size;
+> If boundary is guaranteed to be power of 2, this can avoid cost
+> divisions (though it's a slow path anyway).
+>
+At this point in the function, boundary is guaranteed to be either a
+power of 2 or equal to allocation, which might not be a power of 2.A  Not
+worth special-casing a slow path.
