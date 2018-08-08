@@ -1,77 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1025A6B0006
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 20:57:27 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id s14-v6so447434wra.0
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 17:57:27 -0700 (PDT)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.17.22])
-        by mx.google.com with ESMTPS id 185-v6si2426693wmp.24.2018.08.07.17.57.25
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 53D256B000A
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2018 21:06:06 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id m25-v6so235784pgv.22
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 18:06:06 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id s27-v6si3154253pfd.231.2018.08.07.18.06.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Aug 2018 17:57:25 -0700 (PDT)
-Subject: Re: [PATCH] mm: adjust max read count in generic_file_buffered_read()
-References: <20180719081726.3341-1-cgxu519@gmx.com>
- <20180719085812.sjup2odrjyuigt3l@quack2.suse.cz>
- <20180720161429.d63dccb9f66799dc0ff74dba@linux-foundation.org>
- <20180806102203.hmobd26cujmlfcsw@quack2.suse.cz>
- <20180806155927.4740babd057df9d5078281b1@linux-foundation.org>
- <20180807135453.nhatdtw25wa6dtzm@quack2.suse.cz>
-From: cgxu519 <cgxu519@gmx.com>
-Message-ID: <7be05929-a5d0-e0b0-9d48-705c3840ee95@gmx.com>
-Date: Wed, 8 Aug 2018 08:57:13 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 07 Aug 2018 18:06:05 -0700 (PDT)
+Date: Wed, 8 Aug 2018 11:05:42 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [PATCH RFC 01/10] rcu: Make CONFIG_SRCU unconditionally enabled
+Message-ID: <20180808110542.6df3f48f@canb.auug.org.au>
+In-Reply-To: <153365625652.19074.8434946780002619802.stgit@localhost.localdomain>
+References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
+	<153365625652.19074.8434946780002619802.stgit@localhost.localdomain>
 MIME-Version: 1.0
-In-Reply-To: <20180807135453.nhatdtw25wa6dtzm@quack2.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/IP8rFemfHJulIaL8/xLQERN"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
-Cc: mgorman@techsingularity.net, jlayton@redhat.com, ak@linux.intel.com, mawilcox@microsoft.com, tim.c.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, vdavydov.dev@gmail.com, mhocko@suse.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
+--Sig_/IP8rFemfHJulIaL8/xLQERN
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
+Hi Kirill,
 
-On 08/07/2018 09:54 PM, Jan Kara wrote:
-> On Mon 06-08-18 15:59:27, Andrew Morton wrote:
->> On Mon, 6 Aug 2018 12:22:03 +0200 Jan Kara <jack@suse.cz> wrote:
->>
->>> On Fri 20-07-18 16:14:29, Andrew Morton wrote:
->>>> On Thu, 19 Jul 2018 10:58:12 +0200 Jan Kara <jack@suse.cz> wrote:
->>>>
->>>>> On Thu 19-07-18 16:17:26, Chengguang Xu wrote:
->>>>>> When we try to truncate read count in generic_file_buffered_read(),
->>>>>> should deliver (sb->s_maxbytes - offset) as maximum count not
->>>>>> sb->s_maxbytes itself.
->>>>>>
->>>>>> Signed-off-by: Chengguang Xu <cgxu519@gmx.com>
->>>>> Looks good to me. You can add:
->>>>>
->>>>> Reviewed-by: Jan Kara <jack@suse.cz>
->>>> Yup.
->>>>
->>>> What are the runtime effects of this bug?
->>> Good question. I think ->readpage() could be called for index beyond
->>> maximum file size supported by the filesystem leading to weird filesystem
->>> behavior due to overflows in internal calculations.
->>>
->> Sure.  But is it possible for userspace to trigger this behaviour?
->> Possibly all callers have already sanitized the arguments by this stage
->> in which case the statement is arguably redundant.
-> So I don't think there's any sanitization going on before
-> generic_file_buffered_read(). E.g. I don't see any s_maxbytes check on
-> ksys_read() -> vfs_read() -> __vfs_read() -> new_sync_read() ->
-> call_read_iter() -> generic_file_read_iter() ->
-> generic_file_buffered_read() path... However now thinking about this again:
-> We are guaranteed i_size is within s_maxbytes (places modifying i_size
-> are checking for this) and generic_file_buffered_read() stops when it
-> should read beyond i_size. So in the end I don't think there's any breakage
-> possible and the patch is not necessary?
+On Tue, 07 Aug 2018 18:37:36 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrot=
+e:
 >
-I think most of time i_size is within s_maxbytes in local filesystem,
-but consider network filesystem, write big file in 64bit client and
-read in 32bit client, in this case maybe generic_file_buffered_read()
-can read more than s_maxbytes, right?
+> This patch kills all CONFIG_SRCU defines and
+> the code under !CONFIG_SRCU.
+>=20
+> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+> ---
+>  drivers/base/core.c                                |   42 --------------=
+------
+>  include/linux/device.h                             |    2 -
+>  include/linux/rcutiny.h                            |    4 --
+>  include/linux/srcu.h                               |    5 --
+>  kernel/notifier.c                                  |    3 -
+>  kernel/rcu/Kconfig                                 |   12 +-----
+>  kernel/rcu/tree.h                                  |    5 --
+>  kernel/rcu/update.c                                |    4 --
+>  .../selftests/rcutorture/doc/TREE_RCU-kconfig.txt  |    5 --
+>  9 files changed, 3 insertions(+), 79 deletions(-)
 
+You left quite a few "select SRCU" statements scattered across Kconfig
+files:
 
-Thanks,
-Chengguang
+$ git grep -l 'select SRCU' '*Kconfig*'
+arch/arm/kvm/Kconfig
+arch/arm64/kvm/Kconfig
+arch/mips/kvm/Kconfig
+arch/powerpc/kvm/Kconfig
+arch/s390/kvm/Kconfig
+arch/x86/Kconfig
+arch/x86/kvm/Kconfig
+block/Kconfig
+drivers/clk/Kconfig
+drivers/cpufreq/Kconfig
+drivers/dax/Kconfig
+drivers/devfreq/Kconfig
+drivers/hwtracing/stm/Kconfig
+drivers/md/Kconfig
+drivers/net/Kconfig
+drivers/opp/Kconfig
+fs/btrfs/Kconfig
+fs/notify/Kconfig
+fs/quota/Kconfig
+init/Kconfig
+kernel/rcu/Kconfig
+kernel/rcu/Kconfig.debug
+mm/Kconfig
+security/tomoyo/Kconfig
+
+--=20
+Cheers,
+Stephen Rothwell
+
+--Sig_/IP8rFemfHJulIaL8/xLQERN
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAltqQeYACgkQAVBC80lX
+0GzCAggAjky/YInwyHf0hhdtGhlsTa7vvLGJcP+elKvroDO5mdb3+Fpb6n+Qa7GN
+YCDuTYv5Y8ZMGvn9FDcjy/KK9gpWyp/mvWXQ8+a7ZVCd4SqFMjk7FMNOiI2jotw8
+bL3d0blzZoJGI6HCWSvGhLIVkXGZUizd+dGfDABj7AyuMZTbcs65PyeqwbrBGeHj
+STNVtyYKb7zHpNwt2JEOqHOKnenOdvpKLzZK6S39IYxXvIzmlIFr/QdZRTY4j3jZ
+xZKIKLhOixM6giSj0A8pP0m/KAUEcRaSCGuQh8DbBWQOUIix/4oeuwIwZ0yyS5Wr
+unjIxdFN3gUGCchbuvecCCVE/y1p5A==
+=hXsZ
+-----END PGP SIGNATURE-----
+
+--Sig_/IP8rFemfHJulIaL8/xLQERN--
