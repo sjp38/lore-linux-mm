@@ -1,89 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 333DB6B0003
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 05:45:05 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id w2-v6so1351295wrt.13
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 02:45:05 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u8-v6sor1516954wrq.10.2018.08.08.02.45.03
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B1D6F6B0007
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 05:46:51 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id o18-v6so1329819qtm.11
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 02:46:51 -0700 (PDT)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00107.outbound.protection.outlook.com. [40.107.0.107])
+        by mx.google.com with ESMTPS id 14-v6si3841493qkk.312.2018.08.08.02.46.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 08 Aug 2018 02:45:03 -0700 (PDT)
-Date: Wed, 8 Aug 2018 11:45:02 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [RFC PATCH 2/3] mm/memory_hotplug: Create __shrink_pages and
- move it to offline_pages
-Message-ID: <20180808094502.GA10068@techadventures.net>
-References: <20180807133757.18352-1-osalvador@techadventures.net>
- <20180807133757.18352-3-osalvador@techadventures.net>
- <20180807135221.GA3301@redhat.com>
- <20180807145900.GH10003@dhcp22.suse.cz>
- <20180807151810.GB3301@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 08 Aug 2018 02:46:50 -0700 (PDT)
+Subject: Re: [PATCH RFC 01/10] rcu: Make CONFIG_SRCU unconditionally enabled
+References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
+ <153365625652.19074.8434946780002619802.stgit@localhost.localdomain>
+ <20180808110542.6df3f48f@canb.auug.org.au>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <a1ca4c67-aa03-7381-151e-e7d85e402e78@virtuozzo.com>
+Date: Wed, 8 Aug 2018 12:46:39 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180807151810.GB3301@redhat.com>
+In-Reply-To: <20180808110542.6df3f48f@canb.auug.org.au>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, dan.j.williams@intel.com, david@redhat.com, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, vdavydov.dev@gmail.com, mhocko@suse.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Aug 07, 2018 at 11:18:10AM -0400, Jerome Glisse wrote:
-> Correct, you should not call release_mem_region_adjustable() the device
-> region is not part of regular iomem resource as it might not necessarily
-> be enumerated through known ways to the kernel (ie only the device driver
-> can discover the region and core kernel do not know about it).
+On 08.08.2018 04:05, Stephen Rothwell wrote:
+> Hi Kirill,
 > 
-> One of the issue to adding this region to iomem resource is that they
-> really need to be ignored by core kernel because you can not assume that
-> CPU can actually access them. Moreover, if CPU can access them it is
-> likely that CPU can not do atomic operation on them (ie what happens on
-> a CPU atomic instruction is undefined). So they are _special_ and only
-> make sense to be use in conjunction with a device driver.
+> On Tue, 07 Aug 2018 18:37:36 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+>>
+>> This patch kills all CONFIG_SRCU defines and
+>> the code under !CONFIG_SRCU.
+>>
+>> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+>> ---
+>>  drivers/base/core.c                                |   42 --------------------
+>>  include/linux/device.h                             |    2 -
+>>  include/linux/rcutiny.h                            |    4 --
+>>  include/linux/srcu.h                               |    5 --
+>>  kernel/notifier.c                                  |    3 -
+>>  kernel/rcu/Kconfig                                 |   12 +-----
+>>  kernel/rcu/tree.h                                  |    5 --
+>>  kernel/rcu/update.c                                |    4 --
+>>  .../selftests/rcutorture/doc/TREE_RCU-kconfig.txt  |    5 --
+>>  9 files changed, 3 insertions(+), 79 deletions(-)
 > 
+> You left quite a few "select SRCU" statements scattered across Kconfig
+> files:
 > 
-> Also in the case they do exist in iomem resource it is as PCIE BAR so
-> as IORESOURCE_IO (iirc) and thus release_mem_region_adjustable() would
-> return -EINVAL. Thought nothing bad happens because of that, only a
-> warning message that might confuse the user.
+> $ git grep -l 'select SRCU' '*Kconfig*'
+> arch/arm/kvm/Kconfig
+> arch/arm64/kvm/Kconfig
+> arch/mips/kvm/Kconfig
+> arch/powerpc/kvm/Kconfig
+> arch/s390/kvm/Kconfig
+> arch/x86/Kconfig
+> arch/x86/kvm/Kconfig
+> block/Kconfig
+> drivers/clk/Kconfig
+> drivers/cpufreq/Kconfig
+> drivers/dax/Kconfig
+> drivers/devfreq/Kconfig
+> drivers/hwtracing/stm/Kconfig
+> drivers/md/Kconfig
+> drivers/net/Kconfig
+> drivers/opp/Kconfig
+> fs/btrfs/Kconfig
+> fs/notify/Kconfig
+> fs/quota/Kconfig
+> init/Kconfig
+> kernel/rcu/Kconfig
+> kernel/rcu/Kconfig.debug
+> mm/Kconfig
+> security/tomoyo/Kconfig
 
-Just to see if I understand this correctly.
-I guess that these regions are being registered via devm_request_mem_region() calls.
-Among other callers, devm_request_mem_region() is being called from:
-
-dax_pmem_probe
-hmm_devmem_add
-
-AFAICS from the code, those regions will inherit the flags from the parent, which is iomem_resource:
-
-#define devm_request_mem_region(dev,start,n,name) \
-	__devm_request_region(dev, &iomem_resource, (start), (n), (name))
-
-struct resource iomem_resource = {
-	.name	= "PCI mem",
-	.start	= 0,
-	.end	= -1,
-	.flags	= IORESOURCE_MEM,
-};
-
-
-struct resource * __request_region()
-{
-	...
-	...
-	res->flags = resource_type(parent) | resource_ext_type(parent);
-	res->flags |= IORESOURCE_BUSY | flags;
-	res->desc = parent->desc;
-	...
-	...
-}
-
-So the regions will not be tagged as IORESOURCE_IO but IORESOURCE_MEM.
->From the first glance release_mem_region_adjustable() looks like it does
-more things than __release_region(), and I did not check it deeply
-but maybe we can make it work.
-
-Thanks
--- 
-Oscar Salvador
-SUSE L3
+Yeah, thanks, Stephen.
