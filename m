@@ -1,210 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E64C86B0008
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 12:17:41 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id y8-v6so1050076edr.12
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 09:17:41 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d13-v6si3997edh.39.2018.08.08.09.17.40
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C036F6B0003
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 12:23:13 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id f64-v6so2707153qkb.20
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 09:23:13 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0120.outbound.protection.outlook.com. [104.47.1.120])
+        by mx.google.com with ESMTPS id b29-v6si123116qkj.363.2018.08.08.09.23.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Aug 2018 09:17:40 -0700 (PDT)
-Date: Wed, 8 Aug 2018 18:17:37 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] memcg, oom: emit oom report when there is no
- eligible task
-Message-ID: <20180808161737.GQ27972@dhcp22.suse.cz>
-References: <20180808064414.GA27972@dhcp22.suse.cz>
- <20180808071301.12478-1-mhocko@kernel.org>
- <20180808071301.12478-3-mhocko@kernel.org>
- <20180808144515.GA9276@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 08 Aug 2018 09:23:12 -0700 (PDT)
+Subject: Re: [PATCH RFC 01/10] rcu: Make CONFIG_SRCU unconditionally enabled
+References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
+ <153365625652.19074.8434946780002619802.stgit@localhost.localdomain>
+ <20180808072040.GC27972@dhcp22.suse.cz>
+ <d17e65bb-c114-55de-fb4e-e2f538779b92@virtuozzo.com>
+ <20180808161330.GA22863@localhost>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <f32ab99a-de28-b140-a7d0-027073055728@virtuozzo.com>
+Date: Wed, 8 Aug 2018 19:23:01 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180808144515.GA9276@cmpxchg.org>
+In-Reply-To: <20180808161330.GA22863@localhost>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Josh Triplett <josh@joshtriplett.org>
+Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, sfr@canb.auug.org.au, vdavydov.dev@gmail.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 08-08-18 10:45:15, Johannes Weiner wrote:
-> On Wed, Aug 08, 2018 at 09:13:01AM +0200, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > Johannes had doubts that the current WARN in the memcg oom path
-> > when there is no eligible task is not all that useful because it doesn't
-> > really give any useful insight into the memcg state. My original
-> > intention was to make this lightweight but it is true that seeing
-> > a stack trace will likely be not sufficient when somebody gets back to
-> > us and report this warning.
-> > 
-> > Therefore replace the current warning by the full oom report which will
-> > give us not only the back trace of the offending path but also the full
-> > memcg state - memory counters and existing tasks.
-> > 
-> > Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > ---
-> >  include/linux/oom.h |  2 ++
-> >  mm/memcontrol.c     | 24 +++++++++++++-----------
-> >  mm/oom_kill.c       |  8 ++++----
-> >  3 files changed, 19 insertions(+), 15 deletions(-)
-> > 
-> > diff --git a/include/linux/oom.h b/include/linux/oom.h
-> > index a16a155a0d19..7424f9673cd1 100644
-> > --- a/include/linux/oom.h
-> > +++ b/include/linux/oom.h
-> > @@ -133,6 +133,8 @@ extern struct task_struct *find_lock_task_mm(struct task_struct *p);
-> >  
-> >  extern int oom_evaluate_task(struct task_struct *task, void *arg);
-> >  
-> > +extern void dump_oom_header(struct oom_control *oc, struct task_struct *victim);
-> > +
-> >  /* sysctls */
-> >  extern int sysctl_oom_dump_tasks;
-> >  extern int sysctl_oom_kill_allocating_task;
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index c80e5b6a8e9f..3d7c90e6c235 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -1390,6 +1390,19 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> >  	mutex_lock(&oom_lock);
-> >  	ret = out_of_memory(&oc);
-> >  	mutex_unlock(&oom_lock);
-> > +
-> > +	/*
-> > +	 * under rare race the current task might have been selected while
-> > +	 * reaching mem_cgroup_out_of_memory and there is no other oom victim
-> > +	 * left. There is still no reason to warn because this task will
-> > +	 * die and release its bypassed charge eventually.
+On 08.08.2018 19:13, Josh Triplett wrote:
+> On Wed, Aug 08, 2018 at 01:17:44PM +0300, Kirill Tkhai wrote:
+>> On 08.08.2018 10:20, Michal Hocko wrote:
+>>> On Tue 07-08-18 18:37:36, Kirill Tkhai wrote:
+>>>> This patch kills all CONFIG_SRCU defines and
+>>>> the code under !CONFIG_SRCU.
+>>>
+>>> The last time somebody tried to do this there was a pushback due to
+>>> kernel tinyfication. So this should really give some numbers about the
+>>> code size increase. Also why can't we make this depend on MMU. Is
+>>> anybody else than the reclaim asking for unconditional SRCU usage?
+>>
+>> I don't know one. The size numbers (sparc64) are:
+>>
+>> $ size image.srcu.disabled 
+>>    text	   data	    bss	    dec	    hex	filename
+>> 5117546	8030506	1968104	15116156	 e6a77c	image.srcu.disabled
+>> $ size image.srcu.enabled
+>>    text	   data	    bss	    dec	    hex	filename
+>> 5126175	8064346	1968104	15158625	 e74d61	image.srcu.enabled
+>> The difference is: 15158625-15116156 = 42469 ~41Kb
 > 
-> "rare race" is a bit vague. Can we describe the situation?
-> 
-> 	/*
-> 	 * We killed and reaped every task in the group, and still no
-> 	 * luck with the charge. This is likely the result of a crazy
-> 	 * configuration, let the user know.
-> 	 *
-> 	 * With one exception: current is the last task, it's already
-> 	 * been killed and reaped, but that wasn't enough to satisfy
-> 	 * the charge request under the configured limit. In that case
-> 	 * let it bypass quietly and current exit.
-> 	 */
+> 41k is a *substantial* size increase. However, can you compare
+> tinyconfig with and without this patch? That may have a smaller change.
 
-Sounds good.
+$ size image.srcu.disabled
+   text	   data	    bss	    dec	    hex	filename
+1105900	 195456	  63232	1364588	 14d26c	image.srcu.disabled
 
-> And after spelling that out, I no longer think we want to skip the OOM
-> header in that situation. The first paragraph still applies: this is
-> probably a funny configuration, we're going to bypass the charge, let
-> the user know that we failed containment - to help THEM identify by
-> themselves what is likely an easy to fix problem.
-> 
-> > +	 */
-> > +	if (tsk_is_oom_victim(current))
-> > +		return ret;
-> > +
-> > +	pr_warn("Memory cgroup charge failed because of no reclaimable memory! "
-> > +		"This looks like a misconfiguration or a kernel bug.");
-> > +	dump_oom_header(&oc, NULL);
-> 
-> All other sites print the context first before printing the
-> conclusion, we should probably do the same here.
-> 
-> I'd also prefer keeping the message in line with the global case when
-> no eligible tasks are left. There is no need to speculate whose fault
-> this could be, that's apparent from the OOM header. If the user can't
-> figure it out from the OOM header, they'll still report it to us.
-> 
-> How about this?
-> 
-> ---
-> 
-> >From bba01122f739b05a689dbf1eeeb4f0e07affd4e7 Mon Sep 17 00:00:00 2001
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Date: Wed, 8 Aug 2018 09:59:40 -0400
-> Subject: [PATCH] mm: memcontrol: print proper OOM header when no eligible
->  victim left
-> 
-> When the memcg OOM killer runs out of killable tasks, it currently
-> prints a WARN with no further OOM context. This has caused some user
-> confusion.
-> 
-> Warnings indicate a kernel problem. In a reported case, however, the
-> situation was triggered by a non-sensical memcg configuration (hard
-> limit set to 0). But without any VM context this wasn't obvious from
-> the report, and it took some back and forth on the mailing list to
-> identify what is actually a trivial issue.
-> 
-> Handle this OOM condition like we handle it in the global OOM killer:
-> dump the full OOM context and tell the user we ran out of tasks.
-> 
-> This way the user can identify misconfigurations easily by themselves
-> and rectify the problem - without having to go through the hassle of
-> running into an obscure but unsettling warning, finding the
-> appropriate kernel mailing list and waiting for a kernel developer to
-> remote-analyze that the memcg configuration caused this.
-> 
-> If users cannot make sense of why the OOM killer was triggered or why
-> it failed, they will still report it to the mailing list, we know that
-> from experience. So in case there is an actual kernel bug causing
-> this, kernel developers will very likely hear about it.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+$ size image.srcu.enabled
+   text	   data	    bss	    dec	    hex	filename
+1106960	 195528	  63232	1365720	 14d6d8	image.srcu.enabled
 
-Yes this works as well. We would get a dump even for the race we have
-seen but I do not think this is something to lose sleep over. And if it
-triggers too often to be disturbing we can add
-tsk_is_oom_victim(current) check there.
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/memcontrol.c |  2 --
->  mm/oom_kill.c   | 13 ++++++++++---
->  2 files changed, 10 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 4e3c1315b1de..29d9d1a69b36 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1701,8 +1701,6 @@ static enum oom_status mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int
->  	if (mem_cgroup_out_of_memory(memcg, mask, order))
->  		return OOM_SUCCESS;
->  
-> -	WARN(1,"Memory cgroup charge failed because of no reclaimable memory! "
-> -		"This looks like a misconfiguration or a kernel bug.");
->  	return OOM_FAILED;
->  }
->  
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 0e10b864e074..07ae222d7830 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -1103,10 +1103,17 @@ bool out_of_memory(struct oom_control *oc)
->  	}
->  
->  	select_bad_process(oc);
-> -	/* Found nothing?!?! Either we hang forever, or we panic. */
-> -	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
-> +	/* Found nothing?!?! */
-> +	if (!oc->chosen) {
->  		dump_header(oc, NULL);
-> -		panic("Out of memory and no killable processes...\n");
-> +		pr_warn("Out of memory and no killable processes...\n");
-> +		/*
-> +		 * If we got here due to an actual allocation at the
-> +		 * system level, we cannot survive this and will enter
-> +		 * an endless loop in the allocator. Bail out now.
-> +		 */
-> +		if (!is_sysrq_oom(oc) && !is_memcg_oom(oc))
-> +			panic("System is deadlocked on memory\n");
->  	}
->  	if (oc->chosen && oc->chosen != (void *)-1UL)
->  		oom_kill_process(oc, !is_memcg_oom(oc) ? "Out of memory" :
-> -- 
-> 2.18.0
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+1365720-1364588 = 1132 ~ 1Kb
