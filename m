@@ -1,38 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 747116B0003
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 11:54:40 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id t26-v6so1613989pfh.0
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 08:54:40 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id j5-v6si4710997pgt.226.2018.08.08.08.54.38
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B609F6B0006
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 12:13:55 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id y13-v6so1959575wma.1
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 09:13:55 -0700 (PDT)
+Received: from relay7-d.mail.gandi.net (relay7-d.mail.gandi.net. [217.70.183.200])
+        by mx.google.com with ESMTPS id p129-v6si4130903wme.120.2018.08.08.09.13.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Aug 2018 08:54:39 -0700 (PDT)
-Subject: Re: [PATCH] x86/mm/pti: Move user W+X check into pti_finalize()
-References: <1533727000-9172-1-git-send-email-joro@8bytes.org>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <aee38579-3a53-3370-b22b-04603b6b65ce@intel.com>
-Date: Wed, 8 Aug 2018 08:54:37 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 08 Aug 2018 09:13:51 -0700 (PDT)
+Date: Wed, 8 Aug 2018 09:13:30 -0700
+From: Josh Triplett <josh@joshtriplett.org>
+Subject: Re: [PATCH RFC 01/10] rcu: Make CONFIG_SRCU unconditionally enabled
+Message-ID: <20180808161330.GA22863@localhost>
+References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
+ <153365625652.19074.8434946780002619802.stgit@localhost.localdomain>
+ <20180808072040.GC27972@dhcp22.suse.cz>
+ <d17e65bb-c114-55de-fb4e-e2f538779b92@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <1533727000-9172-1-git-send-email-joro@8bytes.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d17e65bb-c114-55de-fb4e-e2f538779b92@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, jroedel@suse.de
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, sfr@canb.auug.org.au, vdavydov.dev@gmail.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On 08/08/2018 04:16 AM, Joerg Roedel wrote:
-> But with CONFIG_DEBUG_WX enabled, the user page-table is
-> already checked in mark_readonly() for insecure mappings.
-> This causes false-positive warnings, because the user
-> page-table did not get the updated mappings yet.
+On Wed, Aug 08, 2018 at 01:17:44PM +0300, Kirill Tkhai wrote:
+> On 08.08.2018 10:20, Michal Hocko wrote:
+> > On Tue 07-08-18 18:37:36, Kirill Tkhai wrote:
+> >> This patch kills all CONFIG_SRCU defines and
+> >> the code under !CONFIG_SRCU.
+> > 
+> > The last time somebody tried to do this there was a pushback due to
+> > kernel tinyfication. So this should really give some numbers about the
+> > code size increase. Also why can't we make this depend on MMU. Is
+> > anybody else than the reclaim asking for unconditional SRCU usage?
+> 
+> I don't know one. The size numbers (sparc64) are:
+> 
+> $ size image.srcu.disabled 
+>    text	   data	    bss	    dec	    hex	filename
+> 5117546	8030506	1968104	15116156	 e6a77c	image.srcu.disabled
+> $ size image.srcu.enabled
+>    text	   data	    bss	    dec	    hex	filename
+> 5126175	8064346	1968104	15158625	 e74d61	image.srcu.enabled
+> The difference is: 15158625-15116156 = 42469 ~41Kb
 
-One bit of information missing from the changelog: Could you clarify how
-there are any entries in the user page tables for the code to complain?
-Before pti_init(), I would have expected the user page tables to be empty.
-
-That causes a different problem, but it would not have resulted in
-warnings, so I think I'm missing something.
+41k is a *substantial* size increase. However, can you compare
+tinyconfig with and without this patch? That may have a smaller change.
