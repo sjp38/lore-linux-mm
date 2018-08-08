@@ -1,127 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B5AF6B0003
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 12:58:21 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id u22-v6so2827533qkk.10
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 09:58:21 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id v129-v6si57619qkd.349.2018.08.08.09.58.20
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E39696B0006
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 13:20:28 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id g5-v6so1356283pgq.5
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 10:20:28 -0700 (PDT)
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id m126-v6si5606680pfb.126.2018.08.08.10.20.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Aug 2018 09:58:20 -0700 (PDT)
-Date: Wed, 8 Aug 2018 12:58:15 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [RFC PATCH 2/3] mm/memory_hotplug: Create __shrink_pages and
- move it to offline_pages
-Message-ID: <20180808165814.GB3429@redhat.com>
-References: <20180807133757.18352-1-osalvador@techadventures.net>
- <20180807133757.18352-3-osalvador@techadventures.net>
- <20180807135221.GA3301@redhat.com>
- <20180807145900.GH10003@dhcp22.suse.cz>
- <20180807151810.GB3301@redhat.com>
- <20180808064758.GB27972@dhcp22.suse.cz>
+        Wed, 08 Aug 2018 10:20:26 -0700 (PDT)
+Subject: Re: [RFC v6 PATCH 2/2] mm: mmap: zap pages with read mmap_sem in
+ munmap
+References: <1532628614-111702-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1532628614-111702-3-git-send-email-yang.shi@linux.alibaba.com>
+ <20180803090759.GI27245@dhcp22.suse.cz>
+ <aff7e86d-2e48-ff58-5d5d-9c67deb68674@linux.alibaba.com>
+ <20180806094005.GG19540@dhcp22.suse.cz>
+ <76c0fc2b-fca7-9f22-214a-920ee2537898@linux.alibaba.com>
+ <20180806204119.GL10003@dhcp22.suse.cz>
+ <28de768b-c740-37b3-ea5a-8e2cb07d2bdc@linux.alibaba.com>
+ <20180806205232.GN10003@dhcp22.suse.cz>
+ <0cdff13a-2713-c5be-a33e-28c07e093bcc@linux.alibaba.com>
+ <20180807054524.GQ10003@dhcp22.suse.cz>
+ <04a22c49-fe30-63ac-c1b7-46a405c810e2@linux.alibaba.com>
+ <3f960117-1485-9a61-8468-cb1590494e3c@suse.cz>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <907e441d-43e2-9a57-a3fd-deb533046b6c@linux.alibaba.com>
+Date: Wed, 8 Aug 2018 10:19:54 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180808064758.GB27972@dhcp22.suse.cz>
+In-Reply-To: <3f960117-1485-9a61-8468-cb1590494e3c@suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: osalvador@techadventures.net, akpm@linux-foundation.org, dan.j.williams@intel.com, pasha.tatashin@oracle.com, david@redhat.com, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
+Cc: willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Aug 08, 2018 at 08:47:58AM +0200, Michal Hocko wrote:
-> On Tue 07-08-18 11:18:10, Jerome Glisse wrote:
-> > On Tue, Aug 07, 2018 at 04:59:00PM +0200, Michal Hocko wrote:
-> > > On Tue 07-08-18 09:52:21, Jerome Glisse wrote:
-> > > > On Tue, Aug 07, 2018 at 03:37:56PM +0200, osalvador@techadventures.net wrote:
-> > > > > From: Oscar Salvador <osalvador@suse.de>
-> > > > 
-> > > > [...]
-> > > > 
-> > > > > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > > > > index 9bd629944c91..e33555651e46 100644
-> > > > > --- a/mm/memory_hotplug.c
-> > > > > +++ b/mm/memory_hotplug.c
-> > > > 
-> > > > [...]
-> > > > 
-> > > > >  /**
-> > > > >   * __remove_pages() - remove sections of pages from a zone
-> > > > > - * @zone: zone from which pages need to be removed
-> > > > > + * @nid: node which pages belong to
-> > > > >   * @phys_start_pfn: starting pageframe (must be aligned to start of a section)
-> > > > >   * @nr_pages: number of pages to remove (must be multiple of section size)
-> > > > >   * @altmap: alternative device page map or %NULL if default memmap is used
-> > > > > @@ -548,7 +557,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
-> > > > >   * sure that pages are marked reserved and zones are adjust properly by
-> > > > >   * calling offline_pages().
-> > > > >   */
-> > > > > -int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
-> > > > > +int __remove_pages(int nid, unsigned long phys_start_pfn,
-> > > > >  		 unsigned long nr_pages, struct vmem_altmap *altmap)
-> > > > >  {
-> > > > >  	unsigned long i;
-> > > > > @@ -556,10 +565,9 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
-> > > > >  	int sections_to_remove, ret = 0;
-> > > > >  
-> > > > >  	/* In the ZONE_DEVICE case device driver owns the memory region */
-> > > > > -	if (is_dev_zone(zone)) {
-> > > > > -		if (altmap)
-> > > > > -			map_offset = vmem_altmap_offset(altmap);
-> > > > > -	} else {
-> > > > > +	if (altmap)
-> > > > > +		map_offset = vmem_altmap_offset(altmap);
-> > > > > +	else {
-> > > > 
-> > > > This will break ZONE_DEVICE at least for HMM. While i think that
-> > > > altmap -> ZONE_DEVICE (ie altmap imply ZONE_DEVICE) the reverse
-> > > > is not true ie ZONE_DEVICE does not necessarily imply altmap. So
-> > > > with the above changes you change the expected behavior.
-> > > 
-> > > Could you be more specific what is the expected behavior here?
-> > > Is this about calling release_mem_region_adjustable? Why does is it not
-> > > suitable for zone device ranges?
-> > 
-> > Correct, you should not call release_mem_region_adjustable() the device
-> > region is not part of regular iomem resource as it might not necessarily
-> > be enumerated through known ways to the kernel (ie only the device driver
-> > can discover the region and core kernel do not know about it).
-> 
-> If there is no region registered with the range then the call should be
-> mere nop, no? So why do we have to special case?
 
-IIRC this is because you can not release the resource ie the resource
-is still own by the device driver even if you hotremove the memory.
-The device driver might still be using the resource without struct page.
 
-> 
-> [...]
-> 
-> > Also in the case they do exist in iomem resource it is as PCIE BAR so
-> > as IORESOURCE_IO (iirc) and thus release_mem_region_adjustable() would
-> > return -EINVAL. Thought nothing bad happens because of that, only a
-> > warning message that might confuse the user.
-> 
-> I am not sure I have understood this correctly. Are you referring to the
-> current state when we would call release_mem_region_adjustable
-> unconditionally or the case that the resource would be added also for
-> zone device ranges?
-> 
-> If the former then I do not see any reason why we couldn't simply
-> refactor the code to expect a failure and drop the warning in that path.
+On 8/8/18 2:22 AM, Vlastimil Babka wrote:
+> On 08/08/2018 03:51 AM, Yang Shi wrote:
+>> On 8/6/18 10:45 PM, Michal Hocko wrote:
+>>> On Mon 06-08-18 15:19:06, Yang Shi wrote:
+>>>> On 8/6/18 1:52 PM, Michal Hocko wrote:
+>>>>> On Mon 06-08-18 13:48:35, Yang Shi wrote:
+>>>>>> On 8/6/18 1:41 PM, Michal Hocko wrote:
+>>>>>>> On Mon 06-08-18 09:46:30, Yang Shi wrote:
+>>>>>>>> On 8/6/18 2:40 AM, Michal Hocko wrote:
+>>>>>>>>> On Fri 03-08-18 14:01:58, Yang Shi wrote:
+>>>>>>>>>> On 8/3/18 2:07 AM, Michal Hocko wrote:
+>>>>>>>>>>> On Fri 27-07-18 02:10:14, Yang Shi wrote:
+>>>>>>> [...]
+>>>>>>>>>>>> If the vma has VM_LOCKED | VM_HUGETLB | VM_PFNMAP or uprobe, they are
+>>>>>>>>>>>> considered as special mappings. They will be dealt with before zapping
+>>>>>>>>>>>> pages with write mmap_sem held. Basically, just update vm_flags.
+>>>>>>>>>>> Well, I think it would be safer to simply fallback to the current
+>>>>>>>>>>> implementation with these mappings and deal with them on top. This would
+>>>>>>>>>>> make potential issues easier to bisect and partial reverts as well.
+>>>>>>>>>> Do you mean just call do_munmap()? It sounds ok. Although we may waste some
+>>>>>>>>>> cycles to repeat what has done, it sounds not too bad since those special
+>>>>>>>>>> mappings should be not very common.
+>>>>>>>>> VM_HUGETLB is quite spread. Especially for DB workloads.
+>>>>>>>> Wait a minute. In this way, it sounds we go back to my old implementation
+>>>>>>>> with special handling for those mappings with write mmap_sem held, right?
+>>>>>>> Yes, I would really start simple and add further enhacements on top.
+>>>>>> If updating vm_flags with read lock is safe in this case, we don't have to
+>>>>>> do this. The only reason for this special handling is about vm_flags update.
+>>>>> Yes, maybe you are right that this is safe. I would still argue to have
+>>>>> it in a separate patch for easier review, bisectability etc...
+>>>> Sorry, I'm a little bit confused. Do you mean I should have the patch
+>>>> *without* handling the special case (just like to assume it is safe to
+>>>> update vm_flags with read lock), then have the other patch on top of it,
+>>>> which simply calls do_munmap() to deal with the special cases?
+>>> Just skip those special cases in the initial implementation and handle
+>>> each special case in its own patch on top.
+>> Thanks. VM_LOCKED area will not be handled specially since it is easy to
+>> handle it, just follow what do_munmap does. The special cases will just
+>> handle VM_HUGETLB, VM_PFNMAP and uprobe mappings.
+> So I think you could maybe structure code like this: instead of
+> introducing do_munmap_zap_rlock() and all those "bool skip_vm_flags"
+> additions, add a boolean parameter in do_munmap() to use the new
+> behavior, with only the first user SYSCALL_DEFINE2(munmap) setting it to
+> true. If true, do_munmap() will do the
+> - down_write_killable() itself instead of assuming it's already locked
+> - munmap_lookup_vma()
+> - check if any of the vma's in the range is "special", if yes, change
+> the boolean param to "false", and continue like previously, e.g. no mmap
+> sem downgrade etc.
 
-Referring to newer case ie calling release_mem_region_adjustable() for
-ZONE_DEVICE too. It seems i got my recollection wrong in the sense that
-the resource is properly register as MEM but still we do not want to
-release it because the device driver might still be using the resource
-without struct page. The lifetime of the resource as memory with struct
-page and the lifetime of the resource as something use by the device
-driver are not tie together. The latter can outlive the former.
+Thanks for the suggestion. Actually, I did the similar thing in v1 
+patches, which added a bool parameter in vm_munmap() to tell if 
+releasing mmap_sem is acceptable for some code paths. But, it got pushed 
+back by tglx since vm_munmap() is called by x86 specific code too (and 
+some other architectures). He suggested to define a new function to do 
+the optimization. So, I followed this approach in the later versions.
 
-So when we hotremove ZONE_DEVICE we do not want to release the resource
-yet just to be on safe side and avoid some other driver/kernel component
-to decide to use that resource.
+Yang
 
-Cheers,
-Jerome
+>
+> That would be a basis for further optimizing the special vma cases in
+> subsequent patches (maybe it's really ok to touch the vma flags with
+> mmap sem for read as vma's are detached), and to eventually convert more
+> do_munmap() callers to the new mode.
+>
+> HTH,
+> Vlastimil
+>
+>
+>
