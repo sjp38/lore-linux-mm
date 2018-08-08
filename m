@@ -1,170 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CC126B000D
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 17:30:17 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id c6-v6so2898019qta.6
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 14:30:17 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id h10-v6sor398784qvf.96.2018.08.08.14.30.16
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 08 Aug 2018 14:30:16 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 150006B0010
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 17:31:31 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id v9-v6so2054593pfn.6
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 14:31:31 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id 95-v6si5051019pld.486.2018.08.08.14.31.28
+        for <linux-mm@kvack.org>;
+        Wed, 08 Aug 2018 14:31:30 -0700 (PDT)
+Date: Thu, 9 Aug 2018 07:31:25 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH RFC 01/10] rcu: Make CONFIG_SRCU unconditionally enabled
+Message-ID: <20180808213125.GM2234@dastard>
+References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
+ <153365625652.19074.8434946780002619802.stgit@localhost.localdomain>
+ <20180808072040.GC27972@dhcp22.suse.cz>
+ <d17e65bb-c114-55de-fb4e-e2f538779b92@virtuozzo.com>
+ <20180808102734.GH27972@dhcp22.suse.cz>
 MIME-Version: 1.0
-References: <1531727262-11520-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20180726070355.GD8477@rapoport-lnx> <20180726172005.pgjmkvwz2lpflpor@pburton-laptop>
- <CAMPMW8p092oXk1w+SVjgx-ZH+46piAY8xgYPDfLUwLCkBm-TVw@mail.gmail.com> <20180802115550.GA10232@rapoport-lnx>
-In-Reply-To: <20180802115550.GA10232@rapoport-lnx>
-From: "Fancer's opinion" <fancer.lancer@gmail.com>
-Date: Thu, 9 Aug 2018 00:30:03 +0300
-Message-ID: <CAMPMW8qq-aEm-0dQrWh08SBBSRp3xAqR1PL5Oe-RvkJgUk6LjA@mail.gmail.com>
-Subject: Re: [PATCH] mips: switch to NO_BOOTMEM
-Content-Type: multipart/alternative; boundary="0000000000006d16e30572f33789"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180808102734.GH27972@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Paul Burton <Paul.Burton@mips.com>, Linux-MIPS <linux-mips@linux-mips.org>, Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>, Huacai Chen <chenhc@lemote.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, sfr@canb.auug.org.au, vdavydov.dev@gmail.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
---0000000000006d16e30572f33789
-Content-Type: text/plain; charset="UTF-8"
+On Wed, Aug 08, 2018 at 12:27:34PM +0200, Michal Hocko wrote:
+> [CC Josh - the whole series is
+> http://lkml.kernel.org/r/153365347929.19074.12509495712735843805.stgit@localhost.localdomain]
+> 
+> On Wed 08-08-18 13:17:44, Kirill Tkhai wrote:
+> > On 08.08.2018 10:20, Michal Hocko wrote:
+> > > On Tue 07-08-18 18:37:36, Kirill Tkhai wrote:
+> > >> This patch kills all CONFIG_SRCU defines and
+> > >> the code under !CONFIG_SRCU.
+> > > 
+> > > The last time somebody tried to do this there was a pushback due to
+> > > kernel tinyfication. So this should really give some numbers about the
+> > > code size increase. Also why can't we make this depend on MMU. Is
+> > > anybody else than the reclaim asking for unconditional SRCU usage?
+> > 
+> > I don't know one. The size numbers (sparc64) are:
+> > 
+> > $ size image.srcu.disabled 
+> >    text	   data	    bss	    dec	    hex	filename
+> > 5117546	8030506	1968104	15116156	 e6a77c	image.srcu.disabled
+> > $ size image.srcu.enabled
+> >    text	   data	    bss	    dec	    hex	filename
+> > 5126175	8064346	1968104	15158625	 e74d61	image.srcu.enabled
+> > The difference is: 15158625-15116156 = 42469 ~41Kb
+> > 
+> > Please, see the measurement details to my answer to Stephen.
+> > 
+> > > Btw. I totaly agree with Steven. This is a very poor changelog. It is
+> > > trivial to see what the patch does but it is far from clear why it is
+> > > doing that and why we cannot go other ways.
+> > We possibly can go another way, and there is comment to [2/10] about this.
+> > Percpu rwsem may be used instead, the only thing, it is worse, is it will
+> > make shrink_slab() wait unregistering shrinkers, while srcu-based
+> > implementation does not require this.
+> 
+> Well, if unregisterring doesn't do anything subtle - e.g. an allocation
+> or take locks which depend on allocation - and we can guarantee that
+> then blocking shrink_slab shouldn't be a big deal.
 
-Hello Mike,
-I haven't read your patch text yet. I am waiting for the subsystem
-maintainers response at least
-about the necessity to have this type of changes being merged into the
-sources (I mean
-memblock/no-bootmem alteration). If they find it pointless (although I
-would strongly disagree), then
-nothing to discuss. Otherwise we can come up with a solution.
+unregister_shrinker() already blocks shrink_slab - taking a rwsem in
+write mode blocks all readers - so using a per-cpu rwsem doesn't
+introduce anything new or unexpected. I'd like to see numbers of the
+different methods before anything else.
 
--Sergey
+IMO, the big deal is that the split unregister mechanism seems to
+imply superblock shrinkers can be called during sb teardown or
+/after/ the filesystem has been torn down in memory (i.e. after
+->put_super() is called). That's a change of behaviour, but it's
+left to the filesystem to detect and handle that condition. That's
+exceedingly subtle and looks like a recipe for disaster to me. I
+note that XFS hasn't been updated to detect and avoid this landmine.
 
+And, FWIW, filesystems with multiple shrinkers (e.g. XFS as 3 per
+mount) will take the SCRU penalty multiple times during unmount, and
+potentially be exposed to multiple different "use during/after
+teardown" race conditions.
 
-On Thu, Aug 2, 2018 at 2:56 PM Mike Rapoport <rppt@linux.vnet.ibm.com>
-wrote:
+> It is subtle though.
+> Maybe subtle enough to make unconditional SRCU worth it. This all should
+> be in the changelog though.
 
-> Hi,
->
-> On Thu, Jul 26, 2018 at 10:55:53PM +0300, Fancer's opinion wrote:
-> > Hello, folks
-> > Regarding the no_bootmem patchset I've sent earlier.
-> > I'm terribly sorry about huge delay with response. I got sucked in a new
-> > project, so just didn't have a time to proceed with the series, answer
-> to the
-> > questions and resend the set.
-> > If it is still relevant and needed for community, I can get back to the
-> series
-> > on the next week, answer to the Mett's questions (sorry, man, for doing
-> it so
-> > long), rebase it on top of the kernel 4.18 and resend the new version.
-> We also
-> > can try to combine it with this patch, if it is found convenient.
->
-> So, what would be the best way to move forward?
->
-> > Regards,
-> > -Sergey
-> >
-> >
-> > On Thu, 26 Jul 2018, 20:20 Paul Burton, <paul.burton@mips.com> wrote:
-> >
-> >     Hi Mike,
-> >
-> >     On Thu, Jul 26, 2018 at 10:03:56AM +0300, Mike Rapoport wrote:
-> >     > Any comments on this?
-> >
-> >     I haven't looked at this in detail yet, but there was a much larger
-> >     series submitted to accomplish this not too long ago, which needed
-> >     another revision:
-> >
-> >
-> https://patchwork.linux-mips.org/project/linux-mips/list/?series=787&
-> >     state=*
-> >
-> >     Given that, I'd be (pleasantly) surprised if this one smaller patch
-> is
-> >     enough.
-> >
-> >     Thanks,
-> >         Paul
-> >
->
-> --
-> Sincerely yours,
-> Mike.
->
->
+IMO, we've had enough recent bugs to deal with from shrinkers being
+called before the filesystem is set up and from trying to handle
+allocation errors during setup. Do we really want to make shrinker
+shutdown just as prone to mismanagement and subtle, hard to hit
+bugs? I don't think we do - unmount is simply not a critical
+performance path.
 
---0000000000006d16e30572f33789
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Cheers,
 
-<div dir=3D"ltr">Hello Mike,<br><div>I haven&#39;t read your patch text yet=
-. I am waiting for the subsystem maintainers response at least</div><div>ab=
-out the necessity to have this type of changes being merged into the source=
-s (I mean</div><div>memblock/no-bootmem alteration). If they find it pointl=
-ess (although I would strongly disagree), then</div><div>nothing to discuss=
-. Otherwise we can come up with a solution.=C2=A0=C2=A0</div><div><br></div=
-><div>-Sergey<br><div><br></div></div></div><br><div class=3D"gmail_quote">=
-<div dir=3D"ltr">On Thu, Aug 2, 2018 at 2:56 PM Mike Rapoport &lt;<a href=
-=3D"mailto:rppt@linux.vnet.ibm.com">rppt@linux.vnet.ibm.com</a>&gt; wrote:<=
-br></div><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;borde=
-r-left:1px #ccc solid;padding-left:1ex">Hi,<br>
-<br>
-On Thu, Jul 26, 2018 at 10:55:53PM +0300, Fancer&#39;s opinion wrote:<br>
-&gt; Hello, folks<br>
-&gt; Regarding the no_bootmem patchset I&#39;ve sent earlier.<br>
-&gt; I&#39;m terribly sorry about huge delay with response. I got sucked in=
- a new<br>
-&gt; project, so just didn&#39;t have a time to proceed with the series, an=
-swer to the<br>
-&gt; questions and resend the set.<br>
-&gt; If it is still relevant and needed for community, I can get back to th=
-e series<br>
-&gt; on the next week, answer to the Mett&#39;s questions (sorry, man, for =
-doing it so<br>
-&gt; long), rebase it on top of the kernel 4.18 and resend the new version.=
- We also<br>
-&gt; can try to combine it with this patch, if it is found convenient.<br>
-<br>
-So, what would be the best way to move forward?<br>
-<br>
-&gt; Regards,<br>
-&gt; -Sergey<br>
-&gt; <br>
-&gt; <br>
-&gt; On Thu, 26 Jul 2018, 20:20 Paul Burton, &lt;<a href=3D"mailto:paul.bur=
-ton@mips.com" target=3D"_blank">paul.burton@mips.com</a>&gt; wrote:<br>
-&gt; <br>
-&gt;=C2=A0 =C2=A0 =C2=A0Hi Mike,<br>
-&gt; <br>
-&gt;=C2=A0 =C2=A0 =C2=A0On Thu, Jul 26, 2018 at 10:03:56AM +0300, Mike Rapo=
-port wrote:<br>
-&gt;=C2=A0 =C2=A0 =C2=A0&gt; Any comments on this?<br>
-&gt; <br>
-&gt;=C2=A0 =C2=A0 =C2=A0I haven&#39;t looked at this in detail yet, but the=
-re was a much larger<br>
-&gt;=C2=A0 =C2=A0 =C2=A0series submitted to accomplish this not too long ag=
-o, which needed<br>
-&gt;=C2=A0 =C2=A0 =C2=A0another revision:<br>
-&gt; <br>
-&gt;=C2=A0 =C2=A0 =C2=A0=C2=A0 =C2=A0 <a href=3D"https://patchwork.linux-mi=
-ps.org/project/linux-mips/list/?series=3D787&amp;" rel=3D"noreferrer" targe=
-t=3D"_blank">https://patchwork.linux-mips.org/project/linux-mips/list/?seri=
-es=3D787&amp;</a><br>
-&gt;=C2=A0 =C2=A0 =C2=A0state=3D*<br>
-&gt; <br>
-&gt;=C2=A0 =C2=A0 =C2=A0Given that, I&#39;d be (pleasantly) surprised if th=
-is one smaller patch is<br>
-&gt;=C2=A0 =C2=A0 =C2=A0enough.<br>
-&gt; <br>
-&gt;=C2=A0 =C2=A0 =C2=A0Thanks,<br>
-&gt;=C2=A0 =C2=A0 =C2=A0=C2=A0 =C2=A0 Paul<br>
-&gt; <br>
-<br>
--- <br>
-Sincerely yours,<br>
-Mike.<br>
-<br>
-</blockquote></div>
-
---0000000000006d16e30572f33789--
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
