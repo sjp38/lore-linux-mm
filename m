@@ -1,101 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EDDF86B0003
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 03:51:54 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id 17-v6so1465827qkz.15
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 00:51:54 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 40-v6si416804qku.277.2018.08.08.00.51.54
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 411FA6B0007
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 03:53:37 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id n4-v6so614963edr.5
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 00:53:37 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a44-v6si1738250edc.461.2018.08.08.00.53.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Aug 2018 00:51:54 -0700 (PDT)
-Subject: Re: [RFC PATCH 2/3] mm/memory_hotplug: Create __shrink_pages and move
- it to offline_pages
-References: <20180807133757.18352-1-osalvador@techadventures.net>
- <20180807133757.18352-3-osalvador@techadventures.net>
- <20180807135221.GA3301@redhat.com>
- <a6e4e654-fc95-497f-16f3-8c1550cf03d6@redhat.com>
- <20180807204834.GA6844@techadventures.net> <20180807221345.GD3301@redhat.com>
- <20180808073835.GA9568@techadventures.net>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <24da07b9-5e06-af1d-42d3-c663eade16ea@redhat.com>
-Date: Wed, 8 Aug 2018 09:51:50 +0200
+        Wed, 08 Aug 2018 00:53:35 -0700 (PDT)
+Subject: Re: [PATCH v2] proc: add percpu populated pages count to meminfo
+References: <20180807184723.74919-1-dennisszhou@gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <4eb4a0cc-2304-b6e2-06dd-ce0ade5d537e@suse.cz>
+Date: Wed, 8 Aug 2018 09:53:32 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180808073835.GA9568@techadventures.net>
+In-Reply-To: <20180807184723.74919-1-dennisszhou@gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>, Jerome Glisse <jglisse@redhat.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com, pasha.tatashin@oracle.com, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Dennis Zhou <dennisszhou@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Roman Gushchin <guro@fb.com>
+Cc: kernel-team@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
 
-On 08.08.2018 09:38, Oscar Salvador wrote:
-> On Tue, Aug 07, 2018 at 06:13:45PM -0400, Jerome Glisse wrote:
->>> And since we know for sure that memhotplug-code cannot call it with ZONE_DEVICE,
->>> I think this can be done easily.
->>
->> This might change down road but for now this is correct. They are
->> talks to enumerate device memory through standard platform mechanisms
->> and thus the kernel might see new types of resources down the road and
->> maybe we will want to hotplug them directly from regular hotplug path
->> as ZONE_DEVICE (lot of hypothetical at this point ;)).
+On 08/07/2018 08:47 PM, Dennis Zhou wrote:
+> From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 > 
-> Well, I think that if that happens this whole thing will become
-> much easier, since we will not have several paths for doing the same thing.
+> Currently, percpu memory only exposes allocation and utilization
+> information via debugfs. This more or less is only really useful for
+> understanding the fragmentation and allocation information at a
+> per-chunk level with a few global counters. This is also gated behind a
+> config. BPF and cgroup, for example, have seen an increase use causing
+> increased use of percpu memory. Let's make it easier for someone to
+> identify how much memory is being used.
 > 
-> Another thing that I realized is that while we want to move all operation-pages
-> from remove_memory() path to offline_pages(), this can get tricky.
+> This patch adds the "Percpu" stat to meminfo to more easily look up how
+> much percpu memory is in use. This number includes the cost for all
+> allocated backing pages and not just isnight at the a unit, per chunk
+> level. Metadata is excluded. I think excluding metadata is fair because
+> the backing memory scales with the numbere of cpus and can quickly
+> outweigh the metadata. It also makes this calculation light.
 > 
-> Unless I am missing something, the devices from HMM and devm are not being registered
-> against "memory_subsys" struct, and so, they never get to call memory_subsys_offline()
-> and so offline_pages().
-> 
-> Which means that we would have to call __remove_zone() from those paths.
-> But this alone will not work.
-> 
-> find_smallest/biggest_section_pfn are two functions that are being called from
-> 
-> shrink_pgdat_span
-> and
-> shrink_zone_span
-> 
-> to adjust zone_first_pfn/node_first_pfn and the spanned pages.
-> 
-> Currently, find_smallest/biggest_section_pfn checks for the secion to be valid,
-> and this is fine since we are removing those sections from the remove_memory path.
-> 
-> But if we want to move __remove_zone() to offline_pages(), we have to use
-> online_section() instead of valid_section().
-> 
-> This is all fine from offline_pages because the sections get offlined in:
-> 
-> __offline_pages
->  offline_isolated_pages
->   offline_isolated_pages_cb
->    __offline_isolated_pages
->     offline_mem_sections
-> 
-> 
-> But this does not happen in HMM/devm path.
-> 
-> I am pretty sure this is a dumb question, but why HMM/devm path
-> do not call online_pages/offline_pages?
+> Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
 
-I think mainly because onlining/offlining (wild guesses)
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-- calls memory notifiers
-- works with memory blocks
-
-(and does some more things not applicable to ZONE_DEVICE memory)
-
-> 
-> Thanks
-> 
-
-
--- 
-
-Thanks,
-
-David / dhildenb
+Thanks.
