@@ -1,109 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D2096B0003
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 01:36:21 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id f11-v6so935206wmc.3
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 22:36:20 -0700 (PDT)
-Received: from relay3-d.mail.gandi.net (relay3-d.mail.gandi.net. [217.70.183.195])
-        by mx.google.com with ESMTPS id o4-v6si2705355wmo.206.2018.08.07.22.36.19
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CA6886B0007
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 01:40:03 -0400 (EDT)
+Received: by mail-ua0-f197.google.com with SMTP id m19-v6so909797uap.3
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 22:40:03 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z8-v6sor1241388uag.22.2018.08.07.22.40.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 07 Aug 2018 22:36:19 -0700 (PDT)
-From: Alex Ghiti <alex@ghiti.fr>
-Subject: Re: [PATCH v6 00/11] hugetlb: Factorize hugetlb architecture
- primitives
-References: <20180806175711.24438-1-alex@ghiti.fr>
- <20180807095402.GA12200@gmail.com>
-Message-ID: <e144d038-330a-8b23-c058-94764430ff31@ghiti.fr>
-Date: Wed, 8 Aug 2018 05:36:07 +0000
+        (Google Transport Security);
+        Tue, 07 Aug 2018 22:40:02 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180807095402.GA12200@gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
+ <20180808111224.52a451d9@canb.auug.org.au>
+In-Reply-To: <20180808111224.52a451d9@canb.auug.org.au>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Tue, 7 Aug 2018 22:39:50 -0700
+Message-ID: <CALvZod4CAA50sPB1V9bZVOZ__rOT=Ys8tLv+m-S-kP3NLubSqQ@mail.gmail.com>
+Subject: Re: [PATCH RFC 00/10] Introduce lockless shrink_slab()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: linux-mm@kvack.org, mike.kravetz@oracle.com, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, tony.luck@intel.com, fenghua.yu@intel.com, ralf@linux-mips.org, paul.burton@mips.com, jhogan@kernel.org, jejb@parisc-linux.org, deller@gmx.de, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, ysato@users.sourceforge.jp, dalias@libc.org, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, arnd@arndb.de, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, gregkh@linuxfoundation.org, rafael@kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, "Darrick J. Wong" <darrick.wong@oracle.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, josh@joshtriplett.org, Steven Rostedt <rostedt@goodmis.org>, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, Hugh Dickins <hughd@google.com>, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@suse.com>, Chris Wilson <chris@chris-wilson.co.uk>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Matthew Wilcox <willy@infradead.org>, Huang Ying <ying.huang@intel.com>, jbacik@fb.com, Ingo Molnar <mingo@kernel.org>, mhiramat@kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-Thanks for your time,
+On Tue, Aug 7, 2018 at 6:12 PM Stephen Rothwell <sfr@canb.auug.org.au> wrote:
+>
+> Hi Kirill,
+>
+> On Tue, 07 Aug 2018 18:37:19 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+> >
+> > After bitmaps of not-empty memcg shrinkers were implemented
+> > (see "[PATCH v9 00/17] Improve shrink_slab() scalability..."
+> > series, which is already in mm tree), all the evil in perf
+> > trace has moved from shrink_slab() to down_read_trylock().
+> > As reported by Shakeel Butt:
+> >
+> >      > I created 255 memcgs, 255 ext4 mounts and made each memcg create a
+> >      > file containing few KiBs on corresponding mount. Then in a separate
+> >      > memcg of 200 MiB limit ran a fork-bomb.
+> >      >
+> >      > I ran the "perf record -ag -- sleep 60" and below are the results:
+> >      > +  47.49%            fb.sh  [kernel.kallsyms]    [k] down_read_trylock
+> >      > +  30.72%            fb.sh  [kernel.kallsyms]    [k] up_read
+> >      > +   9.51%            fb.sh  [kernel.kallsyms]    [k] mem_cgroup_iter
+> >      > +   1.69%            fb.sh  [kernel.kallsyms]    [k] shrink_node_memcg
+> >      > +   1.35%            fb.sh  [kernel.kallsyms]    [k] mem_cgroup_protected
+> >      > +   1.05%            fb.sh  [kernel.kallsyms]    [k] queued_spin_lock_slowpath
+> >      > +   0.85%            fb.sh  [kernel.kallsyms]    [k] _raw_spin_lock
+> >      > +   0.78%            fb.sh  [kernel.kallsyms]    [k] lruvec_lru_size
+> >      > +   0.57%            fb.sh  [kernel.kallsyms]    [k] shrink_node
+> >      > +   0.54%            fb.sh  [kernel.kallsyms]    [k] queue_work_on
+> >      > +   0.46%            fb.sh  [kernel.kallsyms]    [k] shrink_slab_memcg
+> >
+> > The patchset continues to improve shrink_slab() scalability and makes
+> > it lockless completely. Here are several steps for that:
+>
+> So do you have any numbers for after theses changes?
+>
 
-Alex
+I will do the same experiment as before with these patches sometime
+this or next week.
 
-Le 07/08/2018 A  09:54, Ingo Molnar a A(C)critA :
-> * Alexandre Ghiti <alex@ghiti.fr> wrote:
->
->> [CC linux-mm for inclusion in -mm tree]
->>                                                                                   
->> In order to reduce copy/paste of functions across architectures and then
->> make riscv hugetlb port (and future ports) simpler and smaller, this
->> patchset intends to factorize the numerous hugetlb primitives that are
->> defined across all the architectures.
->>                                                                                   
->> Except for prepare_hugepage_range, this patchset moves the versions that
->> are just pass-through to standard pte primitives into
->> asm-generic/hugetlb.h by using the same #ifdef semantic that can be
->> found in asm-generic/pgtable.h, i.e. __HAVE_ARCH_***.
->>                                                                                   
->> s390 architecture has not been tackled in this serie since it does not
->> use asm-generic/hugetlb.h at all.
->>                                                                                   
->> This patchset has been compiled on all addressed architectures with
->> success (except for parisc, but the problem does not come from this
->> series).
->>                                                                                   
->> v6:
->>    - Remove nohash/32 and book3s/32 powerpc specific implementations in
->>      order to use the generic ones.
->>    - Add all the Reviewed-by, Acked-by and Tested-by in the commits,
->>      thanks to everyone.
->>                                                                                   
->> v5:
->>    As suggested by Mike Kravetz, no need to move the #include
->>    <asm-generic/hugetlb.h> for arm and x86 architectures, let it live at
->>    the top of the file.
->>                                                                                   
->> v4:
->>    Fix powerpc build error due to misplacing of #include
->>    <asm-generic/hugetlb.h> outside of #ifdef CONFIG_HUGETLB_PAGE, as
->>    pointed by Christophe Leroy.
->>                                                                                   
->> v1, v2, v3:
->>    Same version, just problems with email provider and misuse of
->>    --batch-size option of git send-email
->>
->> Alexandre Ghiti (11):
->>    hugetlb: Harmonize hugetlb.h arch specific defines with pgtable.h
->>    hugetlb: Introduce generic version of hugetlb_free_pgd_range
->>    hugetlb: Introduce generic version of set_huge_pte_at
->>    hugetlb: Introduce generic version of huge_ptep_get_and_clear
->>    hugetlb: Introduce generic version of huge_ptep_clear_flush
->>    hugetlb: Introduce generic version of huge_pte_none
->>    hugetlb: Introduce generic version of huge_pte_wrprotect
->>    hugetlb: Introduce generic version of prepare_hugepage_range
->>    hugetlb: Introduce generic version of huge_ptep_set_wrprotect
->>    hugetlb: Introduce generic version of huge_ptep_set_access_flags
->>    hugetlb: Introduce generic version of huge_ptep_get
->>
->>   arch/arm/include/asm/hugetlb-3level.h        | 32 +---------
->>   arch/arm/include/asm/hugetlb.h               | 30 ----------
->>   arch/arm64/include/asm/hugetlb.h             | 39 +++---------
->>   arch/ia64/include/asm/hugetlb.h              | 47 ++-------------
->>   arch/mips/include/asm/hugetlb.h              | 40 +++----------
->>   arch/parisc/include/asm/hugetlb.h            | 33 +++--------
->>   arch/powerpc/include/asm/book3s/32/pgtable.h |  6 --
->>   arch/powerpc/include/asm/book3s/64/pgtable.h |  1 +
->>   arch/powerpc/include/asm/hugetlb.h           | 43 ++------------
->>   arch/powerpc/include/asm/nohash/32/pgtable.h |  6 --
->>   arch/powerpc/include/asm/nohash/64/pgtable.h |  1 +
->>   arch/sh/include/asm/hugetlb.h                | 54 ++---------------
->>   arch/sparc/include/asm/hugetlb.h             | 40 +++----------
->>   arch/x86/include/asm/hugetlb.h               | 69 ----------------------
->>   include/asm-generic/hugetlb.h                | 88 +++++++++++++++++++++++++++-
->>   15 files changed, 135 insertions(+), 394 deletions(-)
-> The x86 bits look good to me (assuming it's all tested on all relevant architectures, etc.)
->
-> Acked-by: Ingo Molnar <mingo@kernel.org>
->
-> Thanks,
->
-> 	Ingo
+BTW Kirill, thanks for pushing this.
+
+regards,
+Shakeel
