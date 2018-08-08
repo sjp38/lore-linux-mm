@@ -1,41 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BC7306B000D
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 03:20:45 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id v26-v6so577192eds.9
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 00:20:45 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 25-v6si3847618edu.218.2018.08.08.00.20.44
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 542C36B0010
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 03:38:38 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id w2-v6so1088471wrt.13
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 00:38:38 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i18-v6sor1395299wrm.33.2018.08.08.00.38.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Aug 2018 00:20:44 -0700 (PDT)
-Date: Wed, 8 Aug 2018 09:20:40 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH RFC 01/10] rcu: Make CONFIG_SRCU unconditionally enabled
-Message-ID: <20180808072040.GC27972@dhcp22.suse.cz>
-References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
- <153365625652.19074.8434946780002619802.stgit@localhost.localdomain>
+        (Google Transport Security);
+        Wed, 08 Aug 2018 00:38:37 -0700 (PDT)
+Date: Wed, 8 Aug 2018 09:38:35 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [RFC PATCH 2/3] mm/memory_hotplug: Create __shrink_pages and
+ move it to offline_pages
+Message-ID: <20180808073835.GA9568@techadventures.net>
+References: <20180807133757.18352-1-osalvador@techadventures.net>
+ <20180807133757.18352-3-osalvador@techadventures.net>
+ <20180807135221.GA3301@redhat.com>
+ <a6e4e654-fc95-497f-16f3-8c1550cf03d6@redhat.com>
+ <20180807204834.GA6844@techadventures.net>
+ <20180807221345.GD3301@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <153365625652.19074.8434946780002619802.stgit@localhost.localdomain>
+In-Reply-To: <20180807221345.GD3301@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, sfr@canb.auug.org.au, vdavydov.dev@gmail.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: David Hildenbrand <david@redhat.com>, akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com, pasha.tatashin@oracle.com, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
-On Tue 07-08-18 18:37:36, Kirill Tkhai wrote:
-> This patch kills all CONFIG_SRCU defines and
-> the code under !CONFIG_SRCU.
+On Tue, Aug 07, 2018 at 06:13:45PM -0400, Jerome Glisse wrote:
+> > And since we know for sure that memhotplug-code cannot call it with ZONE_DEVICE,
+> > I think this can be done easily.
+> 
+> This might change down road but for now this is correct. They are
+> talks to enumerate device memory through standard platform mechanisms
+> and thus the kernel might see new types of resources down the road and
+> maybe we will want to hotplug them directly from regular hotplug path
+> as ZONE_DEVICE (lot of hypothetical at this point ;)).
 
-The last time somebody tried to do this there was a pushback due to
-kernel tinyfication. So this should really give some numbers about the
-code size increase. Also why can't we make this depend on MMU. Is
-anybody else than the reclaim asking for unconditional SRCU usage?
+Well, I think that if that happens this whole thing will become
+much easier, since we will not have several paths for doing the same thing.
 
-Btw. I totaly agree with Steven. This is a very poor changelog. It is
-trivial to see what the patch does but it is far from clear why it is
-doing that and why we cannot go other ways.
+Another thing that I realized is that while we want to move all operation-pages
+from remove_memory() path to offline_pages(), this can get tricky.
+
+Unless I am missing something, the devices from HMM and devm are not being registered
+against "memory_subsys" struct, and so, they never get to call memory_subsys_offline()
+and so offline_pages().
+
+Which means that we would have to call __remove_zone() from those paths.
+But this alone will not work.
+
+find_smallest/biggest_section_pfn are two functions that are being called from
+
+shrink_pgdat_span
+and
+shrink_zone_span
+
+to adjust zone_first_pfn/node_first_pfn and the spanned pages.
+
+Currently, find_smallest/biggest_section_pfn checks for the secion to be valid,
+and this is fine since we are removing those sections from the remove_memory path.
+
+But if we want to move __remove_zone() to offline_pages(), we have to use
+online_section() instead of valid_section().
+
+This is all fine from offline_pages because the sections get offlined in:
+
+__offline_pages
+ offline_isolated_pages
+  offline_isolated_pages_cb
+   __offline_isolated_pages
+    offline_mem_sections
+
+
+But this does not happen in HMM/devm path.
+
+I am pretty sure this is a dumb question, but why HMM/devm path
+do not call online_pages/offline_pages?
+
+Thanks
 -- 
-Michal Hocko
-SUSE Labs
+Oscar Salvador
+SUSE L3
