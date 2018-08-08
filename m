@@ -1,67 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CA6886B0007
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 01:40:03 -0400 (EDT)
-Received: by mail-ua0-f197.google.com with SMTP id m19-v6so909797uap.3
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 22:40:03 -0700 (PDT)
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D10C06B000A
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 01:44:26 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id j189-v6so1206842oih.11
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 22:44:26 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z8-v6sor1241388uag.22.2018.08.07.22.40.02
+        by mx.google.com with SMTPS id y11-v6sor1752338oix.10.2018.08.07.22.44.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 07 Aug 2018 22:40:02 -0700 (PDT)
+        Tue, 07 Aug 2018 22:44:25 -0700 (PDT)
 MIME-Version: 1.0
-References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
- <20180808111224.52a451d9@canb.auug.org.au>
-In-Reply-To: <20180808111224.52a451d9@canb.auug.org.au>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Tue, 7 Aug 2018 22:39:50 -0700
-Message-ID: <CALvZod4CAA50sPB1V9bZVOZ__rOT=Ys8tLv+m-S-kP3NLubSqQ@mail.gmail.com>
-Subject: Re: [PATCH RFC 00/10] Introduce lockless shrink_slab()
+In-Reply-To: <5543a32a-20f9-18ff-dc13-73737257ed99@suse.cz>
+References: <20180806065224.31383-1-rashmica.g@gmail.com> <5543a32a-20f9-18ff-dc13-73737257ed99@suse.cz>
+From: Rashmica Gupta <rashmica.g@gmail.com>
+Date: Wed, 8 Aug 2018 15:44:24 +1000
+Message-ID: <CAC6rBs=SySU9Amq2tr0AA6YMJVBmVhNyVCUfi+2b5MaSA=iLiw@mail.gmail.com>
+Subject: Re: [PATCH v2] resource: Merge resources on a node when hot-adding memory
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, gregkh@linuxfoundation.org, rafael@kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, "Darrick J. Wong" <darrick.wong@oracle.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, josh@joshtriplett.org, Steven Rostedt <rostedt@goodmis.org>, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, Hugh Dickins <hughd@google.com>, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@suse.com>, Chris Wilson <chris@chris-wilson.co.uk>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Matthew Wilcox <willy@infradead.org>, Huang Ying <ying.huang@intel.com>, jbacik@fb.com, Ingo Molnar <mingo@kernel.org>, mhiramat@kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: toshi.kani@hpe.com, tglx@linutronix.de, akpm@linux-foundation.org, bp@suse.de, brijesh.singh@amd.com, thomas.lendacky@amd.com, jglisse@redhat.com, gregkh@linuxfoundation.org, baiyaowei@cmss.chinamobile.com, dan.j.williams@intel.com, mhocko@suse.com, iamjoonsoo.kim@lge.com, malat@debian.org, pasha.tatashin@oracle.com, Bjorn Helgaas <bhelgaas@google.com>, osalvador@techadventures.net, yasu.isimatu@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Aug 7, 2018 at 6:12 PM Stephen Rothwell <sfr@canb.auug.org.au> wrote:
+On Tue, Aug 7, 2018 at 9:52 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+> On 08/06/2018 08:52 AM, Rashmica Gupta wrote:
+>> When hot-removing memory release_mem_region_adjustable() splits
+>> iomem resources if they are not the exact size of the memory being
+>> hot-deleted. Adding this memory back to the kernel adds a new
+>> resource.
+>>
+>> Eg a node has memory 0x0 - 0xfffffffff. Offlining and hot-removing
+>> 1GB from 0xf40000000 results in the single resource 0x0-0xfffffffff being
+>> split into two resources: 0x0-0xf3fffffff and 0xf80000000-0xfffffffff.
+>>
+>> When we hot-add the memory back we now have three resources:
+>> 0x0-0xf3fffffff, 0xf40000000-0xf7fffffff, and 0xf80000000-0xfffffffff.
+>>
+>> Now if we try to remove a section of memory that overlaps these resources,
+>> like 2GB from 0xf40000000, release_mem_region_adjustable() fails as it
+>> expects the chunk of memory to be within the boundaries of a single
+>> resource.
 >
-> Hi Kirill,
+> Hi,
 >
-> On Tue, 07 Aug 2018 18:37:19 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
-> >
-> > After bitmaps of not-empty memcg shrinkers were implemented
-> > (see "[PATCH v9 00/17] Improve shrink_slab() scalability..."
-> > series, which is already in mm tree), all the evil in perf
-> > trace has moved from shrink_slab() to down_read_trylock().
-> > As reported by Shakeel Butt:
-> >
-> >      > I created 255 memcgs, 255 ext4 mounts and made each memcg create a
-> >      > file containing few KiBs on corresponding mount. Then in a separate
-> >      > memcg of 200 MiB limit ran a fork-bomb.
-> >      >
-> >      > I ran the "perf record -ag -- sleep 60" and below are the results:
-> >      > +  47.49%            fb.sh  [kernel.kallsyms]    [k] down_read_trylock
-> >      > +  30.72%            fb.sh  [kernel.kallsyms]    [k] up_read
-> >      > +   9.51%            fb.sh  [kernel.kallsyms]    [k] mem_cgroup_iter
-> >      > +   1.69%            fb.sh  [kernel.kallsyms]    [k] shrink_node_memcg
-> >      > +   1.35%            fb.sh  [kernel.kallsyms]    [k] mem_cgroup_protected
-> >      > +   1.05%            fb.sh  [kernel.kallsyms]    [k] queued_spin_lock_slowpath
-> >      > +   0.85%            fb.sh  [kernel.kallsyms]    [k] _raw_spin_lock
-> >      > +   0.78%            fb.sh  [kernel.kallsyms]    [k] lruvec_lru_size
-> >      > +   0.57%            fb.sh  [kernel.kallsyms]    [k] shrink_node
-> >      > +   0.54%            fb.sh  [kernel.kallsyms]    [k] queue_work_on
-> >      > +   0.46%            fb.sh  [kernel.kallsyms]    [k] shrink_slab_memcg
-> >
-> > The patchset continues to improve shrink_slab() scalability and makes
-> > it lockless completely. Here are several steps for that:
->
-> So do you have any numbers for after theses changes?
+> it's the first time I see the resource code, so I might be easily wrong.
+> How can it happen that the second remove is section aligned but the
+> first one not?
 >
 
-I will do the same experiment as before with these patches sometime
-this or next week.
+I probably shouldn't have used that word... When I said "a section of memory"
+I really meant "a chunk of memory" or "some memory".
 
-BTW Kirill, thanks for pushing this.
 
-regards,
-Shakeel
+>> This patch adds a function request_resource_and_merge(). This is called
+>> instead of request_resource_conflict() when registering a resource in
+>> add_memory(). It calls request_resource_conflict() and if hot-removing is
+>> enabled (if it isn't we won't get resource fragmentation) we attempt to
+>> merge contiguous resources on the node.
+>>
+>> Signed-off-by: Rashmica Gupta <rashmica.g@gmail.com>
+> ...
+>> --- a/kernel/resource.c
+>> +++ b/kernel/resource.c
+> ...
+>> +/*
+>> + * Attempt to merge resources on the node
+>> + */
+>> +static void merge_node_resources(int nid, struct resource *parent)
+>> +{
+>> +     struct resource *res;
+>> +     uint64_t start_addr;
+>> +     uint64_t end_addr;
+>> +     int ret;
+>> +
+>> +     start_addr = node_start_pfn(nid) << PAGE_SHIFT;
+>> +     end_addr = node_end_pfn(nid) << PAGE_SHIFT;
+>> +
+>> +     write_lock(&resource_lock);
+>> +
+>> +     /* Get the first resource */
+>> +     res = parent->child;
+>> +
+>> +     while (res) {
+>> +             /* Check that the resource is within the node */
+>> +             if (res->start < start_addr) {
+>> +                     res = res->sibling;
+>> +                     continue;
+>> +             }
+>> +             /* Exit if resource is past end of node */
+>> +             if (res->sibling->end > end_addr)
+>> +                     break;
+>
+> IIUC, resource end is closed, so adjacent resources's start is end+1.
+> But node_end_pfn is open, so the comparison above should use '>='
+> instead of '>'?
+
+You are right. Thanks for spotting that.
+
+>
+>> +
+>> +             ret = merge_resources(res);
+>> +             if (!ret)
+>> +                     continue;
+>> +             res = res->sibling;
+>
+> Should this rather use next_resource() to merge at all levels of the
+> hierarchy? Although memory seems to be flat under &iomem_resource so it
+> would be just future-proofing.
+
+I don't know enough about the hierarchy and layout of resources to comment on
+this.
+
+>
+> Thanks,
+> Vlastimil
