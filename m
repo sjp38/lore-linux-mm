@@ -1,102 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 150006B0010
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 17:31:31 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id v9-v6so2054593pfn.6
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 14:31:31 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id 95-v6si5051019pld.486.2018.08.08.14.31.28
-        for <linux-mm@kvack.org>;
-        Wed, 08 Aug 2018 14:31:30 -0700 (PDT)
-Date: Thu, 9 Aug 2018 07:31:25 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH RFC 01/10] rcu: Make CONFIG_SRCU unconditionally enabled
-Message-ID: <20180808213125.GM2234@dastard>
-References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
- <153365625652.19074.8434946780002619802.stgit@localhost.localdomain>
- <20180808072040.GC27972@dhcp22.suse.cz>
- <d17e65bb-c114-55de-fb4e-e2f538779b92@virtuozzo.com>
- <20180808102734.GH27972@dhcp22.suse.cz>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9339D6B0005
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 17:42:24 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id f10-v6so2429847wmb.9
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 14:42:24 -0700 (PDT)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0098.outbound.protection.outlook.com. [104.47.32.98])
+        by mx.google.com with ESMTPS id n11-v6si3880629wro.28.2018.08.08.14.42.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 08 Aug 2018 14:42:22 -0700 (PDT)
+Date: Wed, 8 Aug 2018 14:42:15 -0700
+From: Paul Burton <paul.burton@mips.com>
+Subject: Re: [PATCH] mips: switch to NO_BOOTMEM
+Message-ID: <20180808214215.bf6hyurv3nunfynd@pburton-laptop>
+References: <1531727262-11520-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <20180726070355.GD8477@rapoport-lnx>
+ <20180726172005.pgjmkvwz2lpflpor@pburton-laptop>
+ <CAMPMW8p092oXk1w+SVjgx-ZH+46piAY8xgYPDfLUwLCkBm-TVw@mail.gmail.com>
+ <20180802115550.GA10232@rapoport-lnx>
+ <CAMPMW8qq-aEm-0dQrWh08SBBSRp3xAqR1PL5Oe-RvkJgUk6LjA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180808102734.GH27972@dhcp22.suse.cz>
+In-Reply-To: <CAMPMW8qq-aEm-0dQrWh08SBBSRp3xAqR1PL5Oe-RvkJgUk6LjA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, sfr@canb.auug.org.au, vdavydov.dev@gmail.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Fancer's opinion <fancer.lancer@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Linux-MIPS <linux-mips@linux-mips.org>, Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>, Huacai Chen <chenhc@lemote.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Wed, Aug 08, 2018 at 12:27:34PM +0200, Michal Hocko wrote:
-> [CC Josh - the whole series is
-> http://lkml.kernel.org/r/153365347929.19074.12509495712735843805.stgit@localhost.localdomain]
+Hi Sergey & Mike,
+
+On Thu, Aug 09, 2018 at 12:30:03AM +0300, Fancer's opinion wrote:
+> Hello Mike,
+> I haven't read your patch text yet. I am waiting for the subsystem
+> maintainers response at least
+> about the necessity to have this type of changes being merged into the
+> sources (I mean
+> memblock/no-bootmem alteration). If they find it pointless (although I
+> would strongly disagree), then
+> nothing to discuss. Otherwise we can come up with a solution.
 > 
-> On Wed 08-08-18 13:17:44, Kirill Tkhai wrote:
-> > On 08.08.2018 10:20, Michal Hocko wrote:
-> > > On Tue 07-08-18 18:37:36, Kirill Tkhai wrote:
-> > >> This patch kills all CONFIG_SRCU defines and
-> > >> the code under !CONFIG_SRCU.
-> > > 
-> > > The last time somebody tried to do this there was a pushback due to
-> > > kernel tinyfication. So this should really give some numbers about the
-> > > code size increase. Also why can't we make this depend on MMU. Is
-> > > anybody else than the reclaim asking for unconditional SRCU usage?
-> > 
-> > I don't know one. The size numbers (sparc64) are:
-> > 
-> > $ size image.srcu.disabled 
-> >    text	   data	    bss	    dec	    hex	filename
-> > 5117546	8030506	1968104	15116156	 e6a77c	image.srcu.disabled
-> > $ size image.srcu.enabled
-> >    text	   data	    bss	    dec	    hex	filename
-> > 5126175	8064346	1968104	15158625	 e74d61	image.srcu.enabled
-> > The difference is: 15158625-15116156 = 42469 ~41Kb
-> > 
-> > Please, see the measurement details to my answer to Stephen.
-> > 
-> > > Btw. I totaly agree with Steven. This is a very poor changelog. It is
-> > > trivial to see what the patch does but it is far from clear why it is
-> > > doing that and why we cannot go other ways.
-> > We possibly can go another way, and there is comment to [2/10] about this.
-> > Percpu rwsem may be used instead, the only thing, it is worse, is it will
-> > make shrink_slab() wait unregistering shrinkers, while srcu-based
-> > implementation does not require this.
-> 
-> Well, if unregisterring doesn't do anything subtle - e.g. an allocation
-> or take locks which depend on allocation - and we can guarantee that
-> then blocking shrink_slab shouldn't be a big deal.
+> -Sergey
 
-unregister_shrinker() already blocks shrink_slab - taking a rwsem in
-write mode blocks all readers - so using a per-cpu rwsem doesn't
-introduce anything new or unexpected. I'd like to see numbers of the
-different methods before anything else.
+I'm all for dropping bootmem.
 
-IMO, the big deal is that the split unregister mechanism seems to
-imply superblock shrinkers can be called during sb teardown or
-/after/ the filesystem has been torn down in memory (i.e. after
-->put_super() is called). That's a change of behaviour, but it's
-left to the filesystem to detect and handle that condition. That's
-exceedingly subtle and looks like a recipe for disaster to me. I
-note that XFS hasn't been updated to detect and avoid this landmine.
+It's too late for something this invasive in 4.19, but I'd love to get
+it into 4.20.
 
-And, FWIW, filesystems with multiple shrinkers (e.g. XFS as 3 per
-mount) will take the SCRU penalty multiple times during unmount, and
-potentially be exposed to multiple different "use during/after
-teardown" race conditions.
-
-> It is subtle though.
-> Maybe subtle enough to make unconditional SRCU worth it. This all should
-> be in the changelog though.
-
-IMO, we've had enough recent bugs to deal with from shrinkers being
-called before the filesystem is set up and from trying to handle
-allocation errors during setup. Do we really want to make shrinker
-shutdown just as prone to mismanagement and subtle, hard to hit
-bugs? I don't think we do - unmount is simply not a critical
-performance path.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks,
+    Paul
