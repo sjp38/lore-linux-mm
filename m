@@ -1,42 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 115516B0003
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 10:26:29 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id a23-v6so1450441pfo.23
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 07:26:29 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
-        by mx.google.com with ESMTPS id p15-v6si4414740pgh.281.2018.08.08.07.26.27
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F4F96B0006
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 10:42:22 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id a70-v6so2385780qkb.16
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 07:42:22 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x1-v6sor2127333qkd.138.2018.08.08.07.42.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 08 Aug 2018 07:26:27 -0700 (PDT)
-In-Reply-To: <20180727114817.27190-1-npiggin@gmail.com>
-From: Michael Ellerman <patch-notifications@ellerman.id.au>
-Subject: Re: [resend] powerpc/64s: fix page table fragment refcount race vs speculative references
-Message-Id: <41ltwv4RJjz9s4V@ozlabs.org>
-Date: Thu,  9 Aug 2018 00:26:10 +1000 (AEST)
+        (Google Transport Security);
+        Wed, 08 Aug 2018 07:42:16 -0700 (PDT)
+Date: Wed, 8 Aug 2018 10:45:15 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 2/2] memcg, oom: emit oom report when there is no
+ eligible task
+Message-ID: <20180808144515.GA9276@cmpxchg.org>
+References: <20180808064414.GA27972@dhcp22.suse.cz>
+ <20180808071301.12478-1-mhocko@kernel.org>
+ <20180808071301.12478-3-mhocko@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180808071301.12478-3-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>, linuxppc-dev@lists.ozlabs.org
-Cc: "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Fri, 2018-07-27 at 11:48:17 UTC, Nicholas Piggin wrote:
-> The page table fragment allocator uses the main page refcount racily
-> with respect to speculative references. A customer observed a BUG due
-> to page table page refcount underflow in the fragment allocator. This
-> can be caused by the fragment allocator set_page_count stomping on a
-> speculative reference, and then the speculative failure handler
-> decrements the new reference, and the underflow eventually pops when
-> the page tables are freed.
+On Wed, Aug 08, 2018 at 09:13:01AM +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Fix this by using a dedicated field in the struct page for the page
-> table fragment allocator.
+> Johannes had doubts that the current WARN in the memcg oom path
+> when there is no eligible task is not all that useful because it doesn't
+> really give any useful insight into the memcg state. My original
+> intention was to make this lightweight but it is true that seeing
+> a stack trace will likely be not sufficient when somebody gets back to
+> us and report this warning.
 > 
-> Fixes: 5c1f6ee9a31c ("powerpc: Reduce PTE table memory wastage")
-> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-> Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
+> Therefore replace the current warning by the full oom report which will
+> give us not only the back trace of the offending path but also the full
+> memcg state - memory counters and existing tasks.
+> 
+> Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  include/linux/oom.h |  2 ++
+>  mm/memcontrol.c     | 24 +++++++++++++-----------
+>  mm/oom_kill.c       |  8 ++++----
+>  3 files changed, 19 insertions(+), 15 deletions(-)
+> 
+> diff --git a/include/linux/oom.h b/include/linux/oom.h
+> index a16a155a0d19..7424f9673cd1 100644
+> --- a/include/linux/oom.h
+> +++ b/include/linux/oom.h
+> @@ -133,6 +133,8 @@ extern struct task_struct *find_lock_task_mm(struct task_struct *p);
+>  
+>  extern int oom_evaluate_task(struct task_struct *task, void *arg);
+>  
+> +extern void dump_oom_header(struct oom_control *oc, struct task_struct *victim);
+> +
+>  /* sysctls */
+>  extern int sysctl_oom_dump_tasks;
+>  extern int sysctl_oom_kill_allocating_task;
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index c80e5b6a8e9f..3d7c90e6c235 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1390,6 +1390,19 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  	mutex_lock(&oom_lock);
+>  	ret = out_of_memory(&oc);
+>  	mutex_unlock(&oom_lock);
+> +
+> +	/*
+> +	 * under rare race the current task might have been selected while
+> +	 * reaching mem_cgroup_out_of_memory and there is no other oom victim
+> +	 * left. There is still no reason to warn because this task will
+> +	 * die and release its bypassed charge eventually.
 
-Applied to powerpc next, thanks.
+"rare race" is a bit vague. Can we describe the situation?
 
-https://git.kernel.org/powerpc/c/4231aba000f5a4583dd9f67057aadb
+	/*
+	 * We killed and reaped every task in the group, and still no
+	 * luck with the charge. This is likely the result of a crazy
+	 * configuration, let the user know.
+	 *
+	 * With one exception: current is the last task, it's already
+	 * been killed and reaped, but that wasn't enough to satisfy
+	 * the charge request under the configured limit. In that case
+	 * let it bypass quietly and current exit.
+	 */
 
-cheers
+And after spelling that out, I no longer think we want to skip the OOM
+header in that situation. The first paragraph still applies: this is
+probably a funny configuration, we're going to bypass the charge, let
+the user know that we failed containment - to help THEM identify by
+themselves what is likely an easy to fix problem.
+
+> +	 */
+> +	if (tsk_is_oom_victim(current))
+> +		return ret;
+> +
+> +	pr_warn("Memory cgroup charge failed because of no reclaimable memory! "
+> +		"This looks like a misconfiguration or a kernel bug.");
+> +	dump_oom_header(&oc, NULL);
+
+All other sites print the context first before printing the
+conclusion, we should probably do the same here.
+
+I'd also prefer keeping the message in line with the global case when
+no eligible tasks are left. There is no need to speculate whose fault
+this could be, that's apparent from the OOM header. If the user can't
+figure it out from the OOM header, they'll still report it to us.
+
+How about this?
+
+---
