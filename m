@@ -1,116 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D10C06B000A
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 01:44:26 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id j189-v6so1206842oih.11
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 22:44:26 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y11-v6sor1752338oix.10.2018.08.07.22.44.25
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B66DA6B0003
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 02:44:17 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id j14-v6so548812edr.2
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2018 23:44:17 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s7-v6si129603eda.85.2018.08.07.23.44.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 07 Aug 2018 22:44:25 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Aug 2018 23:44:16 -0700 (PDT)
+Date: Wed, 8 Aug 2018 08:44:14 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] memcg, oom: be careful about races when warning about no
+ reclaimable task
+Message-ID: <20180808064414.GA27972@dhcp22.suse.cz>
+References: <20180807072553.14941-1-mhocko@kernel.org>
+ <20180807200247.GA4251@cmpxchg.org>
+ <20180807202332.GK10003@dhcp22.suse.cz>
+ <20180807205425.GA5928@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <5543a32a-20f9-18ff-dc13-73737257ed99@suse.cz>
-References: <20180806065224.31383-1-rashmica.g@gmail.com> <5543a32a-20f9-18ff-dc13-73737257ed99@suse.cz>
-From: Rashmica Gupta <rashmica.g@gmail.com>
-Date: Wed, 8 Aug 2018 15:44:24 +1000
-Message-ID: <CAC6rBs=SySU9Amq2tr0AA6YMJVBmVhNyVCUfi+2b5MaSA=iLiw@mail.gmail.com>
-Subject: Re: [PATCH v2] resource: Merge resources on a node when hot-adding memory
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180807205425.GA5928@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: toshi.kani@hpe.com, tglx@linutronix.de, akpm@linux-foundation.org, bp@suse.de, brijesh.singh@amd.com, thomas.lendacky@amd.com, jglisse@redhat.com, gregkh@linuxfoundation.org, baiyaowei@cmss.chinamobile.com, dan.j.williams@intel.com, mhocko@suse.com, iamjoonsoo.kim@lge.com, malat@debian.org, pasha.tatashin@oracle.com, Bjorn Helgaas <bhelgaas@google.com>, osalvador@techadventures.net, yasu.isimatu@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Dmitry Vyukov <dvyukov@google.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Aug 7, 2018 at 9:52 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
-> On 08/06/2018 08:52 AM, Rashmica Gupta wrote:
->> When hot-removing memory release_mem_region_adjustable() splits
->> iomem resources if they are not the exact size of the memory being
->> hot-deleted. Adding this memory back to the kernel adds a new
->> resource.
->>
->> Eg a node has memory 0x0 - 0xfffffffff. Offlining and hot-removing
->> 1GB from 0xf40000000 results in the single resource 0x0-0xfffffffff being
->> split into two resources: 0x0-0xf3fffffff and 0xf80000000-0xfffffffff.
->>
->> When we hot-add the memory back we now have three resources:
->> 0x0-0xf3fffffff, 0xf40000000-0xf7fffffff, and 0xf80000000-0xfffffffff.
->>
->> Now if we try to remove a section of memory that overlaps these resources,
->> like 2GB from 0xf40000000, release_mem_region_adjustable() fails as it
->> expects the chunk of memory to be within the boundaries of a single
->> resource.
->
-> Hi,
->
-> it's the first time I see the resource code, so I might be easily wrong.
-> How can it happen that the second remove is section aligned but the
-> first one not?
->
+On Tue 07-08-18 16:54:25, Johannes Weiner wrote:
+> On Tue, Aug 07, 2018 at 10:23:32PM +0200, Michal Hocko wrote:
+> > On Tue 07-08-18 16:02:47, Johannes Weiner wrote:
+> > > On Tue, Aug 07, 2018 at 09:25:53AM +0200, Michal Hocko wrote:
+> > > > From: Michal Hocko <mhocko@suse.com>
+> > > > 
+> > > > "memcg, oom: move out_of_memory back to the charge path" has added a
+> > > > warning triggered when the oom killer cannot find any eligible task
+> > > > and so there is no way to reclaim the oom memcg under its hard limit.
+> > > > Further charges for such a memcg are forced and therefore the hard limit
+> > > > isolation is weakened.
+> > > > 
+> > > > The current warning is however too eager to trigger  even when we are not
+> > > > really hitting the above condition. Syzbot[1] and Greg Thelen have noticed
+> > > > that we can hit this condition even when there is still oom victim
+> > > > pending. E.g. the following race is possible:
+> > > > 
+> > > > memcg has two tasks taskA, taskB.
+> > > > 
+> > > > CPU1 (taskA)			CPU2			CPU3 (taskB)
+> > > > try_charge
+> > > >   mem_cgroup_out_of_memory				try_charge
+> > > >       select_bad_process(taskB)
+> > > >       oom_kill_process		oom_reap_task
+> > > > 				# No real memory reaped
+> > > >     				  			  mem_cgroup_out_of_memory
+> > > > 				# set taskB -> MMF_OOM_SKIP
+> > > >   # retry charge
+> > > >   mem_cgroup_out_of_memory
+> > > >     oom_lock						    oom_lock
+> > > >     select_bad_process(self)
+> > > >     oom_kill_process(self)
+> > > >     oom_unlock
+> > > > 							    # no eligible task
+> > > > 
+> > > > In fact syzbot test triggered this situation by placing multiple tasks
+> > > > into a memcg with hard limit set to 0. So no task really had any memory
+> > > > charged to the memcg
+> > > > 
+> > > > : Memory cgroup stats for /ile0: cache:0KB rss:0KB rss_huge:0KB shmem:0KB mapped_file:0KB dirty:0KB writeback:0KB swap:0KB inactive_anon:0KB active_anon:0KB inactive_file:0KB active_file:0KB unevictable:0KB
+> > > > : Tasks state (memory values in pages):
+> > > > : [  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name
+> > > > : [   6569]     0  6562     9427        1    53248        0             0 syz-executor0
+> > > > : [   6576]     0  6576     9426        0    61440        0             0 syz-executor6
+> > > > : [   6578]     0  6578     9426      534    61440        0             0 syz-executor4
+> > > > : [   6579]     0  6579     9426        0    57344        0             0 syz-executor5
+> > > > : [   6582]     0  6582     9426        0    61440        0             0 syz-executor7
+> > > > : [   6584]     0  6584     9426        0    57344        0             0 syz-executor1
+> > > > 
+> > > > so in principle there is indeed nothing reclaimable in this memcg and
+> > > > this looks like a misconfiguration. On the other hand we can clearly
+> > > > kill all those tasks so it is a bit early to warn and scare users. Do
+> > > > that by checking that the current is the oom victim and bypass the
+> > > > warning then. The victim is allowed to force charge and terminate to
+> > > > release its temporal charge along the way.
+> > > > 
+> > > > [1] http://lkml.kernel.org/r/0000000000005e979605729c1564@google.com
+> > > > Fixes: "memcg, oom: move out_of_memory back to the charge path"
+> > > > Noticed-by: Greg Thelen <gthelen@google.com>
+> > > > Reported-and-tested-by: syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com
+> > > > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > > > ---
+> > > >  mm/memcontrol.c | 3 ++-
+> > > >  1 file changed, 2 insertions(+), 1 deletion(-)
+> > > > 
+> > > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > > > index 4603ad75c9a9..1b6eed1bc404 100644
+> > > > --- a/mm/memcontrol.c
+> > > > +++ b/mm/memcontrol.c
+> > > > @@ -1703,7 +1703,8 @@ static enum oom_status mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int
+> > > >  		return OOM_ASYNC;
+> > > >  	}
+> > > >  
+> > > > -	if (mem_cgroup_out_of_memory(memcg, mask, order))
+> > > > +	if (mem_cgroup_out_of_memory(memcg, mask, order) ||
+> > > > +			tsk_is_oom_victim(current))
+> > > >  		return OOM_SUCCESS;
+> > > >  
+> > > >  	WARN(1,"Memory cgroup charge failed because of no reclaimable memory! "
+> > > 
+> > > This is really ugly. :(
+> > > 
+> > > If that check is only there to suppress the warning when the limit is
+> > > 0, this should really be a separate branch around the warning, with a
+> > > fat comment that this is a ridiculous cornercase, and not look like it
+> > > is an essential part of the memcg reclaim/oom process.
+> > 
+> > I do not mind having it in a separate branch. Btw. this is not just about
+> > hard limit set to 0. Similar can happen anytime we are getting out of
+> > oom victims. The likelihood goes up with the remote memcg charging
+> > merged recently.
+> 
+> What the global OOM killer does in that situation is dump the header
+> anyway:
+> 
+> 	/* Found nothing?!?! Either we hang forever, or we panic. */
+> 	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
+> 		dump_header(oc, NULL);
+> 		panic("Out of memory and no killable processes...\n");
+> 	}
+> 
+> I think that would make sense here as well - without the panic,
+> obviously, but we can add our own pr_err() line following the header.
+> 
+> That gives us the exact memory situation of the cgroup and who is
+> trying to allocate and from what context, but in a format that is
+> known to users without claiming right away that it's a kernel issue.
 
-I probably shouldn't have used that word... When I said "a section of memory"
-I really meant "a chunk of memory" or "some memory".
+I was considering doing that initially but then decided that warning is
+less noisy and still a good "let us know" trigger. It doesn't give us
+the whole picture which is obviously a downside but we would at least
+know that something is going south one have the trace to who that might
+be should this be a bug rather than a misconfiguration.
 
+But I do not mind doing dump_header as well. Care to send a patch?
 
->> This patch adds a function request_resource_and_merge(). This is called
->> instead of request_resource_conflict() when registering a resource in
->> add_memory(). It calls request_resource_conflict() and if hot-removing is
->> enabled (if it isn't we won't get resource fragmentation) we attempt to
->> merge contiguous resources on the node.
->>
->> Signed-off-by: Rashmica Gupta <rashmica.g@gmail.com>
-> ...
->> --- a/kernel/resource.c
->> +++ b/kernel/resource.c
-> ...
->> +/*
->> + * Attempt to merge resources on the node
->> + */
->> +static void merge_node_resources(int nid, struct resource *parent)
->> +{
->> +     struct resource *res;
->> +     uint64_t start_addr;
->> +     uint64_t end_addr;
->> +     int ret;
->> +
->> +     start_addr = node_start_pfn(nid) << PAGE_SHIFT;
->> +     end_addr = node_end_pfn(nid) << PAGE_SHIFT;
->> +
->> +     write_lock(&resource_lock);
->> +
->> +     /* Get the first resource */
->> +     res = parent->child;
->> +
->> +     while (res) {
->> +             /* Check that the resource is within the node */
->> +             if (res->start < start_addr) {
->> +                     res = res->sibling;
->> +                     continue;
->> +             }
->> +             /* Exit if resource is past end of node */
->> +             if (res->sibling->end > end_addr)
->> +                     break;
->
-> IIUC, resource end is closed, so adjacent resources's start is end+1.
-> But node_end_pfn is open, so the comparison above should use '>='
-> instead of '>'?
-
-You are right. Thanks for spotting that.
-
->
->> +
->> +             ret = merge_resources(res);
->> +             if (!ret)
->> +                     continue;
->> +             res = res->sibling;
->
-> Should this rather use next_resource() to merge at all levels of the
-> hierarchy? Although memory seems to be flat under &iomem_resource so it
-> would be just future-proofing.
-
-I don't know enough about the hierarchy and layout of resources to comment on
-this.
-
->
-> Thanks,
-> Vlastimil
+-- 
+Michal Hocko
+SUSE Labs
