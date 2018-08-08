@@ -1,141 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A4756B0008
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 03:13:18 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id e15-v6so910349pfi.5
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 00:13:18 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s11-v6sor914133pgi.138.2018.08.08.00.13.16
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BC7306B000D
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 03:20:45 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id v26-v6so577192eds.9
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 00:20:45 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 25-v6si3847618edu.218.2018.08.08.00.20.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 08 Aug 2018 00:13:16 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Aug 2018 00:20:44 -0700 (PDT)
+Date: Wed, 8 Aug 2018 09:20:40 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 2/2] memcg, oom: emit oom report when there is no eligible task
-Date: Wed,  8 Aug 2018 09:13:01 +0200
-Message-Id: <20180808071301.12478-3-mhocko@kernel.org>
-In-Reply-To: <20180808071301.12478-1-mhocko@kernel.org>
-References: <20180808064414.GA27972@dhcp22.suse.cz>
- <20180808071301.12478-1-mhocko@kernel.org>
+Subject: Re: [PATCH RFC 01/10] rcu: Make CONFIG_SRCU unconditionally enabled
+Message-ID: <20180808072040.GC27972@dhcp22.suse.cz>
+References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
+ <153365625652.19074.8434946780002619802.stgit@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <153365625652.19074.8434946780002619802.stgit@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, sfr@canb.auug.org.au, vdavydov.dev@gmail.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Tue 07-08-18 18:37:36, Kirill Tkhai wrote:
+> This patch kills all CONFIG_SRCU defines and
+> the code under !CONFIG_SRCU.
 
-Johannes had doubts that the current WARN in the memcg oom path
-when there is no eligible task is not all that useful because it doesn't
-really give any useful insight into the memcg state. My original
-intention was to make this lightweight but it is true that seeing
-a stack trace will likely be not sufficient when somebody gets back to
-us and report this warning.
+The last time somebody tried to do this there was a pushback due to
+kernel tinyfication. So this should really give some numbers about the
+code size increase. Also why can't we make this depend on MMU. Is
+anybody else than the reclaim asking for unconditional SRCU usage?
 
-Therefore replace the current warning by the full oom report which will
-give us not only the back trace of the offending path but also the full
-memcg state - memory counters and existing tasks.
-
-Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- include/linux/oom.h |  2 ++
- mm/memcontrol.c     | 24 +++++++++++++-----------
- mm/oom_kill.c       |  8 ++++----
- 3 files changed, 19 insertions(+), 15 deletions(-)
-
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index a16a155a0d19..7424f9673cd1 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -133,6 +133,8 @@ extern struct task_struct *find_lock_task_mm(struct task_struct *p);
- 
- extern int oom_evaluate_task(struct task_struct *task, void *arg);
- 
-+extern void dump_oom_header(struct oom_control *oc, struct task_struct *victim);
-+
- /* sysctls */
- extern int sysctl_oom_dump_tasks;
- extern int sysctl_oom_kill_allocating_task;
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index c80e5b6a8e9f..3d7c90e6c235 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1390,6 +1390,19 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	mutex_lock(&oom_lock);
- 	ret = out_of_memory(&oc);
- 	mutex_unlock(&oom_lock);
-+
-+	/*
-+	 * under rare race the current task might have been selected while
-+	 * reaching mem_cgroup_out_of_memory and there is no other oom victim
-+	 * left. There is still no reason to warn because this task will
-+	 * die and release its bypassed charge eventually.
-+	 */
-+	if (tsk_is_oom_victim(current))
-+		return ret;
-+
-+	pr_warn("Memory cgroup charge failed because of no reclaimable memory! "
-+		"This looks like a misconfiguration or a kernel bug.");
-+	dump_oom_header(&oc, NULL);
- 	return ret;
- }
- 
-@@ -1706,17 +1719,6 @@ static enum oom_status mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int
- 	if (mem_cgroup_out_of_memory(memcg, mask, order))
- 		return OOM_SUCCESS;
- 	
--	/*
--	 * under rare race the current task might have been selected while
--	 * reaching mem_cgroup_out_of_memory and there is no other oom victim
--	 * left. There is still no reason to warn because this task will
--	 * die and release its bypassed charge eventually.
--	 */
--	if (tsk_is_oom_victim(current))
--		return OOM_SUCCESS;
--
--	WARN(1,"Memory cgroup charge failed because of no reclaimable memory! "
--		"This looks like a misconfiguration or a kernel bug.");
- 	return OOM_FAILED;
- }
- 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 104ef4a01a55..8918640fcb85 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -428,7 +428,7 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
- 	rcu_read_unlock();
- }
- 
--static void dump_header(struct oom_control *oc, struct task_struct *p)
-+void dump_oom_header(struct oom_control *oc, struct task_struct *p)
- {
- 	pr_warn("%s invoked oom-killer: gfp_mask=%#x(%pGg), order=%d, oom_score_adj=%hd\n",
- 		current->comm, oc->gfp_mask, &oc->gfp_mask, oc->order,
-@@ -945,7 +945,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
- 	task_unlock(p);
- 
- 	if (__ratelimit(&oom_rs))
--		dump_header(oc, p);
-+		dump_oom_header(oc, p);
- 
- 	pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
- 		message, task_pid_nr(p), p->comm, points);
-@@ -1039,7 +1039,7 @@ static void check_panic_on_oom(struct oom_control *oc)
- 	/* Do not panic for oom kills triggered by sysrq */
- 	if (is_sysrq_oom(oc))
- 		return;
--	dump_header(oc, NULL);
-+	dump_oom_header(oc, NULL);
- 	panic("Out of memory: %s panic_on_oom is enabled\n",
- 		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
- }
-@@ -1129,7 +1129,7 @@ bool out_of_memory(struct oom_control *oc)
- 	select_bad_process(oc);
- 	/* Found nothing?!?! Either we hang forever, or we panic. */
- 	if (!oc->chosen_task && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
--		dump_header(oc, NULL);
-+		dump_oom_header(oc, NULL);
- 		panic("Out of memory and no killable processes...\n");
- 	}
- 	if (oc->chosen_task && oc->chosen_task != INFLIGHT_VICTIM)
+Btw. I totaly agree with Steven. This is a very poor changelog. It is
+trivial to see what the patch does but it is far from clear why it is
+doing that and why we cannot go other ways.
 -- 
-2.18.0
+Michal Hocko
+SUSE Labs
