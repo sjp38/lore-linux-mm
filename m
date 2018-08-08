@@ -1,81 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D8176B0008
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 14:02:28 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id q26-v6so116665wmc.0
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 11:02:28 -0700 (PDT)
-Received: from relay2-d.mail.gandi.net (relay2-d.mail.gandi.net. [217.70.183.194])
-        by mx.google.com with ESMTPS id g10-v6si3517443wri.283.2018.08.08.11.02.26
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C486F6B0005
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 16:33:03 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id q141-v6so4048627ywg.5
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 13:33:03 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s18-v6sor1095807ywg.97.2018.08.08.13.33.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 08 Aug 2018 11:02:26 -0700 (PDT)
-Date: Wed, 8 Aug 2018 11:01:55 -0700
-From: Josh Triplett <josh@joshtriplett.org>
-Subject: Re: [PATCH RFC 01/10] rcu: Make CONFIG_SRCU unconditionally enabled
-Message-ID: <20180808180152.GA2480@localhost>
-References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
- <153365625652.19074.8434946780002619802.stgit@localhost.localdomain>
- <20180808072040.GC27972@dhcp22.suse.cz>
- <d17e65bb-c114-55de-fb4e-e2f538779b92@virtuozzo.com>
- <20180808161330.GA22863@localhost>
- <f32ab99a-de28-b140-a7d0-027073055728@virtuozzo.com>
- <b4b58edd-b317-6319-1306-7345aa0062b8@virtuozzo.com>
+        (Google Transport Security);
+        Wed, 08 Aug 2018 13:33:02 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b4b58edd-b317-6319-1306-7345aa0062b8@virtuozzo.com>
+In-Reply-To: <1533727000-9172-1-git-send-email-joro@8bytes.org>
+References: <1533727000-9172-1-git-send-email-joro@8bytes.org>
+From: Kees Cook <keescook@google.com>
+Date: Wed, 8 Aug 2018 13:33:01 -0700
+Message-ID: <CAGXu5jK-wd=wbXcqoaogThVF1gHvH+UXgvVtsFuV2efjo8K46g@mail.gmail.com>
+Subject: Re: [PATCH] x86/mm/pti: Move user W+X check into pti_finalize()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, sfr@canb.auug.org.au, vdavydov.dev@gmail.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, Anthony Liguori <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, Joerg Roedel <jroedel@suse.de>
 
-On Wed, Aug 08, 2018 at 07:30:13PM +0300, Kirill Tkhai wrote:
-> On 08.08.2018 19:23, Kirill Tkhai wrote:
-> > On 08.08.2018 19:13, Josh Triplett wrote:
-> >> On Wed, Aug 08, 2018 at 01:17:44PM +0300, Kirill Tkhai wrote:
-> >>> On 08.08.2018 10:20, Michal Hocko wrote:
-> >>>> On Tue 07-08-18 18:37:36, Kirill Tkhai wrote:
-> >>>>> This patch kills all CONFIG_SRCU defines and
-> >>>>> the code under !CONFIG_SRCU.
-> >>>>
-> >>>> The last time somebody tried to do this there was a pushback due to
-> >>>> kernel tinyfication. So this should really give some numbers about the
-> >>>> code size increase. Also why can't we make this depend on MMU. Is
-> >>>> anybody else than the reclaim asking for unconditional SRCU usage?
-> >>>
-> >>> I don't know one. The size numbers (sparc64) are:
-> >>>
-> >>> $ size image.srcu.disabled 
-> >>>    text	   data	    bss	    dec	    hex	filename
-> >>> 5117546	8030506	1968104	15116156	 e6a77c	image.srcu.disabled
-> >>> $ size image.srcu.enabled
-> >>>    text	   data	    bss	    dec	    hex	filename
-> >>> 5126175	8064346	1968104	15158625	 e74d61	image.srcu.enabled
-> >>> The difference is: 15158625-15116156 = 42469 ~41Kb
-> >>
-> >> 41k is a *substantial* size increase. However, can you compare
-> >> tinyconfig with and without this patch? That may have a smaller change.
-> > 
-> > $ size image.srcu.disabled
-> >    text	   data	    bss	    dec	    hex	filename
-> > 1105900	 195456	  63232	1364588	 14d26c	image.srcu.disabled
-> > 
-> > $ size image.srcu.enabled
-> >    text	   data	    bss	    dec	    hex	filename
-> > 1106960	 195528	  63232	1365720	 14d6d8	image.srcu.enabled
-> > 
-> > 1365720-1364588 = 1132 ~ 1Kb
->  
-> 1Kb is not huge size. It looks as not a big price for writing generic code
-> for only case (now some places have CONFIG_SRCU and !CONFIG_SRCU variants,
-> e.g. drivers/base/core.c). What do you think?
+On Wed, Aug 8, 2018 at 4:16 AM, Joerg Roedel <joro@8bytes.org> wrote:
+> From: Joerg Roedel <jroedel@suse.de>
+>
+> The user page-table gets the updated kernel mappings in
+> pti_finalize(), which runs after the RO+X permissions got
+> applied to the kernel page-table in mark_readonly().
+>
+> But with CONFIG_DEBUG_WX enabled, the user page-table is
+> already checked in mark_readonly() for insecure mappings.
+> This causes false-positive warnings, because the user
+> page-table did not get the updated mappings yet.
+>
+> Move the W+X check for the user page-table into
+> pti_finalize() after it updated all required mappings.
+>
+> Signed-off-by: Joerg Roedel <jroedel@suse.de>
+> ---
+>  arch/x86/include/asm/pgtable.h | 7 +++++--
+>  arch/x86/mm/dump_pagetables.c  | 3 +--
+>  arch/x86/mm/pti.c              | 2 ++
+>  3 files changed, 8 insertions(+), 4 deletions(-)
+>
+> diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+> index e39088cb..a1cb333 100644
+> --- a/arch/x86/include/asm/pgtable.h
+> +++ b/arch/x86/include/asm/pgtable.h
+> @@ -30,11 +30,14 @@ int __init __early_make_pgtable(unsigned long address, pmdval_t pmd);
+>  void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd);
+>  void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd, bool user);
+>  void ptdump_walk_pgd_level_checkwx(void);
+> +void ptdump_walk_user_pgd_level_checkwx(void);
+>
+>  #ifdef CONFIG_DEBUG_WX
+> -#define debug_checkwx() ptdump_walk_pgd_level_checkwx()
+> +#define debug_checkwx()                ptdump_walk_pgd_level_checkwx()
+> +#define debug_checkwx_user()   ptdump_walk_user_pgd_level_checkwx()
+>  #else
+> -#define debug_checkwx() do { } while (0)
+> +#define debug_checkwx()                do { } while (0)
+> +#define debug_checkwx_user()   do { } while (0)
+>  #endif
+>
+>  /*
+> diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+> index ccd92c4..b8ab901 100644
+> --- a/arch/x86/mm/dump_pagetables.c
+> +++ b/arch/x86/mm/dump_pagetables.c
+> @@ -569,7 +569,7 @@ void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd, bool user)
+>  }
+>  EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
+>
+> -static void ptdump_walk_user_pgd_level_checkwx(void)
+> +void ptdump_walk_user_pgd_level_checkwx(void)
+>  {
+>  #ifdef CONFIG_PAGE_TABLE_ISOLATION
+>         pgd_t *pgd = INIT_PGD;
+> @@ -586,7 +586,6 @@ static void ptdump_walk_user_pgd_level_checkwx(void)
+>  void ptdump_walk_pgd_level_checkwx(void)
+>  {
+>         ptdump_walk_pgd_level_core(NULL, NULL, true, false);
+> -       ptdump_walk_user_pgd_level_checkwx();
+>  }
+>
+>  static int __init pt_dump_init(void)
+> diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+> index 69a9d60..026a89a 100644
+> --- a/arch/x86/mm/pti.c
+> +++ b/arch/x86/mm/pti.c
+> @@ -628,4 +628,6 @@ void pti_finalize(void)
+>          */
+>         pti_clone_entry_text();
+>         pti_clone_kernel_text();
+> +
+> +       debug_checkwx_user();
+>  }
 
-That's a little more reasonable than 41k, likely because of
-CONFIG_TINY_SRCU. That's still not ideal, though. And as far as I can
-tell, the *only* two pieces of core code that use SRCU are
-drivers/base/core.c and kernel/notifier.c, and the latter is exclusively
-code to use notifiers with SRCU, not notifiers wanting to use SRCU
-themselves. So, as far as I can tell, this would really just save a
-couple of small #ifdef sections in drivers/base/core.c, and I think
-those #ifdef sections could be simplified even further. That doesn't
-seem worth it at all.
+I'm slightly nervous about complicating this and splitting up the
+check. I have a mild preference that all the checks get moved later,
+so that all architectures have the checks happening at the same time
+during boot. Splitting this up could give us some weird differences
+between architectures, etc.
+
+-Kees
+
+-- 
+Kees Cook
+Pixel Security
