@@ -1,79 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B1D6F6B0007
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 05:46:51 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id o18-v6so1329819qtm.11
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 02:46:51 -0700 (PDT)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00107.outbound.protection.outlook.com. [40.107.0.107])
-        by mx.google.com with ESMTPS id 14-v6si3841493qkk.312.2018.08.08.02.46.50
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D2B96B000C
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 05:51:59 -0400 (EDT)
+Received: by mail-ua0-f200.google.com with SMTP id z12-v6so1299531uao.0
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 02:51:59 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x30-v6sor1413417uah.108.2018.08.08.02.51.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 08 Aug 2018 02:46:50 -0700 (PDT)
-Subject: Re: [PATCH RFC 01/10] rcu: Make CONFIG_SRCU unconditionally enabled
-References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
- <153365625652.19074.8434946780002619802.stgit@localhost.localdomain>
- <20180808110542.6df3f48f@canb.auug.org.au>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <a1ca4c67-aa03-7381-151e-e7d85e402e78@virtuozzo.com>
-Date: Wed, 8 Aug 2018 12:46:39 +0300
+        (Google Transport Security);
+        Wed, 08 Aug 2018 02:51:58 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180808110542.6df3f48f@canb.auug.org.au>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <5d0aec14-73e0-280d-62fb-2b0fe6c01418@cybernetics.com>
+References: <5d0aec14-73e0-280d-62fb-2b0fe6c01418@cybernetics.com>
+From: Andy Shevchenko <andy.shevchenko@gmail.com>
+Date: Wed, 8 Aug 2018 12:51:57 +0300
+Message-ID: <CAHp75VfQJPrBPG8_LLQ0Nvs9S8eaQzpwXhf67kA5Cknwy37aTA@mail.gmail.com>
+Subject: Re: [PATCH v3 07/10] dmapool: cleanup integer types
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, vdavydov.dev@gmail.com, mhocko@suse.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Tony Battersby <tonyb@cybernetics.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Sathya Prakash <sathya.prakash@broadcom.com>, Chaitra P B <chaitra.basappa@broadcom.com>, Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "MPT-FusionLinux.pdl@broadcom.com" <MPT-FusionLinux.pdl@broadcom.com>
 
-On 08.08.2018 04:05, Stephen Rothwell wrote:
-> Hi Kirill,
-> 
-> On Tue, 07 Aug 2018 18:37:36 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
->>
->> This patch kills all CONFIG_SRCU defines and
->> the code under !CONFIG_SRCU.
->>
->> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
->> ---
->>  drivers/base/core.c                                |   42 --------------------
->>  include/linux/device.h                             |    2 -
->>  include/linux/rcutiny.h                            |    4 --
->>  include/linux/srcu.h                               |    5 --
->>  kernel/notifier.c                                  |    3 -
->>  kernel/rcu/Kconfig                                 |   12 +-----
->>  kernel/rcu/tree.h                                  |    5 --
->>  kernel/rcu/update.c                                |    4 --
->>  .../selftests/rcutorture/doc/TREE_RCU-kconfig.txt  |    5 --
->>  9 files changed, 3 insertions(+), 79 deletions(-)
-> 
-> You left quite a few "select SRCU" statements scattered across Kconfig
-> files:
-> 
-> $ git grep -l 'select SRCU' '*Kconfig*'
-> arch/arm/kvm/Kconfig
-> arch/arm64/kvm/Kconfig
-> arch/mips/kvm/Kconfig
-> arch/powerpc/kvm/Kconfig
-> arch/s390/kvm/Kconfig
-> arch/x86/Kconfig
-> arch/x86/kvm/Kconfig
-> block/Kconfig
-> drivers/clk/Kconfig
-> drivers/cpufreq/Kconfig
-> drivers/dax/Kconfig
-> drivers/devfreq/Kconfig
-> drivers/hwtracing/stm/Kconfig
-> drivers/md/Kconfig
-> drivers/net/Kconfig
-> drivers/opp/Kconfig
-> fs/btrfs/Kconfig
-> fs/notify/Kconfig
-> fs/quota/Kconfig
-> init/Kconfig
-> kernel/rcu/Kconfig
-> kernel/rcu/Kconfig.debug
-> mm/Kconfig
-> security/tomoyo/Kconfig
+On Tue, Aug 7, 2018 at 7:48 PM, Tony Battersby <tonyb@cybernetics.com> wrote:
+> To represent the size of a single allocation, dmapool currently uses
+> 'unsigned int' in some places and 'size_t' in other places.  Standardize
+> on 'unsigned int' to reduce overhead, but use 'size_t' when counting all
+> the blocks in the entire pool.
 
-Yeah, thanks, Stephen.
+>         else if ((boundary < size) || (boundary & (boundary - 1)))
+>                 return NULL;
+
+Just a side note: in above it's is_power_of_2() opencoded.
+
+-- 
+With Best Regards,
+Andy Shevchenko
