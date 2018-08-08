@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B835F6B0269
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 03:45:41 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id u68-v6so1476791qku.5
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 00:45:41 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id EDDF86B0003
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 03:51:54 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id 17-v6so1465827qkz.15
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 00:51:54 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id u5-v6si3443398qtj.263.2018.08.08.00.45.40
+        by mx.google.com with ESMTPS id 40-v6si416804qku.277.2018.08.08.00.51.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Aug 2018 00:45:40 -0700 (PDT)
+        Wed, 08 Aug 2018 00:51:54 -0700 (PDT)
 Subject: Re: [RFC PATCH 2/3] mm/memory_hotplug: Create __shrink_pages and move
  it to offline_pages
 References: <20180807133757.18352-1-osalvador@techadventures.net>
@@ -18,8 +18,8 @@ References: <20180807133757.18352-1-osalvador@techadventures.net>
  <20180807204834.GA6844@techadventures.net> <20180807221345.GD3301@redhat.com>
  <20180808073835.GA9568@techadventures.net>
 From: David Hildenbrand <david@redhat.com>
-Message-ID: <44f74b58-aae0-a44c-3b98-7b1aac186f8e@redhat.com>
-Date: Wed, 8 Aug 2018 09:45:37 +0200
+Message-ID: <24da07b9-5e06-af1d-42d3-c663eade16ea@redhat.com>
+Date: Wed, 8 Aug 2018 09:51:50 +0200
 MIME-Version: 1.0
 In-Reply-To: <20180808073835.GA9568@techadventures.net>
 Content-Type: text/plain; charset=utf-8
@@ -53,10 +53,6 @@ On 08.08.2018 09:38, Oscar Salvador wrote:
 > 
 > Which means that we would have to call __remove_zone() from those paths.
 > But this alone will not work.
-
-I mean, they move it to the zone ("replacing online/offlining code"), so
-they should take of removing it again.
-
 > 
 > find_smallest/biggest_section_pfn are two functions that are being called from
 > 
@@ -85,6 +81,14 @@ they should take of removing it again.
 > 
 > I am pretty sure this is a dumb question, but why HMM/devm path
 > do not call online_pages/offline_pages?
+
+I think mainly because onlining/offlining (wild guesses)
+
+- calls memory notifiers
+- works with memory blocks
+
+(and does some more things not applicable to ZONE_DEVICE memory)
+
 > 
 > Thanks
 > 
