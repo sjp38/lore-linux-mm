@@ -1,204 +1,208 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 896A66B0003
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 07:36:20 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id g5-v6so823011edp.1
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 04:36:20 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l17-v6si3239659edr.310.2018.08.08.04.36.18
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D5AEB6B0007
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 07:52:09 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id c6-v6so1573000qta.6
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 04:52:09 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0096.outbound.protection.outlook.com. [104.47.1.96])
+        by mx.google.com with ESMTPS id i14-v6si140079qvo.40.2018.08.08.04.52.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Aug 2018 04:36:18 -0700 (PDT)
-Date: Wed, 8 Aug 2018 13:36:15 +0200
-From: Petr Mladek <pmladek@suse.com>
-Subject: lock recursion - was: Re: [4.18 rc7] BUG: sleeping function called
- from invalid context at mm/slab.h:421
-Message-ID: <20180808113615.qzdzifpkmt5yktbx@pathway.suse.cz>
-References: <CABXGCsNAjrwat-Fv6GQXq8uSC6uj=ke87RJt42syrfFi0vQUmg@mail.gmail.com>
- <bd7f3ea4-d9a8-e437-9936-ee4513b47ac1@suse.cz>
- <50f14cef-9c30-7984-bef3-6da033d91483@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 08 Aug 2018 04:52:08 -0700 (PDT)
+Subject: Re: [PATCH RFC 02/10] mm: Make shrink_slab() lockless
+References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
+ <153365626605.19074.16202958374930777592.stgit@localhost.localdomain>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <591d2063-0511-103d-bef6-dd35f55afe32@virtuozzo.com>
+Date: Wed, 8 Aug 2018 14:51:59 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50f14cef-9c30-7984-bef3-6da033d91483@suse.cz>
+In-Reply-To: <153365626605.19074.16202958374930777592.stgit@localhost.localdomain>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: "David S. Miller" <davem@davemloft.net>, Marcel Holtmann <marcel@holtmann.org>, Johan Hedberg <johan.hedberg@gmail.com>, linux-bluetooth@vger.kernel.org, netdev@vger.kernel.org, Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>, linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Peter Zijlstra <peterz@infradead.org>
+To: akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, sfr@canb.auug.org.au, vdavydov.dev@gmail.com, mhocko@suse.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 2018-08-08 11:05:00, Vlastimil Babka wrote:
-> On 08/08/2018 11:01 AM, Vlastimil Babka wrote:
-> > fbcon_startup() calls kzalloc(sizeof(struct fbcon_ops), GFP_KERNEL) so
-> > it tells slab it can sleep. The problem must be higher in the stack,
-> > CCing printk people.
-> 
-> Uh just noticed there was also attached dmesg which my reply converted
-> to inline. The first problem there is a lockdep splat.
+This also requires call_srcu() in memcg_expand_one_shrinker_map()
+and srcu_dereference() in shrink_slab_memcg(). The updated patch
+is below:
 
-The lockdep splat might eventually be a valid issue (recursive lock) in the
-networking code. But it seems to be unrelated to the later problems
-with sleeping in fbcon_startup().
+[PATCH] mm: Make shrink_slab() lockless
 
-Adding networking people into CC. Please, find below the relevant part
-from the dmesg. The full log can be found in the original message at
-https://marc.info/?l=linux-mm&m=153370024009996&w=2
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
 
-Lock recursion in bluetooth code:
+The patch makes shrinker list and shrinker_idr SRCU-safe
+for readers. This requires synchronize_srcu() on finalize
+stage unregistering stage, which waits till all parallel
+shrink_slab() are finished
 
-[   32.050660] Bluetooth: RFCOMM TTY layer initialized
-[   32.050675] Bluetooth: RFCOMM socket layer initialized
-[   32.050719] Bluetooth: RFCOMM ver 1.11
-[   34.413359] fuse init (API version 7.27)
-[   40.562871] rfkill: input handler disabled
-[   42.272301] pool (2344) used greatest stack depth: 11320 bytes left
-[   42.701283] ISO 9660 Extensions: Microsoft Joliet Level 3
-[   42.704062] ISO 9660 Extensions: Microsoft Joliet Level 3
-[   42.710375] ISO 9660 Extensions: RRIP_1991A
-[   64.930766] tracker-extract (2229) used greatest stack depth: 11176 bytes left
-[  465.911281] TaskSchedulerFo (3362) used greatest stack depth: 11112 bytes left
-[  491.743600] TaskSchedulerFo (3364) used greatest stack depth: 11032 bytes left
-[  507.733884] nf_conntrack: default automatic helper assignment has been turned off \
-for security reasons and CT-based  firewall rule not found. Use the iptables CT \
-target to attach helpers instead. [  660.384586] kworker/dying (155) used greatest \
-stack depth: 10888 bytes left [  699.910094] device enp2s0 entered promiscuous mode
-[ 1098.658964] kworker/dying (7) used greatest stack depth: 10712 bytes left
-[ 1843.488301] perf: interrupt took too long (2510 > 2500), lowering \
-kernel.perf_event_max_sample_rate to 79000 [ 2819.896469] perf: interrupt took too \
-long (3138 > 3137), lowering kernel.perf_event_max_sample_rate to 63000 [ \
-6120.247124] perf: interrupt took too long (3923 > 3922), lowering \
-kernel.perf_event_max_sample_rate to 50000
+Note, that patch removes rwsem_is_contended() checks from
+the code, and this does not result in delays during
+registration, since there is no waiting at all. Unregistration
+case may be optimized by splitting unregister_shrinker()
+in tho stages, and this is made in next patches.
 
-[ 6829.212232] ============================================
-[ 6829.212234] WARNING: possible recursive locking detected
-[ 6829.212236] 4.18.0-0.rc7.git1.1.fc29.x86_64 #1 Not tainted
-[ 6829.212237] --------------------------------------------
-[ 6829.212239] kworker/u17:2/28441 is trying to acquire lock:
-[ 6829.212242] 000000004025b723 (sk_lock-AF_BLUETOOTH-BTPROTO_L2CAP){+.+.}, at: \
-bt_accept_enqueue+0x3c/0xb0 [bluetooth] [ 6829.212260] 
-               but task is already holding lock:
-[ 6829.212262] 000000004cb71eef (sk_lock-AF_BLUETOOTH-BTPROTO_L2CAP){+.+.}, at: \
-l2cap_sock_new_connection_cb+0x18/0xa0 [bluetooth] [ 6829.212278] 
-               other info that might help us debug this:
-[ 6829.212279]  Possible unsafe locking scenario:
+Also, keep in mind, that in case of SRCU is not allowed
+to make unconditional (which is done in previous patch),
+it is possible to use percpu_rw_semaphore instead of it.
+percpu_down_read() will be used in shrink_slab_memcg()
+and in shrink_slab(), and consecutive calls
 
-[ 6829.212281]        CPU0
-[ 6829.212282]        ----
-[ 6829.212284]   lock(sk_lock-AF_BLUETOOTH-BTPROTO_L2CAP);
-[ 6829.212286]   lock(sk_lock-AF_BLUETOOTH-BTPROTO_L2CAP);
-[ 6829.212288] 
-                *** DEADLOCK ***
+	percpu_down_write(percpu_rwsem);
+	percpu_up_write(percpu_rwsem);
 
-[ 6829.212290]  May be due to missing lock nesting notation
+will be used instead of synchronize_srcu().
 
-[ 6829.212293] 5 locks held by kworker/u17:2/28441:
-[ 6829.212294]  #0: 000000009af6a4dc ((wq_completion)"%s"hdev->name#2){+.+.}, at: \
-process_one_work+0x1f3/0x650 [ 6829.212301]  #1: 000000006f7488f4 \
-((work_completion)(&hdev->rx_work)){+.+.}, at: process_one_work+0x1f3/0x650 [ \
-6829.212306]  #2: 000000003dba8333 (&conn->chan_lock){+.+.}, at: \
-l2cap_connect+0x8f/0x5a0 [bluetooth] [ 6829.212321]  #3: 00000000aaa813b9 \
-(&chan->lock/2){+.+.}, at: l2cap_connect+0xa9/0x5a0 [bluetooth] [ 6829.212335]  #4: \
-000000004cb71eef (sk_lock-AF_BLUETOOTH-BTPROTO_L2CAP){+.+.}, at: \
-l2cap_sock_new_connection_cb+0x18/0xa0 [bluetooth] [ 6829.212350] 
-               stack backtrace:
-[ 6829.212354] CPU: 6 PID: 28441 Comm: kworker/u17:2 Not tainted \
-4.18.0-0.rc7.git1.1.fc29.x86_64 #1 [ 6829.212355] Hardware name: Gigabyte Technology \
-Co., Ltd. Z87M-D3H/Z87M-D3H, BIOS F11 08/12/2014 [ 6829.212365] Workqueue: hci0 \
-hci_rx_work [bluetooth] [ 6829.212367] Call Trace:
-[ 6829.212373]  dump_stack+0x85/0xc0
-[ 6829.212377]  __lock_acquire.cold.64+0x158/0x227
-[ 6829.212381]  ? mark_held_locks+0x57/0x80
-[ 6829.212384]  lock_acquire+0x9e/0x1b0
-[ 6829.212394]  ? bt_accept_enqueue+0x3c/0xb0 [bluetooth]
-[ 6829.212398]  lock_sock_nested+0x72/0xa0
-[ 6829.212407]  ? bt_accept_enqueue+0x3c/0xb0 [bluetooth]
-[ 6829.212417]  bt_accept_enqueue+0x3c/0xb0 [bluetooth]
-[ 6829.212429]  l2cap_sock_new_connection_cb+0x5d/0xa0 [bluetooth]
-[ 6829.212441]  l2cap_connect+0x110/0x5a0 [bluetooth]
-[ 6829.212454]  ? l2cap_recv_frame+0x6d0/0x2cb0 [bluetooth]
-[ 6829.212458]  ? __mutex_unlock_slowpath+0x4b/0x2b0
-[ 6829.212470]  l2cap_recv_frame+0x6e8/0x2cb0 [bluetooth]
-[ 6829.212474]  ? __mutex_unlock_slowpath+0x4b/0x2b0
-[ 6829.212484]  hci_rx_work+0x1c6/0x5d0 [bluetooth]
-[ 6829.212488]  process_one_work+0x27d/0x650
-[ 6829.212492]  worker_thread+0x3c/0x390
-[ 6829.212494]  ? process_one_work+0x650/0x650
-[ 6829.212498]  kthread+0x120/0x140
-[ 6829.212501]  ? kthread_create_worker_on_cpu+0x70/0x70
-[ 6829.212504]  ret_from_fork+0x3a/0x50
-[ 6829.285343] BUG: sleeping function called from invalid context at \
-net/core/sock.c:2833 [ 6829.285349] in_atomic(): 1, irqs_disabled(): 0, pid: 1743, \
-name: krfcommd [ 6829.285351] INFO: lockdep is turned off.
-[ 6829.285355] CPU: 6 PID: 1743 Comm: krfcommd Not tainted \
-4.18.0-0.rc7.git1.1.fc29.x86_64 #1 [ 6829.285358] Hardware name: Gigabyte Technology \
-Co., Ltd. Z87M-D3H/Z87M-D3H, BIOS F11 08/12/2014 [ 6829.285360] Call Trace:
-[ 6829.285368]  dump_stack+0x85/0xc0
-[ 6829.285373]  ___might_sleep.cold.72+0xac/0xbc
-[ 6829.285378]  lock_sock_nested+0x29/0xa0
-[ 6829.285394]  bt_accept_enqueue+0x3c/0xb0 [bluetooth]
-[ 6829.285401]  rfcomm_connect_ind+0x21b/0x260 [rfcomm]
-[ 6829.285406]  rfcomm_run+0x1611/0x1820 [rfcomm]
-[ 6829.285411]  ? do_wait_intr_irq+0xb0/0xb0
-[ 6829.285416]  ? rfcomm_check_accept+0x90/0x90 [rfcomm]
-[ 6829.285419]  kthread+0x120/0x140
-[ 6829.285422]  ? kthread_create_worker_on_cpu+0x70/0x70
-[ 6829.285426]  ret_from_fork+0x3a/0x50
-[ 6829.476282] input: 04:5D:4B:5F:34:57 as /devices/virtual/input/input35
-[ 7273.090391] show_signal_msg: 23 callbacks suppressed
-[ 7273.090393] CFileWriterThre[29422]: segfault at 7f078bfe7240 ip 00007f079137843c \
-sp 00007f078bb8dcf0 error 4 in steamclient.so[7f0790880000+14d2000] [ 7273.090404] \
-Code: 89 df ff d2 8b 45 00 83 f8 02 0f 84 9e 00 00 00 83 f8 03 0f 84 55 05 00 00 83 \
-f8 01 74 48 31 ed 4d 85 e4 74 11 48 85 db 74 0c <48> 8b 03 4c 89 e6 48 89 df ff 50 10 \
-48 8b b4 24 e8 00 00 00 64 48  [ 7755.656023] rfkill: input handler enabled
-[ 7773.439895] rfkill: input handler disabled
-[ 8075.232946] BUG: sleeping function called from invalid context at \
-net/core/sock.c:2833 [ 8075.232951] in_atomic(): 1, irqs_disabled(): 0, pid: 1743, \
-name: krfcommd [ 8075.232952] INFO: lockdep is turned off.
-[ 8075.232956] CPU: 5 PID: 1743 Comm: krfcommd Tainted: G        W         \
-4.18.0-0.rc7.git1.1.fc29.x86_64 #1 [ 8075.232957] Hardware name: Gigabyte Technology \
-Co., Ltd. Z87M-D3H/Z87M-D3H, BIOS F11 08/12/2014 [ 8075.232959] Call Trace:
-[ 8075.232965]  dump_stack+0x85/0xc0
-[ 8075.232969]  ___might_sleep.cold.72+0xac/0xbc
-[ 8075.232973]  lock_sock_nested+0x29/0xa0
-[ 8075.232987]  bt_accept_enqueue+0x3c/0xb0 [bluetooth]
-[ 8075.232992]  rfcomm_connect_ind+0x21b/0x260 [rfcomm]
-[ 8075.232997]  rfcomm_run+0x1611/0x1820 [rfcomm]
-[ 8075.233001]  ? do_wait_intr_irq+0xb0/0xb0
-[ 8075.233005]  ? rfcomm_check_accept+0x90/0x90 [rfcomm]
-[ 8075.233008]  kthread+0x120/0x140
-[ 8075.233011]  ? kthread_create_worker_on_cpu+0x70/0x70
-[ 8075.233014]  ret_from_fork+0x3a/0x50
-[ 8075.413187] input: 04:5D:4B:5F:34:57 as /devices/virtual/input/input36
-[13538.300352] steam[4385]: segfault at 0 ip 00000000eabc32d9 sp 00000000ffdca1b0 \
-error 4 in vgui2_s.so[eab26000+292000] [13538.300365] Code: 74 03 00 00 00 00 00 00 \
-c7 44 24 08 02 00 00 00 c7 44 24 04 10 00 00 00 c7 04 24 44 ac 00 00 e8 1d 40 fb ff \
-89 86 74 03 00 00 <8b> 00 8b 78 10 e8 3d 1a fb ff 8b 86 74 03 00 00 dd 5c 24 04 89 04 \
- [14324.004275] pool[443]: segfault at 0 ip 00007f53e2399556 sp 00007f53ceffcc40 \
-error 4 in libnssutil3.so[7f53e2395000+12000] [14324.004286] Code: d8 5b 5d 41 5c c3 \
-66 2e 0f 1f 84 00 00 00 00 00 0f 1f 40 00 f3 0f 1e fa 41 54 41 bc ff ff ff ff 55 53 \
-48 89 fb e8 7a bc ff ff <48> 8b 3b 48 89 c5 e8 9f c1 ff ff 48 8b 43 38 48 39 c5 75 23 \
-eb 2d  [14324.007764] rfkill: input handler enabled
-[14348.933385] rfkill: input handler disabled
-[15930.680376] DMA-API: debugging out of memory - disabling
-[16087.451698] vaapi-queue:src (10166) used greatest stack depth: 10616 bytes left
-[19689.192082] BUG: sleeping function called from invalid context at \
-net/core/sock.c:2833 [19689.192087] in_atomic(): 1, irqs_disabled(): 0, pid: 1743, \
-name: krfcommd [19689.192089] INFO: lockdep is turned off.
-[19689.192093] CPU: 6 PID: 1743 Comm: krfcommd Tainted: G        W         \
-4.18.0-0.rc7.git1.1.fc29.x86_64 #1 [19689.192096] Hardware name: Gigabyte Technology \
-Co., Ltd. Z87M-D3H/Z87M-D3H, BIOS F11 08/12/2014 [19689.192098] Call Trace:
-[19689.192106]  dump_stack+0x85/0xc0
-[19689.192112]  ___might_sleep.cold.72+0xac/0xbc
-[19689.192117]  lock_sock_nested+0x29/0xa0
-[19689.192142]  bt_accept_enqueue+0x3c/0xb0 [bluetooth]
-[19689.192150]  rfcomm_connect_ind+0x21b/0x260 [rfcomm]
-[19689.192157]  rfcomm_run+0x1611/0x1820 [rfcomm]
-[19689.192163]  ? do_wait_intr_irq+0xb0/0xb0
-[19689.192179]  ? rfcomm_check_accept+0x90/0x90 [rfcomm]
-[19689.192183]  kthread+0x120/0x140
-[19689.192186]  ? kthread_create_worker_on_cpu+0x70/0x70
-[19689.192190]  ret_from_fork+0x3a/0x50
-[19689.377451] input: 04:5D:4B:5F:34:57 as /devices/virtual/input/input37
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+---
+ include/linux/shrinker.h |    2 ++
+ mm/memcontrol.c          |    2 +-
+ mm/vmscan.c              |   46 +++++++++++++++-------------------------------
+ 3 files changed, 18 insertions(+), 32 deletions(-)
 
-
-Best Regards,
-Petr
+diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+index 9443cafd1969..94b44662f430 100644
+--- a/include/linux/shrinker.h
++++ b/include/linux/shrinker.h
+@@ -82,6 +82,8 @@ struct shrinker {
+ #define SHRINKER_NUMA_AWARE	(1 << 0)
+ #define SHRINKER_MEMCG_AWARE	(1 << 1)
+ 
++extern struct srcu_struct shrinker_srcu;
++
+ extern int prealloc_shrinker(struct shrinker *shrinker);
+ extern void register_shrinker_prepared(struct shrinker *shrinker);
+ extern int register_shrinker(struct shrinker *shrinker);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 4e3c1315b1de..a30bc2cc6380 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -347,7 +347,7 @@ static int memcg_expand_one_shrinker_map(struct mem_cgroup *memcg,
+ 		memset((void *)new->map + old_size, 0, size - old_size);
+ 
+ 		rcu_assign_pointer(memcg->nodeinfo[nid]->shrinker_map, new);
+-		call_rcu(&old->rcu, memcg_free_shrinker_map_rcu);
++		call_srcu(&shrinker_srcu, &old->rcu, memcg_free_shrinker_map_rcu);
+ 	}
+ 
+ 	return 0;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index da135e1acd94..acb087f3ac35 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -168,6 +168,7 @@ unsigned long vm_total_pages;
+ 
+ static LIST_HEAD(shrinker_list);
+ static DECLARE_RWSEM(shrinker_rwsem);
++DEFINE_SRCU(shrinker_srcu);
+ 
+ #ifdef CONFIG_MEMCG_KMEM
+ 
+@@ -192,7 +193,6 @@ static int prealloc_memcg_shrinker(struct shrinker *shrinker)
+ 	int id, ret = -ENOMEM;
+ 
+ 	down_write(&shrinker_rwsem);
+-	/* This may call shrinker, so it must use down_read_trylock() */
+ 	id = idr_alloc(&shrinker_idr, SHRINKER_REGISTERING, 0, 0, GFP_KERNEL);
+ 	if (id < 0)
+ 		goto unlock;
+@@ -406,7 +406,7 @@ void free_prealloced_shrinker(struct shrinker *shrinker)
+ void register_shrinker_prepared(struct shrinker *shrinker)
+ {
+ 	down_write(&shrinker_rwsem);
+-	list_add_tail(&shrinker->list, &shrinker_list);
++	list_add_tail_rcu(&shrinker->list, &shrinker_list);
+ 	idr_replace(&shrinker_idr, shrinker, shrinker->id);
+ 	up_write(&shrinker_rwsem);
+ }
+@@ -432,8 +432,11 @@ void unregister_shrinker(struct shrinker *shrinker)
+ 	if (shrinker->flags & SHRINKER_MEMCG_AWARE)
+ 		unregister_memcg_shrinker(shrinker);
+ 	down_write(&shrinker_rwsem);
+-	list_del(&shrinker->list);
++	list_del_rcu(&shrinker->list);
+ 	up_write(&shrinker_rwsem);
++
++	synchronize_srcu(&shrinker_srcu);
++
+ 	kfree(shrinker->nr_deferred);
+ 	shrinker->nr_deferred = NULL;
+ }
+@@ -567,16 +570,14 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+ {
+ 	struct memcg_shrinker_map *map;
+ 	unsigned long freed = 0;
+-	int ret, i;
++	int ret, i, srcu_id;
+ 
+ 	if (!memcg_kmem_enabled() || !mem_cgroup_online(memcg))
+ 		return 0;
+ 
+-	if (!down_read_trylock(&shrinker_rwsem))
+-		return 0;
+-
+-	map = rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_map,
+-					true);
++	srcu_id = srcu_read_lock(&shrinker_srcu);
++	map = srcu_dereference(memcg->nodeinfo[nid]->shrinker_map,
++			       &shrinker_srcu);
+ 	if (unlikely(!map))
+ 		goto unlock;
+ 
+@@ -621,14 +622,9 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+ 				memcg_set_shrinker_bit(memcg, nid, i);
+ 		}
+ 		freed += ret;
+-
+-		if (rwsem_is_contended(&shrinker_rwsem)) {
+-			freed = freed ? : 1;
+-			break;
+-		}
+ 	}
+ unlock:
+-	up_read(&shrinker_rwsem);
++	srcu_read_unlock(&shrinker_srcu, srcu_id);
+ 	return freed;
+ }
+ #else /* CONFIG_MEMCG_KMEM */
+@@ -665,15 +661,13 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ {
+ 	struct shrinker *shrinker;
+ 	unsigned long freed = 0;
+-	int ret;
++	int srcu_id, ret;
+ 
+ 	if (!mem_cgroup_is_root(memcg))
+ 		return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
+ 
+-	if (!down_read_trylock(&shrinker_rwsem))
+-		goto out;
+-
+-	list_for_each_entry(shrinker, &shrinker_list, list) {
++	srcu_id = srcu_read_lock(&shrinker_srcu);
++	list_for_each_entry_rcu(shrinker, &shrinker_list, list) {
+ 		struct shrink_control sc = {
+ 			.gfp_mask = gfp_mask,
+ 			.nid = nid,
+@@ -684,19 +678,9 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 		if (ret == SHRINK_EMPTY)
+ 			ret = 0;
+ 		freed += ret;
+-		/*
+-		 * Bail out if someone want to register a new shrinker to
+-		 * prevent the regsitration from being stalled for long periods
+-		 * by parallel ongoing shrinking.
+-		 */
+-		if (rwsem_is_contended(&shrinker_rwsem)) {
+-			freed = freed ? : 1;
+-			break;
+-		}
+ 	}
++	srcu_read_unlock(&shrinker_srcu, srcu_id);
+ 
+-	up_read(&shrinker_rwsem);
+-out:
+ 	cond_resched();
+ 	return freed;
+ }
