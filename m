@@ -1,111 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E39696B0006
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 13:20:28 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id g5-v6so1356283pgq.5
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 10:20:28 -0700 (PDT)
-Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id m126-v6si5606680pfb.126.2018.08.08.10.20.25
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 135BC6B0008
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 13:22:16 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id a26-v6so1347436pgw.7
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 10:22:16 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id p81-v6si4932982pfi.345.2018.08.08.10.22.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Aug 2018 10:20:26 -0700 (PDT)
-Subject: Re: [RFC v6 PATCH 2/2] mm: mmap: zap pages with read mmap_sem in
- munmap
-References: <1532628614-111702-1-git-send-email-yang.shi@linux.alibaba.com>
- <1532628614-111702-3-git-send-email-yang.shi@linux.alibaba.com>
- <20180803090759.GI27245@dhcp22.suse.cz>
- <aff7e86d-2e48-ff58-5d5d-9c67deb68674@linux.alibaba.com>
- <20180806094005.GG19540@dhcp22.suse.cz>
- <76c0fc2b-fca7-9f22-214a-920ee2537898@linux.alibaba.com>
- <20180806204119.GL10003@dhcp22.suse.cz>
- <28de768b-c740-37b3-ea5a-8e2cb07d2bdc@linux.alibaba.com>
- <20180806205232.GN10003@dhcp22.suse.cz>
- <0cdff13a-2713-c5be-a33e-28c07e093bcc@linux.alibaba.com>
- <20180807054524.GQ10003@dhcp22.suse.cz>
- <04a22c49-fe30-63ac-c1b7-46a405c810e2@linux.alibaba.com>
- <3f960117-1485-9a61-8468-cb1590494e3c@suse.cz>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <907e441d-43e2-9a57-a3fd-deb533046b6c@linux.alibaba.com>
-Date: Wed, 8 Aug 2018 10:19:54 -0700
+        Wed, 08 Aug 2018 10:22:14 -0700 (PDT)
+Date: Wed, 8 Aug 2018 12:22:11 -0500
+From: Bjorn Helgaas <helgaas@kernel.org>
+Subject: Re: [PATCH] arm64: PCI: Remove node-local allocations when
+ initialising host controller
+Message-ID: <20180808172211.GD49411@bhelgaas-glaptop.roam.corp.google.com>
+References: <20180801173132.19739-1-punit.agrawal@arm.com>
+ <38ad03ba-2658-98c8-1888-0aa3bfb59bd4@arm.com>
+ <20180802143319.GA13512@red-moon>
+ <CAErSpo5i7AAXq4vmfsH2WjheXpzzM1iaehdeM24eQZjzYY39Rg@mail.gmail.com>
+ <87eff85364.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-In-Reply-To: <3f960117-1485-9a61-8468-cb1590494e3c@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87eff85364.fsf@e105922-lin.cambridge.arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
-Cc: willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Punit Agrawal <punit.agrawal@arm.com>
+Cc: Bjorn Helgaas <bhelgaas@google.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Jeremy Linton <jeremy.linton@arm.com>, linux-arm <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Jiang Liu <jiang.liu@linux.intel.com>, linux-pci@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-acpi@vger.kernel.org, linux-mm@kvack.org
 
+On Wed, Aug 08, 2018 at 03:44:03PM +0100, Punit Agrawal wrote:
+> Bjorn Helgaas <bhelgaas@google.com> writes:
+> > On Thu, Aug 2, 2018 at 9:33 AM Lorenzo Pieralisi
+> > <lorenzo.pieralisi@arm.com> wrote:
+> >> On Wed, Aug 01, 2018 at 02:38:51PM -0500, Jeremy Linton wrote:
+> >>
+> >> Jiang Liu does not work on the kernel anymore so we won't know
+> >> anytime soon the reasoning behind commit 965cd0e4a5e5
+> >>
+> >> > On 08/01/2018 12:31 PM, Punit Agrawal wrote:
+> >> > >Memory for host controller data structures is allocated local to the
+> >> > >node to which the controller is associated with. This has been the
+> >> > >behaviour since support for ACPI was added in
+> >> > >commit 0cb0786bac15 ("ARM64: PCI: Support ACPI-based PCI host controller").
+> >> >
+> >> > Which was apparently influenced by:
+> >> >
+> >> > 965cd0e4a5e5 x86, PCI, ACPI: Use kmalloc_node() to optimize for performance
+> >> >
+> >> > Was there an actual use-case behind that change?
+> >> >
+> >> > I think this fixes the immediate boot problem, but if there is any
+> >> > perf advantage it seems wise to keep it... Particularly since x86
+> >> > seems to be doing the node sanitation in pci_acpi_root_get_node().
+> >>
+> >> I am struggling to see the perf advantage of allocating a struct
+> >> that the PCI controller will never read/write from a NUMA node that
+> >> is local to the PCI controller, happy to be corrected if there is
+> >> a sound rationale behind that.
+> >
+> > If there is no reason to use kzalloc_node() here, we shouldn't use it.
+> >
+> > But we should use it (or not use it) consistently across arches.  I do
+> > not believe there is an arch-specific reason to be different.
+> > Currently, pci_acpi_scan_root() uses kzalloc_node() on x86 and arm64,
+> > but kzalloc() on ia64.  They all ought to be the same.
+> 
+> From my understanding, arm64 use of kzalloc_node() was derived from the
+> x86 version. Maybe somebody familiar with behaviour on x86 can provide
+> input here.
 
+If you want to remove use of kzalloc_node(), I'm fine with that as
+long as you do it for x86 at the same time (maybe separate patches,
+but at least in the same series).
 
-On 8/8/18 2:22 AM, Vlastimil Babka wrote:
-> On 08/08/2018 03:51 AM, Yang Shi wrote:
->> On 8/6/18 10:45 PM, Michal Hocko wrote:
->>> On Mon 06-08-18 15:19:06, Yang Shi wrote:
->>>> On 8/6/18 1:52 PM, Michal Hocko wrote:
->>>>> On Mon 06-08-18 13:48:35, Yang Shi wrote:
->>>>>> On 8/6/18 1:41 PM, Michal Hocko wrote:
->>>>>>> On Mon 06-08-18 09:46:30, Yang Shi wrote:
->>>>>>>> On 8/6/18 2:40 AM, Michal Hocko wrote:
->>>>>>>>> On Fri 03-08-18 14:01:58, Yang Shi wrote:
->>>>>>>>>> On 8/3/18 2:07 AM, Michal Hocko wrote:
->>>>>>>>>>> On Fri 27-07-18 02:10:14, Yang Shi wrote:
->>>>>>> [...]
->>>>>>>>>>>> If the vma has VM_LOCKED | VM_HUGETLB | VM_PFNMAP or uprobe, they are
->>>>>>>>>>>> considered as special mappings. They will be dealt with before zapping
->>>>>>>>>>>> pages with write mmap_sem held. Basically, just update vm_flags.
->>>>>>>>>>> Well, I think it would be safer to simply fallback to the current
->>>>>>>>>>> implementation with these mappings and deal with them on top. This would
->>>>>>>>>>> make potential issues easier to bisect and partial reverts as well.
->>>>>>>>>> Do you mean just call do_munmap()? It sounds ok. Although we may waste some
->>>>>>>>>> cycles to repeat what has done, it sounds not too bad since those special
->>>>>>>>>> mappings should be not very common.
->>>>>>>>> VM_HUGETLB is quite spread. Especially for DB workloads.
->>>>>>>> Wait a minute. In this way, it sounds we go back to my old implementation
->>>>>>>> with special handling for those mappings with write mmap_sem held, right?
->>>>>>> Yes, I would really start simple and add further enhacements on top.
->>>>>> If updating vm_flags with read lock is safe in this case, we don't have to
->>>>>> do this. The only reason for this special handling is about vm_flags update.
->>>>> Yes, maybe you are right that this is safe. I would still argue to have
->>>>> it in a separate patch for easier review, bisectability etc...
->>>> Sorry, I'm a little bit confused. Do you mean I should have the patch
->>>> *without* handling the special case (just like to assume it is safe to
->>>> update vm_flags with read lock), then have the other patch on top of it,
->>>> which simply calls do_munmap() to deal with the special cases?
->>> Just skip those special cases in the initial implementation and handle
->>> each special case in its own patch on top.
->> Thanks. VM_LOCKED area will not be handled specially since it is easy to
->> handle it, just follow what do_munmap does. The special cases will just
->> handle VM_HUGETLB, VM_PFNMAP and uprobe mappings.
-> So I think you could maybe structure code like this: instead of
-> introducing do_munmap_zap_rlock() and all those "bool skip_vm_flags"
-> additions, add a boolean parameter in do_munmap() to use the new
-> behavior, with only the first user SYSCALL_DEFINE2(munmap) setting it to
-> true. If true, do_munmap() will do the
-> - down_write_killable() itself instead of assuming it's already locked
-> - munmap_lookup_vma()
-> - check if any of the vma's in the range is "special", if yes, change
-> the boolean param to "false", and continue like previously, e.g. no mmap
-> sem downgrade etc.
+I don't see any evidence in 965cd0e4a5e5 ("x86, PCI, ACPI: Use
+kmalloc_node() to optimize for performance") that it actually improves
+performance, so I'd be inclined to just use kzalloc().
 
-Thanks for the suggestion. Actually, I did the similar thing in v1 
-patches, which added a bool parameter in vm_munmap() to tell if 
-releasing mmap_sem is acceptable for some code paths. But, it got pushed 
-back by tglx since vm_munmap() is called by x86 specific code too (and 
-some other architectures). He suggested to define a new function to do 
-the optimization. So, I followed this approach in the later versions.
-
-Yang
-
->
-> That would be a basis for further optimizing the special vma cases in
-> subsequent patches (maybe it's really ok to touch the vma flags with
-> mmap sem for read as vma's are detached), and to eventually convert more
-> do_munmap() callers to the new mode.
->
-> HTH,
-> Vlastimil
->
->
->
+Bjorn
