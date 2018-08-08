@@ -1,84 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EEEE6B000D
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 06:40:47 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id v9-v6so1187036pfn.6
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 03:40:47 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 34-v6sor964975plz.138.2018.08.08.03.40.45
+	by kanga.kvack.org (Postfix) with ESMTP id 1A2076B0003
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 06:59:13 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id u8-v6so1186652pfn.18
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 03:59:13 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c125-v6si3471151pga.534.2018.08.08.03.59.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 08 Aug 2018 03:40:45 -0700 (PDT)
-Date: Wed, 8 Aug 2018 19:40:41 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [4.18 rc7] BUG: sleeping function called from invalid context at
- mm/slab.h:421
-Message-ID: <20180808104041.GA873@jagdpanzerIV>
-References: <CABXGCsNAjrwat-Fv6GQXq8uSC6uj=ke87RJt42syrfFi0vQUmg@mail.gmail.com>
- <bd7f3ea4-d9a8-e437-9936-ee4513b47ac1@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Aug 2018 03:59:12 -0700 (PDT)
+Date: Wed, 8 Aug 2018 12:59:09 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/3] introduce memory.oom.group
+Message-ID: <20180808105909.GJ27972@dhcp22.suse.cz>
+References: <20180730180100.25079-1-guro@fb.com>
+ <alpine.DEB.2.21.1807301847000.198273@chino.kir.corp.google.com>
+ <20180731235135.GA23436@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1808011437350.38896@chino.kir.corp.google.com>
+ <20180801224706.GA32269@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1808061405100.43071@chino.kir.corp.google.com>
+ <20180807003020.GA21483@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.21.1808071519030.237317@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <bd7f3ea4-d9a8-e437-9936-ee4513b47ac1@suse.cz>
+In-Reply-To: <alpine.DEB.2.21.1808071519030.237317@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Jiri Slaby <jslaby@suse.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Vetter <daniel.vetter@ffwll.ch>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Cc: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>, linux-mm@kvack.org, Petr Mladek <pmladek@suse.cz>, Steven Rostedt <rostedt@goodmis.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Peter Zijlstra <peterz@infradead.org>, linux-fbdev@vger.kernel.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-Hello,
-
-On (08/08/18 11:01), Vlastimil Babka wrote:
-> On 08/08/2018 05:50 AM, Mikhail Gavrilov wrote:
-> > Hi guys.
-> > I am catched new bug.
-> > Can anyone look?
+On Tue 07-08-18 15:34:58, David Rientjes wrote:
+> On Mon, 6 Aug 2018, Roman Gushchin wrote:
 > 
-> fbcon_startup() calls kzalloc(sizeof(struct fbcon_ops), GFP_KERNEL) so
-> it tells slab it can sleep. The problem must be higher in the stack,
-> CCing printk people.
+> > > In a cgroup-aware oom killer world, yes, we need the ability to specify 
+> > > that the usage of the entire subtree should be compared as a single 
+> > > entity with other cgroups.  That is necessary for user subtrees but may 
+> > > not be necessary for top-level cgroups depending on how you structure your 
+> > > unified cgroup hierarchy.  So it needs to be configurable, as you suggest, 
+> > > and you are correct it can be different than oom.group.
+> > > 
+> > > That's not the only thing we need though, as I'm sure you were expecting 
+> > > me to say :)
+> > > 
+> > > We need the ability to preserve existing behavior, i.e. process based and 
+> > > not cgroup aware, for subtrees so that our users who have clear 
+> > > expectations and tune their oom_score_adj accordingly based on how the oom 
+> > > killer has always chosen processes for oom kill do not suddenly regress.
+> > 
+> > Isn't the combination of oom.group=0 and oom.evaluate_together=1 describing
+> > this case? This basically means that if memcg is selected as target,
+> > the process inside will be selected using traditional per-process approach.
+> > 
+> 
+> No, that would overload the policy and mechanism.  We want the ability to 
+> consider user-controlled subtrees as a single entity for comparison with 
+> other user subtrees to select which subtree to target.  This does not 
+> imply that users want their entire subtree oom killed.
 
-Cc-ing fbcon/vt people. I'm not sure I know how exactly console
-takeover is expected to work.
+Yeah, that's why oom.group == 0, no?
 
-printk must be atomic, we can't sleep in console drivers [e.g. printk
-from IRQs, etc.]
+Anyway, can we separate this discussion from the current series please?
+We are getting more and more tangent.
 
-> > [226995.988988] BUG: sleeping function called from invalid context at
-> > mm/slab.h:421
-> > [226995.988988] in_atomic(): 1, irqs_disabled(): 1, pid: 22658, name: gsd-rfkill
-> > [226995.988989] INFO: lockdep is turned off.
-> > [226995.988989] irq event stamp: 0
-> > [226995.988990] hardirqs last  enabled at (0): [<0000000000000000>]
-> >        (null)
-> > [226995.988991] hardirqs last disabled at (0): [<ffffffffa00b6b4a>]
-> > copy_process.part.32+0x72a/0x1e60
-> > [226995.988991] softirqs last  enabled at (0): [<ffffffffa00b6b4a>]
-> > copy_process.part.32+0x72a/0x1e60
-> > [226995.988992] softirqs last disabled at (0): [<0000000000000000>]
-> >        (null)
-> > [226995.988993] CPU: 6 PID: 22658 Comm: gsd-rfkill Tainted: G        W
-> >         4.18.0-0.rc7.git1.1.fc29.x86_64 #1
-> > [226995.988993] Hardware name: Gigabyte Technology Co., Ltd.
-> > Z87M-D3H/Z87M-D3H, BIOS F11 08/12/2014
-> > [226995.988994] Call Trace:
-> > [226995.988994]  dump_stack+0x85/0xc0
-> > [226995.988995]  ___might_sleep.cold.72+0xac/0xbc
-> > [226995.988995]  kmem_cache_alloc_trace+0x202/0x2f0
-> > [226995.988996]  ? fbcon_startup+0xae/0x300
-> > [226995.988996]  fbcon_startup+0xae/0x300
-> > [226995.988997]  do_take_over_console+0x6d/0x180
-> > [226995.988997]  do_fbcon_takeover+0x58/0xb0
-> > [226995.988997]  fbcon_output_notifier.cold.35+0x5/0x23
-> > [226995.988998]  notifier_call_chain+0x39/0x90
-> > [226995.988999]  vt_console_print+0x363/0x420
-> > [226995.988999]  console_unlock+0x422/0x610
-> > [226995.988999]  vprintk_emit+0x268/0x540
-> > [226995.989000]  printk+0x58/0x6f
-> > [226995.989000]  rfkill_fop_release.cold.16+0xc/0x11 [rfkill]
-> > [226995.989001]  __fput+0xc7/0x250
-> > [226995.989001]  task_work_run+0xa1/0xd0
-> > [226995.989002]  exit_to_usermode_loop+0xd8/0xe0
-> > [226995.989002]  do_syscall_64+0x1df/0x1f0
-> > [226995.989003]  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-
-	-ss
+Or do you still see the current state to be not mergeable?
+-- 
+Michal Hocko
+SUSE Labs
