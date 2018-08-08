@@ -1,97 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C3EB56B000D
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 05:22:37 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id g5-v6so703455edp.1
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 02:22:37 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r11-v6si2764163edp.9.2018.08.08.02.22.34
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 333DB6B0003
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 05:45:05 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id w2-v6so1351295wrt.13
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 02:45:05 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u8-v6sor1516954wrq.10.2018.08.08.02.45.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Aug 2018 02:22:34 -0700 (PDT)
-Subject: Re: [RFC v6 PATCH 2/2] mm: mmap: zap pages with read mmap_sem in
- munmap
-References: <1532628614-111702-1-git-send-email-yang.shi@linux.alibaba.com>
- <1532628614-111702-3-git-send-email-yang.shi@linux.alibaba.com>
- <20180803090759.GI27245@dhcp22.suse.cz>
- <aff7e86d-2e48-ff58-5d5d-9c67deb68674@linux.alibaba.com>
- <20180806094005.GG19540@dhcp22.suse.cz>
- <76c0fc2b-fca7-9f22-214a-920ee2537898@linux.alibaba.com>
- <20180806204119.GL10003@dhcp22.suse.cz>
- <28de768b-c740-37b3-ea5a-8e2cb07d2bdc@linux.alibaba.com>
- <20180806205232.GN10003@dhcp22.suse.cz>
- <0cdff13a-2713-c5be-a33e-28c07e093bcc@linux.alibaba.com>
- <20180807054524.GQ10003@dhcp22.suse.cz>
- <04a22c49-fe30-63ac-c1b7-46a405c810e2@linux.alibaba.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <3f960117-1485-9a61-8468-cb1590494e3c@suse.cz>
-Date: Wed, 8 Aug 2018 11:22:32 +0200
+        (Google Transport Security);
+        Wed, 08 Aug 2018 02:45:03 -0700 (PDT)
+Date: Wed, 8 Aug 2018 11:45:02 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [RFC PATCH 2/3] mm/memory_hotplug: Create __shrink_pages and
+ move it to offline_pages
+Message-ID: <20180808094502.GA10068@techadventures.net>
+References: <20180807133757.18352-1-osalvador@techadventures.net>
+ <20180807133757.18352-3-osalvador@techadventures.net>
+ <20180807135221.GA3301@redhat.com>
+ <20180807145900.GH10003@dhcp22.suse.cz>
+ <20180807151810.GB3301@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <04a22c49-fe30-63ac-c1b7-46a405c810e2@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180807151810.GB3301@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>, Michal Hocko <mhocko@kernel.org>
-Cc: willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, dan.j.williams@intel.com, david@redhat.com, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
-On 08/08/2018 03:51 AM, Yang Shi wrote:
-> On 8/6/18 10:45 PM, Michal Hocko wrote:
->> On Mon 06-08-18 15:19:06, Yang Shi wrote:
->>>
->>> On 8/6/18 1:52 PM, Michal Hocko wrote:
->>>> On Mon 06-08-18 13:48:35, Yang Shi wrote:
->>>>> On 8/6/18 1:41 PM, Michal Hocko wrote:
->>>>>> On Mon 06-08-18 09:46:30, Yang Shi wrote:
->>>>>>> On 8/6/18 2:40 AM, Michal Hocko wrote:
->>>>>>>> On Fri 03-08-18 14:01:58, Yang Shi wrote:
->>>>>>>>> On 8/3/18 2:07 AM, Michal Hocko wrote:
->>>>>>>>>> On Fri 27-07-18 02:10:14, Yang Shi wrote:
->>>>>> [...]
->>>>>>>>>>> If the vma has VM_LOCKED | VM_HUGETLB | VM_PFNMAP or uprobe, they are
->>>>>>>>>>> considered as special mappings. They will be dealt with before zapping
->>>>>>>>>>> pages with write mmap_sem held. Basically, just update vm_flags.
->>>>>>>>>> Well, I think it would be safer to simply fallback to the current
->>>>>>>>>> implementation with these mappings and deal with them on top. This would
->>>>>>>>>> make potential issues easier to bisect and partial reverts as well.
->>>>>>>>> Do you mean just call do_munmap()? It sounds ok. Although we may waste some
->>>>>>>>> cycles to repeat what has done, it sounds not too bad since those special
->>>>>>>>> mappings should be not very common.
->>>>>>>> VM_HUGETLB is quite spread. Especially for DB workloads.
->>>>>>> Wait a minute. In this way, it sounds we go back to my old implementation
->>>>>>> with special handling for those mappings with write mmap_sem held, right?
->>>>>> Yes, I would really start simple and add further enhacements on top.
->>>>> If updating vm_flags with read lock is safe in this case, we don't have to
->>>>> do this. The only reason for this special handling is about vm_flags update.
->>>> Yes, maybe you are right that this is safe. I would still argue to have
->>>> it in a separate patch for easier review, bisectability etc...
->>> Sorry, I'm a little bit confused. Do you mean I should have the patch
->>> *without* handling the special case (just like to assume it is safe to
->>> update vm_flags with read lock), then have the other patch on top of it,
->>> which simply calls do_munmap() to deal with the special cases?
->> Just skip those special cases in the initial implementation and handle
->> each special case in its own patch on top.
+On Tue, Aug 07, 2018 at 11:18:10AM -0400, Jerome Glisse wrote:
+> Correct, you should not call release_mem_region_adjustable() the device
+> region is not part of regular iomem resource as it might not necessarily
+> be enumerated through known ways to the kernel (ie only the device driver
+> can discover the region and core kernel do not know about it).
 > 
-> Thanks. VM_LOCKED area will not be handled specially since it is easy to 
-> handle it, just follow what do_munmap does. The special cases will just 
-> handle VM_HUGETLB, VM_PFNMAP and uprobe mappings.
+> One of the issue to adding this region to iomem resource is that they
+> really need to be ignored by core kernel because you can not assume that
+> CPU can actually access them. Moreover, if CPU can access them it is
+> likely that CPU can not do atomic operation on them (ie what happens on
+> a CPU atomic instruction is undefined). So they are _special_ and only
+> make sense to be use in conjunction with a device driver.
+> 
+> 
+> Also in the case they do exist in iomem resource it is as PCIE BAR so
+> as IORESOURCE_IO (iirc) and thus release_mem_region_adjustable() would
+> return -EINVAL. Thought nothing bad happens because of that, only a
+> warning message that might confuse the user.
 
-So I think you could maybe structure code like this: instead of
-introducing do_munmap_zap_rlock() and all those "bool skip_vm_flags"
-additions, add a boolean parameter in do_munmap() to use the new
-behavior, with only the first user SYSCALL_DEFINE2(munmap) setting it to
-true. If true, do_munmap() will do the
-- down_write_killable() itself instead of assuming it's already locked
-- munmap_lookup_vma()
-- check if any of the vma's in the range is "special", if yes, change
-the boolean param to "false", and continue like previously, e.g. no mmap
-sem downgrade etc.
+Just to see if I understand this correctly.
+I guess that these regions are being registered via devm_request_mem_region() calls.
+Among other callers, devm_request_mem_region() is being called from:
 
-That would be a basis for further optimizing the special vma cases in
-subsequent patches (maybe it's really ok to touch the vma flags with
-mmap sem for read as vma's are detached), and to eventually convert more
-do_munmap() callers to the new mode.
+dax_pmem_probe
+hmm_devmem_add
 
-HTH,
-Vlastimil
+AFAICS from the code, those regions will inherit the flags from the parent, which is iomem_resource:
+
+#define devm_request_mem_region(dev,start,n,name) \
+	__devm_request_region(dev, &iomem_resource, (start), (n), (name))
+
+struct resource iomem_resource = {
+	.name	= "PCI mem",
+	.start	= 0,
+	.end	= -1,
+	.flags	= IORESOURCE_MEM,
+};
+
+
+struct resource * __request_region()
+{
+	...
+	...
+	res->flags = resource_type(parent) | resource_ext_type(parent);
+	res->flags |= IORESOURCE_BUSY | flags;
+	res->desc = parent->desc;
+	...
+	...
+}
+
+So the regions will not be tagged as IORESOURCE_IO but IORESOURCE_MEM.
+>From the first glance release_mem_region_adjustable() looks like it does
+more things than __release_region(), and I did not check it deeply
+but maybe we can make it work.
+
+Thanks
+-- 
+Oscar Salvador
+SUSE L3
