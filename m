@@ -1,102 +1,83 @@
 Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Li RongQing <lirongqing@baidu.com>
-Subject: [PATCH 2/2] fs/writeback: do memory cgroup related writeback firstly
-Date: Wed,  1 Aug 2018 18:48:36 +0800
-Message-Id: <1533120516-18279-2-git-send-email-lirongqing@baidu.com>
-In-Reply-To: <1533120516-18279-1-git-send-email-lirongqing@baidu.com>
-References: <1533120516-18279-1-git-send-email-lirongqing@baidu.com>
+Date: Wed, 8 Aug 2018 16:09:42 -0700
+From: Josh Triplett <josh@joshtriplett.org>
+Subject: Re: [PATCH RFC 01/10] rcu: Make CONFIG_SRCU unconditionally enabled
+Message-ID: <20180808230941.GA14356@localhost>
+References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
+ <153365625652.19074.8434946780002619802.stgit@localhost.localdomain>
+ <20180808072040.GC27972@dhcp22.suse.cz>
+ <d17e65bb-c114-55de-fb4e-e2f538779b92@virtuozzo.com>
+ <20180808161330.GA22863@localhost>
+ <f32ab99a-de28-b140-a7d0-027073055728@virtuozzo.com>
+ <b4b58edd-b317-6319-1306-7345aa0062b8@virtuozzo.com>
+ <20180808180152.GA2480@localhost>
+ <CALvZod7C_jcNc=J0wg_wnCa2fkCjHhjoV1G8oKAmivRbvgQWxg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALvZod7C_jcNc=J0wg_wnCa2fkCjHhjoV1G8oKAmivRbvgQWxg@mail.gmail.com>
 Sender: linux-kernel-owner@vger.kernel.org
-To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, gregkh@linuxfoundation.org, rafael@kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, "Darrick J. Wong" <darrick.wong@oracle.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Steven Rostedt <rostedt@goodmis.org>, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, Hugh Dickins <hughd@google.com>, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, Stephen Rothwell <sfr@canb.auug.org.au>, Vladimir Davydov <vdavydov.dev@gmail.com>, Chris Wilson <chris@chris-wilson.co.uk>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Matthew Wilcox <willy@infradead.org>, Huang Ying <ying.huang@intel.com>, jbacik@fb.com, Ingo Molnar <mingo@kernel.org>, mhiramat@kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-When a machine has hundreds of memory cgroups, and some cgroups
-generate more or less dirty pages, but a cgroup of them has lots
-of memory pressure and always tries to reclaim dirty page, then it
-will trigger all cgroups to writeback, which is less efficient:
+On Wed, Aug 08, 2018 at 04:02:29PM -0700, Shakeel Butt wrote:
+> On Wed, Aug 8, 2018 at 11:02 AM Josh Triplett <josh@joshtriplett.org> wrote:
+> >
+> > On Wed, Aug 08, 2018 at 07:30:13PM +0300, Kirill Tkhai wrote:
+> > > On 08.08.2018 19:23, Kirill Tkhai wrote:
+> > > > On 08.08.2018 19:13, Josh Triplett wrote:
+> > > >> On Wed, Aug 08, 2018 at 01:17:44PM +0300, Kirill Tkhai wrote:
+> > > >>> On 08.08.2018 10:20, Michal Hocko wrote:
+> > > >>>> On Tue 07-08-18 18:37:36, Kirill Tkhai wrote:
+> > > >>>>> This patch kills all CONFIG_SRCU defines and
+> > > >>>>> the code under !CONFIG_SRCU.
+> > > >>>>
+> > > >>>> The last time somebody tried to do this there was a pushback due to
+> > > >>>> kernel tinyfication. So this should really give some numbers about the
+> > > >>>> code size increase. Also why can't we make this depend on MMU. Is
+> > > >>>> anybody else than the reclaim asking for unconditional SRCU usage?
+> > > >>>
+> > > >>> I don't know one. The size numbers (sparc64) are:
+> > > >>>
+> > > >>> $ size image.srcu.disabled
+> > > >>>    text      data     bss     dec     hex filename
+> > > >>> 5117546   8030506 1968104 15116156         e6a77c image.srcu.disabled
+> > > >>> $ size image.srcu.enabled
+> > > >>>    text      data     bss     dec     hex filename
+> > > >>> 5126175   8064346 1968104 15158625         e74d61 image.srcu.enabled
+> > > >>> The difference is: 15158625-15116156 = 42469 ~41Kb
+> > > >>
+> > > >> 41k is a *substantial* size increase. However, can you compare
+> > > >> tinyconfig with and without this patch? That may have a smaller change.
+> > > >
+> > > > $ size image.srcu.disabled
+> > > >    text        data     bss     dec     hex filename
+> > > > 1105900      195456   63232 1364588  14d26c image.srcu.disabled
+> > > >
+> > > > $ size image.srcu.enabled
+> > > >    text        data     bss     dec     hex filename
+> > > > 1106960      195528   63232 1365720  14d6d8 image.srcu.enabled
+> > > >
+> > > > 1365720-1364588 = 1132 ~ 1Kb
+> > >
+> > > 1Kb is not huge size. It looks as not a big price for writing generic code
+> > > for only case (now some places have CONFIG_SRCU and !CONFIG_SRCU variants,
+> > > e.g. drivers/base/core.c). What do you think?
+> >
+> > That's a little more reasonable than 41k, likely because of
+> > CONFIG_TINY_SRCU. That's still not ideal, though. And as far as I can
+> > tell, the *only* two pieces of core code that use SRCU are
+> > drivers/base/core.c and kernel/notifier.c, and the latter is exclusively
+> > code to use notifiers with SRCU, not notifiers wanting to use SRCU
+> > themselves. So, as far as I can tell, this would really just save a
+> > couple of small #ifdef sections in drivers/base/core.c, and I think
+> > those #ifdef sections could be simplified even further. That doesn't
+> > seem worth it at all.
+> 
+> Hi Josh, the motivation behind enabling SRCU is not to simplify the
+> code in drivers/base/core.c but rather not to introduce similar ifdefs
+> in mm/vmscan.c for shrinker traversals.
 
-1.if the used memory in a memory cgroup reaches its limit,
-it is useless to writeback other cgroups.
-2.other cgroups can wait more time to merge write request
-
-so replace the full flush with flushing writeback of memory cgroup
-whose tasks tries to reclaim memory and trigger writeback, if
-nothing is writeback, then fallback a full flush
-
-After this patch, the writing performance enhance 5% in below setup:
-  $mount -t cgroup none -o memory /cgroups/memory/
-  $mkdir /cgroups/memory/x1
-  $echo $$ > /cgroups/memory/x1/tasks
-  $echo 100M > /cgroups/memory/x1/memory.limit_in_bytes
-  $cd /cgroups/memory/
-  $seq 10000|xargs  mkdir
-  $fio -filename=/home/test1 -direct=0 -iodepth 1 -thread -rw=write -ioengine=libaio -bs=16k -size=20G
-Before:
-WRITE: io=20480MB, aggrb=779031KB/s, minb=779031KB/s, maxb=779031KB/s, mint=26920msec, maxt=26920msec
-After:
-WRITE: io=20480MB, aggrb=831708KB/s, minb=831708KB/s, maxb=831708KB/s, mint=25215msec, maxt=25215msec
-
-And this patch can reduce io util in this condition, like there
-is two disks, one disks is used to store all kinds of logs, it
-should be less io pressure, and other is used to store hadoop data
-which will write lots of data to disk, but both disk io utils are
-high in fact, since when hadoop reclaims memory, it will wake all
-memory cgroup writeback.
-
-Signed-off-by: Zhang Yu <zhangyu31@baidu.com>
-Signed-off-by: Li RongQing <lirongqing@baidu.com>
----
- fs/fs-writeback.c | 31 +++++++++++++++++++++++++++++++
- 1 file changed, 31 insertions(+)
-
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 471d863958bc..475cada5d1cf 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -35,6 +35,11 @@
-  */
- #define MIN_WRITEBACK_PAGES	(4096UL >> (PAGE_SHIFT - 10))
- 
-+/*
-+ * if WB cgroup dirty pages is bigger than it, not start a full flush
-+ */
-+#define MIN_WB_DIRTY_PAGES 64
-+
- struct wb_completion {
- 	atomic_t		cnt;
- };
-@@ -2005,6 +2010,32 @@ void wakeup_flusher_threads(enum wb_reason reason)
- 	if (blk_needs_flush_plug(current))
- 		blk_schedule_flush_plug(current);
- 
-+#ifdef CONFIG_CGROUP_WRITEBACK
-+	if (reason == WB_REASON_VMSCAN) {
-+		unsigned long tmp, pdirty = 0;
-+
-+		rcu_read_lock();
-+		list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
-+			struct bdi_writeback *wb = wb_find_current(bdi);
-+
-+			if (wb) {
-+				tmp = mem_cgroup_wb_dirty_stats(wb);
-+				if (tmp) {
-+					pdirty += tmp;
-+					wb_start_writeback(wb, reason);
-+
-+					if (wb == &bdi->wb)
-+						pdirty += MIN_WB_DIRTY_PAGES;
-+				}
-+			}
-+		}
-+		rcu_read_unlock();
-+
-+		if (pdirty > MIN_WB_DIRTY_PAGES)
-+			return;
-+	}
-+#endif
-+
- 	rcu_read_lock();
- 	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list)
- 		__wakeup_flusher_threads_bdi(bdi, reason);
--- 
-2.16.2
+Leaving aside the comment someone made about sticking with rwsem for
+this, I honestly hope that someday the shrinker is optional too. :)
