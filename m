@@ -1,130 +1,332 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DC3D6B000A
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 12:58:25 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id a70-v6so6304638qkb.16
-        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 09:58:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id s48-v6si1362965qte.277.2018.08.09.09.58.23
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B5A16B0003
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 15:21:18 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id s14-v6so5276770wra.0
+        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 12:21:18 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y1-v6sor3090095wrl.6.2018.08.09.12.21.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Aug 2018 09:58:24 -0700 (PDT)
-Date: Thu, 9 Aug 2018 12:58:21 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [RFC PATCH 2/3] mm/memory_hotplug: Create __shrink_pages and
- move it to offline_pages
-Message-ID: <20180809165821.GC3386@redhat.com>
-References: <20180807133757.18352-1-osalvador@techadventures.net>
- <20180807133757.18352-3-osalvador@techadventures.net>
- <20180807135221.GA3301@redhat.com>
- <20180807145900.GH10003@dhcp22.suse.cz>
- <20180807151810.GB3301@redhat.com>
- <20180808064758.GB27972@dhcp22.suse.cz>
- <20180808165814.GB3429@redhat.com>
- <20180809082415.GB24884@dhcp22.suse.cz>
- <20180809142709.GA3386@redhat.com>
- <20180809150950.GB15611@dhcp22.suse.cz>
+        (Google Transport Security);
+        Thu, 09 Aug 2018 12:21:15 -0700 (PDT)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH v5 00/18] khwasan: kernel hardware assisted address sanitizer
+Date: Thu,  9 Aug 2018 21:20:52 +0200
+Message-Id: <cover.1533842385.git.andreyknvl@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180809150950.GB15611@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: osalvador@techadventures.net, akpm@linux-foundation.org, dan.j.williams@intel.com, pasha.tatashin@oracle.com, david@redhat.com, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
+Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-On Thu, Aug 09, 2018 at 05:09:50PM +0200, Michal Hocko wrote:
-> On Thu 09-08-18 10:27:09, Jerome Glisse wrote:
-> > On Thu, Aug 09, 2018 at 10:24:15AM +0200, Michal Hocko wrote:
-> > > On Wed 08-08-18 12:58:15, Jerome Glisse wrote:
-> > > > On Wed, Aug 08, 2018 at 08:47:58AM +0200, Michal Hocko wrote:
-> > > > > On Tue 07-08-18 11:18:10, Jerome Glisse wrote:
-> > > > > > On Tue, Aug 07, 2018 at 04:59:00PM +0200, Michal Hocko wrote:
-> > > > > > > On Tue 07-08-18 09:52:21, Jerome Glisse wrote:
-> > > > > > > > On Tue, Aug 07, 2018 at 03:37:56PM +0200, osalvador@techadventures.net wrote:
-> > > > > > > > > From: Oscar Salvador <osalvador@suse.de>
-> > > > > > > > 
-> > > > > > > > [...]
-> > > > > > > > 
-> > > > > > > > > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > > > > > > > > index 9bd629944c91..e33555651e46 100644
-> > > > > > > > > --- a/mm/memory_hotplug.c
-> > > > > > > > > +++ b/mm/memory_hotplug.c
-> > > > > > > > 
-> > > > > > > > [...]
-> > > > > > > > 
-> > > > > > > > >  /**
-> > > > > > > > >   * __remove_pages() - remove sections of pages from a zone
-> > > > > > > > > - * @zone: zone from which pages need to be removed
-> > > > > > > > > + * @nid: node which pages belong to
-> > > > > > > > >   * @phys_start_pfn: starting pageframe (must be aligned to start of a section)
-> > > > > > > > >   * @nr_pages: number of pages to remove (must be multiple of section size)
-> > > > > > > > >   * @altmap: alternative device page map or %NULL if default memmap is used
-> > > > > > > > > @@ -548,7 +557,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
-> > > > > > > > >   * sure that pages are marked reserved and zones are adjust properly by
-> > > > > > > > >   * calling offline_pages().
-> > > > > > > > >   */
-> > > > > > > > > -int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
-> > > > > > > > > +int __remove_pages(int nid, unsigned long phys_start_pfn,
-> > > > > > > > >  		 unsigned long nr_pages, struct vmem_altmap *altmap)
-> > > > > > > > >  {
-> > > > > > > > >  	unsigned long i;
-> > > > > > > > > @@ -556,10 +565,9 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
-> > > > > > > > >  	int sections_to_remove, ret = 0;
-> > > > > > > > >  
-> > > > > > > > >  	/* In the ZONE_DEVICE case device driver owns the memory region */
-> > > > > > > > > -	if (is_dev_zone(zone)) {
-> > > > > > > > > -		if (altmap)
-> > > > > > > > > -			map_offset = vmem_altmap_offset(altmap);
-> > > > > > > > > -	} else {
-> > > > > > > > > +	if (altmap)
-> > > > > > > > > +		map_offset = vmem_altmap_offset(altmap);
-> > > > > > > > > +	else {
-> > > > > > > > 
-> > > > > > > > This will break ZONE_DEVICE at least for HMM. While i think that
-> > > > > > > > altmap -> ZONE_DEVICE (ie altmap imply ZONE_DEVICE) the reverse
-> > > > > > > > is not true ie ZONE_DEVICE does not necessarily imply altmap. So
-> > > > > > > > with the above changes you change the expected behavior.
-> > > > > > > 
-> > > > > > > Could you be more specific what is the expected behavior here?
-> > > > > > > Is this about calling release_mem_region_adjustable? Why does is it not
-> > > > > > > suitable for zone device ranges?
-> > > > > > 
-> > > > > > Correct, you should not call release_mem_region_adjustable() the device
-> > > > > > region is not part of regular iomem resource as it might not necessarily
-> > > > > > be enumerated through known ways to the kernel (ie only the device driver
-> > > > > > can discover the region and core kernel do not know about it).
-> > > > > 
-> > > > > If there is no region registered with the range then the call should be
-> > > > > mere nop, no? So why do we have to special case?
-> > > > 
-> > > > IIRC this is because you can not release the resource ie the resource
-> > > > is still own by the device driver even if you hotremove the memory.
-> > > > The device driver might still be using the resource without struct page.
-> > > 
-> > > But then it seems to be a property of a device rather than zone_device,
-> > > no? If there are devices which want to preserve the resource then they
-> > > should tell that. Doing that unconditionally for all zone_device users
-> > > seems just wrong.
-> > 
-> > I am fine with changing that, i did not do that and at the time i did
-> > not have any feeling on that matter.
-> 
-> I would really prefer to be explicit about these requirements rather
-> than having subtle side effects quite deep in the memory hotplug code
-> and checks for zone device sprinkled at places for special handling.
+This patchset adds a new mode to KASAN [1], which is called KHWASAN
+(Kernel HardWare assisted Address SANitizer).
 
-I agree, i never thought about that before. Looking at existing resource
-management i think the simplest solution would be to use a refcount on the
-resources instead of the IORESOURCE_BUSY flags.
+The plan is to implement HWASan [2] for the kernel with the incentive,
+that it's going to have comparable to KASAN performance, but in the same
+time consume much less memory, trading that off for somewhat imprecise
+bug detection and being supported only for arm64.
 
-So when you release resource as part of hotremove you would only dec the
-refcount and a resource is not busy only when refcount is zero.
+The overall idea of the approach used by KHWASAN is the following:
 
-Just the idea i had in mind. Right now i am working on other thing, Oscar
-is this something you would like to work on ? Feel free to come up with
-something better than my first idea :)
+1. By using the Top Byte Ignore arm64 CPU feature, we can store pointer
+   tags in the top byte of each kernel pointer.
 
-Cheers,
-Jerome
+2. Using shadow memory, we can store memory tags for each chunk of kernel
+   memory.
+
+3. On each memory allocation, we can generate a random tag, embed it into
+   the returned pointer and set the memory tags that correspond to this
+   chunk of memory to the same value.
+
+4. By using compiler instrumentation, before each memory access we can add
+   a check that the pointer tag matches the tag of the memory that is being
+   accessed.
+
+5. On a tag mismatch we report an error.
+
+[1] https://www.kernel.org/doc/html/latest/dev-tools/kasan.html
+
+[2] http://clang.llvm.org/docs/HardwareAssistedAddressSanitizerDesign.html
+
+
+====== Rationale
+
+On mobile devices KASAN's memory usage is significant problem. One of the
+main reasons to have KWHASAN is to be able to perform a similar set of
+checks that KASAN does, but with lower memory requirements.
+
+Comment from Vishwath Mohan <vishwath@google.com>:
+
+I don't have data on-hand, but anecdotally both ASAN and KASAN have proven
+problematic to enable for environments that don't tolerate the increased
+memory pressure well. This includes,
+(a) Low-memory form factors - Wear, TV, Things, lower-tier phones like Go,
+(c) Connected components like Pixel's visual core [1].
+
+These are both places I'd love to have a low(er) memory footprint option at
+my disposal.
+
+Comment from Evgenii Stepanov <eugenis@google.com>:
+
+Looking at a live Android device under load, slab (according to
+/proc/meminfo) + kernel stack take 8-10% available RAM (~350MB). KASAN's
+overhead of 2x - 3x on top of it is not insignificant.
+
+Not having this overhead enables near-production use - ex. running
+KASAN/KHWASAN kernel on a personal, daily-use device to catch bugs that do
+not reproduce in test configuration. These are the ones that often cost
+the most engineering time to track down.
+
+CPU overhead is bad, but generally tolerable. RAM is critical, in our
+experience. Once it gets low enough, OOM-killer makes your life miserable.
+
+[1] https://www.blog.google/products/pixel/pixel-visual-core-image-processing-and-machine-learning-pixel-2/
+
+
+====== Technical details
+
+KHWASAN is implemented in a very similar way to KASAN. This patchset
+essentially does the following:
+
+1. TCR_TBI1 is set to enable Top Byte Ignore.
+
+2. Shadow memory is used (with a different scale, 1:16, so each shadow
+   byte corresponds to 16 bytes of kernel memory) to store memory tags.
+
+3. All slab objects are aligned to shadow scale, which is 16 bytes.
+
+4. All pointers returned from the slab allocator are tagged with a random
+   tag and the corresponding shadow memory is poisoned with the same value.
+
+5. Compiler instrumentation is used to insert tag checks. Either by
+   calling callbacks or by inlining them (CONFIG_KASAN_OUTLINE and
+   CONFIG_KASAN_INLINE flags are reused).
+
+6. When a tag mismatch is detected in callback instrumentation mode
+   KHWASAN simply prints a bug report. In case of inline instrumentation,
+   clang inserts a brk instruction, and KHWASAN has it's own brk handler,
+   which reports the bug.
+
+7. The memory in between slab objects is marked with a reserved tag, and
+   acts as a redzone.
+
+8. When a slab object is freed it's marked with a reserved tag.
+
+Bug detection is imprecise for two reasons:
+
+1. We won't catch some small out-of-bounds accesses, that fall into the
+   same shadow cell, as the last byte of a slab object.
+
+2. We only have 1 byte to store tags, which means we have a 1/256
+   probability of a tag match for an incorrect access (actually even
+   slightly less due to reserved tag values).
+
+Despite that there's a particular type of bugs that KHWASAN can detect
+compared to KASAN: use-after-free after the object has been allocated by
+someone else.
+
+
+====== Benchmarks
+
+The following numbers were collected on Odroid C2 board. Both KASAN and
+KHWASAN were used in inline instrumentation mode.
+
+Boot time [1]:
+* ~1.7 sec for clean kernel
+* ~5.0 sec for KASAN
+* ~5.0 sec for KHWASAN
+
+Network performance [2]:
+* 8.33 Gbits/sec for clean kernel
+* 3.17 Gbits/sec for KASAN
+* 2.85 Gbits/sec for KHWASAN
+
+Slab memory usage after boot [3]:
+* ~40 kb for clean kernel
+* ~105 kb (~260% overhead) for KASAN
+* ~47 kb (~20% overhead) for KHWASAN
+
+KASAN memory overhead consists of three main parts:
+1. Increased slab memory usage due to redzones.
+2. Shadow memory (the whole reserved once during boot).
+3. Quaratine (grows gradually until some preset limit; the more the limit,
+   the more the chance to detect a use-after-free).
+
+Comparing KWHASAN vs KASAN for each of these points:
+1. 20% vs 260% overhead.
+2. 1/16th vs 1/8th of physical memory.
+3. KHWASAN doesn't require quarantine.
+
+[1] Time before the ext4 driver is initialized.
+[2] Measured as `iperf -s & iperf -c 127.0.0.1 -t 30`.
+[3] Measured as `cat /proc/meminfo | grep Slab`.
+
+
+====== Some notes
+
+A few notes:
+
+1. The patchset can be found here:
+   https://github.com/xairy/kasan-prototype/tree/khwasan
+
+2. Building requires a recent LLVM version (r330044 or later).
+
+3. Stack instrumentation is not supported yet and will be added later.
+
+
+====== Changes
+
+Changes in v5:
+- Rebased onto 1ffaddd029 (4.18-rc8).
+- Preassign tags for objects from caches with constructors and
+  SLAB_TYPESAFE_BY_RCU caches.
+- Fix SLAB allocator support by untagging page->s_mem in
+  kasan_poison_slab().
+- Performed dynamic testing to find potential places where pointer tagging
+  might result in bugs [1].
+- Clarified and fixed memory usage benchmarks in the cover letter.
+- Added a rationale for having KHWASAN to the cover letter.
+
+Changes in v4:
+- Fixed SPDX comment style in mm/kasan/kasan.h.
+- Fixed mm/kasan/kasan.h changes being included in a wrong patch.
+- Swapped "khwasan, arm64: fix up fault handling logic" and "khwasan: add
+  tag related helper functions" patches order.
+- Rebased onto 6f0d349d (4.18-rc2+).
+
+Changes in v3:
+- Minor documentation fixes.
+- Fixed CFLAGS variable name in KASAN makefile.
+- Added a "SPDX-License-Identifier: GPL-2.0" line to all source files
+  under mm/kasan.
+- Rebased onto 81e97f013 (4.18-rc1+).
+
+Changes in v2:
+- Changed kmalloc_large_node_hook to return tagged pointer instead of
+  using an output argument.
+- Fix checking whether -fsanitize=hwaddress is supported by the compiler.
+- Removed duplication of -fno-builtin for KASAN and KHWASAN.
+- Removed {} block for one line for_each_possible_cpu loop.
+- Made set_track() static inline as it is used only in common.c.
+- Moved optimal_redzone() to common.c.
+- Fixed using tagged pointer for shadow calculation in
+  kasan_unpoison_shadow().
+- Restored setting cache->align in kasan_cache_create(), which was
+  accidentally lost.
+- Simplified __kasan_slab_free(), kasan_alloc_pages() and kasan_kmalloc().
+- Removed tagging from kasan_kmalloc_large().
+- Added page_kasan_tag_reset() to kasan_poison_slab() and removed
+  !PageSlab() check from page_to_virt.
+- Reset pointer tag in _virt_addr_is_linear.
+- Set page tag for each page when multiple pages are allocated or freed.
+- Added a comment as to why we ignore cma allocated pages.
+
+Changes in v1:
+- Rebased onto 4.17-rc4.
+- Updated benchmarking stats.
+- Documented compiler version requirements, memory usage and slowdown.
+- Dropped kvm patches, as clang + arm64 + kvm is completely broken [1].
+
+Changes in RFC v3:
+- Renamed CONFIG_KASAN_CLASSIC and CONFIG_KASAN_TAGS to
+  CONFIG_KASAN_GENERIC and CONFIG_KASAN_HW respectively.
+- Switch to -fsanitize=kernel-hwaddress instead of -fsanitize=hwaddress.
+- Removed unnecessary excessive shadow initialization.
+- Removed khwasan_enabled flag (ita??s not needed since KHWASAN is
+  initialized before any slab caches are used).
+- Split out kasan_report.c and khwasan_report.c from report.c.
+- Moved more common KASAN and KHWASAN functions to common.c.
+- Added tagging to pagealloc.
+- Rebased onto 4.17-rc1.
+- Temporarily dropped patch that adds kvm support (arm64 + kvm + clang
+  combo is broken right now [2]).
+
+Changes in RFC v2:
+- Removed explicit casts to u8 * for kasan_mem_to_shadow() calls.
+- Introduced KASAN_TCR_FLAGS for setting the TCR_TBI1 flag.
+- Added a comment regarding the non-atomic RMW sequence in
+  khwasan_random_tag().
+- Made all tag related functions accept const void *.
+- Untagged pointers in __kimg_to_phys, which is used by virt_to_phys.
+- Untagged pointers in show_ptr in fault handling logic.
+- Untagged pointers passed to KVM.
+- Added two reserved tag values: 0xFF and 0xFE.
+- Used the reserved tag 0xFF to disable validity checking (to resolve the
+  issue with pointer tag being lost after page_address + kmap usage).
+- Used the reserved tag 0xFE to mark redzones and freed objects.
+- Added mnemonics for esr manipulation in KHWASAN brk handler.
+- Added a comment about the -recover flag.
+- Some minor cleanups and fixes.
+- Rebased onto 3215b9d5 (4.16-rc6+).
+- Tested on real hardware (Odroid C2 board).
+- Added better benchmarks.
+
+[1] https://lkml.org/lkml/2018/7/18/765
+[2] https://lkml.org/lkml/2018/4/19/775
+
+Andrey Konovalov (18):
+  khwasan, mm: change kasan hooks signatures
+  khwasan: move common kasan and khwasan code to common.c
+  khwasan: add CONFIG_KASAN_GENERIC and CONFIG_KASAN_HW
+  khwasan, arm64: adjust shadow size for CONFIG_KASAN_HW
+  khwasan: initialize shadow to 0xff
+  khwasan, arm64: untag virt address in __kimg_to_phys and
+    _virt_addr_is_linear
+  khwasan: add tag related helper functions
+  khwasan: preassign tags to objects with ctors or SLAB_TYPESAFE_BY_RCU
+  khwasan, arm64: fix up fault handling logic
+  khwasan, arm64: enable top byte ignore for the kernel
+  khwasan, mm: perform untagged pointers comparison in krealloc
+  khwasan: split out kasan_report.c from report.c
+  khwasan: add bug reporting routines
+  khwasan: add hooks implementation
+  khwasan, arm64: add brk handler for inline instrumentation
+  khwasan, mm, arm64: tag non slab memory allocated via pagealloc
+  khwasan: update kasan documentation
+  kasan: add SPDX-License-Identifier mark to source files
+
+ Documentation/dev-tools/kasan.rst      | 213 ++++----
+ arch/arm64/Kconfig                     |   1 +
+ arch/arm64/Makefile                    |   2 +-
+ arch/arm64/include/asm/brk-imm.h       |   2 +
+ arch/arm64/include/asm/memory.h        |  41 +-
+ arch/arm64/include/asm/pgtable-hwdef.h |   1 +
+ arch/arm64/kernel/traps.c              |  69 ++-
+ arch/arm64/mm/fault.c                  |   3 +
+ arch/arm64/mm/kasan_init.c             |  18 +-
+ arch/arm64/mm/proc.S                   |   8 +-
+ include/linux/compiler-clang.h         |   5 +-
+ include/linux/compiler-gcc.h           |   4 +
+ include/linux/compiler.h               |   3 +-
+ include/linux/kasan.h                  |  90 +++-
+ include/linux/mm.h                     |  29 ++
+ include/linux/page-flags-layout.h      |  10 +
+ lib/Kconfig.kasan                      |  77 ++-
+ mm/cma.c                               |  11 +
+ mm/kasan/Makefile                      |   9 +-
+ mm/kasan/common.c                      | 663 +++++++++++++++++++++++++
+ mm/kasan/kasan.c                       | 565 +--------------------
+ mm/kasan/kasan.h                       |  85 +++-
+ mm/kasan/kasan_init.c                  |   1 +
+ mm/kasan/kasan_report.c                | 156 ++++++
+ mm/kasan/khwasan.c                     | 181 +++++++
+ mm/kasan/khwasan_report.c              |  61 +++
+ mm/kasan/quarantine.c                  |   1 +
+ mm/kasan/report.c                      | 272 +++-------
+ mm/page_alloc.c                        |   1 +
+ mm/slab.c                              |  18 +-
+ mm/slab.h                              |   2 +-
+ mm/slab_common.c                       |   6 +-
+ mm/slub.c                              |  21 +-
+ scripts/Makefile.kasan                 |  27 +-
+ 34 files changed, 1736 insertions(+), 920 deletions(-)
+ create mode 100644 mm/kasan/common.c
+ create mode 100644 mm/kasan/kasan_report.c
+ create mode 100644 mm/kasan/khwasan.c
+ create mode 100644 mm/kasan/khwasan_report.c
+
+-- 
+2.18.0.597.ga71716f1ad-goog
