@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9989B6B026D
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 15:21:33 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id t10-v6so5132137wrs.17
-        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 12:21:33 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A9476B026F
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 15:21:35 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id f13-v6so5253094wru.5
+        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 12:21:35 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r5-v6sor3090604wrj.70.2018.08.09.12.21.32
+        by mx.google.com with SMTPS id e17-v6sor3091807wri.46.2018.08.09.12.21.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 09 Aug 2018 12:21:32 -0700 (PDT)
+        Thu, 09 Aug 2018 12:21:33 -0700 (PDT)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v5 10/18] khwasan, arm64: enable top byte ignore for the kernel
-Date: Thu,  9 Aug 2018 21:21:02 +0200
-Message-Id: <5f0609d502b690ef28a142fd4b96fae6ff4ee722.1533842385.git.andreyknvl@google.com>
+Subject: [PATCH v5 11/18] khwasan, mm: perform untagged pointers comparison in krealloc
+Date: Thu,  9 Aug 2018 21:21:03 +0200
+Message-Id: <3fbf2a591009f1b9743e82a51ec09019eb054c10.1533842385.git.andreyknvl@google.com>
 In-Reply-To: <cover.1533842385.git.andreyknvl@google.com>
 References: <cover.1533842385.git.andreyknvl@google.com>
 MIME-Version: 1.0
@@ -22,53 +22,30 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
 Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-KHWASAN uses the Top Byte Ignore feature of arm64 CPUs to store a pointer
-tag in the top byte of each pointer. This commit enables the TCR_TBI1 bit,
-which enables Top Byte Ignore for the kernel, when KHWASAN is used.
+The krealloc function checks where the same buffer was reused or a new one
+allocated by comparing kernel pointers. KHWASAN changes memory tag on the
+krealloc'ed chunk of memory and therefore also changes the pointer tag of
+the returned pointer. Therefore we need to perform comparison on untagged
+(with tags reset) pointers to check whether it's the same memory region or
+not.
 
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- arch/arm64/include/asm/pgtable-hwdef.h | 1 +
- arch/arm64/mm/proc.S                   | 8 +++++++-
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ mm/slab_common.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/arch/arm64/include/asm/pgtable-hwdef.h b/arch/arm64/include/asm/pgtable-hwdef.h
-index fd208eac9f2a..483aceedad76 100644
---- a/arch/arm64/include/asm/pgtable-hwdef.h
-+++ b/arch/arm64/include/asm/pgtable-hwdef.h
-@@ -289,6 +289,7 @@
- #define TCR_A1			(UL(1) << 22)
- #define TCR_ASID16		(UL(1) << 36)
- #define TCR_TBI0		(UL(1) << 37)
-+#define TCR_TBI1		(UL(1) << 38)
- #define TCR_HA			(UL(1) << 39)
- #define TCR_HD			(UL(1) << 40)
- #define TCR_NFD1		(UL(1) << 54)
-diff --git a/arch/arm64/mm/proc.S b/arch/arm64/mm/proc.S
-index 03646e6a2ef4..c5175e098d02 100644
---- a/arch/arm64/mm/proc.S
-+++ b/arch/arm64/mm/proc.S
-@@ -47,6 +47,12 @@
- /* PTWs cacheable, inner/outer WBWA */
- #define TCR_CACHE_FLAGS	TCR_IRGN_WBWA | TCR_ORGN_WBWA
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index a99a1feb52c4..e17ed1573d08 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1513,7 +1513,7 @@ void *krealloc(const void *p, size_t new_size, gfp_t flags)
+ 	}
  
-+#ifdef CONFIG_KASAN_HW
-+#define TCR_KASAN_FLAGS TCR_TBI1
-+#else
-+#define TCR_KASAN_FLAGS 0
-+#endif
-+
- #define MAIR(attr, mt)	((attr) << ((mt) * 8))
+ 	ret = __do_krealloc(p, new_size, flags);
+-	if (ret && p != ret)
++	if (ret && khwasan_reset_tag(p) != khwasan_reset_tag(ret))
+ 		kfree(p);
  
- /*
-@@ -440,7 +446,7 @@ ENTRY(__cpu_setup)
- 	 */
- 	ldr	x10, =TCR_TxSZ(VA_BITS) | TCR_CACHE_FLAGS | TCR_SMP_FLAGS | \
- 			TCR_TG_FLAGS | TCR_KASLR_FLAGS | TCR_ASID16 | \
--			TCR_TBI0 | TCR_A1
-+			TCR_TBI0 | TCR_A1 | TCR_KASAN_FLAGS
- 	tcr_set_idmap_t0sz	x10, x9
- 
- 	/*
+ 	return ret;
 -- 
 2.18.0.597.ga71716f1ad-goog
