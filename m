@@ -1,64 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 97E236B000E
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 16:10:13 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id g36-v6so4322931plb.5
-        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 13:10:13 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A061D6B0266
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 16:16:28 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id a26-v6so3272671pgw.7
+        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 13:16:28 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u8-v6sor2402210plz.53.2018.08.09.13.10.12
+        by mx.google.com with SMTPS id v4-v6sor1915532pgi.231.2018.08.09.13.16.27
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 09 Aug 2018 13:10:12 -0700 (PDT)
-Date: Thu, 9 Aug 2018 13:10:10 -0700 (PDT)
+        Thu, 09 Aug 2018 13:16:27 -0700 (PDT)
+Date: Thu, 9 Aug 2018 13:16:25 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 0/3] introduce memory.oom.group
-In-Reply-To: <20180808105909.GJ27972@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.21.1808091308210.244858@chino.kir.corp.google.com>
-References: <20180730180100.25079-1-guro@fb.com> <alpine.DEB.2.21.1807301847000.198273@chino.kir.corp.google.com> <20180731235135.GA23436@castle.DHCP.thefacebook.com> <alpine.DEB.2.21.1808011437350.38896@chino.kir.corp.google.com>
- <20180801224706.GA32269@castle.DHCP.thefacebook.com> <alpine.DEB.2.21.1808061405100.43071@chino.kir.corp.google.com> <20180807003020.GA21483@castle.DHCP.thefacebook.com> <alpine.DEB.2.21.1808071519030.237317@chino.kir.corp.google.com>
- <20180808105909.GJ27972@dhcp22.suse.cz>
+Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
+ processes.
+In-Reply-To: <20180806205121.GM10003@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.21.1808091311030.244858@chino.kir.corp.google.com>
+References: <1533389386-3501-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp> <1533389386-3501-4-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp> <20180806134550.GO19540@dhcp22.suse.cz> <alpine.DEB.2.21.1808061315220.43071@chino.kir.corp.google.com>
+ <20180806205121.GM10003@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>
 
-On Wed, 8 Aug 2018, Michal Hocko wrote:
+On Mon, 6 Aug 2018, Michal Hocko wrote:
 
-> > > > In a cgroup-aware oom killer world, yes, we need the ability to specify 
-> > > > that the usage of the entire subtree should be compared as a single 
-> > > > entity with other cgroups.  That is necessary for user subtrees but may 
-> > > > not be necessary for top-level cgroups depending on how you structure your 
-> > > > unified cgroup hierarchy.  So it needs to be configurable, as you suggest, 
-> > > > and you are correct it can be different than oom.group.
-> > > > 
-> > > > That's not the only thing we need though, as I'm sure you were expecting 
-> > > > me to say :)
-> > > > 
-> > > > We need the ability to preserve existing behavior, i.e. process based and 
-> > > > not cgroup aware, for subtrees so that our users who have clear 
-> > > > expectations and tune their oom_score_adj accordingly based on how the oom 
-> > > > killer has always chosen processes for oom kill do not suddenly regress.
-> > > 
-> > > Isn't the combination of oom.group=0 and oom.evaluate_together=1 describing
-> > > this case? This basically means that if memcg is selected as target,
-> > > the process inside will be selected using traditional per-process approach.
-> > > 
-> > 
-> > No, that would overload the policy and mechanism.  We want the ability to 
-> > consider user-controlled subtrees as a single entity for comparison with 
-> > other user subtrees to select which subtree to target.  This does not 
-> > imply that users want their entire subtree oom killed.
+> > At the risk of continually repeating the same statement, the oom reaper 
+> > cannot provide the direct feedback for all possible memory freeing.  
+> > Waking up periodically and finding mm->mmap_sem contended is one problem, 
+> > but the other problem that I've already shown is the unnecessary oom 
+> > killing of additional processes while a thread has already reached 
+> > exit_mmap().  The oom reaper cannot free page tables which is problematic 
+> > for malloc implementations such as tcmalloc that do not release virtual 
+> > memory. 
 > 
-> Yeah, that's why oom.group == 0, no?
+> But once we know that the exit path is past the point of blocking we can
+> have MMF_OOM_SKIP handover from the oom_reaper to the exit path. So the
+> oom_reaper doesn't hide the current victim too early and we can safely
+> wait for the exit path to reclaim the rest. So there is a feedback
+> channel. I would even do not mind to poll for that state few times -
+> similar to polling for the mmap_sem. But it would still be some feedback
+> rather than a certain amount of time has passed since the last check.
 > 
-> Anyway, can we separate this discussion from the current series please?
-> We are getting more and more tangent.
-> 
-> Or do you still see the current state to be not mergeable?
 
-I've said three times in this series that I am fine with it.  Roman and I 
-are discussing the API for making forward progress with the cgroup aware 
-oom killer itself.  When he responds, he can change the subject line if 
-that would be helpful to you.
+Yes, of course, it would be easy to rely on exit_mmap() to set 
+MMF_OOM_SKIP itself and have the oom reaper drop the task from its list 
+when we are assured of forward progress.  What polling are you proposing 
+other than a timeout based mechanism to do this?
+
+We could set a MMF_EXIT_MMAP in exit_mmap() to specify that it will 
+complete free_pgtables() for that mm.  The problem is the same: when does 
+the oom reaper decide to set MMF_OOM_SKIP because MMF_EXIT_MMAP has not 
+been set in a timely manner?
+
+If this is an argument that the oom reaper should loop checking for 
+MMF_EXIT_MMAP and doing schedule_timeout(1) a set number of times rather 
+than just setting the jiffies in the mm itself, that's just implementing 
+the same thing and doing so in a way where the oom reaper stalls operating 
+on a single mm rather than round-robin iterating over mm's in my patch.
