@@ -1,84 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 534176B0007
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 05:23:30 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id u68-v6so5155138qku.5
-        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 02:23:30 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r2-v6si2876544qkd.14.2018.08.09.02.23.29
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CF406B0005
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 06:22:25 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id v24-v6so3589178wmh.5
+        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 03:22:25 -0700 (PDT)
+Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10097.outbound.protection.outlook.com. [40.107.1.97])
+        by mx.google.com with ESMTPS id v8-v6si5401627wma.5.2018.08.09.03.22.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Aug 2018 02:23:29 -0700 (PDT)
-Date: Thu, 9 Aug 2018 05:23:28 -0400 (EDT)
-From: Pankaj Gupta <pagupta@redhat.com>
-Message-ID: <872818364.892078.1533806608252.JavaMail.zimbra@redhat.com>
-In-Reply-To: <2b7856596e519130946c834d5d61b00b7f592770.1533811181.git.yi.z.zhang@linux.intel.com>
-References: <cover.1533811181.git.yi.z.zhang@linux.intel.com> <2b7856596e519130946c834d5d61b00b7f592770.1533811181.git.yi.z.zhang@linux.intel.com>
-Subject: Re: [PATCH V3 3/4] mm: add a function to differentiate the pages is
- from DAX device memory
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 09 Aug 2018 03:22:23 -0700 (PDT)
+Subject: Re: [PATCH RFC 01/10] rcu: Make CONFIG_SRCU unconditionally enabled
+References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
+ <153365625652.19074.8434946780002619802.stgit@localhost.localdomain>
+ <20180808072040.GC27972@dhcp22.suse.cz>
+ <d17e65bb-c114-55de-fb4e-e2f538779b92@virtuozzo.com>
+ <20180808102734.GH27972@dhcp22.suse.cz> <20180808213125.GM2234@dastard>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <700b63d1-9b77-83be-6dab-cce9438f8ae2@virtuozzo.com>
+Date: Thu, 9 Aug 2018 13:22:12 +0300
 MIME-Version: 1.0
+In-Reply-To: <20180808213125.GM2234@dastard>
 Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yi <yi.z.zhang@linux.intel.com>
-Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pbonzini@redhat.com, dan j williams <dan.j.williams@intel.com>, jack@suse.cz, hch@lst.de, yu c zhang <yu.c.zhang@intel.com>, linux-mm@kvack.org, rkrcmar@redhat.com, yi z zhang <yi.z.zhang@intel.com>
+To: Dave Chinner <david@fromorbit.com>, Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, sfr@canb.auug.org.au, vdavydov.dev@gmail.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
+On 09.08.2018 00:31, Dave Chinner wrote:
+> On Wed, Aug 08, 2018 at 12:27:34PM +0200, Michal Hocko wrote:
+>> [CC Josh - the whole series is
+>> http://lkml.kernel.org/r/153365347929.19074.12509495712735843805.stgit@localhost.localdomain]
+>>
+>> On Wed 08-08-18 13:17:44, Kirill Tkhai wrote:
+>>> On 08.08.2018 10:20, Michal Hocko wrote:
+>>>> On Tue 07-08-18 18:37:36, Kirill Tkhai wrote:
+>>>>> This patch kills all CONFIG_SRCU defines and
+>>>>> the code under !CONFIG_SRCU.
+>>>>
+>>>> The last time somebody tried to do this there was a pushback due to
+>>>> kernel tinyfication. So this should really give some numbers about the
+>>>> code size increase. Also why can't we make this depend on MMU. Is
+>>>> anybody else than the reclaim asking for unconditional SRCU usage?
+>>>
+>>> I don't know one. The size numbers (sparc64) are:
+>>>
+>>> $ size image.srcu.disabled 
+>>>    text	   data	    bss	    dec	    hex	filename
+>>> 5117546	8030506	1968104	15116156	 e6a77c	image.srcu.disabled
+>>> $ size image.srcu.enabled
+>>>    text	   data	    bss	    dec	    hex	filename
+>>> 5126175	8064346	1968104	15158625	 e74d61	image.srcu.enabled
+>>> The difference is: 15158625-15116156 = 42469 ~41Kb
+>>>
+>>> Please, see the measurement details to my answer to Stephen.
+>>>
+>>>> Btw. I totaly agree with Steven. This is a very poor changelog. It is
+>>>> trivial to see what the patch does but it is far from clear why it is
+>>>> doing that and why we cannot go other ways.
+>>> We possibly can go another way, and there is comment to [2/10] about this.
+>>> Percpu rwsem may be used instead, the only thing, it is worse, is it will
+>>> make shrink_slab() wait unregistering shrinkers, while srcu-based
+>>> implementation does not require this.
+>>
+>> Well, if unregisterring doesn't do anything subtle - e.g. an allocation
+>> or take locks which depend on allocation - and we can guarantee that
+>> then blocking shrink_slab shouldn't be a big deal.
+> 
+> unregister_shrinker() already blocks shrink_slab - taking a rwsem in
+> write mode blocks all readers - so using a per-cpu rwsem doesn't
+> introduce anything new or unexpected. I'd like to see numbers of the
+> different methods before anything else.
 
+The difference is percpu_rw_semaphore makes readers to wait till RCU
+grace period is finished. Sometimes this takes unpredictable time on
+big machines with many CPUs, which is not good.
+ 
+> IMO, the big deal is that the split unregister mechanism seems to
+> imply superblock shrinkers can be called during sb teardown or
+> /after/ the filesystem has been torn down in memory (i.e. after
+> ->put_super() is called). That's a change of behaviour, but it's
+> left to the filesystem to detect and handle that condition. That's
+> exceedingly subtle and looks like a recipe for disaster to me. I
+> note that XFS hasn't been updated to detect and avoid this landmine.
 > 
-> DAX driver hotplug the device memory and move it to memory zone, these
-> pages will be marked reserved flag, however, some other kernel componet
-> will misconceive these pages are reserved mmio (ex: we map these dev_dax
-> or fs_dax pages to kvm for DIMM/NVDIMM backend). Together with the type
-> MEMORY_DEVICE_FS_DAX, we can use is_dax_page() to differentiate the pages
-> is DAX device memory or not.
+> And, FWIW, filesystems with multiple shrinkers (e.g. XFS as 3 per
+> mount) will take the SCRU penalty multiple times during unmount, and
+> potentially be exposed to multiple different "use during/after
+> teardown" race conditions.
 > 
-> Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
-> Signed-off-by: Zhang Yu <yu.c.zhang@linux.intel.com>
-> ---
->  include/linux/mm.h | 12 ++++++++++++
->  1 file changed, 12 insertions(+)
+>> It is subtle though.
+>> Maybe subtle enough to make unconditional SRCU worth it. This all should
+>> be in the changelog though.
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 68a5121..de5cbc3 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -889,6 +889,13 @@ static inline bool is_device_public_page(const struct
-> page *page)
->  		page->pgmap->type == MEMORY_DEVICE_PUBLIC;
->  }
->  
-> +static inline bool is_dax_page(const struct page *page)
-> +{
-> +	return is_zone_device_page(page) &&
-> +		(page->pgmap->type == MEMORY_DEVICE_FS_DAX ||
-> +		page->pgmap->type == MEMORY_DEVICE_DEV_DAX);
-> +}
+> IMO, we've had enough recent bugs to deal with from shrinkers being
+> called before the filesystem is set up and from trying to handle
+> allocation errors during setup. Do we really want to make shrinker
+> shutdown just as prone to mismanagement and subtle, hard to hit
+> bugs? I don't think we do - unmount is simply not a critical
+> performance path.
 
-I think question from Dan for KVM VM with 'MEMORY_DEVICE_PUBLIC' still holds?
-I am also interested to know if there is any use-case.
-
-Thanks,
-Pankaj
-
-> +
->  #else /* CONFIG_DEV_PAGEMAP_OPS */
->  static inline void dev_pagemap_get_ops(void)
->  {
-> @@ -912,6 +919,11 @@ static inline bool is_device_public_page(const struct
-> page *page)
->  {
->  	return false;
->  }
-> +
-> +static inline bool is_dax_page(const struct page *page)
-> +{
-> +	return false;
-> +}
->  #endif /* CONFIG_DEV_PAGEMAP_OPS */
->  
->  static inline void get_page(struct page *page)
-> --
-> 2.7.4
-> 
-> 
+There are possible different situations, people use linux like they want.
+Imagine, you want to reboot NFS server, but you want to enter clients
+and umount them over ssh, and the time is critical. Something like this.
+I believe there are many examples, people need this.
