@@ -1,60 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B8C8A6B0005
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 16:50:53 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id r3-v6so5279357wrj.21
-        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 13:50:53 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id q201-v6sor2329191wmg.15.2018.08.09.13.50.52
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 53C986B0008
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 17:05:43 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id w23-v6so5238966iob.18
+        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 14:05:43 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id g201-v6si5027124ioe.132.2018.08.09.14.05.41
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 09 Aug 2018 13:50:52 -0700 (PDT)
-Date: Thu, 9 Aug 2018 22:50:50 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [RFC PATCH 2/3] mm/memory_hotplug: Create __shrink_pages and
- move it to offline_pages
-Message-ID: <20180809205050.GA17222@techadventures.net>
-References: <20180807133757.18352-3-osalvador@techadventures.net>
- <20180807135221.GA3301@redhat.com>
- <20180807145900.GH10003@dhcp22.suse.cz>
- <20180807151810.GB3301@redhat.com>
- <20180808064758.GB27972@dhcp22.suse.cz>
- <20180808165814.GB3429@redhat.com>
- <20180809082415.GB24884@dhcp22.suse.cz>
- <20180809142709.GA3386@redhat.com>
- <20180809150950.GB15611@dhcp22.suse.cz>
- <20180809165821.GC3386@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Aug 2018 14:05:41 -0700 (PDT)
+Subject: Re: WARNING in try_charge
+References: <0000000000005e979605729c1564@google.com>
+ <e2869136-9f59-9ce8-8b9f-f75b157ee31d@I-love.SAKURA.ne.jp>
+ <20180809150735.GA15611@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <56c95100-d7f9-b715-bdec-e8bb112e2630@i-love.sakura.ne.jp>
+Date: Fri, 10 Aug 2018 06:05:19 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180809165821.GC3386@redhat.com>
+In-Reply-To: <20180809150735.GA15611@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, dan.j.williams@intel.com, pasha.tatashin@oracle.com, david@redhat.com, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>, cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Aug 09, 2018 at 12:58:21PM -0400, Jerome Glisse wrote:
-> > I would really prefer to be explicit about these requirements rather
-> > than having subtle side effects quite deep in the memory hotplug code
-> > and checks for zone device sprinkled at places for special handling.
+On 2018/08/10 0:07, Michal Hocko wrote:
+> On Thu 09-08-18 22:57:43, Tetsuo Handa wrote:
+>> >From b1f38168f14397c7af9c122cd8207663d96e02ec Mon Sep 17 00:00:00 2001
+>> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+>> Date: Thu, 9 Aug 2018 22:49:40 +0900
+>> Subject: [PATCH] mm, oom: task_will_free_mem(current) should retry until
+>>  memory reserve fails
+>>
+>> Commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
+>> oom_reaped tasks") changed to select next OOM victim as soon as
+>> MMF_OOM_SKIP is set. But we don't need to select next OOM victim as
+>> long as ALLOC_OOM allocation can succeed. And syzbot is hitting WARN(1)
+>> caused by this race window [1].
 > 
-> I agree, i never thought about that before. Looking at existing resource
-> management i think the simplest solution would be to use a refcount on the
-> resources instead of the IORESOURCE_BUSY flags.
+> It is not because the syzbot was exercising a completely different code
+> path (memcg charge rather than the page allocator).
+
+I know syzbot is hitting memcg charge path.
+
 > 
-> So when you release resource as part of hotremove you would only dec the
-> refcount and a resource is not busy only when refcount is zero.
+>> Since memcg OOM case uses forced charge if current thread is killed,
+>> out_of_memory() can return true without selecting next OOM victim.
+>> Therefore, this patch changes task_will_free_mem(current) to ignore
+>> MMF_OOM_SKIP unless ALLOC_OOM allocation failed.
 > 
-> Just the idea i had in mind. Right now i am working on other thing, Oscar
-> is this something you would like to work on ? Feel free to come up with
-> something better than my first idea :)
+> And the patch is simply wrong for memcg.
+> 
 
-Hi Jerome,
+Why? I think I should have done
 
-Definetly it would be something I am interested to work on.
-Let me think a bit about this and see if I can come up with something.
+-+	page = __alloc_pages_may_oom(gfp_mask, order, alloc_flags == ALLOC_OOM
+-+				     || (gfp_mask & __GFP_NOMEMALLOC), ac,
+-+				     &did_some_progress);
+++	page = __alloc_pages_may_oom(gfp_mask, order, alloc_flags == ALLOC_OOM,
+++				     ac, &did_some_progress);
 
-Thanks
--- 
-Oscar Salvador
-SUSE L3
+because nobody will use __GFP_NOMEMALLOC | __GFP_NOFAIL. But for memcg charge
+path, task_will_free_mem(current, false) == true and out_of_memory() will return
+true, which avoids unnecessary OOM killing.
+
+Of course, this patch cannot avoid unnecessary OOM killing if out_of_memory()
+is called by not yet killed process. But to mitigate it, what can we do other
+than defer setting MMF_OOM_SKIP using a timeout based mechanism? Making
+the OOM reaper unconditionally reclaim all memory is not a valid answer.
