@@ -1,303 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 326876B0005
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2018 22:54:37 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id a23-v6so2456302pfo.23
-        for <linux-mm@kvack.org>; Wed, 08 Aug 2018 19:54:37 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p28-v6sor1697625pfd.84.2018.08.08.19.54.34
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 79C946B0005
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 03:14:24 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id t24-v6so1773321edq.13
+        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 00:14:24 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g25-v6si1541550edf.328.2018.08.09.00.14.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 08 Aug 2018 19:54:34 -0700 (PDT)
-From: Rashmica Gupta <rashmica.g@gmail.com>
-Subject: [PATCH v3] resource: Merge resources on a node when hot-adding memory
-Date: Thu,  9 Aug 2018 12:54:09 +1000
-Message-Id: <20180809025409.31552-1-rashmica.g@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Aug 2018 00:14:22 -0700 (PDT)
+Date: Thu, 9 Aug 2018 09:14:18 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH RFC v2 02/10] mm: Make shrink_slab() lockless
+Message-ID: <20180809071418.GA24884@dhcp22.suse.cz>
+References: <153365347929.19074.12509495712735843805.stgit@localhost.localdomain>
+ <153365626605.19074.16202958374930777592.stgit@localhost.localdomain>
+ <591d2063-0511-103d-bef6-dd35f55afe32@virtuozzo.com>
+ <4ceb948c-7ce7-0db3-17d8-82ef1e6e47cc@virtuozzo.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4ceb948c-7ce7-0db3-17d8-82ef1e6e47cc@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: toshi.kani@hpe.com, tglx@linutronix.de, akpm@linux-foundation.org, bp@suse.de, brijesh.singh@amd.com, thomas.lendacky@amd.com, jglisse@redhat.com, gregkh@linuxfoundation.org, baiyaowei@cmss.chinamobile.com, dan.j.williams@intel.com, mhocko@suse.com, iamjoonsoo.kim@lge.com, vbabka@suse.cz, malat@debian.org, bhelgaas@google.com, osalvador@techadventures.net, yasu.isimatu@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rppt@linux.vnet.ibm.com
-Cc: Rashmica Gupta <rashmica.g@gmail.com>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, gregkh@linuxfoundation.org, rafael@kernel.org, viro@zeniv.linux.org.uk, darrick.wong@oracle.com, paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, hughd@google.com, shuah@kernel.org, robh@kernel.org, ulf.hansson@linaro.org, aspriel@gmail.com, vivek.gautam@codeaurora.org, robin.murphy@arm.com, joe@perches.com, heikki.krogerus@linux.intel.com, sfr@canb.auug.org.au, vdavydov.dev@gmail.com, chris@chris-wilson.co.uk, penguin-kernel@I-love.SAKURA.ne.jp, aryabinin@virtuozzo.com, willy@infradead.org, ying.huang@intel.com, shakeelb@google.com, jbacik@fb.com, mingo@kernel.org, mhiramat@kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-When hot-removing memory release_mem_region_adjustable() splits
-iomem resources if they are not the exact size of the memory being
-hot-deleted. Adding this memory back to the kernel adds a new
-resource.
+On Wed 08-08-18 16:20:54, Kirill Tkhai wrote:
+> [Added two more places needed srcu_dereference(). All ->shrinker_map
+>  dereferences must be under SRCU, and this v2 adds missed in previous]
+> 
+> The patch makes shrinker list and shrinker_idr SRCU-safe
+> for readers. This requires synchronize_srcu() on finalize
+> stage unregistering stage, which waits till all parallel
+> shrink_slab() are finished
+> 
+> Note, that patch removes rwsem_is_contended() checks from
+> the code, and this does not result in delays during
+> registration, since there is no waiting at all. Unregistration
+> case may be optimized by splitting unregister_shrinker()
+> in tho stages, and this is made in next patches.
+>     
+> Also, keep in mind, that in case of SRCU is not allowed
+> to make unconditional (which is done in previous patch),
+> it is possible to use percpu_rw_semaphore instead of it.
+> percpu_down_read() will be used in shrink_slab_memcg()
+> and in shrink_slab(), and consecutive calls
+> 
+>         percpu_down_write(percpu_rwsem);
+>         percpu_up_write(percpu_rwsem);
+> 
+> will be used instead of synchronize_srcu().
 
-Eg a node has memory 0x0 - 0xfffffffff. Offlining and hot-removing
-1GB from 0xf40000000 results in the single resource 0x0-0xfffffffff being
-split into two resources: 0x0-0xf3fffffff and 0xf80000000-0xfffffffff.
-
-When we hot-add the memory back we now have three resources:
-0x0-0xf3fffffff, 0xf40000000-0xf7fffffff, and 0xf80000000-0xfffffffff.
-
-Now if we try to remove some memory that overlaps these resources,
-like 2GB from 0xf40000000, release_mem_region_adjustable() fails as it
-expects the chunk of memory to be within the boundaries of a single
-resource.
-
-This patch adds a function request_resource_and_merge(). This is called
-instead of request_resource_conflict() when registering a resource in
-add_memory(). It calls request_resource_conflict() and if hot-removing is
-enabled (if it isn't we won't get resource fragmentation) we attempt to
-merge contiguous resources on the node.
-
-Signed-off-by: Rashmica Gupta <rashmica.g@gmail.com>
----
-v2->v3: Update Xen balloon, make the commit msg and a comment clearer,
-and changed '>' to '>=' when comparing the end of a resource and the
-end of a node.
-
-v1->v2: Only attempt to merge resources if hot-remove is enabled.
-
- drivers/xen/balloon.c          |   3 +-
- include/linux/ioport.h         |   2 +
- include/linux/memory_hotplug.h |   2 +-
- kernel/resource.c              | 120 +++++++++++++++++++++++++++++++++++++++++
- mm/memory_hotplug.c            |  22 ++++----
- 5 files changed, 136 insertions(+), 13 deletions(-)
-
-diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index 065f0b607373..9b972b37b0da 100644
---- a/drivers/xen/balloon.c
-+++ b/drivers/xen/balloon.c
-@@ -401,7 +401,8 @@ static enum bp_state reserve_additional_memory(void)
- 	 * callers drop the mutex before trying again.
- 	 */
- 	mutex_unlock(&balloon_mutex);
--	rc = add_memory_resource(nid, resource, memhp_auto_online);
-+	rc = add_memory_resource(nid, resource->start, resource_size(resource),
-+				 memhp_auto_online);
- 	mutex_lock(&balloon_mutex);
- 
- 	if (rc) {
-diff --git a/include/linux/ioport.h b/include/linux/ioport.h
-index da0ebaec25f0..f5b93a711e86 100644
---- a/include/linux/ioport.h
-+++ b/include/linux/ioport.h
-@@ -189,6 +189,8 @@ extern int allocate_resource(struct resource *root, struct resource *new,
- 						       resource_size_t,
- 						       resource_size_t),
- 			     void *alignf_data);
-+extern struct resource *request_resource_and_merge(struct resource *parent,
-+						   struct resource *new, int nid);
- struct resource *lookup_resource(struct resource *root, resource_size_t start);
- int adjust_resource(struct resource *res, resource_size_t start,
- 		    resource_size_t size);
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 4e9828cda7a2..9c00f97c8cc6 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -322,7 +322,7 @@ static inline void remove_memory(int nid, u64 start, u64 size) {}
- extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
- 		void *arg, int (*func)(struct memory_block *, void *));
- extern int add_memory(int nid, u64 start, u64 size);
--extern int add_memory_resource(int nid, struct resource *resource, bool online);
-+extern int add_memory_resource(int nid, u64 start, u64 size, bool online);
- extern int arch_add_memory(int nid, u64 start, u64 size,
- 		struct vmem_altmap *altmap, bool want_memblock);
- extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
-diff --git a/kernel/resource.c b/kernel/resource.c
-index 30e1bc68503b..a31d3f5bccb7 100644
---- a/kernel/resource.c
-+++ b/kernel/resource.c
-@@ -1621,3 +1621,123 @@ static int __init strict_iomem(char *str)
- }
- 
- __setup("iomem=", strict_iomem);
-+
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+/*
-+ * Attempt to merge resource and it's sibling
-+ */
-+static int merge_resources(struct resource *res)
-+{
-+	struct resource *next;
-+	struct resource *tmp;
-+	uint64_t size;
-+	int ret = -EINVAL;
-+
-+	next = res->sibling;
-+
-+	/*
-+	 * Not sure how to handle two different children. So only attempt
-+	 * to merge two resources if neither have children, only one has a
-+	 * child or if both have the same child.
-+	 */
-+	if ((res->child && next->child) && (res->child != next->child))
-+		return ret;
-+
-+	if (res->end + 1 != next->start)
-+		return ret;
-+
-+	if (res->flags != next->flags)
-+		return ret;
-+
-+	/* Update sibling and child of resource */
-+	res->sibling = next->sibling;
-+	tmp = res->child;
-+	if (!res->child)
-+		res->child = next->child;
-+
-+	size = next->end - res->start + 1;
-+	ret = __adjust_resource(res, res->start, size);
-+	if (ret) {
-+		/* Failed so restore resource to original state */
-+		res->sibling = next;
-+		res->child = tmp;
-+		return ret;
-+	}
-+
-+	free_resource(next);
-+
-+	return ret;
-+}
-+
-+/*
-+ * Attempt to merge resources on the node
-+ */
-+static void merge_node_resources(int nid, struct resource *parent)
-+{
-+	struct resource *res;
-+	uint64_t start_addr;
-+	uint64_t end_addr;
-+	int ret;
-+
-+	start_addr = node_start_pfn(nid) << PAGE_SHIFT;
-+	end_addr = node_end_pfn(nid) << PAGE_SHIFT;
-+
-+	write_lock(&resource_lock);
-+
-+	/* Get the first resource */
-+	res = parent->child;
-+
-+	while (res) {
-+		/* Check that the resource is within the node */
-+		if (res->start < start_addr) {
-+			res = res->sibling;
-+			continue;
-+		}
-+		/* Exit if sibling resource is past end of node */
-+		if (res->sibling->end >= end_addr)
-+			break;
-+
-+		ret = merge_resources(res);
-+		if (!ret)
-+			continue;
-+		res = res->sibling;
-+	}
-+	write_unlock(&resource_lock);
-+}
-+#endif /* CONFIG_MEMORY_HOTREMOVE */
-+
-+/**
-+ * request_resource_and_merge() - request an I/O or memory resource for hot-add
-+ * @parent: parent resource descriptor
-+ * @new: resource descriptor desired by caller
-+ * @nid: node id of the node we want the resource on
-+ *
-+ * If no conflict resource then attempt to merge resources on the node.
-+ *
-+ * This is intended to cleanup the fragmentation of resources that occurs when
-+ * hot-removing memory (see release_mem_region_adjustable). If hot-removing is
-+ * not enabled then there is no point trying to merge resources.
-+ *
-+ * Note that the inability to merge resources is not an error.
-+ *
-+ * Return: NULL for successful request of resource and conflict resource if
-+ * there was a conflict.
-+ */
-+struct resource *request_resource_and_merge(struct resource *parent,
-+					    struct resource *new, int nid)
-+{
-+	struct resource *conflict;
-+
-+	conflict = request_resource_conflict(parent, new);
-+
-+	if (conflict)
-+		return conflict;
-+
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+	merge_node_resources(nid, parent);
-+#endif /* CONFIG_MEMORY_HOTREMOVE */
-+
-+	return NULL;
-+}
-+#endif /* CONFIG_MEMORY_HOTPLUG */
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 7deb49f69e27..2e342f5ce322 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -97,7 +97,7 @@ void mem_hotplug_done(void)
- }
- 
- /* add this memory to iomem resource */
--static struct resource *register_memory_resource(u64 start, u64 size)
-+static struct resource *register_memory_resource(int nid, u64 start, u64 size)
- {
- 	struct resource *res, *conflict;
- 	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
-@@ -108,7 +108,7 @@ static struct resource *register_memory_resource(u64 start, u64 size)
- 	res->start = start;
- 	res->end = start + size - 1;
- 	res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
--	conflict =  request_resource_conflict(&iomem_resource, res);
-+	conflict =  request_resource_and_merge(&iomem_resource, res, nid);
- 	if (conflict) {
- 		if (conflict->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY) {
- 			pr_debug("Device unaddressable memory block "
-@@ -122,11 +122,15 @@ static struct resource *register_memory_resource(u64 start, u64 size)
- 	return res;
- }
- 
--static void release_memory_resource(struct resource *res)
-+static void release_memory_resource(struct resource *res, u64 start, u64 size)
- {
- 	if (!res)
- 		return;
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+	release_mem_region_adjustable(&iomem_resource, start, size);
-+#else
- 	release_resource(res);
-+#endif
- 	kfree(res);
- 	return;
- }
-@@ -1096,17 +1100,13 @@ static int online_memory_block(struct memory_block *mem, void *arg)
- }
- 
- /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
--int __ref add_memory_resource(int nid, struct resource *res, bool online)
-+int __ref add_memory_resource(int nid, u64 start, u64 size, bool online)
- {
--	u64 start, size;
- 	pg_data_t *pgdat = NULL;
- 	bool new_pgdat;
- 	bool new_node;
- 	int ret;
- 
--	start = res->start;
--	size = resource_size(res);
--
- 	ret = check_hotplug_memory_range(start, size);
- 	if (ret)
- 		return ret;
-@@ -1195,13 +1195,13 @@ int __ref add_memory(int nid, u64 start, u64 size)
- 	struct resource *res;
- 	int ret;
- 
--	res = register_memory_resource(start, size);
-+	res = register_memory_resource(nid, start, size);
- 	if (IS_ERR(res))
- 		return PTR_ERR(res);
- 
--	ret = add_memory_resource(nid, res, memhp_auto_online);
-+	ret = add_memory_resource(nid, start, size, memhp_auto_online);
- 	if (ret < 0)
--		release_memory_resource(res);
-+		release_memory_resource(res, start, size);
- 	return ret;
- }
- EXPORT_SYMBOL_GPL(add_memory);
+An obvious question. Why didn't you go that way? What are pros/cons of
+both approaches?
 -- 
-2.14.4
+Michal Hocko
+SUSE Labs
