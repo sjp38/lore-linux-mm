@@ -1,76 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CA296B0010
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 04:32:08 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id d18-v6so3954189qtj.20
-        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 01:32:08 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i46-v6si6663022qta.379.2018.08.09.01.32.07
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 828EB6B0005
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 04:53:25 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id z5-v6so1866509edr.19
+        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 01:53:25 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n38-v6si7379828edn.443.2018.08.09.01.53.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Aug 2018 01:32:07 -0700 (PDT)
-Date: Thu, 9 Aug 2018 04:32:06 -0400 (EDT)
-From: Pankaj Gupta <pagupta@redhat.com>
-Message-ID: <2130082365.883434.1533803526182.JavaMail.zimbra@redhat.com>
-In-Reply-To: <0cc6cba7020f80168695fba731b8fd72fd649dc8.1533811181.git.yi.z.zhang@linux.intel.com>
-References: <cover.1533811181.git.yi.z.zhang@linux.intel.com> <0cc6cba7020f80168695fba731b8fd72fd649dc8.1533811181.git.yi.z.zhang@linux.intel.com>
-Subject: Re: [PATCH V3 4/4] kvm: add a check if pfn is from NVDIMM pmem.
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+        Thu, 09 Aug 2018 01:53:23 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH] mm, slub: restore the original intention of prefetch_freepointer()
+Date: Thu,  9 Aug 2018 10:52:45 +0200
+Message-Id: <20180809085245.22448-1-vbabka@suse.cz>
+In-Reply-To: <cc93080f-2d22-71fe-a1fb-d55d1fcc2441@suse.cz>
+References: <cc93080f-2d22-71fe-a1fb-d55d1fcc2441@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yi <yi.z.zhang@linux.intel.com>
-Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pbonzini@redhat.com, dan j williams <dan.j.williams@intel.com>, jack@suse.cz, hch@lst.de, yu c zhang <yu.c.zhang@intel.com>, linux-mm@kvack.org, rkrcmar@redhat.com, yi z zhang <yi.z.zhang@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Menzel <pmenzel+linux-mm@molgen.mpg.de>, Alex Deucher <alexander.deucher@amd.com>, Vlastimil Babka <vbabka@suse.cz>, Kees Cook <keescook@chromium.org>, Daniel Micay <danielmicay@gmail.com>, Eric Dumazet <edumazet@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
+In SLUB, prefetch_freepointer() is used when allocating an object from cache's
+freelist, to make sure the next object in the list is cache-hot, since it's
+probable it will be allocated soon.
 
-> 
-> For device specific memory space, when we move these area of pfn to
-> memory zone, we will set the page reserved flag at that time, some of
-> these reserved for device mmio, and some of these are not, such as
-> NVDIMM pmem.
-> 
-> Now, we map these dev_dax or fs_dax pages to kvm for DIMM/NVDIMM
-> backend, since these pages are reserved. the check of
-> kvm_is_reserved_pfn() misconceives those pages as MMIO. Therefor, we
-> introduce 2 page map types, MEMORY_DEVICE_FS_DAX/MEMORY_DEVICE_DEV_DAX,
-> to indentify these pages are from NVDIMM pmem. and let kvm treat these
+Commit 2482ddec670f ("mm: add SLUB free list pointer obfuscation") has
+unintentionally changed the prefetch in a way where the prefetch is turned to a
+real fetch, and only the next->next pointer is prefetched. In case there is not
+a stream of allocations that would benefit from prefetching, the extra real
+fetch might add a useless cache miss to the allocation. Restore the previous
+behavior.
 
-s/indentify/identify & remove '.'
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Daniel Micay <danielmicay@gmail.com>
+Cc: Eric Dumazet <edumazet@google.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+While I don't expect this to be causing the bug at hand, it's worth fixing.
+For the bug it might mean that the page fault moves elsewhere.
 
-> as normal pages.
-> 
-> Without this patch, Many operations will be missed due to this
-> mistreatment to pmem pages. For example, a page may not have chance to
-> be unpinned for KVM guest(in kvm_release_pfn_clean); not able to be
-> marked as dirty/accessed(in kvm_set_pfn_dirty/accessed) etc
-> 
-> Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
-> ---
->  virt/kvm/kvm_main.c | 8 ++++++--
->  1 file changed, 6 insertions(+), 2 deletions(-)
-> 
-> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-> index c44c406..969b6ca 100644
-> --- a/virt/kvm/kvm_main.c
-> +++ b/virt/kvm/kvm_main.c
-> @@ -147,8 +147,12 @@ __weak void
-> kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
->  
->  bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
->  {
-> -        if (pfn_valid(pfn))
-> -                return PageReserved(pfn_to_page(pfn));
-> +        struct page *page;
-> +
-> +        if (pfn_valid(pfn)) {
-> +                page = pfn_to_page(pfn);
-> +                return PageReserved(page) && !is_dax_page(page);
-> +        }
->  
->          return true;
->  }
-> --
-> 2.7.4
-> 
-> 
+ mm/slub.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index 51258eff4178..ce2b9e5cea77 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -271,8 +271,7 @@ static inline void *get_freepointer(struct kmem_cache *s, void *object)
+ 
+ static void prefetch_freepointer(const struct kmem_cache *s, void *object)
+ {
+-	if (object)
+-		prefetch(freelist_dereference(s, object + s->offset));
++	prefetch(object + s->offset);
+ }
+ 
+ static inline void *get_freepointer_safe(struct kmem_cache *s, void *object)
+-- 
+2.18.0
