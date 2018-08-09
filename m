@@ -1,113 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A38C06B0281
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 15:21:46 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id v24-v6so639799wmh.5
-        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 12:21:46 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id r1-v6sor3239324wrm.62.2018.08.09.12.21.45
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 97E236B000E
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 16:10:13 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id g36-v6so4322931plb.5
+        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 13:10:13 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u8-v6sor2402210plz.53.2018.08.09.13.10.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 09 Aug 2018 12:21:45 -0700 (PDT)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v5 18/18] kasan: add SPDX-License-Identifier mark to source files
-Date: Thu,  9 Aug 2018 21:21:10 +0200
-Message-Id: <7c7356215cab699aaf06b12ef695c41eb2a1857e.1533842385.git.andreyknvl@google.com>
-In-Reply-To: <cover.1533842385.git.andreyknvl@google.com>
-References: <cover.1533842385.git.andreyknvl@google.com>
+        Thu, 09 Aug 2018 13:10:12 -0700 (PDT)
+Date: Thu, 9 Aug 2018 13:10:10 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 0/3] introduce memory.oom.group
+In-Reply-To: <20180808105909.GJ27972@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.21.1808091308210.244858@chino.kir.corp.google.com>
+References: <20180730180100.25079-1-guro@fb.com> <alpine.DEB.2.21.1807301847000.198273@chino.kir.corp.google.com> <20180731235135.GA23436@castle.DHCP.thefacebook.com> <alpine.DEB.2.21.1808011437350.38896@chino.kir.corp.google.com>
+ <20180801224706.GA32269@castle.DHCP.thefacebook.com> <alpine.DEB.2.21.1808061405100.43071@chino.kir.corp.google.com> <20180807003020.GA21483@castle.DHCP.thefacebook.com> <alpine.DEB.2.21.1808071519030.237317@chino.kir.corp.google.com>
+ <20180808105909.GJ27972@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-This patch adds a "SPDX-License-Identifier: GPL-2.0" mark to all source
-files under mm/kasan.
+On Wed, 8 Aug 2018, Michal Hocko wrote:
 
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- mm/kasan/common.c         | 1 +
- mm/kasan/kasan.c          | 1 +
- mm/kasan/kasan_init.c     | 1 +
- mm/kasan/kasan_report.c   | 1 +
- mm/kasan/khwasan.c        | 1 +
- mm/kasan/khwasan_report.c | 1 +
- mm/kasan/quarantine.c     | 1 +
- mm/kasan/report.c         | 1 +
- 8 files changed, 8 insertions(+)
+> > > > In a cgroup-aware oom killer world, yes, we need the ability to specify 
+> > > > that the usage of the entire subtree should be compared as a single 
+> > > > entity with other cgroups.  That is necessary for user subtrees but may 
+> > > > not be necessary for top-level cgroups depending on how you structure your 
+> > > > unified cgroup hierarchy.  So it needs to be configurable, as you suggest, 
+> > > > and you are correct it can be different than oom.group.
+> > > > 
+> > > > That's not the only thing we need though, as I'm sure you were expecting 
+> > > > me to say :)
+> > > > 
+> > > > We need the ability to preserve existing behavior, i.e. process based and 
+> > > > not cgroup aware, for subtrees so that our users who have clear 
+> > > > expectations and tune their oom_score_adj accordingly based on how the oom 
+> > > > killer has always chosen processes for oom kill do not suddenly regress.
+> > > 
+> > > Isn't the combination of oom.group=0 and oom.evaluate_together=1 describing
+> > > this case? This basically means that if memcg is selected as target,
+> > > the process inside will be selected using traditional per-process approach.
+> > > 
+> > 
+> > No, that would overload the policy and mechanism.  We want the ability to 
+> > consider user-controlled subtrees as a single entity for comparison with 
+> > other user subtrees to select which subtree to target.  This does not 
+> > imply that users want their entire subtree oom killed.
+> 
+> Yeah, that's why oom.group == 0, no?
+> 
+> Anyway, can we separate this discussion from the current series please?
+> We are getting more and more tangent.
+> 
+> Or do you still see the current state to be not mergeable?
 
-diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index e5648f4218eb..f2576d93e74c 100644
---- a/mm/kasan/common.c
-+++ b/mm/kasan/common.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains common KASAN and KHWASAN code.
-  *
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 44ec228de0a2..128a865c9e05 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains core KASAN code.
-  *
-diff --git a/mm/kasan/kasan_init.c b/mm/kasan/kasan_init.c
-index f436246ccc79..2dfa730a9d43 100644
---- a/mm/kasan/kasan_init.c
-+++ b/mm/kasan/kasan_init.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains some kasan initialization code.
-  *
-diff --git a/mm/kasan/kasan_report.c b/mm/kasan/kasan_report.c
-index fdf2d77e3125..48da73f4ef7c 100644
---- a/mm/kasan/kasan_report.c
-+++ b/mm/kasan/kasan_report.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains KASAN specific error reporting code.
-  *
-diff --git a/mm/kasan/khwasan.c b/mm/kasan/khwasan.c
-index 6b1309278e39..934f80b2d22e 100644
---- a/mm/kasan/khwasan.c
-+++ b/mm/kasan/khwasan.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains core KHWASAN code.
-  *
-diff --git a/mm/kasan/khwasan_report.c b/mm/kasan/khwasan_report.c
-index 51238b404b08..4e193546d94e 100644
---- a/mm/kasan/khwasan_report.c
-+++ b/mm/kasan/khwasan_report.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains KHWASAN specific error reporting code.
-  *
-diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
-index 3a8ddf8baf7d..0e4dc1a22615 100644
---- a/mm/kasan/quarantine.c
-+++ b/mm/kasan/quarantine.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * KASAN quarantine.
-  *
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index e031c78f2e52..633b4b245798 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -1,3 +1,4 @@
-+// SPDX-License-Identifier: GPL-2.0
- /*
-  * This file contains common KASAN and KHWASAN error reporting code.
-  *
--- 
-2.18.0.597.ga71716f1ad-goog
+I've said three times in this series that I am fine with it.  Roman and I 
+are discussing the API for making forward progress with the cgroup aware 
+oom killer itself.  When he responds, he can change the subject line if 
+that would be helpful to you.
