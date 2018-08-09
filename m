@@ -1,111 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BD6286B0005
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 10:27:14 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id o18-v6so5800736qko.21
-        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 07:27:14 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 70-v6si1545511qki.23.2018.08.09.07.27.13
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EC736B0007
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 10:30:55 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id h26-v6so2187421eds.14
+        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 07:30:55 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 41-v6si2213038edr.186.2018.08.09.07.30.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Aug 2018 07:27:13 -0700 (PDT)
-Date: Thu, 9 Aug 2018 10:27:09 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [RFC PATCH 2/3] mm/memory_hotplug: Create __shrink_pages and
- move it to offline_pages
-Message-ID: <20180809142709.GA3386@redhat.com>
-References: <20180807133757.18352-1-osalvador@techadventures.net>
- <20180807133757.18352-3-osalvador@techadventures.net>
- <20180807135221.GA3301@redhat.com>
- <20180807145900.GH10003@dhcp22.suse.cz>
- <20180807151810.GB3301@redhat.com>
- <20180808064758.GB27972@dhcp22.suse.cz>
- <20180808165814.GB3429@redhat.com>
- <20180809082415.GB24884@dhcp22.suse.cz>
+        Thu, 09 Aug 2018 07:30:53 -0700 (PDT)
+Subject: Re: [PATCH v3] resource: Merge resources on a node when hot-adding
+ memory
+References: <20180809025409.31552-1-rashmica.g@gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <8fe4bac8-9ee3-de95-095d-2e915d9f366a@suse.cz>
+Date: Thu, 9 Aug 2018 16:30:50 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180809082415.GB24884@dhcp22.suse.cz>
+In-Reply-To: <20180809025409.31552-1-rashmica.g@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: osalvador@techadventures.net, akpm@linux-foundation.org, dan.j.williams@intel.com, pasha.tatashin@oracle.com, david@redhat.com, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Rashmica Gupta <rashmica.g@gmail.com>, toshi.kani@hpe.com, tglx@linutronix.de, akpm@linux-foundation.org, bp@suse.de, brijesh.singh@amd.com, thomas.lendacky@amd.com, jglisse@redhat.com, gregkh@linuxfoundation.org, baiyaowei@cmss.chinamobile.com, dan.j.williams@intel.com, mhocko@suse.com, iamjoonsoo.kim@lge.com, malat@debian.org, bhelgaas@google.com, osalvador@techadventures.net, yasu.isimatu@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rppt@linux.vnet.ibm.com
 
-On Thu, Aug 09, 2018 at 10:24:15AM +0200, Michal Hocko wrote:
-> On Wed 08-08-18 12:58:15, Jerome Glisse wrote:
-> > On Wed, Aug 08, 2018 at 08:47:58AM +0200, Michal Hocko wrote:
-> > > On Tue 07-08-18 11:18:10, Jerome Glisse wrote:
-> > > > On Tue, Aug 07, 2018 at 04:59:00PM +0200, Michal Hocko wrote:
-> > > > > On Tue 07-08-18 09:52:21, Jerome Glisse wrote:
-> > > > > > On Tue, Aug 07, 2018 at 03:37:56PM +0200, osalvador@techadventures.net wrote:
-> > > > > > > From: Oscar Salvador <osalvador@suse.de>
-> > > > > > 
-> > > > > > [...]
-> > > > > > 
-> > > > > > > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > > > > > > index 9bd629944c91..e33555651e46 100644
-> > > > > > > --- a/mm/memory_hotplug.c
-> > > > > > > +++ b/mm/memory_hotplug.c
-> > > > > > 
-> > > > > > [...]
-> > > > > > 
-> > > > > > >  /**
-> > > > > > >   * __remove_pages() - remove sections of pages from a zone
-> > > > > > > - * @zone: zone from which pages need to be removed
-> > > > > > > + * @nid: node which pages belong to
-> > > > > > >   * @phys_start_pfn: starting pageframe (must be aligned to start of a section)
-> > > > > > >   * @nr_pages: number of pages to remove (must be multiple of section size)
-> > > > > > >   * @altmap: alternative device page map or %NULL if default memmap is used
-> > > > > > > @@ -548,7 +557,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
-> > > > > > >   * sure that pages are marked reserved and zones are adjust properly by
-> > > > > > >   * calling offline_pages().
-> > > > > > >   */
-> > > > > > > -int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
-> > > > > > > +int __remove_pages(int nid, unsigned long phys_start_pfn,
-> > > > > > >  		 unsigned long nr_pages, struct vmem_altmap *altmap)
-> > > > > > >  {
-> > > > > > >  	unsigned long i;
-> > > > > > > @@ -556,10 +565,9 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
-> > > > > > >  	int sections_to_remove, ret = 0;
-> > > > > > >  
-> > > > > > >  	/* In the ZONE_DEVICE case device driver owns the memory region */
-> > > > > > > -	if (is_dev_zone(zone)) {
-> > > > > > > -		if (altmap)
-> > > > > > > -			map_offset = vmem_altmap_offset(altmap);
-> > > > > > > -	} else {
-> > > > > > > +	if (altmap)
-> > > > > > > +		map_offset = vmem_altmap_offset(altmap);
-> > > > > > > +	else {
-> > > > > > 
-> > > > > > This will break ZONE_DEVICE at least for HMM. While i think that
-> > > > > > altmap -> ZONE_DEVICE (ie altmap imply ZONE_DEVICE) the reverse
-> > > > > > is not true ie ZONE_DEVICE does not necessarily imply altmap. So
-> > > > > > with the above changes you change the expected behavior.
-> > > > > 
-> > > > > Could you be more specific what is the expected behavior here?
-> > > > > Is this about calling release_mem_region_adjustable? Why does is it not
-> > > > > suitable for zone device ranges?
-> > > > 
-> > > > Correct, you should not call release_mem_region_adjustable() the device
-> > > > region is not part of regular iomem resource as it might not necessarily
-> > > > be enumerated through known ways to the kernel (ie only the device driver
-> > > > can discover the region and core kernel do not know about it).
-> > > 
-> > > If there is no region registered with the range then the call should be
-> > > mere nop, no? So why do we have to special case?
-> > 
-> > IIRC this is because you can not release the resource ie the resource
-> > is still own by the device driver even if you hotremove the memory.
-> > The device driver might still be using the resource without struct page.
+On 08/09/2018 04:54 AM, Rashmica Gupta wrote:
+> When hot-removing memory release_mem_region_adjustable() splits
+> iomem resources if they are not the exact size of the memory being
+> hot-deleted. Adding this memory back to the kernel adds a new
+> resource.
 > 
-> But then it seems to be a property of a device rather than zone_device,
-> no? If there are devices which want to preserve the resource then they
-> should tell that. Doing that unconditionally for all zone_device users
-> seems just wrong.
+> Eg a node has memory 0x0 - 0xfffffffff. Offlining and hot-removing
+> 1GB from 0xf40000000 results in the single resource 0x0-0xfffffffff being
+> split into two resources: 0x0-0xf3fffffff and 0xf80000000-0xfffffffff.
+> 
+> When we hot-add the memory back we now have three resources:
+> 0x0-0xf3fffffff, 0xf40000000-0xf7fffffff, and 0xf80000000-0xfffffffff.
+> 
+> Now if we try to remove some memory that overlaps these resources,
+> like 2GB from 0xf40000000, release_mem_region_adjustable() fails as it
+> expects the chunk of memory to be within the boundaries of a single
+> resource.
+> 
+> This patch adds a function request_resource_and_merge(). This is called
+> instead of request_resource_conflict() when registering a resource in
+> add_memory(). It calls request_resource_conflict() and if hot-removing is
+> enabled (if it isn't we won't get resource fragmentation) we attempt to
+> merge contiguous resources on the node.
+> 
+> Signed-off-by: Rashmica Gupta <rashmica.g@gmail.com>
 
-I am fine with changing that, i did not do that and at the time i did
-not have any feeling on that matter.
-
-Cheers,
-Jerome
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
