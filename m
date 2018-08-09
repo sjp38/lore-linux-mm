@@ -1,72 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 53C986B0008
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 17:05:43 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id w23-v6so5238966iob.18
-        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 14:05:43 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id g201-v6si5027124ioe.132.2018.08.09.14.05.41
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BEFC6B0003
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 19:36:32 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id w23-v6so3519606pgv.1
+        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 16:36:32 -0700 (PDT)
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id h130-v6si7941113pfe.119.2018.08.09.16.36.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Aug 2018 14:05:41 -0700 (PDT)
-Subject: Re: WARNING in try_charge
-References: <0000000000005e979605729c1564@google.com>
- <e2869136-9f59-9ce8-8b9f-f75b157ee31d@I-love.SAKURA.ne.jp>
- <20180809150735.GA15611@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <56c95100-d7f9-b715-bdec-e8bb112e2630@i-love.sakura.ne.jp>
-Date: Fri, 10 Aug 2018 06:05:19 +0900
-MIME-Version: 1.0
-In-Reply-To: <20180809150735.GA15611@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Thu, 09 Aug 2018 16:36:30 -0700 (PDT)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [RFC v7 PATCH 1/4] mm: refactor do_munmap() to extract the common part
+Date: Fri, 10 Aug 2018 07:36:00 +0800
+Message-Id: <1533857763-43527-2-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <1533857763-43527-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1533857763-43527-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>, cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, Andrew Morton <akpm@linux-foundation.org>
+To: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, vbabka@suse.cz, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org
+Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2018/08/10 0:07, Michal Hocko wrote:
-> On Thu 09-08-18 22:57:43, Tetsuo Handa wrote:
->> >From b1f38168f14397c7af9c122cd8207663d96e02ec Mon Sep 17 00:00:00 2001
->> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
->> Date: Thu, 9 Aug 2018 22:49:40 +0900
->> Subject: [PATCH] mm, oom: task_will_free_mem(current) should retry until
->>  memory reserve fails
->>
->> Commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
->> oom_reaped tasks") changed to select next OOM victim as soon as
->> MMF_OOM_SKIP is set. But we don't need to select next OOM victim as
->> long as ALLOC_OOM allocation can succeed. And syzbot is hitting WARN(1)
->> caused by this race window [1].
-> 
-> It is not because the syzbot was exercising a completely different code
-> path (memcg charge rather than the page allocator).
+Introduces three new helper functions:
+  * addr_ok()
+  * munmap_lookup_vma()
+  * munlock_vmas()
 
-I know syzbot is hitting memcg charge path.
+They will be used by do_munmap() and the new do_munmap with zapping
+large mapping early in the later patch.
 
-> 
->> Since memcg OOM case uses forced charge if current thread is killed,
->> out_of_memory() can return true without selecting next OOM victim.
->> Therefore, this patch changes task_will_free_mem(current) to ignore
->> MMF_OOM_SKIP unless ALLOC_OOM allocation failed.
-> 
-> And the patch is simply wrong for memcg.
-> 
+There is no functional change, just code refactor.
 
-Why? I think I should have done
+Reviewed-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+ mm/mmap.c | 100 ++++++++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 71 insertions(+), 29 deletions(-)
 
--+	page = __alloc_pages_may_oom(gfp_mask, order, alloc_flags == ALLOC_OOM
--+				     || (gfp_mask & __GFP_NOMEMALLOC), ac,
--+				     &did_some_progress);
-++	page = __alloc_pages_may_oom(gfp_mask, order, alloc_flags == ALLOC_OOM,
-++				     ac, &did_some_progress);
-
-because nobody will use __GFP_NOMEMALLOC | __GFP_NOFAIL. But for memcg charge
-path, task_will_free_mem(current, false) == true and out_of_memory() will return
-true, which avoids unnecessary OOM killing.
-
-Of course, this patch cannot avoid unnecessary OOM killing if out_of_memory()
-is called by not yet killed process. But to mitigate it, what can we do other
-than defer setting MMF_OOM_SKIP using a timeout based mechanism? Making
-the OOM reaper unconditionally reclaim all memory is not a valid answer.
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 17bbf4d..2a6898b 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2681,35 +2681,40 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	return __split_vma(mm, vma, addr, new_below);
+ }
+ 
+-/* Munmap is split into 2 main parts -- this part which finds
+- * what needs doing, and the areas themselves, which do the
+- * work.  This now handles partial unmappings.
+- * Jeremy Fitzhardinge <jeremy@goop.org>
+- */
+-int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+-	      struct list_head *uf)
++static inline bool addr_ok(unsigned long start, size_t len)
+ {
+-	unsigned long end;
+-	struct vm_area_struct *vma, *prev, *last;
+-
+ 	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE-start)
+-		return -EINVAL;
++		return false;
+ 
+-	len = PAGE_ALIGN(len);
+-	if (len == 0)
+-		return -EINVAL;
++	if (PAGE_ALIGN(len) == 0)
++		return false;
++
++	return true;
++}
++
++/*
++ * munmap_lookup_vma: find the first overlap vma and split overlap vmas.
++ * @mm: mm_struct
++ * @start: start address
++ * @end: end address
++ *
++ * returns the pointer to vma, NULL or err ptr when spilt_vma returns error.
++ */
++static struct vm_area_struct *munmap_lookup_vma(struct mm_struct *mm,
++			unsigned long start, unsigned long end)
++{
++	struct vm_area_struct *vma, *prev, *last;
+ 
+ 	/* Find the first overlapping VMA */
+ 	vma = find_vma(mm, start);
+ 	if (!vma)
+-		return 0;
+-	prev = vma->vm_prev;
+-	/* we have  start < vma->vm_end  */
++		return NULL;
+ 
++	/* we have  start < vma->vm_end  */
+ 	/* if it doesn't overlap, we have nothing.. */
+-	end = start + len;
+ 	if (vma->vm_start >= end)
+-		return 0;
++		return NULL;
++	prev = vma->vm_prev;
+ 
+ 	/*
+ 	 * If we need to split any vma, do it now to save pain later.
+@@ -2727,11 +2732,11 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 		 * its limit temporarily, to help free resources as expected.
+ 		 */
+ 		if (end < vma->vm_end && mm->map_count >= sysctl_max_map_count)
+-			return -ENOMEM;
++			return ERR_PTR(-ENOMEM);
+ 
+ 		error = __split_vma(mm, vma, start, 0);
+ 		if (error)
+-			return error;
++			return ERR_PTR(error);
+ 		prev = vma;
+ 	}
+ 
+@@ -2740,10 +2745,53 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 	if (last && end > last->vm_start) {
+ 		int error = __split_vma(mm, last, end, 1);
+ 		if (error)
+-			return error;
++			return ERR_PTR(error);
+ 	}
+ 	vma = prev ? prev->vm_next : mm->mmap;
+ 
++	return vma;
++}
++
++static inline void munlock_vmas(struct vm_area_struct *vma,
++				unsigned long end)
++{
++	struct mm_struct *mm = vma->vm_mm;
++
++	while (vma && vma->vm_start < end) {
++		if (vma->vm_flags & VM_LOCKED) {
++			mm->locked_vm -= vma_pages(vma);
++			munlock_vma_pages_all(vma);
++		}
++		vma = vma->vm_next;
++	}
++}
++
++/* Munmap is split into 2 main parts -- this part which finds
++ * what needs doing, and the areas themselves, which do the
++ * work.  This now handles partial unmappings.
++ * Jeremy Fitzhardinge <jeremy@goop.org>
++ */
++int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
++	      struct list_head *uf)
++{
++	unsigned long end;
++	struct vm_area_struct *vma, *prev;
++
++	if (!addr_ok(start, len))
++		return -EINVAL;
++
++	len = PAGE_ALIGN(len);
++
++	end = start + len;
++
++	vma = munmap_lookup_vma(mm, start, end);
++	if (!vma)
++		return 0;
++	if (IS_ERR(vma))
++		return PTR_ERR(vma);
++
++	prev = vma->vm_prev;
++
+ 	if (unlikely(uf)) {
+ 		/*
+ 		 * If userfaultfd_unmap_prep returns an error the vmas
+@@ -2764,13 +2812,7 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 	 */
+ 	if (mm->locked_vm) {
+ 		struct vm_area_struct *tmp = vma;
+-		while (tmp && tmp->vm_start < end) {
+-			if (tmp->vm_flags & VM_LOCKED) {
+-				mm->locked_vm -= vma_pages(tmp);
+-				munlock_vma_pages_all(tmp);
+-			}
+-			tmp = tmp->vm_next;
+-		}
++		munlock_vmas(tmp, end);
+ 	}
+ 
+ 	/*
+-- 
+1.8.3.1
