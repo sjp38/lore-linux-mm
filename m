@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A3F86B0005
-	for <linux-mm@kvack.org>; Fri, 10 Aug 2018 14:24:11 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id g5-v6so4895806pgq.5
-        for <linux-mm@kvack.org>; Fri, 10 Aug 2018 11:24:11 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 641FE6B0006
+	for <linux-mm@kvack.org>; Fri, 10 Aug 2018 14:26:47 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id d22-v6so5851318pfn.3
+        for <linux-mm@kvack.org>; Fri, 10 Aug 2018 11:26:47 -0700 (PDT)
 Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id i5-v6si7472499plt.112.2018.08.10.11.24.08
+        by mx.google.com with ESMTPS id a17-v6si10733218pgb.369.2018.08.10.11.26.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Aug 2018 11:24:10 -0700 (PDT)
-Subject: Re: [RFC v7 PATCH 1/4] mm: refactor do_munmap() to extract the common
- part
+        Fri, 10 Aug 2018 11:26:46 -0700 (PDT)
+Subject: Re: [RFC v7 PATCH 2/4] mm: mmap: zap pages with read mmap_sem in
+ munmap
 References: <1533857763-43527-1-git-send-email-yang.shi@linux.alibaba.com>
- <1533857763-43527-2-git-send-email-yang.shi@linux.alibaba.com>
- <20180810174150.GA6487@bombadil.infradead.org>
+ <1533857763-43527-3-git-send-email-yang.shi@linux.alibaba.com>
+ <20180810175759.GB6487@bombadil.infradead.org>
 From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <30ee3dd0-a794-1c93-dd22-5c643a9037a6@linux.alibaba.com>
-Date: Fri, 10 Aug 2018 11:23:45 -0700
+Message-ID: <0594c845-68c8-e15f-6ec6-91641c5fbdd1@linux.alibaba.com>
+Date: Fri, 10 Aug 2018 11:26:14 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180810174150.GA6487@bombadil.infradead.org>
+In-Reply-To: <20180810175759.GB6487@bombadil.infradead.org>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Language: en-US
@@ -29,66 +29,20 @@ Cc: mhocko@kernel.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, vbabka@
 
 
 
-On 8/10/18 10:41 AM, Matthew Wilcox wrote:
-> On Fri, Aug 10, 2018 at 07:36:00AM +0800, Yang Shi wrote:
->> +static inline bool addr_ok(unsigned long start, size_t len)
-> Maybe munmap_range_ok()?  Otherwise some of the conditions here don't make
-> sense for such a generic sounding function.
-
-I don't know. I think the argument is about munmap_ prefix should be used.
-
->
->>   {
->> -	unsigned long end;
->> -	struct vm_area_struct *vma, *prev, *last;
->> -
->>   	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE-start)
->> -		return -EINVAL;
->> +		return false;
->>   
->> -	len = PAGE_ALIGN(len);
->> -	if (len == 0)
->> -		return -EINVAL;
->> +	if (PAGE_ALIGN(len) == 0)
->> +		return false;
->> +
->> +	return true;
->> +}
->> +
+On 8/10/18 10:57 AM, Matthew Wilcox wrote:
+> On Fri, Aug 10, 2018 at 07:36:01AM +0800, Yang Shi wrote:
 >> +/*
->> + * munmap_lookup_vma: find the first overlap vma and split overlap vmas.
->> + * @mm: mm_struct
->> + * @start: start address
->> + * @end: end address
+>> + * Zap pages with read mmap_sem held
 >> + *
->> + * returns the pointer to vma, NULL or err ptr when spilt_vma returns error.
-> kernel-doc prefers:
->
->   * Return: %NULL if no VMA overlaps this range.  An ERR_PTR if an
->   * overlapping VMA could not be split.  Otherwise a pointer to the first
->   * VMA which overlaps the range.
-
-Ok, will fix it.
-
->
+>> + * uf is the list for userfaultfd
 >> + */
->> +static struct vm_area_struct *munmap_lookup_vma(struct mm_struct *mm,
->> +			unsigned long start, unsigned long end)
->> +{
->> +	struct vm_area_struct *vma, *prev, *last;
->>   
->>   	/* Find the first overlapping VMA */
->>   	vma = find_vma(mm, start);
->>   	if (!vma)
->> -		return 0;
->> -	prev = vma->vm_prev;
->> -	/* we have  start < vma->vm_end  */
->> +		return NULL;
->>   
->> +	/* we have  start < vma->vm_end  */
-> Can you remove the duplicate spaces here?
+>> +static int do_munmap_zap_rlock(struct mm_struct *mm, unsigned long start,
+>> +			       size_t len, struct list_head *uf)
+> I don't like the name here.  We aren't zapping rlocks, we're zapping
+> pages.  Not sure what to call it though ...
 
-Sure
+It may look ambiguous, it means "zap with rlock", but I don't think 
+anyone would expect we are zapping locks.
 
 Thanks,
 Yang
