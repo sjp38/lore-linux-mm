@@ -1,56 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C37226B026A
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 20:29:25 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id d11-v6so5586035iok.21
-        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 17:29:25 -0700 (PDT)
-Received: from smtp.tom.com (smtprz15.163.net. [106.3.154.248])
-        by mx.google.com with ESMTPS id 186-v6si5128238ioc.264.2018.08.09.17.29.23
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FD226B026B
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2018 21:12:28 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id p5-v6so4343514pfh.11
+        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 18:12:28 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id j1-v6si6819524plt.126.2018.08.09.18.12.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Aug 2018 17:29:24 -0700 (PDT)
-Received: from antispam1.tom.com (unknown [172.25.16.55])
-	by freemail01.tom.com (Postfix) with ESMTP id 63DB01C80DFD
-	for <linux-mm@kvack.org>; Fri, 10 Aug 2018 08:29:17 +0800 (CST)
-Received: from antispam1.tom.com (antispam1.tom.com [127.0.0.1])
-	by antispam1.tom.com (Postfix) with ESMTP id 5BC651001336
-	for <linux-mm@kvack.org>; Fri, 10 Aug 2018 08:29:17 +0800 (CST)
-Received: from antispam1.tom.com ([127.0.0.1])
-	by antispam1.tom.com (antispam1.tom.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id OMmUceSOnH1n for <linux-mm@kvack.org>;
-	Fri, 10 Aug 2018 08:29:15 +0800 (CST)
-From: zhouxianrong <zhouxianrong@tom.com>
-Subject: [PATCH] zsmalloc: fix linking bug in init_zspage
-Date: Thu,  9 Aug 2018 20:28:17 -0400
-Message-Id: <20180810002817.2667-1-zhouxianrong@tom.com>
+        Thu, 09 Aug 2018 18:12:26 -0700 (PDT)
+Date: Thu, 9 Aug 2018 18:12:24 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3] resource: Merge resources on a node when hot-adding
+ memory
+Message-Id: <20180809181224.0b7417e51215565dbda9f665@linux-foundation.org>
+In-Reply-To: <20180809025409.31552-1-rashmica.g@gmail.com>
+References: <20180809025409.31552-1-rashmica.g@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, zhouxianrong@tom.com, zhouxianrong <zhouxianrong@huawei.com>
+To: Rashmica Gupta <rashmica.g@gmail.com>
+Cc: toshi.kani@hpe.com, tglx@linutronix.de, bp@suse.de, brijesh.singh@amd.com, thomas.lendacky@amd.com, jglisse@redhat.com, gregkh@linuxfoundation.org, baiyaowei@cmss.chinamobile.com, dan.j.williams@intel.com, mhocko@suse.com, iamjoonsoo.kim@lge.com, vbabka@suse.cz, malat@debian.org, bhelgaas@google.com, osalvador@techadventures.net, yasu.isimatu@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rppt@linux.vnet.ibm.com
 
-From: zhouxianrong <zhouxianrong@huawei.com>
+On Thu,  9 Aug 2018 12:54:09 +1000 Rashmica Gupta <rashmica.g@gmail.com> wrote:
 
-The last partial object in last subpage of zspage should not be linked
-in allocation list. Otherwise it could trigger BUG_ON explicitly at
-function zs_map_object. But it happened rarely.
+> When hot-removing memory release_mem_region_adjustable() splits
+> iomem resources if they are not the exact size of the memory being
+> hot-deleted. Adding this memory back to the kernel adds a new
+> resource.
+> 
+> Eg a node has memory 0x0 - 0xfffffffff. Offlining and hot-removing
+> 1GB from 0xf40000000 results in the single resource 0x0-0xfffffffff being
+> split into two resources: 0x0-0xf3fffffff and 0xf80000000-0xfffffffff.
+> 
+> When we hot-add the memory back we now have three resources:
+> 0x0-0xf3fffffff, 0xf40000000-0xf7fffffff, and 0xf80000000-0xfffffffff.
+> 
+> Now if we try to remove some memory that overlaps these resources,
+> like 2GB from 0xf40000000, release_mem_region_adjustable() fails as it
+> expects the chunk of memory to be within the boundaries of a single
+> resource.
+> 
+> This patch adds a function request_resource_and_merge(). This is called
+> instead of request_resource_conflict() when registering a resource in
+> add_memory(). It calls request_resource_conflict() and if hot-removing is
+> enabled (if it isn't we won't get resource fragmentation) we attempt to
+> merge contiguous resources on the node.
 
-Signed-off-by: zhouxianrong <zhouxianrong@huawei.com>
----
- mm/zsmalloc.c | 2 ++
- 1 file changed, 2 insertions(+)
+What is the end-user impact of this patch?
 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 8d87e973a4f5..24dd8da0aa59 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -1040,6 +1040,8 @@ static void init_zspage(struct size_class *class, struct zspage *zspage)
- 			 * Reset OBJ_TAG_BITS bit to last link to tell
- 			 * whether it's allocated object or not.
- 			 */
-+			if (off > PAGE_SIZE)
-+				link -= class->size / sizeof(*link);
- 			link->next = -1UL << OBJ_TAG_BITS;
- 		}
- 		kunmap_atomic(vaddr);
--- 
-2.13.6
+Do you believe the fix should be merged into 4.18?  Backporting into
+-stable kernels?  If so, why?
+
+Thanks.
