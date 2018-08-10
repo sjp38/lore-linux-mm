@@ -1,86 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EAEA66B000A
-	for <linux-mm@kvack.org>; Fri, 10 Aug 2018 03:03:54 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id d5-v6so2969417edq.3
-        for <linux-mm@kvack.org>; Fri, 10 Aug 2018 00:03:54 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FCAE6B0003
+	for <linux-mm@kvack.org>; Fri, 10 Aug 2018 04:30:57 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id b25-v6so3009711eds.17
+        for <linux-mm@kvack.org>; Fri, 10 Aug 2018 01:30:57 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p21-v6si2508820edm.136.2018.08.10.00.03.53
+        by mx.google.com with ESMTPS id q24-v6si838449edg.363.2018.08.10.01.30.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Aug 2018 00:03:53 -0700 (PDT)
-Date: Fri, 10 Aug 2018 09:03:51 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/3] introduce memory.oom.group
-Message-ID: <20180810070351.GB1644@dhcp22.suse.cz>
-References: <20180730180100.25079-1-guro@fb.com>
- <alpine.DEB.2.21.1807301847000.198273@chino.kir.corp.google.com>
- <20180731235135.GA23436@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1808011437350.38896@chino.kir.corp.google.com>
- <20180801224706.GA32269@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1808061405100.43071@chino.kir.corp.google.com>
- <20180807003020.GA21483@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.21.1808071519030.237317@chino.kir.corp.google.com>
- <20180808105909.GJ27972@dhcp22.suse.cz>
- <alpine.DEB.2.21.1808091308210.244858@chino.kir.corp.google.com>
+        Fri, 10 Aug 2018 01:30:55 -0700 (PDT)
+Subject: Re: [PATCH v3] resource: Merge resources on a node when hot-adding
+ memory
+References: <20180809025409.31552-1-rashmica.g@gmail.com>
+ <20180809181224.0b7417e51215565dbda9f665@linux-foundation.org>
+ <CAC6rBs=yYYZw-c02yp6rx-+TN2oUGgrp=uuLhZ=Kc_nnjmTRqA@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <41eb4fc8-3b57-478b-05b4-88bed24ed66e@suse.cz>
+Date: Fri, 10 Aug 2018 10:28:26 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1808091308210.244858@chino.kir.corp.google.com>
+In-Reply-To: <CAC6rBs=yYYZw-c02yp6rx-+TN2oUGgrp=uuLhZ=Kc_nnjmTRqA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
+To: Rashmica Gupta <rashmica.g@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: toshi.kani@hpe.com, tglx@linutronix.de, bp@suse.de, brijesh.singh@amd.com, thomas.lendacky@amd.com, jglisse@redhat.com, gregkh@linuxfoundation.org, baiyaowei@cmss.chinamobile.com, dan.j.williams@intel.com, mhocko@suse.com, iamjoonsoo.kim@lge.com, malat@debian.org, Bjorn Helgaas <bhelgaas@google.com>, osalvador@techadventures.net, yasu.isimatu@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On Thu 09-08-18 13:10:10, David Rientjes wrote:
-> On Wed, 8 Aug 2018, Michal Hocko wrote:
+On 08/10/2018 08:55 AM, Rashmica Gupta wrote:
+> On Fri, Aug 10, 2018 at 11:12 AM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+>>
+>> What is the end-user impact of this patch?
+>>
 > 
-> > > > > In a cgroup-aware oom killer world, yes, we need the ability to specify 
-> > > > > that the usage of the entire subtree should be compared as a single 
-> > > > > entity with other cgroups.  That is necessary for user subtrees but may 
-> > > > > not be necessary for top-level cgroups depending on how you structure your 
-> > > > > unified cgroup hierarchy.  So it needs to be configurable, as you suggest, 
-> > > > > and you are correct it can be different than oom.group.
-> > > > > 
-> > > > > That's not the only thing we need though, as I'm sure you were expecting 
-> > > > > me to say :)
-> > > > > 
-> > > > > We need the ability to preserve existing behavior, i.e. process based and 
-> > > > > not cgroup aware, for subtrees so that our users who have clear 
-> > > > > expectations and tune their oom_score_adj accordingly based on how the oom 
-> > > > > killer has always chosen processes for oom kill do not suddenly regress.
-> > > > 
-> > > > Isn't the combination of oom.group=0 and oom.evaluate_together=1 describing
-> > > > this case? This basically means that if memcg is selected as target,
-> > > > the process inside will be selected using traditional per-process approach.
-> > > > 
-> > > 
-> > > No, that would overload the policy and mechanism.  We want the ability to 
-> > > consider user-controlled subtrees as a single entity for comparison with 
-> > > other user subtrees to select which subtree to target.  This does not 
-> > > imply that users want their entire subtree oom killed.
-> > 
-> > Yeah, that's why oom.group == 0, no?
-> > 
-> > Anyway, can we separate this discussion from the current series please?
-> > We are getting more and more tangent.
-> > 
-> > Or do you still see the current state to be not mergeable?
+> Only architectures/setups that allow the user to remove and add memory of
+> different sizes or different start addresses from the kernel at runtime will
+> potentially encounter the resource fragmentation.
 > 
-> I've said three times in this series that I am fine with it.
+> Trying to remove memory that overlaps iomem resources the first time
+> gives us this warning: "Unable to release resource <%pa-%pa>".
+> 
+> Attempting a second time results in a kernel oops (on ppc at least).
 
-OK, that wasn't really clear to me because I haven't see any explicit
-ack from you (well except for the trivial helper patch). So I was not
-sure.
+An oops? I think that should be investigated and fixed, even if resource
+merging prevents it. Do you have the details?
 
-> Roman and I 
-> are discussing the API for making forward progress with the cgroup aware 
-> oom killer itself.  When he responds, he can change the subject line if 
-> that would be helpful to you.
-
-I do not insist of course but it would be easier to follow if that
-discussion was separate.
-
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Vlastimil
