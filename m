@@ -1,133 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CA1B6B0006
-	for <linux-mm@kvack.org>; Fri, 10 Aug 2018 13:01:12 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id y16-v6so4738096pgv.23
-        for <linux-mm@kvack.org>; Fri, 10 Aug 2018 10:01:12 -0700 (PDT)
-Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
-        by mx.google.com with ESMTPS id x1-v6si11537181pgx.60.2018.08.10.10.01.09
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 695426B0003
+	for <linux-mm@kvack.org>; Fri, 10 Aug 2018 13:41:59 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id v9-v6so5772289pff.4
+        for <linux-mm@kvack.org>; Fri, 10 Aug 2018 10:41:59 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id w26-v6si10681361pgk.372.2018.08.10.10.41.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Aug 2018 10:01:11 -0700 (PDT)
-Subject: Re: [RFC v7 PATCH 4/4] mm: unmap special vmas with regular
- do_munmap()
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 10 Aug 2018 10:41:58 -0700 (PDT)
+Date: Fri, 10 Aug 2018 10:41:50 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC v7 PATCH 1/4] mm: refactor do_munmap() to extract the
+ common part
+Message-ID: <20180810174150.GA6487@bombadil.infradead.org>
 References: <1533857763-43527-1-git-send-email-yang.shi@linux.alibaba.com>
- <1533857763-43527-5-git-send-email-yang.shi@linux.alibaba.com>
- <93bbbf91-2bae-b5f1-17d3-72a13efc3ec6@suse.cz>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <a1f54170-7c8d-9f67-0e64-5937afadfbb2@linux.alibaba.com>
-Date: Fri, 10 Aug 2018 10:00:45 -0700
+ <1533857763-43527-2-git-send-email-yang.shi@linux.alibaba.com>
 MIME-Version: 1.0
-In-Reply-To: <93bbbf91-2bae-b5f1-17d3-72a13efc3ec6@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1533857763-43527-2-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: mhocko@kernel.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, vbabka@suse.cz, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Fri, Aug 10, 2018 at 07:36:00AM +0800, Yang Shi wrote:
+> +static inline bool addr_ok(unsigned long start, size_t len)
 
+Maybe munmap_range_ok()?  Otherwise some of the conditions here don't make
+sense for such a generic sounding function.
 
-On 8/10/18 3:46 AM, Vlastimil Babka wrote:
-> On 08/10/2018 01:36 AM, Yang Shi wrote:
->> Unmapping vmas, which have VM_HUGETLB | VM_PFNMAP flag set or
->> have uprobes set, need get done with write mmap_sem held since
->> they may update vm_flags.
->>
->> So, it might be not safe enough to deal with these kind of special
->> mappings with read mmap_sem. Deal with such mappings with regular
->> do_munmap() call.
->>
->> Michal suggested to make this as a separate patch for safer and more
->> bisectable sake.
->>
->> Cc: Michal Hocko <mhocko@kernel.org>
->> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
->> ---
->>   mm/mmap.c | 24 ++++++++++++++++++++++++
->>   1 file changed, 24 insertions(+)
->>
->> diff --git a/mm/mmap.c b/mm/mmap.c
->> index 2234d5a..06cb83c 100644
->> --- a/mm/mmap.c
->> +++ b/mm/mmap.c
->> @@ -2766,6 +2766,16 @@ static inline void munlock_vmas(struct vm_area_struct *vma,
->>   	}
->>   }
->>   
->> +static inline bool can_zap_with_rlock(struct vm_area_struct *vma)
->> +{
->> +	if ((vma->vm_file &&
->> +	     vma_has_uprobes(vma, vma->vm_start, vma->vm_end)) |
-> vma_has_uprobes() seems to be rather expensive check with e.g.
-> unconditional spinlock. uprobe_munmap() seems to have some precondition
-> cheaper checks for e.g. cases when there's no uprobes in the system
-> (should be common?).
+>  {
+> -	unsigned long end;
+> -	struct vm_area_struct *vma, *prev, *last;
+> -
+>  	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE-start)
+> -		return -EINVAL;
+> +		return false;
+>  
+> -	len = PAGE_ALIGN(len);
+> -	if (len == 0)
+> -		return -EINVAL;
+> +	if (PAGE_ALIGN(len) == 0)
+> +		return false;
+> +
+> +	return true;
+> +}
+> +
+> +/*
+> + * munmap_lookup_vma: find the first overlap vma and split overlap vmas.
+> + * @mm: mm_struct
+> + * @start: start address
+> + * @end: end address
+> + *
+> + * returns the pointer to vma, NULL or err ptr when spilt_vma returns error.
 
-I think they are common, i.e. checking vm prot since uprobes are 
-typically installed for VM_EXEC vmas. We could use those checks to save 
-some cycles.
+kernel-doc prefers:
 
->
-> BTW, uprobe_munmap() touches mm->flags, not vma->flags, so it should be
-> evaluated more carefully for being called under mmap sem for reading, as
-> having vmas already detached is no guarantee.
+ * Return: %NULL if no VMA overlaps this range.  An ERR_PTR if an
+ * overlapping VMA could not be split.  Otherwise a pointer to the first
+ * VMA which overlaps the range.
 
-We might just leave uprobe vmas to use regular do_munmap? I'm supposed 
-they should be not very common. And, uprobes just can be installed for 
-VM_EXEC vma, although there may be large text segments, typically 
-VM_EXEC vmas are unmapped when process exits, so the latency might be fine.
+> + */
+> +static struct vm_area_struct *munmap_lookup_vma(struct mm_struct *mm,
+> +			unsigned long start, unsigned long end)
+> +{
+> +	struct vm_area_struct *vma, *prev, *last;
+>  
+>  	/* Find the first overlapping VMA */
+>  	vma = find_vma(mm, start);
+>  	if (!vma)
+> -		return 0;
+> -	prev = vma->vm_prev;
+> -	/* we have  start < vma->vm_end  */
+> +		return NULL;
+>  
+> +	/* we have  start < vma->vm_end  */
 
->
->> +	     (vma->vm_flags | (VM_HUGETLB | VM_PFNMAP)))
-> 			    ^ I think replace '|' with '&' here?
-
-Yes, thanks for catching this.
-
->
->> +		return false;
->> +
->> +	return true;
->> +}
->> +
->>   /*
->>    * Zap pages with read mmap_sem held
->>    *
->> @@ -2808,6 +2818,17 @@ static int do_munmap_zap_rlock(struct mm_struct *mm, unsigned long start,
->>   			goto out;
->>   	}
->>   
->> +	/*
->> +	 * Unmapping vmas, which have VM_HUGETLB | VM_PFNMAP flag set or
->> +	 * have uprobes set, need get done with write mmap_sem held since
->> +	 * they may update vm_flags. Deal with such mappings with regular
->> +	 * do_munmap() call.
->> +	 */
->> +	for (vma = start_vma; vma && vma->vm_start < end; vma = vma->vm_next) {
->> +		if (!can_zap_with_rlock(vma))
->> +			goto regular_path;
->> +	}
->> +
->>   	/* Handle mlocked vmas */
->>   	if (mm->locked_vm) {
->>   		vma = start_vma;
->> @@ -2828,6 +2849,9 @@ static int do_munmap_zap_rlock(struct mm_struct *mm, unsigned long start,
->>   
->>   	return 0;
->>   
->> +regular_path:
-> I think it's missing a down_write_* here.
-
-No, the jump is called before downgrade_write.
-
-Thanks,
-Yang
-
->
->> +	ret = do_munmap(mm, start, len, uf);
->> +
->>   out:
->>   	up_write(&mm->mmap_sem);
->>   	return ret;
->>
+Can you remove the duplicate spaces here?
