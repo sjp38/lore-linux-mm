@@ -1,112 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 771436B0007
-	for <linux-mm@kvack.org>; Fri, 10 Aug 2018 06:49:12 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id f91-v6so5658720plb.10
-        for <linux-mm@kvack.org>; Fri, 10 Aug 2018 03:49:12 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 6-v6si8564748plf.316.2018.08.10.03.49.10
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F64B6B0003
+	for <linux-mm@kvack.org>; Fri, 10 Aug 2018 06:54:56 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id j1-v6so5606018pld.23
+        for <linux-mm@kvack.org>; Fri, 10 Aug 2018 03:54:56 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id a1-v6si7614791pgq.387.2018.08.10.03.54.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Aug 2018 03:49:11 -0700 (PDT)
-Subject: Re: [RFC v7 PATCH 4/4] mm: unmap special vmas with regular
- do_munmap()
-References: <1533857763-43527-1-git-send-email-yang.shi@linux.alibaba.com>
- <1533857763-43527-5-git-send-email-yang.shi@linux.alibaba.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <93bbbf91-2bae-b5f1-17d3-72a13efc3ec6@suse.cz>
-Date: Fri, 10 Aug 2018 12:46:42 +0200
+        Fri, 10 Aug 2018 03:54:54 -0700 (PDT)
+Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
+ processes.
+References: <1533389386-3501-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <1533389386-3501-4-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180806134550.GO19540@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1808061315220.43071@chino.kir.corp.google.com>
+ <20180806205121.GM10003@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1808091311030.244858@chino.kir.corp.google.com>
+ <20180810090735.GY1644@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <be42a7c0-015e-2992-a40d-20af21e8c0fc@i-love.sakura.ne.jp>
+Date: Fri, 10 Aug 2018 19:54:39 +0900
 MIME-Version: 1.0
-In-Reply-To: <1533857763-43527-5-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <20180810090735.GY1644@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>, mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>
 
-On 08/10/2018 01:36 AM, Yang Shi wrote:
-> Unmapping vmas, which have VM_HUGETLB | VM_PFNMAP flag set or
-> have uprobes set, need get done with write mmap_sem held since
-> they may update vm_flags.
+On 2018/08/10 18:07, Michal Hocko wrote:
+>> Yes, of course, it would be easy to rely on exit_mmap() to set 
+>> MMF_OOM_SKIP itself and have the oom reaper drop the task from its list 
+>> when we are assured of forward progress.  What polling are you proposing 
+>> other than a timeout based mechanism to do this?
 > 
-> So, it might be not safe enough to deal with these kind of special
-> mappings with read mmap_sem. Deal with such mappings with regular
-> do_munmap() call.
+> I was thinking about doing something like the following
+> - oom_reaper checks the amount of victim's memory after it is done with
+>   reaping (e.g. by calling oom_badness before and after). 
+
+OK. We can apply
+
++static inline unsigned long oom_victim_mm_score(struct mm_struct *mm)
++{
++	return get_mm_rss(mm) + get_mm_counter(mm, MM_SWAPENTS) +
++		mm_pgtables_bytes(mm) / PAGE_SIZE;
++}
+
+and
+
+-	points = get_mm_rss(p->mm) + get_mm_counter(p->mm, MM_SWAPENTS) +
+-		mm_pgtables_bytes(p->mm) / PAGE_SIZE;
++	points = oom_victim_mm_score(p->mm);
+
+part, can't we?
+
+>                                                           If it wasn't able to
+>   reclaim much then return false and keep retrying with the existing
+>   mechanism
+
+How do you decide whether oom_reaper() was not able to reclaim much?
+
+> - once a flag (e.g. MMF_OOM_MMAP) is set it bails out and won't set the
+>   MMF_OOM_SKIP flag.
+
+Unless oom_victim_mm_score() becomes close to 0, setting MMF_OOM_SKIP is
+considered premature. oom_reaper() will have to keep retrying....
+
 > 
-> Michal suggested to make this as a separate patch for safer and more
-> bisectable sake.
+>> We could set a MMF_EXIT_MMAP in exit_mmap() to specify that it will 
+>> complete free_pgtables() for that mm.  The problem is the same: when does 
+>> the oom reaper decide to set MMF_OOM_SKIP because MMF_EXIT_MMAP has not 
+>> been set in a timely manner?
 > 
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> ---
->  mm/mmap.c | 24 ++++++++++++++++++++++++
->  1 file changed, 24 insertions(+)
+> reuse the current retry policy which is the number of attempts rather
+> than any timeout.
+
+And this is really I can't understand. The number of attempts multiplied
+by retry interval _is_ nothing but timeout.
+
+We are already using timeout based decision, with some attempt to reclaim
+memory if conditions are met.
+
 > 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 2234d5a..06cb83c 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2766,6 +2766,16 @@ static inline void munlock_vmas(struct vm_area_struct *vma,
->  	}
->  }
->  
-> +static inline bool can_zap_with_rlock(struct vm_area_struct *vma)
-> +{
-> +	if ((vma->vm_file &&
-> +	     vma_has_uprobes(vma, vma->vm_start, vma->vm_end)) |
+>> If this is an argument that the oom reaper should loop checking for 
+>> MMF_EXIT_MMAP and doing schedule_timeout(1) a set number of times rather 
+>> than just setting the jiffies in the mm itself, that's just implementing 
+>> the same thing and doing so in a way where the oom reaper stalls operating 
+>> on a single mm rather than round-robin iterating over mm's in my patch.
+> 
+> I've said earlier that I do not mind doing round robin in the oom repaer
+> but this is certainly more complex than what we do now and I haven't
+> seen any actual example where it would matter. OOM reaper is a safely
+> measure. Nothing should fall apart if it is slow. 
 
-vma_has_uprobes() seems to be rather expensive check with e.g.
-unconditional spinlock. uprobe_munmap() seems to have some precondition
-cheaper checks for e.g. cases when there's no uprobes in the system
-(should be common?).
+The OOM reaper can fail if allocating threads have high priority. You seem to
+assume that realtime threads won't trigger OOM path. But since !PF_WQ_WORKER
+threads do only cond_resched() due to your "the cargo cult programming" refusal,
+and like Andrew Morton commented
 
-BTW, uprobe_munmap() touches mm->flags, not vma->flags, so it should be
-evaluated more carefully for being called under mmap sem for reading, as
-having vmas already detached is no guarantee.
+  cond_resched() is a no-op in the presence of realtime policy threads
+  and using to attempt to yield to a different thread it in this fashion
+  is broken.
 
-> +	     (vma->vm_flags | (VM_HUGETLB | VM_PFNMAP)))
+at "mm: disable preemption before swapcache_free" thread, we can't guarantee
+that allocating threads shall give the OOM reaper enough CPU resource for
+making forward progress. And my direct OOM reaping proposal was also refused
+by you. I really dislike counting OOM reaper as a safety measure.
 
-			    ^ I think replace '|' with '&' here?
-
-> +		return false;
-> +
-> +	return true;
-> +}
-> +
->  /*
->   * Zap pages with read mmap_sem held
->   *
-> @@ -2808,6 +2818,17 @@ static int do_munmap_zap_rlock(struct mm_struct *mm, unsigned long start,
->  			goto out;
->  	}
->  
-> +	/*
-> +	 * Unmapping vmas, which have VM_HUGETLB | VM_PFNMAP flag set or
-> +	 * have uprobes set, need get done with write mmap_sem held since
-> +	 * they may update vm_flags. Deal with such mappings with regular
-> +	 * do_munmap() call.
-> +	 */
-> +	for (vma = start_vma; vma && vma->vm_start < end; vma = vma->vm_next) {
-> +		if (!can_zap_with_rlock(vma))
-> +			goto regular_path;
-> +	}
-> +
->  	/* Handle mlocked vmas */
->  	if (mm->locked_vm) {
->  		vma = start_vma;
-> @@ -2828,6 +2849,9 @@ static int do_munmap_zap_rlock(struct mm_struct *mm, unsigned long start,
->  
->  	return 0;
->  
-> +regular_path:
-
-I think it's missing a down_write_* here.
-
-> +	ret = do_munmap(mm, start, len, uf);
-> +
->  out:
->  	up_write(&mm->mmap_sem);
->  	return ret;
+>                                                   The primary work
+> should be happening from the exit path anyway.
 > 
