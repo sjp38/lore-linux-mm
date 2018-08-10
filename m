@@ -1,80 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 952626B0003
-	for <linux-mm@kvack.org>; Fri, 10 Aug 2018 15:32:43 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r13-v6so1872822wmc.8
-        for <linux-mm@kvack.org>; Fri, 10 Aug 2018 12:32:43 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l19-v6sor595988wme.81.2018.08.10.12.32.39
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 17EF36B0003
+	for <linux-mm@kvack.org>; Fri, 10 Aug 2018 18:37:31 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id 90-v6so6602911pla.18
+        for <linux-mm@kvack.org>; Fri, 10 Aug 2018 15:37:31 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id u29-v6si10859187pga.29.2018.08.10.15.37.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 10 Aug 2018 12:32:39 -0700 (PDT)
-Date: Fri, 10 Aug 2018 21:32:37 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH v3] resource: Merge resources on a node when hot-adding
- memory
-Message-ID: <20180810193237.GA22441@techadventures.net>
-References: <20180809025409.31552-1-rashmica.g@gmail.com>
- <20180809181224.0b7417e51215565dbda9f665@linux-foundation.org>
- <CAC6rBs=yYYZw-c02yp6rx-+TN2oUGgrp=uuLhZ=Kc_nnjmTRqA@mail.gmail.com>
- <20180810130052.GC1644@dhcp22.suse.cz>
- <CAC6rBsmkTSSg1RhWkpU-t+tQdyz7NKbfu96tX9BG1=LOGVg-Bw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAC6rBsmkTSSg1RhWkpU-t+tQdyz7NKbfu96tX9BG1=LOGVg-Bw@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 10 Aug 2018 15:37:29 -0700 (PDT)
+Date: Fri, 10 Aug 2018 15:37:27 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 3/3] mm/memory_hotplug: Cleanup
+ unregister_mem_sect_under_nodes
+Message-Id: <20180810153727.c9ae4aab518f1b84e04c999a@linux-foundation.org>
+In-Reply-To: <20180810152931.23004-4-osalvador@techadventures.net>
+References: <20180810152931.23004-1-osalvador@techadventures.net>
+	<20180810152931.23004-4-osalvador@techadventures.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rashmica Gupta <rashmica.g@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, toshi.kani@hpe.com, tglx@linutronix.de, bp@suse.de, brijesh.singh@amd.com, thomas.lendacky@amd.com, jglisse@redhat.com, gregkh@linuxfoundation.org, baiyaowei@cmss.chinamobile.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, Vlastimil Babka <vbabka@suse.cz>, malat@debian.org, Bjorn Helgaas <bhelgaas@google.com>, yasu.isimatu@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: osalvador@techadventures.net
+Cc: mhocko@suse.com, vbabka@suse.cz, dan.j.williams@intel.com, yasu.isimatu@gmail.com, jonathan.cameron@huawei.com, david@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
-On Sat, Aug 11, 2018 at 12:25:39AM +1000, Rashmica Gupta wrote:
-> On Fri, Aug 10, 2018 at 11:00 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Fri 10-08-18 16:55:40, Rashmica Gupta wrote:
-> > [...]
-> >> Most memory hotplug/hotremove seems to be block or section based, and
-> >> always adds and removes memory at the same place.
-> >
-> > Yes and that is hard wired to the memory hotplug code. It is not easy to
-> > make it work outside of section units restriction. So whatever your
-> > memtrace is doing and if it relies on subsection hotplug it cannot
-> > possibly work with the current code.
-> >
-> > I didn't get to review your patch but if it is only needed for an
-> > unmerged code I would rather incline to not merge it unless it is a
-> > clear win to the resource subsystem. A report from Oscar shows that this
-> > is not the case though.
-> >
+On Fri, 10 Aug 2018 17:29:31 +0200 osalvador@techadventures.net wrote:
+
+> From: Oscar Salvador <osalvador@suse.de>
 > 
-> Yup, makes sense. I'll work on it and see if I can not break things.
+> With the assumption that the relationship between
+> memory_block <-> node is 1:1, we can refactor this function a bit.
+> 
+> This assumption is being taken from register_mem_sect_under_node()
+> code.
+> 
+> register_mem_sect_under_node() takes the mem_blk's nid, and compares it
+> to the pfn's nid we are checking.
+> If they match, we go ahead and link both objects.
+> Once done, we just return.
+> 
+> So, the relationship between memory_block <-> node seems to stand.
+> 
+> Currently, unregister_mem_sect_under_nodes() defines a nodemask_t
+> which is being checked in the loop to see if we have already unliked certain node.
 
-In __case__ we really need this patch, I think that one way to fix this is
-to only call merge_node_resources() in case the node is already online.
-Something like this (completely untested):
+"unlinked a certain node"
 
-+struct resource *request_resource_and_merge(struct resource *parent,
-+                                           struct resource *new, int nid)
-+{
-+       struct resource *conflict;
-+
-+       conflict = request_resource_conflict(parent, new);
-+
-+       if (conflict)
-+               return conflict;
-+
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+       /* We do not need to merge any resources on a node that is being
-+        * hot-added together with its memory.
-+	 * The node will be allocated later.
-+	 */
-+       if (node_online(nid))
-+       	merge_node_resources(nid, parent);
-+#endif /* CONFIG_MEMORY_HOTREMOVE */
+> But since a memory_block can only belong to a node, we can drop the nodemask
 
-Although as Michal said, all memory-hotplug code is section-oriented, so
-whatever it is that interacts with it should expect that.
-Otherwise it can fail soon or later.
+"to a single node"?
 
--- 
-Oscar Salvador
-SUSE L3
+> and the check within the loop.
+> 
+> If we find a match between the mem_block->nid and the nid of the
+> pfn we are checking, we unlink the objects and return, as unlink the objects
+
+"unlinking"
+
+> once is enough.
+> 
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -448,35 +448,27 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, void *arg)
+>  	return 0;
+>  }
+>  
+> -/* unregister memory section under all nodes that it spans */
+> +/* unregister memory section from the node it belongs to */
+>  int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+>  				    unsigned long phys_index)
+>  {
+> -	NODEMASK_ALLOC(nodemask_t, unlinked_nodes, GFP_KERNEL);
+>  	unsigned long pfn, sect_start_pfn, sect_end_pfn;
+> -
+> -	if (!unlinked_nodes)
+> -		return -ENOMEM;
+> -	nodes_clear(*unlinked_nodes);
+> +	int nid = mem_blk->nid;
+>  
+>  	sect_start_pfn = section_nr_to_pfn(phys_index);
+>  	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
+>  	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
+> -		int nid;
+> +		int page_nid = get_nid_for_pfn(pfn);
+>  
+> -		nid = get_nid_for_pfn(pfn);
+> -		if (nid < 0)
+> -			continue;
+> -		if (!node_online(nid))
+> -			continue;
+> -		if (node_test_and_set(nid, *unlinked_nodes))
+> -			continue;
+> -		sysfs_remove_link(&node_devices[nid]->dev.kobj,
+> -			 kobject_name(&mem_blk->dev.kobj));
+> -		sysfs_remove_link(&mem_blk->dev.kobj,
+> -			 kobject_name(&node_devices[nid]->dev.kobj));
+> +		if (page_nid >= 0 && page_nid == nid) {
+> +			sysfs_remove_link(&node_devices[nid]->dev.kobj,
+> +				 kobject_name(&mem_blk->dev.kobj));
+> +			sysfs_remove_link(&mem_blk->dev.kobj,
+> +				 kobject_name(&node_devices[nid]->dev.kobj));
+> +			break;
+> +		}
+>  	}
+> -	NODEMASK_FREE(unlinked_nodes);
+> +
+>  	return 0;
+>  }
+
+I guess so.  But the node_online() check was silently removed?
