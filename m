@@ -1,88 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 972646B0003
-	for <linux-mm@kvack.org>; Fri, 10 Aug 2018 02:55:43 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id l14-v6so8314823oii.9
-        for <linux-mm@kvack.org>; Thu, 09 Aug 2018 23:55:43 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g129-v6sor5302388oic.57.2018.08.09.23.55.41
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A8D86B0007
+	for <linux-mm@kvack.org>; Fri, 10 Aug 2018 03:01:12 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id c21-v6so4066088pgw.0
+        for <linux-mm@kvack.org>; Fri, 10 Aug 2018 00:01:11 -0700 (PDT)
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30091.outbound.protection.outlook.com. [40.107.3.91])
+        by mx.google.com with ESMTPS id r3-v6si8106823pgg.201.2018.08.10.00.01.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 09 Aug 2018 23:55:41 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 10 Aug 2018 00:01:09 -0700 (PDT)
+Subject: Re: [mmotm:master 124/394] mm/vmscan.c:410:15: error: 'shrinker_idr'
+ undeclared; did you mean 'shrinker_list'?
+References: <201808101327.UMjeeNfi%fengguang.wu@intel.com>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <f19e7e62-1146-da99-edb3-ee1f3c632fa9@virtuozzo.com>
+Date: Fri, 10 Aug 2018 10:01:01 +0300
 MIME-Version: 1.0
-In-Reply-To: <20180809181224.0b7417e51215565dbda9f665@linux-foundation.org>
-References: <20180809025409.31552-1-rashmica.g@gmail.com> <20180809181224.0b7417e51215565dbda9f665@linux-foundation.org>
-From: Rashmica Gupta <rashmica.g@gmail.com>
-Date: Fri, 10 Aug 2018 16:55:40 +1000
-Message-ID: <CAC6rBs=yYYZw-c02yp6rx-+TN2oUGgrp=uuLhZ=Kc_nnjmTRqA@mail.gmail.com>
-Subject: Re: [PATCH v3] resource: Merge resources on a node when hot-adding memory
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <201808101327.UMjeeNfi%fengguang.wu@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: toshi.kani@hpe.com, tglx@linutronix.de, bp@suse.de, brijesh.singh@amd.com, thomas.lendacky@amd.com, jglisse@redhat.com, gregkh@linuxfoundation.org, baiyaowei@cmss.chinamobile.com, dan.j.williams@intel.com, mhocko@suse.com, iamjoonsoo.kim@lge.com, Vlastimil Babka <vbabka@suse.cz>, malat@debian.org, Bjorn Helgaas <bhelgaas@google.com>, osalvador@techadventures.net, yasu.isimatu@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Fri, Aug 10, 2018 at 11:12 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Thu,  9 Aug 2018 12:54:09 +1000 Rashmica Gupta <rashmica.g@gmail.com> wrote:
->
->> When hot-removing memory release_mem_region_adjustable() splits
->> iomem resources if they are not the exact size of the memory being
->> hot-deleted. Adding this memory back to the kernel adds a new
->> resource.
->>
->> Eg a node has memory 0x0 - 0xfffffffff. Offlining and hot-removing
->> 1GB from 0xf40000000 results in the single resource 0x0-0xfffffffff being
->> split into two resources: 0x0-0xf3fffffff and 0xf80000000-0xfffffffff.
->>
->> When we hot-add the memory back we now have three resources:
->> 0x0-0xf3fffffff, 0xf40000000-0xf7fffffff, and 0xf80000000-0xfffffffff.
->>
->> Now if we try to remove some memory that overlaps these resources,
->> like 2GB from 0xf40000000, release_mem_region_adjustable() fails as it
->> expects the chunk of memory to be within the boundaries of a single
->> resource.
->>
->> This patch adds a function request_resource_and_merge(). This is called
->> instead of request_resource_conflict() when registering a resource in
->> add_memory(). It calls request_resource_conflict() and if hot-removing is
->> enabled (if it isn't we won't get resource fragmentation) we attempt to
->> merge contiguous resources on the node.
->
-> What is the end-user impact of this patch?
->
+There is v3 with #ifdef, it fixes the problem.
 
-Only architectures/setups that allow the user to remove and add memory of
-different sizes or different start addresses from the kernel at runtime will
-potentially encounter the resource fragmentation.
+Thanks,
+Kirill
 
-Trying to remove memory that overlaps iomem resources the first time
-gives us this warning: "Unable to release resource <%pa-%pa>".
-
-Attempting a second time results in a kernel oops (on ppc at least).
-
-With this patch the user will not be restricted, by resource fragmentation
-caused by previous hotremove/hotplug attempts, to what chunks of memory
-they can remove.
-
-
-
-> Do you believe the fix should be merged into 4.18?  Backporting into
-> -stable kernels?  If so, why?
-
-
-I hit this when adding hot-add code to memtrace on ppc.
-
-Most memory hotplug/hotremove seems to be block or section based, and
-always adds and removes memory at the same place.
-
-Memtrace on ppc is different in that given a size (aligned to a block size),
-it scans each node and finds a chunk of memory of that size that we can offline
-and then removes it.
-
-As this is possibly only as issue for memtrace on ppc with a patch that is not
-in 4.18, I don't think this code needs to go in 4.18.
-
-
->
-> Thanks.
+On 10.08.2018 08:54, kbuild test robot wrote:
+> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> head:   b1da01df1aa700864692a49a7007fc96cc1da7d9
+> commit: f9ee2a2d698cd64d8032d56649e960a91bb98416 [124/394] mm: use special value SHRINKER_REGISTERING instead list_empty() check
+> config: i386-tinyconfig (attached as .config)
+> compiler: gcc-7 (Debian 7.3.0-16) 7.3.0
+> reproduce:
+>         git checkout f9ee2a2d698cd64d8032d56649e960a91bb98416
+>         # save the attached .config to linux build tree
+>         make ARCH=i386 
+> 
+> Note: the mmotm/master HEAD b1da01df1aa700864692a49a7007fc96cc1da7d9 builds fine.
+>       It only hurts bisectibility.
+> 
+> All errors (new ones prefixed by >>):
+> 
+>    mm/vmscan.c: In function 'register_shrinker_prepared':
+>>> mm/vmscan.c:410:15: error: 'shrinker_idr' undeclared (first use in this function); did you mean 'shrinker_list'?
+>      idr_replace(&shrinker_idr, shrinker, shrinker->id);
+>                   ^~~~~~~~~~~~
+>                   shrinker_list
+>    mm/vmscan.c:410:15: note: each undeclared identifier is reported only once for each function it appears in
+>>> mm/vmscan.c:410:47: error: 'struct shrinker' has no member named 'id'
+>      idr_replace(&shrinker_idr, shrinker, shrinker->id);
+>                                                   ^~
+> 
+> vim +410 mm/vmscan.c
+> 
+>    405	
+>    406	void register_shrinker_prepared(struct shrinker *shrinker)
+>    407	{
+>    408		down_write(&shrinker_rwsem);
+>    409		list_add_tail(&shrinker->list, &shrinker_list);
+>  > 410		idr_replace(&shrinker_idr, shrinker, shrinker->id);
+>    411		up_write(&shrinker_rwsem);
+>    412	}
+>    413	
+> 
+> ---
+> 0-DAY kernel test infrastructure                Open Source Technology Center
+> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+> 
