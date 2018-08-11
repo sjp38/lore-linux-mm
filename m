@@ -1,52 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3063F6B0003
-	for <linux-mm@kvack.org>; Sat, 11 Aug 2018 04:08:49 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id o4-v6so9005260wrn.19
-        for <linux-mm@kvack.org>; Sat, 11 Aug 2018 01:08:49 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s10-v6sor4532943wru.89.2018.08.11.01.08.47
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 11 Aug 2018 01:08:47 -0700 (PDT)
-Date: Sat, 11 Aug 2018 10:08:46 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH 3/3] mm/memory_hotplug: Cleanup
- unregister_mem_sect_under_nodes
-Message-ID: <20180811080846.GA24835@techadventures.net>
-References: <20180810152931.23004-1-osalvador@techadventures.net>
- <20180810152931.23004-4-osalvador@techadventures.net>
- <20180810153727.c9ae4aab518f1b84e04c999a@linux-foundation.org>
+	by kanga.kvack.org (Postfix) with ESMTP id CDDEB6B0003
+	for <linux-mm@kvack.org>; Sat, 11 Aug 2018 06:13:29 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id a9-v6so9113531wrw.20
+        for <linux-mm@kvack.org>; Sat, 11 Aug 2018 03:13:29 -0700 (PDT)
+Received: from mail.bootlin.com (mail.bootlin.com. [62.4.15.54])
+        by mx.google.com with ESMTP id v15-v6si8218966wru.385.2018.08.11.03.13.27
+        for <linux-mm@kvack.org>;
+        Sat, 11 Aug 2018 03:13:28 -0700 (PDT)
+Date: Sat, 11 Aug 2018 12:12:51 +0200
+From: Boris Brezillon <boris.brezillon@bootlin.com>
+Subject: Re: mmotm 2018-08-09-20-10 uploaded (mtd/nand/raw/atmel/)
+Message-ID: <20180811121251.1baa8696@bbrezillon>
+In-Reply-To: <a7523628-9728-6586-1bab-e256d3ba56a7@infradead.org>
+References: <20180810031103.Ym0HzDAqN%akpm@linux-foundation.org>
+	<a7523628-9728-6586-1bab-e256d3ba56a7@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180810153727.c9ae4aab518f1b84e04c999a@linux-foundation.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: mhocko@suse.com, vbabka@suse.cz, dan.j.williams@intel.com, yasu.isimatu@gmail.com, jonathan.cameron@huawei.com, david@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: akpm@linux-foundation.org, broonie@kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org, sfr@canb.auug.org.au, Boris Brezillon <boris.brezillon@free-electrons.com>, linux-mtd@lists.infradead.org
 
-On Fri, Aug 10, 2018 at 03:37:27PM -0700, Andrew Morton wrote:
-> I guess so.  But the node_online() check was silently removed?
+Hi Randy,
 
-A node can only get offline if all the memory and CPUs associated
-with it are removed.
+On Fri, 10 Aug 2018 08:37:01 -0700
+Randy Dunlap <rdunlap@infradead.org> wrote:
 
-This is being checked in remove_memory()->try_offline_node().
-There we check whether the node has still valid sections or not,
-and if there are still CPUs associated to it.
+> On 08/09/2018 08:11 PM, akpm@linux-foundation.org wrote:
+> > The mm-of-the-moment snapshot 2018-08-09-20-10 has been uploaded to
+> > 
+> >    http://www.ozlabs.org/~akpm/mmotm/
+> > 
+> > mmotm-readme.txt says
+> > 
+> > README for mm-of-the-moment:
+> > 
+> > http://www.ozlabs.org/~akpm/mmotm/
+> > 
+> > This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> > more than once a week.  
+> 
+> on i386:
+> 
+> ERROR: "of_gen_pool_get" [drivers/mtd/nand/raw/atmel/atmel-nand-controller.ko] undefined!
+> ERROR: "gen_pool_dma_alloc" [drivers/mtd/nand/raw/atmel/atmel-nand-controller.ko] undefined!
+> ERROR: "gen_pool_free" [drivers/mtd/nand/raw/atmel/atmel-nand-controller.ko] undefined!
 
-In the case that either we still have valid sections or that we have
-CPUs linked to this node, we do not offline it.
+Hm, missing 'depends on GENERIC_ALLOCATOR'. I'll send a patch to fix
+that.
 
-So we cannot really be removing a memory from a node that is offline,
-that is why it is safe to drop the check.
+Thanks for reporting the problem.
 
-It was my mistake not to explain that properly in the changelog though.
-I will send a V2 fixing up all you pointed out and explaining
-why it is safe to drop the check.
-
-Thanks
--- 
-Oscar Salvador
-SUSE L3
+Boris
