@@ -1,92 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 220946B0005
-	for <linux-mm@kvack.org>; Mon, 13 Aug 2018 06:52:32 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id f13-v6so7086443pgs.15
-        for <linux-mm@kvack.org>; Mon, 13 Aug 2018 03:52:32 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ACCB66B0006
+	for <linux-mm@kvack.org>; Mon, 13 Aug 2018 06:58:27 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id x2-v6so7094737pgp.4
+        for <linux-mm@kvack.org>; Mon, 13 Aug 2018 03:58:27 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r9-v6sor4758702pls.43.2018.08.13.03.52.30
+        by mx.google.com with SMTPS id 73-v6sor3907148pgc.52.2018.08.13.03.58.26
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 13 Aug 2018 03:52:30 -0700 (PDT)
-Date: Mon, 13 Aug 2018 19:55:36 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] zsmalloc: fix linking bug in init_zspage
-Message-ID: <20180813105536.GA435@jagdpanzerIV>
-References: <20180810002817.2667-1-zhouxianrong@tom.com>
- <20180813060549.GB64836@rodete-desktop-imager.corp.google.com>
+        Mon, 13 Aug 2018 03:58:26 -0700 (PDT)
+Date: Mon, 13 Aug 2018 13:58:21 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: migration: fix migration of huge PMD shared pages
+Message-ID: <20180813105821.j4tg6iyrdxgwyr3y@kshutemo-mobl1>
+References: <20180813034108.27269-1-mike.kravetz@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180813060549.GB64836@rodete-desktop-imager.corp.google.com>
+In-Reply-To: <20180813034108.27269-1-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: zhouxianrong <zhouxianrong@tom.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, zhouxianrong <zhouxianrong@huawei.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On (08/13/18 15:05), Minchan Kim wrote:
-> > From: zhouxianrong <zhouxianrong@huawei.com>
-> > 
-> > The last partial object in last subpage of zspage should not be linked
-> > in allocation list. Otherwise it could trigger BUG_ON explicitly at
-> > function zs_map_object. But it happened rarely.
+On Sun, Aug 12, 2018 at 08:41:08PM -0700, Mike Kravetz wrote:
+> The page migration code employs try_to_unmap() to try and unmap the
+> source page.  This is accomplished by using rmap_walk to find all
+> vmas where the page is mapped.  This search stops when page mapcount
+> is zero.  For shared PMD huge pages, the page map count is always 1
+> not matter the number of mappings.  Shared mappings are tracked via
+> the reference count of the PMD page.  Therefore, try_to_unmap stops
+> prematurely and does not completely unmap all mappings of the source
+> page.
 > 
-> Could you be more specific? What case did you see the problem?
-> Is it a real problem or one founded by review?
-[..]
-> > Signed-off-by: zhouxianrong <zhouxianrong@huawei.com>
-> > ---
-> >  mm/zsmalloc.c | 2 ++
-> >  1 file changed, 2 insertions(+)
-> > 
-> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> > index 8d87e973a4f5..24dd8da0aa59 100644
-> > --- a/mm/zsmalloc.c
-> > +++ b/mm/zsmalloc.c
-> > @@ -1040,6 +1040,8 @@ static void init_zspage(struct size_class *class, struct zspage *zspage)
-> >  			 * Reset OBJ_TAG_BITS bit to last link to tell
-> >  			 * whether it's allocated object or not.
-> >  			 */
-> > +			if (off > PAGE_SIZE)
-> > +				link -= class->size / sizeof(*link);
-> >  			link->next = -1UL << OBJ_TAG_BITS;
-> >  		}
-> >  		kunmap_atomic(vaddr);
+> This problem can result is data corruption as writes to the original
+> source page can happen after contents of the page are copied to the
+> target page.  Hence, data is lost.
+> 
+> This problem was originally seen as DB corruption of shared global
+> areas after a huge page was soft offlined.  DB developers noticed
+> they could reproduce the issue by (hotplug) offlining memory used
+> to back huge pages.  A simple testcase can reproduce the problem by
+> creating a shared PMD mapping (note that this must be at least
+> PUD_SIZE in size and PUD_SIZE aligned (1GB on x86)), and using
+> migrate_pages() to migrate process pages between nodes.
+> 
+> To fix, have the try_to_unmap_one routine check for huge PMD sharing
+> by calling huge_pmd_unshare for hugetlbfs huge pages.  If it is a
+> shared mapping it will be 'unshared' which removes the page table
+> entry and drops reference on PMD page.  After this, flush caches and
+> TLB.
+> 
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> ---
+> I am not %100 sure on the required flushing, so suggestions would be
+> appreciated.  This also should go to stable.  It has been around for
+> a long time so still looking for an appropriate 'fixes:'.
 
-Hmm. This can be a real issue. Unless I'm missing something.
+I believe we need flushing. And huge_pmd_unshare() usage in
+__unmap_hugepage_range() looks suspicious: I don't see how we flush TLB in
+that case.
 
-So... I might be wrong, but the way I see the bug report is:
-
-When we link objects during zspage init, we do the following:
-
-	while ((off += class->size) < PAGE_SIZE) {
-		link->next = freeobj++ << OBJ_TAG_BITS;
-		link += class->size / sizeof(*link);
-	}
-
-Note that we increment the link first, link += class->size / sizeof(*link),
-and check for the offset only afterwards. So by the time we break out of
-the while-loop the link *might* point to the partial object which starts at
-the last page of zspage, but *never* ends, because we don't have next_page
-in current zspage. So that's why that object should not be linked in,
-because it's not a valid allocates object - we simply don't have space
-for it anymore.
-
-zspage [      page 1     ][      page 2      ]
-        ...............................link
-	                                   [..###]
-
-therefore the last object must be "link - 1" for such cases.
-
-I think, the following change can also do the trick:
-
-	while ((off + class->size) < PAGE_SIZE) {
-		link->next = freeobj++ << OBJ_TAG_BITS;
-		link += class->size / sizeof(*link);
-		off += class->size;
-	}
-
-Once again, I might be wrong on this.
-Any thoughts?
-
-	-ss
+-- 
+ Kirill A. Shutemov
