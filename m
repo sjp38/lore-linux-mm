@@ -1,62 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A60776B000D
-	for <linux-mm@kvack.org>; Mon, 13 Aug 2018 05:49:56 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id b12-v6so10603520plr.17
-        for <linux-mm@kvack.org>; Mon, 13 Aug 2018 02:49:56 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id l6-v6si17629793pfc.298.2018.08.13.02.49.55
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 681636B0010
+	for <linux-mm@kvack.org>; Mon, 13 Aug 2018 05:57:40 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id h5-v6so7045193pgs.13
+        for <linux-mm@kvack.org>; Mon, 13 Aug 2018 02:57:40 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id t64-v6si18001763pfj.338.2018.08.13.02.57.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Aug 2018 02:49:55 -0700 (PDT)
-Subject: Re: [PATCH V3 0/4] Fix kvm misconceives NVDIMM pages as reserved mmio
+        Mon, 13 Aug 2018 02:57:39 -0700 (PDT)
+Subject: Re: [PATCH V3 3/4] mm: add a function to differentiate the pages is
+ from DAX device memory
 References: <cover.1533811181.git.yi.z.zhang@linux.intel.com>
- <20180809090208.GD5069@quack2.suse.cz>
+ <2b7856596e519130946c834d5d61b00b7f592770.1533811181.git.yi.z.zhang@linux.intel.com>
+ <872818364.892078.1533806608252.JavaMail.zimbra@redhat.com>
 From: "Zhang,Yi" <yi.z.zhang@linux.intel.com>
-Message-ID: <154a783f-5aff-c910-b252-5a6a36b37907@linux.intel.com>
-Date: Tue, 14 Aug 2018 01:33:57 +0800
+Message-ID: <5ea50e63-b55a-c1e1-50be-6e2d951c04cf@linux.intel.com>
+Date: Tue, 14 Aug 2018 01:41:40 +0800
 MIME-Version: 1.0
-In-Reply-To: <20180809090208.GD5069@quack2.suse.cz>
+In-Reply-To: <872818364.892078.1533806608252.JavaMail.zimbra@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 8bit
 Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pbonzini@redhat.com, dan.j.williams@intel.com, hch@lst.de, yu.c.zhang@intel.com, linux-mm@kvack.org, rkrcmar@redhat.com, yi.z.zhang@intel.com
+To: Pankaj Gupta <pagupta@redhat.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pbonzini@redhat.com, dan j williams <dan.j.williams@intel.com>, jack@suse.cz, hch@lst.de, yu c zhang <yu.c.zhang@intel.com>, linux-mm@kvack.org, rkrcmar@redhat.com, yi z zhang <yi.z.zhang@intel.com>
 
 
 
-On 2018a1'08ae??09ae?JPY 17:02, Jan Kara wrote:
-> On Thu 09-08-18 18:52:48, Zhang Yi wrote:
->> For device specific memory space, when we move these area of pfn to
->> memory zone, we will set the page reserved flag at that time, some of
->> these reserved for device mmio, and some of these are not, such as
->> NVDIMM pmem.
+On 2018a1'08ae??09ae?JPY 17:23, Pankaj Gupta wrote:
+>> DAX driver hotplug the device memory and move it to memory zone, these
+>> pages will be marked reserved flag, however, some other kernel componet
+>> will misconceive these pages are reserved mmio (ex: we map these dev_dax
+>> or fs_dax pages to kvm for DIMM/NVDIMM backend). Together with the type
+>> MEMORY_DEVICE_FS_DAX, we can use is_dax_page() to differentiate the pages
+>> is DAX device memory or not.
 >>
->> Now, we map these dev_dax or fs_dax pages to kvm for DIMM/NVDIMM
->> backend, since these pages are reserved. the check of
->> kvm_is_reserved_pfn() misconceives those pages as MMIO. Therefor, we
->> introduce 2 page map types, MEMORY_DEVICE_FS_DAX/MEMORY_DEVICE_DEV_DAX,
->> to indentify these pages are from NVDIMM pmem. and let kvm treat these
->> as normal pages.
+>> Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
+>> Signed-off-by: Zhang Yu <yu.c.zhang@linux.intel.com>
+>> ---
+>>  include/linux/mm.h | 12 ++++++++++++
+>>  1 file changed, 12 insertions(+)
 >>
->> Without this patch, Many operations will be missed due to this
->> mistreatment to pmem pages. For example, a page may not have chance to
->> be unpinned for KVM guest(in kvm_release_pfn_clean); not able to be
->> marked as dirty/accessed(in kvm_set_pfn_dirty/accessed) etc.
->>
->> V1:
->> https://lkml.org/lkml/2018/7/4/91
->>
->> V2:
->> https://lkml.org/lkml/2018/7/10/135
->>
->> V3:
->> [PATCH V3 1/4] Needs Comments.
->> [PATCH V3 2/4] Update the description of MEMORY_DEVICE_DEV_DAX: Jan
->> [PATCH V3 3/4] Acked-by: Jan in V2
-> Hum, but it is not the the patch...
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index 68a5121..de5cbc3 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -889,6 +889,13 @@ static inline bool is_device_public_page(const struct
+>> page *page)
+>>  		page->pgmap->type == MEMORY_DEVICE_PUBLIC;
+>>  }
+>>  
+>> +static inline bool is_dax_page(const struct page *page)
+>> +{
+>> +	return is_zone_device_page(page) &&
+>> +		(page->pgmap->type == MEMORY_DEVICE_FS_DAX ||
+>> +		page->pgmap->type == MEMORY_DEVICE_DEV_DAX);
+>> +}
+> I think question from Dan for KVM VM with 'MEMORY_DEVICE_PUBLIC' still holds?
+> I am also interested to know if there is any use-case.
 >
-> 								Honza
-Sorry, I missed that, will add in the next version, thanks for your review
+> Thanks,
+> Pankaj
+Yes, it is, thanks for your remind, Pankaj.
+Adding Jerome for Dan's questions on V1:
+[Dan]:
+
+Jerome, might there be any use case to pass MEMORY_DEVICE_PUBLIC
+memory to a guest vm?
+
+>
+>> +
+>>  #else /* CONFIG_DEV_PAGEMAP_OPS */
+>>  static inline void dev_pagemap_get_ops(void)
+>>  {
+>> @@ -912,6 +919,11 @@ static inline bool is_device_public_page(const struct
+>> page *page)
+>>  {
+>>  	return false;
+>>  }
+>> +
+>> +static inline bool is_dax_page(const struct page *page)
+>> +{
+>> +	return false;
+>> +}
+>>  #endif /* CONFIG_DEV_PAGEMAP_OPS */
+>>  
+>>  static inline void get_page(struct page *page)
+>> --
+>> 2.7.4
+>>
+>>
