@@ -1,45 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 930496B0005
-	for <linux-mm@kvack.org>; Mon, 13 Aug 2018 04:55:37 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id d10-v6so12391046wrw.6
-        for <linux-mm@kvack.org>; Mon, 13 Aug 2018 01:55:37 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id m193-v6sor1732164wma.79.2018.08.13.01.55.35
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D7466B0007
+	for <linux-mm@kvack.org>; Mon, 13 Aug 2018 04:56:39 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id g5-v6so6988831pgq.5
+        for <linux-mm@kvack.org>; Mon, 13 Aug 2018 01:56:39 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z19-v6si16157596pgi.388.2018.08.13.01.56.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 13 Aug 2018 01:55:36 -0700 (PDT)
-Date: Mon, 13 Aug 2018 10:55:34 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH 3/3] mm/memory_hotplug: Cleanup
- unregister_mem_sect_under_nodes
-Message-ID: <20180813085534.GA1783@techadventures.net>
-References: <20180810152931.23004-1-osalvador@techadventures.net>
- <20180810152931.23004-4-osalvador@techadventures.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 Aug 2018 01:56:37 -0700 (PDT)
+Date: Mon, 13 Aug 2018 10:56:35 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [BUG] mm: truncate: a possible sleep-in-atomic-context bug in
+ truncate_exceptional_pvec_entries()
+Message-ID: <20180813085635.GA8927@quack2.suse.cz>
+References: <f863cf8d-615f-c622-812a-a6370efe757b@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180810152931.23004-4-osalvador@techadventures.net>
+In-Reply-To: <f863cf8d-615f-c622-812a-a6370efe757b@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, vbabka@suse.cz, dan.j.williams@intel.com, yasu.isimatu@gmail.com, jonathan.cameron@huawei.com, david@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Jia-Ju Bai <baijiaju1990@gmail.com>
+Cc: akpm@linux-foundation.org, jack@suse.cz, mgorman@techsingularity.net, ak@linux.intel.com, mawilcox@microsoft.com, viro@zeniv.linux.org.uk, ross.zwisler@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Fri, Aug 10, 2018 at 05:29:31PM +0200, osalvador@techadventures.net wrote:
-> From: Oscar Salvador <osalvador@suse.de>
+Hi,
+
+On Mon 13-08-18 11:10:23, Jia-Ju Bai wrote:
+> The kernel may sleep with holding a spinlock.
 > 
-> With the assumption that the relationship between
-> memory_block <-> node is 1:1, we can refactor this function a bit.
+> The function call paths (from bottom to top) in Linux-4.16 are:
 > 
-> This assumption is being taken from register_mem_sect_under_node()
-> code.
+> [FUNC] schedule
+> fs/dax.c, 259: schedule in get_unlocked_mapping_entry
+> fs/dax.c, 450: get_unlocked_mapping_entry in __dax_invalidate_mapping_entry
+> fs/dax.c, 471: __dax_invalidate_mapping_entry in dax_delete_mapping_entry
+> mm/truncate.c, 97: dax_delete_mapping_entry in
+> truncate_exceptional_pvec_entries
+> mm/truncate.c, 82: spin_lock_irq in truncate_exceptional_pvec_entries
+> 
+> I do not find a good way to fix, so I only report.
+> This is found by my static analysis tool (DSAC).
 
-Doh, this assumption is wrong for boot case when a mem_blk can have
-multiple sections.
+Thanks for report but this is a false positive. Note that the lock is
+acquired only if we are not operating on DAX mapping but we can get to
+dax_delete_mapping_entry() only if we are operating on DAX mapping.
 
-Nevertheless, I think that unregister_mem_sect_under_nodes can be polished a bit.
-I am working on that
+								Honza
 
 -- 
-Oscar Salvador
-SUSE L3
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
