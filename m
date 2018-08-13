@@ -1,71 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CA3DF6B0007
-	for <linux-mm@kvack.org>; Mon, 13 Aug 2018 10:36:28 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id t10-v6so6121508eds.7
-        for <linux-mm@kvack.org>; Mon, 13 Aug 2018 07:36:28 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id j4-v6si1340263edl.323.2018.08.13.07.36.27
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C9CEE6B0005
+	for <linux-mm@kvack.org>; Mon, 13 Aug 2018 11:46:51 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id v24-v6so6347350wmh.5
+        for <linux-mm@kvack.org>; Mon, 13 Aug 2018 08:46:51 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e17-v6sor6257161wri.46.2018.08.13.08.46.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Aug 2018 07:36:27 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w7DEUs2l066577
-	for <linux-mm@kvack.org>; Mon, 13 Aug 2018 10:36:26 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2ku9hexvk9-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 13 Aug 2018 10:36:25 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Mon, 13 Aug 2018 15:36:24 +0100
-Date: Mon, 13 Aug 2018 17:36:19 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: memblock:What is the difference between memory and physmem?
-References: <80B78A8B8FEE6145A87579E8435D78C3240515EF@FZEX4.ruijie.com.cn>
- <20180813023015.GB32733@bombadil.infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180813023015.GB32733@bombadil.infradead.org>
-Message-Id: <20180813143619.GF769@rapoport-lnx>
+        (Google Transport Security);
+        Mon, 13 Aug 2018 08:46:50 -0700 (PDT)
+From: osalvador@techadventures.net
+Subject: [PATCH v2 0/3] Refactoring for remove_memory_section/unregister_mem_sect_under_nodes
+Date: Mon, 13 Aug 2018 17:46:36 +0200
+Message-Id: <20180813154639.19454-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: yhb@ruijie.com.cn, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com, dan.j.williams@intel.com, jglisse@redhat.com, rafael@kernel.org, david@redhat.com, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, Jonathan.Cameron@huawei.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
-On Sun, Aug 12, 2018 at 07:30:15PM -0700, Matthew Wilcox wrote:
-> On Mon, Aug 13, 2018 at 02:23:26AM +0000, yhb@ruijie.com.cn wrote:
-> > struct memblock {
-> > bool bottom_up; /* is bottom up direction? */
-> > phys_addr_t current_limit;
-> > struct memblock_type memory;
-> > struct memblock_type reserved;
-> > #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
-> > struct memblock_type physmem;
-> > #endif
-> > };
-> > What is the difference between memory and physmem?
-> 
-> commit 70210ed950b538ee7eb811dccc402db9df1c9be4
-> Author: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
-> Date:   Wed Jan 29 18:16:01 2014 +0100
-> 
->     mm/memblock: add physical memory list
->     
->     Add the physmem list to the memblock structure. This list only exists
->     if HAVE_MEMBLOCK_PHYS_MAP is selected and contains the unmodified
->     list of physically available memory. It differs from the memblock
->     memory list as it always contains all memory ranges even if the
->     memory has been restricted, e.g. by use of the mem= kernel parameter.
+From: Oscar Salvador <osalvador@suse.de>
 
-And it is enabled only for s390
-     
->     Signed-off-by: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
->     Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> 
+This patchset does some cleanups and refactoring in the memory-hotplug code.
+
+The first and the second patch are pretty straightforward, as they
+only remove unused arguments/checks.
+
+The third one refactors unregister_mem_sect_under_nodes.
+This is needed to have a proper fallback in case we could not allocate
+memory. (details can be seen in patch3).
+
+Oscar Salvador (3):
+  mm/memory-hotplug: Drop unused args from remove_memory_section
+  mm/memory_hotplug: Drop mem_blk check from
+    unregister_mem_sect_under_nodes
+  mm/memory_hotplug: Refactor unregister_mem_sect_under_nodes
+
+ drivers/base/memory.c |  5 ++---
+ drivers/base/node.c   | 30 +++++++++++++++---------------
+ include/linux/node.h  |  5 ++---
+ 3 files changed, 19 insertions(+), 21 deletions(-)
 
 -- 
-Sincerely yours,
-Mike.
+2.13.6
