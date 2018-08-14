@@ -1,67 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C31866B0007
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2018 05:30:55 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id d14-v6so15086324qtn.12
-        for <linux-mm@kvack.org>; Tue, 14 Aug 2018 02:30:55 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id y46-v6si1055469qtc.394.2018.08.14.02.30.54
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0006C6B000A
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2018 05:36:54 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id z16-v6so14860164wrs.22
+        for <linux-mm@kvack.org>; Tue, 14 Aug 2018 02:36:54 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p6-v6sor2443260wmh.17.2018.08.14.02.36.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Aug 2018 02:30:55 -0700 (PDT)
+        (Google Transport Security);
+        Tue, 14 Aug 2018 02:36:53 -0700 (PDT)
+Date: Tue, 14 Aug 2018 11:36:52 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
 Subject: Re: [PATCH v2 2/3] mm/memory_hotplug: Drop mem_blk check from
  unregister_mem_sect_under_nodes
+Message-ID: <20180814093652.GA6878@techadventures.net>
 References: <20180813154639.19454-1-osalvador@techadventures.net>
  <20180813154639.19454-3-osalvador@techadventures.net>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <82148bc6-672d-6610-757f-d910a17d23c6@redhat.com>
-Date: Tue, 14 Aug 2018 11:30:51 +0200
+ <82148bc6-672d-6610-757f-d910a17d23c6@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20180813154639.19454-3-osalvador@techadventures.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <82148bc6-672d-6610-757f-d910a17d23c6@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: osalvador@techadventures.net, akpm@linux-foundation.org
-Cc: mhocko@suse.com, dan.j.williams@intel.com, jglisse@redhat.com, rafael@kernel.org, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, Jonathan.Cameron@huawei.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: David Hildenbrand <david@redhat.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com, jglisse@redhat.com, rafael@kernel.org, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, Jonathan.Cameron@huawei.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
-On 13.08.2018 17:46, osalvador@techadventures.net wrote:
-> From: Oscar Salvador <osalvador@suse.de>
-> 
-> Before calling to unregister_mem_sect_under_nodes(),
-> remove_memory_section() already checks if we got a valid
-> memory_block.
-> 
-> No need to check that again in unregister_mem_sect_under_nodes().
-> 
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
-> ---
->  drivers/base/node.c | 4 ----
->  1 file changed, 4 deletions(-)
-> 
-> diff --git a/drivers/base/node.c b/drivers/base/node.c
-> index 1ac4c36e13bb..dd3bdab230b2 100644
-> --- a/drivers/base/node.c
-> +++ b/drivers/base/node.c
-> @@ -455,10 +455,6 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
->  	NODEMASK_ALLOC(nodemask_t, unlinked_nodes, GFP_KERNEL);
->  	unsigned long pfn, sect_start_pfn, sect_end_pfn;
->  
-> -	if (!mem_blk) {
-> -		NODEMASK_FREE(unlinked_nodes);
-> -		return -EFAULT;
-> -	}
->  	if (!unlinked_nodes)
->  		return -ENOMEM;
->  	nodes_clear(*unlinked_nodes);
-> 
+On Tue, Aug 14, 2018 at 11:30:51AM +0200, David Hildenbrand wrote:
 
-While it is correct in current code, I wonder if this sanity check
-should stay. I would completely agree if it would be a static function.
+> 
+> While it is correct in current code, I wonder if this sanity check
+> should stay. I would completely agree if it would be a static function.
 
+Hi David,
+
+Well, unregister_mem_sect_under_nodes() __only__ gets called from remove_memory_section().
+But remove_memory_section() only calls unregister_mem_sect_under_nodes() IFF mem_blk
+is not NULL:
+
+static int remove_memory_section
+{
+	...
+	mem = find_memory_block(section);
+	if (!mem)
+		goto out_unlock;
+
+	unregister_mem_sect_under_nodes(mem, __section_nr(section));
+	...
+}
+
+So, to me keeping the check is redundant, as we already check for it before calling in.
+
+Thanks
 -- 
-
-Thanks,
-
-David / dhildenb
+Oscar Salvador
+SUSE L3
