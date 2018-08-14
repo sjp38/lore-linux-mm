@@ -1,140 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3719F6B0003
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2018 12:17:00 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id n17-v6so11525320pff.17
-        for <linux-mm@kvack.org>; Tue, 14 Aug 2018 09:17:00 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r12-v6sor5913451pfd.129.2018.08.14.09.16.58
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 190006B0003
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2018 13:18:47 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id f13-v6so8889858pgs.15
+        for <linux-mm@kvack.org>; Tue, 14 Aug 2018 10:18:47 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id v12-v6si18916191pfm.341.2018.08.14.10.18.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 14 Aug 2018 09:16:58 -0700 (PDT)
-From: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-Subject: [PATCH] mm: shmem: Correctly annotate new inodes
-Date: Tue, 14 Aug 2018 09:16:52 -0700
-Message-Id: <20180814161652.28831-1-joel@joelfernandes.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Aug 2018 10:18:45 -0700 (PDT)
+Subject: Patch "x86/mm: Move swap offset/type up in PTE to work around erratum" has been added to the 4.4-stable tree
+From: <gregkh@linuxfoundation.org>
+Date: Tue, 14 Aug 2018 19:08:53 +0200
+Message-ID: <153426653318854@kroah.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=ANSI_X3.4-1968
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: kernel-team@android.com, Joel Fernandes <joel@joelfernandes.org>, willy@infradead.org, stable@vger.kernel.org, peterz@infradead.org, linux-mm@kvack.org, Neil Brown <neilb@suse.com>
+To: 20160708001911.9A3FD2B6@viggo.jf.intel.com, akpm@linux-foundation.org, bp@alien8.de, brgerst@gmail.com, dave.hansen@intel.com, dave.hansen@linux.intel.com, dave@sr71.net, dvlasenk@redhat.com, gregkh@linuxfoundation.org, hpa@zytor.com, jpoimboe@redhat.com, linux-mm@kvack.org, linux@roeck-us.net, luto@kernel.org, mcgrof@suse.com, mhocko@suse.com, mingo@kernel.org, peterz@infradead.org, tglx@linutronix.de, torvalds@linux-foundation.org, toshi.kani@hp.com
+Cc: stable-commits@vger.kernel.org
 
-Directories and inodes don't necessarily need to be in the same
-lockdep class. For ex, hugetlbfs splits them out too to prevent
-false positives in lockdep. Annotate correctly after new inode
-creation. If its a directory inode, it will be put into a different
-class.
 
-This should fix a lockdep splat reported by syzbot:
+This is a note to let you know that I've just added the patch titled
 
-> ======================================================
-> WARNING: possible circular locking dependency detected
-> 4.18.0-rc8-next-20180810+ #36 Not tainted
-> ------------------------------------------------------
-> syz-executor900/4483 is trying to acquire lock:
-> 00000000d2bfc8fe (&sb->s_type->i_mutex_key#9){++++}, at: inode_lock
-> include/linux/fs.h:765 [inline]
-> 00000000d2bfc8fe (&sb->s_type->i_mutex_key#9){++++}, at:
-> shmem_fallocate+0x18b/0x12e0 mm/shmem.c:2602
->
-> but task is already holding lock:
-> 0000000025208078 (ashmem_mutex){+.+.}, at: ashmem_shrink_scan+0xb4/0x630
-> drivers/staging/android/ashmem.c:448
->
-> which lock already depends on the new lock.
->
-> -> #2 (ashmem_mutex){+.+.}:
->        __mutex_lock_common kernel/locking/mutex.c:925 [inline]
->        __mutex_lock+0x171/0x1700 kernel/locking/mutex.c:1073
->        mutex_lock_nested+0x16/0x20 kernel/locking/mutex.c:1088
->        ashmem_mmap+0x55/0x520 drivers/staging/android/ashmem.c:361
->        call_mmap include/linux/fs.h:1844 [inline]
->        mmap_region+0xf27/0x1c50 mm/mmap.c:1762
->        do_mmap+0xa10/0x1220 mm/mmap.c:1535
->        do_mmap_pgoff include/linux/mm.h:2298 [inline]
->        vm_mmap_pgoff+0x213/0x2c0 mm/util.c:357
->        ksys_mmap_pgoff+0x4da/0x660 mm/mmap.c:1585
->        __do_sys_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
->        __se_sys_mmap arch/x86/kernel/sys_x86_64.c:91 [inline]
->        __x64_sys_mmap+0xe9/0x1b0 arch/x86/kernel/sys_x86_64.c:91
->        do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
->        entry_SYSCALL_64_after_hwframe+0x49/0xbe
->
-> -> #1 (&mm->mmap_sem){++++}:
->        __might_fault+0x155/0x1e0 mm/memory.c:4568
->        _copy_to_user+0x30/0x110 lib/usercopy.c:25
->        copy_to_user include/linux/uaccess.h:155 [inline]
->        filldir+0x1ea/0x3a0 fs/readdir.c:196
->        dir_emit_dot include/linux/fs.h:3464 [inline]
->        dir_emit_dots include/linux/fs.h:3475 [inline]
->        dcache_readdir+0x13a/0x620 fs/libfs.c:193
->        iterate_dir+0x48b/0x5d0 fs/readdir.c:51
->        __do_sys_getdents fs/readdir.c:231 [inline]
->        __se_sys_getdents fs/readdir.c:212 [inline]
->        __x64_sys_getdents+0x29f/0x510 fs/readdir.c:212
->        do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
->        entry_SYSCALL_64_after_hwframe+0x49/0xbe
->
-> -> #0 (&sb->s_type->i_mutex_key#9){++++}:
->        lock_acquire+0x1e4/0x540 kernel/locking/lockdep.c:3924
->        down_write+0x8f/0x130 kernel/locking/rwsem.c:70
->        inode_lock include/linux/fs.h:765 [inline]
->        shmem_fallocate+0x18b/0x12e0 mm/shmem.c:2602
->        ashmem_shrink_scan+0x236/0x630 drivers/staging/android/ashmem.c:455
->        ashmem_ioctl+0x3ae/0x13a0 drivers/staging/android/ashmem.c:797
->        vfs_ioctl fs/ioctl.c:46 [inline]
->        file_ioctl fs/ioctl.c:501 [inline]
->        do_vfs_ioctl+0x1de/0x1720 fs/ioctl.c:685
->        ksys_ioctl+0xa9/0xd0 fs/ioctl.c:702
->        __do_sys_ioctl fs/ioctl.c:709 [inline]
->        __se_sys_ioctl fs/ioctl.c:707 [inline]
->        __x64_sys_ioctl+0x73/0xb0 fs/ioctl.c:707
->        do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
->        entry_SYSCALL_64_after_hwframe+0x49/0xbe
->
-> other info that might help us debug this:
->
-> Chain exists of:
->   &sb->s_type->i_mutex_key#9 --> &mm->mmap_sem --> ashmem_mutex
->
->  Possible unsafe locking scenario:
->
->        CPU0                    CPU1
->        ----                    ----
->   lock(ashmem_mutex);
->                                lock(&mm->mmap_sem);
->                                lock(ashmem_mutex);
->   lock(&sb->s_type->i_mutex_key#9);
->
->  *** DEADLOCK ***
->
-> 1 lock held by syz-executor900/4483:
->  #0: 0000000025208078 (ashmem_mutex){+.+.}, at:
-> ashmem_shrink_scan+0xb4/0x630 drivers/staging/android/ashmem.c:448
+    x86/mm: Move swap offset/type up in PTE to work around erratum
 
-Reported-by: syzbot <syzkaller@googlegroups.com>
-Cc: willy@infradead.org
-Cc: stable@vger.kernel.org
-Cc: peterz@infradead.org
-Suggested-by: Neil Brown <neilb@suse.com>
-Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
+to the 4.4-stable tree which can be found at:
+    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
+
+The filename of the patch is:
+     x86-mm-move-swap-offset-type-up-in-pte-to-work-around-erratum.patch
+and it can be found in the queue-4.4 subdirectory.
+
+If you, or anyone else, feels it should not be added to the stable tree,
+please let <stable@vger.kernel.org> know about it.
+
+
+>From foo@baz Tue Aug 14 17:08:55 CEST 2018
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Date: Thu, 7 Jul 2016 17:19:11 -0700
+Subject: x86/mm: Move swap offset/type up in PTE to work around erratum
+
+From: Dave Hansen <dave.hansen@linux.intel.com>
+
+commit 00839ee3b299303c6a5e26a0a2485427a3afcbbf upstream
+
+This erratum can result in Accessed/Dirty getting set by the hardware
+when we do not expect them to be (on !Present PTEs).
+
+Instead of trying to fix them up after this happens, we just
+allow the bits to get set and try to ignore them.  We do this by
+shifting the layout of the bits we use for swap offset/type in
+our 64-bit PTEs.
+
+It looks like this:
+
+ bitnrs: |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2|1|0|
+ names:  |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U|W|P|
+ before: |         OFFSET (9-63)          |0|X|X| TYPE(1-5) |0|
+  after: | OFFSET (14-63)  |  TYPE (9-13) |0|X|X|X| X| X|X|X|0|
+
+Note that D was already a don't care (X) even before.  We just
+move TYPE up and turn its old spot (which could be hit by the
+A bit) into all don't cares.
+
+We take 5 bits away from the offset, but that still leaves us
+with 50 bits which lets us index into a 62-bit swapfile (4 EiB).
+I think that's probably fine for the moment.  We could
+theoretically reclaim 5 of the bits (1, 2, 3, 4, 7) but it
+doesn't gain us anything.
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Dave Hansen <dave@sr71.net>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Luis R. Rodriguez <mcgrof@suse.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Toshi Kani <toshi.kani@hp.com>
+Cc: dave.hansen@intel.com
+Cc: linux-mm@kvack.org
+Cc: mhocko@suse.com
+Link: http://lkml.kernel.org/r/20160708001911.9A3FD2B6@viggo.jf.intel.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Guenter Roeck <linux@roeck-us.net>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
- mm/shmem.c | 2 ++
- 1 file changed, 2 insertions(+)
+ arch/x86/include/asm/pgtable_64.h |   26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 2cab84403055..4429a8fd932d 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -2225,6 +2225,8 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
- 			mpol_shared_policy_init(&info->policy, NULL);
- 			break;
- 		}
-+
-+		lockdep_annotate_inode_mutex_key(inode);
- 	} else
- 		shmem_free_inode(sb);
- 	return inode;
--- 
-2.18.0.597.ga71716f1ad-goog
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -163,18 +163,32 @@ static inline int pgd_large(pgd_t pgd) {
+ #define pte_offset_map(dir, address) pte_offset_kernel((dir), (address))
+ #define pte_unmap(pte) ((void)(pte))/* NOP */
+ 
+-/* Encode and de-code a swap entry */
++/*
++ * Encode and de-code a swap entry
++ *
++ * |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2|1|0| <- bit number
++ * |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U|W|P| <- bit names
++ * | OFFSET (14->63) | TYPE (10-13) |0|X|X|X| X| X|X|X|0| <- swp entry
++ *
++ * G (8) is aliased and used as a PROT_NONE indicator for
++ * !present ptes.  We need to start storing swap entries above
++ * there.  We also need to avoid using A and D because of an
++ * erratum where they can be incorrectly set by hardware on
++ * non-present PTEs.
++ */
++#define SWP_TYPE_FIRST_BIT (_PAGE_BIT_PROTNONE + 1)
+ #define SWP_TYPE_BITS 5
+-#define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
++/* Place the offset above the type: */
++#define SWP_OFFSET_FIRST_BIT (SWP_TYPE_FIRST_BIT + SWP_TYPE_BITS + 1)
+ 
+ #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS)
+ 
+-#define __swp_type(x)			(((x).val >> (_PAGE_BIT_PRESENT + 1)) \
++#define __swp_type(x)			(((x).val >> (SWP_TYPE_FIRST_BIT)) \
+ 					 & ((1U << SWP_TYPE_BITS) - 1))
+-#define __swp_offset(x)			((x).val >> SWP_OFFSET_SHIFT)
++#define __swp_offset(x)			((x).val >> SWP_OFFSET_FIRST_BIT)
+ #define __swp_entry(type, offset)	((swp_entry_t) { \
+-					 ((type) << (_PAGE_BIT_PRESENT + 1)) \
+-					 | ((offset) << SWP_OFFSET_SHIFT) })
++					 ((type) << (SWP_TYPE_FIRST_BIT)) \
++					 | ((offset) << SWP_OFFSET_FIRST_BIT) })
+ #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val((pte)) })
+ #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
+ 
+
+
+Patches currently in stable-queue which might be from dave.hansen@linux.intel.com are
+
+queue-4.4/x86-mm-move-swap-offset-type-up-in-pte-to-work-around-erratum.patch
+queue-4.4/x86-mm-fix-swap-entry-comment-and-macro.patch
+queue-4.4/mm-add-vm_insert_pfn_prot.patch
