@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 788C86B0003
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2018 08:27:19 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id r16-v6so12617543pls.21
-        for <linux-mm@kvack.org>; Tue, 14 Aug 2018 05:27:19 -0700 (PDT)
-Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
-        by mx.google.com with ESMTPS id v63-v6si19106242pgd.658.2018.08.14.05.27.17
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B45416B0007
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2018 08:30:18 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id s1-v6so11240149pfm.22
+        for <linux-mm@kvack.org>; Tue, 14 Aug 2018 05:30:18 -0700 (PDT)
+Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id p24-v6si16336360plo.52.2018.08.14.05.30.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Aug 2018 05:27:18 -0700 (PDT)
+        Tue, 14 Aug 2018 05:30:17 -0700 (PDT)
 From: Xiaofeng Yuan <yuanxiaofeng1@huawei.com>
-Subject: [PATCH RFC] usercopy: optimize stack check flow when the
-Date: Tue, 14 Aug 2018 20:17:31 +0800
-Message-ID: <1534249051-56879-1-git-send-email-yuanxiaofeng1@huawei.com>
+Subject: [PATCH RFC] usercopy: optimize stack check flow when the page-spanning test is disabled
+Date: Tue, 14 Aug 2018 20:20:28 +0800
+Message-ID: <1534249228-57122-1-git-send-email-yuanxiaofeng1@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
