@@ -1,57 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AB93D6B0007
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2018 09:09:30 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id c21-v6so8612329pgw.0
-        for <linux-mm@kvack.org>; Tue, 14 Aug 2018 06:09:30 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id r84-v6si22124707pfj.355.2018.08.14.06.09.29
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3719F6B0003
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2018 12:17:00 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id n17-v6so11525320pff.17
+        for <linux-mm@kvack.org>; Tue, 14 Aug 2018 09:17:00 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r12-v6sor5913451pfd.129.2018.08.14.09.16.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 14 Aug 2018 06:09:29 -0700 (PDT)
-Date: Tue, 14 Aug 2018 06:09:28 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH RFC] usercopy: optimize stack check flow when the
- page-spanning test is disabled
-Message-ID: <20180814130928.GB25328@bombadil.infradead.org>
-References: <1534249051-56879-1-git-send-email-yuanxiaofeng1@huawei.com>
- <20180814123454.GA25328@bombadil.infradead.org>
- <494CFD22286B8448AF161132C5FE9A985B624E05@dggema521-mbx.china.huawei.com>
+        (Google Transport Security);
+        Tue, 14 Aug 2018 09:16:58 -0700 (PDT)
+From: "Joel Fernandes (Google)" <joel@joelfernandes.org>
+Subject: [PATCH] mm: shmem: Correctly annotate new inodes
+Date: Tue, 14 Aug 2018 09:16:52 -0700
+Message-Id: <20180814161652.28831-1-joel@joelfernandes.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <494CFD22286B8448AF161132C5FE9A985B624E05@dggema521-mbx.china.huawei.com>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Yuanxiaofeng (XiAn)" <yuanxiaofeng1@huawei.com>
-Cc: "keescook@chromium.org" <keescook@chromium.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: kernel-team@android.com, Joel Fernandes <joel@joelfernandes.org>, willy@infradead.org, stable@vger.kernel.org, peterz@infradead.org, linux-mm@kvack.org, Neil Brown <neilb@suse.com>
 
-On Tue, Aug 14, 2018 at 01:02:55PM +0000, Yuanxiaofeng (XiAn) wrote:
-> 1, When the THREAD_SIZE is less than PAGE_SIZE, the stack will allocate memory by kmem_cache_alloc_node(), it's slab memory and will execute __check_heap_object().
-> 2, When CONFIG_HARDENED_USERCOPY_PAGESPAN is enabled, the multiple-pages stacks will do some check in check_page_span().
+Directories and inodes don't necessarily need to be in the same
+lockdep class. For ex, hugetlbfs splits them out too to prevent
+false positives in lockdep. Annotate correctly after new inode
+creation. If its a directory inode, it will be put into a different
+class.
 
-I understand the checks will still do something useful, but I do not see the
-scenario in which an object would satisfy the stack checks but fail the heap
-checks.
+This should fix a lockdep splat reported by syzbot:
 
-> So, I set some restrictions to make sure the useful check will not be skipped.
-> 
-> -----Original Message-----
-> From: Matthew Wilcox [mailto:willy@infradead.org] 
-> Sent: Tuesday, August 14, 2018 8:35 PM
-> To: Yuanxiaofeng (XiAn)
-> Cc: keescook@chromium.org; linux-mm@kvack.org; linux-kernel@vger.kernel.org
-> Subject: Re: [PATCH RFC] usercopy: optimize stack check flow when the
-> 
-> On Tue, Aug 14, 2018 at 08:17:31PM +0800, Xiaofeng Yuan wrote:
-> > The check_heap_object() checks the spanning multiple pages and slab.
-> > When the page-spanning test is disabled, the check_heap_object() is
-> > redundant for spanning multiple pages. However, the kernel stacks are
-> > multiple pages under certain conditions: CONFIG_ARCH_THREAD_STACK_ALLOCATOR
-> > is not defined and (THREAD_SIZE >= PAGE_SIZE). At this point, We can skip
-> > the check_heap_object() for kernel stacks to improve performance.
-> > Similarly, the virtually-mapped stack can skip check_heap_object() also,
-> > beacause virt_addr_valid() will return.
-> 
-> Why not just check_stack_object() first, then check_heap_object() second?
-> 
+> ======================================================
+> WARNING: possible circular locking dependency detected
+> 4.18.0-rc8-next-20180810+ #36 Not tainted
+> ------------------------------------------------------
+> syz-executor900/4483 is trying to acquire lock:
+> 00000000d2bfc8fe (&sb->s_type->i_mutex_key#9){++++}, at: inode_lock
+> include/linux/fs.h:765 [inline]
+> 00000000d2bfc8fe (&sb->s_type->i_mutex_key#9){++++}, at:
+> shmem_fallocate+0x18b/0x12e0 mm/shmem.c:2602
+>
+> but task is already holding lock:
+> 0000000025208078 (ashmem_mutex){+.+.}, at: ashmem_shrink_scan+0xb4/0x630
+> drivers/staging/android/ashmem.c:448
+>
+> which lock already depends on the new lock.
+>
+> -> #2 (ashmem_mutex){+.+.}:
+>        __mutex_lock_common kernel/locking/mutex.c:925 [inline]
+>        __mutex_lock+0x171/0x1700 kernel/locking/mutex.c:1073
+>        mutex_lock_nested+0x16/0x20 kernel/locking/mutex.c:1088
+>        ashmem_mmap+0x55/0x520 drivers/staging/android/ashmem.c:361
+>        call_mmap include/linux/fs.h:1844 [inline]
+>        mmap_region+0xf27/0x1c50 mm/mmap.c:1762
+>        do_mmap+0xa10/0x1220 mm/mmap.c:1535
+>        do_mmap_pgoff include/linux/mm.h:2298 [inline]
+>        vm_mmap_pgoff+0x213/0x2c0 mm/util.c:357
+>        ksys_mmap_pgoff+0x4da/0x660 mm/mmap.c:1585
+>        __do_sys_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
+>        __se_sys_mmap arch/x86/kernel/sys_x86_64.c:91 [inline]
+>        __x64_sys_mmap+0xe9/0x1b0 arch/x86/kernel/sys_x86_64.c:91
+>        do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+>        entry_SYSCALL_64_after_hwframe+0x49/0xbe
+>
+> -> #1 (&mm->mmap_sem){++++}:
+>        __might_fault+0x155/0x1e0 mm/memory.c:4568
+>        _copy_to_user+0x30/0x110 lib/usercopy.c:25
+>        copy_to_user include/linux/uaccess.h:155 [inline]
+>        filldir+0x1ea/0x3a0 fs/readdir.c:196
+>        dir_emit_dot include/linux/fs.h:3464 [inline]
+>        dir_emit_dots include/linux/fs.h:3475 [inline]
+>        dcache_readdir+0x13a/0x620 fs/libfs.c:193
+>        iterate_dir+0x48b/0x5d0 fs/readdir.c:51
+>        __do_sys_getdents fs/readdir.c:231 [inline]
+>        __se_sys_getdents fs/readdir.c:212 [inline]
+>        __x64_sys_getdents+0x29f/0x510 fs/readdir.c:212
+>        do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+>        entry_SYSCALL_64_after_hwframe+0x49/0xbe
+>
+> -> #0 (&sb->s_type->i_mutex_key#9){++++}:
+>        lock_acquire+0x1e4/0x540 kernel/locking/lockdep.c:3924
+>        down_write+0x8f/0x130 kernel/locking/rwsem.c:70
+>        inode_lock include/linux/fs.h:765 [inline]
+>        shmem_fallocate+0x18b/0x12e0 mm/shmem.c:2602
+>        ashmem_shrink_scan+0x236/0x630 drivers/staging/android/ashmem.c:455
+>        ashmem_ioctl+0x3ae/0x13a0 drivers/staging/android/ashmem.c:797
+>        vfs_ioctl fs/ioctl.c:46 [inline]
+>        file_ioctl fs/ioctl.c:501 [inline]
+>        do_vfs_ioctl+0x1de/0x1720 fs/ioctl.c:685
+>        ksys_ioctl+0xa9/0xd0 fs/ioctl.c:702
+>        __do_sys_ioctl fs/ioctl.c:709 [inline]
+>        __se_sys_ioctl fs/ioctl.c:707 [inline]
+>        __x64_sys_ioctl+0x73/0xb0 fs/ioctl.c:707
+>        do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+>        entry_SYSCALL_64_after_hwframe+0x49/0xbe
+>
+> other info that might help us debug this:
+>
+> Chain exists of:
+>   &sb->s_type->i_mutex_key#9 --> &mm->mmap_sem --> ashmem_mutex
+>
+>  Possible unsafe locking scenario:
+>
+>        CPU0                    CPU1
+>        ----                    ----
+>   lock(ashmem_mutex);
+>                                lock(&mm->mmap_sem);
+>                                lock(ashmem_mutex);
+>   lock(&sb->s_type->i_mutex_key#9);
+>
+>  *** DEADLOCK ***
+>
+> 1 lock held by syz-executor900/4483:
+>  #0: 0000000025208078 (ashmem_mutex){+.+.}, at:
+> ashmem_shrink_scan+0xb4/0x630 drivers/staging/android/ashmem.c:448
+
+Reported-by: syzbot <syzkaller@googlegroups.com>
+Cc: willy@infradead.org
+Cc: stable@vger.kernel.org
+Cc: peterz@infradead.org
+Suggested-by: Neil Brown <neilb@suse.com>
+Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
+---
+ mm/shmem.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 2cab84403055..4429a8fd932d 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -2225,6 +2225,8 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
+ 			mpol_shared_policy_init(&info->policy, NULL);
+ 			break;
+ 		}
++
++		lockdep_annotate_inode_mutex_key(inode);
+ 	} else
+ 		shmem_free_inode(sb);
+ 	return inode;
+-- 
+2.18.0.597.ga71716f1ad-goog
