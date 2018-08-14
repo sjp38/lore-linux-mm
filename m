@@ -1,46 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 190006B0003
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2018 13:18:47 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id f13-v6so8889858pgs.15
-        for <linux-mm@kvack.org>; Tue, 14 Aug 2018 10:18:47 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id ACF366B0003
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2018 13:46:44 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id l15-v6so11735244pff.1
+        for <linux-mm@kvack.org>; Tue, 14 Aug 2018 10:46:44 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id v12-v6si18916191pfm.341.2018.08.14.10.18.45
+        by mx.google.com with ESMTPS id d7-v6si16711506pll.162.2018.08.14.10.46.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Aug 2018 10:18:45 -0700 (PDT)
-Subject: Patch "x86/mm: Move swap offset/type up in PTE to work around erratum" has been added to the 4.4-stable tree
-From: <gregkh@linuxfoundation.org>
-Date: Tue, 14 Aug 2018 19:08:53 +0200
-Message-ID: <153426653318854@kroah.com>
+        Tue, 14 Aug 2018 10:46:43 -0700 (PDT)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.4 22/43] x86/mm: Move swap offset/type up in PTE to work around erratum
+Date: Tue, 14 Aug 2018 19:17:58 +0200
+Message-Id: <20180814171518.589533556@linuxfoundation.org>
+In-Reply-To: <20180814171517.014285600@linuxfoundation.org>
+References: <20180814171517.014285600@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 20160708001911.9A3FD2B6@viggo.jf.intel.com, akpm@linux-foundation.org, bp@alien8.de, brgerst@gmail.com, dave.hansen@intel.com, dave.hansen@linux.intel.com, dave@sr71.net, dvlasenk@redhat.com, gregkh@linuxfoundation.org, hpa@zytor.com, jpoimboe@redhat.com, linux-mm@kvack.org, linux@roeck-us.net, luto@kernel.org, mcgrof@suse.com, mhocko@suse.com, mingo@kernel.org, peterz@infradead.org, tglx@linutronix.de, torvalds@linux-foundation.org, toshi.kani@hp.com
-Cc: stable-commits@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave@sr71.net>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Luis R. Rodriguez" <mcgrof@suse.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Toshi Kani <toshi.kani@hp.com>, dave.hansen@intel.com, linux-mm@kvack.org, mhocko@suse.com, Ingo Molnar <mingo@kernel.org>, Guenter Roeck <linux@roeck-us.net>
 
+4.4-stable review patch.  If anyone has any objections, please let me know.
 
-This is a note to let you know that I've just added the patch titled
-
-    x86/mm: Move swap offset/type up in PTE to work around erratum
-
-to the 4.4-stable tree which can be found at:
-    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
-
-The filename of the patch is:
-     x86-mm-move-swap-offset-type-up-in-pte-to-work-around-erratum.patch
-and it can be found in the queue-4.4 subdirectory.
-
-If you, or anyone else, feels it should not be added to the stable tree,
-please let <stable@vger.kernel.org> know about it.
-
-
->From foo@baz Tue Aug 14 17:08:55 CEST 2018
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Thu, 7 Jul 2016 17:19:11 -0700
-Subject: x86/mm: Move swap offset/type up in PTE to work around erratum
+------------------
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
@@ -137,10 +121,3 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val((pte)) })
  #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
  
-
-
-Patches currently in stable-queue which might be from dave.hansen@linux.intel.com are
-
-queue-4.4/x86-mm-move-swap-offset-type-up-in-pte-to-work-around-erratum.patch
-queue-4.4/x86-mm-fix-swap-entry-comment-and-macro.patch
-queue-4.4/mm-add-vm_insert_pfn_prot.patch
