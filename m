@@ -1,70 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FD196B0007
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2018 03:29:03 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id h26-v6so270415eds.14
-        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 00:29:03 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r11-v6si298181edh.359.2018.08.15.00.29.01
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D01C96B0003
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2018 03:48:15 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id s18-v6so450369wmh.0
+        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 00:48:15 -0700 (PDT)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id m3-v6si15071960wrs.229.2018.08.15.00.48.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Aug 2018 00:29:01 -0700 (PDT)
-Date: Wed, 15 Aug 2018 09:29:00 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/2] mm: drain memcg stocks on css offlining
-Message-ID: <20180815072900.GM32645@dhcp22.suse.cz>
-References: <20180815003620.15678-1-guro@fb.com>
- <20180815003620.15678-2-guro@fb.com>
+        Wed, 15 Aug 2018 00:48:14 -0700 (PDT)
+Date: Wed, 15 Aug 2018 09:48:12 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCHv5 19/19] x86: Introduce CONFIG_X86_INTEL_MKTME
+Message-ID: <20180815074812.GB28093@xo-6d-61-c0.localdomain>
+References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
+ <20180717112029.42378-20-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180815003620.15678-2-guro@fb.com>
+In-Reply-To: <20180717112029.42378-20-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Johannes Weiner <hannes@cmpxchg.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Tejun Heo <tj@kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 14-08-18 17:36:20, Roman Gushchin wrote:
-> Memcg charge is batched using per-cpu stocks, so an offline memcg
-> can be pinned by a cached charge up to a moment, when a process
-> belonging to some other cgroup will charge some memory on the same
-> cpu. In other words, cached charges can prevent a memory cgroup
-> from being reclaimed for some time, without any clear need.
+Hi!
+
+> Add new config option to enabled/disable Multi-Key Total Memory
+> Encryption support.
 > 
-> Let's optimize it by explicit draining of all stocks on css offlining.
-> As draining is performed asynchronously, and is skipped if any
-> parallel draining is happening, it's cheap.
-
-Yes this makes sense.
-
-> Signed-off-by: Roman Gushchin <guro@fb.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Konstantin Khlebnikov <koct9i@gmail.com>
-> Cc: Tejun Heo <tj@kernel.org>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
+> MKTME uses MEMORY_PHYSICAL_PADDING to reserve enough space in per-KeyID
+> direct mappings for memory hotplug.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 > ---
->  mm/memcontrol.c | 2 ++
->  1 file changed, 2 insertions(+)
+>  arch/x86/Kconfig | 19 ++++++++++++++++++-
+>  1 file changed, 18 insertions(+), 1 deletion(-)
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 4e3c1315b1de..cfb64b5b9957 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4575,6 +4575,8 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
->  	memcg_offline_kmem(memcg);
->  	wb_memcg_offline(memcg);
+> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+> index b6f1785c2176..023a22568c06 100644
+> --- a/arch/x86/Kconfig
+> +++ b/arch/x86/Kconfig
+> @@ -1523,6 +1523,23 @@ config ARCH_USE_MEMREMAP_PROT
+>  	def_bool y
+>  	depends on AMD_MEM_ENCRYPT
 >  
-> +	drain_all_stock(memcg);
+> +config X86_INTEL_MKTME
+> +	bool "Intel Multi-Key Total Memory Encryption"
+> +	select DYNAMIC_PHYSICAL_MASK
+> +	select PAGE_EXTENSION
+> +	depends on X86_64 && CPU_SUP_INTEL
+> +	---help---
+> +	  Say yes to enable support for Multi-Key Total Memory Encryption.
+> +	  This requires an Intel processor that has support of the feature.
 > +
->  	mem_cgroup_id_put(memcg);
->  }
->  
-> -- 
-> 2.14.4
+> +	  Multikey Total Memory Encryption (MKTME) is a technology that allows
+> +	  transparent memory encryption in upcoming Intel platforms.
+> +
+> +	  MKTME is built on top of TME. TME allows encryption of the entirety
+> +	  of system memory using a single key. MKTME allows having multiple
+> +	  encryption domains, each having own key -- different memory pages can
+> +	  be encrypted with different keys.
+> +
+>  # Common NUMA Features
+>  config NUMA
+>  	bool "Numa Memory Allocation and Scheduler Support"
 
+Would it be good to provide documentation, or link to documentation, explaining
+what security guarantees this is supposed to provide, and what disadvantages (if any)
+it has? I guess  it costs a bit of performance...
+
+I see that TME helps with cold boot attacks.
+
+									Pavel
 -- 
-Michal Hocko
-SUSE Labs
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
