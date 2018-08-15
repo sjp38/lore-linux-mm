@@ -1,112 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E268A6B0007
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2018 18:01:24 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id 2-v6so1393267plc.11
-        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 15:01:24 -0700 (PDT)
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 213056B0005
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2018 18:16:55 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id d10-v6so1408212pll.22
+        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 15:16:55 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id v6-v6si20171402plo.264.2018.08.15.15.01.23
+        by mx.google.com with ESMTPS id g12-v6si21997890pfh.346.2018.08.15.15.16.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Aug 2018 15:01:23 -0700 (PDT)
-Date: Wed, 15 Aug 2018 15:01:21 -0700
+        Wed, 15 Aug 2018 15:16:53 -0700 (PDT)
+Date: Wed, 15 Aug 2018 15:16:52 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 3/4] mm/memory_hotplug: Refactor
- unregister_mem_sect_under_nodes
-Message-Id: <20180815150121.7ec35ddabf18aea88d84437f@linux-foundation.org>
-In-Reply-To: <20180815144219.6014-4-osalvador@techadventures.net>
-References: <20180815144219.6014-1-osalvador@techadventures.net>
-	<20180815144219.6014-4-osalvador@techadventures.net>
+Subject: Re: [PATCH] mm, page_alloc: actually ignore mempolicies for high
+ priority allocations
+Message-Id: <20180815151652.05d4c4684b7dff2282b5c046@linux-foundation.org>
+In-Reply-To: <20180612122624.8045-1-vbabka@suse.cz>
+References: <20180612122624.8045-1-vbabka@suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>
-Cc: mhocko@suse.com, vbabka@suse.cz, dan.j.williams@intel.com, yasu.isimatu@gmail.com, jonathan.cameron@huawei.com, david@redhat.com, Pavel.Tatashin@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org
 
-On Wed, 15 Aug 2018 16:42:18 +0200 Oscar Salvador <osalvador@techadventures.net> wrote:
+On Tue, 12 Jun 2018 14:26:24 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
 
-> From: Oscar Salvador <osalvador@suse.de>
+> The __alloc_pages_slowpath() function has for a long time contained code to
+> ignore node restrictions from memory policies for high priority allocations.
+> The current code that resets the zonelist iterator however does effectively
+> nothing after commit 7810e6781e0f ("mm, page_alloc: do not break __GFP_THISNODE
+> by zonelist reset") removed a buggy zonelist reset. Even before that commit,
+> mempolicy restrictions were still not ignored, as they are passed in
+> ac->nodemask which is untouched by the code.
 > 
-> unregister_mem_sect_under_nodes() tries to allocate a nodemask_t
-> in order to check whithin the loop which nodes have already been unlinked,
-> so we do not repeat the operation on them.
+> We can either remove the code, or make it work as intended. Since
+> ac->nodemask can be set from task's mempolicy via alloc_pages_current() and
+> thus also alloc_pages(), it may indeed affect kernel allocations, and it makes
+> sense to ignore it to allow progress for high priority allocations.
 > 
-> NODEMASK_ALLOC calls kmalloc() if NODES_SHIFT > 8, otherwise
-> it just declares a nodemask_t variable whithin the stack.
+> Thus, this patch resets ac->nodemask to NULL in such cases. This assumes all
+> callers can handle it (i.e. there are no guarantees as in the case of
+> __GFP_THISNODE) which seems to be the case. The same assumption is already
+> present in check_retry_cpuset() for some time.
 > 
-> Since kamlloc() can fail, we actually check whether NODEMASK_ALLOC failed
-> or not, and we return -ENOMEM accordingly.
-> remove_memory_section() does not check for the return value though.
-> 
-> The problem with this is that if we return -ENOMEM, it means that
-> unregister_mem_sect_under_nodes will not be able to remove the symlinks,
-> but since we do not check the return value, we go ahead and we call
-> unregister_memory(), which will remove all the mem_blks directories.
-> 
-> This will leave us with dangled symlinks.
-> 
-> The easiest way to overcome this is to fallback by calling
-> sysfs_remove_link() unconditionally in case NODEMASK_ALLOC failed.
-> This means that we will call sysfs_remove_link on nodes that have been
-> already unlinked, but nothing wrong happens as sysfs_remove_link()
-> backs off somewhere down the chain in case the link has already been
-> removed.
-> 
-> I think that this is better than
-> 
-> a) dangled symlinks
-> b) having to recovery from such error in remove_memory_section
-> 
-> Since from now on we will not need to care about return values, we can make
-> the function void.
-> 
-> As we have a safe fallback, one thing that could also be done is to add
-> __GFP_NORETRY in the flags when calling NODEMASK_ALLOC, so we do not retry.
-> 
+> The expected effect is that high priority kernel allocations in the context of
+> userspace tasks (e.g. OOM victims) restricted by mempolicies will have higher
+> chance to succeed if they are restricted to nodes with depleted memory, while
+> there are other nodes with free memory left.
 
-Oh boy, lots of things.
+We don't have any reviews or acks on ths one, perhaps because linux-mm
+wasn't cc'ed.  Could people please take a look?
 
-That small GFP_KERNEL allocation will basically never fail.  In the
-exceedingly-rare-basically-never-happens case, simply bailing out of
-unregister_mem_sect_under_nodes() seems acceptable.  But I guess that
-addressing it is a reasonable thing to do, if it can be done sanely.
 
-But given that your new unregister_mem_sect_under_nodes() can proceed
-happily even if the allocation failed, what's the point in allocating
-the nodemask at all?  Why not just go ahead and run sysfs_remove_link()
-against possibly-absent sysfs objects every time?  That produces
-simpler code and avoids having this basically-never-executed-or-tested
-code path in there.
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: mm, page_alloc: actually ignore mempolicies for high priority allocations
 
-Incidentally, do we have locking in place to prevent
-unregister_mem_sect_under_nodes() from accidentally removing sysfs
-nodes which were added 2 nanoseconds ago by a concurrent thread?
+The __alloc_pages_slowpath() function has for a long time contained code
+to ignore node restrictions from memory policies for high priority
+allocations.  The current code that resets the zonelist iterator however
+does effectively nothing after commit 7810e6781e0f ("mm, page_alloc: do
+not break __GFP_THISNODE by zonelist reset") removed a buggy zonelist
+reset.  Even before that commit, mempolicy restrictions were still not
+ignored, as they are passed in ac->nodemask which is untouched by the
+code.
 
-Also, this stuff in nodemask.h:
+We can either remove the code, or make it work as intended.  Since
+ac->nodemask can be set from task's mempolicy via alloc_pages_current()
+and thus also alloc_pages(), it may indeed affect kernel allocations, and
+it makes sense to ignore it to allow progress for high priority
+allocations.
 
-: /*
-:  * For nodemask scrach area.
-:  * NODEMASK_ALLOC(type, name) allocates an object with a specified type and
-:  * name.
-:  */
-: #if NODES_SHIFT > 8 /* nodemask_t > 256 bytes */
-: #define NODEMASK_ALLOC(type, name, gfp_flags)	\
-:			type *name = kmalloc(sizeof(*name), gfp_flags)
-: #define NODEMASK_FREE(m)			kfree(m)
-: #else
-: #define NODEMASK_ALLOC(type, name, gfp_flags)	type _##name, *name = &_##name
-: #define NODEMASK_FREE(m)			do {} while (0)
-: #endif
+Thus, this patch resets ac->nodemask to NULL in such cases.  This assumes
+all callers can handle it (i.e.  there are no guarantees as in the case of
+__GFP_THISNODE) which seems to be the case.  The same assumption is
+already present in check_retry_cpuset() for some time.
 
-a) s/scrach/scratch/
+The expected effect is that high priority kernel allocations in the
+context of userspace tasks (e.g.  OOM victims) restricted by mempolicies
+will have higher chance to succeed if they are restricted to nodes with
+depleted memory, while there are other nodes with free memory left.
 
-b) The comment is wrong, isn't it?  "NODES_SHIFT > 8" means
-   "nodemask_t > 32 bytes"?
 
-c) If "yes" then we can surely bump that up a bit - "NODES_SHIFT >
-   11", say.
+Ot's not a new intention, but for the first time the code will match the
+intention, AFAICS.  It was intended by commit 183f6371aac2 ("mm: ignore
+mempolicies when using ALLOC_NO_WATERMARK") in v3.6 but I think it never
+really worked, as mempolicy restriction was already encoded in nodemask,
+not zonelist, at that time.
 
-d) What's the maximum number of nodes, ever?  Perhaps we can always
-   fit a nodemask_t onto the stack, dunno.
+So originally that was for ALLOC_NO_WATERMARK only.  Then it was adjusted
+by e46e7b77c909 ("mm, page_alloc: recalculate the preferred zoneref if the
+context can ignore memory policies") and cd04ae1e2dc8 ("mm, oom: do not
+rely on TIF_MEMDIE for memory reserves access") to the current state.  So
+even GFP_ATOMIC would now ignore mempolicies after the initial attempts
+fail - if the code worked as people thought it does.
+
+Link: http://lkml.kernel.org/r/20180612122624.8045-1-vbabka@suse.cz
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/page_alloc.c |    7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+--- a/mm/page_alloc.c~mm-page_alloc-actually-ignore-mempolicies-for-high-priority-allocations
++++ a/mm/page_alloc.c
+@@ -4165,11 +4165,12 @@ retry:
+ 		alloc_flags = reserve_flags;
+ 
+ 	/*
+-	 * Reset the zonelist iterators if memory policies can be ignored.
+-	 * These allocations are high priority and system rather than user
+-	 * orientated.
++	 * Reset the nodemask and zonelist iterators if memory policies can be
++	 * ignored. These allocations are high priority and system rather than
++	 * user oriented.
+ 	 */
+ 	if (!(alloc_flags & ALLOC_CPUSET) || reserve_flags) {
++		ac->nodemask = NULL;
+ 		ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
+ 					ac->high_zoneidx, ac->nodemask);
+ 	}
+_
