@@ -1,58 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EAB976B0007
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2018 18:34:59 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id t4-v6so1464752plo.0
-        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 15:34:59 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F68A6B0010
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2018 18:43:40 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id x19-v6so1140864pfh.15
+        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 15:43:40 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id e21-v6si22824231pgl.148.2018.08.15.15.34.58
+        by mx.google.com with ESMTPS id t10-v6si21980189pge.624.2018.08.15.15.43.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Aug 2018 15:34:58 -0700 (PDT)
-Date: Wed, 15 Aug 2018 15:34:56 -0700
+        Wed, 15 Aug 2018 15:43:35 -0700 (PDT)
+Date: Wed, 15 Aug 2018 15:43:34 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RESEND PATCH v10 0/6] optimize memblock_next_valid_pfn and
- early_pfn_valid on arm and arm64
-Message-Id: <20180815153456.974798c62dd5a5e4628db8f5@linux-foundation.org>
-In-Reply-To: <1530867675-9018-1-git-send-email-hejianet@gmail.com>
-References: <1530867675-9018-1-git-send-email-hejianet@gmail.com>
+Subject: Re: [PATCH v2 0/2] mm: soft-offline: fix race against page
+ allocation
+Message-Id: <20180815154334.f3eecd1029a153421631413a@linux-foundation.org>
+In-Reply-To: <1531805552-19547-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1531805552-19547-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jia He <hejianet@gmail.com>
-Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, xishi.qiuxishi@alibaba-inc.com, zy.zhengyi@alibaba-inc.com, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Fri,  6 Jul 2018 17:01:09 +0800 Jia He <hejianet@gmail.com> wrote:
+On Tue, 17 Jul 2018 14:32:30 +0900 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
-> where possible") optimized the loop in memmap_init_zone(). But it causes
-> possible panic bug. So Daniel Vacek reverted it later.
+> I've updated the patchset based on feedbacks:
 > 
-> But as suggested by Daniel Vacek, it is fine to using memblock to skip
-> gaps and finding next valid frame with CONFIG_HAVE_ARCH_PFN_VALID.
+> - updated comments (from Andrew),
+> - moved calling set_hwpoison_free_buddy_page() from mm/migrate.c to mm/memory-failure.c,
+>   which is necessary to check the return code of set_hwpoison_free_buddy_page(),
+> - lkp bot reported a build error when only 1/2 is applied.
 > 
-> More from what Daniel said:
-> "On arm and arm64, memblock is used by default. But generic version of
-> pfn_valid() is based on mem sections and memblock_next_valid_pfn() does
-> not always return the next valid one but skips more resulting in some
-> valid frames to be skipped (as if they were invalid). And that's why
-> kernel was eventually crashing on some !arm machines."
+>   >    mm/memory-failure.c: In function 'soft_offline_huge_page':
+>   > >> mm/memory-failure.c:1610:8: error: implicit declaration of function
+>   > 'set_hwpoison_free_buddy_page'; did you mean 'is_free_buddy_page'?
+>   > [-Werror=implicit-function-declaration]
+>   >        if (set_hwpoison_free_buddy_page(page))
+>   >            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+>   >            is_free_buddy_page
+>   >    cc1: some warnings being treated as errors
 > 
-> About the performance consideration:
-> As said by James in b92df1de5,
-> "I have tested this patch on a virtual model of a Samurai CPU with a
-> sparse memory map.  The kernel boot time drops from 109 to 62 seconds."
-> Thus it would be better if we remain memblock_next_valid_pfn on arm/arm64.
+>   set_hwpoison_free_buddy_page() is defined in 2/2, so we can't use it
+>   in 1/2. Simply doing s/set_hwpoison_free_buddy_page/!TestSetPageHWPoison/
+>   will fix this.
 > 
-> Besides we can remain memblock_next_valid_pfn, there is still some room
-> for improvement. After this set, I can see the time overhead of memmap_init
-> is reduced from 27956us to 13537us in my armv8a server(QDF2400 with 96G
-> memory, pagesize 64k). I believe arm server will benefit more if memory is
-> larger than TBs
+> v1: https://lkml.org/lkml/2018/7/12/968
+> 
 
-This patchset is basically unreviewed at this stage.  Could people
-please find some time to check it carefully?
-
-Thanks.
+Quite a bit of discussion on these two, but no actual acks or
+review-by's?
