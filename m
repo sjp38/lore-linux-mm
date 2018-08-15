@@ -1,55 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DD7406B000D
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2018 18:25:13 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id d40-v6so1435086pla.14
-        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 15:25:13 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id EAB976B0007
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2018 18:34:59 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id t4-v6so1464752plo.0
+        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 15:34:59 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a13-v6si24696811pgj.495.2018.08.15.15.25.12
+        by mx.google.com with ESMTPS id e21-v6si22824231pgl.148.2018.08.15.15.34.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Aug 2018 15:25:12 -0700 (PDT)
-Date: Wed, 15 Aug 2018 15:25:11 -0700
+        Wed, 15 Aug 2018 15:34:58 -0700 (PDT)
+Date: Wed, 15 Aug 2018 15:34:56 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v8 0/2] Directed kmem charging
-Message-Id: <20180815152511.3ea63aa54c5fac0bfe9370da@linux-foundation.org>
-In-Reply-To: <20180627191250.209150-1-shakeelb@google.com>
-References: <20180627191250.209150-1-shakeelb@google.com>
+Subject: Re: [RESEND PATCH v10 0/6] optimize memblock_next_valid_pfn and
+ early_pfn_valid on arm and arm64
+Message-Id: <20180815153456.974798c62dd5a5e4628db8f5@linux-foundation.org>
+In-Reply-To: <1530867675-9018-1-git-send-email-hejianet@gmail.com>
+References: <1530867675-9018-1-git-send-email-hejianet@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.com>, Greg Thelen <gthelen@google.com>, Amir Goldstein <amir73il@gmail.com>, Roman Gushchin <guro@fb.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Jia He <hejianet@gmail.com>
+Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 27 Jun 2018 12:12:48 -0700 Shakeel Butt <shakeelb@google.com> wrote:
+On Fri,  6 Jul 2018 17:01:09 +0800 Jia He <hejianet@gmail.com> wrote:
 
-> The Linux kernel's memory cgroup allows limiting the memory usage of
-> the jobs running on the system to provide isolation between the jobs.
-> All the kernel memory allocated in the context of the job and marked
-> with __GFP_ACCOUNT will also be included in the memory usage and be
-> limited by the job's limit.
+> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+> where possible") optimized the loop in memmap_init_zone(). But it causes
+> possible panic bug. So Daniel Vacek reverted it later.
 > 
-> The kernel memory can only be charged to the memcg of the process in
-> whose context kernel memory was allocated. However there are cases where
-> the allocated kernel memory should be charged to the memcg different
-> from the current processes's memcg. This patch series contains two such
-> concrete use-cases i.e. fsnotify and buffer_head.
+> But as suggested by Daniel Vacek, it is fine to using memblock to skip
+> gaps and finding next valid frame with CONFIG_HAVE_ARCH_PFN_VALID.
 > 
-> The fsnotify event objects can consume a lot of system memory for large
-> or unlimited queues if there is either no or slow listener. The events
-> are allocated in the context of the event producer. However they should
-> be charged to the event consumer. Similarly the buffer_head objects can
-> be allocated in a memcg different from the memcg of the page for which
-> buffer_head objects are being allocated.
+> More from what Daniel said:
+> "On arm and arm64, memblock is used by default. But generic version of
+> pfn_valid() is based on mem sections and memblock_next_valid_pfn() does
+> not always return the next valid one but skips more resulting in some
+> valid frames to be skipped (as if they were invalid). And that's why
+> kernel was eventually crashing on some !arm machines."
 > 
-> To solve this issue, this patch series introduces mechanism to charge
-> kernel memory to a given memcg. In case of fsnotify events, the memcg of
-> the consumer can be used for charging and for buffer_head, the memcg of
-> the page can be charged. For directed charging, the caller can use the
-> scope API memalloc_[un]use_memcg() to specify the memcg to charge for
-> all the __GFP_ACCOUNT allocations within the scope.
+> About the performance consideration:
+> As said by James in b92df1de5,
+> "I have tested this patch on a virtual model of a Samurai CPU with a
+> sparse memory map.  The kernel boot time drops from 109 to 62 seconds."
+> Thus it would be better if we remain memblock_next_valid_pfn on arm/arm64.
+> 
+> Besides we can remain memblock_next_valid_pfn, there is still some room
+> for improvement. After this set, I can see the time overhead of memmap_init
+> is reduced from 27956us to 13537us in my armv8a server(QDF2400 with 96G
+> memory, pagesize 64k). I believe arm server will benefit more if memory is
+> larger than TBs
 
-This patchset is not showing signs of having been well reviewed at
-this time.  Could people please take another look?
+This patchset is basically unreviewed at this stage.  Could people
+please find some time to check it carefully?
+
+Thanks.
