@@ -1,207 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D52A6B0005
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2018 17:54:38 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id w23-v6so1105637pgv.1
-        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 14:54:38 -0700 (PDT)
-Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
-        by mx.google.com with ESMTPS id x65-v6si25903968pff.196.2018.08.15.14.54.36
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E268A6B0007
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2018 18:01:24 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id 2-v6so1393267plc.11
+        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 15:01:24 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id v6-v6si20171402plo.264.2018.08.15.15.01.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Aug 2018 14:54:37 -0700 (PDT)
-Subject: Re: [RFC v8 PATCH 3/5] mm: mmap: zap pages with read mmap_sem in
- munmap
-References: <1534358990-85530-1-git-send-email-yang.shi@linux.alibaba.com>
- <1534358990-85530-4-git-send-email-yang.shi@linux.alibaba.com>
- <20180815191606.GA4201@bombadil.infradead.org>
- <20180815210946.GA28919@bombadil.infradead.org>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <78e658dd-bdb0-09ca-9af5-b523c7ff529f@linux.alibaba.com>
-Date: Wed, 15 Aug 2018 14:54:13 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180815210946.GA28919@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
+        Wed, 15 Aug 2018 15:01:23 -0700 (PDT)
+Date: Wed, 15 Aug 2018 15:01:21 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3 3/4] mm/memory_hotplug: Refactor
+ unregister_mem_sect_under_nodes
+Message-Id: <20180815150121.7ec35ddabf18aea88d84437f@linux-foundation.org>
+In-Reply-To: <20180815144219.6014-4-osalvador@techadventures.net>
+References: <20180815144219.6014-1-osalvador@techadventures.net>
+	<20180815144219.6014-4-osalvador@techadventures.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: mhocko@kernel.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, vbabka@suse.cz, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Oscar Salvador <osalvador@techadventures.net>
+Cc: mhocko@suse.com, vbabka@suse.cz, dan.j.williams@intel.com, yasu.isimatu@gmail.com, jonathan.cameron@huawei.com, david@redhat.com, Pavel.Tatashin@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
+On Wed, 15 Aug 2018 16:42:18 +0200 Oscar Salvador <osalvador@techadventures.net> wrote:
 
+> From: Oscar Salvador <osalvador@suse.de>
+> 
+> unregister_mem_sect_under_nodes() tries to allocate a nodemask_t
+> in order to check whithin the loop which nodes have already been unlinked,
+> so we do not repeat the operation on them.
+> 
+> NODEMASK_ALLOC calls kmalloc() if NODES_SHIFT > 8, otherwise
+> it just declares a nodemask_t variable whithin the stack.
+> 
+> Since kamlloc() can fail, we actually check whether NODEMASK_ALLOC failed
+> or not, and we return -ENOMEM accordingly.
+> remove_memory_section() does not check for the return value though.
+> 
+> The problem with this is that if we return -ENOMEM, it means that
+> unregister_mem_sect_under_nodes will not be able to remove the symlinks,
+> but since we do not check the return value, we go ahead and we call
+> unregister_memory(), which will remove all the mem_blks directories.
+> 
+> This will leave us with dangled symlinks.
+> 
+> The easiest way to overcome this is to fallback by calling
+> sysfs_remove_link() unconditionally in case NODEMASK_ALLOC failed.
+> This means that we will call sysfs_remove_link on nodes that have been
+> already unlinked, but nothing wrong happens as sysfs_remove_link()
+> backs off somewhere down the chain in case the link has already been
+> removed.
+> 
+> I think that this is better than
+> 
+> a) dangled symlinks
+> b) having to recovery from such error in remove_memory_section
+> 
+> Since from now on we will not need to care about return values, we can make
+> the function void.
+> 
+> As we have a safe fallback, one thing that could also be done is to add
+> __GFP_NORETRY in the flags when calling NODEMASK_ALLOC, so we do not retry.
+> 
 
-On 8/15/18 2:09 PM, Matthew Wilcox wrote:
-> On Wed, Aug 15, 2018 at 12:16:06PM -0700, Matthew Wilcox wrote:
->> (not even compiled, and I can see a good opportunity for combining the
->> VM_LOCKED loop with the has_uprobes loop)
-> I was rushing to get that sent earlier.  Here it is tidied up to
-> actually compile.
+Oh boy, lots of things.
 
-Thanks for the example. Yes, I believe the code still can be compacted 
-to save some lines. However, the cover letter and the commit log of this 
-patch has elaborated the discussion in the earlier reviews about why we 
-do it in this way.
+That small GFP_KERNEL allocation will basically never fail.  In the
+exceedingly-rare-basically-never-happens case, simply bailing out of
+unregister_mem_sect_under_nodes() seems acceptable.  But I guess that
+addressing it is a reasonable thing to do, if it can be done sanely.
 
-Or you just mean I don't have to call do_munmap() for the special 
-mappings with the "downgrade" flag to save some cycles since do_munmap() 
-will redo something which have been done?
+But given that your new unregister_mem_sect_under_nodes() can proceed
+happily even if the allocation failed, what's the point in allocating
+the nodemask at all?  Why not just go ahead and run sysfs_remove_link()
+against possibly-absent sysfs objects every time?  That produces
+simpler code and avoids having this basically-never-executed-or-tested
+code path in there.
 
-Thanks,
-Yang
+Incidentally, do we have locking in place to prevent
+unregister_mem_sect_under_nodes() from accidentally removing sysfs
+nodes which were added 2 nanoseconds ago by a concurrent thread?
 
->
-> Note the diffstat:
->
->   mmap.c |   71 ++++++++++++++++++++++++++++++++++++++---------------------------
->   1 file changed, 42 insertions(+), 29 deletions(-)
->
-> I think that's a pretty small extra price to pay for having this improved
-> scalability.
->
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index de699523c0b7..b77bb3908f8c 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2802,7 +2802,9 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
->   	      struct list_head *uf)
->   {
->   	unsigned long end;
-> -	struct vm_area_struct *vma, *prev, *last;
-> +	struct vm_area_struct *vma, *prev, *last, *tmp;
-> +	int res = 0;
-> +	bool downgrade = false;
->   
->   	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE-start)
->   		return -EINVAL;
-> @@ -2811,17 +2813,20 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
->   	if (len == 0)
->   		return -EINVAL;
->   
-> +	if (down_write_killable(&mm->mmap_sem))
-> +		return -EINTR;
-> +
->   	/* Find the first overlapping VMA */
->   	vma = find_vma(mm, start);
->   	if (!vma)
-> -		return 0;
-> +		goto unlock;
->   	prev = vma->vm_prev;
-> -	/* we have  start < vma->vm_end  */
-> +	/* we have start < vma->vm_end  */
->   
->   	/* if it doesn't overlap, we have nothing.. */
->   	end = start + len;
->   	if (vma->vm_start >= end)
-> -		return 0;
-> +		goto unlock;
->   
->   	/*
->   	 * If we need to split any vma, do it now to save pain later.
-> @@ -2831,28 +2836,27 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
->   	 * places tmp vma above, and higher split_vma places tmp vma below.
->   	 */
->   	if (start > vma->vm_start) {
-> -		int error;
-> -
->   		/*
->   		 * Make sure that map_count on return from munmap() will
->   		 * not exceed its limit; but let map_count go just above
->   		 * its limit temporarily, to help free resources as expected.
->   		 */
-> +		res = -ENOMEM;
->   		if (end < vma->vm_end && mm->map_count >= sysctl_max_map_count)
-> -			return -ENOMEM;
-> +			goto unlock;
->   
-> -		error = __split_vma(mm, vma, start, 0);
-> -		if (error)
-> -			return error;
-> +		res = __split_vma(mm, vma, start, 0);
-> +		if (res)
-> +			goto unlock;
->   		prev = vma;
->   	}
->   
->   	/* Does it split the last one? */
->   	last = find_vma(mm, end);
->   	if (last && end > last->vm_start) {
-> -		int error = __split_vma(mm, last, end, 1);
-> -		if (error)
-> -			return error;
-> +		res = __split_vma(mm, last, end, 1);
-> +		if (res)
-> +			goto unlock;
->   	}
->   	vma = prev ? prev->vm_next : mm->mmap;
->   
-> @@ -2866,25 +2870,31 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
->   		 * split, despite we could. This is unlikely enough
->   		 * failure that it's not worth optimizing it for.
->   		 */
-> -		int error = userfaultfd_unmap_prep(vma, start, end, uf);
-> -		if (error)
-> -			return error;
-> +		res = userfaultfd_unmap_prep(vma, start, end, uf);
-> +		if (res)
-> +			goto unlock;
->   	}
->   
->   	/*
->   	 * unlock any mlock()ed ranges before detaching vmas
-> +	 * and check to see if there's any reason we might have to hold
-> +	 * the mmap_sem write-locked while unmapping regions.
->   	 */
-> -	if (mm->locked_vm) {
-> -		struct vm_area_struct *tmp = vma;
-> -		while (tmp && tmp->vm_start < end) {
-> -			if (tmp->vm_flags & VM_LOCKED) {
-> -				mm->locked_vm -= vma_pages(tmp);
-> -				munlock_vma_pages_all(tmp);
-> -			}
-> -			tmp = tmp->vm_next;
-> +	downgrade = true;
-> +
-> +	for (tmp = vma; tmp && tmp->vm_start < end; tmp = tmp->vm_next) {
-> +		if (tmp->vm_flags & VM_LOCKED) {
-> +			mm->locked_vm -= vma_pages(tmp);
-> +			munlock_vma_pages_all(tmp);
->   		}
-> +		if (tmp->vm_file &&
-> +				has_uprobes(tmp, tmp->vm_start, tmp->vm_end))
-> +			downgrade = false;
->   	}
->   
-> +	if (downgrade)
-> +		downgrade_write(&mm->mmap_sem);
-> +
->   	/*
->   	 * Remove the vma's, and unmap the actual pages
->   	 */
-> @@ -2896,7 +2906,14 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
->   	/* Fix up all other VM information */
->   	remove_vma_list(mm, vma);
->   
-> -	return 0;
-> +	res = 0;
-> +unlock:
-> +	if (downgrade) {
-> +		up_read(&mm->mmap_sem);
-> +	} else {
-> +		up_write(&mm->mmap_sem);
-> +	}
-> +	return res;
->   }
->   
->   int vm_munmap(unsigned long start, size_t len)
-> @@ -2905,11 +2922,7 @@ int vm_munmap(unsigned long start, size_t len)
->   	struct mm_struct *mm = current->mm;
->   	LIST_HEAD(uf);
->   
-> -	if (down_write_killable(&mm->mmap_sem))
-> -		return -EINTR;
-> -
->   	ret = do_munmap(mm, start, len, &uf);
-> -	up_write(&mm->mmap_sem);
->   	userfaultfd_unmap_complete(mm, &uf);
->   	return ret;
->   }
+Also, this stuff in nodemask.h:
+
+: /*
+:  * For nodemask scrach area.
+:  * NODEMASK_ALLOC(type, name) allocates an object with a specified type and
+:  * name.
+:  */
+: #if NODES_SHIFT > 8 /* nodemask_t > 256 bytes */
+: #define NODEMASK_ALLOC(type, name, gfp_flags)	\
+:			type *name = kmalloc(sizeof(*name), gfp_flags)
+: #define NODEMASK_FREE(m)			kfree(m)
+: #else
+: #define NODEMASK_ALLOC(type, name, gfp_flags)	type _##name, *name = &_##name
+: #define NODEMASK_FREE(m)			do {} while (0)
+: #endif
+
+a) s/scrach/scratch/
+
+b) The comment is wrong, isn't it?  "NODES_SHIFT > 8" means
+   "nodemask_t > 32 bytes"?
+
+c) If "yes" then we can surely bump that up a bit - "NODES_SHIFT >
+   11", say.
+
+d) What's the maximum number of nodes, ever?  Perhaps we can always
+   fit a nodemask_t onto the stack, dunno.
