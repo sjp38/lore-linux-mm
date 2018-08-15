@@ -1,128 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 213056B0005
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2018 18:16:55 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id d10-v6so1408212pll.22
-        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 15:16:55 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F9566B000A
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2018 18:21:38 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id 33-v6so1426698plf.19
+        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 15:21:38 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id g12-v6si21997890pfh.346.2018.08.15.15.16.53
+        by mx.google.com with ESMTPS id h8-v6si25209409pgr.379.2018.08.15.15.21.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Aug 2018 15:16:53 -0700 (PDT)
-Date: Wed, 15 Aug 2018 15:16:52 -0700
+        Wed, 15 Aug 2018 15:21:37 -0700 (PDT)
+Date: Wed, 15 Aug 2018 15:21:35 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm, page_alloc: actually ignore mempolicies for high
- priority allocations
-Message-Id: <20180815151652.05d4c4684b7dff2282b5c046@linux-foundation.org>
-In-Reply-To: <20180612122624.8045-1-vbabka@suse.cz>
-References: <20180612122624.8045-1-vbabka@suse.cz>
+Subject: Re: [PATCH v2 3/4] mm/memory_hotplug: Make
+ register_mem_sect_under_node a cb of walk_memory_range
+Message-Id: <20180815152135.4f755e25c865af2054cfaf02@linux-foundation.org>
+In-Reply-To: <20180622111839.10071-4-osalvador@techadventures.net>
+References: <20180622111839.10071-1-osalvador@techadventures.net>
+	<20180622111839.10071-4-osalvador@techadventures.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org
+To: osalvador@techadventures.net
+Cc: mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, Jonathan.Cameron@huawei.com, arbab@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
-On Tue, 12 Jun 2018 14:26:24 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
+On Fri, 22 Jun 2018 13:18:38 +0200 osalvador@techadventures.net wrote:
 
-> The __alloc_pages_slowpath() function has for a long time contained code to
-> ignore node restrictions from memory policies for high priority allocations.
-> The current code that resets the zonelist iterator however does effectively
-> nothing after commit 7810e6781e0f ("mm, page_alloc: do not break __GFP_THISNODE
-> by zonelist reset") removed a buggy zonelist reset. Even before that commit,
-> mempolicy restrictions were still not ignored, as they are passed in
-> ac->nodemask which is untouched by the code.
+> From: Oscar Salvador <osalvador@suse.de>
 > 
-> We can either remove the code, or make it work as intended. Since
-> ac->nodemask can be set from task's mempolicy via alloc_pages_current() and
-> thus also alloc_pages(), it may indeed affect kernel allocations, and it makes
-> sense to ignore it to allow progress for high priority allocations.
+> link_mem_sections() and walk_memory_range() share most of the code,
+> so we can use convert link_mem_sections() into a dummy function that calls
+> walk_memory_range() with a callback to register_mem_sect_under_node().
 > 
-> Thus, this patch resets ac->nodemask to NULL in such cases. This assumes all
-> callers can handle it (i.e. there are no guarantees as in the case of
-> __GFP_THISNODE) which seems to be the case. The same assumption is already
-> present in check_retry_cpuset() for some time.
+> This patch converts register_mem_sect_under_node() in order to
+> match a walk_memory_range's callback, getting rid of the
+> check_nid argument and checking instead if the system is still
+> boothing, since we only have to check for the nid if the system
+> is in such state.
 > 
-> The expected effect is that high priority kernel allocations in the context of
-> userspace tasks (e.g. OOM victims) restricted by mempolicies will have higher
-> chance to succeed if they are restricted to nodes with depleted memory, while
-> there are other nodes with free memory left.
+> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> Suggested-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 
-We don't have any reviews or acks on ths one, perhaps because linux-mm
-wasn't cc'ed.  Could people please take a look?
+We have two tested-by's bu no reviewers or ackers?
 
+From: Oscar Salvador <osalvador@suse.de>
+Subject: mm/memory_hotplug.c: make register_mem_sect_under_node() a callback of walk_memory_range()
 
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: mm, page_alloc: actually ignore mempolicies for high priority allocations
+link_mem_sections() and walk_memory_range() share most of the code, so we
+can use convert link_mem_sections() into a dummy function that calls
+walk_memory_range() with a callback to register_mem_sect_under_node().
 
-The __alloc_pages_slowpath() function has for a long time contained code
-to ignore node restrictions from memory policies for high priority
-allocations.  The current code that resets the zonelist iterator however
-does effectively nothing after commit 7810e6781e0f ("mm, page_alloc: do
-not break __GFP_THISNODE by zonelist reset") removed a buggy zonelist
-reset.  Even before that commit, mempolicy restrictions were still not
-ignored, as they are passed in ac->nodemask which is untouched by the
-code.
+This patch converts register_mem_sect_under_node() in order to match a
+walk_memory_range's callback, getting rid of the check_nid argument and
+checking instead if the system is still boothing, since we only have to
+check for the nid if the system is in such state.
 
-We can either remove the code, or make it work as intended.  Since
-ac->nodemask can be set from task's mempolicy via alloc_pages_current()
-and thus also alloc_pages(), it may indeed affect kernel allocations, and
-it makes sense to ignore it to allow progress for high priority
-allocations.
-
-Thus, this patch resets ac->nodemask to NULL in such cases.  This assumes
-all callers can handle it (i.e.  there are no guarantees as in the case of
-__GFP_THISNODE) which seems to be the case.  The same assumption is
-already present in check_retry_cpuset() for some time.
-
-The expected effect is that high priority kernel allocations in the
-context of userspace tasks (e.g.  OOM victims) restricted by mempolicies
-will have higher chance to succeed if they are restricted to nodes with
-depleted memory, while there are other nodes with free memory left.
-
-
-Ot's not a new intention, but for the first time the code will match the
-intention, AFAICS.  It was intended by commit 183f6371aac2 ("mm: ignore
-mempolicies when using ALLOC_NO_WATERMARK") in v3.6 but I think it never
-really worked, as mempolicy restriction was already encoded in nodemask,
-not zonelist, at that time.
-
-So originally that was for ALLOC_NO_WATERMARK only.  Then it was adjusted
-by e46e7b77c909 ("mm, page_alloc: recalculate the preferred zoneref if the
-context can ignore memory policies") and cd04ae1e2dc8 ("mm, oom: do not
-rely on TIF_MEMDIE for memory reserves access") to the current state.  So
-even GFP_ATOMIC would now ignore mempolicies after the initial attempts
-fail - if the code worked as people thought it does.
-
-Link: http://lkml.kernel.org/r/20180612122624.8045-1-vbabka@suse.cz
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Link: http://lkml.kernel.org/r/20180622111839.10071-4-osalvador@techadventures.net
+Signed-off-by: Oscar Salvador <osalvador@suse.de>
+Suggested-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Tested-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+Tested-by: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
- mm/page_alloc.c |    7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ drivers/base/node.c  |   44 +++++------------------------------------
+ include/linux/node.h |   12 ++++++-----
+ mm/memory_hotplug.c  |    5 ----
+ 3 files changed, 14 insertions(+), 47 deletions(-)
 
---- a/mm/page_alloc.c~mm-page_alloc-actually-ignore-mempolicies-for-high-priority-allocations
-+++ a/mm/page_alloc.c
-@@ -4165,11 +4165,12 @@ retry:
- 		alloc_flags = reserve_flags;
+--- a/drivers/base/node.c~mm-memory_hotplug-make-register_mem_sect_under_node-a-cb-of-walk_memory_range
++++ a/drivers/base/node.c
+@@ -399,10 +399,9 @@ static int __ref get_nid_for_pfn(unsigne
+ }
  
- 	/*
--	 * Reset the zonelist iterators if memory policies can be ignored.
--	 * These allocations are high priority and system rather than user
--	 * orientated.
-+	 * Reset the nodemask and zonelist iterators if memory policies can be
-+	 * ignored. These allocations are high priority and system rather than
-+	 * user oriented.
- 	 */
- 	if (!(alloc_flags & ALLOC_CPUSET) || reserve_flags) {
-+		ac->nodemask = NULL;
- 		ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
- 					ac->high_zoneidx, ac->nodemask);
+ /* register memory section under specified node if it spans that node */
+-int register_mem_sect_under_node(struct memory_block *mem_blk, int nid,
+-				 bool check_nid)
++int register_mem_sect_under_node(struct memory_block *mem_blk, void *arg)
+ {
+-	int ret;
++	int ret, nid = *(int *)arg;
+ 	unsigned long pfn, sect_start_pfn, sect_end_pfn;
+ 
+ 	if (!mem_blk)
+@@ -433,7 +432,7 @@ int register_mem_sect_under_node(struct
+ 		 * case, during hotplug we know that all pages in the memory
+ 		 * block belong to the same node.
+ 		 */
+-		if (check_nid) {
++		if (system_state == SYSTEM_BOOTING) {
+ 			page_nid = get_nid_for_pfn(pfn);
+ 			if (page_nid < 0)
+ 				continue;
+@@ -490,41 +489,10 @@ int unregister_mem_sect_under_nodes(stru
+ 	return 0;
+ }
+ 
+-int link_mem_sections(int nid, unsigned long start_pfn, unsigned long nr_pages,
+-		      bool check_nid)
++int link_mem_sections(int nid, unsigned long start_pfn, unsigned long end_pfn)
+ {
+-	unsigned long end_pfn = start_pfn + nr_pages;
+-	unsigned long pfn;
+-	struct memory_block *mem_blk = NULL;
+-	int err = 0;
+-
+-	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+-		unsigned long section_nr = pfn_to_section_nr(pfn);
+-		struct mem_section *mem_sect;
+-		int ret;
+-
+-		if (!present_section_nr(section_nr))
+-			continue;
+-		mem_sect = __nr_to_section(section_nr);
+-
+-		/* same memblock ? */
+-		if (mem_blk)
+-			if ((section_nr >= mem_blk->start_section_nr) &&
+-			    (section_nr <= mem_blk->end_section_nr))
+-				continue;
+-
+-		mem_blk = find_memory_block_hinted(mem_sect, mem_blk);
+-
+-		ret = register_mem_sect_under_node(mem_blk, nid, check_nid);
+-		if (!err)
+-			err = ret;
+-
+-		/* discard ref obtained in find_memory_block() */
+-	}
+-
+-	if (mem_blk)
+-		kobject_put(&mem_blk->dev.kobj);
+-	return err;
++	return walk_memory_range(start_pfn, end_pfn, (void *)&nid,
++					register_mem_sect_under_node);
+ }
+ 
+ #ifdef CONFIG_HUGETLBFS
+--- a/include/linux/node.h~mm-memory_hotplug-make-register_mem_sect_under_node-a-cb-of-walk_memory_range
++++ a/include/linux/node.h
+@@ -33,10 +33,10 @@ typedef  void (*node_registration_func_t
+ 
+ #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_NUMA)
+ extern int link_mem_sections(int nid, unsigned long start_pfn,
+-			     unsigned long nr_pages, bool check_nid);
++			     unsigned long end_pfn);
+ #else
+ static inline int link_mem_sections(int nid, unsigned long start_pfn,
+-				    unsigned long nr_pages, bool check_nid)
++				    unsigned long end_pfn)
+ {
+ 	return 0;
+ }
+@@ -54,12 +54,14 @@ static inline int register_one_node(int
+ 
+ 	if (node_online(nid)) {
+ 		struct pglist_data *pgdat = NODE_DATA(nid);
++		unsigned long start_pfn = pgdat->node_start_pfn;
++		unsigned long end_pfn = start_pfn + pgdat->node_spanned_pages;
+ 
+ 		error = __register_one_node(nid);
+ 		if (error)
+ 			return error;
+ 		/* link memory sections under this node */
+-		error = link_mem_sections(nid, pgdat->node_start_pfn, pgdat->node_spanned_pages, true);
++		error = link_mem_sections(nid, start_pfn, end_pfn);
  	}
+ 
+ 	return error;
+@@ -69,7 +71,7 @@ extern void unregister_one_node(int nid)
+ extern int register_cpu_under_node(unsigned int cpu, unsigned int nid);
+ extern int unregister_cpu_under_node(unsigned int cpu, unsigned int nid);
+ extern int register_mem_sect_under_node(struct memory_block *mem_blk,
+-						int nid, bool check_nid);
++						void *arg);
+ extern int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+ 					   unsigned long phys_index);
+ 
+@@ -99,7 +101,7 @@ static inline int unregister_cpu_under_n
+ 	return 0;
+ }
+ static inline int register_mem_sect_under_node(struct memory_block *mem_blk,
+-							int nid, bool check_nid)
++							void *arg)
+ {
+ 	return 0;
+ }
+--- a/mm/memory_hotplug.c~mm-memory_hotplug-make-register_mem_sect_under_node-a-cb-of-walk_memory_range
++++ a/mm/memory_hotplug.c
+@@ -1123,7 +1123,6 @@ int __ref add_memory_resource(int nid, s
+ 	u64 start, size;
+ 	bool new_node = false;
+ 	int ret;
+-	unsigned long start_pfn, nr_pages;
+ 
+ 	start = res->start;
+ 	size = resource_size(res);
+@@ -1164,9 +1163,7 @@ int __ref add_memory_resource(int nid, s
+ 	}
+ 
+ 	/* link memory sections under this node.*/
+-	start_pfn = start >> PAGE_SHIFT;
+-	nr_pages = size >> PAGE_SHIFT;
+-	ret = link_mem_sections(nid, start_pfn, nr_pages, false);
++	ret = link_mem_sections(nid, PFN_DOWN(start), PFN_UP(start + size - 1));
+ 	BUG_ON(ret);
+ 
+ 	/* create new memmap entry */
 _
