@@ -1,260 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 96CDA6B0271
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2018 16:34:22 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id e15-v6so1024503pfi.5
-        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 13:34:22 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id n3-v6si18917408pld.146.2018.08.15.13.34.20
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 65F4D6B0005
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2018 17:09:55 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id 88-v6so1340600pld.6
+        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 14:09:55 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id j91-v6si19537866pld.474.2018.08.15.14.09.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Aug 2018 13:34:21 -0700 (PDT)
-From: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v3 2/3] x86/modules: Increase randomization for modules
-Date: Wed, 15 Aug 2018 13:30:18 -0700
-Message-Id: <1534365020-18943-3-git-send-email-rick.p.edgecombe@intel.com>
-In-Reply-To: <1534365020-18943-1-git-send-email-rick.p.edgecombe@intel.com>
-References: <1534365020-18943-1-git-send-email-rick.p.edgecombe@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 15 Aug 2018 14:09:53 -0700 (PDT)
+Date: Wed, 15 Aug 2018 14:09:46 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC v8 PATCH 3/5] mm: mmap: zap pages with read mmap_sem in
+ munmap
+Message-ID: <20180815210946.GA28919@bombadil.infradead.org>
+References: <1534358990-85530-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1534358990-85530-4-git-send-email-yang.shi@linux.alibaba.com>
+ <20180815191606.GA4201@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180815191606.GA4201@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, daniel@iogearbox.net, jannh@google.com, keescook@chromium.org
-Cc: kristen@linux.intel.com, dave.hansen@intel.com, arjan@linux.intel.com, Rick Edgecombe <rick.p.edgecombe@intel.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: mhocko@kernel.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, vbabka@suse.cz, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This changes the behavior of the KASLR logic for allocating memory for the text
-sections of loadable modules. It randomizes the location of each module text
-section with about 17 bits of entropy in typical use. This is enabled on X86_64
-only. For 32 bit, the behavior is unchanged. It refactors existing code around
-module randomization in order to cleanly implement this along side the unchanged
-32 bit behavior.
+On Wed, Aug 15, 2018 at 12:16:06PM -0700, Matthew Wilcox wrote:
+> (not even compiled, and I can see a good opportunity for combining the
+> VM_LOCKED loop with the has_uprobes loop)
 
-The algorithm breaks the module space in two, a random area and a backup area.
-It first tries to allocate at a number of randomly located starting pages inside
-the random section without purging any lazy free vmap areas and triggering the
-associated TLB flush. If this fails, it will try again a number of times
-allowing for purges if needed.  Finally if those both fail to find a position it
-will allocate in the backup area. The backup area base will be offset in the
-same way as the current algorithm does for the base area, 1024 possible
-locations.
+I was rushing to get that sent earlier.  Here it is tidied up to
+actually compile.
 
-Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
----
- arch/x86/include/asm/pgtable_64_types.h |   7 ++
- arch/x86/kernel/module.c                | 163 +++++++++++++++++++++++++++-----
- 2 files changed, 147 insertions(+), 23 deletions(-)
+Note the diffstat:
 
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 054765a..c320b7f 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -142,6 +142,13 @@ extern unsigned int ptrs_per_p4d;
- #define MODULES_END		_AC(0xffffffffff000000, UL)
- #define MODULES_LEN		(MODULES_END - MODULES_VADDR)
- 
-+/*
-+ * Dedicate the first part of the module space to a randomized area when KASLR
-+ * is in use.  Leave the remaining part for a fallback if we are unable to
-+ * allocate in the random area.
-+ */
-+#define MODULES_RAND_LEN	PAGE_ALIGN((MODULES_LEN/3)*2)
-+
- #define ESPFIX_PGD_ENTRY	_AC(-2, UL)
- #define ESPFIX_BASE_ADDR	(ESPFIX_PGD_ENTRY << P4D_SHIFT)
- 
-diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
-index f58336a..1cb8efa 100644
---- a/arch/x86/kernel/module.c
-+++ b/arch/x86/kernel/module.c
-@@ -48,34 +48,149 @@ do {							\
- } while (0)
- #endif
- 
--#ifdef CONFIG_RANDOMIZE_BASE
-+static inline int kaslr_randomize_each_module(void)
-+{
-+	return kaslr_enabled()
-+			&& IS_ENABLED(CONFIG_RANDOMIZE_BASE)
-+			&& IS_ENABLED(CONFIG_X86_64);
-+}
-+
-+static inline int kaslr_randomize_base(void)
-+{
-+	return kaslr_enabled()
-+			&& IS_ENABLED(CONFIG_RANDOMIZE_BASE)
-+			&& !IS_ENABLED(CONFIG_X86_64);
-+}
-+
-+#ifdef CONFIG_X86_64
-+static inline const unsigned long get_modules_rand_len(void)
-+{
-+	return MODULES_RAND_LEN;
-+}
-+#else
-+static inline const unsigned long get_modules_rand_len(void)
-+{
-+	BUILD_BUG();
-+	return 0;
-+}
-+#endif
-+
- static unsigned long module_load_offset;
-+static const unsigned long NR_NO_PURGE = 5000;
-+static const unsigned long NR_TRY_PURGE = 5000;
- 
- /* Mutex protects the module_load_offset. */
- static DEFINE_MUTEX(module_kaslr_mutex);
- 
- static unsigned long int get_module_load_offset(void)
+ mmap.c |   71 ++++++++++++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 42 insertions(+), 29 deletions(-)
+
+I think that's a pretty small extra price to pay for having this improved
+scalability.
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index de699523c0b7..b77bb3908f8c 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2802,7 +2802,9 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 	      struct list_head *uf)
  {
--	if (kaslr_enabled()) {
--		mutex_lock(&module_kaslr_mutex);
--		/*
--		 * Calculate the module_load_offset the first time this
--		 * code is called. Once calculated it stays the same until
--		 * reboot.
--		 */
--		if (module_load_offset == 0)
--			module_load_offset =
--				(get_random_int() % 1024 + 1) * PAGE_SIZE;
--		mutex_unlock(&module_kaslr_mutex);
--	}
-+	mutex_lock(&module_kaslr_mutex);
-+	/*
-+	 * Calculate the module_load_offset the first time this
-+	 * code is called. Once calculated it stays the same until
-+	 * reboot.
-+	 */
-+	if (module_load_offset == 0)
-+		module_load_offset = (get_random_int() % 1024 + 1) * PAGE_SIZE;
-+	mutex_unlock(&module_kaslr_mutex);
-+
- 	return module_load_offset;
- }
--#else
--static unsigned long int get_module_load_offset(void)
-+
-+static unsigned long get_module_vmalloc_start(void)
- {
--	return 0;
-+	if (kaslr_randomize_each_module())
-+		return MODULES_VADDR + get_modules_rand_len()
-+					+ get_module_load_offset();
-+	else if (kaslr_randomize_base())
-+		return MODULES_VADDR + get_module_load_offset();
-+
-+	return MODULES_VADDR;
-+}
-+
-+static void *try_module_alloc(unsigned long addr, unsigned long size,
-+					int try_purge)
-+{
-+	const unsigned long vm_flags = 0;
-+
-+	return __vmalloc_node_try_addr(addr, size, GFP_KERNEL, PAGE_KERNEL_EXEC,
-+					vm_flags, NUMA_NO_NODE, try_purge,
-+					__builtin_return_address(0));
-+}
-+
-+/*
-+ * Find a random address to try that wont obviosly not fit. Random areas are
-+ * allowed to overflow into the backup area
-+ */
-+static unsigned long get_rand_module_addr(unsigned long size)
-+{
-+	unsigned long nr_max_pos = (MODULES_LEN - size) / MODULE_ALIGN + 1;
-+	unsigned long nr_rnd_pos = get_modules_rand_len() / MODULE_ALIGN;
-+	unsigned long nr_pos = min(nr_max_pos, nr_rnd_pos);
-+
-+	unsigned long module_position_nr = get_random_long() % nr_pos;
-+	unsigned long offset = module_position_nr * MODULE_ALIGN;
-+
-+	return MODULES_VADDR + offset;
-+}
-+
-+/*
-+ * Try to allocate in the random area. First 5000 times without purging, then
-+ * 5000 times with purging. If these fail, return NULL.
-+ */
-+static void *try_module_randomize_each(unsigned long size)
-+{
-+	void *p = NULL;
-+	unsigned int i;
-+	unsigned long last_lazy_free_blocked = 0;
-+
-+	/* This will have a gaurd page */
-+	unsigned long real_size = PAGE_ALIGN(size) + PAGE_SIZE;
-+
-+	if (!kaslr_randomize_each_module())
-+		return NULL;
-+
-+	/* Make sure there is at least one address that might fit. */
-+	if (real_size < PAGE_ALIGN(size) || real_size > MODULES_LEN)
-+		return NULL;
-+
-+	/* Try to find a spot that doesn't need a lazy purge */
-+	for (i = 0; i < NR_NO_PURGE; i++) {
-+		unsigned long addr = get_rand_module_addr(real_size);
-+
-+		/* First try to avoid having to purge */
-+		p = try_module_alloc(addr, real_size, 0);
-+
-+		/*
-+		 * Save the last value that was blocked by a
-+		 * lazy purge area.
-+		 */
-+		if (IS_ERR(p) && PTR_ERR(p) == -EUCLEAN)
-+			last_lazy_free_blocked = addr;
-+		else if (!IS_ERR(p))
-+			return p;
-+	}
-+
-+	/* Try the most recent spot that could be used after a lazy purge */
-+	if (last_lazy_free_blocked) {
-+		p = try_module_alloc(last_lazy_free_blocked, real_size, 1);
-+
-+		if (!IS_ERR(p))
-+			return p;
-+	}
-+
-+	/* Look for more spots and allow lazy purges */
-+	for (i = 0; i < NR_TRY_PURGE; i++) {
-+		unsigned long addr = get_rand_module_addr(real_size);
-+
-+		/* Give up and allow for purges */
-+		p = try_module_alloc(addr, real_size, 1);
-+
-+		if (!IS_ERR(p))
-+			return p;
-+	}
-+	return NULL;
- }
--#endif
+ 	unsigned long end;
+-	struct vm_area_struct *vma, *prev, *last;
++	struct vm_area_struct *vma, *prev, *last, *tmp;
++	int res = 0;
++	bool downgrade = false;
  
- void *module_alloc(unsigned long size)
- {
-@@ -84,16 +199,18 @@ void *module_alloc(unsigned long size)
- 	if (PAGE_ALIGN(size) > MODULES_LEN)
- 		return NULL;
+ 	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE-start)
+ 		return -EINVAL;
+@@ -2811,17 +2813,20 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 	if (len == 0)
+ 		return -EINVAL;
  
--	p = __vmalloc_node_range(size, MODULE_ALIGN,
--				    MODULES_VADDR + get_module_load_offset(),
--				    MODULES_END, GFP_KERNEL,
--				    PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
--				    __builtin_return_address(0));
-+	p = try_module_randomize_each(size);
++	if (down_write_killable(&mm->mmap_sem))
++		return -EINTR;
 +
-+	if (!p)
-+		p = __vmalloc_node_range(size, MODULE_ALIGN,
-+				get_module_vmalloc_start(), MODULES_END,
-+				GFP_KERNEL, PAGE_KERNEL_EXEC, 0,
-+				NUMA_NO_NODE, __builtin_return_address(0));
-+
- 	if (p && (kasan_module_alloc(p, size) < 0)) {
- 		vfree(p);
- 		return NULL;
- 	}
+ 	/* Find the first overlapping VMA */
+ 	vma = find_vma(mm, start);
+ 	if (!vma)
+-		return 0;
++		goto unlock;
+ 	prev = vma->vm_prev;
+-	/* we have  start < vma->vm_end  */
++	/* we have start < vma->vm_end  */
+ 
+ 	/* if it doesn't overlap, we have nothing.. */
+ 	end = start + len;
+ 	if (vma->vm_start >= end)
+-		return 0;
++		goto unlock;
+ 
+ 	/*
+ 	 * If we need to split any vma, do it now to save pain later.
+@@ -2831,28 +2836,27 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 	 * places tmp vma above, and higher split_vma places tmp vma below.
+ 	 */
+ 	if (start > vma->vm_start) {
+-		int error;
 -
- 	return p;
+ 		/*
+ 		 * Make sure that map_count on return from munmap() will
+ 		 * not exceed its limit; but let map_count go just above
+ 		 * its limit temporarily, to help free resources as expected.
+ 		 */
++		res = -ENOMEM;
+ 		if (end < vma->vm_end && mm->map_count >= sysctl_max_map_count)
+-			return -ENOMEM;
++			goto unlock;
+ 
+-		error = __split_vma(mm, vma, start, 0);
+-		if (error)
+-			return error;
++		res = __split_vma(mm, vma, start, 0);
++		if (res)
++			goto unlock;
+ 		prev = vma;
+ 	}
+ 
+ 	/* Does it split the last one? */
+ 	last = find_vma(mm, end);
+ 	if (last && end > last->vm_start) {
+-		int error = __split_vma(mm, last, end, 1);
+-		if (error)
+-			return error;
++		res = __split_vma(mm, last, end, 1);
++		if (res)
++			goto unlock;
+ 	}
+ 	vma = prev ? prev->vm_next : mm->mmap;
+ 
+@@ -2866,25 +2870,31 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 		 * split, despite we could. This is unlikely enough
+ 		 * failure that it's not worth optimizing it for.
+ 		 */
+-		int error = userfaultfd_unmap_prep(vma, start, end, uf);
+-		if (error)
+-			return error;
++		res = userfaultfd_unmap_prep(vma, start, end, uf);
++		if (res)
++			goto unlock;
+ 	}
+ 
+ 	/*
+ 	 * unlock any mlock()ed ranges before detaching vmas
++	 * and check to see if there's any reason we might have to hold
++	 * the mmap_sem write-locked while unmapping regions.
+ 	 */
+-	if (mm->locked_vm) {
+-		struct vm_area_struct *tmp = vma;
+-		while (tmp && tmp->vm_start < end) {
+-			if (tmp->vm_flags & VM_LOCKED) {
+-				mm->locked_vm -= vma_pages(tmp);
+-				munlock_vma_pages_all(tmp);
+-			}
+-			tmp = tmp->vm_next;
++	downgrade = true;
++
++	for (tmp = vma; tmp && tmp->vm_start < end; tmp = tmp->vm_next) {
++		if (tmp->vm_flags & VM_LOCKED) {
++			mm->locked_vm -= vma_pages(tmp);
++			munlock_vma_pages_all(tmp);
+ 		}
++		if (tmp->vm_file &&
++				has_uprobes(tmp, tmp->vm_start, tmp->vm_end))
++			downgrade = false;
+ 	}
+ 
++	if (downgrade)
++		downgrade_write(&mm->mmap_sem);
++
+ 	/*
+ 	 * Remove the vma's, and unmap the actual pages
+ 	 */
+@@ -2896,7 +2906,14 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 	/* Fix up all other VM information */
+ 	remove_vma_list(mm, vma);
+ 
+-	return 0;
++	res = 0;
++unlock:
++	if (downgrade) {
++		up_read(&mm->mmap_sem);
++	} else {
++		up_write(&mm->mmap_sem);
++	}
++	return res;
  }
  
--- 
-2.7.4
+ int vm_munmap(unsigned long start, size_t len)
+@@ -2905,11 +2922,7 @@ int vm_munmap(unsigned long start, size_t len)
+ 	struct mm_struct *mm = current->mm;
+ 	LIST_HEAD(uf);
+ 
+-	if (down_write_killable(&mm->mmap_sem))
+-		return -EINTR;
+-
+ 	ret = do_munmap(mm, start, len, &uf);
+-	up_write(&mm->mmap_sem);
+ 	userfaultfd_unmap_complete(mm, &uf);
+ 	return ret;
+ }
