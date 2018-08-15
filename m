@@ -1,91 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 692696B0003
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2018 17:29:16 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id h5-v6so9175068pgs.13
-        for <linux-mm@kvack.org>; Tue, 14 Aug 2018 14:29:16 -0700 (PDT)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id z19-v6si20584041pgi.388.2018.08.14.14.29.14
+Received: from mail-ua1-f71.google.com (mail-ua1-f71.google.com [209.85.222.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 031D86B0003
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2018 20:16:10 -0400 (EDT)
+Received: by mail-ua1-f71.google.com with SMTP id m19-v6so11418825uap.3
+        for <linux-mm@kvack.org>; Tue, 14 Aug 2018 17:16:09 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id b29-v6si10217329uac.19.2018.08.14.17.16.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Aug 2018 14:29:14 -0700 (PDT)
-Message-ID: <1534282125.24160.9.camel@intel.com>
-Subject: Re: [RFC PATCH v2 13/27] mm: Handle shadow stack page fault
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Date: Tue, 14 Aug 2018 14:28:45 -0700
-In-Reply-To: <20180711090656.GS2476@hirez.programming.kicks-ass.net>
-References: <20180710222639.8241-1-yu-cheng.yu@intel.com>
-	 <20180710222639.8241-14-yu-cheng.yu@intel.com>
-	 <2f3ff321-c629-3e00-59f6-8bca510650d4@linux.intel.com>
-	 <20180711090656.GS2476@hirez.programming.kicks-ass.net>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Tue, 14 Aug 2018 17:16:08 -0700 (PDT)
+Subject: Re: [PATCH] mm: migration: fix migration of huge PMD shared pages
+References: <20180813034108.27269-1-mike.kravetz@oracle.com>
+ <20180813105821.j4tg6iyrdxgwyr3y@kshutemo-mobl1>
+ <d4cf0f85-e010-36f2-3fae-f7983e4f6505@oracle.com>
+ <20180814084837.nl7dkea7aov2pzao@black.fi.intel.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <17bfe24d-957f-2985-f134-3ebe2648aecb@oracle.com>
+Date: Tue, 14 Aug 2018 17:15:57 -0700
+MIME-Version: 1.0
+In-Reply-To: <20180814084837.nl7dkea7aov2pzao@black.fi.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, 2018-07-11 at 11:06 +0200, Peter Zijlstra wrote:
-> On Tue, Jul 10, 2018 at 04:06:25PM -0700, Dave Hansen wrote:
-> > 
-> > On 07/10/2018 03:26 PM, Yu-cheng Yu wrote:
-> > > 
-> > > +	if (is_shstk_mapping(vma->vm_flags))
-> > > +		entry = pte_mkdirty_shstk(entry);
-> > > +	else
-> > > +		entry = pte_mkdirty(entry);
-> > > +
-> > > +	entry = maybe_mkwrite(entry, vma);
-> > > A 	if (ptep_set_access_flags(vma, vmf->address, vmf->pte,
-> > > entry, 1))
-> > > A 		update_mmu_cache(vma, vmf->address, vmf->pte);
-> > > A 	pte_unmap_unlock(vmf->pte, vmf->ptl);
-> > > @@ -2526,7 +2532,11 @@ static int wp_page_copy(struct vm_fault
-> > > *vmf)
-> > > A 		}
-> > > A 		flush_cache_page(vma, vmf->address,
-> > > pte_pfn(vmf->orig_pte));
-> > > A 		entry = mk_pte(new_page, vma->vm_page_prot);
-> > > -		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-> > > +		if (is_shstk_mapping(vma->vm_flags))
-> > > +			entry = pte_mkdirty_shstk(entry);
-> > > +		else
-> > > +			entry = pte_mkdirty(entry);
-> > > +		entry = maybe_mkwrite(entry, vma);
-> > Do we want to lift this hunk of code and put it elsewhere?A A Maybe:
-> > 
-> > 	entry = pte_set_vma_features(entry, vma);
-> > 
-> > and then:
-> > 
-> > pte_t pte_set_vma_features(pte_t entry, struct vm_area_struct)
-> > {
-> > 		/*
-> > 		A * Shadow stack PTEs are always dirty and always
-> > 		A * writable.A A They have a different encoding for
-> > 		A * this than normal PTEs, though.
-> > 		A */
-> > 		if (is_shstk_mapping(vma->vm_flags))
-> > 			entry = pte_mkdirty_shstk(entry);
-> > 		else
-> > 			entry = pte_mkdirty(entry);
-> > 
-> > 		entry = maybe_mkwrite(entry, vma);
-> > 
-> > 	return entry;
-> > }
-> Yes, that wants a helper like that. Not sold on the name, but
-> whatever.
+On 08/14/2018 01:48 AM, Kirill A. Shutemov wrote:
+> On Mon, Aug 13, 2018 at 11:21:41PM +0000, Mike Kravetz wrote:
+>> On 08/13/2018 03:58 AM, Kirill A. Shutemov wrote:
+>>> On Sun, Aug 12, 2018 at 08:41:08PM -0700, Mike Kravetz wrote:
+>>>> I am not %100 sure on the required flushing, so suggestions would be
+>>>> appreciated.  This also should go to stable.  It has been around for
+>>>> a long time so still looking for an appropriate 'fixes:'.
+>>>
+>>> I believe we need flushing. And huge_pmd_unshare() usage in
+>>> __unmap_hugepage_range() looks suspicious: I don't see how we flush TLB in
+>>> that case.
+>>
+>> Thanks Kirill,
+>>
+>> __unmap_hugepage_range() has two callers:
+>> 1) unmap_hugepage_range, which wraps the call with tlb_gather_mmu and
+>>    tlb_finish_mmu on the range.  IIUC, this should cause an appropriate
+>>    TLB flush.
+>> 2) __unmap_hugepage_range_final via unmap_single_vma.  unmap_single_vma
+>>   has three callers:
+>>   - unmap_vmas which assumes the caller will flush the whole range after
+>>     return.
+>>   - zap_page_range wraps the call with tlb_gather_mmu/tlb_finish_mmu
+>>   - zap_page_range_single wraps the call with tlb_gather_mmu/tlb_finish_mmu
+>>
+>> So, it appears we are covered.  But, I could be missing something.
 > 
-> Is there any way we can hide all the shadow stack magic in arch
-> code?
+> My problem here is that the mapping that moved by huge_pmd_unshare() in
+> not accounted into mmu_gather and can be missed on tlb_finish_mmu().
 
-We use is_shstk_mapping() only to determine PAGE_DIRTY_SW or
-PAGE_DIRTY_HW should be set in a PTE. A One way to remove this shadow
-stack code from generic code is changing pte_mkdirty(pte) to
-pte_mkdirty(pte, vma), and in the arch code we handle shadow stack.
-Is this acceptable?
+Ah, I think I now see the issue you are concerned with.
 
-Thanks,
-Yu-cheng
+When huge_pmd_unshare succeeds we effectively unmap a PUD_SIZE area.
+The routine __unmap_hugepage_range may only have been passed a range
+that is a subset of PUD_SIZE.  In the case I was trying to address,
+try_to_unmap_one() the 'range' will certainly be less than PUD_SIZE.
+Upon further thought, I think that even in the case of try_to_unmap_one
+we should flush PUD_SIZE range.
+
+My first thought would be to embed this flushing within huge_pmd_unshare
+itself.  Perhaps, whenever huge_pmd_unshare succeeds we should do an
+explicit:
+flush_cache_range(PUD_SIZE)
+flush_tlb_range(PUD_SIZE)
+mmu_notifier_invalidate_range(PUD_SIZE)
+That would take some of the burden off the callers of huge_pmd_unshare.
+However, I am not sure if the flushing calls above play nice in all the
+calling environments.  I'll look into it some more, but would appreciate
+additional comments.
+
+-- 
+Mike Kravetz
