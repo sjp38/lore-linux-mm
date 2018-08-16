@@ -1,37 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EF8916B0269
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 07:58:09 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id a23-v6so1971753pfo.23
-        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 04:58:09 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a13-v6si26214083pgj.495.2018.08.16.04.58.08
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 035A86B026B
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 08:08:53 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id 2-v6so4112678ywn.13
+        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 05:08:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id h41-v6si2764005qta.97.2018.08.16.05.08.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Aug 2018 04:58:08 -0700 (PDT)
-Subject: Patch "x86/mm: Disable ioremap free page handling on x86-PAE" has been added to the 4.9-stable tree
-From: <gregkh@linuxfoundation.org>
-Date: Thu, 16 Aug 2018 13:58:05 +0200
-Message-ID: <1534420685211199@kroah.com>
+        Thu, 16 Aug 2018 05:08:52 -0700 (PDT)
+Subject: Re: [PATCH v1 1/5] mm/memory_hotplug: drop intermediate
+ __offline_pages
+References: <20180816100628.26428-1-david@redhat.com>
+ <20180816100628.26428-2-david@redhat.com>
+ <20180816214459.64a7cec3@canb.auug.org.au>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <265ca413-110b-cc93-ae63-e9780a96358e@redhat.com>
+Date: Thu, 16 Aug 2018 14:08:46 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ANSI_X3.4-1968
+In-Reply-To: <20180816214459.64a7cec3@canb.auug.org.au>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 20180627141348.21777-2-toshi.kani@hpe.com, akpm@linux-foundation.org, cpandya@codeaurora.org, gregkh@linuxfoundation.org, hpa@zytor.com, joro@8bytes.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, mhocko@suse.com, tglx@linutronix.detoshi.kani@hpe.com
-Cc: stable-commits@vger.kernel.org
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Pavel Tatashin <pasha.tatashin@oracle.com>, Kemi Wang <kemi.wang@intel.com>, David Rientjes <rientjes@google.com>, Jia He <jia.he@hxt-semitech.com>, Oscar Salvador <osalvador@suse.de>, Petr Tesarik <ptesarik@suse.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dan Williams <dan.j.williams@intel.com>, Mathieu Malaterre <malat@debian.org>, Baoquan He <bhe@redhat.com>, Wei Yang <richard.weiyang@gmail.com>, Ross Zwisler <zwisler@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
+On 16.08.2018 13:44, Stephen Rothwell wrote:
+> Hi David,
+> 
+> On Thu, 16 Aug 2018 12:06:24 +0200 David Hildenbrand <david@redhat.com> wrote:
+>>
+>> -static int __ref __offline_pages(unsigned long start_pfn,
+>> -		  unsigned long end_pfn)
+>> +/* Must be protected by mem_hotplug_begin() or a device_lock */
+>> +int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
+> 
+> You lose the __ref marking.  Does this introduce warnings since
+> offline_pages() calls (at least) zone_pcp_update() which is marked
+> __meminit.
+> 
 
-This is a note to let you know that I've just added the patch titled
+Good point, I'll recompile and in case there is a warning, keep the
+__ref. Thanks!
 
-    x86/mm: Disable ioremap free page handling on x86-PAE
+-- 
 
-to the 4.9-stable tree which can be found at:
-    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
+Thanks,
 
-The filename of the patch is:
-     x86-mm-disable-ioremap-free-page-handling-on-x86-pae.patch
-and it can be found in the queue-4.9 subdirectory.
-
-If you, or anyone else, feels it should not be added to the stable tree,
-please let <stable@vger.kernel.org> know about it.
+David / dhildenb
