@@ -1,97 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 734E76B031C
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 14:44:33 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id w18-v6so3283532plp.3
-        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 11:44:33 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 069086B0320
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 14:46:17 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id y16-v6so2380874pgv.23
+        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 11:46:16 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id y23-v6si43734pll.224.2018.08.16.11.44.32
+        by mx.google.com with ESMTPS id l26-v6si42190pfj.188.2018.08.16.11.46.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Aug 2018 11:44:32 -0700 (PDT)
+        Thu, 16 Aug 2018 11:46:15 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.9 03/15] x86/mm: Disable ioremap free page handling on x86-PAE
-Date: Thu, 16 Aug 2018 20:41:56 +0200
-Message-Id: <20180816171626.039847305@linuxfoundation.org>
-In-Reply-To: <20180816171625.340082081@linuxfoundation.org>
-References: <20180816171625.340082081@linuxfoundation.org>
+Subject: [PATCH 4.14 21/22] ioremap: Update pgtable free interfaces with addr
+Date: Thu, 16 Aug 2018 20:45:22 +0200
+Message-Id: <20180816171625.497941471@linuxfoundation.org>
+In-Reply-To: <20180816171622.831964729@linuxfoundation.org>
+References: <20180816171622.831964729@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Joerg Roedel <joro@8bytes.org>, Toshi Kani <toshi.kani@hpe.com>, Thomas Gleixner <tglx@linutronix.de>, mhocko@suse.com, akpm@linux-foundation.org, hpa@zytor.com, cpandya@codeaurora.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Chintan Pandya <cpandya@codeaurora.org>, Toshi Kani <toshi.kani@hpe.com>, Thomas Gleixner <tglx@linutronix.de>, mhocko@suse.com, akpm@linux-foundation.org, hpa@zytor.com, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Will Deacon <will.deacon@arm.com>, Joerg Roedel <joro@8bytes.org>
 
-4.9-stable review patch.  If anyone has any objections, please let me know.
+4.14-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
-From: Toshi Kani <toshi.kani@hpe.com>
+From: Chintan Pandya <cpandya@codeaurora.org>
 
-commit f967db0b9ed44ec3057a28f3b28efc51df51b835 upstream.
+commit 785a19f9d1dd8a4ab2d0633be4656653bd3de1fc upstream.
 
-ioremap() supports pmd mappings on x86-PAE.  However, kernel's pmd
-tables are not shared among processes on x86-PAE.  Therefore, any
-update to sync'd pmd entries need re-syncing.  Freeing a pte page
-also leads to a vmalloc fault and hits the BUG_ON in vmalloc_sync_one().
+The following kernel panic was observed on ARM64 platform due to a stale
+TLB entry.
 
-Disable free page handling on x86-PAE.  pud_free_pmd_page() and
-pmd_free_pte_page() simply return 0 if a given pud/pmd entry is present.
-This assures that ioremap() does not update sync'd pmd entries at the
-cost of falling back to pte mappings.
+ 1. ioremap with 4K size, a valid pte page table is set.
+ 2. iounmap it, its pte entry is set to 0.
+ 3. ioremap the same address with 2M size, update its pmd entry with
+    a new value.
+ 4. CPU may hit an exception because the old pmd entry is still in TLB,
+    which leads to a kernel panic.
 
+Commit b6bdb7517c3d ("mm/vmalloc: add interfaces to free unmapped page
+table") has addressed this panic by falling to pte mappings in the above
+case on ARM64.
+
+To support pmd mappings in all cases, TLB purge needs to be performed
+in this case on ARM64.
+
+Add a new arg, 'addr', to pud_free_pmd_page() and pmd_free_pte_page()
+so that TLB purge can be added later in seprate patches.
+
+[toshi.kani@hpe.com: merge changes, rewrite patch description]
 Fixes: 28ee90fe6048 ("x86/mm: implement free pmd/pte page interfaces")
-Reported-by: Joerg Roedel <joro@8bytes.org>
+Signed-off-by: Chintan Pandya <cpandya@codeaurora.org>
 Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 Cc: mhocko@suse.com
 Cc: akpm@linux-foundation.org
 Cc: hpa@zytor.com
-Cc: cpandya@codeaurora.org
 Cc: linux-mm@kvack.org
 Cc: linux-arm-kernel@lists.infradead.org
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: Joerg Roedel <joro@8bytes.org>
 Cc: stable@vger.kernel.org
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.com>
 Cc: "H. Peter Anvin" <hpa@zytor.com>
 Cc: <stable@vger.kernel.org>
-Link: https://lkml.kernel.org/r/20180627141348.21777-2-toshi.kani@hpe.com
+Link: https://lkml.kernel.org/r/20180627141348.21777-3-toshi.kani@hpe.com
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 ---
- arch/x86/mm/pgtable.c |   19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ arch/arm64/mm/mmu.c           |    4 ++--
+ arch/x86/mm/pgtable.c         |   12 +++++++-----
+ include/asm-generic/pgtable.h |    8 ++++----
+ lib/ioremap.c                 |    4 ++--
+ 4 files changed, 15 insertions(+), 13 deletions(-)
 
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -653,6 +653,7 @@ int pmd_clear_huge(pmd_t *pmd)
- 	return 0;
+--- a/arch/arm64/mm/mmu.c
++++ b/arch/arm64/mm/mmu.c
+@@ -938,12 +938,12 @@ int pmd_clear_huge(pmd_t *pmd)
+ 	return 1;
  }
  
-+#ifdef CONFIG_X86_64
+-int pud_free_pmd_page(pud_t *pud)
++int pud_free_pmd_page(pud_t *pud, unsigned long addr)
+ {
+ 	return pud_none(*pud);
+ }
+ 
+-int pmd_free_pte_page(pmd_t *pmd)
++int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
+ {
+ 	return pmd_none(*pmd);
+ }
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -716,11 +716,12 @@ int pmd_clear_huge(pmd_t *pmd)
  /**
   * pud_free_pmd_page - Clear pud entry and free pmd page.
   * @pud: Pointer to a PUD.
-@@ -700,4 +701,22 @@ int pmd_free_pte_page(pmd_t *pmd)
++ * @addr: Virtual address associated with pud.
+  *
+  * Context: The pud range has been unmaped and TLB purged.
+  * Return: 1 if clearing the entry succeeded. 0 otherwise.
+  */
+-int pud_free_pmd_page(pud_t *pud)
++int pud_free_pmd_page(pud_t *pud, unsigned long addr)
+ {
+ 	pmd_t *pmd;
+ 	int i;
+@@ -731,7 +732,7 @@ int pud_free_pmd_page(pud_t *pud)
+ 	pmd = (pmd_t *)pud_page_vaddr(*pud);
  
- 	return 1;
+ 	for (i = 0; i < PTRS_PER_PMD; i++)
+-		if (!pmd_free_pte_page(&pmd[i]))
++		if (!pmd_free_pte_page(&pmd[i], addr + (i * PMD_SIZE)))
+ 			return 0;
+ 
+ 	pud_clear(pud);
+@@ -743,11 +744,12 @@ int pud_free_pmd_page(pud_t *pud)
+ /**
+  * pmd_free_pte_page - Clear pmd entry and free pte page.
+  * @pmd: Pointer to a PMD.
++ * @addr: Virtual address associated with pmd.
+  *
+  * Context: The pmd range has been unmaped and TLB purged.
+  * Return: 1 if clearing the entry succeeded. 0 otherwise.
+  */
+-int pmd_free_pte_page(pmd_t *pmd)
++int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
+ {
+ 	pte_t *pte;
+ 
+@@ -763,7 +765,7 @@ int pmd_free_pte_page(pmd_t *pmd)
+ 
+ #else /* !CONFIG_X86_64 */
+ 
+-int pud_free_pmd_page(pud_t *pud)
++int pud_free_pmd_page(pud_t *pud, unsigned long addr)
+ {
+ 	return pud_none(*pud);
  }
-+
-+#else /* !CONFIG_X86_64 */
-+
-+int pud_free_pmd_page(pud_t *pud)
-+{
-+	return pud_none(*pud);
-+}
-+
-+/*
-+ * Disable free page handling on x86-PAE. This assures that ioremap()
-+ * does not update sync'd pmd entries. See vmalloc_sync_one().
-+ */
-+int pmd_free_pte_page(pmd_t *pmd)
-+{
-+	return pmd_none(*pmd);
-+}
-+
-+#endif /* CONFIG_X86_64 */
- #endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
+@@ -772,7 +774,7 @@ int pud_free_pmd_page(pud_t *pud)
+  * Disable free page handling on x86-PAE. This assures that ioremap()
+  * does not update sync'd pmd entries. See vmalloc_sync_one().
+  */
+-int pmd_free_pte_page(pmd_t *pmd)
++int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
+ {
+ 	return pmd_none(*pmd);
+ }
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -991,8 +991,8 @@ int pud_set_huge(pud_t *pud, phys_addr_t
+ int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot);
+ int pud_clear_huge(pud_t *pud);
+ int pmd_clear_huge(pmd_t *pmd);
+-int pud_free_pmd_page(pud_t *pud);
+-int pmd_free_pte_page(pmd_t *pmd);
++int pud_free_pmd_page(pud_t *pud, unsigned long addr);
++int pmd_free_pte_page(pmd_t *pmd, unsigned long addr);
+ #else	/* !CONFIG_HAVE_ARCH_HUGE_VMAP */
+ static inline int p4d_set_huge(p4d_t *p4d, phys_addr_t addr, pgprot_t prot)
+ {
+@@ -1018,11 +1018,11 @@ static inline int pmd_clear_huge(pmd_t *
+ {
+ 	return 0;
+ }
+-static inline int pud_free_pmd_page(pud_t *pud)
++static inline int pud_free_pmd_page(pud_t *pud, unsigned long addr)
+ {
+ 	return 0;
+ }
+-static inline int pmd_free_pte_page(pmd_t *pmd)
++static inline int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
+ {
+ 	return 0;
+ }
+--- a/lib/ioremap.c
++++ b/lib/ioremap.c
+@@ -92,7 +92,7 @@ static inline int ioremap_pmd_range(pud_
+ 		if (ioremap_pmd_enabled() &&
+ 		    ((next - addr) == PMD_SIZE) &&
+ 		    IS_ALIGNED(phys_addr + addr, PMD_SIZE) &&
+-		    pmd_free_pte_page(pmd)) {
++		    pmd_free_pte_page(pmd, addr)) {
+ 			if (pmd_set_huge(pmd, phys_addr + addr, prot))
+ 				continue;
+ 		}
+@@ -119,7 +119,7 @@ static inline int ioremap_pud_range(p4d_
+ 		if (ioremap_pud_enabled() &&
+ 		    ((next - addr) == PUD_SIZE) &&
+ 		    IS_ALIGNED(phys_addr + addr, PUD_SIZE) &&
+-		    pud_free_pmd_page(pud)) {
++		    pud_free_pmd_page(pud, addr)) {
+ 			if (pud_set_huge(pud, phys_addr + addr, prot))
+ 				continue;
+ 		}
