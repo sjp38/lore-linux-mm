@@ -1,45 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AE0956B0005
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 04:19:14 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id q2-v6so2293780plh.12
-        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 01:19:14 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 61F986B0006
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 04:19:16 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id t5-v6so1718187pgp.17
+        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 01:19:16 -0700 (PDT)
 Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id t7-v6si21504807pgp.18.2018.08.16.01.19.13
+        by mx.google.com with ESMTPS id t7-v6si21504807pgp.18.2018.08.16.01.19.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Aug 2018 01:19:13 -0700 (PDT)
+        Thu, 16 Aug 2018 01:19:15 -0700 (PDT)
 From: Wei Wang <wei.w.wang@intel.com>
-Subject: [PATCH v4 0/3] virtio-balloon: some improvements
-Date: Thu, 16 Aug 2018 15:50:55 +0800
-Message-Id: <1534405858-27085-1-git-send-email-wei.w.wang@intel.com>
+Subject: [PATCH v4 1/3] virtio-balloon: remove BUG() in init_vqs
+Date: Thu, 16 Aug 2018 15:50:56 +0800
+Message-Id: <1534405858-27085-2-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <1534405858-27085-1-git-send-email-wei.w.wang@intel.com>
+References: <1534405858-27085-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, penguin-kernel@I-love.SAKURA.ne.jp
 Cc: wei.w.wang@intel.com
 
-This series is split from the "Virtio-balloon: support free page
-reporting" series to make some improvements.
+It's a bit overkill to use BUG when failing to add an entry to the
+stats_vq in init_vqs. So remove it and just return the error to the
+caller to bail out nicely.
 
-ChangeLog:
-v3->v4:
-- use kzalloc to allocate the vb struct so that we don't need to zero
-  initialize each field one by one later;
-- also remove vb->shrinker.batch = 0, which is not needed now.
-v2->v3:
-- shrink the balloon pages according to the amount requested by the
-  claimer, instead of using a user specified number;
-v1->v2:
-- register the shrinker when VIRTIO_BALLOON_F_DEFLATE_ON_OOM is
-  negotiated.
+Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+Cc: Michael S. Tsirkin <mst@redhat.com>
+---
+ drivers/virtio/virtio_balloon.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
 
-Wei Wang (3):
-  virtio-balloon: remove BUG() in init_vqs
-  virtio-balloon: kzalloc the vb struct
-  virtio_balloon: replace oom notifier with shrinker
-
- drivers/virtio/virtio_balloon.c | 125 +++++++++++++++++++++-------------------
- 1 file changed, 67 insertions(+), 58 deletions(-)
-
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index 3988c09..8100e77 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -455,9 +455,13 @@ static int init_vqs(struct virtio_balloon *vb)
+ 		num_stats = update_balloon_stats(vb);
+ 
+ 		sg_init_one(&sg, vb->stats, sizeof(vb->stats[0]) * num_stats);
+-		if (virtqueue_add_outbuf(vb->stats_vq, &sg, 1, vb, GFP_KERNEL)
+-		    < 0)
+-			BUG();
++		err = virtqueue_add_outbuf(vb->stats_vq, &sg, 1, vb,
++					   GFP_KERNEL);
++		if (err) {
++			dev_warn(&vb->vdev->dev, "%s: add stat_vq failed\n",
++				 __func__);
++			return err;
++		}
+ 		virtqueue_kick(vb->stats_vq);
+ 	}
+ 	return 0;
 -- 
 2.7.4
