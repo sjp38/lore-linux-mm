@@ -1,147 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 833056B0310
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 14:43:25 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id g36-v6so3282720plb.5
-        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 11:43:25 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id u20-v6si37418pgj.443.2018.08.16.11.43.24
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0758D6B0312
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 14:43:39 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id d1-v6so4171564qth.21
+        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 11:43:39 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id h48-v6si26146qta.340.2018.08.16.11.43.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Aug 2018 11:43:24 -0700 (PDT)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.4 13/13] x86/mm: Add TLB purge to free pmd/pte page interfaces
-Date: Thu, 16 Aug 2018 20:42:00 +0200
-Message-Id: <20180816171629.211063632@linuxfoundation.org>
-In-Reply-To: <20180816171628.554317013@linuxfoundation.org>
-References: <20180816171628.554317013@linuxfoundation.org>
+        Thu, 16 Aug 2018 11:43:38 -0700 (PDT)
+Subject: Re: [PATCH v3 4/4] mm/memory_hotplug: Drop node_online check in
+ unregister_mem_sect_under_nodes
+References: <20180815144219.6014-1-osalvador@techadventures.net>
+ <20180815144219.6014-5-osalvador@techadventures.net>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <f0c61403-b7a1-d1af-f52c-7be307365ee9@redhat.com>
+Date: Thu, 16 Aug 2018 20:43:34 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20180815144219.6014-5-osalvador@techadventures.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>, Thomas Gleixner <tglx@linutronix.de>, mhocko@suse.com, akpm@linux-foundation.org, hpa@zytor.com, cpandya@codeaurora.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Joerg Roedel <joro@8bytes.org>
+To: Oscar Salvador <osalvador@techadventures.net>, akpm@linux-foundation.org
+Cc: mhocko@suse.com, vbabka@suse.cz, dan.j.williams@intel.com, yasu.isimatu@gmail.com, jonathan.cameron@huawei.com, Pavel.Tatashin@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
-4.4-stable review patch.  If anyone has any objections, please let me know.
+On 15.08.2018 16:42, Oscar Salvador wrote:
+> From: Oscar Salvador <osalvador@suse.de>
+> 
+> We are getting the nid from the pages that are not yet removed,
+> but a node can only be offline when its memory/cpu's have been removed.
+> Therefore, we know that the node is still online.
+> 
+> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> ---
+>  drivers/base/node.c | 2 --
+>  1 file changed, 2 deletions(-)
+> 
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 81b27b5b1f15..b23769e4fcbb 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -465,8 +465,6 @@ void unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+>  
+>  		if (nid < 0)
+>  			continue;
+> -		if (!node_online(nid))
+> -			continue;
+>  		/*
+>  		 * It is possible that NODEMASK_ALLOC fails due to memory
+>  		 * pressure.
+> 
 
-------------------
+Sounds reasonable to me
 
-From: Toshi Kani <toshi.kani@hpe.com>
+Reviewed-by: David Hildenbrand <david@redhat.com>
 
-commit 5e0fb5df2ee871b841f96f9cb6a7f2784e96aa4e upstream.
+-- 
 
-ioremap() calls pud_free_pmd_page() / pmd_free_pte_page() when it creates
-a pud / pmd map.  The following preconditions are met at their entry.
- - All pte entries for a target pud/pmd address range have been cleared.
- - System-wide TLB purges have been peformed for a target pud/pmd address
-   range.
+Thanks,
 
-The preconditions assure that there is no stale TLB entry for the range.
-Speculation may not cache TLB entries since it requires all levels of page
-entries, including ptes, to have P & A-bits set for an associated address.
-However, speculation may cache pud/pmd entries (paging-structure caches)
-when they have P-bit set.
-
-Add a system-wide TLB purge (INVLPG) to a single page after clearing
-pud/pmd entry's P-bit.
-
-SDM 4.10.4.1, Operation that Invalidate TLBs and Paging-Structure Caches,
-states that:
-  INVLPG invalidates all paging-structure caches associated with the
-  current PCID regardless of the liner addresses to which they correspond.
-
-Fixes: 28ee90fe6048 ("x86/mm: implement free pmd/pte page interfaces")
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Cc: mhocko@suse.com
-Cc: akpm@linux-foundation.org
-Cc: hpa@zytor.com
-Cc: cpandya@codeaurora.org
-Cc: linux-mm@kvack.org
-Cc: linux-arm-kernel@lists.infradead.org
-Cc: Joerg Roedel <joro@8bytes.org>
-Cc: stable@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: <stable@vger.kernel.org>
-Link: https://lkml.kernel.org/r/20180627141348.21777-4-toshi.kani@hpe.com
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-
----
- arch/x86/mm/pgtable.c |   38 +++++++++++++++++++++++++++++++-------
- 1 file changed, 31 insertions(+), 7 deletions(-)
-
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -682,24 +682,44 @@ int pmd_clear_huge(pmd_t *pmd)
-  * @pud: Pointer to a PUD.
-  * @addr: Virtual address associated with pud.
-  *
-- * Context: The pud range has been unmaped and TLB purged.
-+ * Context: The pud range has been unmapped and TLB purged.
-  * Return: 1 if clearing the entry succeeded. 0 otherwise.
-+ *
-+ * NOTE: Callers must allow a single page allocation.
-  */
- int pud_free_pmd_page(pud_t *pud, unsigned long addr)
- {
--	pmd_t *pmd;
-+	pmd_t *pmd, *pmd_sv;
-+	pte_t *pte;
- 	int i;
- 
- 	if (pud_none(*pud))
- 		return 1;
- 
- 	pmd = (pmd_t *)pud_page_vaddr(*pud);
--
--	for (i = 0; i < PTRS_PER_PMD; i++)
--		if (!pmd_free_pte_page(&pmd[i], addr + (i * PMD_SIZE)))
--			return 0;
-+	pmd_sv = (pmd_t *)__get_free_page(GFP_KERNEL);
-+	if (!pmd_sv)
-+		return 0;
-+
-+	for (i = 0; i < PTRS_PER_PMD; i++) {
-+		pmd_sv[i] = pmd[i];
-+		if (!pmd_none(pmd[i]))
-+			pmd_clear(&pmd[i]);
-+	}
- 
- 	pud_clear(pud);
-+
-+	/* INVLPG to clear all paging-structure caches */
-+	flush_tlb_kernel_range(addr, addr + PAGE_SIZE-1);
-+
-+	for (i = 0; i < PTRS_PER_PMD; i++) {
-+		if (!pmd_none(pmd_sv[i])) {
-+			pte = (pte_t *)pmd_page_vaddr(pmd_sv[i]);
-+			free_page((unsigned long)pte);
-+		}
-+	}
-+
-+	free_page((unsigned long)pmd_sv);
- 	free_page((unsigned long)pmd);
- 
- 	return 1;
-@@ -710,7 +730,7 @@ int pud_free_pmd_page(pud_t *pud, unsign
-  * @pmd: Pointer to a PMD.
-  * @addr: Virtual address associated with pmd.
-  *
-- * Context: The pmd range has been unmaped and TLB purged.
-+ * Context: The pmd range has been unmapped and TLB purged.
-  * Return: 1 if clearing the entry succeeded. 0 otherwise.
-  */
- int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
-@@ -722,6 +742,10 @@ int pmd_free_pte_page(pmd_t *pmd, unsign
- 
- 	pte = (pte_t *)pmd_page_vaddr(*pmd);
- 	pmd_clear(pmd);
-+
-+	/* INVLPG to clear all paging-structure caches */
-+	flush_tlb_kernel_range(addr, addr + PAGE_SIZE-1);
-+
- 	free_page((unsigned long)pte);
- 
- 	return 1;
+David / dhildenb
