@@ -1,118 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BD5C6B0005
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 06:03:21 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id y8-v6so1611840edr.12
-        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 03:03:21 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q30-v6si573366edi.5.2018.08.16.03.03.19
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D000A6B0007
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 06:06:37 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id b7-v6so3308650qtp.14
+        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 03:06:37 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id l44-v6si12511131qtl.165.2018.08.16.03.06.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Aug 2018 03:03:19 -0700 (PDT)
-Date: Thu, 16 Aug 2018 12:03:17 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, page_alloc: actually ignore mempolicies for high
- priority allocations
-Message-ID: <20180816100317.GV32645@dhcp22.suse.cz>
-References: <20180612122624.8045-1-vbabka@suse.cz>
- <20180815151652.05d4c4684b7dff2282b5c046@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180815151652.05d4c4684b7dff2282b5c046@linux-foundation.org>
+        Thu, 16 Aug 2018 03:06:37 -0700 (PDT)
+From: David Hildenbrand <david@redhat.com>
+Subject: [PATCH v1 0/5] mm/memory_hotplug: online/offline_pages refactorings
+Date: Thu, 16 Aug 2018 12:06:23 +0200
+Message-Id: <20180816100628.26428-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Stephen Rothwell <sfr@canb.auug.org.au>, Pavel Tatashin <pasha.tatashin@oracle.com>, Kemi Wang <kemi.wang@intel.com>, David Rientjes <rientjes@google.com>, Jia He <jia.he@hxt-semitech.com>, Oscar Salvador <osalvador@suse.de>, Petr Tesarik <ptesarik@suse.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dan Williams <dan.j.williams@intel.com>, David Hildenbrand <david@redhat.com>, Mathieu Malaterre <malat@debian.org>, Baoquan He <bhe@redhat.com>, Wei Yang <richard.weiyang@gmail.com>, Ross Zwisler <zwisler@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed 15-08-18 15:16:52, Andrew Morton wrote:
-[...]
-> From: Vlastimil Babka <vbabka@suse.cz>
-> Subject: mm, page_alloc: actually ignore mempolicies for high priority allocations
-> 
-> The __alloc_pages_slowpath() function has for a long time contained code
-> to ignore node restrictions from memory policies for high priority
-> allocations.  The current code that resets the zonelist iterator however
-> does effectively nothing after commit 7810e6781e0f ("mm, page_alloc: do
-> not break __GFP_THISNODE by zonelist reset") removed a buggy zonelist
-> reset.  Even before that commit, mempolicy restrictions were still not
-> ignored, as they are passed in ac->nodemask which is untouched by the
-> code.
-> 
-> We can either remove the code, or make it work as intended.  Since
-> ac->nodemask can be set from task's mempolicy via alloc_pages_current()
-> and thus also alloc_pages(), it may indeed affect kernel allocations, and
-> it makes sense to ignore it to allow progress for high priority
-> allocations.
-> 
-> Thus, this patch resets ac->nodemask to NULL in such cases.  This assumes
-> all callers can handle it (i.e.  there are no guarantees as in the case of
-> __GFP_THISNODE) which seems to be the case.  The same assumption is
-> already present in check_retry_cpuset() for some time.
-> 
-> The expected effect is that high priority kernel allocations in the
-> context of userspace tasks (e.g.  OOM victims) restricted by mempolicies
-> will have higher chance to succeed if they are restricted to nodes with
-> depleted memory, while there are other nodes with free memory left.
-> 
-> 
-> Ot's not a new intention, but for the first time the code will match the
-> intention, AFAICS.  It was intended by commit 183f6371aac2 ("mm: ignore
-> mempolicies when using ALLOC_NO_WATERMARK") in v3.6 but I think it never
-> really worked, as mempolicy restriction was already encoded in nodemask,
-> not zonelist, at that time.
-> 
-> So originally that was for ALLOC_NO_WATERMARK only.  Then it was adjusted
-> by e46e7b77c909 ("mm, page_alloc: recalculate the preferred zoneref if the
-> context can ignore memory policies") and cd04ae1e2dc8 ("mm, oom: do not
-> rely on TIF_MEMDIE for memory reserves access") to the current state.  So
-> even GFP_ATOMIC would now ignore mempolicies after the initial attempts
-> fail - if the code worked as people thought it does.
-> 
-> Link: http://lkml.kernel.org/r/20180612122624.8045-1-vbabka@suse.cz
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+While looking into onlining/offlining of subsections, I noticed that
+online/offlining code can in its current form only deal with whole sections
+and that onlining/offlining of sections that are already online/offline is
+problematic. So let's add some additional checks (that also serve as
+implicit documentation) and do some cleanups.
 
-The code is quite subtle and we have a bad history of copying stuff
-without rethinking whether the code still is needed. Which is sad and a
-clear sign that the code is too complex. I cannot say this change
-doesn't have any subtle side effects but it makes the intention clear at
-least so I _think_ it is good to go. If we find some unintended side
-effects we should simply rethink the whole reset zonelist thing.
+David Hildenbrand (5):
+  mm/memory_hotplug: drop intermediate __offline_pages
+  mm/memory_hotplug: enforce section alignment when onlining/offlining
+  mm/memory_hotplug: check if sections are already online/offline
+  mm/memory_hotplug: onlining pages can only fail due to notifiers
+  mm/memory_hotplug: print only with DEBUG_VM in online/offline_pages()
 
-That being said
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
-> 
->  mm/page_alloc.c |    7 ++++---
->  1 file changed, 4 insertions(+), 3 deletions(-)
-> 
-> --- a/mm/page_alloc.c~mm-page_alloc-actually-ignore-mempolicies-for-high-priority-allocations
-> +++ a/mm/page_alloc.c
-> @@ -4165,11 +4165,12 @@ retry:
->  		alloc_flags = reserve_flags;
->  
->  	/*
-> -	 * Reset the zonelist iterators if memory policies can be ignored.
-> -	 * These allocations are high priority and system rather than user
-> -	 * orientated.
-> +	 * Reset the nodemask and zonelist iterators if memory policies can be
-> +	 * ignored. These allocations are high priority and system rather than
-> +	 * user oriented.
->  	 */
->  	if (!(alloc_flags & ALLOC_CPUSET) || reserve_flags) {
-> +		ac->nodemask = NULL;
->  		ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
->  					ac->high_zoneidx, ac->nodemask);
->  	}
-> _
-> 
+ include/linux/mmzone.h |  2 ++
+ mm/memory_hotplug.c    | 43 ++++++++++++++++++++++--------------------
+ mm/sparse.c            | 28 +++++++++++++++++++++++++++
+ 3 files changed, 53 insertions(+), 20 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+2.17.1
