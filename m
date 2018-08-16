@@ -1,75 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3171D6B0005
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 10:20:50 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id t24-v6so1962810edq.13
-        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 07:20:50 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D76B6B0007
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 10:58:53 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id r13-v6so2659282wmc.8
+        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 07:58:53 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b8-v6sor635125eds.43.2018.08.16.07.20.48
+        by mx.google.com with SMTPS id q186-v6sor387627wmd.18.2018.08.16.07.58.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 16 Aug 2018 07:20:48 -0700 (PDT)
-Date: Thu, 16 Aug 2018 17:20:44 +0300
-From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: Re: [PATCH 4/4] mm: proc/pid/smaps_rollup: convert to single value
- seq_file
-Message-ID: <20180816142044.GB15817@avx2>
-References: <20180723111933.15443-1-vbabka@suse.cz>
- <20180723111933.15443-5-vbabka@suse.cz>
- <cb1d1965-9a13-e80f-dfde-a5d3bf9f510c@suse.cz>
- <20180726162637.GB25227@avx2>
- <bf4525b0-fd5b-4c4c-2cb3-adee3dd95a48@suse.cz>
+        Thu, 16 Aug 2018 07:58:51 -0700 (PDT)
+Date: Thu, 16 Aug 2018 16:58:49 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [RFC PATCH 2/3] mm/memory_hotplug: Create __shrink_pages and
+ move it to offline_pages
+Message-ID: <20180816145849.GA17638@techadventures.net>
+References: <20180807133757.18352-3-osalvador@techadventures.net>
+ <20180807135221.GA3301@redhat.com>
+ <20180807145900.GH10003@dhcp22.suse.cz>
+ <20180807151810.GB3301@redhat.com>
+ <20180808064758.GB27972@dhcp22.suse.cz>
+ <20180808165814.GB3429@redhat.com>
+ <20180809082415.GB24884@dhcp22.suse.cz>
+ <20180809142709.GA3386@redhat.com>
+ <20180809150950.GB15611@dhcp22.suse.cz>
+ <20180809165821.GC3386@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <bf4525b0-fd5b-4c4c-2cb3-adee3dd95a48@suse.cz>
+In-Reply-To: <20180809165821.GC3386@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Daniel Colascione <dancol@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, dan.j.williams@intel.com, Pavel.Tatashin@microsoft.com, david@redhat.com, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
-On Mon, Jul 30, 2018 at 10:53:53AM +0200, Vlastimil Babka wrote:
-> On 07/26/2018 06:26 PM, Alexey Dobriyan wrote:
-> > On Wed, Jul 25, 2018 at 08:53:53AM +0200, Vlastimil Babka wrote:
-> >> I moved the reply to this thread since the "added to -mm tree"
-> >> notification Alexey replied to in <20180724182908.GD27053@avx2> has
-> >> reduced CC list and is not linked to the patch postings.
-> >>
-> >> On 07/24/2018 08:29 PM, Alexey Dobriyan wrote:
-> >>> On Mon, Jul 23, 2018 at 04:55:48PM -0700, akpm@linux-foundation.org wrote:
-> >>>> The patch titled
-> >>>>      Subject: mm: /proc/pid/smaps_rollup: convert to single value seq_file
-> >>>> has been added to the -mm tree.  Its filename is
-> >>>>      mm-proc-pid-smaps_rollup-convert-to-single-value-seq_file.patch
-> >>>
-> >>>> Subject: mm: /proc/pid/smaps_rollup: convert to single value seq_file
-> >>>>
-> >>>> The /proc/pid/smaps_rollup file is currently implemented via the
-> >>>> m_start/m_next/m_stop seq_file iterators shared with the other maps files,
-> >>>> that iterate over vma's.  However, the rollup file doesn't print anything
-> >>>> for each vma, only accumulate the stats.
-> >>>
-> >>> What I don't understand why keep seq_ops then and not do all the work in
-> >>> ->show hook.  Currently /proc/*/smaps_rollup is at ~500 bytes so with
-> >>> minimum 1 page seq buffer, no buffer resizing is possible.
-> >>
-> >> Hmm IIUC seq_file also provides the buffer and handles feeding the data
-> >> from there to the user process, which might have called read() with a smaller
-> >> buffer than that. So I would rather not avoid the seq_file infrastructure.
-> >> Or you're saying it could be converted to single_open()? Maybe, with more work.
-> > 
-> > Prefereably yes.
+On Thu, Aug 09, 2018 at 12:58:21PM -0400, Jerome Glisse wrote:
+> I agree, i never thought about that before. Looking at existing resource
+> management i think the simplest solution would be to use a refcount on the
+> resources instead of the IORESOURCE_BUSY flags.
 > 
-> OK here it is. Sending as a new patch instead of delta, as that's easier
-> to review - the delta is significant. Line stats wise it's the same.
-> Again a bit less boilerplate thans to no special seq_ops, a bit more
-> copy/paste in the open and release functions. But I guess it's better
-> overall.
+> So when you release resource as part of hotremove you would only dec the
+> refcount and a resource is not busy only when refcount is zero.
 > 
-> ----8>----
-> From c6a2eaf3bb3546509d6b7c42f8bcc56cd7e92f90 Mon Sep 17 00:00:00 2001
-> From: Vlastimil Babka <vbabka@suse.cz>
-> Date: Wed, 18 Jul 2018 13:14:30 +0200
-> Subject: [PATCH] mm: proc/pid/smaps_rollup: convert to single value seq_file
+> Just the idea i had in mind. Right now i am working on other thing, Oscar
+> is this something you would like to work on ? Feel free to come up with
+> something better than my first idea :)
 
-Reviewed-by: Alexey Dobriyan <adobriyan@gmail.com>
+So, I thought a bit about this.
+First I talked a bit with Jerome about the refcount idea.
+The problem with reconverting this to refcount is that it is too intrusive,
+and I think it is not really needed.
+
+I then thought about defining a new flag, something like
+
+#define IORESOURCE_NO_HOTREMOVE	xxx
+
+but we ran out of bits for the flag field.
+
+I then thought about doing something like:
+
+struct resource {
+        resource_size_t start;
+        resource_size_t end;
+        const char *name;
+        unsigned long flags;
+        unsigned long desc;
+        struct resource *parent, *sibling, *child;
+#ifdef CONFIG_MEMORY_HOTREMOVE
+        bool device_managed;
+#endif
+};
+
+but it is just too awful, not needed, and bytes consuming.
+
+The only idea I had left is:
+
+register_memory_resource(), which defines a new resource for the added memory-chunk
+is only called from add_memory().
+This function is only being hit when we add memory-chunks.
+
+HMM/devm gets the resources their own way, calling devm_request_mem_region().
+
+So resources that are requested from HMM/devm, have the following flags:
+
+ (IORESOURCE_MEM|IORESOURCE_BUSY)
+
+while resources that are requested via mem-hotplug have:
+
+ (IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY)
+
+IORESOURCE_SYSTEM_RAM = (IORESOURCE_MEM|IORESOURCE_SYSRAM)
+
+
+release_mem_region_adjustable() is only being called from hot-remove path, so
+unless I am mistaken, all resources hitting that path should match IORESOURCE_SYSTEM_RAM.
+
+That leaves me with the idea that we could check for the resource->flags to contain IORESOURCE_SYSRAM,
+as I think it is only being set for memory-chunks that are added via memory-hot-add path.
+
+In case it is not, we know that that resource belongs to HMM/devm, so we can back off since
+they take care of releasing the resource via devm_release_mem_region.
+
+I am working on a RFC v2 containing this, but, Jerome, could you confirm above assumption, please?
+
+Of course, ideas/suggestions are also welcome.
+
+Thanks
+-- 
+Oscar Salvador
+SUSE L3
