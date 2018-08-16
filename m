@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EEDC6B000C
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 06:06:44 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id d18-v6so3304993qtj.20
-        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 03:06:44 -0700 (PDT)
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 882C86B000D
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 06:06:47 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id j9-v6so3248691qtn.22
+        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 03:06:47 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id d23-v6si6461778qtp.373.2018.08.16.03.06.43
+        by mx.google.com with ESMTPS id y131-v6si1655301qka.286.2018.08.16.03.06.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Aug 2018 03:06:43 -0700 (PDT)
+        Thu, 16 Aug 2018 03:06:46 -0700 (PDT)
 From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH v1 2/5] mm/memory_hotplug: enforce section alignment when onlining/offlining
-Date: Thu, 16 Aug 2018 12:06:25 +0200
-Message-Id: <20180816100628.26428-3-david@redhat.com>
+Subject: [PATCH v1 3/5] mm/memory_hotplug: check if sections are already online/offline
+Date: Thu, 16 Aug 2018 12:06:26 +0200
+Message-Id: <20180816100628.26428-4-david@redhat.com>
 In-Reply-To: <20180816100628.26428-1-david@redhat.com>
 References: <20180816100628.26428-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,50 +20,92 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Stephen Rothwell <sfr@canb.auug.org.au>, Pavel Tatashin <pasha.tatashin@oracle.com>, Kemi Wang <kemi.wang@intel.com>, David Rientjes <rientjes@google.com>, Jia He <jia.he@hxt-semitech.com>, Oscar Salvador <osalvador@suse.de>, Petr Tesarik <ptesarik@suse.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dan Williams <dan.j.williams@intel.com>, David Hildenbrand <david@redhat.com>, Mathieu Malaterre <malat@debian.org>, Baoquan He <bhe@redhat.com>, Wei Yang <richard.weiyang@gmail.com>, Ross Zwisler <zwisler@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-onlining/offlining code works on whole sections, so let's enforce that.
-Existing code only allows to add memory in memory block size. And only
-whole memory blocks can be onlined/offlined. Memory blocks are always
-aligned to sections, so this should not break anything.
-
-online_pages/offline_pages will implicitly mark whole sections
-online/offline, so the code really can only handle such granularities.
-
-(especially offlining code cannot deal with pageblock_nr_pages but
- theoretically only MAX_ORDER-1)
+Let's add some more sanity checking now that onlining/offlining code
+works completely on section basis. This will make sure that we will
+never try to online/offline sections that are already (or partially) in
+the desired state.
 
 Signed-off-by: David Hildenbrand <david@redhat.com>
 ---
- mm/memory_hotplug.c | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ include/linux/mmzone.h |  2 ++
+ mm/memory_hotplug.c    |  5 +++++
+ mm/sparse.c            | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+)
 
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 0859130e4db8..addfa41c047a 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -1228,6 +1228,8 @@ static inline int online_section_nr(unsigned long nr)
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG
++bool mem_sections_online(unsigned long pfn, unsigned long end_pfn);
++bool mem_sections_offline(unsigned long pfn, unsigned long end_pfn);
+ void online_mem_sections(unsigned long start_pfn, unsigned long end_pfn);
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn);
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 090cf474de87..30d2fa42b0bb 100644
+index 30d2fa42b0bb..3dc6d2a309c2 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -897,6 +897,11 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 	struct memory_notify arg;
- 	struct memory_block *mem;
+@@ -901,6 +901,8 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 		return -EINVAL;
+ 	if (!IS_ALIGNED(nr_pages, PAGES_PER_SECTION))
+ 		return -EINVAL;
++	if (!mem_sections_offline(pfn, pfn + nr_pages))
++		return -EINVAL;
  
-+	if (!IS_ALIGNED(pfn, PAGES_PER_SECTION))
-+		return -EINVAL;
-+	if (!IS_ALIGNED(nr_pages, PAGES_PER_SECTION))
-+		return -EINVAL;
-+
  	/*
  	 * We can't use pfn_to_nid() because nid might be stored in struct page
- 	 * which is not yet initialized. Instead, we find nid from memory block.
-@@ -1600,10 +1605,9 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
- 	struct zone *zone;
- 	struct memory_notify arg;
- 
--	/* at least, alignment against pageblock is necessary */
--	if (!IS_ALIGNED(start_pfn, pageblock_nr_pages))
-+	if (!IS_ALIGNED(start_pfn, PAGES_PER_SECTION))
+@@ -1609,6 +1611,9 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
  		return -EINVAL;
--	if (!IS_ALIGNED(end_pfn, pageblock_nr_pages))
-+	if (!IS_ALIGNED(nr_pages, PAGES_PER_SECTION))
+ 	if (!IS_ALIGNED(nr_pages, PAGES_PER_SECTION))
  		return -EINVAL;
++	if (!mem_sections_online(start_pfn, end_pfn))
++		return -EINVAL;
++
  	/* This makes hotplug much easier...and readable.
  	   we assume this for now. .*/
+ 	if (!test_pages_in_a_zone(start_pfn, end_pfn, &valid_start, &valid_end))
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 10b07eea9a6e..44693cf38ca9 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -520,6 +520,34 @@ void __init sparse_init(void)
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ 
++/* check if all mem sections are online */
++bool mem_sections_online(unsigned long pfn, unsigned long end_pfn)
++{
++	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
++		unsigned long section_nr = pfn_to_section_nr(pfn);
++
++		if (WARN_ON(!valid_section_nr(section_nr)))
++			continue;
++		if (!online_section_nr(section_nr))
++			return false;
++	}
++	return true;
++}
++
++/* check if all mem sections are offline */
++bool mem_sections_offline(unsigned long pfn, unsigned long end_pfn)
++{
++	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
++		unsigned long section_nr = pfn_to_section_nr(pfn);
++
++		if (WARN_ON(!valid_section_nr(section_nr)))
++			continue;
++		if (online_section_nr(section_nr))
++			return false;
++	}
++	return true;
++}
++
+ /* Mark all memory sections within the pfn range as online */
+ void online_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+ {
 -- 
 2.17.1
