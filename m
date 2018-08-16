@@ -1,198 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D3CF56B0005
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2018 23:46:50 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id f66-v6so1930350plb.10
-        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 20:46:50 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w28-v6sor5050576pgc.289.2018.08.15.20.46.49
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D70806B0005
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 01:04:32 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id u2-v6so2029588pls.7
+        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 22:04:32 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id 66-v6si23065735plb.428.2018.08.15.22.04.31
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 15 Aug 2018 20:46:49 -0700 (PDT)
-Date: Thu, 16 Aug 2018 12:46:42 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: Re: [PATCH] zsmalloc: fix linking bug in init_zspage
-Message-ID: <20180816034642.GA62516@rodete-desktop-imager.corp.google.com>
-References: <20180810002817.2667-1-zhouxianrong@tom.com>
- <20180813060549.GB64836@rodete-desktop-imager.corp.google.com>
- <20180813105536.GA435@jagdpanzerIV>
- <20180814002416.GA34280@rodete-desktop-imager.corp.google.com>
- <1784999539.213028.1534378242020.JavaMail.root@rz-web2>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Aug 2018 22:04:31 -0700 (PDT)
+Date: Thu, 16 Aug 2018 13:01:17 +0800
+From: kbuild test robot <lkp@intel.com>
+Subject: Re: [PATCH v3 1/3] vmalloc: Add __vmalloc_node_try_addr function
+Message-ID: <201808161238.TzQpjorB%fengguang.wu@intel.com>
+References: <1534365020-18943-2-git-send-email-rick.p.edgecombe@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: multipart/mixed; boundary="azLHFNyN32YCQGCU"
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <1784999539.213028.1534378242020.JavaMail.root@rz-web2>
+In-Reply-To: <1534365020-18943-2-git-send-email-rick.p.edgecombe@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhouxianrong <zhouxianrong@tom.com>
-Cc: sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ngupta@vflare.org, zhouxianrong@huawei.com, vbabka@suse.cz, yudongbin@hisilicon.com
+To: Rick Edgecombe <rick.p.edgecombe@intel.com>
+Cc: kbuild-all@01.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, daniel@iogearbox.net, jannh@google.com, keescook@chromium.org, kristen@linux.intel.com, dave.hansen@intel.com, arjan@linux.intel.com
 
-Hi zhouxianrong,
 
-Please could you be more sepcific what case can we encounter below BUG?
-(Please use plain text)
-What zs_class size did you this this problem?
-Could you say how that can happen?
+--azLHFNyN32YCQGCU
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-As I wrote in other reply, zsmalloc should never allocate last parital
-object when I look at source code so we need to understand what specific
-case we are missing if it's a real zsmalloc bug.
+Hi Rick,
 
-Please explain how that can be happen with a real example.
+Thank you for the patch! Yet something to improve:
 
-Thanks.
+[auto build test ERROR on linus/master]
+[also build test ERROR on v4.18 next-20180815]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 
-On Thu, Aug 16, 2018 at 08:10:42AM +0800, zhouxianrong wrote:
-> H<span labeltype=3D"transpond"><minchan kernel=3D"" org=3D"">i:<br /><br =
-/>&nbsp; I am sorry so later for replying this message due to something.<br=
- /><br />This is the backtrace edited by me we met.<br /><br />[pid:3471,cp=
-u4,thread-3]------------[ cut here ]------------<br />[pid:3471,cpu4,thread=
--3]kernel bug at ../../../../../../mm/zsmalloc.c:1455!<br />[pid:3471,cpu4,=
-thread-3]internal error: oops - bug: 0 [#1] preempt smp<br />[pid:3471,cpu4=
-,thread-3]modules linked in:<br />[pid:3471,cpu4,thread-3]cpu: 4 pid: 3471 =
-comm: thread-3 tainted: g&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; w&nbsp;=
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4.9.84 #1<br />[pid:3471,cpu4,thread-3]tgid:=
- 715 comm: proc-a<br />[pid:3471,cpu4,thread-3]task: ffffffcc83ba1d00 task.=
-stack: ffffffcad99b0000<br />[pid:3471,cpu4,thread-3]pc is at zs_map_object=
-+0x1e0/0x1f0<br />[pid:3471,cpu4,thread-3]lr is at zs_map_object+0x9c/0x1f0=
-<br />[pid:3471,cpu4,thread-3]pc : [] lr : [] pstate: 20000145<br />[pid:34=
-71,cpu4,thread-3]sp : ffffffcad99b3530<br />[pid:3471,cpu4,thread-3]x29: ff=
-ffffcad99b3530 x28: ffffffcc97533c40<br />[pid:3471,cpu4,thread-3]x27: ffff=
-ffcc974dd720 x26: ffffffcad99b0000<br />[pid:3471,cpu4,thread-3]x25: 000000=
-0001fa9f80 x24: 0000000000000002<br />[pid:3471,cpu4,thread-3]x23: ffffff89=
-c3a27000 x22: ffffff89c30e6000<br />[pid:3471,cpu4,thread-3]x21: ffffff89c3=
-54f000 x20: ffffff89c3234720<br />[pid:3471,cpu4,thread-3]x19: 000000000000=
-0f90 x18: 0000000000000008<br />[pid:3471,cpu4,thread-3]x17: 00000000bbb877=
-ff x16: 00000000ffdba560<br />[pid:3471,cpu4,thread-3]x15: ffffffcaeab13ff5=
- x14: 000000009e3779b1<br />[pid:3471,cpu4,thread-3]x13: 0000000000000ff4 x=
-12: ffffffcaeab13fd9<br />[pid:3471,cpu4,thread-3]x11: ffffffcaeab13ffa x10=
-: ffffffcaeab13ff8<br />[pid:3471,cpu4,thread-3]x9 : ffffffca8cc201b8 x8 : =
-ffffffca8cc20190<br />[pid:3471,cpu4,thread-3]x7 : 000000000000008e x6 : 00=
-0000000000009b<br />[pid:3471,cpu4,thread-3]x5 : 0000000000000000 x4 : 0000=
-000000000001<br />[pid:3471,cpu4,thread-3]x3 : 00000042d42a9000 x2 : 000000=
-00000009d0<br />[pid:3471,cpu4,thread-3]x1 : ffffffcc994ddbc0 x0 : 00000000=
-00000000<br /><br />[pid:3471,cpu4,thread-3] zs_map_object+0x1e0/0x1f0<br /=
->[pid:3471,cpu4,thread-3] zs_zpool_map+0x44/0x54<br />[pid:3471,cpu4,thread=
--3] zpool_map_handle+0x44/0x58<br />[pid:3471,cpu4,thread-3] zram_bvec_writ=
-e+0x22c/0x76c<br />[pid:3471,cpu4,thread-3] zram_bvec_rw+0x288/0x488<br />[=
-pid:3471,cpu4,thread-3] zram_rw_page+0x124/0x1a4<br />[pid:3471,cpu4,thread=
--3] bdev_write_page+0x8c/0xd8<br />[pid:3471,cpu4,thread-3] __swap_writepag=
-e+0x1c0/0x3a8<br />[pid:3471,cpu4,thread-3] swap_writepage+0x3c/0x64<br />[=
-pid:3471,cpu4,thread-3] shrink_page_list+0x844/0xd84<br />[pid:3471,cpu4,th=
-read-3] reclaim_pages_from_list+0xf4/0x1bc<br />[pid:3471,cpu4,thread-3] re=
-claim_pte_range+0x208/0x2a0<br />[pid:3471,cpu4,thread-3] walk_pgd_range+0x=
-e8/0x238<br />[pid:3471,cpu4,thread-3] walk_page_range+0x7c/0x164<br />[pid=
-:3471,cpu4,thread-3] reclaim_write+0x208/0x608<br />[pid:3471,cpu4,thread-3=
-] __vfs_write+0x50/0x88<br />[pid:3471,cpu4,thread-3] vfs_write+0xbc/0x2b0<=
-br />[pid:3471,cpu4,thread-3] sys_write+0x60/0xc4<br />[pid:3471,cpu4,threa=
-d-3] el0_svc_naked+0x34/0x38<br />[pid:3471,cpu4,thread-3]code: 17ffffdd d4=
-210000 97ffff1f 97ffff83 (d4210000)<br />[pid:3471,cpu4,thread-3]---[ end t=
-race 652caafc4c4b6d06 ]--- <br /></minchan></span><blockquote style=3D"padd=
-ing-left:1ex;margin:0px 0px 0px 0.8ex;border-left:#ccc 1px solid"><pre>Hi S=
-ergey,
->=20
-> On Mon, Aug 13, 2018 at 07:55:36PM +0900, Sergey Senozhatsky wrote:
-> &gt; On (08/13/18 15:05), Minchan Kim wrote:
-> &gt; &gt; &gt; From: zhouxianrong <zhouxianrong huawei=3D"" com=3D"">
-> &gt; &gt; &gt;=20
-> &gt; &gt; &gt; The last partial object in last subpage of zspage should n=
-ot be linked
-> &gt; &gt; &gt; in allocation list. Otherwise it could trigger BUG_ON expl=
-icitly at
-> &gt; &gt; &gt; function zs_map_object. But it happened rarely.
-> &gt; &gt;=20
-> &gt; &gt; Could you be more specific? What case did you see the problem?
-> &gt; &gt; Is it a real problem or one founded by review?
-> &gt; [..]
-> &gt; &gt; &gt; Signed-off-by: zhouxianrong <zhouxianrong huawei=3D"" com=
-=3D"">
-> &gt; &gt; &gt; ---
-> &gt; &gt; &gt;  mm/zsmalloc.c | 2 ++
-> &gt; &gt; &gt;  1 file changed, 2 insertions(+)
-> &gt; &gt; &gt;=20
-> &gt; &gt; &gt; diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> &gt; &gt; &gt; index 8d87e973a4f5..24dd8da0aa59 100644
-> &gt; &gt; &gt; --- a/mm/zsmalloc.c
-> &gt; &gt; &gt; +++ b/mm/zsmalloc.c
-> &gt; &gt; &gt; @@ -1040,6 +1040,8 @@ static void init_zspage(struct size_=
-class *class, struct zspage *zspage)
-> &gt; &gt; &gt;  			 * Reset OBJ_TAG_BITS bit to last link to tell
-> &gt; &gt; &gt;  			 * whether it's allocated object or not.
-> &gt; &gt; &gt;  			 */
-> &gt; &gt; &gt; +			if (off &gt; PAGE_SIZE)
-> &gt; &gt; &gt; +				link -=3D class-&gt;size / sizeof(*link);
-> &gt; &gt; &gt;  			link-&gt;next =3D -1UL &lt;&lt; OBJ_TAG_BITS;
-> &gt; &gt; &gt;  		}
-> &gt; &gt; &gt;  		kunmap_atomic(vaddr);
-> &gt;=20
-> &gt; Hmm. This can be a real issue. Unless I'm missing something.
-> &gt;=20
-> &gt; So... I might be wrong, but the way I see the bug report is:
-> &gt;=20
-> &gt; When we link objects during zspage init, we do the following:
-> &gt;=20
-> &gt; 	while ((off +=3D class-&gt;size) &lt; PAGE_SIZE) {
-> &gt; 		link-&gt;next =3D freeobj++ &lt;&lt; OBJ_TAG_BITS;
-> &gt; 		link +=3D class-&gt;size / sizeof(*link);
-> &gt; 	}
-> &gt;=20
-> &gt; Note that we increment the link first, link +=3D class-&gt;size / si=
-zeof(*link),
-> &gt; and check for the offset only afterwards. So by the time we break ou=
-t of
-> &gt; the while-loop the link *might* point to the partial object which st=
-arts at
-> &gt; the last page of zspage, but *never* ends, because we don't have nex=
-t_page
-> &gt; in current zspage. So that's why that object should not be linked in,
-> &gt; because it's not a valid allocates object - we simply don't have spa=
-ce
-> &gt; for it anymore.
-> &gt;=20
-> &gt; zspage [      page 1     ][      page 2      ]
-> &gt;         ...............................link
-> &gt; 	                                   [..###]
-> &gt;=20
-> &gt; therefore the last object must be &quot;link - 1&quot; for such case=
-s.
-> &gt;=20
-> &gt; I think, the following change can also do the trick:
-> &gt;=20
-> &gt; 	while ((off + class-&gt;size) &lt; PAGE_SIZE) {
-> &gt; 		link-&gt;next =3D freeobj++ &lt;&lt; OBJ_TAG_BITS;
-> &gt; 		link +=3D class-&gt;size / sizeof(*link);
-> &gt; 		off +=3D class-&gt;size;
-> &gt; 	}
-> &gt;=20
-> &gt; Once again, I might be wrong on this.
-> &gt; Any thoughts?
->=20
-> If we want a refactoring, I'm not against but description said it tiggered
-> BUG_ON on zs_map_object rarely. That means it should be stable material
-> and need more description to understand. Please be more specific with
-> some example. The reason I'm hesitating is zsmalloc moves ZS_FULL group
-> when the zspage-&gt;inuse is equal to class-&gt;objs_per_zspage so I thou=
-ght
-> it shouldn't allocate last partial object.
->=20
-> Thanks.
-> </zhouxianrong></zhouxianrong></pre></blockquote><div style=3D"height:30p=
-x;"></div><div style=3D"height:2px;width:298px;border-bottom:solid 2px #e5e=
-5e5"></div><div style=3D"height:20px;"></div><a target=3D"_blank" style=3D"=
-background-image:url(http://r.g.tom.com/kwap/r/app/other/suixinyou.png);bac=
-kground-repeat:no-repeat;background-position:left center;font-size:14px;bac=
-kground-size: 20px;height: 39px;line-height: 39px;padding-left: 25px;displa=
-y:block;color:#333333;text-decoration: none;" href=3D"http://mail.tom.com/w=
-ebmail-static/welcomesxy.html"  onmouseover=3D"this.style.cssText=3D'backgr=
-ound-image:url(http://r.g.tom.com/kwap/r/app/other/suixinyou.png);backgroun=
-d-repeat:no-repeat;background-position:left center;font-size:14px;backgroun=
-d-size: 20px;height: 39px;line-height: 39px;padding-left: 27px;display:bloc=
-k;color:#4c4c4c; text-decoration:underline;'" onmouseout=3D"this.style.cssT=
-ext=3D'background-image:url(http://r.g.tom.com/kwap/r/app/other/suixinyou.p=
-ng);background-repeat:no-repeat;background-position:left center;font-size:1=
-4px;background-size: 20px;height: 39px;line-height: 39px;padding-left: 27px=
-;display:block;color:#4c4c4c;text-decoration:none'">=E9=9A=8F=E5=BF=83=E9=
-=82=AE-=E5=9C=A8=E5=BE=AE=E4=BF=A1=E9=87=8C=E6=94=B6=E5=8F=91=E9=82=AE=E4=
-=BB=B6=EF=BC=8C=E5=8F=8A=E6=97=B6=E7=9C=81=E7=94=B5=E5=8F=88=E5=AE=89=E5=BF=
-=83</a>
+url:    https://github.com/0day-ci/linux/commits/Rick-Edgecombe/KASLR-feature-to-randomize-each-loadable-module/20180816-120750
+config: i386-tinyconfig (attached as .config)
+compiler: gcc-7 (Debian 7.3.0-16) 7.3.0
+reproduce:
+        # save the attached .config to linux build tree
+        make ARCH=i386 
+
+All error/warnings (new ones prefixed by >>):
+
+>> mm/vmalloc.c:1713:13: warning: 'pvm_find_next_prev' used but never defined
+    static bool pvm_find_next_prev(unsigned long end,
+                ^~~~~~~~~~~~~~~~~~
+--
+   mm/vmalloc.o: In function `__vmalloc_node_try_addr':
+>> vmalloc.c:(.text+0x12b5): undefined reference to `pvm_find_next_prev'
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+
+--azLHFNyN32YCQGCU
+Content-Type: application/gzip
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
+
+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
+
+--azLHFNyN32YCQGCU--
