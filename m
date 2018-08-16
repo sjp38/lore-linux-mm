@@ -1,185 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 79F866B0010
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 09:04:02 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f11-v6so2622578wmc.3
-        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 06:04:02 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id t8-v6si761529wmc.124.2018.08.16.06.03.59
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3171D6B0005
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 10:20:50 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id t24-v6so1962810edq.13
+        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 07:20:50 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b8-v6sor635125eds.43.2018.08.16.07.20.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Aug 2018 06:04:00 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w7GD00Um064185
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 09:03:58 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2kw9ehh0d6-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 09:03:56 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Thu, 16 Aug 2018 14:03:54 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH v2 3/3] docs: core-api: add memory allocation guide
-Date: Thu, 16 Aug 2018 16:03:38 +0300
-In-Reply-To: <1534424618-24713-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1534424618-24713-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1534424618-24713-4-git-send-email-rppt@linux.vnet.ibm.com>
+        (Google Transport Security);
+        Thu, 16 Aug 2018 07:20:48 -0700 (PDT)
+Date: Thu, 16 Aug 2018 17:20:44 +0300
+From: Alexey Dobriyan <adobriyan@gmail.com>
+Subject: Re: [PATCH 4/4] mm: proc/pid/smaps_rollup: convert to single value
+ seq_file
+Message-ID: <20180816142044.GB15817@avx2>
+References: <20180723111933.15443-1-vbabka@suse.cz>
+ <20180723111933.15443-5-vbabka@suse.cz>
+ <cb1d1965-9a13-e80f-dfde-a5d3bf9f510c@suse.cz>
+ <20180726162637.GB25227@avx2>
+ <bf4525b0-fd5b-4c4c-2cb3-adee3dd95a48@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <bf4525b0-fd5b-4c4c-2cb3-adee3dd95a48@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: Michal Hocko <mhocko@suse.com>, Randy Dunlap <rdunlap@infradead.org>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Daniel Colascione <dancol@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
----
- Documentation/core-api/index.rst             |   1 +
- Documentation/core-api/memory-allocation.rst | 124 +++++++++++++++++++++++++++
- 2 files changed, 125 insertions(+)
- create mode 100644 Documentation/core-api/memory-allocation.rst
+On Mon, Jul 30, 2018 at 10:53:53AM +0200, Vlastimil Babka wrote:
+> On 07/26/2018 06:26 PM, Alexey Dobriyan wrote:
+> > On Wed, Jul 25, 2018 at 08:53:53AM +0200, Vlastimil Babka wrote:
+> >> I moved the reply to this thread since the "added to -mm tree"
+> >> notification Alexey replied to in <20180724182908.GD27053@avx2> has
+> >> reduced CC list and is not linked to the patch postings.
+> >>
+> >> On 07/24/2018 08:29 PM, Alexey Dobriyan wrote:
+> >>> On Mon, Jul 23, 2018 at 04:55:48PM -0700, akpm@linux-foundation.org wrote:
+> >>>> The patch titled
+> >>>>      Subject: mm: /proc/pid/smaps_rollup: convert to single value seq_file
+> >>>> has been added to the -mm tree.  Its filename is
+> >>>>      mm-proc-pid-smaps_rollup-convert-to-single-value-seq_file.patch
+> >>>
+> >>>> Subject: mm: /proc/pid/smaps_rollup: convert to single value seq_file
+> >>>>
+> >>>> The /proc/pid/smaps_rollup file is currently implemented via the
+> >>>> m_start/m_next/m_stop seq_file iterators shared with the other maps files,
+> >>>> that iterate over vma's.  However, the rollup file doesn't print anything
+> >>>> for each vma, only accumulate the stats.
+> >>>
+> >>> What I don't understand why keep seq_ops then and not do all the work in
+> >>> ->show hook.  Currently /proc/*/smaps_rollup is at ~500 bytes so with
+> >>> minimum 1 page seq buffer, no buffer resizing is possible.
+> >>
+> >> Hmm IIUC seq_file also provides the buffer and handles feeding the data
+> >> from there to the user process, which might have called read() with a smaller
+> >> buffer than that. So I would rather not avoid the seq_file infrastructure.
+> >> Or you're saying it could be converted to single_open()? Maybe, with more work.
+> > 
+> > Prefereably yes.
+> 
+> OK here it is. Sending as a new patch instead of delta, as that's easier
+> to review - the delta is significant. Line stats wise it's the same.
+> Again a bit less boilerplate thans to no special seq_ops, a bit more
+> copy/paste in the open and release functions. But I guess it's better
+> overall.
+> 
+> ----8>----
+> From c6a2eaf3bb3546509d6b7c42f8bcc56cd7e92f90 Mon Sep 17 00:00:00 2001
+> From: Vlastimil Babka <vbabka@suse.cz>
+> Date: Wed, 18 Jul 2018 13:14:30 +0200
+> Subject: [PATCH] mm: proc/pid/smaps_rollup: convert to single value seq_file
 
-diff --git a/Documentation/core-api/index.rst b/Documentation/core-api/index.rst
-index cdc2020..8afc0da 100644
---- a/Documentation/core-api/index.rst
-+++ b/Documentation/core-api/index.rst
-@@ -27,6 +27,7 @@ Core utilities
-    errseq
-    printk-formats
-    circular-buffers
-+   memory-allocation
-    mm-api
-    gfp_mask-from-fs-io
-    timekeeping
-diff --git a/Documentation/core-api/memory-allocation.rst b/Documentation/core-api/memory-allocation.rst
-new file mode 100644
-index 0000000..b9b0823
---- /dev/null
-+++ b/Documentation/core-api/memory-allocation.rst
-@@ -0,0 +1,124 @@
-+=======================
-+Memory Allocation Guide
-+=======================
-+
-+Linux provides a variety of APIs for memory allocation. You can
-+allocate small chunks using `kmalloc` or `kmem_cache_alloc` families,
-+large virtually contiguous areas using `vmalloc` and its derivatives,
-+or you can directly request pages from the page allocator with
-+`alloc_pages`. It is also possible to use more specialized allocators,
-+for instance `cma_alloc` or `zs_malloc`.
-+
-+Most of the memory allocation APIs use GFP flags to express how that
-+memory should be allocated. The GFP acronym stands for "get free
-+pages", the underlying memory allocation function.
-+
-+Diversity of the allocation APIs combined with the numerous GFP flags
-+makes the question "How should I allocate memory?" not that easy to
-+answer, although very likely you should use
-+
-+::
-+
-+  kzalloc(<size>, GFP_KERNEL);
-+
-+Of course there are cases when other allocation APIs and different GFP
-+flags must be used.
-+
-+Get Free Page flags
-+===================
-+
-+The GFP flags control the allocators behavior. They tell what memory
-+zones can be used, how hard the allocator should try to find free
-+memory, whether the memory can be accessed by the userspace etc. The
-+:ref:`Documentation/core-api/mm-api.rst <mm-api-gfp-flags>` provides
-+reference documentation for the GFP flags and their combinations and
-+here we briefly outline their recommended usage:
-+
-+  * Most of the time ``GFP_KERNEL`` is what you need. Memory for the
-+    kernel data structures, DMAable memory, inode cache, all these and
-+    many other allocations types can use ``GFP_KERNEL``. Note, that
-+    using ``GFP_KERNEL`` implies ``GFP_RECLAIM``, which means that
-+    direct reclaim may be triggered under memory pressure; the calling
-+    context must be allowed to sleep.
-+  * If the allocation is performed from an atomic context, e.g interrupt
-+    handler, use ``GFP_NOWAIT``. This flag prevents direct reclaim and
-+    IO or filesystem operations. Consequently, under memory pressure
-+    ``GFP_NOWAIT`` allocation is likely to fail. Allocations which
-+    have a reasonable fallback should be using ``GFP_NOWARN``.
-+  * If you think that accessing memory reserves is justified and the kernel
-+    will be stressed unless allocation succeeds, you may use ``GFP_ATOMIC``.
-+  * Untrusted allocations triggered from userspace should be a subject
-+    of kmem accounting and must have ``__GFP_ACCOUNT`` bit set. There
-+    is the handy ``GFP_KERNEL_ACCOUNT`` shortcut for ``GFP_KERNEL``
-+    allocations that should be accounted.
-+  * Userspace allocations should use either of the ``GFP_USER``,
-+    ``GFP_HIGHUSER`` or ``GFP_HIGHUSER_MOVABLE`` flags. The longer
-+    the flag name the less restrictive it is.
-+
-+    ``GFP_HIGHUSER_MOVABLE`` does not require that allocated memory
-+    will be directly accessible by the kernel or the hardware and
-+    implies that the data is movable.
-+
-+    ``GFP_HIGHUSER`` means that the allocated memory is not movable,
-+    but it is not required to be directly accessible by the kernel or
-+    the hardware. An example may be a hardware allocation that maps
-+    data directly into userspace but has no addressing limitations.
-+
-+    ``GFP_USER`` means that the allocated memory is not movable and it
-+    must be directly accessible by the kernel or the hardware. It is
-+    typically used by hardware for buffers that are mapped to
-+    userspace (e.g. graphics) that hardware still must DMA to.
-+
-+You may notice that quite a few allocations in the existing code
-+specify ``GFP_NOIO`` or ``GFP_NOFS``. Historically, they were used to
-+prevent recursion deadlocks caused by direct memory reclaim calling
-+back into the FS or IO paths and blocking on already held
-+resources. Since 4.12 the preferred way to address this issue is to
-+use new scope APIs described in
-+:ref:`Documentation/core-api/gfp_mask-from-fs-io.rst <gfp_mask_from_fs_io>`.
-+
-+Other legacy GFP flags are ``GFP_DMA`` and ``GFP_DMA32``. They are
-+used to ensure that the allocated memory is accessible by hardware
-+with limited addressing capabilities. So unless you are writing a
-+driver for a device with such restrictions, avoid using these
-+flags. And even with HW with restrictions it is preferable to use
-+`dma_alloc*` APIs.
-+
-+Selecting memory allocator
-+==========================
-+
-+The most straightforward way to allocate memory is to use a function
-+from the :c:func:`kmalloc` family. And, to be on the safe size it's
-+best to use routines that set memory to zero, like
-+:c:func:`kzalloc`. If you need to allocate memory for an array, there
-+are :c:func:`kmalloc_array` and :c:func:`kcalloc` helpers.
-+
-+The maximal size of a chunk that can be allocated with `kmalloc` is
-+limited. The actual limit depends on the hardware and the kernel
-+configuration, but it is a good practice to use `kmalloc` for objects
-+smaller than page size.
-+
-+For large allocations you can use :c:func:`vmalloc` and
-+:c:func:`vzalloc`, or directly request pages from the page
-+allocator. The memory allocated by `vmalloc` and related functions is
-+not physically contiguous.
-+
-+If you are not sure whether the allocation size is too large for
-+`kmalloc`, it is possible to use :c:func:`kvmalloc` and its
-+derivatives. It will try to allocate memory with `kmalloc` and if the
-+allocation fails it will be retried with `vmalloc`. There are
-+restrictions on which GFP flags can be used with `kvmalloc`; please
-+see :c:func:`kvmalloc_node` reference documentation. Note that
-+`kvmalloc` may return memory that is not physically contiguous.
-+
-+If you need to allocate many identical objects you can use the slab
-+cache allocator. The cache should be set up with
-+:c:func:`kmem_cache_create` before it can be used. Afterwards
-+:c:func:`kmem_cache_alloc` and its convenience wrappers can allocate
-+memory from that cache.
-+
-+When the allocated memory is no longer needed it must be freed. You
-+can use :c:func:`kvfree` for the memory allocated with `kmalloc`,
-+`vmalloc` and `kvmalloc`. The slab caches should be freed with
-+:c:func:`kmem_cache_free`. And don't forget to destroy the cache with
-+:c:func:`kmem_cache_destroy`.
--- 
-2.7.4
+Reviewed-by: Alexey Dobriyan <adobriyan@gmail.com>
