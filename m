@@ -1,65 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 17E7C6B0010
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 05:21:22 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id 2-v6so2396121plc.11
-        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 02:21:22 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x69-v6si28649408pfe.318.2018.08.16.02.21.20
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 23C376B0005
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 05:25:16 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id t7-v6so1644514edh.20
+        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 02:25:16 -0700 (PDT)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id f12-v6si462830edq.89.2018.08.16.02.25.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Aug 2018 02:21:20 -0700 (PDT)
-Date: Thu, 16 Aug 2018 11:21:16 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: introduce kvvirt_to_page() helper
-Message-ID: <20180816092116.GT32645@dhcp22.suse.cz>
-References: <1534411057-26276-1-git-send-email-lirongqing@baidu.com>
+        Thu, 16 Aug 2018 02:25:14 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 6D2111C2F22
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 10:25:14 +0100 (IST)
+Date: Thu, 16 Aug 2018 10:25:08 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm, page_alloc: actually ignore mempolicies for high
+ priority allocations
+Message-ID: <20180816092507.GA1719@techsingularity.net>
+References: <20180612122624.8045-1-vbabka@suse.cz>
+ <20180815151652.05d4c4684b7dff2282b5c046@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1534411057-26276-1-git-send-email-lirongqing@baidu.com>
+In-Reply-To: <20180815151652.05d4c4684b7dff2282b5c046@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li RongQing <lirongqing@baidu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Souptick Joarder <jrdr.linux@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org
 
-On Thu 16-08-18 17:17:37, Li RongQing wrote:
-> The new helper returns address mapping page, which has several users
-> in individual subsystem, like mem_to_page in xfs_buf.c and pgv_to_page
-> in af_packet.c, after this, they can be unified
+On Wed, Aug 15, 2018 at 03:16:52PM -0700, Andrew Morton wrote:
+> From: Vlastimil Babka <vbabka@suse.cz>
+> Subject: mm, page_alloc: actually ignore mempolicies for high priority allocations
+> 
+> The __alloc_pages_slowpath() function has for a long time contained code
+> to ignore node restrictions from memory policies for high priority
+> allocations.  The current code that resets the zonelist iterator however
+> does effectively nothing after commit 7810e6781e0f ("mm, page_alloc: do
+> not break __GFP_THISNODE by zonelist reset") removed a buggy zonelist
+> reset.  Even before that commit, mempolicy restrictions were still not
+> ignored, as they are passed in ac->nodemask which is untouched by the
+> code.
+> 
+> We can either remove the code, or make it work as intended.  Since
+> ac->nodemask can be set from task's mempolicy via alloc_pages_current()
+> and thus also alloc_pages(), it may indeed affect kernel allocations, and
+> it makes sense to ignore it to allow progress for high priority
+> allocations.
+> 
+> Thus, this patch resets ac->nodemask to NULL in such cases.  This assumes
+> all callers can handle it (i.e.  there are no guarantees as in the case of
+> __GFP_THISNODE) which seems to be the case.  The same assumption is
+> already present in check_retry_cpuset() for some time.
+> 
+> The expected effect is that high priority kernel allocations in the
+> context of userspace tasks (e.g.  OOM victims) restricted by mempolicies
+> will have higher chance to succeed if they are restricted to nodes with
+> depleted memory, while there are other nodes with free memory left.
+> 
+> 
+> Ot's not a new intention, but for the first time the code will match the
+> intention, AFAICS.  It was intended by commit 183f6371aac2 ("mm: ignore
+> mempolicies when using ALLOC_NO_WATERMARK") in v3.6 but I think it never
+> really worked, as mempolicy restriction was already encoded in nodemask,
+> not zonelist, at that time.
+> 
+> So originally that was for ALLOC_NO_WATERMARK only.  Then it was adjusted
+> by e46e7b77c909 ("mm, page_alloc: recalculate the preferred zoneref if the
+> context can ignore memory policies") and cd04ae1e2dc8 ("mm, oom: do not
+> rely on TIF_MEMDIE for memory reserves access") to the current state.  So
+> even GFP_ATOMIC would now ignore mempolicies after the initial attempts
+> fail - if the code worked as people thought it does.
+> 
+> Link: http://lkml.kernel.org/r/20180612122624.8045-1-vbabka@suse.cz
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 
-Please add users along with the new helper.
+FWIW, I thought I acked this already.
 
-> 
-> Signed-off-by: Zhang Yu <zhangyu31@baidu.com>
-> Signed-off-by: Li RongQing <lirongqing@baidu.com>
-> ---
->  include/linux/mm.h | 8 ++++++++
->  1 file changed, 8 insertions(+)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 68a5121694ef..bb34a3c71df5 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -599,6 +599,14 @@ static inline void *kvcalloc(size_t n, size_t size, gfp_t flags)
->  	return kvmalloc_array(n, size, flags | __GFP_ZERO);
->  }
->  
-> +static inline struct page *kvvirt_to_page(const void *addr)
-> +{
-> +	if (!is_vmalloc_addr(addr))
-> +		return virt_to_page(addr);
-> +	else
-> +		return vmalloc_to_page(addr);
-> +}
-> +
->  extern void kvfree(const void *addr);
->  
->  static inline atomic_t *compound_mapcount_ptr(struct page *page)
-> -- 
-> 2.16.2
-> 
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
