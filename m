@@ -1,185 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D70806B0005
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 01:04:32 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id u2-v6so2029588pls.7
-        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 22:04:32 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 66-v6si23065735plb.428.2018.08.15.22.04.31
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E78086B0005
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 02:11:59 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id 2-v6so2118334plc.11
+        for <linux-mm@kvack.org>; Wed, 15 Aug 2018 23:11:59 -0700 (PDT)
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id v23-v6si9452246plo.19.2018.08.15.23.11.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Aug 2018 22:04:31 -0700 (PDT)
-Date: Thu, 16 Aug 2018 13:01:17 +0800
-From: kbuild test robot <lkp@intel.com>
-Subject: Re: [PATCH v3 1/3] vmalloc: Add __vmalloc_node_try_addr function
-Message-ID: <201808161238.TzQpjorB%fengguang.wu@intel.com>
-References: <1534365020-18943-2-git-send-email-rick.p.edgecombe@intel.com>
+        Wed, 15 Aug 2018 23:11:58 -0700 (PDT)
+Subject: Re: [RFC v8 PATCH 3/5] mm: mmap: zap pages with read mmap_sem in
+ munmap
+References: <1534358990-85530-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1534358990-85530-4-git-send-email-yang.shi@linux.alibaba.com>
+ <20180815191606.GA4201@bombadil.infradead.org>
+ <20180815210946.GA28919@bombadil.infradead.org>
+ <78e658dd-bdb0-09ca-9af5-b523c7ff529f@linux.alibaba.com>
+ <20180816024652.GA11808@bombadil.infradead.org>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <b286c2f8-d3a5-89f8-954b-608a26c28a22@linux.alibaba.com>
+Date: Wed, 15 Aug 2018 23:11:23 -0700
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="azLHFNyN32YCQGCU"
-Content-Disposition: inline
-In-Reply-To: <1534365020-18943-2-git-send-email-rick.p.edgecombe@intel.com>
+In-Reply-To: <20180816024652.GA11808@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Cc: kbuild-all@01.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, daniel@iogearbox.net, jannh@google.com, keescook@chromium.org, kristen@linux.intel.com, dave.hansen@intel.com, arjan@linux.intel.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: mhocko@kernel.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, vbabka@suse.cz, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
---azLHFNyN32YCQGCU
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 
-Hi Rick,
+On 8/15/18 7:46 PM, Matthew Wilcox wrote:
+> On Wed, Aug 15, 2018 at 02:54:13PM -0700, Yang Shi wrote:
+>>
+>> On 8/15/18 2:09 PM, Matthew Wilcox wrote:
+>>> On Wed, Aug 15, 2018 at 12:16:06PM -0700, Matthew Wilcox wrote:
+>>>> (not even compiled, and I can see a good opportunity for combining the
+>>>> VM_LOCKED loop with the has_uprobes loop)
+>>> I was rushing to get that sent earlier.  Here it is tidied up to
+>>> actually compile.
+>> Thanks for the example. Yes, I believe the code still can be compacted to
+>> save some lines. However, the cover letter and the commit log of this patch
+>> has elaborated the discussion in the earlier reviews about why we do it in
+>> this way.
+> You mean the other callers which need to hold mmap_sem write-locked for
+> longer?  I hadn't really considered those; how about this?
 
-Thank you for the patch! Yet something to improve:
+Thanks. Yes, this is the other potential implementation. My rationale 
+about a separate function for the optimized path is I would prefer 
+optimize this step by step by starting with some relatively simple way, 
+then add enhancement on top of it.
 
-[auto build test ERROR on linus/master]
-[also build test ERROR on v4.18 next-20180815]
-[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+And, I would prefer keep the current implementation of do_munmap since 
+it is called somewhere else and it might be called by the optimized path 
+for some reason until we are confident enough that the optimization 
+doesn't have regression.
 
-url:    https://github.com/0day-ci/linux/commits/Rick-Edgecombe/KASLR-feature-to-randomize-each-loadable-module/20180816-120750
-config: i386-tinyconfig (attached as .config)
-compiler: gcc-7 (Debian 7.3.0-16) 7.3.0
-reproduce:
-        # save the attached .config to linux build tree
-        make ARCH=i386 
+This sounds like separate function vs an extra parameter. We do save 
+some lines with extra parameter instead of a separate function.
 
-All error/warnings (new ones prefixed by >>):
+Thanks,
+Yang
 
->> mm/vmalloc.c:1713:13: warning: 'pvm_find_next_prev' used but never defined
-    static bool pvm_find_next_prev(unsigned long end,
-                ^~~~~~~~~~~~~~~~~~
---
-   mm/vmalloc.o: In function `__vmalloc_node_try_addr':
->> vmalloc.c:(.text+0x12b5): undefined reference to `pvm_find_next_prev'
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-
---azLHFNyN32YCQGCU
-Content-Type: application/gzip
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
-
-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
-
---azLHFNyN32YCQGCU--
+>
+>   mmap.c |   47 +++++++++++++++++++++++++++++------------------
+>   1 file changed, 29 insertions(+), 18 deletions(-)
+>
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index de699523c0b7..06dc31d1da8c 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -2798,11 +2798,11 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+>    * work.  This now handles partial unmappings.
+>    * Jeremy Fitzhardinge <jeremy@goop.org>
+>    */
+> -int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+> -	      struct list_head *uf)
+> +static int __do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+> +	      struct list_head *uf, bool downgrade)
+>   {
+>   	unsigned long end;
+> -	struct vm_area_struct *vma, *prev, *last;
+> +	struct vm_area_struct *vma, *prev, *last, *tmp;
+>   
+>   	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE-start)
+>   		return -EINVAL;
+> @@ -2816,7 +2816,7 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+>   	if (!vma)
+>   		return 0;
+>   	prev = vma->vm_prev;
+> -	/* we have  start < vma->vm_end  */
+> +	/* we have start < vma->vm_end  */
+>   
+>   	/* if it doesn't overlap, we have nothing.. */
+>   	end = start + len;
+> @@ -2873,18 +2873,22 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+>   
+>   	/*
+>   	 * unlock any mlock()ed ranges before detaching vmas
+> +	 * and check to see if there's any reason we might have to hold
+> +	 * the mmap_sem write-locked while unmapping regions.
+>   	 */
+> -	if (mm->locked_vm) {
+> -		struct vm_area_struct *tmp = vma;
+> -		while (tmp && tmp->vm_start < end) {
+> -			if (tmp->vm_flags & VM_LOCKED) {
+> -				mm->locked_vm -= vma_pages(tmp);
+> -				munlock_vma_pages_all(tmp);
+> -			}
+> -			tmp = tmp->vm_next;
+> +	for (tmp = vma; tmp && tmp->vm_start < end; tmp = tmp->vm_next) {
+> +		if (tmp->vm_flags & VM_LOCKED) {
+> +			mm->locked_vm -= vma_pages(tmp);
+> +			munlock_vma_pages_all(tmp);
+>   		}
+> +		if (tmp->vm_file &&
+> +				has_uprobes(tmp, tmp->vm_start, tmp->vm_end))
+> +			downgrade = false;
+>   	}
+>   
+> +	if (downgrade)
+> +		downgrade_write(&mm->mmap_sem);
+> +
+>   	/*
+>   	 * Remove the vma's, and unmap the actual pages
+>   	 */
+> @@ -2896,7 +2900,13 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+>   	/* Fix up all other VM information */
+>   	remove_vma_list(mm, vma);
+>   
+> -	return 0;
+> +	return downgrade ? 1 : 0;
+> +}
+> +
+> +int do_unmap(struct mm_struct *mm, unsigned long start, size_t len,
+> +		struct list_head *uf)
+> +{
+> +	return __do_munmap(mm, start, len, uf, false);
+>   }
+>   
+>   int vm_munmap(unsigned long start, size_t len)
+> @@ -2905,11 +2915,12 @@ int vm_munmap(unsigned long start, size_t len)
+>   	struct mm_struct *mm = current->mm;
+>   	LIST_HEAD(uf);
+>   
+> -	if (down_write_killable(&mm->mmap_sem))
+> -		return -EINTR;
+> -
+> -	ret = do_munmap(mm, start, len, &uf);
+> -	up_write(&mm->mmap_sem);
+> +	down_write(&mm->mmap_sem);
+> +	ret = __do_munmap(mm, start, len, &uf, true);
+> +	if (ret == 1)
+> +		up_read(&mm->mmap_sem);
+> +	else
+> +		up_write(&mm->mmap_sem);
+>   	userfaultfd_unmap_complete(mm, &uf);
+>   	return ret;
+>   }
