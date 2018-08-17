@@ -1,67 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F07536B08B8
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 10:47:29 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id i26-v6so3287671edr.4
-        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 07:47:29 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 89-v6si2820300edr.430.2018.08.17.07.47.28
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 39E7F6B08BA
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 10:47:34 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id 20-v6so7272062ois.21
+        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 07:47:34 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id w63-v6si1603044oia.18.2018.08.17.07.47.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Aug 2018 07:47:28 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w7HEiBK6097746
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 10:47:27 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2kwxamdhw5-1
+        Fri, 17 Aug 2018 07:47:33 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w7HEi9Mi036928
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 10:47:32 -0400
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2kwwjkqfvb-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 10:47:26 -0400
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 10:47:32 -0400
 Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Fri, 17 Aug 2018 15:47:25 +0100
+	Fri, 17 Aug 2018 15:47:29 +0100
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH v3 0/3] docs/core-api: add memory allocation guide
-Date: Fri, 17 Aug 2018 17:47:13 +0300
-Message-Id: <1534517236-16762-1-git-send-email-rppt@linux.vnet.ibm.com>
+Subject: [PATCH v3 1/3] docs: core-api/gfp_mask-from-fs-io: add a label for cross-referencing
+Date: Fri, 17 Aug 2018 17:47:14 +0300
+In-Reply-To: <1534517236-16762-1-git-send-email-rppt@linux.vnet.ibm.com>
+References: <1534517236-16762-1-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1534517236-16762-2-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jonathan Corbet <corbet@lwn.net>
 Cc: Michal Hocko <mhocko@suse.com>, Randy Dunlap <rdunlap@infradead.org>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-Hi,
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+---
+ Documentation/core-api/gfp_mask-from-fs-io.rst | 2 ++
+ 1 file changed, 2 insertions(+)
 
-As Vlastimil mentioned at [1], it would be nice to have some guide about
-memory allocation. This set adds such guide that summarizes the "best
-practices". 
-
-The changes from the RFC include additions and corrections from Michal and
-Randy. I've also added markup to cross-reference the kernel-doc
-documentation.
-
-I've split the patch into three to separate labels addition to the exiting
-files from the new contents.
-
-Note that the second patch depends on the mm docs update [2] that Andrew
-took to the -mm tree.
-
-v2 -> v3:
-  * s/HW/hardware
-
-[1] https://www.spinics.net/lists/netfilter-devel/msg55542.html
-[2] https://lkml.org/lkml/2018/7/26/684
-
-Mike Rapoport (3):
-  docs: core-api/gfp_mask-from-fs-io: add a label for cross-referencing
-  docs: core-api/mm-api: add a lable for GFP flags section
-  docs: core-api: add memory allocation guide
-
- Documentation/core-api/gfp_mask-from-fs-io.rst |   2 +
- Documentation/core-api/index.rst               |   1 +
- Documentation/core-api/memory-allocation.rst   | 124 +++++++++++++++++++++++++
- Documentation/core-api/mm-api.rst              |   2 +
- 4 files changed, 129 insertions(+)
- create mode 100644 Documentation/core-api/memory-allocation.rst
-
+diff --git a/Documentation/core-api/gfp_mask-from-fs-io.rst b/Documentation/core-api/gfp_mask-from-fs-io.rst
+index e0df8f4..e7c32a8 100644
+--- a/Documentation/core-api/gfp_mask-from-fs-io.rst
++++ b/Documentation/core-api/gfp_mask-from-fs-io.rst
+@@ -1,3 +1,5 @@
++.. _gfp_mask_from_fs_io:
++
+ =================================
+ GFP masks used from FS/IO context
+ =================================
 -- 
 2.7.4
