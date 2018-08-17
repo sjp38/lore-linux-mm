@@ -1,106 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 374886B080F
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 07:56:41 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id c27-v6so7372025qkj.3
-        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 04:56:41 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id k1-v6si1752321qvf.138.2018.08.17.04.56.40
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DAE456B084F
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 09:04:31 -0400 (EDT)
+Received: by mail-yw1-f71.google.com with SMTP id 22-v6so5938376ywd.15
+        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 06:04:31 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c132-v6sor608018yba.1.2018.08.17.06.04.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Aug 2018 04:56:40 -0700 (PDT)
-Subject: Re: [PATCH RFC 1/2] drivers/base: export
- lock_device_hotplug/unlock_device_hotplug
-References: <20180817075901.4608-1-david@redhat.com>
- <20180817075901.4608-2-david@redhat.com> <20180817084146.GB14725@kroah.com>
- <5a5d73e9-e4aa-ffed-a2e3-8aef64e61923@redhat.com>
- <CAJZ5v0gkYV8o2Eq+EcGT=OP1tQGPGVVe3n9VGD6z7KAVVqhv9w@mail.gmail.com>
- <42df9062-f647-3ad6-5a07-be2b99531119@redhat.com>
- <20180817100604.GA18164@kroah.com>
- <4ac624be-d2d6-5975-821f-b20a475781dc@redhat.com>
- <20180817112850.GB3565@osiris>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <ecc08303-96ee-76ad-fba4-0425413afa5a@redhat.com>
-Date: Fri, 17 Aug 2018 13:56:35 +0200
+        (Google Transport Security);
+        Fri, 17 Aug 2018 06:04:28 -0700 (PDT)
+Date: Fri, 17 Aug 2018 09:04:25 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v8 0/2] Directed kmem charging
+Message-ID: <20180817130425.GA12351@cmpxchg.org>
+References: <20180627191250.209150-1-shakeelb@google.com>
+ <20180815152511.3ea63aa54c5fac0bfe9370da@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20180817112850.GB3565@osiris>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180815152511.3ea63aa54c5fac0bfe9370da@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>, Michal Hocko <mhocko@suse.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, linux-s390@vger.kernel.org, sthemmin@microsoft.com, Pavel Tatashin <pasha.tatashin@oracle.com>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, David Rientjes <rientjes@google.com>, xen-devel@lists.xenproject.org, Len Brown <lenb@kernel.org>, haiyangz@microsoft.com, Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, osalvador@suse.de, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, devel@linuxdriverproject.org, Vitaly Kuznetsov <vkuznets@redhat.com>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Shakeel Butt <shakeelb@google.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.com>, Greg Thelen <gthelen@google.com>, Amir Goldstein <amir73il@gmail.com>, Roman Gushchin <guro@fb.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On 17.08.2018 13:28, Heiko Carstens wrote:
-> On Fri, Aug 17, 2018 at 01:04:58PM +0200, David Hildenbrand wrote:
->>>> If there are no objections, I'll go into that direction. But I'll wait
->>>> for more comments regarding the general concept first.
->>>
->>> It is the middle of the merge window, and maintainers are really busy
->>> right now.  I doubt you will get many review comments just yet...
->>>
->>
->> This has been broken since 2015, so I guess it can wait a bit :)
+On Wed, Aug 15, 2018 at 03:25:11PM -0700, Andrew Morton wrote:
+> On Wed, 27 Jun 2018 12:12:48 -0700 Shakeel Butt <shakeelb@google.com> wrote:
 > 
-> I hope you figured out what needs to be locked why. Your patch description
-> seems to be "only" about locking order ;)
-
-Well I hope so, too ... but there is a reason for the RFC mark ;) There
-is definitely a lot of magic in the current code. And that's why it is
-also not that obvious that locking is wrong.
-
-To avoid/fix the locking order problem was the motivation for the
-original patch that dropped mem_hotplug_lock on one path. So I focused
-on that in my description.
-
+> > The Linux kernel's memory cgroup allows limiting the memory usage of
+> > the jobs running on the system to provide isolation between the jobs.
+> > All the kernel memory allocated in the context of the job and marked
+> > with __GFP_ACCOUNT will also be included in the memory usage and be
+> > limited by the job's limit.
+> > 
+> > The kernel memory can only be charged to the memcg of the process in
+> > whose context kernel memory was allocated. However there are cases where
+> > the allocated kernel memory should be charged to the memcg different
+> > from the current processes's memcg. This patch series contains two such
+> > concrete use-cases i.e. fsnotify and buffer_head.
+> > 
+> > The fsnotify event objects can consume a lot of system memory for large
+> > or unlimited queues if there is either no or slow listener. The events
+> > are allocated in the context of the event producer. However they should
+> > be charged to the event consumer. Similarly the buffer_head objects can
+> > be allocated in a memcg different from the memcg of the page for which
+> > buffer_head objects are being allocated.
+> > 
+> > To solve this issue, this patch series introduces mechanism to charge
+> > kernel memory to a given memcg. In case of fsnotify events, the memcg of
+> > the consumer can be used for charging and for buffer_head, the memcg of
+> > the page can be charged. For directed charging, the caller can use the
+> > scope API memalloc_[un]use_memcg() to specify the memcg to charge for
+> > all the __GFP_ACCOUNT allocations within the scope.
 > 
-> I tried to figure out and document that partially with 55adc1d05dca ("mm:
-> add private lock to serialize memory hotplug operations"), and that wasn't
-> easy to figure out. I was especially concerned about sprinkling
+> This patchset is not showing signs of having been well reviewed at
+> this time.  Could people please take another look?
 
-Haven't seen that so far as that was reworked by 3f906ba23689
-("mm/memory-hotplug: switch locking to a percpu rwsem"). Thanks for the
-pointer. There is a long history to all this.
+I don't have the mailing list archives for this anymore, but the
+series as it stands in mmots looks good to me and incorporates all the
+feedback I remember giving.
 
-> lock/unlock_device_hotplug() calls, which has the potential to make it the
-> next BKL thing.
+[ My only gripe really is that it applies current->active_memcg only
+  to kmem charges, not others as well. Right now it doesn't matter,
+  but I can see this costing a kernel developer implementing remote
+  charges for something other than kmem some time to realize. ]
 
-Well, the thing with memory hotplug and device_hotplug_lock is that
+Anyway, please feel free to add
 
-a) ACPI already holds it while adding/removing memory via add_memory()
-b) we hold it during online/offline of memory (via sysfs calls to
-   device_online()/device_offline())
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-So it is already pretty much involved in all memory hotplug/unplug
-activities on x86 (except paravirt). And as far as I understand, there
-are good reasons to hold the lock in core.c and ACPI. (as mentioned by
-Rafael)
-
-The exceptions are add_memory() called on s390x, hyper-v, xen and ppc
-(including manual probing). And device_online()/device_offline() called
-from the kernel.
-
-Holding device_hotplug_lock when adding/removing memory from the system
-doesn't sound too wrong (especially as devices are created/removed). At
-least that way (documenting and following the rules in the patch
-description) we might at least get locking right.
-
-
-I am very open to other suggestions (but as noted by Greg, many
-maintainers might be busy by know).
-
-E.g. When adding the memory block devices, we know that there won't be a
-driver to attach to (as there are no drivers for the "memory" subsystem)
-- the bus_probe_device() function that takes the device_lock() could
-pretty much be avoided for that case. But burying such special cases
-down in core driver code definitely won't make locking related to memory
-hotplug easier.
-
-Thanks for having a look!
-
--- 
-
-Thanks,
-
-David / dhildenb
+for 1/2 and 2/2 plus their two fixlets.
