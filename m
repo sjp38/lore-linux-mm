@@ -1,199 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AE18D6B08EE
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 11:41:39 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id s25-v6so1341403wmh.1
-        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 08:41:39 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 66-v6sor967157wms.91.2018.08.17.08.41.36
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CCF0D6B093D
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 13:02:44 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id 2-v6so5141977plc.11
+        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 10:02:44 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id y8-v6si2637193plr.136.2018.08.17.10.02.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 17 Aug 2018 08:41:36 -0700 (PDT)
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: [RFC v2 1/2] mm/memory_hotplug: Add nid parameter to arch_remove_memory
-Date: Fri, 17 Aug 2018 17:41:26 +0200
-Message-Id: <20180817154127.28602-2-osalvador@techadventures.net>
-In-Reply-To: <20180817154127.28602-1-osalvador@techadventures.net>
-References: <20180817154127.28602-1-osalvador@techadventures.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Aug 2018 10:02:43 -0700 (PDT)
+Date: Fri, 17 Aug 2018 19:02:39 +0200
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH RFC 1/2] drivers/base: export
+ lock_device_hotplug/unlock_device_hotplug
+Message-ID: <20180817170239.GF24945@kroah.com>
+References: <20180817075901.4608-1-david@redhat.com>
+ <20180817075901.4608-2-david@redhat.com>
+ <20180817084146.GB14725@kroah.com>
+ <5a5d73e9-e4aa-ffed-a2e3-8aef64e61923@redhat.com>
+ <CAJZ5v0gkYV8o2Eq+EcGT=OP1tQGPGVVe3n9VGD6z7KAVVqhv9w@mail.gmail.com>
+ <42df9062-f647-3ad6-5a07-be2b99531119@redhat.com>
+ <20180817100604.GA18164@kroah.com>
+ <4ac624be-d2d6-5975-821f-b20a475781dc@redhat.com>
+ <20180817112850.GB3565@osiris>
+ <ecc08303-96ee-76ad-fba4-0425413afa5a@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <ecc08303-96ee-76ad-fba4-0425413afa5a@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, dan.j.williams@intel.com, jglisse@redhat.com, david@redhat.com, jonathan.cameron@huawei.com, Pavel.Tatashin@microsoft.com, yasu.isimatu@gmail.com, logang@deltatee.com, dave.jiang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: David Hildenbrand <david@redhat.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Michal Hocko <mhocko@suse.com>, "Rafael J. Wysocki" <rafael@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, linux-s390@vger.kernel.org, sthemmin@microsoft.com, Pavel Tatashin <pasha.tatashin@oracle.com>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, David Rientjes <rientjes@google.com>, xen-devel@lists.xenproject.org, Len Brown <lenb@kernel.org>, haiyangz@microsoft.com, Dan Williams <dan.j.williams@intel.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, osalvador@suse.de, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, devel@linuxdriverproject.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-From: Oscar Salvador <osalvador@suse.de>
+On Fri, Aug 17, 2018 at 01:56:35PM +0200, David Hildenbrand wrote:
+> E.g. When adding the memory block devices, we know that there won't be a
+> driver to attach to (as there are no drivers for the "memory" subsystem)
+> - the bus_probe_device() function that takes the device_lock() could
+> pretty much be avoided for that case. But burying such special cases
+> down in core driver code definitely won't make locking related to memory
+> hotplug easier.
 
-This patch is only a preparation for the following-up patches.
-The idea of passing the nid is that will allow us to get rid
-of the zone parameter in the patches that follow.
+You don't have to have a driver for a device if you don't want to, or
+you can just have a default one for all memory devices if you somehow
+need it.  No reason to not do this if it makes things easier for you.
 
-Signed-off-by: Oscar Salvador <osalvador@suse.de>
----
- arch/ia64/mm/init.c            | 2 +-
- arch/powerpc/mm/mem.c          | 2 +-
- arch/s390/mm/init.c            | 2 +-
- arch/sh/mm/init.c              | 2 +-
- arch/x86/mm/init_32.c          | 2 +-
- arch/x86/mm/init_64.c          | 2 +-
- include/linux/memory_hotplug.h | 2 +-
- kernel/memremap.c              | 4 +++-
- mm/hmm.c                       | 4 +++-
- mm/memory_hotplug.c            | 2 +-
- 10 files changed, 14 insertions(+), 10 deletions(-)
+thanks,
 
-diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
-index 3b85c3ecac38..b54d0ee74b53 100644
---- a/arch/ia64/mm/init.c
-+++ b/arch/ia64/mm/init.c
-@@ -662,7 +662,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
-index 5c8530d0c611..9e17d57a9948 100644
---- a/arch/powerpc/mm/mem.c
-+++ b/arch/powerpc/mm/mem.c
-@@ -139,7 +139,7 @@ int __meminit arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int __meminit arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int __meminit arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
-index 3fa3e5323612..bc49b560625e 100644
---- a/arch/s390/mm/init.c
-+++ b/arch/s390/mm/init.c
-@@ -240,7 +240,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
- {
- 	/*
- 	 * There is no hardware or firmware interface which could trigger a
-diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
-index 7713c084d040..5c91bb6abc35 100644
---- a/arch/sh/mm/init.c
-+++ b/arch/sh/mm/init.c
-@@ -444,7 +444,7 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
- #endif
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = PFN_DOWN(start);
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-index 979e0a02cbe1..9fa503f2f56c 100644
---- a/arch/x86/mm/init_32.c
-+++ b/arch/x86/mm/init_32.c
-@@ -861,7 +861,7 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index dd519f372169..f90fa077b0c4 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -1148,7 +1148,7 @@ kernel_physical_mapping_remove(unsigned long start, unsigned long end)
- 	remove_pagetable(start, end, true, NULL);
- }
- 
--int __ref arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-+int __ref arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 34a28227068d..c68b03fd87bd 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -107,7 +107,7 @@ static inline bool movable_node_is_enabled(void)
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--extern int arch_remove_memory(u64 start, u64 size,
-+extern int arch_remove_memory(int nid, u64 start, u64 size,
- 		struct vmem_altmap *altmap);
- extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
- 	unsigned long nr_pages, struct vmem_altmap *altmap);
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 5b8600d39931..7a832b844f24 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -121,6 +121,7 @@ static void devm_memremap_pages_release(void *data)
- 	struct resource *res = &pgmap->res;
- 	resource_size_t align_start, align_size;
- 	unsigned long pfn;
-+	int nid;
- 
- 	for_each_device_pfn(pfn, pgmap)
- 		put_page(pfn_to_page(pfn));
-@@ -134,9 +135,10 @@ static void devm_memremap_pages_release(void *data)
- 	align_start = res->start & ~(SECTION_SIZE - 1);
- 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
- 		- align_start;
-+	nid = dev_to_node(dev);
- 
- 	mem_hotplug_begin();
--	arch_remove_memory(align_start, align_size, pgmap->altmap_valid ?
-+	arch_remove_memory(nid, align_start, align_size, pgmap->altmap_valid ?
- 			&pgmap->altmap : NULL);
- 	kasan_remove_zero_shadow(__va(align_start), align_size);
- 	mem_hotplug_done();
-diff --git a/mm/hmm.c b/mm/hmm.c
-index c968e49f7a0c..21787e480b4a 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -995,6 +995,7 @@ static void hmm_devmem_release(struct device *dev, void *data)
- 	unsigned long start_pfn, npages;
- 	struct zone *zone;
- 	struct page *page;
-+	int nid;
- 
- 	if (percpu_ref_tryget_live(&devmem->ref)) {
- 		dev_WARN(dev, "%s: page mapping is still live!\n", __func__);
-@@ -1007,12 +1008,13 @@ static void hmm_devmem_release(struct device *dev, void *data)
- 
- 	page = pfn_to_page(start_pfn);
- 	zone = page_zone(page);
-+	nid = zone->zone_pgdat->node_id;
- 
- 	mem_hotplug_begin();
- 	if (resource->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY)
- 		__remove_pages(zone, start_pfn, npages, NULL);
- 	else
--		arch_remove_memory(start_pfn << PAGE_SHIFT,
-+		arch_remove_memory(nid, start_pfn << PAGE_SHIFT,
- 				   npages << PAGE_SHIFT, NULL);
- 	mem_hotplug_done();
- 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 9eea6e809a4e..9bd629944c91 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1895,7 +1895,7 @@ void __ref remove_memory(int nid, u64 start, u64 size)
- 	memblock_free(start, size);
- 	memblock_remove(start, size);
- 
--	arch_remove_memory(start, size, NULL);
-+	arch_remove_memory(nid, start, size, NULL);
- 
- 	try_offline_node(nid);
- 
--- 
-2.13.6
+greg k-h
