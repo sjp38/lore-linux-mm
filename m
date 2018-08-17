@@ -1,57 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C9AAD6B05A4
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 21:38:19 -0400 (EDT)
-Received: by mail-yb0-f198.google.com with SMTP id s12-v6so1851847ybm.19
-        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 18:38:19 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d193-v6sor241397ybc.98.2018.08.16.18.38.19
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AC94A6B05E2
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2018 22:42:55 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id o24-v6so5651507iob.20
+        for <linux-mm@kvack.org>; Thu, 16 Aug 2018 19:42:55 -0700 (PDT)
+Received: from mtlfep01.bell.net (belmont79srvr.owm.bell.net. [184.150.200.79])
+        by mx.google.com with ESMTPS id o11-v6si1891896ito.83.2018.08.16.19.42.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 16 Aug 2018 18:38:19 -0700 (PDT)
-Subject: Re: [RESEND PATCH v10 6/6] mm: page_alloc: reduce unnecessary binary
- search in early_pfn_valid()
-References: <1530867675-9018-1-git-send-email-hejianet@gmail.com>
- <1530867675-9018-7-git-send-email-hejianet@gmail.com>
- <c6ed43ee-b09e-1f75-43b3-6cd2808d13f3@microsoft.com>
-From: Pavel Tatashin <pasha.tatashin@gmail.com>
-Message-ID: <831be9a1-6401-3af0-b68b-b3e25db806f9@gmail.com>
-Date: Thu, 16 Aug 2018 21:38:15 -0400
-MIME-Version: 1.0
-In-Reply-To: <c6ed43ee-b09e-1f75-43b3-6cd2808d13f3@microsoft.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Aug 2018 19:42:54 -0700 (PDT)
+Received: from bell.net mtlfep01 184.150.200.30 by mtlfep01.bell.net
+          with ESMTP
+          id <20180817024253.UCO10498.mtlfep01.bell.net@mtlspm01.bell.net>
+          for <linux-mm@kvack.org>; Thu, 16 Aug 2018 22:42:53 -0400
+Message-ID: <a5d99f4f367cfa553471e4cad1d0c80e52ac0a9f.camel@sympatico.ca>
+Subject: Re: [PATCH] x86/mm/pti: Move user W+X check into pti_finalize()
+From: "David H. Gutteridge" <dhgutteridge@sympatico.ca>
+Date: Thu, 16 Aug 2018 22:42:48 -0400
+In-Reply-To: <1533727000-9172-1-git-send-email-joro@8bytes.org>
+References: <1533727000-9172-1-git-send-email-joro@8bytes.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <Pavel.Tatashin@microsoft.com>, Jia He <hejianet@gmail.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, pavel.tatashin@microsoft.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jia He <jia.he@hxt-semitech.com>
+To: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, jroedel@suse.de
 
+On Wed, 2018-08-08 at 13:16 +0200, Joerg Roedel wrote:
+> From: Joerg Roedel <jroedel@suse.de>
+> 
+> The user page-table gets the updated kernel mappings in
+> pti_finalize(), which runs after the RO+X permissions got
+> applied to the kernel page-table in mark_readonly().
+> 
+> But with CONFIG_DEBUG_WX enabled, the user page-table is
+> already checked in mark_readonly() for insecure mappings.
+> This causes false-positive warnings, because the user
+> page-table did not get the updated mappings yet.
+> 
+> Move the W+X check for the user page-table into
+> pti_finalize() after it updated all required mappings.
+> 
+> Signed-off-by: Joerg Roedel <jroedel@suse.de>
+> ---
+>  arch/x86/include/asm/pgtable.h | 7 +++++--
+>  arch/x86/mm/dump_pagetables.c  | 3 +--
+>  arch/x86/mm/pti.c              | 2 ++
+>  3 files changed, 8 insertions(+), 4 deletions(-)
+> 
+> diff --git a/arch/x86/include/asm/pgtable.h
+> b/arch/x86/include/asm/pgtable.h
+> index e39088cb..a1cb333 100644
+> --- a/arch/x86/include/asm/pgtable.h
+> +++ b/arch/x86/include/asm/pgtable.h
+> @@ -30,11 +30,14 @@ int __init __early_make_pgtable(unsigned long
+> address, pmdval_t pmd);
+>  void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd);
+>  void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd,
+> bool user);
+>  void ptdump_walk_pgd_level_checkwx(void);
+> +void ptdump_walk_user_pgd_level_checkwx(void);
+>  
+>  #ifdef CONFIG_DEBUG_WX
+> -#define debug_checkwx() ptdump_walk_pgd_level_checkwx()
+> +#define debug_checkwx()		ptdump_walk_pgd_level_checkwx()
+> +#define debug_checkwx_user()	ptdump_walk_user_pgd_level_checkwx()
+>  #else
+> -#define debug_checkwx() do { } while (0)
+> +#define debug_checkwx()		do { } while (0)
+> +#define debug_checkwx_user()	do { } while (0)
+>  #endif
+>  
+>  /*
+> diff --git a/arch/x86/mm/dump_pagetables.c
+> b/arch/x86/mm/dump_pagetables.c
+> index ccd92c4..b8ab901 100644
+> --- a/arch/x86/mm/dump_pagetables.c
+> +++ b/arch/x86/mm/dump_pagetables.c
+> @@ -569,7 +569,7 @@ void ptdump_walk_pgd_level_debugfs(struct seq_file
+> *m, pgd_t *pgd, bool user)
+>  }
+>  EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
+>  
+> -static void ptdump_walk_user_pgd_level_checkwx(void)
+> +void ptdump_walk_user_pgd_level_checkwx(void)
+>  {
+>  #ifdef CONFIG_PAGE_TABLE_ISOLATION
+>  	pgd_t *pgd = INIT_PGD;
+> @@ -586,7 +586,6 @@ static void
+> ptdump_walk_user_pgd_level_checkwx(void)
+>  void ptdump_walk_pgd_level_checkwx(void)
+>  {
+>  	ptdump_walk_pgd_level_core(NULL, NULL, true, false);
+> -	ptdump_walk_user_pgd_level_checkwx();
+>  }
+>  
+>  static int __init pt_dump_init(void)
+> diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+> index 69a9d60..026a89a 100644
+> --- a/arch/x86/mm/pti.c
+> +++ b/arch/x86/mm/pti.c
+> @@ -628,4 +628,6 @@ void pti_finalize(void)
+>  	 */
+>  	pti_clone_entry_text();
+>  	pti_clone_kernel_text();
+> +
+> +	debug_checkwx_user();
+>  }
 
+I've tested this in a VM and on an Atom laptop, as usual. No
+regressions noted.
 
-On 8/16/18 9:35 PM, Pasha Tatashin wrote:
-> 
-> 
-> On 7/6/18 5:01 AM, Jia He wrote:
->> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
->> where possible") optimized the loop in memmap_init_zone(). But there is
->> still some room for improvement. E.g. in early_pfn_valid(), if pfn and
->> pfn+1 are in the same memblock region, we can record the last returned
->> memblock region index and check whether pfn++ is still in the same
->> region.
->>
->> Currently it only improve the performance on arm/arm64 and will have no
->> impact on other arches.
->>
->> For the performance improvement, after this set, I can see the time
->> overhead of memmap_init() is reduced from 27956us to 13537us in my
->> armv8a server(QDF2400 with 96G memory, pagesize 64k).
-> 
-> This series would be a lot simpler if patches 4, 5, and 6 were dropped.
-> The extra complexity does not make sense to save 0.0001s/T during not.
-s/not/boot
+(The version I tested was the latter pulled into tip:
+[ tglx: Folded !NX supported fix ])
 
-> 
-> Patches 1-3, look OK, but without patches 4-5 __init_memblock should be
-> made local static as I suggested earlier.
-s/__init_memblock/early_region_idx
+Tested-by: David H. Gutteridge <dhgutteridge@sympatico.ca>
+
+Regards,
+
+Dave
