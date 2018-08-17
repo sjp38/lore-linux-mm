@@ -1,84 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C691A6B0770
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 05:03:22 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id w185-v6so6595298oig.19
-        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 02:03:22 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D13666B0773
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 05:04:23 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id s18-v6so4173439wmc.5
+        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 02:04:23 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 16-v6sor861278oij.170.2018.08.17.02.03.21
+        by mx.google.com with SMTPS id 110-v6sor9484wra.5.2018.08.17.02.00.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 17 Aug 2018 02:03:21 -0700 (PDT)
-MIME-Version: 1.0
-References: <20180817075901.4608-1-david@redhat.com> <20180817075901.4608-2-david@redhat.com>
- <20180817084146.GB14725@kroah.com> <5a5d73e9-e4aa-ffed-a2e3-8aef64e61923@redhat.com>
-In-Reply-To: <5a5d73e9-e4aa-ffed-a2e3-8aef64e61923@redhat.com>
-From: "Rafael J. Wysocki" <rafael@kernel.org>
-Date: Fri, 17 Aug 2018 11:03:09 +0200
-Message-ID: <CAJZ5v0gkYV8o2Eq+EcGT=OP1tQGPGVVe3n9VGD6z7KAVVqhv9w@mail.gmail.com>
-Subject: Re: [PATCH RFC 1/2] drivers/base: export lock_device_hotplug/unlock_device_hotplug
-Content-Type: text/plain; charset="UTF-8"
+        Fri, 17 Aug 2018 02:00:22 -0700 (PDT)
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: [PATCH v4 0/4] Refactoring for remove_memory_section/unregister_mem_sect_under_nodes
+Date: Fri, 17 Aug 2018 11:00:13 +0200
+Message-Id: <20180817090017.17610-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, devel@linuxdriverproject.org, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, osalvador@suse.de, Vitaly Kuznetsov <vkuznets@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, David Rientjes <rientjes@google.com>
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com, vbabka@suse.cz, dan.j.williams@intel.com, yasu.isimatu@gmail.com, jonathan.cameron@huawei.com, david@redhat.com, Pavel.Tatashin@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
-On Fri, Aug 17, 2018 at 10:56 AM David Hildenbrand <david@redhat.com> wrote:
->
-> On 17.08.2018 10:41, Greg Kroah-Hartman wrote:
-> > On Fri, Aug 17, 2018 at 09:59:00AM +0200, David Hildenbrand wrote:
-> >> From: Vitaly Kuznetsov <vkuznets@redhat.com>
-> >>
-> >> Well require to call add_memory()/add_memory_resource() with
-> >> device_hotplug_lock held, to avoid a lock inversion. Allow external modules
-> >> (e.g. hv_balloon) that make use of add_memory()/add_memory_resource() to
-> >> lock device hotplug.
-> >>
-> >> Signed-off-by: Vitaly Kuznetsov <vkuznets@redhat.com>
-> >> [modify patch description]
-> >> Signed-off-by: David Hildenbrand <david@redhat.com>
-> >> ---
-> >>  drivers/base/core.c | 2 ++
-> >>  1 file changed, 2 insertions(+)
-> >>
-> >> diff --git a/drivers/base/core.c b/drivers/base/core.c
-> >> index 04bbcd779e11..9010b9e942b5 100644
-> >> --- a/drivers/base/core.c
-> >> +++ b/drivers/base/core.c
-> >> @@ -700,11 +700,13 @@ void lock_device_hotplug(void)
-> >>  {
-> >>      mutex_lock(&device_hotplug_lock);
-> >>  }
-> >> +EXPORT_SYMBOL_GPL(lock_device_hotplug);
-> >>
-> >>  void unlock_device_hotplug(void)
-> >>  {
-> >>      mutex_unlock(&device_hotplug_lock);
-> >>  }
-> >> +EXPORT_SYMBOL_GPL(unlock_device_hotplug);
-> >
-> > If these are going to be "global" symbols, let's properly name them.
-> > device_hotplug_lock/unlock would be better.  But I am _really_ nervous
-> > about letting stuff outside of the driver core mess with this, as people
-> > better know what they are doing.
->
-> The only "problem" is that we have kernel modules (for paravirtualized
-> devices) that call add_memory(). This is Hyper-V right now, but we might
-> have other ones in the future. Without them we would not have to export
-> it. We might also get kernel modules that want to call remove_memory() -
-> which will require the device_hotplug_lock as of now.
->
-> What we could do is
->
-> a) add_memory() -> _add_memory() and don't export it
-> b) add_memory() takes the device_hotplug_lock and calls _add_memory() .
-> We export that one.
-> c) Use add_memory() in external modules only
->
-> Similar wrapper would be needed e.g. for remove_memory() later on.
+From: Oscar Salvador <osalvador@suse.de>
 
-That would be safer IMO, as it would prevent developers from using
-add_memory() without the lock, say.
+v3 -> v4:
+        - Make nodemask_t a stack variable
+        - Added Reviewed-by from David and Pavel
 
-If the lock is always going to be required for add_memory(), make it
-hard (or event impossible) to use the latter without it.
+v2 -> v3:
+        - NODEMASK_FREE can deal with NULL pointers, so do not
+          make it conditional (by David).
+        - Split up node_online's check patch (David's suggestion)
+        - Added Reviewed-by from Andrew and David
+        - Fix checkpath.pl warnings
+
+This patchset does some cleanups and refactoring in the memory-hotplug code.
+
+The first and the second patch are pretty straightforward, as they
+only remove unused arguments/checks.
+
+The third patch refactors unregister_mem_sect_under_nodes a bit by re-defining
+nodemask_t as a stack variable. (More details in Patch3's changelog)
+
+The fourth patch removes a node_online check. (More details in Patch4's changelog)
+Since this change has a patch for itself, we could quickly revert it
+if we notice that something is wrong with it, or drop it if people
+are concerned about it.
+
+Oscar Salvador (4):
+  mm/memory-hotplug: Drop unused args from remove_memory_section
+  mm/memory_hotplug: Drop mem_blk check from
+    unregister_mem_sect_under_nodes
+  mm/memory_hotplug: Define nodemask_t as a stack variable
+  mm/memory_hotplug: Drop node_online check in
+    unregister_mem_sect_under_nodes
+
+ drivers/base/memory.c |  5 ++---
+ drivers/base/node.c   | 22 ++++++----------------
+ include/linux/node.h  |  5 ++---
+ 3 files changed, 10 insertions(+), 22 deletions(-)
+
+-- 
+2.13.6
