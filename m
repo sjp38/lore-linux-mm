@@ -1,78 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 04B146B0762
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 04:57:38 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id w12-v6so6512586oie.12
-        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 01:57:38 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F25A56B0722
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 05:00:24 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id z16-v6so5143214wrs.22
+        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 02:00:24 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o133-v6sor894077oig.38.2018.08.17.01.57.36
+        by mx.google.com with SMTPS id x8-v6sor875564wme.29.2018.08.17.02.00.23
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 17 Aug 2018 01:57:36 -0700 (PDT)
-MIME-Version: 1.0
-References: <20180817075901.4608-1-david@redhat.com> <20180817075901.4608-2-david@redhat.com>
- <20180817084146.GB14725@kroah.com>
-In-Reply-To: <20180817084146.GB14725@kroah.com>
-From: "Rafael J. Wysocki" <rafael@kernel.org>
-Date: Fri, 17 Aug 2018 10:57:25 +0200
-Message-ID: <CAJZ5v0ja2wrwQ_X=8WW0Lvio+jE7nyqM_WSy1C+tzuKj6RsMdA@mail.gmail.com>
-Subject: Re: [PATCH RFC 1/2] drivers/base: export lock_device_hotplug/unlock_device_hotplug
-Content-Type: text/plain; charset="UTF-8"
+        Fri, 17 Aug 2018 02:00:23 -0700 (PDT)
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: [PATCH v4 1/4] mm/memory-hotplug: Drop unused args from remove_memory_section
+Date: Fri, 17 Aug 2018 11:00:14 +0200
+Message-Id: <20180817090017.17610-2-osalvador@techadventures.net>
+In-Reply-To: <20180817090017.17610-1-osalvador@techadventures.net>
+References: <20180817090017.17610-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: David Hildenbrand <david@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, devel@linuxdriverproject.org, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, osalvador@suse.de, Vitaly Kuznetsov <vkuznets@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, David Rientjes <rientjes@google.com>
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com, vbabka@suse.cz, dan.j.williams@intel.com, yasu.isimatu@gmail.com, jonathan.cameron@huawei.com, david@redhat.com, Pavel.Tatashin@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
 
-On Fri, Aug 17, 2018 at 10:41 AM Greg Kroah-Hartman
-<gregkh@linuxfoundation.org> wrote:
->
-> On Fri, Aug 17, 2018 at 09:59:00AM +0200, David Hildenbrand wrote:
-> > From: Vitaly Kuznetsov <vkuznets@redhat.com>
-> >
-> > Well require to call add_memory()/add_memory_resource() with
-> > device_hotplug_lock held, to avoid a lock inversion. Allow external modules
-> > (e.g. hv_balloon) that make use of add_memory()/add_memory_resource() to
-> > lock device hotplug.
-> >
-> > Signed-off-by: Vitaly Kuznetsov <vkuznets@redhat.com>
-> > [modify patch description]
-> > Signed-off-by: David Hildenbrand <david@redhat.com>
-> > ---
-> >  drivers/base/core.c | 2 ++
-> >  1 file changed, 2 insertions(+)
-> >
-> > diff --git a/drivers/base/core.c b/drivers/base/core.c
-> > index 04bbcd779e11..9010b9e942b5 100644
-> > --- a/drivers/base/core.c
-> > +++ b/drivers/base/core.c
-> > @@ -700,11 +700,13 @@ void lock_device_hotplug(void)
-> >  {
-> >       mutex_lock(&device_hotplug_lock);
-> >  }
-> > +EXPORT_SYMBOL_GPL(lock_device_hotplug);
-> >
-> >  void unlock_device_hotplug(void)
-> >  {
-> >       mutex_unlock(&device_hotplug_lock);
-> >  }
-> > +EXPORT_SYMBOL_GPL(unlock_device_hotplug);
->
-> If these are going to be "global" symbols, let's properly name them.
-> device_hotplug_lock/unlock would be better.
+From: Oscar Salvador <osalvador@suse.de>
 
-Well, device_hotplug_lock is the name of the lock itself. :-)
+unregister_memory_section() calls remove_memory_section()
+with three arguments:
 
-> But I am _really_ nervous about letting stuff outside of the driver core mess
-> with this, as people better know what they are doing.
->
-> Can't we just "lock" the memory stuff instead?  Why does the entirety of
-> the driver core need to be messed with here?
+* node_id
+* section
+* phys_device
 
-Because, in general, memory hotplug and hotplug of devices are not
-independent.  CPUs and memory may only be possible to take away
-together and that may be the case for other devices too (say, it
-wouldn't be a good idea to access a memory block that has just gone
-away from a device, for DMA and the like).  That's why
-device_hotplug_lock was introduced in the first place.
+Neither node_id nor phys_device are used.
+Let us drop them from the function.
 
-That said I agree that exporting this to drivers doesn't feel particularly safe.
+Signed-off-by: Oscar Salvador <osalvador@suse.de>
+Reviewed-by: David Hildenbrand <david@redhat.com>
+Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
+---
+ drivers/base/memory.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index c8a1cb0b6136..2c622a9a7490 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -752,8 +752,7 @@ unregister_memory(struct memory_block *memory)
+ 	device_unregister(&memory->dev);
+ }
+ 
+-static int remove_memory_section(unsigned long node_id,
+-			       struct mem_section *section, int phys_device)
++static int remove_memory_section(struct mem_section *section)
+ {
+ 	struct memory_block *mem;
+ 
+@@ -785,7 +784,7 @@ int unregister_memory_section(struct mem_section *section)
+ 	if (!present_section(section))
+ 		return -EINVAL;
+ 
+-	return remove_memory_section(0, section, 0);
++	return remove_memory_section(section);
+ }
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
+-- 
+2.13.6
