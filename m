@@ -1,61 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D13666B0773
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 05:04:23 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id s18-v6so4173439wmc.5
-        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 02:04:23 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AEE36B0784
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 05:25:03 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id n17-v6so3378359pff.17
+        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 02:25:03 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 110-v6sor9484wra.5.2018.08.17.02.00.22
+        by mx.google.com with SMTPS id s11-v6sor423031pgp.371.2018.08.17.02.25.01
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 17 Aug 2018 02:00:22 -0700 (PDT)
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: [PATCH v4 0/4] Refactoring for remove_memory_section/unregister_mem_sect_under_nodes
-Date: Fri, 17 Aug 2018 11:00:13 +0200
-Message-Id: <20180817090017.17610-1-osalvador@techadventures.net>
+        Fri, 17 Aug 2018 02:25:01 -0700 (PDT)
+Date: Fri, 17 Aug 2018 12:24:55 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv5 19/19] x86: Introduce CONFIG_X86_INTEL_MKTME
+Message-ID: <20180817092455.2ogsxsybfxdesrma@kshutemo-mobl1>
+References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
+ <20180717112029.42378-20-kirill.shutemov@linux.intel.com>
+ <20180815074812.GB28093@xo-6d-61-c0.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180815074812.GB28093@xo-6d-61-c0.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, vbabka@suse.cz, dan.j.williams@intel.com, yasu.isimatu@gmail.com, jonathan.cameron@huawei.com, david@redhat.com, Pavel.Tatashin@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Pavel Machek <pavel@ucw.cz>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Oscar Salvador <osalvador@suse.de>
+On Wed, Aug 15, 2018 at 09:48:12AM +0200, Pavel Machek wrote:
+> Hi!
+> 
+> > Add new config option to enabled/disable Multi-Key Total Memory
+> > Encryption support.
+> > 
+> > MKTME uses MEMORY_PHYSICAL_PADDING to reserve enough space in per-KeyID
+> > direct mappings for memory hotplug.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > ---
+> >  arch/x86/Kconfig | 19 ++++++++++++++++++-
+> >  1 file changed, 18 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+> > index b6f1785c2176..023a22568c06 100644
+> > --- a/arch/x86/Kconfig
+> > +++ b/arch/x86/Kconfig
+> > @@ -1523,6 +1523,23 @@ config ARCH_USE_MEMREMAP_PROT
+> >  	def_bool y
+> >  	depends on AMD_MEM_ENCRYPT
+> >  
+> > +config X86_INTEL_MKTME
+> > +	bool "Intel Multi-Key Total Memory Encryption"
+> > +	select DYNAMIC_PHYSICAL_MASK
+> > +	select PAGE_EXTENSION
+> > +	depends on X86_64 && CPU_SUP_INTEL
+> > +	---help---
+> > +	  Say yes to enable support for Multi-Key Total Memory Encryption.
+> > +	  This requires an Intel processor that has support of the feature.
+> > +
+> > +	  Multikey Total Memory Encryption (MKTME) is a technology that allows
+> > +	  transparent memory encryption in upcoming Intel platforms.
+> > +
+> > +	  MKTME is built on top of TME. TME allows encryption of the entirety
+> > +	  of system memory using a single key. MKTME allows having multiple
+> > +	  encryption domains, each having own key -- different memory pages can
+> > +	  be encrypted with different keys.
+> > +
+> >  # Common NUMA Features
+> >  config NUMA
+> >  	bool "Numa Memory Allocation and Scheduler Support"
+> 
+> Would it be good to provide documentation, or link to documentation, explaining
+> what security guarantees this is supposed to provide, and what disadvantages (if any)
+> it has?
 
-v3 -> v4:
-        - Make nodemask_t a stack variable
-        - Added Reviewed-by from David and Pavel
+The main goal is to add additional level of isolation between different
+tenants of a machine. It mostly targeted to VMs and protect against
+leaking information between guests.
 
-v2 -> v3:
-        - NODEMASK_FREE can deal with NULL pointers, so do not
-          make it conditional (by David).
-        - Split up node_online's check patch (David's suggestion)
-        - Added Reviewed-by from Andrew and David
-        - Fix checkpath.pl warnings
+In the design kernel (or hypervisor) is trusted and have a mean to access
+encrypted memory as long as key is programmed into the CPU.
 
-This patchset does some cleanups and refactoring in the memory-hotplug code.
+Worth noting that encryption happens in memory controller so all data in
+caches of all levels are plain-text.
 
-The first and the second patch are pretty straightforward, as they
-only remove unused arguments/checks.
+The spec can be found here:
 
-The third patch refactors unregister_mem_sect_under_nodes a bit by re-defining
-nodemask_t as a stack variable. (More details in Patch3's changelog)
+https://software.intel.com/sites/default/files/managed/a5/16/Multi-Key-Total-Memory-Encryption-Spec.pdf
 
-The fourth patch removes a node_online check. (More details in Patch4's changelog)
-Since this change has a patch for itself, we could quickly revert it
-if we notice that something is wrong with it, or drop it if people
-are concerned about it.
+> I guess  it costs a bit of performance...
 
-Oscar Salvador (4):
-  mm/memory-hotplug: Drop unused args from remove_memory_section
-  mm/memory_hotplug: Drop mem_blk check from
-    unregister_mem_sect_under_nodes
-  mm/memory_hotplug: Define nodemask_t as a stack variable
-  mm/memory_hotplug: Drop node_online check in
-    unregister_mem_sect_under_nodes
+The most overhead is paid on allocation and freeing of encrypted pages:
+switching between keyids for a page requires cache flushing.
 
- drivers/base/memory.c |  5 ++---
- drivers/base/node.c   | 22 ++++++----------------
- include/linux/node.h  |  5 ++---
- 3 files changed, 10 insertions(+), 22 deletions(-)
+Access time to encrypted memory *shouldn't* be measurably slower.
+Encryption overhead is hidden within other latencies in memory pipeline.
+
+> I see that TME helps with cold boot attacks.
+
+Right.
 
 -- 
-2.13.6
+ Kirill A. Shutemov
