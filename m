@@ -1,186 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BE72F6B08BF
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 10:47:42 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id u11-v6so7227516oif.22
-        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 07:47:42 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id b125-v6si1518618oia.69.2018.08.17.07.47.41
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Aug 2018 07:47:41 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w7HEiB2w091028
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 10:47:40 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2kwyw519wg-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 10:47:40 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Fri, 17 Aug 2018 15:47:35 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH v3 3/3] docs: core-api: add memory allocation guide
-Date: Fri, 17 Aug 2018 17:47:16 +0300
-In-Reply-To: <1534517236-16762-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1534517236-16762-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1534517236-16762-4-git-send-email-rppt@linux.vnet.ibm.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 8F2626B08C4
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 10:51:02 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id b8-v6so7335441oib.4
+        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 07:51:02 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id w10-v6si1687558oig.308.2018.08.17.07.51.01
+        for <linux-mm@kvack.org>;
+        Fri, 17 Aug 2018 07:51:01 -0700 (PDT)
+Date: Fri, 17 Aug 2018 15:50:53 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [RESEND PATCH v10 1/6] arm: arm64: introduce
+ CONFIG_HAVE_MEMBLOCK_PFN_VALID
+Message-ID: <20180817145052.aizhi6n66vxblriq@armageddon.cambridge.arm.com>
+References: <1530867675-9018-1-git-send-email-hejianet@gmail.com>
+ <1530867675-9018-2-git-send-email-hejianet@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1530867675-9018-2-git-send-email-hejianet@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: Michal Hocko <mhocko@suse.com>, Randy Dunlap <rdunlap@infradead.org>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Jia He <hejianet@gmail.com>
+Cc: Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Wei Yang <richard.weiyang@gmail.com>, linux-mm@kvack.org, Eugeniu Rosca <erosca@de.adit-jv.com>, Petr Tesarik <ptesarik@suse.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Vlastimil Babka <vbabka@suse.cz>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Laura Abbott <labbott@redhat.com>, Daniel Vacek <neelx@redhat.com>, Mel Gorman <mgorman@suse.de>, Vladimir Murzin <vladimir.murzin@arm.com>, Kees Cook <keescook@chromium.org>, Philip Derrin <philip@cog.systems>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Jia He <jia.he@hxt-semitech.com>, Kemi Wang <kemi.wang@intel.com>, linux-arm-kernel@lists.infradead.org, Steve Capper <steve.capper@arm.com>, linux-kernel@vger.kernel.org, James Morse <james.morse@arm.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Acked-by: Randy Dunlap <rdunlap@infradead.org>
----
- Documentation/core-api/index.rst             |   1 +
- Documentation/core-api/memory-allocation.rst | 124 +++++++++++++++++++++++++++
- 2 files changed, 125 insertions(+)
- create mode 100644 Documentation/core-api/memory-allocation.rst
+On Fri, Jul 06, 2018 at 05:01:10PM +0800, Jia He wrote:
+> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> index 42c090c..26d75f4 100644
+> --- a/arch/arm64/Kconfig
+> +++ b/arch/arm64/Kconfig
+> @@ -778,6 +778,10 @@ config ARCH_SELECT_MEMORY_MODEL
+>  config HAVE_ARCH_PFN_VALID
+>  	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
+>  
+> +config HAVE_MEMBLOCK_PFN_VALID
+> +	def_bool y
+> +	depends on HAVE_ARCH_PFN_VALID
+> +
+>  config HW_PERF_EVENTS
+>  	def_bool y
+>  	depends on ARM_PMU
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index 94af022..28fcf54 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -137,6 +137,9 @@ config HAVE_MEMBLOCK_NODE_MAP
+>  config HAVE_MEMBLOCK_PHYS_MAP
+>  	bool
+>  
+> +config HAVE_MEMBLOCK_PFN_VALID
+> +	bool
 
-diff --git a/Documentation/core-api/index.rst b/Documentation/core-api/index.rst
-index cdc2020..8afc0da 100644
---- a/Documentation/core-api/index.rst
-+++ b/Documentation/core-api/index.rst
-@@ -27,6 +27,7 @@ Core utilities
-    errseq
-    printk-formats
-    circular-buffers
-+   memory-allocation
-    mm-api
-    gfp_mask-from-fs-io
-    timekeeping
-diff --git a/Documentation/core-api/memory-allocation.rst b/Documentation/core-api/memory-allocation.rst
-new file mode 100644
-index 0000000..3c56543
---- /dev/null
-+++ b/Documentation/core-api/memory-allocation.rst
-@@ -0,0 +1,124 @@
-+=======================
-+Memory Allocation Guide
-+=======================
-+
-+Linux provides a variety of APIs for memory allocation. You can
-+allocate small chunks using `kmalloc` or `kmem_cache_alloc` families,
-+large virtually contiguous areas using `vmalloc` and its derivatives,
-+or you can directly request pages from the page allocator with
-+`alloc_pages`. It is also possible to use more specialized allocators,
-+for instance `cma_alloc` or `zs_malloc`.
-+
-+Most of the memory allocation APIs use GFP flags to express how that
-+memory should be allocated. The GFP acronym stands for "get free
-+pages", the underlying memory allocation function.
-+
-+Diversity of the allocation APIs combined with the numerous GFP flags
-+makes the question "How should I allocate memory?" not that easy to
-+answer, although very likely you should use
-+
-+::
-+
-+  kzalloc(<size>, GFP_KERNEL);
-+
-+Of course there are cases when other allocation APIs and different GFP
-+flags must be used.
-+
-+Get Free Page flags
-+===================
-+
-+The GFP flags control the allocators behavior. They tell what memory
-+zones can be used, how hard the allocator should try to find free
-+memory, whether the memory can be accessed by the userspace etc. The
-+:ref:`Documentation/core-api/mm-api.rst <mm-api-gfp-flags>` provides
-+reference documentation for the GFP flags and their combinations and
-+here we briefly outline their recommended usage:
-+
-+  * Most of the time ``GFP_KERNEL`` is what you need. Memory for the
-+    kernel data structures, DMAable memory, inode cache, all these and
-+    many other allocations types can use ``GFP_KERNEL``. Note, that
-+    using ``GFP_KERNEL`` implies ``GFP_RECLAIM``, which means that
-+    direct reclaim may be triggered under memory pressure; the calling
-+    context must be allowed to sleep.
-+  * If the allocation is performed from an atomic context, e.g interrupt
-+    handler, use ``GFP_NOWAIT``. This flag prevents direct reclaim and
-+    IO or filesystem operations. Consequently, under memory pressure
-+    ``GFP_NOWAIT`` allocation is likely to fail. Allocations which
-+    have a reasonable fallback should be using ``GFP_NOWARN``.
-+  * If you think that accessing memory reserves is justified and the kernel
-+    will be stressed unless allocation succeeds, you may use ``GFP_ATOMIC``.
-+  * Untrusted allocations triggered from userspace should be a subject
-+    of kmem accounting and must have ``__GFP_ACCOUNT`` bit set. There
-+    is the handy ``GFP_KERNEL_ACCOUNT`` shortcut for ``GFP_KERNEL``
-+    allocations that should be accounted.
-+  * Userspace allocations should use either of the ``GFP_USER``,
-+    ``GFP_HIGHUSER`` or ``GFP_HIGHUSER_MOVABLE`` flags. The longer
-+    the flag name the less restrictive it is.
-+
-+    ``GFP_HIGHUSER_MOVABLE`` does not require that allocated memory
-+    will be directly accessible by the kernel or the hardware and
-+    implies that the data is movable.
-+
-+    ``GFP_HIGHUSER`` means that the allocated memory is not movable,
-+    but it is not required to be directly accessible by the kernel or
-+    the hardware. An example may be a hardware allocation that maps
-+    data directly into userspace but has no addressing limitations.
-+
-+    ``GFP_USER`` means that the allocated memory is not movable and it
-+    must be directly accessible by the kernel or the hardware. It is
-+    typically used by hardware for buffers that are mapped to
-+    userspace (e.g. graphics) that hardware still must DMA to.
-+
-+You may notice that quite a few allocations in the existing code
-+specify ``GFP_NOIO`` or ``GFP_NOFS``. Historically, they were used to
-+prevent recursion deadlocks caused by direct memory reclaim calling
-+back into the FS or IO paths and blocking on already held
-+resources. Since 4.12 the preferred way to address this issue is to
-+use new scope APIs described in
-+:ref:`Documentation/core-api/gfp_mask-from-fs-io.rst <gfp_mask_from_fs_io>`.
-+
-+Other legacy GFP flags are ``GFP_DMA`` and ``GFP_DMA32``. They are
-+used to ensure that the allocated memory is accessible by hardware
-+with limited addressing capabilities. So unless you are writing a
-+driver for a device with such restrictions, avoid using these flags.
-+And even with hardware with restrictions it is preferable to use
-+`dma_alloc*` APIs.
-+
-+Selecting memory allocator
-+==========================
-+
-+The most straightforward way to allocate memory is to use a function
-+from the :c:func:`kmalloc` family. And, to be on the safe size it's
-+best to use routines that set memory to zero, like
-+:c:func:`kzalloc`. If you need to allocate memory for an array, there
-+are :c:func:`kmalloc_array` and :c:func:`kcalloc` helpers.
-+
-+The maximal size of a chunk that can be allocated with `kmalloc` is
-+limited. The actual limit depends on the hardware and the kernel
-+configuration, but it is a good practice to use `kmalloc` for objects
-+smaller than page size.
-+
-+For large allocations you can use :c:func:`vmalloc` and
-+:c:func:`vzalloc`, or directly request pages from the page
-+allocator. The memory allocated by `vmalloc` and related functions is
-+not physically contiguous.
-+
-+If you are not sure whether the allocation size is too large for
-+`kmalloc`, it is possible to use :c:func:`kvmalloc` and its
-+derivatives. It will try to allocate memory with `kmalloc` and if the
-+allocation fails it will be retried with `vmalloc`. There are
-+restrictions on which GFP flags can be used with `kvmalloc`; please
-+see :c:func:`kvmalloc_node` reference documentation. Note that
-+`kvmalloc` may return memory that is not physically contiguous.
-+
-+If you need to allocate many identical objects you can use the slab
-+cache allocator. The cache should be set up with
-+:c:func:`kmem_cache_create` before it can be used. Afterwards
-+:c:func:`kmem_cache_alloc` and its convenience wrappers can allocate
-+memory from that cache.
-+
-+When the allocated memory is no longer needed it must be freed. You
-+can use :c:func:`kvfree` for the memory allocated with `kmalloc`,
-+`vmalloc` and `kvmalloc`. The slab caches should be freed with
-+:c:func:`kmem_cache_free`. And don't forget to destroy the cache with
-+:c:func:`kmem_cache_destroy`.
+Since you defined HAVE_MEMBLOCK_PFN_VALID here, do we need to define it
+in the arch code as well? If kept it in the mm/Kconfig only, you could
+just select it in the arch HAVE_ARCH_PFN_VALID entry:
+
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index d0a53cc6293a..cd230c77e122 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -787,6 +787,7 @@ config ARCH_FLATMEM_ENABLE
+ 
+ config HAVE_ARCH_PFN_VALID
+ 	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
++	select HAVE_MEMBLOCK_PFN_VALID
+ 
+ config HW_PERF_EVENTS
+ 	def_bool y
+
+(similarly for arch/arm)
+
 -- 
-2.7.4
+Catalin
