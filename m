@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F25A56B0722
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 05:00:24 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id z16-v6so5143214wrs.22
-        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 02:00:24 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 18EE36B074F
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 05:00:25 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id t10-v6so5156994wrs.17
+        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 02:00:25 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x8-v6sor875564wme.29.2018.08.17.02.00.23
+        by mx.google.com with SMTPS id b65-v6sor897983wmh.19.2018.08.17.02.00.23
         for <linux-mm@kvack.org>
         (Google Transport Security);
         Fri, 17 Aug 2018 02:00:23 -0700 (PDT)
 From: Oscar Salvador <osalvador@techadventures.net>
-Subject: [PATCH v4 1/4] mm/memory-hotplug: Drop unused args from remove_memory_section
-Date: Fri, 17 Aug 2018 11:00:14 +0200
-Message-Id: <20180817090017.17610-2-osalvador@techadventures.net>
+Subject: [PATCH v4 2/4] mm/memory_hotplug: Drop mem_blk check from unregister_mem_sect_under_nodes
+Date: Fri, 17 Aug 2018 11:00:15 +0200
+Message-Id: <20180817090017.17610-3-osalvador@techadventures.net>
 In-Reply-To: <20180817090017.17610-1-osalvador@techadventures.net>
 References: <20180817090017.17610-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
@@ -22,46 +22,40 @@ Cc: mhocko@suse.com, vbabka@suse.cz, dan.j.williams@intel.com, yasu.isimatu@gmai
 
 From: Oscar Salvador <osalvador@suse.de>
 
-unregister_memory_section() calls remove_memory_section()
-with three arguments:
+Before calling to unregister_mem_sect_under_nodes(),
+remove_memory_section() already checks if we got a valid memory_block.
 
-* node_id
-* section
-* phys_device
+No need to check that again in unregister_mem_sect_under_nodes().
 
-Neither node_id nor phys_device are used.
-Let us drop them from the function.
+If more functions start using unregister_mem_sect_under_nodes() in the
+future, we can always place a WARN_ON to catch null mem_blk's so we can
+safely back off.
+
+For now, let us keep the check in remove_memory_section() since it is the
+only function that uses it.
 
 Signed-off-by: Oscar Salvador <osalvador@suse.de>
-Reviewed-by: David Hildenbrand <david@redhat.com>
 Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
 Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
+Reviewed-by: David Hildenbrand <david@redhat.com>
 ---
- drivers/base/memory.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ drivers/base/node.c | 4 ----
+ 1 file changed, 4 deletions(-)
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index c8a1cb0b6136..2c622a9a7490 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -752,8 +752,7 @@ unregister_memory(struct memory_block *memory)
- 	device_unregister(&memory->dev);
- }
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 1ac4c36e13bb..dd3bdab230b2 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -455,10 +455,6 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+ 	NODEMASK_ALLOC(nodemask_t, unlinked_nodes, GFP_KERNEL);
+ 	unsigned long pfn, sect_start_pfn, sect_end_pfn;
  
--static int remove_memory_section(unsigned long node_id,
--			       struct mem_section *section, int phys_device)
-+static int remove_memory_section(struct mem_section *section)
- {
- 	struct memory_block *mem;
- 
-@@ -785,7 +784,7 @@ int unregister_memory_section(struct mem_section *section)
- 	if (!present_section(section))
- 		return -EINVAL;
- 
--	return remove_memory_section(0, section, 0);
-+	return remove_memory_section(section);
- }
- #endif /* CONFIG_MEMORY_HOTREMOVE */
- 
+-	if (!mem_blk) {
+-		NODEMASK_FREE(unlinked_nodes);
+-		return -EFAULT;
+-	}
+ 	if (!unlinked_nodes)
+ 		return -ENOMEM;
+ 	nodes_clear(*unlinked_nodes);
 -- 
 2.13.6
