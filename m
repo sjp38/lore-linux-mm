@@ -1,102 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AEE36B0784
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 05:25:03 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id n17-v6so3378359pff.17
-        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 02:25:03 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s11-v6sor423031pgp.371.2018.08.17.02.25.01
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B15726B078A
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 05:29:30 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id a26-v6so3337341pgw.7
+        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 02:29:30 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e6-v6si1756772pgh.50.2018.08.17.02.29.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 17 Aug 2018 02:25:01 -0700 (PDT)
-Date: Fri, 17 Aug 2018 12:24:55 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv5 19/19] x86: Introduce CONFIG_X86_INTEL_MKTME
-Message-ID: <20180817092455.2ogsxsybfxdesrma@kshutemo-mobl1>
-References: <20180717112029.42378-1-kirill.shutemov@linux.intel.com>
- <20180717112029.42378-20-kirill.shutemov@linux.intel.com>
- <20180815074812.GB28093@xo-6d-61-c0.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Aug 2018 02:29:29 -0700 (PDT)
+Date: Fri, 17 Aug 2018 11:29:23 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [Bug 196157] New: 100+ times slower disk writes on
+ 4.x+/i386/16+RAM, compared to 3.x
+Message-ID: <20180817092923.GB709@dhcp22.suse.cz>
+References: <328204943.8183321.1534496501208.ref@mail.yahoo.com>
+ <328204943.8183321.1534496501208@mail.yahoo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180815074812.GB28093@xo-6d-61-c0.localdomain>
+In-Reply-To: <328204943.8183321.1534496501208@mail.yahoo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Thierry <reserv0@yahoo.com>
+Cc: Alkis Georgopoulos <alkisg@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, Aug 15, 2018 at 09:48:12AM +0200, Pavel Machek wrote:
-> Hi!
-> 
-> > Add new config option to enabled/disable Multi-Key Total Memory
-> > Encryption support.
-> > 
-> > MKTME uses MEMORY_PHYSICAL_PADDING to reserve enough space in per-KeyID
-> > direct mappings for memory hotplug.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  arch/x86/Kconfig | 19 ++++++++++++++++++-
-> >  1 file changed, 18 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> > index b6f1785c2176..023a22568c06 100644
-> > --- a/arch/x86/Kconfig
-> > +++ b/arch/x86/Kconfig
-> > @@ -1523,6 +1523,23 @@ config ARCH_USE_MEMREMAP_PROT
-> >  	def_bool y
-> >  	depends on AMD_MEM_ENCRYPT
-> >  
-> > +config X86_INTEL_MKTME
-> > +	bool "Intel Multi-Key Total Memory Encryption"
-> > +	select DYNAMIC_PHYSICAL_MASK
-> > +	select PAGE_EXTENSION
-> > +	depends on X86_64 && CPU_SUP_INTEL
-> > +	---help---
-> > +	  Say yes to enable support for Multi-Key Total Memory Encryption.
-> > +	  This requires an Intel processor that has support of the feature.
-> > +
-> > +	  Multikey Total Memory Encryption (MKTME) is a technology that allows
-> > +	  transparent memory encryption in upcoming Intel platforms.
-> > +
-> > +	  MKTME is built on top of TME. TME allows encryption of the entirety
-> > +	  of system memory using a single key. MKTME allows having multiple
-> > +	  encryption domains, each having own key -- different memory pages can
-> > +	  be encrypted with different keys.
-> > +
-> >  # Common NUMA Features
-> >  config NUMA
-> >  	bool "Numa Memory Allocation and Scheduler Support"
-> 
-> Would it be good to provide documentation, or link to documentation, explaining
-> what security guarantees this is supposed to provide, and what disadvantages (if any)
-> it has?
+On Fri 17-08-18 09:01:41, Thierry wrote:
+> Bug still present for 32 bits kernel in v4.18.1, and now, v4.1 (last
+> working Linux kernel for 32 bits machines with 16Gb or more RAM) has
+> gone unmaintained...
 
-The main goal is to add additional level of isolation between different
-tenants of a machine. It mostly targeted to VMs and protect against
-leaking information between guests.
+Have you tried to set highmem_is_dirtyable as suggested elsewhere?
 
-In the design kernel (or hypervisor) is trusted and have a mean to access
-encrypted memory as long as key is programmed into the CPU.
-
-Worth noting that encryption happens in memory controller so all data in
-caches of all levels are plain-text.
-
-The spec can be found here:
-
-https://software.intel.com/sites/default/files/managed/a5/16/Multi-Key-Total-Memory-Encryption-Spec.pdf
-
-> I guess  it costs a bit of performance...
-
-The most overhead is paid on allocation and freeing of encrypted pages:
-switching between keyids for a page requires cache flushing.
-
-Access time to encrypted memory *shouldn't* be measurably slower.
-Encryption overhead is hidden within other latencies in memory pipeline.
-
-> I see that TME helps with cold boot attacks.
-
-Right.
+I would like to stress out that 16GB with 32b kernels doesn't play
+really nice. Even small changes (larger kernel memory footprint) can
+lead to all sorts of problems. I would really recommend using 64b
+kernels instead. There shouldn't be any real reason to stick with 32b
+highmem based kernel for such a large beast. I strongly doubt the cpu
+itself would be 32b only.
 
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
