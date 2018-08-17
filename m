@@ -1,72 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DAE456B084F
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 09:04:31 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id 22-v6so5938376ywd.15
-        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 06:04:31 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c132-v6sor608018yba.1.2018.08.17.06.04.28
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C85DF6B08B5
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 10:46:45 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id g11-v6so3146686edi.8
+        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 07:46:45 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y19-v6si3104842edm.267.2018.08.17.07.46.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 17 Aug 2018 06:04:28 -0700 (PDT)
-Date: Fri, 17 Aug 2018 09:04:25 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v8 0/2] Directed kmem charging
-Message-ID: <20180817130425.GA12351@cmpxchg.org>
-References: <20180627191250.209150-1-shakeelb@google.com>
- <20180815152511.3ea63aa54c5fac0bfe9370da@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Aug 2018 07:46:44 -0700 (PDT)
+Date: Fri, 17 Aug 2018 16:46:42 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [Bug 196157] New: 100+ times slower disk writes on
+ 4.x+/i386/16+RAM, compared to 3.x
+Message-ID: <20180817144642.GC709@dhcp22.suse.cz>
+References: <1978465524.8206495.1534505385491.ref@mail.yahoo.com>
+ <1978465524.8206495.1534505385491@mail.yahoo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180815152511.3ea63aa54c5fac0bfe9370da@linux-foundation.org>
+In-Reply-To: <1978465524.8206495.1534505385491@mail.yahoo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Shakeel Butt <shakeelb@google.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.com>, Greg Thelen <gthelen@google.com>, Amir Goldstein <amir73il@gmail.com>, Roman Gushchin <guro@fb.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Thierry <reserv0@yahoo.com>
+Cc: Alkis Georgopoulos <alkisg@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, Aug 15, 2018 at 03:25:11PM -0700, Andrew Morton wrote:
-> On Wed, 27 Jun 2018 12:12:48 -0700 Shakeel Butt <shakeelb@google.com> wrote:
+On Fri 17-08-18 11:29:45, Thierry wrote:
+> On Fri, 8/17/18, Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> > The Linux kernel's memory cgroup allows limiting the memory usage of
-> > the jobs running on the system to provide isolation between the jobs.
-> > All the kernel memory allocated in the context of the job and marked
-> > with __GFP_ACCOUNT will also be included in the memory usage and be
-> > limited by the job's limit.
-> > 
-> > The kernel memory can only be charged to the memcg of the process in
-> > whose context kernel memory was allocated. However there are cases where
-> > the allocated kernel memory should be charged to the memcg different
-> > from the current processes's memcg. This patch series contains two such
-> > concrete use-cases i.e. fsnotify and buffer_head.
-> > 
-> > The fsnotify event objects can consume a lot of system memory for large
-> > or unlimited queues if there is either no or slow listener. The events
-> > are allocated in the context of the event producer. However they should
-> > be charged to the event consumer. Similarly the buffer_head objects can
-> > be allocated in a memcg different from the memcg of the page for which
-> > buffer_head objects are being allocated.
-> > 
-> > To solve this issue, this patch series introduces mechanism to charge
-> > kernel memory to a given memcg. In case of fsnotify events, the memcg of
-> > the consumer can be used for charging and for buffer_head, the memcg of
-> > the page can be charged. For directed charging, the caller can use the
-> > scope API memalloc_[un]use_memcg() to specify the memcg to charge for
-> > all the __GFP_ACCOUNT allocations within the scope.
+> > Have you tried to set highmem_is_dirtyable as suggested elsewhere?
 > 
-> This patchset is not showing signs of having been well reviewed at
-> this time.  Could people please take another look?
+> I tried everything, and yes, that too, to no avail. The only solution is to limit the
+> available RAM to less than 12Gb, which is just unacceptable for me.
+>  
+> > I would like to stress out that 16GB with 32b kernels doesn't play really nice.
+> 
+> I would like to stress out that 32 Gb of RAM played totally nice and very smoothly
+> with v4.1 and older kernels... This got broken in v4.2 and never repaired since.
+> This is a very nasty regression, and my suggestion to keep v4.1 maintained till
+> that regression would finally get worked around fell into deaf ears...
+> 
+> > Even small changes (larger kernel memory footprint) can lead to all sorts of
+> > problems. I would really recommend using 64b kernels instead. There shouldn't be
+> > any real reason to stick with 32bhighmem based  kernel for such a large beast.
+> > I strongly doubt the cpu itself would be 32b only.
+> 
+> The reasons are many (one of them dealing with being able to run old 32 bits
+> Linux distros but without the bugs and security flaws of old, unmaintained kernels).
 
-I don't have the mailing list archives for this anymore, but the
-series as it stands in mmots looks good to me and incorporates all the
-feedback I remember giving.
+You can easily run 32b distribution on top of 64b kernels.
 
-[ My only gripe really is that it applies current->active_memcg only
-  to kmem charges, not others as well. Right now it doesn't matter,
-  but I can see this costing a kernel developer implementing remote
-  charges for something other than kmem some time to realize. ]
+> But the reasons are not the problem here. The problem is that v4.2 introduced a
+> bug (*) that was never fixed since.
+> 
+> A shame, really. :-(
 
-Anyway, please feel free to add
+Well. I guess nobody is disputing this is really annoying. I do
+agree! On the other nobody came up with an acceptable solution. I would
+love to dive into solving this but there are so many other things to
+work on with much higher priority. Really, my todo list is huge and
+growing. 32b kernels with that much memory is simply not all that high
+on that list because there is a clear possibility of running 64b kernel
+on the hardware which supports.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+I fully understand your frustration and feel sorry about that but we are
+only so many of us working on this subsystem. If you are willing to dive
+into this then by all means. I am pretty sure you will find a word of
+help and support but be warned this is not really trivial.
 
-for 1/2 and 2/2 plus their two fixlets.
+good luck
+-- 
+Michal Hocko
+SUSE Labs
