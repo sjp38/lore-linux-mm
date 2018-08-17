@@ -1,52 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F13EF6B073B
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 04:18:56 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id f13-v6so5177117wru.5
-        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 01:18:56 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p8-v6sor572679wrw.13.2018.08.17.01.18.55
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DE5AD6B073F
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 04:20:56 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id t138-v6so6558109oih.5
+        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 01:20:56 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u186-v6sor832799oia.238.2018.08.17.01.20.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 17 Aug 2018 01:18:55 -0700 (PDT)
-Date: Fri, 17 Aug 2018 10:18:53 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH v1 5/5] mm/memory_hotplug: print only with DEBUG_VM in
- online/offline_pages()
-Message-ID: <20180817081853.GB17638@techadventures.net>
-References: <20180816100628.26428-1-david@redhat.com>
- <20180816100628.26428-6-david@redhat.com>
+        Fri, 17 Aug 2018 01:20:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180816100628.26428-6-david@redhat.com>
+References: <20180817075901.4608-1-david@redhat.com> <20180817075901.4608-3-david@redhat.com>
+In-Reply-To: <20180817075901.4608-3-david@redhat.com>
+From: "Rafael J. Wysocki" <rafael@kernel.org>
+Date: Fri, 17 Aug 2018 10:20:43 +0200
+Message-ID: <CAJZ5v0jpx_XOmkSkMiSxcECxNHGXPGZHtgqRy_Q7iKnf-C55pg@mail.gmail.com>
+Subject: Re: [PATCH RFC 2/2] mm/memory_hotplug: fix online/offline_pages
+ called w.o. mem_hotplug_lock
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Hildenbrand <david@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Stephen Rothwell <sfr@canb.auug.org.au>, Pavel Tatashin <pasha.tatashin@oracle.com>, Kemi Wang <kemi.wang@intel.com>, David Rientjes <rientjes@google.com>, Jia He <jia.he@hxt-semitech.com>, Oscar Salvador <osalvador@suse.de>, Petr Tesarik <ptesarik@suse.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dan Williams <dan.j.williams@intel.com>, Mathieu Malaterre <malat@debian.org>, Baoquan He <bhe@redhat.com>, Wei Yang <richard.weiyang@gmail.com>, Ross Zwisler <zwisler@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, devel@linuxdriverproject.org, linux-s390@vger.kernel.org, xen-devel@lists.xenproject.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, osalvador@suse.de, Vitaly Kuznetsov <vkuznets@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, kys@microsoft.com, haiyangz@microsoft.com, sthemmin@microsoft.com, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Rientjes <rientjes@google.com>
 
->  failed_addition:
-> +#ifdef CONFIG_DEBUG_VM
->  	pr_debug("online_pages [mem %#010llx-%#010llx] failed\n",
->  		 (unsigned long long) pfn << PAGE_SHIFT,
->  		 (((unsigned long long) pfn + nr_pages) << PAGE_SHIFT) - 1);
-> +#endif
+On Fri, Aug 17, 2018 at 9:59 AM David Hildenbrand <david@redhat.com> wrote:
+>
+> There seem to be some problems as result of 30467e0b3be ("mm, hotplug:
+> fix concurrent memory hot-add deadlock"), which tried to fix a possible
+> lock inversion reported and discussed in [1] due to the two locks
+>         a) device_lock()
+>         b) mem_hotplug_lock
+>
+> While add_memory() first takes b), followed by a) during
+> bus_probe_device(), onlining of memory from user space first took b),
+> followed by a), exposing a possible deadlock.
+>
+> In [1], and it was decided to not make use of device_hotplug_lock, but
+> rather to enforce a locking order. Looking at 1., this order is not always
+> satisfied when calling device_online() - essentially we simply don't take
+> one of both locks anymore - and fixing this would require us to
+> take the mem_hotplug_lock in core driver code (online_store()), which
+> sounds wrong.
+>
+> The problems I spotted related to this:
+>
+> 1. Memory block device attributes: While .state first calls
+>    mem_hotplug_begin() and the calls device_online() - which takes
+>    device_lock() - .online does no longer call mem_hotplug_begin(), so
+>    effectively calls online_pages() without mem_hotplug_lock. onlining/
+>    offlining of pages is no longer serialised across different devices.
+>
+> 2. device_online() should be called under device_hotplug_lock, however
+>    onlining memory during add_memory() does not take care of that. (I
+>    didn't follow how strictly this is needed, but there seems to be a
+>    reason because it is documented at device_online() and
+>    device_offline()).
+>
+> In addition, I think there is also something wrong about the locking in
+>
+> 3. arch/powerpc/platforms/powernv/memtrace.c calls offline_pages()
+>    (and device_online()) without locks. This was introduced after
+>    30467e0b3be. And skimming over the code, I assume it could need some
+>    more care in regards to locking.
+>
+> ACPI code already holds the device_hotplug_lock, and as we are
+> effectively hotplugging memory block devices, requiring to hold that
+> lock does not sound too wrong, although not chosen in [1], as
+>         "I don't think resolving a locking dependency is appropriate by
+>          just serializing them with another lock."
+> I think this is the cleanest solution.
+>
+> Requiring add_memory()/add_memory_resource() to be called under
+> device_hotplug_lock fixes 2., taking the mem_hotplug_lock in
+> online_pages/offline_pages() fixes 1. and 3.
+>
+> Fixup all callers of add_memory/add_memory_resource to hold the lock if
+> not already done.
+>
+> So this is essentially a revert of 30467e0b3be, implementation of what
+> was suggested in [1] by Vitaly, applied to the current tree.
+>
+> [1] http://driverdev.linuxdriverproject.org/pipermail/ driverdev-devel/
+>     2015-February/065324.html
+>
+> This patch is partly based on a patch by Vitaly Kuznetsov.
+>
+> Signed-off-by: David Hildenbrand <david@redhat.com>
+> ---
+>  arch/powerpc/platforms/powernv/memtrace.c |  3 ++
+>  drivers/acpi/acpi_memhotplug.c            |  1 +
+>  drivers/base/memory.c                     | 18 +++++-----
+>  drivers/hv/hv_balloon.c                   |  4 +++
+>  drivers/s390/char/sclp_cmd.c              |  3 ++
+>  drivers/xen/balloon.c                     |  3 ++
+>  mm/memory_hotplug.c                       | 42 ++++++++++++++++++-----
+>  7 files changed, 55 insertions(+), 19 deletions(-)
+>
+> diff --git a/arch/powerpc/platforms/powernv/memtrace.c b/arch/powerpc/platforms/powernv/memtrace.c
+> index 51dc398ae3f7..4c2737a33020 100644
+> --- a/arch/powerpc/platforms/powernv/memtrace.c
+> +++ b/arch/powerpc/platforms/powernv/memtrace.c
+> @@ -206,6 +206,8 @@ static int memtrace_online(void)
+>         int i, ret = 0;
+>         struct memtrace_entry *ent;
+>
+> +       /* add_memory() requires device_hotplug_lock */
+> +       lock_device_hotplug();
+>         for (i = memtrace_array_nr - 1; i >= 0; i--) {
+>                 ent = &memtrace_array[i];
+>
+> @@ -244,6 +246,7 @@ static int memtrace_online(void)
+>                 pr_info("Added trace memory back to node %d\n", ent->nid);
+>                 ent->size = ent->start = ent->nid = -1;
+>         }
+> +       unlock_device_hotplug();
+>         if (ret)
+>                 return ret;
+>
+> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+> index 6b0d3ef7309c..e7a4c7900967 100644
+> --- a/drivers/acpi/acpi_memhotplug.c
+> +++ b/drivers/acpi/acpi_memhotplug.c
+> @@ -228,6 +228,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
+>                 if (node < 0)
+>                         node = memory_add_physaddr_to_nid(info->start_addr);
+>
+> +               /* we already hold the device_hotplug lock at this point */
+>                 result = add_memory(node, info->start_addr, info->length);
+>
+>                 /*
 
-I have never been sure about this.
-IMO, if I fail to online pages, I want to know I failed.
-I think that pr_err would be better than pr_debug and without CONFIG_DEBUG_VM.
+A very minor nit here: I would say "device_hotplug_lock is already
+held at this point" in the comment (I sort of don't like to say "we"
+in code comments as it is not particularly clear what group of people
+is represented by that and the lock is actually called
+device_hotplug_lock).
 
-But at least, if not, envolve it with a CONFIG_DEBUG_VM, but change pr_debug to pr_info.
+Otherwise the approach is fine by me.
 
-> +#ifdef CONFIG_DEBUG_VM
->  	pr_debug("memory offlining [mem %#010llx-%#010llx] failed\n",
->  		 (unsigned long long) start_pfn << PAGE_SHIFT,
->  		 ((unsigned long long) end_pfn << PAGE_SHIFT) - 1);
-> +#endif
+BTW, the reason why device_hotplug_lock is acquired by the ACPI memory
+hotplug is because it generally needs to be synchronized with respect
+CPU hot-remove and similar.  I believe that this may be the case in
+non-ACPI setups as well.
 
-Same goes here.
-
-Thanks
--- 
-Oscar Salvador
-SUSE L3
+Thanks,
+Rafael
