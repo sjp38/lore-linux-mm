@@ -1,39 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F300A6B0B31
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2018 21:22:18 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id q2-v6so5781939plh.12
-        for <linux-mm@kvack.org>; Fri, 17 Aug 2018 18:22:18 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id l6-v6si3612816plt.497.2018.08.17.18.22.17
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 26D856B0DED
+	for <linux-mm@kvack.org>; Sat, 18 Aug 2018 09:02:26 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id g36-v6so6593046plb.5
+        for <linux-mm@kvack.org>; Sat, 18 Aug 2018 06:02:26 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id x66-v6si4645026pfx.129.2018.08.18.06.02.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 17 Aug 2018 18:22:17 -0700 (PDT)
-Date: Fri, 17 Aug 2018 18:22:13 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH RFC] mm: don't miss the last page because of round-off
- error
-Message-ID: <20180818012213.GA14115@bombadil.infradead.org>
-References: <20180817231834.15959-1-guro@fb.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 18 Aug 2018 06:02:23 -0700 (PDT)
+Subject: Re: [PATCH] mm, page_alloc: actually ignore mempolicies for high
+ priority allocations
+References: <20180612122624.8045-1-vbabka@suse.cz>
+ <20180815151652.05d4c4684b7dff2282b5c046@linux-foundation.org>
+ <20180816100317.GV32645@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <6680ec46-8a73-bc70-5dff-eb3cf49482a2@I-love.SAKURA.ne.jp>
+Date: Sat, 18 Aug 2018 22:02:14 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180817231834.15959-1-guro@fb.com>
+In-Reply-To: <20180816100317.GV32645@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@surriel.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>
 
-On Fri, Aug 17, 2018 at 04:18:34PM -0700, Roman Gushchin wrote:
-> -			scan = div64_u64(scan * fraction[file],
-> -					 denominator);
-> +			if (scan > 1)
-> +				scan = div64_u64(scan * fraction[file],
-> +						 denominator);
+On 2018/08/16 19:03, Michal Hocko wrote:
+> The code is quite subtle and we have a bad history of copying stuff
+> without rethinking whether the code still is needed. Which is sad and a
+> clear sign that the code is too complex. I cannot say this change
+> doesn't have any subtle side effects but it makes the intention clear at
+> least so I _think_ it is good to go. If we find some unintended side
+> effects we should simply rethink the whole reset zonelist thing.
 
-Wouldn't we be better off doing a div_round_up?  ie:
+Does this change affect
 
-	scan = div64_u64(scan * fraction[file] + denominator - 1, denominator);
+        /*
+         * This is not a __GFP_THISNODE allocation, so a truncated nodemask in
+         * the page allocator means a mempolicy is in effect.  Cpuset policy
+         * is enforced in get_page_from_freelist().
+         */
+        if (oc->nodemask &&
+            !nodes_subset(node_states[N_MEMORY], *oc->nodemask)) {
+                oc->totalpages = total_swap_pages;
+                for_each_node_mask(nid, *oc->nodemask)
+                        oc->totalpages += node_spanned_pages(nid);
+                return CONSTRAINT_MEMORY_POLICY;
+        }
 
-although i'd rather hide that in a new macro in math64.h than opencode it
-here.
+in constrained_alloc() called from
+
+        /*
+         * Check if there were limitations on the allocation (only relevant for
+         * NUMA and memcg) that may require different handling.
+         */
+        constraint = constrained_alloc(oc);
+        if (constraint != CONSTRAINT_MEMORY_POLICY)
+                oc->nodemask = NULL;
+
+in out_of_memory() ?
