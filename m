@@ -1,71 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F53A6B1A22
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 13:07:53 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id k5-v6so4242082pls.7
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 10:07:53 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e94-v6si10455466plb.435.2018.08.20.10.07.50
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AF4746B1A30
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 13:19:44 -0400 (EDT)
+Received: by mail-yw1-f71.google.com with SMTP id f126-v6so846659ywh.4
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 10:19:44 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id 190-v6si1858898ybh.656.2018.08.20.10.19.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 20 Aug 2018 10:07:51 -0700 (PDT)
-Date: Mon, 20 Aug 2018 10:07:44 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] mm: introduce kvvirt_to_page() helper
-Message-ID: <20180820170744.GD25153@bombadil.infradead.org>
-References: <1534596541-31393-1-git-send-email-lirongqing@baidu.com>
- <20180820144116.GO29735@dhcp22.suse.cz>
- <20180820144923.GA25153@bombadil.infradead.org>
- <20180820162406.GQ29735@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 20 Aug 2018 10:19:43 -0700 (PDT)
+Date: Mon, 20 Aug 2018 10:19:01 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH RFC] mm: don't miss the last page because of round-off
+ error
+Message-ID: <20180820171855.GA3993@tower.DHCP.thefacebook.com>
+References: <20180817231834.15959-1-guro@fb.com>
+ <20180818012213.GA14115@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20180820162406.GQ29735@dhcp22.suse.cz>
+In-Reply-To: <20180818012213.GA14115@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Li RongQing <lirongqing@baidu.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Souptick Joarder <jrdr.linux@gmail.com>, darrick.wong@oracle.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@surriel.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-On Mon, Aug 20, 2018 at 06:24:06PM +0200, Michal Hocko wrote:
-> On Mon 20-08-18 07:49:23, Matthew Wilcox wrote:
-> > On Mon, Aug 20, 2018 at 04:41:16PM +0200, Michal Hocko wrote:
-> > > On Sat 18-08-18 20:49:01, Li RongQing wrote:
-> > > > The new helper returns address mapping page, which has several users
-> > > > in individual subsystem, like mem_to_page in xfs_buf.c and pgv_to_page
-> > > > in af_packet.c, unify them
-> > > 
-> > > kvvirt_to_page is a weird name. I guess you wanted it to fit into
-> > > kv*alloc, kvfree naming, right? If yes then I guess kvmem_to_page
-> > > would be slightly better.
-> > > 
-> > > Other than that the patch makes sense to me. It would be great to add
-> > > some documentation and be explicit that the call is only safe on
-> > > directly mapped kernel address and vmalloc areas.
-> > 
-> > ... and not safe if the length crosses a page boundary.  I don't want to
-> > see new code emerge that does kvmalloc(PAGE_SIZE * 2, ...); kvmem_to_page()
-> > and have it randomly crash when kvmalloc happens to fall back to vmalloc()
-> > under heavy memory pressure.
-> > 
-> > Also, people are going to start using this for stack addresses.  Perhaps
-> > we should have a debug option to guard against them doing that.
+On Fri, Aug 17, 2018 at 06:22:13PM -0700, Matthew Wilcox wrote:
+> On Fri, Aug 17, 2018 at 04:18:34PM -0700, Roman Gushchin wrote:
+> > -			scan = div64_u64(scan * fraction[file],
+> > -					 denominator);
+> > +			if (scan > 1)
+> > +				scan = div64_u64(scan * fraction[file],
+> > +						 denominator);
 > 
-> I do agree that such an interface is quite dangerous. That's why I was
-> stressing out the proper documentation. I would be much happier if we
-> could do without it altogether. Maybe the existing users can be rewoked
-> to not rely on the addr2page functionality. If that is not the case then
-> we should probably offer a helper. With some WARN_ONs to catch misuse
-> would be really nice. I am not really sure how many abuses can we catch
-> actually though.
+> Wouldn't we be better off doing a div_round_up?  ie:
+> 
+> 	scan = div64_u64(scan * fraction[file] + denominator - 1, denominator);
+> 
+> although i'd rather hide that in a new macro in math64.h than opencode it
+> here.
 
-I certainly understand the enthusiasm for sharing this code rather than
-having dozens of places outside the VM implement their own version of it.
-But I think most of these users are using code that's working at the wrong
-level.  Most of them seem to have an address range which may-or-may-not-be
-virtually mapped and they want to get an array-of-pages for that.
+Good idea! Will do in v2.
 
-Perhaps we should offer -that- API instead.  vmalloc/vmap already has
-an array-of-pages, and the various users could be given a pointer to
-that array.  If the memory isn't vmapped, maybe the caller could pass
-an array pointer like XFS does, or we could require them to pass GFP flags
-to allocate a new array.
+Thanks!
