@@ -1,80 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BD6E56B1AA6
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 15:15:34 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id g5-v6so6327677edp.1
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 12:15:34 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s13-v6si1129496edh.327.2018.08.20.12.15.33
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0342C6B1AF6
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 16:37:24 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id l4-v6so2785483plt.12
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 13:37:23 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id g16-v6si9693656pgv.78.2018.08.20.13.37.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Aug 2018 12:15:33 -0700 (PDT)
-Date: Mon, 20 Aug 2018 21:15:31 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: introduce kvvirt_to_page() helper
-Message-ID: <20180820191531.GT29735@dhcp22.suse.cz>
-References: <1534596541-31393-1-git-send-email-lirongqing@baidu.com>
- <20180820144116.GO29735@dhcp22.suse.cz>
- <20180820144923.GA25153@bombadil.infradead.org>
- <20180820162406.GQ29735@dhcp22.suse.cz>
- <20180820170744.GD25153@bombadil.infradead.org>
+        Mon, 20 Aug 2018 13:37:22 -0700 (PDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: [PATCH] x86/mm: Simplify p[g4um]d_page() macros
+Date: Mon, 20 Aug 2018 13:37:05 -0700
+Message-Id: <20180820203705.16212-2-andi@firstfloor.org>
+In-Reply-To: <20180820203705.16212-1-andi@firstfloor.org>
+References: <20180820203705.16212-1-andi@firstfloor.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180820170744.GD25153@bombadil.infradead.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Li RongQing <lirongqing@baidu.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Souptick Joarder <jrdr.linux@gmail.com>, darrick.wong@oracle.com
+To: stable@vger.kernel.org
+Cc: Andi Kleen <ak@linux.intel.com>, Tom Lendacky <thomas.lendacky@amd.com>, Alexander Potapenko <glider@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Borislav Petkov <bp@alien8.de>, Brijesh Singh <brijesh.singh@amd.com>, Dave Young <dyoung@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Larry Woodman <lwoodman@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S . Tsirkin" <mst@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Peter Zijlstra <peterz@infradead.org>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Rik van Riel <riel@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, kasan-dev@googlegroups.com, kvm@vger.kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-efi@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-On Mon 20-08-18 10:07:44, Matthew Wilcox wrote:
-> On Mon, Aug 20, 2018 at 06:24:06PM +0200, Michal Hocko wrote:
-> > On Mon 20-08-18 07:49:23, Matthew Wilcox wrote:
-> > > On Mon, Aug 20, 2018 at 04:41:16PM +0200, Michal Hocko wrote:
-> > > > On Sat 18-08-18 20:49:01, Li RongQing wrote:
-> > > > > The new helper returns address mapping page, which has several users
-> > > > > in individual subsystem, like mem_to_page in xfs_buf.c and pgv_to_page
-> > > > > in af_packet.c, unify them
-> > > > 
-> > > > kvvirt_to_page is a weird name. I guess you wanted it to fit into
-> > > > kv*alloc, kvfree naming, right? If yes then I guess kvmem_to_page
-> > > > would be slightly better.
-> > > > 
-> > > > Other than that the patch makes sense to me. It would be great to add
-> > > > some documentation and be explicit that the call is only safe on
-> > > > directly mapped kernel address and vmalloc areas.
-> > > 
-> > > ... and not safe if the length crosses a page boundary.  I don't want to
-> > > see new code emerge that does kvmalloc(PAGE_SIZE * 2, ...); kvmem_to_page()
-> > > and have it randomly crash when kvmalloc happens to fall back to vmalloc()
-> > > under heavy memory pressure.
-> > > 
-> > > Also, people are going to start using this for stack addresses.  Perhaps
-> > > we should have a debug option to guard against them doing that.
-> > 
-> > I do agree that such an interface is quite dangerous. That's why I was
-> > stressing out the proper documentation. I would be much happier if we
-> > could do without it altogether. Maybe the existing users can be rewoked
-> > to not rely on the addr2page functionality. If that is not the case then
-> > we should probably offer a helper. With some WARN_ONs to catch misuse
-> > would be really nice. I am not really sure how many abuses can we catch
-> > actually though.
-> 
-> I certainly understand the enthusiasm for sharing this code rather than
-> having dozens of places outside the VM implement their own version of it.
-> But I think most of these users are using code that's working at the wrong
-> level.  Most of them seem to have an address range which may-or-may-not-be
-> virtually mapped and they want to get an array-of-pages for that.
-> 
-> Perhaps we should offer -that- API instead.  vmalloc/vmap already has
-> an array-of-pages, and the various users could be given a pointer to
-> that array.  If the memory isn't vmapped, maybe the caller could pass
-> an array pointer like XFS does, or we could require them to pass GFP flags
-> to allocate a new array.
+From: Andi Kleen <ak@linux.intel.com>
 
-Sure, I wouldn't be opposed if there was a model which doesn't force
-them to do hacks like this.
+Create a pgd_pfn() macro similar to the p[4um]d_pfn() macros and then
+use the p[g4um]d_pfn() macros in the p[g4um]d_page() macros instead of
+duplicating the code.
 
+Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+Reviewed-by: Borislav Petkov <bp@suse.de>
+Cc: Alexander Potapenko <glider@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brijesh Singh <brijesh.singh@amd.com>
+Cc: Dave Young <dyoung@redhat.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Jonathan Corbet <corbet@lwn.net>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Larry Woodman <lwoodman@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Matt Fleming <matt@codeblueprint.co.uk>
+Cc: Michael S. Tsirkin <mst@redhat.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Radim KrA?mA!A? <rkrcmar@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Toshimitsu Kani <toshi.kani@hpe.com>
+Cc: kasan-dev@googlegroups.com
+Cc: kvm@vger.kernel.org
+Cc: linux-arch@vger.kernel.org
+Cc: linux-doc@vger.kernel.org
+Cc: linux-efi@vger.kernel.org
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/e61eb533a6d0aac941db2723d8aa63ef6b882dee.1500319216.git.thomas.lendacky@amd.com
+[Backported to 4.9 stable by AK, suggested by Michael Hocko]
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+---
+ arch/x86/include/asm/pgtable.h | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 4de6c282c02a..68a55273ce0f 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -173,6 +173,11 @@ static inline unsigned long pud_pfn(pud_t pud)
+ 	return (pfn & pud_pfn_mask(pud)) >> PAGE_SHIFT;
+ }
+ 
++static inline unsigned long pgd_pfn(pgd_t pgd)
++{
++	return (pgd_val(pgd) & PTE_PFN_MASK) >> PAGE_SHIFT;
++}
++
+ #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
+ 
+ static inline int pmd_large(pmd_t pte)
+@@ -578,8 +583,7 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
+  * Currently stuck as a macro due to indirect forward reference to
+  * linux/mmzone.h's __section_mem_map_addr() definition:
+  */
+-#define pmd_page(pmd)		\
+-	pfn_to_page((pmd_val(pmd) & pmd_pfn_mask(pmd)) >> PAGE_SHIFT)
++#define pmd_page(pmd)	pfn_to_page(pmd_pfn(pmd))
+ 
+ /*
+  * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
+@@ -647,8 +651,7 @@ static inline unsigned long pud_page_vaddr(pud_t pud)
+  * Currently stuck as a macro due to indirect forward reference to
+  * linux/mmzone.h's __section_mem_map_addr() definition:
+  */
+-#define pud_page(pud)		\
+-	pfn_to_page((pud_val(pud) & pud_pfn_mask(pud)) >> PAGE_SHIFT)
++#define pud_page(pud)	pfn_to_page(pud_pfn(pud))
+ 
+ /* Find an entry in the second-level page table.. */
+ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
+@@ -688,7 +691,7 @@ static inline unsigned long pgd_page_vaddr(pgd_t pgd)
+  * Currently stuck as a macro due to indirect forward reference to
+  * linux/mmzone.h's __section_mem_map_addr() definition:
+  */
+-#define pgd_page(pgd)		pfn_to_page(pgd_val(pgd) >> PAGE_SHIFT)
++#define pgd_page(pgd)		pfn_to_page(pgd_pfn(pgd))
+ 
+ /* to find an entry in a page-table-directory. */
+ static inline unsigned long pud_index(unsigned long address)
 -- 
-Michal Hocko
-SUSE Labs
+2.17.1
