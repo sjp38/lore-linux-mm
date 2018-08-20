@@ -1,125 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F18E56B1790
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 02:07:49 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id z56-v6so1915465edz.10
-        for <linux-mm@kvack.org>; Sun, 19 Aug 2018 23:07:49 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p33-v6si3334065edc.147.2018.08.19.23.07.48
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C81D6B1782
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 02:27:35 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id r20-v6so5707297pgv.20
+        for <linux-mm@kvack.org>; Sun, 19 Aug 2018 23:27:35 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n2-v6sor2115827pgj.369.2018.08.19.23.27.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 Aug 2018 23:07:48 -0700 (PDT)
-Date: Mon, 20 Aug 2018 08:07:46 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
- processes.
-Message-ID: <20180820060746.GB29735@dhcp22.suse.cz>
-References: <1533389386-3501-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <1533389386-3501-4-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180806134550.GO19540@dhcp22.suse.cz>
- <alpine.DEB.2.21.1808061315220.43071@chino.kir.corp.google.com>
- <20180806205121.GM10003@dhcp22.suse.cz>
- <alpine.DEB.2.21.1808091311030.244858@chino.kir.corp.google.com>
- <20180810090735.GY1644@dhcp22.suse.cz>
- <alpine.DEB.2.21.1808191632230.193150@chino.kir.corp.google.com>
+        (Google Transport Security);
+        Sun, 19 Aug 2018 23:27:34 -0700 (PDT)
+Subject: Re: [RESEND PATCH v10 1/6] arm: arm64: introduce
+ CONFIG_HAVE_MEMBLOCK_PFN_VALID
+References: <1530867675-9018-1-git-send-email-hejianet@gmail.com>
+ <1530867675-9018-2-git-send-email-hejianet@gmail.com>
+ <20180817145052.aizhi6n66vxblriq@armageddon.cambridge.arm.com>
+From: Jia He <hejianet@gmail.com>
+Message-ID: <73e1f356-2b6c-a7fd-2f04-e5b58ae79884@gmail.com>
+Date: Mon, 20 Aug 2018 14:27:22 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1808191632230.193150@chino.kir.corp.google.com>
+In-Reply-To: <20180817145052.aizhi6n66vxblriq@armageddon.cambridge.arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Wei Yang <richard.weiyang@gmail.com>, linux-mm@kvack.org, Eugeniu Rosca <erosca@de.adit-jv.com>, Petr Tesarik <ptesarik@suse.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Vlastimil Babka <vbabka@suse.cz>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Laura Abbott <labbott@redhat.com>, Daniel Vacek <neelx@redhat.com>, Mel Gorman <mgorman@suse.de>, Vladimir Murzin <vladimir.murzin@arm.com>, Kees Cook <keescook@chromium.org>, Philip Derrin <philip@cog.systems>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Jia He <jia.he@hxt-semitech.com>, Kemi Wang <kemi.wang@intel.com>, linux-arm-kernel@lists.infradead.org, Steve Capper <steve.capper@arm.com>, linux-kernel@vger.kernel.org, James Morse <james.morse@arm.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Sun 19-08-18 16:45:36, David Rientjes wrote:
+
+
+On 8/17/2018 10:50 PM, Catalin Marinas Wrote:
+> On Fri, Jul 06, 2018 at 05:01:10PM +0800, Jia He wrote:
+>> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+>> index 42c090c..26d75f4 100644
+>> --- a/arch/arm64/Kconfig
+>> +++ b/arch/arm64/Kconfig
+>> @@ -778,6 +778,10 @@ config ARCH_SELECT_MEMORY_MODEL
+>>  config HAVE_ARCH_PFN_VALID
+>>  	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
+>>  
+>> +config HAVE_MEMBLOCK_PFN_VALID
+>> +	def_bool y
+>> +	depends on HAVE_ARCH_PFN_VALID
+>> +
+>>  config HW_PERF_EVENTS
+>>  	def_bool y
+>>  	depends on ARM_PMU
+>> diff --git a/mm/Kconfig b/mm/Kconfig
+>> index 94af022..28fcf54 100644
+>> --- a/mm/Kconfig
+>> +++ b/mm/Kconfig
+>> @@ -137,6 +137,9 @@ config HAVE_MEMBLOCK_NODE_MAP
+>>  config HAVE_MEMBLOCK_PHYS_MAP
+>>  	bool
+>>  
+>> +config HAVE_MEMBLOCK_PFN_VALID
+>> +	bool
 > 
-> > > > > At the risk of continually repeating the same statement, the oom reaper 
-> > > > > cannot provide the direct feedback for all possible memory freeing.  
-> > > > > Waking up periodically and finding mm->mmap_sem contended is one problem, 
-> > > > > but the other problem that I've already shown is the unnecessary oom 
-> > > > > killing of additional processes while a thread has already reached 
-> > > > > exit_mmap().  The oom reaper cannot free page tables which is problematic 
-> > > > > for malloc implementations such as tcmalloc that do not release virtual 
-> > > > > memory. 
-> > > > 
-> > > > But once we know that the exit path is past the point of blocking we can
-> > > > have MMF_OOM_SKIP handover from the oom_reaper to the exit path. So the
-> > > > oom_reaper doesn't hide the current victim too early and we can safely
-> > > > wait for the exit path to reclaim the rest. So there is a feedback
-> > > > channel. I would even do not mind to poll for that state few times -
-> > > > similar to polling for the mmap_sem. But it would still be some feedback
-> > > > rather than a certain amount of time has passed since the last check.
-> > > > 
-> > > 
-> > > Yes, of course, it would be easy to rely on exit_mmap() to set 
-> > > MMF_OOM_SKIP itself and have the oom reaper drop the task from its list 
-> > > when we are assured of forward progress.  What polling are you proposing 
-> > > other than a timeout based mechanism to do this?
-> > 
-> > I was thinking about doing something like the following
-> > - oom_reaper checks the amount of victim's memory after it is done with
-> >   reaping (e.g. by calling oom_badness before and after). If it wasn't able to
-> >   reclaim much then return false and keep retrying with the existing
-> >   mechanism
+> Since you defined HAVE_MEMBLOCK_PFN_VALID here, do we need to define it
+> in the arch code as well? If kept it in the mm/Kconfig only, you could
+> just select it in the arch HAVE_ARCH_PFN_VALID entry:
 > 
-> I'm not sure how you define the threshold to consider what is substantial 
-> memory freeing.
 
-If a rule of thumb (few Megs freed or X% of oom_badness reduced) doesn't
-really turn out to be working well then we can try to be more clever
-e.g. detect for too many ptes to free and wait for those.
-
-> > - once a flag (e.g. MMF_OOM_MMAP) is set it bails out and won't set the
-> >   MMF_OOM_SKIP flag.
-> > 
-> > > We could set a MMF_EXIT_MMAP in exit_mmap() to specify that it will 
-> > > complete free_pgtables() for that mm.  The problem is the same: when does 
-> > > the oom reaper decide to set MMF_OOM_SKIP because MMF_EXIT_MMAP has not 
-> > > been set in a timely manner?
-> > 
-> > reuse the current retry policy which is the number of attempts rather
-> > than any timeout.
-> > 
-> > > If this is an argument that the oom reaper should loop checking for 
-> > > MMF_EXIT_MMAP and doing schedule_timeout(1) a set number of times rather 
-> > > than just setting the jiffies in the mm itself, that's just implementing 
-> > > the same thing and doing so in a way where the oom reaper stalls operating 
-> > > on a single mm rather than round-robin iterating over mm's in my patch.
-> > 
-> > I've said earlier that I do not mind doing round robin in the oom repaer
-> > but this is certainly more complex than what we do now and I haven't
-> > seen any actual example where it would matter. OOM reaper is a safely
-> > measure. Nothing should fall apart if it is slow. The primary work
-> > should be happening from the exit path anyway.
-> 
-> The oom reaper will always be unable to free some memory, such as page 
-> tables.  If it can't grab mm->mmap_sem in a reasonable amount of time, it 
-> also can give up early.  The munlock() case is another example.  We 
-> experience unnecessary oom killing during free_pgtables() where the 
-> single-threaded exit_mmap() is freeing an enormous amount of page tables 
-> (usually a malloc implementation such as tcmalloc that does not free 
-> virtual memory) and other processes are faulting faster than we can free.  
-> It's a combination of a multiprocessor system and a lot of virtual memory 
-> from the original victim.  This is the same case as being unable to 
-> munlock quickly enough in exit_mmap() to free the memory.
-> 
-> We must wait until free_pgtables() completes in exit_mmap() before killing 
-> additional processes in the large majority (99.96% of cases from my data) 
-> of instances where oom livelock does not occur.  In the remainder of 
-> situations, livelock has been prevented by what the oom reaper has been 
-> able to free.  We can, of course, not do free_pgtables() from the oom 
-> reaper.  So my approach was to allow for a reasonable amount of time for 
-> the victim to free a lot of memory before declaring that additional 
-> processes must be oom killed.  It would be functionally similar to having 
-> the oom reaper retry many, many more times than 10 and having a linked 
-> list of mm_structs to reap.  I don't care one way or another if it's a 
-> timeout based solution or many, many retries that have schedule_timeout() 
-> that yields the same time period in the end.
-
-I would really keep the current retry logic with an extension to allow
-to keep retrying or hand over to exit_mmap when we know it is past the
-last moment of blocking.
-
+Ok, thanks for the comments
+It makes it more clean.
 -- 
-Michal Hocko
-SUSE Labs
+Cheers,
+Jia
+
+> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> index d0a53cc6293a..cd230c77e122 100644
+> --- a/arch/arm64/Kconfig
+> +++ b/arch/arm64/Kconfig
+> @@ -787,6 +787,7 @@ config ARCH_FLATMEM_ENABLE
+>  
+>  config HAVE_ARCH_PFN_VALID
+>  	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
+> +	select HAVE_MEMBLOCK_PFN_VALID
+>  
+>  config HW_PERF_EVENTS
+>  	def_bool y
+> 
+> (similarly for arch/arm)
+> 
