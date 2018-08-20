@@ -1,51 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DFD96B18BF
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 07:02:38 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id l185-v6so14100881ite.2
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 04:02:38 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id r189-v6si3692148iod.237.2018.08.20.04.02.36
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DB6E76B18C3
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 07:04:37 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id b12-v6so9730326plr.17
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 04:04:37 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d33-v6si9587821pla.292.2018.08.20.04.04.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Aug 2018 04:02:37 -0700 (PDT)
-Subject: Re: [PATCH] mm, oom: OOM victims do not need to select next OOM
- victim unless __GFP_NOFAIL.
-References: <1534761465-6449-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180820105336.GJ29735@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <1341c62b-cb21-a592-f062-d162da01f912@i-love.sakura.ne.jp>
-Date: Mon, 20 Aug 2018 20:02:30 +0900
+        Mon, 20 Aug 2018 04:04:36 -0700 (PDT)
+Date: Mon, 20 Aug 2018 13:04:32 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, page_alloc: actually ignore mempolicies for high
+ priority allocations
+Message-ID: <20180820110432.GK29735@dhcp22.suse.cz>
+References: <20180612122624.8045-1-vbabka@suse.cz>
+ <20180815151652.05d4c4684b7dff2282b5c046@linux-foundation.org>
+ <20180816100317.GV32645@dhcp22.suse.cz>
+ <6680ec46-8a73-bc70-5dff-eb3cf49482a2@I-love.SAKURA.ne.jp>
+ <20180820104139.GH29735@dhcp22.suse.cz>
+ <b235c21a-a237-f9a9-1b12-203a11d89ce8@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20180820105336.GJ29735@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b235c21a-a237-f9a9-1b12-203a11d89ce8@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, David Rientjes <rientjes@google.com>, syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: linux-mm <linux-mm@kvack.org>
 
-On 2018/08/20 19:53, Michal Hocko wrote:
-> On Mon 20-08-18 19:37:45, Tetsuo Handa wrote:
->> Commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
->> oom_reaped tasks") changed to select next OOM victim as soon as
->> MMF_OOM_SKIP is set. But since OOM victims can try ALLOC_OOM allocation
->> and then give up (if !memcg OOM) or can use forced charge and then retry
->> (if memcg OOM), OOM victims do not need to select next OOM victim unless
->> they are doing __GFP_NOFAIL allocations.
+On Mon 20-08-18 19:52:59, Tetsuo Handa wrote:
+> On 2018/08/20 19:41, Michal Hocko wrote:
+> > On Sat 18-08-18 22:02:14, Tetsuo Handa wrote:
+> >> On 2018/08/16 19:03, Michal Hocko wrote:
+> >>> The code is quite subtle and we have a bad history of copying stuff
+> >>> without rethinking whether the code still is needed. Which is sad and a
+> >>> clear sign that the code is too complex. I cannot say this change
+> >>> doesn't have any subtle side effects but it makes the intention clear at
+> >>> least so I _think_ it is good to go. If we find some unintended side
+> >>> effects we should simply rethink the whole reset zonelist thing.
+> >>
+> >> Does this change affect
+> >>
+> >>         /*
+> >>          * This is not a __GFP_THISNODE allocation, so a truncated nodemask in
+> >>          * the page allocator means a mempolicy is in effect.  Cpuset policy
+> >>          * is enforced in get_page_from_freelist().
+> >>          */
+> >>         if (oc->nodemask &&
+> >>             !nodes_subset(node_states[N_MEMORY], *oc->nodemask)) {
+> >>                 oc->totalpages = total_swap_pages;
+> >>                 for_each_node_mask(nid, *oc->nodemask)
+> >>                         oc->totalpages += node_spanned_pages(nid);
+> >>                 return CONSTRAINT_MEMORY_POLICY;
+> >>         }
+> >>
+> >> in constrained_alloc() called from
+> >>
+> >>         /*
+> >>          * Check if there were limitations on the allocation (only relevant for
+> >>          * NUMA and memcg) that may require different handling.
+> >>          */
+> >>         constraint = constrained_alloc(oc);
+> >>         if (constraint != CONSTRAINT_MEMORY_POLICY)
+> >>                 oc->nodemask = NULL;
+> >>
+> >> in out_of_memory() ?
+> > 
+> > No practical difference AFAICS. We are losing the nodemask for oom
+> > victims but their mere existance should make oom decisions void
+> > and so the constrain shouldn't really matter.
+> > 
 > 
-> I do not like this at all. It seems hackish to say the least. And more
-> importantly...
-> 
->> This is a quick mitigation because syzbot is hitting WARN(1) caused by
->> this race window [1]. More robust fix (e.g. make it possible to reclaim
->> more memory before MMF_OOM_SKIP is set, wait for some more after
->> MMF_OOM_SKIP is set) is a future work.
-> 
-> .. there is already a patch (by Johannes) for that warning IIRC.
+> If my guess that whether oc->nodemask is NULL affects whether oom_unkillable_task()
+> (effectively has_intersects_mems_allowed()) returns true is correct, I worried that
+> OOM victims select next OOM victim from wider targets if MMF_OOM_SKIP was already set
+> on the OOM victim's mm. That might be an unexpected behavior...
 
-You mean http://lkml.kernel.org/r/20180808144515.GA9276@cmpxchg.org ?
-But I can't find that patch in linux-next.git . And as far as I know,
-no patch was sent to linux.git for handling this problem. Therefore,
-I wrote this patch so that we can apply for 4.19-rc1.
+What I've tried to say is that the oom victim should be present also
+in wider oom domain. There are potential races (e.g. the victim having
+MMF_OOM_SKIP set) but I am not really sure we should be losing sleep
+over those. As I've said in an earlier email. If we have an unexpected
+behavior we should deal with it.
+
+-- 
+Michal Hocko
+SUSE Labs
