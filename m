@@ -1,65 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A32E6B19C9
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 11:32:28 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id j9-v6so13610744qtn.22
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 08:32:28 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a185-v6si5301154qke.251.2018.08.20.08.32.27
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 424036B19E2
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 12:01:39 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id g11-v6so5871332edi.8
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 09:01:39 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r1-v6si4115943edq.38.2018.08.20.09.01.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Aug 2018 08:32:27 -0700 (PDT)
-Date: Mon, 20 Aug 2018 11:32:14 -0400
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 2/2] mm: thp: fix transparent_hugepage/defrag = madvise
- || always
-Message-ID: <20180820153214.GC13047@redhat.com>
-References: <20180820032204.9591-1-aarcange@redhat.com>
- <20180820032204.9591-3-aarcange@redhat.com>
- <6D0E157B-3ECC-4642-BF98-FEB884D49854@cs.rutgers.edu>
+        Mon, 20 Aug 2018 09:01:36 -0700 (PDT)
+Date: Mon, 20 Aug 2018 18:01:33 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Odd SIGSEGV issue introduced by commit 6b31d5955cb29 ("mm, oom:
+ fix potential data corruption when oom_reaper races with writer")
+Message-ID: <20180820160133.GP29735@dhcp22.suse.cz>
+References: <7767bdf4-a034-ecb9-1ac8-4fa87f335818@c-s.fr>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <6D0E157B-3ECC-4642-BF98-FEB884D49854@cs.rutgers.edu>
+In-Reply-To: <7767bdf4-a034-ecb9-1ac8-4fa87f335818@c-s.fr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Christophe LEROY <christophe.leroy@c-s.fr>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Ram Pai <linuxram@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, linux-mm <linux-mm@kvack.org>
 
-Hello,
-
-On Mon, Aug 20, 2018 at 08:35:17AM -0400, Zi Yan wrote:
-> I think this can also be triggered in khugepaged. In collapse_huge_page(), khugepaged_alloc_page()
-> would also cause DIRECT_RECLAIM if defrag==always, since GFP_TRANSHUGE implies __GFP_DIRECT_RECLAIM.
+On Mon 20-08-18 17:23:58, Christophe LEROY wrote:
+> Hello,
 > 
-> But is it an expected behavior of khugepaged?
+> I have an odd issue on my powerpc 8xx board.
+> 
+> I am running latest 4.14 and get the following SIGSEGV which appears more or
+> less randomly.
+> 
+> [    9.190354] touch[91]: unhandled signal 11 at 67807b58 nip 777cf114 lr
+> 777cf100 code 30001
+> [   24.634810] ifconfig[160]: unhandled signal 11 at 67ae7b58 nip 77aaf114
+> lr 77aaf100 code 30001
+> [   30.383737] default.deconfi[231]: unhandled signal 11 at 67c8bb58 nip
+> 77c53114 lr 77c53100 code 30001
+> [   37.655588] S15syslogd[251]: unhandled signal 11 at 6784fb58 nip 77817114
+> lr 77817100 code 30001
+> [   40.974649] snmpd[315]: unhandled signal 11 at 67e0bb58 nip 77dd3114 lr
+> 77dd3100 code 30001
+> [   43.220964] exe[338]: unhandled signal 11 at 67cd3b58 nip 77c9b114 lr
+> 77c9b100 code 30001
+> [   44.191494] exe[348]: unhandled signal 11 at 67c1fb58 nip 77be7114 lr
+> 77be7100 code 30001
+> [   59.175022] sleep[655]: unhandled signal 11 at 67ca3b58 nip 77c6b114 lr
+> 77c6b100 code 30001
+> [   61.853406] smcroute[705]: unhandled signal 11 at 6789bb58 nip 77863114
+> lr 77863100 code 30001
+> [   64.662431] smcroute[778]: unhandled signal 11 at 67e03b58 nip 77dcb114
+> lr 77dcb100 code 30001
+> [   65.623103] smcroute[795]: unhandled signal 11 at 67bdbb58 nip 77ba3114
+> lr 77ba3100 code 30001
+> [   66.579416] exe[825]: unhandled signal 11 at 67edbb58 nip 77ea3114 lr
+> 77ea3100 code 30001
+> [   68.382941] exe[864]: unhandled signal 11 at 6789bb58 nip 77863114 lr
+> 77863100 code 30001
+> [   95.187346] exe[1147]: unhandled signal 11 at 67e83b58 nip 77e4b114 lr
+> 77e4b100 code 30001
+> [  105.238218] exe[1158]: unhandled signal 11 at 67ca3b58 nip 77c6b114 lr
+> 77c6b100 code 30001
+> [  127.556731] exe[1181]: unhandled signal 11 at 67cc3b58 nip 77c8b114 lr
+> 77c8b100 code 30001
+> [  135.558982] exe[1195]: unhandled signal 11 at 678d7b58 nip 7789f114 lr
+> 7789f100 code 30001
+> [  147.579142] exe[1216]: unhandled signal 11 at 67c6bb58 nip 77c33114 lr
+> 77c33100 code 30001
+> [  175.538747] exe[1262]: unhandled signal 11 at 67e2fb58 nip 77df7114 lr
+> 77df7100 code 30001
+> [  186.552670] exe[1275]: unhandled signal 11 at 6781fb58 nip 777e7114 lr
+> 777e7100 code 30001
+> [  230.629786] exe[1344]: unhandled signal 11 at 67cb3b58 nip 77c7b114 lr
+> 77c7b100 code 30001
+> [  249.640396] repair-service.[1369]: unhandled signal 11 at 67e5fb58 nip
+> 77e27114 lr 77e27100 code 30001
+> [  378.003410] exe[1593]: unhandled signal 11 at 678d7b58 nip 7789f114 lr
+> 7789f100 code 30001
+> [  414.060661] exe[1656]: unhandled signal 11 at 67cc7b58 nip 77c8f114 lr
+> 77c8f100 code 30001
+> 
+> The problem is present in 3.13, 3.14 and 3.15.
+> 
+> I bisected its appearance with commit 6b31d5955cb29 ("mm, oom: fix potential
+> data corruption when oom_reaper races with writer")
 
-That's a good point, and answer it not obvious. It's not an apple to
-apple comparison because khugepaged is not increasing the overall
-memory footprint of the app. The pages that gets compacted gets freed
-later. However not all memory of the node may be possible to compact
-100% so it's not perfectly a 1:1 exchange and it could require some
-swap to succeed compaction.
+Do you see any oom killer invocations preceeding the SEGV? Some of those
+killed tasks simply do not look like a sensible oom victims (e.g.
+touch)...
 
-So we may want to look also at khugepaged later, but it's not obvious
-it needs fixing too. It'd weaken a bit khugepaged to add
-__GFP_COMPACT_ONLY to it, if compaction returns COMPACT_SKIPPED
-especially.
+> And I bisected its disappearance with commit 99cd1302327a2 ("powerpc:
+> Deliver SEGV signal on pkey violation")
 
-As opposed in the main allocation path (when memory footprint
-definitely increases) I even tried to still allow reclaim only for
-COMPACT_SKIPPED and it still caused swapout storms because new THP
-kept being added to the local node as the old memory was swapped out
-to make more free memory to compact more 4k pages. Otherwise I could
-have gotten away with using __GFP_NORETRY instead of
-__GFP_COMPACT_ONLY but it wasn't nearly enough.
+Those two seem completely unrelated.
 
-Similarly to khugepaged NUMA balancing also uses __GFP_THISNODE but if
-it decided to migrate a page to such node supposedly there's a good
-reason to call reclaim to allocate the page there if needed. That also
-is freeing memory on node and adding memory to another node, and it's
-not increasing the memory footprint overall (unlike khugepaged, it
-increases the footprint cross-node though).
-
-Thanks,
-Andrea
+-- 
+Michal Hocko
+SUSE Labs
