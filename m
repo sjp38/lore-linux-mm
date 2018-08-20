@@ -1,60 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 22E0E6B1B56
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 18:03:33 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id h17-v6so962168itj.0
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 15:03:33 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id f11-v6si546921itf.129.2018.08.20.15.03.31
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 12B786B1B59
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 18:04:26 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id k44-v6so4541293wre.21
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 15:04:26 -0700 (PDT)
+Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
+        by mx.google.com with ESMTPS id g8-v6si7721475wru.338.2018.08.20.15.04.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Aug 2018 15:03:31 -0700 (PDT)
-Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
- processes.
-References: <20180806134550.GO19540@dhcp22.suse.cz>
- <alpine.DEB.2.21.1808061315220.43071@chino.kir.corp.google.com>
- <20180806205121.GM10003@dhcp22.suse.cz>
- <alpine.DEB.2.21.1808091311030.244858@chino.kir.corp.google.com>
- <20180810090735.GY1644@dhcp22.suse.cz>
- <be42a7c0-015e-2992-a40d-20af21e8c0fc@i-love.sakura.ne.jp>
- <20180810111604.GA1644@dhcp22.suse.cz>
- <d9595c92-6763-35cb-b989-0848cf626cb9@i-love.sakura.ne.jp>
- <20180814113359.GF32645@dhcp22.suse.cz>
- <49a73f8a-a472-a464-f5bf-ebd7994ce2d3@i-love.sakura.ne.jp>
- <20180820055417.GA29735@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <d5be452a-951f-ddc9-e7df-102d292f22c2@i-love.sakura.ne.jp>
-Date: Tue, 21 Aug 2018 07:03:10 +0900
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 20 Aug 2018 15:04:24 -0700 (PDT)
+Date: Mon, 20 Aug 2018 15:04:23 -0700
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] x86/mm: Simplify p[g4um]d_page() macros
+Message-ID: <20180820220422.7qrayn7wivmejr24@two.firstfloor.org>
+References: <20180820203705.16212-1-andi@firstfloor.org>
+ <20180820203705.16212-2-andi@firstfloor.org>
+ <CA+55aFyo_MFz2Qg3pEbLMf3zhvAQbpZf3mQf98bTRJx28drbeQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180820055417.GA29735@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFyo_MFz2Qg3pEbLMf3zhvAQbpZf3mQf98bTRJx28drbeQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, stable <stable@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Tom Lendacky <thomas.lendacky@amd.com>, Alexander Potapenko <glider@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Lutomirski <luto@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Borislav Petkov <bp@alien8.de>, Brijesh Singh <brijesh.singh@amd.com>, Dave Young <dyoung@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Larry Woodman <lwoodman@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Rik van Riel <riel@redhat.com>, Toshi Kani <toshi.kani@hpe.com>, kasan-dev <kasan-dev@googlegroups.com>, KVM list <kvm@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, linux-efi <linux-efi@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@kernel.org>
 
-On 2018/08/20 14:54, Michal Hocko wrote:
->>>> Apart from the former is "sequential processing" and "the OOM reaper pays the cost
->>>> for reclaiming" while the latter is "parallel (or round-robin) processing" and "the
->>>> allocating thread pays the cost for reclaiming", both are timeout based back off
->>>> with number of retry attempt with a cap.
->>>
->>> And it is exactly the who pays the price concern I've already tried to
->>> explain that bothers me.
->>
->> Are you aware that we can fall into situation where nobody can pay the price for
->> reclaiming memory?
+On Mon, Aug 20, 2018 at 02:57:39PM -0700, Linus Torvalds wrote:
+> On Mon, Aug 20, 2018 at 1:37 PM Andi Kleen <andi@firstfloor.org> wrote:
+> >
+> > From: Andi Kleen <ak@linux.intel.com>
+> >
+> > Create a pgd_pfn() macro similar to the p[4um]d_pfn() macros and then
+> > use the p[g4um]d_pfn() macros in the p[g4um]d_page() macros instead of
+> > duplicating the code.
 > 
-> I fail to see how this is related to direct vs. kthread oom reaping
-> though. Unless the kthread is starved by other means then it can always
-> jump in and handle the situation.
+> When doing backports, _please_ explicitly specify which commit this is
+> upstream too.
 
-I'm saying that concurrent allocators can starve the OOM reaper kernel thread.
-I don't care if the OOM reaper kernel thread is starved by something other than
-concurrent allocators, as long as that something is doing useful things.
+Ok.
 
-Allocators wait for progress using (almost) busy loop is prone to lockup; they are
-not doing useful things. But direct OOM reaping allows allocators avoid lockup and
-do useful things.
+> 
+> Also, the original upstream patch is credited to Tom Lendacky.
+
+Okay.
+
+> 
+> Or is there something I'm not seeing, and this is different from
+> commit fd7e315988b7 ("x86/mm: Simplify p[g4um]d_page() macros")?
+
+No it's Tom's patch just ported to the older tree with some minor
+changes. I just fat fingered it while doing the commit
+
+-Andi
