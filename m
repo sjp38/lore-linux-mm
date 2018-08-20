@@ -1,51 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C22E66B17EC
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 03:37:57 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id 40-v6so12196218wrb.23
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 00:37:57 -0700 (PDT)
-Received: from relay8-d.mail.gandi.net (relay8-d.mail.gandi.net. [217.70.183.201])
-        by mx.google.com with ESMTPS id o2-v6si2253157wrq.63.2018.08.20.00.37.56
+	by kanga.kvack.org (Postfix) with ESMTP id 7EB6D6B1838
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 04:55:35 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id l45-v6so7886508wre.4
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 01:55:35 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o5-v6sor2757246wrf.33.2018.08.20.01.55.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 20 Aug 2018 00:37:56 -0700 (PDT)
-Subject: Re: [PATCH v6 00/11] hugetlb: Factorize hugetlb architecture
- primitives
-References: <20180806175711.24438-1-alex@ghiti.fr>
- <81078a7f-09cf-7f19-f6bb-8a1f4968d6fb@ghiti.fr>
- <20180820071730.GC29735@dhcp22.suse.cz>
-From: Alexandre Ghiti <alex@ghiti.fr>
-Message-ID: <00b8c047-3ab5-f86b-41e5-d87950f10c21@ghiti.fr>
-Date: Mon, 20 Aug 2018 09:36:35 +0200
-MIME-Version: 1.0
-In-Reply-To: <20180820071730.GC29735@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+        (Google Transport Security);
+        Mon, 20 Aug 2018 01:55:34 -0700 (PDT)
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: [PATCH] mm: Fix comment for NODEMASK_ALLOC
+Date: Mon, 20 Aug 2018 10:55:16 +0200
+Message-Id: <20180820085516.9687-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, tony.luck@intel.com, fenghua.yu@intel.com, ralf@linux-mips.org, paul.burton@mips.com, jhogan@kernel.org, jejb@parisc-linux.org, deller@gmx.de, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, ysato@users.sourceforge.jp, dalias@libc.org, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, arnd@arndb.de, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: akpm@linux-foundation.org
+Cc: tglx@linutronix.de, joe@perches.com, arnd@arndb.de, mhocko@suse.com, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
 
-Ok, my bad, sorry about that, I have just added Andrew as CC then.
+From: Oscar Salvador <osalvador@suse.de>
 
-Thank you,
+Currently, NODEMASK_ALLOC allocates a nodemask_t with kmalloc when
+NODES_SHIFT is higher than 8, otherwise it declares it within the stack.
 
-Alex
+The comment says that the reasoning behind this, is that nodemask_t will be
+256 bytes when NODES_SHIFT is higher than 8, but this is not true.
+For example, NODES_SHIFT = 9 will give us a 64 bytes nodemask_t.
+Let us fix up the comment for that.
 
+Another thing is that it might make sense to let values lower than 128bytes
+be allocated in the stack.
+Although this all depends on the depth of the stack
+(and this changes from function to function), I think that 64 bytes
+is something we can easily afford.
+So we could even bump the limit by 1 (from > 8 to > 9).
 
-On 08/20/2018 09:17 AM, Michal Hocko wrote:
-> On Mon 20-08-18 08:45:10, Alexandre Ghiti wrote:
->> Hi Michal,
->>
->> This patchset got acked, tested and reviewed by quite a few people, and it
->> has been suggested
->> that it should be included in -mm tree: could you tell me if something else
->> needs to be done for
->> its inclusion ?
->>
->> Thanks for your time,
-> I didn't really get to look at the series but seeing an Ack from Mike
-> and arch maintainers should be good enough for it to go. This email
-> doesn't have Andrew Morton in the CC list so you should add him if you
-> want the series to land into the mm tree.
+Signed-off-by: Oscar Salvador <osalvador@suse.de>
+---
+ include/linux/nodemask.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
+index 1fbde8a880d9..5a30ad594ccc 100644
+--- a/include/linux/nodemask.h
++++ b/include/linux/nodemask.h
+@@ -518,7 +518,7 @@ static inline int node_random(const nodemask_t *mask)
+  * NODEMASK_ALLOC(type, name) allocates an object with a specified type and
+  * name.
+  */
+-#if NODES_SHIFT > 8 /* nodemask_t > 256 bytes */
++#if NODES_SHIFT > 8 /* nodemask_t > 32 bytes */
+ #define NODEMASK_ALLOC(type, name, gfp_flags)	\
+ 			type *name = kmalloc(sizeof(*name), gfp_flags)
+ #define NODEMASK_FREE(m)			kfree(m)
+-- 
+2.13.6
