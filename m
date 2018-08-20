@@ -1,56 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DE4436B193E
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 09:15:42 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id u11-v6so14040510oif.22
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 06:15:42 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id t62-v6si7786938oih.223.2018.08.20.06.15.41
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AFDE36B194D
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 09:28:57 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id k44-v6so3420276wre.21
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 06:28:57 -0700 (PDT)
+Received: from EUR04-VI1-obe.outbound.protection.outlook.com (mail-eopbgr80125.outbound.protection.outlook.com. [40.107.8.125])
+        by mx.google.com with ESMTPS id q142-v6si8627819wmb.71.2018.08.20.06.28.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Aug 2018 06:15:41 -0700 (PDT)
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH] mm, oom: OOM victims do not need to select next OOM victim unless __GFP_NOFAIL.
-Date: Mon, 20 Aug 2018 19:37:45 +0900
-Message-Id: <1534761465-6449-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 20 Aug 2018 06:28:56 -0700 (PDT)
+Subject: [PATCH] mm: Check shrinker is memcg-aware in
+ register_shrinker_prepared()
+References: <0000000000003427e80573bcde5c@google.com>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <8ff8a793-8211-713a-4ed9-d6e52390c2fc@virtuozzo.com>
+Date: Mon, 20 Aug 2018 16:28:45 +0300
+MIME-Version: 1.0
+In-Reply-To: <0000000000003427e80573bcde5c@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Greg Thelen <gthelen@google.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>
+To: syzbot <syzbot+d5f648a1bfe15678786b@syzkaller.appspotmail.com>, akpm@linux-foundation.org, aryabinin@virtuozzo.com, hannes@cmpxchg.org, jbacik@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, mhocko@suse.com, penguin-kernel@I-love.SAKURA.ne.jp, shakeelb@google.com, syzkaller-bugs@googlegroups.com, ying.huang@intel.com
 
-Commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
-oom_reaped tasks") changed to select next OOM victim as soon as
-MMF_OOM_SKIP is set. But since OOM victims can try ALLOC_OOM allocation
-and then give up (if !memcg OOM) or can use forced charge and then retry
-(if memcg OOM), OOM victims do not need to select next OOM victim unless
-they are doing __GFP_NOFAIL allocations.
+There is a sad BUG introduced in patch adding SHRINKER_REGISTERING.
+shrinker_idr business is only for memcg-aware shrinkers. Only
+such type of shrinkers have id and they must be finaly installed
+via idr_replace() in this function. For !memcg-aware shrinkers
+we never initialize shrinker->id field.
 
-This is a quick mitigation because syzbot is hitting WARN(1) caused by
-this race window [1]. More robust fix (e.g. make it possible to reclaim
-more memory before MMF_OOM_SKIP is set, wait for some more after
-MMF_OOM_SKIP is set) is a future work.
+But there are all types of shrinkers passed to idr_replace(),
+and every !memcg-aware shrinker with random ID (most probably,
+its id is 0) replaces memcg-aware shrinker pointed by the ID
+in IDR.
 
-[1] https://syzkaller.appspot.com/bug?id=ea8c7912757d253537375e981b61749b2da69258
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Reported-and-tested-by: syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>
+This patch fixes the problem.
+    
+Reported-by: syzbot+d5f648a1bfe15678786b@syzkaller.appspotmail.com
+Fixes: 7e010df53c80 "mm: use special value SHRINKER_REGISTERING instead of list_empty() check"
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 ---
- mm/oom_kill.c | 3 +++
- 1 file changed, 3 insertions(+)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 412f434..421c0f6 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -1031,6 +1031,9 @@ bool out_of_memory(struct oom_control *oc)
- 	unsigned long freed = 0;
- 	enum oom_constraint constraint = CONSTRAINT_NONE;
- 
-+	if (tsk_is_oom_victim(current) && !(oc->gfp_mask & __GFP_NOFAIL))
-+		return true;
-+
- 	if (oom_killer_disabled)
- 		return false;
- 
--- 
-1.8.3.1
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 4375b1e9bd56..3c6e2bfee427 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -408,7 +408,8 @@ void register_shrinker_prepared(struct shrinker *shrinker)
+ 	down_write(&shrinker_rwsem);
+ 	list_add_tail(&shrinker->list, &shrinker_list);
+ #ifdef CONFIG_MEMCG_KMEM
+-	idr_replace(&shrinker_idr, shrinker, shrinker->id);
++	if (shrinker->flags & SHRINKER_MEMCG_AWARE)
++		idr_replace(&shrinker_idr, shrinker, shrinker->id);
+ #endif
+ 	up_write(&shrinker_rwsem);
+ }
