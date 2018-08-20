@@ -1,105 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DB006B1612
-	for <linux-mm@kvack.org>; Sun, 19 Aug 2018 19:45:40 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id c13-v6so6869169pfo.14
-        for <linux-mm@kvack.org>; Sun, 19 Aug 2018 16:45:40 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id j2-v6sor1929194pgf.196.2018.08.19.16.45.39
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B9DCB6B16E9
+	for <linux-mm@kvack.org>; Sun, 19 Aug 2018 23:22:09 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id t81-v6so13661737qkt.7
+        for <linux-mm@kvack.org>; Sun, 19 Aug 2018 20:22:09 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a3-v6si4283830qkb.265.2018.08.19.20.22.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 19 Aug 2018 16:45:39 -0700 (PDT)
-Date: Sun, 19 Aug 2018 16:45:36 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
- processes.
-In-Reply-To: <20180810090735.GY1644@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.21.1808191632230.193150@chino.kir.corp.google.com>
-References: <1533389386-3501-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp> <1533389386-3501-4-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp> <20180806134550.GO19540@dhcp22.suse.cz> <alpine.DEB.2.21.1808061315220.43071@chino.kir.corp.google.com>
- <20180806205121.GM10003@dhcp22.suse.cz> <alpine.DEB.2.21.1808091311030.244858@chino.kir.corp.google.com> <20180810090735.GY1644@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 19 Aug 2018 20:22:08 -0700 (PDT)
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH 0/2] fix for "pathological THP behavior"
+Date: Sun, 19 Aug 2018 23:22:02 -0400
+Message-Id: <20180820032204.9591-1-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
 
+Hello,
 
-> > > > At the risk of continually repeating the same statement, the oom reaper 
-> > > > cannot provide the direct feedback for all possible memory freeing.  
-> > > > Waking up periodically and finding mm->mmap_sem contended is one problem, 
-> > > > but the other problem that I've already shown is the unnecessary oom 
-> > > > killing of additional processes while a thread has already reached 
-> > > > exit_mmap().  The oom reaper cannot free page tables which is problematic 
-> > > > for malloc implementations such as tcmalloc that do not release virtual 
-> > > > memory. 
-> > > 
-> > > But once we know that the exit path is past the point of blocking we can
-> > > have MMF_OOM_SKIP handover from the oom_reaper to the exit path. So the
-> > > oom_reaper doesn't hide the current victim too early and we can safely
-> > > wait for the exit path to reclaim the rest. So there is a feedback
-> > > channel. I would even do not mind to poll for that state few times -
-> > > similar to polling for the mmap_sem. But it would still be some feedback
-> > > rather than a certain amount of time has passed since the last check.
-> > > 
-> > 
-> > Yes, of course, it would be easy to rely on exit_mmap() to set 
-> > MMF_OOM_SKIP itself and have the oom reaper drop the task from its list 
-> > when we are assured of forward progress.  What polling are you proposing 
-> > other than a timeout based mechanism to do this?
-> 
-> I was thinking about doing something like the following
-> - oom_reaper checks the amount of victim's memory after it is done with
->   reaping (e.g. by calling oom_badness before and after). If it wasn't able to
->   reclaim much then return false and keep retrying with the existing
->   mechanism
+we detected a regression compared to older kernels, only happening
+with defrag=always or by using MADV_HUGEPAGE (and QEMU uses it).
 
-I'm not sure how you define the threshold to consider what is substantial 
-memory freeing.
+I haven't bisected but I suppose this started since commit
+5265047ac30191ea24b16503165000c225f54feb combined with previous
+commits that introduced the logic to not try to invoke reclaim for THP
+allocations in the remote nodes.
 
-> - once a flag (e.g. MMF_OOM_MMAP) is set it bails out and won't set the
->   MMF_OOM_SKIP flag.
-> 
-> > We could set a MMF_EXIT_MMAP in exit_mmap() to specify that it will 
-> > complete free_pgtables() for that mm.  The problem is the same: when does 
-> > the oom reaper decide to set MMF_OOM_SKIP because MMF_EXIT_MMAP has not 
-> > been set in a timely manner?
-> 
-> reuse the current retry policy which is the number of attempts rather
-> than any timeout.
-> 
-> > If this is an argument that the oom reaper should loop checking for 
-> > MMF_EXIT_MMAP and doing schedule_timeout(1) a set number of times rather 
-> > than just setting the jiffies in the mm itself, that's just implementing 
-> > the same thing and doing so in a way where the oom reaper stalls operating 
-> > on a single mm rather than round-robin iterating over mm's in my patch.
-> 
-> I've said earlier that I do not mind doing round robin in the oom repaer
-> but this is certainly more complex than what we do now and I haven't
-> seen any actual example where it would matter. OOM reaper is a safely
-> measure. Nothing should fall apart if it is slow. The primary work
-> should be happening from the exit path anyway.
+Once I looked into it the problem was pretty obvious and there are two
+possible simple fixes, one is not to invoke reclaim and stick to
+compaction in the local node only (still __GFP_THISNODE model).
 
-The oom reaper will always be unable to free some memory, such as page 
-tables.  If it can't grab mm->mmap_sem in a reasonable amount of time, it 
-also can give up early.  The munlock() case is another example.  We 
-experience unnecessary oom killing during free_pgtables() where the 
-single-threaded exit_mmap() is freeing an enormous amount of page tables 
-(usually a malloc implementation such as tcmalloc that does not free 
-virtual memory) and other processes are faulting faster than we can free.  
-It's a combination of a multiprocessor system and a lot of virtual memory 
-from the original victim.  This is the same case as being unable to 
-munlock quickly enough in exit_mmap() to free the memory.
+This approach keeps the logic the same and prioritizes for NUMA
+locality over THP generation.
 
-We must wait until free_pgtables() completes in exit_mmap() before killing 
-additional processes in the large majority (99.96% of cases from my data) 
-of instances where oom livelock does not occur.  In the remainder of 
-situations, livelock has been prevented by what the oom reaper has been 
-able to free.  We can, of course, not do free_pgtables() from the oom 
-reaper.  So my approach was to allow for a reasonable amount of time for 
-the victim to free a lot of memory before declaring that additional 
-processes must be oom killed.  It would be functionally similar to having 
-the oom reaper retry many, many more times than 10 and having a linked 
-list of mm_structs to reap.  I don't care one way or another if it's a 
-timeout based solution or many, many retries that have schedule_timeout() 
-that yields the same time period in the end.
+Then I'll send the an alternative that drops the __GFP_THISNODE logic
+if_DIRECT_RECLAIM is set. That however changes the behavior for
+MADV_HUGEPAGE and prioritizes THP generation over NUMA locality.
+
+A possible incremental improvement for this __GFP_COMPACT_ONLY
+solution would be to remove __GFP_THISNODE (and in turn
+__GFP_COMPACT_ONLY) after checking the watermarks if there's no free
+PAGE_SIZEd memory in the local node. However checking the watermarks
+in mempolicy.c is not ideal so it would be a more messy change and
+it'd still need to use __GFP_COMPACT_ONLY as implemented here for when
+there's no PAGE_SIZEd free memory in the local node. That further
+improvement wouldn't be necessary if there's agreement to prioritize
+THP generation over NUMA locality (the alternative solution I'll send
+in a separate post).
+
+Andrea Arcangeli (2):
+  mm: thp: consolidate policy_nodemask call
+  mm: thp: fix transparent_hugepage/defrag = madvise || always
+
+ include/linux/gfp.h | 18 ++++++++++++++++++
+ mm/mempolicy.c      | 16 +++++++++++++---
+ mm/page_alloc.c     |  4 ++++
+ 3 files changed, 35 insertions(+), 3 deletions(-)
