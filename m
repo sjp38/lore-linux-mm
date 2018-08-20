@@ -1,46 +1,246 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D565D6B193A
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 10:13:01 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id e23-v6so14309195oii.10
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 07:13:01 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id f2-v6si7676791oih.58.2018.08.20.07.12.59
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 62F356B1994
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 10:41:20 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id h26-v6so6050030eds.14
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 07:41:20 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c64-v6si2132875edd.457.2018.08.20.07.41.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Aug 2018 07:13:00 -0700 (PDT)
-Subject: Re: INFO: task hung in generic_file_write_iter
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-References: <0000000000009ce88d05714242a8@google.com>
- <4b349bff-8ad4-6410-250d-593b13d8d496@I-love.SAKURA.ne.jp>
- <9b9fcdda-c347-53ee-fdbb-8a7d11cf430e@I-love.SAKURA.ne.jp>
- <20180720130602.f3d6dc4c943558875a36cb52@linux-foundation.org>
- <a2df1f24-f649-f5d8-0b2d-66d45b6cb61f@i-love.sakura.ne.jp>
- <20180806100928.x7anab3c3y5q4ssa@quack2.suse.cz>
- <8248f4e9-3567-b8f5-4751-8b38c1807eff@i-love.sakura.ne.jp>
-Message-ID: <e51a7822-3fdc-3f7a-25bd-5d8d8df44749@i-love.sakura.ne.jp>
-Date: Mon, 20 Aug 2018 23:12:10 +0900
+        Mon, 20 Aug 2018 07:41:18 -0700 (PDT)
+Date: Mon, 20 Aug 2018 16:41:16 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: introduce kvvirt_to_page() helper
+Message-ID: <20180820144116.GO29735@dhcp22.suse.cz>
+References: <1534596541-31393-1-git-send-email-lirongqing@baidu.com>
 MIME-Version: 1.0
-In-Reply-To: <8248f4e9-3567-b8f5-4751-8b38c1807eff@i-love.sakura.ne.jp>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1534596541-31393-1-git-send-email-lirongqing@baidu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, syzbot <syzbot+9933e4476f365f5d5a1b@syzkaller.appspotmail.com>, linux-mm@kvack.org, mgorman@techsingularity.net, Michal Hocko <mhocko@kernel.org>, ak@linux.intel.com, jlayton@redhat.com, linux-kernel@vger.kernel.org, mawilcox@microsoft.com, syzkaller-bugs@googlegroups.com, tim.c.chen@linux.intel.com, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Li RongQing <lirongqing@baidu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Souptick Joarder <jrdr.linux@gmail.com>, darrick.wong@oracle.com
 
-On 2018/08/06 20:56, Tetsuo Handa wrote:
-> On 2018/08/06 19:09, Jan Kara wrote:
->> Looks like some kind of a race where device block size gets changed while
->> getblk() runs (and creates buffers for underlying page). I don't have time
->> to nail it down at this moment can have a look into it later unless someone
->> beats me to it.
->>
+On Sat 18-08-18 20:49:01, Li RongQing wrote:
+> The new helper returns address mapping page, which has several users
+> in individual subsystem, like mem_to_page in xfs_buf.c and pgv_to_page
+> in af_packet.c, unify them
+
+kvvirt_to_page is a weird name. I guess you wanted it to fit into
+kv*alloc, kvfree naming, right? If yes then I guess kvmem_to_page
+would be slightly better.
+
+Other than that the patch makes sense to me. It would be great to add
+some documentation and be explicit that the call is only safe on
+directly mapped kernel address and vmalloc areas.
+
+> Signed-off-by: Zhang Yu <zhangyu31@baidu.com>
+> Signed-off-by: Li RongQing <lirongqing@baidu.com>
+> ---
+>  fs/xfs/xfs_buf.c       | 13 +------------
+>  include/linux/mm.h     |  8 ++++++++
+>  net/9p/trans_virtio.c  |  5 +----
+>  net/ceph/crypto.c      |  6 +-----
+>  net/packet/af_packet.c | 31 ++++++++++++-------------------
+>  5 files changed, 23 insertions(+), 40 deletions(-)
 > 
-> It seems that loop device is relevant to this problem.
+> diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
+> index e839907e8492..edd22b33f49e 100644
+> --- a/fs/xfs/xfs_buf.c
+> +++ b/fs/xfs/xfs_buf.c
+> @@ -866,17 +866,6 @@ xfs_buf_set_empty(
+>  	bp->b_maps[0].bm_len = bp->b_length;
+>  }
+>  
+> -static inline struct page *
+> -mem_to_page(
+> -	void			*addr)
+> -{
+> -	if ((!is_vmalloc_addr(addr))) {
+> -		return virt_to_page(addr);
+> -	} else {
+> -		return vmalloc_to_page(addr);
+> -	}
+> -}
+> -
+>  int
+>  xfs_buf_associate_memory(
+>  	xfs_buf_t		*bp,
+> @@ -909,7 +898,7 @@ xfs_buf_associate_memory(
+>  	bp->b_offset = offset;
+>  
+>  	for (i = 0; i < bp->b_page_count; i++) {
+> -		bp->b_pages[i] = mem_to_page((void *)pageaddr);
+> +		bp->b_pages[i] = kvvirt_to_page((void *)pageaddr);
+>  		pageaddr += PAGE_SIZE;
+>  	}
+>  
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 68a5121694ef..bb34a3c71df5 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -599,6 +599,14 @@ static inline void *kvcalloc(size_t n, size_t size, gfp_t flags)
+>  	return kvmalloc_array(n, size, flags | __GFP_ZERO);
+>  }
+>  
+> +static inline struct page *kvvirt_to_page(const void *addr)
+> +{
+> +	if (!is_vmalloc_addr(addr))
+> +		return virt_to_page(addr);
+> +	else
+> +		return vmalloc_to_page(addr);
+> +}
+> +
+>  extern void kvfree(const void *addr);
+>  
+>  static inline atomic_t *compound_mapcount_ptr(struct page *page)
+> diff --git a/net/9p/trans_virtio.c b/net/9p/trans_virtio.c
+> index 05006cbb3361..8f1895f15593 100644
+> --- a/net/9p/trans_virtio.c
+> +++ b/net/9p/trans_virtio.c
+> @@ -368,10 +368,7 @@ static int p9_get_mapped_pages(struct virtio_chan *chan,
+>  		*need_drop = 0;
+>  		p -= (*offs = offset_in_page(p));
+>  		for (index = 0; index < nr_pages; index++) {
+> -			if (is_vmalloc_addr(p))
+> -				(*pages)[index] = vmalloc_to_page(p);
+> -			else
+> -				(*pages)[index] = kmap_to_page(p);
+> +			(*pages)[index] = kvvirt_to_page(p);
+>  			p += PAGE_SIZE;
+>  		}
+>  		return len;
+> diff --git a/net/ceph/crypto.c b/net/ceph/crypto.c
+> index 02172c408ff2..cc5f0723a44d 100644
+> --- a/net/ceph/crypto.c
+> +++ b/net/ceph/crypto.c
+> @@ -191,11 +191,7 @@ static int setup_sgtable(struct sg_table *sgt, struct scatterlist *prealloc_sg,
+>  		struct page *page;
+>  		unsigned int len = min(chunk_len - off, buf_len);
+>  
+> -		if (is_vmalloc)
+> -			page = vmalloc_to_page(buf);
+> -		else
+> -			page = virt_to_page(buf);
+> -
+> +		page = kvvirt_to_page(buf);
+>  		sg_set_page(sg, page, len, off);
+>  
+>  		off = 0;
+> diff --git a/net/packet/af_packet.c b/net/packet/af_packet.c
+> index 5610061e7f2e..1bec111122ad 100644
+> --- a/net/packet/af_packet.c
+> +++ b/net/packet/af_packet.c
+> @@ -359,13 +359,6 @@ static void unregister_prot_hook(struct sock *sk, bool sync)
+>  		__unregister_prot_hook(sk, sync);
+>  }
+>  
+> -static inline struct page * __pure pgv_to_page(void *addr)
+> -{
+> -	if (is_vmalloc_addr(addr))
+> -		return vmalloc_to_page(addr);
+> -	return virt_to_page(addr);
+> -}
+> -
+>  static void __packet_set_status(struct packet_sock *po, void *frame, int status)
+>  {
+>  	union tpacket_uhdr h;
+> @@ -374,15 +367,15 @@ static void __packet_set_status(struct packet_sock *po, void *frame, int status)
+>  	switch (po->tp_version) {
+>  	case TPACKET_V1:
+>  		h.h1->tp_status = status;
+> -		flush_dcache_page(pgv_to_page(&h.h1->tp_status));
+> +		flush_dcache_page(kvvirt_to_page(&h.h1->tp_status));
+>  		break;
+>  	case TPACKET_V2:
+>  		h.h2->tp_status = status;
+> -		flush_dcache_page(pgv_to_page(&h.h2->tp_status));
+> +		flush_dcache_page(kvvirt_to_page(&h.h2->tp_status));
+>  		break;
+>  	case TPACKET_V3:
+>  		h.h3->tp_status = status;
+> -		flush_dcache_page(pgv_to_page(&h.h3->tp_status));
+> +		flush_dcache_page(kvvirt_to_page(&h.h3->tp_status));
+>  		break;
+>  	default:
+>  		WARN(1, "TPACKET version not supported.\n");
+> @@ -401,13 +394,13 @@ static int __packet_get_status(struct packet_sock *po, void *frame)
+>  	h.raw = frame;
+>  	switch (po->tp_version) {
+>  	case TPACKET_V1:
+> -		flush_dcache_page(pgv_to_page(&h.h1->tp_status));
+> +		flush_dcache_page(kvvirt_to_page(&h.h1->tp_status));
+>  		return h.h1->tp_status;
+>  	case TPACKET_V2:
+> -		flush_dcache_page(pgv_to_page(&h.h2->tp_status));
+> +		flush_dcache_page(kvvirt_to_page(&h.h2->tp_status));
+>  		return h.h2->tp_status;
+>  	case TPACKET_V3:
+> -		flush_dcache_page(pgv_to_page(&h.h3->tp_status));
+> +		flush_dcache_page(kvvirt_to_page(&h.h3->tp_status));
+>  		return h.h3->tp_status;
+>  	default:
+>  		WARN(1, "TPACKET version not supported.\n");
+> @@ -462,7 +455,7 @@ static __u32 __packet_set_timestamp(struct packet_sock *po, void *frame,
+>  	}
+>  
+>  	/* one flush is safe, as both fields always lie on the same cacheline */
+> -	flush_dcache_page(pgv_to_page(&h.h1->tp_sec));
+> +	flush_dcache_page(kvvirt_to_page(&h.h1->tp_sec));
+>  	smp_wmb();
+>  
+>  	return ts_status;
+> @@ -728,7 +721,7 @@ static void prb_flush_block(struct tpacket_kbdq_core *pkc1,
+>  
+>  	end = (u8 *)PAGE_ALIGN((unsigned long)pkc1->pkblk_end);
+>  	for (; start < end; start += PAGE_SIZE)
+> -		flush_dcache_page(pgv_to_page(start));
+> +		flush_dcache_page(kvvirt_to_page(start));
+>  
+>  	smp_wmb();
+>  #endif
+> @@ -741,7 +734,7 @@ static void prb_flush_block(struct tpacket_kbdq_core *pkc1,
+>  
+>  #if ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE == 1
+>  	start = (u8 *)pbd1;
+> -	flush_dcache_page(pgv_to_page(start));
+> +	flush_dcache_page(kvvirt_to_page(start));
+>  
+>  	smp_wmb();
+>  #endif
+> @@ -2352,7 +2345,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
+>  					macoff + snaplen);
+>  
+>  		for (start = h.raw; start < end; start += PAGE_SIZE)
+> -			flush_dcache_page(pgv_to_page(start));
+> +			flush_dcache_page(kvvirt_to_page(start));
+>  	}
+>  	smp_wmb();
+>  #endif
+> @@ -2508,7 +2501,7 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
+>  			return -EFAULT;
+>  		}
+>  
+> -		page = pgv_to_page(data);
+> +		page = kvvirt_to_page(data);
+>  		data += len;
+>  		flush_dcache_page(page);
+>  		get_page(page);
+> @@ -4385,7 +4378,7 @@ static int packet_mmap(struct file *file, struct socket *sock,
+>  			int pg_num;
+>  
+>  			for (pg_num = 0; pg_num < rb->pg_vec_pages; pg_num++) {
+> -				page = pgv_to_page(kaddr);
+> +				page = kvvirt_to_page(kaddr);
+>  				err = vm_insert_page(vma, start, page);
+>  				if (unlikely(err))
+>  					goto out;
+> -- 
+> 2.16.2
+> 
 
-Speak of loop device, I'm waiting for Jens for three months
-http://lkml.kernel.org/r/1527297408-4428-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
-but Jens is too busy to come up with an alternative. Since that is a big patch, I wish we can
-start testing that patch before Jan starts writing a patch for fixing getblk() race problem.
+-- 
+Michal Hocko
+SUSE Labs
