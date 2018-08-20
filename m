@@ -1,68 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EE9BF6B19BA
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 11:19:12 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id o190-v6so12351977qkc.21
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 08:19:12 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e23-v6si2416319qta.54.2018.08.20.08.19.11
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D22506B19BF
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 11:24:12 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id j11-v6so13847835qtp.0
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 08:24:12 -0700 (PDT)
+Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
+        by mx.google.com with ESMTPS id e20-v6si3945625wmh.0.2018.08.20.08.24.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Aug 2018 08:19:11 -0700 (PDT)
-Date: Mon, 20 Aug 2018 11:19:05 -0400
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 0/2] fix for "pathological THP behavior"
-Message-ID: <20180820151905.GB13047@redhat.com>
-References: <20180820032204.9591-1-aarcange@redhat.com>
- <20180820115818.mmeayjkplux2z6im@kshutemo-mobl1>
+        Mon, 20 Aug 2018 08:24:11 -0700 (PDT)
+From: Christophe LEROY <christophe.leroy@c-s.fr>
+Subject: Odd SIGSEGV issue introduced by commit 6b31d5955cb29 ("mm, oom: fix
+ potential data corruption when oom_reaper races with writer")
+Message-ID: <7767bdf4-a034-ecb9-1ac8-4fa87f335818@c-s.fr>
+Date: Mon, 20 Aug 2018 17:23:58 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180820115818.mmeayjkplux2z6im@kshutemo-mobl1>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: fr
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, Ram Pai <linuxram@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, linux-mm <linux-mm@kvack.org>
 
-Hi Kirill,
+Hello,
 
-On Mon, Aug 20, 2018 at 02:58:18PM +0300, Kirill A. Shutemov wrote:
-> I personally prefer to prioritize NUMA locality over THP
-> (__GFP_COMPACT_ONLY variant), but I don't know page-alloc/compaction good
-> enough to Ack it.
+I have an odd issue on my powerpc 8xx board.
 
-If we go in this direction it'd be nice after fixing the showstopper
-bug, if we could then proceed with an orthogonal optimization by
-checking the watermarks and if the watermarks shows there are no
-PAGE_SIZEd pages available in the local node we should remove both
-__GFP_THISNODE and __GFP_COMPACT_ONLY.
+I am running latest 4.14 and get the following SIGSEGV which appears 
+more or less randomly.
 
-If as opposed there's still PAGE_SIZEd free memory in the local node
-(not possible to compact for whatever reason), we should stick to
-__GFP_THISNODE | __GFP_COMPACT_ONLY.
+[    9.190354] touch[91]: unhandled signal 11 at 67807b58 nip 777cf114 
+lr 777cf100 code 30001
+[   24.634810] ifconfig[160]: unhandled signal 11 at 67ae7b58 nip 
+77aaf114 lr 77aaf100 code 30001
+[   30.383737] default.deconfi[231]: unhandled signal 11 at 67c8bb58 nip 
+77c53114 lr 77c53100 code 30001
+[   37.655588] S15syslogd[251]: unhandled signal 11 at 6784fb58 nip 
+77817114 lr 77817100 code 30001
+[   40.974649] snmpd[315]: unhandled signal 11 at 67e0bb58 nip 77dd3114 
+lr 77dd3100 code 30001
+[   43.220964] exe[338]: unhandled signal 11 at 67cd3b58 nip 77c9b114 lr 
+77c9b100 code 30001
+[   44.191494] exe[348]: unhandled signal 11 at 67c1fb58 nip 77be7114 lr 
+77be7100 code 30001
+[   59.175022] sleep[655]: unhandled signal 11 at 67ca3b58 nip 77c6b114 
+lr 77c6b100 code 30001
+[   61.853406] smcroute[705]: unhandled signal 11 at 6789bb58 nip 
+77863114 lr 77863100 code 30001
+[   64.662431] smcroute[778]: unhandled signal 11 at 67e03b58 nip 
+77dcb114 lr 77dcb100 code 30001
+[   65.623103] smcroute[795]: unhandled signal 11 at 67bdbb58 nip 
+77ba3114 lr 77ba3100 code 30001
+[   66.579416] exe[825]: unhandled signal 11 at 67edbb58 nip 77ea3114 lr 
+77ea3100 code 30001
+[   68.382941] exe[864]: unhandled signal 11 at 6789bb58 nip 77863114 lr 
+77863100 code 30001
+[   95.187346] exe[1147]: unhandled signal 11 at 67e83b58 nip 77e4b114 
+lr 77e4b100 code 30001
+[  105.238218] exe[1158]: unhandled signal 11 at 67ca3b58 nip 77c6b114 
+lr 77c6b100 code 30001
+[  127.556731] exe[1181]: unhandled signal 11 at 67cc3b58 nip 77c8b114 
+lr 77c8b100 code 30001
+[  135.558982] exe[1195]: unhandled signal 11 at 678d7b58 nip 7789f114 
+lr 7789f100 code 30001
+[  147.579142] exe[1216]: unhandled signal 11 at 67c6bb58 nip 77c33114 
+lr 77c33100 code 30001
+[  175.538747] exe[1262]: unhandled signal 11 at 67e2fb58 nip 77df7114 
+lr 77df7100 code 30001
+[  186.552670] exe[1275]: unhandled signal 11 at 6781fb58 nip 777e7114 
+lr 777e7100 code 30001
+[  230.629786] exe[1344]: unhandled signal 11 at 67cb3b58 nip 77c7b114 
+lr 77c7b100 code 30001
+[  249.640396] repair-service.[1369]: unhandled signal 11 at 67e5fb58 
+nip 77e27114 lr 77e27100 code 30001
+[  378.003410] exe[1593]: unhandled signal 11 at 678d7b58 nip 7789f114 
+lr 7789f100 code 30001
+[  414.060661] exe[1656]: unhandled signal 11 at 67cc7b58 nip 77c8f114 
+lr 77c8f100 code 30001
 
-It's orthogonal because the above addition would make sense also in
-the current (buggy) code.
+The problem is present in 3.13, 3.14 and 3.15.
 
-The main implementation issue is that the watermark checking is not
-well done in mempolicy.c but the place to clear __GFP_THISNODE and
-__GFP_COMPACT_ONLY currently is there.
+I bisected its appearance with commit 6b31d5955cb29 ("mm, oom: fix 
+potential data corruption when oom_reaper races with writer")
 
-The case that the local node gets completely full and has not even 4k
-pages available should be totally common, because if you keep
-allocating and you allocate more than the size of a NUMA node
-eventually you will fill the local node with THP then consume all 4k
-pages and then you get into the case where the current code is totally
-unable to allocate THP from the other nodes and it would be totally
-possible to fix with the removal of __GFP_THISNODE |
-__GFP_COMPACT_ONLY, after the PAGE_SIZE watermark check.
+And I bisected its disappearance with commit 99cd1302327a2 ("powerpc: 
+Deliver SEGV signal on pkey violation")
 
-I'm mentioning this optimization in this context, even if it's
-orthogonal, because the alternative patch that prioritizes THP over
-NUMA locality for MADV_HUGEPAGE and defer=always would solve that too
-with a one liner and there would be no need of watermark checking and
-flipping gfp bits whatsoever. Once the local node is full, THPs keeps
-being provided as expected.
+Looking at those two commits, especially the one which makes it 
+dissapear, I'm quite sceptic. Any idea on what could be the cause and/or 
+how to investigate further ?
 
-Thanks,
-Andrea
+Thanks
+Christophe
