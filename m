@@ -1,155 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ADB936B16F4
-	for <linux-mm@kvack.org>; Sun, 19 Aug 2018 23:26:45 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id a70-v6so13755780qkb.16
-        for <linux-mm@kvack.org>; Sun, 19 Aug 2018 20:26:45 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e65-v6si7698495qkd.158.2018.08.19.20.26.44
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E0526B1781
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 01:54:22 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id t7-v6so5520855edh.20
+        for <linux-mm@kvack.org>; Sun, 19 Aug 2018 22:54:22 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y2-v6si9476706eda.196.2018.08.19.22.54.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 Aug 2018 20:26:44 -0700 (PDT)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 1/1] mm: thp: fix transparent_hugepage/defrag = madvise || always
-Date: Sun, 19 Aug 2018 23:26:40 -0400
-Message-Id: <20180820032640.9896-2-aarcange@redhat.com>
-In-Reply-To: <20180820032640.9896-1-aarcange@redhat.com>
-References: <20180820032204.9591-3-aarcange@redhat.com>
- <20180820032640.9896-1-aarcange@redhat.com>
+        Sun, 19 Aug 2018 22:54:20 -0700 (PDT)
+Date: Mon, 20 Aug 2018 07:54:17 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
+ processes.
+Message-ID: <20180820055417.GA29735@dhcp22.suse.cz>
+References: <20180806134550.GO19540@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1808061315220.43071@chino.kir.corp.google.com>
+ <20180806205121.GM10003@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1808091311030.244858@chino.kir.corp.google.com>
+ <20180810090735.GY1644@dhcp22.suse.cz>
+ <be42a7c0-015e-2992-a40d-20af21e8c0fc@i-love.sakura.ne.jp>
+ <20180810111604.GA1644@dhcp22.suse.cz>
+ <d9595c92-6763-35cb-b989-0848cf626cb9@i-love.sakura.ne.jp>
+ <20180814113359.GF32645@dhcp22.suse.cz>
+ <49a73f8a-a472-a464-f5bf-ebd7994ce2d3@i-love.sakura.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <49a73f8a-a472-a464-f5bf-ebd7994ce2d3@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-qemu uses MADV_HUGEPAGE which allows direct compaction (i.e.
-__GFP_DIRECT_RECLAIM is set).
+On Sun 19-08-18 23:23:41, Tetsuo Handa wrote:
+> On 2018/08/14 20:33, Michal Hocko wrote:
+> > On Sat 11-08-18 12:12:52, Tetsuo Handa wrote:
+> >> On 2018/08/10 20:16, Michal Hocko wrote:
+> >>>> How do you decide whether oom_reaper() was not able to reclaim much?
+> >>>
+> >>> Just a rule of thumb. If it freed at least few kBs then we should be good
+> >>> to MMF_OOM_SKIP.
+> >>
+> >> I don't think so. We are talking about situations where MMF_OOM_SKIP is set
+> >> before memory enough to prevent the OOM killer from selecting next OOM victim
+> >> was reclaimed.
+> > 
+> > There is nothing like enough memory to prevent a new victim selection.
+> > Just think of streaming source of allocation without any end. There is
+> > simply no way to tell that we have freed enough. We have to guess and
+> > tune based on reasonable workloads.
+> 
+> I'm not talking about "allocation without any end" case.
+> We already inserted fatal_signal_pending(current) checks (except vmalloc()
+> where tsk_is_oom_victim(current) would be used instead).
+> 
+> What we are talking about is a situation where we could avoid selecting next
+> OOM victim if we waited for some more time after MMF_OOM_SKIP was set.
 
-The problem is that direct compaction combined with the NUMA
-__GFP_THISNODE logic in mempolicy.c is telling reclaim to swap very
-hard the local node, instead of failing the allocation if there's no
-THP available in the local node.
-
-Such logic was ok until __GFP_THISNODE was added to the THP allocation
-path even with MPOL_DEFAULT.
-
-The idea behind the __GFP_THISNODE addition, is that it is better to
-provide local memory in PAGE_SIZE units than to use remote NUMA THP
-backed memory. That largely depends on the remote latency though, on
-threadrippers for example the overhead is relatively low in my
-experience.
-
-The combination of __GFP_THISNODE and __GFP_DIRECT_RECLAIM results in
-extremely slow qemu startup with vfio, if the VM is larger than the
-size of one host NUMA node. This is because it will try very hard to
-unsuccessfully swapout get_user_pages pinned pages as result of the
-__GFP_THISNODE being set, instead of falling back to PAGE_SIZE
-allocations and instead of trying to allocate THP on other nodes (it
-would be even worse without vfio type1 GUP pins of course, except it'd
-be swapping heavily instead).
-
-It's very easy to reproduce this by setting
-transparent_hugepage/defrag to "always", even with a simple memhog.
-
-1) This can be fixed by retaining the __GFP_THISNODE logic also for
-   __GFP_DIRECT_RELCAIM by allowing only one compaction run. Not even
-   COMPACT_SKIPPED (i.e. compaction failing because not enough free
-   memory in the zone) should be allowed to invoke reclaim.
-
-2) An alternative is not use __GFP_THISNODE if __GFP_DIRECT_RELCAIM
-   has been set by the caller (i.e. MADV_HUGEPAGE or
-   defrag="always"). That would keep the NUMA locality restriction
-   only when __GFP_DIRECT_RECLAIM is not set by the caller. So THP
-   will be provided from remote nodes if available before falling back
-   to PAGE_SIZE units in the local node, but an app using defrag =
-   always (or madvise with MADV_HUGEPAGE) supposedly prefers that.
-
-These are the results of 1) (higher GB/s is better).
-
-Finished: 30 GB mapped, 10.188535s elapsed, 2.94GB/s
-Finished: 34 GB mapped, 12.274777s elapsed, 2.77GB/s
-Finished: 38 GB mapped, 13.847840s elapsed, 2.74GB/s
-Finished: 42 GB mapped, 14.288587s elapsed, 2.94GB/s
-
-Finished: 30 GB mapped, 8.907367s elapsed, 3.37GB/s
-Finished: 34 GB mapped, 10.724797s elapsed, 3.17GB/s
-Finished: 38 GB mapped, 14.272882s elapsed, 2.66GB/s
-Finished: 42 GB mapped, 13.929525s elapsed, 3.02GB/s
-
-These are the results of 2) (higher GB/s is better).
-
-Finished: 30 GB mapped, 10.163159s elapsed, 2.95GB/s
-Finished: 34 GB mapped, 11.806526s elapsed, 2.88GB/s
-Finished: 38 GB mapped, 10.369081s elapsed, 3.66GB/s
-Finished: 42 GB mapped, 12.357719s elapsed, 3.40GB/s
-
-Finished: 30 GB mapped, 8.251396s elapsed, 3.64GB/s
-Finished: 34 GB mapped, 12.093030s elapsed, 2.81GB/s
-Finished: 38 GB mapped, 11.824903s elapsed, 3.21GB/s
-Finished: 42 GB mapped, 15.950661s elapsed, 2.63GB/s
-
-This is current upstream (higher GB/s is better).
-
-Finished: 30 GB mapped, 8.821632s elapsed, 3.40GB/s
-Finished: 34 GB mapped, 341.979543s elapsed, 0.10GB/s
-Finished: 38 GB mapped, 761.933231s elapsed, 0.05GB/s
-Finished: 42 GB mapped, 1188.409235s elapsed, 0.04GB/s
-
-vfio is a good test because by pinning all memory it avoids the
-swapping and reclaim only wastes CPU, a memhog based test would
-created swapout storms and supposedly show a bigger stddev.
-
-What is better between 1) and 2) depends on the hardware and on the
-software. Virtualization EPT/NTP gets a bigger boost from THP as well
-than host applications.
-
-This commit implements 2).
-
-Reported-by: Alex Williamson <alex.williamson@redhat.com>
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- mm/mempolicy.c | 32 ++++++++++++++++++++++++++++++--
- 1 file changed, 30 insertions(+), 2 deletions(-)
-
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index d6512ef28cde..fb7f9581a835 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -2047,8 +2047,36 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+And that some more time is undefined without a crystal ball. And we have
+desperately shortage of those.
  
- 		if (!nmask || node_isset(hpage_node, *nmask)) {
- 			mpol_cond_put(pol);
--			page = __alloc_pages_node(hpage_node,
--						gfp | __GFP_THISNODE, order);
-+			/*
-+			 * We cannot invoke reclaim if __GFP_THISNODE
-+			 * is set. Invoking reclaim with
-+			 * __GFP_THISNODE set, would cause THP
-+			 * allocations to trigger heavy swapping
-+			 * despite there may be tons of free memory
-+			 * (including potentially plenty of THP
-+			 * already available in the buddy) on all the
-+			 * other NUMA nodes.
-+			 *
-+			 * At most we could invoke compaction when
-+			 * __GFP_THISNODE is set (but we would need to
-+			 * refrain from invoking reclaim even if
-+			 * compaction returned COMPACT_SKIPPED because
-+			 * there wasn't not enough memory to succeed
-+			 * compaction). For now just avoid
-+			 * __GFP_THISNODE instead of limiting the
-+			 * allocation path to a strict and single
-+			 * compaction invocation.
-+			 *
-+			 * Supposedly if direct reclaim was enabled by
-+			 * the caller, the app prefers THP regardless
-+			 * of the node it comes from so this would be
-+			 * more desiderable behavior than only
-+			 * providing THP originated from the local
-+			 * node in such case.
-+			 */
-+			if (!(gfp & __GFP_DIRECT_RECLAIM))
-+				gfp |= __GFP_THISNODE;
-+			page = __alloc_pages_node(hpage_node, gfp, order);
- 			goto out;
- 		}
- 	}
+> >> Apart from the former is "sequential processing" and "the OOM reaper pays the cost
+> >> for reclaiming" while the latter is "parallel (or round-robin) processing" and "the
+> >> allocating thread pays the cost for reclaiming", both are timeout based back off
+> >> with number of retry attempt with a cap.
+> > 
+> > And it is exactly the who pays the price concern I've already tried to
+> > explain that bothers me.
+> 
+> Are you aware that we can fall into situation where nobody can pay the price for
+> reclaiming memory?
+
+I fail to see how this is related to direct vs. kthread oom reaping
+though. Unless the kthread is starved by other means then it can always
+jump in and handle the situation.
+
+> > I really do not see how making the code more complex by ensuring that
+> > allocators share a fair part of the direct oom repaing will make the
+> > situation any easier.
+> 
+> You are completely ignoring/misunderstanding the background of
+> commit 9bfe5ded054b8e28 ("mm, oom: remove sleep from under oom_lock").
+> 
+> That patch was applied in order to mitigate a lockup problem caused by the fact
+> that allocators can deprive the OOM reaper of all CPU resources for making progress
+> due to very very broken assumption at
+> 
+>         /*
+>          * Acquire the oom lock.  If that fails, somebody else is
+>          * making progress for us.
+>          */
+>         if (!mutex_trylock(&oom_lock)) {
+>                 *did_some_progress = 1;
+>                 schedule_timeout_uninterruptible(1);
+>                 return NULL;
+>         }
+> 
+> on the allocator side.
+> 
+> Direct OOM reaping is a method for ensuring that allocators spend _some_ CPU
+> resources for making progress. I already showed how to prevent allocators from
+> trying to reclaim all (e.g. multiple TB) memory at once because you worried it.
+> 
+> >                       Really there are basically two issues we really
+> > should be after. Improve the oom reaper to tear down wider range of
+> > memory (namely mlock) and to improve the cooperation with the exit path
+> > to handle free_pgtables more gracefully because it is true that some
+> > processes might really consume a lot of memory in page tables without
+> > mapping  a lot of anonymous memory. Neither of the two is addressed by
+> > your proposal. So if you want to help then try to think about the two
+> > issues.
+> 
+> Your "improvement" is to tear down wider range of memory whereas
+> my "improvement" is to ensure that CPU resource is spent for reclaiming memory and
+> David's "improvement" is to mitigate unnecessary killing of additional processes.
+> Therefore, your "Neither of the two is addressed by your proposal." is pointless.
+
+OK, then we really have to agree to disagree.
+
+-- 
+Michal Hocko
+SUSE Labs
