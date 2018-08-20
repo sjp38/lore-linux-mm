@@ -1,45 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AF4746B1A30
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 13:19:44 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id f126-v6so846659ywh.4
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 10:19:44 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id 190-v6si1858898ybh.656.2018.08.20.10.19.42
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D11C6B1A43
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 13:38:23 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id d40-v6so10289003pla.14
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 10:38:23 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id s2-v6si11174066pfs.2.2018.08.20.10.38.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Aug 2018 10:19:43 -0700 (PDT)
-Date: Mon, 20 Aug 2018 10:19:01 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH RFC] mm: don't miss the last page because of round-off
- error
-Message-ID: <20180820171855.GA3993@tower.DHCP.thefacebook.com>
-References: <20180817231834.15959-1-guro@fb.com>
- <20180818012213.GA14115@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 20 Aug 2018 10:38:21 -0700 (PDT)
+Date: Mon, 20 Aug 2018 10:38:16 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm: introduce kvvirt_to_page() helper
+Message-ID: <20180820173816.GE25153@bombadil.infradead.org>
+References: <1534596541-31393-1-git-send-email-lirongqing@baidu.com>
+ <20180820144116.GO29735@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180818012213.GA14115@bombadil.infradead.org>
+In-Reply-To: <20180820144116.GO29735@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@surriel.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Li RongQing <lirongqing@baidu.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Souptick Joarder <jrdr.linux@gmail.com>, darrick.wong@oracle.com
 
-On Fri, Aug 17, 2018 at 06:22:13PM -0700, Matthew Wilcox wrote:
-> On Fri, Aug 17, 2018 at 04:18:34PM -0700, Roman Gushchin wrote:
-> > -			scan = div64_u64(scan * fraction[file],
-> > -					 denominator);
-> > +			if (scan > 1)
-> > +				scan = div64_u64(scan * fraction[file],
-> > +						 denominator);
-> 
-> Wouldn't we be better off doing a div_round_up?  ie:
-> 
-> 	scan = div64_u64(scan * fraction[file] + denominator - 1, denominator);
-> 
-> although i'd rather hide that in a new macro in math64.h than opencode it
-> here.
+On Mon, Aug 20, 2018 at 04:41:16PM +0200, Michal Hocko wrote:
+> > +++ b/fs/xfs/xfs_buf.c
+> >  	for (i = 0; i < bp->b_page_count; i++) {
+> > -		bp->b_pages[i] = mem_to_page((void *)pageaddr);
+> > +		bp->b_pages[i] = kvvirt_to_page((void *)pageaddr);
+> >  		pageaddr += PAGE_SIZE;
 
-Good idea! Will do in v2.
+This wants mem_range_to_page_array().
 
-Thanks!
+> > +++ b/net/9p/trans_virtio.c
+> >  		for (index = 0; index < nr_pages; index++) {
+> > -			if (is_vmalloc_addr(p))
+> > -				(*pages)[index] = vmalloc_to_page(p);
+> > -			else
+> > -				(*pages)[index] = kmap_to_page(p);
+> > +			(*pages)[index] = kvvirt_to_page(p);
+
+Also mem_range_to_page_array().
+
+> > +++ b/net/ceph/crypto.c
+> > @@ -191,11 +191,7 @@ static int setup_sgtable(struct sg_table *sgt, struct scatterlist *prealloc_sg,
+> >  		struct page *page;
+> >  		unsigned int len = min(chunk_len - off, buf_len);
+> >  
+> > -		if (is_vmalloc)
+> > -			page = vmalloc_to_page(buf);
+> > -		else
+> > -			page = virt_to_page(buf);
+> > -
+> > +		page = kvvirt_to_page(buf);
+> >  		sg_set_page(sg, page, len, off);
+> >  
+> >  		off = 0;
+
+This whole function wants to move into the core and be called something like
+sg_alloc_table_from_virt().
+
+> > +++ b/net/packet/af_packet.c
+> > @@ -374,15 +367,15 @@ static void __packet_set_status(struct packet_sock *po, void *frame, int status)
+> >  	switch (po->tp_version) {
+> >  	case TPACKET_V1:
+> >  		h.h1->tp_status = status;
+> > -		flush_dcache_page(pgv_to_page(&h.h1->tp_status));
+> > +		flush_dcache_page(kvvirt_to_page(&h.h1->tp_status));
+
+This driver really wants flush_dcache_range(start, len).
