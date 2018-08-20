@@ -1,71 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 80BC96B18A2
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 06:41:43 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id g15-v6so5750265edm.11
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 03:41:43 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l15-v6si3839054edk.25.2018.08.20.03.41.41
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B1C66B18A9
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 06:46:32 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id v65-v6so14374867qka.23
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 03:46:32 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id v18-v6si8758222qta.297.2018.08.20.03.46.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Aug 2018 03:41:41 -0700 (PDT)
-Date: Mon, 20 Aug 2018 12:41:39 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, page_alloc: actually ignore mempolicies for high
- priority allocations
-Message-ID: <20180820104139.GH29735@dhcp22.suse.cz>
-References: <20180612122624.8045-1-vbabka@suse.cz>
- <20180815151652.05d4c4684b7dff2282b5c046@linux-foundation.org>
- <20180816100317.GV32645@dhcp22.suse.cz>
- <6680ec46-8a73-bc70-5dff-eb3cf49482a2@I-love.SAKURA.ne.jp>
+        Mon, 20 Aug 2018 03:46:31 -0700 (PDT)
+Subject: Re: [PATCH v1 5/5] mm/memory_hotplug: print only with DEBUG_VM in
+ online/offline_pages()
+References: <20180816100628.26428-1-david@redhat.com>
+ <20180816100628.26428-6-david@redhat.com>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <7892e949-6c2c-9659-a595-177037d0e203@redhat.com>
+Date: Mon, 20 Aug 2018 12:46:25 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <6680ec46-8a73-bc70-5dff-eb3cf49482a2@I-love.SAKURA.ne.jp>
+In-Reply-To: <20180816100628.26428-6-david@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Stephen Rothwell <sfr@canb.auug.org.au>, Pavel Tatashin <pasha.tatashin@oracle.com>, Kemi Wang <kemi.wang@intel.com>, David Rientjes <rientjes@google.com>, Jia He <jia.he@hxt-semitech.com>, Oscar Salvador <osalvador@suse.de>, Petr Tesarik <ptesarik@suse.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dan Williams <dan.j.williams@intel.com>, Mathieu Malaterre <malat@debian.org>, Baoquan He <bhe@redhat.com>, Wei Yang <richard.weiyang@gmail.com>, Ross Zwisler <zwisler@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Sat 18-08-18 22:02:14, Tetsuo Handa wrote:
-> On 2018/08/16 19:03, Michal Hocko wrote:
-> > The code is quite subtle and we have a bad history of copying stuff
-> > without rethinking whether the code still is needed. Which is sad and a
-> > clear sign that the code is too complex. I cannot say this change
-> > doesn't have any subtle side effects but it makes the intention clear at
-> > least so I _think_ it is good to go. If we find some unintended side
-> > effects we should simply rethink the whole reset zonelist thing.
+On 16.08.2018 12:06, David Hildenbrand wrote:
+> Let's try to minimze the noise.
 > 
-> Does this change affect
+> Signed-off-by: David Hildenbrand <david@redhat.com>
+> ---
+>  mm/memory_hotplug.c | 6 ++++++
+>  1 file changed, 6 insertions(+)
 > 
->         /*
->          * This is not a __GFP_THISNODE allocation, so a truncated nodemask in
->          * the page allocator means a mempolicy is in effect.  Cpuset policy
->          * is enforced in get_page_from_freelist().
->          */
->         if (oc->nodemask &&
->             !nodes_subset(node_states[N_MEMORY], *oc->nodemask)) {
->                 oc->totalpages = total_swap_pages;
->                 for_each_node_mask(nid, *oc->nodemask)
->                         oc->totalpages += node_spanned_pages(nid);
->                 return CONSTRAINT_MEMORY_POLICY;
->         }
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index bbbd16f9d877..6fec2dc6a73d 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -966,9 +966,11 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>  	return 0;
+>  
+>  failed_addition:
+> +#ifdef CONFIG_DEBUG_VM
+>  	pr_debug("online_pages [mem %#010llx-%#010llx] failed\n",
+>  		 (unsigned long long) pfn << PAGE_SHIFT,
+>  		 (((unsigned long long) pfn + nr_pages) << PAGE_SHIFT) - 1);
+> +#endif
+>  	memory_notify(MEM_CANCEL_ONLINE, &arg);
+>  	return ret;
+>  }
+> @@ -1660,7 +1662,9 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
+>  	offlined_pages = check_pages_isolated(start_pfn, end_pfn);
+>  	if (offlined_pages < 0)
+>  		goto repeat;
+> +#ifdef CONFIG_DEBUG_VM
+>  	pr_info("Offlined Pages %ld\n", offlined_pages);
+> +#endif
+>  	/* Ok, all of our target is isolated.
+>  	   We cannot do rollback at this point. */
+>  	offline_isolated_pages(start_pfn, end_pfn);
+> @@ -1695,9 +1699,11 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
+>  	return 0;
+>  
+>  failed_removal:
+> +#ifdef CONFIG_DEBUG_VM
+>  	pr_debug("memory offlining [mem %#010llx-%#010llx] failed\n",
+>  		 (unsigned long long) start_pfn << PAGE_SHIFT,
+>  		 ((unsigned long long) end_pfn << PAGE_SHIFT) - 1);
+> +#endif
+>  	memory_notify(MEM_CANCEL_OFFLINE, &arg);
+>  	/* pushback to free area */
+>  	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
 > 
-> in constrained_alloc() called from
-> 
->         /*
->          * Check if there were limitations on the allocation (only relevant for
->          * NUMA and memcg) that may require different handling.
->          */
->         constraint = constrained_alloc(oc);
->         if (constraint != CONSTRAINT_MEMORY_POLICY)
->                 oc->nodemask = NULL;
-> 
-> in out_of_memory() ?
 
-No practical difference AFAICS. We are losing the nodemask for oom
-victims but their mere existance should make oom decisions void
-and so the constrain shouldn't really matter.
+I'll drop this patch for now, maybe the error messages are actually
+useful when debugging a crashdump of a system without CONFIG_DEBUG_VM.
+
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David / dhildenb
