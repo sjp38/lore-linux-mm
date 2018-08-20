@@ -1,63 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 42FE06B1B9E
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 19:25:06 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id j9-v6so14779897qtn.22
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 16:25:06 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a205-v6si1206572qkc.68.2018.08.20.16.25.05
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 935446B1BA2
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 19:27:21 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id g5-v6so6916920pgq.5
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 16:27:21 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id b82-v6si12266332pfb.18.2018.08.20.16.27.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Aug 2018 16:25:05 -0700 (PDT)
-Date: Mon, 20 Aug 2018 19:24:59 -0400
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 0/2] fix for "pathological THP behavior"
-Message-ID: <20180820232459.GE13047@redhat.com>
-References: <20180820032204.9591-1-aarcange@redhat.com>
- <20180820115818.mmeayjkplux2z6im@kshutemo-mobl1>
- <CAHbLzkqU88GbwpdP3dX7psVKG7boy21F+3iM4qnn4qE1wMeVyg@mail.gmail.com>
+        Mon, 20 Aug 2018 16:27:20 -0700 (PDT)
+Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs
+ in mind (for KVM to isolate its guests per CPU)
+References: <20180820212556.GC2230@char.us.oracle.com>
+ <CA+55aFxZCyVZc4ZpRyZ3uDyakRSOG_=2XvnwMo4oejpsieF9=A@mail.gmail.com>
+ <1534801939.10027.24.camel@amazon.co.uk>
+ <CA+55aFxyUdhYjnQdnmWAt8tTwn4HQ1xz3SAMZJiawkLpMiJ_+w@mail.gmail.com>
+ <20180820223557.GC16961@cisco.cisco.com>
+ <bd148fb6-e139-a065-1bf5-8054f932d30a@intel.com>
+ <1534806880.10027.29.camel@infradead.org>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <dd9657d2-f1c1-630d-4cce-7f1c67a968d6@intel.com>
+Date: Mon, 20 Aug 2018 16:26:32 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHbLzkqU88GbwpdP3dX7psVKG7boy21F+3iM4qnn4qE1wMeVyg@mail.gmail.com>
+In-Reply-To: <1534806880.10027.29.camel@infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <shy828301@gmail.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
+To: David Woodhouse <dwmw2@infradead.org>, Tycho Andersen <tycho@tycho.ws>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, juerg.haefliger@hpe.com, deepa.srinivasan@oracle.com, Jim Mattson <jmattson@google.com>, Andrew Cooper <andrew.cooper3@citrix.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, joao.m.martins@oracle.com, pradeep.vincent@oracle.com, Andi Kleen <ak@linux.intel.com>, Khalid Aziz <khalid.aziz@oracle.com>, kanth.ghatraju@oracle.com, Liran Alon <liran.alon@oracle.com>, Kees Cook <keescook@google.com>, jsteckli@os.inf.tu-dresden.de, Kernel Hardening <kernel-hardening@lists.openwall.com>, chris.hyser@oracle.com, Tyler Hicks <tyhicks@canonical.com>, John Haxby <john.haxby@oracle.com>, Jon Masters <jcm@redhat.com>
 
-Hello,
+On 08/20/2018 04:14 PM, David Woodhouse wrote:
+> If you need the physmap, then rather than manually mapping with 4KiB
+> pages, you just switch. Having first ensured that no malicious guest or
+> userspace is running on a sibling, of course.
 
-On Mon, Aug 20, 2018 at 12:06:11PM -0700, Yang Shi wrote:
-> May the approach #1 break the setting of zone_reclaim_mode? Or it may
-> behave like zone_reclaim_mode is set even though the knob is cleared?
+The problem is determining when "you need the physmap".  Tycho's
+patches, as I remember them basically classify pages between being
+"user" pages which are accessed only via kmap() and friends and "kernel"
+pages which need to be mapped all the time because they might have a
+'task_struct' or a page table or a 'struct file'.
 
-Current MADV_HUGEPAGE THP default behavior is similar to
-zone/node_reclaim_mode yes, the approach #1 won't change that.
-
-The problem is that it behaved like the hardest kind of
-zone/node_reclaim_mode. It wouldn't even try to stop unmap/writeback.
-zone/node_reclaim_mode can stop that at least.
-
-The approach #1 simply reduces the aggressiveness level from the
-hardest kind of zone/node_reclaim_mode to something lither than any
-reclaim would be (i.e. no reclaim and only compaction, which of course
-only makes sense for order > 0 allocations).
-
-If THP fails then the PAGE_SIZE allocation fallback kicks in and it'll
-spread to all nodes and it will invoke reclaim if needed. If it
-invokes reclaim, it'll behave according to node_reclaim_mode if
-set. There's no change to that part.
-
-When MADV_HUGEPAGE wasn't used or defrag wasn't set to "always", the
-current code didn't even invoke compaction, but the whole point of
-MADV_HUGEPAGE is to try to provide THP from the very first page fault,
-so it's ok to pay the cost of compaction there because userland told
-us those are long lived performance sensitive allocations.
-
-What MADV_HUGEPAGE can't to is to trigger an heavy swapout of the
-memory in the local node, despite there may be plenty of free memory
-in all other nodes (even THP pages) and in the local node in PAGE_SIZE
-fragments.
-
-Thanks,
-Andrea
+You're right that we could have a full physmap that we switch to for
+kmap()-like access to user pages.  But, the real problem is
+transitioning pages from kernel to user usage since it requires shooting
+down the old kernel mappings for those pages in some way.
