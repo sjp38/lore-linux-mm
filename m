@@ -1,58 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B2B076B1B29
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 17:26:12 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id n26-v6so14393942iog.15
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 14:26:12 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id x138-v6si510588itb.33.2018.08.20.14.26.11
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 25D156B1B30
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 17:31:08 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id r85-v6so1909808pgr.16
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 14:31:08 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c17-v6sor2690088pgi.295.2018.08.20.14.31.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Aug 2018 14:26:11 -0700 (PDT)
-Date: Mon, 20 Aug 2018 17:25:56 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs in
- mind (for KVM to isolate its guests per CPU)
-Message-ID: <20180820212556.GC2230@char.us.oracle.com>
+        (Google Transport Security);
+        Mon, 20 Aug 2018 14:31:06 -0700 (PDT)
+Date: Mon, 20 Aug 2018 14:31:04 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
+ processes.
+In-Reply-To: <20180820060746.GB29735@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.21.1808201429400.58458@chino.kir.corp.google.com>
+References: <1533389386-3501-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp> <1533389386-3501-4-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp> <20180806134550.GO19540@dhcp22.suse.cz> <alpine.DEB.2.21.1808061315220.43071@chino.kir.corp.google.com>
+ <20180806205121.GM10003@dhcp22.suse.cz> <alpine.DEB.2.21.1808091311030.244858@chino.kir.corp.google.com> <20180810090735.GY1644@dhcp22.suse.cz> <alpine.DEB.2.21.1808191632230.193150@chino.kir.corp.google.com> <20180820060746.GB29735@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel-hardening@lists.openwall.com, Liran Alon <liran.alon@oracle.com>, Deepa Srinivasan <deepa.srinivasan@oracle.com>, linux-mm@kvack.org, juerg.haefliger@hpe.com, khalid.aziz@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, keescook@google.com, andrew.cooper3@citrix.com, jcm@redhat.com, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Kanth <kanth.ghatraju@oracle.com>, Joao Martins <joao.m.martins@oracle.com>, jmattson@google.com, pradeep.vincent@oracle.com, Linus Torvalds <torvalds@linux-foundation.org>, ak@linux.intel.com, john.haxby@oracle.com, jsteckli@os.inf.tu-dresden.de
-Cc: linux-kernel@vger.kernel.org, tglx@linutronix.de
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>
 
-Hi!
+On Mon, 20 Aug 2018, Michal Hocko wrote:
 
-See eXclusive Page Frame Ownership (https://lwn.net/Articles/700606/) which was posted
-way back in in 2016..
+> > The oom reaper will always be unable to free some memory, such as page 
+> > tables.  If it can't grab mm->mmap_sem in a reasonable amount of time, it 
+> > also can give up early.  The munlock() case is another example.  We 
+> > experience unnecessary oom killing during free_pgtables() where the 
+> > single-threaded exit_mmap() is freeing an enormous amount of page tables 
+> > (usually a malloc implementation such as tcmalloc that does not free 
+> > virtual memory) and other processes are faulting faster than we can free.  
+> > It's a combination of a multiprocessor system and a lot of virtual memory 
+> > from the original victim.  This is the same case as being unable to 
+> > munlock quickly enough in exit_mmap() to free the memory.
+> > 
+> > We must wait until free_pgtables() completes in exit_mmap() before killing 
+> > additional processes in the large majority (99.96% of cases from my data) 
+> > of instances where oom livelock does not occur.  In the remainder of 
+> > situations, livelock has been prevented by what the oom reaper has been 
+> > able to free.  We can, of course, not do free_pgtables() from the oom 
+> > reaper.  So my approach was to allow for a reasonable amount of time for 
+> > the victim to free a lot of memory before declaring that additional 
+> > processes must be oom killed.  It would be functionally similar to having 
+> > the oom reaper retry many, many more times than 10 and having a linked 
+> > list of mm_structs to reap.  I don't care one way or another if it's a 
+> > timeout based solution or many, many retries that have schedule_timeout() 
+> > that yields the same time period in the end.
+> 
+> I would really keep the current retry logic with an extension to allow
+> to keep retrying or hand over to exit_mmap when we know it is past the
+> last moment of blocking.
+> 
 
-In the last couple of months there has been a slew of CPU issues that have complicated
-a lot of things. The latest - L1TF - is still fresh in folks's mind and it is
-especially acute to virtualization workloads.
-
-As such a bunch of various folks from different cloud companies (CCed) are looking
-at a way to make Linux kernel be more resistant to hardware having these sort of 
-bugs.
-
-In particular we are looking at a way to "remove as many mappings from the global
-kernel address space as possible. Specifically, while being in the
-context of process A, memory of process B should not be visible in the
-kernel." (email from Julian Stecklina). That is the high-level view and 
-how this could get done, well, that is why posting this on
-LKML/linux-hardening/kvm-devel/linux-mm to start the discussion.
-
-Usually I would start with a draft of RFC patches so folks can rip it apart, but
-thanks to other people (Juerg thank you!) it already exists:
-
-(see https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1222756.html)
-
-The idea would be to extend this to:
-
- 1) Only do it for processes that run under CPUS which are in isolcpus list.
-
- 2) Expand this to be a per-cpu page tables. That is each CPU has its own unique
-    set of pagetables - naturally _START_KERNEL -> __end would be mapped but the
-    rest would not.
-
-Thoughts? Is this possible? Crazy? Better ideas?
+Ok, so it appears you're suggesting a per-mm counter of oom reaper retries 
+and once it reaches a certain threshold, either give up and set 
+MMF_OOM_SKIP or declare that exit_mmap() is responsible for it.  That's 
+fine, but obviously I'll be suggesting that the threshold is rather large.  
+So if I adjust my patch to be a retry counter rather than timestamp, do 
+you have any other reservations?
