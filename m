@@ -1,54 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 12B786B1B59
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 18:04:26 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id k44-v6so4541293wre.21
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 15:04:26 -0700 (PDT)
-Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
-        by mx.google.com with ESMTPS id g8-v6si7721475wru.338.2018.08.20.15.04.24
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A80B36B1B48
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2018 18:18:22 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id u125-v6so2926665ywf.19
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 15:18:22 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id r126-v6sor2457968ywd.144.2018.08.20.15.18.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 20 Aug 2018 15:04:24 -0700 (PDT)
-Date: Mon, 20 Aug 2018 15:04:23 -0700
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] x86/mm: Simplify p[g4um]d_page() macros
-Message-ID: <20180820220422.7qrayn7wivmejr24@two.firstfloor.org>
-References: <20180820203705.16212-1-andi@firstfloor.org>
- <20180820203705.16212-2-andi@firstfloor.org>
- <CA+55aFyo_MFz2Qg3pEbLMf3zhvAQbpZf3mQf98bTRJx28drbeQ@mail.gmail.com>
+        (Google Transport Security);
+        Mon, 20 Aug 2018 15:18:21 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFyo_MFz2Qg3pEbLMf3zhvAQbpZf3mQf98bTRJx28drbeQ@mail.gmail.com>
+In-Reply-To: <1534801939.10027.24.camel@amazon.co.uk>
+References: <20180820212556.GC2230@char.us.oracle.com> <CA+55aFxZCyVZc4ZpRyZ3uDyakRSOG_=2XvnwMo4oejpsieF9=A@mail.gmail.com>
+ <1534801939.10027.24.camel@amazon.co.uk>
+From: Kees Cook <keescook@google.com>
+Date: Mon, 20 Aug 2018 15:18:20 -0700
+Message-ID: <CAGXu5jLSPGe7W0qpUYoQr4C-Yy5FV8Q=hUKRYO9zSbeUNSZn0g@mail.gmail.com>
+Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs
+ in mind (for KVM to isolate its guests per CPU)
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, stable <stable@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Tom Lendacky <thomas.lendacky@amd.com>, Alexander Potapenko <glider@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Lutomirski <luto@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Borislav Petkov <bp@alien8.de>, Brijesh Singh <brijesh.singh@amd.com>, Dave Young <dyoung@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Larry Woodman <lwoodman@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Rik van Riel <riel@redhat.com>, Toshi Kani <toshi.kani@hpe.com>, kasan-dev <kasan-dev@googlegroups.com>, KVM list <kvm@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, linux-efi <linux-efi@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@kernel.org>
+To: "Woodhouse, David" <dwmw@amazon.co.uk>
+Cc: "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>, "juerg.haefliger@hpe.com" <juerg.haefliger@hpe.com>, "deepa.srinivasan@oracle.com" <deepa.srinivasan@oracle.com>, "jmattson@google.com" <jmattson@google.com>, "andrew.cooper3@citrix.com" <andrew.cooper3@citrix.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "boris.ostrovsky@oracle.com" <boris.ostrovsky@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "joao.m.martins@oracle.com" <joao.m.martins@oracle.com>, "pradeep.vincent@oracle.com" <pradeep.vincent@oracle.com>, "ak@linux.intel.com" <ak@linux.intel.com>, "khalid.aziz@oracle.com" <khalid.aziz@oracle.com>, "kanth.ghatraju@oracle.com" <kanth.ghatraju@oracle.com>, "liran.alon@oracle.com" <liran.alon@oracle.com>, "jsteckli@os.inf.tu-dresden.de" <jsteckli@os.inf.tu-dresden.de>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "chris.hyser@oracle.com" <chris.hyser@oracle.com>, "tyhicks@canonical.com" <tyhicks@canonical.com>, "john.haxby@oracle.com" <john.haxby@oracle.com>, "jcm@redhat.com" <jcm@redhat.com>
 
-On Mon, Aug 20, 2018 at 02:57:39PM -0700, Linus Torvalds wrote:
-> On Mon, Aug 20, 2018 at 1:37 PM Andi Kleen <andi@firstfloor.org> wrote:
-> >
-> > From: Andi Kleen <ak@linux.intel.com>
-> >
-> > Create a pgd_pfn() macro similar to the p[4um]d_pfn() macros and then
-> > use the p[g4um]d_pfn() macros in the p[g4um]d_page() macros instead of
-> > duplicating the code.
-> 
-> When doing backports, _please_ explicitly specify which commit this is
-> upstream too.
+On Mon, Aug 20, 2018 at 2:52 PM, Woodhouse, David <dwmw@amazon.co.uk> wrote:
+> On Mon, 2018-08-20 at 14:48 -0700, Linus Torvalds wrote:
+>>
+>> Of course, after the long (and entirely unrelated) discussion about
+>> the TLB flushing bug we had, I'm starting to worry about my own
+>> competence, and maybe I'm missing something really fundamental, and
+>> the XPFO patches do something else than what I think they do, or my
+>> "hey, let's use our Meltdown code" idea has some fundamental weakness
+>> that I'm missing.
+>
+> The interesting part is taking the user (and other) pages out of the
+> kernel's 1:1 physmap.
+>
+> It's the *kernel* we don't want being able to access those pages,
+> because of the multitude of unfixable cache load gadgets.
 
-Ok.
+Right. And even before Meltdown, it was desirable to remove those from
+the physmap to avoid SMAP (and in some cases SMEP) bypasses (as
+detailed in the mentioned paper:
+http://www.cs.columbia.edu/~vpk/papers/ret2dir.sec14.pdf).
 
-> 
-> Also, the original upstream patch is credited to Tom Lendacky.
+-Kees
 
-Okay.
-
-> 
-> Or is there something I'm not seeing, and this is different from
-> commit fd7e315988b7 ("x86/mm: Simplify p[g4um]d_page() macros")?
-
-No it's Tom's patch just ported to the older tree with some minor
-changes. I just fat fingered it while doing the commit
-
--Andi
+-- 
+Kees Cook
+Pixel Security
