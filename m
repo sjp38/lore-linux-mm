@@ -1,75 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 911B76B1D3B
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 02:16:59 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id o16-v6so7405930pgv.21
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 23:16:59 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a61-v6si3942798plc.239.2018.08.20.23.16.57
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 800BD6B1D4E
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 02:33:24 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id q21-v6so9182118pff.21
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 23:33:24 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id w19-v6si11819753pfn.160.2018.08.20.23.33.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Aug 2018 23:16:58 -0700 (PDT)
-Date: Tue, 21 Aug 2018 08:16:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
- processes.
-Message-ID: <20180821061655.GV29735@dhcp22.suse.cz>
-References: <20180806205121.GM10003@dhcp22.suse.cz>
- <alpine.DEB.2.21.1808091311030.244858@chino.kir.corp.google.com>
- <20180810090735.GY1644@dhcp22.suse.cz>
- <be42a7c0-015e-2992-a40d-20af21e8c0fc@i-love.sakura.ne.jp>
- <20180810111604.GA1644@dhcp22.suse.cz>
- <d9595c92-6763-35cb-b989-0848cf626cb9@i-love.sakura.ne.jp>
- <20180814113359.GF32645@dhcp22.suse.cz>
- <49a73f8a-a472-a464-f5bf-ebd7994ce2d3@i-love.sakura.ne.jp>
- <20180820055417.GA29735@dhcp22.suse.cz>
- <d5be452a-951f-ddc9-e7df-102d292f22c2@i-love.sakura.ne.jp>
+        Mon, 20 Aug 2018 23:33:23 -0700 (PDT)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.9 24/25] x86/mm: Simplify p[g4um]d_page() macros
+Date: Tue, 21 Aug 2018 08:21:38 +0200
+Message-Id: <20180821055126.128924982@linuxfoundation.org>
+In-Reply-To: <20180821055124.909865464@linuxfoundation.org>
+References: <20180821055124.909865464@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <d5be452a-951f-ddc9-e7df-102d292f22c2@i-love.sakura.ne.jp>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Tom Lendacky <thomas.lendacky@amd.com>, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@suse.de>, Alexander Potapenko <glider@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Borislav Petkov <bp@alien8.de>, Brijesh Singh <brijesh.singh@amd.com>, Dave Young <dyoung@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Larry Woodman <lwoodman@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Peter Zijlstra <peterz@infradead.org>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Rik van Riel <riel@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, kasan-dev@googlegroups.com, kvm@vger.kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-efi@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Andi Kleen <ak@linux.intel.com>
 
-On Tue 21-08-18 07:03:10, Tetsuo Handa wrote:
-> On 2018/08/20 14:54, Michal Hocko wrote:
-> >>>> Apart from the former is "sequential processing" and "the OOM reaper pays the cost
-> >>>> for reclaiming" while the latter is "parallel (or round-robin) processing" and "the
-> >>>> allocating thread pays the cost for reclaiming", both are timeout based back off
-> >>>> with number of retry attempt with a cap.
-> >>>
-> >>> And it is exactly the who pays the price concern I've already tried to
-> >>> explain that bothers me.
-> >>
-> >> Are you aware that we can fall into situation where nobody can pay the price for
-> >> reclaiming memory?
-> > 
-> > I fail to see how this is related to direct vs. kthread oom reaping
-> > though. Unless the kthread is starved by other means then it can always
-> > jump in and handle the situation.
-> 
-> I'm saying that concurrent allocators can starve the OOM reaper kernel thread.
-> I don't care if the OOM reaper kernel thread is starved by something other than
-> concurrent allocators, as long as that something is doing useful things.
-> 
-> Allocators wait for progress using (almost) busy loop is prone to lockup; they are
-> not doing useful things. But direct OOM reaping allows allocators avoid lockup and
-> do useful things.
+4.9-stable review patch.  If anyone has any objections, please let me know.
 
-As long as those allocators are making _some_ progress and they are not
-preempted themselves. Those might be low priority as well. To make it
-more fun those high priority might easily preempt those which try to
-make the direct reaping. And if you really want to achieve at least some
-fairness there you will quickly grown into a complex scheme. Really our
-direct reclaim is already quite fragile when it comes to fairness and
-now you want to extend it to be even more fragile. Really, I think you
-are not really appreciating what kind of complex beast you are going to
-create.
+------------------
 
-If we have priority inversion problems during oom then we can always
-return back to high priority oom reaper. This would be so much simpler.
--- 
-Michal Hocko
-SUSE Labs
+From: Tom Lendacky <thomas.lendacky@amd.com>
+
+commit fd7e315988b784509ba3f1b42f539bd0b1fca9bb upstream.
+
+Create a pgd_pfn() macro similar to the p[4um]d_pfn() macros and then
+use the p[g4um]d_pfn() macros in the p[g4um]d_page() macros instead of
+duplicating the code.
+
+Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+Reviewed-by: Borislav Petkov <bp@suse.de>
+Cc: Alexander Potapenko <glider@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brijesh Singh <brijesh.singh@amd.com>
+Cc: Dave Young <dyoung@redhat.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Jonathan Corbet <corbet@lwn.net>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Larry Woodman <lwoodman@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Matt Fleming <matt@codeblueprint.co.uk>
+Cc: Michael S. Tsirkin <mst@redhat.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Radim KrA?mA!A? <rkrcmar@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Toshimitsu Kani <toshi.kani@hpe.com>
+Cc: kasan-dev@googlegroups.com
+Cc: kvm@vger.kernel.org
+Cc: linux-arch@vger.kernel.org
+Cc: linux-doc@vger.kernel.org
+Cc: linux-efi@vger.kernel.org
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/e61eb533a6d0aac941db2723d8aa63ef6b882dee.1500319216.git.thomas.lendacky@amd.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+[Backported to 4.9 stable by AK, suggested by Michael Hocko]
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+---
+ arch/x86/include/asm/pgtable.h |   13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -190,6 +190,11 @@ static inline unsigned long pud_pfn(pud_
+ 	return (pfn & pud_pfn_mask(pud)) >> PAGE_SHIFT;
+ }
+ 
++static inline unsigned long pgd_pfn(pgd_t pgd)
++{
++	return (pgd_val(pgd) & PTE_PFN_MASK) >> PAGE_SHIFT;
++}
++
+ #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
+ 
+ static inline int pmd_large(pmd_t pte)
+@@ -621,8 +626,7 @@ static inline unsigned long pmd_page_vad
+  * Currently stuck as a macro due to indirect forward reference to
+  * linux/mmzone.h's __section_mem_map_addr() definition:
+  */
+-#define pmd_page(pmd)		\
+-	pfn_to_page((pmd_val(pmd) & pmd_pfn_mask(pmd)) >> PAGE_SHIFT)
++#define pmd_page(pmd)	pfn_to_page(pmd_pfn(pmd))
+ 
+ /*
+  * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
+@@ -690,8 +694,7 @@ static inline unsigned long pud_page_vad
+  * Currently stuck as a macro due to indirect forward reference to
+  * linux/mmzone.h's __section_mem_map_addr() definition:
+  */
+-#define pud_page(pud)		\
+-	pfn_to_page((pud_val(pud) & pud_pfn_mask(pud)) >> PAGE_SHIFT)
++#define pud_page(pud)	pfn_to_page(pud_pfn(pud))
+ 
+ /* Find an entry in the second-level page table.. */
+ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
+@@ -731,7 +734,7 @@ static inline unsigned long pgd_page_vad
+  * Currently stuck as a macro due to indirect forward reference to
+  * linux/mmzone.h's __section_mem_map_addr() definition:
+  */
+-#define pgd_page(pgd)		pfn_to_page(pgd_val(pgd) >> PAGE_SHIFT)
++#define pgd_page(pgd)		pfn_to_page(pgd_pfn(pgd))
+ 
+ /* to find an entry in a page-table-directory. */
+ static inline unsigned long pud_index(unsigned long address)
