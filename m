@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 800BD6B1D4E
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 02:33:24 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id q21-v6so9182118pff.21
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 23:33:24 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CFA06B1D51
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 02:34:38 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id 186-v6so586406pgc.12
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 23:34:38 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id w19-v6si11819753pfn.160.2018.08.20.23.33.23
+        by mx.google.com with ESMTPS id cb14-v6si4271433plb.178.2018.08.20.23.34.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Aug 2018 23:33:23 -0700 (PDT)
+        Mon, 20 Aug 2018 23:34:37 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.9 24/25] x86/mm: Simplify p[g4um]d_page() macros
-Date: Tue, 21 Aug 2018 08:21:38 +0200
-Message-Id: <20180821055126.128924982@linuxfoundation.org>
-In-Reply-To: <20180821055124.909865464@linuxfoundation.org>
-References: <20180821055124.909865464@linuxfoundation.org>
+Subject: [PATCH 4.4 20/22] x86/mm: Simplify p[g4um]d_page() macros
+Date: Tue, 21 Aug 2018 08:21:46 +0200
+Message-Id: <20180821055140.512503507@linuxfoundation.org>
+In-Reply-To: <20180821055139.462620042@linuxfoundation.org>
+References: <20180821055139.462620042@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -22,7 +22,7 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Tom Lendacky <thomas.lendacky@amd.com>, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@suse.de>, Alexander Potapenko <glider@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Borislav Petkov <bp@alien8.de>, Brijesh Singh <brijesh.singh@amd.com>, Dave Young <dyoung@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Larry Woodman <lwoodman@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Peter Zijlstra <peterz@infradead.org>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Rik van Riel <riel@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, kasan-dev@googlegroups.com, kvm@vger.kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-efi@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Andi Kleen <ak@linux.intel.com>
 
-4.9-stable review patch.  If anyone has any objections, please let me know.
+4.4-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
@@ -73,7 +73,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 --- a/arch/x86/include/asm/pgtable.h
 +++ b/arch/x86/include/asm/pgtable.h
-@@ -190,6 +190,11 @@ static inline unsigned long pud_pfn(pud_
+@@ -173,6 +173,11 @@ static inline unsigned long pud_pfn(pud_
  	return (pfn & pud_pfn_mask(pud)) >> PAGE_SHIFT;
  }
  
@@ -85,7 +85,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
  
  static inline int pmd_large(pmd_t pte)
-@@ -621,8 +626,7 @@ static inline unsigned long pmd_page_vad
+@@ -578,8 +583,7 @@ static inline unsigned long pmd_page_vad
   * Currently stuck as a macro due to indirect forward reference to
   * linux/mmzone.h's __section_mem_map_addr() definition:
   */
@@ -95,7 +95,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  
  /*
   * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
-@@ -690,8 +694,7 @@ static inline unsigned long pud_page_vad
+@@ -647,8 +651,7 @@ static inline unsigned long pud_page_vad
   * Currently stuck as a macro due to indirect forward reference to
   * linux/mmzone.h's __section_mem_map_addr() definition:
   */
@@ -105,7 +105,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  
  /* Find an entry in the second-level page table.. */
  static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
-@@ -731,7 +734,7 @@ static inline unsigned long pgd_page_vad
+@@ -688,7 +691,7 @@ static inline unsigned long pgd_page_vad
   * Currently stuck as a macro due to indirect forward reference to
   * linux/mmzone.h's __section_mem_map_addr() definition:
   */
