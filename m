@@ -1,64 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C20A16B1D37
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 02:14:54 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id f66-v6so11213506plb.10
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 23:14:54 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w24-v6sor2615074pgj.410.2018.08.20.23.14.53
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 911B76B1D3B
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 02:16:59 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id o16-v6so7405930pgv.21
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2018 23:16:59 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a61-v6si3942798plc.239.2018.08.20.23.16.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 20 Aug 2018 23:14:53 -0700 (PDT)
-Subject: Re: [RESEND PATCH v10 3/6] mm: page_alloc: reduce unnecessary binary
- search in memblock_next_valid_pfn()
-References: <1530867675-9018-1-git-send-email-hejianet@gmail.com>
- <1530867675-9018-4-git-send-email-hejianet@gmail.com>
- <61ca29b9-a985-cce0-03e9-d216791c802c@microsoft.com>
-From: Jia He <hejianet@gmail.com>
-Message-ID: <334337ca-811e-4a2e-09ff-65ebe37ef6df@gmail.com>
-Date: Tue, 21 Aug 2018 14:14:30 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 20 Aug 2018 23:16:58 -0700 (PDT)
+Date: Tue, 21 Aug 2018 08:16:55 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
+ processes.
+Message-ID: <20180821061655.GV29735@dhcp22.suse.cz>
+References: <20180806205121.GM10003@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1808091311030.244858@chino.kir.corp.google.com>
+ <20180810090735.GY1644@dhcp22.suse.cz>
+ <be42a7c0-015e-2992-a40d-20af21e8c0fc@i-love.sakura.ne.jp>
+ <20180810111604.GA1644@dhcp22.suse.cz>
+ <d9595c92-6763-35cb-b989-0848cf626cb9@i-love.sakura.ne.jp>
+ <20180814113359.GF32645@dhcp22.suse.cz>
+ <49a73f8a-a472-a464-f5bf-ebd7994ce2d3@i-love.sakura.ne.jp>
+ <20180820055417.GA29735@dhcp22.suse.cz>
+ <d5be452a-951f-ddc9-e7df-102d292f22c2@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <61ca29b9-a985-cce0-03e9-d216791c802c@microsoft.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d5be452a-951f-ddc9-e7df-102d292f22c2@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <Pavel.Tatashin@microsoft.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jia He <jia.he@hxt-semitech.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-Hi Pasha
+On Tue 21-08-18 07:03:10, Tetsuo Handa wrote:
+> On 2018/08/20 14:54, Michal Hocko wrote:
+> >>>> Apart from the former is "sequential processing" and "the OOM reaper pays the cost
+> >>>> for reclaiming" while the latter is "parallel (or round-robin) processing" and "the
+> >>>> allocating thread pays the cost for reclaiming", both are timeout based back off
+> >>>> with number of retry attempt with a cap.
+> >>>
+> >>> And it is exactly the who pays the price concern I've already tried to
+> >>> explain that bothers me.
+> >>
+> >> Are you aware that we can fall into situation where nobody can pay the price for
+> >> reclaiming memory?
+> > 
+> > I fail to see how this is related to direct vs. kthread oom reaping
+> > though. Unless the kthread is starved by other means then it can always
+> > jump in and handle the situation.
+> 
+> I'm saying that concurrent allocators can starve the OOM reaper kernel thread.
+> I don't care if the OOM reaper kernel thread is starved by something other than
+> concurrent allocators, as long as that something is doing useful things.
+> 
+> Allocators wait for progress using (almost) busy loop is prone to lockup; they are
+> not doing useful things. But direct OOM reaping allows allocators avoid lockup and
+> do useful things.
 
-On 8/17/2018 9:08 AM, Pasha Tatashin Wrote:
-> 
->> Signed-off-by: Jia He <jia.he@hxt-semitech.com>
->> ---
->>  mm/memblock.c | 37 +++++++++++++++++++++++++++++--------
->>  1 file changed, 29 insertions(+), 8 deletions(-)
->>
->> diff --git a/mm/memblock.c b/mm/memblock.c
->> index ccad225..84f7fa7 100644
->> --- a/mm/memblock.c
->> +++ b/mm/memblock.c
->> @@ -1140,31 +1140,52 @@ int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
->>  #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
->>  
->>  #ifdef CONFIG_HAVE_MEMBLOCK_PFN_VALID
->> +static int early_region_idx __init_memblock = -1;
-> 
-> One comment:
-> 
-> This should be __initdata, but even better bring it inside the function
-> as local static variable.
-> 
-Seems it should be __initdata_memblock instead of __initdata?
+As long as those allocators are making _some_ progress and they are not
+preempted themselves. Those might be low priority as well. To make it
+more fun those high priority might easily preempt those which try to
+make the direct reaping. And if you really want to achieve at least some
+fairness there you will quickly grown into a complex scheme. Really our
+direct reclaim is already quite fragile when it comes to fairness and
+now you want to extend it to be even more fragile. Really, I think you
+are not really appreciating what kind of complex beast you are going to
+create.
 
+If we have priority inversion problems during oom then we can always
+return back to high priority oom reaper. This would be so much simpler.
 -- 
-Cheers,
-Jia
->>  ulong __init_memblock memblock_next_valid_pfn(ulong pfn)
->>  {
-> 
-> Otherwise looks good:
-> 
-> Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
-> 
+Michal Hocko
+SUSE Labs
