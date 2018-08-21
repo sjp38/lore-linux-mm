@@ -1,42 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E6C236B1FDF
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 13:26:57 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id a23-v6so9968824pfo.23
-        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 10:26:57 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u73-v6sor1018889pgb.358.2018.08.21.10.26.56
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C39B6B1FF2
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 13:51:05 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id r41-v6so3161649edd.15
+        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 10:51:05 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id g13-v6si1295502edf.328.2018.08.21.10.51.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 21 Aug 2018 10:26:56 -0700 (PDT)
-Date: Tue, 21 Aug 2018 10:26:54 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 0/2] fix for "pathological THP behavior"
-In-Reply-To: <6120e1b6-b4d2-96cb-2555-d8fab65c23c8@suse.cz>
-Message-ID: <alpine.DEB.2.21.1808211021110.258924@chino.kir.corp.google.com>
-References: <20180820032204.9591-1-aarcange@redhat.com> <20180820115818.mmeayjkplux2z6im@kshutemo-mobl1> <20180820151905.GB13047@redhat.com> <6120e1b6-b4d2-96cb-2555-d8fab65c23c8@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Aug 2018 10:51:03 -0700 (PDT)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w7LHnXAM092879
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 13:51:02 -0400
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2m0n7rx1e7-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 13:51:01 -0400
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Tue, 21 Aug 2018 18:51:00 +0100
+Date: Tue, 21 Aug 2018 10:50:49 -0700
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: Odd SIGSEGV issue introduced by commit 6b31d5955cb29 ("mm, oom:
+ fix potential data corruption when oom_reaper races with writer")
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <7767bdf4-a034-ecb9-1ac8-4fa87f335818@c-s.fr>
+ <871sasmddc.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <871sasmddc.fsf@concordia.ellerman.id.au>
+Message-Id: <20180821175049.GA5905@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 8bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>
+To: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Christophe LEROY <christophe.leroy@c-s.fr>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, linux-mm <linux-mm@kvack.org>
 
-On Tue, 21 Aug 2018, Vlastimil Babka wrote:
-
-> Frankly, I would rather go with this option and assume that if someone
-> explicitly wants THP's, they don't care about NUMA locality that much.
-> (Note: I hate __GFP_THISNODE, it's an endless source of issues.)
-> Trying to be clever about "is there still PAGE_SIZEd free memory in the
-> local node" is imperfect anyway. If there isn't, is it because there's
-> clean page cache that we can easily reclaim (so it would be worth
-> staying local) or is it really exhausted? Watermark check won't tell...
+On Tue, Aug 21, 2018 at 04:40:15PM +1000, Michael Ellerman wrote:
+> Christophe LEROY <christophe.leroy@c-s.fr> writes:
+> ...
+> >
+> > And I bisected its disappearance with commit 99cd1302327a2 ("powerpc: 
+> > Deliver SEGV signal on pkey violation")
 > 
+> Whoa that's weird.
+> 
+> > Looking at those two commits, especially the one which makes it 
+> > dissapear, I'm quite sceptic. Any idea on what could be the cause and/or 
+> > how to investigate further ?
+> 
+> Are you sure it's not some corruption that just happens to be masked by
+> that commit? I can't see anything in that commit that could explain that
+> change in behaviour.
+> 
+> The only real change is if you're hitting DSISR_KEYFAULT isn't it?
 
-MADV_HUGEPAGE (or defrag == "always") would now become a combination of 
-"try to compact locally" and "allocate remotely if necesary" without the 
-ability to avoid the latter absent a mempolicy that affects all memory 
-allocations.  I think the complete solution would be a MPOL_F_HUGEPAGE 
-flag that defines mempolicies for hugepage allocations.  In my experience 
-thp falling back to remote nodes for intrasocket latency is a win but 
-intersocket or two-hop intersocket latency is a no go.
+even with the 'commit 99cd1302327a2', a SEGV signal should get generated;
+which should kill the process. Unless the process handles SEGV signals 
+with SEGV_PKUERR differently.
+
+The other surprising thing is, why is DSISR_KEYFAULT getting generated
+in the first place?  Are keys somehow getting programmed into the HPTE?
+
+Feels like some random corruption.
+
+Is this behavior seen with power8 or power9?
+
+RP
