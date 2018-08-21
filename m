@@ -1,49 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AD6036B1F98
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 12:21:25 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id n18-v6so2644187wmc.3
-        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 09:21:25 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EA1246B1FB2
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 12:49:06 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id v21-v6so4114976wrc.2
+        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 09:49:06 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 131-v6sor760256wmq.12.2018.08.21.09.21.24
+        by mx.google.com with SMTPS id l4-v6sor795240wmc.61.2018.08.21.09.49.05
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 21 Aug 2018 09:21:24 -0700 (PDT)
-Date: Tue, 21 Aug 2018 18:21:22 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH v4 0/4] Refactoring for
- remove_memory_section/unregister_mem_sect_under_nodes
-Message-ID: <20180821162122.GA10300@techadventures.net>
-References: <20180817090017.17610-1-osalvador@techadventures.net>
+        Tue, 21 Aug 2018 09:49:05 -0700 (PDT)
+Date: Tue, 21 Aug 2018 19:49:04 +0300
+From: Alexander Pateenok <pateenoc@gmail.com>
+Subject: [PATCH] percpu: cleanup PER_CPU_DEF_ATTRIBUTES macro
+Message-ID: <20180821164904.qqhcduimjznods66@K55DR.localdomain>
+Reply-To: 20180821155611.GN3978217@devbig004.ftw2.facebook.com
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180817090017.17610-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, vbabka@suse.cz, dan.j.williams@intel.com, yasu.isimatu@gmail.com, jonathan.cameron@huawei.com, david@redhat.com, Pavel.Tatashin@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: Tejun Heo <tj@kernel.org>
 
-On Fri, Aug 17, 2018 at 11:00:13AM +0200, Oscar Salvador wrote:
-> From: Oscar Salvador <osalvador@suse.de>
-> 
-> v3 -> v4:
->         - Make nodemask_t a stack variable
->         - Added Reviewed-by from David and Pavel
-> 
-> v2 -> v3:
->         - NODEMASK_FREE can deal with NULL pointers, so do not
->           make it conditional (by David).
->         - Split up node_online's check patch (David's suggestion)
->         - Added Reviewed-by from Andrew and David
->         - Fix checkpath.pl warnings
+The macro is not used:
 
-Andrew, will you pick up this patchset?
-I saw that v3 was removed from the -mm tree because it was about
-to be updated with a new version (this one), but I am not sure if
-anything wrong happened.
+  $ grep -r PER_CPU_DEF_ATTRIBUTES
+  include/linux/percpu-defs.h:	__PCPU_ATTRS(sec) PER_CPU_DEF_ATTRIBUTES __weak		\
+  include/linux/percpu-defs.h:	__PCPU_ATTRS(sec) PER_CPU_DEF_ATTRIBUTES		\
+  include/asm-generic/percpu.h:#ifndef PER_CPU_DEF_ATTRIBUTES
+  include/asm-generic/percpu.h:#define PER_CPU_DEF_ATTRIBUTES
 
-Thanks
+It was added with b01e8dc34379 ("alpha: fix percpu build breakage") and
+removed in 2009 with b01e8dc34379..6088464cf1ae.
+
+Acked-by: Tejun Heo <tj@kernel.org>
+Signed-off-by: Alexander Pateenok <pateenoc@gmail.com>
+---
+ include/asm-generic/percpu.h | 4 ----
+ include/linux/percpu-defs.h  | 6 ++----
+ 2 files changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/include/asm-generic/percpu.h b/include/asm-generic/percpu.h
+index 1817a8415a5e..c2de013b2cf4 100644
+--- a/include/asm-generic/percpu.h
++++ b/include/asm-generic/percpu.h
+@@ -62,10 +62,6 @@ extern void setup_per_cpu_areas(void);
+ #define PER_CPU_ATTRIBUTES
+ #endif
+ 
+-#ifndef PER_CPU_DEF_ATTRIBUTES
+-#define PER_CPU_DEF_ATTRIBUTES
+-#endif
+-
+ #define raw_cpu_generic_read(pcp)					\
+ ({									\
+ 	*raw_cpu_ptr(&(pcp));						\
+diff --git a/include/linux/percpu-defs.h b/include/linux/percpu-defs.h
+index 2d2096ba1cfe..1ce8e264a269 100644
+--- a/include/linux/percpu-defs.h
++++ b/include/linux/percpu-defs.h
+@@ -91,8 +91,7 @@
+ 	extern __PCPU_DUMMY_ATTRS char __pcpu_unique_##name;		\
+ 	__PCPU_DUMMY_ATTRS char __pcpu_unique_##name;			\
+ 	extern __PCPU_ATTRS(sec) __typeof__(type) name;			\
+-	__PCPU_ATTRS(sec) PER_CPU_DEF_ATTRIBUTES __weak			\
+-	__typeof__(type) name
++	__PCPU_ATTRS(sec) __weak __typeof__(type) name
+ #else
+ /*
+  * Normal declaration and definition macros.
+@@ -101,8 +100,7 @@
+ 	extern __PCPU_ATTRS(sec) __typeof__(type) name
+ 
+ #define DEFINE_PER_CPU_SECTION(type, name, sec)				\
+-	__PCPU_ATTRS(sec) PER_CPU_DEF_ATTRIBUTES			\
+-	__typeof__(type) name
++	__PCPU_ATTRS(sec) __typeof__(type) name
+ #endif
+ 
+ /*
 -- 
-Oscar Salvador
-SUSE L3
+2.17.1
