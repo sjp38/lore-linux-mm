@@ -1,129 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E7F96B1EF1
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 10:06:17 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id d47-v6so2776902edb.3
-        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 07:06:17 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A3D56B1F63
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 11:32:45 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id w23-v6so8109119pgv.1
+        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 08:32:45 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d4-v6si8896982edl.365.2018.08.21.07.06.15
+        by mx.google.com with ESMTPS id k24-v6si10400324pgn.574.2018.08.21.08.32.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Aug 2018 07:06:15 -0700 (PDT)
-Date: Tue, 21 Aug 2018 16:06:12 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] memcg, oom: emit oom report when there is no
- eligible task
-Message-ID: <20180821140612.GD16611@dhcp22.suse.cz>
-References: <20180808064414.GA27972@dhcp22.suse.cz>
- <20180808071301.12478-1-mhocko@kernel.org>
- <20180808071301.12478-3-mhocko@kernel.org>
- <20180808144515.GA9276@cmpxchg.org>
- <20180808161737.GQ27972@dhcp22.suse.cz>
+        Tue, 21 Aug 2018 08:32:43 -0700 (PDT)
+Subject: Re: [PATCH 0/2] fix for "pathological THP behavior"
+References: <20180820032204.9591-1-aarcange@redhat.com>
+ <20180820115818.mmeayjkplux2z6im@kshutemo-mobl1>
+ <20180820151905.GB13047@redhat.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <6120e1b6-b4d2-96cb-2555-d8fab65c23c8@suse.cz>
+Date: Tue, 21 Aug 2018 17:30:11 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180808161737.GQ27972@dhcp22.suse.cz>
+In-Reply-To: <20180820151905.GB13047@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>
 
-Do you plan to repost these two? They are quite deep in the email thread
-so they can easily fall through cracks.
+On 8/20/18 5:19 PM, Andrea Arcangeli wrote:
+> Hi Kirill,
+> 
+> On Mon, Aug 20, 2018 at 02:58:18PM +0300, Kirill A. Shutemov wrote:
+>> I personally prefer to prioritize NUMA locality over THP
+>> (__GFP_COMPACT_ONLY variant), but I don't know page-alloc/compaction good
+>> enough to Ack it.
+> 
+> If we go in this direction it'd be nice after fixing the showstopper
+> bug, if we could then proceed with an orthogonal optimization by
+> checking the watermarks and if the watermarks shows there are no
+> PAGE_SIZEd pages available in the local node we should remove both
+> __GFP_THISNODE and __GFP_COMPACT_ONLY.
+> 
+> If as opposed there's still PAGE_SIZEd free memory in the local node
+> (not possible to compact for whatever reason), we should stick to
+> __GFP_THISNODE | __GFP_COMPACT_ONLY.
 
-On Wed 08-08-18 18:17:37, Michal Hocko wrote:
-> On Wed 08-08-18 10:45:15, Johannes Weiner wrote:
-[...]
-> > >From bba01122f739b05a689dbf1eeeb4f0e07affd4e7 Mon Sep 17 00:00:00 2001
-> > From: Johannes Weiner <hannes@cmpxchg.org>
-> > Date: Wed, 8 Aug 2018 09:59:40 -0400
-> > Subject: [PATCH] mm: memcontrol: print proper OOM header when no eligible
-> >  victim left
-> > 
-> > When the memcg OOM killer runs out of killable tasks, it currently
-> > prints a WARN with no further OOM context. This has caused some user
-> > confusion.
-> > 
-> > Warnings indicate a kernel problem. In a reported case, however, the
-> > situation was triggered by a non-sensical memcg configuration (hard
-> > limit set to 0). But without any VM context this wasn't obvious from
-> > the report, and it took some back and forth on the mailing list to
-> > identify what is actually a trivial issue.
-> > 
-> > Handle this OOM condition like we handle it in the global OOM killer:
-> > dump the full OOM context and tell the user we ran out of tasks.
-> > 
-> > This way the user can identify misconfigurations easily by themselves
-> > and rectify the problem - without having to go through the hassle of
-> > running into an obscure but unsettling warning, finding the
-> > appropriate kernel mailing list and waiting for a kernel developer to
-> > remote-analyze that the memcg configuration caused this.
-> > 
-> > If users cannot make sense of why the OOM killer was triggered or why
-> > it failed, they will still report it to the mailing list, we know that
-> > from experience. So in case there is an actual kernel bug causing
-> > this, kernel developers will very likely hear about it.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> Yes this works as well. We would get a dump even for the race we have
-> seen but I do not think this is something to lose sleep over. And if it
-> triggers too often to be disturbing we can add
-> tsk_is_oom_victim(current) check there.
-> 
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> > ---
-> >  mm/memcontrol.c |  2 --
-> >  mm/oom_kill.c   | 13 ++++++++++---
-> >  2 files changed, 10 insertions(+), 5 deletions(-)
-> > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 4e3c1315b1de..29d9d1a69b36 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -1701,8 +1701,6 @@ static enum oom_status mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int
-> >  	if (mem_cgroup_out_of_memory(memcg, mask, order))
-> >  		return OOM_SUCCESS;
-> >  
-> > -	WARN(1,"Memory cgroup charge failed because of no reclaimable memory! "
-> > -		"This looks like a misconfiguration or a kernel bug.");
-> >  	return OOM_FAILED;
-> >  }
-> >  
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > index 0e10b864e074..07ae222d7830 100644
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -1103,10 +1103,17 @@ bool out_of_memory(struct oom_control *oc)
-> >  	}
-> >  
-> >  	select_bad_process(oc);
-> > -	/* Found nothing?!?! Either we hang forever, or we panic. */
-> > -	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
-> > +	/* Found nothing?!?! */
-> > +	if (!oc->chosen) {
-> >  		dump_header(oc, NULL);
-> > -		panic("Out of memory and no killable processes...\n");
-> > +		pr_warn("Out of memory and no killable processes...\n");
-> > +		/*
-> > +		 * If we got here due to an actual allocation at the
-> > +		 * system level, we cannot survive this and will enter
-> > +		 * an endless loop in the allocator. Bail out now.
-> > +		 */
-> > +		if (!is_sysrq_oom(oc) && !is_memcg_oom(oc))
-> > +			panic("System is deadlocked on memory\n");
-> >  	}
-> >  	if (oc->chosen && oc->chosen != (void *)-1UL)
-> >  		oom_kill_process(oc, !is_memcg_oom(oc) ? "Out of memory" :
-> > -- 
-> > 2.18.0
-> > 
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+If it's "not possible to compact" then the expected outcome of this is
+to fail?
 
--- 
-Michal Hocko
-SUSE Labs
+> It's orthogonal because the above addition would make sense also in
+> the current (buggy) code.
+> 
+> The main implementation issue is that the watermark checking is not
+> well done in mempolicy.c but the place to clear __GFP_THISNODE and
+> __GFP_COMPACT_ONLY currently is there.
+
+You could do that without calling watermark checking explicitly, but
+it's rather complicated:
+
+1. try alocating with __GFP_THISNODE and ~GFP_DIRECT_RECLAIM
+2. if that fails, try PAGE_SIZE with same flags
+3. if that fails, try THP size without __GFP_THISNODE
+4. PAGE_SIZE without __GFP_THISNODE
+
+Yeah, not possible in current alloc_pages_vma() which should return the
+requested order. But the advantage is that it's not prone to races
+between watermark checking and actual attempt.
+
+> The case that the local node gets completely full and has not even 4k
+> pages available should be totally common, because if you keep
+> allocating and you allocate more than the size of a NUMA node
+> eventually you will fill the local node with THP then consume all 4k
+> pages and then you get into the case where the current code is totally
+> unable to allocate THP from the other nodes and it would be totally
+> possible to fix with the removal of __GFP_THISNODE |
+> __GFP_COMPACT_ONLY, after the PAGE_SIZE watermark check.
+> 
+> I'm mentioning this optimization in this context, even if it's
+> orthogonal, because the alternative patch that prioritizes THP over
+> NUMA locality for MADV_HUGEPAGE and defer=always would solve that too
+> with a one liner and there would be no need of watermark checking and
+> flipping gfp bits whatsoever. Once the local node is full, THPs keeps
+> being provided as expected.
+
+Frankly, I would rather go with this option and assume that if someone
+explicitly wants THP's, they don't care about NUMA locality that much.
+(Note: I hate __GFP_THISNODE, it's an endless source of issues.)
+Trying to be clever about "is there still PAGE_SIZEd free memory in the
+local node" is imperfect anyway. If there isn't, is it because there's
+clean page cache that we can easily reclaim (so it would be worth
+staying local) or is it really exhausted? Watermark check won't tell...
+
+Vlastimil
+
+> Thanks,
+> Andrea
+> 
