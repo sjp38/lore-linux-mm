@@ -1,66 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 87BDB6B1EA9
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 08:24:33 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id b12-v6so11651699plr.17
-        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 05:24:33 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id u1-v6si13858175plk.97.2018.08.21.05.24.32
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1914C6B1EB1
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 08:30:27 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id c14-v6so2180215wmb.2
+        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 05:30:27 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p65-v6sor4202147wrc.66.2018.08.21.05.30.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Aug 2018 05:24:32 -0700 (PDT)
-Date: Tue, 21 Aug 2018 15:24:27 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH] mm/gup_benchmark: fix unsigned comparison with less than
- zero
-Message-ID: <20180821122427.26thwexm2c7ihubc@black.fi.intel.com>
-References: <20180821113634.3782-1-colin.king@canonical.com>
+        (Google Transport Security);
+        Tue, 21 Aug 2018 05:30:25 -0700 (PDT)
+Date: Tue, 21 Aug 2018 14:30:24 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH] mm: Fix comment for NODEMASK_ALLOC
+Message-ID: <20180821123024.GA9489@techadventures.net>
+References: <20180820085516.9687-1-osalvador@techadventures.net>
+ <20180820142440.1f9ccbebefc5d617c881b41e@linux-foundation.org>
+ <20180821121734.GA29735@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180821113634.3782-1-colin.king@canonical.com>
+In-Reply-To: <20180821121734.GA29735@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Colin King <colin.king@canonical.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Michael S . Tsirkin" <mst@redhat.com>, linux-mm@kvack.org, kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, tglx@linutronix.de, joe@perches.com, arnd@arndb.de, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
 
-On Tue, Aug 21, 2018 at 11:36:34AM +0000, Colin King wrote:
-> From: Colin Ian King <colin.king@canonical.com>
+On Tue, Aug 21, 2018 at 02:17:34PM +0200, Michal Hocko wrote:
+> We do have CONFIG_NODES_SHIFT=10 in our SLES kernels for quite some
+> time (around SLE11-SP3 AFAICS).
 > 
-> Currently the return from get_user_pages_fast is being checked
-> to be less than zero for an error check, however, the variable being
-> checked is unsigned so the check is always false. Fix this by using
-> a signed long instead.
-> 
-> Detected by Coccinelle ("Unsigned expression compared with zero: nr <= 0")
-> 
-> Fixes: 64c349f4ae78 ("mm: add infrastructure for get_user_pages_fast() benchmarking")
-> Signed-off-by: Colin Ian King <colin.king@canonical.com>
+> Anyway, isn't NODES_ALLOC over engineered a bit? Does actually even do
+> larger than 1024 NUMA nodes? This would be 128B and from a quick glance
+> it seems that none of those functions are called in deep stacks. I
+> haven't gone through all of them but a patch which checks them all and
+> removes NODES_ALLOC would be quite nice IMHO.
 
-This is good catch, but the fix is wrong. See below.
+No, maximum we can get is 1024 NUMA nodes.
+I checked this when writing another patch [1], and since having gone
+through all archs Kconfigs, CONFIG_NODES_SHIFT=10 is the limit.
 
-> ---
->  mm/gup_benchmark.c | 8 +++++---
->  1 file changed, 5 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/gup_benchmark.c b/mm/gup_benchmark.c
-> index 6a473709e9b6..a9a15e7a1185 100644
-> --- a/mm/gup_benchmark.c
-> +++ b/mm/gup_benchmark.c
-> @@ -31,6 +31,8 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
->  	nr = gup->nr_pages_per_call;
->  	start_time = ktime_get();
->  	for (addr = gup->addr; addr < gup->addr + gup->size; addr = next) {
-> +		long n;
-> +
->  		if (nr != gup->nr_pages_per_call)
->  			break;
+NODEMASK_ALLOC gets only called from:
 
-This check has to be done against 'n', not nr'. We stop as soon as
-get_user_pages_fast() doesn't return the number of pages we expected.
+- unregister_mem_sect_under_nodes() (not anymore after [1])
+- __nr_hugepages_store_common (This does not seem to have a deep stack, we could use a normal nodemask_t)
 
-I would rather change type of 'nr' to signed. It should also fix the
-issue, right?
+But is also used for NODEMASK_SCRATCH (mainly used for mempolicy):
+
+struct nodemask_scratch {
+	nodemask_t	mask1;
+	nodemask_t	mask2;
+};
+
+that would make 256 bytes in case CONFIG_NODES_SHIFT=10.
+I am not familiar with mempolicy code, I am not sure if we can do without that and
+figure out another way to achieve the same.
+
+[1] https://patchwork.kernel.org/patch/10566673/#22179663 
 
 -- 
- Kirill A. Shutemov
+Oscar Salvador
+SUSE L3
