@@ -1,83 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6824F6B2101
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 18:18:48 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id q26-v6so6405534qtj.14
-        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 15:18:48 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k8-v6si67917qtg.106.2018.08.21.15.18.47
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 031DF6B2127
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 19:03:33 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id i26-v6so148742edr.4
+        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 16:03:32 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l8-v6si323870edb.116.2018.08.21.16.03.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Aug 2018 15:18:47 -0700 (PDT)
-Date: Tue, 21 Aug 2018 18:18:43 -0400
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 0/2] fix for "pathological THP behavior"
-Message-ID: <20180821221843.GI13047@redhat.com>
-References: <20180820032204.9591-1-aarcange@redhat.com>
- <20180820115818.mmeayjkplux2z6im@kshutemo-mobl1>
- <20180820151905.GB13047@redhat.com>
- <6120e1b6-b4d2-96cb-2555-d8fab65c23c8@suse.cz>
- <alpine.DEB.2.21.1808211021110.258924@chino.kir.corp.google.com>
+        Tue, 21 Aug 2018 16:03:29 -0700 (PDT)
+From: NeilBrown <neilb@suse.com>
+Date: Wed, 22 Aug 2018 09:03:17 +1000
+Subject: Re: [PATCH] mm: shmem: Correctly annotate new inodes
+In-Reply-To: <20180814161652.28831-1-joel@joelfernandes.org>
+References: <20180814161652.28831-1-joel@joelfernandes.org>
+Message-ID: <87bm9vpbka.fsf@notabene.neil.brown.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1808211021110.258924@chino.kir.corp.google.com>
+Content-Type: multipart/signed; boundary="=-=-=";
+	micalg=pgp-sha256; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>
+To: "Joel Fernandes (Google)" <joel@joelfernandes.org>, linux-kernel@vger.kernel.org
+Cc: kernel-team@android.com, willy@infradead.org, stable@vger.kernel.org, peterz@infradead.org, linux-mm@kvack.org
 
-On Tue, Aug 21, 2018 at 10:26:54AM -0700, David Rientjes wrote:
-> MADV_HUGEPAGE (or defrag == "always") would now become a combination of 
-> "try to compact locally" and "allocate remotely if necesary" without the 
-> ability to avoid the latter absent a mempolicy that affects all memory 
+--=-=-=
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-I don't follow why compaction should run only on the local node in
-such case (i.e. __GFP_THISNODE removed when __GFP_DIRECT_RECLAIM is
-set).
+On Tue, Aug 14 2018, Joel Fernandes (Google) wrote:
 
-The zonelist will simply span all nodes so compaction & reclaim should
-both run on all for MADV_HUGEPAGE with option 2).
+> Directories and inodes don't necessarily need to be in the same
+> lockdep class. For ex, hugetlbfs splits them out too to prevent
+> false positives in lockdep. Annotate correctly after new inode
+> creation. If its a directory inode, it will be put into a different
+> class.
+>
+> This should fix a lockdep splat reported by syzbot:
+>
+>> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D
+>> WARNING: possible circular locking dependency detected
+>> 4.18.0-rc8-next-20180810+ #36 Not tainted
+>> ------------------------------------------------------
+>> syz-executor900/4483 is trying to acquire lock:
+>> 00000000d2bfc8fe (&sb->s_type->i_mutex_key#9){++++}, at: inode_lock
+>> include/linux/fs.h:765 [inline]
+>> 00000000d2bfc8fe (&sb->s_type->i_mutex_key#9){++++}, at:
+>> shmem_fallocate+0x18b/0x12e0 mm/shmem.c:2602
+>>
+>> but task is already holding lock:
+>> 0000000025208078 (ashmem_mutex){+.+.}, at: ashmem_shrink_scan+0xb4/0x630
+>> drivers/staging/android/ashmem.c:448
+>>
+>> which lock already depends on the new lock.
+>>
+>> -> #2 (ashmem_mutex){+.+.}:
+>>        __mutex_lock_common kernel/locking/mutex.c:925 [inline]
+>>        __mutex_lock+0x171/0x1700 kernel/locking/mutex.c:1073
+>>        mutex_lock_nested+0x16/0x20 kernel/locking/mutex.c:1088
+>>        ashmem_mmap+0x55/0x520 drivers/staging/android/ashmem.c:361
+>>        call_mmap include/linux/fs.h:1844 [inline]
+>>        mmap_region+0xf27/0x1c50 mm/mmap.c:1762
+>>        do_mmap+0xa10/0x1220 mm/mmap.c:1535
+>>        do_mmap_pgoff include/linux/mm.h:2298 [inline]
+>>        vm_mmap_pgoff+0x213/0x2c0 mm/util.c:357
+>>        ksys_mmap_pgoff+0x4da/0x660 mm/mmap.c:1585
+>>        __do_sys_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
+>>        __se_sys_mmap arch/x86/kernel/sys_x86_64.c:91 [inline]
+>>        __x64_sys_mmap+0xe9/0x1b0 arch/x86/kernel/sys_x86_64.c:91
+>>        do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+>>        entry_SYSCALL_64_after_hwframe+0x49/0xbe
+>>
+>> -> #1 (&mm->mmap_sem){++++}:
+>>        __might_fault+0x155/0x1e0 mm/memory.c:4568
+>>        _copy_to_user+0x30/0x110 lib/usercopy.c:25
+>>        copy_to_user include/linux/uaccess.h:155 [inline]
+>>        filldir+0x1ea/0x3a0 fs/readdir.c:196
+>>        dir_emit_dot include/linux/fs.h:3464 [inline]
+>>        dir_emit_dots include/linux/fs.h:3475 [inline]
+>>        dcache_readdir+0x13a/0x620 fs/libfs.c:193
+>>        iterate_dir+0x48b/0x5d0 fs/readdir.c:51
+>>        __do_sys_getdents fs/readdir.c:231 [inline]
+>>        __se_sys_getdents fs/readdir.c:212 [inline]
+>>        __x64_sys_getdents+0x29f/0x510 fs/readdir.c:212
+>>        do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+>>        entry_SYSCALL_64_after_hwframe+0x49/0xbe
+>>
+>> -> #0 (&sb->s_type->i_mutex_key#9){++++}:
+>>        lock_acquire+0x1e4/0x540 kernel/locking/lockdep.c:3924
+>>        down_write+0x8f/0x130 kernel/locking/rwsem.c:70
+>>        inode_lock include/linux/fs.h:765 [inline]
+>>        shmem_fallocate+0x18b/0x12e0 mm/shmem.c:2602
+>>        ashmem_shrink_scan+0x236/0x630 drivers/staging/android/ashmem.c:4=
+55
+>>        ashmem_ioctl+0x3ae/0x13a0 drivers/staging/android/ashmem.c:797
+>>        vfs_ioctl fs/ioctl.c:46 [inline]
+>>        file_ioctl fs/ioctl.c:501 [inline]
+>>        do_vfs_ioctl+0x1de/0x1720 fs/ioctl.c:685
+>>        ksys_ioctl+0xa9/0xd0 fs/ioctl.c:702
+>>        __do_sys_ioctl fs/ioctl.c:709 [inline]
+>>        __se_sys_ioctl fs/ioctl.c:707 [inline]
+>>        __x64_sys_ioctl+0x73/0xb0 fs/ioctl.c:707
+>>        do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+>>        entry_SYSCALL_64_after_hwframe+0x49/0xbe
+>>
+>> other info that might help us debug this:
+>>
+>> Chain exists of:
+>>   &sb->s_type->i_mutex_key#9 --> &mm->mmap_sem --> ashmem_mutex
+>>
+>>  Possible unsafe locking scenario:
+>>
+>>        CPU0                    CPU1
+>>        ----                    ----
+>>   lock(ashmem_mutex);
+>>                                lock(&mm->mmap_sem);
+>>                                lock(ashmem_mutex);
+>>   lock(&sb->s_type->i_mutex_key#9);
+>>
+>>  *** DEADLOCK ***
+>>
+>> 1 lock held by syz-executor900/4483:
+>>  #0: 0000000025208078 (ashmem_mutex){+.+.}, at:
+>> ashmem_shrink_scan+0xb4/0x630 drivers/staging/android/ashmem.c:448
+>
+> Reported-by: syzbot <syzkaller@googlegroups.com>
+> Cc: willy@infradead.org
+> Cc: stable@vger.kernel.org
+> Cc: peterz@infradead.org
+> Suggested-by: Neil Brown <neilb@suse.com>
+> Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
 
-The only mess there is in the allocator right now is that compaction
-runs per zone and reclaim runs per node but that's another issue and
-won't hurt for this case.
+Reviewed-by: NeilBrown <neilb@suse.com>
 
-> allocations.  I think the complete solution would be a MPOL_F_HUGEPAGE 
-> flag that defines mempolicies for hugepage allocations.  In my experience 
-> thp falling back to remote nodes for intrasocket latency is a win but 
-> intersocket or two-hop intersocket latency is a no go.
+This is necessary for any filesystem that doesn't use
+unlock_new_inode().
 
-Yes, that's my expectation too.
-
-So what you suggest is to add a new hard binding, that allows altering
-the default behavior for THP, that sure sounds fine.
-
-We've still to pick the actual default and decide if a single default
-is ok or it should be tunable or even change the default depending on
-the NUMA topology.
-
-I suspect it's a bit overkill to have different defaults depending on
-NUMA topology. There have been defaults for obscure things like
-numa_zonelist_order that changed behavior depending on number of nodes
-and they happened to hurt on some system. I ended up tuning them to
-the current default (until the runtime tuning was removed).
-
-It's a bit hard to just pick the best just based on arbitrary things
-like number of numa nodes or distance, especially when what is better
-also depends on the actual application.
-
-I think options are sane behaviors with some pros and cons, and option
-2) is simpler and will likely perform better on smaller systems,
-option 1) is less risky in larger systems.
-
-In any case the watermark optimization to set __GFP_THISNODE only if
-there's plenty of PAGE_SIZEd memory in the local node, remains a valid
-optimization for later for the default "defrag" value (i.e. no
-MADV_HUGEPAGE) not setting __GFP_DIRECT_RECLAIM. If there's no RAM
-free in the local node we can totally try to pick the THP from the
-other nodes and not doing so only has the benefit of saving the
-watermark check itself.
+(If/when you repost, I suggest including Andrew Morton).
 
 Thanks,
-Andrea
+NeilBrown
+
+
+> ---
+>  mm/shmem.c | 2 ++
+>  1 file changed, 2 insertions(+)
+>
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 2cab84403055..4429a8fd932d 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -2225,6 +2225,8 @@ static struct inode *shmem_get_inode(struct super_b=
+lock *sb, const struct inode
+>  			mpol_shared_policy_init(&info->policy, NULL);
+>  			break;
+>  		}
+> +
+> +		lockdep_annotate_inode_mutex_key(inode);
+>  	} else
+>  		shmem_free_inode(sb);
+>  	return inode;
+> --=20
+> 2.18.0.597.ga71716f1ad-goog
+
+--=-=-=
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEG8Yp69OQ2HB7X0l6Oeye3VZigbkFAlt8mjYACgkQOeye3VZi
+gbngHxAAlkZ2KlhLNzez3wOYONyz+kWiP9x3cmrK8g6/1A4vxfin4p/9VTgXajU9
+d3yheY9odMBCGOVoXLHabEki/rsnRGYkKFtSmQU16xo7iVOrxoXwLP5zmaVhSXFe
+5cmbgcRQnPNb8M3Zujlpd27bCvitj7MiALzVCasJtvr4OEJSk/PJYokrPUfTLPBl
+gP29hNsifemr89btzR7NuJ6Kcah3GNnAjc2aJPYP17z5GZCmcQ9R2NuFPPqs/50q
+6syuCpMxWKANyYBJ1LjiIARvrSTMXFOLRbd0csIz2d/ax+ndpYpBzHX6/5ujgHOI
+yRrcdOx7ttgXZz1UG2KCWZs6JzePa+ymjRSKJBAh8f53FPWKmOUUTOimQVV0oEQc
+PmlOigJ4t1NrM1Bv1F87V8WEafscEzM83NRsK8QeTO80WXe1P+Rd3+mSfRcLPviv
+i4lzRAOGXBKEhmnSGXSYawLz+6JPGPvviLTSozRjfZUJWCuVis/gxeBdjrHUzoDi
+dlitOTUoz7ECjYbJKfw19IydPPXqDs0Fru28fIUn+K+lyJkTI6o/BNoarqznp21Y
+j9uqVVnWiVxTMeLrwm66FawOXtAj0eFNbh0aqaxqskBuN4VwgeHLRJMJ2/loVjs4
+Lw8mRmoRRwbKtfuyyDfVVdvjybf/Q2RC0diH+OeRAN5IooojgSM=
+=g5k3
+-----END PGP SIGNATURE-----
+--=-=-=--
