@@ -1,186 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 031DF6B2127
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 19:03:33 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id i26-v6so148742edr.4
-        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 16:03:32 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l8-v6si323870edb.116.2018.08.21.16.03.28
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 28E1E6B2129
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 19:04:51 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id z18-v6so21723qki.22
+        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 16:04:51 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id o18-v6si27807qtq.263.2018.08.21.16.04.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Aug 2018 16:03:29 -0700 (PDT)
-From: NeilBrown <neilb@suse.com>
-Date: Wed, 22 Aug 2018 09:03:17 +1000
-Subject: Re: [PATCH] mm: shmem: Correctly annotate new inodes
-In-Reply-To: <20180814161652.28831-1-joel@joelfernandes.org>
-References: <20180814161652.28831-1-joel@joelfernandes.org>
-Message-ID: <87bm9vpbka.fsf@notabene.neil.brown.name>
-MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-=";
-	micalg=pgp-sha256; protocol="application/pgp-signature"
+        Tue, 21 Aug 2018 16:04:49 -0700 (PDT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 11.1 \(3445.4.7\))
+Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs
+ in mind (for KVM to isolate its guests per CPU)
+From: Liran Alon <liran.alon@oracle.com>
+In-Reply-To: <1534861342.14722.11.camel@infradead.org>
+Date: Wed, 22 Aug 2018 02:04:17 +0300
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <893B27C3-0532-407C-9D4A-B8EAB1B28957@oracle.com>
+References: <20180820212556.GC2230@char.us.oracle.com>
+ <CA+55aFxZCyVZc4ZpRyZ3uDyakRSOG_=2XvnwMo4oejpsieF9=A@mail.gmail.com>
+ <1534801939.10027.24.camel@amazon.co.uk>
+ <CA+55aFxyUdhYjnQdnmWAt8tTwn4HQ1xz3SAMZJiawkLpMiJ_+w@mail.gmail.com>
+ <1534845423.10027.44.camel@infradead.org>
+ <ED24D811-C740-417F-A443-B7A249F4FF4C@oracle.com>
+ <1534861342.14722.11.camel@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Joel Fernandes (Google)" <joel@joelfernandes.org>, linux-kernel@vger.kernel.org
-Cc: kernel-team@android.com, willy@infradead.org, stable@vger.kernel.org, peterz@infradead.org, linux-mm@kvack.org
-
---=-=-=
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
-
-On Tue, Aug 14 2018, Joel Fernandes (Google) wrote:
-
-> Directories and inodes don't necessarily need to be in the same
-> lockdep class. For ex, hugetlbfs splits them out too to prevent
-> false positives in lockdep. Annotate correctly after new inode
-> creation. If its a directory inode, it will be put into a different
-> class.
->
-> This should fix a lockdep splat reported by syzbot:
->
->> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D
->> WARNING: possible circular locking dependency detected
->> 4.18.0-rc8-next-20180810+ #36 Not tainted
->> ------------------------------------------------------
->> syz-executor900/4483 is trying to acquire lock:
->> 00000000d2bfc8fe (&sb->s_type->i_mutex_key#9){++++}, at: inode_lock
->> include/linux/fs.h:765 [inline]
->> 00000000d2bfc8fe (&sb->s_type->i_mutex_key#9){++++}, at:
->> shmem_fallocate+0x18b/0x12e0 mm/shmem.c:2602
->>
->> but task is already holding lock:
->> 0000000025208078 (ashmem_mutex){+.+.}, at: ashmem_shrink_scan+0xb4/0x630
->> drivers/staging/android/ashmem.c:448
->>
->> which lock already depends on the new lock.
->>
->> -> #2 (ashmem_mutex){+.+.}:
->>        __mutex_lock_common kernel/locking/mutex.c:925 [inline]
->>        __mutex_lock+0x171/0x1700 kernel/locking/mutex.c:1073
->>        mutex_lock_nested+0x16/0x20 kernel/locking/mutex.c:1088
->>        ashmem_mmap+0x55/0x520 drivers/staging/android/ashmem.c:361
->>        call_mmap include/linux/fs.h:1844 [inline]
->>        mmap_region+0xf27/0x1c50 mm/mmap.c:1762
->>        do_mmap+0xa10/0x1220 mm/mmap.c:1535
->>        do_mmap_pgoff include/linux/mm.h:2298 [inline]
->>        vm_mmap_pgoff+0x213/0x2c0 mm/util.c:357
->>        ksys_mmap_pgoff+0x4da/0x660 mm/mmap.c:1585
->>        __do_sys_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
->>        __se_sys_mmap arch/x86/kernel/sys_x86_64.c:91 [inline]
->>        __x64_sys_mmap+0xe9/0x1b0 arch/x86/kernel/sys_x86_64.c:91
->>        do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
->>        entry_SYSCALL_64_after_hwframe+0x49/0xbe
->>
->> -> #1 (&mm->mmap_sem){++++}:
->>        __might_fault+0x155/0x1e0 mm/memory.c:4568
->>        _copy_to_user+0x30/0x110 lib/usercopy.c:25
->>        copy_to_user include/linux/uaccess.h:155 [inline]
->>        filldir+0x1ea/0x3a0 fs/readdir.c:196
->>        dir_emit_dot include/linux/fs.h:3464 [inline]
->>        dir_emit_dots include/linux/fs.h:3475 [inline]
->>        dcache_readdir+0x13a/0x620 fs/libfs.c:193
->>        iterate_dir+0x48b/0x5d0 fs/readdir.c:51
->>        __do_sys_getdents fs/readdir.c:231 [inline]
->>        __se_sys_getdents fs/readdir.c:212 [inline]
->>        __x64_sys_getdents+0x29f/0x510 fs/readdir.c:212
->>        do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
->>        entry_SYSCALL_64_after_hwframe+0x49/0xbe
->>
->> -> #0 (&sb->s_type->i_mutex_key#9){++++}:
->>        lock_acquire+0x1e4/0x540 kernel/locking/lockdep.c:3924
->>        down_write+0x8f/0x130 kernel/locking/rwsem.c:70
->>        inode_lock include/linux/fs.h:765 [inline]
->>        shmem_fallocate+0x18b/0x12e0 mm/shmem.c:2602
->>        ashmem_shrink_scan+0x236/0x630 drivers/staging/android/ashmem.c:4=
-55
->>        ashmem_ioctl+0x3ae/0x13a0 drivers/staging/android/ashmem.c:797
->>        vfs_ioctl fs/ioctl.c:46 [inline]
->>        file_ioctl fs/ioctl.c:501 [inline]
->>        do_vfs_ioctl+0x1de/0x1720 fs/ioctl.c:685
->>        ksys_ioctl+0xa9/0xd0 fs/ioctl.c:702
->>        __do_sys_ioctl fs/ioctl.c:709 [inline]
->>        __se_sys_ioctl fs/ioctl.c:707 [inline]
->>        __x64_sys_ioctl+0x73/0xb0 fs/ioctl.c:707
->>        do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
->>        entry_SYSCALL_64_after_hwframe+0x49/0xbe
->>
->> other info that might help us debug this:
->>
->> Chain exists of:
->>   &sb->s_type->i_mutex_key#9 --> &mm->mmap_sem --> ashmem_mutex
->>
->>  Possible unsafe locking scenario:
->>
->>        CPU0                    CPU1
->>        ----                    ----
->>   lock(ashmem_mutex);
->>                                lock(&mm->mmap_sem);
->>                                lock(ashmem_mutex);
->>   lock(&sb->s_type->i_mutex_key#9);
->>
->>  *** DEADLOCK ***
->>
->> 1 lock held by syz-executor900/4483:
->>  #0: 0000000025208078 (ashmem_mutex){+.+.}, at:
->> ashmem_shrink_scan+0xb4/0x630 drivers/staging/android/ashmem.c:448
->
-> Reported-by: syzbot <syzkaller@googlegroups.com>
-> Cc: willy@infradead.org
-> Cc: stable@vger.kernel.org
-> Cc: peterz@infradead.org
-> Suggested-by: Neil Brown <neilb@suse.com>
-> Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
-
-Reviewed-by: NeilBrown <neilb@suse.com>
-
-This is necessary for any filesystem that doesn't use
-unlock_new_inode().
-
-(If/when you repost, I suggest including Andrew Morton).
-
-Thanks,
-NeilBrown
+To: David Woodhouse <dwmw2@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, juerg.haefliger@hpe.com, deepa.srinivasan@oracle.com, Jim Mattson <jmattson@google.com>, Andrew Cooper <andrew.cooper3@citrix.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Joao Martins <joao.m.martins@oracle.com>, pradeep.vincent@oracle.com, Andi Kleen <ak@linux.intel.com>, Khalid Aziz <khalid.aziz@oracle.com>, kanth.ghatraju@oracle.com, Kees Cook <keescook@google.com>, jsteckli@os.inf.tu-dresden.de, Kernel Hardening <kernel-hardening@lists.openwall.com>, chris.hyser@oracle.com, Tyler Hicks <tyhicks@canonical.com>, John Haxby <john.haxby@oracle.com>, Jon Masters <jcm@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>
 
 
-> ---
->  mm/shmem.c | 2 ++
->  1 file changed, 2 insertions(+)
->
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 2cab84403055..4429a8fd932d 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -2225,6 +2225,8 @@ static struct inode *shmem_get_inode(struct super_b=
-lock *sb, const struct inode
->  			mpol_shared_policy_init(&info->policy, NULL);
->  			break;
->  		}
-> +
-> +		lockdep_annotate_inode_mutex_key(inode);
->  	} else
->  		shmem_free_inode(sb);
->  	return inode;
-> --=20
-> 2.18.0.597.ga71716f1ad-goog
 
---=-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
+> On 21 Aug 2018, at 17:22, David Woodhouse <dwmw2@infradead.org> wrote:
+>=20
+> On Tue, 2018-08-21 at 17:01 +0300, Liran Alon wrote:
+>>=20
+>>> On 21 Aug 2018, at 12:57, David Woodhouse <dwmw2@infradead.org>
+>> wrote:
+>>> =20
+>>> Another alternative... I'm told POWER8 does an interesting thing
+>> with
+>>> hyperthreading and gang scheduling for KVM. The host kernel doesn't
+>>> actually *see* the hyperthreads at all, and KVM just launches the
+>> full
+>>> set of siblings when it enters a guest, and gathers them again when
+>> any
+>>> of them exits. That's definitely worth investigating as an option
+>> for
+>>> x86, too.
+>>=20
+>> I actually think that such scheduling mechanism which prevents
+>> leaking cache entries to sibling hyperthreads should co-exist
+>> together with the KVM address space isolation to fully mitigate L1TF
+>> and other similar vulnerabilities. The address space isolation should
+>> prevent VMExit handlers code gadgets from loading arbitrary host
+>> memory to the cache. Once VMExit code path switches to full host
+>> address space, then we should also make sure that no other sibling
+>> hyprethread is running in the guest.
+>=20
+> The KVM POWER8 solution (see arch/powerpc/kvm/book3s_hv.c) does that.
+> The siblings are *never* running host kernel code; they're all torn
+> down when any of them exits the guest. And it's always the *same*
+> guest.
+>=20
 
------BEGIN PGP SIGNATURE-----
+I wasn=E2=80=99t aware of this KVM Power8 mechanism. Thanks for the =
+pointer.
+(371fefd6f2dc ("KVM: PPC: Allow book3s_hv guests to use SMT processor =
+modes=E2=80=9D))
 
-iQIzBAEBCAAdFiEEG8Yp69OQ2HB7X0l6Oeye3VZigbkFAlt8mjYACgkQOeye3VZi
-gbngHxAAlkZ2KlhLNzez3wOYONyz+kWiP9x3cmrK8g6/1A4vxfin4p/9VTgXajU9
-d3yheY9odMBCGOVoXLHabEki/rsnRGYkKFtSmQU16xo7iVOrxoXwLP5zmaVhSXFe
-5cmbgcRQnPNb8M3Zujlpd27bCvitj7MiALzVCasJtvr4OEJSk/PJYokrPUfTLPBl
-gP29hNsifemr89btzR7NuJ6Kcah3GNnAjc2aJPYP17z5GZCmcQ9R2NuFPPqs/50q
-6syuCpMxWKANyYBJ1LjiIARvrSTMXFOLRbd0csIz2d/ax+ndpYpBzHX6/5ujgHOI
-yRrcdOx7ttgXZz1UG2KCWZs6JzePa+ymjRSKJBAh8f53FPWKmOUUTOimQVV0oEQc
-PmlOigJ4t1NrM1Bv1F87V8WEafscEzM83NRsK8QeTO80WXe1P+Rd3+mSfRcLPviv
-i4lzRAOGXBKEhmnSGXSYawLz+6JPGPvviLTSozRjfZUJWCuVis/gxeBdjrHUzoDi
-dlitOTUoz7ECjYbJKfw19IydPPXqDs0Fru28fIUn+K+lyJkTI6o/BNoarqznp21Y
-j9uqVVnWiVxTMeLrwm66FawOXtAj0eFNbh0aqaxqskBuN4VwgeHLRJMJ2/loVjs4
-Lw8mRmoRRwbKtfuyyDfVVdvjybf/Q2RC0diH+OeRAN5IooojgSM=
-=g5k3
------END PGP SIGNATURE-----
---=-=-=--
+Note though that my point regarding the co-existence of the isolated =
+address space together with such scheduling mechanism is still valid.
+The scheduling mechanism should not be seen as an alternative to the =
+isolated address space if we wish to reduce the frequency of events
+in which we need to kick sibling hyperthreads from guest.
+
+>> Focusing on the scheduling mechanism, we must make sure that when a
+>> logical processor runs guest code, all siblings logical processors
+>> must run code which do not populate L1D cache with information
+>> unrelated to this VM. This includes forbidding one logical processor
+>> to run guest code while sibling is running a host task such as a NIC
+>> interrupt handler.
+>> Thus, when a vCPU thread exits the guest into the host and VMExit
+>> handler reaches code flow which could populate L1D cache with this
+>> information, we should force an exit from the guest of the siblings
+>> logical processors, such that they will be allowed to resume only on
+>> a core which we can promise that the L1D cache is free from
+>> information unrelated to this VM.
+>>=20
+>> At first, I have created a patch series which attempts to implement
+>> such mechanism in KVM. However, it became clear to me that this may
+>> need to be implemented in the scheduler itself. This is because:
+>> 1. It is difficult to handle all new scheduling contrains only in
+>> KVM.
+>> 2. This mechanism should be relevant for any Type-2 hypervisor which
+>> runs inside Linux besides KVM (Such as VMware Workstation or
+>> VirtualBox).
+>> 3. This mechanism could also be used to prevent future =E2=80=9Ccore-ca=
+che-
+>> leaking=E2=80=9D vulnerabilities to be exploited between processes of
+>> different security domains which run as siblings on the same core.
+>=20
+> I'm not sure I agree. If KVM is handling "only let siblings run the
+> *same* guest" and the siblings aren't visible to the host at all,
+> that's quite simple. Any other hypervisor can also do it.
+>=20
+> Now, the down-side of this is that the siblings aren't visible to the
+> host. They can't be used to run multiple threads of the same userspace
+> processes; only multiple threads of the same KVM guest. A truly =
+generic
+> core scheduler would cope with userspace threads too.
+>=20
+> BUT I strongly suspect there's a huge correlation between the set of
+> people who care enough about the KVM/L1TF issue to enable a costly
+> XFPO-like solution, and the set of people who mostly don't give a shit
+> about having sibling CPUs available to run the host's userspace =
+anyway.
+>=20
+> This is not the "I happen to run a Windows VM on my Linux desktop" use
+> case...
+
+If I understand your proposal correctly, you suggest to do something =
+similar to the KVM Power8 solution:
+1. Disable HyperThreading for use by host user space.
+2. Use sibling hyperthreads only in KVM and schedule group of vCPUs that =
+run on a single core as a =E2=80=9Cgang=E2=80=9D to enter and exit guest =
+together.
+
+This solution may work well for KVM-based cloud providers that match the =
+following criteria:
+1. All compute instances run with SR-IOV and IOMMU Posted-Interrupts.
+2. Configure affinity such that host dedicate distinct set of physical =
+cores per guest. No physical core is able to run vCPUs from multiple =
+guests.
+
+However, this may not necessarily be the case: Some cloud providers have =
+compute instances which all their devices are emulated or =
+ParaVirtualized.
+In the proposed scheduling mechanism, all the IOThreads of these guests =
+will not be able to utilize HyperThreading which can be a significant =
+performance hit.
+So Oracle Cloud (OCI) are folks who do care enough about the KVM/L1TF =
+issue but gives a shit about having sibling CPUs available to run host =
+userspace. :)
+Unless I=E2=80=99m missing something of course...
+
+In addition, desktop users who run VMs today, expect a security boundary =
+to exist between the guest and the host.
+Besides the L1TF HyperThreading variant, we were able to preserve such a =
+security boundary.
+It seems a bit weird that we will implement a mechanism in x86 KVM that =
+it=E2=80=99s message to users is basically:
+=E2=80=9CIf you want to have a security boundary between a VM and the =
+host, you need to enable this knob which will also cause the rest of =
+your host
+to see half the amount of logical processors=E2=80=9D.
+
+Furthermore, I think it is important to think about a mechanism which =
+may help us to mitigate future similar =E2=80=9Ccore-cache-leak=E2=80=9D =
+vulnerabilities.
+As I previously mentioned, the =E2=80=9Ccore scheduler=E2=80=9D could =
+help us mitigate these vulnerabilities on OS-level by disallowing =
+userspace tasks of different =E2=80=9Csecurity domain=E2=80=9D
+to run as siblings on the same core.
+
+-Liran
+
+(Cc Paolo who probably have good feedback on the entire email thread =
+as-well)
