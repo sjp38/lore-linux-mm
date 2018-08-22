@@ -1,81 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua1-f69.google.com (mail-ua1-f69.google.com [209.85.222.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EFB0F6B21FE
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 22:25:25 -0400 (EDT)
-Received: by mail-ua1-f69.google.com with SMTP id d22-v6so184584uaq.11
-        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 19:25:25 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id w12-v6si169020uad.339.2018.08.21.19.25.24
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B7246B2215
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 22:50:44 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id e8-v6so307325plt.4
+        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 19:50:44 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id x24-v6si547137pgh.295.2018.08.21.19.50.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Aug 2018 19:25:24 -0700 (PDT)
-Subject: Re: [PATCH v2 0/2] mm: soft-offline: fix race against page allocation
-References: <1531805552-19547-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20180815154334.f3eecd1029a153421631413a@linux-foundation.org>
- <20180822013748.GA10343@hori1.linux.bs1.fc.nec.co.jp>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <c692fd0b-d282-f2e7-b42f-b3204ad35938@oracle.com>
-Date: Tue, 21 Aug 2018 19:25:12 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 21 Aug 2018 19:50:41 -0700 (PDT)
+Date: Tue, 21 Aug 2018 19:50:40 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [GIT PULL] XArray for 4.19
+Message-ID: <20180822025040.GA12244@bombadil.infradead.org>
+References: <20180813161357.GB1199@bombadil.infradead.org>
+ <CA+55aFxFjAmrFpwQmEHCthHOzgidCKnod+cNDEE+3Spu9o1s3w@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180822013748.GA10343@hori1.linux.bs1.fc.nec.co.jp>
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFxFjAmrFpwQmEHCthHOzgidCKnod+cNDEE+3Spu9o1s3w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, "xishi.qiuxishi@alibaba-inc.com" <xishi.qiuxishi@alibaba-inc.com>, "zy.zhengyi@alibaba-inc.com" <zy.zhengyi@alibaba-inc.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 08/21/2018 06:37 PM, Naoya Horiguchi wrote:
-> On Wed, Aug 15, 2018 at 03:43:34PM -0700, Andrew Morton wrote:
->> On Tue, 17 Jul 2018 14:32:30 +0900 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
->>
->>> I've updated the patchset based on feedbacks:
->>>
->>> - updated comments (from Andrew),
->>> - moved calling set_hwpoison_free_buddy_page() from mm/migrate.c to mm/memory-failure.c,
->>>   which is necessary to check the return code of set_hwpoison_free_buddy_page(),
->>> - lkp bot reported a build error when only 1/2 is applied.
->>>
->>>   >    mm/memory-failure.c: In function 'soft_offline_huge_page':
->>>   > >> mm/memory-failure.c:1610:8: error: implicit declaration of function
->>>   > 'set_hwpoison_free_buddy_page'; did you mean 'is_free_buddy_page'?
->>>   > [-Werror=implicit-function-declaration]
->>>   >        if (set_hwpoison_free_buddy_page(page))
->>>   >            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
->>>   >            is_free_buddy_page
->>>   >    cc1: some warnings being treated as errors
->>>
->>>   set_hwpoison_free_buddy_page() is defined in 2/2, so we can't use it
->>>   in 1/2. Simply doing s/set_hwpoison_free_buddy_page/!TestSetPageHWPoison/
->>>   will fix this.
->>>
->>> v1: https://lkml.org/lkml/2018/7/12/968
->>>
->>
->> Quite a bit of discussion on these two, but no actual acks or
->> review-by's?
+On Tue, Aug 21, 2018 at 07:09:31PM -0700, Linus Torvalds wrote:
+> On Mon, Aug 13, 2018 at 9:14 AM Matthew Wilcox <willy@infradead.org> wrote:
+> >
+> > Please consider pulling the XArray patch set.
 > 
-> Really sorry for late response.
-> Xishi provided feedback on previous version, but no final ack/reviewed-by.
-> This fix should work on the reported issue, but rewriting soft-offlining
-> without PageHWPoison flag would be the better fix (no actual patch yet.)
-> I'm not sure this patch should go to mainline immediately.
+> So this merge window has been horrible, but I was just about to start
+> looking at it.
+> 
+> And no. I'm not going to pull this.
+> 
+> For some unfathomable reason, you have based it on the libnvdimm tree.
+> I don't understand at all wjhy you did that.
 
-FWIW - The 'migration of huge PMD shared pages' issue I am working was
-originally triggered via soft-offline.  While working the issue, I tried
-to exercise huge page soft-offline really hard to recreate the issue and
-validate a fix.  However, I was more likely to hit the soft-offline race(s)
-your patches address.  Therefore, I applied your patches to focus my testing
-and validation on the migration of huge PMD shared pages issue.  That is sort
-of a Tested-by :).
+I said in the pull request ...
 
-Just wanted to point out that it was pretty easy to hit this issue.  It
-was easier than the issue I am working.  And, the issue I am trying to
-address was seen in a real customer environment.  So, I would not be
-surprised to see this issue in real customer environments as well.
+  There are two conflicts I wanted to flag; the first is against the
+  linux-nvdimm tree.  I rebased on top of one of the branches that went
+  into that tree, so if you pull my tree before linux-nvdimm, you'll get
+  fifteen commits I've had no involvement with.
 
-If you (or others) think we should go forward with these patches, I can
-spend some time doing a review.  Already did a 'quick look' some time back.
--- 
-Mike Kravetz
+Dan asked me to do that so that his commit (which I had no involvement
+with) would be easier to backport.  At the time I thought this was a
+reasonable request; I know this API change is disruptive and I wanted
+to accommodate that.  I didn't know his patch was "complete garbage";
+I didn't review it.
+
+So, should I have based just on your tree and sent you a description of
+what a resolved conflict should look like?
+
+> And since I won't be merging this, I clearly won't be merging your
+> other pull request that depended on this either.
+
+I can yank most of the patches (all but the last two, iirc) out of the
+IDA patchset and submit those as a separate pull request.  Would that
+be acceptable?  I'm really struggling to juggle all the pieces here to
+get them merged.
