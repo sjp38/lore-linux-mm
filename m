@@ -1,135 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 98BF46B23F7
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 06:56:03 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id v195-v6so910102pgb.0
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 03:56:03 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E8F46B2404
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 07:07:40 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id h40-v6so799531edb.2
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 04:07:40 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d127-v6si1573771pfa.189.2018.08.22.03.56.01
+        by mx.google.com with ESMTPS id n21-v6si1511888edr.216.2018.08.22.04.07.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Aug 2018 03:56:02 -0700 (PDT)
-Subject: Re: [RFC v8 PATCH 2/5] uprobes: introduce has_uprobes helper
-References: <1534358990-85530-1-git-send-email-yang.shi@linux.alibaba.com>
- <1534358990-85530-3-git-send-email-yang.shi@linux.alibaba.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <e7147e14-bc38-03d0-90a4-5e0ca7e40050@suse.cz>
-Date: Wed, 22 Aug 2018 12:55:59 +0200
+        Wed, 22 Aug 2018 04:07:38 -0700 (PDT)
+Date: Wed, 22 Aug 2018 13:07:37 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH 2/2] mm: thp: fix transparent_hugepage/defrag = madvise
+ || always
+Message-ID: <20180822110737.GK29735@dhcp22.suse.cz>
+References: <20180820032204.9591-1-aarcange@redhat.com>
+ <20180820032204.9591-3-aarcange@redhat.com>
+ <20180821115057.GY29735@dhcp22.suse.cz>
+ <20180821214049.GG13047@redhat.com>
+ <20180822090214.GF29735@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1534358990-85530-3-git-send-email-yang.shi@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180822090214.GF29735@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>, mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On 08/15/2018 08:49 PM, Yang Shi wrote:
-> We need check if mm or vma has uprobes in the following patch to check
-> if a vma could be unmapped with holding read mmap_sem. The checks and
-> pre-conditions used by uprobe_munmap() look just suitable for this
-> purpose.
+On Wed 22-08-18 11:02:14, Michal Hocko wrote:
+> On Tue 21-08-18 17:40:49, Andrea Arcangeli wrote:
+> > On Tue, Aug 21, 2018 at 01:50:57PM +0200, Michal Hocko wrote:
+> [...]
+> > > I really detest a new gfp flag for one time semantic that is muddy as
+> > > hell.
+> > 
+> > Well there's no way to fix this other than to prevent reclaim to run,
+> > if you still want to give a chance to page faults to obtain THP under
+> > MADV_HUGEPAGE in the page fault without waiting minutes or hours for
+> > khugpaged to catch up with it.
 > 
-> Extracting those checks into a helper function, has_uprobes().
-> 
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
-> Cc: Alexander Shishkin <alexander.shishkin@linux.intel.com>
-> Cc: Jiri Olsa <jolsa@redhat.com>
-> Cc: Namhyung Kim <namhyung@kernel.org>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> ---
->  include/linux/uprobes.h |  7 +++++++
->  kernel/events/uprobes.c | 23 ++++++++++++++++-------
->  2 files changed, 23 insertions(+), 7 deletions(-)
-> 
-> diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
-> index 0a294e9..418764e 100644
-> --- a/include/linux/uprobes.h
-> +++ b/include/linux/uprobes.h
-> @@ -149,6 +149,8 @@ struct uprobes_state {
->  extern bool arch_uprobe_ignore(struct arch_uprobe *aup, struct pt_regs *regs);
->  extern void arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
->  					 void *src, unsigned long len);
-> +extern bool has_uprobes(struct vm_area_struct *vma, unsigned long start,
-> +			unsigned long end);
->  #else /* !CONFIG_UPROBES */
->  struct uprobes_state {
->  };
-> @@ -203,5 +205,10 @@ static inline void uprobe_copy_process(struct task_struct *t, unsigned long flag
->  static inline void uprobe_clear_state(struct mm_struct *mm)
->  {
->  }
-> +static inline bool has_uprobes(struct vm_area_struct *vma, unsigned long start,
-> +			       unsgined long end)
-> +{
-> +	return false;
-> +}
->  #endif /* !CONFIG_UPROBES */
->  #endif	/* _LINUX_UPROBES_H */
-> diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-> index aed1ba5..568481c 100644
-> --- a/kernel/events/uprobes.c
-> +++ b/kernel/events/uprobes.c
-> @@ -1114,22 +1114,31 @@ int uprobe_mmap(struct vm_area_struct *vma)
->  	return !!n;
->  }
->  
-> -/*
-> - * Called in context of a munmap of a vma.
-> - */
-> -void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned long end)
-> +bool
-> +has_uprobes(struct vm_area_struct *vma, unsigned long start, unsigned long end)
+> I do not get that part. Why should caller even care about reclaim vs.
+> compaction. How can you even make an educated guess what makes more
+> sense? This should be fully controlled by the allocator path. The caller
+> should only care about how hard to try. It's been some time since I've
+> looked but we used to have a gfp flags to tell that for THP allocations
+> as well.
 
-The name is not really great...
+In other words, why do we even try to swap out when allocating costly
+high order page for requests which do not insist to try really hard?
 
->  {
->  	if (no_uprobe_events() || !valid_vma(vma, false))
-> -		return;
-> +		return false;
->  
->  	if (!atomic_read(&vma->vm_mm->mm_users)) /* called by mmput() ? */
-> -		return;
-> +		return false;
->  
->  	if (!test_bit(MMF_HAS_UPROBES, &vma->vm_mm->flags) ||
->  	     test_bit(MMF_RECALC_UPROBES, &vma->vm_mm->flags))
-
-This means that vma might have uprobes, but since RECALC is already set,
-we don't need to set it again. That's different from "has uprobes".
-
-Perhaps something like vma_needs_recalc_uprobes() ?
-
-But I also worry there might be a race where we initially return false
-because of MMF_RECALC_UPROBES, then the flag is cleared while vma's
-still have uprobes, then we downgrade mmap_sem and skip uprobe_munmap().
-Should be checked if e.g. mmap_sem and vma visibility changes protects
-this case from happening.
-
-> -		return;
-> +		return false;
->  
->  	if (vma_has_uprobes(vma, start, end))
-> +		return true;
-> +
-> +	return false;
-
-Simpler:
-	return vma_has_uprobes(vma, start, end);
-
-> +}
-> +
-> +/*
-> + * Called in context of a munmap of a vma.
-> + */
-> +void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned long end)
-> +{
-> +	if (has_uprobes(vma, start, end))
->  		set_bit(MMF_RECALC_UPROBES, &vma->vm_mm->flags);
->  }
->  
-> 
+I mean why don't we do something like this?
+---
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 03822f86f288..41005d3d4c2d 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3071,6 +3071,14 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 	if (throttle_direct_reclaim(sc.gfp_mask, zonelist, nodemask))
+ 		return 1;
+ 
++	/*
++	 * If we are allocating a costly order and do not insist on trying really
++	 * hard then we should keep the reclaim impact at minimum. So only
++	 * focus on easily reclaimable memory.
++	 */
++	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_RETRY_MAYFAIL))
++		sc.may_swap = sc.may_unmap = 0;
++
+ 	trace_mm_vmscan_direct_reclaim_begin(order,
+ 				sc.may_writepage,
+ 				sc.gfp_mask,
+-- 
+Michal Hocko
+SUSE Labs
