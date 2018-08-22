@@ -1,75 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CE0E6B24E5
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 10:46:52 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id g11-v6so1021102edi.8
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 07:46:52 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f15-v6si145502edf.160.2018.08.22.07.46.50
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Aug 2018 07:46:50 -0700 (PDT)
-Date: Wed, 22 Aug 2018 07:46:40 -0700
-From: Davidlohr Bueso <dave@stgolabs.net>
-Subject: Re: using range locks instead of mm_sem
-Message-ID: <20180822144640.GB3677@linux-r8p5>
-References: <9ea84ad8-0404-077e-200d-14ad749cb784@oracle.com>
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C3C26B24EB
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 10:56:53 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id j17-v6so1993807oii.8
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 07:56:53 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g3-v6si1380568oia.21.2018.08.22.07.56.51
+        for <linux-mm@kvack.org>;
+        Wed, 22 Aug 2018 07:56:52 -0700 (PDT)
+From: Robin Murphy <robin.murphy@arm.com>
+Subject: Re: [PATCH 0/4] numa, iommu/smmu: IOMMU/SMMU driver optimization for
+ NUMA systems
+References: <20170921085922.11659-1-ganapatrao.kulkarni@cavium.com>
+ <452f1665-eb3a-5e8c-f671-099ef4a15d84@huawei.com>
+Message-ID: <a7fc1e43-3652-562a-1e59-499be80b567c@arm.com>
+Date: Wed, 22 Aug 2018 15:56:43 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <9ea84ad8-0404-077e-200d-14ad749cb784@oracle.com>
+In-Reply-To: <452f1665-eb3a-5e8c-f671-099ef4a15d84@huawei.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Language: en-GB
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shady Issa <shady.issa@oracle.com>
-Cc: Alex Kogan <alex.kogan@oracle.com>, Dave Dice <dave.dice@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, ldufour@linux.vnet.ibm.com, jack@suse.com, linux-mm@kvack.org
+To: John Garry <john.garry@huawei.com>, Ganapatrao Kulkarni <ganapatrao.kulkarni@cavium.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Will.Deacon@arm.com" <Will.Deacon@arm.com>, "gklkml16@gmail.com" <gklkml16@gmail.com>, "Tomasz.Nowicki@cavium.com" <Tomasz.Nowicki@cavium.com>, "Robert.Richter@cavium.com" <Robert.Richter@cavium.com>, "mhocko@suse.com" <mhocko@suse.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "jnair@caviumnetworks.com" <jnair@caviumnetworks.com>, Marek Szyprowski <m.szyprowski@samsung.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, Linuxarm <linuxarm@huawei.com>, Christoph Hellwig <hch@lst.de>
 
-On Wed, 22 Aug 2018, Shady Issa wrote:
+Hi John,
 
->
->Hi Davidlohr,
->
->I am interested in the idea of using range locks to replace mm_sem. I 
->wanted to
->start trying out using more fine-grained ranges instead of the full 
->range acquisitions
->that are used in this patch (https://lkml.org/lkml/2018/2/4/235). 
->However, it does not
->seem straight forward to me how this is possible.
->
->First, the ranges that can be defined before acquiring the range lock 
->based on the
->caller's input(i.e. ranges supplied by mprotect, mmap, munmap, etc.) 
->are oblivious of
->the underlying VMAs. Two non-overlapping ranges can fall within the 
->same VMA and
->thus should not be allowed to run concurrently in case they are writes.
+On 22/08/18 14:44, John Garry wrote:
+> On 21/09/2017 09:59, Ganapatrao Kulkarni wrote:
+>> Adding numa aware memory allocations used for iommu dma allocation and
+>> memory allocated for SMMU stream tables, page walk tables and command 
+>> queues.
+>>
+>> With this patch, iperf testing on ThunderX2, with 40G NIC card on
+>> NODE 1 PCI shown same performance(around 30% improvement) as NODE 0.
+>>
+>> Ganapatrao Kulkarni (4):
+>>   mm: move function alloc_pages_exact_nid out of __meminit
+>>   numa, iommu/io-pgtable-arm: Use NUMA aware memory allocation for smmu
+>>     translation tables
+>>   iommu/arm-smmu-v3: Use NUMA memory allocations for stream tables and
+>>     comamnd queues
+>>   iommu/dma, numa: Use NUMA aware memory allocations in
+>>     __iommu_dma_alloc_pages
+>>
+>>  drivers/iommu/arm-smmu-v3.c    | 57 
+>> +++++++++++++++++++++++++++++++++++++-----
+>>  drivers/iommu/dma-iommu.c      | 17 +++++++------
+>>  drivers/iommu/io-pgtable-arm.c |  4 ++-
+>>  include/linux/gfp.h            |  2 +-
+>>  mm/page_alloc.c                |  3 ++-
+>>  5 files changed, 67 insertions(+), 16 deletions(-)
+>>
+> 
+> Hi Ganapatrao,
+> 
+> Have you any plans for further work on this patchset? I have not seen 
+> anything since this v1 was posted+discussed.
 
-Yes. This is a _big_ issue with range locking the addr space. I have yet
-to find a solution other than delaying vma modifying ops to avoid the races,
-which is fragile. Obviously locking the full range in such scenarios cannot
-be done either.
+Looks like I ended up doing the version of the io-pgtable change that I 
+suggested here, which was merged recently (4b123757eeaa). Patch #3 
+should also be effectively obsolete now since the SWIOTLB/dma-direct 
+rework (21f237e4d085). Apparently I also started reworking patch #4 in 
+my tree at some point but sidelined it - I think that was at least 
+partly due to another thread[1] which made it seem less clear-cut 
+whether this is always the right thing to do.
 
->
->Second, even if ranges from the caller function are aligned with VMAs, 
->the extent of the
->effect of operation is unknown. It is probable that an operation 
->touching one VMA will
->end up performing modifications to the VMAs rbtree structure due to 
->splits, merges, etc.,
->which requires the full range acquisition and is unknown beforehand.
+Robin.
 
-Yes, this is similar to the above as well.
-
->
->I was wondering if I am missing something with this thought process, 
->because with the
->current givings, it seems to me that range locks will boil down to 
->just r/w semaphore.
->I would also be very grateful if you can point me to any more recent 
->discussions regarding
->the use of range locks after this patch from February.
-
-You're on the right page.
-
-Thanks,
-Davidlohr
+[1] 
+https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1693026.html
