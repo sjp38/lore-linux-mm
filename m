@@ -1,34 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CC3F06B258B
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 13:40:19 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id b5-v6so1143319qtk.4
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 10:40:19 -0700 (PDT)
-Received: from a9-92.smtp-out.amazonses.com (a9-92.smtp-out.amazonses.com. [54.240.9.92])
-        by mx.google.com with ESMTPS id j34-v6si2147416qte.55.2018.08.22.10.40.18
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DE7946B2590
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 13:43:17 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id k9-v6so2083482iob.16
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 10:43:17 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id v13-v6sor117999ioh.294.2018.08.22.10.43.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 22 Aug 2018 10:40:18 -0700 (PDT)
-Date: Wed, 22 Aug 2018 17:40:18 +0000
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [GIT PULL] XArray for 4.19
-In-Reply-To: <20180813161357.GB1199@bombadil.infradead.org>
-Message-ID: <0100016562b90938-02b97bb7-eddd-412d-8162-7519a70d4103-000000@email.amazonses.com>
-References: <20180813161357.GB1199@bombadil.infradead.org>
+        (Google Transport Security);
+        Wed, 22 Aug 2018 10:43:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <20180813161357.GB1199@bombadil.infradead.org> <0100016562b90938-02b97bb7-eddd-412d-8162-7519a70d4103-000000@email.amazonses.com>
+In-Reply-To: <0100016562b90938-02b97bb7-eddd-412d-8162-7519a70d4103-000000@email.amazonses.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 22 Aug 2018 10:43:05 -0700
+Message-ID: <CA+55aFzN3aq1P8ykE1+XuAR9pbH7nETOyMoBi-N52Ef=WjrFLA@mail.gmail.com>
+Subject: Re: [GIT PULL] XArray for 4.19
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Mon, 13 Aug 2018, Matthew Wilcox wrote:
+On Wed, Aug 22, 2018 at 10:40 AM Christopher Lameter <cl@linux.com> wrote:
+>
+> Is this going in this cycle? I have a bunch of stuff on top of this to
+> enable slab object migration.
 
-> Please consider pulling the XArray patch set.  The XArray provides an
-> improved interface to the radix tree data structure, providing locking
-> as part of the API, specifying GFP flags at allocation time, eliminating
-> preloading, less re-walking the tree, more efficient iterations and not
-> exposing RCU-protected pointers to its users.
+No.
 
-Is this going in this cycle? I have a bunch of stuff on top of this to
-enable slab object migration.
+It was based on a buggy branch that isn't getting pulled, so when I
+started looking at it, the pull request was rejected before I got much
+further.
+
+               Linus
