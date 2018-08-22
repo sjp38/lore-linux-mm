@@ -1,73 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C3C26B24EB
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 10:56:53 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id j17-v6so1993807oii.8
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 07:56:53 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g3-v6si1380568oia.21.2018.08.22.07.56.51
-        for <linux-mm@kvack.org>;
-        Wed, 22 Aug 2018 07:56:52 -0700 (PDT)
-From: Robin Murphy <robin.murphy@arm.com>
-Subject: Re: [PATCH 0/4] numa, iommu/smmu: IOMMU/SMMU driver optimization for
- NUMA systems
-References: <20170921085922.11659-1-ganapatrao.kulkarni@cavium.com>
- <452f1665-eb3a-5e8c-f671-099ef4a15d84@huawei.com>
-Message-ID: <a7fc1e43-3652-562a-1e59-499be80b567c@arm.com>
-Date: Wed, 22 Aug 2018 15:56:43 +0100
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 749BB6B24EF
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 10:58:51 -0400 (EDT)
+Received: by mail-yw1-f71.google.com with SMTP id g126-v6so1077821ywg.20
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 07:58:51 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a189-v6sor386750ywf.353.2018.08.22.07.58.50
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 22 Aug 2018 07:58:50 -0700 (PDT)
+Date: Wed, 22 Aug 2018 07:58:46 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH RFC 2/3] proc/kpagecgroup: report also inode numbers of
+ offline cgroups
+Message-ID: <20180822145846.GT3978217@devbig004.ftw2.facebook.com>
+References: <153414348591.737150.14229960913953276515.stgit@buzz>
+ <153414348994.737150.10057219558779418929.stgit@buzz>
 MIME-Version: 1.0
-In-Reply-To: <452f1665-eb3a-5e8c-f671-099ef4a15d84@huawei.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Language: en-GB
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <153414348994.737150.10057219558779418929.stgit@buzz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Garry <john.garry@huawei.com>, Ganapatrao Kulkarni <ganapatrao.kulkarni@cavium.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Will.Deacon@arm.com" <Will.Deacon@arm.com>, "gklkml16@gmail.com" <gklkml16@gmail.com>, "Tomasz.Nowicki@cavium.com" <Tomasz.Nowicki@cavium.com>, "Robert.Richter@cavium.com" <Robert.Richter@cavium.com>, "mhocko@suse.com" <mhocko@suse.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "jnair@caviumnetworks.com" <jnair@caviumnetworks.com>, Marek Szyprowski <m.szyprowski@samsung.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, Linuxarm <linuxarm@huawei.com>, Christoph Hellwig <hch@lst.de>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-Hi John,
+Hello,
 
-On 22/08/18 14:44, John Garry wrote:
-> On 21/09/2017 09:59, Ganapatrao Kulkarni wrote:
->> Adding numa aware memory allocations used for iommu dma allocation and
->> memory allocated for SMMU stream tables, page walk tables and command 
->> queues.
->>
->> With this patch, iperf testing on ThunderX2, with 40G NIC card on
->> NODE 1 PCI shown same performance(around 30% improvement) as NODE 0.
->>
->> Ganapatrao Kulkarni (4):
->>   mm: move function alloc_pages_exact_nid out of __meminit
->>   numa, iommu/io-pgtable-arm: Use NUMA aware memory allocation for smmu
->>     translation tables
->>   iommu/arm-smmu-v3: Use NUMA memory allocations for stream tables and
->>     comamnd queues
->>   iommu/dma, numa: Use NUMA aware memory allocations in
->>     __iommu_dma_alloc_pages
->>
->>  drivers/iommu/arm-smmu-v3.c    | 57 
->> +++++++++++++++++++++++++++++++++++++-----
->>  drivers/iommu/dma-iommu.c      | 17 +++++++------
->>  drivers/iommu/io-pgtable-arm.c |  4 ++-
->>  include/linux/gfp.h            |  2 +-
->>  mm/page_alloc.c                |  3 ++-
->>  5 files changed, 67 insertions(+), 16 deletions(-)
->>
-> 
-> Hi Ganapatrao,
-> 
-> Have you any plans for further work on this patchset? I have not seen 
-> anything since this v1 was posted+discussed.
+On Mon, Aug 13, 2018 at 09:58:10AM +0300, Konstantin Khlebnikov wrote:
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 19a4348974a4..7ef6ea9d5e4a 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -333,6 +333,7 @@ struct cgroup_subsys_state *mem_cgroup_css_from_page(struct page *page)
+>  /**
+>   * page_cgroup_ino - return inode number of the memcg a page is charged to
+>   * @page: the page
+> + * @online: return closest online ancestor
+>   *
+>   * Look up the closest online ancestor of the memory cgroup @page is charged to
+>   * and return its inode number or 0 if @page is not charged to any cgroup. It
+> @@ -343,14 +344,14 @@ struct cgroup_subsys_state *mem_cgroup_css_from_page(struct page *page)
+>   * after page_cgroup_ino() returns, so it only should be used by callers that
+>   * do not care (such as procfs interfaces).
+>   */
+> -ino_t page_cgroup_ino(struct page *page)
+> +ino_t page_cgroup_ino(struct page *page, bool online)
+>  {
+>  	struct mem_cgroup *memcg;
+>  	unsigned long ino = 0;
+>  
+>  	rcu_read_lock();
+>  	memcg = READ_ONCE(page->mem_cgroup);
+> -	while (memcg && !(memcg->css.flags & CSS_ONLINE))
+> +	while (memcg && online && !(memcg->css.flags & CSS_ONLINE))
+>  		memcg = parent_mem_cgroup(memcg);
+>  	if (memcg)
+>  		ino = cgroup_ino(memcg->css.cgroup);
 
-Looks like I ended up doing the version of the io-pgtable change that I 
-suggested here, which was merged recently (4b123757eeaa). Patch #3 
-should also be effectively obsolete now since the SWIOTLB/dma-direct 
-rework (21f237e4d085). Apparently I also started reworking patch #4 in 
-my tree at some point but sidelined it - I think that was at least 
-partly due to another thread[1] which made it seem less clear-cut 
-whether this is always the right thing to do.
+We pin the ino till the cgroup is actually released now but that's an
+implementation detail which may change in the future, so I'm not sure
+this is a good idea.  Can you instead use the 64bit filehandle exposed
+by kernfs?  That's currently also based on ino (+gen) but it's
+something guarnateed to stay unique per cgroup and you can easily get
+to the cgroup using the fh too.
 
-Robin.
+Thanks.
 
-[1] 
-https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1693026.html
+-- 
+tejun
