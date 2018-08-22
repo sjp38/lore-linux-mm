@@ -1,62 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B7246B2215
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 22:50:44 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id e8-v6so307325plt.4
-        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 19:50:44 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id x24-v6si547137pgh.295.2018.08.21.19.50.41
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C676C6B21F6
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 23:00:31 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id m13-v6so427677ioq.9
+        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 20:00:31 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f83-v6sor179195jac.9.2018.08.21.20.00.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 21 Aug 2018 19:50:41 -0700 (PDT)
-Date: Tue, 21 Aug 2018 19:50:40 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [GIT PULL] XArray for 4.19
-Message-ID: <20180822025040.GA12244@bombadil.infradead.org>
-References: <20180813161357.GB1199@bombadil.infradead.org>
- <CA+55aFxFjAmrFpwQmEHCthHOzgidCKnod+cNDEE+3Spu9o1s3w@mail.gmail.com>
+        (Google Transport Security);
+        Tue, 21 Aug 2018 20:00:30 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFxFjAmrFpwQmEHCthHOzgidCKnod+cNDEE+3Spu9o1s3w@mail.gmail.com>
+References: <20180813161357.GB1199@bombadil.infradead.org> <CA+55aFxFjAmrFpwQmEHCthHOzgidCKnod+cNDEE+3Spu9o1s3w@mail.gmail.com>
+ <20180822025040.GA12244@bombadil.infradead.org>
+In-Reply-To: <20180822025040.GA12244@bombadil.infradead.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 21 Aug 2018 20:00:18 -0700
+Message-ID: <CA+55aFw+dwofadgvzrM-UCMSih+f1choCwW+xFFM3aPjoRQX_g@mail.gmail.com>
+Subject: Re: [GIT PULL] XArray for 4.19
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
+To: Matthew Wilcox <willy@infradead.org>
 Cc: linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Tue, Aug 21, 2018 at 07:09:31PM -0700, Linus Torvalds wrote:
-> On Mon, Aug 13, 2018 at 9:14 AM Matthew Wilcox <willy@infradead.org> wrote:
-> >
-> > Please consider pulling the XArray patch set.
-> 
-> So this merge window has been horrible, but I was just about to start
-> looking at it.
-> 
-> And no. I'm not going to pull this.
-> 
-> For some unfathomable reason, you have based it on the libnvdimm tree.
-> I don't understand at all wjhy you did that.
+On Tue, Aug 21, 2018 at 7:50 PM Matthew Wilcox <willy@infradead.org> wrote:
+>
+> So, should I have based just on your tree and sent you a description of
+> what a resolved conflict should look like?
 
-I said in the pull request ...
+Absolutely.
 
-  There are two conflicts I wanted to flag; the first is against the
-  linux-nvdimm tree.  I rebased on top of one of the branches that went
-  into that tree, so if you pull my tree before linux-nvdimm, you'll get
-  fifteen commits I've had no involvement with.
+Or preferably not rebasing at all, just starting from a good solid
+base for new development in the first place.
 
-Dan asked me to do that so that his commit (which I had no involvement
-with) would be easier to backport.  At the time I thought this was a
-reasonable request; I know this API change is disruptive and I wanted
-to accommodate that.  I didn't know his patch was "complete garbage";
-I didn't review it.
+Sometimes you start from the wrong point, and decide that you really
+need to rebase, but then you should rebase to a more stable point, not
+on top of some random independent development.
 
-So, should I have based just on your tree and sent you a description of
-what a resolved conflict should look like?
+Rebasing can be a really good tool to clean up development that was
+haphazard - maybe as you  go along you notice that something you did
+earlier turned out to be counter-productive, so you rebase and clean
+up your history that has not been made public yet.
 
-> And since I won't be merging this, I clearly won't be merging your
-> other pull request that depended on this either.
+But when you send me a big new feature, the absolutely *last* thing I
+want to ever see is to see it based on some random unstable base.
 
-I can yank most of the patches (all but the last two, iirc) out of the
-IDA patchset and submit those as a separate pull request.  Would that
-be acceptable?  I'm really struggling to juggle all the pieces here to
-get them merged.
+And rebasing to avoid merge conflicts is *always* the wrong thing to
+do, unless the reason you're rebasing is "hey, I wrote this feature
+ages ago, I need to really refresh it to a more modern and stable
+kernel, so I'll rebase it onto the current last release instead, so
+that I have a good starting point".
+
+And even then the basic reason is not so much that there were
+conflicts, but that you just want your series to make more sense on
+its own, and not have one horribly complex merge that is just due to
+the fact that it was based on something ancient.
+
+The absolute last thing I want to see during the merge window is
+multiple independent features that have been tied together just
+because they are rebased on top of each other.
+
+Because that means - as in this case - that if one branch has
+problems, it now affects all of them.
+
+Merge conflicts aren't bad. In 99% of all cases, the conflict is
+trivial to solve. And the cost of trying to deal with them with
+rebasing is much much higher.
+
+               Linus
