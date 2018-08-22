@@ -1,132 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 519016B252E
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 11:55:39 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id j15-v6so1395573pfi.10
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 08:55:39 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 2-v6si1884074plb.444.2018.08.22.08.55.38
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B45946B24E5
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 11:56:52 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id u22-v6so1938832qkk.10
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 08:56:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 203-v6si1986771qkf.262.2018.08.22.08.56.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 22 Aug 2018 08:55:38 -0700 (PDT)
-Date: Wed, 22 Aug 2018 17:55:27 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 3/4] mm/tlb, x86/mm: Support invalidating TLB caches for
- RCU_TABLE_FREE
-Message-ID: <20180822155527.GF24124@hirez.programming.kicks-ass.net>
-References: <20180822153012.173508681@infradead.org>
- <20180822154046.823850812@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Aug 2018 08:56:51 -0700 (PDT)
+Date: Wed, 22 Aug 2018 11:56:47 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 0/2] fix for "pathological THP behavior"
+Message-ID: <20180822155647.GQ13047@redhat.com>
+References: <20180820032204.9591-1-aarcange@redhat.com>
+ <20180820115818.mmeayjkplux2z6im@kshutemo-mobl1>
+ <20180820151905.GB13047@redhat.com>
+ <6120e1b6-b4d2-96cb-2555-d8fab65c23c8@suse.cz>
+ <20180822092440.GH29735@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180822154046.823850812@infradead.org>
+In-Reply-To: <20180822092440.GH29735@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: torvalds@linux-foundation.org
-Cc: luto@kernel.org, x86@kernel.org, bp@alien8.de, will.deacon@arm.com, riel@surriel.com, jannh@google.com, ascannell@google.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nicholas Piggin <npiggin@gmail.com>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>
 
-On Wed, Aug 22, 2018 at 05:30:15PM +0200, Peter Zijlstra wrote:
-> ARM
-> which later used this put an explicit TLB invalidate in their
-> __p*_free_tlb() functions, and PowerPC-radix followed that example.
+On Wed, Aug 22, 2018 at 11:24:40AM +0200, Michal Hocko wrote:
+> abuse elsewhere. Like here for the THP. I am pretty sure that the
+> intention was not to stick to a specific node but rather all local nodes
+> within the reclaim distance (or other unit to define that nodes are
+> sufficiently close).
 
-> +/*
-> + * If we want tlb_remove_table() to imply TLB invalidates.
-> + */
-> +static inline void tlb_table_invalidate(struct mmu_gather *tlb)
-> +{
-> +#ifdef CONFIG_HAVE_RCU_TABLE_INVALIDATE
-> +	/*
-> +	 * Invalidate page-table caches used by hardware walkers. Then we still
-> +	 * need to RCU-sched wait while freeing the pages because software
-> +	 * walkers can still be in-flight.
-> +	 */
-> +	__tlb_flush_mmu_tlbonly(tlb);
-> +#endif
-> +}
+If it meant more than one node but still not all, the same problem
+would then happen after the app used all RAM from those "sufficiently
+close" nodes. So overall it would make zero difference because it
+would just kick the bug down the road a bit more.
 
-
-Nick, Will is already looking at using this to remove the synchronous
-invalidation from __p*_free_tlb() for ARM, could you have a look to see
-if PowerPC-radix could benefit from that too?
-
-Basically, using a patch like the below, would give your tlb_flush()
-information on if tables were removed or not.
-
----
-
---- a/include/asm-generic/tlb.h
-+++ b/include/asm-generic/tlb.h
-@@ -96,12 +96,22 @@ struct mmu_gather {
- #endif
- 	unsigned long		start;
- 	unsigned long		end;
--	/* we are in the middle of an operation to clear
--	 * a full mm and can make some optimizations */
--	unsigned int		fullmm : 1,
--	/* we have performed an operation which
--	 * requires a complete flush of the tlb */
--				need_flush_all : 1;
-+	/*
-+	 * we are in the middle of an operation to clear
-+	 * a full mm and can make some optimizations
-+	 */
-+	unsigned int		fullmm : 1;
-+
-+	/*
-+	 * we have performed an operation which
-+	 * requires a complete flush of the tlb
-+	 */
-+	unsigned int		need_flush_all : 1;
-+
-+	/*
-+	 * we have removed page directories
-+	 */
-+	unsigned int		freed_tables : 1;
- 
- 	struct mmu_gather_batch *active;
- 	struct mmu_gather_batch	local;
-@@ -136,6 +146,7 @@ static inline void __tlb_reset_range(str
- 		tlb->start = TASK_SIZE;
- 		tlb->end = 0;
- 	}
-+	tlb->freed_tables = 0;
- }
- 
- static inline void tlb_remove_page_size(struct mmu_gather *tlb,
-@@ -269,6 +280,7 @@ static inline void tlb_remove_check_page
- #define pte_free_tlb(tlb, ptep, address)			\
- 	do {							\
- 		__tlb_adjust_range(tlb, address, PAGE_SIZE);	\
-+		tlb->freed_tables = 1;			\
- 		__pte_free_tlb(tlb, ptep, address);		\
- 	} while (0)
- #endif
-@@ -276,7 +288,8 @@ static inline void tlb_remove_check_page
- #ifndef pmd_free_tlb
- #define pmd_free_tlb(tlb, pmdp, address)			\
- 	do {							\
--		__tlb_adjust_range(tlb, address, PAGE_SIZE);		\
-+		__tlb_adjust_range(tlb, address, PAGE_SIZE);	\
-+		tlb->freed_tables = 1;			\
- 		__pmd_free_tlb(tlb, pmdp, address);		\
- 	} while (0)
- #endif
-@@ -286,6 +299,7 @@ static inline void tlb_remove_check_page
- #define pud_free_tlb(tlb, pudp, address)			\
- 	do {							\
- 		__tlb_adjust_range(tlb, address, PAGE_SIZE);	\
-+		tlb->freed_tables = 1;			\
- 		__pud_free_tlb(tlb, pudp, address);		\
- 	} while (0)
- #endif
-@@ -295,7 +309,8 @@ static inline void tlb_remove_check_page
- #ifndef p4d_free_tlb
- #define p4d_free_tlb(tlb, pudp, address)			\
- 	do {							\
--		__tlb_adjust_range(tlb, address, PAGE_SIZE);		\
-+		__tlb_adjust_range(tlb, address, PAGE_SIZE);	\
-+		tlb->freed_tables = 1;			\
- 		__p4d_free_tlb(tlb, pudp, address);		\
- 	} while (0)
- #endif
+Thanks,
+Andrea
