@@ -1,85 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id ECEE66B221E
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 23:07:38 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id d10-v6so311681pll.22
-        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 20:07:38 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BB6906B2220
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 23:07:50 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id h5-v6so357935pgs.13
+        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 20:07:50 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r23-v6sor156947pfj.74.2018.08.21.20.07.37
+        by mx.google.com with SMTPS id d33-v6sor129664pgb.146.2018.08.21.20.07.49
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 21 Aug 2018 20:07:37 -0700 (PDT)
+        Tue, 21 Aug 2018 20:07:49 -0700 (PDT)
 From: Jia He <hejianet@gmail.com>
-Subject: [PATCH v11 0/3] remain and optimize memblock_next_valid_pfn on arm and arm64
-Date: Wed, 22 Aug 2018 11:07:14 +0800
-Message-Id: <1534907237-2982-1-git-send-email-jia.he@hxt-semitech.com>
+Subject: [PATCH v11 1/3] arm: arm64: introduce CONFIG_HAVE_MEMBLOCK_PFN_VALID
+Date: Wed, 22 Aug 2018 11:07:15 +0800
+Message-Id: <1534907237-2982-2-git-send-email-jia.he@hxt-semitech.com>
+In-Reply-To: <1534907237-2982-1-git-send-email-jia.he@hxt-semitech.com>
+References: <1534907237-2982-1-git-send-email-jia.he@hxt-semitech.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
 Cc: Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jia He <jia.he@hxt-semitech.com>
 
-Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
-where possible") optimized the loop in memmap_init_zone(). But it causes
-possible panic bug. So Daniel Vacek reverted it later.
+Make CONFIG_HAVE_MEMBLOCK_PFN_VALID a new config option so it can move
+memblock_next_valid_pfn to generic code file. All the latter optimizations
+are based on this config.
 
-But as suggested by Daniel Vacek, it is fine to using memblock to skip
-gaps and finding next valid frame with CONFIG_HAVE_ARCH_PFN_VALID.
+The memblock initialization time on arm/arm64 can benefit from this.
 
-More from what Daniel said:
-"On arm and arm64, memblock is used by default. But generic version of
-pfn_valid() is based on mem sections and memblock_next_valid_pfn() does
-not always return the next valid one but skips more resulting in some
-valid frames to be skipped (as if they were invalid). And that's why
-kernel was eventually crashing on some !arm machines."
+Signed-off-by: Jia He <jia.he@hxt-semitech.com>
+Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+---
+ arch/arm/Kconfig   | 1 +
+ arch/arm64/Kconfig | 1 +
+ mm/Kconfig         | 3 +++
+ 3 files changed, 5 insertions(+)
 
-About the performance consideration:
-As said by James in b92df1de5,
-"I have tested this patch on a virtual model of a Samurai CPU with a
-sparse memory map.  The kernel boot time drops from 109 to 62 seconds."
-Thus it would be better if we remain memblock_next_valid_pfn on arm/arm64.
-
-Besides we can remain memblock_next_valid_pfn, there is still some room
-for improvement. After this set, I can see the time overhead of memmap_init
-is reduced from 27956us to 13537us in my armv8a server(QDF2400 with 96G
-memory, pagesize 64k). I believe arm server will benefit more if memory is
-larger than TBs
-
-Patch 1 introduces new config to make codes more generic
-Patch 2 remains the memblock_next_valid_pfn on arm and arm64,this patch is
-        originated from b92df1de5
-Patch 3 optimizes the memblock_next_valid_pfn()
-
-Changelog:
-V11:- drop patch#4-6, refine the codes
-V10:- move codes to memblock.c, refine the performance consideration
-V9: - rebase to mmotm master, refine the log description. No major changes
-V8: - introduce new config and move generic code to early_pfn.h
-    - optimize memblock_next_valid_pfn as suggested by Matthew Wilcox
-V7: - fix i386 compilation error. refine the commit description
-V6: - simplify the codes, move arm/arm64 common codes to one file.
-    - refine patches as suggested by Danial Vacek and Ard Biesheuvel
-V5: - further refining as suggested by Danial Vacek. Make codes
-      arm/arm64 more arch specific
-V4: - refine patches as suggested by Danial Vacek and Wei Yang
-    - optimized on arm besides arm64
-V3: - fix 2 issues reported by kbuild test robot
-V2: - rebase to mmotm latest
-    - remain memblock_next_valid_pfn on arm64
-    - refine memblock_search_pfn_regions and pfn_valid_region
-
-Jia He (3):
-  arm: arm64: introduce CONFIG_HAVE_MEMBLOCK_PFN_VALID
-  mm: page_alloc: remain memblock_next_valid_pfn() on arm/arm64
-  mm: page_alloc: reduce unnecessary binary search in
-    memblock_next_valid_pfn
-
- arch/arm/Kconfig       |  1 +
- arch/arm64/Kconfig     |  1 +
- include/linux/mmzone.h |  9 +++++++++
- mm/Kconfig             |  3 +++
- mm/memblock.c          | 51 ++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c        |  5 ++++-
- 6 files changed, 69 insertions(+), 1 deletion(-)
-
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 843edfd..d3c7705 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -1641,6 +1641,7 @@ config ARCH_SELECT_MEMORY_MODEL
+ 
+ config HAVE_ARCH_PFN_VALID
+ 	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
++	select HAVE_MEMBLOCK_PFN_VALID
+ 
+ config HAVE_GENERIC_GUP
+ 	def_bool y
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 42c090c..d4119e6 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -777,6 +777,7 @@ config ARCH_SELECT_MEMORY_MODEL
+ 
+ config HAVE_ARCH_PFN_VALID
+ 	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
++	select HAVE_MEMBLOCK_PFN_VALID
+ 
+ config HW_PERF_EVENTS
+ 	def_bool y
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 94af022..28fcf54 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -137,6 +137,9 @@ config HAVE_MEMBLOCK_NODE_MAP
+ config HAVE_MEMBLOCK_PHYS_MAP
+ 	bool
+ 
++config HAVE_MEMBLOCK_PFN_VALID
++	bool
++
+ config HAVE_GENERIC_GUP
+ 	bool
+ 
 -- 
 1.8.3.1
