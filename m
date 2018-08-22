@@ -1,91 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FC226B2397
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 05:16:49 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id n17-v6so833542pff.17
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 02:16:49 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 15-v6si1277529pgu.205.2018.08.22.02.16.48
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7058C6B23A1
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 05:24:44 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id x20-v6so656813eda.22
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 02:24:44 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t11-v6si1466488edt.159.2018.08.22.02.24.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 22 Aug 2018 02:16:48 -0700 (PDT)
-Date: Wed, 22 Aug 2018 11:16:40 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 8/9] psi: pressure stall information for CPU, memory, and
- IO
-Message-ID: <20180822091640.GV24124@hirez.programming.kicks-ass.net>
-References: <20180801151958.32590-1-hannes@cmpxchg.org>
- <20180801151958.32590-9-hannes@cmpxchg.org>
- <20180803165641.GA2476@hirez.programming.kicks-ass.net>
- <20180821194413.GA24538@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Aug 2018 02:24:43 -0700 (PDT)
+Date: Wed, 22 Aug 2018 11:24:40 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH 0/2] fix for "pathological THP behavior"
+Message-ID: <20180822092440.GH29735@dhcp22.suse.cz>
+References: <20180820032204.9591-1-aarcange@redhat.com>
+ <20180820115818.mmeayjkplux2z6im@kshutemo-mobl1>
+ <20180820151905.GB13047@redhat.com>
+ <6120e1b6-b4d2-96cb-2555-d8fab65c23c8@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180821194413.GA24538@cmpxchg.org>
+In-Reply-To: <6120e1b6-b4d2-96cb-2555-d8fab65c23c8@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Daniel Drake <drake@endlessm.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, Peter Enderborg <peter.enderborg@sony.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>
 
-On Tue, Aug 21, 2018 at 03:44:13PM -0400, Johannes Weiner wrote:
+On Tue 21-08-18 17:30:11, Vlastimil Babka wrote:
+[...]
+> Frankly, I would rather go with this option and assume that if someone
+> explicitly wants THP's, they don't care about NUMA locality that much.
 
-> > > +		for (s = PSI_NONIDLE; s >= 0; s--) {
-> > > +			u32 time, delta;
-> > > +
-> > > +			time = READ_ONCE(groupc->times[s]);
-> > > +			/*
-> > > +			 * In addition to already concluded states, we
-> > > +			 * also incorporate currently active states on
-> > > +			 * the CPU, since states may last for many
-> > > +			 * sampling periods.
-> > > +			 *
-> > > +			 * This way we keep our delta sampling buckets
-> > > +			 * small (u32) and our reported pressure close
-> > > +			 * to what's actually happening.
-> > > +			 */
-> > > +			if (test_state(groupc->tasks, cpu, s)) {
-> > > +				/*
-> > > +				 * We can race with a state change and
-> > > +				 * need to make sure the state_start
-> > > +				 * update is ordered against the
-> > > +				 * updates to the live state and the
-> > > +				 * time buckets (groupc->times).
-> > > +				 *
-> > > +				 * 1. If we observe task state that
-> > > +				 * needs to be recorded, make sure we
-> > > +				 * see state_start from when that
-> > > +				 * state went into effect or we'll
-> > > +				 * count time from the previous state.
-> > > +				 *
-> > > +				 * 2. If the time delta has already
-> > > +				 * been added to the bucket, make sure
-> > > +				 * we don't see it in state_start or
-> > > +				 * we'll count it twice.
-> > > +				 *
-> > > +				 * If the time delta is out of
-> > > +				 * state_start but not in the time
-> > > +				 * bucket yet, we'll miss it entirely
-> > > +				 * and handle it in the next period.
-> > > +				 */
-> > > +				smp_rmb();
-> > > +				time += cpu_clock(cpu) - groupc->state_start;
-> > > +			}
-> > 
-> > The alternative is adding an update to scheduler_tick(), that would
-> > ensure you're never more than nr_cpu_ids * TICK_NSEC behind.
-> 
-> I wasn't able to convert *all* states to tick updates like this.
-> 
-> The reason is that, while testing rq->curr for PF_MEMSTALL is cheap,
-> other tasks associated with the rq could be from any cgroup in the
-> system. That means we'd have to do for_each_cgroup() on every tick to
-> keep the groupc->times that closely uptodate, and that wouldn't scale.
-> We tend to have hundreds of them, some setups have thousands.
-> 
-> Since we don't need to be *that* current, I left the on-demand update
-> inside the aggregator for now. It's a bit trickier, but much cheaper.
+Yes. And if they do care enough to configure for heavier fault-in
+treatment then they also can handle numa policy as well.
 
-ARGH indeed; I was thinking we only need to update current. But because
-we're tracking blocked state that doesn't work.
+> (Note: I hate __GFP_THISNODE, it's an endless source of issues.)
 
-Sorry for that :/
+Absolutely. It used to be a slab thing but then found an interesting
+abuse elsewhere. Like here for the THP. I am pretty sure that the
+intention was not to stick to a specific node but rather all local nodes
+within the reclaim distance (or other unit to define that nodes are
+sufficiently close).
+
+> Trying to be clever about "is there still PAGE_SIZEd free memory in the
+> local node" is imperfect anyway. If there isn't, is it because there's
+> clean page cache that we can easily reclaim (so it would be worth
+> staying local) or is it really exhausted? Watermark check won't tell...
+
+Exactly.
+-- 
+Michal Hocko
+SUSE Labs
