@@ -1,107 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BFD606B2385
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 05:02:18 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id q29-v6so657224edd.0
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 02:02:18 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i31-v6si1375215edd.265.2018.08.22.02.02.16
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 090EE6B238F
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 05:10:34 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id 132-v6so773124pga.18
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 02:10:34 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id t10-v6si1077641plz.414.2018.08.22.02.10.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Aug 2018 02:02:16 -0700 (PDT)
-Date: Wed, 22 Aug 2018 11:02:14 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH 2/2] mm: thp: fix transparent_hugepage/defrag = madvise
- || always
-Message-ID: <20180822090214.GF29735@dhcp22.suse.cz>
-References: <20180820032204.9591-1-aarcange@redhat.com>
- <20180820032204.9591-3-aarcange@redhat.com>
- <20180821115057.GY29735@dhcp22.suse.cz>
- <20180821214049.GG13047@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 22 Aug 2018 02:10:32 -0700 (PDT)
+Date: Wed, 22 Aug 2018 11:10:24 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 8/9] psi: pressure stall information for CPU, memory, and
+ IO
+Message-ID: <20180822091024.GU24124@hirez.programming.kicks-ass.net>
+References: <20180801151958.32590-1-hannes@cmpxchg.org>
+ <20180801151958.32590-9-hannes@cmpxchg.org>
+ <20180803172139.GE2494@hirez.programming.kicks-ass.net>
+ <20180821201115.GB24538@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180821214049.GG13047@redhat.com>
+In-Reply-To: <20180821201115.GB24538@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Daniel Drake <drake@endlessm.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Mike Galbraith <efault@gmx.de>, Shakeel Butt <shakeelb@google.com>, Peter Enderborg <peter.enderborg@sony.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Tue 21-08-18 17:40:49, Andrea Arcangeli wrote:
-> On Tue, Aug 21, 2018 at 01:50:57PM +0200, Michal Hocko wrote:
-[...]
-> > I really detest a new gfp flag for one time semantic that is muddy as
-> > hell.
+On Tue, Aug 21, 2018 at 04:11:15PM -0400, Johannes Weiner wrote:
+> On Fri, Aug 03, 2018 at 07:21:39PM +0200, Peter Zijlstra wrote:
+> > On Wed, Aug 01, 2018 at 11:19:57AM -0400, Johannes Weiner wrote:
+> > > +			time = READ_ONCE(groupc->times[s]);
+> > > +			/*
+> > > +			 * In addition to already concluded states, we
+> > > +			 * also incorporate currently active states on
+> > > +			 * the CPU, since states may last for many
+> > > +			 * sampling periods.
+> > > +			 *
+> > > +			 * This way we keep our delta sampling buckets
+> > > +			 * small (u32) and our reported pressure close
+> > > +			 * to what's actually happening.
+> > > +			 */
+> > > +			if (test_state(groupc->tasks, cpu, s)) {
+> > > +				/*
+> > > +				 * We can race with a state change and
+> > > +				 * need to make sure the state_start
+> > > +				 * update is ordered against the
+> > > +				 * updates to the live state and the
+> > > +				 * time buckets (groupc->times).
+> > > +				 *
+> > > +				 * 1. If we observe task state that
+> > > +				 * needs to be recorded, make sure we
+> > > +				 * see state_start from when that
+> > > +				 * state went into effect or we'll
+> > > +				 * count time from the previous state.
+> > > +				 *
+> > > +				 * 2. If the time delta has already
+> > > +				 * been added to the bucket, make sure
+> > > +				 * we don't see it in state_start or
+> > > +				 * we'll count it twice.
+> > > +				 *
+> > > +				 * If the time delta is out of
+> > > +				 * state_start but not in the time
+> > > +				 * bucket yet, we'll miss it entirely
+> > > +				 * and handle it in the next period.
+> > > +				 */
+> > > +				smp_rmb();
+> > > +				time += cpu_clock(cpu) - groupc->state_start;
+> > > +			}
+> > 
+> > As is, groupc->state_start needs a READ_ONCE() above and a WRITE_ONCE()
+> > below. But like stated earlier, doing an update in scheduler_tick() is
+> > probably easier.
 > 
-> Well there's no way to fix this other than to prevent reclaim to run,
-> if you still want to give a chance to page faults to obtain THP under
-> MADV_HUGEPAGE in the page fault without waiting minutes or hours for
-> khugpaged to catch up with it.
+> I've wrapped these in READ_ONCE/WRITE_ONCE.
 
-I do not get that part. Why should caller even care about reclaim vs.
-compaction. How can you even make an educated guess what makes more
-sense? This should be fully controlled by the allocator path. The caller
-should only care about how hard to try. It's been some time since I've
-looked but we used to have a gfp flags to tell that for THP allocations
-as well.
-
-> > This is simply incomprehensible. How can anybody who is not deeply
-> > familiar with the allocator/reclaim internals know when to use it.
-> 
-> Nobody should use this in drivers, it's a __GFP flag.
-
-Like other __GFP flags (e.g. __GFP_NOWARN, __GFP_COMP, __GFP_ZERO and
-many others)?
-
-> Note:
-> 
-> 	if (unlikely(IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) && hugepage)) {
-> 
-> #define alloc_hugepage_vma(gfp_mask, vma, addr, order)	\
-> 	alloc_pages_vma(gfp_mask, order, vma, addr, numa_node_id(), true)
-> 
-> Only THP is ever affected by the BUG so nothing else will ever need to
-> call __GFP_COMPACT_ONLY. It is a VM internal flag, I wish there was a
-> way to make the build fail if a driver would use it but there isn't
-> right now.
-
-My experience tells me that there is nothing like an internal gfp flag
-and abusing them is quite common and really hard to get rid of. Having a
-THP specific gfp flag has also turned out to be a bad idea (e.g. GFP_THISNODE).
-
-> > If this is really a regression then we should start by pinpointing the
-> 
-> You can check yourself, create a 2 node vnuma guest or pick any host
-> with more than one node. Set defrag=always and run "memhog -r11111111
-> 18g" if host has 16g per node. Add some swap and notice the swap storm
-> while all ram is left free in the other node.
-
-I am not disputing the bug itself. How hard should defrag=allways really
-try is good question and I would say different people would have
-different ideas but a swapping storm sounds like genuinely unwanted
-behavior. I would expect that to be handled in the reclaim/compaction.
-GFP_TRANSHUGE doesn't have ___GFP_RETRY_MAYFAIL so it shouldn't really
-try too hard to reclaim.
-
-> > real culprit and go from there. If this is really 5265047ac301 then just
-> 
-> In my view there's no single culprit, but it was easy to identify the
-> last drop that made the MADV_HUGEPAGE glass overflow, and it's that
-> commit that adds __GFP_THISNODE. The combination of the previous code
-> that prioritized NUMA over THP and then the MADV_HUGEPAGE logic that
-> still uses compaction (and in turn reclaim if compaction fails with
-> COMPACT_SKIPPED because there's no 4k page in the local node) just
-> falls apart with __GFP_THISNODE set as well on top of it and it
-> doesn't do the expected thing either without it (i.e. THP gets
-> priority over NUMA locality without such flag).
-> 
-> __GFP_THISNODE and the logic there, only works ok when
-> __GFP_DIRECT_RECLAIM is not set, i.e. MADV_HUGEPAGE not set.
-
-I still have to digest the __GFP_THISNODE thing but I _think_ that the
-alloc_pages_vma code is just trying to be overly clever and
-__GFP_THISNODE is not a good fit for it. 
-
--- 
-Michal Hocko
-SUSE Labs
+I just realized, these are u64, so READ_ONCE/WRITE_ONCE will not work
+correct on 32bit.
