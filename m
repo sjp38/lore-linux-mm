@@ -1,76 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 10CE96B264F
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 16:54:54 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id d40-v6so1423761pla.14
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 13:54:54 -0700 (PDT)
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 36A2E6B2661
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 17:11:00 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id bh1-v6so1447483plb.15
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 14:11:00 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s13-v6sor870177plr.147.2018.08.22.13.54.52
+        by mx.google.com with SMTPS id j6-v6sor710262pgj.274.2018.08.22.14.10.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 22 Aug 2018 13:54:52 -0700 (PDT)
-Date: Wed, 22 Aug 2018 13:54:50 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
- processes.
-In-Reply-To: <20180822080342.GE29735@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.21.1808221348160.83182@chino.kir.corp.google.com>
-References: <20180806134550.GO19540@dhcp22.suse.cz> <alpine.DEB.2.21.1808061315220.43071@chino.kir.corp.google.com> <20180806205121.GM10003@dhcp22.suse.cz> <alpine.DEB.2.21.1808091311030.244858@chino.kir.corp.google.com> <20180810090735.GY1644@dhcp22.suse.cz>
- <alpine.DEB.2.21.1808191632230.193150@chino.kir.corp.google.com> <20180820060746.GB29735@dhcp22.suse.cz> <alpine.DEB.2.21.1808201429400.58458@chino.kir.corp.google.com> <20180821060952.GU29735@dhcp22.suse.cz> <alpine.DEB.2.21.1808211016400.258924@chino.kir.corp.google.com>
- <20180822080342.GE29735@dhcp22.suse.cz>
+        Wed, 22 Aug 2018 14:10:58 -0700 (PDT)
+Date: Thu, 23 Aug 2018 00:10:53 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC v8 PATCH 3/5] mm: mmap: zap pages with read mmap_sem in
+ munmap
+Message-ID: <20180822211053.qg3dlzf6pok2x4yk@kshutemo-mobl1>
+References: <1534358990-85530-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1534358990-85530-4-git-send-email-yang.shi@linux.alibaba.com>
+ <e691d054-f807-80ad-9934-a1917d8e2e77@suse.cz>
+ <3c62f605-2244-6a05-2dc4-34a3f1c56300@linux.alibaba.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3c62f605-2244-6a05-2dc4-34a3f1c56300@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>, Dave Hansen <dave.hansen@intel.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 22 Aug 2018, Michal Hocko wrote:
-
-> > > > Ok, so it appears you're suggesting a per-mm counter of oom reaper retries 
-> > > > and once it reaches a certain threshold, either give up and set 
-> > > > MMF_OOM_SKIP or declare that exit_mmap() is responsible for it.  That's 
-> > > > fine, but obviously I'll be suggesting that the threshold is rather large.  
-> > > > So if I adjust my patch to be a retry counter rather than timestamp, do 
-> > > > you have any other reservations?
-> > > 
-> > > It absolutely has to be an internal thing without any user API to be
-> > > set. Also I still haven't heard any specific argument why would oom
-> > > reaper need to do per-task attempt and loop over all victims on the
-> > > list. Maybe you have some examples though.
-> > > 
-> > 
-> > It would be per-mm in this case, the task itself is no longer important 
-> > other than printing to the kernel log.  I think we could simply print that 
-> > the oom reaper has reaped mm->owner.
-> > 
-> > The oom reaper would need to loop over the per-mm list because the retry 
-> > counter is going to have a high threshold so that processes have the 
-> > ability to free their memory before the oom reaper declares it can no 
-> > longer make forward progress.
+On Wed, Aug 22, 2018 at 01:45:44PM -0700, Yang Shi wrote:
 > 
-> What do you actually mean by a high threshold?
 > 
-
-As suggested in the timeout based approach of my patchset, 10s seems to 
-work well for current server memory capacities, so if combined with a 
-schedule_timeout(HZ/10) after iterating through mm_struct's to reap, the 
-threshold would be best defined so it can allow at least 10s.
-
-> > We cannot stall trying to reap a single mm 
-> > with a high retry threshold from a memcg hierarchy when another memcg 
-> > hierarchy is also oom.  The ability for one victim to make forward 
-> > progress can depend on a lock held by another oom memcg hierarchy where 
-> > reaping would allow it to be dropped.
+> On 8/22/18 4:19 AM, Vlastimil Babka wrote:
+> > On 08/15/2018 08:49 PM, Yang Shi wrote:
+> > > +	downgrade_write(&mm->mmap_sem);
+> > > +
+> > > +	/* Zap mappings with read mmap_sem */
+> > > +	unmap_region(mm, start_vma, prev, start, end);
+> > > +
+> > > +	arch_unmap(mm, start_vma, start, end);
+> > Hmm, did you check that all architectures' arch_unmap() is safe with
+> > read mmap_sem instead of write mmap_sem? E.g. x86 does
+> > mpx_notify_unmap() there where I would be far from sure at first glance...
 > 
-> Could you be more specific please?
+> Yes, I'm also not quite sure if it is 100% safe or not. I was trying to move
+> this before downgrade_write, however, I'm not sure if it is ok or not too,
+> so I keep the calling sequence.
 > 
+> For architectures, just x86 and ppc really do something. PPC just uses it
+> for vdso unmap which should just happen during process exit, so it sounds
+> safe.
+> 
+> For x86, mpx_notify_unmap() looks finally zap the VM_MPX vmas in bound table
+> range with zap_page_range() and doesn't update vm flags, so it sounds ok to
+> me since vmas have been detached, nobody can find those vmas. But, I'm not
+> familiar with the details of mpx, maybe Kirill could help to confirm this?
 
-It's problematic to stall for 10s trying to oom reap (or free through 
-exit_mmap()) a single mm while not trying to free memory from others: if 
-you are reaping memory from a memcg subtree's victim and it takes a long 
-time, either for a single try with a lot of memory or many tries with 
-little or no memory, it increases the likelihood of livelocks in other 
-memcg hierarchies because of the oom reaper is not attempting to reap its 
-memory.  The victim may depend on a lock that a memory charger is holding 
-but the oom reaper is not able to help yet.
+I don't see anything obviously dependent on down_write() in
+mpx_notify_unmap(), but Dave should know better.
+
+-- 
+ Kirill A. Shutemov
