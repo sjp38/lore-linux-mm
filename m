@@ -1,71 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 688E36B2678
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 18:05:32 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id h65-v6so1600078pfk.18
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 15:05:32 -0700 (PDT)
-Subject: Re: [RFC v8 PATCH 3/5] mm: mmap: zap pages with read mmap_sem in
- munmap
-References: <1534358990-85530-1-git-send-email-yang.shi@linux.alibaba.com>
- <1534358990-85530-4-git-send-email-yang.shi@linux.alibaba.com>
- <e691d054-f807-80ad-9934-a1917d8e2e77@suse.cz>
- <3c62f605-2244-6a05-2dc4-34a3f1c56300@linux.alibaba.com>
- <20180822211053.qg3dlzf6pok2x4yk@kshutemo-mobl1>
- <45a5ff36-d53d-9ec3-f869-1b1b7a6de5cb@intel.com>
- <a1642cf6-f458-3026-dca9-652fbb20f580@linux.alibaba.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <7f06e97e-5efa-e0d4-f952-3f01079c7283@intel.com>
-Date: Wed, 22 Aug 2018 15:03:44 -0700
-MIME-Version: 1.0
-In-Reply-To: <a1642cf6-f458-3026-dca9-652fbb20f580@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 343626B269C
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 18:11:17 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id a70-v6so2907834qkb.16
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 15:11:17 -0700 (PDT)
+Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
+        by mx.google.com with ESMTPS id u32-v6si2915521qth.220.2018.08.22.15.11.14
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Aug 2018 15:11:14 -0700 (PDT)
+Message-ID: <15474e3aa44fe9f67b6fa6ddb67ff8fc0e6831ad.camel@surriel.com>
+Subject: Re: [PATCH 1/4] x86/mm/tlb: Revert the recent lazy TLB patches
+From: Rik van Riel <riel@surriel.com>
+Date: Wed, 22 Aug 2018 18:11:02 -0400
+In-Reply-To: <CA+55aFw6bBFnV__JZnzh0ZCSTma5J2ijH8BnMtfK55dnjVp=dw@mail.gmail.com>
+References: <20180822153012.173508681@infradead.org>
+	 <20180822154046.717610121@infradead.org>
+	 <CA+55aFw6bBFnV__JZnzh0ZCSTma5J2ijH8BnMtfK55dnjVp=dw@mail.gmail.com>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-hz++tz2+IaVsyr5y/rZl"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: owner-linux-mm@kvack.org, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Vlastimil Babka <vbabka@suse.cz>, mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Will Deacon <will.deacon@arm.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On 08/22/2018 02:56 PM, owner-linux-mm@kvack.org wrote:
-> 
-> 
-> On 8/22/18 2:42 PM, Dave Hansen wrote:
->> On 08/22/2018 02:10 PM, Kirill A. Shutemov wrote:
->>>> For x86, mpx_notify_unmap() looks finally zap the VM_MPX vmas in
->>>> bound table
->>>> range with zap_page_range() and doesn't update vm flags, so it
->>>> sounds ok to
->>>> me since vmas have been detached, nobody can find those vmas. But,
->>>> I'm not
->>>> familiar with the details of mpx, maybe Kirill could help to confirm
->>>> this?
->>> I don't see anything obviously dependent on down_write() in
->>> mpx_notify_unmap(), but Dave should know better.
->> We need mmap_sem for write in mpx_notify_unmap().
->>
->> Its job is to clean up bounds tables, but bounds tables are dynamically
->> allocated and destroyed by the kernel.A  When we destroy a table, we also
->> destroy the VMA for the bounds table *itself*, separate from the VMA
->> being unmapped.
-...
-> Does it depends on unmap_region()? Or IOW, does it has to be called
-> after unmap_region()? Now the calling sequence is:
-> 
-> detach vmas
-> unmap_region()
-> mpx_notify_unmap()
-> 
-> I'm wondering if it is safe to move it up before unmap_region() like:
-> 
-> detach vmas
-> mpx_notify_unmap()
-> unmap_region()
-> 
-> With this change we also can do our optimization to do unmap_region()
-> with read mmap_sem. Otherwise it does cause problem.
 
-I think changing the ordering is fine.
+--=-hz++tz2+IaVsyr5y/rZl
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-The MPX bounds table unmapping is entirely driven by the VMAs being
-unmapped, so the page table unmapping in unmap_region() should not
-affect it.
+On Wed, 2018-08-22 at 14:37 -0700, Linus Torvalds wrote:
+> On Wed, Aug 22, 2018 at 8:46 AM Peter Zijlstra <peterz@infradead.org>
+> wrote:
+> >=20
+> > Revert [..] in order to simplify the TLB invalidate fixes for x86.
+> > We'll try again later.
+>=20
+> Rik, I assume I should take your earlier "yeah, I can try later" as
+> an
+> ack for this?
+
+Yes, feel free to add my Acked-by: to all these
+patches.
+
+Patch 3/4 is not ideal, with the slow path in
+tlb_remove_table sending two IPIs (one to every
+CPU, one to the CPUs in the mm_cpumask), but
+that is a slow path we should not be hitting
+much anyway.
+
+--=20
+All Rights Reversed.
+
+--=-hz++tz2+IaVsyr5y/rZl
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAlt933YACgkQznnekoTE
+3oOMsAf/RJSe6V5kEnd6+uZ0fO6hjLhBKFelbSOom6tOoNv9xYtJb9aJY3dxw32J
+5JBt5ihzQ2dGvSshTNYGY3okOXuq4gy46TrYGr7MS41yuHGEgBB/j8+48fWTGdAe
+LzNXHGJ31Q+MACbk1MeHYAMvsWk32ri1u9sVelp3Cw3A/eACUsGaR8O0yC2zL/nJ
+NZLofB9ceux/wnz+tg4wtubCE2AyirjJFmSTPjlbMhUeEEbkqp1B2UB7tBxwpKDl
+buFJym74wL4KTMaxWH5dFEpVHolTSsFrdU+EdnDFSuP/LPMdJVo4CHxlGIWaUaEw
+2l6Xqy7sF1U9kFT1azCKO2LzfHrdJQ==
+=jSan
+-----END PGP SIGNATURE-----
+
+--=-hz++tz2+IaVsyr5y/rZl--
