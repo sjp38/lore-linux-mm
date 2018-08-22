@@ -1,65 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E4DB6B21F6
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 22:19:20 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id l65-v6so290867pge.17
-        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 19:19:20 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id 30-v6si451463pgt.678.2018.08.21.19.19.19
+Received: from mail-ua1-f69.google.com (mail-ua1-f69.google.com [209.85.222.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EFB0F6B21FE
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 22:25:25 -0400 (EDT)
+Received: by mail-ua1-f69.google.com with SMTP id d22-v6so184584uaq.11
+        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 19:25:25 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id w12-v6si169020uad.339.2018.08.21.19.25.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Aug 2018 19:19:19 -0700 (PDT)
-From: Zhang Yi <yi.z.zhang@linux.intel.com>
-Subject: [PATCH V4 4/4] kvm: add a check if pfn is from NVDIMM pmem.
-Date: Wed, 22 Aug 2018 18:58:10 +0800
-Message-Id: <a4183c0f0adfb6d123599dd306062fd193e83f5a.1534934405.git.yi.z.zhang@linux.intel.com>
-In-Reply-To: <cover.1534934405.git.yi.z.zhang@linux.intel.com>
-References: <cover.1534934405.git.yi.z.zhang@linux.intel.com>
+        Tue, 21 Aug 2018 19:25:24 -0700 (PDT)
+Subject: Re: [PATCH v2 0/2] mm: soft-offline: fix race against page allocation
+References: <1531805552-19547-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20180815154334.f3eecd1029a153421631413a@linux-foundation.org>
+ <20180822013748.GA10343@hori1.linux.bs1.fc.nec.co.jp>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <c692fd0b-d282-f2e7-b42f-b3204ad35938@oracle.com>
+Date: Tue, 21 Aug 2018 19:25:12 -0700
+MIME-Version: 1.0
+In-Reply-To: <20180822013748.GA10343@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pbonzini@redhat.com, dan.j.williams@intel.com, dave.jiang@intel.com, yu.c.zhang@intel.com, pagupta@redhat.com, david@redhat.com, jack@suse.cz, hch@lst.de
-Cc: linux-mm@kvack.org, rkrcmar@redhat.com, jglisse@redhat.com, yi.z.zhang@intel.com, Zhang Yi <yi.z.zhang@linux.intel.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, "xishi.qiuxishi@alibaba-inc.com" <xishi.qiuxishi@alibaba-inc.com>, "zy.zhengyi@alibaba-inc.com" <zy.zhengyi@alibaba-inc.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-For device specific memory space, when we move these area of pfn to
-memory zone, we will set the page reserved flag at that time, some of
-these reserved for device mmio, and some of these are not, such as
-NVDIMM pmem.
+On 08/21/2018 06:37 PM, Naoya Horiguchi wrote:
+> On Wed, Aug 15, 2018 at 03:43:34PM -0700, Andrew Morton wrote:
+>> On Tue, 17 Jul 2018 14:32:30 +0900 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+>>
+>>> I've updated the patchset based on feedbacks:
+>>>
+>>> - updated comments (from Andrew),
+>>> - moved calling set_hwpoison_free_buddy_page() from mm/migrate.c to mm/memory-failure.c,
+>>>   which is necessary to check the return code of set_hwpoison_free_buddy_page(),
+>>> - lkp bot reported a build error when only 1/2 is applied.
+>>>
+>>>   >    mm/memory-failure.c: In function 'soft_offline_huge_page':
+>>>   > >> mm/memory-failure.c:1610:8: error: implicit declaration of function
+>>>   > 'set_hwpoison_free_buddy_page'; did you mean 'is_free_buddy_page'?
+>>>   > [-Werror=implicit-function-declaration]
+>>>   >        if (set_hwpoison_free_buddy_page(page))
+>>>   >            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+>>>   >            is_free_buddy_page
+>>>   >    cc1: some warnings being treated as errors
+>>>
+>>>   set_hwpoison_free_buddy_page() is defined in 2/2, so we can't use it
+>>>   in 1/2. Simply doing s/set_hwpoison_free_buddy_page/!TestSetPageHWPoison/
+>>>   will fix this.
+>>>
+>>> v1: https://lkml.org/lkml/2018/7/12/968
+>>>
+>>
+>> Quite a bit of discussion on these two, but no actual acks or
+>> review-by's?
+> 
+> Really sorry for late response.
+> Xishi provided feedback on previous version, but no final ack/reviewed-by.
+> This fix should work on the reported issue, but rewriting soft-offlining
+> without PageHWPoison flag would be the better fix (no actual patch yet.)
+> I'm not sure this patch should go to mainline immediately.
 
-Now, we map these dev_dax or fs_dax pages to kvm for DIMM/NVDIMM
-backend, since these pages are reserved, the check of
-kvm_is_reserved_pfn() misconceives those pages as MMIO. Therefor, we
-introduce 2 page map types, MEMORY_DEVICE_FS_DAX/MEMORY_DEVICE_DEV_DAX,
-to identify these pages are from NVDIMM pmem and let kvm treat these
-as normal pages.
+FWIW - The 'migration of huge PMD shared pages' issue I am working was
+originally triggered via soft-offline.  While working the issue, I tried
+to exercise huge page soft-offline really hard to recreate the issue and
+validate a fix.  However, I was more likely to hit the soft-offline race(s)
+your patches address.  Therefore, I applied your patches to focus my testing
+and validation on the migration of huge PMD shared pages issue.  That is sort
+of a Tested-by :).
 
-Without this patch, many operations will be missed due to this
-mistreatment to pmem pages, for example, a page may not have chance to
-be unpinned for KVM guest(in kvm_release_pfn_clean), not able to be
-marked as dirty/accessed(in kvm_set_pfn_dirty/accessed) etc.
+Just wanted to point out that it was pretty easy to hit this issue.  It
+was easier than the issue I am working.  And, the issue I am trying to
+address was seen in a real customer environment.  So, I would not be
+surprised to see this issue in real customer environments as well.
 
-Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
----
- virt/kvm/kvm_main.c | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
-
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index c44c406..969b6ca 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -147,8 +147,12 @@ __weak void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
- 
- bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
- {
--	if (pfn_valid(pfn))
--		return PageReserved(pfn_to_page(pfn));
-+	struct page *page;
-+
-+	if (pfn_valid(pfn)) {
-+		page = pfn_to_page(pfn);
-+		return PageReserved(page) && !is_dax_page(page);
-+	}
- 
- 	return true;
- }
+If you (or others) think we should go forward with these patches, I can
+spend some time doing a review.  Already did a 'quick look' some time back.
 -- 
-2.7.4
+Mike Kravetz
