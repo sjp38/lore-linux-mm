@@ -1,72 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 100276B2349
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 04:00:31 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id t4-v6so648351plo.0
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 01:00:31 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2373E6B234E
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 04:03:46 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id e15-v6so754744pfi.5
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 01:03:46 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s12-v6si1040220plr.120.2018.08.22.01.00.29
+        by mx.google.com with ESMTPS id a4-v6si1173686pff.1.2018.08.22.01.03.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Aug 2018 01:00:29 -0700 (PDT)
-Date: Wed, 22 Aug 2018 10:00:25 +0200
+        Wed, 22 Aug 2018 01:03:44 -0700 (PDT)
+Date: Wed, 22 Aug 2018 10:03:42 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 0/2] mm: soft-offline: fix race against page allocation
-Message-ID: <20180822080025.GD29735@dhcp22.suse.cz>
-References: <1531805552-19547-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20180815154334.f3eecd1029a153421631413a@linux-foundation.org>
- <20180822013748.GA10343@hori1.linux.bs1.fc.nec.co.jp>
+Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
+ processes.
+Message-ID: <20180822080342.GE29735@dhcp22.suse.cz>
+References: <20180806134550.GO19540@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1808061315220.43071@chino.kir.corp.google.com>
+ <20180806205121.GM10003@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1808091311030.244858@chino.kir.corp.google.com>
+ <20180810090735.GY1644@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1808191632230.193150@chino.kir.corp.google.com>
+ <20180820060746.GB29735@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1808201429400.58458@chino.kir.corp.google.com>
+ <20180821060952.GU29735@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1808211016400.258924@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180822013748.GA10343@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <alpine.DEB.2.21.1808211016400.258924@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "xishi.qiuxishi@alibaba-inc.com" <xishi.qiuxishi@alibaba-inc.com>, "zy.zhengyi@alibaba-inc.com" <zy.zhengyi@alibaba-inc.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>
 
-On Wed 22-08-18 01:37:48, Naoya Horiguchi wrote:
-> On Wed, Aug 15, 2018 at 03:43:34PM -0700, Andrew Morton wrote:
-> > On Tue, 17 Jul 2018 14:32:30 +0900 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-> > 
-> > > I've updated the patchset based on feedbacks:
-> > > 
-> > > - updated comments (from Andrew),
-> > > - moved calling set_hwpoison_free_buddy_page() from mm/migrate.c to mm/memory-failure.c,
-> > >   which is necessary to check the return code of set_hwpoison_free_buddy_page(),
-> > > - lkp bot reported a build error when only 1/2 is applied.
-> > > 
-> > >   >    mm/memory-failure.c: In function 'soft_offline_huge_page':
-> > >   > >> mm/memory-failure.c:1610:8: error: implicit declaration of function
-> > >   > 'set_hwpoison_free_buddy_page'; did you mean 'is_free_buddy_page'?
-> > >   > [-Werror=implicit-function-declaration]
-> > >   >        if (set_hwpoison_free_buddy_page(page))
-> > >   >            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
-> > >   >            is_free_buddy_page
-> > >   >    cc1: some warnings being treated as errors
-> > > 
-> > >   set_hwpoison_free_buddy_page() is defined in 2/2, so we can't use it
-> > >   in 1/2. Simply doing s/set_hwpoison_free_buddy_page/!TestSetPageHWPoison/
-> > >   will fix this.
-> > > 
-> > > v1: https://lkml.org/lkml/2018/7/12/968
-> > > 
-> > 
-> > Quite a bit of discussion on these two, but no actual acks or
-> > review-by's?
+On Tue 21-08-18 10:20:00, David Rientjes wrote:
+> On Tue, 21 Aug 2018, Michal Hocko wrote:
 > 
-> Really sorry for late response.
-> Xishi provided feedback on previous version, but no final ack/reviewed-by.
-> This fix should work on the reported issue, but rewriting soft-offlining
-> without PageHWPoison flag would be the better fix (no actual patch yet.)
+> > > Ok, so it appears you're suggesting a per-mm counter of oom reaper retries 
+> > > and once it reaches a certain threshold, either give up and set 
+> > > MMF_OOM_SKIP or declare that exit_mmap() is responsible for it.  That's 
+> > > fine, but obviously I'll be suggesting that the threshold is rather large.  
+> > > So if I adjust my patch to be a retry counter rather than timestamp, do 
+> > > you have any other reservations?
+> > 
+> > It absolutely has to be an internal thing without any user API to be
+> > set. Also I still haven't heard any specific argument why would oom
+> > reaper need to do per-task attempt and loop over all victims on the
+> > list. Maybe you have some examples though.
+> > 
+> 
+> It would be per-mm in this case, the task itself is no longer important 
+> other than printing to the kernel log.  I think we could simply print that 
+> the oom reaper has reaped mm->owner.
+> 
+> The oom reaper would need to loop over the per-mm list because the retry 
+> counter is going to have a high threshold so that processes have the 
+> ability to free their memory before the oom reaper declares it can no 
+> longer make forward progress.
 
-If we can go with the later the I would obviously prefer that. I cannot
-promise to work on the patch though. I can help with reviewing of
-course.
+What do you actually mean by a high threshold?
 
-If this is important enough that people are hitting the issue in normal
-workloads then sure, let's go with the simple fix and continue on top of
-that.
+> We cannot stall trying to reap a single mm 
+> with a high retry threshold from a memcg hierarchy when another memcg 
+> hierarchy is also oom.  The ability for one victim to make forward 
+> progress can depend on a lock held by another oom memcg hierarchy where 
+> reaping would allow it to be dropped.
+
+Could you be more specific please?
+
 -- 
 Michal Hocko
 SUSE Labs
