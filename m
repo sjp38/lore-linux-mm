@@ -1,36 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C15E06B267C
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 17:37:17 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id n17-v6so2650463ioa.5
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 14:37:17 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w66-v6sor976840itd.125.2018.08.22.14.37.17
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 97BEB6B2683
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 17:42:30 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id g5-v6so1707285pgq.5
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 14:42:30 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id l1-v6si2698829pgo.377.2018.08.22.14.42.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 22 Aug 2018 14:37:17 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Aug 2018 14:42:29 -0700 (PDT)
+Subject: Re: [RFC v8 PATCH 3/5] mm: mmap: zap pages with read mmap_sem in
+ munmap
+References: <1534358990-85530-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1534358990-85530-4-git-send-email-yang.shi@linux.alibaba.com>
+ <e691d054-f807-80ad-9934-a1917d8e2e77@suse.cz>
+ <3c62f605-2244-6a05-2dc4-34a3f1c56300@linux.alibaba.com>
+ <20180822211053.qg3dlzf6pok2x4yk@kshutemo-mobl1>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <45a5ff36-d53d-9ec3-f869-1b1b7a6de5cb@intel.com>
+Date: Wed, 22 Aug 2018 14:42:27 -0700
 MIME-Version: 1.0
-References: <20180822153012.173508681@infradead.org> <20180822154046.717610121@infradead.org>
-In-Reply-To: <20180822154046.717610121@infradead.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 22 Aug 2018 14:37:05 -0700
-Message-ID: <CA+55aFw6bBFnV__JZnzh0ZCSTma5J2ijH8BnMtfK55dnjVp=dw@mail.gmail.com>
-Subject: Re: [PATCH 1/4] x86/mm/tlb: Revert the recent lazy TLB patches
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180822211053.qg3dlzf6pok2x4yk@kshutemo-mobl1>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Will Deacon <will.deacon@arm.com>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Yang Shi <yang.shi@linux.alibaba.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Aug 22, 2018 at 8:46 AM Peter Zijlstra <peterz@infradead.org> wrote:
->
-> Revert [..] in order to simplify the TLB invalidate fixes for x86. We'll try again later.
+On 08/22/2018 02:10 PM, Kirill A. Shutemov wrote:
+>> For x86, mpx_notify_unmap() looks finally zap the VM_MPX vmas in bound table
+>> range with zap_page_range() and doesn't update vm flags, so it sounds ok to
+>> me since vmas have been detached, nobody can find those vmas. But, I'm not
+>> familiar with the details of mpx, maybe Kirill could help to confirm this?
+> I don't see anything obviously dependent on down_write() in
+> mpx_notify_unmap(), but Dave should know better.
 
-Rik, I assume I should take your earlier "yeah, I can try later" as an
-ack for this?
+We need mmap_sem for write in mpx_notify_unmap().
 
-I'll wait a bit more in the hopes of getting reviews/acks, but I'm
-basically chomping at the bit to just apply this series and have this
-issue behind us.
+Its job is to clean up bounds tables, but bounds tables are dynamically
+allocated and destroyed by the kernel.  When we destroy a table, we also
+destroy the VMA for the bounds table *itself*, separate from the VMA
+being unmapped.
 
-             Linus
+But, this code is very likely to go away soon.  If it's causing a
+problem for you, let me know and I'll see if I can get to removing it
+faster.
