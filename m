@@ -1,161 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B4B206B2225
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2018 23:08:14 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id c8-v6so393634pfn.2
-        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 20:08:14 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CCEB6B22D0
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 02:01:35 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id v144-v6so455093ywa.23
+        for <linux-mm@kvack.org>; Tue, 21 Aug 2018 23:01:35 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p7-v6sor120213pgm.389.2018.08.21.20.08.13
+        by mx.google.com with SMTPS id h88-v6sor289040ybi.57.2018.08.21.23.01.32
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 21 Aug 2018 20:08:13 -0700 (PDT)
-From: Jia He <hejianet@gmail.com>
-Subject: [PATCH v11 3/3] mm: page_alloc: reduce unnecessary binary search in memblock_next_valid_pfn
-Date: Wed, 22 Aug 2018 11:07:17 +0800
-Message-Id: <1534907237-2982-4-git-send-email-jia.he@hxt-semitech.com>
-In-Reply-To: <1534907237-2982-1-git-send-email-jia.he@hxt-semitech.com>
-References: <1534907237-2982-1-git-send-email-jia.he@hxt-semitech.com>
+        Tue, 21 Aug 2018 23:01:32 -0700 (PDT)
+MIME-Version: 1.0
+References: <20180817231834.15959-1-guro@fb.com> <20180818012213.GA14115@bombadil.infradead.org>
+ <CALYGNiOf_0fR4R747J11JNROO7_FW_9u16Bg09f+CdWPiFwGvw@mail.gmail.com> <20180821171555.GA16545@cmpxchg.org>
+In-Reply-To: <20180821171555.GA16545@cmpxchg.org>
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Date: Wed, 22 Aug 2018 09:01:19 +0300
+Message-ID: <CALYGNiMO973zcp85i5yd=Fa-Jo7SdObXH6sPuogoO3hnB-GgRA@mail.gmail.com>
+Subject: Re: [PATCH RFC] mm: don't miss the last page because of round-off error
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jia He <jia.he@hxt-semitech.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Matthew Wilcox <willy@infradead.org>, Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@surriel.com>
 
-Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
-where possible") optimized the loop in memmap_init_zone(). But there is
-still some room for improvement.
+On Tue, Aug 21, 2018 at 8:15 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> On Tue, Aug 21, 2018 at 08:11:44AM +0300, Konstantin Khlebnikov wrote:
+>> On Sat, Aug 18, 2018 at 4:22 AM, Matthew Wilcox <willy@infradead.org> wrote:
+>> > On Fri, Aug 17, 2018 at 04:18:34PM -0700, Roman Gushchin wrote:
+>> >> -                     scan = div64_u64(scan * fraction[file],
+>> >> -                                      denominator);
+>> >> +                     if (scan > 1)
+>> >> +                             scan = div64_u64(scan * fraction[file],
+>> >> +                                              denominator);
+>> >
+>> > Wouldn't we be better off doing a div_round_up?  ie:
+>> >
+>> >         scan = div64_u64(scan * fraction[file] + denominator - 1, denominator);
+>> >
+>> > although i'd rather hide that in a new macro in math64.h than opencode it
+>> > here.
+>>
+>> All numbers here should be up to nr_pages * 200 and fit into unsigned long.
+>> I see no reason for u64. If they overflow then u64 wouldn't help either.
+>
+> It is nr_pages * 200 * recent_scanned, where recent_scanned can be up
+> to four times of what's on the LRUs. That can overflow a u32 with even
+> small amounts of memory.
 
-E.g. if pfn and pfn+1 are in the same memblock region, we can simply pfn++
-instead of doing the binary search in memblock_next_valid_pfn.
+Ah, this thing is inverted because it aims to proportional reactivation rate
+rather than the proportional pressure to reclaimable pages.
+That's not obvious. I suppose this should be in comment above it.
 
-Furthermore, if the pfn is in a gap of two memory region, skip to next
-region directly if possible.
-
-Attached the memblock region information in my server.
-[    0.000000] Zone ranges:
-[    0.000000]   DMA32    [mem 0x0000000000200000-0x00000000ffffffff]
-[    0.000000]   Normal   [mem 0x0000000100000000-0x00000017ffffffff]
-[    0.000000] Movable zone start for each node
-[    0.000000] Early memory node ranges
-[    0.000000]   node   0: [mem 0x0000000000200000-0x000000000021ffff]
-[    0.000000]   node   0: [mem 0x0000000000820000-0x000000000307ffff]
-[    0.000000]   node   0: [mem 0x0000000003080000-0x000000000308ffff]
-[    0.000000]   node   0: [mem 0x0000000003090000-0x00000000031fffff]
-[    0.000000]   node   0: [mem 0x0000000003200000-0x00000000033fffff]
-[    0.000000]   node   0: [mem 0x0000000003410000-0x00000000034fffff]
-[    0.000000]   node   0: [mem 0x0000000003500000-0x000000000351ffff]
-[    0.000000]   node   0: [mem 0x0000000003520000-0x000000000353ffff]
-[    0.000000]   node   0: [mem 0x0000000003540000-0x0000000003e3ffff]
-[    0.000000]   node   0: [mem 0x0000000003e40000-0x0000000003e7ffff]
-[    0.000000]   node   0: [mem 0x0000000003e80000-0x0000000003ecffff]
-[    0.000000]   node   0: [mem 0x0000000003ed0000-0x0000000003ed5fff]
-[    0.000000]   node   0: [mem 0x0000000003ed6000-0x0000000006eeafff]
-[    0.000000]   node   0: [mem 0x0000000006eeb000-0x000000000710ffff]
-[    0.000000]   node   0: [mem 0x0000000007110000-0x0000000007f0ffff]
-[    0.000000]   node   0: [mem 0x0000000007f10000-0x0000000007faffff]
-[    0.000000]   node   0: [mem 0x0000000007fb0000-0x000000000806ffff]
-[    0.000000]   node   0: [mem 0x0000000008070000-0x00000000080affff]
-[    0.000000]   node   0: [mem 0x00000000080b0000-0x000000000832ffff]
-[    0.000000]   node   0: [mem 0x0000000008330000-0x000000000836ffff]
-[    0.000000]   node   0: [mem 0x0000000008370000-0x000000000838ffff]
-[    0.000000]   node   0: [mem 0x0000000008390000-0x00000000083a9fff]
-[    0.000000]   node   0: [mem 0x00000000083aa000-0x00000000083bbfff]
-[    0.000000]   node   0: [mem 0x00000000083bc000-0x00000000083fffff]
-[    0.000000]   node   0: [mem 0x0000000008400000-0x000000000841ffff]
-[    0.000000]   node   0: [mem 0x0000000008420000-0x000000000843ffff]
-[    0.000000]   node   0: [mem 0x0000000008440000-0x000000000865ffff]
-[    0.000000]   node   0: [mem 0x0000000008660000-0x000000000869ffff]
-[    0.000000]   node   0: [mem 0x00000000086a0000-0x00000000086affff]
-[    0.000000]   node   0: [mem 0x00000000086b0000-0x00000000086effff]
-[    0.000000]   node   0: [mem 0x00000000086f0000-0x0000000008b6ffff]
-[    0.000000]   node   0: [mem 0x0000000008b70000-0x0000000008bbffff]
-[    0.000000]   node   0: [mem 0x0000000008bc0000-0x0000000008edffff]
-[    0.000000]   node   0: [mem 0x0000000008ee0000-0x0000000008ee0fff]
-[    0.000000]   node   0: [mem 0x0000000008ee1000-0x0000000008ee2fff]
-[    0.000000]   node   0: [mem 0x0000000008ee3000-0x000000000decffff]
-[    0.000000]   node   0: [mem 0x000000000ded0000-0x000000000defffff]
-[    0.000000]   node   0: [mem 0x000000000df00000-0x000000000fffffff]
-[    0.000000]   node   0: [mem 0x0000000010800000-0x0000000017feffff]
-[    0.000000]   node   0: [mem 0x000000001c000000-0x000000001c00ffff]
-[    0.000000]   node   0: [mem 0x000000001c010000-0x000000001c7fffff]
-[    0.000000]   node   0: [mem 0x000000001c810000-0x000000007efbffff]
-[    0.000000]   node   0: [mem 0x000000007efc0000-0x000000007efdffff]
-[    0.000000]   node   0: [mem 0x000000007efe0000-0x000000007efeffff]
-[    0.000000]   node   0: [mem 0x000000007eff0000-0x000000007effffff]
-[    0.000000]   node   0: [mem 0x000000007f000000-0x00000017ffffffff]
-[    0.000000] Initmem setup node 0 [mem
-0x0000000000200000-0x00000017ffffffff]
-[    0.000000] On node 0 totalpages: 25145296
-[    0.000000]   DMA32 zone: 16376 pages used for memmap
-[    0.000000]   DMA32 zone: 0 pages reserved
-[    0.000000]   DMA32 zone: 1028048 pages, LIFO batch:31
-[    0.000000]   Normal zone: 376832 pages used for memmap
-[    0.000000]   Normal zone: 24117248 pages, LIFO batch:31
-
-Signed-off-by: Jia He <jia.he@hxt-semitech.com>
-Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
----
- mm/memblock.c | 33 +++++++++++++++++++++++++++------
- 1 file changed, 27 insertions(+), 6 deletions(-)
-
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 077ca62..46cb6be 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1144,28 +1144,49 @@ int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
- unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn)
- {
- 	struct memblock_type *type = &memblock.memory;
-+	struct memblock_region *regions = type->regions;
- 	unsigned int right = type->cnt;
- 	unsigned int mid, left = 0;
-+	unsigned long start_pfn, end_pfn, next_start_pfn;
- 	phys_addr_t addr = PFN_PHYS(++pfn);
-+	static int early_region_idx __initdata_memblock = -1;
- 
-+	/* fast path, return pfn+1 if next pfn is in the same region */
-+	if (early_region_idx != -1) {
-+		start_pfn = PFN_DOWN(regions[early_region_idx].base);
-+		end_pfn = PFN_DOWN(regions[early_region_idx].base +
-+				regions[early_region_idx].size);
-+
-+		if (pfn >= start_pfn && pfn < end_pfn)
-+			return pfn;
-+
-+		early_region_idx++;
-+		next_start_pfn = PFN_DOWN(regions[early_region_idx].base);
-+
-+		if (pfn >= end_pfn && pfn <= next_start_pfn)
-+			return next_start_pfn;
-+	}
-+
-+	/* slow path, do the binary searching */
- 	do {
- 		mid = (right + left) / 2;
- 
--		if (addr < type->regions[mid].base)
-+		if (addr < regions[mid].base)
- 			right = mid;
--		else if (addr >= (type->regions[mid].base +
--				  type->regions[mid].size))
-+		else if (addr >= (regions[mid].base + regions[mid].size))
- 			left = mid + 1;
- 		else {
--			/* addr is within the region, so pfn is valid */
-+			early_region_idx = mid;
- 			return pfn;
- 		}
- 	} while (left < right);
- 
- 	if (right == type->cnt)
- 		return -1UL;
--	else
--		return PHYS_PFN(type->regions[right].base);
-+
-+	early_region_idx = right;
-+
-+	return PHYS_PFN(regions[early_region_idx].base);
- }
- EXPORT_SYMBOL(memblock_next_valid_pfn);
- #endif /*CONFIG_HAVE_MEMBLOCK_PFN_VALID*/
--- 
-1.8.3.1
+Well, at least denominator should fit into unsigned long. So full
+64/64 division is redundant.
