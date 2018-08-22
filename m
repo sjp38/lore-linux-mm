@@ -1,100 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EFC36B25A2
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 13:57:21 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id p14-v6so2536994oip.0
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 10:57:21 -0700 (PDT)
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 93FE66B25B6
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 14:23:21 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id p22-v6so2183661ioh.7
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 11:23:21 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o9-v6sor1304438oih.296.2018.08.22.10.57.19
+        by mx.google.com with SMTPS id r201-v6sor828775itc.14.2018.08.22.11.23.19
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 22 Aug 2018 10:57:20 -0700 (PDT)
+        Wed, 22 Aug 2018 11:23:19 -0700 (PDT)
 MIME-Version: 1.0
-References: <20170921085922.11659-1-ganapatrao.kulkarni@cavium.com>
- <452f1665-eb3a-5e8c-f671-099ef4a15d84@huawei.com> <a7fc1e43-3652-562a-1e59-499be80b567c@arm.com>
- <ec57224a-7673-97d8-bb0c-c612080625bc@huawei.com>
-In-Reply-To: <ec57224a-7673-97d8-bb0c-c612080625bc@huawei.com>
-From: Ganapatrao Kulkarni <gklkml16@gmail.com>
-Date: Wed, 22 Aug 2018 10:57:07 -0700
-Message-ID: <CAKTKpr7XbZAZ8XRJ2r97N+AQP_DM8_OrqYC=4Pstf-vRW85rng@mail.gmail.com>
-Subject: Re: [PATCH 0/4] numa, iommu/smmu: IOMMU/SMMU driver optimization for
- NUMA systems
+References: <20180813161357.GB1199@bombadil.infradead.org> <0100016562b90938-02b97bb7-eddd-412d-8162-7519a70d4103-000000@email.amazonses.com>
+ <CA+55aFzN3aq1P8ykE1+XuAR9pbH7nETOyMoBi-N52Ef=WjrFLA@mail.gmail.com>
+In-Reply-To: <CA+55aFzN3aq1P8ykE1+XuAR9pbH7nETOyMoBi-N52Ef=WjrFLA@mail.gmail.com>
+From: Dan Williams <dan.j.williams@gmail.com>
+Date: Wed, 22 Aug 2018 11:23:02 -0700
+Message-ID: <CAA9_cmdCj6EqipbxMwy9Mm+Vg+HOPZCRpCpbmvWr=A7En+MUiQ@mail.gmail.com>
+Subject: Re: [GIT PULL] XArray for 4.19
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Garry <john.garry@huawei.com>
-Cc: Robin Murphy <robin.murphy@arm.com>, Ganapatrao Kulkarni <ganapatrao.kulkarni@cavium.com>, LKML <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-mm@kvack.org, Will Deacon <Will.Deacon@arm.com>, Tomasz.Nowicki@cavium.com, Robert Richter <Robert.Richter@cavium.com>, mhocko@suse.com, akpm@linux-foundation.org, vbabka@suse.cz, jnair@caviumnetworks.com, Marek Szyprowski <m.szyprowski@samsung.com>, "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>, Linuxarm <linuxarm@huawei.com>, Christoph Hellwig <hch@lst.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: cl@linux.com, Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Aug 22, 2018 at 9:08 AM John Garry <john.garry@huawei.com> wrote:
+On Wed, Aug 22, 2018 at 10:43 AM Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
 >
-> On 22/08/2018 15:56, Robin Murphy wrote:
-> > Hi John,
+> On Wed, Aug 22, 2018 at 10:40 AM Christopher Lameter <cl@linux.com> wrote:
 > >
-> > On 22/08/18 14:44, John Garry wrote:
-> >> On 21/09/2017 09:59, Ganapatrao Kulkarni wrote:
-> >>> Adding numa aware memory allocations used for iommu dma allocation and
-> >>> memory allocated for SMMU stream tables, page walk tables and command
-> >>> queues.
-> >>>
-> >>> With this patch, iperf testing on ThunderX2, with 40G NIC card on
-> >>> NODE 1 PCI shown same performance(around 30% improvement) as NODE 0.
-> >>>
-> >>> Ganapatrao Kulkarni (4):
-> >>>   mm: move function alloc_pages_exact_nid out of __meminit
-> >>>   numa, iommu/io-pgtable-arm: Use NUMA aware memory allocation for smmu
-> >>>     translation tables
-> >>>   iommu/arm-smmu-v3: Use NUMA memory allocations for stream tables and
-> >>>     comamnd queues
-> >>>   iommu/dma, numa: Use NUMA aware memory allocations in
-> >>>     __iommu_dma_alloc_pages
-> >>>
-> >>>  drivers/iommu/arm-smmu-v3.c    | 57
-> >>> +++++++++++++++++++++++++++++++++++++-----
-> >>>  drivers/iommu/dma-iommu.c      | 17 +++++++------
-> >>>  drivers/iommu/io-pgtable-arm.c |  4 ++-
-> >>>  include/linux/gfp.h            |  2 +-
-> >>>  mm/page_alloc.c                |  3 ++-
-> >>>  5 files changed, 67 insertions(+), 16 deletions(-)
-> >>>
-> >>
-> >> Hi Ganapatrao,
-> >>
-> >> Have you any plans for further work on this patchset? I have not seen
-> >> anything since this v1 was posted+discussed.
-> >
+> > Is this going in this cycle? I have a bunch of stuff on top of this to
+> > enable slab object migration.
 >
-> Hi Robin,
+> No.
 >
-> Thanks for the info. I thought I remembered 4b12 but couldn't put my
-> finger on it.
->
-> > Looks like I ended up doing the version of the io-pgtable change that I
-> > suggested here, which was merged recently (4b123757eeaa). Patch #3
-> > should also be effectively obsolete now since the SWIOTLB/dma-direct
-> > rework (21f237e4d085). Apparently I also started reworking patch #4 in
-> > my tree at some point but sidelined it - I think that was at least
-> > partly due to another thread[1] which made it seem less clear-cut
-> > whether this is always the right thing to do.
->
-> Right, so #4 seems less straightforward and not directly related to
-> IOMMU driver anyway.
->
+> It was based on a buggy branch that isn't getting pulled
 
-thanks Robin for pulling up the patch. I couldn't followup with this
-due to other tasks.
+To be clear, I don't think the problem you identified can be triggered
+in practice. We are under the equivalent of the page lock for dax in
+that path, and if ->mapping is NULL we would bail before finding that
+the mapping-size helper returns zero.
 
-> Cheers,
-> John
->
-> >
-> > Robin.
-> >
-> > [1]
-> > https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1693026.html
-> >
-> > .
-> >
->
->
-thanks,
-Ganapat
+> so when I
+> started looking at it, the pull request was rejected before I got much
+> further.
+
+For the record I think skipping the entirety of the libnvdimm pull
+request for this cycle due to that misuse of ilog2() is overkill, but
+it's not my kernel.
+
+Andrew, I think this means we need to lean on you to merge
+dax-memory-failure and Xarray for 4.20 rather than try to coordinate
+our own git branches for these specific topics.
+
+At a minimum for 4.19 I think we should disable MADV_HWPOISON for dax
+mappings this cycle to at least close that trivial method to crash the
+kernel when using dax.
+
+Dave, I recommend dropping dax-memory-failure and sending the other
+libnvdimm topics for 4.19 that have been soaking in -next.
