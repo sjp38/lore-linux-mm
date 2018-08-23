@@ -1,84 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E4A6A6B2A6E
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 09:51:56 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id q12-v6so2938079pgp.6
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 06:51:56 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 1-v6si4410509plw.99.2018.08.23.06.51.55
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1002C6B2A75
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 10:00:57 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id v21-v6so4974310wrc.2
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 07:00:57 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y66-v6sor1236573wmg.39.2018.08.23.07.00.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Aug 2018 06:51:55 -0700 (PDT)
-Date: Thu, 23 Aug 2018 15:51:51 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] xen/gntdev: fix up blockable calls to mn_invl_range_start
-Message-ID: <20180823135151.GM29735@dhcp22.suse.cz>
-References: <20180823120707.10998-1-mhocko@kernel.org>
- <07c7ead4-334d-9b25-f588-25e9b46bbea0@i-love.sakura.ne.jp>
+        (Google Transport Security);
+        Thu, 23 Aug 2018 07:00:55 -0700 (PDT)
+Date: Thu, 23 Aug 2018 16:00:53 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH 3/3] mm/sparse: use __highest_present_section_nr as the
+ boundary for pfn check
+Message-ID: <20180823140053.GC14924@techadventures.net>
+References: <20180823130732.9489-1-richard.weiyang@gmail.com>
+ <20180823130732.9489-4-richard.weiyang@gmail.com>
+ <20180823132526.GL29735@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <07c7ead4-334d-9b25-f588-25e9b46bbea0@i-love.sakura.ne.jp>
+In-Reply-To: <20180823132526.GL29735@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, xen-devel@lists.xenproject.org, LKML <linux-kernel@vger.kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, bob.picco@hp.com
 
-On Thu 23-08-18 22:44:07, Tetsuo Handa wrote:
-> On 2018/08/23 21:07, Michal Hocko wrote:
-> > diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
-> > index 57390c7666e5..e7d8bb1bee2a 100644
-> > --- a/drivers/xen/gntdev.c
-> > +++ b/drivers/xen/gntdev.c
-> > @@ -519,21 +519,20 @@ static int mn_invl_range_start(struct mmu_notifier *mn,
-> >  	struct gntdev_grant_map *map;
-> >  	int ret = 0;
-> >  
-> > -	/* TODO do we really need a mutex here? */
-> >  	if (blockable)
-> >  		mutex_lock(&priv->lock);
-> >  	else if (!mutex_trylock(&priv->lock))
-> >  		return -EAGAIN;
-> >  
-> >  	list_for_each_entry(map, &priv->maps, next) {
-> > -		if (in_range(map, start, end)) {
-> > +		if (!blockable && in_range(map, start, end)) {
+On Thu, Aug 23, 2018 at 03:25:26PM +0200, Michal Hocko wrote:
+> On Thu 23-08-18 21:07:32, Wei Yang wrote:
+> > And it is known, __highest_present_section_nr is a more strict boundary
+> > than NR_MEM_SECTIONS.
+> > 
+> > This patch uses a __highest_present_section_nr to check a valid pfn.
 > 
-> This still looks strange. Prior to 93065ac753e4, in_range() test was
-> inside unmap_if_in_range(). But this patch removes in_range() test
-> if blockable == true. That is, unmap_if_in_range() will unconditionally
-> unmap if blockable == true, which seems to be an unexpected change.
+> But why is this an improvement? Sure when you loop over all sections
+> than __highest_present_section_nr makes a lot of sense. But all the
+> updated function perform a trivial comparision.
 
-You are right. I completely forgot I've removed in_range there. Does
-this look any better?
+I think it makes some sense.
+NR_MEM_SECTIONS can be a big number, but we might not be using
+all sections, so __highest_present_section_nr ends up being a much lower
+value.
 
-diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
-index e7d8bb1bee2a..30f81004ea63 100644
---- a/drivers/xen/gntdev.c
-+++ b/drivers/xen/gntdev.c
-@@ -525,14 +525,20 @@ static int mn_invl_range_start(struct mmu_notifier *mn,
- 		return -EAGAIN;
- 
- 	list_for_each_entry(map, &priv->maps, next) {
--		if (!blockable && in_range(map, start, end)) {
-+		if (in_range(map, start, end)) {
-+			if (blockable)
-+				continue;
-+
- 			ret = -EAGAIN;
- 			goto out_unlock;
- 		}
- 		unmap_if_in_range(map, start, end);
- 	}
- 	list_for_each_entry(map, &priv->freeable_maps, next) {
--		if (!blockable && in_range(map, start, end)) {
-+		if (in_range(map, start, end)) {
-+			if (blockable)
-+				continue;
-+			
- 			ret = -EAGAIN;
- 			goto out_unlock;
- 		}
+I think that we want to compare the pfn's section_nr with our current limit
+of present sections.
+Sections over that do not really exist for us, so it is no use to look for
+them in __nr_to_section/valid_section.
+
+It might not be a big improvement, but I think that given the nature of
+pfn_valid/pfn_present, comparing to __highest_present_section_nr suits better.
+
 -- 
-Michal Hocko
-SUSE Labs
+Oscar Salvador
+SUSE L3
