@@ -1,61 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E9A96B2AE7
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 12:08:25 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id l65-v6so3180003pge.17
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 09:08:25 -0700 (PDT)
-Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
-        by mx.google.com with ESMTPS id k5-v6si5362534pfk.2.2018.08.23.09.08.23
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 001D26B2AF7
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 12:24:09 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id g5-v6so2529944edp.1
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 09:24:09 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id p1-v6si10230edq.94.2018.08.23.09.24.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Aug 2018 09:08:23 -0700 (PDT)
-Subject: Re: [RFC v8 PATCH 2/5] uprobes: introduce has_uprobes helper
-References: <1534358990-85530-1-git-send-email-yang.shi@linux.alibaba.com>
- <1534358990-85530-3-git-send-email-yang.shi@linux.alibaba.com>
- <e7147e14-bc38-03d0-90a4-5e0ca7e40050@suse.cz>
- <20180822150718.GB52756@linux.vnet.ibm.com>
- <20180823151554.GC10652@redhat.com>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <dc0d9e87-4f38-a6f9-8513-1c682bfaccc7@linux.alibaba.com>
-Date: Thu, 23 Aug 2018 09:07:43 -0700
+        Thu, 23 Aug 2018 09:24:08 -0700 (PDT)
+Date: Thu, 23 Aug 2018 09:23:50 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH v2 1/3] mm: rework memcg kernel stack accounting
+Message-ID: <20180823162347.GA22650@tower.DHCP.thefacebook.com>
+References: <20180821213559.14694-1-guro@fb.com>
+ <20180822141213.GO29735@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180823151554.GC10652@redhat.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180822141213.GO29735@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, kirill@shutemov.name, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, linux-mm@kvack.org, liu.song.a23@gmail.com, ravi.bangoria@linux.ibm.com, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Johannes Weiner <hannes@cmpxchg.org>, Andy Lutomirski <luto@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Tejun Heo <tj@kernel.org>, Shakeel Butt <shakeelb@google.com>
 
+On Wed, Aug 22, 2018 at 04:12:13PM +0200, Michal Hocko wrote:
+> On Tue 21-08-18 14:35:57, Roman Gushchin wrote:
+> > If CONFIG_VMAP_STACK is set, kernel stacks are allocated
+> > using __vmalloc_node_range() with __GFP_ACCOUNT. So kernel
+> > stack pages are charged against corresponding memory cgroups
+> > on allocation and uncharged on releasing them.
+> > 
+> > The problem is that we do cache kernel stacks in small
+> > per-cpu caches and do reuse them for new tasks, which can
+> > belong to different memory cgroups.
+> > 
+> > Each stack page still holds a reference to the original cgroup,
+> > so the cgroup can't be released until the vmap area is released.
+> > 
+> > To make this happen we need more than two subsequent exits
+> > without forks in between on the current cpu, which makes it
+> > very unlikely to happen. As a result, I saw a significant number
+> > of dying cgroups (in theory, up to 2 * number_of_cpu +
+> > number_of_tasks), which can't be released even by significant
+> > memory pressure.
+> > 
+> > As a cgroup structure can take a significant amount of memory
+> > (first of all, per-cpu data like memcg statistics), it leads
+> > to a noticeable waste of memory.
+> > 
+> > Signed-off-by: Roman Gushchin <guro@fb.com>
+> > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > Cc: Michal Hocko <mhocko@kernel.org>
+> > Cc: Andy Lutomirski <luto@kernel.org>
+> > Cc: Konstantin Khlebnikov <koct9i@gmail.com>
+> > Cc: Tejun Heo <tj@kernel.org>
+> > Cc: Shakeel Butt <shakeelb@google.com>
+> 
+> Looks good to me. Two nits below.
+> 
+> I am not sure stable tree backport is really needed but it would be nice
+> to put
+> Fixes: ac496bf48d97 ("fork: Optimize task creation by caching two thread stacks per CPU if CONFIG_VMAP_STACK=y")
+> 
+> Acked-by: Michal Hocko <mhocko@suse.com>
 
+Will add, thanks!
 
-On 8/23/18 8:15 AM, Oleg Nesterov wrote:
-> On 08/22, Srikar Dronamraju wrote:
->> * Vlastimil Babka <vbabka@suse.cz> [2018-08-22 12:55:59]:
->>
->>> On 08/15/2018 08:49 PM, Yang Shi wrote:
->>>> We need check if mm or vma has uprobes in the following patch to check
->>>> if a vma could be unmapped with holding read mmap_sem.
-> Confused... why can't we call uprobe_munmap() under read_lock(mmap_sem) ?
+> 
+> > @@ -248,9 +253,20 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
+> >  static inline void free_thread_stack(struct task_struct *tsk)
+> >  {
+> >  #ifdef CONFIG_VMAP_STACK
+> > -	if (task_stack_vm_area(tsk)) {
+> > +	struct vm_struct *vm = task_stack_vm_area(tsk);
+> > +
+> > +	if (vm) {
+> >  		int i;
+> >  
+> > +		for (i = 0; i < THREAD_SIZE / PAGE_SIZE; i++) {
+> > +			mod_memcg_page_state(vm->pages[i],
+> > +					     MEMCG_KERNEL_STACK_KB,
+> > +					     -(int)(PAGE_SIZE / 1024));
+> > +
+> > +			memcg_kmem_uncharge(vm->pages[i],
+> > +					    compound_order(vm->pages[i]));
+> 
+> when do we have order > 0 here?
 
-I'm not sure if it is safe or not because it is not recommended and not 
-safe to update vma's vm flags with read mmap_sem. uprobe_munmap() may 
-update mm flags (MMF_RECALC_UPROBES). So, it sounds safer to not call it 
-under read mmap_sem.
+I guess, it's not possible, but hard-coded 1 looked a bit crappy.
+Do you think it's better?
 
->
-> OK, it can race with find_active_uprobe() but I do not see anything really
-> wrong, and a false-positive MMF_RECALC_UPROBES is fine.
+> Also I was wondering how come this
+> doesn't blow up on partially charged stacks but both
+> mod_memcg_page_state and memcg_kmem_uncharge check for page->mem_cgroup
+> so this is safe. Maybe a comment would save people from scratching their
+> heads.
 
-Thanks for confirming this. If it is ok to have such race, we don't have 
-to have has_uprobes() helper anymore since it can be just called under 
-read mmap_sem without any special handling.
+Ok, will add.
 
-Yang
-
->
-> Again, I think we should simply kill uprobe_munmap(), but this needs another
-> discussion.
->
-> Oleg.
+Thank you!
