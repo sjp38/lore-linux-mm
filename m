@@ -1,145 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 998266B2961
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 05:44:46 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id v1-v6so4208600wmh.4
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 02:44:46 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u14-v6sor1488854wrp.14.2018.08.23.02.44.44
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C5A56B2990
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 06:33:58 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id n17-v6so2961430pff.17
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 03:33:58 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p21-v6si3537501plq.338.2018.08.23.03.33.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 23 Aug 2018 02:44:45 -0700 (PDT)
-Date: Thu, 23 Aug 2018 11:44:43 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [RFC PATCH 5/5] mm/memory_hotplug: Simplify
- node_states_check_changes_offline
-Message-ID: <20180823094443.GA14924@techadventures.net>
-References: <20180822093226.25987-1-osalvador@techadventures.net>
- <20180822093226.25987-6-osalvador@techadventures.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Aug 2018 03:33:56 -0700 (PDT)
+Date: Thu, 23 Aug 2018 12:33:52 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3 1/2] mm: migration: fix migration of huge PMD shared
+ pages
+Message-ID: <20180823103352.GZ29735@dhcp22.suse.cz>
+References: <20180821205902.21223-2-mike.kravetz@oracle.com>
+ <201808220831.eM0je51n%fengguang.wu@intel.com>
+ <975b740d-26a6-eb3f-c8ca-1a9995d0d343@oracle.com>
+ <20180822122848.GL29735@dhcp22.suse.cz>
+ <4a95a24f-534f-0938-f358-2a410817a412@oracle.com>
+ <20180823073035.GT29735@dhcp22.suse.cz>
+ <20180823082112.xln7rinqcwt54teg@kshutemo-mobl1>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180822093226.25987-6-osalvador@techadventures.net>
+In-Reply-To: <20180823082112.xln7rinqcwt54teg@kshutemo-mobl1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, dan.j.williams@intel.com, malat@debian.org, david@redhat.com, Pavel.Tatashin@microsoft.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, kbuild test robot <lkp@intel.com>, kbuild-all@01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
 
-On Wed, Aug 22, 2018 at 11:32:26AM +0200, Oscar Salvador wrote:
-> From: Oscar Salvador <osalvador@suse.de>
+On Thu 23-08-18 11:21:12, Kirill A. Shutemov wrote:
+> On Thu, Aug 23, 2018 at 09:30:35AM +0200, Michal Hocko wrote:
+> > On Wed 22-08-18 09:48:16, Mike Kravetz wrote:
+> > > On 08/22/2018 05:28 AM, Michal Hocko wrote:
+> > > > On Tue 21-08-18 18:10:42, Mike Kravetz wrote:
+> > > > [...]
+> > > >> diff --git a/mm/rmap.c b/mm/rmap.c
+> > > >> index eb477809a5c0..8cf853a4b093 100644
+> > > >> --- a/mm/rmap.c
+> > > >> +++ b/mm/rmap.c
+> > > >> @@ -1362,11 +1362,21 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+> > > >>  	}
+> > > >>  
+> > > >>  	/*
+> > > >> -	 * We have to assume the worse case ie pmd for invalidation. Note that
+> > > >> -	 * the page can not be free in this function as call of try_to_unmap()
+> > > >> -	 * must hold a reference on the page.
+> > > >> +	 * For THP, we have to assume the worse case ie pmd for invalidation.
+> > > >> +	 * For hugetlb, it could be much worse if we need to do pud
+> > > >> +	 * invalidation in the case of pmd sharing.
+> > > >> +	 *
+> > > >> +	 * Note that the page can not be free in this function as call of
+> > > >> +	 * try_to_unmap() must hold a reference on the page.
+> > > >>  	 */
+> > > >>  	end = min(vma->vm_end, start + (PAGE_SIZE << compound_order(page)));
+> > > >> +	if (PageHuge(page)) {
+> > > >> +		/*
+> > > >> +		 * If sharing is possible, start and end will be adjusted
+> > > >> +		 * accordingly.
+> > > >> +		 */
+> > > >> +		(void)huge_pmd_sharing_possible(vma, &start, &end);
+> > > >> +	}
+> > > >>  	mmu_notifier_invalidate_range_start(vma->vm_mm, start, end);
+> > > > 
+> > > > I do not get this part. Why don't we simply unconditionally invalidate
+> > > > the whole huge page range?
+> > > 
+> > > In this routine, we are only unmapping a single page.  The existing code
+> > > is limiting the invalidate range to that page size: 4K or 2M.  With shared
+> > > PMDs, we have the possibility of unmapping a PUD_SIZE area: 1G.  I don't
+> > > think we want to unconditionally invalidate 1G.  Is that what you are asking?
+> > 
+> > But we know that huge_pmd_unshare unmapped a shared pte so we know when
+> > to flush 2MB or 1GB. I really do not like how huge_pmd_sharing_possible
+> > a) duplicates some checks and b) it updates start/stop out of line.
 > 
-> This patch tries to simplify node_states_check_changes_offline
-> and make the code more understandable by:
+> My reading on this is that mmu_notifier_invalidate_range_start() has to be
+> called from sleepable context on the full range that *can* be invalidated
+> before following mmu_notifier_invalidate_range_end().
 > 
-> - Removing the if (N_MEMORY == N_NORMAL_MEMORY) wrong statement
-> - Removing the if (N_MEMORY == N_HIGH_MEMORY) wrong statement
-> - Re-structure the code a bit
-> - Removing confusing comments
+> In this case huge_pmd_unshare() may unmap aligned PUD_SIZE around the PMD
+> page that effectively enlarge range that has to be covered by
+> mmu_notifier_invalidate_range_start(). We cannot yet know if there's any
+> shared page tables in the range, so we need to go with worst case
+> scenario.
 > 
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> I don't see conceptually better solution than what is proposed.
 
-I realized I made a mistake here.
-I was not counting the present pages correctly.
-I will send a new version after the merge-windows gets closed.
-
-Sorry for the noise
-
-For the sake of clarity, the patch should have been:
-
-
----
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 006a7b817724..bca11da4e11f 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1487,23 +1487,12 @@ static void node_states_check_changes_offline(unsigned long nr_pages,
- 	enum zone_type zt, zone_last = ZONE_NORMAL;
- 
- 	/*
--	 * If we have HIGHMEM or movable node, node_states[N_NORMAL_MEMORY]
--	 * contains nodes which have zones of 0...ZONE_NORMAL,
--	 * set zone_last to ZONE_NORMAL.
--	 *
--	 * If we don't have HIGHMEM nor movable node,
--	 * node_states[N_NORMAL_MEMORY] contains nodes which have zones of
--	 * 0...ZONE_MOVABLE, set zone_last to ZONE_MOVABLE.
--	 */
--	if (N_MEMORY == N_NORMAL_MEMORY)
--		zone_last = ZONE_MOVABLE;
--
--	/*
--	 * check whether node_states[N_NORMAL_MEMORY] will be changed.
--	 * If the memory to be offline is in a zone of 0...zone_last,
--	 * and it is the last present memory, 0...zone_last will
--	 * become empty after offline , thus we can determind we will
--	 * need to clear the node from node_states[N_NORMAL_MEMORY].
-+	 * If the current zone is whithin (0..ZONE_NORMAL],
-+	 * check if the amount of pages that are going to be
-+	 * offlined is above or equal to the sum of the present
-+	 * pages of these zones.
-+	 * If that happens, we need to take this node out of
-+	 * node_state[N_NORMAL_MEMORY]
- 	 */
- 	for (zt = 0; zt <= zone_last; zt++)
- 		present_pages += pgdat->node_zones[zt].present_pages;
-@@ -1514,21 +1503,15 @@ static void node_states_check_changes_offline(unsigned long nr_pages,
- 
- #ifdef CONFIG_HIGHMEM
- 	/*
--	 * If we have movable node, node_states[N_HIGH_MEMORY]
--	 * contains nodes which have zones of 0...ZONE_HIGHMEM,
--	 * set zone_last to ZONE_HIGHMEM.
--	 *
--	 * If we don't have movable node, node_states[N_NORMAL_MEMORY]
--	 * contains nodes which have zones of 0...ZONE_MOVABLE,
--	 * set zone_last to ZONE_MOVABLE.
-+	 * If the current zone is whithin (0..ZONE_HIGHMEM], check if
-+	 * the amount of pages that are going to be offlined is above
-+	 * or equal to the sum of the present pages of these zones.
-+	 * If that happens, we need to take this node out of
-+	 * node_state[N_HIGH_MEMORY]
- 	 */
--	zone_last = ZONE_HIGHMEM;
--	if (N_MEMORY == N_HIGH_MEMORY)
--		zone_last = ZONE_MOVABLE;
--
--	for (; zt <= zone_last; zt++)
--		present_pages += pgdat->node_zones[zt].present_pages;
--	if (zone_idx(zone) <= zone_last && nr_pages >= present_pages)
-+	zt = ZONE_HIGHMEM;
-+	present_pages += pgdat->node_zones[zt].present_pages;
-+	if (zone_idx(zone) <= zt && nr_pages >= present_pages)
- 		arg->status_change_nid_high = zone_to_nid(zone);
- 	else
- 		arg->status_change_nid_high = -1;
-@@ -1541,18 +1524,14 @@ static void node_states_check_changes_offline(unsigned long nr_pages,
- #endif
- 
- 	/*
--	 * node_states[N_HIGH_MEMORY] contains nodes which have 0...ZONE_MOVABLE
-+	 * Count pages from ZONE_MOVABLE as well.
-+	 * If the amount of pages that are going to be offlined is above
-+	 * or equal the sum of the present pages of all zones, we need
-+	 * to remove this node from node_state[N_MEMORY]
- 	 */
--	zone_last = ZONE_MOVABLE;
-+	zt = ZONE_MOVABLE;
-+	present_pages += pgdat->node_zones[zt].present_pages;
- 
--	/*
--	 * check whether node_states[N_HIGH_MEMORY] will be changed
--	 * If we try to offline the last present @nr_pages from the node,
--	 * we can determind we will need to clear the node from
--	 * node_states[N_HIGH_MEMORY].
--	 */
--	for (; zt <= zone_last; zt++)
--		present_pages += pgdat->node_zones[zt].present_pages;
- 	if (nr_pages >= present_pages)
- 		arg->status_change_nid = zone_to_nid(zone);
- 	else
- 
+I was thinking we would just pull PageHuge outside of the
+page_vma_mapped_walk. I thought it would look much more straightforward
+but I've tried to put something together and it grown into an ugly code
+as well. So going the Mike's way might be a better option after all.
 
 -- 
-Oscar Salvador
-SUSE L3
+Michal Hocko
+SUSE Labs
