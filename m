@@ -1,58 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 94E636B2C96
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 19:27:13 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id l191-v6so6169693oig.23
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 16:27:13 -0700 (PDT)
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 35BA26B2C9C
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 19:31:48 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id j17-v6so6230718oii.8
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 16:31:48 -0700 (PDT)
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id n82-v6si4080540oih.318.2018.08.23.16.27.12
+        by mx.google.com with ESMTP id i83-v6si4698846oib.278.2018.08.23.16.31.46
         for <linux-mm@kvack.org>;
-        Thu, 23 Aug 2018 16:27:12 -0700 (PDT)
-Date: Fri, 24 Aug 2018 00:27:05 +0100
+        Thu, 23 Aug 2018 16:31:47 -0700 (PDT)
+Date: Fri, 24 Aug 2018 00:31:43 +0100
 From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [RFC PATCH 0/2] minor mmu_gather patches
-Message-ID: <20180823232704.GA4487@brain-police>
-References: <20180823084709.19717-1-npiggin@gmail.com>
- <CA+55aFxaiv3SMvFUSEnd_p6nuGttUnv2_O3v_G2zCnnc0pV2pA@mail.gmail.com>
- <CA+55aFwEZftzAd9k-kjiaXonP2XeTDYshjY56jmd1CFBaXmGHA@mail.gmail.com>
+Subject: Re: [PATCH 3/4] mm/tlb, x86/mm: Support invalidating TLB caches for
+ RCU_TABLE_FREE
+Message-ID: <20180823233142.GB4487@brain-police>
+References: <20180822153012.173508681@infradead.org>
+ <20180822154046.823850812@infradead.org>
+ <20180822155527.GF24124@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFwEZftzAd9k-kjiaXonP2XeTDYshjY56jmd1CFBaXmGHA@mail.gmail.com>
+In-Reply-To: <20180822155527.GF24124@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <npiggin@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, linux-arch <linux-arch@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: torvalds@linux-foundation.org, luto@kernel.org, x86@kernel.org, bp@alien8.de, riel@surriel.com, jannh@google.com, ascannell@google.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nicholas Piggin <npiggin@gmail.com>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>
 
-Hi Linus,
-
-On Thu, Aug 23, 2018 at 12:37:58PM -0700, Linus Torvalds wrote:
-> On Thu, Aug 23, 2018 at 12:15 PM Linus Torvalds
-> <torvalds@linux-foundation.org> wrote:
-> >
-> > So right now my "tlb-fixes" branch looks like this:
-> > [..]
-> >
-> > I'll do a few more test builds and boots, but I think I'm going to
-> > merge it in this cleaned-up and re-ordered form.
+On Wed, Aug 22, 2018 at 05:55:27PM +0200, Peter Zijlstra wrote:
+> On Wed, Aug 22, 2018 at 05:30:15PM +0200, Peter Zijlstra wrote:
+> > ARM
+> > which later used this put an explicit TLB invalidate in their
+> > __p*_free_tlb() functions, and PowerPC-radix followed that example.
 > 
-> In the meantime, I decided to push out that branch in case anybody
-> wants to look at it.
+> > +/*
+> > + * If we want tlb_remove_table() to imply TLB invalidates.
+> > + */
+> > +static inline void tlb_table_invalidate(struct mmu_gather *tlb)
+> > +{
+> > +#ifdef CONFIG_HAVE_RCU_TABLE_INVALIDATE
+> > +	/*
+> > +	 * Invalidate page-table caches used by hardware walkers. Then we still
+> > +	 * need to RCU-sched wait while freeing the pages because software
+> > +	 * walkers can still be in-flight.
+> > +	 */
+> > +	__tlb_flush_mmu_tlbonly(tlb);
+> > +#endif
+> > +}
 > 
-> I may rebase it if I - or anybody else - find anything bad there, so
-> consider it non-stable, but I think it's in its final shape modulo
-> issues.
+> 
+> Nick, Will is already looking at using this to remove the synchronous
+> invalidation from __p*_free_tlb() for ARM, could you have a look to see
+> if PowerPC-radix could benefit from that too?
+> 
+> Basically, using a patch like the below, would give your tlb_flush()
+> information on if tables were removed or not.
 
-Unfortunately, that branch doesn't build for arm64 because of Nick's patch
-moving tlb_flush_mmu_tlbonly() into tlb.h (which I acked!). It's a static
-inline which calls tlb_flush(), which in our case is also a static inline
-but one that is defined in our asm/tlb.h after including asm-generic/tlb.h.
-
-Ah, just noticed you've pushed this to master! Please could you take the
-arm64 patch below on top, in order to fix the build?
-
-Cheers,
+Just to say that I have something up and running for arm64 based on this.
+I'll post it once it's seen a bit more testing (either tomorrow or Monday).
 
 Will
-
---->8
