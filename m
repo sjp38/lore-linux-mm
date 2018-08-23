@@ -1,84 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3873F6B2C7E
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 19:03:20 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id z56-v6so2897534edz.10
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 16:03:20 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c12-v6sor2742206edi.55.2018.08.23.16.03.18
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 23 Aug 2018 16:03:19 -0700 (PDT)
-Date: Thu, 23 Aug 2018 23:03:17 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH 2/3] mm/sparse: expand the CONFIG_SPARSEMEM_EXTREME range
- in __nr_to_section()
-Message-ID: <20180823230317.swgcn6d7uokbd6zo@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20180823130732.9489-1-richard.weiyang@gmail.com>
- <20180823130732.9489-3-richard.weiyang@gmail.com>
- <20180823132112.GK29735@dhcp22.suse.cz>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 94E636B2C96
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 19:27:13 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id l191-v6so6169693oig.23
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 16:27:13 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id n82-v6si4080540oih.318.2018.08.23.16.27.12
+        for <linux-mm@kvack.org>;
+        Thu, 23 Aug 2018 16:27:12 -0700 (PDT)
+Date: Fri, 24 Aug 2018 00:27:05 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [RFC PATCH 0/2] minor mmu_gather patches
+Message-ID: <20180823232704.GA4487@brain-police>
+References: <20180823084709.19717-1-npiggin@gmail.com>
+ <CA+55aFxaiv3SMvFUSEnd_p6nuGttUnv2_O3v_G2zCnnc0pV2pA@mail.gmail.com>
+ <CA+55aFwEZftzAd9k-kjiaXonP2XeTDYshjY56jmd1CFBaXmGHA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180823132112.GK29735@dhcp22.suse.cz>
+In-Reply-To: <CA+55aFwEZftzAd9k-kjiaXonP2XeTDYshjY56jmd1CFBaXmGHA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, bob.picco@hp.com, Dave Hansen <dave.hansen@intel.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Nick Piggin <npiggin@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, linux-arch <linux-arch@vger.kernel.org>
 
-On Thu, Aug 23, 2018 at 03:21:12PM +0200, Michal Hocko wrote:
->[Cc Dave]
->
->On Thu 23-08-18 21:07:31, Wei Yang wrote:
->> When CONFIG_SPARSEMEM_EXTREME is not defined, mem_section is a static
->> two dimension array. This means !mem_section[SECTION_NR_TO_ROOT(nr)] is
->> always true.
->> 
->> This patch expand the CONFIG_SPARSEMEM_EXTREME range to return a proper
->> mem_section when CONFIG_SPARSEMEM_EXTREME is not defined.
->
->As long as all callers provide a valid section number then yes. I am not
->really sure this is the case though.
->
+Hi Linus,
 
-I don't get your point.
+On Thu, Aug 23, 2018 at 12:37:58PM -0700, Linus Torvalds wrote:
+> On Thu, Aug 23, 2018 at 12:15 PM Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
+> >
+> > So right now my "tlb-fixes" branch looks like this:
+> > [..]
+> >
+> > I'll do a few more test builds and boots, but I think I'm going to
+> > merge it in this cleaned-up and re-ordered form.
+> 
+> In the meantime, I decided to push out that branch in case anybody
+> wants to look at it.
+> 
+> I may rebase it if I - or anybody else - find anything bad there, so
+> consider it non-stable, but I think it's in its final shape modulo
+> issues.
 
-When CONFIG_SPARSEMEM_EXTREME is not defined, each section number is a
-valid one in this context. Because for eavry section number in
-[0, NR_MEM_SECTIONS - 1], we have a mem_sectioin structure there.
+Unfortunately, that branch doesn't build for arm64 because of Nick's patch
+moving tlb_flush_mmu_tlbonly() into tlb.h (which I acked!). It's a static
+inline which calls tlb_flush(), which in our case is also a static inline
+but one that is defined in our asm/tlb.h after including asm-generic/tlb.h.
 
-This patch helps to reduce a meaningless check when
-CONFIG_SPARSEMEM_EXTREME=n.
+Ah, just noticed you've pushed this to master! Please could you take the
+arm64 patch below on top, in order to fix the build?
 
->> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
->> ---
->>  include/linux/mmzone.h | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
->> 
->> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->> index 32699b2dc52a..33086f86d1a7 100644
->> --- a/include/linux/mmzone.h
->> +++ b/include/linux/mmzone.h
->> @@ -1155,9 +1155,9 @@ static inline struct mem_section *__nr_to_section(unsigned long nr)
->>  #ifdef CONFIG_SPARSEMEM_EXTREME
->>  	if (!mem_section)
->>  		return NULL;
->> -#endif
->>  	if (!mem_section[SECTION_NR_TO_ROOT(nr)])
->>  		return NULL;
->> +#endif
->>  	return &mem_section[SECTION_NR_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
->>  }
->>  extern int __section_nr(struct mem_section* ms);
->> -- 
->> 2.15.1
->> 
->
->-- 
->Michal Hocko
->SUSE Labs
+Cheers,
 
--- 
-Wei Yang
-Help you, Help me
+Will
+
+--->8
