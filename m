@@ -1,98 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C5A56B2990
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 06:33:58 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id n17-v6so2961430pff.17
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 03:33:58 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4550B6B29A3
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 06:51:01 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id l16-v6so2050676edq.18
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 03:51:01 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p21-v6si3537501plq.338.2018.08.23.03.33.56
+        by mx.google.com with ESMTPS id t4-v6si1150484eda.349.2018.08.23.03.50.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Aug 2018 03:33:56 -0700 (PDT)
-Date: Thu, 23 Aug 2018 12:33:52 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3 1/2] mm: migration: fix migration of huge PMD shared
- pages
-Message-ID: <20180823103352.GZ29735@dhcp22.suse.cz>
-References: <20180821205902.21223-2-mike.kravetz@oracle.com>
- <201808220831.eM0je51n%fengguang.wu@intel.com>
- <975b740d-26a6-eb3f-c8ca-1a9995d0d343@oracle.com>
- <20180822122848.GL29735@dhcp22.suse.cz>
- <4a95a24f-534f-0938-f358-2a410817a412@oracle.com>
- <20180823073035.GT29735@dhcp22.suse.cz>
- <20180823082112.xln7rinqcwt54teg@kshutemo-mobl1>
+        Thu, 23 Aug 2018 03:50:59 -0700 (PDT)
+Date: Thu, 23 Aug 2018 12:50:57 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH 2/2] mm: thp: fix transparent_hugepage/defrag = madvise
+ || always
+Message-ID: <20180823105057.GA29735@dhcp22.suse.cz>
+References: <20180820032204.9591-1-aarcange@redhat.com>
+ <20180820032204.9591-3-aarcange@redhat.com>
+ <20180821115057.GY29735@dhcp22.suse.cz>
+ <20180821214049.GG13047@redhat.com>
+ <20180822090214.GF29735@dhcp22.suse.cz>
+ <20180822110737.GK29735@dhcp22.suse.cz>
+ <20180822142446.GL13047@redhat.com>
+ <20180822144517.GP29735@dhcp22.suse.cz>
+ <20180822152402.GO13047@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180823082112.xln7rinqcwt54teg@kshutemo-mobl1>
+In-Reply-To: <20180822152402.GO13047@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, kbuild test robot <lkp@intel.com>, kbuild-all@01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu 23-08-18 11:21:12, Kirill A. Shutemov wrote:
-> On Thu, Aug 23, 2018 at 09:30:35AM +0200, Michal Hocko wrote:
-> > On Wed 22-08-18 09:48:16, Mike Kravetz wrote:
-> > > On 08/22/2018 05:28 AM, Michal Hocko wrote:
-> > > > On Tue 21-08-18 18:10:42, Mike Kravetz wrote:
-> > > > [...]
-> > > >> diff --git a/mm/rmap.c b/mm/rmap.c
-> > > >> index eb477809a5c0..8cf853a4b093 100644
-> > > >> --- a/mm/rmap.c
-> > > >> +++ b/mm/rmap.c
-> > > >> @@ -1362,11 +1362,21 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
-> > > >>  	}
-> > > >>  
-> > > >>  	/*
-> > > >> -	 * We have to assume the worse case ie pmd for invalidation. Note that
-> > > >> -	 * the page can not be free in this function as call of try_to_unmap()
-> > > >> -	 * must hold a reference on the page.
-> > > >> +	 * For THP, we have to assume the worse case ie pmd for invalidation.
-> > > >> +	 * For hugetlb, it could be much worse if we need to do pud
-> > > >> +	 * invalidation in the case of pmd sharing.
-> > > >> +	 *
-> > > >> +	 * Note that the page can not be free in this function as call of
-> > > >> +	 * try_to_unmap() must hold a reference on the page.
-> > > >>  	 */
-> > > >>  	end = min(vma->vm_end, start + (PAGE_SIZE << compound_order(page)));
-> > > >> +	if (PageHuge(page)) {
-> > > >> +		/*
-> > > >> +		 * If sharing is possible, start and end will be adjusted
-> > > >> +		 * accordingly.
-> > > >> +		 */
-> > > >> +		(void)huge_pmd_sharing_possible(vma, &start, &end);
-> > > >> +	}
-> > > >>  	mmu_notifier_invalidate_range_start(vma->vm_mm, start, end);
-> > > > 
-> > > > I do not get this part. Why don't we simply unconditionally invalidate
-> > > > the whole huge page range?
-> > > 
-> > > In this routine, we are only unmapping a single page.  The existing code
-> > > is limiting the invalidate range to that page size: 4K or 2M.  With shared
-> > > PMDs, we have the possibility of unmapping a PUD_SIZE area: 1G.  I don't
-> > > think we want to unconditionally invalidate 1G.  Is that what you are asking?
-> > 
-> > But we know that huge_pmd_unshare unmapped a shared pte so we know when
-> > to flush 2MB or 1GB. I really do not like how huge_pmd_sharing_possible
-> > a) duplicates some checks and b) it updates start/stop out of line.
+On Wed 22-08-18 11:24:02, Andrea Arcangeli wrote:
+> On Wed, Aug 22, 2018 at 04:45:17PM +0200, Michal Hocko wrote:
+> > Now I am confused. How can compaction help at all then? I mean  if the
+> > node is full of GUP pins then you can hardly do anything but fallback to
+> > other node. Or how come your new GFP flag makes any difference?
 > 
-> My reading on this is that mmu_notifier_invalidate_range_start() has to be
-> called from sleepable context on the full range that *can* be invalidated
-> before following mmu_notifier_invalidate_range_end().
+> It helps until the node is full.
 > 
-> In this case huge_pmd_unshare() may unmap aligned PUD_SIZE around the PMD
-> page that effectively enlarge range that has to be covered by
-> mmu_notifier_invalidate_range_start(). We cannot yet know if there's any
-> shared page tables in the range, so we need to go with worst case
-> scenario.
+> If you don't call compaction you will get zero THP even when you've
+> plenty of free memory.
 > 
-> I don't see conceptually better solution than what is proposed.
+> So the free memory goes down and down as more and more THP are
+> generated y compaction until compaction then fails with
+> COMPACT_SKIPPED, there's not enough free memory to relocate an "order
+> 9" amount of physically contiguous PAGE_SIZEd fragments.
+> 
+> At that point the code calls reclaim to make space for a new
+> compaction run. Then if that fails again it's not because there's no
+> enough free memory.
+> 
+> Problem is if you ever call reclaim when compaction fails, what
+> happens is you free an "order 9" and then it gets eaten up by the app
+> so then next compaction call, calls COMPACT_SKIPPED again.
+> 
+> This is how compaction works since day zero it was introduced in
+> kernel 2.6.x something, if you don't have crystal clear the inner
+> workings of compaction you have an hard time to review this. So hope
+> the above shed some light of how this plays out.
+> 
+> So in general calling reclaim is ok because compaction fails more
+> often than not in such case because it can't compact memory not
+> because there aren't at least 2m free in any node. However when you use
+> __GFP_THISNODE combined with reclaim that changes the whole angle and
+> behavior of compaction if reclaim is still active.
+> 
+> Not calling compaction in MADV_HUGEPAGE means you can drop
+> MADV_HUGEPAGE as a whole. There's no point to ever set it unless we
+> call compaction. And if you don't call at least once compaction you
+> have near zero chances to get gigabytes of THP even if it's all
+> compactable memory and there are gigabytes of free memory in the node,
+> after some runtime that shakes the fragments in the buddy.
+> 
+> To make it even more clear why compaction has to run once at least
+> when MADV_HUGEPAGE is set, just check the second last column of your
+> /proc/buddyinfo before and after "echo 3 >/proc/sys/vm/drop_caches;
+> echo >/proc/sys/vm/compact_memory". Try to allocate memory without
+> MADV_HUGEPAGE and without running the "echo 3; echo" and see how much
+> THP you'll get. I've plenty of workloads that use MADV_HUGEPAGE not
+> just qemu and that totally benefit immediately from THP and there's no
+> point to ever defer compaction to khugepaged when userland says "this
+> is a long lived allocation".
+> 
+> Compaction is only potentially wasteful for short lived allocation, so
+> MADV_HUGEPAGE has to call compaction.
 
-I was thinking we would just pull PageHuge outside of the
-page_vma_mapped_walk. I thought it would look much more straightforward
-but I've tried to put something together and it grown into an ugly code
-as well. So going the Mike's way might be a better option after all.
+I guess you have missed my point. I was not suggesting compaction is
+pointless. I meant to say, how can be compaction useful in the scenario
+you were suggesting when the node is full of pinned pages.
 
+> > It would still try to reclaim easy target as compaction requires. If you
+> > do not reclaim at all you can make the current implementation of the
+> > compaction noop due to its own watermark checks IIRC.
+> 
+> That's the feature, if you don't make it a noop when watermark checks
+> trigger, it'll end up wasting CPU and breaking vfio.
+> 
+> The point is that we want compaction to run when there's free memory
+> and compaction keeps succeeding.
+> 
+> So when compaction fails, if it's because we finished all free memory
+> in the node, we should just remove __GFP_THISNODE and allocate without
+> it (i.e. the optimization). If compaction fails because the memory is
+> fragmented but here's still free memory we should fail the allocation
+> and trigger the THP fallback to PAGE_SIZE fault.
+> 
+> Overall removing __GFP_THISNODE unconditionally would simply
+> prioritize THP over NUMA locality which is the point of this special
+> logic for THP. I can't blame the logic because it certainly helps NUMA
+> balancing a lot in letting the memory be in the right place from the
+> start. This is why __GFP_COMPACT_ONLY makes sense, to be able to
+> retain the logic but still preventing the corner case of such
+> __GFP_THISNODE that breaks the VM with MADV_HUGEPAGE.
+
+But __GFP_COMPACT_ONLY is a layering violation because you are
+compaction does depend on the reclaim right now.
+ 
+> > yeah, I agree about PAGE_ALLOC_COSTLY_ORDER being an arbitrary limit for
+> > a different behavior. But we already do handle those specially so it
+> > kind of makes sense to me to expand on that.
+> 
+> It's still a sign of one more place that needs magic for whatever
+> reason. So unless it can be justified by some runtime tests I wouldn't
+> make such change by just thinking about it. Reclaim is called if
+> there's no free memory left anywhere for compaction to run (i.e. if
+> __GFP_THISNODE is not set, if __GPF_THISNODE is set then the caller
+> better use __GFP_COMPACT_ONLY).
+
+I am not insisting on the hack I have proposed mostly for the sake of
+discussion. But I _strongly_ believe that __GFP_COMPACT_ONLY is the
+wrong way around the issue. We are revolving around __GFP_THISNODE
+having negative side effect and that is exactly an example of a gfp flag
+abuse for internal MM stuff which just happens to be a complete PITA for
+a long time.
+ 
+> Now we could also get away without __GFP_COMPACT_ONLY, we could check
+> __GFP_THISNODE and make it behave exactly like __GFP_COMPACT_ONLY
+> whenever __GFP_DIRECT_RECLAIM was also set in addition of
+> __GFP_THISNODE, but then you couldn't use __GFP_THISNODE as a mbind
+> anymore and it would have more obscure semantics than a new flag I
+> think.
+
+Or simply do not play tricks with __GFP_THISNODE.
 -- 
 Michal Hocko
 SUSE Labs
