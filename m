@@ -1,102 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 001D26B2AF7
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 12:24:09 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id g5-v6so2529944edp.1
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 09:24:09 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id p1-v6si10230edq.94.2018.08.23.09.24.08
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D34FB6B2B0C
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 12:45:34 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id f8-v6so2552356eds.6
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 09:45:34 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id e46-v6si621876edd.173.2018.08.23.09.45.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Aug 2018 09:24:08 -0700 (PDT)
-Date: Thu, 23 Aug 2018 09:23:50 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH v2 1/3] mm: rework memcg kernel stack accounting
-Message-ID: <20180823162347.GA22650@tower.DHCP.thefacebook.com>
-References: <20180821213559.14694-1-guro@fb.com>
- <20180822141213.GO29735@dhcp22.suse.cz>
+        Thu, 23 Aug 2018 09:45:33 -0700 (PDT)
+Subject: Re: [PATCH v3 1/2] mm: migration: fix migration of huge PMD shared
+ pages
+References: <20180821205902.21223-2-mike.kravetz@oracle.com>
+ <201808220831.eM0je51n%fengguang.wu@intel.com>
+ <975b740d-26a6-eb3f-c8ca-1a9995d0d343@oracle.com>
+ <20180822122848.GL29735@dhcp22.suse.cz>
+ <4a95a24f-534f-0938-f358-2a410817a412@oracle.com>
+ <20180823073035.GT29735@dhcp22.suse.cz>
+ <20180823082112.xln7rinqcwt54teg@kshutemo-mobl1>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <e003ff5e-3d95-be07-266c-eb8e32fae3c4@oracle.com>
+Date: Thu, 23 Aug 2018 09:45:17 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20180822141213.GO29735@dhcp22.suse.cz>
+In-Reply-To: <20180823082112.xln7rinqcwt54teg@kshutemo-mobl1>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Johannes Weiner <hannes@cmpxchg.org>, Andy Lutomirski <luto@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Tejun Heo <tj@kernel.org>, Shakeel Butt <shakeelb@google.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@kernel.org>
+Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
 
-On Wed, Aug 22, 2018 at 04:12:13PM +0200, Michal Hocko wrote:
-> On Tue 21-08-18 14:35:57, Roman Gushchin wrote:
-> > If CONFIG_VMAP_STACK is set, kernel stacks are allocated
-> > using __vmalloc_node_range() with __GFP_ACCOUNT. So kernel
-> > stack pages are charged against corresponding memory cgroups
-> > on allocation and uncharged on releasing them.
-> > 
-> > The problem is that we do cache kernel stacks in small
-> > per-cpu caches and do reuse them for new tasks, which can
-> > belong to different memory cgroups.
-> > 
-> > Each stack page still holds a reference to the original cgroup,
-> > so the cgroup can't be released until the vmap area is released.
-> > 
-> > To make this happen we need more than two subsequent exits
-> > without forks in between on the current cpu, which makes it
-> > very unlikely to happen. As a result, I saw a significant number
-> > of dying cgroups (in theory, up to 2 * number_of_cpu +
-> > number_of_tasks), which can't be released even by significant
-> > memory pressure.
-> > 
-> > As a cgroup structure can take a significant amount of memory
-> > (first of all, per-cpu data like memcg statistics), it leads
-> > to a noticeable waste of memory.
-> > 
-> > Signed-off-by: Roman Gushchin <guro@fb.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Michal Hocko <mhocko@kernel.org>
-> > Cc: Andy Lutomirski <luto@kernel.org>
-> > Cc: Konstantin Khlebnikov <koct9i@gmail.com>
-> > Cc: Tejun Heo <tj@kernel.org>
-> > Cc: Shakeel Butt <shakeelb@google.com>
+On 08/23/2018 01:21 AM, Kirill A. Shutemov wrote:
+> On Thu, Aug 23, 2018 at 09:30:35AM +0200, Michal Hocko wrote:
+>> On Wed 22-08-18 09:48:16, Mike Kravetz wrote:
+>>> On 08/22/2018 05:28 AM, Michal Hocko wrote:
+>>>> On Tue 21-08-18 18:10:42, Mike Kravetz wrote:
+>>>> [...]
+>>>>> diff --git a/mm/rmap.c b/mm/rmap.c
+>>>>> index eb477809a5c0..8cf853a4b093 100644
+>>>>> --- a/mm/rmap.c
+>>>>> +++ b/mm/rmap.c
+>>>>> @@ -1362,11 +1362,21 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>>>>>  	}
+>>>>>  
+>>>>>  	/*
+>>>>> -	 * We have to assume the worse case ie pmd for invalidation. Note that
+>>>>> -	 * the page can not be free in this function as call of try_to_unmap()
+>>>>> -	 * must hold a reference on the page.
+>>>>> +	 * For THP, we have to assume the worse case ie pmd for invalidation.
+>>>>> +	 * For hugetlb, it could be much worse if we need to do pud
+>>>>> +	 * invalidation in the case of pmd sharing.
+>>>>> +	 *
+>>>>> +	 * Note that the page can not be free in this function as call of
+>>>>> +	 * try_to_unmap() must hold a reference on the page.
+>>>>>  	 */
+>>>>>  	end = min(vma->vm_end, start + (PAGE_SIZE << compound_order(page)));
+>>>>> +	if (PageHuge(page)) {
+>>>>> +		/*
+>>>>> +		 * If sharing is possible, start and end will be adjusted
+>>>>> +		 * accordingly.
+>>>>> +		 */
+>>>>> +		(void)huge_pmd_sharing_possible(vma, &start, &end);
+>>>>> +	}
+>>>>>  	mmu_notifier_invalidate_range_start(vma->vm_mm, start, end);
+>>>>
+>>>> I do not get this part. Why don't we simply unconditionally invalidate
+>>>> the whole huge page range?
+>>>
+>>> In this routine, we are only unmapping a single page.  The existing code
+>>> is limiting the invalidate range to that page size: 4K or 2M.  With shared
+>>> PMDs, we have the possibility of unmapping a PUD_SIZE area: 1G.  I don't
+>>> think we want to unconditionally invalidate 1G.  Is that what you are asking?
+>>
+>> But we know that huge_pmd_unshare unmapped a shared pte so we know when
+>> to flush 2MB or 1GB. I really do not like how huge_pmd_sharing_possible
+>> a) duplicates some checks and b) it updates start/stop out of line.
 > 
-> Looks good to me. Two nits below.
+> My reading on this is that mmu_notifier_invalidate_range_start() has to be
+> called from sleepable context on the full range that *can* be invalidated
+> before following mmu_notifier_invalidate_range_end().
 > 
-> I am not sure stable tree backport is really needed but it would be nice
-> to put
-> Fixes: ac496bf48d97 ("fork: Optimize task creation by caching two thread stacks per CPU if CONFIG_VMAP_STACK=y")
+> In this case huge_pmd_unshare() may unmap aligned PUD_SIZE around the PMD
+> page that effectively enlarge range that has to be covered by
+> mmu_notifier_invalidate_range_start(). We cannot yet know if there's any
+> shared page tables in the range, so we need to go with worst case
+> scenario.
+
+Yes, that is a good summary.  We can not know for sure if there is PMD
+sharing until we hold the page table lock.  So, we don't know if we should
+invalidate/flush 2M or 1G.  Yet, we need to call
+mmu_notifier_invalidate_range_start before taking the lock.  And, the notifiers
+need to know the range of the worst possible case.  The best approach I came up
+with is to adjust the range if sharing is 'possible'.
+
 > 
-> Acked-by: Michal Hocko <mhocko@suse.com>
-
-Will add, thanks!
-
+> I don't see conceptually better solution than what is proposed.
 > 
-> > @@ -248,9 +253,20 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
-> >  static inline void free_thread_stack(struct task_struct *tsk)
-> >  {
-> >  #ifdef CONFIG_VMAP_STACK
-> > -	if (task_stack_vm_area(tsk)) {
-> > +	struct vm_struct *vm = task_stack_vm_area(tsk);
-> > +
-> > +	if (vm) {
-> >  		int i;
-> >  
-> > +		for (i = 0; i < THREAD_SIZE / PAGE_SIZE; i++) {
-> > +			mod_memcg_page_state(vm->pages[i],
-> > +					     MEMCG_KERNEL_STACK_KB,
-> > +					     -(int)(PAGE_SIZE / 1024));
-> > +
-> > +			memcg_kmem_uncharge(vm->pages[i],
-> > +					    compound_order(vm->pages[i]));
-> 
-> when do we have order > 0 here?
 
-I guess, it's not possible, but hard-coded 1 looked a bit crappy.
-Do you think it's better?
+I have updated the patches based on Kirill's previous comments and will send out
+a new version later today.
 
-> Also I was wondering how come this
-> doesn't blow up on partially charged stacks but both
-> mod_memcg_page_state and memcg_kmem_uncharge check for page->mem_cgroup
-> so this is safe. Maybe a comment would save people from scratching their
-> heads.
-
-Ok, will add.
-
-Thank you!
+-- 
+Mike Kravetz
