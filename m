@@ -1,64 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 945536B2848
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 01:11:53 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id k143-v6so860917ite.5
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 22:11:53 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v2-v6sor1137743iom.215.2018.08.22.22.11.52
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A4D56B284D
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 01:14:26 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id l15-v6so2562944pff.1
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 22:14:26 -0700 (PDT)
+Received: from EX13-EDG-OU-001.vmware.com (ex13-edg-ou-001.vmware.com. [208.91.0.189])
+        by mx.google.com with ESMTPS id o6-v6si3293926pls.480.2018.08.22.22.14.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 22 Aug 2018 22:11:52 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 22 Aug 2018 22:14:25 -0700 (PDT)
+From: Nadav Amit <namit@vmware.com>
+Subject: [PATCH] mm: respect arch_dup_mmap() return value
+Date: Wed, 22 Aug 2018 22:12:29 -0700
+Message-ID: <20180823051229.211856-1-namit@vmware.com>
 MIME-Version: 1.0
-References: <20180822153012.173508681@infradead.org> <20180822154046.823850812@infradead.org>
- <20180822155527.GF24124@hirez.programming.kicks-ass.net> <20180823134525.5f12b0d3@roar.ozlabs.ibm.com>
- <CA+55aFxneZTFxxxAjLZmj92VUJg6z7hERxJ2cHoth-GC0RuELw@mail.gmail.com> <776104d4c8e4fc680004d69e3a4c2594b638b6d1.camel@au1.ibm.com>
-In-Reply-To: <776104d4c8e4fc680004d69e3a4c2594b638b6d1.camel@au1.ibm.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 22 Aug 2018 22:11:41 -0700
-Message-ID: <CA+55aFzM77G9-Q6LboPLJ=5gHma66ZQKiMGCMqXoKABirdF98w@mail.gmail.com>
-Subject: Re: [PATCH 3/4] mm/tlb, x86/mm: Support invalidating TLB caches for RCU_TABLE_FREE
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@au1.ibm.com>
-Cc: Nick Piggin <npiggin@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Will Deacon <will.deacon@arm.com>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>
+To: Michal Hocko <mhocko@suse.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nadav Amit <namit@vmware.com>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
 
-On Wed, Aug 22, 2018 at 9:54 PM Benjamin Herrenschmidt <benh@au1.ibm.com> wrote:
->
->
-> So we do need a different flush instruction for the page tables vs. the
-> normal TLB pages.
+Commit d70f2a14b72a4 ("include/linux/sched/mm.h: uninline
+mmdrop_async(), etc") ignored the return value of arch_dup_mmap(). As a
+result, on x86, a failure to duplicate the LDT (e.g., due to memory
+allocation error), would leave the duplicated memory mapping in an
+inconsistent state.
 
-Right. ARM wants it too. x86 is odd in that a regular "invlpg" already
-invalidates all the internal tlb cache nodes.
+Fix by regarding the return value, as it was before the change.
 
-So the "new world order" is exactly that patch that PeterZ sent you, that adds a
+Fixes: d70f2a14b72a4 ("include/linux/sched/mm.h: uninline mmdrop_async(), etc")
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: stable@vger.kernel.org
+Signed-off-by: Nadav Amit <namit@vmware.com>
+---
+ kernel/fork.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-+       unsigned int            freed_tables : 1;
-
-to the 'struct mmu_gather', and then makes all those
-pte/pmd/pud/p4d_free_tlb() functions set that bit.
-
-So I'm referring to the email PeterZ sent you in this thread that said:
-
-  Nick, Will is already looking at using this to remove the synchronous
-  invalidation from __p*_free_tlb() for ARM, could you have a look to see
-  if PowerPC-radix could benefit from that too?
-
-  Basically, using a patch like the below, would give your tlb_flush()
-  information on if tables were removed or not.
-
-then, in that model, you do *not* need to override these
-pte/pmd/pud/p4d_free_tlb() macros at all (well, you *can* if you want
-to, for doing games with the range modification, but let's sayt that
-you don't need that right now).
-
-So instead, when you get to the actual "tlb_flush(tlb)", you do
-exactly that - flush the tlb. And the mmu_gather structure shows you
-how much you need to flush. If you see that "freed_tables" is set,
-then you know that you need to also do the special instruction to
-flush the inner level caches. The range continues to show the page
-range.
-
-           Linus
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 1b27babc4c78..4527d1d331de 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -549,8 +549,7 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
+ 			goto out;
+ 	}
+ 	/* a new mm has just been created */
+-	arch_dup_mmap(oldmm, mm);
+-	retval = 0;
++	retval = arch_dup_mmap(oldmm, mm);
+ out:
+ 	up_write(&mm->mmap_sem);
+ 	flush_tlb_mm(oldmm);
+-- 
+2.17.1
