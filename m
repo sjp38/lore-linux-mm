@@ -1,55 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1002C6B2A75
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 10:00:57 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id v21-v6so4974310wrc.2
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 07:00:57 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y66-v6sor1236573wmg.39.2018.08.23.07.00.55
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 39C5E6B2A79
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 10:02:15 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id m25-v6so2896230pgv.14
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 07:02:15 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v34-v6si4265794plg.491.2018.08.23.07.02.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 23 Aug 2018 07:00:55 -0700 (PDT)
-Date: Thu, 23 Aug 2018 16:00:53 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH 3/3] mm/sparse: use __highest_present_section_nr as the
- boundary for pfn check
-Message-ID: <20180823140053.GC14924@techadventures.net>
-References: <20180823130732.9489-1-richard.weiyang@gmail.com>
- <20180823130732.9489-4-richard.weiyang@gmail.com>
- <20180823132526.GL29735@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Aug 2018 07:02:13 -0700 (PDT)
+Date: Thu, 23 Aug 2018 16:02:09 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm, oom: Always call tlb_finish_mmu().
+Message-ID: <20180823140209.GO29735@dhcp22.suse.cz>
+References: <1535023848-5554-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180823115957.GF29735@dhcp22.suse.cz>
+ <6bf40c7f-3e68-8702-b087-9e37abb2d547@i-love.sakura.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180823132526.GL29735@dhcp22.suse.cz>
+In-Reply-To: <6bf40c7f-3e68-8702-b087-9e37abb2d547@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, bob.picco@hp.com
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Thu, Aug 23, 2018 at 03:25:26PM +0200, Michal Hocko wrote:
-> On Thu 23-08-18 21:07:32, Wei Yang wrote:
-> > And it is known, __highest_present_section_nr is a more strict boundary
-> > than NR_MEM_SECTIONS.
+On Thu 23-08-18 22:48:22, Tetsuo Handa wrote:
+> On 2018/08/23 20:59, Michal Hocko wrote:
+> > On Thu 23-08-18 20:30:48, Tetsuo Handa wrote:
+> >> Commit 93065ac753e44438 ("mm, oom: distinguish blockable mode for mmu
+> >> notifiers") added "continue;" without calling tlb_finish_mmu(). I don't
+> >> know whether tlb_flush_pending imbalance causes problems other than
+> >> extra cost, but at least it looks strange.
 > > 
-> > This patch uses a __highest_present_section_nr to check a valid pfn.
+> > tlb_flush_pending has mm scope and it would confuse
+> > mm_tlb_flush_pending. At least ptep_clear_flush could get confused and
+> > flush unnecessarily for prot_none entries AFAICS. Other paths shouldn't
+> > trigger for oom victims. Even ptep_clear_flush is unlikely to happen.
+> > So nothing really earth shattering but I do agree that it looks weird
+> > and should be fixed.
 > 
-> But why is this an improvement? Sure when you loop over all sections
-> than __highest_present_section_nr makes a lot of sense. But all the
-> updated function perform a trivial comparision.
+> OK. But what is the reason we call tlb_gather_mmu() before
+> mmu_notifier_invalidate_range_start_nonblock() ?
+> I want that the fix explains why we can't do
+> 
+> -			tlb_gather_mmu(&tlb, mm, start, end);
+>  			if (mmu_notifier_invalidate_range_start_nonblock(mm, start, end)) {
+>  				ret = false;
+>  				continue;
+>  			}
+> +			tlb_gather_mmu(&tlb, mm, start, end);
 
-I think it makes some sense.
-NR_MEM_SECTIONS can be a big number, but we might not be using
-all sections, so __highest_present_section_nr ends up being a much lower
-value.
+This should be indeed doable because mmu notifiers have no way to know
+about tlb_gather. I have no idea why we used to have tlb_gather_mmu like
+that before. Most probably a C&P from munmap path where it didn't make
+any difference either. A quick check shows that tlb_flush_pending is the
+only mm scope thing and none of the notifiers really depend on it.
 
-I think that we want to compare the pfn's section_nr with our current limit
-of present sections.
-Sections over that do not really exist for us, so it is no use to look for
-them in __nr_to_section/valid_section.
-
-It might not be a big improvement, but I think that given the nature of
-pfn_valid/pfn_present, comparing to __highest_present_section_nr suits better.
-
+I would be calmer if both paths were in sync in that regards. So I think
+it would be better to go with your previous version first. Maybe it
+makes sense to switch the order but I do not really see a huge win for
+doing so.
 -- 
-Oscar Salvador
-SUSE L3
+Michal Hocko
+SUSE Labs
