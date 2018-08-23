@@ -1,73 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 113D96B2A8D
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 10:34:41 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id u13-v6so4755394qtb.18
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 07:34:41 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id m189-v6si3064689qkd.19.2018.08.23.07.34.39
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D9B96B28D3
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 10:59:31 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id t26-v6so3371772pfh.0
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 07:59:31 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id d81-v6si5203941pfm.226.2018.08.23.07.59.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Aug 2018 07:34:40 -0700 (PDT)
-Date: Thu, 23 Aug 2018 10:34:38 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: A crash on ARM64 in move_freepages_block due to uninitialized
- pages in reserved memory
-In-Reply-To: <777276b8-9cd6-da4b-d1d9-c60f96a58122@microsoft.com>
-Message-ID: <alpine.LRH.2.02.1808231017570.4129@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1808171527220.2385@file01.intranet.prod.int.rdu2.redhat.com> <20180821104418.GA16611@dhcp22.suse.cz> <e35b7c14-c7ea-412d-2763-c961b74576f3@arm.com> <alpine.LRH.2.02.1808220808050.17906@file01.intranet.prod.int.rdu2.redhat.com>
- <20180823111024.GC29735@dhcp22.suse.cz> <alpine.LRH.2.02.1808230715050.30076@file01.intranet.prod.int.rdu2.redhat.com> <20180823112359.GE29735@dhcp22.suse.cz> <777276b8-9cd6-da4b-d1d9-c60f96a58122@microsoft.com>
+        Thu, 23 Aug 2018 07:59:29 -0700 (PDT)
+Subject: [PATCH v2] mm, oom: Fix missing tlb_finish_mmu() in
+ __oom_reap_task_mm().
+References: <1535023848-5554-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180823115957.GF29735@dhcp22.suse.cz>
+ <6bf40c7f-3e68-8702-b087-9e37abb2d547@i-love.sakura.ne.jp>
+ <20180823140209.GO29735@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <b752d1d5-81ad-7a35-2394-7870641be51c@i-love.sakura.ne.jp>
+Date: Thu, 23 Aug 2018 23:11:26 +0900
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20180823140209.GO29735@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Cc: Michal Hocko <mhocko@kernel.org>, James Morse <james.morse@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@suse.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
+Commit 93065ac753e44438 ("mm, oom: distinguish blockable mode for mmu
+notifiers") added "continue;" without calling tlb_finish_mmu(). It should
+not cause a critical problem but fix anyway because it looks strange.
 
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+---
+ mm/oom_kill.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-On Thu, 23 Aug 2018, Pasha Tatashin wrote:
-
-> On 8/23/18 7:23 AM, Michal Hocko wrote:
-> > On Thu 23-08-18 07:16:34, Mikulas Patocka wrote:
-> >>
-> >>
-> >> On Thu, 23 Aug 2018, Michal Hocko wrote:
-> >>
-> >>> On Thu 23-08-18 07:02:37, Mikulas Patocka wrote:
-> >>> [...]
-> >>>> This crash is not from -ENOENT. It crashes because page->compound_head is 
-> >>>> 0xffffffffffffffff (see below).
-> >>>>
-> >>>> If I enable CONFIG_DEBUG_VM, I also get VM_BUG.
-> >>>
-> >>> This smells like the struct page is not initialized properly. How is
-> >>> this memory range added? I mean is it brought up by the memory hotplug
-> >>> or during the boot?
-> 
-> I believe it is due to uninitialized struct pages. Mikulas, could you
-> please provide config file, and also the full console output.
-> 
-> Please make sure that you have:
-> CONFIG_DEBUG_VM=y
-> CONFIG_ARCH_HAS_DEBUG_VIRTUAL=y
-> 
-> I wonder what kind of struct page memory layout is used, and also if
-> deferred struct pages are enabled or not.
-
-I uploaded configs and console logs (for the real hardware and for the 
-virtual machine) here: 
-http://people.redhat.com/~mpatocka/testcases/arm64-config/
-
-The virtual machine was running the lvm2 testsuite while the crash 
-happened.
-
-> Have you tried bisecting the problem?
-
-I may try some old kernel in the virtual machine to test if the bug 
-happens on it.
-
-> Thank you,
-> Pavel
-
-Mikulas
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index b5b25e4..4f431c1 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -522,6 +522,7 @@ bool __oom_reap_task_mm(struct mm_struct *mm)
+ 
+ 			tlb_gather_mmu(&tlb, mm, start, end);
+ 			if (mmu_notifier_invalidate_range_start_nonblock(mm, start, end)) {
++				tlb_finish_mmu(&tlb, start, end);
+ 				ret = false;
+ 				continue;
+ 			}
+-- 
+1.8.3.1
