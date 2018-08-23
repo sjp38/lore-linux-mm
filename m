@@ -1,126 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 498F56B2B9E
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 15:09:38 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id w44-v6so2677979edb.16
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 12:09:38 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k3-v6si103981edh.418.2018.08.23.12.09.36
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 960DC6B2BA6
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 15:15:50 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id m185-v6so6151607itm.1
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 12:15:50 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 73-v6sor480574iti.148.2018.08.23.12.15.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Aug 2018 12:09:36 -0700 (PDT)
-Date: Thu, 23 Aug 2018 21:09:33 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] xen/gntdev: fix up blockable calls to mn_invl_range_start
-Message-ID: <20180823190933.GP29735@dhcp22.suse.cz>
-References: <20180823120707.10998-1-mhocko@kernel.org>
- <07c7ead4-334d-9b25-f588-25e9b46bbea0@i-love.sakura.ne.jp>
- <20180823135151.GM29735@dhcp22.suse.cz>
- <9d2d11eb-7fe1-b836-056c-7886d6fc56e5@oracle.com>
+        (Google Transport Security);
+        Thu, 23 Aug 2018 12:15:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <9d2d11eb-7fe1-b836-056c-7886d6fc56e5@oracle.com>
+References: <20180823084709.19717-1-npiggin@gmail.com>
+In-Reply-To: <20180823084709.19717-1-npiggin@gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 23 Aug 2018 12:15:37 -0700
+Message-ID: <CA+55aFxaiv3SMvFUSEnd_p6nuGttUnv2_O3v_G2zCnnc0pV2pA@mail.gmail.com>
+Subject: Re: [RFC PATCH 0/2] minor mmu_gather patches
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, xen-devel@lists.xenproject.org, LKML <linux-kernel@vger.kernel.org>, Juergen Gross <jgross@suse.com>
+To: Nick Piggin <npiggin@gmail.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Will Deacon <will.deacon@arm.com>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, linux-arch <linux-arch@vger.kernel.org>
 
-On Thu 23-08-18 10:06:53, Boris Ostrovsky wrote:
-> On 08/23/2018 09:51 AM, Michal Hocko wrote:
-> > On Thu 23-08-18 22:44:07, Tetsuo Handa wrote:
-> >> On 2018/08/23 21:07, Michal Hocko wrote:
-> >>> diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
-> >>> index 57390c7666e5..e7d8bb1bee2a 100644
-> >>> --- a/drivers/xen/gntdev.c
-> >>> +++ b/drivers/xen/gntdev.c
-> >>> @@ -519,21 +519,20 @@ static int mn_invl_range_start(struct mmu_notifier *mn,
-> >>>  	struct gntdev_grant_map *map;
-> >>>  	int ret = 0;
-> >>>  
-> >>> -	/* TODO do we really need a mutex here? */
-> >>>  	if (blockable)
-> >>>  		mutex_lock(&priv->lock);
-> >>>  	else if (!mutex_trylock(&priv->lock))
-> >>>  		return -EAGAIN;
-> >>>  
-> >>>  	list_for_each_entry(map, &priv->maps, next) {
-> >>> -		if (in_range(map, start, end)) {
-> >>> +		if (!blockable && in_range(map, start, end)) {
-> >> This still looks strange. Prior to 93065ac753e4, in_range() test was
-> >> inside unmap_if_in_range(). But this patch removes in_range() test
-> >> if blockable == true. That is, unmap_if_in_range() will unconditionally
-> >> unmap if blockable == true, which seems to be an unexpected change.
-> > You are right. I completely forgot I've removed in_range there. Does
-> > this look any better?
-> >
-> > diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
-> > index e7d8bb1bee2a..30f81004ea63 100644
-> > --- a/drivers/xen/gntdev.c
-> > +++ b/drivers/xen/gntdev.c
-> > @@ -525,14 +525,20 @@ static int mn_invl_range_start(struct mmu_notifier *mn,
-> >  		return -EAGAIN;
-> >  
-> >  	list_for_each_entry(map, &priv->maps, next) {
-> > -		if (!blockable && in_range(map, start, end)) {
-> > +		if (in_range(map, start, end)) {
-> > +			if (blockable)
-> > +				continue;
-> > +
-> >  			ret = -EAGAIN;
-> >  			goto out_unlock;
-> >  		}
-> >  		unmap_if_in_range(map, start, end);
-> 
-> 
-> (I obviously missed that too with my R-b).
-> 
-> This will never get anything done either. How about
+On Thu, Aug 23, 2018 at 1:47 AM Nicholas Piggin <npiggin@gmail.com> wrote:
+>
+> These are split from some patches I posted a while back, I was going
+> to take a look and revive the series again after your fixes go in,
+> but having another look, it may be that your "[PATCH 3/4] mm/tlb,
+> x86/mm: Support invalidating TLB caches for RCU_TABLE_FREE" becomes
+> easier after my patch 1.
+>
+> And I'm not convinced patch 2 is not a real bug at least for ARM64,
+> so it may be possible to squeeze it in if it's reviewed very
+> carefully (I need to actually reproduce and trace it).
+>
+> So not signed off by yet, but if you think it might be worth doing
+> these with your changes, it could be a slightly cleaner end result?
 
-Yeah. I was half way out and posted a complete garbage. Sorry about
-that!
+Actually, you did have sign-offs, and yes, that patch 1/2 does
+actually clean up and simplify the HAVE_RCU_TABLE_INVALIDATE fix, so I
+decided to mix these in with PeterZ's series.
 
-Michal repeat after me
-Never post patches when in hurry! Never post patches when in hurry!
-Never post patches when in hurry! Never post patches when in hurry!
-Never post patches when in hurry! Never post patches when in hurry!
-Never post patches when in hurry! Never post patches when in hurry!
-Never post patches when in hurry! Never post patches when in hurry! 
+And since it turns out that patch doesn't apparently matter for
+correctness and doesn't need to be backported to stable, I put it at
+the end of the series together with the x86 cleanup patch to avoid the
+unnecessary RCU-delayed freeing entirely for the non-PV case.
 
-What I really meant was this
+So right now my "tlb-fixes" branch looks like this:
 
-diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
-index e7d8bb1bee2a..6fcc5a44f29d 100644
---- a/drivers/xen/gntdev.c
-+++ b/drivers/xen/gntdev.c
-@@ -525,17 +525,25 @@ static int mn_invl_range_start(struct mmu_notifier *mn,
- 		return -EAGAIN;
- 
- 	list_for_each_entry(map, &priv->maps, next) {
--		if (!blockable && in_range(map, start, end)) {
-+		if (!in_range(map, start, end))
-+			continue;
-+
-+		if (!blockable) {
- 			ret = -EAGAIN;
- 			goto out_unlock;
- 		}
-+
- 		unmap_if_in_range(map, start, end);
- 	}
- 	list_for_each_entry(map, &priv->freeable_maps, next) {
--		if (!blockable && in_range(map, start, end)) {
-+		if (!in_range(map, start, end))
-+			continue;
-+
-+		if (!blockable) {
- 			ret = -EAGAIN;
- 			goto out_unlock;
- 		}
-+
- 		unmap_if_in_range(map, start, end);
- 	}
- 
--- 
-Michal Hocko
-SUSE Labs
+    x86/mm/tlb: Revert the recent lazy TLB patches
+ *  mm: move tlb_table_flush to tlb_flush_mmu_free
+ *  mm/tlb: Remove tlb_remove_table() non-concurrent condition
+ *  mm/tlb, x86/mm: Support invalidating TLB caches for RCU_TABLE_FREE
+    mm: mmu_notifier fix for tlb_end_vma
+    x86/mm: Only use tlb_remove_table() for paravirt
+
+where the three starred patches are marked for stable.
+
+The initial revert is for this merge window only, and the two last
+patches are cleanups and fixes but shouldn't matter for correctness in
+stable.
+
+PeterZ - your "mm/tlb, x86/mm: Support invalidating TLB caches for
+RCU_TABLE_FREE" patch looks exactly the same, but it now no longer has
+the split of tlb_flush_mmu_tlbonly(), since with Nick's patch to move
+the call to tlb_table_flush(tlb) into tlb_flush_mmu_free, there's no
+need for the separate double-underscore version.
+
+I hope nothing I did screwed things up. It all looks sane to me.
+Famous last words.
+
+I'll do a few more test builds and boots, but I think I'm going to
+merge it in this cleaned-up and re-ordered form.
+
+                     Linus
