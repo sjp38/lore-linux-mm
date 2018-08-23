@@ -1,63 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B4106B29C2
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 07:13:57 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id w44-v6so2153206edb.16
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 04:13:57 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s26-v6si3248905edq.393.2018.08.23.04.13.56
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C9AC6B29C7
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 07:16:36 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id y46-v6so4364943qth.9
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 04:16:36 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id k16-v6si955176qvc.79.2018.08.23.04.16.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Aug 2018 04:13:56 -0700 (PDT)
-Date: Thu, 23 Aug 2018 13:13:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] fs: fix local var type
-Message-ID: <20180823111355.GD29735@dhcp22.suse.cz>
-References: <1535014754-31918-1-git-send-email-swkhack@gmail.com>
+        Thu, 23 Aug 2018 04:16:35 -0700 (PDT)
+Date: Thu, 23 Aug 2018 07:16:34 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: A crash on ARM64 in move_freepages_block due to uninitialized
+ pages in reserved memory
+In-Reply-To: <20180823111024.GC29735@dhcp22.suse.cz>
+Message-ID: <alpine.LRH.2.02.1808230715050.30076@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1808171527220.2385@file01.intranet.prod.int.rdu2.redhat.com> <20180821104418.GA16611@dhcp22.suse.cz> <e35b7c14-c7ea-412d-2763-c961b74576f3@arm.com> <alpine.LRH.2.02.1808220808050.17906@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180823111024.GC29735@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1535014754-31918-1-git-send-email-swkhack@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weikang Shi <swkhack@gmail.com>
-Cc: akpm@linux-foundation.org, alexander.h.duyck@intel.com, vbabka@suse.cz, mgorman@suse.de, l.stach@pengutronix.de, vdavydov.dev@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, my_email@gmail.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: James Morse <james.morse@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Pavel Tatashin <Pavel.Tatashin@microsoft.com>
 
-On Thu 23-08-18 01:59:14, Weikang Shi wrote:
-> In the seq_hex_dump function,the remaining variable is int, but it receive a type of size_t argument.
-> So I change the type of remaining
 
-The changelog should explain _why_ we need this fix. Is any of the code
-path overflowing?
 
-Besides that I do not think this fix is complete. What about linelen?
+On Thu, 23 Aug 2018, Michal Hocko wrote:
 
-Why do we even need len to be size_t? Why it cannot be int as well. I
-strongly doubt we need more than 32b here.
- 
-> Signed-off-by: Weikang Shi <swkhack@gmail.com>
-> ---
->  fs/seq_file.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
+> On Thu 23-08-18 07:02:37, Mikulas Patocka wrote:
+> [...]
+> > This crash is not from -ENOENT. It crashes because page->compound_head is 
+> > 0xffffffffffffffff (see below).
+> > 
+> > If I enable CONFIG_DEBUG_VM, I also get VM_BUG.
 > 
-> diff --git a/fs/seq_file.c b/fs/seq_file.c
-> index 1dea7a8..d0e8bec 100644
-> --- a/fs/seq_file.c
-> +++ b/fs/seq_file.c
-> @@ -847,7 +847,8 @@ void seq_hex_dump(struct seq_file *m, const char *prefix_str, int prefix_type,
->  		  bool ascii)
->  {
->  	const u8 *ptr = buf;
-> -	int i, linelen, remaining = len;
-> +	int i, linelen;
-> +	size_t remaining = len;
->  	char *buffer;
->  	size_t size;
->  	int ret;
+> This smells like the struct page is not initialized properly. How is
+> this memory range added? I mean is it brought up by the memory hotplug
+> or during the boot?
 > -- 
-> 2.7.4
-> 
+> Michal Hocko
+> SUSE Labs
 
--- 
-Michal Hocko
-SUSE Labs
+During the boot. There's not hotplug.
+
+Mikulas
