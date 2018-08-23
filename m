@@ -1,80 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9360E6B29E9
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 08:00:01 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id 57-v6so638505edt.15
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 05:00:01 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a5-v6si100044ede.255.2018.08.23.04.59.59
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 662D86B29F2
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 08:07:44 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id s54-v6so2218986eda.20
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 05:07:44 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z40-v6sor311198edb.43.2018.08.23.05.07.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Aug 2018 04:59:59 -0700 (PDT)
-Date: Thu, 23 Aug 2018 13:59:57 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm, oom: Always call tlb_finish_mmu().
-Message-ID: <20180823115957.GF29735@dhcp22.suse.cz>
-References: <1535023848-5554-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1535023848-5554-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (Google Transport Security);
+        Thu, 23 Aug 2018 05:07:43 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] xen/gntdev: fix up blockable calls to mn_invl_range_start
+Date: Thu, 23 Aug 2018 14:07:07 +0200
+Message-Id: <20180823120707.10998-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, xen-devel@lists.xenproject.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>
 
-On Thu 23-08-18 20:30:48, Tetsuo Handa wrote:
-> Commit 93065ac753e44438 ("mm, oom: distinguish blockable mode for mmu
-> notifiers") added "continue;" without calling tlb_finish_mmu(). I don't
-> know whether tlb_flush_pending imbalance causes problems other than
-> extra cost, but at least it looks strange.
+From: Michal Hocko <mhocko@suse.com>
 
-tlb_flush_pending has mm scope and it would confuse
-mm_tlb_flush_pending. At least ptep_clear_flush could get confused and
-flush unnecessarily for prot_none entries AFAICS. Other paths shouldn't
-trigger for oom victims. Even ptep_clear_flush is unlikely to happen.
-So nothing really earth shattering but I do agree that it looks weird
-and should be fixed.
+93065ac753e4 ("mm, oom: distinguish blockable mode for mmu notifiers")
+has introduced blockable parameter to all mmu_notifiers and the notifier
+has to back off when called in !blockable case and it could block down
+the road.
 
-> More worrisome part in that patch is that I don't know whether using
-> trylock if blockable == false at entry is really sufficient. For example,
-> since __gnttab_unmap_refs_async() from gnttab_unmap_refs_async() from
-> gnttab_unmap_refs_sync() from __unmap_grant_pages() from
-> unmap_grant_pages() from unmap_if_in_range() from mn_invl_range_start()
-> involves schedule_delayed_work() which could be blocked on memory
-> allocation under OOM situation, wait_for_completion() from
-> gnttab_unmap_refs_sync() might deadlock? I don't know...
+The above commit implemented that for mn_invl_range_start but both
+in_range checks are done unconditionally regardless of the blockable
+mode and as such they would fail all the time for regular calls.
+Fix this by checking blockable parameter as well.
 
-Not really sure why this is in the changelog as it is unrelated to the
-fix. Anyway let me try to check...
+Once we are there we can remove the stale TODO. The lock has to be
+sleepable because we wait for completion down in gnttab_unmap_refs_sync.
 
-OK, so I've added in_range(map, start, end) check to not go that
-direction. But for some reason that check doesn't consider blockable
-value. So it looks definitely wrong. I must have screwed up when
-rebasing or something. Thanks for catching that up. I will send a fix.
+Fixes: 93065ac753e4 ("mm, oom: distinguish blockable mode for mmu notifiers")
+Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Juergen Gross <jgross@suse.com>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ drivers/xen/gntdev.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
 
-> 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> ---
->  mm/oom_kill.c | 1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index b5b25e4..4f431c1 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -522,6 +522,7 @@ bool __oom_reap_task_mm(struct mm_struct *mm)
->  
->  			tlb_gather_mmu(&tlb, mm, start, end);
->  			if (mmu_notifier_invalidate_range_start_nonblock(mm, start, end)) {
-> +				tlb_finish_mmu(&tlb, start, end);
->  				ret = false;
->  				continue;
->  			}
-> -- 
-> 1.8.3.1
-> 
-
+diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
+index 57390c7666e5..e7d8bb1bee2a 100644
+--- a/drivers/xen/gntdev.c
++++ b/drivers/xen/gntdev.c
+@@ -519,21 +519,20 @@ static int mn_invl_range_start(struct mmu_notifier *mn,
+ 	struct gntdev_grant_map *map;
+ 	int ret = 0;
+ 
+-	/* TODO do we really need a mutex here? */
+ 	if (blockable)
+ 		mutex_lock(&priv->lock);
+ 	else if (!mutex_trylock(&priv->lock))
+ 		return -EAGAIN;
+ 
+ 	list_for_each_entry(map, &priv->maps, next) {
+-		if (in_range(map, start, end)) {
++		if (!blockable && in_range(map, start, end)) {
+ 			ret = -EAGAIN;
+ 			goto out_unlock;
+ 		}
+ 		unmap_if_in_range(map, start, end);
+ 	}
+ 	list_for_each_entry(map, &priv->freeable_maps, next) {
+-		if (in_range(map, start, end)) {
++		if (!blockable && in_range(map, start, end)) {
+ 			ret = -EAGAIN;
+ 			goto out_unlock;
+ 		}
 -- 
-Michal Hocko
-SUSE Labs
+2.18.0
