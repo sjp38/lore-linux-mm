@@ -1,85 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A14C6B2CA2
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 19:35:56 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id r2-v6so4067337pgp.3
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 16:35:56 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C8606B2CAB
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 19:42:30 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id f13-v6so4075778pgs.15
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 16:42:30 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 27-v6sor1681290pgm.152.2018.08.23.16.35.54
+        by mx.google.com with SMTPS id u68-v6sor1888055pfd.13.2018.08.23.16.42.28
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 23 Aug 2018 16:35:55 -0700 (PDT)
-Date: Fri, 24 Aug 2018 09:35:43 +1000
+        Thu, 23 Aug 2018 16:42:29 -0700 (PDT)
+Date: Fri, 24 Aug 2018 09:42:20 +1000
 From: Nicholas Piggin <npiggin@gmail.com>
 Subject: Re: [RFC PATCH 0/2] minor mmu_gather patches
-Message-ID: <20180824093543.29549aa5@roar.ozlabs.ibm.com>
-In-Reply-To: <CA+55aFxaiv3SMvFUSEnd_p6nuGttUnv2_O3v_G2zCnnc0pV2pA@mail.gmail.com>
+Message-ID: <20180824094220.3ac18168@roar.ozlabs.ibm.com>
+In-Reply-To: <20180823232704.GA4487@brain-police>
 References: <20180823084709.19717-1-npiggin@gmail.com>
 	<CA+55aFxaiv3SMvFUSEnd_p6nuGttUnv2_O3v_G2zCnnc0pV2pA@mail.gmail.com>
+	<CA+55aFwEZftzAd9k-kjiaXonP2XeTDYshjY56jmd1CFBaXmGHA@mail.gmail.com>
+	<20180823232704.GA4487@brain-police>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Will Deacon <will.deacon@arm.com>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, linux-arch <linux-arch@vger.kernel.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, linux-arch <linux-arch@vger.kernel.org>
 
-On Thu, 23 Aug 2018 12:15:37 -0700
-Linus Torvalds <torvalds@linux-foundation.org> wrote:
+On Fri, 24 Aug 2018 00:27:05 +0100
+Will Deacon <will.deacon@arm.com> wrote:
 
-> On Thu, Aug 23, 2018 at 1:47 AM Nicholas Piggin <npiggin@gmail.com> wrote:
-> >
-> > These are split from some patches I posted a while back, I was going
-> > to take a look and revive the series again after your fixes go in,
-> > but having another look, it may be that your "[PATCH 3/4] mm/tlb,
-> > x86/mm: Support invalidating TLB caches for RCU_TABLE_FREE" becomes
-> > easier after my patch 1.
-> >
-> > And I'm not convinced patch 2 is not a real bug at least for ARM64,
-> > so it may be possible to squeeze it in if it's reviewed very
-> > carefully (I need to actually reproduce and trace it).
-> >
-> > So not signed off by yet, but if you think it might be worth doing
-> > these with your changes, it could be a slightly cleaner end result?  
+> Hi Linus,
 > 
-> Actually, you did have sign-offs, and yes, that patch 1/2 does
-> actually clean up and simplify the HAVE_RCU_TABLE_INVALIDATE fix, so I
-> decided to mix these in with PeterZ's series.
+> On Thu, Aug 23, 2018 at 12:37:58PM -0700, Linus Torvalds wrote:
+> > On Thu, Aug 23, 2018 at 12:15 PM Linus Torvalds
+> > <torvalds@linux-foundation.org> wrote:  
+> > >
+> > > So right now my "tlb-fixes" branch looks like this:
+> > > [..]
+> > >
+> > > I'll do a few more test builds and boots, but I think I'm going to
+> > > merge it in this cleaned-up and re-ordered form.  
+> > 
+> > In the meantime, I decided to push out that branch in case anybody
+> > wants to look at it.
+> > 
+> > I may rebase it if I - or anybody else - find anything bad there, so
+> > consider it non-stable, but I think it's in its final shape modulo
+> > issues.  
 > 
-> And since it turns out that patch doesn't apparently matter for
-> correctness and doesn't need to be backported to stable, I put it at
-> the end of the series together with the x86 cleanup patch to avoid the
-> unnecessary RCU-delayed freeing entirely for the non-PV case.
+> Unfortunately, that branch doesn't build for arm64 because of Nick's patch
+> moving tlb_flush_mmu_tlbonly() into tlb.h (which I acked!). It's a static
+> inline which calls tlb_flush(), which in our case is also a static inline
+> but one that is defined in our asm/tlb.h after including asm-generic/tlb.h.
 > 
-> So right now my "tlb-fixes" branch looks like this:
-> 
->     x86/mm/tlb: Revert the recent lazy TLB patches
->  *  mm: move tlb_table_flush to tlb_flush_mmu_free
->  *  mm/tlb: Remove tlb_remove_table() non-concurrent condition
->  *  mm/tlb, x86/mm: Support invalidating TLB caches for RCU_TABLE_FREE
->     mm: mmu_notifier fix for tlb_end_vma
->     x86/mm: Only use tlb_remove_table() for paravirt
-> 
-> where the three starred patches are marked for stable.
-> 
-> The initial revert is for this merge window only, and the two last
-> patches are cleanups and fixes but shouldn't matter for correctness in
-> stable.
-> 
-> PeterZ - your "mm/tlb, x86/mm: Support invalidating TLB caches for
-> RCU_TABLE_FREE" patch looks exactly the same, but it now no longer has
-> the split of tlb_flush_mmu_tlbonly(), since with Nick's patch to move
-> the call to tlb_table_flush(tlb) into tlb_flush_mmu_free, there's no
-> need for the separate double-underscore version.
-> 
-> I hope nothing I did screwed things up. It all looks sane to me.
-> Famous last words.
-> 
-> I'll do a few more test builds and boots, but I think I'm going to
-> merge it in this cleaned-up and re-ordered form.
+> Ah, just noticed you've pushed this to master! Please could you take the
+> arm64 patch below on top, in order to fix the build?
 
-I think the end result looks okay, modulo my build screw up --
-at least the generic code. Thanks for putting it together.
+Sorry yeah I had the sign offs but should have clear I hadn't fully
+build tested them. It's reasonable for reviewers to assume basic
+diligence was done and concentrate on the logic rather than build
+trivialities. So that's my bad. Thanks for the fix.
 
 Thanks,
 Nick
+
+> 
+> Cheers,
+> 
+> Will
+> 
+> --->8  
+> 
+> From 48ea452db90a91ff2b62a94277daf565e715a126 Mon Sep 17 00:00:00 2001
+> From: Will Deacon <will.deacon@arm.com>
+> Date: Fri, 24 Aug 2018 00:23:04 +0100
+> Subject: [PATCH] arm64: tlb: Provide forward declaration of tlb_flush() before
+>  including tlb.h
+> 
+> As of commit fd1102f0aade ("mm: mmu_notifier fix for tlb_end_vma"),
+> asm-generic/tlb.h now calls tlb_flush() from a static inline function,
+> so we need to make sure that it's declared before #including the
+> asm-generic header in the arch header.
+> 
+> Signed-off-by: Will Deacon <will.deacon@arm.com>
+> ---
+>  arch/arm64/include/asm/tlb.h | 2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> diff --git a/arch/arm64/include/asm/tlb.h b/arch/arm64/include/asm/tlb.h
+> index 0ad1cf233470..a3233167be60 100644
+> --- a/arch/arm64/include/asm/tlb.h
+> +++ b/arch/arm64/include/asm/tlb.h
+> @@ -33,6 +33,8 @@ static inline void __tlb_remove_table(void *_table)
+>  #define tlb_remove_entry(tlb, entry)	tlb_remove_page(tlb, entry)
+>  #endif /* CONFIG_HAVE_RCU_TABLE_FREE */
+>  
+> +static void tlb_flush(struct mmu_gather *tlb);
+> +
+>  #include <asm-generic/tlb.h>
+>  
+>  static inline void tlb_flush(struct mmu_gather *tlb)
