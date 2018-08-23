@@ -1,69 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 958936B2A35
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 09:08:22 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id r20-v6so2883465pgv.20
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 06:08:22 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o1-v6sor1394536pfk.89.2018.08.23.06.08.21
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 83A836B2A3C
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 09:13:23 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id u129-v6so4565615qkf.15
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 06:13:23 -0700 (PDT)
+Received: from NAM04-BN3-obe.outbound.protection.outlook.com (mail-eopbgr680113.outbound.protection.outlook.com. [40.107.68.113])
+        by mx.google.com with ESMTPS id 44-v6si945322qvk.145.2018.08.23.06.13.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 23 Aug 2018 06:08:21 -0700 (PDT)
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH 3/3] mm/sparse: use __highest_present_section_nr as the boundary for pfn check
-Date: Thu, 23 Aug 2018 21:07:32 +0800
-Message-Id: <20180823130732.9489-4-richard.weiyang@gmail.com>
-In-Reply-To: <20180823130732.9489-1-richard.weiyang@gmail.com>
-References: <20180823130732.9489-1-richard.weiyang@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 23 Aug 2018 06:13:22 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Subject: Re: A crash on ARM64 in move_freepages_block due to uninitialized
+ pages in reserved memory
+Date: Thu, 23 Aug 2018 13:13:20 +0000
+Message-ID: <777276b8-9cd6-da4b-d1d9-c60f96a58122@microsoft.com>
+References: 
+ <alpine.LRH.2.02.1808171527220.2385@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180821104418.GA16611@dhcp22.suse.cz>
+ <e35b7c14-c7ea-412d-2763-c961b74576f3@arm.com>
+ <alpine.LRH.2.02.1808220808050.17906@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180823111024.GC29735@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1808230715050.30076@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180823112359.GE29735@dhcp22.suse.cz>
+In-Reply-To: <20180823112359.GE29735@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <C35FBC9AC316594B85ABDC270FF04F52@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com
-Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com, bob.picco@hp.com, Wei Yang <richard.weiyang@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>
+Cc: James Morse <james.morse@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-And it is known, __highest_present_section_nr is a more strict boundary
-than NR_MEM_SECTIONS.
-
-This patch uses a __highest_present_section_nr to check a valid pfn.
-
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
----
- include/linux/mmzone.h | 4 ++--
- mm/sparse.c            | 1 +
- 2 files changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 33086f86d1a7..5138efde11ae 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -1237,7 +1237,7 @@ extern int __highest_present_section_nr;
- #ifndef CONFIG_HAVE_ARCH_PFN_VALID
- static inline int pfn_valid(unsigned long pfn)
- {
--	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
-+	if (pfn_to_section_nr(pfn) > __highest_present_section_nr)
- 		return 0;
- 	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
- }
-@@ -1245,7 +1245,7 @@ static inline int pfn_valid(unsigned long pfn)
- 
- static inline int pfn_present(unsigned long pfn)
- {
--	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
-+	if (pfn_to_section_nr(pfn) > __highest_present_section_nr)
- 		return 0;
- 	return present_section(__nr_to_section(pfn_to_section_nr(pfn)));
- }
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 90bab7f03757..a9c55c8da11f 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -174,6 +174,7 @@ void __meminit mminit_validate_memmodel_limits(unsigned long *start_pfn,
-  * those loops early.
-  */
- int __highest_present_section_nr;
-+EXPORT_SYMBOL(__highest_present_section_nr);
- static void section_mark_present(struct mem_section *ms)
- {
- 	int section_nr = __section_nr(ms);
--- 
-2.15.1
+T24gOC8yMy8xOCA3OjIzIEFNLCBNaWNoYWwgSG9ja28gd3JvdGU6DQo+IE9uIFRodSAyMy0wOC0x
+OCAwNzoxNjozNCwgTWlrdWxhcyBQYXRvY2thIHdyb3RlOg0KPj4NCj4+DQo+PiBPbiBUaHUsIDIz
+IEF1ZyAyMDE4LCBNaWNoYWwgSG9ja28gd3JvdGU6DQo+Pg0KPj4+IE9uIFRodSAyMy0wOC0xOCAw
+NzowMjozNywgTWlrdWxhcyBQYXRvY2thIHdyb3RlOg0KPj4+IFsuLi5dDQo+Pj4+IFRoaXMgY3Jh
+c2ggaXMgbm90IGZyb20gLUVOT0VOVC4gSXQgY3Jhc2hlcyBiZWNhdXNlIHBhZ2UtPmNvbXBvdW5k
+X2hlYWQgaXMgDQo+Pj4+IDB4ZmZmZmZmZmZmZmZmZmZmZiAoc2VlIGJlbG93KS4NCj4+Pj4NCj4+
+Pj4gSWYgSSBlbmFibGUgQ09ORklHX0RFQlVHX1ZNLCBJIGFsc28gZ2V0IFZNX0JVRy4NCj4+Pg0K
+Pj4+IFRoaXMgc21lbGxzIGxpa2UgdGhlIHN0cnVjdCBwYWdlIGlzIG5vdCBpbml0aWFsaXplZCBw
+cm9wZXJseS4gSG93IGlzDQo+Pj4gdGhpcyBtZW1vcnkgcmFuZ2UgYWRkZWQ/IEkgbWVhbiBpcyBp
+dCBicm91Z2h0IHVwIGJ5IHRoZSBtZW1vcnkgaG90cGx1Zw0KPj4+IG9yIGR1cmluZyB0aGUgYm9v
+dD8NCg0KSSBiZWxpZXZlIGl0IGlzIGR1ZSB0byB1bmluaXRpYWxpemVkIHN0cnVjdCBwYWdlcy4g
+TWlrdWxhcywgY291bGQgeW91DQpwbGVhc2UgcHJvdmlkZSBjb25maWcgZmlsZSwgYW5kIGFsc28g
+dGhlIGZ1bGwgY29uc29sZSBvdXRwdXQuDQoNClBsZWFzZSBtYWtlIHN1cmUgdGhhdCB5b3UgaGF2
+ZToNCkNPTkZJR19ERUJVR19WTT15DQpDT05GSUdfQVJDSF9IQVNfREVCVUdfVklSVFVBTD15DQoN
+Ckkgd29uZGVyIHdoYXQga2luZCBvZiBzdHJ1Y3QgcGFnZSBtZW1vcnkgbGF5b3V0IGlzIHVzZWQs
+IGFuZCBhbHNvIGlmDQpkZWZlcnJlZCBzdHJ1Y3QgcGFnZXMgYXJlIGVuYWJsZWQgb3Igbm90Lg0K
+DQpIYXZlIHlvdSB0cmllZCBiaXNlY3RpbmcgdGhlIHByb2JsZW0/DQoNClRoYW5rIHlvdSwNClBh
+dmVs
