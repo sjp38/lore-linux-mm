@@ -1,45 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B7F26B2759
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 21:26:03 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id d132-v6so1972966pgc.22
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 18:26:03 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
-        by mx.google.com with ESMTPS id h37-v6si3044185pgi.186.2018.08.22.18.26.01
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E96EA6B2773
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2018 21:50:49 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id v129-v6so1522417vke.16
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2018 18:50:49 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id q194-v6sor443357vkf.301.2018.08.22.18.50.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 22 Aug 2018 18:26:01 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: Odd SIGSEGV issue introduced by commit 6b31d5955cb29 ("mm, oom: fix potential data corruption when oom_reaper races with writer")
-In-Reply-To: <7767bdf4-a034-ecb9-1ac8-4fa87f335818@c-s.fr>
-References: <7767bdf4-a034-ecb9-1ac8-4fa87f335818@c-s.fr>
-Date: Thu, 23 Aug 2018 11:25:56 +1000
-Message-ID: <87o9dtlvq3.fsf@concordia.ellerman.id.au>
+        (Google Transport Security);
+        Wed, 22 Aug 2018 18:50:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+From: Luigi Semenzato <semenzato@google.com>
+Date: Wed, 22 Aug 2018 18:50:36 -0700
+Message-ID: <CAA25o9QLMuDSL6L3+7KQO=NrtohB=dgvLgsusLTy5-qsAK6Org@mail.gmail.com>
+Subject: measuring reclaim overhead without NR_PAGES_SCANNED
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christophe LEROY <christophe.leroy@c-s.fr>, Michal Hocko <mhocko@kernel.org>, Ram Pai <linuxram@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, linux-mm <linux-mm@kvack.org>
+To: Linux Memory Management List <linux-mm@kvack.org>
 
-Christophe LEROY <christophe.leroy@c-s.fr> writes:
-> Hello,
->
-> I have an odd issue on my powerpc 8xx board.
->
-> I am running latest 4.14 and get the following SIGSEGV which appears 
-> more or less randomly.
->
-> [    9.190354] touch[91]: unhandled signal 11 at 67807b58 nip 777cf114 
-> lr 777cf100 code 30001
-> [   24.634810] ifconfig[160]: unhandled signal 11 at 67ae7b58 nip 
-> 77aaf114 lr 77aaf100 code 30001
+My apologies for not noticing this earlier, but we're often working
+with older kernels.
 
+On May 3, 2017 this patch was merged:
 
-It would be interesting to see the code dump here and which registers
-are being used.
+commit c822f6223d03c2c5b026a21da09c6b6d523258cd
+Author:     Johannes Weiner <hannes@cmpxchg.org>
+AuthorDate: Wed May 3 14:52:10 2017 -0700
+Commit:     Linus Torvalds <torvalds@linux-foundation.org>
+CommitDate: Wed May 3 15:52:08 2017 -0700
 
-Can you backport the show unhandled signal changes and see what that
-shows us?
+    mm: delete NR_PAGES_SCANNED and pgdat_reclaimable()
 
-cheers
+I was planning to use this number as a measure of how much work the
+kernel was doing trying to reclaim pages (by comparing it, for
+instance, to the number of pages actually swapped in).  I am not even
+sure how good a metric this would be.  Does anybody have suggestions
+for a good (or better) replacement?
+
+Thanks!
