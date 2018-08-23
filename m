@@ -1,51 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 57FC16B2BFF
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 16:52:51 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id w80-v6so81861wmw.3
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 13:52:51 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b134-v6sor1337891wmd.88.2018.08.23.13.52.50
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E591B6B2C08
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 16:59:31 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id 11-v6so2656285vko.21
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 13:59:31 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id c48-v6si2305163uad.207.2018.08.23.13.59.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 23 Aug 2018 13:52:50 -0700 (PDT)
-Date: Thu, 23 Aug 2018 22:52:48 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH 3/3] mm/sparse: use __highest_present_section_nr as the
- boundary for pfn check
-Message-ID: <20180823205248.GA22452@techadventures.net>
-References: <20180823130732.9489-1-richard.weiyang@gmail.com>
- <20180823130732.9489-4-richard.weiyang@gmail.com>
- <20180823132526.GL29735@dhcp22.suse.cz>
- <20180823140053.GC14924@techadventures.net>
- <20180823191729.GQ29735@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180823191729.GQ29735@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Aug 2018 13:59:30 -0700 (PDT)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [PATCH v6 0/2] huge_pmd_unshare migration and flushing
+Date: Thu, 23 Aug 2018 13:59:15 -0700
+Message-Id: <20180823205917.16297-1-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, bob.picco@hp.com
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Thu, Aug 23, 2018 at 09:17:29PM +0200, Michal Hocko wrote:
-> And how exactly does it help to check for the smaller vs. a larger number?
-> Both are O(1) operations AFAICS. __highest_present_section_nr makes
-> perfect sense when we iterate over all sections or similar operations
-> where it smaller number of iterations really makes sense.
+Correct a data corruption issue caused by improper handling of shared
+huge PMDs during page migration.  This issue was observed in a customer
+environment and can be recreated fairly easily with a test program.
+Patch 0001 addresses this issue only and is copied to stable with the
+intention that this will go to stable releases.  It has existed since
+the addition of shared huge PMD support.
 
-Sure, improvement/optimization was not really my point, a comparasion is
-a comparasion.
-The gain, if any, would be because we would catch
-non present sections sooner before calling to present_section().
-In the case that __highest_present_section_nr differs from
-NR_MEM_SECTIONS, of course.
+While considering the issue above, Kirill Shutemov noticed that other
+callers of huge_pmd_unshare have potential issues with cache and TLB
+flushing.  A separate patch (0002) takes advantage of the new routine
+adjust_range_if_pmd_sharing_possible() to adjust flushing ranges in
+the cases where huge PMD sharing is possible.  There is no copy to
+stable for this patch as it has not been reported as an issue and
+discovered only via code inspection.
 
-I thought it would make more sense given the nature of the function itself.
+v5-v6:	Rename and update 'sharing possible' routine as suggested by
+	Kirill.
+v3-v5:  Address build errors if !CONFIG_HUGETLB_PAGE and
+        !CONFIG_ARCH_WANT_HUGE_PMD_SHARE
 
-The only thing I did not like much was that we need to export the symbol, though.
-So, as you said, the price might be too hight for what we get.
+Mike Kravetz (2):
+  mm: migration: fix migration of huge PMD shared pages
+  hugetlb: take PMD sharing into account when flushing tlb/caches
+
+ include/linux/hugetlb.h | 14 +++++++
+ mm/hugetlb.c            | 93 ++++++++++++++++++++++++++++++++++++-----
+ mm/rmap.c               | 42 +++++++++++++++++--
+ 3 files changed, 135 insertions(+), 14 deletions(-)
 
 -- 
-Oscar Salvador
-SUSE L3
+2.17.1
