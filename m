@@ -1,65 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C1CC66B2A86
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 10:21:07 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id q130-v6so1771378oic.22
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 07:21:07 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 341706B2A79
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 10:30:48 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id a26-v6so2978007pgw.7
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 07:30:48 -0700 (PDT)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id w130-v6si3312598oiw.396.2018.08.23.07.21.05
+        by mx.google.com with ESMTPS id f5-v6si4475143plf.411.2018.08.23.07.30.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Aug 2018 07:21:06 -0700 (PDT)
-Subject: Re: [PATCH] xen/gntdev: fix up blockable calls to mn_invl_range_start
-References: <20180823120707.10998-1-mhocko@kernel.org>
- <07c7ead4-334d-9b25-f588-25e9b46bbea0@i-love.sakura.ne.jp>
- <20180823135151.GM29735@dhcp22.suse.cz>
+        Thu, 23 Aug 2018 07:30:47 -0700 (PDT)
+Subject: Re: [PATCH] mm, oom: Always call tlb_finish_mmu().
+References: <1535023848-5554-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180823115957.GF29735@dhcp22.suse.cz>
 From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <470950f0-a579-6c74-c5f0-bea635259176@i-love.sakura.ne.jp>
-Date: Thu, 23 Aug 2018 23:20:54 +0900
+Message-ID: <6bf40c7f-3e68-8702-b087-9e37abb2d547@i-love.sakura.ne.jp>
+Date: Thu, 23 Aug 2018 22:48:22 +0900
 MIME-Version: 1.0
-In-Reply-To: <20180823135151.GM29735@dhcp22.suse.cz>
+In-Reply-To: <20180823115957.GF29735@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, xen-devel@lists.xenproject.org, LKML <linux-kernel@vger.kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>
+To: Michal Hocko <mhocko@suse.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On 2018/08/23 22:51, Michal Hocko wrote:
-> You are right. I completely forgot I've removed in_range there. Does
-> this look any better?
+On 2018/08/23 20:59, Michal Hocko wrote:
+> On Thu 23-08-18 20:30:48, Tetsuo Handa wrote:
+>> Commit 93065ac753e44438 ("mm, oom: distinguish blockable mode for mmu
+>> notifiers") added "continue;" without calling tlb_finish_mmu(). I don't
+>> know whether tlb_flush_pending imbalance causes problems other than
+>> extra cost, but at least it looks strange.
 > 
-> diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
-> index e7d8bb1bee2a..30f81004ea63 100644
-> --- a/drivers/xen/gntdev.c
-> +++ b/drivers/xen/gntdev.c
-> @@ -525,14 +525,20 @@ static int mn_invl_range_start(struct mmu_notifier *mn,
->  		return -EAGAIN;
->  
->  	list_for_each_entry(map, &priv->maps, next) {
-> -		if (!blockable && in_range(map, start, end)) {
-> +		if (in_range(map, start, end)) {
-> +			if (blockable)
-> +				continue;
-> +
->  			ret = -EAGAIN;
->  			goto out_unlock;
->  		}
+> tlb_flush_pending has mm scope and it would confuse
+> mm_tlb_flush_pending. At least ptep_clear_flush could get confused and
+> flush unnecessarily for prot_none entries AFAICS. Other paths shouldn't
+> trigger for oom victims. Even ptep_clear_flush is unlikely to happen.
+> So nothing really earth shattering but I do agree that it looks weird
+> and should be fixed.
 
-This still looks strange. in_range() returns false if map->vma == NULL.
-But unmap_if_in_range() unconditionally dereferences map->vma->vm_[start|end] .
-Suggestion from Boris looks better.
+OK. But what is the reason we call tlb_gather_mmu() before
+mmu_notifier_invalidate_range_start_nonblock() ?
+I want that the fix explains why we can't do
 
->  		unmap_if_in_range(map, start, end);
->  	}
->  	list_for_each_entry(map, &priv->freeable_maps, next) {
-> -		if (!blockable && in_range(map, start, end)) {
-> +		if (in_range(map, start, end)) {
-> +			if (blockable)
-> +				continue;
-> +			
->  			ret = -EAGAIN;
->  			goto out_unlock;
->  		}
-> 
+-			tlb_gather_mmu(&tlb, mm, start, end);
+ 			if (mmu_notifier_invalidate_range_start_nonblock(mm, start, end)) {
+ 				ret = false;
+ 				continue;
+ 			}
++			tlb_gather_mmu(&tlb, mm, start, end);
+
+instead.
