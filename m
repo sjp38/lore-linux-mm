@@ -1,75 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DFF656B2BB2
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 15:23:43 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id c16-v6so2688812edc.21
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 12:23:43 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 39D276B2BC1
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 15:36:06 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id h40-v6so2707121edb.2
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 12:36:06 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 5-v6si2989637edx.32.2018.08.23.12.23.42
+        by mx.google.com with ESMTPS id 29-v6si183165edu.106.2018.08.23.12.36.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Aug 2018 12:23:42 -0700 (PDT)
-Date: Thu, 23 Aug 2018 21:23:39 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH v2] mm, oom: Fix missing tlb_finish_mmu() in
- __oom_reap_task_mm().
-Message-ID: <20180823192339.GR29735@dhcp22.suse.cz>
-References: <1535023848-5554-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180823115957.GF29735@dhcp22.suse.cz>
- <6bf40c7f-3e68-8702-b087-9e37abb2d547@i-love.sakura.ne.jp>
- <20180823140209.GO29735@dhcp22.suse.cz>
- <b752d1d5-81ad-7a35-2394-7870641be51c@i-love.sakura.ne.jp>
+        Thu, 23 Aug 2018 12:36:05 -0700 (PDT)
+Date: Thu, 23 Aug 2018 21:36:00 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3 1/2] mm: migration: fix migration of huge PMD shared
+ pages
+Message-ID: <20180823193600.GV29735@dhcp22.suse.cz>
+References: <20180821205902.21223-2-mike.kravetz@oracle.com>
+ <201808220831.eM0je51n%fengguang.wu@intel.com>
+ <975b740d-26a6-eb3f-c8ca-1a9995d0d343@oracle.com>
+ <20180823124855.GI29735@dhcp22.suse.cz>
+ <12ea5339-f2b1-62b4-6d37-57d737fac34a@oracle.com>
+ <df05e2e0-be29-1651-40e7-82dc686919c2@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <b752d1d5-81ad-7a35-2394-7870641be51c@i-love.sakura.ne.jp>
+In-Reply-To: <df05e2e0-be29-1651-40e7-82dc686919c2@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
 
-On Thu 23-08-18 23:11:26, Tetsuo Handa wrote:
-> Commit 93065ac753e44438 ("mm, oom: distinguish blockable mode for mmu
-> notifiers") added "continue;" without calling tlb_finish_mmu(). It should
-> not cause a critical problem but fix anyway because it looks strange.
-
-I would suggest the following wording instead
-
-93065ac753e44438 ("mm, oom: distinguish blockable mode for mmu
-notifiers") has added an ability to skip over vmas with blockable mmu
-notifiers. This however didn't call tlb_finish_mmu as it should. As
-a result inc_tlb_flush_pending has been called without its pairing
-dec_tlb_flush_pending and all callers mm_tlb_flush_pending would flush
-even though this is not really needed. This alone is not harmful and
-it seems there shouldn't be any such callers for oom victims at all but
-there is no real reason to skip tlb_finish_mmu on early skip either so
-call it.
-
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-
-In any case
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/oom_kill.c | 1 +
->  1 file changed, 1 insertion(+)
+On Thu 23-08-18 10:56:30, Mike Kravetz wrote:
+> On 08/23/2018 10:01 AM, Mike Kravetz wrote:
+> > On 08/23/2018 05:48 AM, Michal Hocko wrote:
+> >> On Tue 21-08-18 18:10:42, Mike Kravetz wrote:
+> >> [...]
+> >>
+> >> OK, after burning myself when trying to be clever here it seems like
+> >> your proposed solution is indeed simpler.
+> >>
+> >>> +bool huge_pmd_sharing_possible(struct vm_area_struct *vma,
+> >>> +				unsigned long *start, unsigned long *end)
+> >>> +{
+> >>> +	unsigned long check_addr = *start;
+> >>> +	bool ret = false;
+> >>> +
+> >>> +	if (!(vma->vm_flags & VM_MAYSHARE))
+> >>> +		return ret;
+> >>> +
+> >>> +	for (check_addr = *start; check_addr < *end; check_addr += PUD_SIZE) {
+> >>> +		unsigned long a_start = check_addr & PUD_MASK;
+> >>> +		unsigned long a_end = a_start + PUD_SIZE;
+> >>
+> >> I guess this should be rather in HPAGE_SIZE * PTRS_PER_PTE units as
+> >> huge_pmd_unshare does.
+> > 
+> > Sure, I can do that.
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index b5b25e4..4f431c1 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -522,6 +522,7 @@ bool __oom_reap_task_mm(struct mm_struct *mm)
->  
->  			tlb_gather_mmu(&tlb, mm, start, end);
->  			if (mmu_notifier_invalidate_range_start_nonblock(mm, start, end)) {
-> +				tlb_finish_mmu(&tlb, start, end);
->  				ret = false;
->  				continue;
->  			}
-> -- 
-> 1.8.3.1
-> 
+> On second thought, this is more similar to vma_shareable() which uses
+> PUD_MASK and PUD_SIZE.  In fact Kirill asked me to put in a common helper
+> for this and vma_shareable.  So, I would prefer to leave it as PUD* unless
+> you feel strongly.
 
+I don't
+ 
+> IMO, it would make more sense to change this in huge_pmd_unshare as PMD
+> sharing is pretty explicitly tied to PUD_SIZE.  But, that is a future cleanup.
+
+Fair enough. I didn't realize we are PUD explicit elsewhere. So if you
+plan to update huge_pmd_unshare to be in sync then no objections from me
+at all. I merely wanted to be in sync with this because it is a central
+point to look at wrt pmd sharing.
 -- 
 Michal Hocko
 SUSE Labs
