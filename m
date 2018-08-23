@@ -1,67 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AFD156B2B51
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 13:56:42 -0400 (EDT)
-Received: by mail-vk0-f69.google.com with SMTP id m71-v6so2458215vke.3
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 10:56:42 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id i189-v6si953559vkc.178.2018.08.23.10.56.41
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 949F46B2B6E
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 14:25:34 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id x204-v6so5368071qka.6
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 11:25:34 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d14-v6sor2705222qvj.63.2018.08.23.11.25.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Aug 2018 10:56:41 -0700 (PDT)
-Subject: Re: [PATCH v3 1/2] mm: migration: fix migration of huge PMD shared
- pages
-From: Mike Kravetz <mike.kravetz@oracle.com>
-References: <20180821205902.21223-2-mike.kravetz@oracle.com>
- <201808220831.eM0je51n%fengguang.wu@intel.com>
- <975b740d-26a6-eb3f-c8ca-1a9995d0d343@oracle.com>
- <20180823124855.GI29735@dhcp22.suse.cz>
- <12ea5339-f2b1-62b4-6d37-57d737fac34a@oracle.com>
-Message-ID: <df05e2e0-be29-1651-40e7-82dc686919c2@oracle.com>
-Date: Thu, 23 Aug 2018 10:56:30 -0700
-MIME-Version: 1.0
-In-Reply-To: <12ea5339-f2b1-62b4-6d37-57d737fac34a@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Thu, 23 Aug 2018 11:25:33 -0700 (PDT)
+From: Masayoshi Mizuma <msys.mizuma@gmail.com>
+Subject: [PATCH 1/2] Revert "x86/e820: put !E820_TYPE_RAM regions into memblock.reserved"
+Date: Thu, 23 Aug 2018 14:25:12 -0400
+Message-Id: <20180823182513.8801-1-msys.mizuma@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
+To: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Masayoshi Mizuma <msys.mizuma@gmail.com>, Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>, linux-kernel@vger.kernel.org, x86@kernel.org
 
-On 08/23/2018 10:01 AM, Mike Kravetz wrote:
-> On 08/23/2018 05:48 AM, Michal Hocko wrote:
->> On Tue 21-08-18 18:10:42, Mike Kravetz wrote:
->> [...]
->>
->> OK, after burning myself when trying to be clever here it seems like
->> your proposed solution is indeed simpler.
->>
->>> +bool huge_pmd_sharing_possible(struct vm_area_struct *vma,
->>> +				unsigned long *start, unsigned long *end)
->>> +{
->>> +	unsigned long check_addr = *start;
->>> +	bool ret = false;
->>> +
->>> +	if (!(vma->vm_flags & VM_MAYSHARE))
->>> +		return ret;
->>> +
->>> +	for (check_addr = *start; check_addr < *end; check_addr += PUD_SIZE) {
->>> +		unsigned long a_start = check_addr & PUD_MASK;
->>> +		unsigned long a_end = a_start + PUD_SIZE;
->>
->> I guess this should be rather in HPAGE_SIZE * PTRS_PER_PTE units as
->> huge_pmd_unshare does.
-> 
-> Sure, I can do that.
+From: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
 
-On second thought, this is more similar to vma_shareable() which uses
-PUD_MASK and PUD_SIZE.  In fact Kirill asked me to put in a common helper
-for this and vma_shareable.  So, I would prefer to leave it as PUD* unless
-you feel strongly.
+commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM regions into
+memblock.reserved") breaks movable_node kernel option because it
+changed the memory gap range to reserved memblock. So, the node
+is marked as Normal zone even if the SRAT has Hot plaggable affinity.
 
-IMO, it would make more sense to change this in huge_pmd_unshare as PMD
-sharing is pretty explicitly tied to PUD_SIZE.  But, that is a future cleanup.
+    =====================================================================
+    kernel: BIOS-e820: [mem 0x0000180000000000-0x0000180fffffffff] usable
+    kernel: BIOS-e820: [mem 0x00001c0000000000-0x00001c0fffffffff] usable
+    ...
+    kernel: reserved[0x12]#011[0x0000181000000000-0x00001bffffffffff], 0x000003f000000000 bytes flags: 0x0
+    ...
+    kernel: ACPI: SRAT: Node 2 PXM 6 [mem 0x180000000000-0x1bffffffffff] hotplug
+    kernel: ACPI: SRAT: Node 3 PXM 7 [mem 0x1c0000000000-0x1fffffffffff] hotplug
+    ...
+    kernel: Movable zone start for each node
+    kernel:  Node 3: 0x00001c0000000000
+    kernel: Early memory node ranges
+    ...
+    =====================================================================
 
+Naoya's v1 patch [*] fixes the original issue and this movable_node
+issue doesn't occur.
+Let's revert commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM
+regions into memblock.reserved") and apply the v1 patch.
+
+[*] https://lkml.org/lkml/2018/6/13/27
+
+Signed-off-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+---
+ arch/x86/kernel/e820.c | 15 +++------------
+ 1 file changed, 3 insertions(+), 12 deletions(-)
+
+diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+index c88c23c658c1..d1f25c831447 100644
+--- a/arch/x86/kernel/e820.c
++++ b/arch/x86/kernel/e820.c
+@@ -1248,7 +1248,6 @@ void __init e820__memblock_setup(void)
+ {
+ 	int i;
+ 	u64 end;
+-	u64 addr = 0;
+ 
+ 	/*
+ 	 * The bootstrap memblock region count maximum is 128 entries
+@@ -1265,21 +1264,13 @@ void __init e820__memblock_setup(void)
+ 		struct e820_entry *entry = &e820_table->entries[i];
+ 
+ 		end = entry->addr + entry->size;
+-		if (addr < entry->addr)
+-			memblock_reserve(addr, entry->addr - addr);
+-		addr = end;
+ 		if (end != (resource_size_t)end)
+ 			continue;
+ 
+-		/*
+-		 * all !E820_TYPE_RAM ranges (including gap ranges) are put
+-		 * into memblock.reserved to make sure that struct pages in
+-		 * such regions are not left uninitialized after bootup.
+-		 */
+ 		if (entry->type != E820_TYPE_RAM && entry->type != E820_TYPE_RESERVED_KERN)
+-			memblock_reserve(entry->addr, entry->size);
+-		else
+-			memblock_add(entry->addr, entry->size);
++			continue;
++
++		memblock_add(entry->addr, entry->size);
+ 	}
+ 
+ 	/* Throw away partial pages: */
 -- 
-Mike Kravetz
+2.18.0
