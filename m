@@ -1,71 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B49AF6B2EB3
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 04:36:26 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id r206-v6so6574789iod.2
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 01:36:26 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id q186-v6si623248ita.48.2018.08.24.01.36.25
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AE00F6B2EB5
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 04:36:35 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id d47-v6so3358830edb.3
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 01:36:35 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z42-v6si340522edb.410.2018.08.24.01.36.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 24 Aug 2018 01:36:25 -0700 (PDT)
-Date: Fri, 24 Aug 2018 10:35:56 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 3/4] mm/tlb, x86/mm: Support invalidating TLB caches for
- RCU_TABLE_FREE
-Message-ID: <20180824083556.GI24124@hirez.programming.kicks-ass.net>
-References: <20180822153012.173508681@infradead.org>
- <20180822154046.823850812@infradead.org>
- <20180822155527.GF24124@hirez.programming.kicks-ass.net>
- <20180823134525.5f12b0d3@roar.ozlabs.ibm.com>
- <CA+55aFxneZTFxxxAjLZmj92VUJg6z7hERxJ2cHoth-GC0RuELw@mail.gmail.com>
- <776104d4c8e4fc680004d69e3a4c2594b638b6d1.camel@au1.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Aug 2018 01:36:34 -0700 (PDT)
+Subject: Re: Caching/buffers become useless after some time
+References: <CADF2uSocjT5Oz=1Wohahjf5-58YpT2Jm2vTQKuqA=8ywBFwCaQ@mail.gmail.com>
+ <20180806120042.GL19540@dhcp22.suse.cz>
+ <010001650fe29e66-359ffa28-9290-4e83-a7e2-b6d1d8d2ee1d-000000@email.amazonses.com>
+ <20180806181638.GE10003@dhcp22.suse.cz>
+ <CADF2uSqzt+u7vMkcD-vvT6tjz2bdHtrFK+p6s7NXGP-BJ34dRA@mail.gmail.com>
+ <CADF2uSp7MKYWL7Yu5TDOT4qe0v-0iiq+Tv9J6rnzCSgahXbNaA@mail.gmail.com>
+ <20180821064911.GW29735@dhcp22.suse.cz>
+ <11b4f8cd-6253-262f-4ae6-a14062c58039@suse.cz>
+ <CADF2uSroEHML=v7hjQ=KLvK9cuP9=YcRUy9MiStDc0u+BxTApg@mail.gmail.com>
+ <6ef03395-6baa-a6e5-0d5a-63d4721e6ec0@suse.cz>
+ <20180823122111.GG29735@dhcp22.suse.cz>
+ <CADF2uSpnYp31mr6q3Mnx0OBxCDdu6NFCQ=LTeG61dcfAJB5usg@mail.gmail.com>
+ <76c6e92b-df49-d4b5-27f7-5f2013713727@suse.cz>
+ <CADF2uSrNoODvoX_SdS3_127-aeZ3FwvwnhswoGDN0wNM2cgvbg@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <8b211f35-0722-cd94-1360-a2dd9fba351e@suse.cz>
+Date: Fri, 24 Aug 2018 10:36:33 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <776104d4c8e4fc680004d69e3a4c2594b638b6d1.camel@au1.ibm.com>
+In-Reply-To: <CADF2uSrNoODvoX_SdS3_127-aeZ3FwvwnhswoGDN0wNM2cgvbg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@au1.ibm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@gmail.com>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Will Deacon <will.deacon@arm.com>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>
+To: Marinko Catovic <marinko.catovic@gmail.com>
+Cc: Michal Hocko <mhocko@suse.com>, Christopher Lameter <cl@linux.com>, linux-mm@kvack.org
 
-On Thu, Aug 23, 2018 at 02:54:20PM +1000, Benjamin Herrenschmidt wrote:
-> On Wed, 2018-08-22 at 20:59 -0700, Linus Torvalds wrote:
-
-> > The problem is that x86 _used_ to do this all correctly long long ago.
-> > 
-> > And then we switched over to the "generic" table flushing (which
-> > harkens back to the powerpc code).
+On 08/24/2018 10:11 AM, Marinko Catovic wrote:
+>     1. Send the current value of /sys/kernel/mm/transparent_hugepage/defrag
+>     2. Unless it's 'defer' or 'never' already, try changing it to 'defer'.
 > 
-> Yes, we wrote it the RCU stuff to solve the races with SW walking,
-> which is completely orthogonal with HW walking & TLB content. We didn't
-> do the move to generic code though ;-)
 > 
-> > Which actually turned out to be not generic at all, and did not flush
-> > the internal pages like x86 used to (back when x86 just used
-> > tlb_remove_page for everything).
+> A /sys/kernel/mm/transparent_hugepage/defrag is
+> always defer defer+madvise [madvise] never
+
+Yeah that's the default.
+
+> I *think* I already played around with these values, as far as I
+> remember `never`
+> almost caused the system to hang, or at least while I switched back to
+> madvise.
+
+That would be unexpected for the 'defrag' file, but maybe possible for
+'enabled' file where mm structs are put on/removed from a list
+system-wide, AFAIK.
+
+> shall I switch it to defer and observe (all hosts are running fine by
+> just now) or
+> switch to defer while it is in the bad state?
+
+You could do it immediately and see if no problems appear for long
+enough, OTOH...
+
+> and when doing this, should improvement be measurable immediately?
+
+I would expect that. It would be a more direct proof that that was the
+cause.
+
+> I need to know how long to hold this, before dropping caches becomes
+> necessary.
+
+If it keeps oscillating and doesn't start growing, it means it didn't
+help. Few minutes should be enough.
+
+>> Ah, checked the trace and it seems to be "php-cgi". Interesting that
+>> they use madvise(MADV_HUGEPAGE). Anyway the above still applies.
 > 
-> Well, having RCU do the flushing is rather generic, it makes sense
-> whenever there's somebody doing a SW walk *and* you don't have IPIs to
-> synchronize your flushes (ie, anybody with HW TLB invalidation
-> broadcast basically, so ARM and us).
+> you know, that's at least an interesting hint. look at this:
+> https://ckon.wordpress.com/2015/09/18/php7-opcache-performance/
+> 
+> this was experimental there, but a more recent version seems to have it on
+> by default, since I need to disable it on request (implies to me that it
+> is on by default).
+> it is however *disabled* in the runtime configuration (and not in
+> effect, I just confirmed that)
+> 
+> It would be interesting to know whether madvise(MADV_HUGEPAGE) is then
+> active
+> somewhere else, since it is in the dump as you observed.
 
-Right, so (many many years ago) I moved it over to generic code because
-Sparc-hash wanted fast_gup and I figured having multiple copies of this
-stuff wasn't ideal.
+The trace points to php-cgi so either disabling it doesn't work, or they
+started using the madvise also for other stuff than opcache. But that
+doesn't matter, it would be kernel's fault if a program using the
+madvise would effectively kill the system like this. Let's just stick
+with the global 'defrag'='defer' change and not tweak several things at
+once.
 
-Then ARM came along and used it because it does the invalidate
-broadcast.
+> Please note that `killing` php-cgi would not make any difference then,
+> since these processes
+> are started by request for every user and killed after whatever script
+> is finished. this may
+> invoke about 10-50 forks, depending on load, (with different system
+> users) every second.
 
-And then when we switched x86 over last year or so; because paravirt; I
-had long since forgotten all details and completely overlooked this.
-
-Worse; somewhere along the line we tried to get s390 on this and they
-ran into the exact problem being fixed now. That _should_ have been a
-big clue, but somehow I never got around to thinking about it properly
-and they went back to a private copy of all this.
-
-So double fail on me I suppose :-/
-
-Anyway, its sorted now; although I'd like to write me a fairly big
-comment in asm-generic/tlb.h about things, before I forget again.
+Yep.
