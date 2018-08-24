@@ -1,70 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B19506B304F
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 11:24:33 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id d132-v6so5764201pgc.22
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 08:24:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v37-v6sor2430627plg.17.2018.08.24.08.24.32
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BE10C6B281A
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 11:26:53 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id b124-v6so1717654itb.9
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 08:26:53 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id b186-v6si1169716ita.75.2018.08.24.08.26.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 24 Aug 2018 08:24:32 -0700 (PDT)
-Date: Fri, 24 Aug 2018 23:24:24 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH 2/3] mm/sparse: expand the CONFIG_SPARSEMEM_EXTREME range
- in __nr_to_section()
-Message-ID: <20180824152424.GB10093@WeideMacBook-Pro.local>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20180823130732.9489-1-richard.weiyang@gmail.com>
- <20180823130732.9489-3-richard.weiyang@gmail.com>
- <20180823132112.GK29735@dhcp22.suse.cz>
- <ebdfe4aa-225c-8239-9f8d-065de8a5ddfc@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Aug 2018 08:26:52 -0700 (PDT)
+Subject: Re: using range locks instead of mm_sem
+References: <9ea84ad8-0404-077e-200d-14ad749cb784@oracle.com>
+ <20180822144640.GB3677@linux-r8p5>
+ <744f3cf3-d4ec-e3a6-e56d-8009dd8c5f14@linux.vnet.ibm.com>
+From: Shady Issa <shady.issa@oracle.com>
+Message-ID: <09ab74a2-f996-de7c-b0b2-46d82c971976@oracle.com>
+Date: Fri, 24 Aug 2018 11:39:17 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ebdfe4aa-225c-8239-9f8d-065de8a5ddfc@intel.com>
+In-Reply-To: <744f3cf3-d4ec-e3a6-e56d-8009dd8c5f14@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, bob.picco@hp.com
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, Alex Kogan <alex.kogan@oracle.com>, Dave Dice <dave.dice@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, jack@suse.com, linux-mm@kvack.org
 
-On Thu, Aug 23, 2018 at 05:09:12PM -0700, Dave Hansen wrote:
->On 08/23/2018 06:21 AM, Michal Hocko wrote:
->> --- a/include/linux/mmzone.h
->> +++ b/include/linux/mmzone.h
->> @@ -1155,9 +1155,9 @@ static inline struct mem_section *__nr_to_section(unsigned long nr)
->>  #ifdef CONFIG_SPARSEMEM_EXTREME
->>  	if (!mem_section)
->>  		return NULL;
->> -#endif
->>  	if (!mem_section[SECTION_NR_TO_ROOT(nr)])
->>  		return NULL;
->> +#endif
->>  	return &mem_section[SECTION_NR_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
->>  }
+
+
+On 08/24/2018 03:40 AM, Laurent Dufour wrote:
+> On 22/08/2018 16:46, Davidlohr Bueso wrote:
+>> On Wed, 22 Aug 2018, Shady Issa wrote:
+>>
+>>> Hi Davidlohr,
+>>>
+>>> I am interested in the idea of using range locks to replace mm_sem. I wanted to
+>>> start trying out using more fine-grained ranges instead of the full range
+>>> acquisitions
+>>> that are used in this patch (https://urldefense.proofpoint.com/v2/url?u=https-3A__lkml.org_lkml_2018_2_4_235&d=DwICaQ&c=RoP1YumCXCgaWHvlZYR8PZh8Bv7qIrMUB65eapI_JnE&r=Q-zBmi7tP5HosTvB8kUZjTYqSFMRtxg-kOQa59-zx9I&m=ZCN6CnHZsYyZ_V0nWMSZgLmp-GobwtrhI3Wx8UAIQuY&s=LtbMxuR2njAX0dm3L2lNQKvztbnLTfKjBd-S20cDPbE&e=). However, it
+>>> does not
+>>> seem straight forward to me how this is possible.
+>>>
+>>> First, the ranges that can be defined before acquiring the range lock based
+>>> on the
+>>> caller's input(i.e. ranges supplied by mprotect, mmap, munmap, etc.) are
+>>> oblivious of
+>>> the underlying VMAs. Two non-overlapping ranges can fall within the same VMA and
+>>> thus should not be allowed to run concurrently in case they are writes.
+>> Yes. This is a _big_ issue with range locking the addr space. I have yet
+>> to find a solution other than delaying vma modifying ops to avoid the races,
+>> which is fragile. Obviously locking the full range in such scenarios cannot
+>> be done either.
+> I think the range locked should be aligned to the underlying VMA plus one page
+> on each side to prevent that VMA to be merged.
+> But this raises a concern with the VMA merging mechanism which tends to limit
+> the number of VMAs and could lead to a unique VMA, limiting the advantage of a
+> locking based on the VMA's boundaries.
+To do so, the current merge implementation should be changed so that
+it does not access VMAs beyond the locked range, right? Also, this will
+not stop a merge from happening in case of a range spanning two VMAs
+for example.
 >
->This patch has no practical effect and only adds unnecessary churn.
->
->#ifdef CONFIG_SPARSEMEM_EXTREME
->...
->#else
->struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT];
->#endif
->
->The compiler knows that NR_SECTION_ROOTS==1 and that
->!mem_section[SECTION_NR_TO_ROOT(nr) is always false.  It doesn't need
->our help.
->
-
-I didn't know the compile would optimize the code when this is a one dimension
-array. Just wrote a code and their assembly looks the same.
-
-Thanks for pointing out.
-
->My goal with the sparsemem code, and code in general is t avoid #ifdefs
->whenever possible and limit their scope to the smallest possible area
->whenever possible.
-
--- 
-Wei Yang
-Help you, Help me
+>>> Second, even if ranges from the caller function are aligned with VMAs, the
+>>> extent of the
+>>> effect of operation is unknown. It is probable that an operation touching one
+>>> VMA will
+>>> end up performing modifications to the VMAs rbtree structure due to splits,
+>>> merges, etc.,
+>>> which requires the full range acquisition and is unknown beforehand.
+>> Yes, this is similar to the above as well.
+>>
+>>> I was wondering if I am missing something with this thought process, because
+>>> with the
+>>> current givings, it seems to me that range locks will boil down to just r/w
+>>> semaphore.
+>>> I would also be very grateful if you can point me to any more recent
+>>> discussions regarding
+>>> the use of range locks after this patch from February.
+>> You're on the right page.
+>>
+>> Thanks,
+>> Davidlohr
+>>
