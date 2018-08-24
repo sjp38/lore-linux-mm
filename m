@@ -1,103 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2550B6B2F61
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 07:32:54 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id d132-v6so5340640pgc.22
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 04:32:54 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s11-v6si6962959pfd.231.2018.08.24.04.32.52
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 57C106B2F63
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 07:32:59 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id q20-v6so6898265iod.19
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 04:32:59 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id r24-v6si4854074iog.230.2018.08.24.04.32.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Aug 2018 04:32:52 -0700 (PDT)
-Date: Fri, 24 Aug 2018 13:32:48 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, oom: distinguish blockable mode for mmu notifiers
-Message-ID: <20180824113248.GH29735@dhcp22.suse.cz>
-References: <20180716115058.5559-1-mhocko@kernel.org>
- <8cbfb09f-0c5a-8d43-1f5e-f3ff7612e289@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 24 Aug 2018 04:32:58 -0700 (PDT)
+Date: Fri, 24 Aug 2018 13:32:14 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 3/4] mm/tlb, x86/mm: Support invalidating TLB caches for
+ RCU_TABLE_FREE
+Message-ID: <20180824113214.GK24142@hirez.programming.kicks-ass.net>
+References: <20180822153012.173508681@infradead.org>
+ <20180822154046.823850812@infradead.org>
+ <20180822155527.GF24124@hirez.programming.kicks-ass.net>
+ <20180823134525.5f12b0d3@roar.ozlabs.ibm.com>
+ <CA+55aFxneZTFxxxAjLZmj92VUJg6z7hERxJ2cHoth-GC0RuELw@mail.gmail.com>
+ <776104d4c8e4fc680004d69e3a4c2594b638b6d1.camel@au1.ibm.com>
+ <CA+55aFzM77G9-Q6LboPLJ=5gHma66ZQKiMGCMqXoKABirdF98w@mail.gmail.com>
+ <20180823133958.GA1496@brain-police>
+ <20180824084717.GK24124@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <8cbfb09f-0c5a-8d43-1f5e-f3ff7612e289@I-love.SAKURA.ne.jp>
+In-Reply-To: <20180824084717.GK24124@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Felix Kuehling <felix.kuehling@amd.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, David Rientjes <rientjes@google.com>, Leon Romanovsky <leonro@mellanox.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Benjamin Herrenschmidt <benh@au1.ibm.com>, Nick Piggin <npiggin@gmail.com>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>
 
-On Fri 24-08-18 19:54:19, Tetsuo Handa wrote:
-> Two more worries for this patch.
+On Fri, Aug 24, 2018 at 10:47:17AM +0200, Peter Zijlstra wrote:
+> On Thu, Aug 23, 2018 at 02:39:59PM +0100, Will Deacon wrote:
+> > The only problem with this approach is that we've lost track of the granule
+> > size by the point we get to the tlb_flush(), so we can't adjust the stride of
+> > the TLB invalidations for huge mappings, which actually works nicely in the
+> > synchronous case (e.g. we perform a single invalidation for a 2MB mapping,
+> > rather than iterating over it at a 4k granule).
+> > 
+> > One thing we could do is switch to synchronous mode if we detect a change in
+> > granule (i.e. treat it like a batch failure).
 > 
-> 
-> 
-> > --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-> > +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-> > @@ -178,12 +178,18 @@ void amdgpu_mn_unlock(struct amdgpu_mn *mn)
-> >   *
-> >   * @amn: our notifier
-> >   */
-> > -static void amdgpu_mn_read_lock(struct amdgpu_mn *amn)
-> > +static int amdgpu_mn_read_lock(struct amdgpu_mn *amn, bool blockable)
-> >  {
-> > -       mutex_lock(&amn->read_lock);
-> > +       if (blockable)
-> > +               mutex_lock(&amn->read_lock);
-> > +       else if (!mutex_trylock(&amn->read_lock))
-> > +               return -EAGAIN;
-> > +
-> >         if (atomic_inc_return(&amn->recursion) == 1)
-> >                 down_read_non_owner(&amn->lock);
-> 
-> Why don't we need to use trylock here if blockable == false ?
-> Want comment why it is safe to use blocking lock here.
+> We could use tlb_start_vma() to track that, I think. Shouldn't be too
+> hard.
 
-Hmm, I am pretty sure I have checked the code but it was quite confusing
-so I might have missed something. Double checking now, it seems that
-this read_lock is not used anywhere else and it is not _the_ lock we are
-interested about. It is the amn->lock (amdgpu_mn_lock) which matters as
-it is taken in exclusive mode for expensive operations.
+Hurm.. look at commit:
 
-Is that correct Christian? If this is correct then we need to update the
-locking here. I am struggling to grasp the ref counting part. Why cannot
-all readers simply take the lock rather than rely on somebody else to
-take it? 1ed3d2567c800 didn't really help me to understand the locking
-scheme here so any help would be appreciated.
+  e77b0852b551 ("mm/mmu_gather: track page size with mmu gather and force flush if page size change")
 
-I am wondering why we cannot do
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-index e55508b39496..93034178673d 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-@@ -180,14 +180,11 @@ void amdgpu_mn_unlock(struct amdgpu_mn *mn)
-  */
- static int amdgpu_mn_read_lock(struct amdgpu_mn *amn, bool blockable)
- {
--	if (blockable)
--		mutex_lock(&amn->read_lock);
--	else if (!mutex_trylock(&amn->read_lock))
--		return -EAGAIN;
--
--	if (atomic_inc_return(&amn->recursion) == 1)
--		down_read_non_owner(&amn->lock);
--	mutex_unlock(&amn->read_lock);
-+	if (!down_read_trylock(&amn->lock)) {
-+		if (!blockable)
-+			return -EAGAIN;
-+		down_read(amn->lock);
-+	}
- 
- 	return 0;
- }
-@@ -199,8 +196,7 @@ static int amdgpu_mn_read_lock(struct amdgpu_mn *amn, bool blockable)
-  */
- static void amdgpu_mn_read_unlock(struct amdgpu_mn *amn)
- {
--	if (atomic_dec_return(&amn->recursion) == 0)
--		up_read_non_owner(&amn->lock);
-+	up_read(&amn->lock);
- }
- 
- /**
-
--- 
-Michal Hocko
-SUSE Labs
+yuck yuck yuck. That needs fixing.
