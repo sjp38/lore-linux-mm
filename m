@@ -1,83 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BE10C6B281A
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 11:26:53 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id b124-v6so1717654itb.9
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 08:26:53 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id b186-v6si1169716ita.75.2018.08.24.08.26.52
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E602B6B305D
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 11:42:29 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id y135-v6so2166438oie.11
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 08:42:29 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id w10-v6si5579842oig.308.2018.08.24.08.42.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Aug 2018 08:26:52 -0700 (PDT)
-Subject: Re: using range locks instead of mm_sem
-References: <9ea84ad8-0404-077e-200d-14ad749cb784@oracle.com>
- <20180822144640.GB3677@linux-r8p5>
- <744f3cf3-d4ec-e3a6-e56d-8009dd8c5f14@linux.vnet.ibm.com>
-From: Shady Issa <shady.issa@oracle.com>
-Message-ID: <09ab74a2-f996-de7c-b0b2-46d82c971976@oracle.com>
-Date: Fri, 24 Aug 2018 11:39:17 -0400
+        Fri, 24 Aug 2018 08:42:28 -0700 (PDT)
+Date: Fri, 24 Aug 2018 08:42:11 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH v2 1/3] mm: rework memcg kernel stack accounting
+Message-ID: <20180824154208.GA23633@tower.DHCP.thefacebook.com>
+References: <20180821213559.14694-1-guro@fb.com>
+ <20180822141213.GO29735@dhcp22.suse.cz>
+ <20180823162347.GA22650@tower.DHCP.thefacebook.com>
+ <20180824125052.GA13774@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <744f3cf3-d4ec-e3a6-e56d-8009dd8c5f14@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180824125052.GA13774@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, Alex Kogan <alex.kogan@oracle.com>, Dave Dice <dave.dice@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, jack@suse.com, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Andy Lutomirski <luto@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Tejun Heo <tj@kernel.org>, Shakeel Butt <shakeelb@google.com>
 
+On Fri, Aug 24, 2018 at 08:50:52AM -0400, Johannes Weiner wrote:
+> On Thu, Aug 23, 2018 at 09:23:50AM -0700, Roman Gushchin wrote:
+> > On Wed, Aug 22, 2018 at 04:12:13PM +0200, Michal Hocko wrote:
+> > > On Tue 21-08-18 14:35:57, Roman Gushchin wrote:
+> > > > @@ -248,9 +253,20 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
+> > > >  static inline void free_thread_stack(struct task_struct *tsk)
+> > > >  {
+> > > >  #ifdef CONFIG_VMAP_STACK
+> > > > -	if (task_stack_vm_area(tsk)) {
+> > > > +	struct vm_struct *vm = task_stack_vm_area(tsk);
+> > > > +
+> > > > +	if (vm) {
+> > > >  		int i;
+> > > >  
+> > > > +		for (i = 0; i < THREAD_SIZE / PAGE_SIZE; i++) {
+> > > > +			mod_memcg_page_state(vm->pages[i],
+> > > > +					     MEMCG_KERNEL_STACK_KB,
+> > > > +					     -(int)(PAGE_SIZE / 1024));
+> > > > +
+> > > > +			memcg_kmem_uncharge(vm->pages[i],
+> > > > +					    compound_order(vm->pages[i]));
+> > > 
+> > > when do we have order > 0 here?
+> > 
+> > I guess, it's not possible, but hard-coded 1 looked a bit crappy.
+> > Do you think it's better?
+> 
+> Yes, specifying the known value (order 0) is much better. I asked
+> myself the same question as Michal: we're walking through THREAD_SIZE
+> in PAGE_SIZE steps, how could it possibly be a higher order page?
+> 
+> It adds an unnecessary branch to the code and the reader's brain.
 
+Fair enough. Will switch over hard-coded order 0 in v3.
 
-On 08/24/2018 03:40 AM, Laurent Dufour wrote:
-> On 22/08/2018 16:46, Davidlohr Bueso wrote:
->> On Wed, 22 Aug 2018, Shady Issa wrote:
->>
->>> Hi Davidlohr,
->>>
->>> I am interested in the idea of using range locks to replace mm_sem. I wanted to
->>> start trying out using more fine-grained ranges instead of the full range
->>> acquisitions
->>> that are used in this patch (https://urldefense.proofpoint.com/v2/url?u=https-3A__lkml.org_lkml_2018_2_4_235&d=DwICaQ&c=RoP1YumCXCgaWHvlZYR8PZh8Bv7qIrMUB65eapI_JnE&r=Q-zBmi7tP5HosTvB8kUZjTYqSFMRtxg-kOQa59-zx9I&m=ZCN6CnHZsYyZ_V0nWMSZgLmp-GobwtrhI3Wx8UAIQuY&s=LtbMxuR2njAX0dm3L2lNQKvztbnLTfKjBd-S20cDPbE&e=). However, it
->>> does not
->>> seem straight forward to me how this is possible.
->>>
->>> First, the ranges that can be defined before acquiring the range lock based
->>> on the
->>> caller's input(i.e. ranges supplied by mprotect, mmap, munmap, etc.) are
->>> oblivious of
->>> the underlying VMAs. Two non-overlapping ranges can fall within the same VMA and
->>> thus should not be allowed to run concurrently in case they are writes.
->> Yes. This is a _big_ issue with range locking the addr space. I have yet
->> to find a solution other than delaying vma modifying ops to avoid the races,
->> which is fragile. Obviously locking the full range in such scenarios cannot
->> be done either.
-> I think the range locked should be aligned to the underlying VMA plus one page
-> on each side to prevent that VMA to be merged.
-> But this raises a concern with the VMA merging mechanism which tends to limit
-> the number of VMAs and could lead to a unique VMA, limiting the advantage of a
-> locking based on the VMA's boundaries.
-To do so, the current merge implementation should be changed so that
-it does not access VMAs beyond the locked range, right? Also, this will
-not stop a merge from happening in case of a range spanning two VMAs
-for example.
->
->>> Second, even if ranges from the caller function are aligned with VMAs, the
->>> extent of the
->>> effect of operation is unknown. It is probable that an operation touching one
->>> VMA will
->>> end up performing modifications to the VMAs rbtree structure due to splits,
->>> merges, etc.,
->>> which requires the full range acquisition and is unknown beforehand.
->> Yes, this is similar to the above as well.
->>
->>> I was wondering if I am missing something with this thought process, because
->>> with the
->>> current givings, it seems to me that range locks will boil down to just r/w
->>> semaphore.
->>> I would also be very grateful if you can point me to any more recent
->>> discussions regarding
->>> the use of range locks after this patch from February.
->> You're on the right page.
->>
->> Thanks,
->> Davidlohr
->>
+Thanks!
