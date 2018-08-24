@@ -1,80 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CCB656B3041
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 11:45:48 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id c8-v6so6360840pfn.2
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 08:45:48 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w16-v6si6642430ply.462.2018.08.24.08.45.47
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Aug 2018 08:45:47 -0700 (PDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH] mm: Fix warning in insert_pfn()
-Date: Fri, 24 Aug 2018 17:45:42 +0200
-Message-Id: <20180824154542.26872-1-jack@suse.cz>
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B18B06B304F
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 11:50:04 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id w12-v6so7874414oie.12
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 08:50:04 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id a125-v6si5022012oii.107.2018.08.24.08.50.03
+        for <linux-mm@kvack.org>;
+        Fri, 24 Aug 2018 08:50:03 -0700 (PDT)
+Date: Fri, 24 Aug 2018 16:49:53 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH 3/4] mm/tlb, x86/mm: Support invalidating TLB caches for
+ RCU_TABLE_FREE
+Message-ID: <20180824154953.GA15226@brain-police>
+References: <20180822153012.173508681@infradead.org>
+ <20180822154046.823850812@infradead.org>
+ <20180822155527.GF24124@hirez.programming.kicks-ass.net>
+ <20180823134525.5f12b0d3@roar.ozlabs.ibm.com>
+ <CA+55aFxneZTFxxxAjLZmj92VUJg6z7hERxJ2cHoth-GC0RuELw@mail.gmail.com>
+ <776104d4c8e4fc680004d69e3a4c2594b638b6d1.camel@au1.ibm.com>
+ <20180824083556.GI24124@hirez.programming.kicks-ass.net>
+ <20180824131332.GM24142@hirez.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180824131332.GM24142@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-fsdevel@vger.kernel.org
-Cc: linux-ext4@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, Dave Jiang <dave.jiang@intel.com>, Jan Kara <jack@suse.cz>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Benjamin Herrenschmidt <benh@au1.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@gmail.com>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>
 
-In DAX mode a write pagefault can race with write(2) in the following
-way:
+Hi Peter,
 
-CPU0                            CPU1
-                                write fault for mapped zero page (hole)
-dax_iomap_rw()
-  iomap_apply()
-    xfs_file_iomap_begin()
-      - allocates blocks
-    dax_iomap_actor()
-      invalidate_inode_pages2_range()
-        - invalidates radix tree entries in given range
-                                dax_iomap_pte_fault()
-                                  grab_mapping_entry()
-                                    - no entry found, creates empty
-                                  ...
-                                  xfs_file_iomap_begin()
-                                    - finds already allocated block
-                                  ...
-                                  vmf_insert_mixed_mkwrite()
-                                    - WARNs and does nothing because there
-                                      is still zero page mapped in PTE
-        unmap_mapping_pages()
+On Fri, Aug 24, 2018 at 03:13:32PM +0200, Peter Zijlstra wrote:
+> On Fri, Aug 24, 2018 at 10:35:56AM +0200, Peter Zijlstra wrote:
+> 
+> > Anyway, its sorted now; although I'd like to write me a fairly big
+> > comment in asm-generic/tlb.h about things, before I forget again.
+> 
+> How's something like so? There's a little page_size thingy in this;
+> mostly because I couldn't be arsed to split it for now.
+> 
+> Will has opinions on the page_size thing; I'll let him explain.
 
-This race results in WARN_ON from insert_pfn() and is occasionally
-triggered by fstest generic/344. Note that the race is otherwise
-harmless as before write(2) on CPU0 is finished, we will invalidate page
-tables properly and thus user of mmap will see modified data from
-write(2) from that point on. So just restrict the warning only to the
-case when the PFN in PTE is not zero page.
+They're not especially strong opinions, it's just that I don't think the
+page size is necessarily the right thing to track and I'd rather remove that
+altogether.
 
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- mm/memory.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+In the patches I've hacked up (I'll post shortly as an RFC), I track the
+levels of page-table instead so you can relate the mmu_gather explicitly
+with the page-table structure, rather than have to infer it from the page
+size. For example, if an architecture could put down huge mappings at the
+pte level (e.g. using a contiguous hint in the pte like we have on arm64),
+then actually you want to know about the level rather than the size. You can
+also track the levels using only 4 bits in the gather structure.
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 83aef222f11b..e82cd2125d72 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1787,10 +1787,15 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 			 * in may not match the PFN we have mapped if the
- 			 * mapped PFN is a writeable COW page.  In the mkwrite
- 			 * case we are creating a writable PTE for a shared
--			 * mapping and we expect the PFNs to match.
-+			 * mapping and we expect the PFNs to match. If they
-+			 * don't match, we are likely racing with block
-+			 * allocation and mapping invalidation so just skip the
-+			 * update.
- 			 */
--			if (WARN_ON_ONCE(pte_pfn(*pte) != pfn_t_to_pfn(pfn)))
-+			if (pte_pfn(*pte) != pfn_t_to_pfn(pfn)) {
-+				WARN_ON_ONCE(!is_zero_pfn(pte_pfn(*pte)));
- 				goto out_unlock;
-+			}
- 			entry = *pte;
- 			goto out_mkwrite;
- 		} else
--- 
-2.16.4
+Finally, both approaches have a funny corner case when a VMA contains a
+mixture of granule sizes. With the "page size has changed so flush
+synchronously" you can theoretically end up with a lot of flushes, where
+you'd have been better off just invalidating the whole mm. If you track the
+levels instead and postpone a flush using the smallest level you saw, then
+you're likely to hit whatever threshold you have and nuke the mm.
+
+Will
