@@ -1,91 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CDAD36B2EBC
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 04:42:00 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id c16-v6so3341145edc.21
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 01:42:00 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g36-v6si405561edg.360.2018.08.24.01.41.59
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 545246B2EC0
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 04:43:19 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id q26-v6so3416683wmc.0
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 01:43:19 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id g3-v6si4970658wrr.281.2018.08.24.01.43.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Aug 2018 01:41:59 -0700 (PDT)
-Date: Fri, 24 Aug 2018 10:41:57 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v6 1/2] mm: migration: fix migration of huge PMD shared
- pages
-Message-ID: <20180824084157.GD29735@dhcp22.suse.cz>
-References: <20180823205917.16297-1-mike.kravetz@oracle.com>
- <20180823205917.16297-2-mike.kravetz@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 24 Aug 2018 01:43:17 -0700 (PDT)
+Date: Fri, 24 Aug 2018 10:42:59 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 2/4] mm/tlb: Remove tlb_remove_table() non-concurrent
+ condition
+Message-ID: <20180824084259.GJ24124@hirez.programming.kicks-ass.net>
+References: <20180822153012.173508681@infradead.org>
+ <20180822154046.772017055@infradead.org>
+ <20180823133103.30d6a16b@roar.ozlabs.ibm.com>
+ <CA+55aFyY4fG8Hhds4ykSm5vUMdxbLdB7mYmC2pOPk8UKBXtpjA@mail.gmail.com>
+ <20180823141642.38b53175@roar.ozlabs.ibm.com>
+ <CA+55aFzfnWv3JoB0mR7iCX322KsiE+uRq3HcmOpciEAiTw-oLw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180823205917.16297-2-mike.kravetz@oracle.com>
+In-Reply-To: <CA+55aFzfnWv3JoB0mR7iCX322KsiE+uRq3HcmOpciEAiTw-oLw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Nick Piggin <npiggin@gmail.com>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Will Deacon <will.deacon@arm.com>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>
 
-On Thu 23-08-18 13:59:16, Mike Kravetz wrote:
-> The page migration code employs try_to_unmap() to try and unmap the
-> source page.  This is accomplished by using rmap_walk to find all
-> vmas where the page is mapped.  This search stops when page mapcount
-> is zero.  For shared PMD huge pages, the page map count is always 1
-> no matter the number of mappings.  Shared mappings are tracked via
-> the reference count of the PMD page.  Therefore, try_to_unmap stops
-> prematurely and does not completely unmap all mappings of the source
-> page.
+On Wed, Aug 22, 2018 at 09:54:48PM -0700, Linus Torvalds wrote:
+
+> It honored it for the *normal* case, which is why it took so long to
+> notice that the TLB shootdown had been broken on x86 when it moved to
+> the "generic" code. The *normal* case does this all right, and batches
+> things up, and then when the batch fills up it does a
+> tlb_table_flush() which does the TLB flush and schedules the actual
+> freeing.
 > 
-> This problem can result is data corruption as writes to the original
-> source page can happen after contents of the page are copied to the
-> target page.  Hence, data is lost.
-> 
-> This problem was originally seen as DB corruption of shared global
-> areas after a huge page was soft offlined due to ECC memory errors.
-> DB developers noticed they could reproduce the issue by (hotplug)
-> offlining memory used to back huge pages.  A simple testcase can
-> reproduce the problem by creating a shared PMD mapping (note that
-> this must be at least PUD_SIZE in size and PUD_SIZE aligned (1GB on
-> x86)), and using migrate_pages() to migrate process pages between
-> nodes while continually writing to the huge pages being migrated.
-> 
-> To fix, have the try_to_unmap_one routine check for huge PMD sharing
-> by calling huge_pmd_unshare for hugetlbfs huge pages.  If it is a
-> shared mapping it will be 'unshared' which removes the page table
-> entry and drops the reference on the PMD page.  After this, flush
-> caches and TLB.
-> 
-> mmu notifiers are called before locking page tables, but we can not
-> be sure of PMD sharing until page tables are locked.  Therefore,
-> check for the possibility of PMD sharing before locking so that
-> notifiers can prepare for the worst possible case.
-> 
-> Fixes: 39dde65c9940 ("shared page table for hugetlb page")
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> But there were two cases that *didn't* do that. The special "I'm the
+> only thread" fast case, and the "oops I ran out of memory, so now I'll
+> fake it, and just synchronize with page twalkers manually, and then do
+> that special direct remove without flushing the tlb".
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+The actual RCU batching case was also busted; there was no guarantee
+that by the time we run the RCU callbacks the invalidate would've
+happened. Exceedingly unlikely, but no guarantee.
 
-One nit below.
-
-[...]
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 3103099f64fd..a73c5728e961 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -4548,6 +4548,9 @@ static unsigned long page_table_shareable(struct vm_area_struct *svma,
->  	return saddr;
->  }
->  
-> +#define _range_in_vma(vma, start, end) \
-> +	((vma)->vm_start <= (start) && (end) <= (vma)->vm_end)
-> +
-
-static inline please. Macros and potential side effects on given
-arguments are just not worth the risk. I also think this is something
-for more general use. We have that pattern at many places. So I would
-stick that to linux/mm.h
-
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+So really, all 3 cases in tlb_remove_table() were busted in this
+respect.
