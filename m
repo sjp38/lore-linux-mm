@@ -1,43 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D4B6C6B2FE4
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 09:21:58 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id w44-v6so3640031edb.16
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 06:21:58 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z15-v6si984431edr.81.2018.08.24.06.21.57
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 29A6D6B2FE9
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 09:24:22 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id 191-v6so3138366pgb.23
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 06:24:22 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k5-v6sor2281277plt.105.2018.08.24.06.24.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Aug 2018 06:21:57 -0700 (PDT)
-Subject: Re: [GIT PULL] XArray for 4.19
-References: <20180813161357.GB1199@bombadil.infradead.org>
- <0100016562b90938-02b97bb7-eddd-412d-8162-7519a70d4103-000000@email.amazonses.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <0c8ffb97-5896-148c-bff8-ffb92a60b307@suse.cz>
-Date: Fri, 24 Aug 2018 15:21:55 +0200
+        (Google Transport Security);
+        Fri, 24 Aug 2018 06:24:21 -0700 (PDT)
+Date: Fri, 24 Aug 2018 06:24:19 -0700
+From: Guenter Roeck <linux@roeck-us.net>
+Subject: Re: [RFC PATCH 2/2] mm: mmu_notifier fix for tlb_end_vma (build
+ failures)
+Message-ID: <20180824132419.GA9983@roeck-us.net>
+References: <20180823084709.19717-1-npiggin@gmail.com>
+ <20180823084709.19717-3-npiggin@gmail.com>
+ <20180824130722.GA31409@roeck-us.net>
+ <20180824131026.GB11868@brain-police>
 MIME-Version: 1.0
-In-Reply-To: <0100016562b90938-02b97bb7-eddd-412d-8162-7519a70d4103-000000@email.amazonses.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180824131026.GB11868@brain-police>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: Nicholas Piggin <npiggin@gmail.com>, Peter Zijlstra <peterz@infradead.org>, torvalds@linux-foundation.org, luto@kernel.org, x86@kernel.org, bp@alien8.de, riel@surriel.com, jannh@google.com, ascannell@google.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, linux-arch@vger.kernel.org, Palmer Dabbelt <palmer@sifive.com>, linux-riscv@lists.infradead.org
 
-On 08/22/2018 07:40 PM, Christopher Lameter wrote:
-> On Mon, 13 Aug 2018, Matthew Wilcox wrote:
+On Fri, Aug 24, 2018 at 02:10:27PM +0100, Will Deacon wrote:
+> On Fri, Aug 24, 2018 at 06:07:22AM -0700, Guenter Roeck wrote:
+> > On Thu, Aug 23, 2018 at 06:47:09PM +1000, Nicholas Piggin wrote:
+> > > The generic tlb_end_vma does not call invalidate_range mmu notifier,
+> > > and it resets resets the mmu_gather range, which means the notifier
+> > > won't be called on part of the range in case of an unmap that spans
+> > > multiple vmas.
+> > > 
+> > > ARM64 seems to be the only arch I could see that has notifiers and
+> > > uses the generic tlb_end_vma. I have not actually tested it.
+> > > 
+> > > Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
+> > > Acked-by: Will Deacon <will.deacon@arm.com>
+> > 
+> > This patch breaks riscv builds in mainline.
 > 
->> Please consider pulling the XArray patch set.  The XArray provides an
->> improved interface to the radix tree data structure, providing locking
->> as part of the API, specifying GFP flags at allocation time, eliminating
->> preloading, less re-walking the tree, more efficient iterations and not
->> exposing RCU-protected pointers to its users.
+> Looks very similar to the breakage we hit on arm64. diff below should fix
+> it.
 > 
-> Is this going in this cycle? I have a bunch of stuff on top of this to
-> enable slab object migration.
 
-I think you can just post those for review and say that they apply on
-top of xarray git? Maybe also with your own git URL with those applied
-for easier access? I'm curious but also sceptical that something so
-major would get picked up to mmotm immediately :)
+Unfortunately it doesn't.
+
+In file included from ./arch/riscv/include/asm/pgtable.h:26:0,
+                 from ./include/linux/memremap.h:7,
+                 from ./include/linux/mm.h:27,
+                 from arch/riscv/mm/fault.c:23:
+./arch/riscv/include/asm/tlb.h: In function a??tlb_flusha??:
+./arch/riscv/include/asm/tlb.h:19:18: error: dereferencing pointer to incomplete type a??struct mmu_gathera??
+  flush_tlb_mm(tlb->mm);
+                  ^
+./arch/riscv/include/asm/tlbflush.h:58:35: note: in definition of macro a??flush_tlb_mma??
+  sbi_remote_sfence_vma(mm_cpumask(mm)->bits, 0, -1)
+
+Note that reverting the offending patch does fix the problem,
+so there is no secondary problem lurking around.
+
+Guenter
