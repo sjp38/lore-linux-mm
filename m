@@ -1,67 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 53C8C6B2FD7
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 09:10:36 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id z25-v6so7029404iog.17
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 06:10:36 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id o203-v6si5287943oif.198.2018.08.24.06.10.35
-        for <linux-mm@kvack.org>;
-        Fri, 24 Aug 2018 06:10:35 -0700 (PDT)
-Date: Fri, 24 Aug 2018 14:10:27 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [RFC PATCH 2/2] mm: mmu_notifier fix for tlb_end_vma (build
- failures)
-Message-ID: <20180824131026.GB11868@brain-police>
-References: <20180823084709.19717-1-npiggin@gmail.com>
- <20180823084709.19717-3-npiggin@gmail.com>
- <20180824130722.GA31409@roeck-us.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180824130722.GA31409@roeck-us.net>
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C1B426B2FDB
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 09:12:39 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id t18-v6so1151521ljb.6
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 06:12:39 -0700 (PDT)
+Received: from bastet.se.axis.com (bastet.se.axis.com. [195.60.68.11])
+        by mx.google.com with ESMTPS id q21-v6si3442525ljh.146.2018.08.24.06.12.37
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Aug 2018 06:12:38 -0700 (PDT)
+From: Vincent Whitchurch <vincent.whitchurch@axis.com>
+Subject: [PATCH] kmemleak: Always register debugfs file
+Date: Fri, 24 Aug 2018 15:12:20 +0200
+Message-Id: <20180824131220.19176-1-vincent.whitchurch@axis.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Guenter Roeck <linux@roeck-us.net>
-Cc: Nicholas Piggin <npiggin@gmail.com>, Peter Zijlstra <peterz@infradead.org>, torvalds@linux-foundation.org, luto@kernel.org, x86@kernel.org, bp@alien8.de, riel@surriel.com, jannh@google.com, ascannell@google.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, linux-arch@vger.kernel.org, Palmer Dabbelt <palmer@sifive.com>, linux-riscv@lists.infradead.org
+To: catalin.marinas@arm.com, akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vincent Whitchurch <rabinv@axis.com>
 
-On Fri, Aug 24, 2018 at 06:07:22AM -0700, Guenter Roeck wrote:
-> On Thu, Aug 23, 2018 at 06:47:09PM +1000, Nicholas Piggin wrote:
-> > The generic tlb_end_vma does not call invalidate_range mmu notifier,
-> > and it resets resets the mmu_gather range, which means the notifier
-> > won't be called on part of the range in case of an unmap that spans
-> > multiple vmas.
-> > 
-> > ARM64 seems to be the only arch I could see that has notifiers and
-> > uses the generic tlb_end_vma. I have not actually tested it.
-> > 
-> > Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
-> > Acked-by: Will Deacon <will.deacon@arm.com>
-> 
-> This patch breaks riscv builds in mainline.
+If kmemleak built in to the kernel, but is disabled by default, the
+debugfs file is never registered.  Because of this, it is not possible
+to find out if the kernel is built with kmemleak support by checking for
+the presence of this file.  To allow this, always register the file.
 
-Looks very similar to the breakage we hit on arm64. diff below should fix
-it.
+After this patch, if the file doesn't exist, kmemleak is not available
+in the kernel.  If writing "scan" or any other value than "clear" to
+this file results in EBUSY, then kmemleak is available but is disabled
+by default and can be activated via the kernel command line.
 
-Will
+Signed-off-by: Vincent Whitchurch <vincent.whitchurch@axis.com>
+---
+ mm/kmemleak.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
 
---->*
-
-diff --git a/arch/riscv/include/asm/tlb.h b/arch/riscv/include/asm/tlb.h
-index c229509288ea..5017060be63c 100644
---- a/arch/riscv/include/asm/tlb.h
-+++ b/arch/riscv/include/asm/tlb.h
-@@ -14,11 +14,11 @@
- #ifndef _ASM_RISCV_TLB_H
- #define _ASM_RISCV_TLB_H
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 9a085d525bbc..17dd883198ae 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -2097,6 +2097,11 @@ static int __init kmemleak_late_init(void)
  
--#include <asm-generic/tlb.h>
--
- static inline void tlb_flush(struct mmu_gather *tlb)
- {
- 	flush_tlb_mm(tlb->mm);
- }
+ 	kmemleak_initialized = 1;
  
-+#include <asm-generic/tlb.h>
++	dentry = debugfs_create_file("kmemleak", 0644, NULL, NULL,
++				     &kmemleak_fops);
++	if (!dentry)
++		pr_warn("Failed to create the debugfs kmemleak file\n");
 +
- #endif /* _ASM_RISCV_TLB_H */
+ 	if (kmemleak_error) {
+ 		/*
+ 		 * Some error occurred and kmemleak was disabled. There is a
+@@ -2108,10 +2113,6 @@ static int __init kmemleak_late_init(void)
+ 		return -ENOMEM;
+ 	}
+ 
+-	dentry = debugfs_create_file("kmemleak", 0644, NULL, NULL,
+-				     &kmemleak_fops);
+-	if (!dentry)
+-		pr_warn("Failed to create the debugfs kmemleak file\n");
+ 	mutex_lock(&scan_mutex);
+ 	start_scan_thread();
+ 	mutex_unlock(&scan_mutex);
+-- 
+2.11.0
