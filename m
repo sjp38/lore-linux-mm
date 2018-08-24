@@ -1,117 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2ECDE6B3040
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 11:07:27 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id x19-v6so6358742pfh.15
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 08:07:27 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t23-v6sor2144945pgi.180.2018.08.24.08.07.25
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 619006B3044
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 11:09:04 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id y130-v6so7955606qka.1
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 08:09:04 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id w63-v6si1055946qkd.71.2018.08.24.08.09.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 24 Aug 2018 08:07:25 -0700 (PDT)
-Date: Fri, 24 Aug 2018 23:07:17 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH 1/3] mm/sparse: add likely to mem_section[root] check in
- sparse_index_init()
-Message-ID: <20180824150717.GA10093@WeideMacBook-Pro.local>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20180823130732.9489-1-richard.weiyang@gmail.com>
- <20180823130732.9489-2-richard.weiyang@gmail.com>
- <cc817bc8-bced-fb07-cb2d-c122463380a7@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Aug 2018 08:09:03 -0700 (PDT)
+Date: Fri, 24 Aug 2018 11:08:59 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+Message-ID: <20180824150858.GB4244@redhat.com>
+References: <20180716115058.5559-1-mhocko@kernel.org>
+ <8cbfb09f-0c5a-8d43-1f5e-f3ff7612e289@I-love.SAKURA.ne.jp>
+ <20180824113248.GH29735@dhcp22.suse.cz>
+ <b088e382-e90e-df63-a079-19b2ae2b985d@gmail.com>
+ <20180824115226.GK29735@dhcp22.suse.cz>
+ <a27ad1a3-34bd-6b7d-fd09-7737ec3c888d@gmail.com>
+ <20180824120339.GL29735@dhcp22.suse.cz>
+ <eb546bcb-9c5f-7d5d-43a7-bfde489f0e7f@amd.com>
+ <20180824123341.GN29735@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <cc817bc8-bced-fb07-cb2d-c122463380a7@intel.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180824123341.GN29735@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, bob.picco@hp.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, kvm@vger.kernel.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Dimitri Sivanich <sivanich@sgi.com>, Jason Gunthorpe <jgg@ziepe.ca>, linux-rdma@vger.kernel.org, amd-gfx@lists.freedesktop.org, David Airlie <airlied@linux.ie>, Doug Ledford <dledford@redhat.com>, David Rientjes <rientjes@google.com>, xen-devel@lists.xenproject.org, intel-gfx@lists.freedesktop.org, Jani Nikula <jani.nikula@linux.intel.com>, Leon Romanovsky <leonro@mellanox.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, LKML <linux-kernel@vger.kernel.org>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Alex Deucher <alexander.deucher@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Felix Kuehling <felix.kuehling@amd.com>
 
-On Thu, Aug 23, 2018 at 05:11:48PM -0700, Dave Hansen wrote:
->On 08/23/2018 06:07 AM, Wei Yang wrote:
->> --- a/mm/sparse.c
->> +++ b/mm/sparse.c
->> @@ -78,7 +78,7 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
->>  	unsigned long root = SECTION_NR_TO_ROOT(section_nr);
->>  	struct mem_section *section;
->>  
->> -	if (mem_section[root])
->> +	if (likely(mem_section[root]))
->>  		return -EEXIST;
->
->We could add likely()/unlikely() to approximately a billion if()s around
->the kernel if we felt like it.  We don't because it's messy and it
->actually takes away choices from the compiler.
->
->Please don't send patches like this unless you have some *actual*
->analysis that shows the benefit of the patch.  Performance numbers are best.
+On Fri, Aug 24, 2018 at 02:33:41PM +0200, Michal Hocko wrote:
+> On Fri 24-08-18 14:18:44, Christian Konig wrote:
+> > Am 24.08.2018 um 14:03 schrieb Michal Hocko:
+> > > On Fri 24-08-18 13:57:52, Christian Konig wrote:
+> > > > Am 24.08.2018 um 13:52 schrieb Michal Hocko:
+> > > > > On Fri 24-08-18 13:43:16, Christian Konig wrote:
+> > > [...]
+> > > > > > That won't work like this there might be multiple
+> > > > > > invalidate_range_start()/invalidate_range_end() pairs open at the same time.
+> > > > > > E.g. the lock might be taken recursively and that is illegal for a
+> > > > > > rw_semaphore.
+> > > > > I am not sure I follow. Are you saying that one invalidate_range might
+> > > > > trigger another one from the same path?
+> > > > No, but what can happen is:
+> > > > 
+> > > > invalidate_range_start(A,B);
+> > > > invalidate_range_start(C,D);
+> > > > ...
+> > > > invalidate_range_end(C,D);
+> > > > invalidate_range_end(A,B);
+> > > > 
+> > > > Grabbing the read lock twice would be illegal in this case.
+> > > I am sorry but I still do not follow. What is the context the two are
+> > > called from?
+> > 
+> > I don't have the slightest idea.
+> > 
+> > > Can you give me an example. I simply do not see it in the
+> > > code, mostly because I am not familiar with it.
+> > 
+> > I'm neither.
+> > 
+> > We stumbled over that by pure observation and after discussing the problem
+> > with Jerome came up with this solution.
+> > 
+> > No idea where exactly that case comes from, but I can confirm that it indeed
+> > happens.
+> 
+> Thiking about it some more, I can imagine that a notifier callback which
+> performs an allocation might trigger a memory reclaim and that in turn
+> might trigger a notifier to be invoked and recurse. But notifier
+> shouldn't really allocate memory. They are called from deep MM code
+> paths and this would be extremely deadlock prone. Maybe Jerome can come
+> up some more realistic scenario. If not then I would propose to simplify
+> the locking here. We have lockdep to catch self deadlocks and it is
+> always better to handle a specific issue rather than having a code
+> without a clear indication how it can recurse.
 
-Thanks all for your comments, Michal, Dave and Oscar.
+Multiple concurrent mmu notifier, for overlapping range or not, is
+common (each concurrent threads can trigger some). So you might have
+multiple invalidate_range_start() in flight for same mm and thus might
+complete in different order (invalidate_range_end()). IIRC this is
+what this lock was trying to protect against.
 
-Well, maybe I took it for granted, so let me put more words on this. To be
-honest, my analysis maybe partially effective, so if the cost is higher than
-the gain, please let me know.
+I can't think of a reason for recursive mmu notifier call right now.
+I will ponder see if i remember something about it.
 
-Below is my analysis and test result for this patch.
-------------------------------------------------------
-
-During bootup, the call flow looks like this.
-
-    sparse_memory_present_with_active_regions()
-        memory_present()
-            sparse_index_init()
-
-sparse_memory_present_with_active_regions() iterates on pfn continuously for
-the whole system RAM, which leads to sparse_index_init() will iterate
-section_nr continuously. Usually, we don't expect many large holes, right?
-
-Each time when mem_section[root] is null, SECTIONS_PER_ROOT number of
-mem_section will be allocated. This means, for SECTIONS_PER_ROOT number of
-check, only the first check is false. So the possibility to be false is 
-(1 / SECTIONS_PER_ROOT).
-
-SECTIONS_PER_ROOT is defined as (PAGE_SIZE / sizeof (struct mem_section)).
-
-On my x86_64 machine, PAGE_SIZE is 4KB and mem_section is 16B.
-
-    SECTIONS_PER_ROOT = 4K / 16 = 256.
-
-So the check for mem_section[root] is (1 / 256) chance to be invalid and
-(255 / 256) valid. In theory, this value seems to be a "likely" to me.
-
-In practice, when the system RAM is multiple times of
-((1 << SECTION_SIZE_BITS) * SECTIONS_PER_ROOT), the "likely" chance is
-(255 / 256), otherwise the chance would be less. 
-
-On my x86_64 machine, SECTION_SIZE_BITS is defined to 27.
-
-    ((1 << SECTION_SIZE_BITS) * SECTIONS_PER_ROOT) = 32GB
-
-          System RAM size       32G         16G        8G         4G
-      Possibility          (255 / 256) (127 / 128) (63 / 64)  (31 / 32)
-
-Generally, in my mind, if we iterate pfn continuously and there is no large
-holes, the check on mem_section[root] is likely to be true.
-
-At last, here is the test result on my 4G virtual machine. I added printk
-before and after sparse_memory_present_with_active_regions() and tested three
-times with/without "likely".
-
-                without      with
-     Elapsed   0.000252     0.000250   -0.8%
-
-The benefit seems to be too small on a 4G virtual machine or even this is not
-stable. Not sure we can see some visible effect on a 32G machine.
-
-
-Well, above is all my analysis and test result. I did the optimization based
-on my own experience and understanding. If this is not qualified, I am very
-glad to hear from your statement, so that I would learn more from your
-experience.
-
-Thanks all for your comments again :-)
- 
-
--- 
-Wei Yang
-Help you, Help me
+Cheers,
+Jerome
