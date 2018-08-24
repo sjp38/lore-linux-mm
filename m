@@ -1,87 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 525056B2F6B
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 07:36:32 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id r21-v6so3380536edp.23
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 04:36:32 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 96AFC6B2F73
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 07:42:03 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id j15-v6so5936967pfi.10
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 04:42:03 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b19-v6si1427894edj.131.2018.08.24.04.36.30
+        by mx.google.com with ESMTPS id w1-v6si6383445plq.352.2018.08.24.04.42.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Aug 2018 04:36:31 -0700 (PDT)
-Date: Fri, 24 Aug 2018 13:36:29 +0200
+        Fri, 24 Aug 2018 04:42:02 -0700 (PDT)
+Date: Fri, 24 Aug 2018 13:41:58 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, oom: distinguish blockable mode for mmu notifiers
-Message-ID: <20180824113629.GI29735@dhcp22.suse.cz>
-References: <20180716115058.5559-1-mhocko@kernel.org>
- <8cbfb09f-0c5a-8d43-1f5e-f3ff7612e289@I-love.SAKURA.ne.jp>
+Subject: Re: A crash on ARM64 in move_freepages_block due to uninitialized
+ pages in reserved memory
+Message-ID: <20180824114158.GJ29735@dhcp22.suse.cz>
+References: <alpine.LRH.2.02.1808171527220.2385@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180821104418.GA16611@dhcp22.suse.cz>
+ <e35b7c14-c7ea-412d-2763-c961b74576f3@arm.com>
+ <alpine.LRH.2.02.1808220808050.17906@file01.intranet.prod.int.rdu2.redhat.com>
+ <c823eace-8710-9bf5-6e76-d01b139c0859@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <8cbfb09f-0c5a-8d43-1f5e-f3ff7612e289@I-love.SAKURA.ne.jp>
+In-Reply-To: <c823eace-8710-9bf5-6e76-d01b139c0859@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, Felix Kuehling <felix.kuehling@amd.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Rientjes <rientjes@google.com>, Leon Romanovsky <leonro@mellanox.com>
+To: James Morse <james.morse@arm.com>
+Cc: Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Pavel Tatashin <Pavel.Tatashin@microsoft.com>
 
-On Fri 24-08-18 19:54:19, Tetsuo Handa wrote:
+On Thu 23-08-18 15:06:08, James Morse wrote:
 [...]
-> > --- a/mm/hmm.c
-> > +++ b/mm/hmm.c
-> > @@ -177,16 +177,19 @@ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
-> >         up_write(&hmm->mirrors_sem);
-> >  }
-> > 
-> > -static void hmm_invalidate_range_start(struct mmu_notifier *mn,
-> > +static int hmm_invalidate_range_start(struct mmu_notifier *mn,
-> >                                        struct mm_struct *mm,
-> >                                        unsigned long start,
-> > -                                      unsigned long end)
-> > +                                      unsigned long end,
-> > +                                      bool blockable)
-> >  {
-> >         struct hmm *hmm = mm->hmm;
-> > 
-> >         VM_BUG_ON(!hmm);
-> > 
-> >         atomic_inc(&hmm->sequence);
-> > +
-> > +       return 0;
-> >  }
-> > 
-> >  static void hmm_invalidate_range_end(struct mmu_notifier *mn,
+> My best-guess is that pfn_valid_within() shouldn't be optimised out if
+> ARCH_HAS_HOLES_MEMORYMODEL, even if HOLES_IN_ZONE isn't set.
 > 
-> This assumes that hmm_invalidate_range_end() does not have memory
-> allocation dependency. But hmm_invalidate_range() from
-> hmm_invalidate_range_end() involves
-> 
->         down_read(&hmm->mirrors_sem);
->         list_for_each_entry(mirror, &hmm->mirrors, list)
->                 mirror->ops->sync_cpu_device_pagetables(mirror, action,
->                                                         start, end);
->         up_read(&hmm->mirrors_sem);
-> 
-> sequence. What is surprising is that there is no in-tree user who assigns
-> sync_cpu_device_pagetables field.
+> Does something like this solve the problem?:
+> ============================%<============================
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 32699b2dc52a..5e27095a15f4 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -1295,7 +1295,7 @@ void memory_present(int nid, unsigned long start, unsigned
+> long end);
+>   * pfn_valid_within() should be used in this case; we optimise this away
+>   * when we have no holes within a MAX_ORDER_NR_PAGES block.
+>   */
+> -#ifdef CONFIG_HOLES_IN_ZONE
+> +#if defined(CONFIG_HOLES_IN_ZONE) || defined(CONFIG_ARCH_HAS_HOLES_MEMORYMODEL)
+>  #define pfn_valid_within(pfn) pfn_valid(pfn)
+>  #else
+>  #define pfn_valid_within(pfn) (1)
+> ============================%<============================
 
-Yes HMM doesn't have any in tree user yet.
+This is the first time I hear about CONFIG_ARCH_HAS_HOLES_MEMORYMODEL.
+Why it doesn't imply CONFIG_HOLES_IN_ZONE?
 
->   $ grep -Fr sync_cpu_device_pagetables *
->   Documentation/vm/hmm.rst:     /* sync_cpu_device_pagetables() - synchronize page tables
->   include/linux/hmm.h: * will get callbacks through sync_cpu_device_pagetables() operation (see
->   include/linux/hmm.h:    /* sync_cpu_device_pagetables() - synchronize page tables
->   include/linux/hmm.h:    void (*sync_cpu_device_pagetables)(struct hmm_mirror *mirror,
->   include/linux/hmm.h: * hmm_mirror_ops.sync_cpu_device_pagetables() callback, so that CPU page
->   mm/hmm.c:               mirror->ops->sync_cpu_device_pagetables(mirror, action,
+> > I analyzed the assembler:
+> > PageBuddy in move_freepages returns false
+> > Then we call PageLRU, the macro calls PF_HEAD which is compound_page()
+> > compound_page reads page->compound_head, it is 0xffffffffffffffff, so it
+> > resturns 0xfffffffffffffffe - and accessing this address causes crash
 > 
-> That is, this API seems to be currently used by only out-of-tree users. Since
-> we can't check that nobody has memory allocation dependency, I think that
-> hmm_invalidate_range_start() should return -EAGAIN if blockable == false for now.
+> Thanks!
+> That wasn't straightforward to work out without the vmlinux.
+> 
+> Because you see all-ones, even in KVM, it looks like the struct page is being
+> initialized like that deliberately... I haven't found where this might be happening.
 
-The code expects that the invalidate_range_end doesn't block if
-invalidate_range_start hasn't blocked. That is the reason why the end
-callback doesn't have blockable parameter. If this doesn't hold then the
-whole scheme is just fragile because those two calls should pair.
+It should be
+
+sparse_add_one_section
+#ifdef CONFIG_DEBUG_VM
+	/*
+	 * Poison uninitialized struct pages in order to catch invalid flags
+	 * combinations.
+	 */
+	memset(memmap, PAGE_POISON_PATTERN, sizeof(struct page) * PAGES_PER_SECTION);
+#endif
 
 -- 
 Michal Hocko
