@@ -1,61 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 48A306B2F39
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 09:02:52 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id m21-v6so7448575oic.7
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 06:02:52 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id l205-v6si5477334oif.342.2018.08.24.06.02.50
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 71CBC6B2FD0
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 09:07:25 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id w19-v6so4023435pfa.14
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 06:07:25 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p1-v6sor1066331pgg.51.2018.08.24.06.07.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Aug 2018 06:02:50 -0700 (PDT)
-Subject: Re: [PATCH] mm, oom: distinguish blockable mode for mmu notifiers
-References: <20180716115058.5559-1-mhocko@kernel.org>
- <8cbfb09f-0c5a-8d43-1f5e-f3ff7612e289@I-love.SAKURA.ne.jp>
- <20180824113629.GI29735@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <103b1b33-1a1d-27a1-dcf8-5c8ad60056a6@i-love.sakura.ne.jp>
-Date: Fri, 24 Aug 2018 22:02:23 +0900
+        (Google Transport Security);
+        Fri, 24 Aug 2018 06:07:24 -0700 (PDT)
+Date: Fri, 24 Aug 2018 06:07:22 -0700
+From: Guenter Roeck <linux@roeck-us.net>
+Subject: Re: [RFC PATCH 2/2] mm: mmu_notifier fix for tlb_end_vma (build
+ failures)
+Message-ID: <20180824130722.GA31409@roeck-us.net>
+References: <20180823084709.19717-1-npiggin@gmail.com>
+ <20180823084709.19717-3-npiggin@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180824113629.GI29735@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180823084709.19717-3-npiggin@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, Felix Kuehling <felix.kuehling@amd.com>, kvm@vger.kernel.org, amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-rdma@vger.kernel.org, xen-devel@lists.xenproject.org, =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>, David Rientjes <rientjes@google.com>, Leon Romanovsky <leonro@mellanox.com>
+To: Nicholas Piggin <npiggin@gmail.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, torvalds@linux-foundation.org, luto@kernel.org, x86@kernel.org, bp@alien8.de, will.deacon@arm.com, riel@surriel.com, jannh@google.com, ascannell@google.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, linux-arch@vger.kernel.org, Palmer Dabbelt <palmer@sifive.com>, linux-riscv@lists.infradead.org
 
-On 2018/08/24 20:36, Michal Hocko wrote:
->> That is, this API seems to be currently used by only out-of-tree users. Since
->> we can't check that nobody has memory allocation dependency, I think that
->> hmm_invalidate_range_start() should return -EAGAIN if blockable == false for now.
+On Thu, Aug 23, 2018 at 06:47:09PM +1000, Nicholas Piggin wrote:
+> The generic tlb_end_vma does not call invalidate_range mmu notifier,
+> and it resets resets the mmu_gather range, which means the notifier
+> won't be called on part of the range in case of an unmap that spans
+> multiple vmas.
 > 
-> The code expects that the invalidate_range_end doesn't block if
-> invalidate_range_start hasn't blocked. That is the reason why the end
-> callback doesn't have blockable parameter. If this doesn't hold then the
-> whole scheme is just fragile because those two calls should pair.
+> ARM64 seems to be the only arch I could see that has notifiers and
+> uses the generic tlb_end_vma. I have not actually tested it.
 > 
-That is
+> Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
+> Acked-by: Will Deacon <will.deacon@arm.com>
 
-  More worrisome part in that patch is that I don't know whether using
-  trylock if blockable == false at entry is really sufficient.
+This patch breaks riscv builds in mainline.
 
-. Since those two calls should pair, I think that we need to determine whether
-we need to return -EAGAIN at start call by evaluating both calls.
+Building riscv:defconfig ... failed
+--------------
+Error log:
+In file included from riscv/include/asm/tlb.h:17:0,
+                 from arch/riscv/include/asm/pgalloc.h:19,
+                 from riscv/mm/fault.c:30:
+include/asm-generic/tlb.h: In function 'tlb_flush_mmu_tlbonly':
+include/asm-generic/tlb.h:147:2: error: implicit declaration of function 'tlb_flush'
 
-Like mn_invl_range_start() involves schedule_delayed_work() which could be
-blocked on memory allocation under OOM situation, I worry that (currently
-out-of-tree) users of this API are involving work / recursion.
-And hmm_release() says that
+In file included from arch/riscv/include/asm/pgalloc.h:19:0,
+		from arch/riscv/mm/fault.c:30:
+arch/riscv/include/asm/tlb.h: At top level:
+arch/riscv/include/asm/tlb.h:19:20: warning: conflicting types for 'tlb_flush'
 
-	/*
-	 * Drop mirrors_sem so callback can wait on any pending
-	 * work that might itself trigger mmu_notifier callback
-	 * and thus would deadlock with us.
-	 */
-
-and keeps "all operations protected by hmm->mirrors_sem held for write are
-atomic". This suggests that "some operations protected by hmm->mirrors_sem held
-for read will sleep (and in the worst case involves memory allocation
-dependency)".
+Guenter
