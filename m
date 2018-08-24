@@ -1,102 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C8606B2CAB
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 19:42:30 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id f13-v6so4075778pgs.15
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 16:42:30 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u68-v6sor1888055pfd.13.2018.08.23.16.42.28
+	by kanga.kvack.org (Postfix) with ESMTP id 14D406B2CC0
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2018 20:05:28 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id 191-v6so1679070pgb.23
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2018 17:05:28 -0700 (PDT)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id m11-v6si5616512pgk.468.2018.08.23.17.05.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 23 Aug 2018 16:42:29 -0700 (PDT)
-Date: Fri, 24 Aug 2018 09:42:20 +1000
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: [RFC PATCH 0/2] minor mmu_gather patches
-Message-ID: <20180824094220.3ac18168@roar.ozlabs.ibm.com>
-In-Reply-To: <20180823232704.GA4487@brain-police>
-References: <20180823084709.19717-1-npiggin@gmail.com>
-	<CA+55aFxaiv3SMvFUSEnd_p6nuGttUnv2_O3v_G2zCnnc0pV2pA@mail.gmail.com>
-	<CA+55aFwEZftzAd9k-kjiaXonP2XeTDYshjY56jmd1CFBaXmGHA@mail.gmail.com>
-	<20180823232704.GA4487@brain-police>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Aug 2018 17:05:26 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 1/2] Revert "x86/e820: put !E820_TYPE_RAM regions into
+ memblock.reserved"
+Date: Fri, 24 Aug 2018 00:03:25 +0000
+Message-ID: <20180824000325.GA20143@hori1.linux.bs1.fc.nec.co.jp>
+References: <20180823182513.8801-1-msys.mizuma@gmail.com>
+In-Reply-To: <20180823182513.8801-1-msys.mizuma@gmail.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <4ACE734EF426E548A9644DAC9290E1B2@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, linux-arch <linux-arch@vger.kernel.org>
+To: Masayoshi Mizuma <msys.mizuma@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "osalvador@techadventures.net" <osalvador@techadventures.net>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>, "mhocko@kernel.org" <mhocko@kernel.org>
 
-On Fri, 24 Aug 2018 00:27:05 +0100
-Will Deacon <will.deacon@arm.com> wrote:
+(CCed related people)
 
-> Hi Linus,
-> 
-> On Thu, Aug 23, 2018 at 12:37:58PM -0700, Linus Torvalds wrote:
-> > On Thu, Aug 23, 2018 at 12:15 PM Linus Torvalds
-> > <torvalds@linux-foundation.org> wrote:  
-> > >
-> > > So right now my "tlb-fixes" branch looks like this:
-> > > [..]
-> > >
-> > > I'll do a few more test builds and boots, but I think I'm going to
-> > > merge it in this cleaned-up and re-ordered form.  
-> > 
-> > In the meantime, I decided to push out that branch in case anybody
-> > wants to look at it.
-> > 
-> > I may rebase it if I - or anybody else - find anything bad there, so
-> > consider it non-stable, but I think it's in its final shape modulo
-> > issues.  
-> 
-> Unfortunately, that branch doesn't build for arm64 because of Nick's patch
-> moving tlb_flush_mmu_tlbonly() into tlb.h (which I acked!). It's a static
-> inline which calls tlb_flush(), which in our case is also a static inline
-> but one that is defined in our asm/tlb.h after including asm-generic/tlb.h.
-> 
-> Ah, just noticed you've pushed this to master! Please could you take the
-> arm64 patch below on top, in order to fix the build?
+Hi Mizuma-san,
 
-Sorry yeah I had the sign offs but should have clear I hadn't fully
-build tested them. It's reasonable for reviewers to assume basic
-diligence was done and concentrate on the logic rather than build
-trivialities. So that's my bad. Thanks for the fix.
+Thank you for the report.
+The mentioned patch was created based on feedbacks from reviewers/maintaine=
+rs,
+so I'd like to hear from them about how we should handle the issue.
+
+And one note is that there is a follow-up patch for "x86/e820: put !E820_TY=
+PE_RAM
+regions into memblock.reserved" which might be affected by your changes.
+
+> commit e181ae0c5db9544de9c53239eb22bc012ce75033
+> Author: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Date:   Sat Jul 14 09:15:07 2018 -0400
+>=20
+>     mm: zero unavailable pages before memmap init
 
 Thanks,
-Nick
+Naoya Horiguchi
 
-> 
-> Cheers,
-> 
-> Will
-> 
-> --->8  
-> 
-> From 48ea452db90a91ff2b62a94277daf565e715a126 Mon Sep 17 00:00:00 2001
-> From: Will Deacon <will.deacon@arm.com>
-> Date: Fri, 24 Aug 2018 00:23:04 +0100
-> Subject: [PATCH] arm64: tlb: Provide forward declaration of tlb_flush() before
->  including tlb.h
-> 
-> As of commit fd1102f0aade ("mm: mmu_notifier fix for tlb_end_vma"),
-> asm-generic/tlb.h now calls tlb_flush() from a static inline function,
-> so we need to make sure that it's declared before #including the
-> asm-generic header in the arch header.
-> 
-> Signed-off-by: Will Deacon <will.deacon@arm.com>
+On Thu, Aug 23, 2018 at 02:25:12PM -0400, Masayoshi Mizuma wrote:
+> From: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+>=20
+> commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM regions into
+> memblock.reserved") breaks movable_node kernel option because it
+> changed the memory gap range to reserved memblock. So, the node
+> is marked as Normal zone even if the SRAT has Hot plaggable affinity.
+>=20
+>     =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+>     kernel: BIOS-e820: [mem 0x0000180000000000-0x0000180fffffffff] usable
+>     kernel: BIOS-e820: [mem 0x00001c0000000000-0x00001c0fffffffff] usable
+>     ...
+>     kernel: reserved[0x12]#011[0x0000181000000000-0x00001bffffffffff], 0x=
+000003f000000000 bytes flags: 0x0
+>     ...
+>     kernel: ACPI: SRAT: Node 2 PXM 6 [mem 0x180000000000-0x1bffffffffff] =
+hotplug
+>     kernel: ACPI: SRAT: Node 3 PXM 7 [mem 0x1c0000000000-0x1fffffffffff] =
+hotplug
+>     ...
+>     kernel: Movable zone start for each node
+>     kernel:  Node 3: 0x00001c0000000000
+>     kernel: Early memory node ranges
+>     ...
+>     =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+>=20
+> Naoya's v1 patch [*] fixes the original issue and this movable_node
+> issue doesn't occur.
+> Let's revert commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM
+> regions into memblock.reserved") and apply the v1 patch.
+>=20
+> [*] https://lkml.org/lkml/2018/6/13/27
+>=20
+> Signed-off-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
 > ---
->  arch/arm64/include/asm/tlb.h | 2 ++
->  1 file changed, 2 insertions(+)
-> 
-> diff --git a/arch/arm64/include/asm/tlb.h b/arch/arm64/include/asm/tlb.h
-> index 0ad1cf233470..a3233167be60 100644
-> --- a/arch/arm64/include/asm/tlb.h
-> +++ b/arch/arm64/include/asm/tlb.h
-> @@ -33,6 +33,8 @@ static inline void __tlb_remove_table(void *_table)
->  #define tlb_remove_entry(tlb, entry)	tlb_remove_page(tlb, entry)
->  #endif /* CONFIG_HAVE_RCU_TABLE_FREE */
->  
-> +static void tlb_flush(struct mmu_gather *tlb);
+>  arch/x86/kernel/e820.c | 15 +++------------
+>  1 file changed, 3 insertions(+), 12 deletions(-)
+>=20
+> diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+> index c88c23c658c1..d1f25c831447 100644
+> --- a/arch/x86/kernel/e820.c
+> +++ b/arch/x86/kernel/e820.c
+> @@ -1248,7 +1248,6 @@ void __init e820__memblock_setup(void)
+>  {
+>  	int i;
+>  	u64 end;
+> -	u64 addr =3D 0;
+> =20
+>  	/*
+>  	 * The bootstrap memblock region count maximum is 128 entries
+> @@ -1265,21 +1264,13 @@ void __init e820__memblock_setup(void)
+>  		struct e820_entry *entry =3D &e820_table->entries[i];
+> =20
+>  		end =3D entry->addr + entry->size;
+> -		if (addr < entry->addr)
+> -			memblock_reserve(addr, entry->addr - addr);
+> -		addr =3D end;
+>  		if (end !=3D (resource_size_t)end)
+>  			continue;
+> =20
+> -		/*
+> -		 * all !E820_TYPE_RAM ranges (including gap ranges) are put
+> -		 * into memblock.reserved to make sure that struct pages in
+> -		 * such regions are not left uninitialized after bootup.
+> -		 */
+>  		if (entry->type !=3D E820_TYPE_RAM && entry->type !=3D E820_TYPE_RESER=
+VED_KERN)
+> -			memblock_reserve(entry->addr, entry->size);
+> -		else
+> -			memblock_add(entry->addr, entry->size);
+> +			continue;
 > +
->  #include <asm-generic/tlb.h>
->  
->  static inline void tlb_flush(struct mmu_gather *tlb)
+> +		memblock_add(entry->addr, entry->size);
+>  	}
+> =20
+>  	/* Throw away partial pages: */
+> --=20
+> 2.18.0
+>=20
+> =
