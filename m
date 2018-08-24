@@ -1,56 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 71CBC6B2FD0
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 09:07:25 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id w19-v6so4023435pfa.14
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 06:07:25 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 04F266B2FD5
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 09:10:13 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id v11-v6so7169887wrn.19
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 06:10:12 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p1-v6sor1066331pgg.51.2018.08.24.06.07.24
+        by mx.google.com with SMTPS id 105-v6sor2802641wrb.51.2018.08.24.06.10.11
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 24 Aug 2018 06:07:24 -0700 (PDT)
-Date: Fri, 24 Aug 2018 06:07:22 -0700
-From: Guenter Roeck <linux@roeck-us.net>
-Subject: Re: [RFC PATCH 2/2] mm: mmu_notifier fix for tlb_end_vma (build
- failures)
-Message-ID: <20180824130722.GA31409@roeck-us.net>
-References: <20180823084709.19717-1-npiggin@gmail.com>
- <20180823084709.19717-3-npiggin@gmail.com>
+        Fri, 24 Aug 2018 06:10:11 -0700 (PDT)
+Reply-To: christian.koenig@amd.com
+Subject: Re: [PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+References: <20180716115058.5559-1-mhocko@kernel.org>
+ <8cbfb09f-0c5a-8d43-1f5e-f3ff7612e289@I-love.SAKURA.ne.jp>
+ <20180824113248.GH29735@dhcp22.suse.cz>
+ <b088e382-e90e-df63-a079-19b2ae2b985d@gmail.com>
+ <20180824115226.GK29735@dhcp22.suse.cz>
+ <a27ad1a3-34bd-6b7d-fd09-7737ec3c888d@gmail.com>
+ <20180824120339.GL29735@dhcp22.suse.cz>
+ <eb546bcb-9c5f-7d5d-43a7-bfde489f0e7f@amd.com>
+ <20180824123341.GN29735@dhcp22.suse.cz>
+ <b11df415-baf8-0a41-3c16-60dfe8d32bd3@amd.com>
+ <20180824130132.GP29735@dhcp22.suse.cz>
+From: =?UTF-8?Q?Christian_K=c3=b6nig?= <ckoenig.leichtzumerken@gmail.com>
+Message-ID: <23d071d2-82e4-9b78-1000-be44db5f6523@gmail.com>
+Date: Fri, 24 Aug 2018 15:10:08 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180823084709.19717-3-npiggin@gmail.com>
+In-Reply-To: <20180824130132.GP29735@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, torvalds@linux-foundation.org, luto@kernel.org, x86@kernel.org, bp@alien8.de, will.deacon@arm.com, riel@surriel.com, jannh@google.com, ascannell@google.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, linux-arch@vger.kernel.org, Palmer Dabbelt <palmer@sifive.com>, linux-riscv@lists.infradead.org
+To: Michal Hocko <mhocko@kernel.org>, =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
+Cc: kvm@vger.kernel.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Dimitri Sivanich <sivanich@sgi.com>, Jason Gunthorpe <jgg@ziepe.ca>, linux-rdma@vger.kernel.org, amd-gfx@lists.freedesktop.org, David Airlie <airlied@linux.ie>, Doug Ledford <dledford@redhat.com>, David Rientjes <rientjes@google.com>, xen-devel@lists.xenproject.org, intel-gfx@lists.freedesktop.org, Jani Nikula <jani.nikula@linux.intel.com>, Leon Romanovsky <leonro@mellanox.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, LKML <linux-kernel@vger.kernel.org>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Alex Deucher <alexander.deucher@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Felix Kuehling <felix.kuehling@amd.com>
 
-On Thu, Aug 23, 2018 at 06:47:09PM +1000, Nicholas Piggin wrote:
-> The generic tlb_end_vma does not call invalidate_range mmu notifier,
-> and it resets resets the mmu_gather range, which means the notifier
-> won't be called on part of the range in case of an unmap that spans
-> multiple vmas.
-> 
-> ARM64 seems to be the only arch I could see that has notifiers and
-> uses the generic tlb_end_vma. I have not actually tested it.
-> 
-> Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
-> Acked-by: Will Deacon <will.deacon@arm.com>
+Am 24.08.2018 um 15:01 schrieb Michal Hocko:
+> On Fri 24-08-18 14:52:26, Christian KA?nig wrote:
+>> Am 24.08.2018 um 14:33 schrieb Michal Hocko:
+> [...]
+>>> Thiking about it some more, I can imagine that a notifier callback which
+>>> performs an allocation might trigger a memory reclaim and that in turn
+>>> might trigger a notifier to be invoked and recurse. But notifier
+>>> shouldn't really allocate memory. They are called from deep MM code
+>>> paths and this would be extremely deadlock prone. Maybe Jerome can come
+>>> up some more realistic scenario. If not then I would propose to simplify
+>>> the locking here. We have lockdep to catch self deadlocks and it is
+>>> always better to handle a specific issue rather than having a code
+>>> without a clear indication how it can recurse.
+>> Well I agree that we should probably fix that, but I have some concerns to
+>> remove the existing workaround.
+>>
+>> See we added that to get rid of a real problem in a customer environment and
+>> I don't want to that to show up again.
+> It would really help to know more about that case and fix it properly
+> rather than workaround it like this. Anyway, let me think how to handle
+> the non-blocking notifier invocation then. I was not able to come up
+> with anything remotely sane yet.
 
-This patch breaks riscv builds in mainline.
+With avoiding allocating memory in the write lock path I don't see an 
+issue any more with that.
 
-Building riscv:defconfig ... failed
---------------
-Error log:
-In file included from riscv/include/asm/tlb.h:17:0,
-                 from arch/riscv/include/asm/pgalloc.h:19,
-                 from riscv/mm/fault.c:30:
-include/asm-generic/tlb.h: In function 'tlb_flush_mmu_tlbonly':
-include/asm-generic/tlb.h:147:2: error: implicit declaration of function 'tlb_flush'
+All what the write lock path does now is adding items to a linked lists, 
+arrays etc....
 
-In file included from arch/riscv/include/asm/pgalloc.h:19:0,
-		from arch/riscv/mm/fault.c:30:
-arch/riscv/include/asm/tlb.h: At top level:
-arch/riscv/include/asm/tlb.h:19:20: warning: conflicting types for 'tlb_flush'
+So there is no more blocking involved here and the read lock side should 
+be able to grab the lock immediately.
 
-Guenter
+Christian.
