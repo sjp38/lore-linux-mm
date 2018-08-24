@@ -1,56 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FB096B2F9B
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 08:16:08 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id z18-v6so6034034pfe.19
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 05:16:08 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id u69-v6si6362222pgd.547.2018.08.24.05.16.06
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BF08D6B2F68
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 08:19:10 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id t3-v6so7440745oif.20
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 05:19:10 -0700 (PDT)
+Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0074.outbound.protection.outlook.com. [104.47.42.74])
+        by mx.google.com with ESMTPS id t84-v6si5341221oij.173.2018.08.24.05.19.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 24 Aug 2018 05:16:07 -0700 (PDT)
-Date: Fri, 24 Aug 2018 13:39:53 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 3/4] mm/tlb, x86/mm: Support invalidating TLB caches for
- RCU_TABLE_FREE
-Message-ID: <20180824113953.GL24142@hirez.programming.kicks-ass.net>
-References: <20180822153012.173508681@infradead.org>
- <20180822154046.823850812@infradead.org>
- <20180822155527.GF24124@hirez.programming.kicks-ass.net>
- <20180823134525.5f12b0d3@roar.ozlabs.ibm.com>
- <CA+55aFxneZTFxxxAjLZmj92VUJg6z7hERxJ2cHoth-GC0RuELw@mail.gmail.com>
- <776104d4c8e4fc680004d69e3a4c2594b638b6d1.camel@au1.ibm.com>
- <CA+55aFzM77G9-Q6LboPLJ=5gHma66ZQKiMGCMqXoKABirdF98w@mail.gmail.com>
- <20180823133958.GA1496@brain-police>
- <20180824084717.GK24124@hirez.programming.kicks-ass.net>
- <20180824113214.GK24142@hirez.programming.kicks-ass.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 24 Aug 2018 05:19:09 -0700 (PDT)
+Subject: Re: [PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+References: <20180716115058.5559-1-mhocko@kernel.org>
+ <8cbfb09f-0c5a-8d43-1f5e-f3ff7612e289@I-love.SAKURA.ne.jp>
+ <20180824113248.GH29735@dhcp22.suse.cz>
+ <b088e382-e90e-df63-a079-19b2ae2b985d@gmail.com>
+ <20180824115226.GK29735@dhcp22.suse.cz>
+ <a27ad1a3-34bd-6b7d-fd09-7737ec3c888d@gmail.com>
+ <20180824120339.GL29735@dhcp22.suse.cz>
+From: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
+Message-ID: <eb546bcb-9c5f-7d5d-43a7-bfde489f0e7f@amd.com>
+Date: Fri, 24 Aug 2018 14:18:44 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180824113214.GK24142@hirez.programming.kicks-ass.net>
+In-Reply-To: <20180824120339.GL29735@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Benjamin Herrenschmidt <benh@au1.ibm.com>, Nick Piggin <npiggin@gmail.com>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: kvm@vger.kernel.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Dimitri Sivanich <sivanich@sgi.com>, Jason Gunthorpe <jgg@ziepe.ca>, linux-rdma@vger.kernel.org, amd-gfx@lists.freedesktop.org, David Airlie <airlied@linux.ie>, Doug Ledford <dledford@redhat.com>, David Rientjes <rientjes@google.com>, xen-devel@lists.xenproject.org, intel-gfx@lists.freedesktop.org, Jani Nikula <jani.nikula@linux.intel.com>, Leon Romanovsky <leonro@mellanox.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, LKML <linux-kernel@vger.kernel.org>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Alex Deucher <alexander.deucher@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Felix Kuehling <felix.kuehling@amd.com>
 
-On Fri, Aug 24, 2018 at 01:32:14PM +0200, Peter Zijlstra wrote:
-> On Fri, Aug 24, 2018 at 10:47:17AM +0200, Peter Zijlstra wrote:
-> > On Thu, Aug 23, 2018 at 02:39:59PM +0100, Will Deacon wrote:
-> > > The only problem with this approach is that we've lost track of the granule
-> > > size by the point we get to the tlb_flush(), so we can't adjust the stride of
-> > > the TLB invalidations for huge mappings, which actually works nicely in the
-> > > synchronous case (e.g. we perform a single invalidation for a 2MB mapping,
-> > > rather than iterating over it at a 4k granule).
-> > > 
-> > > One thing we could do is switch to synchronous mode if we detect a change in
-> > > granule (i.e. treat it like a batch failure).
-> > 
-> > We could use tlb_start_vma() to track that, I think. Shouldn't be too
-> > hard.
-> 
-> Hurm.. look at commit:
-> 
->   e77b0852b551 ("mm/mmu_gather: track page size with mmu gather and force flush if page size change")
+Am 24.08.2018 um 14:03 schrieb Michal Hocko:
+> On Fri 24-08-18 13:57:52, Christian KA?nig wrote:
+>> Am 24.08.2018 um 13:52 schrieb Michal Hocko:
+>>> On Fri 24-08-18 13:43:16, Christian KA?nig wrote:
+> [...]
+>>>> That won't work like this there might be multiple
+>>>> invalidate_range_start()/invalidate_range_end() pairs open at the same time.
+>>>> E.g. the lock might be taken recursively and that is illegal for a
+>>>> rw_semaphore.
+>>> I am not sure I follow. Are you saying that one invalidate_range might
+>>> trigger another one from the same path?
+>> No, but what can happen is:
+>>
+>> invalidate_range_start(A,B);
+>> invalidate_range_start(C,D);
+>> ...
+>> invalidate_range_end(C,D);
+>> invalidate_range_end(A,B);
+>>
+>> Grabbing the read lock twice would be illegal in this case.
+> I am sorry but I still do not follow. What is the context the two are
+> called from?
 
-Ah, good, it seems that already got cleaned up a lot. But it all moved
-into the power code.. blergh.
+I don't have the slightest idea.
+
+> Can you give me an example. I simply do not see it in the
+> code, mostly because I am not familiar with it.
+
+I'm neither.
+
+We stumbled over that by pure observation and after discussing the 
+problem with Jerome came up with this solution.
+
+No idea where exactly that case comes from, but I can confirm that it 
+indeed happens.
+
+Regards,
+Christian.
