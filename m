@@ -1,131 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BF4EB6B2EB0
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 04:29:10 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id y8-v6so3202319edr.12
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 01:29:10 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m31-v6si437782edd.103.2018.08.24.01.29.09
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B49AF6B2EB3
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2018 04:36:26 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id r206-v6so6574789iod.2
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2018 01:36:26 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id q186-v6si623248ita.48.2018.08.24.01.36.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Aug 2018 01:29:09 -0700 (PDT)
-Date: Fri, 24 Aug 2018 10:29:08 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] Revert "x86/e820: put !E820_TYPE_RAM regions into
- memblock.reserved"
-Message-ID: <20180824082908.GC29735@dhcp22.suse.cz>
-References: <20180823182513.8801-1-msys.mizuma@gmail.com>
- <20180824000325.GA20143@hori1.linux.bs1.fc.nec.co.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 24 Aug 2018 01:36:25 -0700 (PDT)
+Date: Fri, 24 Aug 2018 10:35:56 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 3/4] mm/tlb, x86/mm: Support invalidating TLB caches for
+ RCU_TABLE_FREE
+Message-ID: <20180824083556.GI24124@hirez.programming.kicks-ass.net>
+References: <20180822153012.173508681@infradead.org>
+ <20180822154046.823850812@infradead.org>
+ <20180822155527.GF24124@hirez.programming.kicks-ass.net>
+ <20180823134525.5f12b0d3@roar.ozlabs.ibm.com>
+ <CA+55aFxneZTFxxxAjLZmj92VUJg6z7hERxJ2cHoth-GC0RuELw@mail.gmail.com>
+ <776104d4c8e4fc680004d69e3a4c2594b638b6d1.camel@au1.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180824000325.GA20143@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <776104d4c8e4fc680004d69e3a4c2594b638b6d1.camel@au1.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Masayoshi Mizuma <msys.mizuma@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "osalvador@techadventures.net" <osalvador@techadventures.net>, Pavel Tatashin <Pavel.Tatashin@microsoft.com>
+To: Benjamin Herrenschmidt <benh@au1.ibm.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@gmail.com>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Will Deacon <will.deacon@arm.com>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>
 
-On Fri 24-08-18 00:03:25, Naoya Horiguchi wrote:
-> (CCed related people)
+On Thu, Aug 23, 2018 at 02:54:20PM +1000, Benjamin Herrenschmidt wrote:
+> On Wed, 2018-08-22 at 20:59 -0700, Linus Torvalds wrote:
 
-Fixup Pavel email.
+> > The problem is that x86 _used_ to do this all correctly long long ago.
+> > 
+> > And then we switched over to the "generic" table flushing (which
+> > harkens back to the powerpc code).
+> 
+> Yes, we wrote it the RCU stuff to solve the races with SW walking,
+> which is completely orthogonal with HW walking & TLB content. We didn't
+> do the move to generic code though ;-)
+> 
+> > Which actually turned out to be not generic at all, and did not flush
+> > the internal pages like x86 used to (back when x86 just used
+> > tlb_remove_page for everything).
+> 
+> Well, having RCU do the flushing is rather generic, it makes sense
+> whenever there's somebody doing a SW walk *and* you don't have IPIs to
+> synchronize your flushes (ie, anybody with HW TLB invalidation
+> broadcast basically, so ARM and us).
 
-> 
-> Hi Mizuma-san,
-> 
-> Thank you for the report.
-> The mentioned patch was created based on feedbacks from reviewers/maintainers,
-> so I'd like to hear from them about how we should handle the issue.
-> 
-> And one note is that there is a follow-up patch for "x86/e820: put !E820_TYPE_RAM
-> regions into memblock.reserved" which might be affected by your changes.
-> 
-> > commit e181ae0c5db9544de9c53239eb22bc012ce75033
-> > Author: Pavel Tatashin <pasha.tatashin@oracle.com>
-> > Date:   Sat Jul 14 09:15:07 2018 -0400
-> > 
-> >     mm: zero unavailable pages before memmap init
-> 
-> Thanks,
-> Naoya Horiguchi
-> 
-> On Thu, Aug 23, 2018 at 02:25:12PM -0400, Masayoshi Mizuma wrote:
-> > From: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
-> > 
-> > commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM regions into
-> > memblock.reserved") breaks movable_node kernel option because it
-> > changed the memory gap range to reserved memblock. So, the node
-> > is marked as Normal zone even if the SRAT has Hot plaggable affinity.
-> > 
-> >     =====================================================================
-> >     kernel: BIOS-e820: [mem 0x0000180000000000-0x0000180fffffffff] usable
-> >     kernel: BIOS-e820: [mem 0x00001c0000000000-0x00001c0fffffffff] usable
-> >     ...
-> >     kernel: reserved[0x12]#011[0x0000181000000000-0x00001bffffffffff], 0x000003f000000000 bytes flags: 0x0
-> >     ...
-> >     kernel: ACPI: SRAT: Node 2 PXM 6 [mem 0x180000000000-0x1bffffffffff] hotplug
-> >     kernel: ACPI: SRAT: Node 3 PXM 7 [mem 0x1c0000000000-0x1fffffffffff] hotplug
-> >     ...
-> >     kernel: Movable zone start for each node
-> >     kernel:  Node 3: 0x00001c0000000000
-> >     kernel: Early memory node ranges
-> >     ...
-> >     =====================================================================
-> > 
-> > Naoya's v1 patch [*] fixes the original issue and this movable_node
-> > issue doesn't occur.
-> > Let's revert commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM
-> > regions into memblock.reserved") and apply the v1 patch.
-> > 
-> > [*] https://lkml.org/lkml/2018/6/13/27
-> > 
-> > Signed-off-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
-> > ---
-> >  arch/x86/kernel/e820.c | 15 +++------------
-> >  1 file changed, 3 insertions(+), 12 deletions(-)
-> > 
-> > diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
-> > index c88c23c658c1..d1f25c831447 100644
-> > --- a/arch/x86/kernel/e820.c
-> > +++ b/arch/x86/kernel/e820.c
-> > @@ -1248,7 +1248,6 @@ void __init e820__memblock_setup(void)
-> >  {
-> >  	int i;
-> >  	u64 end;
-> > -	u64 addr = 0;
-> >  
-> >  	/*
-> >  	 * The bootstrap memblock region count maximum is 128 entries
-> > @@ -1265,21 +1264,13 @@ void __init e820__memblock_setup(void)
-> >  		struct e820_entry *entry = &e820_table->entries[i];
-> >  
-> >  		end = entry->addr + entry->size;
-> > -		if (addr < entry->addr)
-> > -			memblock_reserve(addr, entry->addr - addr);
-> > -		addr = end;
-> >  		if (end != (resource_size_t)end)
-> >  			continue;
-> >  
-> > -		/*
-> > -		 * all !E820_TYPE_RAM ranges (including gap ranges) are put
-> > -		 * into memblock.reserved to make sure that struct pages in
-> > -		 * such regions are not left uninitialized after bootup.
-> > -		 */
-> >  		if (entry->type != E820_TYPE_RAM && entry->type != E820_TYPE_RESERVED_KERN)
-> > -			memblock_reserve(entry->addr, entry->size);
-> > -		else
-> > -			memblock_add(entry->addr, entry->size);
-> > +			continue;
-> > +
-> > +		memblock_add(entry->addr, entry->size);
-> >  	}
-> >  
-> >  	/* Throw away partial pages: */
-> > -- 
-> > 2.18.0
-> > 
-> > 
+Right, so (many many years ago) I moved it over to generic code because
+Sparc-hash wanted fast_gup and I figured having multiple copies of this
+stuff wasn't ideal.
 
--- 
-Michal Hocko
-SUSE Labs
+Then ARM came along and used it because it does the invalidate
+broadcast.
+
+And then when we switched x86 over last year or so; because paravirt; I
+had long since forgotten all details and completely overlooked this.
+
+Worse; somewhere along the line we tried to get s390 on this and they
+ran into the exact problem being fixed now. That _should_ have been a
+big clue, but somehow I never got around to thinking about it properly
+and they went back to a private copy of all this.
+
+So double fail on me I suppose :-/
+
+Anyway, its sorted now; although I'd like to write me a fairly big
+comment in asm-generic/tlb.h about things, before I forget again.
