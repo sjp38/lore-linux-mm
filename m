@@ -1,123 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2358D6B39E9
-	for <linux-mm@kvack.org>; Sun, 26 Aug 2018 04:40:37 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id 20-v6so5808229itb.7
-        for <linux-mm@kvack.org>; Sun, 26 Aug 2018 01:40:37 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id e66-v6si7957171jab.87.2018.08.26.01.40.34
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 922F96B3A07
+	for <linux-mm@kvack.org>; Sun, 26 Aug 2018 05:10:48 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id w23-v6so11198846iob.18
+        for <linux-mm@kvack.org>; Sun, 26 Aug 2018 02:10:48 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id x24-v6si7570431iob.157.2018.08.26.02.10.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 26 Aug 2018 01:40:35 -0700 (PDT)
-Subject: Re: [PATCH] mm, oom: distinguish blockable mode for mmu notifiers
-References: <20180824120339.GL29735@dhcp22.suse.cz>
- <eb546bcb-9c5f-7d5d-43a7-bfde489f0e7f@amd.com>
- <20180824123341.GN29735@dhcp22.suse.cz>
- <b11df415-baf8-0a41-3c16-60dfe8d32bd3@amd.com>
- <20180824130132.GP29735@dhcp22.suse.cz>
- <23d071d2-82e4-9b78-1000-be44db5f6523@gmail.com>
- <20180824132442.GQ29735@dhcp22.suse.cz>
- <86bd94d5-0ce8-c67f-07a5-ca9ebf399cdd@gmail.com>
- <20180824134009.GS29735@dhcp22.suse.cz>
- <735b0a53-5237-8827-d20e-e57fa24d798f@amd.com>
- <20180824135257.GU29735@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <b78f8b3a-7bc6-0dea-6752-5ea798eccb6b@i-love.sakura.ne.jp>
-Date: Sun, 26 Aug 2018 17:40:00 +0900
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 26 Aug 2018 02:10:47 -0700 (PDT)
+Date: Sun, 26 Aug 2018 11:09:58 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: TLB flushes on fixmap changes
+Message-ID: <20180826090958.GT24124@hirez.programming.kicks-ass.net>
+References: <D74A89DF-0D89-4AB6-8A6B-93BEC9A83595@gmail.com>
+ <20180824180438.GS24124@hirez.programming.kicks-ass.net>
+ <56A9902F-44BE-4520-A17C-26650FCC3A11@gmail.com>
+ <CA+55aFzerzTPm94jugheVmWg8dJre94yu+GyZGT9NNZanNx_qw@mail.gmail.com>
+ <9A38D3F4-2F75-401D-8B4D-83A844C9061B@gmail.com>
+ <CA+55aFz1KYT7fRRG98wei24spiVg7u1Ec66piWY5359ykFmezw@mail.gmail.com>
+ <8E0D8C66-6F21-4890-8984-B6B3082D4CC5@gmail.com>
+ <CALCETrWdeKBcEs7zAbpEM1YdYiT2UBXwPtF0mMTvcDX_KRpz1A@mail.gmail.com>
+ <20180826112341.f77a528763e297cbc36058fa@kernel.org>
+ <CALCETrXPaX-+R6Z9LqZp0uOVmq-TUX_ksPbUL7mnfbdqo6z2AA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180824135257.GU29735@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrXPaX-+R6Z9LqZp0uOVmq-TUX_ksPbUL7mnfbdqo6z2AA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
-Cc: kvm@vger.kernel.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Sudeep Dutt <sudeep.dutt@intel.com>, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Dimitri Sivanich <sivanich@sgi.com>, Jason Gunthorpe <jgg@ziepe.ca>, linux-rdma@vger.kernel.org, amd-gfx@lists.freedesktop.org, David Airlie <airlied@linux.ie>, Doug Ledford <dledford@redhat.com>, David Rientjes <rientjes@google.com>, xen-devel@lists.xenproject.org, intel-gfx@lists.freedesktop.org, Leon Romanovsky <leonro@mellanox.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, LKML <linux-kernel@vger.kernel.org>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Alex Deucher <alexander.deucher@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Felix Kuehling <felix.kuehling@amd.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Masami Hiramatsu <mhiramat@kernel.org>, Kees Cook <keescook@chromium.org>, Nadav Amit <nadav.amit@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Jiri Kosina <jkosina@suse.cz>, Will Deacon <will.deacon@arm.com>, Benjamin Herrenschmidt <benh@au1.ibm.com>, Nick Piggin <npiggin@gmail.com>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>
 
-On 2018/08/24 22:52, Michal Hocko wrote:
-> @@ -180,11 +180,15 @@ void amdgpu_mn_unlock(struct amdgpu_mn *mn)
->   */
->  static int amdgpu_mn_read_lock(struct amdgpu_mn *amn, bool blockable)
->  {
-> -	if (blockable)
-> -		mutex_lock(&amn->read_lock);
-> -	else if (!mutex_trylock(&amn->read_lock))
-> -		return -EAGAIN;
-> -
-> +	/*
-> +	 * We can take sleepable lock even on !blockable mode because
-> +	 * read_lock is only ever take from this path and the notifier
-> +	 * lock never really sleeps. In fact the only reason why the
-> +	 * later is sleepable is because the notifier itself might sleep
-> +	 * in amdgpu_mn_invalidate_node but blockable mode is handled
-> +	 * before calling into that path.
-> +	 */
-> +	mutex_lock(&amn->read_lock);
->  	if (atomic_inc_return(&amn->recursion) == 1)
->  		down_read_non_owner(&amn->lock);
->  	mutex_unlock(&amn->read_lock);
-> 
+On Sat, Aug 25, 2018 at 09:21:22PM -0700, Andy Lutomirski wrote:
+> I just re-read text_poke().  It's, um, horrible.  Not only is the
+> implementation overcomplicated and probably buggy, but it's SLOOOOOW.
+> It's totally the wrong API -- poking one instruction at a time
+> basically can't be efficient on x86.  The API should either poke lots
+> of instructions at once or should be text_poke_begin(); ...;
+> text_poke_end();.
 
-I'm not following. Why don't we need to do like below (given that
-nobody except amdgpu_mn_read_lock() holds ->read_lock) because e.g.
-drm_sched_fence_create() from drm_sched_job_init() from amdgpu_cs_submit()
-is doing GFP_KERNEL memory allocation with ->lock held for write?
+I don't think anybody ever cared about performance here. Only
+correctness. That whole text_poke_bp() thing is entirely tricky.
 
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-index e55508b..e1cb344 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-@@ -64,8 +64,6 @@
-  * @node: hash table node to find structure by adev and mn
-  * @lock: rw semaphore protecting the notifier nodes
-  * @objects: interval tree containing amdgpu_mn_nodes
-- * @read_lock: mutex for recursive locking of @lock
-- * @recursion: depth of recursion
-  *
-  * Data for each amdgpu device and process address space.
-  */
-@@ -85,8 +83,6 @@ struct amdgpu_mn {
- 	/* objects protected by lock */
- 	struct rw_semaphore	lock;
- 	struct rb_root_cached	objects;
--	struct mutex		read_lock;
--	atomic_t		recursion;
- };
- 
- /**
-@@ -181,14 +177,9 @@ void amdgpu_mn_unlock(struct amdgpu_mn *mn)
- static int amdgpu_mn_read_lock(struct amdgpu_mn *amn, bool blockable)
- {
- 	if (blockable)
--		mutex_lock(&amn->read_lock);
--	else if (!mutex_trylock(&amn->read_lock))
-+		down_read(&amn->lock);
-+	else if (!down_read_trylock(&amn->lock))
- 		return -EAGAIN;
--
--	if (atomic_inc_return(&amn->recursion) == 1)
--		down_read_non_owner(&amn->lock);
--	mutex_unlock(&amn->read_lock);
--
- 	return 0;
- }
- 
-@@ -199,8 +190,7 @@ static int amdgpu_mn_read_lock(struct amdgpu_mn *amn, bool blockable)
-  */
- static void amdgpu_mn_read_unlock(struct amdgpu_mn *amn)
- {
--	if (atomic_dec_return(&amn->recursion) == 0)
--		up_read_non_owner(&amn->lock);
-+	up_read(&amn->lock);
- }
- 
- /**
-@@ -410,8 +400,6 @@ struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev,
- 	amn->type = type;
- 	amn->mn.ops = &amdgpu_mn_ops[type];
- 	amn->objects = RB_ROOT_CACHED;
--	mutex_init(&amn->read_lock);
--	atomic_set(&amn->recursion, 0);
- 
- 	r = __mmu_notifier_register(&amn->mn, mm);
- 	if (r)
+FWIW, before text_poke_bp(), text_poke() would only be used from
+stop_machine, so all the other CPUs would be stuck busy-waiting with
+IRQs disabled. These days, yeah, that's lots more dodgy, but yes
+text_mutex should be serializing all that.
+
+And on that, I so hate comments like: "must be called under foo_mutex",
+we have lockdep_assert_held() for that.
