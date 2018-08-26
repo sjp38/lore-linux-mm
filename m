@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E1F216B3BD0
-	for <linux-mm@kvack.org>; Sun, 26 Aug 2018 12:47:42 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id c191-v6so5286383ywh.11
-        for <linux-mm@kvack.org>; Sun, 26 Aug 2018 09:47:42 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AFF36B3BF6
+	for <linux-mm@kvack.org>; Sun, 26 Aug 2018 13:25:15 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id a23-v6so9898036pfo.23
+        for <linux-mm@kvack.org>; Sun, 26 Aug 2018 10:25:15 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f15-v6sor1516005ybp.158.2018.08.26.09.47.41
+        by mx.google.com with SMTPS id d29-v6sor3874149pfj.97.2018.08.26.10.25.14
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 26 Aug 2018 09:47:41 -0700 (PDT)
-Received: from mail-yw1-f52.google.com (mail-yw1-f52.google.com. [209.85.161.52])
-        by smtp.gmail.com with ESMTPSA id w207-v6sm10435075yww.17.2018.08.26.09.47.37
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 26 Aug 2018 09:47:38 -0700 (PDT)
-Received: by mail-yw1-f52.google.com with SMTP id z143-v6so4769484ywa.7
-        for <linux-mm@kvack.org>; Sun, 26 Aug 2018 09:47:37 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <952A64F0-90B3-4E2F-B410-7E20BE90D617@amacapital.net>
+        Sun, 26 Aug 2018 10:25:14 -0700 (PDT)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (1.0)
+Subject: Re: TLB flushes on fixmap changes
+From: Andy Lutomirski <luto@amacapital.net>
+In-Reply-To: <CAGXu5jKk+ELGsSXC8e3v67oo74BF9rP2HDqMHx1Sb17-0F-xZQ@mail.gmail.com>
+Date: Sun, 26 Aug 2018 10:25:11 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <DF353FDA-4A57-4F5E-A403-531DDA0DBC25@amacapital.net>
 References: <20180822153012.173508681@infradead.org> <20180822154046.823850812@infradead.org>
  <20180822155527.GF24124@hirez.programming.kicks-ass.net> <20180823134525.5f12b0d3@roar.ozlabs.ibm.com>
  <CA+55aFxneZTFxxxAjLZmj92VUJg6z7hERxJ2cHoth-GC0RuELw@mail.gmail.com>
@@ -29,65 +29,72 @@ References: <20180822153012.173508681@infradead.org> <20180822154046.823850812@i
  <9A38D3F4-2F75-401D-8B4D-83A844C9061B@gmail.com> <CA+55aFz1KYT7fRRG98wei24spiVg7u1Ec66piWY5359ykFmezw@mail.gmail.com>
  <8E0D8C66-6F21-4890-8984-B6B3082D4CC5@gmail.com> <CALCETrWdeKBcEs7zAbpEM1YdYiT2UBXwPtF0mMTvcDX_KRpz1A@mail.gmail.com>
  <20180826112341.f77a528763e297cbc36058fa@kernel.org> <CALCETrXPaX-+R6Z9LqZp0uOVmq-TUX_ksPbUL7mnfbdqo6z2AA@mail.gmail.com>
- <CAGXu5j+xUbq_mu=2jvH2Vu+mviteZJqdPNTrxpaijwsuDdN-sw@mail.gmail.com> <952A64F0-90B3-4E2F-B410-7E20BE90D617@amacapital.net>
-From: Kees Cook <keescook@chromium.org>
-Date: Sun, 26 Aug 2018 09:47:36 -0700
-Message-ID: <CAGXu5jKk+ELGsSXC8e3v67oo74BF9rP2HDqMHx1Sb17-0F-xZQ@mail.gmail.com>
-Subject: Re: TLB flushes on fixmap changes
-Content-Type: text/plain; charset="UTF-8"
+ <CAGXu5j+xUbq_mu=2jvH2Vu+mviteZJqdPNTrxpaijwsuDdN-sw@mail.gmail.com>
+ <952A64F0-90B3-4E2F-B410-7E20BE90D617@amacapital.net> <CAGXu5jKk+ELGsSXC8e3v67oo74BF9rP2HDqMHx1Sb17-0F-xZQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
+To: Kees Cook <keescook@chromium.org>
 Cc: Andy Lutomirski <luto@kernel.org>, Masami Hiramatsu <mhiramat@kernel.org>, Nadav Amit <nadav.amit@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Jiri Kosina <jkosina@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, Benjamin Herrenschmidt <benh@au1.ibm.com>, Nick Piggin <npiggin@gmail.com>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>
 
-On Sun, Aug 26, 2018 at 7:20 AM, Andy Lutomirski <luto@amacapital.net> wrote:
->
->
->> On Aug 25, 2018, at 9:43 PM, Kees Cook <keescook@chromium.org> wrote:
->>
->>> On Sat, Aug 25, 2018 at 9:21 PM, Andy Lutomirski <luto@kernel.org> wrote:
->>>> On Sat, Aug 25, 2018 at 7:23 PM, Masami Hiramatsu <mhiramat@kernel.org> wrote:
->>>> On Fri, 24 Aug 2018 21:23:26 -0700
->>>> Andy Lutomirski <luto@kernel.org> wrote:
->>>>> Couldn't text_poke() use kmap_atomic()?  Or, even better, just change CR3?
->>>>
->>>> No, since kmap_atomic() is only for x86_32 and highmem support kernel.
->>>> In x86-64, it seems that returns just a page address. That is not
->>>> good for text_poke, since it needs to make a writable alias for RO
->>>> code page. Hmm, maybe, can we mimic copy_oldmem_page(), it uses ioremap_cache?
->>>>
->>>
->>> I just re-read text_poke().  It's, um, horrible.  Not only is the
->>> implementation overcomplicated and probably buggy, but it's SLOOOOOW.
->>> It's totally the wrong API -- poking one instruction at a time
->>> basically can't be efficient on x86.  The API should either poke lots
->>> of instructions at once or should be text_poke_begin(); ...;
->>> text_poke_end();.
->>>
->>> Anyway, the attached patch seems to boot.  Linus, Kees, etc: is this
->>> too scary of an approach?  With the patch applied, text_poke() is a
->>> fantastic exploit target.  On the other hand, even without the patch
->>> applied, text_poke() is every bit as juicy.
->>
->> I tried to convince Ingo to use this method for doing "write rarely"
->> and he soundly rejected it. :) I've always liked this because AFAICT,
->> it's local to the CPU. I had proposed it in
->> https://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git/commit/?h=kspp/write-rarely&id=9ab0cb2618ebbc51f830ceaa06b7d2182fe1a52d
->
-> Ingo, can you clarify why you hate it?  I personally would rather use CR3, but CR0 seems like a fine first step, at least for text_poke.
 
-Sorry, it looks like it was tglx, not Ingo:
 
-https://lkml.kernel.org/r/alpine.DEB.2.20.1704071048360.1716@nanos
+> On Aug 26, 2018, at 9:47 AM, Kees Cook <keescook@chromium.org> wrote:
+>=20
+>> On Sun, Aug 26, 2018 at 7:20 AM, Andy Lutomirski <luto@amacapital.net> wr=
+ote:
+>>=20
+>>=20
+>>>> On Aug 25, 2018, at 9:43 PM, Kees Cook <keescook@chromium.org> wrote:
+>>>>=20
+>>>>> On Sat, Aug 25, 2018 at 9:21 PM, Andy Lutomirski <luto@kernel.org> wro=
+te:
+>>>>> On Sat, Aug 25, 2018 at 7:23 PM, Masami Hiramatsu <mhiramat@kernel.org=
+> wrote:
+>>>>> On Fri, 24 Aug 2018 21:23:26 -0700
+>>>>> Andy Lutomirski <luto@kernel.org> wrote:
+>>>>>> Couldn't text_poke() use kmap_atomic()?  Or, even better, just change=
+ CR3?
+>>>>>=20
+>>>>> No, since kmap_atomic() is only for x86_32 and highmem support kernel.=
 
-This thread is long, and one thing that I think went unanswered was
-"why do we want this to be fast?" the answer is: for doing page table
-updates. Page tables are becoming a bigger target for attacks now, and
-it's be nice if they could stay read-only unless they're getting
-updated (with something like this).
+>>>>> In x86-64, it seems that returns just a page address. That is not
+>>>>> good for text_poke, since it needs to make a writable alias for RO
+>>>>> code page. Hmm, maybe, can we mimic copy_oldmem_page(), it uses iorema=
+p_cache?
+>>>>>=20
+>>>>=20
+>>>> I just re-read text_poke().  It's, um, horrible.  Not only is the
+>>>> implementation overcomplicated and probably buggy, but it's SLOOOOOW.
+>>>> It's totally the wrong API -- poking one instruction at a time
+>>>> basically can't be efficient on x86.  The API should either poke lots
+>>>> of instructions at once or should be text_poke_begin(); ...;
+>>>> text_poke_end();.
+>>>>=20
+>>>> Anyway, the attached patch seems to boot.  Linus, Kees, etc: is this
+>>>> too scary of an approach?  With the patch applied, text_poke() is a
+>>>> fantastic exploit target.  On the other hand, even without the patch
+>>>> applied, text_poke() is every bit as juicy.
+>>>=20
+>>> I tried to convince Ingo to use this method for doing "write rarely"
+>>> and he soundly rejected it. :) I've always liked this because AFAICT,
+>>> it's local to the CPU. I had proposed it in
+>>> https://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git/commit/?h=
+=3Dkspp/write-rarely&id=3D9ab0cb2618ebbc51f830ceaa06b7d2182fe1a52d
+>>=20
+>> Ingo, can you clarify why you hate it?  I personally would rather use CR3=
+, but CR0 seems like a fine first step, at least for text_poke.
+>=20
+> Sorry, it looks like it was tglx, not Ingo:
+>=20
+> https://lkml.kernel.org/r/alpine.DEB.2.20.1704071048360.1716@nanos
+>=20
+> This thread is long, and one thing that I think went unanswered was
+> "why do we want this to be fast?" the answer is: for doing page table
+> updates. Page tables are becoming a bigger target for attacks now, and
+> it's be nice if they could stay read-only unless they're getting
+> updated (with something like this).
+>=20
+>=20
 
--Kees
-
--- 
-Kees Cook
-Pixel Security
+It kind of sounds like tglx would prefer the CR3 approach. And indeed my pat=
+ch has a serious problem wrt the NMI code.
