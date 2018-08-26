@@ -1,197 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C124E6B3976
-	for <linux-mm@kvack.org>; Sun, 26 Aug 2018 02:43:51 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id e15-v6so9278603pfi.5
-        for <linux-mm@kvack.org>; Sat, 25 Aug 2018 23:43:51 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id p35-v6si10794747pgb.209.2018.08.25.23.43.50
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2358D6B39E9
+	for <linux-mm@kvack.org>; Sun, 26 Aug 2018 04:40:37 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id 20-v6so5808229itb.7
+        for <linux-mm@kvack.org>; Sun, 26 Aug 2018 01:40:37 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id e66-v6si7957171jab.87.2018.08.26.01.40.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 25 Aug 2018 23:43:50 -0700 (PDT)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.4 2/5] x86/mm: Fix use-after-free of ldt_struct
-Date: Sun, 26 Aug 2018 08:42:54 +0200
-Message-Id: <20180826064103.324031685@linuxfoundation.org>
-In-Reply-To: <20180826064102.584749876@linuxfoundation.org>
-References: <20180826064102.584749876@linuxfoundation.org>
+        Sun, 26 Aug 2018 01:40:35 -0700 (PDT)
+Subject: Re: [PATCH] mm, oom: distinguish blockable mode for mmu notifiers
+References: <20180824120339.GL29735@dhcp22.suse.cz>
+ <eb546bcb-9c5f-7d5d-43a7-bfde489f0e7f@amd.com>
+ <20180824123341.GN29735@dhcp22.suse.cz>
+ <b11df415-baf8-0a41-3c16-60dfe8d32bd3@amd.com>
+ <20180824130132.GP29735@dhcp22.suse.cz>
+ <23d071d2-82e4-9b78-1000-be44db5f6523@gmail.com>
+ <20180824132442.GQ29735@dhcp22.suse.cz>
+ <86bd94d5-0ce8-c67f-07a5-ca9ebf399cdd@gmail.com>
+ <20180824134009.GS29735@dhcp22.suse.cz>
+ <735b0a53-5237-8827-d20e-e57fa24d798f@amd.com>
+ <20180824135257.GU29735@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <b78f8b3a-7bc6-0dea-6752-5ea798eccb6b@i-love.sakura.ne.jp>
+Date: Sun, 26 Aug 2018 17:40:00 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20180824135257.GU29735@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Eric Biggers <ebiggers@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Christoph Hellwig <hch@lst.de>, Denys Vlasenko <dvlasenk@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Ben Hutchings <ben.hutchings@codethink.co.uk>
+To: Michal Hocko <mhocko@kernel.org>, =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
+Cc: kvm@vger.kernel.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Sudeep Dutt <sudeep.dutt@intel.com>, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Dimitri Sivanich <sivanich@sgi.com>, Jason Gunthorpe <jgg@ziepe.ca>, linux-rdma@vger.kernel.org, amd-gfx@lists.freedesktop.org, David Airlie <airlied@linux.ie>, Doug Ledford <dledford@redhat.com>, David Rientjes <rientjes@google.com>, xen-devel@lists.xenproject.org, intel-gfx@lists.freedesktop.org, Leon Romanovsky <leonro@mellanox.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, LKML <linux-kernel@vger.kernel.org>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Alex Deucher <alexander.deucher@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Felix Kuehling <felix.kuehling@amd.com>
 
-4.4-stable review patch.  If anyone has any objections, please let me know.
+On 2018/08/24 22:52, Michal Hocko wrote:
+> @@ -180,11 +180,15 @@ void amdgpu_mn_unlock(struct amdgpu_mn *mn)
+>   */
+>  static int amdgpu_mn_read_lock(struct amdgpu_mn *amn, bool blockable)
+>  {
+> -	if (blockable)
+> -		mutex_lock(&amn->read_lock);
+> -	else if (!mutex_trylock(&amn->read_lock))
+> -		return -EAGAIN;
+> -
+> +	/*
+> +	 * We can take sleepable lock even on !blockable mode because
+> +	 * read_lock is only ever take from this path and the notifier
+> +	 * lock never really sleeps. In fact the only reason why the
+> +	 * later is sleepable is because the notifier itself might sleep
+> +	 * in amdgpu_mn_invalidate_node but blockable mode is handled
+> +	 * before calling into that path.
+> +	 */
+> +	mutex_lock(&amn->read_lock);
+>  	if (atomic_inc_return(&amn->recursion) == 1)
+>  		down_read_non_owner(&amn->lock);
+>  	mutex_unlock(&amn->read_lock);
+> 
 
-------------------
+I'm not following. Why don't we need to do like below (given that
+nobody except amdgpu_mn_read_lock() holds ->read_lock) because e.g.
+drm_sched_fence_create() from drm_sched_job_init() from amdgpu_cs_submit()
+is doing GFP_KERNEL memory allocation with ->lock held for write?
 
-From: Eric Biggers <ebiggers@google.com>
-
-commit ccd5b3235180eef3cfec337df1c8554ab151b5cc upstream.
-
-The following commit:
-
-  39a0526fb3f7 ("x86/mm: Factor out LDT init from context init")
-
-renamed init_new_context() to init_new_context_ldt() and added a new
-init_new_context() which calls init_new_context_ldt().  However, the
-error code of init_new_context_ldt() was ignored.  Consequently, if a
-memory allocation in alloc_ldt_struct() failed during a fork(), the
-->context.ldt of the new task remained the same as that of the old task
-(due to the memcpy() in dup_mm()).  ldt_struct's are not intended to be
-shared, so a use-after-free occurred after one task exited.
-
-Fix the bug by making init_new_context() pass through the error code of
-init_new_context_ldt().
-
-This bug was found by syzkaller, which encountered the following splat:
-
-    BUG: KASAN: use-after-free in free_ldt_struct.part.2+0x10a/0x150 arch/x86/kernel/ldt.c:116
-    Read of size 4 at addr ffff88006d2cb7c8 by task kworker/u9:0/3710
-
-    CPU: 1 PID: 3710 Comm: kworker/u9:0 Not tainted 4.13.0-rc4-next-20170811 #2
-    Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-    Call Trace:
-     __dump_stack lib/dump_stack.c:16 [inline]
-     dump_stack+0x194/0x257 lib/dump_stack.c:52
-     print_address_description+0x73/0x250 mm/kasan/report.c:252
-     kasan_report_error mm/kasan/report.c:351 [inline]
-     kasan_report+0x24e/0x340 mm/kasan/report.c:409
-     __asan_report_load4_noabort+0x14/0x20 mm/kasan/report.c:429
-     free_ldt_struct.part.2+0x10a/0x150 arch/x86/kernel/ldt.c:116
-     free_ldt_struct arch/x86/kernel/ldt.c:173 [inline]
-     destroy_context_ldt+0x60/0x80 arch/x86/kernel/ldt.c:171
-     destroy_context arch/x86/include/asm/mmu_context.h:157 [inline]
-     __mmdrop+0xe9/0x530 kernel/fork.c:889
-     mmdrop include/linux/sched/mm.h:42 [inline]
-     exec_mmap fs/exec.c:1061 [inline]
-     flush_old_exec+0x173c/0x1ff0 fs/exec.c:1291
-     load_elf_binary+0x81f/0x4ba0 fs/binfmt_elf.c:855
-     search_binary_handler+0x142/0x6b0 fs/exec.c:1652
-     exec_binprm fs/exec.c:1694 [inline]
-     do_execveat_common.isra.33+0x1746/0x22e0 fs/exec.c:1816
-     do_execve+0x31/0x40 fs/exec.c:1860
-     call_usermodehelper_exec_async+0x457/0x8f0 kernel/umh.c:100
-     ret_from_fork+0x2a/0x40 arch/x86/entry/entry_64.S:431
-
-    Allocated by task 3700:
-     save_stack_trace+0x16/0x20 arch/x86/kernel/stacktrace.c:59
-     save_stack+0x43/0xd0 mm/kasan/kasan.c:447
-     set_track mm/kasan/kasan.c:459 [inline]
-     kasan_kmalloc+0xad/0xe0 mm/kasan/kasan.c:551
-     kmem_cache_alloc_trace+0x136/0x750 mm/slab.c:3627
-     kmalloc include/linux/slab.h:493 [inline]
-     alloc_ldt_struct+0x52/0x140 arch/x86/kernel/ldt.c:67
-     write_ldt+0x7b7/0xab0 arch/x86/kernel/ldt.c:277
-     sys_modify_ldt+0x1ef/0x240 arch/x86/kernel/ldt.c:307
-     entry_SYSCALL_64_fastpath+0x1f/0xbe
-
-    Freed by task 3700:
-     save_stack_trace+0x16/0x20 arch/x86/kernel/stacktrace.c:59
-     save_stack+0x43/0xd0 mm/kasan/kasan.c:447
-     set_track mm/kasan/kasan.c:459 [inline]
-     kasan_slab_free+0x71/0xc0 mm/kasan/kasan.c:524
-     __cache_free mm/slab.c:3503 [inline]
-     kfree+0xca/0x250 mm/slab.c:3820
-     free_ldt_struct.part.2+0xdd/0x150 arch/x86/kernel/ldt.c:121
-     free_ldt_struct arch/x86/kernel/ldt.c:173 [inline]
-     destroy_context_ldt+0x60/0x80 arch/x86/kernel/ldt.c:171
-     destroy_context arch/x86/include/asm/mmu_context.h:157 [inline]
-     __mmdrop+0xe9/0x530 kernel/fork.c:889
-     mmdrop include/linux/sched/mm.h:42 [inline]
-     __mmput kernel/fork.c:916 [inline]
-     mmput+0x541/0x6e0 kernel/fork.c:927
-     copy_process.part.36+0x22e1/0x4af0 kernel/fork.c:1931
-     copy_process kernel/fork.c:1546 [inline]
-     _do_fork+0x1ef/0xfb0 kernel/fork.c:2025
-     SYSC_clone kernel/fork.c:2135 [inline]
-     SyS_clone+0x37/0x50 kernel/fork.c:2129
-     do_syscall_64+0x26c/0x8c0 arch/x86/entry/common.c:287
-     return_from_SYSCALL_64+0x0/0x7a
-
-Here is a C reproducer:
-
-    #include <asm/ldt.h>
-    #include <pthread.h>
-    #include <signal.h>
-    #include <stdlib.h>
-    #include <sys/syscall.h>
-    #include <sys/wait.h>
-    #include <unistd.h>
-
-    static void *fork_thread(void *_arg)
-    {
-        fork();
-    }
-
-    int main(void)
-    {
-        struct user_desc desc = { .entry_number = 8191 };
-
-        syscall(__NR_modify_ldt, 1, &desc, sizeof(desc));
-
-        for (;;) {
-            if (fork() == 0) {
-                pthread_t t;
-
-                srand(getpid());
-                pthread_create(&t, NULL, fork_thread, NULL);
-                usleep(rand() % 10000);
-                syscall(__NR_exit_group, 0);
-            }
-            wait(NULL);
-        }
-    }
-
-Note: the reproducer takes advantage of the fact that alloc_ldt_struct()
-may use vmalloc() to allocate a large ->entries array, and after
-commit:
-
-  5d17a73a2ebe ("vmalloc: back off when the current task is killed")
-
-it is possible for userspace to fail a task's vmalloc() by
-sending a fatal signal, e.g. via exit_group().  It would be more
-difficult to reproduce this bug on kernels without that commit.
-
-This bug only affected kernels with CONFIG_MODIFY_LDT_SYSCALL=y.
-
-Signed-off-by: Eric Biggers <ebiggers@google.com>
-Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: <stable@vger.kernel.org> [v4.6+]
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Fixes: 39a0526fb3f7 ("x86/mm: Factor out LDT init from context init")
-Link: http://lkml.kernel.org/r/20170824175029.76040-1-ebiggers3@gmail.com
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Cc: Ben Hutchings <ben.hutchings@codethink.co.uk>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-
----
- arch/x86/include/asm/mmu_context.h |    3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
-
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -109,8 +109,7 @@ static inline int init_new_context(struc
- 				   struct mm_struct *mm)
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
+index e55508b..e1cb344 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
+@@ -64,8 +64,6 @@
+  * @node: hash table node to find structure by adev and mn
+  * @lock: rw semaphore protecting the notifier nodes
+  * @objects: interval tree containing amdgpu_mn_nodes
+- * @read_lock: mutex for recursive locking of @lock
+- * @recursion: depth of recursion
+  *
+  * Data for each amdgpu device and process address space.
+  */
+@@ -85,8 +83,6 @@ struct amdgpu_mn {
+ 	/* objects protected by lock */
+ 	struct rw_semaphore	lock;
+ 	struct rb_root_cached	objects;
+-	struct mutex		read_lock;
+-	atomic_t		recursion;
+ };
+ 
+ /**
+@@ -181,14 +177,9 @@ void amdgpu_mn_unlock(struct amdgpu_mn *mn)
+ static int amdgpu_mn_read_lock(struct amdgpu_mn *amn, bool blockable)
  {
- 	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
--	init_new_context_ldt(tsk, mm);
--	return 0;
-+	return init_new_context_ldt(tsk, mm);
+ 	if (blockable)
+-		mutex_lock(&amn->read_lock);
+-	else if (!mutex_trylock(&amn->read_lock))
++		down_read(&amn->lock);
++	else if (!down_read_trylock(&amn->lock))
+ 		return -EAGAIN;
+-
+-	if (atomic_inc_return(&amn->recursion) == 1)
+-		down_read_non_owner(&amn->lock);
+-	mutex_unlock(&amn->read_lock);
+-
+ 	return 0;
  }
- static inline void destroy_context(struct mm_struct *mm)
+ 
+@@ -199,8 +190,7 @@ static int amdgpu_mn_read_lock(struct amdgpu_mn *amn, bool blockable)
+  */
+ static void amdgpu_mn_read_unlock(struct amdgpu_mn *amn)
  {
+-	if (atomic_dec_return(&amn->recursion) == 0)
+-		up_read_non_owner(&amn->lock);
++	up_read(&amn->lock);
+ }
+ 
+ /**
+@@ -410,8 +400,6 @@ struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev,
+ 	amn->type = type;
+ 	amn->mn.ops = &amdgpu_mn_ops[type];
+ 	amn->objects = RB_ROOT_CACHED;
+-	mutex_init(&amn->read_lock);
+-	atomic_set(&amn->recursion, 0);
+ 
+ 	r = __mmu_notifier_register(&amn->mn, mm);
+ 	if (r)
