@@ -1,85 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DD8B6B40BE
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 09:37:08 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id v65-v6so14751530qka.23
-        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 06:37:08 -0700 (PDT)
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id e186-v6si3473075qkf.291.2018.08.27.06.37.06
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BABBD6B40C5
+	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 09:42:35 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id c14-v6so3860764qtc.7
+        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 06:42:35 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id x9-v6si5044296qkl.52.2018.08.27.06.42.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Aug 2018 06:37:06 -0700 (PDT)
-Message-ID: <405ba257e730d4f0ad9007490e7ac47cc343c720.camel@surriel.com>
-Subject: Re: [PATCH 3/4] mm/tlb, x86/mm: Support invalidating TLB caches for
- RCU_TABLE_FREE
-From: Rik van Riel <riel@surriel.com>
-Date: Mon, 27 Aug 2018 09:36:50 -0400
-In-Reply-To: <20180827180458.4af9b2ac@roar.ozlabs.ibm.com>
-References: <20180822155527.GF24124@hirez.programming.kicks-ass.net>
-	 <20180823134525.5f12b0d3@roar.ozlabs.ibm.com>
-	 <CA+55aFxneZTFxxxAjLZmj92VUJg6z7hERxJ2cHoth-GC0RuELw@mail.gmail.com>
-	 <776104d4c8e4fc680004d69e3a4c2594b638b6d1.camel@au1.ibm.com>
-	 <CA+55aFzM77G9-Q6LboPLJ=5gHma66ZQKiMGCMqXoKABirdF98w@mail.gmail.com>
-	 <20180823133958.GA1496@brain-police>
-	 <20180824084717.GK24124@hirez.programming.kicks-ass.net>
-	 <20180824113214.GK24142@hirez.programming.kicks-ass.net>
-	 <20180824113953.GL24142@hirez.programming.kicks-ass.net>
-	 <20180827150008.13bce08f@roar.ozlabs.ibm.com>
-	 <20180827074701.GW24124@hirez.programming.kicks-ass.net>
-	 <20180827180458.4af9b2ac@roar.ozlabs.ibm.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-CjA5zgmeZESrmuJDh+sg"
-Mime-Version: 1.0
+        Mon, 27 Aug 2018 06:42:35 -0700 (PDT)
+Date: Mon, 27 Aug 2018 09:42:32 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 2/3] mm, mmu_notifier: be explicit about range invalition
+ non-blocking mode
+Message-ID: <20180827134231.GA3930@redhat.com>
+References: <20180827112623.8992-1-mhocko@kernel.org>
+ <20180827112623.8992-3-mhocko@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180827112623.8992-3-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: Will Deacon <will.deacon@arm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Benjamin Herrenschmidt <benh@au1.ibm.com>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+
+On Mon, Aug 27, 2018 at 01:26:22PM +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> If invalidate_range_start is called for !blocking mode then all
+> callbacks have to guarantee they will no block/sleep. The same obviously
+> applies to invalidate_range_end because this operation pairs with the
+> former and they are called from the same context. Make sure this is
+> appropriately documented.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+
+Reviewed-by: Jerome Glisse <jglisse@redhat.com>
 
 
---=-CjA5zgmeZESrmuJDh+sg
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-On Mon, 2018-08-27 at 18:04 +1000, Nicholas Piggin wrote:
-
-> It could do that. It requires a tlbie that matches the page size,
-> so it means 3 sizes. I think possibly even that would be better
-> than current code, but we could do better if we had a few specific
-> fields in there.
-
-Would it cause a noticeable overhead to keep track
-of which page sizes were removed, and to simply flush
-the whole TLB in the (unlikely?) event that multiple
-page sizes were removed in the same munmap?
-
-Once the unmap is so large that multiple page sizes
-were covered, you may already be looking at so many
-individual flush operations that a full flush might
-be faster.
-
-Is there a point on PPC where simply flushing the
-whole TLB, and having other things be reloaded later,
-is faster than flushing every individual page mapping
-that got unmapped?
-
---=20
-All Rights Reversed.
-
---=-CjA5zgmeZESrmuJDh+sg
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAluD/nIACgkQznnekoTE
-3oPuoAgAgYYUxuaSllsIwNGF9TwctKvO64J9eWJukeqnJu357LE/C4ku0xwCXmhV
-51RiEMNOpnTEQ/DWfPXjnCzY/Uah4nBXPTIwBjHCKC57tJGcIt1V9PsvnyRgtBDR
-hf05gT/oO+Cuj4KAATK5gjfUpuNt3w/xg3Gsoxqv7fRcDH5czAu74JpSY1U1IrGP
-Ck2UVC9AARlmeAhnonEnBw+dFkZsMgIvIZyvVSY9ZL01r3zdXuieEzeeDRV8t4IG
-w0ccBoWSO07Si+zZNrvk7Bo3SpHolzZbov8SLGqi1jnNplO25xw/Fkx2kVgMMXmB
-aTdmEoWMISm8Gr7LshmkZ1RhAVQWrA==
-=vAtB
------END PGP SIGNATURE-----
-
---=-CjA5zgmeZESrmuJDh+sg--
+> ---
+>  include/linux/mmu_notifier.h | 4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+> index 133ba78820ee..698e371aafe3 100644
+> --- a/include/linux/mmu_notifier.h
+> +++ b/include/linux/mmu_notifier.h
+> @@ -153,7 +153,9 @@ struct mmu_notifier_ops {
+>  	 *
+>  	 * If blockable argument is set to false then the callback cannot
+>  	 * sleep and has to return with -EAGAIN. 0 should be returned
+> -	 * otherwise.
+> +	 * otherwise. Please note that if invalidate_range_start approves
+> +	 * a non-blocking behavior then the same applies to
+> +	 * invalidate_range_end.
+>  	 *
+>  	 */
+>  	int (*invalidate_range_start)(struct mmu_notifier *mn,
+> -- 
+> 2.18.0
+> 
