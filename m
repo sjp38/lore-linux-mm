@@ -1,26 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AB2F46B3F64
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 03:55:40 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id k17-v6so814489pll.21
-        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 00:55:40 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DB2EB6B3F66
+	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 03:55:42 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id x2-v6so10457312pgp.4
+        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 00:55:42 -0700 (PDT)
 Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id j5-v6si13565094plk.406.2018.08.27.00.55.39
+        by mx.google.com with ESMTPS id j5-v6si13565094plk.406.2018.08.27.00.55.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Aug 2018 00:55:39 -0700 (PDT)
+        Mon, 27 Aug 2018 00:55:41 -0700 (PDT)
 From: Huang Ying <ying.huang@intel.com>
-Subject: [PATCH 0/3] swap: Code refactoring for some swap free related functions
-Date: Mon, 27 Aug 2018 15:55:32 +0800
-Message-Id: <20180827075535.17406-1-ying.huang@intel.com>
+Subject: [PATCH 1/3] swap: Use __try_to_reclaim_swap() in free_swap_and_cache()
+Date: Mon, 27 Aug 2018 15:55:33 +0800
+Message-Id: <20180827075535.17406-2-ying.huang@intel.com>
+In-Reply-To: <20180827075535.17406-1-ying.huang@intel.com>
+References: <20180827075535.17406-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>
 
-To improve the code readability.  Some swap free related functions are refactored.
+The code path to reclaim the swap entry in free_swap_and_cache() is
+almost same as that of __try_to_reclaim_swap().  The largest
+difference is just coding style.  So the support to the additional
+requirement of free_swap_and_cache() is added into
+__try_to_reclaim_swap().  free_swap_and_cache() is changed to call
+__try_to_reclaim_swap(), and delete the duplicated code.  This will
+improve code readability and reduce the potential bugs.
 
-This patchset is based on 8/23 HEAD of mmotm tree.
+There are 2 functionality differences between __try_to_reclaim_swap()
+and swap entry reclaim code of free_swap_and_cache().
 
-Best Regards,
-Huang, Ying
+- free_swap_and_cache() only reclaims the swap entry if the page is
+  unmapped or swap is getting full.  The support has been added into
+  __try_to_reclaim_swap().
+
+- try_to_free_swap() (called by __try_to_reclaim_swap()) checks
+  pm_suspended_storage(), while free_swap_and_cache() not.  I think
+  this is OK.  Because the page and the swap entry can be reclaimed
+  later eventually.
+
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+---
+ mm/swapfile.c | 57 +++++++++++++++++++++++++--------------------------------
+ 1 file changed, 25 insertions(+), 32 deletions(-)
+
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 9211c427a9ad..409926079607 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -104,26 +104,39 @@ static inline unsigned char swap_count(unsigned char ent)
+ 	return ent & ~SWAP_HAS_CACHE;	/* may include COUNT_CONTINUED flag */
+ }
+ 
++/* Reclaim the swap entry anyway if possible */
++#define TTRS_ANYWAY		0x1
++/*
++ * Reclaim the swap entry if there are no more mappings of the
++ * corresponding page
++ */
++#define TTRS_UNMAPPED		0x2
++/* Reclaim the swap entry if swap is getting full*/
++#define TTRS_FULL		0x4
++
+ /* returns 1 if swap entry is freed */
+-static int
+-__try_to_reclaim_swap(struct swap_info_struct *si, unsigned long offset)
++static int __try_to_reclaim_swap(struct swap_info_struct *si,
++				 unsigned long offset, unsigned long flags)
+ {
+ 	swp_entry_t entry = swp_entry(si->type, offset);
+ 	struct page *page;
+ 	int ret = 0;
+ 
+-	page = find_get_page(swap_address_space(entry), swp_offset(entry));
++	page = find_get_page(swap_address_space(entry), offset);
+ 	if (!page)
+ 		return 0;
+ 	/*
+-	 * This function is called from scan_swap_map() and it's called
+-	 * by vmscan.c at reclaiming pages. So, we hold a lock on a page, here.
+-	 * We have to use trylock for avoiding deadlock. This is a special
++	 * When this function is called from scan_swap_map_slots() and it's
++	 * called by vmscan.c at reclaiming pages. So, we hold a lock on a page,
++	 * here. We have to use trylock for avoiding deadlock. This is a special
+ 	 * case and you should use try_to_free_swap() with explicit lock_page()
+ 	 * in usual operations.
+ 	 */
+ 	if (trylock_page(page)) {
+-		ret = try_to_free_swap(page);
++		if ((flags & TTRS_ANYWAY) ||
++		    ((flags & TTRS_UNMAPPED) && !page_mapped(page)) ||
++		    ((flags & TTRS_FULL) && mem_cgroup_swap_full(page)))
++			ret = try_to_free_swap(page);
+ 		unlock_page(page);
+ 	}
+ 	put_page(page);
+@@ -781,7 +794,7 @@ static int scan_swap_map_slots(struct swap_info_struct *si,
+ 		int swap_was_freed;
+ 		unlock_cluster(ci);
+ 		spin_unlock(&si->lock);
+-		swap_was_freed = __try_to_reclaim_swap(si, offset);
++		swap_was_freed = __try_to_reclaim_swap(si, offset, TTRS_ANYWAY);
+ 		spin_lock(&si->lock);
+ 		/* entry was freed successfully, try to use this again */
+ 		if (swap_was_freed)
+@@ -1680,7 +1693,6 @@ int try_to_free_swap(struct page *page)
+ int free_swap_and_cache(swp_entry_t entry)
+ {
+ 	struct swap_info_struct *p;
+-	struct page *page = NULL;
+ 	unsigned char count;
+ 
+ 	if (non_swap_entry(entry))
+@@ -1690,31 +1702,12 @@ int free_swap_and_cache(swp_entry_t entry)
+ 	if (p) {
+ 		count = __swap_entry_free(p, entry, 1);
+ 		if (count == SWAP_HAS_CACHE &&
+-		    !swap_page_trans_huge_swapped(p, entry)) {
+-			page = find_get_page(swap_address_space(entry),
+-					     swp_offset(entry));
+-			if (page && !trylock_page(page)) {
+-				put_page(page);
+-				page = NULL;
+-			}
+-		} else if (!count)
++		    !swap_page_trans_huge_swapped(p, entry))
++			__try_to_reclaim_swap(p, swp_offset(entry),
++					      TTRS_UNMAPPED | TTRS_FULL);
++		else if (!count)
+ 			free_swap_slot(entry);
+ 	}
+-	if (page) {
+-		/*
+-		 * Not mapped elsewhere, or swap space full? Free it!
+-		 * Also recheck PageSwapCache now page is locked (above).
+-		 */
+-		if (PageSwapCache(page) && !PageWriteback(page) &&
+-		    (!page_mapped(page) || mem_cgroup_swap_full(page)) &&
+-		    !swap_page_trans_huge_swapped(p, entry)) {
+-			page = compound_head(page);
+-			delete_from_swap_cache(page);
+-			SetPageDirty(page);
+-		}
+-		unlock_page(page);
+-		put_page(page);
+-	}
+ 	return p != NULL;
+ }
+ 
+-- 
+2.16.4
