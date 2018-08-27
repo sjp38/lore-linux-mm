@@ -1,45 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A20776B3FA4
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 04:57:34 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i68-v6so11376006pfb.9
-        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 01:57:34 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e20-v6si2210744pgm.172.2018.08.27.01.57.33
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E1C486B3F7E
+	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 05:01:58 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id k204-v6so7937498ite.1
+        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 02:01:58 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y196-v6sor5094686iod.115.2018.08.27.02.01.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 27 Aug 2018 01:57:33 -0700 (PDT)
-Date: Mon, 27 Aug 2018 01:57:08 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: removig ia64, was: Re: [PATCH 3/4] mm/tlb, x86/mm: Support
- invalidating TLB caches for RCU_TABLE_FREE
-Message-ID: <20180827085708.GA27172@infradead.org>
-References: <20180823134525.5f12b0d3@roar.ozlabs.ibm.com>
- <CA+55aFxneZTFxxxAjLZmj92VUJg6z7hERxJ2cHoth-GC0RuELw@mail.gmail.com>
- <776104d4c8e4fc680004d69e3a4c2594b638b6d1.camel@au1.ibm.com>
- <CA+55aFzM77G9-Q6LboPLJ=5gHma66ZQKiMGCMqXoKABirdF98w@mail.gmail.com>
- <20180823133958.GA1496@brain-police>
- <20180824084717.GK24124@hirez.programming.kicks-ass.net>
- <20180824113214.GK24142@hirez.programming.kicks-ass.net>
- <20180824113953.GL24142@hirez.programming.kicks-ass.net>
- <20180827150008.13bce08f@roar.ozlabs.ibm.com>
- <20180827074701.GW24124@hirez.programming.kicks-ass.net>
+        (Google Transport Security);
+        Mon, 27 Aug 2018 02:01:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180827074701.GW24124@hirez.programming.kicks-ass.net>
+In-Reply-To: <4a576f65b8fb3a0e6f0ca662e89070eb982be298.camel@perches.com>
+References: <20180827082101.5036-1-brgl@bgdev.pl> <4a576f65b8fb3a0e6f0ca662e89070eb982be298.camel@perches.com>
+From: Bartosz Golaszewski <brgl@bgdev.pl>
+Date: Mon, 27 Aug 2018 11:01:57 +0200
+Message-ID: <CAMRc=McVQ6co1KispVNotLOj4t6Pok0F+j4X9eYnrpDTm-CYaQ@mail.gmail.com>
+Subject: Re: [PATCH 1/2] devres: provide devm_kstrdup_const()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Nicholas Piggin <npiggin@gmail.com>, Will Deacon <will.deacon@arm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Benjamin Herrenschmidt <benh@au1.ibm.com>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, linux-ia64@vger.kernel.org
+To: Joe Perches <joe@perches.com>
+Cc: Michael Turquette <mturquette@baylibre.com>, Stephen Boyd <sboyd@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Arend van Spriel <aspriel@gmail.com>, Ulf Hansson <ulf.hansson@linaro.org>, Bjorn Helgaas <bhelgaas@google.com>, Vivek Gautam <vivek.gautam@codeaurora.org>, Robin Murphy <robin.murphy@arm.com>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Roman Gushchin <guro@fb.com>, Huang Ying <ying.huang@intel.com>, Kees Cook <keescook@chromium.org>, Bjorn Andersson <bjorn.andersson@linaro.org>, linux-clk <linux-clk@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, Aug 27, 2018 at 09:47:01AM +0200, Peter Zijlstra wrote:
-> sh is trivial, arm seems doable, with a bit of luck we can do 'rm -rf
-> arch/ia64' leaving us with s390.
+2018-08-27 10:42 GMT+02:00 Joe Perches <joe@perches.com>:
+> On Mon, 2018-08-27 at 10:21 +0200, Bartosz Golaszewski wrote:
+>> Provide a resource managed version of kstrdup_const(). This variant
+>> internally calls devm_kstrdup() on pointers that are outside of
+>> .rodata section. Also provide a corresponding version of devm_kfree().
+> []
+>> diff --git a/mm/util.c b/mm/util.c
+> []
+>>  /**
+>>   * kstrdup - allocate space for and copy an existing string
+>>   * @s: the string to duplicate
+>> @@ -78,6 +92,27 @@ const char *kstrdup_const(const char *s, gfp_t gfp)
+>>  }
+>>  EXPORT_SYMBOL(kstrdup_const);
+>>
+>> +/**
+>> + * devm_kstrdup_const - resource managed conditional string duplication
+>> + * @dev: device for which to duplicate the string
+>> + * @s: the string to duplicate
+>> + * @gfp: the GFP mask used in the kmalloc() call when allocating memory
+>> + *
+>> + * Function returns source string if it is in .rodata section otherwise it
+>> + * fallbacks to devm_kstrdup.
+>> + *
+>> + * Strings allocated by devm_kstrdup_const will be automatically freed when
+>> + * the associated device is detached.
+>> + */
+>> +char *devm_kstrdup_const(struct device *dev, const char *s, gfp_t gfp)
+>> +{
+>> +     if (is_kernel_rodata((unsigned long)s))
+>> +             return s;
+>> +
+>> +     return devm_kstrdup(dev, s, gfp);
+>> +}
+>> +EXPORT_SYMBOL(devm_kstrdup_const);
+>
+> Doesn't this lose constness and don't you get
+> a compiler warning here?
+>
 
-Is removing ia64 a serious plan?  It is the cause for a fair share of
-oddities in dma lang, and I did not have much luck getting maintainer
-replies lately, but I didn't know of a plan to get rid of it.
+Yes it does but for some reason gcc 6.3 didn't complain...
 
-What is the state of people still using ia64 mainline kernels vs just
-old distros in the still existing machines?
+> The kstrdup_const function returns a const char *,
+> why shouldn't this?
+>
+
+It probably should, I'll fix it for v2.
+
+Bart
