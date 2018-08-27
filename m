@@ -1,130 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 49B376B4075
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 08:28:48 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id n17-v6so13827261ioa.5
-        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 05:28:48 -0700 (PDT)
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B37296B407A
+	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 08:31:38 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id u129-v6so14821415qkf.15
+        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 05:31:38 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v81-v6sor3130838itf.134.2018.08.27.05.28.46
+        by mx.google.com with SMTPS id l34-v6sor7941158qkh.42.2018.08.27.05.31.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 27 Aug 2018 05:28:46 -0700 (PDT)
+        Mon, 27 Aug 2018 05:31:37 -0700 (PDT)
+Subject: Re: [PATCH 1/2] Revert "x86/e820: put !E820_TYPE_RAM regions into
+ memblock.reserved"
+References: <20180823182513.8801-1-msys.mizuma@gmail.com>
+ <20180824000325.GA20143@hori1.linux.bs1.fc.nec.co.jp>
+ <20180824082908.GC29735@dhcp22.suse.cz>
+From: Masayoshi Mizuma <msys.mizuma@gmail.com>
+Message-ID: <ffce827a-c12e-591a-715e-ae3a152b1954@gmail.com>
+Date: Mon, 27 Aug 2018 08:31:35 -0400
 MIME-Version: 1.0
-In-Reply-To: <20180827103915.GC13848@rapoport-lnx>
-References: <20180827082101.5036-1-brgl@bgdev.pl> <20180827082101.5036-2-brgl@bgdev.pl>
- <20180827103915.GC13848@rapoport-lnx>
-From: Bartosz Golaszewski <brgl@bgdev.pl>
-Date: Mon, 27 Aug 2018 14:28:45 +0200
-Message-ID: <CAMRc=MeCRw459ppuVK=w53C2eHOVVHPksF_4hx_dY1J-3fgPsQ@mail.gmail.com>
-Subject: Re: [PATCH 2/2] clk: pmc-atom: use devm_kstrdup_const()
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180824082908.GC29735@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Michael Turquette <mturquette@baylibre.com>, Stephen Boyd <sboyd@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Arend van Spriel <aspriel@gmail.com>, Ulf Hansson <ulf.hansson@linaro.org>, Bjorn Helgaas <bhelgaas@google.com>, Vivek Gautam <vivek.gautam@codeaurora.org>, Robin Murphy <robin.murphy@arm.com>, Joe Perches <joe@perches.com>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Roman Gushchin <guro@fb.com>, Huang Ying <ying.huang@intel.com>, Kees Cook <keescook@chromium.org>, Bjorn Andersson <bjorn.andersson@linaro.org>, linux-clk <linux-clk@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: mhocko@kernel.org, n-horiguchi@ah.jp.nec.com, Pavel.Tatashin@microsoft.com
+Cc: linux-mm@kvack.org, m.mizuma@jp.fujitsu.com, linux-kernel@vger.kernel.org, x86@kernel.org, osalvador@techadventures.net
 
-2018-08-27 12:39 GMT+02:00 Mike Rapoport <rppt@linux.vnet.ibm.com>:
-> On Mon, Aug 27, 2018 at 10:21:01AM +0200, Bartosz Golaszewski wrote:
->> Use devm_kstrdup_const() in the pmc-atom driver. This mostly serves as
->> an example of how to use this new routine to shrink driver code.
->>
->> While we're at it: replace a call to kcalloc() with devm_kcalloc().
->>
->> Signed-off-by: Bartosz Golaszewski <brgl@bgdev.pl>
->> ---
->>  drivers/clk/x86/clk-pmc-atom.c | 19 ++++---------------
->>  1 file changed, 4 insertions(+), 15 deletions(-)
->>
->> diff --git a/drivers/clk/x86/clk-pmc-atom.c b/drivers/clk/x86/clk-pmc-atom.c
->> index 08ef69945ffb..daa2192e6568 100644
->> --- a/drivers/clk/x86/clk-pmc-atom.c
->> +++ b/drivers/clk/x86/clk-pmc-atom.c
->> @@ -253,14 +253,6 @@ static void plt_clk_unregister_fixed_rate_loop(struct clk_plt_data *data,
->>               plt_clk_unregister_fixed_rate(data->parents[i]);
->>  }
->>
->> -static void plt_clk_free_parent_names_loop(const char **parent_names,
->> -                                        unsigned int i)
->> -{
->> -     while (i--)
->> -             kfree_const(parent_names[i]);
->> -     kfree(parent_names);
->> -}
->> -
->>  static void plt_clk_unregister_loop(struct clk_plt_data *data,
->>                                   unsigned int i)
->>  {
->> @@ -286,8 +278,8 @@ static const char **plt_clk_register_parents(struct platform_device *pdev,
->>       if (!data->parents)
->>               return ERR_PTR(-ENOMEM);
->>
->> -     parent_names = kcalloc(nparents, sizeof(*parent_names),
->> -                            GFP_KERNEL);
->> +     parent_names = devm_kcalloc(&pdev->dev, nparents,
->> +                                 sizeof(*parent_names), GFP_KERNEL);
->>       if (!parent_names)
->>               return ERR_PTR(-ENOMEM);
->>
->> @@ -300,7 +292,8 @@ static const char **plt_clk_register_parents(struct platform_device *pdev,
->>                       err = PTR_ERR(data->parents[i]);
->>                       goto err_unreg;
->>               }
->> -             parent_names[i] = kstrdup_const(clks[i].name, GFP_KERNEL);
->> +             parent_names[i] = devm_kstrdup_const(&pdev->dev,
->> +                                                  clks[i].name, GFP_KERNEL);
->>       }
->>
->>       data->nparents = nparents;
->> @@ -308,7 +301,6 @@ static const char **plt_clk_register_parents(struct platform_device *pdev,
->>
->>  err_unreg:
->>       plt_clk_unregister_fixed_rate_loop(data, i);
->> -     plt_clk_free_parent_names_loop(parent_names, i);
->
-> What happens if clks[i].name is not a part of RO data? The devm_kstrdup_const
-> will allocate memory and nothing will ever free it...
->
+Hi Pavel,
 
-I'm looking at it and trying to see if I'm missing something, but
-AFAIK the whole concept of devm_* is to leave out the resource
-management part.
+I would appreciate if you could send the feedback for the patch.
 
-devm_kstrdup_const() will internally call devm_kstrdup() for strings
-that are not in .rodata and once the device is detached, the string
-will be freed (or not if it's in .rodata).
+Thanks!
+Masa
 
-BR
-Bart
-
-> And, please don't drop kfree(parent_names) here.
->
->>       return ERR_PTR(err);
->>  }
+On 08/24/2018 04:29 AM, Michal Hocko wrote:
+> On Fri 24-08-18 00:03:25, Naoya Horiguchi wrote:
+>> (CCed related people)
+> 
+> Fixup Pavel email.
+> 
 >>
->> @@ -351,15 +343,12 @@ static int plt_clk_probe(struct platform_device *pdev)
->>               goto err_unreg_clk_plt;
->>       }
+>> Hi Mizuma-san,
 >>
->> -     plt_clk_free_parent_names_loop(parent_names, data->nparents);
->> -
->>       platform_set_drvdata(pdev, data);
->>       return 0;
+>> Thank you for the report.
+>> The mentioned patch was created based on feedbacks from reviewers/maintainers,
+>> so I'd like to hear from them about how we should handle the issue.
 >>
->>  err_unreg_clk_plt:
->>       plt_clk_unregister_loop(data, i);
->>       plt_clk_unregister_parents(data);
->> -     plt_clk_free_parent_names_loop(parent_names, data->nparents);
->
-> Ditto.
->
->>       return err;
->>  }
+>> And one note is that there is a follow-up patch for "x86/e820: put !E820_TYPE_RAM
+>> regions into memblock.reserved" which might be affected by your changes.
 >>
->> --
->> 2.18.0
+>>> commit e181ae0c5db9544de9c53239eb22bc012ce75033
+>>> Author: Pavel Tatashin <pasha.tatashin@oracle.com>
+>>> Date:   Sat Jul 14 09:15:07 2018 -0400
+>>>
+>>>     mm: zero unavailable pages before memmap init
 >>
->
-> --
-> Sincerely yours,
-> Mike.
->
+>> Thanks,
+>> Naoya Horiguchi
+>>
+>> On Thu, Aug 23, 2018 at 02:25:12PM -0400, Masayoshi Mizuma wrote:
+>>> From: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+>>>
+>>> commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM regions into
+>>> memblock.reserved") breaks movable_node kernel option because it
+>>> changed the memory gap range to reserved memblock. So, the node
+>>> is marked as Normal zone even if the SRAT has Hot plaggable affinity.
+>>>
+>>>     =====================================================================
+>>>     kernel: BIOS-e820: [mem 0x0000180000000000-0x0000180fffffffff] usable
+>>>     kernel: BIOS-e820: [mem 0x00001c0000000000-0x00001c0fffffffff] usable
+>>>     ...
+>>>     kernel: reserved[0x12]#011[0x0000181000000000-0x00001bffffffffff], 0x000003f000000000 bytes flags: 0x0
+>>>     ...
+>>>     kernel: ACPI: SRAT: Node 2 PXM 6 [mem 0x180000000000-0x1bffffffffff] hotplug
+>>>     kernel: ACPI: SRAT: Node 3 PXM 7 [mem 0x1c0000000000-0x1fffffffffff] hotplug
+>>>     ...
+>>>     kernel: Movable zone start for each node
+>>>     kernel:  Node 3: 0x00001c0000000000
+>>>     kernel: Early memory node ranges
+>>>     ...
+>>>     =====================================================================
+>>>
+>>> Naoya's v1 patch [*] fixes the original issue and this movable_node
+>>> issue doesn't occur.
+>>> Let's revert commit 124049decbb1 ("x86/e820: put !E820_TYPE_RAM
+>>> regions into memblock.reserved") and apply the v1 patch.
+>>>
+>>> [*] https://lkml.org/lkml/2018/6/13/27
+>>>
+>>> Signed-off-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+>>> ---
+>>>  arch/x86/kernel/e820.c | 15 +++------------
+>>>  1 file changed, 3 insertions(+), 12 deletions(-)
+>>>
+>>> diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+>>> index c88c23c658c1..d1f25c831447 100644
+>>> --- a/arch/x86/kernel/e820.c
+>>> +++ b/arch/x86/kernel/e820.c
+>>> @@ -1248,7 +1248,6 @@ void __init e820__memblock_setup(void)
+>>>  {
+>>>  	int i;
+>>>  	u64 end;
+>>> -	u64 addr = 0;
+>>>  
+>>>  	/*
+>>>  	 * The bootstrap memblock region count maximum is 128 entries
+>>> @@ -1265,21 +1264,13 @@ void __init e820__memblock_setup(void)
+>>>  		struct e820_entry *entry = &e820_table->entries[i];
+>>>  
+>>>  		end = entry->addr + entry->size;
+>>> -		if (addr < entry->addr)
+>>> -			memblock_reserve(addr, entry->addr - addr);
+>>> -		addr = end;
+>>>  		if (end != (resource_size_t)end)
+>>>  			continue;
+>>>  
+>>> -		/*
+>>> -		 * all !E820_TYPE_RAM ranges (including gap ranges) are put
+>>> -		 * into memblock.reserved to make sure that struct pages in
+>>> -		 * such regions are not left uninitialized after bootup.
+>>> -		 */
+>>>  		if (entry->type != E820_TYPE_RAM && entry->type != E820_TYPE_RESERVED_KERN)
+>>> -			memblock_reserve(entry->addr, entry->size);
+>>> -		else
+>>> -			memblock_add(entry->addr, entry->size);
+>>> +			continue;
+>>> +
+>>> +		memblock_add(entry->addr, entry->size);
+>>>  	}
+>>>  
+>>>  	/* Throw away partial pages: */
+>>> -- 
+>>> 2.18.0
+>>>
+>>>
+> 
