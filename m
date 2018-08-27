@@ -1,124 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F9F36B40D0
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 09:51:09 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id g18-v6so3982908edg.14
-        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 06:51:09 -0700 (PDT)
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F04476B40ED
+	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 10:28:57 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id h5-v6so8687260itb.3
+        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 07:28:57 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r13-v6sor4793050eda.38.2018.08.27.06.51.08
+        by mx.google.com with SMTPS id u10-v6sor5375730iob.204.2018.08.27.07.28.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 27 Aug 2018 06:51:08 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mm,page_alloc: PF_WQ_WORKER threads must sleep at should_reclaim_retry().
-Date: Mon, 27 Aug 2018 15:51:01 +0200
-Message-Id: <20180827135101.15700-1-mhocko@kernel.org>
+        Mon, 27 Aug 2018 07:28:56 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20180827103353.GB13848@rapoport-lnx>
+References: <20180827082101.5036-1-brgl@bgdev.pl> <20180827103353.GB13848@rapoport-lnx>
+From: Bartosz Golaszewski <brgl@bgdev.pl>
+Date: Mon, 27 Aug 2018 16:28:55 +0200
+Message-ID: <CAMRc=MdZ_1Vk2c19L-spzOm=7UaDpaACriq4gzMxAvQz=noNgQ@mail.gmail.com>
+Subject: Re: [PATCH 1/2] devres: provide devm_kstrdup_const()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Michael Turquette <mturquette@baylibre.com>, Stephen Boyd <sboyd@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Arend van Spriel <aspriel@gmail.com>, Ulf Hansson <ulf.hansson@linaro.org>, Bjorn Helgaas <bhelgaas@google.com>, Vivek Gautam <vivek.gautam@codeaurora.org>, Robin Murphy <robin.murphy@arm.com>, Joe Perches <joe@perches.com>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Roman Gushchin <guro@fb.com>, Huang Ying <ying.huang@intel.com>, Kees Cook <keescook@chromium.org>, Bjorn Andersson <bjorn.andersson@linaro.org>, linux-clk <linux-clk@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-From: Michal Hocko <mhocko@suse.com>
+2018-08-27 12:33 GMT+02:00 Mike Rapoport <rppt@linux.vnet.ibm.com>:
+> On Mon, Aug 27, 2018 at 10:21:00AM +0200, Bartosz Golaszewski wrote:
+>> Provide a resource managed version of kstrdup_const(). This variant
+>> internally calls devm_kstrdup() on pointers that are outside of
+>> .rodata section. Also provide a corresponding version of devm_kfree().
+>>
+>> Signed-off-by: Bartosz Golaszewski <brgl@bgdev.pl>
+>> ---
+>>  include/linux/device.h |  2 ++
+>>  mm/util.c              | 35 +++++++++++++++++++++++++++++++++++
+>>  2 files changed, 37 insertions(+)
+>>
+>> diff --git a/include/linux/device.h b/include/linux/device.h
+>> index 8f882549edee..f8f5982d26b2 100644
+>> --- a/include/linux/device.h
+>> +++ b/include/linux/device.h
+>> @@ -693,7 +693,9 @@ static inline void *devm_kcalloc(struct device *dev,
+>>       return devm_kmalloc_array(dev, n, size, flags | __GFP_ZERO);
+>>  }
+>>  extern void devm_kfree(struct device *dev, void *p);
+>> +extern void devm_kfree_const(struct device *dev, void *p);
+>>  extern char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp) __malloc;
+>> +extern char *devm_kstrdup_const(struct device *dev, const char *s, gfp_t gfp);
+>>  extern void *devm_kmemdup(struct device *dev, const void *src, size_t len,
+>>                         gfp_t gfp);
+>>
+>> diff --git a/mm/util.c b/mm/util.c
+>> index d2890a407332..6d1f41b5775e 100644
+>> --- a/mm/util.c
+>> +++ b/mm/util.c
+>> @@ -39,6 +39,20 @@ void kfree_const(const void *x)
+>>  }
+>>  EXPORT_SYMBOL(kfree_const);
+>>
+>> +/**
+>> + * devm_kfree_const - Resource managed conditional kfree
+>> + * @dev: device this memory belongs to
+>> + * @p: memory to free
+>> + *
+>> + * Function calls devm_kfree only if @p is not in .rodata section.
+>> + */
+>> +void devm_kfree_const(struct device *dev, void *p)
+>> +{
+>> +     if (!is_kernel_rodata((unsigned long)p))
+>> +             devm_kfree(dev, p);
+>> +}
+>> +EXPORT_SYMBOL(devm_kfree_const);
+>> +
+>>  /**
+>>   * kstrdup - allocate space for and copy an existing string
+>>   * @s: the string to duplicate
+>> @@ -78,6 +92,27 @@ const char *kstrdup_const(const char *s, gfp_t gfp)
+>>  }
+>>  EXPORT_SYMBOL(kstrdup_const);
+>>
+>> +/**
+>> + * devm_kstrdup_const - resource managed conditional string duplication
+>> + * @dev: device for which to duplicate the string
+>> + * @s: the string to duplicate
+>> + * @gfp: the GFP mask used in the kmalloc() call when allocating memory
+>> + *
+>> + * Function returns source string if it is in .rodata section otherwise it
+>> + * fallbacks to devm_kstrdup.
+>
+> Please make it proper "Returns:" description and move to the end of the
+> comment. See Documentation/doc-guide/kernel-doc.rst.
+>
 
-Tetsuo Handa has reported that it is possible to bypass the short sleep
-for PF_WQ_WORKER threads which was introduced by commit 373ccbe5927034b5
-("mm, vmstat: allow WQ concurrency to discover memory reclaim doesn't make
-any progress") and lock up the system if OOM.
+Sure.
 
-The primary reason is that WQ_MEM_RECLAIM WQs are not guaranteed to
-run even when they have a rescuer available. Those workers might be
-essential for reclaim to make a forward progress, however. If we are
-too unlucky all the allocations requests can get stuck waiting for a
-WQ_MEM_RECLAIM work item and the system is essentially stuck in an OOM
-condition without much hope to move on. Tetsuo has seen the reclaim
-stuck on drain_local_pages_wq or xlog_cil_push_work (xfs). There might
-be others.
+>> + * Strings allocated by devm_kstrdup_const will be automatically freed when
+>> + * the associated device is detached.
+>> + */
+>> +char *devm_kstrdup_const(struct device *dev, const char *s, gfp_t gfp)
+>> +{
+>> +     if (is_kernel_rodata((unsigned long)s))
+>> +             return s;
+>> +
+>> +     return devm_kstrdup(dev, s, gfp);
+>> +}
+>> +EXPORT_SYMBOL(devm_kstrdup_const);
+>> +
+>
+> The devm_ variants seem to belong to drivers/base/devres.c rather than
+> mm/util.c
+>
 
-Since should_reclaim_retry() should be a natural reschedule point,
-let's do the short sleep for PF_WQ_WORKER threads unconditionally in
-order to guarantee that other pending work items are started. This will
-workaround this problem and it is less fragile than hunting down when
-the sleep is missed. E.g. we used to have a sleeping point in the oom
-path but this has been removed recently because it caused other issues.
-Having a single sleeping point is more robust.
+Not all devm_ variants live in drivers/base/devres.c, many subsystems
+implement them locally. In this case we need to choose between
+exporting is_kernel_rodata() and putting devm_kstrdup_const() in
+mm/util.c. I chose the latter, since it's cleaner.
 
-Reported-and-debugged-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
-Cc: Roman Gushchin <guro@fb.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Tejun Heo <tj@kernel.org>
----
+Bart
 
-Hi Andrew,
-this has been previously posted [1] but it took quite some time to
-finally understand the issue [2]. Can we push this to mmotm and
-linux-next? I wouldn't hurry to merge this but the longer we have a
-wider testing exposure the better.
-
-Thanks!
-
-[1] http://lkml.kernel.org/r/ca3da8b8-1bb5-c302-b190-fa6cebab58ca@I-love.SAKURA.ne.jp
-[2] http://lkml.kernel.org/r/20180730145425.GE1206094@devbig004.ftw2.facebook.com
-
- mm/page_alloc.c | 34 ++++++++++++++++++----------------
- 1 file changed, 18 insertions(+), 16 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e75865d58ba7..5fc5e500b5d0 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3923,6 +3923,7 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
- {
- 	struct zone *zone;
- 	struct zoneref *z;
-+	bool ret = false;
- 
- 	/*
- 	 * Costly allocations might have made a progress but this doesn't mean
-@@ -3986,25 +3987,26 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
- 				}
- 			}
- 
--			/*
--			 * Memory allocation/reclaim might be called from a WQ
--			 * context and the current implementation of the WQ
--			 * concurrency control doesn't recognize that
--			 * a particular WQ is congested if the worker thread is
--			 * looping without ever sleeping. Therefore we have to
--			 * do a short sleep here rather than calling
--			 * cond_resched().
--			 */
--			if (current->flags & PF_WQ_WORKER)
--				schedule_timeout_uninterruptible(1);
--			else
--				cond_resched();
--
--			return true;
-+			ret = true;
-+			goto out;
- 		}
- 	}
- 
--	return false;
-+out:
-+	/*
-+	 * Memory allocation/reclaim might be called from a WQ
-+	 * context and the current implementation of the WQ
-+	 * concurrency control doesn't recognize that
-+	 * a particular WQ is congested if the worker thread is
-+	 * looping without ever sleeping. Therefore we have to
-+	 * do a short sleep here rather than calling
-+	 * cond_resched().
-+	 */
-+	if (current->flags & PF_WQ_WORKER)
-+		schedule_timeout_uninterruptible(1);
-+	else
-+		cond_resched();
-+	return ret;
- }
- 
- static inline bool
--- 
-2.18.0
+>>  /**
+>>   * kstrndup - allocate space for and copy an existing string
+>>   * @s: the string to duplicate
+>> --
+>> 2.18.0
+>>
+>
+> --
+> Sincerely yours,
+> Mike.
+>
