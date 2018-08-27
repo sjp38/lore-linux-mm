@@ -1,117 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E1F86B4197
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 13:10:06 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id h20-v6so14512988iob.20
-        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 10:10:06 -0700 (PDT)
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id j81-v6sor4931084iof.279.2018.08.27.10.10.04
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E15C6B41AB
+	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 13:34:42 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id q12-v6so11367845pgp.6
+        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 10:34:42 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p29-v6sor448608pgb.295.2018.08.27.10.34.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 27 Aug 2018 10:10:04 -0700 (PDT)
-MIME-Version: 1.0
-Date: Mon, 27 Aug 2018 10:10:04 -0700
-Message-ID: <000000000000e5050205746dcbb0@google.com>
-Subject: INFO: rcu detected stall in snd_seq_write
-From: syzbot <syzbot+97aae04ce27e39cbfca9@syzkaller.appspotmail.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+        Mon, 27 Aug 2018 10:34:41 -0700 (PDT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 11.5 \(3445.9.1\))
+Subject: Re: TLB flushes on fixmap changes
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <20180827170511.6bafa15cbc102ae135366e86@kernel.org>
+Date: Mon, 27 Aug 2018 10:34:36 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <01DA0BDD-7504-4209-8A8F-20B27CF6A1C7@gmail.com>
+References: <D74A89DF-0D89-4AB6-8A6B-93BEC9A83595@gmail.com>
+ <20180824180438.GS24124@hirez.programming.kicks-ass.net>
+ <56A9902F-44BE-4520-A17C-26650FCC3A11@gmail.com>
+ <CA+55aFzerzTPm94jugheVmWg8dJre94yu+GyZGT9NNZanNx_qw@mail.gmail.com>
+ <9A38D3F4-2F75-401D-8B4D-83A844C9061B@gmail.com>
+ <CA+55aFz1KYT7fRRG98wei24spiVg7u1Ec66piWY5359ykFmezw@mail.gmail.com>
+ <8E0D8C66-6F21-4890-8984-B6B3082D4CC5@gmail.com>
+ <CALCETrWdeKBcEs7zAbpEM1YdYiT2UBXwPtF0mMTvcDX_KRpz1A@mail.gmail.com>
+ <20180826112341.f77a528763e297cbc36058fa@kernel.org>
+ <CALCETrXPaX-+R6Z9LqZp0uOVmq-TUX_ksPbUL7mnfbdqo6z2AA@mail.gmail.com>
+ <20180826090958.GT24124@hirez.programming.kicks-ass.net>
+ <20180827120305.01a6f26267c64610cadec5d8@kernel.org>
+ <4BF82052-4738-441C-8763-26C85003F2C9@gmail.com>
+ <20180827170511.6bafa15cbc102ae135366e86@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, dan.j.williams@intel.com, jglisse@redhat.com, jrdr.linux@gmail.com, kirill.shutemov@linux.intel.com, ldufour@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, minchan@kernel.org, riel@surriel.com, syzkaller-bugs@googlegroups.com, ying.huang@intel.com, zwisler@kernel.org
+To: Masami Hiramatsu <mhiramat@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Jiri Kosina <jkosina@suse.cz>, Will Deacon <will.deacon@arm.com>, Benjamin Herrenschmidt <benh@au1.ibm.com>, Nick Piggin <npiggin@gmail.com>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>
 
-Hello,
+at 1:05 AM, Masami Hiramatsu <mhiramat@kernel.org> wrote:
 
-syzbot found the following crash on:
+> On Sun, 26 Aug 2018 20:26:09 -0700
+> Nadav Amit <nadav.amit@gmail.com> wrote:
+>=20
+>> at 8:03 PM, Masami Hiramatsu <mhiramat@kernel.org> wrote:
+>>=20
+>>> On Sun, 26 Aug 2018 11:09:58 +0200
+>>> Peter Zijlstra <peterz@infradead.org> wrote:
+>>>=20
+>>>> On Sat, Aug 25, 2018 at 09:21:22PM -0700, Andy Lutomirski wrote:
+>>>>> I just re-read text_poke().  It's, um, horrible.  Not only is the
+>>>>> implementation overcomplicated and probably buggy, but it's =
+SLOOOOOW.
+>>>>> It's totally the wrong API -- poking one instruction at a time
+>>>>> basically can't be efficient on x86.  The API should either poke =
+lots
+>>>>> of instructions at once or should be text_poke_begin(); ...;
+>>>>> text_poke_end();.
+>>>>=20
+>>>> I don't think anybody ever cared about performance here. Only
+>>>> correctness. That whole text_poke_bp() thing is entirely tricky.
+>>>=20
+>>> Agreed. Self modification is a special event.
+>>>=20
+>>>> FWIW, before text_poke_bp(), text_poke() would only be used from
+>>>> stop_machine, so all the other CPUs would be stuck busy-waiting =
+with
+>>>> IRQs disabled. These days, yeah, that's lots more dodgy, but yes
+>>>> text_mutex should be serializing all that.
+>>>=20
+>>> I'm still not sure that speculative page-table walk can be done
+>>> over the mutex. Also, if the fixmap area is for aliasing
+>>> pages (which always mapped to memory), what kind of
+>>> security issue can happen?
+>>=20
+>> The PTE is accessible from other cores, so just as we assume for L1TF =
+that
+>> the every addressable memory might be cached in L1, we should assume =
+and
+>> PTE might be cached in the TLB when it is present.
+>=20
+> Ok, so other cores can accidentally cache the PTE in TLB, (and no way
+> to shoot down explicitly?)
 
-HEAD commit:    e27bc174c9c6 Add linux-next specific files for 20180824
-git tree:       linux-next
-console output: https://syzkaller.appspot.com/x/log.txt?x=16e0823e400000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=28446088176757ea
-dashboard link: https://syzkaller.appspot.com/bug?extid=97aae04ce27e39cbfca9
-compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
-syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=1756c50e400000
+There is way (although current it does not). But it seems that the =
+consensus
+is that it is better to avoid it being mapped at all in remote cores.
 
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+97aae04ce27e39cbfca9@syzkaller.appspotmail.com
+>> Although the mapping is for an alias, there are a couple of issues =
+here.
+>> First, this alias mapping is writable, so it might an attacker to =
+change the
+>> kernel code (following another initial attack).
+>=20
+> Combined with some buffer overflow, correct? If the attacker already =
+can
+> write a kernel data directly, he is in the kernel mode.
 
-8021q: adding VLAN 0 to HW filter on device team0
-8021q: adding VLAN 0 to HW filter on device team0
-8021q: adding VLAN 0 to HW filter on device team0
-8021q: adding VLAN 0 to HW filter on device team0
-8021q: adding VLAN 0 to HW filter on device team0
-rcu: INFO: rcu_sched self-detected stall on CPU
-rcu: 	0-....: (105000 ticks this GP) idle=2f6/1/0x4000000000000002  
-softirq=23001/23001 fqs=26239
-rcu: 	 (t=105008 jiffies g=49145 q=2382)
-NMI backtrace for cpu 0
-CPU: 0 PID: 8551 Comm: syz-executor7 Not tainted 4.18.0-next-20180824+ #47
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
-  <IRQ>
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0x1c9/0x2b4 lib/dump_stack.c:113
-  nmi_cpu_backtrace.cold.3+0x48/0x88 lib/nmi_backtrace.c:101
-  nmi_trigger_cpumask_backtrace+0x151/0x192 lib/nmi_backtrace.c:62
-  arch_trigger_cpumask_backtrace+0x14/0x20 arch/x86/kernel/apic/hw_nmi.c:38
-  trigger_single_cpu_backtrace include/linux/nmi.h:162 [inline]
-  rcu_dump_cpu_stacks+0x175/0x1c2 kernel/rcu/tree.c:1340
-  print_cpu_stall.cold.78+0x2fb/0x59c kernel/rcu/tree.c:1478
-  check_cpu_stall kernel/rcu/tree.c:1550 [inline]
-  __rcu_pending kernel/rcu/tree.c:3276 [inline]
-  rcu_pending kernel/rcu/tree.c:3319 [inline]
-  rcu_check_callbacks+0xd4a/0x15a0 kernel/rcu/tree.c:2665
-  update_process_times+0x2d/0x70 kernel/time/timer.c:1636
-  tick_sched_handle+0x9f/0x180 kernel/time/tick-sched.c:164
-  tick_sched_timer+0x45/0x130 kernel/time/tick-sched.c:1274
-  __run_hrtimer kernel/time/hrtimer.c:1398 [inline]
-  __hrtimer_run_queues+0x3eb/0xff0 kernel/time/hrtimer.c:1460
-  hrtimer_interrupt+0x2f3/0x750 kernel/time/hrtimer.c:1518
-  local_apic_timer_interrupt arch/x86/kernel/apic/apic.c:1029 [inline]
-  smp_apic_timer_interrupt+0x16d/0x6a0 arch/x86/kernel/apic/apic.c:1054
-  apic_timer_interrupt+0xf/0x20 arch/x86/entry/entry_64.S:867
-  </IRQ>
-RIP: 0010:lock_release+0xa2/0x9f0 kernel/locking/lockdep.c:3910
-Code: f2 c7 40 08 f2 f2 f2 f2 c7 40 0c 00 f2 f2 f2 c7 40 10 f2 f2 f2 f2 c7  
-40 14 00 f2 f2 f2 65 48 8b 04 25 28 00 00 00 48 89 45 d0 <31> c0 48 89 f8  
-48 c1 e8 03 0f b6 14 10 48 89 f8 83 e0 07 83 c0 03
-RSP: 0018:ffff8801aa0078c8 EFLAGS: 00000292 ORIG_RAX: ffffffffffffff13
-RAX: 2ec5cd2493d34200 RBX: 1ffff10035400f1e RCX: 0000000000000000
-RDX: dffffc0000000000 RSI: 0000000000000000 RDI: ffff8801a9b56bbc
-RBP: ffff8801aa0079f8 R08: 00000000000010df R09: 0000000000000001
-R10: ffff8801a9b56be8 R11: 737c3e5c87308161 R12: ffff8801aa0079d0
-R13: ffff8801c778d4c8 R14: ffff8801aa007ae0 R15: ffff8801a9b56380
-  __might_fault+0x19e/0x1e0 mm/memory.c:4585
-  _copy_from_user+0x30/0x150 lib/usercopy.c:10
-  copy_from_user include/linux/uaccess.h:147 [inline]
-  snd_seq_write+0x472/0x8d0 sound/core/seq/seq_clientmgr.c:1033
-  __vfs_write+0x117/0x9d0 fs/read_write.c:485
-  vfs_write+0x1fc/0x560 fs/read_write.c:549
-  ksys_write+0x101/0x260 fs/read_write.c:598
-  __do_sys_write fs/read_write.c:610 [inline]
-  __se_sys_write fs/read_write.c:607 [inline]
-  __x64_sys_write+0x73/0xb0 fs/read_write.c:607
-  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x457089
-Code: fd b4 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7  
-48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff  
-ff 0f 83 cb b4 fb ff c3 66 2e 0f 1f 84 00 00 00 00
-RSP: 002b:00007f09af65dc78 EFLAGS: 00000246 ORIG_RAX: 0000000000000001
-RAX: ffffffffffffffda RBX: 00007f09af65e6d4 RCX: 0000000000457089
-RDX: 00000000ffffff76 RSI: 0000000020000000 RDI: 0000000000000003
-RBP: 00000000009300a0 R08: 0000000000000000 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000246 R12: 00000000ffffffff
-R13: 00000000004d78a8 R14: 00000000004ca886 R15: 0000000000000000
+Right.
 
+>=20
+>> Second, the alias mapping is
+>> never explicitly flushed. We may assume that once the original =
+mapping is
+>> removed/changed, a full TLB flush would take place, but there is no
+>> guarantee it actually takes place.
+>=20
+> Hmm, would this means a full TLB flush will not flush alias mapping?
+> (or, the full TLB flush just doesn't work?)
 
----
-This bug is generated by a bot. It may contain errors.
-See https://goo.gl/tpsmEJ for more information about syzbot.
-syzbot engineers can be reached at syzkaller@googlegroups.com.
+It will flush the alias mapping, but currently there is no such explicit
+flush.
 
-syzbot will keep track of this bug report. See:
-https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
-syzbot.
-syzbot can test patches for this bug, for details see:
-https://goo.gl/tpsmEJ#testing-patches
+>>> Anyway, from the viewpoint of kprobes, either per-cpu fixmap or
+>>> changing CR3 sounds good to me. I think we don't even need per-cpu,
+>>> it can call a thread/function on a dedicated core (like the first
+>>> boot processor) and wait :) This may prevent leakage of pte change
+>>> to other cores.
+>>=20
+>> I implemented per-cpu fixmap, but I think that it makes more sense to =
+take
+>> peterz approach and set an entry in the PGD level. Per-CPU fixmap =
+either
+>> requires to pre-populate various levels in the page-table hierarchy, =
+or
+>> conditionally synchronize whenever module memory is allocated, since =
+they
+>> can share the same PGD, PUD & PMD. While usually the synchronization =
+is not
+>> needed, the possibility that synchronization is needed complicates =
+locking.
+>=20
+> Could you point which PeterZ approach you said? I guess it will be
+> make a clone of PGD and use it for local page mapping (as new mm).
+> If so, yes it sounds perfectly fine to me.
+
+The thread is too long. What I think is best is having a mapping in the =
+PGD
+level. I=E2=80=99ll try to give it a shot, and see what I get.
+
+>> Anyhow, having fixed addresses for the fixmap can be used to =
+circumvent
+>> KASLR.
+>=20
+> I think text_poke doesn't mind using random address :)
+>=20
+>> I don=E2=80=99t think a dedicated core is needed. Anyhow there is a =
+lock
+>> (text_mutex), so use_mm() can be used after acquiring the mutex.
+>=20
+> Hmm, use_mm() said;
+>=20
+> /*
+> * use_mm
+> *      Makes the calling kernel thread take on the specified
+> *      mm context.
+> *      (Note: this routine is intended to be called only
+> *      from a kernel thread context)
+> */
+>=20
+> So maybe we need a dedicated kernel thread for safeness?
+
+Yes, it says so. But I am not sure it cannot be changed, at least for =
+this
+specific use-case. Switching kernel threads just for patching seems to =
+me as
+an overkill.
+
+Let me see if I can get something half-reasonable doing so...
