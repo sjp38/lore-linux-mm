@@ -1,49 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ECA006B41FE
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 14:59:03 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id v195-v6so21146pgb.0
-        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 11:59:03 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id z7-v6si12412plk.215.2018.08.27.11.59.03
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C7CAB6B420A
+	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 15:09:24 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id g11-v6so17549edi.8
+        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 12:09:24 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r2-v6si27498eds.213.2018.08.27.12.09.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Aug 2018 11:59:03 -0700 (PDT)
-Received: from mail-wr1-f50.google.com (mail-wr1-f50.google.com [209.85.221.50])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 8EF5220C51
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 18:59:02 +0000 (UTC)
-Received: by mail-wr1-f50.google.com with SMTP id 20-v6so14579015wrb.12
-        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 11:59:02 -0700 (PDT)
+        Mon, 27 Aug 2018 12:09:23 -0700 (PDT)
+Date: Mon, 27 Aug 2018 21:09:20 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v6 1/2] mm: migration: fix migration of huge PMD shared
+ pages
+Message-ID: <20180827190850.GF21556@dhcp22.suse.cz>
+References: <20180823205917.16297-1-mike.kravetz@oracle.com>
+ <20180823205917.16297-2-mike.kravetz@oracle.com>
+ <20180824084157.GD29735@dhcp22.suse.cz>
+ <6063f215-a5c8-2f0c-465a-2c515ddc952d@oracle.com>
+ <20180827074645.GB21556@dhcp22.suse.cz>
+ <20180827134633.GB3930@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <0000D631-FDDF-4273-8F3C-714E6825E59B@gmail.com>
-References: <D74A89DF-0D89-4AB6-8A6B-93BEC9A83595@gmail.com>
- <20180824180438.GS24124@hirez.programming.kicks-ass.net> <56A9902F-44BE-4520-A17C-26650FCC3A11@gmail.com>
- <CA+55aFzerzTPm94jugheVmWg8dJre94yu+GyZGT9NNZanNx_qw@mail.gmail.com>
- <9A38D3F4-2F75-401D-8B4D-83A844C9061B@gmail.com> <CA+55aFz1KYT7fRRG98wei24spiVg7u1Ec66piWY5359ykFmezw@mail.gmail.com>
- <8E0D8C66-6F21-4890-8984-B6B3082D4CC5@gmail.com> <CALCETrWdeKBcEs7zAbpEM1YdYiT2UBXwPtF0mMTvcDX_KRpz1A@mail.gmail.com>
- <20180826112341.f77a528763e297cbc36058fa@kernel.org> <CALCETrXPaX-+R6Z9LqZp0uOVmq-TUX_ksPbUL7mnfbdqo6z2AA@mail.gmail.com>
- <20180826090958.GT24124@hirez.programming.kicks-ass.net> <20180827120305.01a6f26267c64610cadec5d8@kernel.org>
- <4BF82052-4738-441C-8763-26C85003F2C9@gmail.com> <20180827170511.6bafa15cbc102ae135366e86@kernel.org>
- <01DA0BDD-7504-4209-8A8F-20B27CF6A1C7@gmail.com> <CALCETrWxwpr+Xx0mCK1HUkanmCDOSRbw50VmebgoAgeNaaPAKg@mail.gmail.com>
- <0000D631-FDDF-4273-8F3C-714E6825E59B@gmail.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Mon, 27 Aug 2018 11:58:40 -0700
-Message-ID: <CALCETrUoNdwDuNSHb3haw9-fYk+sNC_M4r+5EMVVzJ8HWeSsOQ@mail.gmail.com>
-Subject: Re: TLB flushes on fixmap changes
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180827134633.GB3930@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nadav Amit <nadav.amit@gmail.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Masami Hiramatsu <mhiramat@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Jiri Kosina <jkosina@suse.cz>, Will Deacon <will.deacon@arm.com>, Benjamin Herrenschmidt <benh@au1.ibm.com>, Nick Piggin <npiggin@gmail.com>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
 
-On Mon, Aug 27, 2018 at 11:54 AM, Nadav Amit <nadav.amit@gmail.com> wrote:
->> On Mon, Aug 27, 2018 at 10:34 AM, Nadav Amit <nadav.amit@gmail.com> wrote:
->> What do you all think?
->
-> I agree in general. But I think that current->mm would need to be loaded, as
-> otherwise I am afraid it would break switch_mm_irqs_off().
->
+On Mon 27-08-18 09:46:33, Jerome Glisse wrote:
+> On Mon, Aug 27, 2018 at 09:46:45AM +0200, Michal Hocko wrote:
+> > On Fri 24-08-18 11:08:24, Mike Kravetz wrote:
+> > > On 08/24/2018 01:41 AM, Michal Hocko wrote:
+> > > > On Thu 23-08-18 13:59:16, Mike Kravetz wrote:
+> > > > 
+> > > > Acked-by: Michal Hocko <mhocko@suse.com>
+> > > > 
+> > > > One nit below.
+> > > > 
+> > > > [...]
+> > > >> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > > >> index 3103099f64fd..a73c5728e961 100644
+> > > >> --- a/mm/hugetlb.c
+> > > >> +++ b/mm/hugetlb.c
+> > > >> @@ -4548,6 +4548,9 @@ static unsigned long page_table_shareable(struct vm_area_struct *svma,
+> > > >>  	return saddr;
+> > > >>  }
+> > > >>  
+> > > >> +#define _range_in_vma(vma, start, end) \
+> > > >> +	((vma)->vm_start <= (start) && (end) <= (vma)->vm_end)
+> > > >> +
+> > > > 
+> > > > static inline please. Macros and potential side effects on given
+> > > > arguments are just not worth the risk. I also think this is something
+> > > > for more general use. We have that pattern at many places. So I would
+> > > > stick that to linux/mm.h
+> > > 
+> > > Thanks Michal,
+> > > 
+> > > Here is an updated patch which does as you suggest above.
+> > [...]
+> > > @@ -1409,6 +1419,32 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+> > >  		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
+> > >  		address = pvmw.address;
+> > >  
+> > > +		if (PageHuge(page)) {
+> > > +			if (huge_pmd_unshare(mm, &address, pvmw.pte)) {
+> > > +				/*
+> > > +				 * huge_pmd_unshare unmapped an entire PMD
+> > > +				 * page.  There is no way of knowing exactly
+> > > +				 * which PMDs may be cached for this mm, so
+> > > +				 * we must flush them all.  start/end were
+> > > +				 * already adjusted above to cover this range.
+> > > +				 */
+> > > +				flush_cache_range(vma, start, end);
+> > > +				flush_tlb_range(vma, start, end);
+> > > +				mmu_notifier_invalidate_range(mm, start, end);
+> > > +
+> > > +				/*
+> > > +				 * The ref count of the PMD page was dropped
+> > > +				 * which is part of the way map counting
+> > > +				 * is done for shared PMDs.  Return 'true'
+> > > +				 * here.  When there is no other sharing,
+> > > +				 * huge_pmd_unshare returns false and we will
+> > > +				 * unmap the actual page and drop map count
+> > > +				 * to zero.
+> > > +				 */
+> > > +				page_vma_mapped_walk_done(&pvmw);
+> > > +				break;
+> > > +			}
+> > 
+> > This still calls into notifier while holding the ptl lock. Either I am
+> > missing something or the invalidation is broken in this loop (not also
+> > for other invalidations).
+> 
+> mmu_notifier_invalidate_range() is done with pt lock held only the start
+> and end versions need to happen outside pt lock.
 
-What breaks?
+OK, that was not clear to me. Especially srcu_read_lock in
+__mmu_notifier_invalidate_range suggests the callback might sleep. There
+is no note about the pte lock. There is even a note about possible
+blocking
+	 * If this callback cannot block, and invalidate_range_{start,end}
+	 * cannot block, mmu_notifier_ops.flags should have
+	 * MMU_INVALIDATE_DOES_NOT_BLOCK set.
+
+I am removing that part of the comment but it really confused me.
+-- 
+Michal Hocko
+SUSE Labs
