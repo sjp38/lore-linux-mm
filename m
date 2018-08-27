@@ -1,101 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E80EB6B3D25
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 09:46:37 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id u45-v6so15373098qte.12
-        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 06:46:37 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id t23-v6si5847820qtt.278.2018.08.27.06.46.37
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F9F36B40D0
+	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 09:51:09 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id g18-v6so3982908edg.14
+        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 06:51:09 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r13-v6sor4793050eda.38.2018.08.27.06.51.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Aug 2018 06:46:37 -0700 (PDT)
-Date: Mon, 27 Aug 2018 09:46:33 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH v6 1/2] mm: migration: fix migration of huge PMD shared
- pages
-Message-ID: <20180827134633.GB3930@redhat.com>
-References: <20180823205917.16297-1-mike.kravetz@oracle.com>
- <20180823205917.16297-2-mike.kravetz@oracle.com>
- <20180824084157.GD29735@dhcp22.suse.cz>
- <6063f215-a5c8-2f0c-465a-2c515ddc952d@oracle.com>
- <20180827074645.GB21556@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180827074645.GB21556@dhcp22.suse.cz>
+        (Google Transport Security);
+        Mon, 27 Aug 2018 06:51:08 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] mm,page_alloc: PF_WQ_WORKER threads must sleep at should_reclaim_retry().
+Date: Mon, 27 Aug 2018 15:51:01 +0200
+Message-Id: <20180827135101.15700-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>
 
-On Mon, Aug 27, 2018 at 09:46:45AM +0200, Michal Hocko wrote:
-> On Fri 24-08-18 11:08:24, Mike Kravetz wrote:
-> > On 08/24/2018 01:41 AM, Michal Hocko wrote:
-> > > On Thu 23-08-18 13:59:16, Mike Kravetz wrote:
-> > > 
-> > > Acked-by: Michal Hocko <mhocko@suse.com>
-> > > 
-> > > One nit below.
-> > > 
-> > > [...]
-> > >> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > >> index 3103099f64fd..a73c5728e961 100644
-> > >> --- a/mm/hugetlb.c
-> > >> +++ b/mm/hugetlb.c
-> > >> @@ -4548,6 +4548,9 @@ static unsigned long page_table_shareable(struct vm_area_struct *svma,
-> > >>  	return saddr;
-> > >>  }
-> > >>  
-> > >> +#define _range_in_vma(vma, start, end) \
-> > >> +	((vma)->vm_start <= (start) && (end) <= (vma)->vm_end)
-> > >> +
-> > > 
-> > > static inline please. Macros and potential side effects on given
-> > > arguments are just not worth the risk. I also think this is something
-> > > for more general use. We have that pattern at many places. So I would
-> > > stick that to linux/mm.h
-> > 
-> > Thanks Michal,
-> > 
-> > Here is an updated patch which does as you suggest above.
-> [...]
-> > @@ -1409,6 +1419,32 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
-> >  		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
-> >  		address = pvmw.address;
-> >  
-> > +		if (PageHuge(page)) {
-> > +			if (huge_pmd_unshare(mm, &address, pvmw.pte)) {
-> > +				/*
-> > +				 * huge_pmd_unshare unmapped an entire PMD
-> > +				 * page.  There is no way of knowing exactly
-> > +				 * which PMDs may be cached for this mm, so
-> > +				 * we must flush them all.  start/end were
-> > +				 * already adjusted above to cover this range.
-> > +				 */
-> > +				flush_cache_range(vma, start, end);
-> > +				flush_tlb_range(vma, start, end);
-> > +				mmu_notifier_invalidate_range(mm, start, end);
-> > +
-> > +				/*
-> > +				 * The ref count of the PMD page was dropped
-> > +				 * which is part of the way map counting
-> > +				 * is done for shared PMDs.  Return 'true'
-> > +				 * here.  When there is no other sharing,
-> > +				 * huge_pmd_unshare returns false and we will
-> > +				 * unmap the actual page and drop map count
-> > +				 * to zero.
-> > +				 */
-> > +				page_vma_mapped_walk_done(&pvmw);
-> > +				break;
-> > +			}
-> 
-> This still calls into notifier while holding the ptl lock. Either I am
-> missing something or the invalidation is broken in this loop (not also
-> for other invalidations).
+From: Michal Hocko <mhocko@suse.com>
 
-mmu_notifier_invalidate_range() is done with pt lock held only the start
-and end versions need to happen outside pt lock.
+Tetsuo Handa has reported that it is possible to bypass the short sleep
+for PF_WQ_WORKER threads which was introduced by commit 373ccbe5927034b5
+("mm, vmstat: allow WQ concurrency to discover memory reclaim doesn't make
+any progress") and lock up the system if OOM.
 
-Cheers,
-Jerome
+The primary reason is that WQ_MEM_RECLAIM WQs are not guaranteed to
+run even when they have a rescuer available. Those workers might be
+essential for reclaim to make a forward progress, however. If we are
+too unlucky all the allocations requests can get stuck waiting for a
+WQ_MEM_RECLAIM work item and the system is essentially stuck in an OOM
+condition without much hope to move on. Tetsuo has seen the reclaim
+stuck on drain_local_pages_wq or xlog_cil_push_work (xfs). There might
+be others.
+
+Since should_reclaim_retry() should be a natural reschedule point,
+let's do the short sleep for PF_WQ_WORKER threads unconditionally in
+order to guarantee that other pending work items are started. This will
+workaround this problem and it is less fragile than hunting down when
+the sleep is missed. E.g. we used to have a sleeping point in the oom
+path but this has been removed recently because it caused other issues.
+Having a single sleeping point is more robust.
+
+Reported-and-debugged-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+Cc: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Tejun Heo <tj@kernel.org>
+---
+
+Hi Andrew,
+this has been previously posted [1] but it took quite some time to
+finally understand the issue [2]. Can we push this to mmotm and
+linux-next? I wouldn't hurry to merge this but the longer we have a
+wider testing exposure the better.
+
+Thanks!
+
+[1] http://lkml.kernel.org/r/ca3da8b8-1bb5-c302-b190-fa6cebab58ca@I-love.SAKURA.ne.jp
+[2] http://lkml.kernel.org/r/20180730145425.GE1206094@devbig004.ftw2.facebook.com
+
+ mm/page_alloc.c | 34 ++++++++++++++++++----------------
+ 1 file changed, 18 insertions(+), 16 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index e75865d58ba7..5fc5e500b5d0 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3923,6 +3923,7 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
+ {
+ 	struct zone *zone;
+ 	struct zoneref *z;
++	bool ret = false;
+ 
+ 	/*
+ 	 * Costly allocations might have made a progress but this doesn't mean
+@@ -3986,25 +3987,26 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
+ 				}
+ 			}
+ 
+-			/*
+-			 * Memory allocation/reclaim might be called from a WQ
+-			 * context and the current implementation of the WQ
+-			 * concurrency control doesn't recognize that
+-			 * a particular WQ is congested if the worker thread is
+-			 * looping without ever sleeping. Therefore we have to
+-			 * do a short sleep here rather than calling
+-			 * cond_resched().
+-			 */
+-			if (current->flags & PF_WQ_WORKER)
+-				schedule_timeout_uninterruptible(1);
+-			else
+-				cond_resched();
+-
+-			return true;
++			ret = true;
++			goto out;
+ 		}
+ 	}
+ 
+-	return false;
++out:
++	/*
++	 * Memory allocation/reclaim might be called from a WQ
++	 * context and the current implementation of the WQ
++	 * concurrency control doesn't recognize that
++	 * a particular WQ is congested if the worker thread is
++	 * looping without ever sleeping. Therefore we have to
++	 * do a short sleep here rather than calling
++	 * cond_resched().
++	 */
++	if (current->flags & PF_WQ_WORKER)
++		schedule_timeout_uninterruptible(1);
++	else
++		cond_resched();
++	return ret;
+ }
+ 
+ static inline bool
+-- 
+2.18.0
