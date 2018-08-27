@@ -1,110 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A2AB56B409A
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 09:30:01 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id d132-v6so10886361pgc.22
-        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 06:30:01 -0700 (PDT)
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0136.outbound.protection.outlook.com. [104.47.42.136])
-        by mx.google.com with ESMTPS id g3-v6si4203790pgu.248.2018.08.27.06.30.00
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DD8B6B40BE
+	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 09:37:08 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id v65-v6so14751530qka.23
+        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 06:37:08 -0700 (PDT)
+Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
+        by mx.google.com with ESMTPS id e186-v6si3473075qkf.291.2018.08.27.06.37.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 27 Aug 2018 06:30:00 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: Re: [PATCH 1/2] Revert "x86/e820: put !E820_TYPE_RAM regions into
- memblock.reserved"
-Date: Mon, 27 Aug 2018 13:29:57 +0000
-Message-ID: 
- <CAGM2reb99d07tD43oZQa0dyW_5QJH8HJgqVaVQOxbzJtm1ixng@mail.gmail.com>
-References: <20180823182513.8801-1-msys.mizuma@gmail.com>
- <20180824000325.GA20143@hori1.linux.bs1.fc.nec.co.jp>
- <20180824082908.GC29735@dhcp22.suse.cz>
- <ffce827a-c12e-591a-715e-ae3a152b1954@gmail.com>
-In-Reply-To: <ffce827a-c12e-591a-715e-ae3a152b1954@gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <4D45063A81F6C841AD62C194E04E54D4@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Aug 2018 06:37:06 -0700 (PDT)
+Message-ID: <405ba257e730d4f0ad9007490e7ac47cc343c720.camel@surriel.com>
+Subject: Re: [PATCH 3/4] mm/tlb, x86/mm: Support invalidating TLB caches for
+ RCU_TABLE_FREE
+From: Rik van Riel <riel@surriel.com>
+Date: Mon, 27 Aug 2018 09:36:50 -0400
+In-Reply-To: <20180827180458.4af9b2ac@roar.ozlabs.ibm.com>
+References: <20180822155527.GF24124@hirez.programming.kicks-ass.net>
+	 <20180823134525.5f12b0d3@roar.ozlabs.ibm.com>
+	 <CA+55aFxneZTFxxxAjLZmj92VUJg6z7hERxJ2cHoth-GC0RuELw@mail.gmail.com>
+	 <776104d4c8e4fc680004d69e3a4c2594b638b6d1.camel@au1.ibm.com>
+	 <CA+55aFzM77G9-Q6LboPLJ=5gHma66ZQKiMGCMqXoKABirdF98w@mail.gmail.com>
+	 <20180823133958.GA1496@brain-police>
+	 <20180824084717.GK24124@hirez.programming.kicks-ass.net>
+	 <20180824113214.GK24142@hirez.programming.kicks-ass.net>
+	 <20180824113953.GL24142@hirez.programming.kicks-ass.net>
+	 <20180827150008.13bce08f@roar.ozlabs.ibm.com>
+	 <20180827074701.GW24124@hirez.programming.kicks-ass.net>
+	 <20180827180458.4af9b2ac@roar.ozlabs.ibm.com>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-CjA5zgmeZESrmuJDh+sg"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "msys.mizuma@gmail.com" <msys.mizuma@gmail.com>
-Cc: "mhocko@kernel.org" <mhocko@kernel.org>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, Linux Memory Management List <linux-mm@kvack.org>, Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "osalvador@techadventures.net" <osalvador@techadventures.net>
+To: Nicholas Piggin <npiggin@gmail.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: Will Deacon <will.deacon@arm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Benjamin Herrenschmidt <benh@au1.ibm.com>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>
 
-T24gTW9uLCBBdWcgMjcsIDIwMTggYXQgODozMSBBTSBNYXNheW9zaGkgTWl6dW1hIDxtc3lzLm1p
-enVtYUBnbWFpbC5jb20+IHdyb3RlOg0KPg0KPiBIaSBQYXZlbCwNCj4NCj4gSSB3b3VsZCBhcHBy
-ZWNpYXRlIGlmIHlvdSBjb3VsZCBzZW5kIHRoZSBmZWVkYmFjayBmb3IgdGhlIHBhdGNoLg0KDQpJ
-IHdpbGwgc3R1ZHkgaXQgdG9kYXkuDQoNClBhdmVsDQoNCj4NCj4gVGhhbmtzIQ0KPiBNYXNhDQo+
-DQo+IE9uIDA4LzI0LzIwMTggMDQ6MjkgQU0sIE1pY2hhbCBIb2NrbyB3cm90ZToNCj4gPiBPbiBG
-cmkgMjQtMDgtMTggMDA6MDM6MjUsIE5hb3lhIEhvcmlndWNoaSB3cm90ZToNCj4gPj4gKENDZWQg
-cmVsYXRlZCBwZW9wbGUpDQo+ID4NCj4gPiBGaXh1cCBQYXZlbCBlbWFpbC4NCj4gPg0KPiA+Pg0K
-PiA+PiBIaSBNaXp1bWEtc2FuLA0KPiA+Pg0KPiA+PiBUaGFuayB5b3UgZm9yIHRoZSByZXBvcnQu
-DQo+ID4+IFRoZSBtZW50aW9uZWQgcGF0Y2ggd2FzIGNyZWF0ZWQgYmFzZWQgb24gZmVlZGJhY2tz
-IGZyb20gcmV2aWV3ZXJzL21haW50YWluZXJzLA0KPiA+PiBzbyBJJ2QgbGlrZSB0byBoZWFyIGZy
-b20gdGhlbSBhYm91dCBob3cgd2Ugc2hvdWxkIGhhbmRsZSB0aGUgaXNzdWUuDQo+ID4+DQo+ID4+
-IEFuZCBvbmUgbm90ZSBpcyB0aGF0IHRoZXJlIGlzIGEgZm9sbG93LXVwIHBhdGNoIGZvciAieDg2
-L2U4MjA6IHB1dCAhRTgyMF9UWVBFX1JBTQ0KPiA+PiByZWdpb25zIGludG8gbWVtYmxvY2sucmVz
-ZXJ2ZWQiIHdoaWNoIG1pZ2h0IGJlIGFmZmVjdGVkIGJ5IHlvdXIgY2hhbmdlcy4NCj4gPj4NCj4g
-Pj4+IGNvbW1pdCBlMTgxYWUwYzVkYjk1NDRkZTljNTMyMzllYjIyYmMwMTJjZTc1MDMzDQo+ID4+
-PiBBdXRob3I6IFBhdmVsIFRhdGFzaGluIDxwYXNoYS50YXRhc2hpbkBvcmFjbGUuY29tPg0KPiA+
-Pj4gRGF0ZTogICBTYXQgSnVsIDE0IDA5OjE1OjA3IDIwMTggLTA0MDANCj4gPj4+DQo+ID4+PiAg
-ICAgbW06IHplcm8gdW5hdmFpbGFibGUgcGFnZXMgYmVmb3JlIG1lbW1hcCBpbml0DQo+ID4+DQo+
-ID4+IFRoYW5rcywNCj4gPj4gTmFveWEgSG9yaWd1Y2hpDQo+ID4+DQo+ID4+IE9uIFRodSwgQXVn
-IDIzLCAyMDE4IGF0IDAyOjI1OjEyUE0gLTA0MDAsIE1hc2F5b3NoaSBNaXp1bWEgd3JvdGU6DQo+
-ID4+PiBGcm9tOiBNYXNheW9zaGkgTWl6dW1hIDxtLm1penVtYUBqcC5mdWppdHN1LmNvbT4NCj4g
-Pj4+DQo+ID4+PiBjb21taXQgMTI0MDQ5ZGVjYmIxICgieDg2L2U4MjA6IHB1dCAhRTgyMF9UWVBF
-X1JBTSByZWdpb25zIGludG8NCj4gPj4+IG1lbWJsb2NrLnJlc2VydmVkIikgYnJlYWtzIG1vdmFi
-bGVfbm9kZSBrZXJuZWwgb3B0aW9uIGJlY2F1c2UgaXQNCj4gPj4+IGNoYW5nZWQgdGhlIG1lbW9y
-eSBnYXAgcmFuZ2UgdG8gcmVzZXJ2ZWQgbWVtYmxvY2suIFNvLCB0aGUgbm9kZQ0KPiA+Pj4gaXMg
-bWFya2VkIGFzIE5vcm1hbCB6b25lIGV2ZW4gaWYgdGhlIFNSQVQgaGFzIEhvdCBwbGFnZ2FibGUg
-YWZmaW5pdHkuDQo+ID4+Pg0KPiA+Pj4gICAgID09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQ0KPiA+Pj4gICAgIGtlcm5l
-bDogQklPUy1lODIwOiBbbWVtIDB4MDAwMDE4MDAwMDAwMDAwMC0weDAwMDAxODBmZmZmZmZmZmZd
-IHVzYWJsZQ0KPiA+Pj4gICAgIGtlcm5lbDogQklPUy1lODIwOiBbbWVtIDB4MDAwMDFjMDAwMDAw
-MDAwMC0weDAwMDAxYzBmZmZmZmZmZmZdIHVzYWJsZQ0KPiA+Pj4gICAgIC4uLg0KPiA+Pj4gICAg
-IGtlcm5lbDogcmVzZXJ2ZWRbMHgxMl0jMDExWzB4MDAwMDE4MTAwMDAwMDAwMC0weDAwMDAxYmZm
-ZmZmZmZmZmZdLCAweDAwMDAwM2YwMDAwMDAwMDAgYnl0ZXMgZmxhZ3M6IDB4MA0KPiA+Pj4gICAg
-IC4uLg0KPiA+Pj4gICAgIGtlcm5lbDogQUNQSTogU1JBVDogTm9kZSAyIFBYTSA2IFttZW0gMHgx
-ODAwMDAwMDAwMDAtMHgxYmZmZmZmZmZmZmZdIGhvdHBsdWcNCj4gPj4+ICAgICBrZXJuZWw6IEFD
-UEk6IFNSQVQ6IE5vZGUgMyBQWE0gNyBbbWVtIDB4MWMwMDAwMDAwMDAwLTB4MWZmZmZmZmZmZmZm
-XSBob3RwbHVnDQo+ID4+PiAgICAgLi4uDQo+ID4+PiAgICAga2VybmVsOiBNb3ZhYmxlIHpvbmUg
-c3RhcnQgZm9yIGVhY2ggbm9kZQ0KPiA+Pj4gICAgIGtlcm5lbDogIE5vZGUgMzogMHgwMDAwMWMw
-MDAwMDAwMDAwDQo+ID4+PiAgICAga2VybmVsOiBFYXJseSBtZW1vcnkgbm9kZSByYW5nZXMNCj4g
-Pj4+ICAgICAuLi4NCj4gPj4+ICAgICA9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0NCj4gPj4+DQo+ID4+PiBOYW95YSdz
-IHYxIHBhdGNoIFsqXSBmaXhlcyB0aGUgb3JpZ2luYWwgaXNzdWUgYW5kIHRoaXMgbW92YWJsZV9u
-b2RlDQo+ID4+PiBpc3N1ZSBkb2Vzbid0IG9jY3VyLg0KPiA+Pj4gTGV0J3MgcmV2ZXJ0IGNvbW1p
-dCAxMjQwNDlkZWNiYjEgKCJ4ODYvZTgyMDogcHV0ICFFODIwX1RZUEVfUkFNDQo+ID4+PiByZWdp
-b25zIGludG8gbWVtYmxvY2sucmVzZXJ2ZWQiKSBhbmQgYXBwbHkgdGhlIHYxIHBhdGNoLg0KPiA+
-Pj4NCj4gPj4+IFsqXSBodHRwczovL2xrbWwub3JnL2xrbWwvMjAxOC82LzEzLzI3DQo+ID4+Pg0K
-PiA+Pj4gU2lnbmVkLW9mZi1ieTogTWFzYXlvc2hpIE1penVtYSA8bS5taXp1bWFAanAuZnVqaXRz
-dS5jb20+DQo+ID4+PiAtLS0NCj4gPj4+ICBhcmNoL3g4Ni9rZXJuZWwvZTgyMC5jIHwgMTUgKysr
-LS0tLS0tLS0tLS0tDQo+ID4+PiAgMSBmaWxlIGNoYW5nZWQsIDMgaW5zZXJ0aW9ucygrKSwgMTIg
-ZGVsZXRpb25zKC0pDQo+ID4+Pg0KPiA+Pj4gZGlmZiAtLWdpdCBhL2FyY2gveDg2L2tlcm5lbC9l
-ODIwLmMgYi9hcmNoL3g4Ni9rZXJuZWwvZTgyMC5jDQo+ID4+PiBpbmRleCBjODhjMjNjNjU4YzEu
-LmQxZjI1YzgzMTQ0NyAxMDA2NDQNCj4gPj4+IC0tLSBhL2FyY2gveDg2L2tlcm5lbC9lODIwLmMN
-Cj4gPj4+ICsrKyBiL2FyY2gveDg2L2tlcm5lbC9lODIwLmMNCj4gPj4+IEBAIC0xMjQ4LDcgKzEy
-NDgsNiBAQCB2b2lkIF9faW5pdCBlODIwX19tZW1ibG9ja19zZXR1cCh2b2lkKQ0KPiA+Pj4gIHsN
-Cj4gPj4+ICAgICBpbnQgaTsNCj4gPj4+ICAgICB1NjQgZW5kOw0KPiA+Pj4gLSAgIHU2NCBhZGRy
-ID0gMDsNCj4gPj4+DQo+ID4+PiAgICAgLyoNCj4gPj4+ICAgICAgKiBUaGUgYm9vdHN0cmFwIG1l
-bWJsb2NrIHJlZ2lvbiBjb3VudCBtYXhpbXVtIGlzIDEyOCBlbnRyaWVzDQo+ID4+PiBAQCAtMTI2
-NSwyMSArMTI2NCwxMyBAQCB2b2lkIF9faW5pdCBlODIwX19tZW1ibG9ja19zZXR1cCh2b2lkKQ0K
-PiA+Pj4gICAgICAgICAgICAgc3RydWN0IGU4MjBfZW50cnkgKmVudHJ5ID0gJmU4MjBfdGFibGUt
-PmVudHJpZXNbaV07DQo+ID4+Pg0KPiA+Pj4gICAgICAgICAgICAgZW5kID0gZW50cnktPmFkZHIg
-KyBlbnRyeS0+c2l6ZTsNCj4gPj4+IC0gICAgICAgICAgIGlmIChhZGRyIDwgZW50cnktPmFkZHIp
-DQo+ID4+PiAtICAgICAgICAgICAgICAgICAgIG1lbWJsb2NrX3Jlc2VydmUoYWRkciwgZW50cnkt
-PmFkZHIgLSBhZGRyKTsNCj4gPj4+IC0gICAgICAgICAgIGFkZHIgPSBlbmQ7DQo+ID4+PiAgICAg
-ICAgICAgICBpZiAoZW5kICE9IChyZXNvdXJjZV9zaXplX3QpZW5kKQ0KPiA+Pj4gICAgICAgICAg
-ICAgICAgICAgICBjb250aW51ZTsNCj4gPj4+DQo+ID4+PiAtICAgICAgICAgICAvKg0KPiA+Pj4g
-LSAgICAgICAgICAgICogYWxsICFFODIwX1RZUEVfUkFNIHJhbmdlcyAoaW5jbHVkaW5nIGdhcCBy
-YW5nZXMpIGFyZSBwdXQNCj4gPj4+IC0gICAgICAgICAgICAqIGludG8gbWVtYmxvY2sucmVzZXJ2
-ZWQgdG8gbWFrZSBzdXJlIHRoYXQgc3RydWN0IHBhZ2VzIGluDQo+ID4+PiAtICAgICAgICAgICAg
-KiBzdWNoIHJlZ2lvbnMgYXJlIG5vdCBsZWZ0IHVuaW5pdGlhbGl6ZWQgYWZ0ZXIgYm9vdHVwLg0K
-PiA+Pj4gLSAgICAgICAgICAgICovDQo+ID4+PiAgICAgICAgICAgICBpZiAoZW50cnktPnR5cGUg
-IT0gRTgyMF9UWVBFX1JBTSAmJiBlbnRyeS0+dHlwZSAhPSBFODIwX1RZUEVfUkVTRVJWRURfS0VS
-TikNCj4gPj4+IC0gICAgICAgICAgICAgICAgICAgbWVtYmxvY2tfcmVzZXJ2ZShlbnRyeS0+YWRk
-ciwgZW50cnktPnNpemUpOw0KPiA+Pj4gLSAgICAgICAgICAgZWxzZQ0KPiA+Pj4gLSAgICAgICAg
-ICAgICAgICAgICBtZW1ibG9ja19hZGQoZW50cnktPmFkZHIsIGVudHJ5LT5zaXplKTsNCj4gPj4+
-ICsgICAgICAgICAgICAgICAgICAgY29udGludWU7DQo+ID4+PiArDQo+ID4+PiArICAgICAgICAg
-ICBtZW1ibG9ja19hZGQoZW50cnktPmFkZHIsIGVudHJ5LT5zaXplKTsNCj4gPj4+ICAgICB9DQo+
-ID4+Pg0KPiA+Pj4gICAgIC8qIFRocm93IGF3YXkgcGFydGlhbCBwYWdlczogKi8NCj4gPj4+IC0t
-DQo+ID4+PiAyLjE4LjANCj4gPj4+DQo+ID4+Pg0KPiA+DQo+
+
+--=-CjA5zgmeZESrmuJDh+sg
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+On Mon, 2018-08-27 at 18:04 +1000, Nicholas Piggin wrote:
+
+> It could do that. It requires a tlbie that matches the page size,
+> so it means 3 sizes. I think possibly even that would be better
+> than current code, but we could do better if we had a few specific
+> fields in there.
+
+Would it cause a noticeable overhead to keep track
+of which page sizes were removed, and to simply flush
+the whole TLB in the (unlikely?) event that multiple
+page sizes were removed in the same munmap?
+
+Once the unmap is so large that multiple page sizes
+were covered, you may already be looking at so many
+individual flush operations that a full flush might
+be faster.
+
+Is there a point on PPC where simply flushing the
+whole TLB, and having other things be reloaded later,
+is faster than flushing every individual page mapping
+that got unmapped?
+
+--=20
+All Rights Reversed.
+
+--=-CjA5zgmeZESrmuJDh+sg
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAluD/nIACgkQznnekoTE
+3oPuoAgAgYYUxuaSllsIwNGF9TwctKvO64J9eWJukeqnJu357LE/C4ku0xwCXmhV
+51RiEMNOpnTEQ/DWfPXjnCzY/Uah4nBXPTIwBjHCKC57tJGcIt1V9PsvnyRgtBDR
+hf05gT/oO+Cuj4KAATK5gjfUpuNt3w/xg3Gsoxqv7fRcDH5czAu74JpSY1U1IrGP
+Ck2UVC9AARlmeAhnonEnBw+dFkZsMgIvIZyvVSY9ZL01r3zdXuieEzeeDRV8t4IG
+w0ccBoWSO07Si+zZNrvk7Bo3SpHolzZbov8SLGqi1jnNplO25xw/Fkx2kVgMMXmB
+aTdmEoWMISm8Gr7LshmkZ1RhAVQWrA==
+=vAtB
+-----END PGP SIGNATURE-----
+
+--=-CjA5zgmeZESrmuJDh+sg--
