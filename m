@@ -1,57 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E9A716B3F57
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 04:11:25 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id n23-v6so14332671qkn.19
-        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 01:11:25 -0700 (PDT)
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id g29-v6si3841383qtm.361.2018.08.27.01.11.24
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AA3676B3F82
+	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 04:13:59 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id e6-v6so7855953itc.7
+        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 01:13:59 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id v130-v6si9120107iod.249.2018.08.27.01.13.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 27 Aug 2018 01:11:25 -0700 (PDT)
-Message-ID: <4ef8a2aa44db971340b0bcc4f73d639455dd4282.camel@kernel.crashing.org>
-Subject: Re: [PATCH 3/4] mm/tlb, x86/mm: Support invalidating TLB caches for
- RCU_TABLE_FREE
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Mon, 27 Aug 2018 18:09:50 +1000
-In-Reply-To: <20180827180458.4af9b2ac@roar.ozlabs.ibm.com>
-References: <20180822155527.GF24124@hirez.programming.kicks-ass.net>
-	 <20180823134525.5f12b0d3@roar.ozlabs.ibm.com>
-	 <CA+55aFxneZTFxxxAjLZmj92VUJg6z7hERxJ2cHoth-GC0RuELw@mail.gmail.com>
-	 <776104d4c8e4fc680004d69e3a4c2594b638b6d1.camel@au1.ibm.com>
-	 <CA+55aFzM77G9-Q6LboPLJ=5gHma66ZQKiMGCMqXoKABirdF98w@mail.gmail.com>
-	 <20180823133958.GA1496@brain-police>
-	 <20180824084717.GK24124@hirez.programming.kicks-ass.net>
-	 <20180824113214.GK24142@hirez.programming.kicks-ass.net>
-	 <20180824113953.GL24142@hirez.programming.kicks-ass.net>
-	 <20180827150008.13bce08f@roar.ozlabs.ibm.com>
-	 <20180827074701.GW24124@hirez.programming.kicks-ass.net>
-	 <20180827180458.4af9b2ac@roar.ozlabs.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 27 Aug 2018 01:13:58 -0700 (PDT)
+Date: Mon, 27 Aug 2018 10:13:29 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: TLB flushes on fixmap changes
+Message-ID: <20180827081329.GZ24124@hirez.programming.kicks-ass.net>
+References: <56A9902F-44BE-4520-A17C-26650FCC3A11@gmail.com>
+ <CA+55aFzerzTPm94jugheVmWg8dJre94yu+GyZGT9NNZanNx_qw@mail.gmail.com>
+ <9A38D3F4-2F75-401D-8B4D-83A844C9061B@gmail.com>
+ <CA+55aFz1KYT7fRRG98wei24spiVg7u1Ec66piWY5359ykFmezw@mail.gmail.com>
+ <8E0D8C66-6F21-4890-8984-B6B3082D4CC5@gmail.com>
+ <CALCETrWdeKBcEs7zAbpEM1YdYiT2UBXwPtF0mMTvcDX_KRpz1A@mail.gmail.com>
+ <20180826112341.f77a528763e297cbc36058fa@kernel.org>
+ <CALCETrXPaX-+R6Z9LqZp0uOVmq-TUX_ksPbUL7mnfbdqo6z2AA@mail.gmail.com>
+ <20180826090958.GT24124@hirez.programming.kicks-ass.net>
+ <20180827120305.01a6f26267c64610cadec5d8@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180827120305.01a6f26267c64610cadec5d8@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: Will Deacon <will.deacon@arm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>
+To: Masami Hiramatsu <mhiramat@kernel.org>
+Cc: Andy Lutomirski <luto@kernel.org>, Kees Cook <keescook@chromium.org>, Nadav Amit <nadav.amit@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Jiri Kosina <jkosina@suse.cz>, Will Deacon <will.deacon@arm.com>, Benjamin Herrenschmidt <benh@au1.ibm.com>, Nick Piggin <npiggin@gmail.com>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>
 
-On Mon, 2018-08-27 at 18:04 +1000, Nicholas Piggin wrote:
-> > Yes.. I see that. tlb_remove_check_page_size_change() really is a rather
-> > ugly thing, it can cause loads of TLB flushes. Do you really _have_ to
-> > do that? The way ARM and x86 work is that using INVLPG in a 4K stride is
-> > still correct for huge pages, inefficient maybe, but so is flushing
-> > every other page because 'sparse' transparant-huge-pages.
+On Mon, Aug 27, 2018 at 12:03:05PM +0900, Masami Hiramatsu wrote:
+> On Sun, 26 Aug 2018 11:09:58 +0200
+> Peter Zijlstra <peterz@infradead.org> wrote:
+
+> > FWIW, before text_poke_bp(), text_poke() would only be used from
+> > stop_machine, so all the other CPUs would be stuck busy-waiting with
+> > IRQs disabled. These days, yeah, that's lots more dodgy, but yes
+> > text_mutex should be serializing all that.
 > 
-> It could do that. It requires a tlbie that matches the page size,
-> so it means 3 sizes. I think possibly even that would be better
-> than current code, but we could do better if we had a few specific
-> fields in there.
+> I'm still not sure that speculative page-table walk can be done
+> over the mutex. Also, if the fixmap area is for aliasing
+> pages (which always mapped to memory), what kind of
+> security issue can happen?
 
-More tlbies ? With the cost of the broadasts on the fabric ? I don't
-think so.. or I'm not understanding your point...
+So suppose CPU-A is doing the text_poke (let's say through text_poke_bp,
+such that other CPUs get to continue with whatever they're doing).
 
-Sadly our architecture requires a precise match between the page size
-specified in the tlbie instruction and the entry in the TLB or it won't
-be flushed.
+While at that point, CPU-B gets an interrupt, and the CPU's
+branch-trace-buffer for the IRET points to / near our fixmap. Then the
+CPU could do a speculative TLB fill based on the BTB value, either
+directly or indirectly (through speculative driven fault-ahead) of
+whatever is in te fixmap at the time.
 
-Ben.
+Then CPU-A completes the text_poke and only does a local TLB invalidate
+on CPU-A, leaving CPU-B with an active translation.
+
+*FAIL*
