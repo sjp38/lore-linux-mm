@@ -1,55 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 52BA96B42FB
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 19:18:45 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id x204-v6so683096qka.6
-        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 16:18:45 -0700 (PDT)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0125.outbound.protection.outlook.com. [104.47.38.125])
-        by mx.google.com with ESMTPS id c18-v6si570578qvq.4.2018.08.27.16.18.44
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E3AB46B42FF
+	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 19:19:34 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id q29-v6so15593edd.0
+        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 16:19:34 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id t26-v6si464379eda.7.2018.08.27.16.19.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 27 Aug 2018 16:18:44 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: Re: [PATCH 1/2] Revert "x86/e820: put !E820_TYPE_RAM regions into
- memblock.reserved"
-Date: Mon, 27 Aug 2018 23:18:42 +0000
-Message-ID: <f3f1b835-8762-5644-a9aa-fac11ba07b14@microsoft.com>
-References: <20180823182513.8801-1-msys.mizuma@gmail.com>
-In-Reply-To: <20180823182513.8801-1-msys.mizuma@gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <C7E6988B164F9E46B69C06C89B833C19@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Aug 2018 16:19:33 -0700 (PDT)
+Date: Mon, 27 Aug 2018 16:19:12 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH v3 1/3] mm: rework memcg kernel stack accounting
+Message-ID: <20180827231909.GA19820@tower.DHCP.thefacebook.com>
+References: <20180827162621.30187-1-guro@fb.com>
+ <20180827140143.98b65bc7cb32f50245eb9114@linux-foundation.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180827140143.98b65bc7cb32f50245eb9114@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Masayoshi Mizuma <msys.mizuma@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Shakeel Butt <shakeelb@google.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Andy Lutomirski <luto@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Tejun Heo <tj@kernel.org>
 
-T24gOC8yMy8xOCAyOjI1IFBNLCBNYXNheW9zaGkgTWl6dW1hIHdyb3RlOg0KPiBGcm9tOiBNYXNh
-eW9zaGkgTWl6dW1hIDxtLm1penVtYUBqcC5mdWppdHN1LmNvbT4NCj4gDQo+IGNvbW1pdCAxMjQw
-NDlkZWNiYjEgKCJ4ODYvZTgyMDogcHV0ICFFODIwX1RZUEVfUkFNIHJlZ2lvbnMgaW50bw0KPiBt
-ZW1ibG9jay5yZXNlcnZlZCIpIGJyZWFrcyBtb3ZhYmxlX25vZGUga2VybmVsIG9wdGlvbiBiZWNh
-dXNlIGl0DQo+IGNoYW5nZWQgdGhlIG1lbW9yeSBnYXAgcmFuZ2UgdG8gcmVzZXJ2ZWQgbWVtYmxv
-Y2suIFNvLCB0aGUgbm9kZQ0KPiBpcyBtYXJrZWQgYXMgTm9ybWFsIHpvbmUgZXZlbiBpZiB0aGUg
-U1JBVCBoYXMgSG90IHBsYWdnYWJsZSBhZmZpbml0eS4NCj4gDQo+ICAgICA9PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0N
-Cj4gICAgIGtlcm5lbDogQklPUy1lODIwOiBbbWVtIDB4MDAwMDE4MDAwMDAwMDAwMC0weDAwMDAx
-ODBmZmZmZmZmZmZdIHVzYWJsZQ0KPiAgICAga2VybmVsOiBCSU9TLWU4MjA6IFttZW0gMHgwMDAw
-MWMwMDAwMDAwMDAwLTB4MDAwMDFjMGZmZmZmZmZmZl0gdXNhYmxlDQo+ICAgICAuLi4NCj4gICAg
-IGtlcm5lbDogcmVzZXJ2ZWRbMHgxMl0jMDExWzB4MDAwMDE4MTAwMDAwMDAwMC0weDAwMDAxYmZm
-ZmZmZmZmZmZdLCAweDAwMDAwM2YwMDAwMDAwMDAgYnl0ZXMgZmxhZ3M6IDB4MA0KPiAgICAgLi4u
-DQo+ICAgICBrZXJuZWw6IEFDUEk6IFNSQVQ6IE5vZGUgMiBQWE0gNiBbbWVtIDB4MTgwMDAwMDAw
-MDAwLTB4MWJmZmZmZmZmZmZmXSBob3RwbHVnDQo+ICAgICBrZXJuZWw6IEFDUEk6IFNSQVQ6IE5v
-ZGUgMyBQWE0gNyBbbWVtIDB4MWMwMDAwMDAwMDAwLTB4MWZmZmZmZmZmZmZmXSBob3RwbHVnDQo+
-ICAgICAuLi4NCj4gICAgIGtlcm5lbDogTW92YWJsZSB6b25lIHN0YXJ0IGZvciBlYWNoIG5vZGUN
-Cj4gICAgIGtlcm5lbDogIE5vZGUgMzogMHgwMDAwMWMwMDAwMDAwMDAwDQo+ICAgICBrZXJuZWw6
-IEVhcmx5IG1lbW9yeSBub2RlIHJhbmdlcw0KPiAgICAgLi4uDQo+ICAgICA9PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0N
-Cj4gDQo+IE5hb3lhJ3MgdjEgcGF0Y2ggWypdIGZpeGVzIHRoZSBvcmlnaW5hbCBpc3N1ZSBhbmQg
-dGhpcyBtb3ZhYmxlX25vZGUNCj4gaXNzdWUgZG9lc24ndCBvY2N1ci4NCj4gTGV0J3MgcmV2ZXJ0
-IGNvbW1pdCAxMjQwNDlkZWNiYjEgKCJ4ODYvZTgyMDogcHV0ICFFODIwX1RZUEVfUkFNDQo+IHJl
-Z2lvbnMgaW50byBtZW1ibG9jay5yZXNlcnZlZCIpIGFuZCBhcHBseSB0aGUgdjEgcGF0Y2guDQo+
-IA0KPiBbKl0gaHR0cHM6Ly9sa21sLm9yZy9sa21sLzIwMTgvNi8xMy8yNw0KPiANCj4gU2lnbmVk
-LW9mZi1ieTogTWFzYXlvc2hpIE1penVtYSA8bS5taXp1bWFAanAuZnVqaXRzdS5jb20+DQoNClJl
-dmlld2VkLWJ5OiBQYXZlbCBUYXRhc2hpbiA8cGF2ZWwudGF0YXNoaW5AbWljcm9zb2Z0LmNvbT4=
+On Mon, Aug 27, 2018 at 02:01:43PM -0700, Andrew Morton wrote:
+> On Mon, 27 Aug 2018 09:26:19 -0700 Roman Gushchin <guro@fb.com> wrote:
+> 
+> > If CONFIG_VMAP_STACK is set, kernel stacks are allocated
+> > using __vmalloc_node_range() with __GFP_ACCOUNT. So kernel
+> > stack pages are charged against corresponding memory cgroups
+> > on allocation and uncharged on releasing them.
+> > 
+> > The problem is that we do cache kernel stacks in small
+> > per-cpu caches and do reuse them for new tasks, which can
+> > belong to different memory cgroups.
+> > 
+> > Each stack page still holds a reference to the original cgroup,
+> > so the cgroup can't be released until the vmap area is released.
+> > 
+> > To make this happen we need more than two subsequent exits
+> > without forks in between on the current cpu, which makes it
+> > very unlikely to happen. As a result, I saw a significant number
+> > of dying cgroups (in theory, up to 2 * number_of_cpu +
+> > number_of_tasks), which can't be released even by significant
+> > memory pressure.
+> > 
+> > As a cgroup structure can take a significant amount of memory
+> > (first of all, per-cpu data like memcg statistics), it leads
+> > to a noticeable waste of memory.
+> 
+> OK, but this doesn't describe how the patch addresses this issue?
+
+Sorry, missed this part. Let's add the following paragraph to the
+commit message (the full updated patch is below):
+
+To address the issue, let's charge thread stacks on assigning
+them to tasks, and uncharge on releasing them and putting into
+the per-cpu cache. So, cached stacks will not be assigned to
+any memcg and will not hold any memcg reference.
+
+
+> 
+> >
+> > ...
+> >
+> > @@ -371,6 +382,35 @@ static void account_kernel_stack(struct task_struct *tsk, int account)
+> >  	}
+> >  }
+> >  
+> > +static int memcg_charge_kernel_stack(struct task_struct *tsk)
+> > +{
+> > +#ifdef CONFIG_VMAP_STACK
+> > +	struct vm_struct *vm = task_stack_vm_area(tsk);
+> > +	int ret;
+> > +
+> > +	if (vm) {
+> > +		int i;
+> > +
+> > +		for (i = 0; i < THREAD_SIZE / PAGE_SIZE; i++) {
+> 
+> Can we ever have THREAD_SIZE < PAGE_SIZE?  64k pages?
+
+Hm, good question!
+We can, but I doubt that anyone using 64k pages AND CONFIG_VMAP_STACK,
+and I *suspect* that it will trigger the BUG_ON() in account_kernel_stack():
+
+static void account_kernel_stack(struct task_struct *tsk, int account) {
+	...
+
+	if (vm) {
+		...
+
+		BUG_ON(vm->nr_pages != THREAD_SIZE / PAGE_SIZE);
+
+But I don't see anything that makes such a config illegitimate.
+Does it makes any sense to use vmap if THREAD_SIZE < PAGE_SIZE?
+
+> 
+> > +			/*
+> > +			 * If memcg_kmem_charge() fails, page->mem_cgroup
+> > +			 * pointer is NULL, and both memcg_kmem_uncharge()
+> > +			 * and mod_memcg_page_state() in free_thread_stack()
+> > +			 * will ignore this page. So it's safe.
+> > +			 */
+> > +			ret = memcg_kmem_charge(vm->pages[i], GFP_KERNEL, 0);
+> > +			if (ret)
+> > +				return ret;
+> > +
+> > +			mod_memcg_page_state(vm->pages[i],
+> > +					     MEMCG_KERNEL_STACK_KB,
+> > +					     PAGE_SIZE / 1024);
+> > +		}
+> > +	}
+> > +#endif
+> > +	return 0;
+> > +}
+> >
+> > ...
+> >
+
+Thanks!
+
+
+--
