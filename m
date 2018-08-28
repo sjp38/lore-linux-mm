@@ -1,48 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F55E6B484B
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 18:04:30 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id d40-v6so1206293pla.14
-        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 15:04:30 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3028E6B4856
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 18:13:58 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id g12-v6so1232782plo.1
+        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 15:13:58 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v10-v6si2148040pfj.354.2018.08.28.15.04.28
+        by mx.google.com with ESMTPS id i184-v6si1996020pfb.98.2018.08.28.15.13.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 28 Aug 2018 15:04:28 -0700 (PDT)
-Date: Tue, 28 Aug 2018 15:04:27 -0700
+        Tue, 28 Aug 2018 15:13:57 -0700 (PDT)
+Date: Tue, 28 Aug 2018 15:13:52 -0700
 From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 01/10] cramfs: Convert to use vmf_insert_mixed
-Message-ID: <20180828220427.GA11400@bombadil.infradead.org>
-References: <20180828145728.11873-1-willy@infradead.org>
- <20180828145728.11873-2-willy@infradead.org>
- <nycvar.YSQ.7.76.1808281235060.10215@knanqh.ubzr>
+Subject: Re: [PATCH 2/2] fs/dcache: Make negative dentries easier to be
+ reclaimed
+Message-ID: <20180828221352.GC11400@bombadil.infradead.org>
+References: <1535476780-5773-1-git-send-email-longman@redhat.com>
+ <1535476780-5773-3-git-send-email-longman@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <nycvar.YSQ.7.76.1808281235060.10215@knanqh.ubzr>
+In-Reply-To: <1535476780-5773-3-git-send-email-longman@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicolas Pitre <nicolas.pitre@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Waiman Long <longman@redhat.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>
 
-On Tue, Aug 28, 2018 at 01:49:25PM -0400, Nicolas Pitre wrote:
-> On Tue, 28 Aug 2018, Matthew Wilcox wrote:
-> > -			ret = vm_insert_mixed(vma, vma->vm_start + off, pfn);
-> > +			vmf = vmf_insert_mixed(vma, vma->vm_start + off, pfn);
-> > +			if (vmf & VM_FAULT_ERROR) {
-> > +				pages = i;
-> > +				break;
-> > +			}
-> 
-> I'd suggest this to properly deal with errers instead:
-> 
-> -			ret = vm_insert_mixed(vma, vma->vm_start + off, pfn);
-> +			vmf = vmf_insert_mixed(vma, vma->vm_start + off, pfn);
-> +			if (vmf & VM_FAULT_ERROR)
-> +				ret = vm_fault_to_errno(vmf, 0);
+On Tue, Aug 28, 2018 at 01:19:40PM -0400, Waiman Long wrote:
+> @@ -134,7 +135,7 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item)
+>  	spin_lock(&nlru->lock);
+>  	if (list_empty(item)) {
+>  		l = list_lru_from_kmem(nlru, item, &memcg);
+> -		list_add_tail(item, &l->list);
+> +		(add_tail ? list_add_tail : list_add)(item, &l->list);
+>  		/* Set shrinker bit if the first element was added */
+>  		if (!l->nr_items++)
+>  			memcg_set_shrinker_bit(memcg, nid,
 
-By my reading of this function, the intent is actually to return 0
-here and allow demand paging to work.  Of course, I've spent all of
-twenty minutes staring at this function, so I defer to the maintainer.
-I think you'd need to be running a make-memory-allocations-fail fuzzer
-to hit this, so it's likely never been tested.
+That's not OK.  Write it out properly, ie:
+
+		if (add_tail)
+			list_add_tail(item, &l->list);
+		else
+			list_add(item, &l->list);
