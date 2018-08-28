@@ -1,95 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A160C6B4874
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 18:39:10 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id 4-v6so2094862wra.18
-        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 15:39:10 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id x78-v6si2287291wmd.159.2018.08.28.15.39.09
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3043B6B487F
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 18:50:09 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id w18-v6so1272688plp.3
+        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 15:50:09 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id s9-v6si2430913pgn.286.2018.08.28.15.50.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 28 Aug 2018 15:39:09 -0700 (PDT)
-Subject: Re: Tagged pointers in the XArray
-References: <20180828222727.GD11400@bombadil.infradead.org>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <fc15502d-8bf3-b7e3-af82-4645dc84e9cd@infradead.org>
-Date: Tue, 28 Aug 2018 15:39:01 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180828222727.GD11400@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Aug 2018 15:50:08 -0700 (PDT)
+Date: Tue, 28 Aug 2018 15:50:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/2] fs/dcache: Track # of negative dentries
+Message-Id: <20180828155006.a6a94a7ba64ac4ce6b8b190c@linux-foundation.org>
+In-Reply-To: <1535476780-5773-1-git-send-email-longman@redhat.com>
+References: <1535476780-5773-1-git-send-email-longman@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Cc: Gao Xiang <gaoxiang25@huawei.com>, zhong jiang <zhongjiang@huawei.com>, Chao Yu <yuchao0@huawei.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Waiman Long <longman@redhat.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>
 
-Just a question, please...
+On Tue, 28 Aug 2018 13:19:38 -0400 Waiman Long <longman@redhat.com> wrote:
 
-On 08/28/2018 03:27 PM, Matthew Wilcox wrote:
+> This patchset is a reduced scope version of the
+> patchset "fs/dcache: Track & limit # of negative dentries"
+> (https://lkml.org/lkml/2018/7/12/586). Only the first 2 patches are
+> included to track the number of negative dentries in the system as well
+> as making negative dentries more easily reclaimed than positive ones.
 > 
-> diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-> index c74556ea4258..d1b383f3063f 100644
-> --- a/include/linux/xarray.h
-> +++ b/include/linux/xarray.h
-> @@ -150,6 +150,54 @@ static inline int xa_err(void *entry)
->  	return 0;
->  }
->  
-> +/**
-> + * xa_tag_pointer() - Create an XArray entry for a tagged pointer.
-> + * @p: Plain pointer.
-> + * @tag: Tag value (0, 1 or 3).
-> + *
+> There are controversies on limiting number of negative dentries as it may
+> make negative dentries special in term of how memory resources are to
+> be managed in the kernel. However, I don't believe I heard any concern
+> about tracking the number of negative dentries in the system. So it is
+> better to separate that out and get it done with. We can deal with the
+> controversial part later on.
 
-What's wrong with a tag value of 2?
+Seems reasonable.
 
-and what happens when one is used?  [I don't see anything preventing that.]
+It would be nice to see testing results please.  Quite comprehensive
+ones.
 
+And again, an apparently permanent feature of this patchset is that the
+changelogs fail to provide descriptions of real-world problems with the
+existing code.  Please do provide those (comprehensive) descriptions and
+demonstrate that these changes resolve those problems.
 
-> + * If the user of the XArray prefers, they can tag their pointers instead
-> + * of storing value entries.  Three tags are available (0, 1 and 3).
-> + * These are distinct from the xa_tag_t as they are not replicated up
-> + * through the array and cannot be searched for.
-> + *
-> + * Context: Any context.
-> + * Return: An XArray entry.
-> + */
-> +static inline void *xa_tag_pointer(void *p, unsigned long tag)
-> +{
-> +	return (void *)((unsigned long)p | tag);
-> +}
-> +
-> +/**
-> + * xa_untag_pointer() - Turn an XArray entry into a plain pointer.
-> + * @entry: XArray entry.
-> + *
-> + * If you have stored a tagged pointer in the XArray, call this function
-> + * to get the untagged version of the pointer.
-> + *
-> + * Context: Any context.
-> + * Return: A pointer.
-> + */
-> +static inline void *xa_untag_pointer(void *entry)
-> +{
-> +	return (void *)((unsigned long)entry & ~3UL);
-> +}
-> +
-> +/**
-> + * xa_pointer_tag() - Get the tag stored in an XArray entry.
-> + * @entry: XArray entry.
-> + *
-> + * If you have stored a tagged pointer in the XArray, call this function
-> + * to get the tag of that pointer.
-> + *
-> + * Context: Any context.
-> + * Return: A tag.
-> + */
-> +static inline unsigned int xa_pointer_tag(void *entry)
-> +{
-> +	return (unsigned long)entry & 3UL;
-> +}
-
-thanks,
--- 
-~Randy
+Also, a grumpynit: with 100% uniformity, the vfs presently refers to
+negative dentries with the string "negative" in the identifier.  This
+patchset abbreviates that to "neg".
