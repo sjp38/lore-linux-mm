@@ -1,115 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 208626B44FC
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 03:51:52 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id b8-v6so615637oib.4
-        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 00:51:52 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id u84-v6si247896oie.30.2018.08.28.00.51.50
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AC2466B4500
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 03:53:26 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id m25-v6so646848pgv.14
+        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 00:53:26 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c31-v6si382537pgl.126.2018.08.28.00.53.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Aug 2018 00:51:50 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w7S7mSHY022314
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 03:51:50 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2m5145kcc8-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 03:51:49 -0400
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Tue, 28 Aug 2018 08:51:47 +0100
-Subject: Re: using range locks instead of mm_sem
-References: <9ea84ad8-0404-077e-200d-14ad749cb784@oracle.com>
- <20180822144640.GB3677@linux-r8p5>
- <744f3cf3-d4ec-e3a6-e56d-8009dd8c5f14@linux.vnet.ibm.com>
- <09ab74a2-f996-de7c-b0b2-46d82c971976@oracle.com>
- <1AFAF0C5-0C8C-4CAD-9027-10C621B49C01@oracle.com>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Tue, 28 Aug 2018 09:51:42 +0200
+        Tue, 28 Aug 2018 00:53:25 -0700 (PDT)
+Date: Tue, 28 Aug 2018 09:53:21 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH 2/2] mm: thp: fix transparent_hugepage/defrag = madvise
+ || always
+Message-ID: <20180828075321.GD10223@dhcp22.suse.cz>
+References: <20180820032204.9591-1-aarcange@redhat.com>
+ <20180820032204.9591-3-aarcange@redhat.com>
+ <20180821115057.GY29735@dhcp22.suse.cz>
+ <20180821214049.GG13047@redhat.com>
+ <20180822090214.GF29735@dhcp22.suse.cz>
+ <20180822155250.GP13047@redhat.com>
+ <20180823105253.GB29735@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1AFAF0C5-0C8C-4CAD-9027-10C621B49C01@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-Message-Id: <9b3202bd-3c91-4c40-6faa-e9d71eb6c018@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180823105253.GB29735@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Kogan <alex.kogan@oracle.com>
-Cc: Dave Dice <dave.dice@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, jack@suse.com, linux-mm@kvack.org, Shady Issa <shady.issa@oracle.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On 27/08/2018 21:41, Alex Kogan wrote:
+On Thu 23-08-18 12:52:53, Michal Hocko wrote:
+> On Wed 22-08-18 11:52:50, Andrea Arcangeli wrote:
+> > On Wed, Aug 22, 2018 at 11:02:14AM +0200, Michal Hocko wrote:
+> [...]
+> > > I still have to digest the __GFP_THISNODE thing but I _think_ that the
+> > > alloc_pages_vma code is just trying to be overly clever and
+> > > __GFP_THISNODE is not a good fit for it. 
+> > 
+> > My option 2 did just that, it removed __GFP_THISNODE but only for
+> > MADV_HUGEPAGE and in general whenever reclaim was activated by
+> > __GFP_DIRECT_RECLAIM. That is also signal that the user really wants
+> > THP so then it's less bad to prefer THP over NUMA locality.
+> > 
+> > For the default which is tuned for short lived allocation, preferring
+> > local memory is most certainly better win for short lived allocation
+> > where THP can't help much, this is why I didn't remove __GFP_THISNODE
+> > from the default defrag policy.
 > 
->> On Aug 24, 2018, at 6:39 PM, Shady Issa <shady.issa@oracle.com> wrote:
->>
->>
->>
->> On 08/24/2018 03:40 AM, Laurent Dufour wrote:
->>> On 22/08/2018 16:46, Davidlohr Bueso wrote:
->>>> On Wed, 22 Aug 2018, Shady Issa wrote:
->>>>
->>>>> Hi Davidlohr,
->>>>>
->>>>> I am interested in the idea of using range locks to replace mm_sem. I wanted to
->>>>> start trying out using more fine-grained ranges instead of the full range
->>>>> acquisitions
->>>>> that are used in this patch (https://urldefense.proofpoint.com/v2/url?u=https-3A__lkml.org_lkml_2018_2_4_235&d=DwICaQ&c=RoP1YumCXCgaWHvlZYR8PZh8Bv7qIrMUB65eapI_JnE&r=Q-zBmi7tP5HosTvB8kUZjTYqSFMRtxg-kOQa59-zx9I&m=ZCN6CnHZsYyZ_V0nWMSZgLmp-GobwtrhI3Wx8UAIQuY&s=LtbMxuR2njAX0dm3L2lNQKvztbnLTfKjBd-S20cDPbE&e=). However, it
->>>>> does not
->>>>> seem straight forward to me how this is possible.
->>>>>
->>>>> First, the ranges that can be defined before acquiring the range lock based
->>>>> on the
->>>>> caller's input(i.e. ranges supplied by mprotect, mmap, munmap, etc.) are
->>>>> oblivious of
->>>>> the underlying VMAs. Two non-overlapping ranges can fall within the same VMA and
->>>>> thus should not be allowed to run concurrently in case they are writes.
->>>> Yes. This is a _big_ issue with range locking the addr space. I have yet
->>>> to find a solution other than delaying vma modifying ops to avoid the races,
->>>> which is fragile. Obviously locking the full range in such scenarios cannot
->>>> be done either.
->>> I think the range locked should be aligned to the underlying VMA plus one page
->>> on each side to prevent that VMA to be merged.
-> How would one find the underlying VMA for the range lock acquisition?
-> Looks like that would require searching the rb-tree (currently protected by mm_sem), and that search has to be synchronized with concurrent tree modifications.
+> Yes I agree.
 
-The rb-tree will need its own protection through a lock or a RCU like mechanism.
+I finally got back to this again. I have checked your patch and I am
+really wondering whether alloc_pages_vma is really the proper place to
+play these tricks. We already have that mind blowing alloc_hugepage_direct_gfpmask
+and it should be the proper place to handle this special casing. So what
+do you think about the following. It should be essentially the same
+thing. Aka use __GFP_THIS_NODE only when we are doing an optimistic THP
+allocation. Madvise signalizes you know what you are doing and THP has
+the top priority. If you care enough about the numa placement then you
+should better use mempolicy.
 
-Laurent.
-
-
-
-> Regards,
-> a?? Alex
-> 
->>> But this raises a concern with the VMA merging mechanism which tends to limit
->>> the number of VMAs and could lead to a unique VMA, limiting the advantage of a
->>> locking based on the VMA's boundaries.
->> To do so, the current merge implementation should be changed so that
->> it does not access VMAs beyond the locked range, right? Also, this will
->> not stop a merge from happening in case of a range spanning two VMAs
->> for example.
->>>
->>>>> Second, even if ranges from the caller function are aligned with VMAs, the
->>>>> extent of the
->>>>> effect of operation is unknown. It is probable that an operation touching one
->>>>> VMA will
->>>>> end up performing modifications to the VMAs rbtree structure due to splits,
->>>>> merges, etc.,
->>>>> which requires the full range acquisition and is unknown beforehand.
->>>> Yes, this is similar to the above as well.
->>>>
->>>>> I was wondering if I am missing something with this thought process, because
->>>>> with the
->>>>> current givings, it seems to me that range locks will boil down to just r/w
->>>>> semaphore.
->>>>> I would also be very grateful if you can point me to any more recent
->>>>> discussions regarding
->>>>> the use of range locks after this patch from February.
->>>> You're on the right page.
->>>>
->>>> Thanks,
->>>> Davidlohr
->>>>
->>
-> 
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index c3bc7e9c9a2a..3cdb62f6aea7 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -634,16 +634,16 @@ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
+ 	const bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
+ 
+ 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
+-		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
++		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY | __GFP_THISNODE);
+ 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
+-		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
++		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM | __GFP_THISNODE;
+ 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags))
+ 		return GFP_TRANSHUGE_LIGHT | (vma_madvised ? __GFP_DIRECT_RECLAIM :
+-							     __GFP_KSWAPD_RECLAIM);
++							     __GFP_KSWAPD_RECLAIM | __GFP_THISNODE);
+ 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
+ 		return GFP_TRANSHUGE_LIGHT | (vma_madvised ? __GFP_DIRECT_RECLAIM :
+-							     0);
+-	return GFP_TRANSHUGE_LIGHT;
++							     __GFP_THIS_NODE);
++	return GFP_TRANSHUGE_LIGHT | __GFP_THISNODE;
+ }
+ 
+ /* Caller must hold page table lock. */
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index da858f794eb6..9f0800885613 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -2026,32 +2026,6 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+ 		goto out;
+ 	}
+ 
+-	if (unlikely(IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) && hugepage)) {
+-		int hpage_node = node;
+-
+-		/*
+-		 * For hugepage allocation and non-interleave policy which
+-		 * allows the current node (or other explicitly preferred
+-		 * node) we only try to allocate from the current/preferred
+-		 * node and don't fall back to other nodes, as the cost of
+-		 * remote accesses would likely offset THP benefits.
+-		 *
+-		 * If the policy is interleave, or does not allow the current
+-		 * node in its nodemask, we allocate the standard way.
+-		 */
+-		if (pol->mode == MPOL_PREFERRED &&
+-						!(pol->flags & MPOL_F_LOCAL))
+-			hpage_node = pol->v.preferred_node;
+-
+-		nmask = policy_nodemask(gfp, pol);
+-		if (!nmask || node_isset(hpage_node, *nmask)) {
+-			mpol_cond_put(pol);
+-			page = __alloc_pages_node(hpage_node,
+-						gfp | __GFP_THISNODE, order);
+-			goto out;
+-		}
+-	}
+-
+ 	nmask = policy_nodemask(gfp, pol);
+ 	preferred_nid = policy_node(gfp, pol, node);
+ 	page = __alloc_pages_nodemask(gfp, order, preferred_nid, nmask);
+-- 
+Michal Hocko
+SUSE Labs
