@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 79B306B46F1
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 12:06:07 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id w142-v6so1688587qkw.8
-        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 09:06:07 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id k1-v6si1448618qkc.104.2018.08.28.09.06.05
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D98EA6B4542
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 12:10:48 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id t23-v6so1177752pfe.20
+        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 09:10:48 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u64-v6si1375605pgu.533.2018.08.28.09.10.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Aug 2018 09:06:06 -0700 (PDT)
-Date: Tue, 28 Aug 2018 12:06:03 -0400
-From: Jerome Glisse <jglisse@redhat.com>
+        Tue, 28 Aug 2018 09:10:47 -0700 (PDT)
+Date: Tue, 28 Aug 2018 18:10:43 +0200
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH 4/7] mm/hmm: properly handle migration pmd
-Message-ID: <20180828160602.GB4029@redhat.com>
+Message-ID: <20180828161043.GT10223@dhcp22.suse.cz>
 References: <20180824192549.30844-1-jglisse@redhat.com>
  <20180824192549.30844-5-jglisse@redhat.com>
  <0560A126-680A-4BAE-8303-F1AB34BE4BA5@cs.rutgers.edu>
@@ -22,16 +22,15 @@ References: <20180824192549.30844-1-jglisse@redhat.com>
  <20180828154555.GS10223@dhcp22.suse.cz>
  <44C89854-FE83-492F-B6BB-CF54B77233CF@cs.rutgers.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
 In-Reply-To: <44C89854-FE83-492F-B6BB-CF54B77233CF@cs.rutgers.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>
 
-On Tue, Aug 28, 2018 at 11:54:33AM -0400, Zi Yan wrote:
+On Tue 28-08-18 11:54:33, Zi Yan wrote:
 > Hi Michal,
 > 
 > On 28 Aug 2018, at 11:45, Michal Hocko wrote:
@@ -77,15 +76,14 @@ On Tue, Aug 28, 2018 at 11:54:33AM -0400, Zi Yan wrote:
 > like Jerome did.
 > 
 > Does this clarify your question?
-> 
 
-Well looking back at code is_migration_entry() will return false on arch
-which do not have thp migration because pmd_to_swp_entry() will return
-swp_entry(0,0) which is can not be a valid migration entry.
+Not really. IIUC the code checks for the pmd. So even though
+is_migration_entry is a more generic check it should never return true
+for thp_migration_supported() == F because we simply never have those
+unless I am missing something.
 
-Maybe using is_pmd_migration_entry() would be better here ? It seems
-that is_pmd_migration_entry() is more common then the open coded
-thp_migration_supported() && is_migration_entry()
-
-Cheers,
-Jerome
+is_pmd_migration_entry is much more readable of course and I suspect it
+can save few cycles as well.
+-- 
+Michal Hocko
+SUSE Labs
