@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8029D6B46E4
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 10:57:42 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id q67-v6so1286013pgq.9
-        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 07:57:42 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EF8D6B46E5
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 10:57:43 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id x85-v6so1067675pfe.13
+        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 07:57:43 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id n64-v6si1289213pgn.247.2018.08.28.07.57.41
+        by mx.google.com with ESMTPS id e14-v6si1078299pfi.184.2018.08.28.07.57.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 28 Aug 2018 07:57:41 -0700 (PDT)
+        Tue, 28 Aug 2018 07:57:42 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH 05/10] mm: Make vm_insert_pfn_prot static
-Date: Tue, 28 Aug 2018 07:57:23 -0700
-Message-Id: <20180828145728.11873-6-willy@infradead.org>
+Subject: [PATCH 06/10] mm: Remove references to vm_insert_pfn
+Date: Tue, 28 Aug 2018 07:57:24 -0700
+Message-Id: <20180828145728.11873-7-willy@infradead.org>
 In-Reply-To: <20180828145728.11873-1-willy@infradead.org>
 References: <20180828145728.11873-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,94 +20,68 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Matthew Wilcox <willy@infradead.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Now this is no longer used outside mm/memory.c, make it static.
+Documentation and comments.
 
 Signed-off-by: Matthew Wilcox <willy@infradead.org>
 ---
- include/linux/mm.h |  2 --
- mm/memory.c        | 50 +++++++++++++++++++++++-----------------------
- 2 files changed, 25 insertions(+), 27 deletions(-)
+ Documentation/x86/pat.txt     | 4 ++--
+ include/asm-generic/pgtable.h | 4 ++--
+ include/linux/hmm.h           | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index e8bc1a16d44c..1552c67c835e 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2480,8 +2480,6 @@ int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
- int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
- int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 			unsigned long pfn);
--int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
--			unsigned long pfn, pgprot_t pgprot);
- vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
- 			unsigned long pfn, pgprot_t pgprot);
- vm_fault_t vmf_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
-diff --git a/mm/memory.c b/mm/memory.c
-index 8c116c0f64d8..8392a104a36d 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1819,31 +1819,7 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 	return retval;
- }
+diff --git a/Documentation/x86/pat.txt b/Documentation/x86/pat.txt
+index 2a4ee6302122..481d8d8536ac 100644
+--- a/Documentation/x86/pat.txt
++++ b/Documentation/x86/pat.txt
+@@ -90,12 +90,12 @@ pci proc               |    --    |    --      |       WC         |
+ Advanced APIs for drivers
+ -------------------------
+ A. Exporting pages to users with remap_pfn_range, io_remap_pfn_range,
+-vm_insert_pfn
++vmf_insert_pfn
  
--/**
-- * vm_insert_pfn - insert single pfn into user vma
-- * @vma: user vma to map to
-- * @addr: target user address of this page
-- * @pfn: source kernel pfn
-- *
-- * Similar to vm_insert_page, this allows drivers to insert individual pages
-- * they've allocated into a user vma. Same comments apply.
-- *
-- * This function should only be called from a vm_ops->fault handler, and
-- * in that case the handler should return NULL.
-- *
-- * vma cannot be a COW mapping.
-- *
-- * As this is called only for pages that do not currently exist, we
-- * do not need to flush old virtual caches or the TLB.
-- */
--int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
--			unsigned long pfn)
--{
--	return vm_insert_pfn_prot(vma, addr, pfn, vma->vm_page_prot);
--}
--EXPORT_SYMBOL(vm_insert_pfn);
--
--int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
-+static int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
- 			unsigned long pfn, pgprot_t pgprot)
- {
- 	int ret;
-@@ -1873,6 +1849,30 @@ int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
- 	return ret;
- }
+ Drivers wanting to export some pages to userspace do it by using mmap
+ interface and a combination of
+ 1) pgprot_noncached()
+-2) io_remap_pfn_range() or remap_pfn_range() or vm_insert_pfn()
++2) io_remap_pfn_range() or remap_pfn_range() or vmf_insert_pfn()
  
-+/**
-+ * vm_insert_pfn - insert single pfn into user vma
-+ * @vma: user vma to map to
-+ * @addr: target user address of this page
-+ * @pfn: source kernel pfn
-+ *
-+ * Similar to vm_insert_page, this allows drivers to insert individual pages
-+ * they've allocated into a user vma. Same comments apply.
-+ *
-+ * This function should only be called from a vm_ops->fault handler, and
-+ * in that case the handler should return NULL.
-+ *
-+ * vma cannot be a COW mapping.
-+ *
-+ * As this is called only for pages that do not currently exist, we
-+ * do not need to flush old virtual caches or the TLB.
-+ */
-+int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
-+			unsigned long pfn)
-+{
-+	return vm_insert_pfn_prot(vma, addr, pfn, vma->vm_page_prot);
-+}
-+EXPORT_SYMBOL(vm_insert_pfn);
-+
- /**
-  * vmf_insert_pfn_prot - insert single pfn into user vma with specified pgprot
-  * @vma: user vma to map to
+ With PAT support, a new API pgprot_writecombine is being added. So, drivers can
+ continue to use the above sequence, with either pgprot_noncached() or
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 88ebc6102c7c..5657a20e0c59 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -757,7 +757,7 @@ static inline pmd_t pmd_swp_clear_soft_dirty(pmd_t pmd)
+ /*
+  * Interfaces that can be used by architecture code to keep track of
+  * memory type of pfn mappings specified by the remap_pfn_range,
+- * vm_insert_pfn.
++ * vmf_insert_pfn.
+  */
+ 
+ /*
+@@ -773,7 +773,7 @@ static inline int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
+ 
+ /*
+  * track_pfn_insert is called when a _new_ single pfn is established
+- * by vm_insert_pfn().
++ * by vmf_insert_pfn().
+  */
+ static inline void track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+ 				    pfn_t pfn)
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index 4c92e3ba3e16..dde947083d4e 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -107,7 +107,7 @@ enum hmm_pfn_flag_e {
+  * HMM_PFN_ERROR: corresponding CPU page table entry points to poisoned memory
+  * HMM_PFN_NONE: corresponding CPU page table entry is pte_none()
+  * HMM_PFN_SPECIAL: corresponding CPU page table entry is special; i.e., the
+- *      result of vm_insert_pfn() or vm_insert_page(). Therefore, it should not
++ *      result of vmf_insert_pfn() or vm_insert_page(). Therefore, it should not
+  *      be mirrored by a device, because the entry will never have HMM_PFN_VALID
+  *      set and the pfn value is undefined.
+  *
 -- 
 2.18.0
