@@ -1,60 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 99FB16B45A9
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 06:26:27 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id w185-v6so844815oig.19
-        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 03:26:27 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id s65-v6si434849oif.166.2018.08.28.03.26.26
-        for <linux-mm@kvack.org>;
-        Tue, 28 Aug 2018 03:26:26 -0700 (PDT)
-Date: Tue, 28 Aug 2018 11:26:22 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCHv2] kmemleak: Add option to print warnings to dmesg
-Message-ID: <20180828102621.yawpcrkikhh4kagv@armageddon.cambridge.arm.com>
-References: <20180827083821.7706-1-vincent.whitchurch@axis.com>
- <20180827151641.59bdca4e1ea2e532b10cd9fd@linux-foundation.org>
- <20180828101412.mb7t562roqbhsbjw@axis.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180828101412.mb7t562roqbhsbjw@axis.com>
+Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 88E9D6B45B8
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 06:39:21 -0400 (EDT)
+Received: by mail-lf1-f72.google.com with SMTP id y74-v6so225197lfd.4
+        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 03:39:21 -0700 (PDT)
+Received: from bastet.se.axis.com (bastet.se.axis.com. [195.60.68.11])
+        by mx.google.com with ESMTPS id e15-v6si342976lfg.95.2018.08.28.03.39.19
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Aug 2018 03:39:19 -0700 (PDT)
+From: Vincent Whitchurch <vincent.whitchurch@axis.com>
+Subject: [PATCH 1/2] kmemleak: dump all objects for slab usage analysis
+Date: Tue, 28 Aug 2018 12:39:13 +0200
+Message-Id: <20180828103914.30434-1-vincent.whitchurch@axis.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vincent Whitchurch <vincent.whitchurch@axis.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: catalin.marinas@arm.com, akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vincent Whitchurch <rabinv@axis.com>
 
-On Tue, Aug 28, 2018 at 12:14:12PM +0200, Vincent Whitchurch wrote:
-> On Mon, Aug 27, 2018 at 03:16:41PM -0700, Andrew Morton wrote:
-> > On Mon, 27 Aug 2018 10:38:21 +0200 Vincent Whitchurch <vincent.whitchurch@axis.com> wrote:
-> > > --- a/lib/Kconfig.debug
-> > > +++ b/lib/Kconfig.debug
-> > > @@ -593,6 +593,15 @@ config DEBUG_KMEMLEAK_DEFAULT_OFF
-> > >  	  Say Y here to disable kmemleak by default. It can then be enabled
-> > >  	  on the command line via kmemleak=on.
-> > >  
-> > > +config DEBUG_KMEMLEAK_WARN
-> > > +	bool "Print kmemleak object warnings to log buffer"
-> > > +	depends on DEBUG_KMEMLEAK
-> > > +	help
-> > > +	  Say Y here to make kmemleak print information about unreferenced
-> > > +	  objects (including stacktraces) as warnings to the kernel log buffer.
-> > > +	  Otherwise this information is only available by reading the kmemleak
-> > > +	  debugfs file.
-> > 
-> > Why add the config option?  Why not simply make the change for all
-> > configs?
-> 
-> No particular reason other than preserving the current behaviour for
-> existing users.  I can remove the config option if Catalin is fine with
-> it.
+In order to be able to analyse the kernel's slab usage, we'd need a list
+of allocated objects and their allocation stacks.  Kmemleak already
+maintains such a list internally, so we expose it via debugfs file.
 
-IIRC, in the early kmemleak days, people complained about it being to
-noisy (the false positives rate was also much higher), so the default
-behaviour was changed to monitor (almost) quietly with the details
-available via debugfs. I'd like to keep this default behaviour but we
-could have a "verbose" command via both debugfs and kernel parameter (as
-we do with "off" and "on"). Would this work for you?
+This file can be post-processed in userspace and converted to a suitable
+format for slab usage analysis.
 
+Signed-off-by: Vincent Whitchurch <vincent.whitchurch@axis.com>
+---
+ mm/kmemleak.c | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 53 insertions(+)
+
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 17dd883198ae..7bef05c690d6 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -1759,6 +1759,34 @@ static int kmemleak_seq_show(struct seq_file *seq, void *v)
+ 	return 0;
+ }
+ 
++static void kmemleak_print_object(struct seq_file *seq,
++				  struct kmemleak_object *object)
++{
++	int i;
++
++	seq_printf(seq, "object 0x%08lx (size %zu):\n",
++		   object->pointer, object->size);
++	seq_printf(seq, "  comm \"%s\", pid %d, jiffies %lu\n",
++		   object->comm, object->pid, object->jiffies);
++
++	for (i = 0; i < object->trace_len; i++) {
++		void *ptr = (void *)object->trace[i];
++
++		seq_printf(seq, "    [<%p>] %pS\n", ptr, ptr);
++	}
++}
++
++static int kmemleak_all_seq_show(struct seq_file *seq, void *v)
++{
++	struct kmemleak_object *object = v;
++	unsigned long flags;
++
++	spin_lock_irqsave(&object->lock, flags);
++	kmemleak_print_object(seq, object);
++	spin_unlock_irqrestore(&object->lock, flags);
++	return 0;
++}
++
+ static const struct seq_operations kmemleak_seq_ops = {
+ 	.start = kmemleak_seq_start,
+ 	.next  = kmemleak_seq_next,
+@@ -1766,11 +1794,23 @@ static const struct seq_operations kmemleak_seq_ops = {
+ 	.show  = kmemleak_seq_show,
+ };
+ 
++static const struct seq_operations kmemleak_all_seq_ops = {
++	.start = kmemleak_seq_start,
++	.next  = kmemleak_seq_next,
++	.stop  = kmemleak_seq_stop,
++	.show  = kmemleak_all_seq_show,
++};
++
+ static int kmemleak_open(struct inode *inode, struct file *file)
+ {
+ 	return seq_open(file, &kmemleak_seq_ops);
+ }
+ 
++static int kmemleak_all_open(struct inode *inode, struct file *file)
++{
++	return seq_open(file, &kmemleak_all_seq_ops);
++}
++
+ static int dump_str_object_info(const char *str)
+ {
+ 	unsigned long flags;
+@@ -1911,6 +1951,14 @@ static const struct file_operations kmemleak_fops = {
+ 	.release	= seq_release,
+ };
+ 
++static const struct file_operations kmemleak_all_fops = {
++	.owner		= THIS_MODULE,
++	.open		= kmemleak_all_open,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= seq_release,
++};
++
+ static void __kmemleak_do_cleanup(void)
+ {
+ 	struct kmemleak_object *object;
+@@ -2102,6 +2150,11 @@ static int __init kmemleak_late_init(void)
+ 	if (!dentry)
+ 		pr_warn("Failed to create the debugfs kmemleak file\n");
+ 
++	dentry = debugfs_create_file("kmemleak_all", 0400, NULL, NULL,
++				     &kmemleak_all_fops);
++	if (!dentry)
++		pr_warn("Failed to create the debugfs kmemleak_all file\n");
++
+ 	if (kmemleak_error) {
+ 		/*
+ 		 * Some error occurred and kmemleak was disabled. There is a
 -- 
-Catalin
+2.11.0
