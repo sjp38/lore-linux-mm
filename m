@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EF8D6B46E5
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B9D4D6B46E6
 	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 10:57:43 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id x85-v6so1067675pfe.13
+Received: by mail-pl1-f197.google.com with SMTP id w18-v6so766476plp.3
         for <linux-mm@kvack.org>; Tue, 28 Aug 2018 07:57:43 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e14-v6si1078299pfi.184.2018.08.28.07.57.41
+        by mx.google.com with ESMTPS id m5-v6si1241270pgt.361.2018.08.28.07.57.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Tue, 28 Aug 2018 07:57:42 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH 06/10] mm: Remove references to vm_insert_pfn
-Date: Tue, 28 Aug 2018 07:57:24 -0700
-Message-Id: <20180828145728.11873-7-willy@infradead.org>
+Subject: [PATCH 07/10] mm: Remove vm_insert_pfn
+Date: Tue, 28 Aug 2018 07:57:25 -0700
+Message-Id: <20180828145728.11873-8-willy@infradead.org>
 In-Reply-To: <20180828145728.11873-1-willy@infradead.org>
 References: <20180828145728.11873-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,68 +20,129 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Matthew Wilcox <willy@infradead.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Documentation and comments.
+All callers are now converted to vmf_insert_pfn so convert
+vmf_insert_pfn() from being a compatibility wrapper around vm_insert_pfn()
+to being a compatibility wrapper around vmf_insert_pfn_prot().
 
 Signed-off-by: Matthew Wilcox <willy@infradead.org>
 ---
- Documentation/x86/pat.txt     | 4 ++--
- include/asm-generic/pgtable.h | 4 ++--
- include/linux/hmm.h           | 2 +-
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ include/linux/mm.h | 15 +------------
+ mm/memory.c        | 54 +++++++++++++++++++++++++---------------------
+ 2 files changed, 30 insertions(+), 39 deletions(-)
 
-diff --git a/Documentation/x86/pat.txt b/Documentation/x86/pat.txt
-index 2a4ee6302122..481d8d8536ac 100644
---- a/Documentation/x86/pat.txt
-+++ b/Documentation/x86/pat.txt
-@@ -90,12 +90,12 @@ pci proc               |    --    |    --      |       WC         |
- Advanced APIs for drivers
- -------------------------
- A. Exporting pages to users with remap_pfn_range, io_remap_pfn_range,
--vm_insert_pfn
-+vmf_insert_pfn
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 1552c67c835e..bd5e2469b637 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2478,7 +2478,7 @@ struct vm_area_struct *find_extend_vma(struct mm_struct *, unsigned long addr);
+ int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
+ 			unsigned long pfn, unsigned long size, pgprot_t);
+ int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
+-int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
++vm_fault_t vmf_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+ 			unsigned long pfn);
+ vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
+ 			unsigned long pfn, pgprot_t pgprot);
+@@ -2501,19 +2501,6 @@ static inline vm_fault_t vmf_insert_page(struct vm_area_struct *vma,
+ 	return VM_FAULT_NOPAGE;
+ }
  
- Drivers wanting to export some pages to userspace do it by using mmap
- interface and a combination of
- 1) pgprot_noncached()
--2) io_remap_pfn_range() or remap_pfn_range() or vm_insert_pfn()
-+2) io_remap_pfn_range() or remap_pfn_range() or vmf_insert_pfn()
+-static inline vm_fault_t vmf_insert_pfn(struct vm_area_struct *vma,
+-			unsigned long addr, unsigned long pfn)
+-{
+-	int err = vm_insert_pfn(vma, addr, pfn);
+-
+-	if (err == -ENOMEM)
+-		return VM_FAULT_OOM;
+-	if (err < 0 && err != -EBUSY)
+-		return VM_FAULT_SIGBUS;
+-
+-	return VM_FAULT_NOPAGE;
+-}
+-
+ static inline vm_fault_t vmf_error(int err)
+ {
+ 	if (err == -ENOMEM)
+diff --git a/mm/memory.c b/mm/memory.c
+index 8392a104a36d..d5ccbadd81c1 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1849,30 +1849,6 @@ static int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
+ 	return ret;
+ }
  
- With PAT support, a new API pgprot_writecombine is being added. So, drivers can
- continue to use the above sequence, with either pgprot_noncached() or
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 88ebc6102c7c..5657a20e0c59 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -757,7 +757,7 @@ static inline pmd_t pmd_swp_clear_soft_dirty(pmd_t pmd)
- /*
-  * Interfaces that can be used by architecture code to keep track of
-  * memory type of pfn mappings specified by the remap_pfn_range,
-- * vm_insert_pfn.
-+ * vmf_insert_pfn.
-  */
- 
- /*
-@@ -773,7 +773,7 @@ static inline int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
- 
- /*
-  * track_pfn_insert is called when a _new_ single pfn is established
-- * by vm_insert_pfn().
-+ * by vmf_insert_pfn().
-  */
- static inline void track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
- 				    pfn_t pfn)
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 4c92e3ba3e16..dde947083d4e 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -107,7 +107,7 @@ enum hmm_pfn_flag_e {
-  * HMM_PFN_ERROR: corresponding CPU page table entry points to poisoned memory
-  * HMM_PFN_NONE: corresponding CPU page table entry is pte_none()
-  * HMM_PFN_SPECIAL: corresponding CPU page table entry is special; i.e., the
-- *      result of vm_insert_pfn() or vm_insert_page(). Therefore, it should not
-+ *      result of vmf_insert_pfn() or vm_insert_page(). Therefore, it should not
-  *      be mirrored by a device, because the entry will never have HMM_PFN_VALID
-  *      set and the pfn value is undefined.
+-/**
+- * vm_insert_pfn - insert single pfn into user vma
+- * @vma: user vma to map to
+- * @addr: target user address of this page
+- * @pfn: source kernel pfn
+- *
+- * Similar to vm_insert_page, this allows drivers to insert individual pages
+- * they've allocated into a user vma. Same comments apply.
+- *
+- * This function should only be called from a vm_ops->fault handler, and
+- * in that case the handler should return NULL.
+- *
+- * vma cannot be a COW mapping.
+- *
+- * As this is called only for pages that do not currently exist, we
+- * do not need to flush old virtual caches or the TLB.
+- */
+-int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+-			unsigned long pfn)
+-{
+-	return vm_insert_pfn_prot(vma, addr, pfn, vma->vm_page_prot);
+-}
+-EXPORT_SYMBOL(vm_insert_pfn);
+-
+ /**
+  * vmf_insert_pfn_prot - insert single pfn into user vma with specified pgprot
+  * @vma: user vma to map to
+@@ -1885,9 +1861,10 @@ EXPORT_SYMBOL(vm_insert_pfn);
   *
+  * This only makes sense for IO mappings, and it makes no sense for
+  * COW mappings.  In general, using multiple vmas is preferable;
+- * vm_insert_pfn_prot should only be used if using multiple VMAs is
++ * vmf_insert_pfn_prot should only be used if using multiple VMAs is
+  * impractical.
+  *
++ * Context: Process context.  May allocate using %GFP_KERNEL.
+  * Return: vm_fault_t value.
+  */
+ vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
+@@ -1904,6 +1881,33 @@ vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
+ }
+ EXPORT_SYMBOL(vmf_insert_pfn_prot);
+ 
++/**
++ * vmf_insert_pfn - insert single pfn into user vma
++ * @vma: user vma to map to
++ * @addr: target user address of this page
++ * @pfn: source kernel pfn
++ *
++ * Similar to vm_insert_page, this allows drivers to insert individual pages
++ * they've allocated into a user vma. Same comments apply.
++ *
++ * This function should only be called from a vm_ops->fault handler, and
++ * in that case the handler should return the result of this function.
++ *
++ * vma cannot be a COW mapping.
++ *
++ * As this is called only for pages that do not currently exist, we
++ * do not need to flush old virtual caches or the TLB.
++ *
++ * Context: Process context.  May allocate using %GFP_KERNEL.
++ * Return: vm_fault_t value.
++ */
++vm_fault_t vmf_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
++			unsigned long pfn)
++{
++	return vmf_insert_pfn_prot(vma, addr, pfn, vma->vm_page_prot);
++}
++EXPORT_SYMBOL(vmf_insert_pfn);
++
+ static bool vm_mixed_ok(struct vm_area_struct *vma, pfn_t pfn)
+ {
+ 	/* these checks mirror the abort conditions in vm_normal_page */
 -- 
 2.18.0
