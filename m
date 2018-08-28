@@ -1,161 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 15F846B430C
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 19:33:19 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id o16-v6so384137pgv.21
-        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 16:33:19 -0700 (PDT)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0100.outbound.protection.outlook.com. [104.47.40.100])
-        by mx.google.com with ESMTPS id 21-v6si571295pfy.169.2018.08.27.16.33.17
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5409D6B4342
+	for <linux-mm@kvack.org>; Mon, 27 Aug 2018 20:35:21 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id s1-v6so782089qte.19
+        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 17:35:21 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id n43-v6si728989qtc.232.2018.08.27.17.35.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 27 Aug 2018 16:33:17 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: Re: [PATCH 2/2] mm: zero remaining unavailable struct pages
-Date: Mon, 27 Aug 2018 23:33:15 +0000
-Message-ID: <7c773dec-ded0-7a1e-b3ad-6c6826851015@microsoft.com>
-References: <20180823182513.8801-1-msys.mizuma@gmail.com>
- <20180823182513.8801-2-msys.mizuma@gmail.com>
-In-Reply-To: <20180823182513.8801-2-msys.mizuma@gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <C2B1CD3B479AB34F9C537AB67D4674D4@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Aug 2018 17:35:20 -0700 (PDT)
+Date: Mon, 27 Aug 2018 20:35:17 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 4/7] mm/hmm: properly handle migration pmd
+Message-ID: <20180828003517.GA4042@redhat.com>
+References: <20180824192549.30844-1-jglisse@redhat.com>
+ <20180824192549.30844-5-jglisse@redhat.com>
+ <0560A126-680A-4BAE-8303-F1AB34BE4BA5@cs.rutgers.edu>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <0560A126-680A-4BAE-8303-F1AB34BE4BA5@cs.rutgers.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Masayoshi Mizuma <msys.mizuma@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>
 
-T24gOC8yMy8xOCAyOjI1IFBNLCBNYXNheW9zaGkgTWl6dW1hIHdyb3RlOg0KPiBGcm9tOiBOYW95
-YSBIb3JpZ3VjaGkgPG4taG9yaWd1Y2hpQGFoLmpwLm5lYy5jb20+DQo+IA0KPiBUaGVyZSBpcyBh
-IGtlcm5lbCBwYW5pYyB0aGF0IGlzIHRyaWdnZXJlZCB3aGVuIHJlYWRpbmcgL3Byb2Mva3BhZ2Vm
-bGFncw0KPiBvbiB0aGUga2VybmVsIGJvb3RlZCB3aXRoIGtlcm5lbCBwYXJhbWV0ZXIgJ21lbW1h
-cD1ubltLTUddIXNzW0tNR10nOg0KPiANCj4gICBCVUc6IHVuYWJsZSB0byBoYW5kbGUga2VybmVs
-IHBhZ2luZyByZXF1ZXN0IGF0IGZmZmZmZmZmZmZmZmZmZmUNCj4gICBQR0QgOWIyMGUwNjcgUDRE
-IDliMjBlMDY3IFBVRCA5YjIxMDA2NyBQTUQgMA0KPiAgIE9vcHM6IDAwMDAgWyMxXSBTTVAgUFRJ
-DQo+ICAgQ1BVOiAyIFBJRDogMTcyOCBDb21tOiBwYWdlLXR5cGVzIE5vdCB0YWludGVkIDQuMTcu
-MC1yYzYtbW0xLXY0LjE3LXJjNi0xODA2MDUtMDgxNi0wMDIzNi1nMmRmYjA4NmVmMDJjKyAjMTYw
-DQo+ICAgSGFyZHdhcmUgbmFtZTogUUVNVSBTdGFuZGFyZCBQQyAoaTQ0MEZYICsgUElJWCwgMTk5
-NiksIEJJT1MgMS4xMS4wLTIuZmMyOCAwNC8wMS8yMDE0DQo+ICAgUklQOiAwMDEwOnN0YWJsZV9w
-YWdlX2ZsYWdzKzB4MjcvMHgzYzANCj4gICBDb2RlOiAwMCAwMCAwMCAwZiAxZiA0NCAwMCAwMCA0
-OCA4NSBmZiAwZiA4NCBhMCAwMyAwMCAwMCA0MSA1NCA1NSA0OSA4OSBmYyA1MyA0OCA4YiA1NyAw
-OCA0OCA4YiAyZiA0OCA4ZCA0MiBmZiA4MyBlMiAwMSA0OCAwZiA0NCBjNyA8NDg+IDhiIDAwIGY2
-IGM0IDAxIDBmIDg0IDEwIDAzIDAwIDAwIDMxIGRiIDQ5IDhiIDU0IDI0IDA4IDRjIDg5IGU3DQo+
-ICAgUlNQOiAwMDE4OmZmZmZiYmQ0NDExMWZkZTAgRUZMQUdTOiAwMDAxMDIwMg0KPiAgIFJBWDog
-ZmZmZmZmZmZmZmZmZmZmZSBSQlg6IDAwMDA3ZmZmZmZmZmVmZjkgUkNYOiAwMDAwMDAwMDAwMDAw
-MDAwDQo+ICAgUkRYOiAwMDAwMDAwMDAwMDAwMDAxIFJTSTogMDAwMDAwMDAwMDAwMDIwMiBSREk6
-IGZmZmZlZDExODJmZmY1YzANCj4gICBSQlA6IGZmZmZmZmZmZmZmZmZmZmYgUjA4OiAwMDAwMDAw
-MDAwMDAwMDAxIFIwOTogMDAwMDAwMDAwMDAwMDAwMQ0KPiAgIFIxMDogZmZmZmJiZDQ0MTExZmVk
-OCBSMTE6IDAwMDAwMDAwMDAwMDAwMDAgUjEyOiBmZmZmZWQxMTgyZmZmNWMwDQo+ICAgUjEzOiAw
-MDAwMDAwMDAwMGJmZmQ3IFIxNDogMDAwMDAwMDAwMmZmZjVjMCBSMTU6IGZmZmZiYmQ0NDExMWZm
-MTANCj4gICBGUzogIDAwMDA3ZWZjNDMzNWE1MDAoMDAwMCkgR1M6ZmZmZjkzYTViZmMwMDAwMCgw
-MDAwKSBrbmxHUzowMDAwMDAwMDAwMDAwMDAwDQo+ICAgQ1M6ICAwMDEwIERTOiAwMDAwIEVTOiAw
-MDAwIENSMDogMDAwMDAwMDA4MDA1MDAzMw0KPiAgIENSMjogZmZmZmZmZmZmZmZmZmZmZSBDUjM6
-IDAwMDAwMDAwYjJhNTgwMDAgQ1I0OiAwMDAwMDAwMDAwMTQwNmUwDQo+ICAgQ2FsbCBUcmFjZToN
-Cj4gICAga3BhZ2VmbGFnc19yZWFkKzB4YzcvMHgxMjANCj4gICAgcHJvY19yZWdfcmVhZCsweDNj
-LzB4NjANCj4gICAgX192ZnNfcmVhZCsweDM2LzB4MTcwDQo+ICAgIHZmc19yZWFkKzB4ODkvMHgx
-MzANCj4gICAga3N5c19wcmVhZDY0KzB4NzEvMHg5MA0KPiAgICBkb19zeXNjYWxsXzY0KzB4NWIv
-MHgxNjANCj4gICAgZW50cnlfU1lTQ0FMTF82NF9hZnRlcl9od2ZyYW1lKzB4NDQvMHhhOQ0KPiAg
-IFJJUDogMDAzMzoweDdlZmM0MmU3NWUyMw0KPiAgIENvZGU6IDA5IDAwIGJhIDlmIDAxIDAwIDAw
-IGU4IGFiIDgxIGY0IGZmIDY2IDJlIDBmIDFmIDg0IDAwIDAwIDAwIDAwIDAwIDkwIDgzIDNkIDI5
-IDBhIDJkIDAwIDAwIDc1IDEzIDQ5IDg5IGNhIGI4IDExIDAwIDAwIDAwIDBmIDA1IDw0OD4gM2Qg
-MDEgZjAgZmYgZmYgNzMgMzQgYzMgNDggODMgZWMgMDggZTggZGIgZDMgMDEgMDAgNDggODkgMDQg
-MjQNCj4gDQo+IEFjY29yZGluZyB0byBrZXJuZWwgYmlzZWN0aW9uLCB0aGlzIHByb2JsZW0gYmVj
-YW1lIHZpc2libGUgZHVlIHRvIGNvbW1pdA0KPiBmN2Y5OTEwMGQ4ZDkgd2hpY2ggY2hhbmdlcyBo
-b3cgc3RydWN0IHBhZ2VzIGFyZSBpbml0aWFsaXplZC4NCj4gDQo+IE1lbWJsb2NrIGxheW91dCBh
-ZmZlY3RzIHRoZSBwZm4gcmFuZ2VzIGNvdmVyZWQgYnkgbm9kZS96b25lLiBDb25zaWRlcg0KPiB0
-aGF0IHdlIGhhdmUgYSBWTSB3aXRoIDIgTlVNQSBub2RlcyBhbmQgZWFjaCBub2RlIGhhcyA0R0Ig
-bWVtb3J5LCBhbmQNCj4gdGhlIGRlZmF1bHQgKG5vIG1lbW1hcD0gZ2l2ZW4pIG1lbWJsb2NrIGxh
-eW91dCBpcyBsaWtlIGJlbG93Og0KPiANCj4gICBNRU1CTE9DSyBjb25maWd1cmF0aW9uOg0KPiAg
-ICBtZW1vcnkgc2l6ZSA9IDB4MDAwMDAwMDFmZmY3NWMwMCByZXNlcnZlZCBzaXplID0gMHgwMDAw
-MDAwMDAzMDBjMDAwDQo+ICAgIG1lbW9yeS5jbnQgID0gMHg0DQo+ICAgIG1lbW9yeVsweDBdICAg
-ICBbMHgwMDAwMDAwMDAwMDAxMDAwLTB4MDAwMDAwMDAwMDA5ZWZmZl0sIDB4MDAwMDAwMDAwMDA5
-ZTAwMCBieXRlcyBvbiBub2RlIDAgZmxhZ3M6IDB4MA0KPiAgICBtZW1vcnlbMHgxXSAgICAgWzB4
-MDAwMDAwMDAwMDEwMDAwMC0weDAwMDAwMDAwYmZmZDZmZmZdLCAweDAwMDAwMDAwYmZlZDcwMDAg
-Ynl0ZXMgb24gbm9kZSAwIGZsYWdzOiAweDANCj4gICAgbWVtb3J5WzB4Ml0gICAgIFsweDAwMDAw
-MDAxMDAwMDAwMDAtMHgwMDAwMDAwMTNmZmZmZmZmXSwgMHgwMDAwMDAwMDQwMDAwMDAwIGJ5dGVz
-IG9uIG5vZGUgMCBmbGFnczogMHgwDQo+ICAgIG1lbW9yeVsweDNdICAgICBbMHgwMDAwMDAwMTQw
-MDAwMDAwLTB4MDAwMDAwMDIzZmZmZmZmZl0sIDB4MDAwMDAwMDEwMDAwMDAwMCBieXRlcyBvbiBu
-b2RlIDEgZmxhZ3M6IDB4MA0KPiAgICAuLi4NCj4gDQo+IElmIHlvdSBnaXZlIG1lbW1hcD0xRyE0
-RyAoc28gaXQganVzdCBjb3ZlcnMgbWVtb3J5WzB4Ml0pLA0KPiB0aGUgcmFuZ2UgWzB4MTAwMDAw
-MDAwLTB4MTNmZmZmZmZmXSBpcyBnb25lOg0KPiANCj4gICBNRU1CTE9DSyBjb25maWd1cmF0aW9u
-Og0KPiAgICBtZW1vcnkgc2l6ZSA9IDB4MDAwMDAwMDFiZmY3NWMwMCByZXNlcnZlZCBzaXplID0g
-MHgwMDAwMDAwMDAzMDBjMDAwDQo+ICAgIG1lbW9yeS5jbnQgID0gMHgzDQo+ICAgIG1lbW9yeVsw
-eDBdICAgICBbMHgwMDAwMDAwMDAwMDAxMDAwLTB4MDAwMDAwMDAwMDA5ZWZmZl0sIDB4MDAwMDAw
-MDAwMDA5ZTAwMCBieXRlcyBvbiBub2RlIDAgZmxhZ3M6IDB4MA0KPiAgICBtZW1vcnlbMHgxXSAg
-ICAgWzB4MDAwMDAwMDAwMDEwMDAwMC0weDAwMDAwMDAwYmZmZDZmZmZdLCAweDAwMDAwMDAwYmZl
-ZDcwMDAgYnl0ZXMgb24gbm9kZSAwIGZsYWdzOiAweDANCj4gICAgbWVtb3J5WzB4Ml0gICAgIFsw
-eDAwMDAwMDAxNDAwMDAwMDAtMHgwMDAwMDAwMjNmZmZmZmZmXSwgMHgwMDAwMDAwMTAwMDAwMDAw
-IGJ5dGVzIG9uIG5vZGUgMSBmbGFnczogMHgwDQo+ICAgIC4uLg0KPiANCj4gVGhpcyBjYXVzZXMg
-c2hyaW5raW5nIG5vZGUgMCdzIHBmbiByYW5nZSBiZWNhdXNlIGl0IGlzIGNhbGN1bGF0ZWQgYnkN
-Cj4gdGhlIGFkZHJlc3MgcmFuZ2Ugb2YgbWVtYmxvY2subWVtb3J5LiBTbyBzb21lIG9mIHN0cnVj
-dCBwYWdlcyBpbiB0aGUNCj4gZ2FwIHJhbmdlIGFyZSBsZWZ0IHVuaW5pdGlhbGl6ZWQuDQo+IA0K
-PiBXZSBoYXZlIGEgZnVuY3Rpb24gemVyb19yZXN2X3VuYXZhaWwoKSB3aGljaCBkb2VzIHplcm9p
-bmcgdGhlIHN0cnVjdA0KPiBwYWdlcyBvdXRzaWRlIG1lbWJsb2NrLm1lbW9yeSwgYnV0IGN1cnJl
-bnRseSBpdCBjb3ZlcnMgb25seSB0aGUgcmVzZXJ2ZWQNCj4gdW5hdmFpbGFibGUgcmFuZ2UgKGku
-ZS4gbWVtYmxvY2subWVtb3J5ICYmICFtZW1ibG9jay5yZXNlcnZlZCkuDQo+IFRoaXMgcGF0Y2gg
-ZXh0ZW5kcyBpdCB0byBjb3ZlciBhbGwgdW5hdmFpbGFibGUgcmFuZ2UsIHdoaWNoIGZpeGVzDQo+
-IHRoZSByZXBvcnRlZCBpc3N1ZS4NCj4gDQo+IEZpeGVzOiBmN2Y5OTEwMGQ4ZDkgKCJtbTogc3Rv
-cCB6ZXJvaW5nIG1lbW9yeSBkdXJpbmcgYWxsb2NhdGlvbiBpbiB2bWVtbWFwIikNCj4gU2lnbmVk
-LW9mZi1ieTogTmFveWEgSG9yaWd1Y2hpIDxuLWhvcmlndWNoaUBhaC5qcC5uZWMuY29tPg0KPiBU
-ZXN0ZWQtYnk6IE9zY2FyIFNhbHZhZG9yIDxvc2FsdmFkb3JAc3VzZS5kZT4NCj4gVGVzdGVkLWJ5
-OiBNYXNheW9zaGkgTWl6dW1hIDxtLm1penVtYUBqcC5mdWppdHN1LmNvbT4NCg0KUmV2aWV3ZWQt
-Ynk6IFBhdmVsIFRhdGFzaGluIDxwYXZlbC50YXRhc2hpbkBtaWNyb3NvZnQuY29tPg0KDQpBbHNv
-LCBwbGVhc2UgcmV2aWV3IGFuZCBhZGQgdGhlIGZvbGxvd2luZyBwYXRjaCB0byB0aGlzIHNlcmll
-czoNCg0KRnJvbSA2ZDIzZTY2ZTk3OTI0NDczNGEwNmMxYjYzNjc0MmMyNTY4MTIxYjM5IE1vbiBT
-ZXAgMTcgMDA6MDA6MDAgMjAwMQ0KRnJvbTogUGF2ZWwgVGF0YXNoaW4gPHBhdmVsLnRhdGFzaGlu
-QG1pY3Jvc29mdC5jb20+DQpEYXRlOiBNb24sIDI3IEF1ZyAyMDE4IDE5OjEwOjM1IC0wNDAwDQpT
-dWJqZWN0OiBbUEFUQ0hdIG1tOiByZXR1cm4gemVyb19yZXN2X3VuYXZhaWwgb3B0aW1pemF0aW9u
-DQoNCldoZW4gY2hlY2tpbmcgZm9yIHZhbGlkIHBmbnMgaW4gemVyb19yZXN2X3VuYXZhaWwoKSwg
-aXQgaXMgbm90IG5lY2Vzc2FyeSB0bw0KdmVyaWZ5IHRoYXQgcGZucyB3aXRoaW4gcGFnZWJsb2Nr
-X25yX3BhZ2VzIHJhbmdlcyBhcmUgdmFsaWQsIG9ubHkgdGhlIGZpcnN0DQpvbmUgbmVlZHMgdG8g
-YmUgY2hlY2tlZC4gVGhpcyBpcyBiZWNhdXNlIG1lbW9yeSBmb3IgcGFnZXMgYXJlIGFsbG9jYXRl
-ZCBpbg0KY29udGlndW91cyBjaHVua3MgdGhhdCBjb250YWluIHBhZ2VibG9ja19ucl9wYWdlcyBz
-dHJ1Y3QgcGFnZXMuDQoNClNpZ25lZC1vZmYtYnk6IFBhdmVsIFRhdGFzaGluIDxwYXZlbC50YXRh
-c2hpbkBtaWNyb3NvZnQuY29tPg0KLS0tDQogbW0vcGFnZV9hbGxvYy5jIHwgNDYgKysrKysrKysr
-KysrKysrKysrKysrKysrKystLS0tLS0tLS0tLS0tLS0tLS0tLQ0KIDEgZmlsZSBjaGFuZ2VkLCAy
-NiBpbnNlcnRpb25zKCspLCAyMCBkZWxldGlvbnMoLSkNCg0KZGlmZiAtLWdpdCBhL21tL3BhZ2Vf
-YWxsb2MuYyBiL21tL3BhZ2VfYWxsb2MuYw0KaW5kZXggNjUwZDhmMTZhNjdlLi41ZGZjMjA2ZGI0
-MGUgMTAwNjQ0DQotLS0gYS9tbS9wYWdlX2FsbG9jLmMNCisrKyBiL21tL3BhZ2VfYWxsb2MuYw0K
-QEAgLTY0NDEsNiArNjQ0MSwyOSBAQCB2b2lkIF9faW5pdCBmcmVlX2FyZWFfaW5pdF9ub2RlKGlu
-dCBuaWQsIHVuc2lnbmVkIGxvbmcgKnpvbmVzX3NpemUsDQogfQ0KIA0KICNpZiBkZWZpbmVkKENP
-TkZJR19IQVZFX01FTUJMT0NLKSAmJiAhZGVmaW5lZChDT05GSUdfRkxBVF9OT0RFX01FTV9NQVAp
-DQorDQorLyoNCisgKiBaZXJvIGFsbCB2YWxpZCBzdHJ1Y3QgcGFnZXMgaW4gcmFuZ2UgW3NwZm4s
-IGVwZm4pLCByZXR1cm4gbnVtYmVyIG9mIHN0cnVjdA0KKyAqIHBhZ2VzIHplcm9lZA0KKyAqLw0K
-K3N0YXRpYyB1NjQgemVyb19wZm5fcmFuZ2UodW5zaWduZWQgbG9uZyBzcGZuLCB1bnNpZ25lZCBs
-b25nIGVwZm4pDQorew0KKwl1bnNpZ25lZCBsb25nIHBmbjsNCisJdTY0IHBnY250ID0gMDsNCisN
-CisJZm9yIChwZm4gPSBzcGZuOyBwZm4gPCBlcGZuOyBwZm4rKykgew0KKwkJaWYgKCFwZm5fdmFs
-aWQoQUxJR05fRE9XTihwZm4sIHBhZ2VibG9ja19ucl9wYWdlcykpKSB7DQorCQkJcGZuID0gQUxJ
-R05fRE9XTihwZm4sIHBhZ2VibG9ja19ucl9wYWdlcykNCisJCQkJKyBwYWdlYmxvY2tfbnJfcGFn
-ZXMgLSAxOw0KKwkJCWNvbnRpbnVlOw0KKwkJfQ0KKwkJbW1femVyb19zdHJ1Y3RfcGFnZShwZm5f
-dG9fcGFnZShwZm4pKTsNCisJCXBnY250Kys7DQorCX0NCisNCisJcmV0dXJuIHBnY250Ow0KK30N
-CisNCiAvKg0KICAqIE9ubHkgc3RydWN0IHBhZ2VzIHRoYXQgYXJlIGJhY2tlZCBieSBwaHlzaWNh
-bCBtZW1vcnkgYXJlIHplcm9lZCBhbmQNCiAgKiBpbml0aWFsaXplZCBieSBnb2luZyB0aHJvdWdo
-IF9faW5pdF9zaW5nbGVfcGFnZSgpLiBCdXQsIHRoZXJlIGFyZSBzb21lDQpAQCAtNjQ1Niw3ICs2
-NDc5LDYgQEAgdm9pZCBfX2luaXQgZnJlZV9hcmVhX2luaXRfbm9kZShpbnQgbmlkLCB1bnNpZ25l
-ZCBsb25nICp6b25lc19zaXplLA0KIHZvaWQgX19pbml0IHplcm9fcmVzdl91bmF2YWlsKHZvaWQp
-DQogew0KIAlwaHlzX2FkZHJfdCBzdGFydCwgZW5kOw0KLQl1bnNpZ25lZCBsb25nIHBmbjsNCiAJ
-dTY0IGksIHBnY250Ow0KIAlwaHlzX2FkZHJfdCBuZXh0ID0gMDsNCiANCkBAIC02NDY2LDM0ICs2
-NDg4LDE4IEBAIHZvaWQgX19pbml0IHplcm9fcmVzdl91bmF2YWlsKHZvaWQpDQogCXBnY250ID0g
-MDsNCiAJZm9yX2VhY2hfbWVtX3JhbmdlKGksICZtZW1ibG9jay5tZW1vcnksIE5VTEwsDQogCQkJ
-TlVNQV9OT19OT0RFLCBNRU1CTE9DS19OT05FLCAmc3RhcnQsICZlbmQsIE5VTEwpIHsNCi0JCWlm
-IChuZXh0IDwgc3RhcnQpIHsNCi0JCQlmb3IgKHBmbiA9IFBGTl9ET1dOKG5leHQpOyBwZm4gPCBQ
-Rk5fVVAoc3RhcnQpOyBwZm4rKykgew0KLQkJCQlpZiAoIXBmbl92YWxpZChBTElHTl9ET1dOKHBm
-biwgcGFnZWJsb2NrX25yX3BhZ2VzKSkpDQotCQkJCQljb250aW51ZTsNCi0JCQkJbW1femVyb19z
-dHJ1Y3RfcGFnZShwZm5fdG9fcGFnZShwZm4pKTsNCi0JCQkJcGdjbnQrKzsNCi0JCQl9DQotCQl9
-DQorCQlpZiAobmV4dCA8IHN0YXJ0KQ0KKwkJCXBnY250ICs9IHplcm9fcGZuX3JhbmdlKFBGTl9E
-T1dOKG5leHQpLCBQRk5fVVAoc3RhcnQpKTsNCiAJCW5leHQgPSBlbmQ7DQogCX0NCi0JZm9yIChw
-Zm4gPSBQRk5fRE9XTihuZXh0KTsgcGZuIDwgbWF4X3BmbjsgcGZuKyspIHsNCi0JCWlmICghcGZu
-X3ZhbGlkKEFMSUdOX0RPV04ocGZuLCBwYWdlYmxvY2tfbnJfcGFnZXMpKSkNCi0JCQljb250aW51
-ZTsNCi0JCW1tX3plcm9fc3RydWN0X3BhZ2UocGZuX3RvX3BhZ2UocGZuKSk7DQotCQlwZ2NudCsr
-Ow0KLQl9DQotDQorCXBnY250ICs9IHplcm9fcGZuX3JhbmdlKFBGTl9ET1dOKG5leHQpLCBtYXhf
-cGZuKTsNCiANCiAJLyoNCiAJICogU3RydWN0IHBhZ2VzIHRoYXQgZG8gbm90IGhhdmUgYmFja2lu
-ZyBtZW1vcnkuIFRoaXMgY291bGQgYmUgYmVjYXVzZQ0KIAkgKiBmaXJtd2FyZSBpcyB1c2luZyBz
-b21lIG9mIHRoaXMgbWVtb3J5LCBvciBmb3Igc29tZSBvdGhlciByZWFzb25zLg0KLQkgKiBPbmNl
-IG1lbWJsb2NrIGlzIGNoYW5nZWQgc28gc3VjaCBiZWhhdmlvdXIgaXMgbm90IGFsbG93ZWQ6IGku
-ZS4NCi0JICogbGlzdCBvZiAicmVzZXJ2ZWQiIG1lbW9yeSBtdXN0IGJlIGEgc3Vic2V0IG9mIGxp
-c3Qgb2YgIm1lbW9yeSIsIHRoZW4NCi0JICogdGhpcyBjb2RlIGNhbiBiZSByZW1vdmVkLg0KIAkg
-Ki8NCiAJaWYgKHBnY250KQ0KIAkJcHJfaW5mbygiWmVyb2VkIHN0cnVjdCBwYWdlIGluIHVuYXZh
-aWxhYmxlIHJhbmdlczogJWxsZCBwYWdlcyIsIHBnY250KTsNCi0NCiB9DQogI2VuZGlmIC8qIENP
-TkZJR19IQVZFX01FTUJMT0NLICYmICFDT05GSUdfRkxBVF9OT0RFX01FTV9NQVAgKi8NCiANCi0t
-IA0KMi4xOC4wDQo=
+On Fri, Aug 24, 2018 at 08:05:46PM -0400, Zi Yan wrote:
+> Hi Jerome,
+> 
+> On 24 Aug 2018, at 15:25, jglisse@redhat.com wrote:
+> 
+> > From: Jerome Glisse <jglisse@redhat.com>
+> >
+> > Before this patch migration pmd entry (!pmd_present()) would have
+> > been treated as a bad entry (pmd_bad() returns true on migration
+> > pmd entry). The outcome was that device driver would believe that
+> > the range covered by the pmd was bad and would either SIGBUS or
+> > simply kill all the device's threads (each device driver decide
+> > how to react when the device tries to access poisonnous or invalid
+> > range of memory).
+> >
+> > This patch explicitly handle the case of migration pmd entry which
+> > are non present pmd entry and either wait for the migration to
+> > finish or report empty range (when device is just trying to pre-
+> > fill a range of virtual address and thus do not want to wait or
+> > trigger page fault).
+> >
+> > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> > Cc: Ralph Campbell <rcampbell@nvidia.com>
+> > Cc: John Hubbard <jhubbard@nvidia.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > ---
+> >  mm/hmm.c | 45 +++++++++++++++++++++++++++++++++++++++------
+> >  1 file changed, 39 insertions(+), 6 deletions(-)
+> >
+> > diff --git a/mm/hmm.c b/mm/hmm.c
+> > index a16678d08127..659efc9aada6 100644
+> > --- a/mm/hmm.c
+> > +++ b/mm/hmm.c
+> > @@ -577,22 +577,47 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
+> >  {
+> >  	struct hmm_vma_walk *hmm_vma_walk = walk->private;
+> >  	struct hmm_range *range = hmm_vma_walk->range;
+> > +	struct vm_area_struct *vma = walk->vma;
+> >  	uint64_t *pfns = range->pfns;
+> >  	unsigned long addr = start, i;
+> >  	pte_t *ptep;
+> > +	pmd_t pmd;
+> >
+> > -	i = (addr - range->start) >> PAGE_SHIFT;
+> >
+> >  again:
+> > -	if (pmd_none(*pmdp))
+> > +	pmd = READ_ONCE(*pmdp);
+> > +	if (pmd_none(pmd))
+> >  		return hmm_vma_walk_hole(start, end, walk);
+> >
+> > -	if (pmd_huge(*pmdp) && (range->vma->vm_flags & VM_HUGETLB))
+> > +	if (pmd_huge(pmd) && (range->vma->vm_flags & VM_HUGETLB))
+> >  		return hmm_pfns_bad(start, end, walk);
+> >
+> > -	if (pmd_devmap(*pmdp) || pmd_trans_huge(*pmdp)) {
+> > -		pmd_t pmd;
+> > +	if (!pmd_present(pmd)) {
+> > +		swp_entry_t entry = pmd_to_swp_entry(pmd);
+> > +
+> > +		if (is_migration_entry(entry)) {
+> 
+> I think you should check thp_migration_supported() here, since PMD migration is only enabled in x86_64 systems.
+> Other architectures should treat PMD migration entries as bad.
+
+You are right, Andrew do you want to repost or can you edit above if
+to:
+
+if (thp_migration_supported() && is_migration_entry(entry)) {
+
+Cheers,
+Jerome
