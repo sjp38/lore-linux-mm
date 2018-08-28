@@ -1,444 +1,334 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 86EEF6B4739
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A8EFD6B473A
 	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 13:23:26 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id q141-v6so996026ywg.5
+Received: by mail-yw1-f69.google.com with SMTP id j71-v6so971181ywb.22
         for <linux-mm@kvack.org>; Tue, 28 Aug 2018 10:23:26 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u132-v6sor390946ywg.507.2018.08.28.10.23.23
+        by mx.google.com with SMTPS id q1-v6sor346552ywh.241.2018.08.28.10.23.19
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 28 Aug 2018 10:23:23 -0700 (PDT)
+        Tue, 28 Aug 2018 10:23:19 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 2/9] mm: workingset: tell cache transitions from workingset thrashing
-Date: Tue, 28 Aug 2018 13:22:51 -0400
-Message-Id: <20180828172258.3185-3-hannes@cmpxchg.org>
-In-Reply-To: <20180828172258.3185-1-hannes@cmpxchg.org>
-References: <20180828172258.3185-1-hannes@cmpxchg.org>
+Subject: [PATCH 0/9] psi: pressure stall information for CPU, memory, and IO v4
+Date: Tue, 28 Aug 2018 13:22:49 -0400
+Message-Id: <20180828172258.3185-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Daniel Drake <drake@endlessm.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Peter Enderborg <peter.enderborg@sony.com>, Shakeel Butt <shakeelb@google.com>, Mike Galbraith <efault@gmx.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Refaults happen during transitions between workingsets as well as
-in-place thrashing. Knowing the difference between the two has a range
-of applications, including measuring the impact of memory shortage on
-the system performance, as well as the ability to smarter balance
-pressure between the filesystem cache and the swap-backed workingset.
+This version 4 of the PSI series incorporates feedback from Peter and
+fixes two races in the lockless aggregator that Suren found in his
+testing and which caused the sample calculation to sometimes underflow
+and record bogusly large samples; details at the bottom of this email.
 
-During workingset transitions, inactive cache refaults and pushes out
-established active cache. When that active cache isn't stale, however,
-and also ends up refaulting, that's bonafide thrashing.
+		Overview
 
-Introduce a new page flag that tells on eviction whether the page has
-been active or not in its lifetime. This bit is then stored in the
-shadow entry, to classify refaults as transitioning or thrashing.
+PSI reports the overall wallclock time in which the tasks in a system
+(or cgroup) wait for (contended) hardware resources.
 
-How many page->flags does this leave us with on 32-bit?
+This helps users understand the resource pressure their workloads are
+under, which allows them to rootcause and fix throughput and latency
+problems caused by overcommitting, underprovisioning, suboptimal job
+placement in a grid; as well as anticipate major disruptions like OOM.
 
-	20 bits are always page flags
+		Real-world applications
 
-	21 if you have an MMU
+We're using the data collected by PSI (and its previous incarnation,
+memdelay) quite extensively at Facebook, and with several success
+stories.
 
-	23 with the zone bits for DMA, Normal, HighMem, Movable
+One usecase is avoiding OOM hangs/livelocks. The reason these happen
+is because the OOM killer is triggered by reclaim not being able to
+free pages, but with fast flash devices there is *always* some clean
+and uptodate cache to reclaim; the OOM killer never kicks in, even as
+tasks spend 90% of the time thrashing the cache pages of their own
+executables. There is no situation where this ever makes sense in
+practice. We wrote a <100 line POC python script to monitor memory
+pressure and kill stuff way before such pathological thrashing leads
+to full system losses that would require forcible hard resets.
 
-	29 with the sparsemem section bits
+We've since extended and deployed this code into other places to
+guarantee latency and throughput SLAs, since they're usually violated
+way before the kernel OOM killer would ever kick in.
 
-	30 if PAE is enabled
+It is available here: https://github.com/facebookincubator/oomd
 
-	31 with this patch.
+Eventually we probably want to trigger the in-kernel OOM killer based
+on extreme sustained pressure as well, so that Linux can avoid memory
+livelocks - which technically aren't deadlocks, but to the user
+indistinguishable from them - out of the box. We'd continue using OOMD
+as the first line of defense to ensure workload health and implement
+complex kill policies that are beyond the scope of the kernel.
 
-So on 32-bit PAE, that leaves 1 bit for distinguishing two NUMA
-nodes. If that's not enough, the system can switch to discontigmem and
-re-gain the 6 or 7 sparsemem section bits.
+We also use PSI memory pressure for loadshedding. Our batch job
+infrastructure used to use heuristics based on various VM stats to
+anticipate OOM situations, with lackluster success. We switched it to
+PSI and managed to anticipate and avoid OOM kills and lockups fairly
+reliably. The reduction of OOM outages in the worker pool raised the
+pool's aggregate productivity, and we were able to switch that service
+to smaller machines.
 
-v4:
-- fix a typo in the comments, as per Suren
+Lastly, we use cgroups to isolate a machine's main workload from
+maintenance crap like package upgrades, logging, configuration, as
+well as to prevent multiple workloads on a machine from stepping on
+each others' toes. We were not able to configure this properly without
+the pressure metrics; we would see latency or bandwidth drops, but it
+would often be hard to impossible to rootcause it post-mortem.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/mmzone.h         |  1 +
- include/linux/page-flags.h     |  5 +-
- include/linux/swap.h           |  2 +-
- include/trace/events/mmflags.h |  1 +
- mm/filemap.c                   |  9 ++--
- mm/huge_memory.c               |  1 +
- mm/memcontrol.c                |  2 +
- mm/migrate.c                   |  2 +
- mm/swap_state.c                |  1 +
- mm/vmscan.c                    |  1 +
- mm/vmstat.c                    |  1 +
- mm/workingset.c                | 95 ++++++++++++++++++++++------------
- 12 files changed, 79 insertions(+), 42 deletions(-)
+We now log and graph pressure for the containers in our fleet and can
+trivially link latency spikes and throughput drops to shortages of
+specific resources after the fact, and fix the job config/scheduling.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 32699b2dc52a..6af87946d241 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -163,6 +163,7 @@ enum node_stat_item {
- 	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
- 	WORKINGSET_REFAULT,
- 	WORKINGSET_ACTIVATE,
-+	WORKINGSET_RESTORE,
- 	WORKINGSET_NODERECLAIM,
- 	NR_ANON_MAPPED,	/* Mapped anonymous pages */
- 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 901943e4754b..79346bc1da7a 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -69,13 +69,14 @@
-  */
- enum pageflags {
- 	PG_locked,		/* Page is locked. Don't touch. */
--	PG_error,
- 	PG_referenced,
- 	PG_uptodate,
- 	PG_dirty,
- 	PG_lru,
- 	PG_active,
-+	PG_workingset,
- 	PG_waiters,		/* Page has waiters, check its waitqueue. Must be bit #7 and in the same byte as "PG_locked" */
-+	PG_error,
- 	PG_slab,
- 	PG_owner_priv_1,	/* Owner use. If pagecache, fs may use*/
- 	PG_arch_1,
-@@ -280,6 +281,8 @@ PAGEFLAG(Dirty, dirty, PF_HEAD) TESTSCFLAG(Dirty, dirty, PF_HEAD)
- PAGEFLAG(LRU, lru, PF_HEAD) __CLEARPAGEFLAG(LRU, lru, PF_HEAD)
- PAGEFLAG(Active, active, PF_HEAD) __CLEARPAGEFLAG(Active, active, PF_HEAD)
- 	TESTCLEARFLAG(Active, active, PF_HEAD)
-+PAGEFLAG(Workingset, workingset, PF_HEAD)
-+	TESTCLEARFLAG(Workingset, workingset, PF_HEAD)
- __PAGEFLAG(Slab, slab, PF_NO_TAIL)
- __PAGEFLAG(SlobFree, slob_free, PF_NO_TAIL)
- PAGEFLAG(Checked, checked, PF_NO_COMPOUND)	   /* Used by some filesystems */
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index c063443d8638..d8822365782b 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -296,7 +296,7 @@ struct vma_swap_readahead {
- 
- /* linux/mm/workingset.c */
- void *workingset_eviction(struct address_space *mapping, struct page *page);
--bool workingset_refault(void *shadow);
-+void workingset_refault(struct page *page, void *shadow);
- void workingset_activation(struct page *page);
- 
- /* Do not use directly, use workingset_lookup_update */
-diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
-index a81cffb76d89..a1675d43777e 100644
---- a/include/trace/events/mmflags.h
-+++ b/include/trace/events/mmflags.h
-@@ -88,6 +88,7 @@
- 	{1UL << PG_dirty,		"dirty"		},		\
- 	{1UL << PG_lru,			"lru"		},		\
- 	{1UL << PG_active,		"active"	},		\
-+	{1UL << PG_workingset,		"workingset"	},		\
- 	{1UL << PG_slab,		"slab"		},		\
- 	{1UL << PG_owner_priv_1,	"owner_priv_1"	},		\
- 	{1UL << PG_arch_1,		"arch_1"	},		\
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 52517f28e6f4..5e53424d9097 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -915,12 +915,9 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
- 		 * data from the working set, only to cache data that will
- 		 * get overwritten with something else, is a waste of memory.
- 		 */
--		if (!(gfp_mask & __GFP_WRITE) &&
--		    shadow && workingset_refault(shadow)) {
--			SetPageActive(page);
--			workingset_activation(page);
--		} else
--			ClearPageActive(page);
-+		WARN_ON_ONCE(PageActive(page));
-+		if (!(gfp_mask & __GFP_WRITE) && shadow)
-+			workingset_refault(page, shadow);
- 		lru_cache_add(page);
- 	}
- 	return ret;
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 25346bd99364..04d663c58bbe 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2369,6 +2369,7 @@ static void __split_huge_page_tail(struct page *head, int tail,
- 			 (1L << PG_mlocked) |
- 			 (1L << PG_uptodate) |
- 			 (1L << PG_active) |
-+			 (1L << PG_workingset) |
- 			 (1L << PG_locked) |
- 			 (1L << PG_unevictable) |
- 			 (1L << PG_dirty)));
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b2173f7e5164..84824b775470 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5329,6 +5329,8 @@ static int memory_stat_show(struct seq_file *m, void *v)
- 		   stat[WORKINGSET_REFAULT]);
- 	seq_printf(m, "workingset_activate %lu\n",
- 		   stat[WORKINGSET_ACTIVATE]);
-+	seq_printf(m, "workingset_restore %lu\n",
-+		   stat[WORKINGSET_RESTORE]);
- 	seq_printf(m, "workingset_nodereclaim %lu\n",
- 		   stat[WORKINGSET_NODERECLAIM]);
- 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 8c0af0f7cab1..a6a9114e62dc 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -682,6 +682,8 @@ void migrate_page_states(struct page *newpage, struct page *page)
- 		SetPageActive(newpage);
- 	} else if (TestClearPageUnevictable(page))
- 		SetPageUnevictable(newpage);
-+	if (PageWorkingset(page))
-+		SetPageWorkingset(newpage);
- 	if (PageChecked(page))
- 		SetPageChecked(newpage);
- 	if (PageMappedToDisk(page))
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index ecee9c6c4cc1..0d6a7f268d2e 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -448,6 +448,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- 			/*
- 			 * Initiate read into locked page and return.
- 			 */
-+			SetPageWorkingset(new_page);
- 			lru_cache_add_anon(new_page);
- 			*new_page_allocated = true;
- 			return new_page;
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 03822f86f288..7fdbc18fea6f 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1976,6 +1976,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 		}
- 
- 		ClearPageActive(page);	/* we are de-activating */
-+		SetPageWorkingset(page);
- 		list_add(&page->lru, &l_inactive);
- 	}
- 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 8ba0870ecddd..28f2faad95d4 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1145,6 +1145,7 @@ const char * const vmstat_text[] = {
- 	"nr_isolated_file",
- 	"workingset_refault",
- 	"workingset_activate",
-+	"workingset_restore",
- 	"workingset_nodereclaim",
- 	"nr_anon_pages",
- 	"nr_mapped",
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 53759a3cf99a..f1bbce55ea60 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -121,7 +121,7 @@
-  * the only thing eating into inactive list space is active pages.
-  *
-  *
-- *		Activating refaulting pages
-+ *		Refaulting inactive pages
-  *
-  * All that is known about the active list is that the pages have been
-  * accessed more than once in the past.  This means that at any given
-@@ -134,6 +134,10 @@
-  * used less frequently than the refaulting page - or even not used at
-  * all anymore.
-  *
-+ * That means if inactive cache is refaulting with a suitable refault
-+ * distance, we assume the cache workingset is transitioning and put
-+ * pressure on the current active list.
-+ *
-  * If this is wrong and demotion kicks in, the pages which are truly
-  * used more frequently will be reactivated while the less frequently
-  * used once will be evicted from memory.
-@@ -141,6 +145,14 @@
-  * But if this is right, the stale pages will be pushed out of memory
-  * and the used pages get to stay in cache.
-  *
-+ *		Refaulting active pages
-+ *
-+ * If on the other hand the refaulting pages have recently been
-+ * deactivated, it means that the active list is no longer protecting
-+ * actively used cache from reclaim. The cache is NOT transitioning to
-+ * a different workingset; the existing workingset is thrashing in the
-+ * space allocated to the page cache.
-+ *
-  *
-  *		Implementation
-  *
-@@ -156,8 +168,7 @@
-  */
- 
- #define EVICTION_SHIFT	(RADIX_TREE_EXCEPTIONAL_ENTRY + \
--			 NODES_SHIFT +	\
--			 MEM_CGROUP_ID_SHIFT)
-+			 1 + NODES_SHIFT + MEM_CGROUP_ID_SHIFT)
- #define EVICTION_MASK	(~0UL >> EVICTION_SHIFT)
- 
- /*
-@@ -170,23 +181,28 @@
-  */
- static unsigned int bucket_order __read_mostly;
- 
--static void *pack_shadow(int memcgid, pg_data_t *pgdat, unsigned long eviction)
-+static void *pack_shadow(int memcgid, pg_data_t *pgdat, unsigned long eviction,
-+			 bool workingset)
- {
- 	eviction >>= bucket_order;
- 	eviction = (eviction << MEM_CGROUP_ID_SHIFT) | memcgid;
- 	eviction = (eviction << NODES_SHIFT) | pgdat->node_id;
-+	eviction = (eviction << 1) | workingset;
- 	eviction = (eviction << RADIX_TREE_EXCEPTIONAL_SHIFT);
- 
- 	return (void *)(eviction | RADIX_TREE_EXCEPTIONAL_ENTRY);
- }
- 
- static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
--			  unsigned long *evictionp)
-+			  unsigned long *evictionp, bool *workingsetp)
- {
- 	unsigned long entry = (unsigned long)shadow;
- 	int memcgid, nid;
-+	bool workingset;
- 
- 	entry >>= RADIX_TREE_EXCEPTIONAL_SHIFT;
-+	workingset = entry & 1;
-+	entry >>= 1;
- 	nid = entry & ((1UL << NODES_SHIFT) - 1);
- 	entry >>= NODES_SHIFT;
- 	memcgid = entry & ((1UL << MEM_CGROUP_ID_SHIFT) - 1);
-@@ -195,6 +211,7 @@ static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
- 	*memcgidp = memcgid;
- 	*pgdat = NODE_DATA(nid);
- 	*evictionp = entry << bucket_order;
-+	*workingsetp = workingset;
- }
- 
- /**
-@@ -207,8 +224,8 @@ static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
-  */
- void *workingset_eviction(struct address_space *mapping, struct page *page)
- {
--	struct mem_cgroup *memcg = page_memcg(page);
- 	struct pglist_data *pgdat = page_pgdat(page);
-+	struct mem_cgroup *memcg = page_memcg(page);
- 	int memcgid = mem_cgroup_id(memcg);
- 	unsigned long eviction;
- 	struct lruvec *lruvec;
-@@ -220,30 +237,30 @@ void *workingset_eviction(struct address_space *mapping, struct page *page)
- 
- 	lruvec = mem_cgroup_lruvec(pgdat, memcg);
- 	eviction = atomic_long_inc_return(&lruvec->inactive_age);
--	return pack_shadow(memcgid, pgdat, eviction);
-+	return pack_shadow(memcgid, pgdat, eviction, PageWorkingset(page));
- }
- 
- /**
-  * workingset_refault - evaluate the refault of a previously evicted page
-+ * @page: the freshly allocated replacement page
-  * @shadow: shadow entry of the evicted page
-  *
-  * Calculates and evaluates the refault distance of the previously
-  * evicted page in the context of the node it was allocated in.
-- *
-- * Returns %true if the page should be activated, %false otherwise.
-  */
--bool workingset_refault(void *shadow)
-+void workingset_refault(struct page *page, void *shadow)
- {
- 	unsigned long refault_distance;
-+	struct pglist_data *pgdat;
- 	unsigned long active_file;
- 	struct mem_cgroup *memcg;
- 	unsigned long eviction;
- 	struct lruvec *lruvec;
- 	unsigned long refault;
--	struct pglist_data *pgdat;
-+	bool workingset;
- 	int memcgid;
- 
--	unpack_shadow(shadow, &memcgid, &pgdat, &eviction);
-+	unpack_shadow(shadow, &memcgid, &pgdat, &eviction, &workingset);
- 
- 	rcu_read_lock();
- 	/*
-@@ -263,41 +280,51 @@ bool workingset_refault(void *shadow)
- 	 * configurations instead.
- 	 */
- 	memcg = mem_cgroup_from_id(memcgid);
--	if (!mem_cgroup_disabled() && !memcg) {
--		rcu_read_unlock();
--		return false;
--	}
-+	if (!mem_cgroup_disabled() && !memcg)
-+		goto out;
- 	lruvec = mem_cgroup_lruvec(pgdat, memcg);
- 	refault = atomic_long_read(&lruvec->inactive_age);
- 	active_file = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE, MAX_NR_ZONES);
- 
- 	/*
--	 * The unsigned subtraction here gives an accurate distance
--	 * across inactive_age overflows in most cases.
-+	 * Calculate the refault distance
- 	 *
--	 * There is a special case: usually, shadow entries have a
--	 * short lifetime and are either refaulted or reclaimed along
--	 * with the inode before they get too old.  But it is not
--	 * impossible for the inactive_age to lap a shadow entry in
--	 * the field, which can then can result in a false small
--	 * refault distance, leading to a false activation should this
--	 * old entry actually refault again.  However, earlier kernels
--	 * used to deactivate unconditionally with *every* reclaim
--	 * invocation for the longest time, so the occasional
--	 * inappropriate activation leading to pressure on the active
--	 * list is not a problem.
-+	 * The unsigned subtraction here gives an accurate distance
-+	 * across inactive_age overflows in most cases. There is a
-+	 * special case: usually, shadow entries have a short lifetime
-+	 * and are either refaulted or reclaimed along with the inode
-+	 * before they get too old.  But it is not impossible for the
-+	 * inactive_age to lap a shadow entry in the field, which can
-+	 * then result in a false small refault distance, leading to a
-+	 * false activation should this old entry actually refault
-+	 * again.  However, earlier kernels used to deactivate
-+	 * unconditionally with *every* reclaim invocation for the
-+	 * longest time, so the occasional inappropriate activation
-+	 * leading to pressure on the active list is not a problem.
- 	 */
- 	refault_distance = (refault - eviction) & EVICTION_MASK;
- 
- 	inc_lruvec_state(lruvec, WORKINGSET_REFAULT);
- 
--	if (refault_distance <= active_file) {
--		inc_lruvec_state(lruvec, WORKINGSET_ACTIVATE);
--		rcu_read_unlock();
--		return true;
-+	/*
-+	 * Compare the distance to the existing workingset size. We
-+	 * don't act on pages that couldn't stay resident even if all
-+	 * the memory was available to the page cache.
-+	 */
-+	if (refault_distance > active_file)
-+		goto out;
-+
-+	SetPageActive(page);
-+	atomic_long_inc(&lruvec->inactive_age);
-+	inc_lruvec_state(lruvec, WORKINGSET_ACTIVATE);
-+
-+	/* Page was active prior to eviction */
-+	if (workingset) {
-+		SetPageWorkingset(page);
-+		inc_lruvec_state(lruvec, WORKINGSET_RESTORE);
- 	}
-+out:
- 	rcu_read_unlock();
--	return false;
- }
- 
- /**
--- 
-2.18.0
+PSI has also received testing, feedback, and feature requests from
+Android and EndlessOS for the purpose of low-latency OOM killing, to
+intervene in pressure situations before the UI starts hanging.
+
+		How do you use this feature?
+
+A kernel with CONFIG_PSI=y will create a /proc/pressure directory with
+3 files: cpu, memory, and io. If using cgroup2, cgroups will also have
+cpu.pressure, memory.pressure and io.pressure files, which simply
+aggregate task stalls at the cgroup level instead of system-wide.
+
+The cpu file contains one line:
+
+	some avg10=2.04 avg60=0.75 avg300=0.40 total=157656722
+
+The averages give the percentage of walltime in which one or more
+tasks are delayed on the runqueue while another task has the
+CPU. They're recent averages over 10s, 1m, 5m windows, so you can tell
+short term trends from long term ones, similarly to the load average.
+
+The total= value gives the absolute stall time in microseconds. This
+allows detecting latency spikes that might be too short to sway the
+running averages. It also allows custom time averaging in case the
+10s/1m/5m windows aren't adequate for the usecase (or are too coarse
+with future hardware).
+
+What to make of this "some" metric? If CPU utilization is at 100% and
+CPU pressure is 0, it means the system is perfectly utilized, with one
+runnable thread per CPU and nobody waiting. At two or more runnable
+tasks per CPU, the system is 100% overcommitted and the pressure
+average will indicate as much. From a utilization perspective this is
+a great state of course: no CPU cycles are being wasted, even when 50%
+of the threads were to go idle (as most workloads do vary). From the
+perspective of the individual job it's not great, however, and they
+would do better with more resources. Depending on what your priority
+and options are, raised "some" numbers may or may not require action.
+
+The memory file contains two lines:
+
+some avg10=70.24 avg60=68.52 avg300=69.91 total=3559632828
+full avg10=57.59 avg60=58.06 avg300=60.38 total=3300487258
+
+The some line is the same as for cpu, the time in which at least one
+task is stalled on the resource. In the case of memory, this includes
+waiting on swap-in, page cache refaults and page reclaim.
+
+The full line, however, indicates time in which *nobody* is using the
+CPU productively due to pressure: all non-idle tasks are waiting for
+memory in one form or another. Significant time spent in there is a
+good trigger for killing things, moving jobs to other machines, or
+dropping incoming requests, since neither the jobs nor the machine
+overall are making too much headway.
+
+The io file is similar to memory. Because the block layer doesn't have
+a concept of hardware contention right now (how much longer is my IO
+request taking due to other tasks?), it reports CPU potential lost on
+all IO delays, not just the potential lost due to competition.
+
+		FAQ
+
+Q: How is PSI's CPU component different from the load average?
+
+A: There are several quirks in the load average that make it hard to
+   impossible to tell how overcommitted the CPU really is.
+
+   1. The load average is reported as a raw number of active tasks.
+      You need to know how many CPUs there are in the system, how many
+      CPUs the workload is allowed to use, then think about what the
+      proportion between load and the number of CPUs mean for the
+      tasks trying to run.
+
+      PSI reports the percentage of wallclock time in which tasks are
+      waiting for a CPU to run on. It doesn't matter how many CPUs are
+      present or usable. The number always tells the quality of life
+      of tasks in the system or in a particular cgroup.
+
+   2. The shortest averaging window is 1m, which is extremely coarse,
+      and it's sampled in 5s intervals. A *lot* can happen on a CPU in
+      5 seconds. This *may* be able to identify persistent long-term
+      trends and very clear and obvious overloads, but it's unusable
+      for latency spikes and more subtle overutilization.
+
+      PSI's shortest window is 10s. It also exports the cumulative
+      stall times (in microseconds) of synchronously recorded events.
+
+   3. On Linux, the load average for historical reasons includes all
+      TASK_UNINTERRUPTIBLE tasks. This gives a broader sense of how
+      busy the system is, but on the flipside it doesn't distinguish
+      whether tasks are likely to contend over the CPU or IO - which
+      obviously requires very different interventions from a sys admin
+      or a job scheduler.
+
+      PSI reports independent metrics for CPU and IO. You can tell
+      which resource is making the tasks wait, but in conjunction
+      still see how overloaded the system is overall.
+
+Q: What's the cost / performance impact of this feature?
+
+A: PSI's primary cost is in the scheduler, in particular task wakeups
+   and sleeps.
+
+   I benchmarked this code using Facebook's two most scheduling
+   sensitive workloads: memcache and webserver. They handle a ton of
+   small requests - lots of wakeups and sleeps with little actual work
+   in between - so they tend to be canaries for scheduler regressions.
+
+   In the tests, the boxes were handling live traffic over the course
+   of several hours. Half the machines, the control, ran with
+   CONFIG_PSI=n.
+
+   For memcache I used eight machines total. They're 2-socket, 14
+   core, 56 thread boxes. The test runs for half the test period,
+   flips the test and control kernels on the hardware to rule out HW
+   factors, DC location etc., then runs the other half of the test.
+
+   For the webservers, I used 32 machines total. They're single
+   socket, 16 core, 32 thread machines.
+
+   During the memcache test, CPU load was nopsi=78.05% psi=78.98% in
+   the first half and nopsi=77.52% psi=78.25%, so PSI added between
+   0.7 and 0.9 percentage points to the CPU load, a difference of
+   about 1%.
+
+   UPDATE: I re-ran this test with the v3 version of this patch set
+   and the CPU utilization was equivalent between test and control.
+
+   UPDATE: v4 is on par with v3.
+
+   As far as end-to-end request latency from the client perspective
+   goes, we don't sample those finely enough to capture the requests
+   going to those particular machines during the test, but we know the
+   p50 turnaround time in this workload is 54us, and perf bench sched
+   pipe on those machines show nopsi=5.232666 us/op and psi=5.587347
+   us/op, so this doesn't add much here either.
+
+   The profile for the pipe benchmark shows:
+
+        0.87%  sched-pipe  [kernel.vmlinux]    [k] psi_group_change
+        0.83%  perf.real   [kernel.vmlinux]    [k] psi_group_change
+        0.82%  perf.real   [kernel.vmlinux]    [k] psi_task_change
+        0.58%  sched-pipe  [kernel.vmlinux]    [k] psi_task_change
+
+
+   The webserver load is running inside 4 nested cgroup levels. The
+   CPU load with both nopsi and psi kernels was indistinguishable at
+   81%.
+
+   For comparison, we had to disable the cgroup cpu controller on the
+   webservers because it added 4 percentage points to the CPU% during
+   this same exact test.
+
+   Versions of this accounting code now run on 80% of our fleet. None
+   of our workloads have reported regressions during the rollout.
+
+These patches are against v4.18. They're maintained against upstream
+here as well: http://git.cmpxchg.org/cgit.cgi/linux-psi.git
+
+ Documentation/accounting/psi.txt                |  73 +++
+ Documentation/admin-guide/cgroup-v2.rst         |  18 +
+ arch/powerpc/platforms/cell/cpufreq_spudemand.c |   2 +-
+ arch/powerpc/platforms/cell/spufs/sched.c       |   9 +-
+ arch/s390/appldata/appldata_os.c                |   4 -
+ drivers/cpuidle/governors/menu.c                |   4 -
+ fs/proc/loadavg.c                               |   3 -
+ include/linux/cgroup-defs.h                     |   4 +
+ include/linux/cgroup.h                          |  15 +
+ include/linux/delayacct.h                       |  23 +
+ include/linux/mmzone.h                          |   1 +
+ include/linux/page-flags.h                      |   5 +-
+ include/linux/psi.h                             |  53 ++
+ include/linux/psi_types.h                       |  92 +++
+ include/linux/sched.h                           |  10 +
+ include/linux/sched/loadavg.h                   |  24 +-
+ include/linux/swap.h                            |   2 +-
+ include/trace/events/mmflags.h                  |   1 +
+ include/uapi/linux/taskstats.h                  |   6 +-
+ init/Kconfig                                    |  19 +
+ kernel/cgroup/cgroup.c                          |  45 +-
+ kernel/debug/kdb/kdb_main.c                     |   7 +-
+ kernel/delayacct.c                              |  15 +
+ kernel/fork.c                                   |   4 +
+ kernel/sched/Makefile                           |   1 +
+ kernel/sched/core.c                             |  16 +-
+ kernel/sched/loadavg.c                          | 139 ++--
+ kernel/sched/psi.c                              | 752 ++++++++++++++++++++++
+ kernel/sched/sched.h                            | 178 ++---
+ kernel/sched/stats.h                            |  86 +++
+ mm/compaction.c                                 |   5 +
+ mm/filemap.c                                    |  27 +-
+ mm/huge_memory.c                                |   1 +
+ mm/memcontrol.c                                 |   2 +
+ mm/migrate.c                                    |   2 +
+ mm/page_alloc.c                                 |   9 +
+ mm/swap_state.c                                 |   1 +
+ mm/vmscan.c                                     |  10 +
+ mm/vmstat.c                                     |   1 +
+ mm/workingset.c                                 | 113 ++--
+ tools/accounting/getdelays.c                    |   8 +-
+ 41 files changed, 1543 insertions(+), 247 deletions(-)
+
+Changes in v2:
+- Extensive documentation and comment update. Per everybody.
+  In particular, I've added a much more detailed explanation
+  of the SMP model, which caused some misunderstandings last time.
+- Uninlined calc_load_n(), as it was just too fat. Per Peter.
+- Split kernel/sched/stats.h churn into its own commit to
+  avoid noise in the main patch and explain the reshuffle. Per Peter.
+- Abstracted this_rq_lock_irq(). Per Peter.
+- Eliminated cumulative clock drift error. Per Peter.
+- Packed the per-cpu datastructure. Per Peter.
+- Fixed 64-bit divisions on 32 bit. Per Peter.
+- Added outer-most psi_disabled checks. Per Peter.
+- Fixed some coding style issues. Per Peter.
+- Fixed a bug in the lazy clock. Per Suren.
+- On-demand stat aggregation when user reads. Per Suren.
+- Fixed task state corruption on preemption race. Per Suren.
+- Fixed a CONFIG_PSI=n build error.
+- Minor cleanups, optimizations.
+
+Changes in v3:
+- Packed scheduler hotpath data into one cacheline, as per Peter and Linus
+- Implemented live state aggregation without the rq lock, as per Peter
+- do_div -> div64_ul and some other cleanups, as per Peter
+- Dropped unnecessary SCHED_INFO dependency, as per Peter
+- Realtime sampling period and slipped sample handling, as per Tejun
+- Fixed 64-bit divsion on 32 bit & checkpatch warnings, as per Andrew
+
+Changes in v4:
+- Fixed an unsafe cpu_curr() dereference from the live aggregator.
+  This was there to detect active reclaimers on a CPU. Instead of
+  adding an expensive task switching callback, sample that state
+  from scheduler_tick(). As per Peter.
+- Use for_each_possible_cpu() instead of the online mask when aggregating
+  per-cpu samples, to avoid rare artifacts from CPU hotplugging. As per Peter
+- Refactor the aggregation loop to be more explicit about extracting nonidle
+  time - the coefficient for all other state times - first. As per Peter.
+- Fixed a race condition between the scheduler and the live aggregator
+  in which the aggregator misses a previously observed live state that
+  is no longer live but hasn't made it into the recorded time bucket
+  yet. In this case the 'times - times_prev' sampling will underflow and
+  cause us to record a bogusly large time sample. This isn't fixable
+  with memory barriers, since we also need to avoid seeing the delta
+  simultaneously in the live state and in the recorded time buckets. Added a
+  seqcount to ensure a coherent view from the aggregator. As per Suren.
+- Fixed a related problem where the clock of the state change (rq_clock)
+  is behind that of the aggregator (cpu_clock). A race between the two
+  can cause the aggregator to observe a longer live state time than what
+  the scheduler ends up recording - again leading to the same delta
+  detection underflow and bogus sample recording. The state changer has
+  to use cpu_clock from within the seqcount section. As per Suren.
+- Note that these changes didn't affect the memcache benchmark results.
