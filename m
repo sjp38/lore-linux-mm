@@ -1,56 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 925526B448E
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 02:03:28 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id r25-v6so343448edc.7
-        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 23:03:28 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o45-v6si468009edc.331.2018.08.27.23.03.26
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D5A2E6B449F
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 02:18:26 -0400 (EDT)
+Received: by mail-lj1-f200.google.com with SMTP id p8-v6so118162ljg.10
+        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 23:18:26 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h15-v6sor38138ljg.44.2018.08.27.23.18.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Aug 2018 23:03:27 -0700 (PDT)
-Subject: Re: [PATCH 1/3] xen/gntdev: fix up blockable calls to
- mn_invl_range_start
-References: <20180827112623.8992-1-mhocko@kernel.org>
- <20180827112623.8992-2-mhocko@kernel.org>
-From: Juergen Gross <jgross@suse.com>
-Message-ID: <234d0dd0-cd42-5ca8-e6bd-cbd12c872d6d@suse.com>
-Date: Tue, 28 Aug 2018 08:03:24 +0200
+        (Google Transport Security);
+        Mon, 27 Aug 2018 23:18:24 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180827112623.8992-2-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: de-DE
-Content-Transfer-Encoding: 7bit
+References: <20180703123910.2180-1-willy@infradead.org> <20180703123910.2180-2-willy@infradead.org>
+ <alpine.DEB.2.21.1807161116590.2644@nanos.tec.linutronix.de>
+ <CAFqt6zbgoTgw1HNp+anOYY8CiU1BPoNeeddsnGGXWY_hVOd5iQ@mail.gmail.com>
+ <alpine.DEB.2.21.1808031503370.1745@nanos.tec.linutronix.de>
+ <CAFqt6zbJq9kca8dHDVAs-MOWNZgo2C=id3Cp4M0C76MQDXevJg@mail.gmail.com> <20180827180544.GA24544@bombadil.infradead.org>
+In-Reply-To: <20180827180544.GA24544@bombadil.infradead.org>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Tue, 28 Aug 2018 11:48:12 +0530
+Message-ID: <CAFqt6zZ+4aTiOK13a61hCHKY9p=GkaNiagV6zQ4zVZRM1fHq5g@mail.gmail.com>
+Subject: Re: [PATCH 2/3] x86: Convert vdso to use vm_fault_t
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, linux-kernel@vger.kernel.org, Brajeswar Ghosh <brajeswar.linux@gmail.com>, Sabyasachi Gupta <sabyasachi.linux@gmail.com>, Linux-MM <linux-mm@kvack.org>
 
-On 27/08/18 13:26, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> 93065ac753e4 ("mm, oom: distinguish blockable mode for mmu notifiers")
-> has introduced blockable parameter to all mmu_notifiers and the notifier
-> has to back off when called in !blockable case and it could block down
-> the road.
-> 
-> The above commit implemented that for mn_invl_range_start but both
-> in_range checks are done unconditionally regardless of the blockable
-> mode and as such they would fail all the time for regular calls.
-> Fix this by checking blockable parameter as well.
-> 
-> Once we are there we can remove the stale TODO. The lock has to be
-> sleepable because we wait for completion down in gnttab_unmap_refs_sync.
-> 
-> Changes since v1
-> - pull in_range check into mn_invl_range_start - Juergen
-> 
-> Fixes: 93065ac753e4 ("mm, oom: distinguish blockable mode for mmu notifiers")
-> Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-> Cc: Juergen Gross <jgross@suse.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+On Mon, Aug 27, 2018 at 11:35 PM Matthew Wilcox <willy@infradead.org> wrote:
+>
+> On Mon, Aug 27, 2018 at 09:01:48PM +0530, Souptick Joarder wrote:
+> > On Fri, Aug 3, 2018 at 6:44 PM Thomas Gleixner <tglx@linutronix.de> wrote:
+> > >
+> > > On Fri, 3 Aug 2018, Souptick Joarder wrote:
+> > > > On Mon, Jul 16, 2018 at 2:47 PM, Thomas Gleixner <tglx@linutronix.de> wrote:
+> > > > > On Tue, 3 Jul 2018, Matthew Wilcox wrote:
+> > > > >
+> > > > >> Return vm_fault_t codes directly from the appropriate mm routines instead
+> > > > >> of converting from errnos ourselves.  Fixes a minor bug where we'd return
+> > > > >> SIGBUS instead of the correct OOM code if we ran out of memory allocating
+> > > > >> page tables.
+> > > > >>
+> > > > >> Signed-off-by: Matthew Wilcox <willy@infradead.org>
+> > > > >
+> > > > > Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+> > > > >
+> > > >
+> > > > Thomas, are these 3 patches part of this series will be queued
+> > > > for 4.19 ?
+> > >
+> > > I don't know. I expected that these go through the mm tree, but if nobody
+> > > feels responsible, I could pick up the whole lot. But I'd like to see acks
+> > > from the mm folks for [1/3] and [3/3]
+> > >
+> > >   https://lkml.kernel.org/r/20180703123910.2180-1-willy@infradead.org
+> > >
+> > > Thanks,
+> > >
+> > >         tglx
+> > >
+> >
+> > Any comment from mm reviewers for patch [1/3] and [3/3] ??
+> >
+> > https://lkml.kernel.org/r/20180703123910.2180-1-willy@infradead.org
+>
+> I think at this point, it would probably be best to ask Andrew to pick
+> up all three of these patches.
 
-Reviewed-by: Juergen Gross <jgross@suse.com>
+Do we need to repost these three patches or lkml link
+https://lkml.kernel.org/r/20180703123910.2180-1-willy@infradead.org
+is fine to request Andrew ??
 
 
-Juergen
+> In addition to these three, I see the following places that need to be changed:
+>
+> Documentation/gpu/drm-mm.rst:300:               int (*fault)(struct vm_fault *vmf);
+ok, I will add this.
+
+>
+> drivers/gpu/drm/virtio/virtgpu_ttm.c:117:static int virtio_gpu_ttm_fault(struct vm_fault *vmf)
+>  - #if 0 code.  convert anyway.
+
+https://lkml.org/lkml/2018/7/2/795
+Gerd Hoffmann, agreed to remove this dead code, but queued for 4.20.
+I think, this shouldn't be a blocker for us.
+
+>
+> drivers/gpu/drm/vkms/vkms_drv.h:68:int vkms_gem_fault(struct vm_fault *vmf);
+> drivers/gpu/drm/vkms/vkms_gem.c:46:int vkms_gem_fault(struct vm_fault *vmf)
+
+This was not queued for 4.19. Would you like to see this patch in 4.19-rc-x ?
+https://lkml.org/lkml/2018/7/30/767
+
+>
+> fs/ext4/ext4.h:2472:extern int ext4_page_mkwrite(struct vm_fault *vmf);
+> fs/ext4/ext4.h:2473:extern int ext4_filemap_fault(struct vm_fault *vmf);
+> fs/ext4/inode.c:6154:int ext4_page_mkwrite(struct vm_fault *vmf)
+> fs/ext4/inode.c:6251:int ext4_filemap_fault(struct vm_fault *vmf)
+
+I have this patch ready in my local tree based on review comment
+from Ted. Ted was planning to take it in next merge window.
+I will post it on mailing list.
+
+>
+> fs/iomap.c:1059:int iomap_page_mkwrite(struct vm_fault *vmf, const struct iomap_ops *ops)
+> include/linux/iomap.h:144:int iomap_page_mkwrite(struct vm_fault *vmf, const struct iomap_ops *ops);
+>  - I saw you just resent this patch.
+
+Now added to mm-tree.
+
+> mm/filemap.c:2751:int filemap_page_mkwrite(struct vm_fault *vmf)
+>  - This is the NOMMU case, so I suspect your testing didn't catch it.
+Sorry, I missed it.
