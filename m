@@ -1,102 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 458C56B46C2
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 10:33:13 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id 191-v6so1217891pgb.23
-        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 07:33:13 -0700 (PDT)
-Received: from NAM04-CO1-obe.outbound.protection.outlook.com (mail-eopbgr690097.outbound.protection.outlook.com. [40.107.69.97])
-        by mx.google.com with ESMTPS id k6-v6si1086814pgb.446.2018.08.28.07.33.11
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 201D66B46CB
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 10:40:13 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id gn4so749135plb.9
+        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 07:40:13 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id g69-v6si1348664pfa.204.2018.08.28.07.40.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 28 Aug 2018 07:33:11 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: Re: [PATCH] memory_hotplug: fix kernel_panic on offline page
- processing
-Date: Tue, 28 Aug 2018 14:33:09 +0000
-Message-ID: <4d5dfb19-0ae7-a730-4066-df0b98cb4a0b@microsoft.com>
-References: <20180828090539.41491-1-zaslonko@linux.ibm.com>
- <20180828112543.GK10223@dhcp22.suse.cz>
-In-Reply-To: <20180828112543.GK10223@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <497F05CD25541240AB7543EEC2AF466B@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Aug 2018 07:40:11 -0700 (PDT)
+Subject: Re: [PATCH] mm, oom: OOM victims do not need to select next OOM
+ victim unless __GFP_NOFAIL.
+References: <1534761465-6449-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180828124030.GB12564@cmpxchg.org>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <58e0bd2d-71bd-cf46-0929-ef5eb0c6c2bc@i-love.sakura.ne.jp>
+Date: Tue, 28 Aug 2018 22:29:56 +0900
 MIME-Version: 1.0
+In-Reply-To: <20180828124030.GB12564@cmpxchg.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Mikhail Zaslonko <zaslonko@linux.ibm.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Greg Thelen <gthelen@google.com>, David Rientjes <rientjes@google.com>, syzbot <syzbot+bab151e82a4e973fa325@syzkaller.appspotmail.com>
 
-DQoNCk9uIDgvMjgvMTggNzoyNSBBTSwgTWljaGFsIEhvY2tvIHdyb3RlOg0KPiBPbiBUdWUgMjgt
-MDgtMTggMTE6MDU6MzksIE1pa2hhaWwgWmFzbG9ua28gd3JvdGU6DQo+PiBXaXRoaW4gc2hvd192
-YWxpZF96b25lcygpIHRoZSBmdW5jdGlvbiB0ZXN0X3BhZ2VzX2luX2Ffem9uZSgpIHNob3VsZCBi
-ZQ0KPj4gY2FsbGVkIGZvciBvbmxpbmUgbWVtb3J5IGJsb2NrcyBvbmx5LiBPdGhlcndpc2UgaXQg
-bWlnaHQgbGVhZCB0byB0aGUNCj4+IFZNX0JVR19PTiBkdWUgdG8gdW5pbml0aWFsaXplZCBzdHJ1
-Y3QgcGFnZXMgKHdoZW4gQ09ORklHX0RFQlVHX1ZNX1BHRkxBR1MNCj4+IGtlcm5lbCBvcHRpb24g
-aXMgc2V0KToNCj4+DQo+PiAgcGFnZSBkdW1wZWQgYmVjYXVzZTogVk1fQlVHX09OX1BBR0UoUGFn
-ZVBvaXNvbmVkKHApKQ0KPj4gIC0tLS0tLS0tLS0tLVsgY3V0IGhlcmUgXS0tLS0tLS0tLS0tLQ0K
-Pj4gIENhbGwgVHJhY2U6DQo+PiAgKFs8MDAwMDAwMDAwMDM4ZjkxZT5dIHRlc3RfcGFnZXNfaW5f
-YV96b25lKzB4ZTYvMHgxNjgpDQo+PiAgIFs8MDAwMDAwMDAwMDkyMzQ3Mj5dIHNob3dfdmFsaWRf
-em9uZXMrMHg1YS8weDFhOA0KPj4gICBbPDAwMDAwMDAwMDA5MDAyODQ+XSBkZXZfYXR0cl9zaG93
-KzB4M2MvMHg3OA0KPj4gICBbPDAwMDAwMDAwMDA0NmY2ZjA+XSBzeXNmc19rZl9zZXFfc2hvdysw
-eGQwLzB4MTUwDQo+PiAgIFs8MDAwMDAwMDAwMDNlZjY2Mj5dIHNlcV9yZWFkKzB4MjEyLzB4NGI4
-DQo+PiAgIFs8MDAwMDAwMDAwMDNiZjIwMj5dIF9fdmZzX3JlYWQrMHgzYS8weDE3OA0KPj4gICBb
-PDAwMDAwMDAwMDAzYmYzY2E+XSB2ZnNfcmVhZCsweDhhLzB4MTQ4DQo+PiAgIFs8MDAwMDAwMDAw
-MDNiZmEzYT5dIGtzeXNfcmVhZCsweDYyLzB4YjgNCj4+ICAgWzwwMDAwMDAwMDAwYmMyMjIwPl0g
-c3lzdGVtX2NhbGwrMHhkYy8weDJkOA0KPj4NCj4+IFRoYXQgVk1fQlVHX09OIHdhcyB0cmlnZ2Vy
-ZWQgYnkgdGhlIHBhZ2UgcG9pc29uaW5nIGludHJvZHVjZWQgaW4NCj4+IG1tL3NwYXJzZS5jIHdp
-dGggdGhlIGdpdCBjb21taXQgZDBkYzEyZTg2YjMxICgibW0vbWVtb3J5X2hvdHBsdWc6IG9wdGlt
-aXplDQo+PiBtZW1vcnkgaG90cGx1ZyIpDQo+PiBXaXRoIHRoZSBzYW1lIGNvbW1pdCB0aGUgbmV3
-ICduaWQnIGZpZWxkIGhhcyBiZWVuIGFkZGVkIHRvIHRoZSBzdHJ1Y3QNCj4+IG1lbW9yeV9ibG9j
-ayBpbiBvcmRlciB0byBzdG9yZSBhbmQgbGF0ZXIgb24gZGVyaXZlIHRoZSBub2RlIGlkIGZvciBv
-ZmZsaW5lDQo+PiBwYWdlcyAoaW5zdGVhZCBvZiBhY2Nlc3Npbmcgc3RydWN0IHBhZ2Ugd2hpY2gg
-bWlnaHQgYmUgdW5pbml0aWFsaXplZCkuIEJ1dA0KPj4gb25lIHJlZmVyZW5jZSB0byBuaWQgaW4g
-c2hvd192YWxpZF96b25lcygpIGZ1bmN0aW9uIGhhcyBiZWVuIG92ZXJsb29rZWQuDQo+PiBGaXhl
-ZCB3aXRoIGN1cnJlbnQgY29tbWl0Lg0KPj4gQWxzbywgbnJfcGFnZXMgd2lsbCBub3QgYmUgdXNl
-ZCBhbnkgbW9yZSBhZnRlciB0ZXN0X3BhZ2VzX2luX2Ffem9uZSgpIGNhbGwsDQo+PiBkbyBub3Qg
-dXBkYXRlIGl0Lg0KPj4NCj4+IEZpeGVzOiBkMGRjMTJlODZiMzEgKCJtbS9tZW1vcnlfaG90cGx1
-Zzogb3B0aW1pemUgbWVtb3J5IGhvdHBsdWciKQ0KPj4gQ2M6IDxzdGFibGVAdmdlci5rZXJuZWwu
-b3JnPiAjIHY0LjE3Kw0KPj4gQ2M6IFBhdmVsIFRhdGFzaGluIDxwYXNoYS50YXRhc2hpbkBvcmFj
-bGUuY29tPg0KPj4gU2lnbmVkLW9mZi1ieTogTWlraGFpbCBaYXNsb25rbyA8emFzbG9ua29AbGlu
-dXguaWJtLmNvbT4NCj4gDQo+IEJ0dy4gdGhpcyBsYW5kIG1pbmVzIHdoaWNoIGFyZSBiYXNpY2Fs
-bHkgaW1wb3NzaWJsZSB0byBmaW5kIGR1cmluZyB0aGUNCj4gcmV2aWV3IGFyZSB0aGUgcmVhc29u
-IHdoeSBJIHdhcyBub3QgYWxsIHRoYXQgaGFwcHkgYWJvdXQgZDBkYzEyZTg2YjMxLg0KPiBJdCBh
-ZGRlZCBhIG1hcmduaW5hbCBpbXByb3ZlbWVudCBidXQgb3BlbmVkIGEgY2FuIG9mIHdhcm1zLiBP
-biB0aGUgb3RoZXINCg0KSGkgTWljaGFsLA0KDQpJIGFncmVlLCB0aGUgaG90cGx1ZyBjb2RlIGlz
-IHZlcnkgZnJhZ2lsZS4gQnV0LCBpdCBvbmx5IG1lYW5zIHRoYXQgaXQNCnJlcXVpcmVzIGltcHJv
-dmVtZW50cy4NCg0KSSBzcGVjaWZpY2FsbHkgYWRkZWQgUGFnZVBvaXNvbmVkKCkgY2hlY2sgd2l0
-aCBob3RwbHVnIG9wdGltaXphdGlvbnMNCmNoYW5nZXMgaW4gb3JkZXIgdG8gY2F0Y2ggdGhlc2Ug
-a2luZCBvZiBidWdzLCBhbmQgSSBhbSBnbGFkIHdlIGFyZQ0KY2F0Y2hpbmcgdGhlbS4NCg0KUmV2
-aWV3ZWQtYnk6IFBhdmVsIFRhdGFzaGluIDxwYXZlbC50YXRhc2hpbkBtaWNyb3NvZnQuY29tPg0K
-DQpUaGFuayB5b3UsDQpQYXZlbA0KDQo+IGhhbmQgbWF5YmUgd2UganVzdCBoYWQgdG8gb3BlbiB0
-aGF0IGNhbiBvbmUgZGF5Li4uDQo+IA0KPiBBY2tlZC1ieTogTWljaGFsIEhvY2tvIDxtaG9ja29A
-c3VzZS5jb20+DQo+IA0KPiBUaGFua3MhDQo+IA0KPj4gLS0tDQo+PiAgZHJpdmVycy9iYXNlL21l
-bW9yeS5jIHwgMjAgKysrKysrKysrLS0tLS0tLS0tLS0NCj4+ICAxIGZpbGUgY2hhbmdlZCwgOSBp
-bnNlcnRpb25zKCspLCAxMSBkZWxldGlvbnMoLSkNCj4+DQo+PiBkaWZmIC0tZ2l0IGEvZHJpdmVy
-cy9iYXNlL21lbW9yeS5jIGIvZHJpdmVycy9iYXNlL21lbW9yeS5jDQo+PiBpbmRleCBmNWU1NjAx
-ODhhMTguLjYyMmFiOGVkYzAzNSAxMDA2NDQNCj4+IC0tLSBhL2RyaXZlcnMvYmFzZS9tZW1vcnku
-Yw0KPj4gKysrIGIvZHJpdmVycy9iYXNlL21lbW9yeS5jDQo+PiBAQCAtNDE2LDI2ICs0MTYsMjQg
-QEAgc3RhdGljIHNzaXplX3Qgc2hvd192YWxpZF96b25lcyhzdHJ1Y3QgZGV2aWNlICpkZXYsDQo+
-PiAgCXN0cnVjdCB6b25lICpkZWZhdWx0X3pvbmU7DQo+PiAgCWludCBuaWQ7DQo+PiAgDQo+PiAt
-CS8qDQo+PiAtCSAqIFRoZSBibG9jayBjb250YWlucyBtb3JlIHRoYW4gb25lIHpvbmUgY2FuIG5v
-dCBiZSBvZmZsaW5lZC4NCj4+IC0JICogVGhpcyBjYW4gaGFwcGVuIGUuZy4gZm9yIFpPTkVfRE1B
-IGFuZCBaT05FX0RNQTMyDQo+PiAtCSAqLw0KPj4gLQlpZiAoIXRlc3RfcGFnZXNfaW5fYV96b25l
-KHN0YXJ0X3Bmbiwgc3RhcnRfcGZuICsgbnJfcGFnZXMsICZ2YWxpZF9zdGFydF9wZm4sICZ2YWxp
-ZF9lbmRfcGZuKSkNCj4+IC0JCXJldHVybiBzcHJpbnRmKGJ1ZiwgIm5vbmVcbiIpOw0KPj4gLQ0K
-Pj4gLQlzdGFydF9wZm4gPSB2YWxpZF9zdGFydF9wZm47DQo+PiAtCW5yX3BhZ2VzID0gdmFsaWRf
-ZW5kX3BmbiAtIHN0YXJ0X3BmbjsNCj4+IC0NCj4+ICAJLyoNCj4+ICAJICogQ2hlY2sgdGhlIGV4
-aXN0aW5nIHpvbmUuIE1ha2Ugc3VyZSB0aGF0IHdlIGRvIHRoYXQgb25seSBvbiB0aGUNCj4+ICAJ
-ICogb25saW5lIG5vZGVzIG90aGVyd2lzZSB0aGUgcGFnZV96b25lIGlzIG5vdCByZWxpYWJsZQ0K
-Pj4gIAkgKi8NCj4+ICAJaWYgKG1lbS0+c3RhdGUgPT0gTUVNX09OTElORSkgew0KPj4gKwkJLyoN
-Cj4+ICsJCSAqIFRoZSBibG9jayBjb250YWlucyBtb3JlIHRoYW4gb25lIHpvbmUgY2FuIG5vdCBi
-ZSBvZmZsaW5lZC4NCj4+ICsJCSAqIFRoaXMgY2FuIGhhcHBlbiBlLmcuIGZvciBaT05FX0RNQSBh
-bmQgWk9ORV9ETUEzMg0KPj4gKwkJICovDQo+PiArCQlpZiAoIXRlc3RfcGFnZXNfaW5fYV96b25l
-KHN0YXJ0X3Bmbiwgc3RhcnRfcGZuICsgbnJfcGFnZXMsDQo+PiArCQkJCQkgICZ2YWxpZF9zdGFy
-dF9wZm4sICZ2YWxpZF9lbmRfcGZuKSkNCj4+ICsJCQlyZXR1cm4gc3ByaW50ZihidWYsICJub25l
-XG4iKTsNCj4+ICsJCXN0YXJ0X3BmbiA9IHZhbGlkX3N0YXJ0X3BmbjsNCj4+ICAJCXN0cmNhdChi
-dWYsIHBhZ2Vfem9uZShwZm5fdG9fcGFnZShzdGFydF9wZm4pKS0+bmFtZSk7DQo+PiAgCQlnb3Rv
-IG91dDsNCj4+ICAJfQ0KPj4gIA0KPj4gLQluaWQgPSBwZm5fdG9fbmlkKHN0YXJ0X3Bmbik7DQo+
-PiArCW5pZCA9IG1lbS0+bmlkOw0KPj4gIAlkZWZhdWx0X3pvbmUgPSB6b25lX2Zvcl9wZm5fcmFu
-Z2UoTU1PUF9PTkxJTkVfS0VFUCwgbmlkLCBzdGFydF9wZm4sIG5yX3BhZ2VzKTsNCj4+ICAJc3Ry
-Y2F0KGJ1ZiwgZGVmYXVsdF96b25lLT5uYW1lKTsNCj4+ICANCj4+IC0tIA0KPj4gMi4xNi40DQo+
-IA==
+On 2018/08/28 21:40, Johannes Weiner wrote:
+> On Mon, Aug 20, 2018 at 07:37:45PM +0900, Tetsuo Handa wrote:
+>> Commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
+>> oom_reaped tasks") changed to select next OOM victim as soon as
+>> MMF_OOM_SKIP is set. But since OOM victims can try ALLOC_OOM allocation
+>> and then give up (if !memcg OOM) or can use forced charge and then retry
+>> (if memcg OOM), OOM victims do not need to select next OOM victim unless
+>> they are doing __GFP_NOFAIL allocations.
+> 
+> Can you outline the exact sequence here? After a task invokes the OOM
+> killer, it will retry and do ALLOC_OOM before invoking it again. If
+> that succeeds, OOM is not invoked another time.
+
+Did you mean
+
+  After a task invoked the OOM killer, that task will retry and an OOM
+  victim will do ALLOC_OOM before that task or that OOM victim again
+  invokes the OOM killer.
+
+? Then, yes. But the OOM reaper disturbs this behavior.
+
+> 
+> If there is a race condition where the allocating task gets killed
+> right before it acquires the oom_lock itself, there is another attempt
+> to allocate under the oom lock to catch parallel kills. It's not using
+> ALLOC_OOM, but that's intentional because we want to restore the high
+> watermark, not just make a single allocation from reserves succeed.
+
+Yes. Though an OOM victim will try ALLOC_OOM watermark unless
+__GFP_NOMEMALLOC due to
+
+  /* Avoid allocations with no watermarks from looping endlessly */
+  if (tsk_is_oom_victim(current) &&
+      (alloc_flags == ALLOC_OOM || (gfp_mask & __GFP_NOMEMALLOC)))
+          goto nopage;
+
+test after returning from __alloc_pages_may_oom().
+
+> 
+> If that doesn't succeed, then we are committed to killing something.
+
+No. we want to avoid unnecessary killing of additional processes. The test
+above was updated by commit c288983dddf71421 ("mm/page_alloc.c: make sure
+OOM victim can try allocations with no watermarks once") in order to avoid
+unnecessary killing of additional processes.
+
+Thanks to the test above, an OOM victim is expected to give up allocation
+without selecting next OOM victim. But if the OOM reaper set MMF_OOM_SKIP
+before that OOM victim enters into out_of_memory(),
+
+  /*
+   * If current has a pending SIGKILL or is exiting, then automatically
+   * select it.  The goal is to allow it to allocate so that it may
+   * quickly exit and free its memory.
+   */
+  if (task_will_free_mem(current)) {
+      mark_oom_victim(current);
+      wake_oom_reaper(current);
+      return true;
+  }
+
+test does not help. In other words, an OOM victim will select next OOM
+victim when we can avoid selecting next OOM victim.
+
+> Racing with the OOM reaper then is no different than another task
+> voluntarily exiting or munmap()ing in parallel. I don't know why we
+> should special case your particular scenario.
+
+Because we want to avoid unnecessary killing of additional processes.
+
+> 
+> Granted, the OOM reaper is not exactly like the others, because it can
+> be considered to be part of the OOM killer itself. But then we should
+> wait for it like we wait for any concurrent OOM kill, and not allow
+> another __alloc_pages_may_oom() while the reaper is still at work;
+> instead of more hard-to-understand special cases in this code.
+
+The OOM reaper may set MMF_OOM_SKIP without reclaiming any memory (due
+to e.g. mlock()ed memory, shared memory, unable to grab mmap_sem for read).
+We haven't reached to the point where the OOM reaper reclaims all memory
+nor allocating threads wait some more after setting MMF_OOM_SKIP.
+Therefore, this
+
+  if (tsk_is_oom_victim(current) && !(oc->gfp_mask & __GFP_NOFAIL))
+      return true;
+
+is the simplest mitigation we can do now.
