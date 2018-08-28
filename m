@@ -1,78 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9117B6B48B0
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 19:31:10 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id 132-v6so2064786pga.18
-        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 16:31:10 -0700 (PDT)
-Received: from sonic302-49.consmr.mail.gq1.yahoo.com (sonic302-49.consmr.mail.gq1.yahoo.com. [98.137.68.175])
-        by mx.google.com with ESMTPS id j19-v6si2292667pgb.623.2018.08.28.16.31.09
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C607D6B48BF
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 19:52:06 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id y130-v6so2884405qka.1
+        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 16:52:06 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k18-v6sor1258676qvi.62.2018.08.28.16.52.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Aug 2018 16:31:09 -0700 (PDT)
-From: Gao Xiang <hsiangkao@aol.com>
-Subject: Re: Tagged pointers in the XArray
-References: <20180828222727.GD11400@bombadil.infradead.org>
-Message-ID: <8f565135-ffe4-e8a6-8a6f-4b74cedd4209@aol.com>
-Date: Wed, 29 Aug 2018 07:26:57 +0800
+        (Google Transport Security);
+        Tue, 28 Aug 2018 16:52:05 -0700 (PDT)
+Date: Tue, 28 Aug 2018 19:52:03 -0400 (EDT)
+From: Nicolas Pitre <nicolas.pitre@linaro.org>
+Subject: Re: [PATCH 01/10] cramfs: Convert to use vmf_insert_mixed
+In-Reply-To: <20180828220427.GA11400@bombadil.infradead.org>
+Message-ID: <nycvar.YSQ.7.76.1808281940360.10215@knanqh.ubzr>
+References: <20180828145728.11873-1-willy@infradead.org> <20180828145728.11873-2-willy@infradead.org> <nycvar.YSQ.7.76.1808281235060.10215@knanqh.ubzr> <20180828220427.GA11400@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20180828222727.GD11400@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Cc: Matthew Wilcox <willy@infradead.org>, Gao Xiang <gaoxiang25@huawei.com>, zhong jiang <zhongjiang@huawei.com>, Chao Yu <yuchao0@huawei.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi,
+On Tue, 28 Aug 2018, Matthew Wilcox wrote:
 
-On 2018/8/29 6:27, Matthew Wilcox wrote:
-> I find myself caught between two traditions.
->
-> On the one hand, the radix tree has been calling the page cache dirty &
-> writeback bits "tags" for over a decade.
->
-> On the other hand, using some of the bits _in a pointer_ as a tag has been
-> common practice since at least the 1960s.
-> https://en.wikipedia.org/wiki/Tagged_pointer and
-> https://en.wikipedia.org/wiki/31-bit
+> On Tue, Aug 28, 2018 at 01:49:25PM -0400, Nicolas Pitre wrote:
+> > On Tue, 28 Aug 2018, Matthew Wilcox wrote:
+> > > -			ret = vm_insert_mixed(vma, vma->vm_start + off, pfn);
+> > > +			vmf = vmf_insert_mixed(vma, vma->vm_start + off, pfn);
+> > > +			if (vmf & VM_FAULT_ERROR) {
+> > > +				pages = i;
+> > > +				break;
+> > > +			}
+> > 
+> > I'd suggest this to properly deal with errers instead:
+> > 
+> > -			ret = vm_insert_mixed(vma, vma->vm_start + off, pfn);
+> > +			vmf = vmf_insert_mixed(vma, vma->vm_start + off, pfn);
+> > +			if (vmf & VM_FAULT_ERROR)
+> > +				ret = vm_fault_to_errno(vmf, 0);
+> 
+> By my reading of this function, the intent is actually to return 0
+> here and allow demand paging to work.  Of course, I've spent all of
+> twenty minutes staring at this function, so I defer to the maintainer.
 
-Personally I think this topic makes sense. These two `tags' are totally
-different actually.
+Demand paging is used when the filesystem layout isn't amenable to a 
+direct mapping.  It is not a fallback for when we're OOM or some other 
+internal errors which ought to be reported immediately.
 
-> EROFS wants to use tagged pointers in the radix tree / xarray.  Right now,
-> they're building them by hand, which is predictably grotty-looking.
-> I think it's reasonable to provide this functionality as part of the
-> XArray API, _but_ it's confusing to have two different things called tags.
->
-> I've done my best to document my way around this, but if we want to rename
-> the things that the radix tree called tags to avoid the problem entirely,
-> now is the time to do it.  Anybody got a Good Idea?
+> I think you'd need to be running a make-memory-allocations-fail fuzzer
+> to hit this, so it's likely never been tested.
 
-As Matthew pointed out, it is a good chance to rename one of them.
-
-
-In addition to that, I am also looking forward to a better general
-tagged pointer
-implementation to wrap up operations for all these tags and restrict the
-number of tag bits
-at compile time. It is also useful to mark its usage and clean up these
-magic masks
-though the implementation could look a bit simple.
-
-If you folks think the general tagged pointer is meaningless, please
-ignore my words....
-However according to my EROFS coding experience, code with different
-kind of tagged
-pointers by hand (directly use magic masks) will be in a mess, but it
-also seems
-unnecessary to introduce independent operations for each kind of tagged
-pointers.
+Well, it has been tested sort of, e.g. when vm_insert_mixed() returned 
+an error due to misaligned addresses during development.  Normally, 
+vm_insert_mixed() and vmf_insert_mixed() should always succeed, and if 
+they don't we certainly don't want to ignore it.
 
 
-In the end, I also hope someone interested in this topic and thanks in
-advance... :)
-
-
-Thanks,
-Gao Xiang
+Nicolas
