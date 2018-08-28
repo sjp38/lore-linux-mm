@@ -1,108 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E7F636B482B
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 17:30:32 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id 40-v6so2026759wrb.23
-        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 14:30:32 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id y83-v6si1936072wmc.53.2018.08.28.14.30.31
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 52BC96B4832
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 17:35:33 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id q12-v6so1909287pgp.6
+        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 14:35:33 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id n72-v6si1911969pfk.14.2018.08.28.14.35.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 28 Aug 2018 14:30:31 -0700 (PDT)
-Subject: Re: [PATCH 8/9] psi: pressure stall information for CPU, memory, and
- IO
-References: <20180828172258.3185-1-hannes@cmpxchg.org>
- <20180828172258.3185-9-hannes@cmpxchg.org>
- <6ff71c29-3b6a-4849-6f2a-3d829bbd43e2@infradead.org>
- <20180828205625.GA14030@cmpxchg.org>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <b0880165-9bc1-5eb4-bf6b-8e853879d463@infradead.org>
-Date: Tue, 28 Aug 2018 14:30:17 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180828205625.GA14030@cmpxchg.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Aug 2018 14:35:32 -0700 (PDT)
+Date: Tue, 28 Aug 2018 14:35:30 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/page_alloc: Clean up check_for_memory
+Message-Id: <20180828143530.4b681bf9e0b3c03519fbe943@linux-foundation.org>
+In-Reply-To: <20180828210158.4617-1-osalvador@techadventures.net>
+References: <20180828210158.4617-1-osalvador@techadventures.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Daniel Drake <drake@endlessm.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Peter Enderborg <peter.enderborg@sony.com>, Shakeel Butt <shakeelb@google.com>, Mike Galbraith <efault@gmx.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Oscar Salvador <osalvador@techadventures.net>
+Cc: mhocko@suse.com, vbabka@suse.cz, Pavel.Tatashin@microsoft.com, sfr@canb.auug.org.au, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>, Lai Jiangshan <laijs@cn.fujitsu.com>
 
-On 08/28/2018 01:56 PM, Johannes Weiner wrote:
-> On Tue, Aug 28, 2018 at 01:11:11PM -0700, Randy Dunlap wrote:
->> On 08/28/2018 10:22 AM, Johannes Weiner wrote:
->>> diff --git a/Documentation/accounting/psi.txt b/Documentation/accounting/psi.txt
->>> new file mode 100644
->>> index 000000000000..51e7ef14142e
->>> --- /dev/null
->>> +++ b/Documentation/accounting/psi.txt
->>> @@ -0,0 +1,64 @@
->>> +================================
->>> +PSI - Pressure Stall Information
->>> +================================
->>> +
->>> +:Date: April, 2018
->>> +:Author: Johannes Weiner <hannes@cmpxchg.org>
->>> +
->>> +When CPU, memory or IO devices are contended, workloads experience
->>> +latency spikes, throughput losses, and run the risk of OOM kills.
->>> +
->>> +Without an accurate measure of such contention, users are forced to
->>> +either play it safe and under-utilize their hardware resources, or
->>> +roll the dice and frequently suffer the disruptions resulting from
->>> +excessive overcommit.
->>> +
->>> +The psi feature identifies and quantifies the disruptions caused by
->>> +such resource crunches and the time impact it has on complex workloads
->>> +or even entire systems.
->>> +
->>> +Having an accurate measure of productivity losses caused by resource
->>> +scarcity aids users in sizing workloads to hardware--or provisioning
->>> +hardware according to workload demand.
->>> +
->>> +As psi aggregates this information in realtime, systems can be managed
->>> +dynamically using techniques such as load shedding, migrating jobs to
->>> +other systems or data centers, or strategically pausing or killing low
->>> +priority or restartable batch jobs.
->>> +
->>> +This allows maximizing hardware utilization without sacrificing
->>> +workload health or risking major disruptions such as OOM kills.
->>> +
->>> +Pressure interface
->>> +==================
->>> +
->>> +Pressure information for each resource is exported through the
->>> +respective file in /proc/pressure/ -- cpu, memory, and io.
->>> +
->>
->> Hi,
->>
->>> +In both cases, the format for CPU is as such:
->>
->> I don't see what "In both cases" refers to here.  It seems that you could
->> just remove it.
+On Tue, 28 Aug 2018 23:01:58 +0200 Oscar Salvador <osalvador@techadventures.net> wrote:
+
+> From: Oscar Salvador <osalvador@suse.de>
 > 
-> You're right, that must be a left-over from when I described CPU
-> separately; "both cases" referred to memory and IO which have
-> identical formats. It needs to be removed:
+> check_for_memory looks a bit confusing.
+> First of all, we have this:
 > 
-> diff --git a/Documentation/accounting/psi.txt b/Documentation/accounting/psi.txt
-> index e051810d5127..b8ca28b60215 100644
-> --- a/Documentation/accounting/psi.txt
-> +++ b/Documentation/accounting/psi.txt
-> @@ -35,7 +35,7 @@ Pressure interface
->  Pressure information for each resource is exported through the
->  respective file in /proc/pressure/ -- cpu, memory, and io.
+> if (N_MEMORY == N_NORMAL_MEMORY)
+> 	return;
+> 
+> Checking the ENUM declaration, looks like N_MEMORY canot be equal to
+> N_NORMAL_MEMORY.
+> I could not find where N_MEMORY is set to N_NORMAL_MEMORY, or the other
+> way around either, so unless I am missing something, this condition 
+> will never evaluate to true.
+> It makes sense to get rid of it.
+
+Added by
+
+commit 4b0ef1fe8a626f0ba7f649764f979d0dc9eab86b
+Author:     Lai Jiangshan <laijs@cn.fujitsu.com>
+AuthorDate: Wed Dec 12 13:51:46 2012 -0800
+Commit:     Linus Torvalds <torvalds@linux-foundation.org>
+CommitDate: Wed Dec 12 17:38:33 2012 -0800
+
+    page_alloc: use N_MEMORY instead N_HIGH_MEMORY change the node_states initia
+lization
+
+Let's cc Lai Jiangshan, see if he can remmeber the reasoning.
+
+But yes, it does look like im-not-sure-whats-going-on-here
+defensiveness.
+
+> Moving forward, the operations whithin the loop look a bit confusing
+> as well.
+> 
+> We set N_HIGH_MEMORY unconditionally, and then we set N_NORMAL_MEMORY
+> in case we have CONFIG_HIGHMEM (N_NORMAL_MEMORY != N_HIGH_MEMORY)
+> and zone <= ZONE_NORMAL.
+> (N_HIGH_MEMORY falls back to N_NORMAL_MEMORY on !CONFIG_HIGHMEM systems,
+> and that is why we can just go ahead and set N_HIGH_MEMORY unconditionally)
+> 
+> Although this works, it is a bit subtle.
+> 
+> I think that this could be easier to follow:
+> 
+> First, we should only set N_HIGH_MEMORY in case we have
+> CONFIG_HIGHMEM.
+
+Why?  Just a teeny optimization?
+
+> And then we should set N_NORMAL_MEMORY in case zone <= ZONE_NORMAL,
+> without further checking whether we have CONFIG_HIGHMEM or not.
+> 
+> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> ---
+>  mm/page_alloc.c | 9 +++------
+>  1 file changed, 3 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 839e0cc17f2c..6aa947f9e614 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6819,15 +6819,12 @@ static void check_for_memory(pg_data_t *pgdat, int nid)
+>  {
+>  	enum zone_type zone_type;
 >  
-> -In both cases, the format for CPU is as such:
-> +The format for CPU is as such:
->  
->  some avg10=0.00 avg60=0.00 avg300=0.00 total=0
-
-
-OK.  However, after reading patch 9/9, I thought that the "both cases"
-could possibly mean the files in /proc/pressure/ and the files in
-cgroup ({cpu,io,memory}.pressure).
-
--- 
-~Randy
+> -	if (N_MEMORY == N_NORMAL_MEMORY)
+> -		return;
+> -
+>  	for (zone_type = 0; zone_type <= ZONE_MOVABLE - 1; zone_type++) {
+>  		struct zone *zone = &pgdat->node_zones[zone_type];
+>  		if (populated_zone(zone)) {
+> -			node_set_state(nid, N_HIGH_MEMORY);
+> -			if (N_NORMAL_MEMORY != N_HIGH_MEMORY &&
+> -			    zone_type <= ZONE_NORMAL)
+> +			if (IS_ENABLED(CONFIG_HIGHMEM))
+> +				node_set_state(nid, N_HIGH_MEMORY);
+> +			if (zone_type <= ZONE_NORMAL)
+>  				node_set_state(nid, N_NORMAL_MEMORY);
+>  			break;
+>  		}
