@@ -1,113 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D5A2E6B449F
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 02:18:26 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id p8-v6so118162ljg.10
-        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 23:18:26 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h15-v6sor38138ljg.44.2018.08.27.23.18.24
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AC816B44B0
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 02:33:06 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id c25-v6so356149edb.12
+        for <linux-mm@kvack.org>; Mon, 27 Aug 2018 23:33:06 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id b10-v6si584351edk.422.2018.08.27.23.33.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 27 Aug 2018 23:18:24 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Aug 2018 23:33:04 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w7S6SkkG067451
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 02:33:03 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2m513y081k-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 02:33:03 -0400
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 28 Aug 2018 07:33:00 +0100
+Date: Tue, 28 Aug 2018 09:32:50 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/2] devres: provide devm_kstrdup_const()
+References: <20180827082101.5036-1-brgl@bgdev.pl>
+ <20180827103353.GB13848@rapoport-lnx>
+ <CAMRc=MdZ_1Vk2c19L-spzOm=7UaDpaACriq4gzMxAvQz=noNgQ@mail.gmail.com>
 MIME-Version: 1.0
-References: <20180703123910.2180-1-willy@infradead.org> <20180703123910.2180-2-willy@infradead.org>
- <alpine.DEB.2.21.1807161116590.2644@nanos.tec.linutronix.de>
- <CAFqt6zbgoTgw1HNp+anOYY8CiU1BPoNeeddsnGGXWY_hVOd5iQ@mail.gmail.com>
- <alpine.DEB.2.21.1808031503370.1745@nanos.tec.linutronix.de>
- <CAFqt6zbJq9kca8dHDVAs-MOWNZgo2C=id3Cp4M0C76MQDXevJg@mail.gmail.com> <20180827180544.GA24544@bombadil.infradead.org>
-In-Reply-To: <20180827180544.GA24544@bombadil.infradead.org>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Tue, 28 Aug 2018 11:48:12 +0530
-Message-ID: <CAFqt6zZ+4aTiOK13a61hCHKY9p=GkaNiagV6zQ4zVZRM1fHq5g@mail.gmail.com>
-Subject: Re: [PATCH 2/3] x86: Convert vdso to use vm_fault_t
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAMRc=MdZ_1Vk2c19L-spzOm=7UaDpaACriq4gzMxAvQz=noNgQ@mail.gmail.com>
+Message-Id: <20180828063250.GB25317@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, linux-kernel@vger.kernel.org, Brajeswar Ghosh <brajeswar.linux@gmail.com>, Sabyasachi Gupta <sabyasachi.linux@gmail.com>, Linux-MM <linux-mm@kvack.org>
+To: Bartosz Golaszewski <brgl@bgdev.pl>
+Cc: Michael Turquette <mturquette@baylibre.com>, Stephen Boyd <sboyd@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Arend van Spriel <aspriel@gmail.com>, Ulf Hansson <ulf.hansson@linaro.org>, Bjorn Helgaas <bhelgaas@google.com>, Vivek Gautam <vivek.gautam@codeaurora.org>, Robin Murphy <robin.murphy@arm.com>, Joe Perches <joe@perches.com>, Heikki Krogerus <heikki.krogerus@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Roman Gushchin <guro@fb.com>, Huang Ying <ying.huang@intel.com>, Kees Cook <keescook@chromium.org>, Bjorn Andersson <bjorn.andersson@linaro.org>, linux-clk <linux-clk@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, Aug 27, 2018 at 11:35 PM Matthew Wilcox <willy@infradead.org> wrote:
->
-> On Mon, Aug 27, 2018 at 09:01:48PM +0530, Souptick Joarder wrote:
-> > On Fri, Aug 3, 2018 at 6:44 PM Thomas Gleixner <tglx@linutronix.de> wrote:
-> > >
-> > > On Fri, 3 Aug 2018, Souptick Joarder wrote:
-> > > > On Mon, Jul 16, 2018 at 2:47 PM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> > > > > On Tue, 3 Jul 2018, Matthew Wilcox wrote:
-> > > > >
-> > > > >> Return vm_fault_t codes directly from the appropriate mm routines instead
-> > > > >> of converting from errnos ourselves.  Fixes a minor bug where we'd return
-> > > > >> SIGBUS instead of the correct OOM code if we ran out of memory allocating
-> > > > >> page tables.
-> > > > >>
-> > > > >> Signed-off-by: Matthew Wilcox <willy@infradead.org>
-> > > > >
-> > > > > Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
-> > > > >
-> > > >
-> > > > Thomas, are these 3 patches part of this series will be queued
-> > > > for 4.19 ?
-> > >
-> > > I don't know. I expected that these go through the mm tree, but if nobody
-> > > feels responsible, I could pick up the whole lot. But I'd like to see acks
-> > > from the mm folks for [1/3] and [3/3]
-> > >
-> > >   https://lkml.kernel.org/r/20180703123910.2180-1-willy@infradead.org
-> > >
-> > > Thanks,
-> > >
-> > >         tglx
-> > >
+On Mon, Aug 27, 2018 at 04:28:55PM +0200, Bartosz Golaszewski wrote:
+> 2018-08-27 12:33 GMT+02:00 Mike Rapoport <rppt@linux.vnet.ibm.com>:
+> > On Mon, Aug 27, 2018 at 10:21:00AM +0200, Bartosz Golaszewski wrote:
+> >> Provide a resource managed version of kstrdup_const(). This variant
+> >> internally calls devm_kstrdup() on pointers that are outside of
+> >> .rodata section. Also provide a corresponding version of devm_kfree().
+> >>
+> >> Signed-off-by: Bartosz Golaszewski <brgl@bgdev.pl>
+> >> ---
+> >>  include/linux/device.h |  2 ++
+> >>  mm/util.c              | 35 +++++++++++++++++++++++++++++++++++
+> >>  2 files changed, 37 insertions(+)
+> >>
+> >> diff --git a/include/linux/device.h b/include/linux/device.h
+> >> index 8f882549edee..f8f5982d26b2 100644
+> >> --- a/include/linux/device.h
+> >> +++ b/include/linux/device.h
+> >> @@ -693,7 +693,9 @@ static inline void *devm_kcalloc(struct device *dev,
+> >>       return devm_kmalloc_array(dev, n, size, flags | __GFP_ZERO);
+> >>  }
+> >>  extern void devm_kfree(struct device *dev, void *p);
+> >> +extern void devm_kfree_const(struct device *dev, void *p);
+> >>  extern char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp) __malloc;
+> >> +extern char *devm_kstrdup_const(struct device *dev, const char *s, gfp_t gfp);
+> >>  extern void *devm_kmemdup(struct device *dev, const void *src, size_t len,
+> >>                         gfp_t gfp);
+> >>
+> >> diff --git a/mm/util.c b/mm/util.c
+> >> index d2890a407332..6d1f41b5775e 100644
+> >> --- a/mm/util.c
+> >> +++ b/mm/util.c
+
+[ ... ]
+
+> >> + * Strings allocated by devm_kstrdup_const will be automatically freed when
+> >> + * the associated device is detached.
+> >> + */
+> >> +char *devm_kstrdup_const(struct device *dev, const char *s, gfp_t gfp)
+> >> +{
+> >> +     if (is_kernel_rodata((unsigned long)s))
+> >> +             return s;
+> >> +
+> >> +     return devm_kstrdup(dev, s, gfp);
+> >> +}
+> >> +EXPORT_SYMBOL(devm_kstrdup_const);
+> >> +
 > >
-> > Any comment from mm reviewers for patch [1/3] and [3/3] ??
+> > The devm_ variants seem to belong to drivers/base/devres.c rather than
+> > mm/util.c
 > >
-> > https://lkml.kernel.org/r/20180703123910.2180-1-willy@infradead.org
->
-> I think at this point, it would probably be best to ask Andrew to pick
-> up all three of these patches.
+> 
+> Not all devm_ variants live in drivers/base/devres.c, many subsystems
+> implement them locally. In this case we need to choose between
+> exporting is_kernel_rodata() and putting devm_kstrdup_const() in
+> mm/util.c. I chose the latter, since it's cleaner.
 
-Do we need to repost these three patches or lkml link
-https://lkml.kernel.org/r/20180703123910.2180-1-willy@infradead.org
-is fine to request Andrew ??
+I rather think that moving is_kernel_rodata() to
+include/asm-generic/sections.h and having devm_kstrdup_const() next to
+devm_kstrdup() would be cleaner.
+ 
+> Bart
+> 
 
-
-> In addition to these three, I see the following places that need to be changed:
->
-> Documentation/gpu/drm-mm.rst:300:               int (*fault)(struct vm_fault *vmf);
-ok, I will add this.
-
->
-> drivers/gpu/drm/virtio/virtgpu_ttm.c:117:static int virtio_gpu_ttm_fault(struct vm_fault *vmf)
->  - #if 0 code.  convert anyway.
-
-https://lkml.org/lkml/2018/7/2/795
-Gerd Hoffmann, agreed to remove this dead code, but queued for 4.20.
-I think, this shouldn't be a blocker for us.
-
->
-> drivers/gpu/drm/vkms/vkms_drv.h:68:int vkms_gem_fault(struct vm_fault *vmf);
-> drivers/gpu/drm/vkms/vkms_gem.c:46:int vkms_gem_fault(struct vm_fault *vmf)
-
-This was not queued for 4.19. Would you like to see this patch in 4.19-rc-x ?
-https://lkml.org/lkml/2018/7/30/767
-
->
-> fs/ext4/ext4.h:2472:extern int ext4_page_mkwrite(struct vm_fault *vmf);
-> fs/ext4/ext4.h:2473:extern int ext4_filemap_fault(struct vm_fault *vmf);
-> fs/ext4/inode.c:6154:int ext4_page_mkwrite(struct vm_fault *vmf)
-> fs/ext4/inode.c:6251:int ext4_filemap_fault(struct vm_fault *vmf)
-
-I have this patch ready in my local tree based on review comment
-from Ted. Ted was planning to take it in next merge window.
-I will post it on mailing list.
-
->
-> fs/iomap.c:1059:int iomap_page_mkwrite(struct vm_fault *vmf, const struct iomap_ops *ops)
-> include/linux/iomap.h:144:int iomap_page_mkwrite(struct vm_fault *vmf, const struct iomap_ops *ops);
->  - I saw you just resent this patch.
-
-Now added to mm-tree.
-
-> mm/filemap.c:2751:int filemap_page_mkwrite(struct vm_fault *vmf)
->  - This is the NOMMU case, so I suspect your testing didn't catch it.
-Sorry, I missed it.
+-- 
+Sincerely yours,
+Mike.
