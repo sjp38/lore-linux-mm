@@ -1,59 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EA076B4911
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2018 21:18:59 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id c22-v6so2968303qkb.18
-        for <linux-mm@kvack.org>; Tue, 28 Aug 2018 18:18:59 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id g47-v6si626531qtg.304.2018.08.28.18.18.58
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 81FA36B4A77
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 03:20:32 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id k16-v6so1856794ede.6
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 00:20:32 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id d21-v6si2918165eds.170.2018.08.29.00.20.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Aug 2018 18:18:58 -0700 (PDT)
-Subject: Re: [PATCH 2/2] fs/dcache: Make negative dentries easier to be
- reclaimed
-References: <1535476780-5773-1-git-send-email-longman@redhat.com>
- <1535476780-5773-3-git-send-email-longman@redhat.com>
- <20180828221352.GC11400@bombadil.infradead.org>
- <6873378b-3202-e738-2366-5fb818b4a013@redhat.com>
- <CA+55aFxy1vH2CamZ_pdFohKgSJgi1i2MkeaY1qX8NdFK8Xu8Ww@mail.gmail.com>
- <20180828162207.52240d3442fbe65166f9d604@linux-foundation.org>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <a7c7150f-9e8e-62d3-6dac-0b86a2f69876@redhat.com>
-Date: Tue, 28 Aug 2018 21:18:56 -0400
+        Wed, 29 Aug 2018 00:20:30 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w7T7J5ra029956
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 03:20:29 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2m5kwwprkf-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 03:20:29 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Wed, 29 Aug 2018 08:20:27 +0100
+Date: Wed, 29 Aug 2018 10:20:19 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH RESEND 0/7] switch several architectures NO_BOOTMEM
+References: <1533326330-31677-1-git-send-email-rppt@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20180828162207.52240d3442fbe65166f9d604@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1533326330-31677-1-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <20180829072019.GA13173@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, "Wangkai (Kevin,C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Richard Kuo <rkuo@codeaurora.org>, Ley Foon Tan <lftan@altera.com>, Richard Weinberger <richard@nod.at>, Guan Xuetao <gxt@pku.edu.cn>, Michal Hocko <mhocko@kernel.org>, linux-hexagon@vger.kernel.org, nios2-dev@lists.rocketboards.org, linux-um@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 08/28/2018 07:22 PM, Andrew Morton wrote:
-> On Tue, 28 Aug 2018 16:10:24 -0700 Linus Torvalds <torvalds@linux-foundation.org> wrote:
->
->> On Tue, Aug 28, 2018 at 3:29 PM Waiman Long <longman@redhat.com> wrote:
->>> Yes, I can rewrite it. What is the problem with the abbreviated form?
->> Either gcc rewrites it for you, or you end up _actually_ using a
->> function pointer and calling through it.
->>
->> The latter would be absolutely horribly bad for something like
->> "list_add()", which should expand to just a couple of instructions.
->>
->> And the former would be ok, except for the "you wrote code the garbage
->> way, and then depended on the compiler fixing it up". Which we
->> generally try to avoid in the kernel.
->>
->> (Don't get me wrong - we definitely depend on the compiler doing a
->> good job at CSE and dead code elimination etc, but generally we try to
->> avoid the whole "compiler has to rewrite code to be good" model).
->>
-> And the "abbreviated form" will surely explode if one or both of those
-> "functions" happens to be implemented (or later reimplemented) as a macro.
-> It's best not to unnecessarily make such assumptions.
->
-Yes,  that is true.
+Any updates on this?
 
-Thanks,
-Longman
+On Fri, Aug 03, 2018 at 10:58:43PM +0300, Mike Rapoport wrote:
+> 
+> Hi,
+> 
+> These patches perform conversion to NO_BOOTMEM of hexagon, nios2, uml and
+> unicore32. The architecture maintainers have acked the patches, but, since
+> I've got no confirmation the patches are going through the arch tree I'd
+> appreciate if the set would be applied to the -mm tree.
+> 
+> Mike Rapoport (7):
+>   hexagon: switch to NO_BOOTMEM
+>   of: ignore sub-page memory regions
+>   nios2: use generic early_init_dt_add_memory_arch
+>   nios2: switch to NO_BOOTMEM
+>   um: setup_physmem: stop using global variables
+>   um: switch to NO_BOOTMEM
+>   unicore32: switch to NO_BOOTMEM
+> 
+>  arch/hexagon/Kconfig      |  3 +++
+>  arch/hexagon/mm/init.c    | 20 +++++++-----------
+>  arch/nios2/Kconfig        |  3 +++
+>  arch/nios2/kernel/prom.c  | 17 ---------------
+>  arch/nios2/kernel/setup.c | 39 ++++++----------------------------
+>  arch/um/Kconfig.common    |  2 ++
+>  arch/um/kernel/physmem.c  | 22 +++++++++----------
+>  arch/unicore32/Kconfig    |  1 +
+>  arch/unicore32/mm/init.c  | 54 +----------------------------------------------
+>  drivers/of/fdt.c          | 11 +++++-----
+>  10 files changed, 41 insertions(+), 131 deletions(-)
+> 
+> -- 
+> 2.7.4
+> 
+
+-- 
+Sincerely yours,
+Mike.
