@@ -1,75 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 81FA36B4A77
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 03:20:32 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id k16-v6so1856794ede.6
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 00:20:32 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id d21-v6si2918165eds.170.2018.08.29.00.20.30
+	by kanga.kvack.org (Postfix) with ESMTP id 6980F6B4A96
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 03:51:33 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id h40-v6so1893939edb.2
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 00:51:33 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m26-v6si2911049edq.379.2018.08.29.00.51.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Aug 2018 00:20:30 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w7T7J5ra029956
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 03:20:29 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2m5kwwprkf-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 03:20:29 -0400
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 29 Aug 2018 08:20:27 +0100
-Date: Wed, 29 Aug 2018 10:20:19 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH RESEND 0/7] switch several architectures NO_BOOTMEM
-References: <1533326330-31677-1-git-send-email-rppt@linux.vnet.ibm.com>
+        Wed, 29 Aug 2018 00:51:32 -0700 (PDT)
+Date: Wed, 29 Aug 2018 09:51:29 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] fs/dcache: Make negative dentries easier to be
+ reclaimed
+Message-ID: <20180829075129.GU10223@dhcp22.suse.cz>
+References: <1535476780-5773-1-git-send-email-longman@redhat.com>
+ <1535476780-5773-3-git-send-email-longman@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1533326330-31677-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <20180829072019.GA13173@rapoport-lnx>
+In-Reply-To: <1535476780-5773-3-git-send-email-longman@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Richard Kuo <rkuo@codeaurora.org>, Ley Foon Tan <lftan@altera.com>, Richard Weinberger <richard@nod.at>, Guan Xuetao <gxt@pku.edu.cn>, Michal Hocko <mhocko@kernel.org>, linux-hexagon@vger.kernel.org, nios2-dev@lists.rocketboards.org, linux-um@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Waiman Long <longman@redhat.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>
 
-Any updates on this?
+On Tue 28-08-18 13:19:40, Waiman Long wrote:
+> For negative dentries that are accessed once and never used again, they
+> should be removed first before other dentries when shrinker is running.
+> This is done by putting negative dentries at the head of the LRU list
+> instead at the tail.
+> 
+> A new DCACHE_NEW_NEGATIVE flag is now added to a negative dentry when it
+> is initially created. When such a dentry is added to the LRU, it will be
+> added to the head so that it will be the first to go when a shrinker is
+> running if it is never accessed again (DCACHE_REFERENCED bit not set).
+> The flag is cleared after the LRU list addition.
 
-On Fri, Aug 03, 2018 at 10:58:43PM +0300, Mike Rapoport wrote:
-> 
-> Hi,
-> 
-> These patches perform conversion to NO_BOOTMEM of hexagon, nios2, uml and
-> unicore32. The architecture maintainers have acked the patches, but, since
-> I've got no confirmation the patches are going through the arch tree I'd
-> appreciate if the set would be applied to the -mm tree.
-> 
-> Mike Rapoport (7):
->   hexagon: switch to NO_BOOTMEM
->   of: ignore sub-page memory regions
->   nios2: use generic early_init_dt_add_memory_arch
->   nios2: switch to NO_BOOTMEM
->   um: setup_physmem: stop using global variables
->   um: switch to NO_BOOTMEM
->   unicore32: switch to NO_BOOTMEM
-> 
->  arch/hexagon/Kconfig      |  3 +++
->  arch/hexagon/mm/init.c    | 20 +++++++-----------
->  arch/nios2/Kconfig        |  3 +++
->  arch/nios2/kernel/prom.c  | 17 ---------------
->  arch/nios2/kernel/setup.c | 39 ++++++----------------------------
->  arch/um/Kconfig.common    |  2 ++
->  arch/um/kernel/physmem.c  | 22 +++++++++----------
->  arch/unicore32/Kconfig    |  1 +
->  arch/unicore32/mm/init.c  | 54 +----------------------------------------------
->  drivers/of/fdt.c          | 11 +++++-----
->  10 files changed, 41 insertions(+), 131 deletions(-)
-> 
-> -- 
-> 2.7.4
-> 
+Placing object to the head of the LRU list can be really tricky as Dave
+pointed out. I am not familiar with the dentry cache reclaim so my
+comparison below might not apply. Let me try anyway.
 
+Negative dentries sound very similar to MADV_FREE pages from the reclaim
+POV. They are primary candidate for reclaim, yet you want to preserve
+aging to other easily reclaimable objects (including other MADV_FREE
+pages). What we do for those pages is to move them from the anonymous
+LRU list to the inactive file LRU list. Now you obviously do not have
+anon/file LRUs but something similar to active/inactive LRU lists might
+be a reasonably good match. Have easily reclaimable dentries on the
+inactive list including negative dentries. If negative entries are
+heavily used then they can promote to the active list because there is
+no reason to reclaim them soon.
+
+Just my 2c
 -- 
-Sincerely yours,
-Mike.
+Michal Hocko
+SUSE Labs
