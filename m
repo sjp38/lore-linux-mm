@@ -1,62 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D8DD6B4DA3
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 16:50:31 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id r14-v6so3488847wmh.0
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 13:50:31 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y33-v6sor2597060wrd.44.2018.08.29.13.50.29
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 584196B4DB1
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 17:04:11 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id t4-v6so2770781plo.0
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 14:04:11 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id r8-v6si5091075pgs.144.2018.08.29.14.04.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 29 Aug 2018 13:50:29 -0700 (PDT)
-Date: Wed, 29 Aug 2018 22:50:28 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH v4 0/4] Refactoring for
- remove_memory_section/unregister_mem_sect_under_nodes
-Message-ID: <20180829205028.GA25072@techadventures.net>
-References: <20180817090017.17610-1-osalvador@techadventures.net>
- <20180821162122.GA10300@techadventures.net>
- <20180821134318.f743b6c58f2b5a91e17e596e@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 29 Aug 2018 14:04:10 -0700 (PDT)
+Date: Wed, 29 Aug 2018 14:04:04 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 2/2] fs/dcache: Make negative dentries easier to be
+ reclaimed
+Message-ID: <20180829210404.GA2925@bombadil.infradead.org>
+References: <1535476780-5773-1-git-send-email-longman@redhat.com>
+ <1535476780-5773-3-git-send-email-longman@redhat.com>
+ <20180828160150.9a45ee293c92708edb511eab@linux-foundation.org>
+ <20180829175405.GA17337@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180821134318.f743b6c58f2b5a91e17e596e@linux-foundation.org>
+In-Reply-To: <20180829175405.GA17337@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: mhocko@suse.com, vbabka@suse.cz, dan.j.williams@intel.com, yasu.isimatu@gmail.com, jonathan.cameron@huawei.com, david@redhat.com, Pavel.Tatashin@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Waiman Long <longman@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>
 
-On Tue, Aug 21, 2018 at 01:43:18PM -0700, Andrew Morton wrote:
-> On Tue, 21 Aug 2018 18:21:22 +0200 Oscar Salvador <osalvador@techadventures.net> wrote:
+On Wed, Aug 29, 2018 at 10:54:05AM -0700, Paul E. McKenney wrote:
+> On Tue, Aug 28, 2018 at 04:01:50PM -0700, Andrew Morton wrote:
+> > People often use the term "the foo() function".  I don't know why -
+> > just say "foo()"!
 > 
-> > On Fri, Aug 17, 2018 at 11:00:13AM +0200, Oscar Salvador wrote:
-> > > From: Oscar Salvador <osalvador@suse.de>
-> > > 
-> > > v3 -> v4:
-> > >         - Make nodemask_t a stack variable
-> > >         - Added Reviewed-by from David and Pavel
-> > > 
-> > > v2 -> v3:
-> > >         - NODEMASK_FREE can deal with NULL pointers, so do not
-> > >           make it conditional (by David).
-> > >         - Split up node_online's check patch (David's suggestion)
-> > >         - Added Reviewed-by from Andrew and David
-> > >         - Fix checkpath.pl warnings
-> > 
-> > Andrew, will you pick up this patchset?
-> > I saw that v3 was removed from the -mm tree because it was about
-> > to be updated with a new version (this one), but I am not sure if
-> > anything wrong happened.
+> For whatever it is worth...
 > 
-> Yes, things are still changing and we're late in the merge window.  I
-> decided to park it and shall take it up again after 4.19-rc1.
+> I tend to use "The foo() function ..." instead of "foo() ..." in order
+> to properly capitalize the first word of the sentence.  So I might say
+> "The call_rcu() function enqueues an RCU callback." rather than something
+> like "call_rcu() enqueues an RCU callback."  Or I might use some other
+> trick to keep "call_rcu()" from being the first word of the sentence.
 
-Hi Andrew,
-
-I just got the Reviewed-by from Pavel for patch3.
-So you may consider it for -mm when you got some time.
-
-Thanks
--- 
-Oscar Salvador
-SUSE L3
+I tend to write 'Use call_rcu() to enqueue a callback." or "When
+call_rcu() returns, the callback will have been enqueued".
