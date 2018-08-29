@@ -1,86 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BA7F86B4E36
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 19:09:05 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id k9-v6so5874826iob.16
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 16:09:05 -0700 (PDT)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0093.outbound.protection.outlook.com. [104.47.36.93])
-        by mx.google.com with ESMTPS id h63-v6si82696ith.1.2018.08.29.16.09.04
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E882B6B4E3B
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 19:12:24 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id g5-v6so3969942pgq.5
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 16:12:24 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r23-v6sor1476699pfj.74.2018.08.29.16.12.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 29 Aug 2018 16:09:04 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: Re: [RFC v2 2/2] mm/memory_hotplug: Shrink spanned pages when
- offlining memory
-Date: Wed, 29 Aug 2018 23:09:01 +0000
-Message-ID: <348c662b-455a-1ea4-1db5-3bddcbdb4f14@microsoft.com>
-References: <20180817154127.28602-1-osalvador@techadventures.net>
- <20180817154127.28602-3-osalvador@techadventures.net>
-In-Reply-To: <20180817154127.28602-3-osalvador@techadventures.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <FADFF99E34495149A7C952B3B36C26B2@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (Google Transport Security);
+        Wed, 29 Aug 2018 16:12:23 -0700 (PDT)
+Date: Thu, 30 Aug 2018 09:12:13 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH 2/3] mm/cow: optimise pte dirty/accessed bits handling
+ in fork
+Message-ID: <20180830091213.78b64354@roar.ozlabs.ibm.com>
+In-Reply-To: <CA+55aFwbZrsdZEh0ds1W3AWUeTamDRheQPKSi9O=--cEOSjr5g@mail.gmail.com>
+References: <20180828112034.30875-1-npiggin@gmail.com>
+	<20180828112034.30875-3-npiggin@gmail.com>
+	<CA+55aFwbZrsdZEh0ds1W3AWUeTamDRheQPKSi9O=--cEOSjr5g@mail.gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Cc: "mhocko@suse.com" <mhocko@suse.com>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "jglisse@redhat.com" <jglisse@redhat.com>, "david@redhat.com" <david@redhat.com>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "yasu.isimatu@gmail.com" <yasu.isimatu@gmail.com>, "logang@deltatee.com" <logang@deltatee.com>, "dave.jiang@intel.com" <dave.jiang@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oscar Salvador <osalvador@suse.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, ppc-dev <linuxppc-dev@lists.ozlabs.org>, Andrew Morton <akpm@linux-foundation.org>
 
-DQpPbiA4LzE3LzE4IDExOjQxIEFNLCBPc2NhciBTYWx2YWRvciB3cm90ZToNCj4gRnJvbTogT3Nj
-YXIgU2FsdmFkb3IgPG9zYWx2YWRvckBzdXNlLmRlPg0KPiANCj4gQ3VycmVudGx5LCB3ZSBkZWNy
-ZW1lbnQgem9uZS9ub2RlIHNwYW5uZWRfcGFnZXMgd2hlbiB3ZQ0KPiByZW1vdmUgbWVtb3J5IGFu
-ZCBub3Qgd2hlbiB3ZSBvZmZsaW5lIGl0Lg0KPiANCj4gVGhpcywgYmVzaWRlcyBvZiBub3QgYmVp
-bmcgY29uc2lzdGVudCB3aXRoIHRoZSBjdXJyZW50IGNvZGUsDQo+IGltcGxpZXMgdGhhdCB3ZSBj
-YW4gYWNjZXNzIHN0ZWFsIHBhZ2VzIGlmIHdlIG5ldmVyIGdldCB0byBvbmxpbmUNCj4gdGhhdCBt
-ZW1vcnkuDQo+IA0KPiBJbiBvcmRlciB0byBwcmV2ZW50IHRoYXQsIHdlIGhhdmUgdG8gbW92ZSBh
-bGwgem9uZS9wYWdlcyBzdHVmZiB0bw0KPiB0aGUgb2ZmbGluaW5nIG1lbW9yeSBzdGFnZS4NCj4g
-UmVtb3ZpbmcgbWVtb3J5IHBhdGggc2hvdWxkIG9ubHkgY2FyZSBhYm91dCBtZW1vcnkgc2VjdGlv
-bnMgYW5kIG1lbW9yeQ0KPiBibG9ja3MuDQo+IA0KPiBBbm90aGVyIHRoaW5nIHRvIG5vdGljZSBo
-ZXJlIGlzIHRoYXQgdGhpcyBpcyBub3Qgc28gZWFzeSB0byBiZSBkb25lDQo+IGFzIEhNTS9kZXZt
-IGhhdmUgYSBwYXJ0aWN1bGFyIGhhbmRsaW5nIG9mIG1lbW9yeS1ob3RwbHVnLg0KPiBUaGV5IGRv
-IG5vdCBnbyB0aHJvdWdoIHRoZSBjb21tb24gcGF0aCwgYW5kIHNvLCB0aGV5IGRvIG5vdA0KPiBj
-YWxsIGVpdGhlciBvZmZsaW5lX3BhZ2VzKCkgbm9yIG9ubGluZV9wYWdlcygpLg0KPiANCj4gQWxs
-IHRoZXkgY2FyZSBhYm91dCBpcyB0byBhZGQgdGhlIHNlY3Rpb25zLCBtb3ZlIHRoZSBwYWdlcyB0
-bw0KPiBaT05FX0RFVklDRSwgYW5kIGluIHNvbWUgY2FzZXMsIHRvIGNyZWF0ZSB0aGUgbGluZWFy
-IG1hcHBpbmcuDQo+IA0KPiBJbiBvcmRlciB0byBkbyB0aGlzIG1vcmUgc21vb3RoLCB0d28gbmV3
-IGZ1bmN0aW9ucyBhcmUgY3JlYXRlZA0KPiB0byBkZWFsIHdpdGggdGhlc2UgcGFydGljdWxhciBj
-YXNlczoNCj4gDQo+IGRlbF9kZXZpY2VfbWVtb3J5DQo+IGFkZF9kZXZpY2VfbWVtb3J5DQo+IA0K
-PiBhZGRfZGV2aWNlX21lbW9yeSBpcyBpbiBjaGFyZ2Ugb2YNCj4gDQo+IGEpIGNhbGxpbmcgZWl0
-aGVyIGFyY2hfYWRkX21lbW9yeSgpIG9yIGFkZF9wYWdlcygpLCBkZXBlbmRpbmcgb24gd2hldGhl
-cg0KPiAgICB3ZSB3YW50IGEgbGluZWFyIG1hcHBpbmcNCj4gYikgb25saW5lIHRoZSBtZW1vcnkg
-c2VjdGlvbnMgdGhhdCBjb3JyZXNwb25kIHRvIHRoZSBwZm4gcmFuZ2UNCj4gYykgY2FsbGluZyBt
-b3ZlX3Bmbl9yYW5nZV90b196b25lKCkgYmVpbmcgem9uZSBaT05FX0RFVklDRSB0bw0KPiAgICBl
-eHBhbmQgem9uZS9wZ2RhdCBzcGFubmVkIHBhZ2VzIGFuZCBpbml0aWFsaXplIGl0cyBwYWdlcw0K
-PiANCj4gZGVsX2RldmljZV9tZW1vcnksIG9uIHRoZSBvdGhlciBoYW5kLCBpcyBpbiBjaGFyZ2Ug
-b2YNCj4gDQo+IGEpIG9mZmxpbmUgdGhlIG1lbW9yeSBzZWN0aW9ucyB0aGF0IGNvcnJlc3BvbmQg
-dG8gdGhlIHBmbiByYW5nZQ0KPiBiKSBjYWxsaW5nIHNocmlua19wYWdlcygpLCB3aGljaCBzaHJp
-bmtzIG5vZGUvem9uZSBzcGFubmVkIHBhZ2VzLg0KPiBjKSBjYWxsaW5nIGVpdGhlciBhcmNoX3Jl
-bW92ZV9tZW1vcnkoKSBvciBfX3JlbW92ZV9wYWdlcygpLCBkZXBlbmRpbmcgb24NCj4gICAgd2hl
-dGhlciB3ZSBuZWVkIHRvIHRlYXIgZG93biB0aGUgbGluZWFyIG1hcHBpbmcgb3Igbm90DQo+IA0K
-PiBUaGVzZSB0d28gZnVuY3Rpb25zIGFyZSBjYWxsZWQgZnJvbToNCj4gDQo+IGFkZF9kZXZpY2Vf
-bWVtb3J5Og0KPiAJLSBkZXZtX21lbXJlbWFwX3BhZ2VzKCkNCj4gCS0gaG1tX2Rldm1lbV9wYWdl
-c19jcmVhdGUoKQ0KPiANCj4gZGVsX2RldmljZV9tZW1vcnk6DQo+IAktIGRldm1fbWVtcmVtYXBf
-cGFnZXNfcmVsZWFzZSgpDQo+IAktIGhtbV9kZXZtZW1fcmVsZWFzZSgpDQo+IA0KPiBJIHRoaW5r
-IHRoYXQgdGhpcyB3aWxsIGdldCBlYXNpZXIgYXMgc29vbiBhcyBbMV0gZ2V0cyBtZXJnZWQuDQo+
-IA0KPiBGaW5hbGx5LCBzaHJpbmtfcGFnZXMoKSBpcyBtb3ZlZCB0byBvZmZsaW5lX3BhZ2VzKCks
-IHNvIG5vdywNCj4gYWxsIHBhZ2VzL3pvbmUgaGFuZGxpbmcgaXMgYmVpbmcgdGFrZW4gY2FyZSBp
-biBvbmxpbmUvb2ZmbGluZV9wYWdlcyBzdGFnZS4NCj4gDQo+IFsxXSBodHRwczovL2xrbWwub3Jn
-L2xrbWwvMjAxOC82LzE5LzExMA0KPiANCj4gU2lnbmVkLW9mZi1ieTogT3NjYXIgU2FsdmFkb3Ig
-PG9zYWx2YWRvckBzdXNlLmRlPg0KPiAtLS0NCj4gIGFyY2gvaWE2NC9tbS9pbml0LmMgICAgICAg
-ICAgICB8ICAgNCArLQ0KPiAgYXJjaC9wb3dlcnBjL21tL21lbS5jICAgICAgICAgIHwgIDEwICst
-LQ0KPiAgYXJjaC9zaC9tbS9pbml0LmMgICAgICAgICAgICAgIHwgICA0ICstDQo+ICBhcmNoL3g4
-Ni9tbS9pbml0XzMyLmMgICAgICAgICAgfCAgIDQgKy0NCj4gIGFyY2gveDg2L21tL2luaXRfNjQu
-YyAgICAgICAgICB8ICAgOCArLS0NCj4gIGluY2x1ZGUvbGludXgvbWVtb3J5X2hvdHBsdWcuaCB8
-ICAgOSArKy0NCj4gIGtlcm5lbC9tZW1yZW1hcC5jICAgICAgICAgICAgICB8ICAxNCArKy0tDQo+
-ICBrZXJuZWwvcmVzb3VyY2UuYyAgICAgICAgICAgICAgfCAgMTYgKysrKysNCj4gIG1tL2htbS5j
-ICAgICAgICAgICAgICAgICAgICAgICB8ICAzMiArKysrLS0tLS0NCj4gIG1tL21lbW9yeV9ob3Rw
-bHVnLmMgICAgICAgICAgICB8IDE0MyArKysrKysrKysrKysrKysrKysrKysrKysrKystLS0tLS0t
-LS0tLS0tLQ0KPiAgbW0vc3BhcnNlLmMgICAgICAgICAgICAgICAgICAgIHwgICA0ICstDQo+ICAx
-MSBmaWxlcyBjaGFuZ2VkLCAxNDUgaW5zZXJ0aW9ucygrKSwgMTAzIGRlbGV0aW9ucygtKQ0KDQpI
-aSBPc2NhciwNCg0KSSBoYXZlIGJlZW4gc3R1ZHlpbmcgdGhpcyBwYXRjaCwgYW5kIGRvIG5vdCBz
-ZWUgYW55dGhpbmcgYmFkIGFib3V0IGl0DQpleGNlcHQgdGhhdCBpdCBiZWdzIHRvIGJlIHNwbGl0
-IGludG8gc21hbGxlciBwYXRjaGVzLiBJIHRoaW5rIHlvdSBjYW4NCnNlbmQgdGhpcyB3b3JrIGFz
-IGEgc2VyaWVzIHdpdGhvdXQgUkZDIGlmIHRoaXMgcGF0Y2ggaXMgc3BsaXQgaW50byAzIG9yDQpz
-byBwYXRjaGVzLiBJIHdpbGwgcmV2aWV3IHRoYXQgc2VyaWVzLg0KDQpUaGFuayB5b3UsDQpQYXZl
-bA==
+On Wed, 29 Aug 2018 08:42:09 -0700
+Linus Torvalds <torvalds@linux-foundation.org> wrote:
+
+> On Tue, Aug 28, 2018 at 4:20 AM Nicholas Piggin <npiggin@gmail.com> wrote:
+> >
+> > fork clears dirty/accessed bits from new ptes in the child. This logic
+> > has existed since mapped page reclaim was done by scanning ptes when
+> > it may have been quite important. Today with physical based pte
+> > scanning, there is less reason to clear these bits.  
+> 
+> Can you humor me, and make the dirty/accessed bit patches separate?
+
+Yeah sure.
+
+> There is actually a difference wrt the dirty bit: if we unmap an area
+> with dirty pages, we have to do the special synchronous flush.
+> 
+> So a clean page in the virtual mapping is _literally_ cheaper to have.
+
+Oh yeah true, that blasted thing. Good point.
+
+Dirty micro fault seems to be the big one for my Skylake, takes 300
+nanoseconds per access. Accessed takes about 100. (I think, have to
+go over my benchmark a bit more carefully and re-test).
+
+Dirty will happen less often though, particularly as most places we
+do write to (stack, heap, etc) will be write protected for COW anyway,
+I think. Worst case might be a big shared shm segment like a database
+buffer cache, but those kind of forks should happen very very
+infrequently I would hope.
+
+Yes maybe we can do that. I'll split them up and try to get some
+numbers for them individually.
+
+Thanks,
+Nick
