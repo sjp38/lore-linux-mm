@@ -1,63 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 329976B4C62
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 12:17:58 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id w23-v6so3469649pgv.1
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 09:17:58 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id i7-v6si3870572plt.433.2018.08.29.09.17.56
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 09C7D6B4C9C
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 12:25:35 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id w11-v6so2434225plq.8
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 09:25:35 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f8-v6si4077242plb.381.2018.08.29.09.25.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 29 Aug 2018 09:17:57 -0700 (PDT)
-Date: Wed, 29 Aug 2018 09:17:56 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: Tagged pointers in the XArray
-Message-ID: <20180829161756.GB30396@bombadil.infradead.org>
-References: <20180828222727.GD11400@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 Aug 2018 09:25:33 -0700 (PDT)
+Date: Wed, 29 Aug 2018 18:25:28 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH 2/2] mm: thp: fix transparent_hugepage/defrag = madvise
+ || always
+Message-ID: <20180829162528.GD10223@dhcp22.suse.cz>
+References: <20180822155250.GP13047@redhat.com>
+ <20180823105253.GB29735@dhcp22.suse.cz>
+ <20180828075321.GD10223@dhcp22.suse.cz>
+ <20180828081837.GG10223@dhcp22.suse.cz>
+ <D5F4A33C-0A37-495C-9468-D6866A862097@cs.rutgers.edu>
+ <20180829142816.GX10223@dhcp22.suse.cz>
+ <20180829143545.GY10223@dhcp22.suse.cz>
+ <82CA00EB-BF8E-4137-953B-8BC4B74B99AF@cs.rutgers.edu>
+ <20180829154744.GC10223@dhcp22.suse.cz>
+ <39BE14E6-D0FB-428A-B062-8B5AEDC06E61@cs.rutgers.edu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180828222727.GD11400@bombadil.infradead.org>
+In-Reply-To: <39BE14E6-D0FB-428A-B062-8B5AEDC06E61@cs.rutgers.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Cc: Gao Xiang <gaoxiang25@huawei.com>, zhong jiang <zhongjiang@huawei.com>, Chao Yu <yuchao0@huawei.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
 
-On Tue, Aug 28, 2018 at 03:27:27PM -0700, Matthew Wilcox wrote:
-> I find myself caught between two traditions.
-> 
-> On the one hand, the radix tree has been calling the page cache dirty &
-> writeback bits "tags" for over a decade.
-> 
-> On the other hand, using some of the bits _in a pointer_ as a tag has been
-> common practice since at least the 1960s.
-> https://en.wikipedia.org/wiki/Tagged_pointer and
-> https://en.wikipedia.org/wiki/31-bit
-> 
-> EROFS wants to use tagged pointers in the radix tree / xarray.  Right now,
-> they're building them by hand, which is predictably grotty-looking.
-> I think it's reasonable to provide this functionality as part of the
-> XArray API, _but_ it's confusing to have two different things called tags.
-> 
-> I've done my best to document my way around this, but if we want to rename
-> the things that the radix tree called tags to avoid the problem entirely,
-> now is the time to do it.  Anybody got a Good Idea?
+On Wed 29-08-18 12:06:48, Zi Yan wrote:
+> The warning goes away with this change. I am OK with this patch (plus the original one you sent out,
+> which could be merged with this one).
 
-I have two ideas now.
+I will respin the patch, update the changelog and repost. Tomorrow I
+hope.
 
-First, we could rename radix tree tags to xarray marks.  That is,
 
-xa_mark_t
-xa_set_mark()
-xas_clear_mark()
-xas_for_each_marked() { }
-xa_marked()
-etc
 
-Second, we could call the tagged pointers typed pointers.  That is,
-
-void *xa_mk_type(void *p, unsigned int type);
-void *xa_to_ptr(void *entry);
-int xa_ptr_type(void *entry);
-
-Any better ideas, or violent revulsion to either of the above ideas?
+-- 
+Michal Hocko
+SUSE Labs
