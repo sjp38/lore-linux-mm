@@ -1,74 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 78F046B4C2C
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 10:35:49 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id k16-v6so2375642ede.6
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 07:35:49 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r52-v6si1587184edd.119.2018.08.29.07.35.47
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EF9936B4C24
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 10:54:45 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id s18-v6so3063432wmc.5
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 07:54:45 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m2-v6sor2985429wrj.18.2018.08.29.07.54.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Aug 2018 07:35:47 -0700 (PDT)
-Date: Wed, 29 Aug 2018 16:35:45 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH 2/2] mm: thp: fix transparent_hugepage/defrag = madvise
- || always
-Message-ID: <20180829143545.GY10223@dhcp22.suse.cz>
-References: <20180820032204.9591-3-aarcange@redhat.com>
- <20180821115057.GY29735@dhcp22.suse.cz>
- <20180821214049.GG13047@redhat.com>
- <20180822090214.GF29735@dhcp22.suse.cz>
- <20180822155250.GP13047@redhat.com>
- <20180823105253.GB29735@dhcp22.suse.cz>
- <20180828075321.GD10223@dhcp22.suse.cz>
- <20180828081837.GG10223@dhcp22.suse.cz>
- <D5F4A33C-0A37-495C-9468-D6866A862097@cs.rutgers.edu>
- <20180829142816.GX10223@dhcp22.suse.cz>
+        (Google Transport Security);
+        Wed, 29 Aug 2018 07:54:44 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180829142816.GX10223@dhcp22.suse.cz>
+References: <CADF2uSocjT5Oz=1Wohahjf5-58YpT2Jm2vTQKuqA=8ywBFwCaQ@mail.gmail.com>
+ <20180806120042.GL19540@dhcp22.suse.cz> <010001650fe29e66-359ffa28-9290-4e83-a7e2-b6d1d8d2ee1d-000000@email.amazonses.com>
+ <20180806181638.GE10003@dhcp22.suse.cz> <CADF2uSqzt+u7vMkcD-vvT6tjz2bdHtrFK+p6s7NXGP-BJ34dRA@mail.gmail.com>
+ <CADF2uSp7MKYWL7Yu5TDOT4qe0v-0iiq+Tv9J6rnzCSgahXbNaA@mail.gmail.com>
+ <20180821064911.GW29735@dhcp22.suse.cz> <11b4f8cd-6253-262f-4ae6-a14062c58039@suse.cz>
+ <CADF2uSroEHML=v7hjQ=KLvK9cuP9=YcRUy9MiStDc0u+BxTApg@mail.gmail.com>
+ <6ef03395-6baa-a6e5-0d5a-63d4721e6ec0@suse.cz> <20180823122111.GG29735@dhcp22.suse.cz>
+ <CADF2uSpnYp31mr6q3Mnx0OBxCDdu6NFCQ=LTeG61dcfAJB5usg@mail.gmail.com>
+ <76c6e92b-df49-d4b5-27f7-5f2013713727@suse.cz> <CADF2uSrNoODvoX_SdS3_127-aeZ3FwvwnhswoGDN0wNM2cgvbg@mail.gmail.com>
+ <8b211f35-0722-cd94-1360-a2dd9fba351e@suse.cz>
+In-Reply-To: <8b211f35-0722-cd94-1360-a2dd9fba351e@suse.cz>
+From: Marinko Catovic <marinko.catovic@gmail.com>
+Date: Wed, 29 Aug 2018 16:54:32 +0200
+Message-ID: <CADF2uSoDFrEAb0Z-w19Mfgj=Tskqrjh_h=N6vTNLXcQp7jdTOQ@mail.gmail.com>
+Subject: Re: Caching/buffers become useless after some time
+Content-Type: multipart/alternative; boundary="0000000000009238ef0574942314"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@suse.com>, Christopher Lameter <cl@linux.com>, linux-mm@kvack.org
 
-On Wed 29-08-18 16:28:16, Michal Hocko wrote:
-> On Wed 29-08-18 09:28:21, Zi Yan wrote:
-> [...]
-> > This patch triggers WARN_ON_ONCE() in policy_node() when MPOL_BIND is used and THP is on.
-> > Should this WARN_ON_ONCE be removed?
-> > 
-> > 
-> > /*
-> > * __GFP_THISNODE shouldn't even be used with the bind policy
-> > * because we might easily break the expectation to stay on the
-> > * requested node and not break the policy.
-> > */
-> > WARN_ON_ONCE(policy->mode == MPOL_BIND && (gfp & __GFP_THISNODE));
-> 
-> This is really interesting. It seems to be me who added this warning but
-> I cannot simply make any sense of it. Let me try to dig some more.
+--0000000000009238ef0574942314
+Content-Type: text/plain; charset="UTF-8"
 
-OK, I get it now. The warning seems to be incomplete. It is right to
-complain when __GFP_THISNODE disagrees with MPOL_BIND policy but that is
-not what we check here. Does this heal the warning?
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index da858f794eb6..7bb9354b1e4c 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1728,7 +1728,10 @@ static int policy_node(gfp_t gfp, struct mempolicy *policy,
- 		 * because we might easily break the expectation to stay on the
- 		 * requested node and not break the policy.
- 		 */
--		WARN_ON_ONCE(policy->mode == MPOL_BIND && (gfp & __GFP_THISNODE));
-+		if (policy->mode == MPOL_BIND && (gfp & __GFP_THISNODE)) {
-+			nodemask_t *nmask = policy_nodemask(gfp, policy);
-+			WARN_ON_ONCE(!node_isset(nd, *nmask));
-+		}
- 	}
- 
- 	return nd;
--- 
-Michal Hocko
-SUSE Labs
+> > shall I switch it to defer and observe (all hosts are running fine by
+> > just now) or
+> > switch to defer while it is in the bad state?
+>
+> You could do it immediately and see if no problems appear for long
+> enough, OTOH...
+>
+
+well cat /sys/kernel/mm/transparent_hugepage/defrag
+always [defer] defer+madvise madvise never
+was active now since your reply, however, I can not tell that it helped.
+
+This was set on 2 hosts, one has 20GB of unused RAM now.
+Yesterday there was a similar picture for both, with several GB, one with
+up to 10GB unused,
+I just checked once, this is what I recall.
+
+tell me if one would like to login remotely, I can set up teamviewer or
+something for this
+at any time, just drop a message here and I'll contact you.
+I have hopes that one can investigate things even on that host that has
+20GB unused, it's just
+a matter of time until this gets to the low values, surely the problem here
+already kicked in.
+
+Also if the remote login is not an option, I'm always happy to provide
+whatever info you need.
+
+--0000000000009238ef0574942314
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><br><div class=3D"gmail_quote"><blockquote class=3D"gmail_=
+quote" style=3D"margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,=
+204);padding-left:1ex">
+&gt; shall I switch it to defer and observe (all hosts are running fine by<=
+br>
+&gt; just now) or<br>
+&gt; switch to defer while it is in the bad state?<br>
+<br>
+You could do it immediately and see if no problems appear for long<br>
+enough, OTOH...<br></blockquote><div><br></div><div>well cat /sys/kernel/mm=
+/transparent_hugepage/defrag<br>always [defer] defer+madvise madvise never<=
+/div><div>was active now since your reply, however, I can not tell that it =
+helped.</div><div><br></div><div>This was set on 2 hosts, one has 20GB of u=
+nused RAM now.</div><div>Yesterday there was a similar picture for both, wi=
+th several GB, one with up to 10GB unused,</div><div>I just checked once, t=
+his is what I recall.</div><div><br></div><div>tell me if one would like to=
+ login remotely, I can set up teamviewer or something for this</div><div>at=
+ any time, just drop a message here and I&#39;ll contact you.</div><div>I h=
+ave hopes that one can investigate things even on that host that has 20GB u=
+nused, it&#39;s just</div><div>a matter of time until this gets to the low =
+values, surely the problem here already kicked in.</div><div><br></div><div=
+>Also if the remote login is not an option, I&#39;m always happy to provide=
+ whatever info you need.</div><div><br></div><div><br></div><div><br></div>=
+</div></div>
+
+--0000000000009238ef0574942314--
