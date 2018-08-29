@@ -1,238 +1,400 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 60EBC6B4B5E
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 07:11:18 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id d10-v6so3241722wrw.6
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 04:11:18 -0700 (PDT)
-Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de. [178.250.10.56])
-        by mx.google.com with ESMTPS id 197-v6si3255201wmi.183.2018.08.29.04.11.15
+	by kanga.kvack.org (Postfix) with ESMTP id A65E76B4B76
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 07:35:30 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id u12-v6so3327890wrc.1
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 04:35:30 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 79-v6sor1136851wmf.13.2018.08.29.04.35.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 29 Aug 2018 04:11:16 -0700 (PDT)
-Subject: Re: [PATCH 2/2] mm: thp: fix transparent_hugepage/defrag = madvise ||
- always
-From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-References: <20180820032204.9591-1-aarcange@redhat.com>
- <20180820032204.9591-3-aarcange@redhat.com>
- <20180821115057.GY29735@dhcp22.suse.cz> <20180821214049.GG13047@redhat.com>
- <20180822090214.GF29735@dhcp22.suse.cz> <20180822155250.GP13047@redhat.com>
- <20180823105253.GB29735@dhcp22.suse.cz>
- <20180828075321.GD10223@dhcp22.suse.cz>
- <20180828081837.GG10223@dhcp22.suse.cz>
- <bd080399-cfc5-510e-4f4c-f2bac027ed97@profihost.ag>
-Message-ID: <ff5778a4-b33e-77d0-be66-513716ef04eb@profihost.ag>
-Date: Wed, 29 Aug 2018 13:11:15 +0200
+        (Google Transport Security);
+        Wed, 29 Aug 2018 04:35:28 -0700 (PDT)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH v6 00/18] khwasan: kernel hardware assisted address sanitizer
+Date: Wed, 29 Aug 2018 13:35:04 +0200
+Message-Id: <cover.1535462971.git.andreyknvl@google.com>
 MIME-Version: 1.0
-In-Reply-To: <bd080399-cfc5-510e-4f4c-f2bac027ed97@profihost.ag>
-Content-Type: text/plain; charset=utf-8
-Content-Language: de-DE
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
+Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+
+This patchset adds a new mode to KASAN [1], which is called KHWASAN
+(Kernel HardWare assisted Address SANitizer).
+
+The plan is to implement HWASan [2] for the kernel with the incentive,
+that it's going to have comparable to KASAN performance, but in the same
+time consume much less memory, trading that off for somewhat imprecise
+bug detection and being supported only for arm64.
+
+The overall idea of the approach used by KHWASAN is the following:
+
+1. By using the Top Byte Ignore arm64 CPU feature, we can store pointer
+   tags in the top byte of each kernel pointer.
+
+2. Using shadow memory, we can store memory tags for each chunk of kernel
+   memory.
+
+3. On each memory allocation, we can generate a random tag, embed it into
+   the returned pointer and set the memory tags that correspond to this
+   chunk of memory to the same value.
+
+4. By using compiler instrumentation, before each memory access we can add
+   a check that the pointer tag matches the tag of the memory that is being
+   accessed.
+
+5. On a tag mismatch we report an error.
+
+[1] https://www.kernel.org/doc/html/latest/dev-tools/kasan.html
+
+[2] http://clang.llvm.org/docs/HardwareAssistedAddressSanitizerDesign.html
 
 
-Am 28.08.2018 um 10:54 schrieb Stefan Priebe - Profihost AG:
-> 
-> Am 28.08.2018 um 10:18 schrieb Michal Hocko:
->> [CC Stefan Priebe who has reported the same/similar issue on openSUSE
->>  mailing list recently - the thread starts http://lkml.kernel.org/r/20180820032204.9591-1-aarcange@redhat.com]
->>
->> On Tue 28-08-18 09:53:21, Michal Hocko wrote:
->>> On Thu 23-08-18 12:52:53, Michal Hocko wrote:
->>>> On Wed 22-08-18 11:52:50, Andrea Arcangeli wrote:
->>>>> On Wed, Aug 22, 2018 at 11:02:14AM +0200, Michal Hocko wrote:
->>>> [...]
->>>>>> I still have to digest the __GFP_THISNODE thing but I _think_ that the
->>>>>> alloc_pages_vma code is just trying to be overly clever and
->>>>>> __GFP_THISNODE is not a good fit for it. 
->>>>>
->>>>> My option 2 did just that, it removed __GFP_THISNODE but only for
->>>>> MADV_HUGEPAGE and in general whenever reclaim was activated by
->>>>> __GFP_DIRECT_RECLAIM. That is also signal that the user really wants
->>>>> THP so then it's less bad to prefer THP over NUMA locality.
->>>>>
->>>>> For the default which is tuned for short lived allocation, preferring
->>>>> local memory is most certainly better win for short lived allocation
->>>>> where THP can't help much, this is why I didn't remove __GFP_THISNODE
->>>>> from the default defrag policy.
->>>>
->>>> Yes I agree.
->>>
->>> I finally got back to this again. I have checked your patch and I am
->>> really wondering whether alloc_pages_vma is really the proper place to
->>> play these tricks. We already have that mind blowing alloc_hugepage_direct_gfpmask
->>> and it should be the proper place to handle this special casing. So what
->>> do you think about the following. It should be essentially the same
->>> thing. Aka use __GFP_THIS_NODE only when we are doing an optimistic THP
->>> allocation. Madvise signalizes you know what you are doing and THP has
->>> the top priority. If you care enough about the numa placement then you
->>> should better use mempolicy.
->>
->> Now the patch is still untested but it compiles at least.
-> 
-> Great - i recompiled the SLES15 kernel with that one applied and will
-> test if it helps.
+====== Rationale
 
-It seems to work fine. At least i was not able to reproduce the issue.
+On mobile devices KASAN's memory usage is significant problem. One of the
+main reasons to have KWHASAN is to be able to perform a similar set of
+checks that KASAN does, but with lower memory requirements.
 
-Greets,
-Stefan
+Comment from Vishwath Mohan <vishwath@google.com>:
 
->> ---
->> From 88e0ca4c9c403c6046f1c47d5ee17548f9dc841a Mon Sep 17 00:00:00 2001
->> From: Michal Hocko <mhocko@suse.com>
->> Date: Tue, 28 Aug 2018 09:59:19 +0200
->> Subject: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE mappings
->>
->> Andrea has noticed [1] that a THP allocation might be really disruptive
->> when allocated on NUMA system with the local node full or hard to
->> reclaim. Stefan has posted an allocation stall report on 4.12 based
->> SLES kernel which suggests the same issue:
->> [245513.362669] kvm: page allocation stalls for 194572ms, order:9, mode:0x4740ca(__GFP_HIGHMEM|__GFP_IO|__GFP_FS|__GFP_COMP|__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE|__GFP_MOVABLE|__GFP_DIRECT_RECLAIM), nodemask=(null)
->> [245513.363983] kvm cpuset=/ mems_allowed=0-1
->> [245513.364604] CPU: 10 PID: 84752 Comm: kvm Tainted: G        W 4.12.0+98-phSLE15 (unreleased)
->> [245513.365258] Hardware name: Supermicro SYS-1029P-WTRT/X11DDW-NT, BIOS 2.0 12/05/2017
->> [245513.365905] Call Trace:
->> [245513.366535]  dump_stack+0x5c/0x84
->> [245513.367148]  warn_alloc+0xe0/0x180
->> [245513.367769]  __alloc_pages_slowpath+0x820/0xc90
->> [245513.368406]  ? __slab_free+0xa9/0x2f0
->> [245513.369048]  ? __slab_free+0xa9/0x2f0
->> [245513.369671]  __alloc_pages_nodemask+0x1cc/0x210
->> [245513.370300]  alloc_pages_vma+0x1e5/0x280
->> [245513.370921]  do_huge_pmd_wp_page+0x83f/0xf00
->> [245513.371554]  ? set_huge_zero_page.isra.52.part.53+0x9b/0xb0
->> [245513.372184]  ? do_huge_pmd_anonymous_page+0x631/0x6d0
->> [245513.372812]  __handle_mm_fault+0x93d/0x1060
->> [245513.373439]  handle_mm_fault+0xc6/0x1b0
->> [245513.374042]  __do_page_fault+0x230/0x430
->> [245513.374679]  ? get_vtime_delta+0x13/0xb0
->> [245513.375411]  do_page_fault+0x2a/0x70
->> [245513.376145]  ? page_fault+0x65/0x80
->> [245513.376882]  page_fault+0x7b/0x80
->> [...]
->> [245513.382056] Mem-Info:
->> [245513.382634] active_anon:126315487 inactive_anon:1612476 isolated_anon:5
->>                  active_file:60183 inactive_file:245285 isolated_file:0
->>                  unevictable:15657 dirty:286 writeback:1 unstable:0
->>                  slab_reclaimable:75543 slab_unreclaimable:2509111
->>                  mapped:81814 shmem:31764 pagetables:370616 bounce:0
->>                  free:32294031 free_pcp:6233 free_cma:0
->> [245513.386615] Node 0 active_anon:254680388kB inactive_anon:1112760kB active_file:240648kB inactive_file:981168kB unevictable:13368kB isolated(anon):0kB isolated(file):0kB mapped:280240kB dirty:1144kB writeback:0kB shmem:95832kB shmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 81225728kB writeback_tmp:0kB unstable:0kB all_unreclaimable? no
->> [245513.388650] Node 1 active_anon:250583072kB inactive_anon:5337144kB active_file:84kB inactive_file:0kB unevictable:49260kB isolated(anon):20kB isolated(file):0kB mapped:47016kB dirty:0kB writeback:4kB shmem:31224kB shmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 31897600kB writeback_tmp:0kB unstable:0kB all_unreclaimable? no
->>
->> The defrag mode is "madvise" and from the above report it is clear that
->> the THP has been allocated for MADV_HUGEPAGA vma.
->>
->> Andrea has identified that the main source of the problem is
->> __GFP_THISNODE usage:
->>
->> : The problem is that direct compaction combined with the NUMA
->> : __GFP_THISNODE logic in mempolicy.c is telling reclaim to swap very
->> : hard the local node, instead of failing the allocation if there's no
->> : THP available in the local node.
->> :
->> : Such logic was ok until __GFP_THISNODE was added to the THP allocation
->> : path even with MPOL_DEFAULT.
->> :
->> : The idea behind the __GFP_THISNODE addition, is that it is better to
->> : provide local memory in PAGE_SIZE units than to use remote NUMA THP
->> : backed memory. That largely depends on the remote latency though, on
->> : threadrippers for example the overhead is relatively low in my
->> : experience.
->> :
->> : The combination of __GFP_THISNODE and __GFP_DIRECT_RECLAIM results in
->> : extremely slow qemu startup with vfio, if the VM is larger than the
->> : size of one host NUMA node. This is because it will try very hard to
->> : unsuccessfully swapout get_user_pages pinned pages as result of the
->> : __GFP_THISNODE being set, instead of falling back to PAGE_SIZE
->> : allocations and instead of trying to allocate THP on other nodes (it
->> : would be even worse without vfio type1 GUP pins of course, except it'd
->> : be swapping heavily instead).
->>
->> Fix this by removing __GFP_THISNODE handling from alloc_pages_vma where
->> it doesn't belong and move it to alloc_hugepage_direct_gfpmask where we
->> juggle gfp flags for different allocation modes. The rationale is that
->> __GFP_THISNODE is helpful in relaxed defrag modes because falling back
->> to a different node might be more harmful than the benefit of a large page.
->> If the user really requires THP (e.g. by MADV_HUGEPAGE) then the THP has
->> a higher priority than local NUMA placement. The later might be controlled
->> via NUMA policies to be more fine grained.
->>
->> [1] http://lkml.kernel.org/r/20180820032204.9591-1-aarcange@redhat.com
->>
->> Fixes: 5265047ac301 ("mm, thp: really limit transparent hugepage allocation to local node")
->> Reported-by: Stefan Priebe <s.priebe@profihost.ag>
->> Debugged-by: Andrea Arcangeli <aarcange@redhat.com>
->> Signed-off-by: Michal Hocko <mhocko@suse.com>
->> ---
->>  mm/huge_memory.c | 10 +++++-----
->>  mm/mempolicy.c   | 26 --------------------------
->>  2 files changed, 5 insertions(+), 31 deletions(-)
->>
->> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
->> index c3bc7e9c9a2a..a703c23f8bab 100644
->> --- a/mm/huge_memory.c
->> +++ b/mm/huge_memory.c
->> @@ -634,16 +634,16 @@ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
->>  	const bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
->>  
->>  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
->> -		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
->> +		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY | __GFP_THISNODE);
->>  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
->> -		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
->> +		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM | __GFP_THISNODE;
->>  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags))
->>  		return GFP_TRANSHUGE_LIGHT | (vma_madvised ? __GFP_DIRECT_RECLAIM :
->> -							     __GFP_KSWAPD_RECLAIM);
->> +							     __GFP_KSWAPD_RECLAIM | __GFP_THISNODE);
->>  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
->>  		return GFP_TRANSHUGE_LIGHT | (vma_madvised ? __GFP_DIRECT_RECLAIM :
->> -							     0);
->> -	return GFP_TRANSHUGE_LIGHT;
->> +							     __GFP_THISNODE);
->> +	return GFP_TRANSHUGE_LIGHT | __GFP_THISNODE;
->>  }
->>  
->>  /* Caller must hold page table lock. */
->> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
->> index da858f794eb6..9f0800885613 100644
->> --- a/mm/mempolicy.c
->> +++ b/mm/mempolicy.c
->> @@ -2026,32 +2026,6 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
->>  		goto out;
->>  	}
->>  
->> -	if (unlikely(IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) && hugepage)) {
->> -		int hpage_node = node;
->> -
->> -		/*
->> -		 * For hugepage allocation and non-interleave policy which
->> -		 * allows the current node (or other explicitly preferred
->> -		 * node) we only try to allocate from the current/preferred
->> -		 * node and don't fall back to other nodes, as the cost of
->> -		 * remote accesses would likely offset THP benefits.
->> -		 *
->> -		 * If the policy is interleave, or does not allow the current
->> -		 * node in its nodemask, we allocate the standard way.
->> -		 */
->> -		if (pol->mode == MPOL_PREFERRED &&
->> -						!(pol->flags & MPOL_F_LOCAL))
->> -			hpage_node = pol->v.preferred_node;
->> -
->> -		nmask = policy_nodemask(gfp, pol);
->> -		if (!nmask || node_isset(hpage_node, *nmask)) {
->> -			mpol_cond_put(pol);
->> -			page = __alloc_pages_node(hpage_node,
->> -						gfp | __GFP_THISNODE, order);
->> -			goto out;
->> -		}
->> -	}
->> -
->>  	nmask = policy_nodemask(gfp, pol);
->>  	preferred_nid = policy_node(gfp, pol, node);
->>  	page = __alloc_pages_nodemask(gfp, order, preferred_nid, nmask);
->>
+I don't have data on-hand, but anecdotally both ASAN and KASAN have proven
+problematic to enable for environments that don't tolerate the increased
+memory pressure well. This includes,
+(a) Low-memory form factors - Wear, TV, Things, lower-tier phones like Go,
+(c) Connected components like Pixel's visual core [1].
+
+These are both places I'd love to have a low(er) memory footprint option at
+my disposal.
+
+Comment from Evgenii Stepanov <eugenis@google.com>:
+
+Looking at a live Android device under load, slab (according to
+/proc/meminfo) + kernel stack take 8-10% available RAM (~350MB). KASAN's
+overhead of 2x - 3x on top of it is not insignificant.
+
+Not having this overhead enables near-production use - ex. running
+KASAN/KHWASAN kernel on a personal, daily-use device to catch bugs that do
+not reproduce in test configuration. These are the ones that often cost
+the most engineering time to track down.
+
+CPU overhead is bad, but generally tolerable. RAM is critical, in our
+experience. Once it gets low enough, OOM-killer makes your life miserable.
+
+[1] https://www.blog.google/products/pixel/pixel-visual-core-image-processing-and-machine-learning-pixel-2/
+
+
+====== Technical details
+
+KHWASAN is implemented in a very similar way to KASAN. This patchset
+essentially does the following:
+
+1. TCR_TBI1 is set to enable Top Byte Ignore.
+
+2. Shadow memory is used (with a different scale, 1:16, so each shadow
+   byte corresponds to 16 bytes of kernel memory) to store memory tags.
+
+3. All slab objects are aligned to shadow scale, which is 16 bytes.
+
+4. All pointers returned from the slab allocator are tagged with a random
+   tag and the corresponding shadow memory is poisoned with the same value.
+
+5. Compiler instrumentation is used to insert tag checks. Either by
+   calling callbacks or by inlining them (CONFIG_KASAN_OUTLINE and
+   CONFIG_KASAN_INLINE flags are reused).
+
+6. When a tag mismatch is detected in callback instrumentation mode
+   KHWASAN simply prints a bug report. In case of inline instrumentation,
+   clang inserts a brk instruction, and KHWASAN has it's own brk handler,
+   which reports the bug.
+
+7. The memory in between slab objects is marked with a reserved tag, and
+   acts as a redzone.
+
+8. When a slab object is freed it's marked with a reserved tag.
+
+Bug detection is imprecise for two reasons:
+
+1. We won't catch some small out-of-bounds accesses, that fall into the
+   same shadow cell, as the last byte of a slab object.
+
+2. We only have 1 byte to store tags, which means we have a 1/256
+   probability of a tag match for an incorrect access (actually even
+   slightly less due to reserved tag values).
+
+Despite that there's a particular type of bugs that KHWASAN can detect
+compared to KASAN: use-after-free after the object has been allocated by
+someone else.
+
+
+====== Testing
+
+Some kernel developers voiced a concern that changing the top byte of
+kernel pointers may lead to subtle bugs that are difficult to discover.
+To address this concern deliberate testing has been performed.
+
+It doesn't seem feasible to do some kind of static checking to find
+potential issues with pointer tagging, so a dynamic approach was taken.
+All pointer comparisons/subtractions have been instrumented in an LLVM
+compiler pass and a kernel module that would print a bug report whenever
+two pointers with different tags are being compared/subtracted (ignoring
+comparisons with NULL pointers and with pointers obtained by casting an
+error code to a pointer type) has been used. Then the kernel has been
+booted in QEMU and on an Odroid C2 board and syzkaller has been run.
+
+This yielded the following results.
+
+The two places that look interesting are:
+
+is_vmalloc_addr in include/linux/mm.h
+is_kernel_rodata in mm/util.c
+
+Here we compare a pointer with some fixed untagged values to make sure
+that the pointer lies in a particular part of the kernel address space.
+Since KWHASAN doesn't add tags to pointers that belong to rodata or
+vmalloc regions, this should work as is. To make sure debug checks to
+those two functions that check that the result doesn't change whether
+we operate on pointers with or without untagging has been added.
+
+A few other cases that don't look that interesting:
+
+Comparing pointers to achieve unique sorting order of pointee objects
+(e.g. sorting locks addresses before performing a double lock):
+
+tty_ldisc_lock_pair_timeout in drivers/tty/tty_ldisc.c
+pipe_double_lock in fs/pipe.c
+unix_state_double_lock in net/unix/af_unix.c
+lock_two_nondirectories in fs/inode.c
+mutex_lock_double in kernel/events/core.c
+
+ep_cmp_ffd in fs/eventpoll.c
+fsnotify_compare_groups fs/notify/mark.c
+
+Nothing needs to be done here, since the tags embedded into pointers
+don't change, so the sorting order would still be unique.
+
+Checks that a pointer belongs to some particular allocation:
+
+is_sibling_entry in lib/radix-tree.c
+object_is_on_stack in include/linux/sched/task_stack.h
+
+Nothing needs to be done here either, since two pointers can only belong
+to the same allocation if they have the same tag.
+
+Overall, since the kernel boots and works, there are no critical bugs.
+As for the rest, the traditional kernel testing way (use until fails) is
+the only one that looks feasible.
+
+Another point here is that KWHASAN is available under a separate config
+option that needs to be deliberately enabled. Even though it might be used
+in a "near-production" environment to find bugs that are not found during
+fuzzing or running tests, it is still a debug tool.
+
+
+====== Benchmarks
+
+The following numbers were collected on Odroid C2 board. Both KASAN and
+KHWASAN were used in inline instrumentation mode.
+
+Boot time [1]:
+* ~1.7 sec for clean kernel
+* ~5.0 sec for KASAN
+* ~5.0 sec for KHWASAN
+
+Network performance [2]:
+* 8.33 Gbits/sec for clean kernel
+* 3.17 Gbits/sec for KASAN
+* 2.85 Gbits/sec for KHWASAN
+
+Slab memory usage after boot [3]:
+* ~40 kb for clean kernel
+* ~105 kb (~260% overhead) for KASAN
+* ~47 kb (~20% overhead) for KHWASAN
+
+KASAN memory overhead consists of three main parts:
+1. Increased slab memory usage due to redzones.
+2. Shadow memory (the whole reserved once during boot).
+3. Quaratine (grows gradually until some preset limit; the more the limit,
+   the more the chance to detect a use-after-free).
+
+Comparing KWHASAN vs KASAN for each of these points:
+1. 20% vs 260% overhead.
+2. 1/16th vs 1/8th of physical memory.
+3. KHWASAN doesn't require quarantine.
+
+[1] Time before the ext4 driver is initialized.
+[2] Measured as `iperf -s & iperf -c 127.0.0.1 -t 30`.
+[3] Measured as `cat /proc/meminfo | grep Slab`.
+
+
+====== Some notes
+
+A few notes:
+
+1. The patchset can be found here:
+   https://github.com/xairy/kasan-prototype/tree/khwasan
+
+2. Building requires a recent LLVM version (r330044 or later).
+
+3. Stack instrumentation is not supported yet and will be added later.
+
+
+====== Changes
+
+Changes in v6:
+- Rebased onto 050cdc6c (4.19-rc1+).
+- Added notes regarding patchset testing into the cover letter.
+
+Changes in v5:
+- Rebased onto 1ffaddd029 (4.18-rc8).
+- Preassign tags for objects from caches with constructors and
+  SLAB_TYPESAFE_BY_RCU caches.
+- Fix SLAB allocator support by untagging page->s_mem in
+  kasan_poison_slab().
+- Performed dynamic testing to find potential places where pointer tagging
+  might result in bugs [1].
+- Clarified and fixed memory usage benchmarks in the cover letter.
+- Added a rationale for having KHWASAN to the cover letter.
+
+Changes in v4:
+- Fixed SPDX comment style in mm/kasan/kasan.h.
+- Fixed mm/kasan/kasan.h changes being included in a wrong patch.
+- Swapped "khwasan, arm64: fix up fault handling logic" and "khwasan: add
+  tag related helper functions" patches order.
+- Rebased onto 6f0d349d (4.18-rc2+).
+
+Changes in v3:
+- Minor documentation fixes.
+- Fixed CFLAGS variable name in KASAN makefile.
+- Added a "SPDX-License-Identifier: GPL-2.0" line to all source files
+  under mm/kasan.
+- Rebased onto 81e97f013 (4.18-rc1+).
+
+Changes in v2:
+- Changed kmalloc_large_node_hook to return tagged pointer instead of
+  using an output argument.
+- Fix checking whether -fsanitize=hwaddress is supported by the compiler.
+- Removed duplication of -fno-builtin for KASAN and KHWASAN.
+- Removed {} block for one line for_each_possible_cpu loop.
+- Made set_track() static inline as it is used only in common.c.
+- Moved optimal_redzone() to common.c.
+- Fixed using tagged pointer for shadow calculation in
+  kasan_unpoison_shadow().
+- Restored setting cache->align in kasan_cache_create(), which was
+  accidentally lost.
+- Simplified __kasan_slab_free(), kasan_alloc_pages() and kasan_kmalloc().
+- Removed tagging from kasan_kmalloc_large().
+- Added page_kasan_tag_reset() to kasan_poison_slab() and removed
+  !PageSlab() check from page_to_virt.
+- Reset pointer tag in _virt_addr_is_linear.
+- Set page tag for each page when multiple pages are allocated or freed.
+- Added a comment as to why we ignore cma allocated pages.
+
+Changes in v1:
+- Rebased onto 4.17-rc4.
+- Updated benchmarking stats.
+- Documented compiler version requirements, memory usage and slowdown.
+- Dropped kvm patches, as clang + arm64 + kvm is completely broken [1].
+
+Changes in RFC v3:
+- Renamed CONFIG_KASAN_CLASSIC and CONFIG_KASAN_TAGS to
+  CONFIG_KASAN_GENERIC and CONFIG_KASAN_HW respectively.
+- Switch to -fsanitize=kernel-hwaddress instead of -fsanitize=hwaddress.
+- Removed unnecessary excessive shadow initialization.
+- Removed khwasan_enabled flag (ita??s not needed since KHWASAN is
+  initialized before any slab caches are used).
+- Split out kasan_report.c and khwasan_report.c from report.c.
+- Moved more common KASAN and KHWASAN functions to common.c.
+- Added tagging to pagealloc.
+- Rebased onto 4.17-rc1.
+- Temporarily dropped patch that adds kvm support (arm64 + kvm + clang
+  combo is broken right now [2]).
+
+Changes in RFC v2:
+- Removed explicit casts to u8 * for kasan_mem_to_shadow() calls.
+- Introduced KASAN_TCR_FLAGS for setting the TCR_TBI1 flag.
+- Added a comment regarding the non-atomic RMW sequence in
+  khwasan_random_tag().
+- Made all tag related functions accept const void *.
+- Untagged pointers in __kimg_to_phys, which is used by virt_to_phys.
+- Untagged pointers in show_ptr in fault handling logic.
+- Untagged pointers passed to KVM.
+- Added two reserved tag values: 0xFF and 0xFE.
+- Used the reserved tag 0xFF to disable validity checking (to resolve the
+  issue with pointer tag being lost after page_address + kmap usage).
+- Used the reserved tag 0xFE to mark redzones and freed objects.
+- Added mnemonics for esr manipulation in KHWASAN brk handler.
+- Added a comment about the -recover flag.
+- Some minor cleanups and fixes.
+- Rebased onto 3215b9d5 (4.16-rc6+).
+- Tested on real hardware (Odroid C2 board).
+- Added better benchmarks.
+
+[1] https://lkml.org/lkml/2018/7/18/765
+[2] https://lkml.org/lkml/2018/4/19/775
+
+Andrey Konovalov (18):
+  khwasan, mm: change kasan hooks signatures
+  khwasan: move common kasan and khwasan code to common.c
+  khwasan: add CONFIG_KASAN_GENERIC and CONFIG_KASAN_HW
+  khwasan, arm64: adjust shadow size for CONFIG_KASAN_HW
+  khwasan: initialize shadow to 0xff
+  khwasan, arm64: untag virt address in __kimg_to_phys and
+    _virt_addr_is_linear
+  khwasan: add tag related helper functions
+  khwasan: preassign tags to objects with ctors or SLAB_TYPESAFE_BY_RCU
+  khwasan, arm64: fix up fault handling logic
+  khwasan, arm64: enable top byte ignore for the kernel
+  khwasan, mm: perform untagged pointers comparison in krealloc
+  khwasan: split out kasan_report.c from report.c
+  khwasan: add bug reporting routines
+  khwasan: add hooks implementation
+  khwasan, arm64: add brk handler for inline instrumentation
+  khwasan, mm, arm64: tag non slab memory allocated via pagealloc
+  khwasan: update kasan documentation
+  kasan: add SPDX-License-Identifier mark to source files
+
+ Documentation/dev-tools/kasan.rst      | 213 ++++----
+ arch/arm64/Kconfig                     |   1 +
+ arch/arm64/Makefile                    |   2 +-
+ arch/arm64/include/asm/brk-imm.h       |   2 +
+ arch/arm64/include/asm/memory.h        |  41 +-
+ arch/arm64/include/asm/pgtable-hwdef.h |   1 +
+ arch/arm64/kernel/traps.c              |  69 ++-
+ arch/arm64/mm/fault.c                  |   3 +
+ arch/arm64/mm/kasan_init.c             |  18 +-
+ arch/arm64/mm/proc.S                   |   8 +-
+ include/linux/compiler-clang.h         |   3 +-
+ include/linux/compiler-gcc.h           |   4 +
+ include/linux/compiler.h               |   3 +-
+ include/linux/kasan.h                  |  90 +++-
+ include/linux/mm.h                     |  29 ++
+ include/linux/page-flags-layout.h      |  10 +
+ lib/Kconfig.kasan                      |  77 ++-
+ mm/cma.c                               |  11 +
+ mm/kasan/Makefile                      |   9 +-
+ mm/kasan/common.c                      | 663 +++++++++++++++++++++++++
+ mm/kasan/kasan.c                       | 565 +--------------------
+ mm/kasan/kasan.h                       |  85 +++-
+ mm/kasan/kasan_init.c                  |   1 +
+ mm/kasan/kasan_report.c                | 156 ++++++
+ mm/kasan/khwasan.c                     | 181 +++++++
+ mm/kasan/khwasan_report.c              |  61 +++
+ mm/kasan/quarantine.c                  |   1 +
+ mm/kasan/report.c                      | 272 +++-------
+ mm/page_alloc.c                        |   1 +
+ mm/slab.c                              |  18 +-
+ mm/slab.h                              |   2 +-
+ mm/slab_common.c                       |   6 +-
+ mm/slub.c                              |  21 +-
+ scripts/Makefile.kasan                 |  27 +-
+ 34 files changed, 1734 insertions(+), 920 deletions(-)
+ create mode 100644 mm/kasan/common.c
+ create mode 100644 mm/kasan/kasan_report.c
+ create mode 100644 mm/kasan/khwasan.c
+ create mode 100644 mm/kasan/khwasan_report.c
+
+-- 
+2.19.0.rc0.228.g281dcd1b4d0-goog
