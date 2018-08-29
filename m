@@ -1,132 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 496186B4CE6
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 13:38:01 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id r131-v6so4987980oie.14
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 10:38:01 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id b188-v6si2999924oif.246.2018.08.29.10.37.59
-        for <linux-mm@kvack.org>;
-        Wed, 29 Aug 2018 10:37:59 -0700 (PDT)
-Subject: Re: A crash on ARM64 in move_freepages_block due to uninitialized
- pages in reserved memory
-References: <alpine.LRH.2.02.1808171527220.2385@file01.intranet.prod.int.rdu2.redhat.com>
- <20180821104418.GA16611@dhcp22.suse.cz>
- <e35b7c14-c7ea-412d-2763-c961b74576f3@arm.com>
- <alpine.LRH.2.02.1808220808050.17906@file01.intranet.prod.int.rdu2.redhat.com>
- <c823eace-8710-9bf5-6e76-d01b139c0859@arm.com>
- <20180824114158.GJ29735@dhcp22.suse.cz>
-From: James Morse <james.morse@arm.com>
-Message-ID: <541193a6-2bce-f042-5bb2-88913d5f1047@arm.com>
-Date: Wed, 29 Aug 2018 18:37:55 +0100
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C5F0F6B4CF5
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 13:54:14 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id m21-v6so4922458oic.7
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 10:54:14 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 13-v6si3239073oii.216.2018.08.29.10.54.13
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 Aug 2018 10:54:13 -0700 (PDT)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w7THiPSm130788
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 13:54:12 -0400
+Received: from e16.ny.us.ibm.com (e16.ny.us.ibm.com [129.33.205.206])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2m5ynahggv-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 13:54:12 -0400
+Received: from localhost
+	by e16.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 29 Aug 2018 13:54:11 -0400
+Date: Wed, 29 Aug 2018 10:54:05 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/2] fs/dcache: Make negative dentries easier to be
+ reclaimed
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1535476780-5773-1-git-send-email-longman@redhat.com>
+ <1535476780-5773-3-git-send-email-longman@redhat.com>
+ <20180828160150.9a45ee293c92708edb511eab@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20180824114158.GJ29735@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180828160150.9a45ee293c92708edb511eab@linux-foundation.org>
+Message-Id: <20180829175405.GA17337@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Pavel Tatashin <Pavel.Tatashin@microsoft.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Waiman Long <longman@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>
 
-Hi Michal,
-
-(CC: +Ard)
-
-On 24/08/18 12:41, Michal Hocko wrote:
-> On Thu 23-08-18 15:06:08, James Morse wrote:
-> [...]
->> My best-guess is that pfn_valid_within() shouldn't be optimised out if
-> ARCH_HAS_HOLES_MEMORYMODEL, even if HOLES_IN_ZONE isn't set.
->>
->> Does something like this solve the problem?:
->> ============================%<============================
->> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->> index 32699b2dc52a..5e27095a15f4 100644
->> --- a/include/linux/mmzone.h
->> +++ b/include/linux/mmzone.h
->> @@ -1295,7 +1295,7 @@ void memory_present(int nid, unsigned long start, unsigned
->> long end);
->>   * pfn_valid_within() should be used in this case; we optimise this away
->>   * when we have no holes within a MAX_ORDER_NR_PAGES block.
->>   */
->> -#ifdef CONFIG_HOLES_IN_ZONE
->> +#if defined(CONFIG_HOLES_IN_ZONE) || defined(CONFIG_ARCH_HAS_HOLES_MEMORYMODEL)
->>  #define pfn_valid_within(pfn) pfn_valid(pfn)
->>  #else
->>  #define pfn_valid_within(pfn) (1)
->> ============================%<============================
-
-After plenty of greping, git-archaeology and help from others, I think I've a
-clearer picture of what these options do.
-
-
-Please correct me if I've explained something wrong here:
-
-> This is the first time I hear about CONFIG_ARCH_HAS_HOLES_MEMORYMODEL.
-
-The comment in include/linux/mmzone.h describes this as relevant when parts the
-memmap have been free()d. This would happen on systems where memory is smaller
-than a sparsemem-section, and the extra struct pages are expensive.
-pfn_valid() on these systems returns true for the whole sparsemem-section, so an
-extra memmap_valid_within() check is needed.
-
-This is independent of nomap, and isn't relevant on arm64 as our pfn_valid()
-always tests the page in memblock due to nomap pages, which can occur anywhere.
-(I will propose a patch removing ARCH_HAS_HOLES_MEMORYMODEL for arm64.)
-
-
-HOLES_IN_ZONE is similar, if some memory is smaller than MAX_ORDER_NR_PAGES,
-possibly due to nomap holes.
-
-6d526ee26ccd only enabled it for NUMA systems on arm64, because the NUMA code
-was first to fall foul of this, but there is nothing NUMA specific about nomap
-holes within a MAX_ORDER_NR_PAGES region.
-
-I'm convinced arm64 should always enable HOLES_IN_ZONE because nomap pages can
-occur anywhere. I'll post a fix.
-
-
-Is it valid to have HOLES_IN_ZONE and !HAVE_ARCH_PFN_VALID?
-This would mean pfn_valid_within() is necessary, but pfn_valid() is only looking
-at sparse-sections. It looks like ia64 and mips:CAVIUM_OCTEON_SOC are both
-configured like this...
-
-
-> Why it doesn't imply CONFIG_HOLES_IN_ZONE?
-
-I guess the size values for sparsemem-section and MAX_ORDER_NR_PAGES may support
-HAS_HOLES_MEMORYMODEL but not HOLES_IN_ZONE. e.g. if only 128Mb of memory
-existed in a 256Mb sparsemem-section, but the 4Mb MAX_ORDER_NR_PAGES are always
-present if any of their pages are present.
-
-
->>> I analyzed the assembler:
->>> PageBuddy in move_freepages returns false
->>> Then we call PageLRU, the macro calls PF_HEAD which is compound_page()
->>> compound_page reads page->compound_head, it is 0xffffffffffffffff, so it
->>> resturns 0xfffffffffffffffe - and accessing this address causes crash
->>
->> Thanks!
->> That wasn't straightforward to work out without the vmlinux.
->>
->> Because you see all-ones, even in KVM, it looks like the struct page is being
->> initialized like that deliberately... I haven't found where this might be happening.
+On Tue, Aug 28, 2018 at 04:01:50PM -0700, Andrew Morton wrote:
 > 
-> It should be
+> Another pet peeve ;)
 > 
-> sparse_add_one_section
-> #ifdef CONFIG_DEBUG_VM
-> 	/*
-> 	 * Poison uninitialized struct pages in order to catch invalid flags
-> 	 * combinations.
-> 	 */
-> 	memset(memmap, PAGE_POISON_PATTERN, sizeof(struct page) * PAGES_PER_SECTION);
-> #endif
+> On Tue, 28 Aug 2018 13:19:40 -0400 Waiman Long <longman@redhat.com> wrote:
+> 
+> >  /**
+> > + * list_lru_add_head: add an element to the lru list's head
+> > + * @list_lru: the lru pointer
+> > + * @item: the item to be added.
+> > + *
+> > + * This is similar to list_lru_add(). The only difference is the location
+> > + * where the new item will be added. The list_lru_add() function will add
+> 
+> People often use the term "the foo() function".  I don't know why -
+> just say "foo()"!
 
-Aha, thanks. (I expected KVMs uninitialized memory to always be zero).
+For whatever it is worth...
 
+I tend to use "The foo() function ..." instead of "foo() ..." in order
+to properly capitalize the first word of the sentence.  So I might say
+"The call_rcu() function enqueues an RCU callback." rather than something
+like "call_rcu() enqueues an RCU callback."  Or I might use some other
+trick to keep "call_rcu()" from being the first word of the sentence.
+But if the end of the previous sentence introduced call_rcu(), you
+usually want the next sentence's first use of "call_rcu()" to be very
+early in the sentence, because otherwise the flow will seem choppy.
 
-Thanks!
+And no, I have no idea what I would do if I were writing in German,
+where nouns are capitalized, given that function names tend to be used
+as nouns.  Probably I would get yelled at a lot for capitalizing my
+function names.  ;-)
 
-James
+							Thanx, Paul
