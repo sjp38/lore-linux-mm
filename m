@@ -1,97 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 55F336B4CC2
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 13:24:56 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id v52-v6so5260301qtc.3
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 10:24:56 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id b11-v6si2675729qtr.367.2018.08.29.10.24.54
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Aug 2018 10:24:55 -0700 (PDT)
-Subject: Re: [PATCH v6 1/2] mm: migration: fix migration of huge PMD shared
- pages
-References: <20180823205917.16297-1-mike.kravetz@oracle.com>
- <20180823205917.16297-2-mike.kravetz@oracle.com>
- <20180824084157.GD29735@dhcp22.suse.cz>
- <6063f215-a5c8-2f0c-465a-2c515ddc952d@oracle.com>
- <20180827074645.GB21556@dhcp22.suse.cz> <20180827134633.GB3930@redhat.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <9209043d-3240-105b-72a3-b4cd30f1b1f1@oracle.com>
-Date: Wed, 29 Aug 2018 10:24:44 -0700
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 496186B4CE6
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 13:38:01 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id r131-v6so4987980oie.14
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 10:38:01 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id b188-v6si2999924oif.246.2018.08.29.10.37.59
+        for <linux-mm@kvack.org>;
+        Wed, 29 Aug 2018 10:37:59 -0700 (PDT)
+Subject: Re: A crash on ARM64 in move_freepages_block due to uninitialized
+ pages in reserved memory
+References: <alpine.LRH.2.02.1808171527220.2385@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180821104418.GA16611@dhcp22.suse.cz>
+ <e35b7c14-c7ea-412d-2763-c961b74576f3@arm.com>
+ <alpine.LRH.2.02.1808220808050.17906@file01.intranet.prod.int.rdu2.redhat.com>
+ <c823eace-8710-9bf5-6e76-d01b139c0859@arm.com>
+ <20180824114158.GJ29735@dhcp22.suse.cz>
+From: James Morse <james.morse@arm.com>
+Message-ID: <541193a6-2bce-f042-5bb2-88913d5f1047@arm.com>
+Date: Wed, 29 Aug 2018 18:37:55 +0100
 MIME-Version: 1.0
-In-Reply-To: <20180827134633.GB3930@redhat.com>
+In-Reply-To: <20180824114158.GJ29735@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Pavel Tatashin <Pavel.Tatashin@microsoft.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-On 08/27/2018 06:46 AM, Jerome Glisse wrote:
-> On Mon, Aug 27, 2018 at 09:46:45AM +0200, Michal Hocko wrote:
->> On Fri 24-08-18 11:08:24, Mike Kravetz wrote:
->>> Here is an updated patch which does as you suggest above.
->> [...]
->>> @@ -1409,6 +1419,32 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->>>  		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
->>>  		address = pvmw.address;
->>>  
->>> +		if (PageHuge(page)) {
->>> +			if (huge_pmd_unshare(mm, &address, pvmw.pte)) {
->>> +				/*
->>> +				 * huge_pmd_unshare unmapped an entire PMD
->>> +				 * page.  There is no way of knowing exactly
->>> +				 * which PMDs may be cached for this mm, so
->>> +				 * we must flush them all.  start/end were
->>> +				 * already adjusted above to cover this range.
->>> +				 */
->>> +				flush_cache_range(vma, start, end);
->>> +				flush_tlb_range(vma, start, end);
->>> +				mmu_notifier_invalidate_range(mm, start, end);
->>> +
->>> +				/*
->>> +				 * The ref count of the PMD page was dropped
->>> +				 * which is part of the way map counting
->>> +				 * is done for shared PMDs.  Return 'true'
->>> +				 * here.  When there is no other sharing,
->>> +				 * huge_pmd_unshare returns false and we will
->>> +				 * unmap the actual page and drop map count
->>> +				 * to zero.
->>> +				 */
->>> +				page_vma_mapped_walk_done(&pvmw);
->>> +				break;
->>> +			}
+Hi Michal,
+
+(CC: +Ard)
+
+On 24/08/18 12:41, Michal Hocko wrote:
+> On Thu 23-08-18 15:06:08, James Morse wrote:
+> [...]
+>> My best-guess is that pfn_valid_within() shouldn't be optimised out if
+> ARCH_HAS_HOLES_MEMORYMODEL, even if HOLES_IN_ZONE isn't set.
 >>
->> This still calls into notifier while holding the ptl lock. Either I am
->> missing something or the invalidation is broken in this loop (not also
->> for other invalidations).
+>> Does something like this solve the problem?:
+>> ============================%<============================
+>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+>> index 32699b2dc52a..5e27095a15f4 100644
+>> --- a/include/linux/mmzone.h
+>> +++ b/include/linux/mmzone.h
+>> @@ -1295,7 +1295,7 @@ void memory_present(int nid, unsigned long start, unsigned
+>> long end);
+>>   * pfn_valid_within() should be used in this case; we optimise this away
+>>   * when we have no holes within a MAX_ORDER_NR_PAGES block.
+>>   */
+>> -#ifdef CONFIG_HOLES_IN_ZONE
+>> +#if defined(CONFIG_HOLES_IN_ZONE) || defined(CONFIG_ARCH_HAS_HOLES_MEMORYMODEL)
+>>  #define pfn_valid_within(pfn) pfn_valid(pfn)
+>>  #else
+>>  #define pfn_valid_within(pfn) (1)
+>> ============================%<============================
+
+After plenty of greping, git-archaeology and help from others, I think I've a
+clearer picture of what these options do.
+
+
+Please correct me if I've explained something wrong here:
+
+> This is the first time I hear about CONFIG_ARCH_HAS_HOLES_MEMORYMODEL.
+
+The comment in include/linux/mmzone.h describes this as relevant when parts the
+memmap have been free()d. This would happen on systems where memory is smaller
+than a sparsemem-section, and the extra struct pages are expensive.
+pfn_valid() on these systems returns true for the whole sparsemem-section, so an
+extra memmap_valid_within() check is needed.
+
+This is independent of nomap, and isn't relevant on arm64 as our pfn_valid()
+always tests the page in memblock due to nomap pages, which can occur anywhere.
+(I will propose a patch removing ARCH_HAS_HOLES_MEMORYMODEL for arm64.)
+
+
+HOLES_IN_ZONE is similar, if some memory is smaller than MAX_ORDER_NR_PAGES,
+possibly due to nomap holes.
+
+6d526ee26ccd only enabled it for NUMA systems on arm64, because the NUMA code
+was first to fall foul of this, but there is nothing NUMA specific about nomap
+holes within a MAX_ORDER_NR_PAGES region.
+
+I'm convinced arm64 should always enable HOLES_IN_ZONE because nomap pages can
+occur anywhere. I'll post a fix.
+
+
+Is it valid to have HOLES_IN_ZONE and !HAVE_ARCH_PFN_VALID?
+This would mean pfn_valid_within() is necessary, but pfn_valid() is only looking
+at sparse-sections. It looks like ia64 and mips:CAVIUM_OCTEON_SOC are both
+configured like this...
+
+
+> Why it doesn't imply CONFIG_HOLES_IN_ZONE?
+
+I guess the size values for sparsemem-section and MAX_ORDER_NR_PAGES may support
+HAS_HOLES_MEMORYMODEL but not HOLES_IN_ZONE. e.g. if only 128Mb of memory
+existed in a 256Mb sparsemem-section, but the 4Mb MAX_ORDER_NR_PAGES are always
+present if any of their pages are present.
+
+
+>>> I analyzed the assembler:
+>>> PageBuddy in move_freepages returns false
+>>> Then we call PageLRU, the macro calls PF_HEAD which is compound_page()
+>>> compound_page reads page->compound_head, it is 0xffffffffffffffff, so it
+>>> resturns 0xfffffffffffffffe - and accessing this address causes crash
+>>
+>> Thanks!
+>> That wasn't straightforward to work out without the vmlinux.
+>>
+>> Because you see all-ones, even in KVM, it looks like the struct page is being
+>> initialized like that deliberately... I haven't found where this might be happening.
 > 
-> mmu_notifier_invalidate_range() is done with pt lock held only the start
-> and end versions need to happen outside pt lock.
+> It should be
+> 
+> sparse_add_one_section
+> #ifdef CONFIG_DEBUG_VM
+> 	/*
+> 	 * Poison uninitialized struct pages in order to catch invalid flags
+> 	 * combinations.
+> 	 */
+> 	memset(memmap, PAGE_POISON_PATTERN, sizeof(struct page) * PAGES_PER_SECTION);
+> #endif
 
-Hi JA(C)rA'me (and anyone else having good understanding of mmu notifier API),
+Aha, thanks. (I expected KVMs uninitialized memory to always be zero).
 
-Michal and I have been looking at backports to stable releases.  If you look
-at the v4.4 version of try_to_unmap_one(), it does not use the
-mmu_notifier_invalidate_range_start/end interfaces. Rather, it uses the
-mmu_notifier_invalidate_page(), passing in the address of the page it
-unmapped.  This is done after releasing the ptl lock.  I'm not even sure if
-this works for huge pages, as it appears some THP supporting code was added
-to try_to_unmap_one() after v4.4.
 
-But, we were wondering what mmu notifier interface to use in the case where
-try_to_unmap_one() unmaps a shared pmd huge page as addressed in the patch
-above.  In this case, a PUD sized area is effectively unmapped.  In the
-code/patch above we have the invalidate range (start and end as well) take
-the PUD sized area into account.
+Thanks!
 
-What would be the best mmu notifier interface to use where there are no
-start/end calls?
-Or, is the best solution to add the start/end calls as is done in later
-versions of the code?  If that is the suggestion, has there been any change
-in invalidate start/end semantics that we should take into account?
-
--- 
-Mike Kravetz
+James
