@@ -1,134 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 496006B4CD0
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 13:18:01 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id b5-v6so5252150qtk.4
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 10:18:01 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id k6-v6si1369104qke.96.2018.08.29.10.18.00
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 55F336B4CC2
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 13:24:56 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id v52-v6so5260301qtc.3
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 10:24:56 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id b11-v6si2675729qtr.367.2018.08.29.10.24.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Aug 2018 10:18:00 -0700 (PDT)
-From: jglisse@redhat.com
-Subject: [PATCH 4/7] mm/hmm: properly handle migration pmd v2
-Date: Wed, 29 Aug 2018 13:17:49 -0400
-Message-Id: <20180829171749.9365-1-jglisse@redhat.com>
+        Wed, 29 Aug 2018 10:24:55 -0700 (PDT)
+Subject: Re: [PATCH v6 1/2] mm: migration: fix migration of huge PMD shared
+ pages
+References: <20180823205917.16297-1-mike.kravetz@oracle.com>
+ <20180823205917.16297-2-mike.kravetz@oracle.com>
+ <20180824084157.GD29735@dhcp22.suse.cz>
+ <6063f215-a5c8-2f0c-465a-2c515ddc952d@oracle.com>
+ <20180827074645.GB21556@dhcp22.suse.cz> <20180827134633.GB3930@redhat.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <9209043d-3240-105b-72a3-b4cd30f1b1f1@oracle.com>
+Date: Wed, 29 Aug 2018 10:24:44 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-In-Reply-To: <20180824192549.30844-5-jglisse@redhat.com>
+In-Reply-To: <20180827134633.GB3930@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Michal Hocko <mhocko@kernel.org>, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>
+To: Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
 
-From: JA(C)rA'me Glisse <jglisse@redhat.com>
+On 08/27/2018 06:46 AM, Jerome Glisse wrote:
+> On Mon, Aug 27, 2018 at 09:46:45AM +0200, Michal Hocko wrote:
+>> On Fri 24-08-18 11:08:24, Mike Kravetz wrote:
+>>> Here is an updated patch which does as you suggest above.
+>> [...]
+>>> @@ -1409,6 +1419,32 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>>>  		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
+>>>  		address = pvmw.address;
+>>>  
+>>> +		if (PageHuge(page)) {
+>>> +			if (huge_pmd_unshare(mm, &address, pvmw.pte)) {
+>>> +				/*
+>>> +				 * huge_pmd_unshare unmapped an entire PMD
+>>> +				 * page.  There is no way of knowing exactly
+>>> +				 * which PMDs may be cached for this mm, so
+>>> +				 * we must flush them all.  start/end were
+>>> +				 * already adjusted above to cover this range.
+>>> +				 */
+>>> +				flush_cache_range(vma, start, end);
+>>> +				flush_tlb_range(vma, start, end);
+>>> +				mmu_notifier_invalidate_range(mm, start, end);
+>>> +
+>>> +				/*
+>>> +				 * The ref count of the PMD page was dropped
+>>> +				 * which is part of the way map counting
+>>> +				 * is done for shared PMDs.  Return 'true'
+>>> +				 * here.  When there is no other sharing,
+>>> +				 * huge_pmd_unshare returns false and we will
+>>> +				 * unmap the actual page and drop map count
+>>> +				 * to zero.
+>>> +				 */
+>>> +				page_vma_mapped_walk_done(&pvmw);
+>>> +				break;
+>>> +			}
+>>
+>> This still calls into notifier while holding the ptl lock. Either I am
+>> missing something or the invalidation is broken in this loop (not also
+>> for other invalidations).
+> 
+> mmu_notifier_invalidate_range() is done with pt lock held only the start
+> and end versions need to happen outside pt lock.
 
-Before this patch migration pmd entry (!pmd_present()) would have
-been treated as a bad entry (pmd_bad() returns true on migration
-pmd entry). The outcome was that device driver would believe that
-the range covered by the pmd was bad and would either SIGBUS or
-simply kill all the device's threads (each device driver decide
-how to react when the device tries to access poisonnous or invalid
-range of memory).
+Hi JA(C)rA'me (and anyone else having good understanding of mmu notifier API),
 
-This patch explicitly handle the case of migration pmd entry which
-are non present pmd entry and either wait for the migration to
-finish or report empty range (when device is just trying to pre-
-fill a range of virtual address and thus do not want to wait or
-trigger page fault).
+Michal and I have been looking at backports to stable releases.  If you look
+at the v4.4 version of try_to_unmap_one(), it does not use the
+mmu_notifier_invalidate_range_start/end interfaces. Rather, it uses the
+mmu_notifier_invalidate_page(), passing in the address of the page it
+unmapped.  This is done after releasing the ptl lock.  I'm not even sure if
+this works for huge pages, as it appears some THP supporting code was added
+to try_to_unmap_one() after v4.4.
 
-Changed since v1:
-  - use is_pmd_migration_entry() instead of open coding the
-    equivalent.
+But, we were wondering what mmu notifier interface to use in the case where
+try_to_unmap_one() unmaps a shared pmd huge page as addressed in the patch
+above.  In this case, a PUD sized area is effectively unmapped.  In the
+code/patch above we have the invalidate range (start and end as well) take
+the PUD sized area into account.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Ralph Campbell <rcampbell@nvidia.com>
-Cc: John Hubbard <jhubbard@nvidia.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- mm/hmm.c | 42 ++++++++++++++++++++++++++++++++++++------
- 1 file changed, 36 insertions(+), 6 deletions(-)
+What would be the best mmu notifier interface to use where there are no
+start/end calls?
+Or, is the best solution to add the start/end calls as is done in later
+versions of the code?  If that is the suggestion, has there been any change
+in invalidate start/end semantics that we should take into account?
 
-diff --git a/mm/hmm.c b/mm/hmm.c
-index a16678d08127..fd3d19d98070 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -577,22 +577,44 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
- {
- 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
- 	struct hmm_range *range = hmm_vma_walk->range;
-+	struct vm_area_struct *vma = walk->vma;
- 	uint64_t *pfns = range->pfns;
- 	unsigned long addr = start, i;
- 	pte_t *ptep;
-+	pmd_t pmd;
- 
--	i = (addr - range->start) >> PAGE_SHIFT;
- 
- again:
--	if (pmd_none(*pmdp))
-+	pmd = READ_ONCE(*pmdp);
-+	if (pmd_none(pmd))
- 		return hmm_vma_walk_hole(start, end, walk);
- 
--	if (pmd_huge(*pmdp) && (range->vma->vm_flags & VM_HUGETLB))
-+	if (pmd_huge(pmd) && (range->vma->vm_flags & VM_HUGETLB))
- 		return hmm_pfns_bad(start, end, walk);
- 
--	if (pmd_devmap(*pmdp) || pmd_trans_huge(*pmdp)) {
--		pmd_t pmd;
-+	if (is_pmd_migration_entry(pmd)) {
-+		swp_entry_t entry = pmd_to_swp_entry(pmd);
-+
-+		bool fault, write_fault;
-+		unsigned long npages;
-+		uint64_t *pfns;
-+
-+		i = (addr - range->start) >> PAGE_SHIFT;
-+		npages = (end - addr) >> PAGE_SHIFT;
-+		pfns = &range->pfns[i];
- 
-+		hmm_range_need_fault(hmm_vma_walk, pfns, npages,
-+				     0, &fault, &write_fault);
-+		if (fault || write_fault) {
-+			hmm_vma_walk->last = addr;
-+			pmd_migration_entry_wait(vma->vm_mm, pmdp);
-+			return -EAGAIN;
-+		}
-+		return 0;
-+	} else if (!pmd_present(pmd))
-+		return hmm_pfns_bad(start, end, walk);
-+
-+	if (pmd_devmap(pmd) || pmd_trans_huge(pmd)) {
- 		/*
- 		 * No need to take pmd_lock here, even if some other threads
- 		 * is splitting the huge pmd we will get that event through
-@@ -607,13 +629,21 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
- 		if (!pmd_devmap(pmd) && !pmd_trans_huge(pmd))
- 			goto again;
- 
-+		i = (addr - range->start) >> PAGE_SHIFT;
- 		return hmm_vma_handle_pmd(walk, addr, end, &pfns[i], pmd);
- 	}
- 
--	if (pmd_bad(*pmdp))
-+	/*
-+	 * We have handled all the valid case above ie either none, migration,
-+	 * huge or transparent huge. At this point either it is a valid pmd
-+	 * entry pointing to pte directory or it is a bad pmd that will not
-+	 * recover.
-+	 */
-+	if (pmd_bad(pmd))
- 		return hmm_pfns_bad(start, end, walk);
- 
- 	ptep = pte_offset_map(pmdp, addr);
-+	i = (addr - range->start) >> PAGE_SHIFT;
- 	for (; addr < end; addr += PAGE_SIZE, ptep++, i++) {
- 		int r;
- 
 -- 
-2.17.1
+Mike Kravetz
