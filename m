@@ -1,70 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F96C6B4DCF
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 17:30:29 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id l2-v6so3192351ywb.6
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 14:30:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b186-v6sor1278626ybg.35.2018.08.29.14.30.28
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B4886B4DB2
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 17:34:09 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id g18-v6so2800279edg.14
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 14:34:09 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id t4-v6si120727edd.350.2018.08.29.14.34.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 29 Aug 2018 14:30:28 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 Aug 2018 14:34:08 -0700 (PDT)
+Date: Wed, 29 Aug 2018 14:33:19 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH v3 3/3] mm: don't miss the last page because of round-off
+ error
+Message-ID: <20180829213311.GA13501@castle>
+References: <20180827162621.30187-1-guro@fb.com>
+ <20180827162621.30187-3-guro@fb.com>
+ <20180827140432.b3c792f60235a13739038808@linux-foundation.org>
 MIME-Version: 1.0
-References: <20180821213559.14694-1-guro@fb.com> <CALvZod4HAf+iPXQx1v+dwJkTph3ySAiYo4kn4d2jRFNQS59Tgg@mail.gmail.com>
- <20180829212422.GA13097@castle>
-In-Reply-To: <20180829212422.GA13097@castle>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Wed, 29 Aug 2018 14:30:16 -0700
-Message-ID: <CALvZod5_kMtsiQqdEmktL3zMEf_3LL+_1khdr+TST2vFTChiVA@mail.gmail.com>
-Subject: Re: [PATCH v2 1/3] mm: rework memcg kernel stack accounting
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180827140432.b3c792f60235a13739038808@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kernel-team@fb.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, luto@kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, Tejun Heo <tj@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Shakeel Butt <shakeelb@google.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@surriel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Matthew Wilcox <willy@infradead.org>
 
-On Wed, Aug 29, 2018 at 2:24 PM Roman Gushchin <guro@fb.com> wrote:
->
-> On Tue, Aug 21, 2018 at 03:10:52PM -0700, Shakeel Butt wrote:
-> > On Tue, Aug 21, 2018 at 2:36 PM Roman Gushchin <guro@fb.com> wrote:
-> > >
-> > > If CONFIG_VMAP_STACK is set, kernel stacks are allocated
-> > > using __vmalloc_node_range() with __GFP_ACCOUNT. So kernel
-> > > stack pages are charged against corresponding memory cgroups
-> > > on allocation and uncharged on releasing them.
-> > >
-> > > The problem is that we do cache kernel stacks in small
-> > > per-cpu caches and do reuse them for new tasks, which can
-> > > belong to different memory cgroups.
-> > >
-> > > Each stack page still holds a reference to the original cgroup,
-> > > so the cgroup can't be released until the vmap area is released.
-> > >
-> > > To make this happen we need more than two subsequent exits
-> > > without forks in between on the current cpu, which makes it
-> > > very unlikely to happen. As a result, I saw a significant number
-> > > of dying cgroups (in theory, up to 2 * number_of_cpu +
-> > > number_of_tasks), which can't be released even by significant
-> > > memory pressure.
-> > >
-> > > As a cgroup structure can take a significant amount of memory
-> > > (first of all, per-cpu data like memcg statistics), it leads
-> > > to a noticeable waste of memory.
-> > >
-> > > Signed-off-by: Roman Gushchin <guro@fb.com>
+On Mon, Aug 27, 2018 at 02:04:32PM -0700, Andrew Morton wrote:
+> On Mon, 27 Aug 2018 09:26:21 -0700 Roman Gushchin <guro@fb.com> wrote:
+> 
+> > I've noticed, that dying memory cgroups are  often pinned
+> > in memory by a single pagecache page. Even under moderate
+> > memory pressure they sometimes stayed in such state
+> > for a long time. That looked strange.
+> > 
+> > My investigation showed that the problem is caused by
+> > applying the LRU pressure balancing math:
+> > 
+> >   scan = div64_u64(scan * fraction[lru], denominator),
+> > 
+> > where
+> > 
+> >   denominator = fraction[anon] + fraction[file] + 1.
+> > 
+> > Because fraction[lru] is always less than denominator,
+> > if the initial scan size is 1, the result is always 0.
+> > 
+> > This means the last page is not scanned and has
+> > no chances to be reclaimed.
+> > 
+> > Fix this by rounding up the result of the division.
+> > 
+> > In practice this change significantly improves the speed
+> > of dying cgroups reclaim.
+> > 
+> > ...
 > >
-> > Reviewed-by: Shakeel Butt <shakeelb@google.com>
-> >
-> > BTW this makes a very good use-case for optimizing kmem uncharging
-> > similar to what you did for skmem uncharging.
->
-> The only thing I'm slightly worried here is that it can make
-> reclaiming of memory cgroups harder. Probably, it's still ok,
-> but let me first finish the work I'm doing on optimizing the
-> whole memcg reclaim process, and then return to this case.
->
+> > --- a/include/linux/math64.h
+> > +++ b/include/linux/math64.h
+> > @@ -281,4 +281,6 @@ static inline u64 mul_u64_u32_div(u64 a, u32 mul, u32 divisor)
+> >  }
+> >  #endif /* mul_u64_u32_div */
+> >  
+> > +#define DIV64_U64_ROUND_UP(ll, d)	div64_u64((ll) + (d) - 1, (d))
+> 
+> This macro references arg `d' more than once.  That can cause problems
+> if the passed expression has side-effects and is poor practice.  Can
+> we please redo this with a temporary?
 
-Yes, maybe we can disable that optimization for offlined memcgs.
-Anyways, we can discuss this later as you have suggested.
+Argh, the original DIV_ROUND_UP can't be fixed this way, as it's used
+in array's size declarations.
 
-Shakeel
+So, below is the patch for the new DIV64_U64_ROUND_UP macro only.
+
+Thanks!
+
+--
