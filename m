@@ -1,273 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C4F6B6B4C59
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 11:16:34 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id u22-v6so4626166qkk.10
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 08:16:34 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 4A1586B4C61
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 11:22:39 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id u195-v6so4665735qka.14
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 08:22:39 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g130-v6sor2054692qka.111.2018.08.29.08.16.33
+        by mx.google.com with SMTPS id s6-v6sor2123707qvm.125.2018.08.29.08.22.38
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 29 Aug 2018 08:16:33 -0700 (PDT)
-Subject: Re: [PATCH 2/2] mm: zero remaining unavailable struct pages
-References: <20180823182513.8801-1-msys.mizuma@gmail.com>
- <20180823182513.8801-2-msys.mizuma@gmail.com>
- <7c773dec-ded0-7a1e-b3ad-6c6826851015@microsoft.com>
-From: Masayoshi Mizuma <msys.mizuma@gmail.com>
-Message-ID: <484388a7-1e75-0782-fdfb-20345e1bda0d@gmail.com>
-Date: Wed, 29 Aug 2018 11:16:30 -0400
+        Wed, 29 Aug 2018 08:22:38 -0700 (PDT)
+From: "Zi Yan" <zi.yan@cs.rutgers.edu>
+Subject: Re: [PATCH 2/2] mm: thp: fix transparent_hugepage/defrag = madvise ||
+ always
+Date: Wed, 29 Aug 2018 11:22:35 -0400
+Message-ID: <82CA00EB-BF8E-4137-953B-8BC4B74B99AF@cs.rutgers.edu>
+In-Reply-To: <20180829143545.GY10223@dhcp22.suse.cz>
+References: <20180820032204.9591-3-aarcange@redhat.com>
+ <20180821115057.GY29735@dhcp22.suse.cz> <20180821214049.GG13047@redhat.com>
+ <20180822090214.GF29735@dhcp22.suse.cz> <20180822155250.GP13047@redhat.com>
+ <20180823105253.GB29735@dhcp22.suse.cz>
+ <20180828075321.GD10223@dhcp22.suse.cz>
+ <20180828081837.GG10223@dhcp22.suse.cz>
+ <D5F4A33C-0A37-495C-9468-D6866A862097@cs.rutgers.edu>
+ <20180829142816.GX10223@dhcp22.suse.cz>
+ <20180829143545.GY10223@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <7c773dec-ded0-7a1e-b3ad-6c6826851015@microsoft.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed;
+ boundary="=_MailMate_0574C3B0-C2B4-4D20-9A7E-3B0CF37073C6_=";
+ micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel.Tatashin@microsoft.com, linux-mm@kvack.org, n-horiguchi@ah.jp.nec.com, mhocko@kernel.org
-Cc: linux-kernel@vger.kernel.org, x86@kernel.org
+To: Michal Hocko <mhocko@suse.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
 
-Hi Horiguchi-san and Pavel
+This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
 
-Thank you for your comments!
-The Pavel's additional patch looks good to me, so I will add it to this series.
+--=_MailMate_0574C3B0-C2B4-4D20-9A7E-3B0CF37073C6_=
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-However, unfortunately, the movable_node option has something wrong yet...
-When I offline the memory which belongs to movable zone, I got the following
-warning. I'm trying to debug it.
+On 29 Aug 2018, at 10:35, Michal Hocko wrote:
 
-I try to describe the issue as following. 
-If you have any comments, please let me know.
-
-WARNING: CPU: 156 PID: 25611 at mm/page_alloc.c:7730 has_unmovable_pages+0x1bf/0x200
-RIP: 0010:has_unmovable_pages+0x1bf/0x200
-...
-Call Trace:
- is_mem_section_removable+0xd3/0x160
- show_mem_removable+0x8e/0xb0
- dev_attr_show+0x1c/0x50
- sysfs_kf_seq_show+0xb3/0x110
- seq_read+0xee/0x480
- __vfs_read+0x36/0x190
- vfs_read+0x89/0x130
- ksys_read+0x52/0xc0
- do_syscall_64+0x5b/0x180
- entry_SYSCALL_64_after_hwframe+0x44/0xa9
-RIP: 0033:0x7fe7b7823f70
-...
-
-I added a printk to catch the unmovable page.
----
-@@ -7713,8 +7719,12 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
-                 * is set to both of a memory hole page and a _used_ kernel
-                 * page at boot.
-                 */
--               if (found > count)
-+               if (found > count) {
-+                       pr_info("DEBUG: %s zone: %lx page: %lx pfn: %lx flags: %lx found: %ld count: %ld \n",
-+                               __func__, zone, page, page_to_pfn(page), page->flags, found, count);
-                        goto unmovable;
-+               }
----
-
-Then I got the following. The page (PFN: 0x1c0ff130d) flag is 
-0xdfffffc0040048 (uptodate|active|swapbacked)
-
----
-DEBUG: has_unmovable_pages zone: 0xffff8c0ffff80380 page: 0xffffea703fc4c340 pfn: 0x1c0ff130d flags: 0xdfffffc0040048 found: 1 count: 0 
----
-
-And I got the owner from /sys/kernel/debug/page_owner.
-
-Page allocated via order 0, mask 0x6280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO)
-PFN 7532909325 type Movable Block 14712713 type Movable Flags 0xdfffffc0040048(uptodate|active|swapbacked)
- __alloc_pages_nodemask+0xfc/0x270
- alloc_pages_vma+0x7c/0x1e0
- handle_pte_fault+0x399/0xe50
- __handle_mm_fault+0x38e/0x520
- handle_mm_fault+0xdc/0x210
- __do_page_fault+0x243/0x4c0
- do_page_fault+0x31/0x130
- page_fault+0x1e/0x30
-
-The page is allocated as anonymous page via page fault.
-I'm not sure, but lru flag should be added to the page...?
-
-Thanks,
-Masa
-
-On 08/27/2018 07:33 PM, Pasha Tatashin wrote:
-> On 8/23/18 2:25 PM, Masayoshi Mizuma wrote:
->> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> On Wed 29-08-18 16:28:16, Michal Hocko wrote:
+>> On Wed 29-08-18 09:28:21, Zi Yan wrote:
+>> [...]
+>>> This patch triggers WARN_ON_ONCE() in policy_node() when MPOL_BIND is=
+ used and THP is on.
+>>> Should this WARN_ON_ONCE be removed?
+>>>
+>>>
+>>> /*
+>>> * __GFP_THISNODE shouldn't even be used with the bind policy
+>>> * because we might easily break the expectation to stay on the
+>>> * requested node and not break the policy.
+>>> */
+>>> WARN_ON_ONCE(policy->mode =3D=3D MPOL_BIND && (gfp & __GFP_THISNODE))=
+;
 >>
->> There is a kernel panic that is triggered when reading /proc/kpageflags
->> on the kernel booted with kernel parameter 'memmap=nn[KMG]!ss[KMG]':
->>
->>   BUG: unable to handle kernel paging request at fffffffffffffffe
->>   PGD 9b20e067 P4D 9b20e067 PUD 9b210067 PMD 0
->>   Oops: 0000 [#1] SMP PTI
->>   CPU: 2 PID: 1728 Comm: page-types Not tainted 4.17.0-rc6-mm1-v4.17-rc6-180605-0816-00236-g2dfb086ef02c+ #160
->>   Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.11.0-2.fc28 04/01/2014
->>   RIP: 0010:stable_page_flags+0x27/0x3c0
->>   Code: 00 00 00 0f 1f 44 00 00 48 85 ff 0f 84 a0 03 00 00 41 54 55 49 89 fc 53 48 8b 57 08 48 8b 2f 48 8d 42 ff 83 e2 01 48 0f 44 c7 <48> 8b 00 f6 c4 01 0f 84 10 03 00 00 31 db 49 8b 54 24 08 4c 89 e7
->>   RSP: 0018:ffffbbd44111fde0 EFLAGS: 00010202
->>   RAX: fffffffffffffffe RBX: 00007fffffffeff9 RCX: 0000000000000000
->>   RDX: 0000000000000001 RSI: 0000000000000202 RDI: ffffed1182fff5c0
->>   RBP: ffffffffffffffff R08: 0000000000000001 R09: 0000000000000001
->>   R10: ffffbbd44111fed8 R11: 0000000000000000 R12: ffffed1182fff5c0
->>   R13: 00000000000bffd7 R14: 0000000002fff5c0 R15: ffffbbd44111ff10
->>   FS:  00007efc4335a500(0000) GS:ffff93a5bfc00000(0000) knlGS:0000000000000000
->>   CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->>   CR2: fffffffffffffffe CR3: 00000000b2a58000 CR4: 00000000001406e0
->>   Call Trace:
->>    kpageflags_read+0xc7/0x120
->>    proc_reg_read+0x3c/0x60
->>    __vfs_read+0x36/0x170
->>    vfs_read+0x89/0x130
->>    ksys_pread64+0x71/0x90
->>    do_syscall_64+0x5b/0x160
->>    entry_SYSCALL_64_after_hwframe+0x44/0xa9
->>   RIP: 0033:0x7efc42e75e23
->>   Code: 09 00 ba 9f 01 00 00 e8 ab 81 f4 ff 66 2e 0f 1f 84 00 00 00 00 00 90 83 3d 29 0a 2d 00 00 75 13 49 89 ca b8 11 00 00 00 0f 05 <48> 3d 01 f0 ff ff 73 34 c3 48 83 ec 08 e8 db d3 01 00 48 89 04 24
->>
->> According to kernel bisection, this problem became visible due to commit
->> f7f99100d8d9 which changes how struct pages are initialized.
->>
->> Memblock layout affects the pfn ranges covered by node/zone. Consider
->> that we have a VM with 2 NUMA nodes and each node has 4GB memory, and
->> the default (no memmap= given) memblock layout is like below:
->>
->>   MEMBLOCK configuration:
->>    memory size = 0x00000001fff75c00 reserved size = 0x000000000300c000
->>    memory.cnt  = 0x4
->>    memory[0x0]     [0x0000000000001000-0x000000000009efff], 0x000000000009e000 bytes on node 0 flags: 0x0
->>    memory[0x1]     [0x0000000000100000-0x00000000bffd6fff], 0x00000000bfed7000 bytes on node 0 flags: 0x0
->>    memory[0x2]     [0x0000000100000000-0x000000013fffffff], 0x0000000040000000 bytes on node 0 flags: 0x0
->>    memory[0x3]     [0x0000000140000000-0x000000023fffffff], 0x0000000100000000 bytes on node 1 flags: 0x0
->>    ...
->>
->> If you give memmap=1G!4G (so it just covers memory[0x2]),
->> the range [0x100000000-0x13fffffff] is gone:
->>
->>   MEMBLOCK configuration:
->>    memory size = 0x00000001bff75c00 reserved size = 0x000000000300c000
->>    memory.cnt  = 0x3
->>    memory[0x0]     [0x0000000000001000-0x000000000009efff], 0x000000000009e000 bytes on node 0 flags: 0x0
->>    memory[0x1]     [0x0000000000100000-0x00000000bffd6fff], 0x00000000bfed7000 bytes on node 0 flags: 0x0
->>    memory[0x2]     [0x0000000140000000-0x000000023fffffff], 0x0000000100000000 bytes on node 1 flags: 0x0
->>    ...
->>
->> This causes shrinking node 0's pfn range because it is calculated by
->> the address range of memblock.memory. So some of struct pages in the
->> gap range are left uninitialized.
->>
->> We have a function zero_resv_unavail() which does zeroing the struct
->> pages outside memblock.memory, but currently it covers only the reserved
->> unavailable range (i.e. memblock.memory && !memblock.reserved).
->> This patch extends it to cover all unavailable range, which fixes
->> the reported issue.
->>
->> Fixes: f7f99100d8d9 ("mm: stop zeroing memory during allocation in vmemmap")
->> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->> Tested-by: Oscar Salvador <osalvador@suse.de>
->> Tested-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
-> 
-> Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
-> 
-> Also, please review and add the following patch to this series:
-> 
-> From 6d23e66e979244734a06c1b636742c2568121b39 Mon Sep 17 00:00:00 2001
-> From: Pavel Tatashin <pavel.tatashin@microsoft.com>
-> Date: Mon, 27 Aug 2018 19:10:35 -0400
-> Subject: [PATCH] mm: return zero_resv_unavail optimization
-> 
-> When checking for valid pfns in zero_resv_unavail(), it is not necessary to
-> verify that pfns within pageblock_nr_pages ranges are valid, only the first
-> one needs to be checked. This is because memory for pages are allocated in
-> contiguous chunks that contain pageblock_nr_pages struct pages.
-> 
-> Signed-off-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
-> ---
->  mm/page_alloc.c | 46 ++++++++++++++++++++++++++--------------------
->  1 file changed, 26 insertions(+), 20 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 650d8f16a67e..5dfc206db40e 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6441,6 +6441,29 @@ void __init free_area_init_node(int nid, unsigned long *zones_size,
->  }
->  
->  #if defined(CONFIG_HAVE_MEMBLOCK) && !defined(CONFIG_FLAT_NODE_MEM_MAP)
-> +
-> +/*
-> + * Zero all valid struct pages in range [spfn, epfn), return number of struct
-> + * pages zeroed
-> + */
-> +static u64 zero_pfn_range(unsigned long spfn, unsigned long epfn)
-> +{
-> +	unsigned long pfn;
-> +	u64 pgcnt = 0;
-> +
-> +	for (pfn = spfn; pfn < epfn; pfn++) {
-> +		if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages))) {
-> +			pfn = ALIGN_DOWN(pfn, pageblock_nr_pages)
-> +				+ pageblock_nr_pages - 1;
-> +			continue;
+>> This is really interesting. It seems to be me who added this warning b=
+ut
+>> I cannot simply make any sense of it. Let me try to dig some more.
+>
+> OK, I get it now. The warning seems to be incomplete. It is right to
+> complain when __GFP_THISNODE disagrees with MPOL_BIND policy but that i=
+s
+> not what we check here. Does this heal the warning?
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index da858f794eb6..7bb9354b1e4c 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -1728,7 +1728,10 @@ static int policy_node(gfp_t gfp, struct mempoli=
+cy *policy,
+>  		 * because we might easily break the expectation to stay on the
+>  		 * requested node and not break the policy.
+>  		 */
+> -		WARN_ON_ONCE(policy->mode =3D=3D MPOL_BIND && (gfp & __GFP_THISNODE)=
+);
+> +		if (policy->mode =3D=3D MPOL_BIND && (gfp & __GFP_THISNODE)) {
+> +			nodemask_t *nmask =3D policy_nodemask(gfp, policy);
+> +			WARN_ON_ONCE(!node_isset(nd, *nmask));
 > +		}
-> +		mm_zero_struct_page(pfn_to_page(pfn));
-> +		pgcnt++;
-> +	}
-> +
-> +	return pgcnt;
-> +}
-> +
->  /*
->   * Only struct pages that are backed by physical memory are zeroed and
->   * initialized by going through __init_single_page(). But, there are some
-> @@ -6456,7 +6479,6 @@ void __init free_area_init_node(int nid, unsigned long *zones_size,
->  void __init zero_resv_unavail(void)
->  {
->  	phys_addr_t start, end;
-> -	unsigned long pfn;
->  	u64 i, pgcnt;
->  	phys_addr_t next = 0;
->  
-> @@ -6466,34 +6488,18 @@ void __init zero_resv_unavail(void)
->  	pgcnt = 0;
->  	for_each_mem_range(i, &memblock.memory, NULL,
->  			NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end, NULL) {
-> -		if (next < start) {
-> -			for (pfn = PFN_DOWN(next); pfn < PFN_UP(start); pfn++) {
-> -				if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages)))
-> -					continue;
-> -				mm_zero_struct_page(pfn_to_page(pfn));
-> -				pgcnt++;
-> -			}
-> -		}
-> +		if (next < start)
-> +			pgcnt += zero_pfn_range(PFN_DOWN(next), PFN_UP(start));
->  		next = end;
 >  	}
-> -	for (pfn = PFN_DOWN(next); pfn < max_pfn; pfn++) {
-> -		if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages)))
-> -			continue;
-> -		mm_zero_struct_page(pfn_to_page(pfn));
-> -		pgcnt++;
-> -	}
-> -
-> +	pgcnt += zero_pfn_range(PFN_DOWN(next), max_pfn);
->  
->  	/*
->  	 * Struct pages that do not have backing memory. This could be because
->  	 * firmware is using some of this memory, or for some other reasons.
-> -	 * Once memblock is changed so such behaviour is not allowed: i.e.
-> -	 * list of "reserved" memory must be a subset of list of "memory", then
-> -	 * this code can be removed.
->  	 */
->  	if (pgcnt)
->  		pr_info("Zeroed struct page in unavailable ranges: %lld pages", pgcnt);
-> -
->  }
->  #endif /* CONFIG_HAVE_MEMBLOCK && !CONFIG_FLAT_NODE_MEM_MAP */
->  
-> 
+>
+>  	return nd;
+
+Unfortunately no. I simply ran =E2=80=9Cmemhog -r3 1g membind 1=E2=80=9D =
+to test and the warning still showed up.
+
+The reason is that nd is just a hint about which node to prefer for alloc=
+ation and
+can be ignored if it does not conform to mempolicy.
+Taking my test as an example, if an application is only memory bound to n=
+ode 1 but can run on any CPU
+nodes and it launches on node 0, alloc_pages_vma() will see 0 as its node=
+ parameter
+and passes 0 to policy_node()=E2=80=99s nd parameter. This should be OK, =
+but your patches
+would give a warning, because nd=3D0 is not set in nmask=3D1.
+
+Now I get your comment =E2=80=9C__GFP_THISNODE shouldn't even be used wit=
+h the bind policy=E2=80=9D,
+since they are indeed incompatible. __GFP_THISNODE wants to use the node,=
+
+which can be ignored by MPOL_BIND policy.
+
+IMHO, we could get rid of __GFP_THISNODE when MPOL_BIND is set, like
+
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 0d2be5786b0c..a0fcb998d277 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1722,14 +1722,6 @@ static int policy_node(gfp_t gfp, struct mempolicy=
+ *policy,
+ {
+        if (policy->mode =3D=3D MPOL_PREFERRED && !(policy->flags & MPOL_=
+F_LOCAL))
+                nd =3D policy->v.preferred_node;
+-       else {
+-               /*
+-                * __GFP_THISNODE shouldn't even be used with the bind po=
+licy
+-                * because we might easily break the expectation to stay =
+on the
+-                * requested node and not break the policy.
+-                */
+-               WARN_ON_ONCE(policy->mode =3D=3D MPOL_BIND && (gfp & __GF=
+P_THISNODE));
+-       }
+
+        return nd;
+ }
+@@ -2026,6 +2018,13 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_ar=
+ea_struct *vma,
+                goto out;
+        }
+
++       /*
++        * __GFP_THISNODE shouldn't even be used with the bind policy
++        * because we might easily break the expectation to stay on the
++        * requested node and not break the policy.
++        */
++       if (pol->mode =3D=3D MPOL_BIND)
++               gfp &=3D ~__GFP_THISNODE;
+
+        nmask =3D policy_nodemask(gfp, pol);
+        preferred_nid =3D policy_node(gfp, pol, node);
+
+What do you think?
+
+=E2=80=94
+Best Regards,
+Yan Zi
+
+--=_MailMate_0574C3B0-C2B4-4D20-9A7E-3B0CF37073C6_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename=signature.asc
+Content-Type: application/pgp-signature; name=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+
+iQFKBAEBCgA0FiEEOXBxLIohamfZUwd5QYsvEZxOpswFAluGujsWHHppLnlhbkBj
+cy5ydXRnZXJzLmVkdQAKCRBBiy8RnE6mzHgRB/98tzWMhNloyZHsUZQQfDkK5oRn
+tK+xRrsP8ihP0OBis1Evmn8rbrdDjRGlrOJTA2H3a0YGANSMow22bB0YzFkPg9PY
+WefUWn90njnpDlhjDLGPW4F9p7R3V5J9aVOknbSsJ+ar/m50Aq1lXZctHJI8bLw1
+oyUUmeTuLs16FZof6v+UmaCLF8FItIEylXNIAiO4ouzpKtA5jNBRswloFgVRWIg4
++bQaC/gJnli9QpJDvJvLkFeU3e9dpXbEkbGKAvgXRr63KbT5j65jBZfz1PT64mcm
+WmaVG76qFPSLs3Op9YbChQ2ixGXuX/CWPRNNBD9Yy1v3bhq79w+IXa6G1s6o
+=2pUd
+-----END PGP SIGNATURE-----
+
+--=_MailMate_0574C3B0-C2B4-4D20-9A7E-3B0CF37073C6_=--
