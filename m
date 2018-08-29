@@ -1,270 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A4D96B4E27
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 18:59:47 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id t23-v6so3580456pfe.20
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 15:59:47 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id o13-v6si4876523pll.86.2018.08.29.15.59.45
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BA7F86B4E36
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 19:09:05 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id k9-v6so5874826iob.16
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 16:09:05 -0700 (PDT)
+Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0093.outbound.protection.outlook.com. [104.47.36.93])
+        by mx.google.com with ESMTPS id h63-v6si82696ith.1.2018.08.29.16.09.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Aug 2018 15:59:45 -0700 (PDT)
-From: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v4 2/3] x86/modules: Increase randomization for modules
-Date: Wed, 29 Aug 2018 15:59:38 -0700
-Message-Id: <1535583579-6138-3-git-send-email-rick.p.edgecombe@intel.com>
-In-Reply-To: <1535583579-6138-1-git-send-email-rick.p.edgecombe@intel.com>
-References: <1535583579-6138-1-git-send-email-rick.p.edgecombe@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 29 Aug 2018 16:09:04 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Subject: Re: [RFC v2 2/2] mm/memory_hotplug: Shrink spanned pages when
+ offlining memory
+Date: Wed, 29 Aug 2018 23:09:01 +0000
+Message-ID: <348c662b-455a-1ea4-1db5-3bddcbdb4f14@microsoft.com>
+References: <20180817154127.28602-1-osalvador@techadventures.net>
+ <20180817154127.28602-3-osalvador@techadventures.net>
+In-Reply-To: <20180817154127.28602-3-osalvador@techadventures.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <FADFF99E34495149A7C952B3B36C26B2@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, daniel@iogearbox.net, jannh@google.com, keescook@chromium.org
-Cc: kristen@linux.intel.com, dave.hansen@intel.com, arjan@linux.intel.com, Rick Edgecombe <rick.p.edgecombe@intel.com>
+To: Oscar Salvador <osalvador@techadventures.net>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "mhocko@suse.com" <mhocko@suse.com>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "jglisse@redhat.com" <jglisse@redhat.com>, "david@redhat.com" <david@redhat.com>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "yasu.isimatu@gmail.com" <yasu.isimatu@gmail.com>, "logang@deltatee.com" <logang@deltatee.com>, "dave.jiang@intel.com" <dave.jiang@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oscar Salvador <osalvador@suse.de>
 
-This changes the behavior of the KASLR logic for allocating memory for the text
-sections of loadable modules. It randomizes the location of each module text
-section with about 17 bits of entropy in typical use. This is enabled on X86_64
-only. For 32 bit, the behavior is unchanged.
-
-It refactors existing code around module randomization somewhat. There are now
-three different behaviors for x86 module_alloc depending on config.
-RANDOMIZE_BASE=n, and RANDOMIZE_BASE=y ARCH=x86_64, and RANDOMIZE_BASE=y
-ARCH=i386. The refactor of the existing code is to try to clearly show what
-those behaviors are without having three separate versions or threading the
-behaviors in a bunch of little spots. The reason it is not enabled on 32 bit
-yet is because the module space is much smaller and simulations haven't been
-run to see how it performs.
-
-The new algorithm breaks the module space in two, a random area and a backup
-area. It first tries to allocate at a number of randomly located starting pages
-inside the random section without purging any lazy free vmap areas and
-triggering the associated TLB flush. If this fails, it will try again a number
-of times allowing for purges if needed. It also saves any position that could
-have succeeded if it was allowed to purge, which doubles the chances of finding
-a spot that would fit. Finally if those both fail to find a position it will
-allocate in the backup area. The backup area base will be offset in the same
-way as the current algorithm does for the base area, 1024 possible locations.
-
-Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
----
- arch/x86/include/asm/pgtable_64_types.h |   7 ++
- arch/x86/kernel/module.c                | 165 +++++++++++++++++++++++++++-----
- 2 files changed, 149 insertions(+), 23 deletions(-)
-
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 04edd2d..5e26369 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -143,6 +143,13 @@ extern unsigned int ptrs_per_p4d;
- #define MODULES_END		_AC(0xffffffffff000000, UL)
- #define MODULES_LEN		(MODULES_END - MODULES_VADDR)
- 
-+/*
-+ * Dedicate the first part of the module space to a randomized area when KASLR
-+ * is in use.  Leave the remaining part for a fallback if we are unable to
-+ * allocate in the random area.
-+ */
-+#define MODULES_RAND_LEN	PAGE_ALIGN((MODULES_LEN/3)*2)
-+
- #define ESPFIX_PGD_ENTRY	_AC(-2, UL)
- #define ESPFIX_BASE_ADDR	(ESPFIX_PGD_ENTRY << P4D_SHIFT)
- 
-diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
-index f58336a..d50a0a0 100644
---- a/arch/x86/kernel/module.c
-+++ b/arch/x86/kernel/module.c
-@@ -48,34 +48,151 @@ do {							\
- } while (0)
- #endif
- 
--#ifdef CONFIG_RANDOMIZE_BASE
-+#if defined(CONFIG_X86_64) && defined(CONFIG_RANDOMIZE_BASE)
-+static inline unsigned long get_modules_rand_len(void)
-+{
-+	return MODULES_RAND_LEN;
-+}
-+#else
-+static inline unsigned long get_modules_rand_len(void)
-+{
-+	BUILD_BUG();
-+	return 0;
-+}
-+
-+inline bool kaslr_enabled(void);
-+#endif
-+
-+static inline int kaslr_randomize_each_module(void)
-+{
-+	return IS_ENABLED(CONFIG_RANDOMIZE_BASE)
-+		&& IS_ENABLED(CONFIG_X86_64)
-+		&& kaslr_enabled();
-+}
-+
-+static inline int kaslr_randomize_base(void)
-+{
-+	return IS_ENABLED(CONFIG_RANDOMIZE_BASE)
-+		&& !IS_ENABLED(CONFIG_X86_64)
-+		&& kaslr_enabled();
-+}
-+
- static unsigned long module_load_offset;
-+static const unsigned long NR_NO_PURGE = 5000;
-+static const unsigned long NR_TRY_PURGE = 5000;
- 
- /* Mutex protects the module_load_offset. */
- static DEFINE_MUTEX(module_kaslr_mutex);
- 
- static unsigned long int get_module_load_offset(void)
- {
--	if (kaslr_enabled()) {
--		mutex_lock(&module_kaslr_mutex);
--		/*
--		 * Calculate the module_load_offset the first time this
--		 * code is called. Once calculated it stays the same until
--		 * reboot.
--		 */
--		if (module_load_offset == 0)
--			module_load_offset =
--				(get_random_int() % 1024 + 1) * PAGE_SIZE;
--		mutex_unlock(&module_kaslr_mutex);
--	}
-+	mutex_lock(&module_kaslr_mutex);
-+	/*
-+	 * Calculate the module_load_offset the first time this
-+	 * code is called. Once calculated it stays the same until
-+	 * reboot.
-+	 */
-+	if (module_load_offset == 0)
-+		module_load_offset = (get_random_int() % 1024 + 1) * PAGE_SIZE;
-+	mutex_unlock(&module_kaslr_mutex);
-+
- 	return module_load_offset;
- }
--#else
--static unsigned long int get_module_load_offset(void)
-+
-+static unsigned long get_module_vmalloc_start(void)
- {
--	return 0;
-+	if (kaslr_randomize_each_module())
-+		return MODULES_VADDR + get_modules_rand_len()
-+					+ get_module_load_offset();
-+	else if (kaslr_randomize_base())
-+		return MODULES_VADDR + get_module_load_offset();
-+
-+	return MODULES_VADDR;
-+}
-+
-+static void *try_module_alloc(unsigned long addr, unsigned long size,
-+					int try_purge)
-+{
-+	const unsigned long vm_flags = 0;
-+
-+	return __vmalloc_node_try_addr(addr, size, GFP_KERNEL, PAGE_KERNEL_EXEC,
-+					vm_flags, NUMA_NO_NODE, try_purge,
-+					__builtin_return_address(0));
-+}
-+
-+/*
-+ * Find a random address to try that won't obviously not fit. Random areas are
-+ * allowed to overflow into the backup area
-+ */
-+static unsigned long get_rand_module_addr(unsigned long size)
-+{
-+	unsigned long nr_max_pos = (MODULES_LEN - size) / MODULE_ALIGN + 1;
-+	unsigned long nr_rnd_pos = get_modules_rand_len() / MODULE_ALIGN;
-+	unsigned long nr_pos = min(nr_max_pos, nr_rnd_pos);
-+
-+	unsigned long module_position_nr = get_random_long() % nr_pos;
-+	unsigned long offset = module_position_nr * MODULE_ALIGN;
-+
-+	return MODULES_VADDR + offset;
-+}
-+
-+/*
-+ * Try to allocate in the random area. First 5000 times without purging, then
-+ * 5000 times with purging. If these fail, return NULL.
-+ */
-+static void *try_module_randomize_each(unsigned long size)
-+{
-+	void *p = NULL;
-+	unsigned int i;
-+	unsigned long last_lazy_free_blocked = 0;
-+
-+	/* This will have a guard page */
-+	unsigned long va_size = PAGE_ALIGN(size) + PAGE_SIZE;
-+
-+	if (!kaslr_randomize_each_module())
-+		return NULL;
-+
-+	/* Make sure there is at least one address that might fit. */
-+	if (va_size < PAGE_ALIGN(size) || va_size > MODULES_LEN)
-+		return NULL;
-+
-+	/* Try to find a spot that doesn't need a lazy purge */
-+	for (i = 0; i < NR_NO_PURGE; i++) {
-+		unsigned long addr = get_rand_module_addr(va_size);
-+
-+		/* First try to avoid having to purge */
-+		p = try_module_alloc(addr, size, 0);
-+
-+		/*
-+		 * Save the last value that was blocked by a
-+		 * lazy purge area.
-+		 */
-+		if (IS_ERR(p) && PTR_ERR(p) == -EUCLEAN)
-+			last_lazy_free_blocked = addr;
-+		else if (!IS_ERR(p))
-+			return p;
-+	}
-+
-+	/* Try the most recent spot that could be used after a lazy purge */
-+	if (last_lazy_free_blocked) {
-+		p = try_module_alloc(last_lazy_free_blocked, size, 1);
-+
-+		if (!IS_ERR(p))
-+			return p;
-+	}
-+
-+	/* Look for more spots and allow lazy purges */
-+	for (i = 0; i < NR_TRY_PURGE; i++) {
-+		unsigned long addr = get_rand_module_addr(va_size);
-+
-+		/* Give up and allow for purges */
-+		p = try_module_alloc(addr, size, 1);
-+
-+		if (!IS_ERR(p))
-+			return p;
-+	}
-+	return NULL;
- }
--#endif
- 
- void *module_alloc(unsigned long size)
- {
-@@ -84,16 +201,18 @@ void *module_alloc(unsigned long size)
- 	if (PAGE_ALIGN(size) > MODULES_LEN)
- 		return NULL;
- 
--	p = __vmalloc_node_range(size, MODULE_ALIGN,
--				    MODULES_VADDR + get_module_load_offset(),
--				    MODULES_END, GFP_KERNEL,
--				    PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
--				    __builtin_return_address(0));
-+	p = try_module_randomize_each(size);
-+
-+	if (!p)
-+		p = __vmalloc_node_range(size, MODULE_ALIGN,
-+				get_module_vmalloc_start(), MODULES_END,
-+				GFP_KERNEL, PAGE_KERNEL_EXEC, 0,
-+				NUMA_NO_NODE, __builtin_return_address(0));
-+
- 	if (p && (kasan_module_alloc(p, size) < 0)) {
- 		vfree(p);
- 		return NULL;
- 	}
--
- 	return p;
- }
- 
--- 
-2.7.4
+DQpPbiA4LzE3LzE4IDExOjQxIEFNLCBPc2NhciBTYWx2YWRvciB3cm90ZToNCj4gRnJvbTogT3Nj
+YXIgU2FsdmFkb3IgPG9zYWx2YWRvckBzdXNlLmRlPg0KPiANCj4gQ3VycmVudGx5LCB3ZSBkZWNy
+ZW1lbnQgem9uZS9ub2RlIHNwYW5uZWRfcGFnZXMgd2hlbiB3ZQ0KPiByZW1vdmUgbWVtb3J5IGFu
+ZCBub3Qgd2hlbiB3ZSBvZmZsaW5lIGl0Lg0KPiANCj4gVGhpcywgYmVzaWRlcyBvZiBub3QgYmVp
+bmcgY29uc2lzdGVudCB3aXRoIHRoZSBjdXJyZW50IGNvZGUsDQo+IGltcGxpZXMgdGhhdCB3ZSBj
+YW4gYWNjZXNzIHN0ZWFsIHBhZ2VzIGlmIHdlIG5ldmVyIGdldCB0byBvbmxpbmUNCj4gdGhhdCBt
+ZW1vcnkuDQo+IA0KPiBJbiBvcmRlciB0byBwcmV2ZW50IHRoYXQsIHdlIGhhdmUgdG8gbW92ZSBh
+bGwgem9uZS9wYWdlcyBzdHVmZiB0bw0KPiB0aGUgb2ZmbGluaW5nIG1lbW9yeSBzdGFnZS4NCj4g
+UmVtb3ZpbmcgbWVtb3J5IHBhdGggc2hvdWxkIG9ubHkgY2FyZSBhYm91dCBtZW1vcnkgc2VjdGlv
+bnMgYW5kIG1lbW9yeQ0KPiBibG9ja3MuDQo+IA0KPiBBbm90aGVyIHRoaW5nIHRvIG5vdGljZSBo
+ZXJlIGlzIHRoYXQgdGhpcyBpcyBub3Qgc28gZWFzeSB0byBiZSBkb25lDQo+IGFzIEhNTS9kZXZt
+IGhhdmUgYSBwYXJ0aWN1bGFyIGhhbmRsaW5nIG9mIG1lbW9yeS1ob3RwbHVnLg0KPiBUaGV5IGRv
+IG5vdCBnbyB0aHJvdWdoIHRoZSBjb21tb24gcGF0aCwgYW5kIHNvLCB0aGV5IGRvIG5vdA0KPiBj
+YWxsIGVpdGhlciBvZmZsaW5lX3BhZ2VzKCkgbm9yIG9ubGluZV9wYWdlcygpLg0KPiANCj4gQWxs
+IHRoZXkgY2FyZSBhYm91dCBpcyB0byBhZGQgdGhlIHNlY3Rpb25zLCBtb3ZlIHRoZSBwYWdlcyB0
+bw0KPiBaT05FX0RFVklDRSwgYW5kIGluIHNvbWUgY2FzZXMsIHRvIGNyZWF0ZSB0aGUgbGluZWFy
+IG1hcHBpbmcuDQo+IA0KPiBJbiBvcmRlciB0byBkbyB0aGlzIG1vcmUgc21vb3RoLCB0d28gbmV3
+IGZ1bmN0aW9ucyBhcmUgY3JlYXRlZA0KPiB0byBkZWFsIHdpdGggdGhlc2UgcGFydGljdWxhciBj
+YXNlczoNCj4gDQo+IGRlbF9kZXZpY2VfbWVtb3J5DQo+IGFkZF9kZXZpY2VfbWVtb3J5DQo+IA0K
+PiBhZGRfZGV2aWNlX21lbW9yeSBpcyBpbiBjaGFyZ2Ugb2YNCj4gDQo+IGEpIGNhbGxpbmcgZWl0
+aGVyIGFyY2hfYWRkX21lbW9yeSgpIG9yIGFkZF9wYWdlcygpLCBkZXBlbmRpbmcgb24gd2hldGhl
+cg0KPiAgICB3ZSB3YW50IGEgbGluZWFyIG1hcHBpbmcNCj4gYikgb25saW5lIHRoZSBtZW1vcnkg
+c2VjdGlvbnMgdGhhdCBjb3JyZXNwb25kIHRvIHRoZSBwZm4gcmFuZ2UNCj4gYykgY2FsbGluZyBt
+b3ZlX3Bmbl9yYW5nZV90b196b25lKCkgYmVpbmcgem9uZSBaT05FX0RFVklDRSB0bw0KPiAgICBl
+eHBhbmQgem9uZS9wZ2RhdCBzcGFubmVkIHBhZ2VzIGFuZCBpbml0aWFsaXplIGl0cyBwYWdlcw0K
+PiANCj4gZGVsX2RldmljZV9tZW1vcnksIG9uIHRoZSBvdGhlciBoYW5kLCBpcyBpbiBjaGFyZ2Ug
+b2YNCj4gDQo+IGEpIG9mZmxpbmUgdGhlIG1lbW9yeSBzZWN0aW9ucyB0aGF0IGNvcnJlc3BvbmQg
+dG8gdGhlIHBmbiByYW5nZQ0KPiBiKSBjYWxsaW5nIHNocmlua19wYWdlcygpLCB3aGljaCBzaHJp
+bmtzIG5vZGUvem9uZSBzcGFubmVkIHBhZ2VzLg0KPiBjKSBjYWxsaW5nIGVpdGhlciBhcmNoX3Jl
+bW92ZV9tZW1vcnkoKSBvciBfX3JlbW92ZV9wYWdlcygpLCBkZXBlbmRpbmcgb24NCj4gICAgd2hl
+dGhlciB3ZSBuZWVkIHRvIHRlYXIgZG93biB0aGUgbGluZWFyIG1hcHBpbmcgb3Igbm90DQo+IA0K
+PiBUaGVzZSB0d28gZnVuY3Rpb25zIGFyZSBjYWxsZWQgZnJvbToNCj4gDQo+IGFkZF9kZXZpY2Vf
+bWVtb3J5Og0KPiAJLSBkZXZtX21lbXJlbWFwX3BhZ2VzKCkNCj4gCS0gaG1tX2Rldm1lbV9wYWdl
+c19jcmVhdGUoKQ0KPiANCj4gZGVsX2RldmljZV9tZW1vcnk6DQo+IAktIGRldm1fbWVtcmVtYXBf
+cGFnZXNfcmVsZWFzZSgpDQo+IAktIGhtbV9kZXZtZW1fcmVsZWFzZSgpDQo+IA0KPiBJIHRoaW5r
+IHRoYXQgdGhpcyB3aWxsIGdldCBlYXNpZXIgYXMgc29vbiBhcyBbMV0gZ2V0cyBtZXJnZWQuDQo+
+IA0KPiBGaW5hbGx5LCBzaHJpbmtfcGFnZXMoKSBpcyBtb3ZlZCB0byBvZmZsaW5lX3BhZ2VzKCks
+IHNvIG5vdywNCj4gYWxsIHBhZ2VzL3pvbmUgaGFuZGxpbmcgaXMgYmVpbmcgdGFrZW4gY2FyZSBp
+biBvbmxpbmUvb2ZmbGluZV9wYWdlcyBzdGFnZS4NCj4gDQo+IFsxXSBodHRwczovL2xrbWwub3Jn
+L2xrbWwvMjAxOC82LzE5LzExMA0KPiANCj4gU2lnbmVkLW9mZi1ieTogT3NjYXIgU2FsdmFkb3Ig
+PG9zYWx2YWRvckBzdXNlLmRlPg0KPiAtLS0NCj4gIGFyY2gvaWE2NC9tbS9pbml0LmMgICAgICAg
+ICAgICB8ICAgNCArLQ0KPiAgYXJjaC9wb3dlcnBjL21tL21lbS5jICAgICAgICAgIHwgIDEwICst
+LQ0KPiAgYXJjaC9zaC9tbS9pbml0LmMgICAgICAgICAgICAgIHwgICA0ICstDQo+ICBhcmNoL3g4
+Ni9tbS9pbml0XzMyLmMgICAgICAgICAgfCAgIDQgKy0NCj4gIGFyY2gveDg2L21tL2luaXRfNjQu
+YyAgICAgICAgICB8ICAgOCArLS0NCj4gIGluY2x1ZGUvbGludXgvbWVtb3J5X2hvdHBsdWcuaCB8
+ICAgOSArKy0NCj4gIGtlcm5lbC9tZW1yZW1hcC5jICAgICAgICAgICAgICB8ICAxNCArKy0tDQo+
+ICBrZXJuZWwvcmVzb3VyY2UuYyAgICAgICAgICAgICAgfCAgMTYgKysrKysNCj4gIG1tL2htbS5j
+ICAgICAgICAgICAgICAgICAgICAgICB8ICAzMiArKysrLS0tLS0NCj4gIG1tL21lbW9yeV9ob3Rw
+bHVnLmMgICAgICAgICAgICB8IDE0MyArKysrKysrKysrKysrKysrKysrKysrKysrKystLS0tLS0t
+LS0tLS0tLQ0KPiAgbW0vc3BhcnNlLmMgICAgICAgICAgICAgICAgICAgIHwgICA0ICstDQo+ICAx
+MSBmaWxlcyBjaGFuZ2VkLCAxNDUgaW5zZXJ0aW9ucygrKSwgMTAzIGRlbGV0aW9ucygtKQ0KDQpI
+aSBPc2NhciwNCg0KSSBoYXZlIGJlZW4gc3R1ZHlpbmcgdGhpcyBwYXRjaCwgYW5kIGRvIG5vdCBz
+ZWUgYW55dGhpbmcgYmFkIGFib3V0IGl0DQpleGNlcHQgdGhhdCBpdCBiZWdzIHRvIGJlIHNwbGl0
+IGludG8gc21hbGxlciBwYXRjaGVzLiBJIHRoaW5rIHlvdSBjYW4NCnNlbmQgdGhpcyB3b3JrIGFz
+IGEgc2VyaWVzIHdpdGhvdXQgUkZDIGlmIHRoaXMgcGF0Y2ggaXMgc3BsaXQgaW50byAzIG9yDQpz
+byBwYXRjaGVzLiBJIHdpbGwgcmV2aWV3IHRoYXQgc2VyaWVzLg0KDQpUaGFuayB5b3UsDQpQYXZl
+bA==
