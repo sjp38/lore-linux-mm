@@ -1,58 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6980F6B4A96
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 03:51:33 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id h40-v6so1893939edb.2
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 00:51:33 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m26-v6si2911049edq.379.2018.08.29.00.51.31
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E8DF6B4B26
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 06:15:52 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id q26-v6so4097042qtj.14
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 03:15:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c16-v6si3345258qvi.75.2018.08.29.03.15.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Aug 2018 00:51:32 -0700 (PDT)
-Date: Wed, 29 Aug 2018 09:51:29 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] fs/dcache: Make negative dentries easier to be
- reclaimed
-Message-ID: <20180829075129.GU10223@dhcp22.suse.cz>
-References: <1535476780-5773-1-git-send-email-longman@redhat.com>
- <1535476780-5773-3-git-send-email-longman@redhat.com>
+        Wed, 29 Aug 2018 03:15:51 -0700 (PDT)
+Date: Wed, 29 Aug 2018 06:15:48 -0400 (EDT)
+From: Pankaj Gupta <pagupta@redhat.com>
+Message-ID: <380594559.7598107.1535537748154.JavaMail.zimbra@redhat.com>
+In-Reply-To: <a4183c0f0adfb6d123599dd306062fd193e83f5a.1534934405.git.yi.z.zhang@linux.intel.com>
+References: <cover.1534934405.git.yi.z.zhang@linux.intel.com> <a4183c0f0adfb6d123599dd306062fd193e83f5a.1534934405.git.yi.z.zhang@linux.intel.com>
+Subject: Re: [PATCH V4 4/4] kvm: add a check if pfn is from NVDIMM pmem.
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1535476780-5773-3-git-send-email-longman@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>
+To: Zhang Yi <yi.z.zhang@linux.intel.com>
+Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pbonzini@redhat.com, dan j williams <dan.j.williams@intel.com>, dave jiang <dave.jiang@intel.com>, yu c zhang <yu.c.zhang@intel.com>, david@redhat.com, jack@suse.cz, hch@lst.de, linux-mm@kvack.org, rkrcmar@redhat.com, jglisse@redhat.com, yi z zhang <yi.z.zhang@intel.com>
 
-On Tue 28-08-18 13:19:40, Waiman Long wrote:
-> For negative dentries that are accessed once and never used again, they
-> should be removed first before other dentries when shrinker is running.
-> This is done by putting negative dentries at the head of the LRU list
-> instead at the tail.
+
 > 
-> A new DCACHE_NEW_NEGATIVE flag is now added to a negative dentry when it
-> is initially created. When such a dentry is added to the LRU, it will be
-> added to the head so that it will be the first to go when a shrinker is
-> running if it is never accessed again (DCACHE_REFERENCED bit not set).
-> The flag is cleared after the LRU list addition.
+> For device specific memory space, when we move these area of pfn to
+> memory zone, we will set the page reserved flag at that time, some of
+> these reserved for device mmio, and some of these are not, such as
+> NVDIMM pmem.
+> 
+> Now, we map these dev_dax or fs_dax pages to kvm for DIMM/NVDIMM
+> backend, since these pages are reserved, the check of
+> kvm_is_reserved_pfn() misconceives those pages as MMIO. Therefor, we
+> introduce 2 page map types, MEMORY_DEVICE_FS_DAX/MEMORY_DEVICE_DEV_DAX,
+> to identify these pages are from NVDIMM pmem and let kvm treat these
+> as normal pages.
+> 
+> Without this patch, many operations will be missed due to this
+> mistreatment to pmem pages, for example, a page may not have chance to
+> be unpinned for KVM guest(in kvm_release_pfn_clean), not able to be
+> marked as dirty/accessed(in kvm_set_pfn_dirty/accessed) etc.
+> 
+> Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
+> ---
+>  virt/kvm/kvm_main.c | 8 ++++++--
+>  1 file changed, 6 insertions(+), 2 deletions(-)
+> 
+> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+> index c44c406..969b6ca 100644
+> --- a/virt/kvm/kvm_main.c
+> +++ b/virt/kvm/kvm_main.c
+> @@ -147,8 +147,12 @@ __weak void
+> kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+>  
+>  bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
+>  {
+> -	if (pfn_valid(pfn))
+> -		return PageReserved(pfn_to_page(pfn));
+> +	struct page *page;
+> +
+> +	if (pfn_valid(pfn)) {
+> +		page = pfn_to_page(pfn);
+> +		return PageReserved(page) && !is_dax_page(page);
+> +	}
+>  
+>  	return true;
+>  }
 
-Placing object to the head of the LRU list can be really tricky as Dave
-pointed out. I am not familiar with the dentry cache reclaim so my
-comparison below might not apply. Let me try anyway.
+Acked-by: Pankaj Gupta <pagupta@redhat.com>
 
-Negative dentries sound very similar to MADV_FREE pages from the reclaim
-POV. They are primary candidate for reclaim, yet you want to preserve
-aging to other easily reclaimable objects (including other MADV_FREE
-pages). What we do for those pages is to move them from the anonymous
-LRU list to the inactive file LRU list. Now you obviously do not have
-anon/file LRUs but something similar to active/inactive LRU lists might
-be a reasonably good match. Have easily reclaimable dentries on the
-inactive list including negative dentries. If negative entries are
-heavily used then they can promote to the active list because there is
-no reason to reclaim them soon.
-
-Just my 2c
--- 
-Michal Hocko
-SUSE Labs
+> --
+> 2.7.4
+> 
+> 
