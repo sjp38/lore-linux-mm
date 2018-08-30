@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C7C1A6B5220
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 10:43:47 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id f32-v6so4191700pgm.14
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 07:43:47 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A50A6B5229
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 10:43:48 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id 90-v6so4014445pla.18
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 07:43:48 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id w13-v6si6403728pll.449.2018.08.30.07.43.46
+        by mx.google.com with ESMTPS id z73-v6si6610727pgd.471.2018.08.30.07.43.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 30 Aug 2018 07:43:46 -0700 (PDT)
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [RFC PATCH v3 09/24] x86/mm: Change _PAGE_DIRTY to _PAGE_DIRTY_HW
-Date: Thu, 30 Aug 2018 07:38:49 -0700
-Message-Id: <20180830143904.3168-10-yu-cheng.yu@intel.com>
+Subject: [RFC PATCH v3 23/24] x86/cet/shstk: Add arch_prctl functions for Shadow Stack
+Date: Thu, 30 Aug 2018 07:39:03 -0700
+Message-Id: <20180830143904.3168-24-yu-cheng.yu@intel.com>
 In-Reply-To: <20180830143904.3168-1-yu-cheng.yu@intel.com>
 References: <20180830143904.3168-1-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,147 +20,237 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
 
-We are going to create _PAGE_DIRTY_SW for non-hardware, memory
-management purposes.  Rename _PAGE_DIRTY to _PAGE_DIRTY_HW and
-_PAGE_BIT_DIRTY to _PAGE_BIT_DIRTY_HW to make these PTE dirty
-bits more clear.  There are no functional changes in this
-patch.
+arch_prctl(ARCH_CET_STATUS, unsigned long *addr)
+    Return CET feature status.
 
+    The parameter 'addr' is a pointer to a user buffer.
+    On returning to the caller, the kernel fills the following
+    information:
+
+    *addr = SHSTK/IBT status
+    *(addr + 1) = SHSTK base address
+    *(addr + 2) = SHSTK size
+
+arch_prctl(ARCH_CET_DISABLE, unsigned long features)
+    Disable CET features specified in 'features'.  Return
+    -EPERM if CET is locked.
+
+arch_prctl(ARCH_CET_LOCK)
+    Lock in CET feature.
+
+arch_prctl(ARCH_CET_ALLOC_SHSTK, unsigned long *addr)
+    Allocate a new SHSTK.
+
+    The parameter 'addr' is a pointer to a user buffer and indicates
+    the desired SHSTK size to allocate.  On returning to the caller
+    the buffer contains the address of the new SHSTK.
+
+Signed-off-by: H.J. Lu <hjl.tools@gmail.com>
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/include/asm/pgtable.h       |  6 +++---
- arch/x86/include/asm/pgtable_types.h | 17 +++++++++--------
- arch/x86/kernel/relocate_kernel_64.S |  2 +-
- arch/x86/kvm/vmx.c                   |  2 +-
- 4 files changed, 14 insertions(+), 13 deletions(-)
+ arch/x86/include/asm/cet.h        |  5 ++
+ arch/x86/include/uapi/asm/prctl.h |  5 ++
+ arch/x86/kernel/Makefile          |  2 +-
+ arch/x86/kernel/cet.c             | 27 +++++++++++
+ arch/x86/kernel/cet_prctl.c       | 79 +++++++++++++++++++++++++++++++
+ arch/x86/kernel/process.c         |  5 ++
+ 6 files changed, 122 insertions(+), 1 deletion(-)
+ create mode 100644 arch/x86/kernel/cet_prctl.c
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index e4ffa565a69f..aab42464f6a1 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -316,7 +316,7 @@ static inline pte_t pte_mkexec(pte_t pte)
+diff --git a/arch/x86/include/asm/cet.h b/arch/x86/include/asm/cet.h
+index b7b33e1026bb..212bd68e31d3 100644
+--- a/arch/x86/include/asm/cet.h
++++ b/arch/x86/include/asm/cet.h
+@@ -12,19 +12,24 @@ struct task_struct;
+ struct cet_status {
+ 	unsigned long	shstk_base;
+ 	unsigned long	shstk_size;
++	unsigned int	locked:1;
+ 	unsigned int	shstk_enabled:1;
+ };
  
- static inline pte_t pte_mkdirty(pte_t pte)
- {
--	return pte_set_flags(pte, _PAGE_DIRTY | _PAGE_SOFT_DIRTY);
-+	return pte_set_flags(pte, _PAGE_DIRTY_HW | _PAGE_SOFT_DIRTY);
- }
- 
- static inline pte_t pte_mkyoung(pte_t pte)
-@@ -390,7 +390,7 @@ static inline pmd_t pmd_wrprotect(pmd_t pmd)
- 
- static inline pmd_t pmd_mkdirty(pmd_t pmd)
- {
--	return pmd_set_flags(pmd, _PAGE_DIRTY | _PAGE_SOFT_DIRTY);
-+	return pmd_set_flags(pmd, _PAGE_DIRTY_HW | _PAGE_SOFT_DIRTY);
- }
- 
- static inline pmd_t pmd_mkdevmap(pmd_t pmd)
-@@ -444,7 +444,7 @@ static inline pud_t pud_wrprotect(pud_t pud)
- 
- static inline pud_t pud_mkdirty(pud_t pud)
- {
--	return pud_set_flags(pud, _PAGE_DIRTY | _PAGE_SOFT_DIRTY);
-+	return pud_set_flags(pud, _PAGE_DIRTY_HW | _PAGE_SOFT_DIRTY);
- }
- 
- static inline pud_t pud_mkdevmap(pud_t pud)
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-index b64acb08a62b..0657a22d5216 100644
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -15,7 +15,7 @@
- #define _PAGE_BIT_PWT		3	/* page write through */
- #define _PAGE_BIT_PCD		4	/* page cache disabled */
- #define _PAGE_BIT_ACCESSED	5	/* was accessed (raised by CPU) */
--#define _PAGE_BIT_DIRTY		6	/* was written to (raised by CPU) */
-+#define _PAGE_BIT_DIRTY_HW	6	/* was written to (raised by CPU) */
- #define _PAGE_BIT_PSE		7	/* 4 MB (or 2MB) page */
- #define _PAGE_BIT_PAT		7	/* on 4KB pages */
- #define _PAGE_BIT_GLOBAL	8	/* Global TLB entry PPro+ */
-@@ -45,7 +45,7 @@
- #define _PAGE_PWT	(_AT(pteval_t, 1) << _PAGE_BIT_PWT)
- #define _PAGE_PCD	(_AT(pteval_t, 1) << _PAGE_BIT_PCD)
- #define _PAGE_ACCESSED	(_AT(pteval_t, 1) << _PAGE_BIT_ACCESSED)
--#define _PAGE_DIRTY	(_AT(pteval_t, 1) << _PAGE_BIT_DIRTY)
-+#define _PAGE_DIRTY_HW	(_AT(pteval_t, 1) << _PAGE_BIT_DIRTY_HW)
- #define _PAGE_PSE	(_AT(pteval_t, 1) << _PAGE_BIT_PSE)
- #define _PAGE_GLOBAL	(_AT(pteval_t, 1) << _PAGE_BIT_GLOBAL)
- #define _PAGE_SOFTW1	(_AT(pteval_t, 1) << _PAGE_BIT_SOFTW1)
-@@ -73,7 +73,7 @@
- 			 _PAGE_PKEY_BIT3)
- 
- #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
--#define _PAGE_KNL_ERRATUM_MASK (_PAGE_DIRTY | _PAGE_ACCESSED)
-+#define _PAGE_KNL_ERRATUM_MASK (_PAGE_DIRTY_HW | _PAGE_ACCESSED)
+ #ifdef CONFIG_X86_INTEL_CET
++int prctl_cet(int option, unsigned long arg2);
+ int cet_setup_shstk(void);
+ int cet_setup_thread_shstk(struct task_struct *p);
++int cet_alloc_shstk(unsigned long *arg);
+ void cet_disable_shstk(void);
+ void cet_disable_free_shstk(struct task_struct *p);
+ int cet_restore_signal(unsigned long ssp);
+ int cet_setup_signal(bool ia32, unsigned long rstor, unsigned long *new_ssp);
  #else
- #define _PAGE_KNL_ERRATUM_MASK 0
- #endif
-@@ -112,9 +112,9 @@
- #define _PAGE_PROTNONE	(_AT(pteval_t, 1) << _PAGE_BIT_PROTNONE)
++static inline int prctl_cet(int option, unsigned long arg2) { return 0; }
+ static inline int cet_setup_shstk(void) { return 0; }
+ static inline int cet_setup_thread_shstk(struct task_struct *p) { return 0; }
++static inline int cet_alloc_shstk(unsigned long *arg) { return -EINVAL; }
+ static inline void cet_disable_shstk(void) {}
+ static inline void cet_disable_free_shstk(struct task_struct *p) {}
+ static inline int cet_restore_signal(unsigned long ssp) { return 0; }
+diff --git a/arch/x86/include/uapi/asm/prctl.h b/arch/x86/include/uapi/asm/prctl.h
+index 5a6aac9fa41f..3aec1088e01d 100644
+--- a/arch/x86/include/uapi/asm/prctl.h
++++ b/arch/x86/include/uapi/asm/prctl.h
+@@ -14,4 +14,9 @@
+ #define ARCH_MAP_VDSO_32	0x2002
+ #define ARCH_MAP_VDSO_64	0x2003
  
- #define _PAGE_TABLE_NOENC	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |\
--				 _PAGE_ACCESSED | _PAGE_DIRTY)
-+				 _PAGE_ACCESSED | _PAGE_DIRTY_HW)
- #define _KERNPG_TABLE_NOENC	(_PAGE_PRESENT | _PAGE_RW |		\
--				 _PAGE_ACCESSED | _PAGE_DIRTY)
-+				 _PAGE_ACCESSED | _PAGE_DIRTY_HW)
++#define ARCH_CET_STATUS		0x3001
++#define ARCH_CET_DISABLE	0x3002
++#define ARCH_CET_LOCK		0x3003
++#define ARCH_CET_ALLOC_SHSTK	0x3004
++
+ #endif /* _ASM_X86_PRCTL_H */
+diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+index 36b14ef410c8..b9e6cdc6b4f7 100644
+--- a/arch/x86/kernel/Makefile
++++ b/arch/x86/kernel/Makefile
+@@ -139,7 +139,7 @@ obj-$(CONFIG_UNWINDER_ORC)		+= unwind_orc.o
+ obj-$(CONFIG_UNWINDER_FRAME_POINTER)	+= unwind_frame.o
+ obj-$(CONFIG_UNWINDER_GUESS)		+= unwind_guess.o
  
- /*
-  * Set of bits not changed in pte_modify.  The pte's
-@@ -123,7 +123,7 @@
-  * pte_modify() does modify it.
-  */
- #define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
--			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY |	\
-+			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY_HW |	\
- 			 _PAGE_SOFT_DIRTY)
- #define _HPAGE_CHG_MASK (_PAGE_CHG_MASK | _PAGE_PSE)
+-obj-$(CONFIG_X86_INTEL_CET)		+= cet.o
++obj-$(CONFIG_X86_INTEL_CET)		+= cet.o cet_prctl.o
  
-@@ -168,7 +168,8 @@ enum page_cache_mode {
- 					 _PAGE_ACCESSED)
+ obj-$(CONFIG_ARCH_HAS_PROGRAM_PROPERTIES) += elf.o
  
- #define __PAGE_KERNEL_EXEC						\
--	(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_GLOBAL)
-+	(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY_HW | _PAGE_ACCESSED | \
-+	 _PAGE_GLOBAL)
- #define __PAGE_KERNEL		(__PAGE_KERNEL_EXEC | _PAGE_NX)
+diff --git a/arch/x86/kernel/cet.c b/arch/x86/kernel/cet.c
+index ce0b3b7b1160..1c2689738604 100644
+--- a/arch/x86/kernel/cet.c
++++ b/arch/x86/kernel/cet.c
+@@ -110,6 +110,33 @@ static int create_rstor_token(bool ia32, unsigned long ssp,
+ 	return 0;
+ }
  
- #define __PAGE_KERNEL_RO		(__PAGE_KERNEL & ~_PAGE_RW)
-@@ -187,7 +188,7 @@ enum page_cache_mode {
- #define _PAGE_ENC	(_AT(pteval_t, sme_me_mask))
++int cet_alloc_shstk(unsigned long *arg)
++{
++	unsigned long len = *arg;
++	unsigned long addr;
++	unsigned long token;
++	unsigned long ssp;
++
++	addr = do_mmap_locked(0, len, PROT_READ,
++			      MAP_ANONYMOUS | MAP_PRIVATE, VM_SHSTK);
++	if (addr >= TASK_SIZE_MAX)
++		return -ENOMEM;
++
++	/* Restore token is 8 bytes and aligned to 8 bytes */
++	ssp = addr + len;
++	token = ssp;
++
++	if (!in_ia32_syscall())
++		token |= 1;
++	ssp -= 8;
++
++	if (write_user_shstk_64(ssp, token))
++		return -EINVAL;
++
++	*arg = addr;
++	return 0;
++}
++
+ int cet_setup_shstk(void)
+ {
+ 	unsigned long addr, size;
+diff --git a/arch/x86/kernel/cet_prctl.c b/arch/x86/kernel/cet_prctl.c
+new file mode 100644
+index 000000000000..c4b7c19f5040
+--- /dev/null
++++ b/arch/x86/kernel/cet_prctl.c
+@@ -0,0 +1,79 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++
++#include <linux/errno.h>
++#include <linux/uaccess.h>
++#include <linux/prctl.h>
++#include <linux/compat.h>
++#include <asm/processor.h>
++#include <asm/prctl.h>
++#include <asm/elf.h>
++#include <asm/elf_property.h>
++#include <asm/cet.h>
++
++/* See Documentation/x86/intel_cet.txt. */
++
++static int handle_get_status(unsigned long arg2)
++{
++	unsigned int features = 0;
++	unsigned long shstk_base, shstk_size;
++	unsigned long buf[3];
++
++	if (current->thread.cet.shstk_enabled)
++		features |= GNU_PROPERTY_X86_FEATURE_1_SHSTK;
++
++	shstk_base = current->thread.cet.shstk_base;
++	shstk_size = current->thread.cet.shstk_size;
++
++	buf[0] = (unsigned long)features;
++	buf[1] = shstk_base;
++	buf[2] = shstk_size;
++	return copy_to_user((unsigned long __user *)arg2, buf,
++			    sizeof(buf));
++}
++
++static int handle_alloc_shstk(unsigned long arg2)
++{
++	int err = 0;
++	unsigned long shstk_size = 0;
++
++	if (get_user(shstk_size, (unsigned long __user *)arg2))
++		return -EFAULT;
++
++	err = cet_alloc_shstk(&shstk_size);
++	if (err)
++		return err;
++
++	if (put_user(shstk_size, (unsigned long __user *)arg2))
++		return -EFAULT;
++
++	return 0;
++}
++
++int prctl_cet(int option, unsigned long arg2)
++{
++	if (!cpu_feature_enabled(X86_FEATURE_SHSTK))
++		return -EINVAL;
++
++	switch (option) {
++	case ARCH_CET_STATUS:
++		return handle_get_status(arg2);
++
++	case ARCH_CET_DISABLE:
++		if (current->thread.cet.locked)
++			return -EPERM;
++		if (arg2 & GNU_PROPERTY_X86_FEATURE_1_SHSTK)
++			cet_disable_free_shstk(current);
++
++		return 0;
++
++	case ARCH_CET_LOCK:
++		current->thread.cet.locked = 1;
++		return 0;
++
++	case ARCH_CET_ALLOC_SHSTK:
++		return handle_alloc_shstk(arg2);
++
++	default:
++		return -EINVAL;
++	}
++}
+diff --git a/arch/x86/kernel/process.c b/arch/x86/kernel/process.c
+index 440f012ef925..251b8714f9a3 100644
+--- a/arch/x86/kernel/process.c
++++ b/arch/x86/kernel/process.c
+@@ -792,6 +792,11 @@ long do_arch_prctl_common(struct task_struct *task, int option,
+ 		return get_cpuid_mode();
+ 	case ARCH_SET_CPUID:
+ 		return set_cpuid_mode(task, cpuid_enabled);
++	case ARCH_CET_STATUS:
++	case ARCH_CET_DISABLE:
++	case ARCH_CET_LOCK:
++	case ARCH_CET_ALLOC_SHSTK:
++		return prctl_cet(option, cpuid_enabled);
+ 	}
  
- #define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED |	\
--			 _PAGE_DIRTY | _PAGE_ENC)
-+			 _PAGE_DIRTY_HW | _PAGE_ENC)
- #define _PAGE_TABLE	(_KERNPG_TABLE | _PAGE_USER)
- 
- #define __PAGE_KERNEL_ENC	(__PAGE_KERNEL | _PAGE_ENC)
-diff --git a/arch/x86/kernel/relocate_kernel_64.S b/arch/x86/kernel/relocate_kernel_64.S
-index 11eda21eb697..e7665a4767b3 100644
---- a/arch/x86/kernel/relocate_kernel_64.S
-+++ b/arch/x86/kernel/relocate_kernel_64.S
-@@ -17,7 +17,7 @@
-  */
- 
- #define PTR(x) (x << 3)
--#define PAGE_ATTR (_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY)
-+#define PAGE_ATTR (_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY_HW)
- 
- /*
-  * control_page + KEXEC_CONTROL_CODE_MAX_SIZE
-diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
-index 1d26f3c4985b..1cf7d21608be 100644
---- a/arch/x86/kvm/vmx.c
-+++ b/arch/x86/kvm/vmx.c
-@@ -5848,7 +5848,7 @@ static int init_rmode_identity_map(struct kvm *kvm)
- 	/* Set up identity-mapping pagetable for EPT in real mode */
- 	for (i = 0; i < PT32_ENT_PER_PAGE; i++) {
- 		tmp = (i << 22) + (_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |
--			_PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_PSE);
-+			_PAGE_ACCESSED | _PAGE_DIRTY_HW | _PAGE_PSE);
- 		r = kvm_write_guest_page(kvm, identity_map_pfn,
- 				&tmp, i * sizeof(tmp), sizeof(tmp));
- 		if (r < 0)
+ 	return -EINVAL;
 -- 
 2.17.1
