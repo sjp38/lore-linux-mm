@@ -1,78 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 937816B4ED4
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 21:55:33 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id e6-v6so471614itc.7
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 18:55:33 -0700 (PDT)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0127.outbound.protection.outlook.com. [104.47.36.127])
-        by mx.google.com with ESMTPS id l203-v6si3826544ioa.13.2018.08.29.18.55.31
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EE246B4EF2
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 22:27:09 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id e15-v6so3919039pfi.5
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 19:27:09 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u24-v6sor1531284pgh.420.2018.08.29.19.27.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 29 Aug 2018 18:55:32 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: Re: [PATCH] mm/page_alloc: Clean up check_for_memory
-Date: Thu, 30 Aug 2018 01:55:29 +0000
-Message-ID: <332d9ea1-cdd0-6bb6-8e83-28af25096637@microsoft.com>
-References: <20180828210158.4617-1-osalvador@techadventures.net>
-In-Reply-To: <20180828210158.4617-1-osalvador@techadventures.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <F6C84231AE129F45AEA20EBD69B9806E@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (Google Transport Security);
+        Wed, 29 Aug 2018 19:27:07 -0700 (PDT)
+Date: Wed, 29 Aug 2018 19:27:04 -0700
+From: Alexei Starovoitov <alexei.starovoitov@gmail.com>
+Subject: Re: [PATCH v4 0/3] KASLR feature to randomize each loadable module
+Message-ID: <20180830022703.xxl5eolthinicgwp@ast-mbp>
+References: <1535583579-6138-1-git-send-email-rick.p.edgecombe@intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1535583579-6138-1-git-send-email-rick.p.edgecombe@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Cc: "mhocko@suse.com" <mhocko@suse.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oscar Salvador <osalvador@suse.de>
+To: Rick Edgecombe <rick.p.edgecombe@intel.com>
+Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, daniel@iogearbox.net, jannh@google.com, keescook@chromium.org, kristen@linux.intel.com, dave.hansen@intel.com, arjan@linux.intel.com, netdev@vger.kernel.org
 
-DQoNCk9uIDgvMjgvMTggNTowMSBQTSwgT3NjYXIgU2FsdmFkb3Igd3JvdGU6DQo+IEZyb206IE9z
-Y2FyIFNhbHZhZG9yIDxvc2FsdmFkb3JAc3VzZS5kZT4NCj4gDQo+IGNoZWNrX2Zvcl9tZW1vcnkg
-bG9va3MgYSBiaXQgY29uZnVzaW5nLg0KPiBGaXJzdCBvZiBhbGwsIHdlIGhhdmUgdGhpczoNCj4g
-DQo+IGlmIChOX01FTU9SWSA9PSBOX05PUk1BTF9NRU1PUlkpDQo+IAlyZXR1cm47DQo+IA0KPiBD
-aGVja2luZyB0aGUgRU5VTSBkZWNsYXJhdGlvbiwgbG9va3MgbGlrZSBOX01FTU9SWSBjYW5vdCBi
-ZSBlcXVhbCB0bw0KPiBOX05PUk1BTF9NRU1PUlkuDQo+IEkgY291bGQgbm90IGZpbmQgd2hlcmUg
-Tl9NRU1PUlkgaXMgc2V0IHRvIE5fTk9STUFMX01FTU9SWSwgb3IgdGhlIG90aGVyDQo+IHdheSBh
-cm91bmQgZWl0aGVyLCBzbyB1bmxlc3MgSSBhbSBtaXNzaW5nIHNvbWV0aGluZywgdGhpcyBjb25k
-aXRpb24gDQo+IHdpbGwgbmV2ZXIgZXZhbHVhdGUgdG8gdHJ1ZS4NCj4gSXQgbWFrZXMgc2Vuc2Ug
-dG8gZ2V0IHJpZCBvZiBpdC4NCj4gDQo+IE1vdmluZyBmb3J3YXJkLCB0aGUgb3BlcmF0aW9ucyB3
-aGl0aGluIHRoZSBsb29wIGxvb2sgYSBiaXQgY29uZnVzaW5nDQo+IGFzIHdlbGwuDQo+IA0KPiBX
-ZSBzZXQgTl9ISUdIX01FTU9SWSB1bmNvbmRpdGlvbmFsbHksIGFuZCB0aGVuIHdlIHNldCBOX05P
-Uk1BTF9NRU1PUlkNCj4gaW4gY2FzZSB3ZSBoYXZlIENPTkZJR19ISUdITUVNIChOX05PUk1BTF9N
-RU1PUlkgIT0gTl9ISUdIX01FTU9SWSkNCj4gYW5kIHpvbmUgPD0gWk9ORV9OT1JNQUwuDQo+IChO
-X0hJR0hfTUVNT1JZIGZhbGxzIGJhY2sgdG8gTl9OT1JNQUxfTUVNT1JZIG9uICFDT05GSUdfSElH
-SE1FTSBzeXN0ZW1zLA0KPiBhbmQgdGhhdCBpcyB3aHkgd2UgY2FuIGp1c3QgZ28gYWhlYWQgYW5k
-IHNldCBOX0hJR0hfTUVNT1JZIHVuY29uZGl0aW9uYWxseSkNCj4gDQo+IEFsdGhvdWdoIHRoaXMg
-d29ya3MsIGl0IGlzIGEgYml0IHN1YnRsZS4NCj4gDQo+IEkgdGhpbmsgdGhhdCB0aGlzIGNvdWxk
-IGJlIGVhc2llciB0byBmb2xsb3c6DQo+IA0KPiBGaXJzdCwgd2Ugc2hvdWxkIG9ubHkgc2V0IE5f
-SElHSF9NRU1PUlkgaW4gY2FzZSB3ZSBoYXZlDQo+IENPTkZJR19ISUdITUVNLg0KPiBBbmQgdGhl
-biB3ZSBzaG91bGQgc2V0IE5fTk9STUFMX01FTU9SWSBpbiBjYXNlIHpvbmUgPD0gWk9ORV9OT1JN
-QUwsDQo+IHdpdGhvdXQgZnVydGhlciBjaGVja2luZyB3aGV0aGVyIHdlIGhhdmUgQ09ORklHX0hJ
-R0hNRU0gb3Igbm90Lg0KPiANCj4gU2lnbmVkLW9mZi1ieTogT3NjYXIgU2FsdmFkb3IgPG9zYWx2
-YWRvckBzdXNlLmRlPg0KPiAtLS0NCj4gIG1tL3BhZ2VfYWxsb2MuYyB8IDkgKysrLS0tLS0tDQo+
-ICAxIGZpbGUgY2hhbmdlZCwgMyBpbnNlcnRpb25zKCspLCA2IGRlbGV0aW9ucygtKQ0KPiANCj4g
-ZGlmZiAtLWdpdCBhL21tL3BhZ2VfYWxsb2MuYyBiL21tL3BhZ2VfYWxsb2MuYw0KPiBpbmRleCA4
-MzllMGNjMTdmMmMuLjZhYTk0N2Y5ZTYxNCAxMDA2NDQNCj4gLS0tIGEvbW0vcGFnZV9hbGxvYy5j
-DQo+ICsrKyBiL21tL3BhZ2VfYWxsb2MuYw0KPiBAQCAtNjgxOSwxNSArNjgxOSwxMiBAQCBzdGF0
-aWMgdm9pZCBjaGVja19mb3JfbWVtb3J5KHBnX2RhdGFfdCAqcGdkYXQsIGludCBuaWQpDQo+ICB7
-DQo+ICAJZW51bSB6b25lX3R5cGUgem9uZV90eXBlOw0KPiAgDQo+IC0JaWYgKE5fTUVNT1JZID09
-IE5fTk9STUFMX01FTU9SWSkNCj4gLQkJcmV0dXJuOw0KPiAtDQo+ICAJZm9yICh6b25lX3R5cGUg
-PSAwOyB6b25lX3R5cGUgPD0gWk9ORV9NT1ZBQkxFIC0gMTsgem9uZV90eXBlKyspIHsNCj4gIAkJ
-c3RydWN0IHpvbmUgKnpvbmUgPSAmcGdkYXQtPm5vZGVfem9uZXNbem9uZV90eXBlXTsNCj4gIAkJ
-aWYgKHBvcHVsYXRlZF96b25lKHpvbmUpKSB7DQo+IC0JCQlub2RlX3NldF9zdGF0ZShuaWQsIE5f
-SElHSF9NRU1PUlkpOw0KPiAtCQkJaWYgKE5fTk9STUFMX01FTU9SWSAhPSBOX0hJR0hfTUVNT1JZ
-ICYmDQo+IC0JCQkgICAgem9uZV90eXBlIDw9IFpPTkVfTk9STUFMKQ0KPiArCQkJaWYgKElTX0VO
-QUJMRUQoQ09ORklHX0hJR0hNRU0pKQ0KPiArCQkJCW5vZGVfc2V0X3N0YXRlKG5pZCwgTl9ISUdI
-X01FTU9SWSk7DQo+ICsJCQlpZiAoem9uZV90eXBlIDw9IFpPTkVfTk9STUFMKQ0KPiAgCQkJCW5v
-ZGVfc2V0X3N0YXRlKG5pZCwgTl9OT1JNQUxfTUVNT1JZKTsNCj4gIAkJCWJyZWFrOw0KPiAgCQl9
-DQo+IA0KDQpJIHdvdWxkIHJlLXdyaXRlIHRoZSBhYm92ZSBmdW5jdGlvbiBsaWtlIHRoaXM6DQpz
-dGF0aWMgdm9pZCBjaGVja19mb3JfbWVtb3J5KHBnX2RhdGFfdCAqcGdkYXQsIGludCBuaWQpDQp7
-DQogICAgICAgIGVudW0gem9uZV90eXBlIHpvbmVfdHlwZTsNCg0KICAgICAgICBmb3IgKHpvbmVf
-dHlwZSA9IDA7IHpvbmVfdHlwZSA8IFpPTkVfTU9WQUJMRTsgem9uZV90eXBlKyspIHsNCiAgICAg
-ICAgICAgICAgICBpZiAocG9wdWxhdGVkX3pvbmUoJnBnZGF0LT5ub2RlX3pvbmVzW3pvbmVfdHlw
-ZV0pKSB7IA0KICAgICAgICAgICAgICAgICAgICAgICAgbm9kZV9zZXRfc3RhdGUobmlkLCB6b25l
-X3R5cGUgPD0gWk9ORV9OT1JNQUwgPw0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgTl9OT1JNQUxfTUVNT1JZOiBOX0hJR0hfTUVNT1JZKTsNCiAgICAgICAgICAgICAgICAg
-ICAgICAgIGJyZWFrOw0KICAgICAgICAgICAgICAgIH0NCiAgICAgICAgfQ0KfQ0KDQp6b25lX3R5
-cGUgPD0gWk9ORV9NT1ZBQkxFIC0gMQ0KaXMgdGhlIHNhbWUgYXM6DQp6b25lX3R5cGUgPCBaT05F
-X01PVkFCTEUNCg0KSWYgem9uZSA+IFpPTkVfTk9STUFMLCBpdCBtZWFucyB0aGF0IENPTkZJR19I
-SUdITUVNIGlzIGVuYWJsZWQsIG5vIG5lZWQgdG8gY2hlY2sgZm9yIGl0Lg0KDQpQYXZlbA==
+On Wed, Aug 29, 2018 at 03:59:36PM -0700, Rick Edgecombe wrote:
+> Hi,
+> 
+> This is v4 of the "KASLR feature to randomize each loadable module" patchset.
+> The purpose is to increase the randomization and also to make the modules
+> randomized in relation to each other instead of just the base, so that if one
+> module leaks the location of the others can't be inferred. It is enabled for
+> x86_64 for now.
+> 
+> V4 is a few small fixes. I humbly think this is in pretty good shape at this
+> point, unless anyone has any comments. The only other big change I was
+> considering was moving the new randomization algorithm into vmalloc so it could
+> be re-used for other architectures or possibly other vmalloc usages.
+> 
+> A few words on how this was tested - As previously mentioned, the entropy
+> estimates were done using extracted module text sizes from the in-tree modules.
+> These were also used to run 100,000's of simulated module allocations by calling
+> module_alloc from a test module, including testing until allocation failure. The
+> simulations kept track of every allocation address to make sure there were no
+> collisions, and verified memory was actually mapped.
+> 
+> In addition the __vmalloc_node_try_addr function has a suite of unit tests that
+> verify for a bunch of edge cases that it:
+>  - Allows for allocations when it should
+>  - Reports the right error code if it collides with a lazy-free area or real
+>    allocation
+>  - Verifies it frees a lazy free area when it should
+> 
+> These synthetic tests were also how the performance metrics were gathered.
+> 
+> Changes for V4:
+>  - Fix issue caused by KASAN, kmemleak being provided different allocation
+>    lengths (padding).
+>  - Avoid kmalloc until sure its needed in __vmalloc_node_try_addr.
+>  - Fix for debug file hang when the last VA is a lazy purge area
+>  - Fixed issues reported by 0-day build system.
+> 
+> Changes for V3:
+>  - Code cleanup based on internal feedback. (thanks to Dave Hansen and Andriy
+>    Shevchenko)
+>  - Slight refactor of existing algorithm to more cleanly live along side new
+>    one.
+>  - BPF synthetic benchmark
+
+I don't see this benchmark in this patch set.
+Could you prepare it as a test in tools/testing/selftests/bpf/ ?
+so we can double check what is being tested and run it regularly
+like we do for all other tests in there.
