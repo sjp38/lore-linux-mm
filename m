@@ -1,86 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 850D96B520B
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 10:34:22 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id d1-v6so8035773qth.21
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 07:34:22 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 33-v6si5016879qtc.294.2018.08.30.07.34.21
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 126216B520E
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 10:35:41 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id l65-v6so5106746pge.17
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 07:35:41 -0700 (PDT)
+Received: from NAM04-CO1-obe.outbound.protection.outlook.com (mail-eopbgr690109.outbound.protection.outlook.com. [40.107.69.109])
+        by mx.google.com with ESMTPS id ca2-v6si7378169plb.305.2018.08.30.07.35.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Aug 2018 07:34:21 -0700 (PDT)
-Date: Thu, 30 Aug 2018 10:34:19 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 2/7] mm/rmap: map_pte() was not handling private
- ZONE_DEVICE page properly
-Message-ID: <20180830143418.GC3529@redhat.com>
-References: <20180824192549.30844-1-jglisse@redhat.com>
- <20180824192549.30844-3-jglisse@redhat.com>
- <20180830140538.GA28695@350D>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 30 Aug 2018 07:35:39 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Subject: Re: [PATCH v1] mm: relax deferred struct page requirements
+Date: Thu, 30 Aug 2018 14:35:37 +0000
+Message-ID: <7aee9274-9e8e-4a40-a9e5-3c9ef28511b7@microsoft.com>
+References: <20171117014601.31606-1-pasha.tatashin@oracle.com>
+ <20171121072416.v77vu4osm2s4o5sq@dhcp22.suse.cz>
+ <b16029f0-ada0-df25-071b-cd5dba0ab756@suse.cz>
+ <CAGM2rea=_VJJ26tohWQWgfwcFVkp0gb6j1edH1kVLjtxfugf5Q@mail.gmail.com>
+ <CAGM2reYcwyOcKrO=WhB3Cf0FNL3ZearC=KvxmTNUU6rkWviQOg@mail.gmail.com>
+ <83d035f1-40b4-bed8-6113-f4c5a0c4d22f@suse.cz>
+ <c4d46b63-5237-d002-faf5-4e0749d825d7@suse.cz>
+In-Reply-To: <c4d46b63-5237-d002-faf5-4e0749d825d7@suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <1C800F9BE9F8864E8B6BE0DD1B2842EE@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180830140538.GA28695@350D>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, stable@vger.kernel.org
+To: Jiri Slaby <jslaby@suse.cz>
+Cc: "mhocko@kernel.org" <mhocko@kernel.org>, Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "paulus@samba.org" <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, "schwidefsky@de.ibm.com" <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>
 
-On Fri, Aug 31, 2018 at 12:05:38AM +1000, Balbir Singh wrote:
-> On Fri, Aug 24, 2018 at 03:25:44PM -0400, jglisse@redhat.com wrote:
-> > From: Ralph Campbell <rcampbell@nvidia.com>
-> > 
-> > Private ZONE_DEVICE pages use a special pte entry and thus are not
-> > present. Properly handle this case in map_pte(), it is already handled
-> > in check_pte(), the map_pte() part was lost in some rebase most probably.
-> > 
-> > Without this patch the slow migration path can not migrate back private
-> > ZONE_DEVICE memory to regular memory. This was found after stress
-> > testing migration back to system memory. This ultimatly can lead the
-> > CPU to an infinite page fault loop on the special swap entry.
-> > 
-> > Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
-> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Cc: stable@vger.kernel.org
-> > ---
-> >  mm/page_vma_mapped.c | 9 +++++++++
-> >  1 file changed, 9 insertions(+)
-> > 
-> > diff --git a/mm/page_vma_mapped.c b/mm/page_vma_mapped.c
-> > index ae3c2a35d61b..1cf5b9bfb559 100644
-> > --- a/mm/page_vma_mapped.c
-> > +++ b/mm/page_vma_mapped.c
-> > @@ -21,6 +21,15 @@ static bool map_pte(struct page_vma_mapped_walk *pvmw)
-> >  			if (!is_swap_pte(*pvmw->pte))
-> >  				return false;
-> >  		} else {
-> > +			if (is_swap_pte(*pvmw->pte)) {
-> > +				swp_entry_t entry;
-> > +
-> > +				/* Handle un-addressable ZONE_DEVICE memory */
-> > +				entry = pte_to_swp_entry(*pvmw->pte);
-> > +				if (is_device_private_entry(entry))
-> > +					return true;
-> > +			}
-> > +
-> 
-> This happens just for !PVMW_SYNC && PVMW_MIGRATION? I presume this
-> is triggered via the remove_migration_pte() code path? Doesn't
-> returning true here imply that we've taken the ptl lock for the
-> pvmw?
-
-This happens through try_to_unmap() from migrate_vma_unmap() and thus
-has !PVMW_SYNC and !PVMW_MIGRATION
-
-But you are right about the ptl lock, so looking at code we were just
-doing pte modification without holding the pte lock but the
-page_vma_mapped_walk() would not try to unlock as pvmw->ptl == NULL
-so this never triggered any warning.
-
-I am gonna post a v2 shortly which address that.
-
-Cheers,
-Jerome
+VGhhbmsgeW91IEppcmksIEkgYW0gc3R1ZHlpbmcgaXQuDQoNClBhdmVsDQoNCk9uIDgvMjQvMTgg
+Mzo0NCBBTSwgSmlyaSBTbGFieSB3cm90ZToNCj4gcGFzaGEudGF0YXNoaW5Ab3JhY2xlLmNvbSAt
+PiBwYXZlbC50YXRhc2hpbkBtaWNyb3NvZnQuY29tDQo+IA0KPiBkdWUgdG8NCj4gIDU1MCA1LjEu
+MSBVbmtub3duIHJlY2lwaWVudCBhZGRyZXNzLg0KPiANCj4gDQo+IE9uIDA4LzI0LzIwMTgsIDA5
+OjMyIEFNLCBKaXJpIFNsYWJ5IHdyb3RlOg0KPj4gT24gMDYvMTkvMjAxOCwgMDk6NTYgUE0sIFBh
+dmVsIFRhdGFzaGluIHdyb3RlOg0KPj4+IE9uIFR1ZSwgSnVuIDE5LCAyMDE4IGF0IDk6NTAgQU0g
+UGF2ZWwgVGF0YXNoaW4NCj4+PiA8cGFzaGEudGF0YXNoaW5Ab3JhY2xlLmNvbT4gd3JvdGU6DQo+
+Pj4+DQo+Pj4+IE9uIFNhdCwgSnVuIDE2LCAyMDE4IGF0IDQ6MDQgQU0gSmlyaSBTbGFieSA8anNs
+YWJ5QHN1c2UuY3o+IHdyb3RlOg0KPj4+Pj4NCj4+Pj4+IE9uIDExLzIxLzIwMTcsIDA4OjI0IEFN
+LCBNaWNoYWwgSG9ja28gd3JvdGU6DQo+Pj4+Pj4gT24gVGh1IDE2LTExLTE3IDIwOjQ2OjAxLCBQ
+YXZlbCBUYXRhc2hpbiB3cm90ZToNCj4+Pj4+Pj4gVGhlcmUgaXMgbm8gbmVlZCB0byBoYXZlIEFS
+Q0hfU1VQUE9SVFNfREVGRVJSRURfU1RSVUNUX1BBR0VfSU5JVCwNCj4+Pj4+Pj4gYXMgYWxsIHRo
+ZSBwYWdlIGluaXRpYWxpemF0aW9uIGNvZGUgaXMgaW4gY29tbW9uIGNvZGUuDQo+Pj4+Pj4+DQo+
+Pj4+Pj4+IEFsc28sIHRoZXJlIGlzIG5vIG5lZWQgdG8gZGVwZW5kIG9uIE1FTU9SWV9IT1RQTFVH
+LCBhcyBpbml0aWFsaXphdGlvbiBjb2RlDQo+Pj4+Pj4+IGRvZXMgbm90IHJlYWxseSB1c2UgaG90
+cGx1ZyBtZW1vcnkgZnVuY3Rpb25hbGl0eS4gU28sIHdlIGNhbiByZW1vdmUgdGhpcw0KPj4+Pj4+
+PiByZXF1aXJlbWVudCBhcyB3ZWxsLg0KPj4+Pj4+Pg0KPj4+Pj4+PiBUaGlzIHBhdGNoIGFsbG93
+cyB0byB1c2UgZGVmZXJyZWQgc3RydWN0IHBhZ2UgaW5pdGlhbGl6YXRpb24gb24gYWxsDQo+Pj4+
+Pj4+IHBsYXRmb3JtcyB3aXRoIG1lbWJsb2NrIGFsbG9jYXRvci4NCj4+Pj4+Pj4NCj4+Pj4+Pj4g
+VGVzdGVkIG9uIHg4NiwgYXJtNjQsIGFuZCBzcGFyYy4gQWxzbywgdmVyaWZpZWQgdGhhdCBjb2Rl
+IGNvbXBpbGVzIG9uDQo+Pj4+Pj4+IFBQQyB3aXRoIENPTkZJR19NRU1PUllfSE9UUExVRyBkaXNh
+YmxlZC4NCj4+Pj4+Pg0KPj4+Pj4+IFRoZXJlIGlzIHNsaWdodCByaXNrIHRoYXQgd2Ugd2lsbCBl
+bmNvdW50ZXIgY29ybmVyIGNhc2VzIG9uIHNvbWUNCj4+Pj4+PiBhcmNoaXRlY3R1cmVzIHdpdGgg
+d2VpcmQgbWVtb3J5IGxheW91dC90b3BvbG9neQ0KPj4+Pj4NCj4+Pj4+IFdoaWNoIHg4Nl8zMi1w
+YWUgc2VlbXMgdG8gYmUuIE1hbnkgYmFkIHBhZ2Ugc3RhdGUgZXJyb3JzIGFyZSBlbWl0dGVkDQo+
+Pj4+PiBkdXJpbmcgYm9vdCB3aGVuIHRoaXMgcGF0Y2ggaXMgYXBwbGllZDoNCj4+Pj4NCj4+Pj4g
+SGkgSmlyaSwNCj4+Pj4NCj4+Pj4gVGhhbmsgeW91IGZvciByZXBvcnRpbmcgdGhpcyBidWcuDQo+
+Pj4+DQo+Pj4+IEJlY2F1c2UgMzItYml0IHN5c3RlbXMgYXJlIGxpbWl0ZWQgaW4gdGhlIG1heGlt
+dW0gYW1vdW50IG9mIHBoeXNpY2FsDQo+Pj4+IG1lbW9yeSwgdGhleSBkb24ndCBuZWVkIGRlZmVy
+cmVkIHN0cnVjdCBwYWdlcy4gU28sIHdlIGNhbiBhZGQgZGVwZW5kcw0KPj4+PiBvbiA2NEJJVCB0
+byBERUZFUlJFRF9TVFJVQ1RfUEFHRV9JTklUIGluIG1tL0tjb25maWcuDQo+Pj4+DQo+Pj4+IEhv
+d2V2ZXIsIGJlZm9yZSB3ZSBkbyB0aGlzLCBJIHdhbnQgdG8gdHJ5IHJlcHJvZHVjaW5nIHRoaXMg
+cHJvYmxlbSBhbmQNCj4+Pj4gcm9vdCBjYXVzZSBpdCwgYXMgaXQgbWlnaHQgZXhwb3NlIGEgZ2Vu
+ZXJhbCBwcm9ibGVtIHRoYXQgaXMgbm90IDMyLWJpdA0KPj4+PiBzcGVjaWZpYy4NCj4+Pg0KPj4+
+IEhpIEppcmksDQo+Pj4NCj4+PiBDb3VsZCB5b3UgcGxlYXNlIGF0dGFjaCB5b3VyIGNvbmZpZyBh
+bmQgZnVsbCBxZW11IGFyZ3VtZW50cyB0aGF0IHlvdQ0KPj4+IHVzZWQgdG8gcmVwcm9kdWNlIHRo
+aXMgYnVnLg0KPj4NCj4+IEhpLA0KPj4NCj4+IEkgc2VlbSBJIG5ldmVyIHJlcGxpZWQuIEF0dGFj
+aGluZyAuY29uZmlnIGFuZCB0aGUgcWVtdSBjbWRsaW5lOg0KPj4gJCBxZW11LWt2bSAtbSAyMDAw
+IC1oZGEgL2Rldi9udWxsIC1rZXJuZWwgYnpJbWFnZQ0KPj4NCj4+ICItbSAyMDAwIiBpcyBpbXBv
+cnRhbnQgdG8gcmVwcm9kdWNlLg0KPj4NCj4+IElmIEkgZGlzYWJsZSBDT05GSUdfREVGRVJSRURf
+U1RSVUNUX1BBR0VfSU5JVCAod2hpY2ggdGhlIHBhdGNoIGFsbG93ZWQNCj4+IHRvIGVuYWJsZSks
+IHRoZSBlcnJvciBnb2VzIGF3YXksIG9mIGNvdXJzZS4NCj4+DQo+PiB0aGFua3MsDQo+Pg0KPiAN
+Cj4g
