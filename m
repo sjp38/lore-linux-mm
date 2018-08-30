@@ -1,70 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5ED826B5217
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 10:42:01 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id l7-v6so8189801qte.2
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 07:42:01 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id d24-v6si3383018qkh.150.2018.08.30.07.42.00
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 42B726B521A
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 10:43:45 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id b29-v6so4898738pfm.1
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 07:43:45 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id c15-v6si6092534plo.232.2018.08.30.07.43.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Aug 2018 07:42:00 -0700 (PDT)
-From: jglisse@redhat.com
-Subject: [PATCH 3/7] mm/rmap: map_pte() was not handling private ZONE_DEVICE page properly v2
-Date: Thu, 30 Aug 2018 10:41:56 -0400
-Message-Id: <20180830144156.7226-1-jglisse@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-In-Reply-To: <20180824192549.30844-3-jglisse@redhat.com>
-Content-Transfer-Encoding: 8bit
+        Thu, 30 Aug 2018 07:43:43 -0700 (PDT)
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Subject: [RFC PATCH v3 00/24] Control Flow Enforcement: Shadow Stack
+Date: Thu, 30 Aug 2018 07:38:40 -0700
+Message-Id: <20180830143904.3168-1-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Balbir Singh <bsingharora@gmail.com>, stable@vger.kernel.org
+To: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
 
-From: Ralph Campbell <rcampbell@nvidia.com>
+The previous version of CET patches can be found in the following
+link.
 
-Private ZONE_DEVICE pages use a special pte entry and thus are not
-present. Properly handle this case in map_pte(), it is already handled
-in check_pte(), the map_pte() part was lost in some rebase most probably.
+  https://lkml.org/lkml/2018/7/10/1031
 
-Without this patch the slow migration path can not migrate back private
-ZONE_DEVICE memory to regular memory. This was found after stress
-testing migration back to system memory. This ultimatly can lead the
-CPU to an infinite page fault loop on the special swap entry.
+Summary of changes from v2:
 
-Changes since v1:
-    - properly lock pte directory in map_pte()
+  Move Shadow Stack page fault handling logic to arch/x86.
+  Update can_follow_write_pte/pmd; move logic to arch/x86.
+  Fix problems in WRUSS in-line assembly.
+  Fix issues in ELF parser.
+  Split out IBT/PTRACE patches to a second set.
+  Other small fixes.
 
-Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
-Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Balbir Singh <bsingharora@gmail.com>
-Cc: stable@vger.kernel.org
----
- mm/page_vma_mapped.c | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+Yu-cheng Yu (24):
+  x86/cpufeatures: Add CPUIDs for Control-flow Enforcement Technology
+    (CET)
+  x86/fpu/xstate: Change some names to separate XSAVES system and user
+    states
+  x86/fpu/xstate: Enable XSAVES system states
+  x86/fpu/xstate: Add XSAVES system states for shadow stack
+  Documentation/x86: Add CET description
+  x86/cet: Control protection exception handler
+  x86/cet/shstk: Add Kconfig option for user-mode shadow stack
+  mm: Introduce VM_SHSTK for shadow stack memory
+  x86/mm: Change _PAGE_DIRTY to _PAGE_DIRTY_HW
+  x86/mm: Introduce _PAGE_DIRTY_SW
+  drm/i915/gvt: Update _PAGE_DIRTY to _PAGE_DIRTY_BITS
+  x86/mm: Modify ptep_set_wrprotect and pmdp_set_wrprotect for
+    _PAGE_DIRTY_SW
+  x86/mm: Shadow stack page fault error checking
+  mm: Handle shadow stack page fault
+  mm: Handle THP/HugeTLB shadow stack page fault
+  mm: Update can_follow_write_pte/pmd for shadow stack
+  mm: Introduce do_mmap_locked()
+  x86/cet/shstk: User-mode shadow stack support
+  x86/cet/shstk: Introduce WRUSS instruction
+  x86/cet/shstk: Signal handling for shadow stack
+  x86/cet/shstk: ELF header parsing of Shadow Stack
+  x86/cet/shstk: Handle thread shadow stack
+  x86/cet/shstk: Add arch_prctl functions for Shadow Stack
+  x86/cet/shstk: Add Shadow Stack instructions to opcode map
 
-diff --git a/mm/page_vma_mapped.c b/mm/page_vma_mapped.c
-index ae3c2a35d61b..bd67e23dce33 100644
---- a/mm/page_vma_mapped.c
-+++ b/mm/page_vma_mapped.c
-@@ -21,7 +21,14 @@ static bool map_pte(struct page_vma_mapped_walk *pvmw)
- 			if (!is_swap_pte(*pvmw->pte))
- 				return false;
- 		} else {
--			if (!pte_present(*pvmw->pte))
-+			if (is_swap_pte(*pvmw->pte)) {
-+				swp_entry_t entry;
-+
-+				/* Handle un-addressable ZONE_DEVICE memory */
-+				entry = pte_to_swp_entry(*pvmw->pte);
-+				if (!is_device_private_entry(entry))
-+					return false;
-+			} else if (!pte_present(*pvmw->pte))
- 				return false;
- 		}
- 	}
+ .../admin-guide/kernel-parameters.txt         |   6 +
+ Documentation/index.rst                       |   1 +
+ Documentation/x86/index.rst                   |  11 +
+ Documentation/x86/intel_cet.rst               | 252 +++++++++++++
+ arch/x86/Kconfig                              |  28 ++
+ arch/x86/Makefile                             |   7 +
+ arch/x86/entry/entry_64.S                     |   2 +-
+ arch/x86/ia32/ia32_signal.c                   |  13 +
+ arch/x86/include/asm/cet.h                    |  42 +++
+ arch/x86/include/asm/cpufeatures.h            |   2 +
+ arch/x86/include/asm/disabled-features.h      |   8 +-
+ arch/x86/include/asm/elf.h                    |   5 +
+ arch/x86/include/asm/fpu/internal.h           |   6 +-
+ arch/x86/include/asm/fpu/types.h              |  22 ++
+ arch/x86/include/asm/fpu/xstate.h             |  31 +-
+ arch/x86/include/asm/mmu_context.h            |   3 +
+ arch/x86/include/asm/msr-index.h              |  14 +
+ arch/x86/include/asm/pgtable.h                | 175 +++++++--
+ arch/x86/include/asm/pgtable_types.h          |  31 +-
+ arch/x86/include/asm/processor.h              |   5 +
+ arch/x86/include/asm/sighandling.h            |   5 +
+ arch/x86/include/asm/special_insns.h          |  37 ++
+ arch/x86/include/asm/traps.h                  |   5 +
+ arch/x86/include/uapi/asm/elf_property.h      |  15 +
+ arch/x86/include/uapi/asm/prctl.h             |   5 +
+ arch/x86/include/uapi/asm/processor-flags.h   |   2 +
+ arch/x86/include/uapi/asm/sigcontext.h        |  17 +
+ arch/x86/kernel/Makefile                      |   4 +
+ arch/x86/kernel/cet.c                         | 285 +++++++++++++++
+ arch/x86/kernel/cet_prctl.c                   |  79 ++++
+ arch/x86/kernel/cpu/common.c                  |  24 ++
+ arch/x86/kernel/cpu/scattered.c               |   1 +
+ arch/x86/kernel/elf.c                         | 338 ++++++++++++++++++
+ arch/x86/kernel/fpu/core.c                    |  11 +-
+ arch/x86/kernel/fpu/init.c                    |  10 -
+ arch/x86/kernel/fpu/signal.c                  |   6 +-
+ arch/x86/kernel/fpu/xstate.c                  | 152 +++++---
+ arch/x86/kernel/idt.c                         |   4 +
+ arch/x86/kernel/process.c                     |   8 +
+ arch/x86/kernel/process_64.c                  |   7 +
+ arch/x86/kernel/relocate_kernel_64.S          |   2 +-
+ arch/x86/kernel/signal.c                      |  96 +++++
+ arch/x86/kernel/traps.c                       |  58 +++
+ arch/x86/kvm/vmx.c                            |   2 +-
+ arch/x86/lib/x86-opcode-map.txt               |  26 +-
+ arch/x86/mm/extable.c                         |  11 +
+ arch/x86/mm/fault.c                           |  27 ++
+ arch/x86/mm/pgtable.c                         |  36 ++
+ drivers/gpu/drm/i915/gvt/gtt.c                |   2 +-
+ fs/binfmt_elf.c                               |  15 +
+ fs/proc/task_mmu.c                            |   3 +
+ include/asm-generic/pgtable.h                 |  52 +++
+ include/linux/mm.h                            |  26 ++
+ include/uapi/linux/elf.h                      |   1 +
+ mm/gup.c                                      |   8 +-
+ mm/huge_memory.c                              |  12 +-
+ mm/internal.h                                 |   8 +
+ mm/memory.c                                   |   3 +
+ tools/objtool/arch/x86/lib/x86-opcode-map.txt |  26 +-
+ 59 files changed, 1943 insertions(+), 150 deletions(-)
+ create mode 100644 Documentation/x86/index.rst
+ create mode 100644 Documentation/x86/intel_cet.rst
+ create mode 100644 arch/x86/include/asm/cet.h
+ create mode 100644 arch/x86/include/uapi/asm/elf_property.h
+ create mode 100644 arch/x86/kernel/cet.c
+ create mode 100644 arch/x86/kernel/cet_prctl.c
+ create mode 100644 arch/x86/kernel/elf.c
+
 -- 
 2.17.1
