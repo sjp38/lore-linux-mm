@@ -1,129 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 950146B520C
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 12:25:05 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id y135-v6so7833013oie.11
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 09:25:05 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id h126-v6si5285418oia.375.2018.08.30.09.25.04
-        for <linux-mm@kvack.org>;
-        Thu, 30 Aug 2018 09:25:04 -0700 (PDT)
-Subject: Re: A crash on ARM64 in move_freepages_block due to uninitialized
- pages in reserved memory
-References: <alpine.LRH.2.02.1808171527220.2385@file01.intranet.prod.int.rdu2.redhat.com>
- <20180821104418.GA16611@dhcp22.suse.cz>
- <e35b7c14-c7ea-412d-2763-c961b74576f3@arm.com>
- <alpine.LRH.2.02.1808220808050.17906@file01.intranet.prod.int.rdu2.redhat.com>
- <c823eace-8710-9bf5-6e76-d01b139c0859@arm.com>
- <20180824114158.GJ29735@dhcp22.suse.cz>
- <541193a6-2bce-f042-5bb2-88913d5f1047@arm.com>
- <alpine.LRH.2.02.1808301148260.18300@file01.intranet.prod.int.rdu2.redhat.com>
-From: James Morse <james.morse@arm.com>
-Message-ID: <27f10f29-8e38-1f42-8431-9db66aed2d1e@arm.com>
-Date: Thu, 30 Aug 2018 17:25:00 +0100
-MIME-Version: 1.0
-In-Reply-To: <alpine.LRH.2.02.1808301148260.18300@file01.intranet.prod.int.rdu2.redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C1E176B5217
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 12:25:26 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id v9-v6so5038559pff.4
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 09:25:26 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id y5-v6si6165821pll.89.2018.08.30.09.25.25
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Aug 2018 09:25:25 -0700 (PDT)
+Message-ID: <1535646055.26689.10.camel@intel.com>
+Subject: Re: [RFC PATCH v3 18/24] x86/cet/shstk: User-mode shadow stack
+ support
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Date: Thu, 30 Aug 2018 09:20:55 -0700
+In-Reply-To: <CAG48ez0d8+E_O-9u6ZHZ6dQO55Ui2ydV_kia-EEhyYeB_w4r2g@mail.gmail.com>
+References: <20180830143904.3168-1-yu-cheng.yu@intel.com>
+	 <20180830143904.3168-19-yu-cheng.yu@intel.com>
+	 <CAG48ez0d8+E_O-9u6ZHZ6dQO55Ui2ydV_kia-EEhyYeB_w4r2g@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Pavel Tatashin <Pavel.Tatashin@microsoft.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
+To: Jann Horn <jannh@google.com>
+Cc: the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, hjl.tools@gmail.com, Jonathan Corbet <corbet@lwn.net>, keescook@chromiun.org, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, ravi.v.shankar@intel.com, vedvyas.shanbhogue@intel.com
 
-Hi Mikulas,
-
-On 30/08/18 16:58, Mikulas Patocka wrote:
-> On Wed, 29 Aug 2018, James Morse wrote:
->> On 24/08/18 12:41, Michal Hocko wrote:
->>> On Thu 23-08-18 15:06:08, James Morse wrote:
->>> [...]
->>>> My best-guess is that pfn_valid_within() shouldn't be optimised out if
->>> ARCH_HAS_HOLES_MEMORYMODEL, even if HOLES_IN_ZONE isn't set.
->>>>
->>>> Does something like this solve the problem?:
->>>> ============================%<============================
->>>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->>>> index 32699b2dc52a..5e27095a15f4 100644
->>>> --- a/include/linux/mmzone.h
->>>> +++ b/include/linux/mmzone.h
->>>> @@ -1295,7 +1295,7 @@ void memory_present(int nid, unsigned long start, unsigned
->>>> long end);
->>>>   * pfn_valid_within() should be used in this case; we optimise this away
->>>>   * when we have no holes within a MAX_ORDER_NR_PAGES block.
->>>>   */
->>>> -#ifdef CONFIG_HOLES_IN_ZONE
->>>> +#if defined(CONFIG_HOLES_IN_ZONE) || defined(CONFIG_ARCH_HAS_HOLES_MEMORYMODEL)
->>>>  #define pfn_valid_within(pfn) pfn_valid(pfn)
->>>>  #else
->>>>  #define pfn_valid_within(pfn) (1)
->>>> ============================%<============================
->>
->> After plenty of greping, git-archaeology and help from others, I think I've a
->> clearer picture of what these options do.
->>
->>
->> Please correct me if I've explained something wrong here:
->>
->>> This is the first time I hear about CONFIG_ARCH_HAS_HOLES_MEMORYMODEL.
->>
->> The comment in include/linux/mmzone.h describes this as relevant when parts the
->> memmap have been free()d. This would happen on systems where memory is smaller
->> than a sparsemem-section, and the extra struct pages are expensive.
->> pfn_valid() on these systems returns true for the whole sparsemem-section, so an
->> extra memmap_valid_within() check is needed.
->>
->> This is independent of nomap, and isn't relevant on arm64 as our pfn_valid()
->> always tests the page in memblock due to nomap pages, which can occur anywhere.
->> (I will propose a patch removing ARCH_HAS_HOLES_MEMORYMODEL for arm64.)
->>
->>
->> HOLES_IN_ZONE is similar, if some memory is smaller than MAX_ORDER_NR_PAGES,
->> possibly due to nomap holes.
->>
->> 6d526ee26ccd only enabled it for NUMA systems on arm64, because the NUMA code
->> was first to fall foul of this, but there is nothing NUMA specific about nomap
->> holes within a MAX_ORDER_NR_PAGES region.
->>
->> I'm convinced arm64 should always enable HOLES_IN_ZONE because nomap pages can
->> occur anywhere. I'll post a fix.
+On Thu, 2018-08-30 at 18:10 +0200, Jann Horn wrote:
+> On Thu, Aug 30, 2018 at 4:44 PM Yu-cheng Yu <yu-cheng.yu@intel.com>
+> wrote:
+> > 
+> > 
+> > This patch adds basic shadow stack enabling/disabling routines.
+> > A task's shadow stack is allocated from memory with VM_SHSTK
+> > flag set and read-only protection.A A The shadow stack is
+> > allocated to a fixed size of RLIMIT_STACK.
+> > 
+> > Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+> [...]
+> > 
+> > +static int set_shstk_ptr(unsigned long addr)
+> > +{
+> > +A A A A A A A u64 r;
+> > +
+> > +A A A A A A A if (!cpu_feature_enabled(X86_FEATURE_SHSTK))
+> > +A A A A A A A A A A A A A A A return -1;
+> > +
+> > +A A A A A A A if ((addr >= TASK_SIZE_MAX) || (!IS_ALIGNED(addr, 4)))
+> > +A A A A A A A A A A A A A A A return -1;
+> > +
+> > +A A A A A A A rdmsrl(MSR_IA32_U_CET, r);
+> > +A A A A A A A wrmsrl(MSR_IA32_PL3_SSP, addr);
+> > +A A A A A A A wrmsrl(MSR_IA32_U_CET, r | MSR_IA32_CET_SHSTK_EN);
+> > +A A A A A A A return 0;
+> > +}
+> Here's a really stupid question: Where is the logic for switching
+> those MSRs on task switch? MSR_IA32_PL3_SSP contains a userspace
+> pointer, so it has to be switched on task switch, right? I'm sure
+> I'm
+> missing something obvious, but grepping for places that set
+> MSR_IA32_PL3_SSP to nonzero values through the entire patchset, I
+> only
+> see set_shstk_ptr(), which is called from:
 > 
-> But x86 had the same bug -
-> https://bugzilla.redhat.com/show_bug.cgi?id=1598462
+> A - cet_setup_shstk() (called from arch_setup_features(), which is
+> called from load_elf_binary())
+> A - cet_restore_signal() (called on signal handler return)
+> A - cet_setup_signal() (called from signal handling code)
 
-(Context: e181ae0c5db "mm: zero unavailable pages before memmap init")
+The MSR is in the XSAVES buffer and switched by XSAVES/XRSTORS.
 
-Its the same symptom, but not quite the same bug.
-
-
-> And x86 fixed it without enabling HOLES_IN_ZONE. On x86, the BIOS can also 
-> reserve any memory range - so you can have arbitrary holes there that are 
-> not predictable when the kernel is compiled.
-
-x86's pfn_valid() says the struct-page is accessible, the problem was it wasn't
-initialized correctly.
-
-On arm64 pfn_valid() says these struct-pages are not accessible. The problem was
-the pfn_valid_within()->pfn_valid() calls being removed, causing the
-uninitialized struct-page to be accessed.
-
-
-> Currently HOLES_IN_ZONE is selected only for ia64, mips/octeon - so does 
-> it mean that all the other architectures don't have holes in the memory 
-> map?
-
-I think there is just more than way of handling these, depending on whether
-holes have struct-pages and what pfn_valid() reports for them.
-
-
-> What should be architecture-independent way how to handle the holes?
-
-We already diverge with e820/memblock. I'm not sure what the x86 holes
-correspond to, but on arm64 these are holes in the linear-map because the
-corresponding memory needs mapping with particular attributes, and we can't
-mix-and-match.
-
-
-Thanks,
-
-James
+Yu-cheng
