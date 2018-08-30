@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AB1006B52FB
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 16:05:48 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id d132-v6so5527483pgc.22
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 13:05:48 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id x6-v6si7260782pge.100.2018.08.30.13.05.47
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A54B76B52FF
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 16:06:15 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id x85-v6so5336933pfe.13
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 13:06:15 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id j5-v6si5045598pgg.293.2018.08.30.13.06.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Aug 2018 13:05:47 -0700 (PDT)
+        Thu, 30 Aug 2018 13:06:14 -0700 (PDT)
 Subject: [PATCH] mm: fix BUG_ON() in vmf_insert_pfn_pud() from VM_MIXEDMAP
  removal
 From: Dave Jiang <dave.jiang@intel.com>
-Date: Thu, 30 Aug 2018 13:05:46 -0700
-Message-ID: <153565954666.35458.15832314745699968487.stgit@djiang5-desk3.ch.intel.com>
+Date: Thu, 30 Aug 2018 13:06:13 -0700
+Message-ID: <153565957352.35524.1005746906902065126.stgit@djiang5-desk3.ch.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-nvdimm@lists.01.org, dan.j.williams@intel.com.vishal.l.verma, ""@intel.com, jack@suse.com
+Cc: linux-mm@kvack.org, linux-nvdimm@lists.01.org, dan.j.williams@intel.com, vishal.l.verma@intel.com, jack@suse.com
 
 It looks like I missed the PUD path when doing VM_MIXEDMAP removal.
 This can be triggered by:
