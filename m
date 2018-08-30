@@ -1,76 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F4D86B50DD
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 11:56:06 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id g36-v6so6332719wrd.9
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 08:56:06 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n198-v6sor580472wmd.1.2018.08.30.08.56.05
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 579006B5133
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 11:58:22 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id o18-v6so8516987qtm.11
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 08:58:22 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id p13-v6si6971070qtj.126.2018.08.30.08.58.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 30 Aug 2018 08:56:05 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Aug 2018 08:58:21 -0700 (PDT)
+Date: Thu, 30 Aug 2018 11:58:19 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: A crash on ARM64 in move_freepages_block due to uninitialized
+ pages in reserved memory
+In-Reply-To: <541193a6-2bce-f042-5bb2-88913d5f1047@arm.com>
+Message-ID: <alpine.LRH.2.02.1808301148260.18300@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1808171527220.2385@file01.intranet.prod.int.rdu2.redhat.com> <20180821104418.GA16611@dhcp22.suse.cz> <e35b7c14-c7ea-412d-2763-c961b74576f3@arm.com> <alpine.LRH.2.02.1808220808050.17906@file01.intranet.prod.int.rdu2.redhat.com>
+ <c823eace-8710-9bf5-6e76-d01b139c0859@arm.com> <20180824114158.GJ29735@dhcp22.suse.cz> <541193a6-2bce-f042-5bb2-88913d5f1047@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <CAG48ez3uZrC-9uJ0uMoVPTtxRXRN8D+3zs5FknZD2woTT6mazg@mail.gmail.com>
-References: <20180830143904.3168-1-yu-cheng.yu@intel.com> <20180830143904.3168-20-yu-cheng.yu@intel.com>
- <CAG48ez3uZrC-9uJ0uMoVPTtxRXRN8D+3zs5FknZD2woTT6mazg@mail.gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Thu, 30 Aug 2018 08:55:44 -0700
-Message-ID: <CALCETrW78UKt6AQJeN8GkhtxjuASnH1PV5QSpzQtDz9-2d3Asw@mail.gmail.com>
-Subject: Re: [RFC PATCH v3 19/24] x86/cet/shstk: Introduce WRUSS instruction
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jannh@google.com>
-Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>, the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>
+To: James Morse <james.morse@arm.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Pavel Tatashin <Pavel.Tatashin@microsoft.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-On Thu, Aug 30, 2018 at 8:39 AM, Jann Horn <jannh@google.com> wrote:
-> On Thu, Aug 30, 2018 at 4:44 PM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
->>
->> WRUSS is a new kernel-mode instruction but writes directly
->> to user shadow stack memory.  This is used to construct
->> a return address on the shadow stack for the signal
->> handler.
->>
->> This instruction can fault if the user shadow stack is
->> invalid shadow stack memory.  In that case, the kernel does
->> fixup.
->>
->> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> [...]
->> +static inline int write_user_shstk_64(unsigned long addr, unsigned long val)
->> +{
->> +       int err = 0;
->> +
->> +       asm volatile("1: wrussq %1, (%0)\n"
->> +                    "2:\n"
->> +                    _ASM_EXTABLE_HANDLE(1b, 2b, ex_handler_wruss)
->> +                    :
->> +                    : "r" (addr), "r" (val));
->> +
->> +       return err;
->> +}
->
-> What's up with "err"? You set it to zero, and then you return it, but
-> nothing can ever set it to non-zero, right?
->
->> +__visible bool ex_handler_wruss(const struct exception_table_entry *fixup,
->> +                               struct pt_regs *regs, int trapnr)
->> +{
->> +       regs->ip = ex_fixup_addr(fixup);
->> +       regs->ax = -1;
->> +       return true;
->> +}
->
-> And here you just write into regs->ax, but your "asm volatile" doesn't
-> reserve that register. This looks wrong to me.
->
-> I think you probably want to add something like an explicit
-> `"+&a"(err)` output to the asm statements.
 
-We require asm goto support these days.  How about using that?  You
-won't even need a special exception handler.
 
-Also, please change the BUG to WARN in the you-did-it-wrong 32-bit
-case.  And return -EFAULT.
+On Wed, 29 Aug 2018, James Morse wrote:
 
---Andy
+> Hi Michal,
+> 
+> (CC: +Ard)
+> 
+> On 24/08/18 12:41, Michal Hocko wrote:
+> > On Thu 23-08-18 15:06:08, James Morse wrote:
+> > [...]
+> >> My best-guess is that pfn_valid_within() shouldn't be optimised out if
+> > ARCH_HAS_HOLES_MEMORYMODEL, even if HOLES_IN_ZONE isn't set.
+> >>
+> >> Does something like this solve the problem?:
+> >> ============================%<============================
+> >> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> >> index 32699b2dc52a..5e27095a15f4 100644
+> >> --- a/include/linux/mmzone.h
+> >> +++ b/include/linux/mmzone.h
+> >> @@ -1295,7 +1295,7 @@ void memory_present(int nid, unsigned long start, unsigned
+> >> long end);
+> >>   * pfn_valid_within() should be used in this case; we optimise this away
+> >>   * when we have no holes within a MAX_ORDER_NR_PAGES block.
+> >>   */
+> >> -#ifdef CONFIG_HOLES_IN_ZONE
+> >> +#if defined(CONFIG_HOLES_IN_ZONE) || defined(CONFIG_ARCH_HAS_HOLES_MEMORYMODEL)
+> >>  #define pfn_valid_within(pfn) pfn_valid(pfn)
+> >>  #else
+> >>  #define pfn_valid_within(pfn) (1)
+> >> ============================%<============================
+> 
+> After plenty of greping, git-archaeology and help from others, I think I've a
+> clearer picture of what these options do.
+> 
+> 
+> Please correct me if I've explained something wrong here:
+> 
+> > This is the first time I hear about CONFIG_ARCH_HAS_HOLES_MEMORYMODEL.
+> 
+> The comment in include/linux/mmzone.h describes this as relevant when parts the
+> memmap have been free()d. This would happen on systems where memory is smaller
+> than a sparsemem-section, and the extra struct pages are expensive.
+> pfn_valid() on these systems returns true for the whole sparsemem-section, so an
+> extra memmap_valid_within() check is needed.
+> 
+> This is independent of nomap, and isn't relevant on arm64 as our pfn_valid()
+> always tests the page in memblock due to nomap pages, which can occur anywhere.
+> (I will propose a patch removing ARCH_HAS_HOLES_MEMORYMODEL for arm64.)
+> 
+> 
+> HOLES_IN_ZONE is similar, if some memory is smaller than MAX_ORDER_NR_PAGES,
+> possibly due to nomap holes.
+> 
+> 6d526ee26ccd only enabled it for NUMA systems on arm64, because the NUMA code
+> was first to fall foul of this, but there is nothing NUMA specific about nomap
+> holes within a MAX_ORDER_NR_PAGES region.
+> 
+> I'm convinced arm64 should always enable HOLES_IN_ZONE because nomap pages can
+> occur anywhere. I'll post a fix.
+
+But x86 had the same bug -
+https://bugzilla.redhat.com/show_bug.cgi?id=1598462
+
+And x86 fixed it without enabling HOLES_IN_ZONE. On x86, the BIOS can also 
+reserve any memory range - so you can have arbitrary holes there that are 
+not predictable when the kernel is compiled.
+
+Currently HOLES_IN_ZONE is selected only for ia64, mips/octeon - so does 
+it mean that all the other architectures don't have holes in the memory 
+map?
+
+What should be architecture-independent way how to handle the holes?
+
+Mikulas
