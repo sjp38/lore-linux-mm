@@ -1,73 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7090A6B51E8
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 10:05:45 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id v195-v6so5115409pgb.0
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 07:05:45 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e22-v6sor1775655pgg.344.2018.08.30.07.05.43
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 493B06B51ED
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 10:08:30 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id q26-v6so7958501qtj.14
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 07:08:30 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id z53-v6si1154495qtj.337.2018.08.30.07.08.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 30 Aug 2018 07:05:43 -0700 (PDT)
-Date: Fri, 31 Aug 2018 00:05:38 +1000
-From: Balbir Singh <bsingharora@gmail.com>
-Subject: Re: [PATCH 2/7] mm/rmap: map_pte() was not handling private
- ZONE_DEVICE page properly
-Message-ID: <20180830140538.GA28695@350D>
-References: <20180824192549.30844-1-jglisse@redhat.com>
- <20180824192549.30844-3-jglisse@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Aug 2018 07:08:28 -0700 (PDT)
+Date: Thu, 30 Aug 2018 10:08:25 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH v6 1/2] mm: migration: fix migration of huge PMD shared
+ pages
+Message-ID: <20180830140825.GA3529@redhat.com>
+References: <20180823205917.16297-2-mike.kravetz@oracle.com>
+ <20180824084157.GD29735@dhcp22.suse.cz>
+ <6063f215-a5c8-2f0c-465a-2c515ddc952d@oracle.com>
+ <20180827074645.GB21556@dhcp22.suse.cz>
+ <20180827134633.GB3930@redhat.com>
+ <9209043d-3240-105b-72a3-b4cd30f1b1f1@oracle.com>
+ <20180829181424.GB3784@redhat.com>
+ <20180829183906.GF10223@dhcp22.suse.cz>
+ <20180829211106.GC3784@redhat.com>
+ <20180830105616.GD2656@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180824192549.30844-3-jglisse@redhat.com>
+In-Reply-To: <20180830105616.GD2656@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jglisse@redhat.com
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, stable@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-rdma@vger.kernel.org, Matan Barak <matanb@mellanox.com>, Leon Romanovsky <leonro@mellanox.com>, Dimitri Sivanich <sivanich@sgi.com>
 
-On Fri, Aug 24, 2018 at 03:25:44PM -0400, jglisse@redhat.com wrote:
-> From: Ralph Campbell <rcampbell@nvidia.com>
+On Thu, Aug 30, 2018 at 12:56:16PM +0200, Michal Hocko wrote:
+> On Wed 29-08-18 17:11:07, Jerome Glisse wrote:
+> > On Wed, Aug 29, 2018 at 08:39:06PM +0200, Michal Hocko wrote:
+> > > On Wed 29-08-18 14:14:25, Jerome Glisse wrote:
+> > > > On Wed, Aug 29, 2018 at 10:24:44AM -0700, Mike Kravetz wrote:
+> > > [...]
+> > > > > What would be the best mmu notifier interface to use where there are no
+> > > > > start/end calls?
+> > > > > Or, is the best solution to add the start/end calls as is done in later
+> > > > > versions of the code?  If that is the suggestion, has there been any change
+> > > > > in invalidate start/end semantics that we should take into account?
+> > > > 
+> > > > start/end would be the one to add, 4.4 seems broken in respect to THP
+> > > > and mmu notification. Another solution is to fix user of mmu notifier,
+> > > > they were only a handful back then. For instance properly adjust the
+> > > > address to match first address covered by pmd or pud and passing down
+> > > > correct page size to mmu_notifier_invalidate_page() would allow to fix
+> > > > this easily.
+> > > > 
+> > > > This is ok because user of try_to_unmap_one() replace the pte/pmd/pud
+> > > > with an invalid one (either poison, migration or swap) inside the
+> > > > function. So anyone racing would synchronize on those special entry
+> > > > hence why it is fine to delay mmu_notifier_invalidate_page() to after
+> > > > dropping the page table lock.
+> > > > 
+> > > > Adding start/end might the solution with less code churn as you would
+> > > > only need to change try_to_unmap_one().
+> > > 
+> > > What about dependencies? 369ea8242c0fb sounds like it needs work for all
+> > > notifiers need to be updated as well.
+> > 
+> > This commit remove mmu_notifier_invalidate_page() hence why everything
+> > need to be updated. But in 4.4 you can get away with just adding start/
+> > end and keep around mmu_notifier_invalidate_page() to minimize disruption.
 > 
-> Private ZONE_DEVICE pages use a special pte entry and thus are not
-> present. Properly handle this case in map_pte(), it is already handled
-> in check_pte(), the map_pte() part was lost in some rebase most probably.
+> OK, this is really interesting. I was really worried to change the
+> semantic of the mmu notifiers in stable kernels because this is really
+> a hard to review change and high risk for anybody running those old
+> kernels. If we can keep the mmu_notifier_invalidate_page and wrap them
+> into the range scope API then this sounds like the best way forward.
 > 
-> Without this patch the slow migration path can not migrate back private
-> ZONE_DEVICE memory to regular memory. This was found after stress
-> testing migration back to system memory. This ultimatly can lead the
-> CPU to an infinite page fault loop on the special swap entry.
-> 
-> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
-> Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: stable@vger.kernel.org
-> ---
->  mm/page_vma_mapped.c | 9 +++++++++
->  1 file changed, 9 insertions(+)
-> 
-> diff --git a/mm/page_vma_mapped.c b/mm/page_vma_mapped.c
-> index ae3c2a35d61b..1cf5b9bfb559 100644
-> --- a/mm/page_vma_mapped.c
-> +++ b/mm/page_vma_mapped.c
-> @@ -21,6 +21,15 @@ static bool map_pte(struct page_vma_mapped_walk *pvmw)
->  			if (!is_swap_pte(*pvmw->pte))
->  				return false;
->  		} else {
-> +			if (is_swap_pte(*pvmw->pte)) {
-> +				swp_entry_t entry;
-> +
-> +				/* Handle un-addressable ZONE_DEVICE memory */
-> +				entry = pte_to_swp_entry(*pvmw->pte);
-> +				if (is_device_private_entry(entry))
-> +					return true;
-> +			}
-> +
+> So just to make sure we are at the same page. Does this sounds goo for
+> stable 4.4. backport? Mike's hugetlb pmd shared fixup can be applied on
+> top. What do you think?
 
-This happens just for !PVMW_SYNC && PVMW_MIGRATION? I presume this
-is triggered via the remove_migration_pte() code path? Doesn't
-returning true here imply that we've taken the ptl lock for the
-pvmw?
-
-Balbir
+You need to invalidate outside page table lock so before the call to
+page_check_address(). For instance like below patch, which also only
+do the range invalidation for huge page which would avoid too much of
+a behavior change for user of mmu notifier.
