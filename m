@@ -1,50 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3263A6B51B4
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 12:19:45 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id j22-v6so6232425wre.7
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 09:19:45 -0700 (PDT)
-Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de. [178.250.10.56])
-        by mx.google.com with ESMTPS id x17-v6si6022986wrm.46.2018.08.30.09.19.43
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C17D06B51D0
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 12:19:56 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id g29-v6so3881077edb.1
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 09:19:56 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k4-v6si749245edr.290.2018.08.30.09.19.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 30 Aug 2018 09:19:44 -0700 (PDT)
-Content-Type: multipart/alternative;
-	boundary=Apple-Mail-0735E658-3004-419F-B561-1A58A0795CA2
-Mime-Version: 1.0 (1.0)
-Subject: Re: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE mappings
-From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-In-Reply-To: <C0146217-821B-4530-A2E2-57D4CCDE8102@cs.rutgers.edu>
-Date: Thu, 30 Aug 2018 18:19:40 +0200
-Content-Transfer-Encoding: 7bit
-Message-Id: <4040814A-C83A-4EEB-97A4-280756695456@profihost.ag>
-References: <20180829142816.GX10223@dhcp22.suse.cz> <20180829143545.GY10223@dhcp22.suse.cz> <82CA00EB-BF8E-4137-953B-8BC4B74B99AF@cs.rutgers.edu> <20180829154744.GC10223@dhcp22.suse.cz> <39BE14E6-D0FB-428A-B062-8B5AEDC06E61@cs.rutgers.edu> <20180829162528.GD10223@dhcp22.suse.cz> <20180829192451.GG10223@dhcp22.suse.cz> <E97C9342-9BA0-48DD-A580-738ACEE49B41@cs.rutgers.edu> <20180830070021.GB2656@dhcp22.suse.cz> <4AFDF557-46E3-4C62-8A43-C28E8F2A54CF@cs.rutgers.edu> <20180830134549.GI2656@dhcp22.suse.cz> <C0146217-821B-4530-A2E2-57D4CCDE8102@cs.rutgers.edu>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Aug 2018 09:19:55 -0700 (PDT)
+Date: Thu, 30 Aug 2018 18:19:52 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v6 1/2] mm: migration: fix migration of huge PMD shared
+ pages
+Message-ID: <20180830161800.GJ2656@dhcp22.suse.cz>
+References: <20180824084157.GD29735@dhcp22.suse.cz>
+ <6063f215-a5c8-2f0c-465a-2c515ddc952d@oracle.com>
+ <20180827074645.GB21556@dhcp22.suse.cz>
+ <20180827134633.GB3930@redhat.com>
+ <9209043d-3240-105b-72a3-b4cd30f1b1f1@oracle.com>
+ <20180829181424.GB3784@redhat.com>
+ <20180829183906.GF10223@dhcp22.suse.cz>
+ <20180829211106.GC3784@redhat.com>
+ <20180830105616.GD2656@dhcp22.suse.cz>
+ <20180830140825.GA3529@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180830140825.GA3529@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-rdma@vger.kernel.org, Matan Barak <matanb@mellanox.com>, Leon Romanovsky <leonro@mellanox.com>, Dimitri Sivanich <sivanich@sgi.com>
 
-
---Apple-Mail-0735E658-3004-419F-B561-1A58A0795CA2
-Content-Type: text/plain;
-	charset=us-ascii
-Content-Transfer-Encoding: 7bit
-
-Please add also:
-Tested-by: Stefan Priebe <s.priebe@profihost.ag>
-
-Stefan
-
-Excuse my typo sent from my mobile phone.
-
-> Am 30.08.2018 um 16:02 schrieb Zi Yan <zi.yan@cs.rutgers.edu>:
+On Thu 30-08-18 10:08:25, Jerome Glisse wrote:
+> On Thu, Aug 30, 2018 at 12:56:16PM +0200, Michal Hocko wrote:
+> > On Wed 29-08-18 17:11:07, Jerome Glisse wrote:
+> > > On Wed, Aug 29, 2018 at 08:39:06PM +0200, Michal Hocko wrote:
+> > > > On Wed 29-08-18 14:14:25, Jerome Glisse wrote:
+> > > > > On Wed, Aug 29, 2018 at 10:24:44AM -0700, Mike Kravetz wrote:
+> > > > [...]
+> > > > > > What would be the best mmu notifier interface to use where there are no
+> > > > > > start/end calls?
+> > > > > > Or, is the best solution to add the start/end calls as is done in later
+> > > > > > versions of the code?  If that is the suggestion, has there been any change
+> > > > > > in invalidate start/end semantics that we should take into account?
+> > > > > 
+> > > > > start/end would be the one to add, 4.4 seems broken in respect to THP
+> > > > > and mmu notification. Another solution is to fix user of mmu notifier,
+> > > > > they were only a handful back then. For instance properly adjust the
+> > > > > address to match first address covered by pmd or pud and passing down
+> > > > > correct page size to mmu_notifier_invalidate_page() would allow to fix
+> > > > > this easily.
+> > > > > 
+> > > > > This is ok because user of try_to_unmap_one() replace the pte/pmd/pud
+> > > > > with an invalid one (either poison, migration or swap) inside the
+> > > > > function. So anyone racing would synchronize on those special entry
+> > > > > hence why it is fine to delay mmu_notifier_invalidate_page() to after
+> > > > > dropping the page table lock.
+> > > > > 
+> > > > > Adding start/end might the solution with less code churn as you would
+> > > > > only need to change try_to_unmap_one().
+> > > > 
+> > > > What about dependencies? 369ea8242c0fb sounds like it needs work for all
+> > > > notifiers need to be updated as well.
+> > > 
+> > > This commit remove mmu_notifier_invalidate_page() hence why everything
+> > > need to be updated. But in 4.4 you can get away with just adding start/
+> > > end and keep around mmu_notifier_invalidate_page() to minimize disruption.
+> > 
+> > OK, this is really interesting. I was really worried to change the
+> > semantic of the mmu notifiers in stable kernels because this is really
+> > a hard to review change and high risk for anybody running those old
+> > kernels. If we can keep the mmu_notifier_invalidate_page and wrap them
+> > into the range scope API then this sounds like the best way forward.
+> > 
+> > So just to make sure we are at the same page. Does this sounds goo for
+> > stable 4.4. backport? Mike's hugetlb pmd shared fixup can be applied on
+> > top. What do you think?
 > 
-> Tested-by: Zi Yan <zi.yan@cs.rutgers.edu>
+> You need to invalidate outside page table lock so before the call to
+> page_check_address(). For instance like below patch, which also only
+> do the range invalidation for huge page which would avoid too much of
+> a behavior change for user of mmu notifier.
 
---Apple-Mail-0735E658-3004-419F-B561-1A58A0795CA2
-Content-Type: text/html;
-	charset=utf-8
-Content-Transfer-Encoding: 7bit
-
-<html><head><meta http-equiv="content-type" content="text/html; charset=utf-8"></head><body dir="auto">Please add also:<div><span style="background-color: rgba(255, 255, 255, 0);">Tested-by: Stefan Priebe &lt;<a href="mailto:s.priebe@profihost.ag">s.priebe@profihost.ag</a>&gt;</span></div><div><br><div id="AppleMailSignature">Stefan<div><br></div><div>Excuse my typo s<span style="font-size: 13pt;">ent from my mobile phone.</span></div></div><div><br>Am 30.08.2018 um 16:02 schrieb Zi Yan &lt;<a href="mailto:zi.yan@cs.rutgers.edu">zi.yan@cs.rutgers.edu</a>&gt;:<br><br></div><blockquote type="cite"><div>Tested-by: Zi Yan &lt;<span><a href="mailto:zi.yan@cs.rutgers.edu">zi.yan@cs.rutgers.edu</a></span>&gt;</div></blockquote></div></body></html>
---Apple-Mail-0735E658-3004-419F-B561-1A58A0795CA2--
+Right. I would rather not make this PageHuge special though. So the
+fixed version should be.
