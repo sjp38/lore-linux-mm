@@ -1,103 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 437A96B53C1
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 18:54:15 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id f13-v6so5781976pgs.15
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 15:54:15 -0700 (PDT)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id 13-v6si7981833pgp.563.2018.08.30.15.54.13
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 911E86B53D2
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 19:11:55 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id d22-v6so5593064pfn.3
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 16:11:55 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j16-v6sor2278739pga.230.2018.08.30.16.11.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Aug 2018 15:54:14 -0700 (PDT)
-Message-ID: <1535669391.28781.7.camel@intel.com>
-Subject: Re: [RFC PATCH v3 05/24] Documentation/x86: Add CET description
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Date: Thu, 30 Aug 2018 15:49:51 -0700
-In-Reply-To: <20180830203948.GB1936@amd>
-References: <20180830143904.3168-1-yu-cheng.yu@intel.com>
-	 <20180830143904.3168-6-yu-cheng.yu@intel.com> <20180830203948.GB1936@amd>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        (Google Transport Security);
+        Thu, 30 Aug 2018 16:11:54 -0700 (PDT)
+Date: Fri, 31 Aug 2018 09:11:48 +1000
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [PATCH 5/7] mm/hmm: use a structure for update callback
+ parameters
+Message-ID: <20180830231148.GC28695@350D>
+References: <20180824192549.30844-1-jglisse@redhat.com>
+ <20180824192549.30844-6-jglisse@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180824192549.30844-6-jglisse@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: jglisse@redhat.com
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>
 
-On Thu, 2018-08-30 at 22:39 +0200, Pavel Machek wrote:
-> Hi!
+On Fri, Aug 24, 2018 at 03:25:47PM -0400, jglisse@redhat.com wrote:
+> From: Jerome Glisse <jglisse@redhat.com>
 > 
-> > 
-> > diff --git a/Documentation/admin-guide/kernel-parameters.txt
-> > b/Documentation/admin-guide/kernel-parameters.txt
-> > index 9871e649ffef..b090787188b4 100644
-> > --- a/Documentation/admin-guide/kernel-parameters.txt
-> > +++ b/Documentation/admin-guide/kernel-parameters.txt
-> > @@ -2764,6 +2764,12 @@
-> > A 			noexec=on: enable non-executable mappings
-> > (default)
-> > A 			noexec=off: disable non-executable
-> > mappings
-> > A 
-> > +	no_cet_ibt	[X86-64] Disable indirect branch
-> > tracking for user-mode
-> > +			applications
-> > +
-> > +	no_cet_shstk	[X86-64] Disable shadow stack support
-> > for user-mode
-> > +			applications
-> Hmm, not too consistent with "nosmap" below. Would it make sense to
-> have cet=on/off/ibt/shstk instead?
+> Use a structure to gather all the parameters for the update callback.
+> This make it easier when adding new parameters by avoiding having to
+> update all callback function signature.
 > 
-> > 
-> > +++ b/Documentation/x86/intel_cet.rst
-> > @@ -0,0 +1,252 @@
-> > +=========================================
-> > +Control Flow Enforcement Technology (CET)
-> > +=========================================
-> > +
-> > +[1] Overview
-> > +============
-> > +
-> > +Control Flow Enforcement Technology (CET) provides protection
-> > against
-> > +return/jump-oriented programing (ROP) attacks.
-> Can you add something like "It attempts to protect process from
-> running arbitrary code even after attacker has control of its stack"
-> -- for people that don't know what ROP is, and perhaps link to
-> wikipedia explaining ROP or something...
+> Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> Cc: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>  include/linux/hmm.h | 25 +++++++++++++++++--------
+>  mm/hmm.c            | 27 ++++++++++++++-------------
+>  2 files changed, 31 insertions(+), 21 deletions(-)
 > 
-> > 
-> > It can be implemented
-> > +to protect both the kernel and applications.A A In the first phase,
-> > +only the user-mode protection is implemented for the 64-bit
-> > kernel.
-> > +Thirty-two bit applications are supported under the compatibility
-> 32-bit (for consistency).
-> 
-> Ok, so CET stops execution of malicious code before architectural
-> effects are visible, correct? Does it prevent micro-architectural
-> effects of the malicious code? (cache content would be one example;
-> see Spectre).
-> 
-> > 
-> > +[3] Application Enabling
-> > +========================
-> "Enabling CET in applications" ?
-> 
-> > 
-> > +Signal
-> > +------
-> > +
-> > +The main program and its signal handlers use the same
-> > SHSTK.A A Because
-> > +the SHSTK stores only return addresses, we can estimate a large
-> > +enough SHSTK to cover the condition that both the program stack
-> > and
-> > +the sigaltstack run out.
-> English? Is it estimate or is it large enough? "a large" -- "a"
-> should
-> be deleted AFAICT.
-> A 
+> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> index 1ff4bae7ada7..a7f7600b6bb0 100644
+> --- a/include/linux/hmm.h
+> +++ b/include/linux/hmm.h
+> @@ -274,13 +274,26 @@ static inline uint64_t hmm_pfn_from_pfn(const struct hmm_range *range,
+>  struct hmm_mirror;
+>  
+>  /*
+> - * enum hmm_update_type - type of update
+> + * enum hmm_update_event - type of update
+>   * @HMM_UPDATE_INVALIDATE: invalidate range (no indication as to why)
+>   */
+> -enum hmm_update_type {
+> +enum hmm_update_event {
+>  	HMM_UPDATE_INVALIDATE,
+>  };
+>  
+> +/*
+> + * struct hmm_update - HMM update informations for callback
+> + *
+> + * @start: virtual start address of the range to update
+> + * @end: virtual end address of the range to update
+> + * @event: event triggering the update (what is happening)
+> + */
+> +struct hmm_update {
+> +	unsigned long start;
+> +	unsigned long end;
+> +	enum hmm_update_event event;
+> +};
+> +
 
-I will work on these, thanks!
+I wonder if you want to add further information about the range,
+like page_size, I guess the other side does not care about the
+size. Do we care about sending multiple discontig ranges in
+hmm_update? Should it be an array?
+
+Balbir Singh
