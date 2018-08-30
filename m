@@ -1,89 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C17D06B51D0
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 12:19:56 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id g29-v6so3881077edb.1
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 09:19:56 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k4-v6si749245edr.290.2018.08.30.09.19.55
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E0CA76B51EE
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 12:24:15 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id 20-v6so7972833ois.21
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 09:24:15 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t197-v6sor6105192oit.91.2018.08.30.09.24.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Aug 2018 09:19:55 -0700 (PDT)
-Date: Thu, 30 Aug 2018 18:19:52 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v6 1/2] mm: migration: fix migration of huge PMD shared
- pages
-Message-ID: <20180830161800.GJ2656@dhcp22.suse.cz>
-References: <20180824084157.GD29735@dhcp22.suse.cz>
- <6063f215-a5c8-2f0c-465a-2c515ddc952d@oracle.com>
- <20180827074645.GB21556@dhcp22.suse.cz>
- <20180827134633.GB3930@redhat.com>
- <9209043d-3240-105b-72a3-b4cd30f1b1f1@oracle.com>
- <20180829181424.GB3784@redhat.com>
- <20180829183906.GF10223@dhcp22.suse.cz>
- <20180829211106.GC3784@redhat.com>
- <20180830105616.GD2656@dhcp22.suse.cz>
- <20180830140825.GA3529@redhat.com>
+        (Google Transport Security);
+        Thu, 30 Aug 2018 09:24:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180830140825.GA3529@redhat.com>
+References: <20180830143904.3168-1-yu-cheng.yu@intel.com> <20180830143904.3168-13-yu-cheng.yu@intel.com>
+ <CAG48ez0Rca0XsdXJZ07c+iGPyep0Gpxw+sxQuACP5gyPaBgDKA@mail.gmail.com> <079a55f2-4654-4adf-a6ef-6e480b594a2f@linux.intel.com>
+In-Reply-To: <079a55f2-4654-4adf-a6ef-6e480b594a2f@linux.intel.com>
+From: Jann Horn <jannh@google.com>
+Date: Thu, 30 Aug 2018 18:23:47 +0200
+Message-ID: <CAG48ez2gHOD9hH4+0wek5vUOv9upj79XWoug2SXjdwfXWoQqxw@mail.gmail.com>
+Subject: Re: [RFC PATCH v3 12/24] x86/mm: Modify ptep_set_wrprotect and
+ pmdp_set_wrprotect for _PAGE_DIRTY_SW
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-rdma@vger.kernel.org, Matan Barak <matanb@mellanox.com>, Leon Romanovsky <leonro@mellanox.com>, Dimitri Sivanich <sivanich@sgi.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: yu-cheng.yu@intel.com, the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, hjl.tools@gmail.com, Jonathan Corbet <corbet@lwn.net>, keescook@chromiun.org, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, ravi.v.shankar@intel.com, vedvyas.shanbhogue@intel.com
 
-On Thu 30-08-18 10:08:25, Jerome Glisse wrote:
-> On Thu, Aug 30, 2018 at 12:56:16PM +0200, Michal Hocko wrote:
-> > On Wed 29-08-18 17:11:07, Jerome Glisse wrote:
-> > > On Wed, Aug 29, 2018 at 08:39:06PM +0200, Michal Hocko wrote:
-> > > > On Wed 29-08-18 14:14:25, Jerome Glisse wrote:
-> > > > > On Wed, Aug 29, 2018 at 10:24:44AM -0700, Mike Kravetz wrote:
-> > > > [...]
-> > > > > > What would be the best mmu notifier interface to use where there are no
-> > > > > > start/end calls?
-> > > > > > Or, is the best solution to add the start/end calls as is done in later
-> > > > > > versions of the code?  If that is the suggestion, has there been any change
-> > > > > > in invalidate start/end semantics that we should take into account?
-> > > > > 
-> > > > > start/end would be the one to add, 4.4 seems broken in respect to THP
-> > > > > and mmu notification. Another solution is to fix user of mmu notifier,
-> > > > > they were only a handful back then. For instance properly adjust the
-> > > > > address to match first address covered by pmd or pud and passing down
-> > > > > correct page size to mmu_notifier_invalidate_page() would allow to fix
-> > > > > this easily.
-> > > > > 
-> > > > > This is ok because user of try_to_unmap_one() replace the pte/pmd/pud
-> > > > > with an invalid one (either poison, migration or swap) inside the
-> > > > > function. So anyone racing would synchronize on those special entry
-> > > > > hence why it is fine to delay mmu_notifier_invalidate_page() to after
-> > > > > dropping the page table lock.
-> > > > > 
-> > > > > Adding start/end might the solution with less code churn as you would
-> > > > > only need to change try_to_unmap_one().
-> > > > 
-> > > > What about dependencies? 369ea8242c0fb sounds like it needs work for all
-> > > > notifiers need to be updated as well.
-> > > 
-> > > This commit remove mmu_notifier_invalidate_page() hence why everything
-> > > need to be updated. But in 4.4 you can get away with just adding start/
-> > > end and keep around mmu_notifier_invalidate_page() to minimize disruption.
-> > 
-> > OK, this is really interesting. I was really worried to change the
-> > semantic of the mmu notifiers in stable kernels because this is really
-> > a hard to review change and high risk for anybody running those old
-> > kernels. If we can keep the mmu_notifier_invalidate_page and wrap them
-> > into the range scope API then this sounds like the best way forward.
-> > 
-> > So just to make sure we are at the same page. Does this sounds goo for
-> > stable 4.4. backport? Mike's hugetlb pmd shared fixup can be applied on
-> > top. What do you think?
-> 
-> You need to invalidate outside page table lock so before the call to
-> page_check_address(). For instance like below patch, which also only
-> do the range invalidation for huge page which would avoid too much of
-> a behavior change for user of mmu notifier.
+On Thu, Aug 30, 2018 at 6:09 PM Dave Hansen <dave.hansen@linux.intel.com> wrote:
+>
+> On 08/30/2018 08:49 AM, Jann Horn wrote:
+> >> @@ -1203,7 +1203,28 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
+> >>  static inline void ptep_set_wrprotect(struct mm_struct *mm,
+> >>                                       unsigned long addr, pte_t *ptep)
+> >>  {
+> >> +       pte_t pte;
+> >> +
+> >>         clear_bit(_PAGE_BIT_RW, (unsigned long *)&ptep->pte);
+> >> +       pte = *ptep;
+> >> +
+> >> +       /*
+> >> +        * Some processors can start a write, but ending up seeing
+> >> +        * a read-only PTE by the time they get to the Dirty bit.
+> >> +        * In this case, they will set the Dirty bit, leaving a
+> >> +        * read-only, Dirty PTE which looks like a Shadow Stack PTE.
+> >> +        *
+> >> +        * However, this behavior has been improved and will not occur
+> >> +        * on processors supporting Shadow Stacks.  Without this
+> >> +        * guarantee, a transition to a non-present PTE and flush the
+> >> +        * TLB would be needed.
+> >> +        *
+> >> +        * When change a writable PTE to read-only and if the PTE has
+> >> +        * _PAGE_DIRTY_HW set, we move that bit to _PAGE_DIRTY_SW so
+> >> +        * that the PTE is not a valid Shadow Stack PTE.
+> >> +        */
+> >> +       pte = pte_move_flags(pte, _PAGE_DIRTY_HW, _PAGE_DIRTY_SW);
+> >> +       set_pte_at(mm, addr, ptep, pte);
+> >>  }
+> > I don't understand why it's okay that you first atomically clear the
+> > RW bit, then atomically switch from DIRTY_HW to DIRTY_SW. Doesn't that
+> > mean that between the two atomic writes, another core can incorrectly
+> > see a shadow stack?
+>
+> Good point.
+>
+> This could result in a spurious shadow-stack fault, or allow a
+> shadow-stack write to the page in the transient state.
+>
+> But, the shadow-stack permissions are more restrictive than what could
+> be in the TLB at this point, so I don't think there's a real security
+> implication here.
 
-Right. I would rather not make this PageHuge special though. So the
-fixed version should be.
+How about this:
+
+Three threads (A, B, C) run with the same CR3.
+
+1. a dirty+writable PTE is placed directly in front of B's shadow stack.
+   (this can happen, right? or is there a guard page?)
+2. C's TLB caches the dirty+writable PTE.
+3. A performs some syscall that triggers ptep_set_wrprotect().
+4. A's syscall calls clear_bit().
+5. B's TLB caches the transient shadow stack.
+[now C has write access to B's transiently-extended shadow stack]
+6. B recurses into the transiently-extended shadow stack
+7. C overwrites the transiently-extended shadow stack area.
+8. B returns through the transiently-extended shadow stack, giving
+    the attacker instruction pointer control in B.
+9. A's syscall broadcasts a TLB flush.
+
+Sure, it's not exactly an easy race and probably requires at least
+some black timing magic to exploit, if it's exploitable at all - but
+still. This seems suboptimal.
+
+> The only trouble is handling the spurious shadow-stack fault.  The
+> alternative is to go !Present for a bit, which we would probably just
+> handle fine in the existing page fault code.
