@@ -1,216 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B56E6B51C0
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 09:32:01 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id w6-v6so5797868wrc.22
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 06:32:01 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u3-v6sor4934356wrw.12.2018.08.30.06.31.58
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 31EAF6B51D0
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 09:45:54 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id r25-v6so3660651edc.7
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 06:45:54 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s16si1524831edx.66.2018.08.30.06.45.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 30 Aug 2018 06:31:58 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Aug 2018 06:45:52 -0700 (PDT)
+Date: Thu, 30 Aug 2018 15:45:49 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE mappings
+Message-ID: <20180830134549.GI2656@dhcp22.suse.cz>
+References: <20180829142816.GX10223@dhcp22.suse.cz>
+ <20180829143545.GY10223@dhcp22.suse.cz>
+ <82CA00EB-BF8E-4137-953B-8BC4B74B99AF@cs.rutgers.edu>
+ <20180829154744.GC10223@dhcp22.suse.cz>
+ <39BE14E6-D0FB-428A-B062-8B5AEDC06E61@cs.rutgers.edu>
+ <20180829162528.GD10223@dhcp22.suse.cz>
+ <20180829192451.GG10223@dhcp22.suse.cz>
+ <E97C9342-9BA0-48DD-A580-738ACEE49B41@cs.rutgers.edu>
+ <20180830070021.GB2656@dhcp22.suse.cz>
+ <4AFDF557-46E3-4C62-8A43-C28E8F2A54CF@cs.rutgers.edu>
 MIME-Version: 1.0
-From: Vegard Nossum <vegard.nossum@gmail.com>
-Date: Thu, 30 Aug 2018 15:31:46 +0200
-Message-ID: <CAOMGZ=G52R-30rZvhGxEbkTw7rLLwBGadVYeo--iizcD3upL3A@mail.gmail.com>
-Subject: v4.18.0+ WARNING: at mm/vmscan.c:1756 isolate_lru_page + bad page state
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <4AFDF557-46E3-4C62-8A43-C28E8F2A54CF@cs.rutgers.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
-Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
 
-Hi,
+On Thu 30-08-18 09:22:21, Zi Yan wrote:
+> On 30 Aug 2018, at 3:00, Michal Hocko wrote:
+> 
+> > On Wed 29-08-18 18:54:23, Zi Yan wrote:
+> > [...]
+> >> I tested it against Linusa??s tree with a??memhog -r3 130ga?? in a two-socket machine with 128GB memory on
+> >> each node and got the results below. I expect this test should fill one node, then fall back to the other.
+> >>
+> >> 1. madvise(MADV_HUGEPAGE) + defrag = {always, madvise, defer+madvise}:
+> >> no swap, THPs are allocated in the fallback node.
+> >> 2. madvise(MADV_HUGEPAGE) + defrag = defer: pages got swapped to the
+> >> disk instead of being allocated in the fallback node.
+> >> 3. no madvise, THP is on by default + defrag = {always, defer,
+> >> defer+madvise}: pages got swapped to the disk instead of being
+> >> allocated in the fallback node.
+> >> 4. no madvise, THP is on by default + defrag = madvise: no swap, base
+> >> pages are allocated in the fallback node.
+> >>
+> >> The result 2 and 3 seems unexpected, since pages should be allocated in the fallback node.
+> >>
+> >> The reason, as Andrea mentioned in his email, is that the combination
+> >> of __THIS_NODE and __GFP_DIRECT_RECLAIM (plus __GFP_KSWAPD_RECLAIM
+> >> from this experiment).
+> >
+> > But we do not set __GFP_THISNODE along with __GFP_DIRECT_RECLAIM AFAICS.
+> > We do for __GFP_KSWAPD_RECLAIM though and I guess that it is expected to
+> > see kswapd do the reclaim to balance the node. If the node is full of
+> > anonymous pages then there is no other way than swap out.
+> 
+> GFP_TRANSHUGE implies __GFP_DIRECT_RECLAIM. When no madvise is given, THP is on
+> + defrag=always, gfp_mask has __GFP_THISNODE and __GFP_DIRECT_RECLAIM, so swapping
+> can be triggered.
 
-Got this on a recent kernel (pretty sure it was
-2ad0d52699700a91660a406a4046017a2d7f246a but annoyingly the oops
-itself doesn't tell me the exact version):
+Yes, but the setup tells that you are willing to pay price to get a THP.
+defered=always uses that special __GFP_NORETRY (unless it is madvised
+mapping) that should back off if the compaction failed recently. How
+much that reduces the reclaim is not really clear to me right now to be
+honest.
 
-------------[ cut here ]------------
-trying to isolate tail page
-WARNING: CPU: 2 PID: 19156 at mm/vmscan.c:1756 isolate_lru_page+0x235/0x250
-CPU: 2 PID: 19156 Comm: mmap Not tainted 4.18.0+ #493
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
-Ubuntu-1.8.2-1ubuntu1 04/01/2014
-RIP: 0010:isolate_lru_page+0x235/0x250
-Code: fe ff ff 48 c7 c6 80 73 43 82 48 c7 c7 60 27 a9 82 e8 3f 40 c9
-00 85 c0 0f 84 f4 fd ff ff 48 c7 c7 a5 ba 75 82 e8 6b 59 ed ff <0f> 0b
-e9 e1 fd ff ff 49 c7 c7 00 fe ff ff 44 89 7c 24 04 e9 ed fe
-RSP: 0018:ffffc90008edbc20 EFLAGS: 00010282
-RAX: 0000000000000000 RBX: ffffea00082fd000 RCX: 0000000000000002
-RDX: 0000000080000002 RSI: 0000000000000002 RDI: 00000000ffffffff
-RBP: ffff8803a157ea00 R08: 0000000000000001 R09: 0000000000000000
-R10: ffffffff82e456dc R11: 0000000000000001 R12: ffffea00082fd000
-R13: 800000020bf40805 R14: 00007fe50f341000 R15: ffffc90008edbdd8
-FS:  0000000000000000(0000) GS:ffff88042fb00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 0000000000580fb8 CR3: 0000000002a1e004 CR4: 00000000000606e0
-Call Trace:
- clear_page_mlock+0x73/0xb0
- page_remove_rmap+0x31e/0x370
- unmap_page_range+0x70b/0xa40
- unmap_vmas+0x47/0x90
- exit_mmap+0xb0/0x1c0
- mmput+0x5d/0x130
- do_exit+0x2c2/0xc20
- do_group_exit+0x42/0xb0
- __x64_sys_exit_group+0xf/0x10
- do_syscall_64+0x57/0x170
- entry_SYSCALL_64_after_hwframe+0x44/0xa9
-RIP: 0033:0x501ad8
-Code: Bad RIP value.
-RSP: 002b:00007fff9bb8dee8 EFLAGS: 00000246 ORIG_RAX: 00000000000000e7
-RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 0000000000501ad8
-RDX: 0000000000000000 RSI: 000000000000003c RDI: 0000000000000000
-RBP: 000000000059b4a0 R08: 00000000000000e7 R09: ffffffffffffffc8
-R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000001
-R13: 00000000007d7860 R14: 0000000000027150 R15: 00007fff9bb8e0c0
----[ end trace d3ada49968979043 ]---
-------------[ cut here ]------------
-list_del corruption, ffffea00082fd008->prev is LIST_POISON2 (dead000000000200)
-WARNING: CPU: 2 PID: 19156 at lib/list_debug.c:50
-__list_del_entry_valid+0x62/0x90
-CPU: 2 PID: 19156 Comm: mmap Tainted: G        W         4.18.0+ #493
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
-Ubuntu-1.8.2-1ubuntu1 04/01/2014
-RIP: 0010:__list_del_entry_valid+0x62/0x90
-Code: 00 00 00 c3 48 89 fe 48 89 c2 48 c7 c7 f0 b3 79 82 e8 d2 84 b1
-ff 0f 0b 31 c0 c3 48 89 fe 48 c7 c7 28 b4 79 82 e8 be 84 b1 ff <0f> 0b
-31 c0 c3 48 89 fe 48 c7 c7 60 b4 79 82 e8 aa 84 b1 ff 0f 0b
-RSP: 0018:ffffc90008edbc18 EFLAGS: 00010086
-RAX: 0000000000000000 RBX: ffffea00082fd000 RCX: 0000000000000003
-RDX: 0000000000000003 RSI: 0000000000000003 RDI: 00000000ffffffff
-RBP: ffff88043fff0d00 R08: 0000000000000001 R09: 0000000000000000
-R10: ffff8802794a60c8 R11: 0000000000000001 R12: 0000000000000004
-R13: ffff88042f4ae800 R14: 0000000000000005 R15: ffffc90008edbdd8
-FS:  0000000000000000(0000) GS:ffff88042fb00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 0000000000501aae CR3: 0000000002a1e004 CR4: 00000000000606e0
-Call Trace:
- isolate_lru_page+0xf3/0x250
- clear_page_mlock+0x73/0xb0
- page_remove_rmap+0x31e/0x370
- unmap_page_range+0x70b/0xa40
- unmap_vmas+0x47/0x90
- exit_mmap+0xb0/0x1c0
- mmput+0x5d/0x130
- do_exit+0x2c2/0xc20
- do_group_exit+0x42/0xb0
- __x64_sys_exit_group+0xf/0x10
- do_syscall_64+0x57/0x170
- entry_SYSCALL_64_after_hwframe+0x44/0xa9
-RIP: 0033:0x501ad8
-Code: Bad RIP value.
-RSP: 002b:00007fff9bb8dee8 EFLAGS: 00000246 ORIG_RAX: 00000000000000e7
-RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 0000000000501ad8
-RDX: 0000000000000000 RSI: 000000000000003c RDI: 0000000000000000
-RBP: 000000000059b4a0 R08: 00000000000000e7 R09: ffffffffffffffc8
-R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000001
-R13: 00000000007d7860 R14: 0000000000027150 R15: 00007fff9bb8e0c0
----[ end trace d3ada49968979044 ]---
-BUG: Bad page state in process mmap  pfn:20bf40
-page:ffffea00082fd000 count:0 mapcount:0 mapping:dead000000000400 index:0x1
-flags: 0x400000000000000()
-raw: 0400000000000000 dead000000000100 dead000000000200 dead000000000400
-raw: 0000000000000001 0000000000000000 00000000ffffffff 0000000000000000
-page dumped because: non-NULL mapping
-CPU: 2 PID: 19156 Comm: mmap Tainted: G        W         4.18.0+ #493
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
-Ubuntu-1.8.2-1ubuntu1 04/01/2014
-Call Trace:
- dump_stack+0x5c/0x7b
- bad_page+0xb3/0x110
- free_pcppages_bulk+0x17b/0x7e0
- free_unref_page+0x4a/0x60
- zap_huge_pmd+0x204/0x360
- unmap_page_range+0x970/0xa40
- unmap_vmas+0x47/0x90
- exit_mmap+0xb0/0x1c0
- mmput+0x5d/0x130
- do_exit+0x2c2/0xc20
- do_group_exit+0x42/0xb0
- __x64_sys_exit_group+0xf/0x10
- do_syscall_64+0x57/0x170
- entry_SYSCALL_64_after_hwframe+0x44/0xa9
-RIP: 0033:0x501ad8
-Code: Bad RIP value.
-RSP: 002b:00007fff9bb8dee8 EFLAGS: 00000246 ORIG_RAX: 00000000000000e7
-RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 0000000000501ad8
-RDX: 0000000000000000 RSI: 000000000000003c RDI: 0000000000000000
-RBP: 000000000059b4a0 R08: 00000000000000e7 R09: ffffffffffffffc8
-R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000001
-R13: 00000000007d7860 R14: 0000000000027150 R15: 00007fff9bb8e0c0
-Disabling lock debugging due to kernel taint
-general protection fault: 0000 [#1] PREEMPT SMP PTI
-CPU: 2 PID: 19156 Comm: mmap Tainted: G    B   W         4.18.0+ #493
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
-Ubuntu-1.8.2-1ubuntu1 04/01/2014
-RIP: 0010:page_evictable+0x38/0x90
-Code: 81 31 d2 45 31 c9 45 31 c0 31 f6 b9 02 00 00 00 48 c7 c7 a0 79
-a7 82 e8 b6 6e f2 ff 48 89 ef e8 ce be 00 00 48 85 c0 5a 74 2f <48> 8b
-80 08 01 00 00 31 db a8 08 74 22 e8 b6 27 f4 ff 48 c7 c2 a5
-RSP: 0018:ffffc90008edbc98 EFLAGS: 00010086
-RAX: dead000000000400 RBX: ffffea00082fd000 RCX: 0000000000000000
-RDX: ffffffff811fff60 RSI: 0000000000000000 RDI: ffffea00082fd000
-RBP: ffffea00082fd000 R08: 0000000000000001 R09: 0000000000000000
-R10: ffff8802794a5900 R11: 0000000000000000 R12: ffffea00082fd000
-R13: ffff88042f4ae800 R14: 0000000000000000 R15: ffffffff811f8b30
-FS:  0000000000991900(0000) GS:ffff88042fb00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 0000000000501aae CR3: 0000000002a1e004 CR4: 00000000000606e0
-Call Trace:
- __pagevec_lru_add_fn+0x53/0x320
- ? __put_compound_page+0x30/0x30
- pagevec_lru_move_fn+0x83/0xd0
- lru_add_drain_cpu+0xdb/0xf0
- lru_add_drain+0x16/0x40
- free_pages_and_swap_cache+0x13/0xb0
- tlb_flush_mmu_free+0x2c/0x50
- arch_tlb_finish_mmu+0x3d/0x70
- tlb_finish_mmu+0x1a/0x30
- exit_mmap+0xd8/0x1c0
- mmput+0x5d/0x130
- do_exit+0x2c2/0xc20
- do_group_exit+0x42/0xb0
- __x64_sys_exit_group+0xf/0x10
- do_syscall_64+0x57/0x170
- entry_SYSCALL_64_after_hwframe+0x44/0xa9
-RIP: 0033:0x501ad8
-Code: Bad RIP value.
-RSP: 002b:00007fff9bb8dee8 EFLAGS: 00000246 ORIG_RAX: 00000000000000e7
-RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 0000000000501ad8
-RDX: 0000000000000000 RSI: 000000000000003c RDI: 0000000000000000
-RBP: 000000000059b4a0 R08: 00000000000000e7 R09: ffffffffffffffc8
-R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000001
-R13: 00000000007d7860 R14: 0000000000027150 R15: 00007fff9bb8e0c0
-Dumping ftrace buffer:
-   (ftrace buffer empty)
----[ end trace d3ada49968979045 ]---
-RIP: 0010:page_evictable+0x38/0x90
-Code: 81 31 d2 45 31 c9 45 31 c0 31 f6 b9 02 00 00 00 48 c7 c7 a0 79
-a7 82 e8 b6 6e f2 ff 48 89 ef e8 ce be 00 00 48 85 c0 5a 74 2f <48> 8b
-80 08 01 00 00 31 db a8 08 74 22 e8 b6 27 f4 ff 48 c7 c2 a5
-RSP: 0018:ffffc90008edbc98 EFLAGS: 00010086
-RAX: dead000000000400 RBX: ffffea00082fd000 RCX: 0000000000000000
-RDX: ffffffff811fff60 RSI: 0000000000000000 RDI: ffffea00082fd000
-RBP: ffffea00082fd000 R08: 0000000000000001 R09: 0000000000000000
-R10: ffff8802794a5900 R11: 0000000000000000 R12: ffffea00082fd000
-R13: ffff88042f4ae800 R14: 0000000000000000 R15: ffffffff811f8b30
-FS:  0000000000991900(0000) GS:ffff88042fb00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 0000000000501aae CR3: 0000000002a1e004 CR4: 00000000000606e0
-Kernel panic - not syncing: Fatal exception
-Dumping ftrace buffer:
-   (ftrace buffer empty)
-Kernel Offset: disabled
+> The key issue here is that a??memhog -r3 130ga?? uses the default memory policy (MPOL_DEFAULT),
+> which should allow page allocation fallback to other nodes, but as shown in
+> result 3, swapping is triggered instead of page allocation fallback.
 
-I don't have the capacity to debug it atm and it may even have been
-fixed in mainline (though searching didn't yield any other reports
-AFAICT).
+Well, I guess this really depends. Fallback to a different node might be
+seen as a bad thing and worse than the reclaim on the local node.
 
-I have .config and vmlinux (with DEBUG_INFO=y) if needed.
+> >> __THIS_NODE uses ZONELIST_NOFALLBACK, which
+> >> removes the fallback possibility and __GFP_*_RECLAIM triggers page
+> >> reclaim in the first page allocation node when fallback nodes are
+> >> removed by ZONELIST_NOFALLBACK.
+> >
+> > Yes but the point is that the allocations which use __GFP_THISNODE are
+> > optimistic so they shouldn't fallback to remote NUMA nodes.
+> 
+> This can be achieved by using MPOL_BIND memory policy which restricts
+> nodemask in struct alloc_context for user space memory allocations.
 
-It's not reproducible for the time being.
+Yes, but that requires and explicit NUMA handling. And we are trying to
+handle those cases which do not really give a damn and just want to use
+THP if it is available or try harder when they ask by using madvise.
 
+> >> IMHO, __THIS_NODE should not be used for user memory allocation at
+> >> all, since it fights against most of memory policies.  But kernel
+> >> memory allocation would need it as a kernel MPOL_BIND memory policy.
+> >
+> > __GFP_THISNODE is indeed an ugliness. I would really love to get rid of
+> > it here. But the problem is that optimistic THP allocations should
+> > prefer a local node because a remote node might easily offset the
+> > advantage of the THP. I do not have a great idea how to achieve that
+> > without __GFP_THISNODE though.
+> 
+> MPOL_PREFERRED memory policy can be used to achieve this optimistic
+> THP allocation for user space. Even with the default memory policy,
+> local memory node will be used first until it is full. It seems to
+> me that __GFP_THISNODE is not necessary if a proper memory policy is
+> used.
+> 
+> Let me know if I miss anything. Thanks.
 
-Vegard
+You are missing that we are trying to define a sensible model for those
+who do not really care about mempolicies. THP shouldn't cause more harm
+than good for those.
+
+I wish we could come up with a remotely sane and comprehensible model.
+That means that you know how hard the allocator tries to get a THP for
+you depending on the defrag configuration, your memory policy and your
+madvise setting. The easiest one I can think of is to 
+- always follow mempolicy when specified because you asked for it
+  explicitly
+- stay node local and low latency for the light THP defrag mode (defrag,
+  madvise without hint and none) because THP is a nice to have
+- if the defrag mode is always then you are willing to pay the latency
+  price but off-node might be still a no-no.
+- allow fallback for madvised mappings because you really want THP. If
+  you care about specific numa placement then combine with the
+  mempolicy.
+
+As you can see I do not really mention anything about the direct reclaim
+because that is just an implementation detail of the page allocator and
+compaction interaction.
+
+Maybe you can formulate a saner matrix with all the available modes that
+we have.
+
+Anyway, I guess we can agree that (almost) unconditional __GFP_THISNODE
+is clearly wrong and we should address that first. Either Andrea's
+option 2) patch or mine which does the similar thing except at the
+proper layer (I believe). We can continue discussing other odd cases on
+top I guess. Unless somebody has much brighter idea, of course.
+-- 
+Michal Hocko
+SUSE Labs
