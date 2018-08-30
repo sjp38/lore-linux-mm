@@ -1,118 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 049136B531E
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 15:59:41 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id x2-v6so5574546pgp.4
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 12:59:40 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id x81-v6si8053418pgx.156.2018.08.30.12.59.39
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AB1006B52FB
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 16:05:48 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id d132-v6so5527483pgc.22
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 13:05:48 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id x6-v6si7260782pge.100.2018.08.30.13.05.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 30 Aug 2018 12:59:39 -0700 (PDT)
-Subject: Re: [RFC PATCH v3 12/24] x86/mm: Modify ptep_set_wrprotect and
- pmdp_set_wrprotect for _PAGE_DIRTY_SW
-References: <20180830143904.3168-1-yu-cheng.yu@intel.com>
- <20180830143904.3168-13-yu-cheng.yu@intel.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <9879c17a-24da-d84a-5a7c-30bcbb473914@infradead.org>
-Date: Thu, 30 Aug 2018 12:59:21 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Aug 2018 13:05:47 -0700 (PDT)
+Subject: [PATCH] mm: fix BUG_ON() in vmf_insert_pfn_pud() from VM_MIXEDMAP
+ removal
+From: Dave Jiang <dave.jiang@intel.com>
+Date: Thu, 30 Aug 2018 13:05:46 -0700
+Message-ID: <153565954666.35458.15832314745699968487.stgit@djiang5-desk3.ch.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180830143904.3168-13-yu-cheng.yu@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-nvdimm@lists.01.org, dan.j.williams@intel.com.vishal.l.verma, ""@intel.com, jack@suse.com
 
-On 08/30/2018 07:38 AM, Yu-cheng Yu wrote:
-> When Shadow Stack is enabled, the read-only and PAGE_DIRTY_HW PTE
-> setting is reserved only for the Shadow Stack.  To track dirty of
-> non-Shadow Stack read-only PTEs, we use PAGE_DIRTY_SW.
-> 
-> Update ptep_set_wrprotect() and pmdp_set_wrprotect().
-> 
-> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> ---
->  arch/x86/include/asm/pgtable.h | 42 ++++++++++++++++++++++++++++++++++
->  1 file changed, 42 insertions(+)
-> 
-> diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-> index 4d50de77ea96..556ef258eeff 100644
-> --- a/arch/x86/include/asm/pgtable.h
-> +++ b/arch/x86/include/asm/pgtable.h
-> @@ -1203,7 +1203,28 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
->  static inline void ptep_set_wrprotect(struct mm_struct *mm,
->  				      unsigned long addr, pte_t *ptep)
->  {
-> +	pte_t pte;
-> +
->  	clear_bit(_PAGE_BIT_RW, (unsigned long *)&ptep->pte);
-> +	pte = *ptep;
-> +
-> +	/*
-> +	 * Some processors can start a write, but ending up seeing
+It looks like I missed the PUD path when doing VM_MIXEDMAP removal.
+This can be triggered by:
+1. Boot with memmap=4G!8G
+2. build ndctl with destructive flag on
+3. make TESTS=device-dax check
 
-	                                      but end up seeing
+[  +0.000675] kernel BUG at mm/huge_memory.c:824!
 
-> +	 * a read-only PTE by the time they get to the Dirty bit.
-> +	 * In this case, they will set the Dirty bit, leaving a
-> +	 * read-only, Dirty PTE which looks like a Shadow Stack PTE.
-> +	 *
-> +	 * However, this behavior has been improved and will not occur
-> +	 * on processors supporting Shadow Stacks.  Without this
-> +	 * guarantee, a transition to a non-present PTE and flush the
-> +	 * TLB would be needed.
-> +	 *
-> +	 * When change a writable PTE to read-only and if the PTE has
+Applying the same change that was applied to vmf_insert_pfn_pmd() in the
+original patch.
 
-	        changing
+Fixes: e1fb4a08649 ("dax: remove VM_MIXEDMAP for fsdax and device dax")
 
-> +	 * _PAGE_DIRTY_HW set, we move that bit to _PAGE_DIRTY_SW so
-> +	 * that the PTE is not a valid Shadow Stack PTE.
-> +	 */
-> +	pte = pte_move_flags(pte, _PAGE_DIRTY_HW, _PAGE_DIRTY_SW);
-> +	set_pte_at(mm, addr, ptep, pte);
->  }
->  
->  #define flush_tlb_fix_spurious_fault(vma, address) do { } while (0)
-> @@ -1266,7 +1287,28 @@ static inline pud_t pudp_huge_get_and_clear(struct mm_struct *mm,
->  static inline void pmdp_set_wrprotect(struct mm_struct *mm,
->  				      unsigned long addr, pmd_t *pmdp)
->  {
-> +	pmd_t pmd;
-> +
->  	clear_bit(_PAGE_BIT_RW, (unsigned long *)pmdp);
-> +	pmd = *pmdp;
-> +
-> +	/*
-> +	 * Some processors can start a write, but ending up seeing
+Reported-by: Vishal Verma <vishal.l.verma@intel.com>
+Signed-off-by: Dave Jiang <dave.jiang@intel.com>
+---
+ mm/huge_memory.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-	                                      but end up seeing
-
-> +	 * a read-only PTE by the time they get to the Dirty bit.
-> +	 * In this case, they will set the Dirty bit, leaving a
-> +	 * read-only, Dirty PTE which looks like a Shadow Stack PTE.
-> +	 *
-> +	 * However, this behavior has been improved and will not occur
-> +	 * on processors supporting Shadow Stacks.  Without this
-> +	 * guarantee, a transition to a non-present PTE and flush the
-> +	 * TLB would be needed.
-> +	 *
-> +	 * When change a writable PTE to read-only and if the PTE has
-
-	        changing
-
-> +	 * _PAGE_DIRTY_HW set, we move that bit to _PAGE_DIRTY_SW so
-> +	 * that the PTE is not a valid Shadow Stack PTE.
-> +	 */
-> +	pmd = pmd_move_flags(pmd, _PAGE_DIRTY_HW, _PAGE_DIRTY_SW);
-> +	set_pmd_at(mm, addr, pmdp, pmd);
->  }
->  
->  #define pud_write pud_write
-> 
-
-
--- 
-~Randy
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index c3bc7e9c9a2a..533f9b00147d 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -821,11 +821,11 @@ vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
+ 	 * but we need to be consistent with PTEs and architectures that
+ 	 * can't support a 'special' bit.
+ 	 */
+-	BUG_ON(!(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)));
++	BUG_ON(!(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)) &&
++			!pfn_t_devmap(pfn));
+ 	BUG_ON((vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)) ==
+ 						(VM_PFNMAP|VM_MIXEDMAP));
+ 	BUG_ON((vma->vm_flags & VM_PFNMAP) && is_cow_mapping(vma->vm_flags));
+-	BUG_ON(!pfn_t_devmap(pfn));
+ 
+ 	if (addr < vma->vm_start || addr >= vma->vm_end)
+ 		return VM_FAULT_SIGBUS;
