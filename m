@@ -1,42 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 493E66B52E0
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 15:07:14 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id l65-v6so5468167pge.17
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 12:07:14 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id c12-v6si2473142plz.456.2018.08.30.12.07.12
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 869F46B52F8
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 15:35:53 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id u45-v6so9716835qte.12
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 12:35:53 -0700 (PDT)
+Received: from NAM04-SN1-obe.outbound.protection.outlook.com (mail-eopbgr700123.outbound.protection.outlook.com. [40.107.70.123])
+        by mx.google.com with ESMTPS id 133-v6si82129qkd.22.2018.08.30.12.35.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Aug 2018 12:07:12 -0700 (PDT)
-Subject: Re: [PATCH V4 4/4] kvm: add a check if pfn is from NVDIMM pmem.
-References: <cover.1534934405.git.yi.z.zhang@linux.intel.com>
- <a4183c0f0adfb6d123599dd306062fd193e83f5a.1534934405.git.yi.z.zhang@linux.intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <4192066a-79f3-2b3e-386f-c4ec9b6dd8fd@intel.com>
-Date: Thu, 30 Aug 2018 12:07:11 -0700
-MIME-Version: 1.0
-In-Reply-To: <a4183c0f0adfb6d123599dd306062fd193e83f5a.1534934405.git.yi.z.zhang@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 30 Aug 2018 12:35:52 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Subject: Re: [PATCH RFCv2 1/6] mm/memory_hotplug: make remove_memory() take
+ the device_hotplug_lock
+Date: Thu, 30 Aug 2018 19:35:48 +0000
+Message-ID: <46a0119b-da16-0203-a8c2-d127738517f4@microsoft.com>
+References: <20180821104418.12710-1-david@redhat.com>
+ <20180821104418.12710-2-david@redhat.com>
+In-Reply-To: <20180821104418.12710-2-david@redhat.com>
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <DCFCA70729284F4B88E5C6C04E0B640A@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yi <yi.z.zhang@linux.intel.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pbonzini@redhat.com, dan.j.williams@intel.com, dave.jiang@intel.com, yu.c.zhang@intel.com, pagupta@redhat.com, david@redhat.com, jack@suse.cz, hch@lst.de
-Cc: linux-mm@kvack.org, rkrcmar@redhat.com, jglisse@redhat.com, yi.z.zhang@intel.com
+To: David Hildenbrand <david@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Rashmica Gupta <rashmica.g@gmail.com>, Michael Neuling <mikey@neuling.org>, Balbir Singh <bsingharora@gmail.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, John Allen <jallen@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Oscar Salvador <osalvador@suse.de>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Mathieu Malaterre <malat@debian.org>
 
-On 08/22/2018 03:58 AM, Zhang Yi wrote:
->  bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
->  {
-> -	if (pfn_valid(pfn))
-> -		return PageReserved(pfn_to_page(pfn));
-> +	struct page *page;
-> +
-> +	if (pfn_valid(pfn)) {
-> +		page = pfn_to_page(pfn);
-> +		return PageReserved(page) && !is_dax_page(page);
-> +	}
-
-This is in desperate need of commenting about what it is doing and why.
-
-The changelog alone doesn't cut it.
+PiArDQo+ICt2b2lkIF9fcmVmIHJlbW92ZV9tZW1vcnkoaW50IG5pZCwgdTY0IHN0YXJ0LCB1NjQg
+c2l6ZSkNCg0KUmVtb3ZlIF9fcmVmLCBvdGhlcndpc2UgbG9va3MgZ29vZDoNCg0KUmV2aWV3ZWQt
+Ynk6IFBhdmVsIFRhdGFzaGluIDxwYXZlbC50YXRhc2hpbkBtaWNyb3NvZnQuY29tPg0KDQo+ICt7
+DQo+ICsJbG9ja19kZXZpY2VfaG90cGx1ZygpOw0KPiArCV9fcmVtb3ZlX21lbW9yeShuaWQsIHN0
+YXJ0LCBzaXplKTsNCj4gKwl1bmxvY2tfZGV2aWNlX2hvdHBsdWcoKTsNCj4gK30NCj4gIEVYUE9S
+VF9TWU1CT0xfR1BMKHJlbW92ZV9tZW1vcnkpOw0KPiAgI2VuZGlmIC8qIENPTkZJR19NRU1PUllf
+SE9UUkVNT1ZFICovDQo+IA==
