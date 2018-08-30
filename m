@@ -1,81 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D7576B5007
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 03:00:26 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id r2-v6so4582702pgp.3
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 00:00:26 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 86F5B6B501D
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 03:20:59 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id z30-v6so3255740edd.19
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 00:20:59 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k14-v6si5965631pfd.0.2018.08.30.00.00.24
+        by mx.google.com with ESMTPS id k5-v6si4963788edd.380.2018.08.30.00.20.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Aug 2018 00:00:25 -0700 (PDT)
-Date: Thu, 30 Aug 2018 09:00:21 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE mappings
-Message-ID: <20180830070021.GB2656@dhcp22.suse.cz>
-References: <20180828081837.GG10223@dhcp22.suse.cz>
- <D5F4A33C-0A37-495C-9468-D6866A862097@cs.rutgers.edu>
- <20180829142816.GX10223@dhcp22.suse.cz>
- <20180829143545.GY10223@dhcp22.suse.cz>
- <82CA00EB-BF8E-4137-953B-8BC4B74B99AF@cs.rutgers.edu>
- <20180829154744.GC10223@dhcp22.suse.cz>
- <39BE14E6-D0FB-428A-B062-8B5AEDC06E61@cs.rutgers.edu>
- <20180829162528.GD10223@dhcp22.suse.cz>
- <20180829192451.GG10223@dhcp22.suse.cz>
- <E97C9342-9BA0-48DD-A580-738ACEE49B41@cs.rutgers.edu>
+        Thu, 30 Aug 2018 00:20:58 -0700 (PDT)
+Date: Thu, 30 Aug 2018 09:20:56 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] fs/dcache: Make negative dentries easier to be
+ reclaimed
+Message-ID: <20180830072056.GC2656@dhcp22.suse.cz>
+References: <1535476780-5773-1-git-send-email-longman@redhat.com>
+ <1535476780-5773-3-git-send-email-longman@redhat.com>
+ <20180829075129.GU10223@dhcp22.suse.cz>
+ <374c2c5c-cc9b-af03-a800-32f2cf8a3055@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <E97C9342-9BA0-48DD-A580-738ACEE49B41@cs.rutgers.edu>
+In-Reply-To: <374c2c5c-cc9b-af03-a800-32f2cf8a3055@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+To: Waiman Long <longman@redhat.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>
 
-On Wed 29-08-18 18:54:23, Zi Yan wrote:
-[...]
-> I tested it against Linusa??s tree with a??memhog -r3 130ga?? in a two-socket machine with 128GB memory on
-> each node and got the results below. I expect this test should fill one node, then fall back to the other.
+On Wed 29-08-18 15:58:52, Waiman Long wrote:
+> On 08/29/2018 03:51 AM, Michal Hocko wrote:
+> > On Tue 28-08-18 13:19:40, Waiman Long wrote:
+> >> For negative dentries that are accessed once and never used again, they
+> >> should be removed first before other dentries when shrinker is running.
+> >> This is done by putting negative dentries at the head of the LRU list
+> >> instead at the tail.
+> >>
+> >> A new DCACHE_NEW_NEGATIVE flag is now added to a negative dentry when it
+> >> is initially created. When such a dentry is added to the LRU, it will be
+> >> added to the head so that it will be the first to go when a shrinker is
+> >> running if it is never accessed again (DCACHE_REFERENCED bit not set).
+> >> The flag is cleared after the LRU list addition.
+> > Placing object to the head of the LRU list can be really tricky as Dave
+> > pointed out. I am not familiar with the dentry cache reclaim so my
+> > comparison below might not apply. Let me try anyway.
+> >
+> > Negative dentries sound very similar to MADV_FREE pages from the reclaim
+> > POV. They are primary candidate for reclaim, yet you want to preserve
+> > aging to other easily reclaimable objects (including other MADV_FREE
+> > pages). What we do for those pages is to move them from the anonymous
+> > LRU list to the inactive file LRU list. Now you obviously do not have
+> > anon/file LRUs but something similar to active/inactive LRU lists might
+> > be a reasonably good match. Have easily reclaimable dentries on the
+> > inactive list including negative dentries. If negative entries are
+> > heavily used then they can promote to the active list because there is
+> > no reason to reclaim them soon.
+> >
+> > Just my 2c
 > 
-> 1. madvise(MADV_HUGEPAGE) + defrag = {always, madvise, defer+madvise}:
-> no swap, THPs are allocated in the fallback node.
-> 2. madvise(MADV_HUGEPAGE) + defrag = defer: pages got swapped to the
-> disk instead of being allocated in the fallback node.
-> 3. no madvise, THP is on by default + defrag = {always, defer,
-> defer+madvise}: pages got swapped to the disk instead of being
-> allocated in the fallback node.
-> 4. no madvise, THP is on by default + defrag = madvise: no swap, base
-> pages are allocated in the fallback node.
-> 
-> The result 2 and 3 seems unexpected, since pages should be allocated in the fallback node.
-> 
-> The reason, as Andrea mentioned in his email, is that the combination
-> of __THIS_NODE and __GFP_DIRECT_RECLAIM (plus __GFP_KSWAPD_RECLAIM
-> from this experiment).
+> As mentioned in my reply to Dave, I did considered using a 2 LRU list
+> solution. However, that will add more complexity to the dcache LRU
+> management code than my current approach and probably more potential for
+> slowdown.
 
-But we do not set __GFP_THISNODE along with __GFP_DIRECT_RECLAIM AFAICS.
-We do for __GFP_KSWAPD_RECLAIM though and I guess that it is expected to
-see kswapd do the reclaim to balance the node. If the node is full of
-anonymous pages then there is no other way than swap out.
-
-> __THIS_NODE uses ZONELIST_NOFALLBACK, which
-> removes the fallback possibility and __GFP_*_RECLAIM triggers page
-> reclaim in the first page allocation node when fallback nodes are
-> removed by ZONELIST_NOFALLBACK.
-
-Yes but the point is that the allocations which use __GFP_THISNODE are
-optimistic so they shouldn't fallback to remote NUMA nodes.
-
-> IMHO, __THIS_NODE should not be used for user memory allocation at
-> all, since it fights against most of memory policies.  But kernel
-> memory allocation would need it as a kernel MPOL_BIND memory policy.
-
-__GFP_THISNODE is indeed an ugliness. I would really love to get rid of
-it here. But the problem is that optimistic THP allocations should
-prefer a local node because a remote node might easily offset the
-advantage of the THP. I do not have a great idea how to achieve that
-without __GFP_THISNODE though.
+I completely agree with Dave here. This is not easy but trying to sneak
+in something that works for an _artificial_ workload is simply a no go.
+So if it takes to come with a more complex solution to cover more
+general workloads then be it. Someone has to bite a bullet and explore
+that direction. It won't be a simple project but well, if negative
+dentries really matter then it is worth making the reclaim design robust
+and comprehensible rather than adhoc and unpredictable.
 -- 
 Michal Hocko
 SUSE Labs
