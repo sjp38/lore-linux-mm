@@ -1,107 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D91926B4EAA
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 21:44:11 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id 90-v6so3037881pla.18
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 18:44:11 -0700 (PDT)
-Received: from ipmail03.adl2.internode.on.net (ipmail03.adl2.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id 1-v6si5628941pfu.79.2018.08.29.18.44.09
-        for <linux-mm@kvack.org>;
-        Wed, 29 Aug 2018 18:44:10 -0700 (PDT)
-Date: Thu, 30 Aug 2018 11:43:04 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 1/2] fs/dcache: Track & report number of negative dentries
-Message-ID: <20180830014304.GD5631@dastard>
-References: <1535476780-5773-1-git-send-email-longman@redhat.com>
- <1535476780-5773-2-git-send-email-longman@redhat.com>
- <20180829001153.GD1572@dastard>
- <e084f670-b279-0f85-404c-9506e329f633@redhat.com>
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 937816B4ED4
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 21:55:33 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id e6-v6so471614itc.7
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 18:55:33 -0700 (PDT)
+Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0127.outbound.protection.outlook.com. [104.47.36.127])
+        by mx.google.com with ESMTPS id l203-v6si3826544ioa.13.2018.08.29.18.55.31
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 29 Aug 2018 18:55:32 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Subject: Re: [PATCH] mm/page_alloc: Clean up check_for_memory
+Date: Thu, 30 Aug 2018 01:55:29 +0000
+Message-ID: <332d9ea1-cdd0-6bb6-8e83-28af25096637@microsoft.com>
+References: <20180828210158.4617-1-osalvador@techadventures.net>
+In-Reply-To: <20180828210158.4617-1-osalvador@techadventures.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <F6C84231AE129F45AEA20EBD69B9806E@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e084f670-b279-0f85-404c-9506e329f633@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>
+To: Oscar Salvador <osalvador@techadventures.net>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "mhocko@suse.com" <mhocko@suse.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oscar Salvador <osalvador@suse.de>
 
-On Wed, Aug 29, 2018 at 01:11:08PM -0400, Waiman Long wrote:
-> On 08/28/2018 08:11 PM, Dave Chinner wrote:
-> > On Tue, Aug 28, 2018 at 01:19:39PM -0400, Waiman Long wrote:
-> >> The current dentry number tracking code doesn't distinguish between
-> >> positive & negative dentries. It just reports the total number of
-> >> dentries in the LRU lists.
-> >>
-> >> As excessive number of negative dentries can have an impact on system
-> >> performance, it will be wise to track the number of positive and
-> >> negative dentries separately.
-> >>
-> >> This patch adds tracking for the total number of negative dentries in
-> >> the system LRU lists and reports it in the /proc/sys/fs/dentry-state
-> >> file. The number, however, does not include negative dentries that are
-> >> in flight but not in the LRU yet.
-> >>
-> >> The number of positive dentries in the LRU lists can be roughly found
-> >> by subtracting the number of negative dentries from the total.
-> >>
-> >> Signed-off-by: Waiman Long <longman@redhat.com>
-> >> ---
-> >>  Documentation/sysctl/fs.txt | 19 +++++++++++++------
-> >>  fs/dcache.c                 | 45 +++++++++++++++++++++++++++++++++++++++++++++
-> >>  include/linux/dcache.h      |  7 ++++---
-> >>  3 files changed, 62 insertions(+), 9 deletions(-)
-> >>
-> >> diff --git a/Documentation/sysctl/fs.txt b/Documentation/sysctl/fs.txt
-> >> index 819caf8..118bb93 100644
-> >> --- a/Documentation/sysctl/fs.txt
-> >> +++ b/Documentation/sysctl/fs.txt
-> >> @@ -63,19 +63,26 @@ struct {
-> >>          int nr_unused;
-> >>          int age_limit;         /* age in seconds */
-> >>          int want_pages;        /* pages requested by system */
-> >> -        int dummy[2];
-> >> +        int nr_negative;       /* # of unused negative dentries */
-> >> +        int dummy;
-> >>  } dentry_stat = {0, 0, 45, 0,};
-> > That's not a backwards compatible ABI change. Those dummy fields
-> > used to represent some metric we no longer calculate, and there are
-> > probably still monitoring apps out there that think they still have
-> > the old meaning. i.e. they are still visible to userspace:
-> >
-> > $ cat /proc/sys/fs/dentry-state 
-> > 83090	67661	45	0	0	0
-> > $
-> >
-> > IOWs, you can add new fields for new metrics to the end of the
-> > structure, but you can't re-use existing fields even if they
-> > aren't calculated anymore.
-> >
-> > [....]
-> 
-> I looked up the git history and the state of the dentry_stat structure
-> hadn't changed since it was first put into git in 2.6.12-rc2 on Apr 16,
-> 2005. That was over 13 years ago. Even adding an extra argument can have
-> the potential of breaking old applications depending on how the parsing
-> code was written.
-
-I'm pretty we've had this discussion many times before  w.r.t.
-/proc/self/mount* and other multi-field proc files. 
-
-IIRC, The answer has always been that it's OK to extend lines with
-new fields as existing apps /should/ ignore them, but it's not OK to
-remove or redefine existing fields in the line because existing apps
-/will/ misinterpret what that field means.
-
-> Given that systems that are still using some very old tools are not
-> likely to upgrade to the latest kernel anyway. I don't see that as a big
-> problem.
-
-I don't think that matters when it comes to changing what
-information we expose in proc files.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+DQoNCk9uIDgvMjgvMTggNTowMSBQTSwgT3NjYXIgU2FsdmFkb3Igd3JvdGU6DQo+IEZyb206IE9z
+Y2FyIFNhbHZhZG9yIDxvc2FsdmFkb3JAc3VzZS5kZT4NCj4gDQo+IGNoZWNrX2Zvcl9tZW1vcnkg
+bG9va3MgYSBiaXQgY29uZnVzaW5nLg0KPiBGaXJzdCBvZiBhbGwsIHdlIGhhdmUgdGhpczoNCj4g
+DQo+IGlmIChOX01FTU9SWSA9PSBOX05PUk1BTF9NRU1PUlkpDQo+IAlyZXR1cm47DQo+IA0KPiBD
+aGVja2luZyB0aGUgRU5VTSBkZWNsYXJhdGlvbiwgbG9va3MgbGlrZSBOX01FTU9SWSBjYW5vdCBi
+ZSBlcXVhbCB0bw0KPiBOX05PUk1BTF9NRU1PUlkuDQo+IEkgY291bGQgbm90IGZpbmQgd2hlcmUg
+Tl9NRU1PUlkgaXMgc2V0IHRvIE5fTk9STUFMX01FTU9SWSwgb3IgdGhlIG90aGVyDQo+IHdheSBh
+cm91bmQgZWl0aGVyLCBzbyB1bmxlc3MgSSBhbSBtaXNzaW5nIHNvbWV0aGluZywgdGhpcyBjb25k
+aXRpb24gDQo+IHdpbGwgbmV2ZXIgZXZhbHVhdGUgdG8gdHJ1ZS4NCj4gSXQgbWFrZXMgc2Vuc2Ug
+dG8gZ2V0IHJpZCBvZiBpdC4NCj4gDQo+IE1vdmluZyBmb3J3YXJkLCB0aGUgb3BlcmF0aW9ucyB3
+aGl0aGluIHRoZSBsb29wIGxvb2sgYSBiaXQgY29uZnVzaW5nDQo+IGFzIHdlbGwuDQo+IA0KPiBX
+ZSBzZXQgTl9ISUdIX01FTU9SWSB1bmNvbmRpdGlvbmFsbHksIGFuZCB0aGVuIHdlIHNldCBOX05P
+Uk1BTF9NRU1PUlkNCj4gaW4gY2FzZSB3ZSBoYXZlIENPTkZJR19ISUdITUVNIChOX05PUk1BTF9N
+RU1PUlkgIT0gTl9ISUdIX01FTU9SWSkNCj4gYW5kIHpvbmUgPD0gWk9ORV9OT1JNQUwuDQo+IChO
+X0hJR0hfTUVNT1JZIGZhbGxzIGJhY2sgdG8gTl9OT1JNQUxfTUVNT1JZIG9uICFDT05GSUdfSElH
+SE1FTSBzeXN0ZW1zLA0KPiBhbmQgdGhhdCBpcyB3aHkgd2UgY2FuIGp1c3QgZ28gYWhlYWQgYW5k
+IHNldCBOX0hJR0hfTUVNT1JZIHVuY29uZGl0aW9uYWxseSkNCj4gDQo+IEFsdGhvdWdoIHRoaXMg
+d29ya3MsIGl0IGlzIGEgYml0IHN1YnRsZS4NCj4gDQo+IEkgdGhpbmsgdGhhdCB0aGlzIGNvdWxk
+IGJlIGVhc2llciB0byBmb2xsb3c6DQo+IA0KPiBGaXJzdCwgd2Ugc2hvdWxkIG9ubHkgc2V0IE5f
+SElHSF9NRU1PUlkgaW4gY2FzZSB3ZSBoYXZlDQo+IENPTkZJR19ISUdITUVNLg0KPiBBbmQgdGhl
+biB3ZSBzaG91bGQgc2V0IE5fTk9STUFMX01FTU9SWSBpbiBjYXNlIHpvbmUgPD0gWk9ORV9OT1JN
+QUwsDQo+IHdpdGhvdXQgZnVydGhlciBjaGVja2luZyB3aGV0aGVyIHdlIGhhdmUgQ09ORklHX0hJ
+R0hNRU0gb3Igbm90Lg0KPiANCj4gU2lnbmVkLW9mZi1ieTogT3NjYXIgU2FsdmFkb3IgPG9zYWx2
+YWRvckBzdXNlLmRlPg0KPiAtLS0NCj4gIG1tL3BhZ2VfYWxsb2MuYyB8IDkgKysrLS0tLS0tDQo+
+ICAxIGZpbGUgY2hhbmdlZCwgMyBpbnNlcnRpb25zKCspLCA2IGRlbGV0aW9ucygtKQ0KPiANCj4g
+ZGlmZiAtLWdpdCBhL21tL3BhZ2VfYWxsb2MuYyBiL21tL3BhZ2VfYWxsb2MuYw0KPiBpbmRleCA4
+MzllMGNjMTdmMmMuLjZhYTk0N2Y5ZTYxNCAxMDA2NDQNCj4gLS0tIGEvbW0vcGFnZV9hbGxvYy5j
+DQo+ICsrKyBiL21tL3BhZ2VfYWxsb2MuYw0KPiBAQCAtNjgxOSwxNSArNjgxOSwxMiBAQCBzdGF0
+aWMgdm9pZCBjaGVja19mb3JfbWVtb3J5KHBnX2RhdGFfdCAqcGdkYXQsIGludCBuaWQpDQo+ICB7
+DQo+ICAJZW51bSB6b25lX3R5cGUgem9uZV90eXBlOw0KPiAgDQo+IC0JaWYgKE5fTUVNT1JZID09
+IE5fTk9STUFMX01FTU9SWSkNCj4gLQkJcmV0dXJuOw0KPiAtDQo+ICAJZm9yICh6b25lX3R5cGUg
+PSAwOyB6b25lX3R5cGUgPD0gWk9ORV9NT1ZBQkxFIC0gMTsgem9uZV90eXBlKyspIHsNCj4gIAkJ
+c3RydWN0IHpvbmUgKnpvbmUgPSAmcGdkYXQtPm5vZGVfem9uZXNbem9uZV90eXBlXTsNCj4gIAkJ
+aWYgKHBvcHVsYXRlZF96b25lKHpvbmUpKSB7DQo+IC0JCQlub2RlX3NldF9zdGF0ZShuaWQsIE5f
+SElHSF9NRU1PUlkpOw0KPiAtCQkJaWYgKE5fTk9STUFMX01FTU9SWSAhPSBOX0hJR0hfTUVNT1JZ
+ICYmDQo+IC0JCQkgICAgem9uZV90eXBlIDw9IFpPTkVfTk9STUFMKQ0KPiArCQkJaWYgKElTX0VO
+QUJMRUQoQ09ORklHX0hJR0hNRU0pKQ0KPiArCQkJCW5vZGVfc2V0X3N0YXRlKG5pZCwgTl9ISUdI
+X01FTU9SWSk7DQo+ICsJCQlpZiAoem9uZV90eXBlIDw9IFpPTkVfTk9STUFMKQ0KPiAgCQkJCW5v
+ZGVfc2V0X3N0YXRlKG5pZCwgTl9OT1JNQUxfTUVNT1JZKTsNCj4gIAkJCWJyZWFrOw0KPiAgCQl9
+DQo+IA0KDQpJIHdvdWxkIHJlLXdyaXRlIHRoZSBhYm92ZSBmdW5jdGlvbiBsaWtlIHRoaXM6DQpz
+dGF0aWMgdm9pZCBjaGVja19mb3JfbWVtb3J5KHBnX2RhdGFfdCAqcGdkYXQsIGludCBuaWQpDQp7
+DQogICAgICAgIGVudW0gem9uZV90eXBlIHpvbmVfdHlwZTsNCg0KICAgICAgICBmb3IgKHpvbmVf
+dHlwZSA9IDA7IHpvbmVfdHlwZSA8IFpPTkVfTU9WQUJMRTsgem9uZV90eXBlKyspIHsNCiAgICAg
+ICAgICAgICAgICBpZiAocG9wdWxhdGVkX3pvbmUoJnBnZGF0LT5ub2RlX3pvbmVzW3pvbmVfdHlw
+ZV0pKSB7IA0KICAgICAgICAgICAgICAgICAgICAgICAgbm9kZV9zZXRfc3RhdGUobmlkLCB6b25l
+X3R5cGUgPD0gWk9ORV9OT1JNQUwgPw0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgTl9OT1JNQUxfTUVNT1JZOiBOX0hJR0hfTUVNT1JZKTsNCiAgICAgICAgICAgICAgICAg
+ICAgICAgIGJyZWFrOw0KICAgICAgICAgICAgICAgIH0NCiAgICAgICAgfQ0KfQ0KDQp6b25lX3R5
+cGUgPD0gWk9ORV9NT1ZBQkxFIC0gMQ0KaXMgdGhlIHNhbWUgYXM6DQp6b25lX3R5cGUgPCBaT05F
+X01PVkFCTEUNCg0KSWYgem9uZSA+IFpPTkVfTk9STUFMLCBpdCBtZWFucyB0aGF0IENPTkZJR19I
+SUdITUVNIGlzIGVuYWJsZWQsIG5vIG5lZWQgdG8gY2hlY2sgZm9yIGl0Lg0KDQpQYXZlbA==
