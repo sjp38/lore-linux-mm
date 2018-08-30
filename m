@@ -1,108 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 944866B5274
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 11:05:47 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id w185-v6so7734429oig.19
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 08:05:47 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id i7-v6si5066299oib.262.2018.08.30.08.05.45
-        for <linux-mm@kvack.org>;
-        Thu, 30 Aug 2018 08:05:45 -0700 (PDT)
-From: James Morse <james.morse@arm.com>
-Subject: [PATCH] arm64: mm: always enable CONFIG_HOLES_IN_ZONE
-Date: Thu, 30 Aug 2018 16:05:32 +0100
-Message-Id: <20180830150532.22745-1-james.morse@arm.com>
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F5F66B527A
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 11:09:10 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id w23-v6so5215418pgv.1
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 08:09:10 -0700 (PDT)
+Received: from NAM04-CO1-obe.outbound.protection.outlook.com (mail-eopbgr690136.outbound.protection.outlook.com. [40.107.69.136])
+        by mx.google.com with ESMTPS id f62-v6si6884566plf.164.2018.08.30.08.09.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 30 Aug 2018 08:09:09 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Subject: Re: [PATCH] arm64: mm: always enable CONFIG_HOLES_IN_ZONE
+Date: Thu, 30 Aug 2018 15:09:06 +0000
+Message-ID: <ce2910b4-ee46-1307-4229-ebbeb8dc35ec@microsoft.com>
+References: <20180830150532.22745-1-james.morse@arm.com>
+In-Reply-To: <20180830150532.22745-1-james.morse@arm.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <F4F58B68E9645941AE2A1DBA06AA0899@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Pavel Tatashin <Pavel.Tatashin@microsoft.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, James Morse <james.morse@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
+To: James Morse <james.morse@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-Commit 6d526ee26ccd ("arm64: mm: enable CONFIG_HOLES_IN_ZONE for NUMA")
-only enabled HOLES_IN_ZONE for NUMA systems because the NUMA code was
-choking on the missing zone for nomap pages. This problem doesn't just
-apply to NUMA systems.
-
-If the architecture doesn't set HAVE_ARCH_PFN_VALID, pfn_valid() will
-return true if the pfn is part of a valid sparsemem section.
-
-When working with multiple pages, the mm code uses pfn_valid_within()
-to test each page it uses within the sparsemem section is valid. On
-most systems memory comes in MAX_ORDER_NR_PAGES chunks which all
-have valid/initialised struct pages. In this case pfn_valid_within()
-is optimised out.
-
-Systems where this isn't true (e.g. due to nomap) should set
-HOLES_IN_ZONE and provide HAVE_ARCH_PFN_VALID so that mm tests each
-page as it works with it.
-
-Currently non-NUMA arm64 systems can't enable HOLES_IN_ZONE, leading to
-VM_BUG_ON():
-| page:fffffdff802e1780 is uninitialized and poisoned
-| raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff ffffffffffffffff
-| raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff ffffffffffffffff
-| page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
-| ------------[ cut here ]------------
-| kernel BUG at include/linux/mm.h:978!
-| Internal error: Oops - BUG: 0 [#1] PREEMPT SMP
-[...]
-| CPU: 1 PID: 25236 Comm: dd Not tainted 4.18.0 #7
-| Hardware name: QEMU KVM Virtual Machine, BIOS 0.0.0 02/06/2015
-| pstate: 40000085 (nZcv daIf -PAN -UAO)
-| pc : move_freepages_block+0x144/0x248
-| lr : move_freepages_block+0x144/0x248
-| sp : fffffe0071177680
-[...]
-| Process dd (pid: 25236, stack limit = 0x0000000094cc07fb)
-| Call trace:
-|  move_freepages_block+0x144/0x248
-|  steal_suitable_fallback+0x100/0x16c
-|  get_page_from_freelist+0x440/0xb20
-|  __alloc_pages_nodemask+0xe8/0x838
-|  new_slab+0xd4/0x418
-|  ___slab_alloc.constprop.27+0x380/0x4a8
-|  __slab_alloc.isra.21.constprop.26+0x24/0x34
-|  kmem_cache_alloc+0xa8/0x180
-|  alloc_buffer_head+0x1c/0x90
-|  alloc_page_buffers+0x68/0xb0
-|  create_empty_buffers+0x20/0x1ec
-|  create_page_buffers+0xb0/0xf0
-|  __block_write_begin_int+0xc4/0x564
-|  __block_write_begin+0x10/0x18
-|  block_write_begin+0x48/0xd0
-|  blkdev_write_begin+0x28/0x30
-|  generic_perform_write+0x98/0x16c
-|  __generic_file_write_iter+0x138/0x168
-|  blkdev_write_iter+0x80/0xf0
-|  __vfs_write+0xe4/0x10c
-|  vfs_write+0xb4/0x168
-|  ksys_write+0x44/0x88
-|  sys_write+0xc/0x14
-|  el0_svc_naked+0x30/0x34
-| Code: aa1303e0 90001a01 91296421 94008902 (d4210000)
-| ---[ end trace 1601ba47f6e883fe ]---
-
-Remove the NUMA dependency.
-
-Reported-by: Mikulas Patocka <mpatocka@redhat.com>
-Link: https://www.spinics.net/lists/arm-kernel/msg671851.html
-Fixes: 6d526ee26ccd ("arm64: mm: enable CONFIG_HOLES_IN_ZONE for NUMA")
-CC: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Signed-off-by: James Morse <james.morse@arm.com>
----
- arch/arm64/Kconfig | 1 -
- 1 file changed, 1 deletion(-)
-
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 29e75b47becd..1b1a0e95c751 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -763,7 +763,6 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
- 
- config HOLES_IN_ZONE
- 	def_bool y
--	depends on NUMA
- 
- source kernel/Kconfig.hz
- 
--- 
-2.18.0
+T24gOC8zMC8xOCAxMTowNSBBTSwgSmFtZXMgTW9yc2Ugd3JvdGU6DQo+IENvbW1pdCA2ZDUyNmVl
+MjZjY2QgKCJhcm02NDogbW06IGVuYWJsZSBDT05GSUdfSE9MRVNfSU5fWk9ORSBmb3IgTlVNQSIp
+DQo+IG9ubHkgZW5hYmxlZCBIT0xFU19JTl9aT05FIGZvciBOVU1BIHN5c3RlbXMgYmVjYXVzZSB0
+aGUgTlVNQSBjb2RlIHdhcw0KPiBjaG9raW5nIG9uIHRoZSBtaXNzaW5nIHpvbmUgZm9yIG5vbWFw
+IHBhZ2VzLiBUaGlzIHByb2JsZW0gZG9lc24ndCBqdXN0DQo+IGFwcGx5IHRvIE5VTUEgc3lzdGVt
+cy4NCj4gDQo+IElmIHRoZSBhcmNoaXRlY3R1cmUgZG9lc24ndCBzZXQgSEFWRV9BUkNIX1BGTl9W
+QUxJRCwgcGZuX3ZhbGlkKCkgd2lsbA0KPiByZXR1cm4gdHJ1ZSBpZiB0aGUgcGZuIGlzIHBhcnQg
+b2YgYSB2YWxpZCBzcGFyc2VtZW0gc2VjdGlvbi4NCj4gDQo+IFdoZW4gd29ya2luZyB3aXRoIG11
+bHRpcGxlIHBhZ2VzLCB0aGUgbW0gY29kZSB1c2VzIHBmbl92YWxpZF93aXRoaW4oKQ0KPiB0byB0
+ZXN0IGVhY2ggcGFnZSBpdCB1c2VzIHdpdGhpbiB0aGUgc3BhcnNlbWVtIHNlY3Rpb24gaXMgdmFs
+aWQuIE9uDQo+IG1vc3Qgc3lzdGVtcyBtZW1vcnkgY29tZXMgaW4gTUFYX09SREVSX05SX1BBR0VT
+IGNodW5rcyB3aGljaCBhbGwNCj4gaGF2ZSB2YWxpZC9pbml0aWFsaXNlZCBzdHJ1Y3QgcGFnZXMu
+IEluIHRoaXMgY2FzZSBwZm5fdmFsaWRfd2l0aGluKCkNCj4gaXMgb3B0aW1pc2VkIG91dC4NCj4g
+DQo+IFN5c3RlbXMgd2hlcmUgdGhpcyBpc24ndCB0cnVlIChlLmcuIGR1ZSB0byBub21hcCkgc2hv
+dWxkIHNldA0KPiBIT0xFU19JTl9aT05FIGFuZCBwcm92aWRlIEhBVkVfQVJDSF9QRk5fVkFMSUQg
+c28gdGhhdCBtbSB0ZXN0cyBlYWNoDQo+IHBhZ2UgYXMgaXQgd29ya3Mgd2l0aCBpdC4NCj4gDQo+
+IEN1cnJlbnRseSBub24tTlVNQSBhcm02NCBzeXN0ZW1zIGNhbid0IGVuYWJsZSBIT0xFU19JTl9a
+T05FLCBsZWFkaW5nIHRvDQo+IFZNX0JVR19PTigpOg0KPiB8IHBhZ2U6ZmZmZmZkZmY4MDJlMTc4
+MCBpcyB1bmluaXRpYWxpemVkIGFuZCBwb2lzb25lZA0KPiB8IHJhdzogZmZmZmZmZmZmZmZmZmZm
+ZiBmZmZmZmZmZmZmZmZmZmZmIGZmZmZmZmZmZmZmZmZmZmYgZmZmZmZmZmZmZmZmZmZmZg0KPiB8
+IHJhdzogZmZmZmZmZmZmZmZmZmZmZiBmZmZmZmZmZmZmZmZmZmZmIGZmZmZmZmZmZmZmZmZmZmYg
+ZmZmZmZmZmZmZmZmZmZmZg0KPiB8IHBhZ2UgZHVtcGVkIGJlY2F1c2U6IFZNX0JVR19PTl9QQUdF
+KFBhZ2VQb2lzb25lZChwKSkNCj4gfCAtLS0tLS0tLS0tLS1bIGN1dCBoZXJlIF0tLS0tLS0tLS0t
+LS0NCj4gfCBrZXJuZWwgQlVHIGF0IGluY2x1ZGUvbGludXgvbW0uaDo5NzghDQo+IHwgSW50ZXJu
+YWwgZXJyb3I6IE9vcHMgLSBCVUc6IDAgWyMxXSBQUkVFTVBUIFNNUA0KPiBbLi4uXQ0KPiB8IENQ
+VTogMSBQSUQ6IDI1MjM2IENvbW06IGRkIE5vdCB0YWludGVkIDQuMTguMCAjNw0KPiB8IEhhcmR3
+YXJlIG5hbWU6IFFFTVUgS1ZNIFZpcnR1YWwgTWFjaGluZSwgQklPUyAwLjAuMCAwMi8wNi8yMDE1
+DQo+IHwgcHN0YXRlOiA0MDAwMDA4NSAoblpjdiBkYUlmIC1QQU4gLVVBTykNCj4gfCBwYyA6IG1v
+dmVfZnJlZXBhZ2VzX2Jsb2NrKzB4MTQ0LzB4MjQ4DQo+IHwgbHIgOiBtb3ZlX2ZyZWVwYWdlc19i
+bG9jaysweDE0NC8weDI0OA0KPiB8IHNwIDogZmZmZmZlMDA3MTE3NzY4MA0KPiBbLi4uXQ0KPiB8
+IFByb2Nlc3MgZGQgKHBpZDogMjUyMzYsIHN0YWNrIGxpbWl0ID0gMHgwMDAwMDAwMDk0Y2MwN2Zi
+KQ0KPiB8IENhbGwgdHJhY2U6DQo+IHwgIG1vdmVfZnJlZXBhZ2VzX2Jsb2NrKzB4MTQ0LzB4MjQ4
+DQo+IHwgIHN0ZWFsX3N1aXRhYmxlX2ZhbGxiYWNrKzB4MTAwLzB4MTZjDQo+IHwgIGdldF9wYWdl
+X2Zyb21fZnJlZWxpc3QrMHg0NDAvMHhiMjANCj4gfCAgX19hbGxvY19wYWdlc19ub2RlbWFzaysw
+eGU4LzB4ODM4DQo+IHwgIG5ld19zbGFiKzB4ZDQvMHg0MTgNCj4gfCAgX19fc2xhYl9hbGxvYy5j
+b25zdHByb3AuMjcrMHgzODAvMHg0YTgNCj4gfCAgX19zbGFiX2FsbG9jLmlzcmEuMjEuY29uc3Rw
+cm9wLjI2KzB4MjQvMHgzNA0KPiB8ICBrbWVtX2NhY2hlX2FsbG9jKzB4YTgvMHgxODANCj4gfCAg
+YWxsb2NfYnVmZmVyX2hlYWQrMHgxYy8weDkwDQo+IHwgIGFsbG9jX3BhZ2VfYnVmZmVycysweDY4
+LzB4YjANCj4gfCAgY3JlYXRlX2VtcHR5X2J1ZmZlcnMrMHgyMC8weDFlYw0KPiB8ICBjcmVhdGVf
+cGFnZV9idWZmZXJzKzB4YjAvMHhmMA0KPiB8ICBfX2Jsb2NrX3dyaXRlX2JlZ2luX2ludCsweGM0
+LzB4NTY0DQo+IHwgIF9fYmxvY2tfd3JpdGVfYmVnaW4rMHgxMC8weDE4DQo+IHwgIGJsb2NrX3dy
+aXRlX2JlZ2luKzB4NDgvMHhkMA0KPiB8ICBibGtkZXZfd3JpdGVfYmVnaW4rMHgyOC8weDMwDQo+
+IHwgIGdlbmVyaWNfcGVyZm9ybV93cml0ZSsweDk4LzB4MTZjDQo+IHwgIF9fZ2VuZXJpY19maWxl
+X3dyaXRlX2l0ZXIrMHgxMzgvMHgxNjgNCj4gfCAgYmxrZGV2X3dyaXRlX2l0ZXIrMHg4MC8weGYw
+DQo+IHwgIF9fdmZzX3dyaXRlKzB4ZTQvMHgxMGMNCj4gfCAgdmZzX3dyaXRlKzB4YjQvMHgxNjgN
+Cj4gfCAga3N5c193cml0ZSsweDQ0LzB4ODgNCj4gfCAgc3lzX3dyaXRlKzB4Yy8weDE0DQo+IHwg
+IGVsMF9zdmNfbmFrZWQrMHgzMC8weDM0DQo+IHwgQ29kZTogYWExMzAzZTAgOTAwMDFhMDEgOTEy
+OTY0MjEgOTQwMDg5MDIgKGQ0MjEwMDAwKQ0KPiB8IC0tLVsgZW5kIHRyYWNlIDE2MDFiYTQ3ZjZl
+ODgzZmUgXS0tLQ0KPiANCj4gUmVtb3ZlIHRoZSBOVU1BIGRlcGVuZGVuY3kuDQo+IA0KPiBSZXBv
+cnRlZC1ieTogTWlrdWxhcyBQYXRvY2thIDxtcGF0b2NrYUByZWRoYXQuY29tPg0KPiBMaW5rOiBo
+dHRwczovL3d3dy5zcGluaWNzLm5ldC9saXN0cy9hcm0ta2VybmVsL21zZzY3MTg1MS5odG1sDQo+
+IEZpeGVzOiA2ZDUyNmVlMjZjY2QgKCJhcm02NDogbW06IGVuYWJsZSBDT05GSUdfSE9MRVNfSU5f
+Wk9ORSBmb3IgTlVNQSIpDQo+IENDOiBBcmQgQmllc2hldXZlbCA8YXJkLmJpZXNoZXV2ZWxAbGlu
+YXJvLm9yZz4NCj4gU2lnbmVkLW9mZi1ieTogSmFtZXMgTW9yc2UgPGphbWVzLm1vcnNlQGFybS5j
+b20+DQoNClJldmlld2VkLWJ5OiBQYXZlbCBUYXRhc2hpbiA8cGF2ZWwudGF0YXNoaW5AbWljcm9z
+b2Z0LmNvbT4NCg0KVGhhbmsgeW91LA0KUGF2ZWwNCg0KPiAtLS0NCj4gIGFyY2gvYXJtNjQvS2Nv
+bmZpZyB8IDEgLQ0KPiAgMSBmaWxlIGNoYW5nZWQsIDEgZGVsZXRpb24oLSkNCj4gDQo+IGRpZmYg
+LS1naXQgYS9hcmNoL2FybTY0L0tjb25maWcgYi9hcmNoL2FybTY0L0tjb25maWcNCj4gaW5kZXgg
+MjllNzViNDdiZWNkLi4xYjFhMGU5NWM3NTEgMTAwNjQ0DQo+IC0tLSBhL2FyY2gvYXJtNjQvS2Nv
+bmZpZw0KPiArKysgYi9hcmNoL2FybTY0L0tjb25maWcNCj4gQEAgLTc2Myw3ICs3NjMsNiBAQCBj
+b25maWcgTkVFRF9QRVJfQ1BVX0VNQkVEX0ZJUlNUX0NIVU5LDQo+ICANCj4gIGNvbmZpZyBIT0xF
+U19JTl9aT05FDQo+ICAJZGVmX2Jvb2wgeQ0KPiAtCWRlcGVuZHMgb24gTlVNQQ0KPiAgDQo+ICBz
+b3VyY2Uga2VybmVsL0tjb25maWcuaHoNCj4gIA0KPiA=
