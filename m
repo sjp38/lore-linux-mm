@@ -1,98 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E59056B537E
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 17:47:44 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id j5-v6so8882128oiw.13
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 14:47:44 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k185-v6sor7410664oif.68.2018.08.30.14.47.43
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A4836B5381
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 17:48:53 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id e14-v6so10354994qtp.17
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 14:48:53 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id c123-v6si164968qkf.346.2018.08.30.14.48.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 30 Aug 2018 14:47:43 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Aug 2018 14:48:52 -0700 (PDT)
+Subject: Re: [PATCH 2/2] fs/dcache: Make negative dentries easier to be
+ reclaimed
+References: <1535476780-5773-1-git-send-email-longman@redhat.com>
+ <1535476780-5773-3-git-send-email-longman@redhat.com>
+ <20180829075129.GU10223@dhcp22.suse.cz>
+ <374c2c5c-cc9b-af03-a800-32f2cf8a3055@redhat.com>
+ <20180830072056.GC2656@dhcp22.suse.cz>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <9b5c3e96-9dcc-e601-9d15-116aef4bdbfb@redhat.com>
+Date: Thu, 30 Aug 2018 17:48:50 -0400
 MIME-Version: 1.0
-References: <20180830143904.3168-1-yu-cheng.yu@intel.com> <20180830143904.3168-13-yu-cheng.yu@intel.com>
- <CAG48ez0Rca0XsdXJZ07c+iGPyep0Gpxw+sxQuACP5gyPaBgDKA@mail.gmail.com>
- <079a55f2-4654-4adf-a6ef-6e480b594a2f@linux.intel.com> <CAG48ez2gHOD9hH4+0wek5vUOv9upj79XWoug2SXjdwfXWoQqxw@mail.gmail.com>
- <ce051b5b-feef-376f-e085-11f65a5f2215@linux.intel.com> <1535649960.26689.15.camel@intel.com>
- <33d45a12-513c-eba2-a2de-3d6b630e928e@linux.intel.com> <1535651666.27823.6.camel@intel.com>
- <CAG48ez3ixWROuQc6WZze6qPL6q0e_gCnMU4XF11JUWziePsBJg@mail.gmail.com>
- <1535660494.28258.36.camel@intel.com> <CAG48ez0yOuDhqxB779aO3Kss3gQ3cZTJL1VphDXQm+_M9jFPvQ@mail.gmail.com>
- <1535662366.28781.6.camel@intel.com> <CAG48ez0mkr95_TbLQnDGuGUd6G+eJVLZ-fEjDkwA6dSrm+9tLw@mail.gmail.com>
-In-Reply-To: <CAG48ez0mkr95_TbLQnDGuGUd6G+eJVLZ-fEjDkwA6dSrm+9tLw@mail.gmail.com>
-From: Jann Horn <jannh@google.com>
-Date: Thu, 30 Aug 2018 23:47:16 +0200
-Message-ID: <CAG48ez3S3+DzAyo_SnoUW1GO0Cpd_x0A83MOx2p_MkogoAatLQ@mail.gmail.com>
-Subject: Re: [RFC PATCH v3 12/24] x86/mm: Modify ptep_set_wrprotect and
- pmdp_set_wrprotect for _PAGE_DIRTY_SW
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180830072056.GC2656@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yu-cheng.yu@intel.com
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, hjl.tools@gmail.com, Jonathan Corbet <corbet@lwn.net>, keescook@chromiun.org, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, ravi.v.shankar@intel.com, vedvyas.shanbhogue@intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>
 
-On Thu, Aug 30, 2018 at 11:01 PM Jann Horn <jannh@google.com> wrote:
->
-> On Thu, Aug 30, 2018 at 10:57 PM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
-> >
-> > On Thu, 2018-08-30 at 22:44 +0200, Jann Horn wrote:
-> > > On Thu, Aug 30, 2018 at 10:25 PM Yu-cheng Yu <yu-cheng.yu@intel.com>
-> > > wrote:
-> > ...
-> > > > In the flow you described, if C writes to the overflow page before
-> > > > B
-> > > > gets in with a 'call', the return address is still correct for
-> > > > B.  To
-> > > > make an attack, C needs to write again before the TLB flush.  I
-> > > > agree
-> > > > that is possible.
-> > > >
-> > > > Assume we have a guard page, can someone in the short window do
-> > > > recursive calls in B, move ssp to the end of the guard page, and
-> > > > trigger the same again?  He can simply take the incssp route.
-> > > I don't understand what you're saying. If the shadow stack is
-> > > between
-> > > guard pages, you should never be able to move SSP past that area's
-> > > guard pages without an appropriate shadow stack token (not even with
-> > > INCSSP, since that has a maximum range of PAGE_SIZE/2), and
-> > > therefore,
-> > > it shouldn't matter whether memory outside that range is incorrectly
-> > > marked as shadow stack. Am I missing something?
-> >
-> > INCSSP has a range of 256, but we can do multiple of that.
-> > But I realize the key is not to have the transient SHSTK page at all.
-> > The guard page is !pte_write() and even we have flaws in
-> > ptep_set_wrprotect(), there will not be any transient SHSTK pages. I
-> > will add guard pages to both ends.
-> >
-> > Still thinking how to fix ptep_set_wrprotect().
->
-> cmpxchg loop? Or is that slow?
+On 08/30/2018 03:20 AM, Michal Hocko wrote:
+> On Wed 29-08-18 15:58:52, Waiman Long wrote:
+>> On 08/29/2018 03:51 AM, Michal Hocko wrote:
+>>> On Tue 28-08-18 13:19:40, Waiman Long wrote:
+>>>> For negative dentries that are accessed once and never used again, they
+>>>> should be removed first before other dentries when shrinker is running.
+>>>> This is done by putting negative dentries at the head of the LRU list
+>>>> instead at the tail.
+>>>>
+>>>> A new DCACHE_NEW_NEGATIVE flag is now added to a negative dentry when it
+>>>> is initially created. When such a dentry is added to the LRU, it will be
+>>>> added to the head so that it will be the first to go when a shrinker is
+>>>> running if it is never accessed again (DCACHE_REFERENCED bit not set).
+>>>> The flag is cleared after the LRU list addition.
+>>> Placing object to the head of the LRU list can be really tricky as Dave
+>>> pointed out. I am not familiar with the dentry cache reclaim so my
+>>> comparison below might not apply. Let me try anyway.
+>>>
+>>> Negative dentries sound very similar to MADV_FREE pages from the reclaim
+>>> POV. They are primary candidate for reclaim, yet you want to preserve
+>>> aging to other easily reclaimable objects (including other MADV_FREE
+>>> pages). What we do for those pages is to move them from the anonymous
+>>> LRU list to the inactive file LRU list. Now you obviously do not have
+>>> anon/file LRUs but something similar to active/inactive LRU lists might
+>>> be a reasonably good match. Have easily reclaimable dentries on the
+>>> inactive list including negative dentries. If negative entries are
+>>> heavily used then they can promote to the active list because there is
+>>> no reason to reclaim them soon.
+>>>
+>>> Just my 2c
+>> As mentioned in my reply to Dave, I did considered using a 2 LRU list
+>> solution. However, that will add more complexity to the dcache LRU
+>> management code than my current approach and probably more potential for
+>> slowdown.
+> I completely agree with Dave here. This is not easy but trying to sneak
+> in something that works for an _artificial_ workload is simply a no go.
+> So if it takes to come with a more complex solution to cover more
+> general workloads then be it. Someone has to bite a bullet and explore
+> that direction. It won't be a simple project but well, if negative
+> dentries really matter then it is worth making the reclaim design robust
+> and comprehensible rather than adhoc and unpredictable.
 
-Something like this:
+OK, I will need to spend more time to think about a better way of doing
+that.
 
-static inline void ptep_set_wrprotect(struct mm_struct *mm,
-                                      unsigned long addr, pte_t *ptep)
-{
-        pte_t pte = READ_ONCE(*ptep), new_pte;
-
-        /* ... your comment about not needing a TLB shootdown here ... */
-        do {
-                pte = pte_wrprotect(pte);
-                /* note: relies on _PAGE_DIRTY_HW < _PAGE_DIRTY_SW */
-                /* dirty direct bit-twiddling; you can probably write
-this in a nicer way */
-                pte.pte |= (pte.pte & _PAGE_DIRTY_HW) >>
-_PAGE_BIT_DIRTY_HW << _PAGE_BIT_DIRTY_SW;
-                pte.pte &= ~_PAGE_DIRTY_HW;
-                pte = cmpxchg(ptep, pte, new_pte);
-        } while (pte != new_pte);
-}
-
-I think this has the advantage of not generating weird spurious pagefaults.
-It's not compatible with Xen PV, but I'm guessing that this whole
-feature isn't going to support Xen PV anyway? So you could switch
-between two implementations of ptep_set_wrprotect using the pvop
-mechanism or so - one for environments that support shadow stacks, one
-for all other environments.
-Or is there some arcane reason why cmpxchg doesn't work here the way I
-think it should?
+Cheers,
+Longman
