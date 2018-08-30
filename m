@@ -1,79 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F21926B5103
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 06:56:19 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id r21-v6so3351390edp.23
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 03:56:19 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e3-v6si6064638edi.191.2018.08.30.03.56.18
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 91B366B5132
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 07:41:23 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id o43-v6so5632895wrf.10
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 04:41:23 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r10-v6sor50709wmh.19.2018.08.30.04.41.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Aug 2018 03:56:18 -0700 (PDT)
-Date: Thu, 30 Aug 2018 12:56:16 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v6 1/2] mm: migration: fix migration of huge PMD shared
- pages
-Message-ID: <20180830105616.GD2656@dhcp22.suse.cz>
-References: <20180823205917.16297-1-mike.kravetz@oracle.com>
- <20180823205917.16297-2-mike.kravetz@oracle.com>
- <20180824084157.GD29735@dhcp22.suse.cz>
- <6063f215-a5c8-2f0c-465a-2c515ddc952d@oracle.com>
- <20180827074645.GB21556@dhcp22.suse.cz>
- <20180827134633.GB3930@redhat.com>
- <9209043d-3240-105b-72a3-b4cd30f1b1f1@oracle.com>
- <20180829181424.GB3784@redhat.com>
- <20180829183906.GF10223@dhcp22.suse.cz>
- <20180829211106.GC3784@redhat.com>
+        (Google Transport Security);
+        Thu, 30 Aug 2018 04:41:21 -0700 (PDT)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH v6 00/11] arm64: untag user pointers passed to the kernel
+Date: Thu, 30 Aug 2018 13:41:05 +0200
+Message-Id: <cover.1535629099.git.andreyknvl@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180829211106.GC3784@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-rdma@vger.kernel.org, Matan Barak <matanb@mellanox.com>, Leon Romanovsky <leonro@mellanox.com>, Dimitri Sivanich <sivanich@sgi.com>
+To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrey Konovalov <andreyknvl@google.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>
 
-On Wed 29-08-18 17:11:07, Jerome Glisse wrote:
-> On Wed, Aug 29, 2018 at 08:39:06PM +0200, Michal Hocko wrote:
-> > On Wed 29-08-18 14:14:25, Jerome Glisse wrote:
-> > > On Wed, Aug 29, 2018 at 10:24:44AM -0700, Mike Kravetz wrote:
-> > [...]
-> > > > What would be the best mmu notifier interface to use where there are no
-> > > > start/end calls?
-> > > > Or, is the best solution to add the start/end calls as is done in later
-> > > > versions of the code?  If that is the suggestion, has there been any change
-> > > > in invalidate start/end semantics that we should take into account?
-> > > 
-> > > start/end would be the one to add, 4.4 seems broken in respect to THP
-> > > and mmu notification. Another solution is to fix user of mmu notifier,
-> > > they were only a handful back then. For instance properly adjust the
-> > > address to match first address covered by pmd or pud and passing down
-> > > correct page size to mmu_notifier_invalidate_page() would allow to fix
-> > > this easily.
-> > > 
-> > > This is ok because user of try_to_unmap_one() replace the pte/pmd/pud
-> > > with an invalid one (either poison, migration or swap) inside the
-> > > function. So anyone racing would synchronize on those special entry
-> > > hence why it is fine to delay mmu_notifier_invalidate_page() to after
-> > > dropping the page table lock.
-> > > 
-> > > Adding start/end might the solution with less code churn as you would
-> > > only need to change try_to_unmap_one().
-> > 
-> > What about dependencies? 369ea8242c0fb sounds like it needs work for all
-> > notifiers need to be updated as well.
-> 
-> This commit remove mmu_notifier_invalidate_page() hence why everything
-> need to be updated. But in 4.4 you can get away with just adding start/
-> end and keep around mmu_notifier_invalidate_page() to minimize disruption.
+arm64 has a feature called Top Byte Ignore, which allows to embed pointer
+tags into the top byte of each pointer. Userspace programs (such as
+HWASan, a memory debugging tool [1]) might use this feature and pass
+tagged user pointers to the kernel through syscalls or other interfaces.
 
-OK, this is really interesting. I was really worried to change the
-semantic of the mmu notifiers in stable kernels because this is really
-a hard to review change and high risk for anybody running those old
-kernels. If we can keep the mmu_notifier_invalidate_page and wrap them
-into the range scope API then this sounds like the best way forward.
+This patch makes a few of the kernel interfaces accept tagged user
+pointers. The kernel is already able to handle user faults with tagged
+pointers and has the untagged_addr macro, which this patchset reuses.
 
-So just to make sure we are at the same page. Does this sounds goo for
-stable 4.4. backport? Mike's hugetlb pmd shared fixup can be applied on
-top. What do you think?
+Thanks!
+
+[1] http://clang.llvm.org/docs/HardwareAssistedAddressSanitizerDesign.html
+
+Changes in v6:
+- Added annotations for user pointer casts found by sparse.
+- Rebased onto 050cdc6c (4.19-rc1+).
+
+Changes in v5:
+- Added 3 new patches that add untagging to places found with static
+  analysis.
+- Rebased onto 44c929e1 (4.18-rc8).
+
+Changes in v4:
+- Added a selftest for checking that passing tagged pointers to the
+  kernel succeeds.
+- Rebased onto 81e97f013 (4.18-rc1+).
+
+Changes in v3:
+- Rebased onto e5c51f30 (4.17-rc6+).
+- Added linux-arch@ to the list of recipients.
+
+Changes in v2:
+- Rebased onto 2d618bdf (4.17-rc3+).
+- Removed excessive untagging in gup.c.
+- Removed untagging pointers returned from __uaccess_mask_ptr.
+
+Changes in v1:
+- Rebased onto 4.17-rc1.
+
+Changes in RFC v2:
+- Added "#ifndef untagged_addr..." fallback in linux/uaccess.h instead of
+  defining it for each arch individually.
+- Updated Documentation/arm64/tagged-pointers.txt.
+- Dropped "mm, arm64: untag user addresses in memory syscalls".
+- Rebased onto 3eb2ce82 (4.16-rc7).
+
+Andrey Konovalov (11):
+  arm64: add type casts to untagged_addr macro
+  uaccess: add untagged_addr definition for other arches
+  arm64: untag user addresses in access_ok and __uaccess_mask_ptr
+  mm, arm64: untag user addresses in mm/gup.c
+  lib, arm64: untag addrs passed to strncpy_from_user and strnlen_user
+  arm64: untag user address in __do_user_fault
+  fs, arm64: untag user address in copy_mount_options
+  usb, arm64: untag user addresses in devio
+  arm64: update Documentation/arm64/tagged-pointers.txt
+  selftests, arm64: add a selftest for passing tagged pointers to kernel
+  arm64: annotate user pointers casts detected by sparse
+
+ Documentation/arm64/tagged-pointers.txt       |  5 +--
+ arch/arm64/include/asm/compat.h               |  2 +-
+ arch/arm64/include/asm/uaccess.h              | 16 ++++++----
+ arch/arm64/kernel/perf_callchain.c            |  4 +--
+ arch/arm64/kernel/signal.c                    | 16 +++++-----
+ arch/arm64/kernel/signal32.c                  |  6 ++--
+ arch/arm64/mm/fault.c                         |  4 +--
+ block/compat_ioctl.c                          | 15 +++++----
+ drivers/ata/libata-scsi.c                     |  2 +-
+ drivers/block/loop.c                          |  2 +-
+ drivers/gpio/gpiolib.c                        |  8 +++--
+ drivers/input/evdev.c                         |  2 +-
+ drivers/media/dvb-core/dvb_frontend.c         |  3 +-
+ drivers/media/v4l2-core/v4l2-compat-ioctl32.c |  9 +++---
+ drivers/mmc/core/block.c                      |  6 ++--
+ drivers/mtd/mtdchar.c                         |  2 +-
+ drivers/net/tap.c                             |  2 +-
+ drivers/net/tun.c                             |  2 +-
+ drivers/spi/spidev.c                          |  6 ++--
+ drivers/tty/tty_ioctl.c                       |  3 +-
+ drivers/tty/vt/vt_ioctl.c                     |  5 +--
+ drivers/usb/core/devio.c                      | 10 ++++--
+ drivers/vfio/vfio.c                           |  6 ++--
+ drivers/video/fbdev/core/fbmem.c              |  4 +--
+ drivers/xen/gntdev.c                          |  6 ++--
+ drivers/xen/privcmd.c                         |  4 +--
+ fs/aio.c                                      |  2 +-
+ fs/autofs/dev-ioctl.c                         |  3 +-
+ fs/autofs/root.c                              |  2 +-
+ fs/binfmt_elf.c                               | 10 +++---
+ fs/btrfs/ioctl.c                              |  2 +-
+ fs/compat_ioctl.c                             | 32 ++++++++++---------
+ fs/ext2/ioctl.c                               |  2 +-
+ fs/ext4/ioctl.c                               |  2 +-
+ fs/fat/file.c                                 |  3 +-
+ fs/fuse/file.c                                |  2 +-
+ fs/namespace.c                                |  2 +-
+ fs/readdir.c                                  |  4 +--
+ fs/signalfd.c                                 | 10 +++---
+ include/linux/mm.h                            |  2 +-
+ include/linux/pagemap.h                       |  8 ++---
+ include/linux/socket.h                        |  2 +-
+ include/linux/uaccess.h                       |  4 +++
+ ipc/shm.c                                     |  4 +--
+ kernel/futex.c                                |  6 ++--
+ kernel/futex_compat.c                         |  2 +-
+ kernel/power/user.c                           |  2 +-
+ kernel/signal.c                               |  2 +-
+ lib/iov_iter.c                                | 16 +++++-----
+ lib/strncpy_from_user.c                       |  4 ++-
+ lib/strnlen_user.c                            |  6 ++--
+ lib/test_kasan.c                              |  2 +-
+ mm/gup.c                                      |  4 +++
+ mm/memory.c                                   |  2 +-
+ mm/migrate.c                                  |  4 +--
+ mm/process_vm_access.c                        | 13 ++++----
+ net/bluetooth/hidp/sock.c                     |  2 +-
+ net/compat.c                                  | 12 ++++---
+ sound/core/control_compat.c                   |  5 +--
+ sound/core/pcm_native.c                       |  5 +--
+ sound/core/timer_compat.c                     |  3 +-
+ tools/testing/selftests/arm64/.gitignore      |  1 +
+ tools/testing/selftests/arm64/Makefile        | 11 +++++++
+ .../testing/selftests/arm64/run_tags_test.sh  | 12 +++++++
+ tools/testing/selftests/arm64/tags_test.c     | 19 +++++++++++
+ 65 files changed, 232 insertions(+), 147 deletions(-)
+ create mode 100644 tools/testing/selftests/arm64/.gitignore
+ create mode 100644 tools/testing/selftests/arm64/Makefile
+ create mode 100755 tools/testing/selftests/arm64/run_tags_test.sh
+ create mode 100644 tools/testing/selftests/arm64/tags_test.c
+
+-- 
+2.19.0.rc0.228.g281dcd1b4d0-goog
