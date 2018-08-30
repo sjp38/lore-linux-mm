@@ -1,150 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 35FF46B4EA9
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 21:12:53 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i68-v6so3804030pfb.9
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 18:12:53 -0700 (PDT)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id w11-v6si4170599pgm.616.2018.08.29.18.12.50
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D91926B4EAA
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 21:44:11 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id 90-v6so3037881pla.18
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 18:44:11 -0700 (PDT)
+Received: from ipmail03.adl2.internode.on.net (ipmail03.adl2.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id 1-v6si5628941pfu.79.2018.08.29.18.44.09
         for <linux-mm@kvack.org>;
-        Wed, 29 Aug 2018 18:12:51 -0700 (PDT)
-Date: Thu, 30 Aug 2018 11:12:45 +1000
+        Wed, 29 Aug 2018 18:44:10 -0700 (PDT)
+Date: Thu, 30 Aug 2018 11:43:04 +1000
 From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 2/2] fs/dcache: Make negative dentries easier to be
- reclaimed
-Message-ID: <20180830011245.GC5631@dastard>
+Subject: Re: [PATCH 1/2] fs/dcache: Track & report number of negative dentries
+Message-ID: <20180830014304.GD5631@dastard>
 References: <1535476780-5773-1-git-send-email-longman@redhat.com>
- <1535476780-5773-3-git-send-email-longman@redhat.com>
- <20180829010228.GE1572@dastard>
- <6e2999b3-e93f-2138-6ceb-4f24712f419f@redhat.com>
+ <1535476780-5773-2-git-send-email-longman@redhat.com>
+ <20180829001153.GD1572@dastard>
+ <e084f670-b279-0f85-404c-9506e329f633@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <6e2999b3-e93f-2138-6ceb-4f24712f419f@redhat.com>
+In-Reply-To: <e084f670-b279-0f85-404c-9506e329f633@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Waiman Long <longman@redhat.com>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>
 
-On Wed, Aug 29, 2018 at 03:34:05PM -0400, Waiman Long wrote:
-> On 08/28/2018 09:02 PM, Dave Chinner wrote:
-> > On Tue, Aug 28, 2018 at 01:19:40PM -0400, Waiman Long wrote:
-> > And then there's shrinker behaviour. What happens if the shrinker
-> > isolate callback returns LRU_ROTATE on a negative dentry? It gets
-> > moved to the most recent end of the list, so it won't have an
-> > attempt to reclaim it again until it's tried to reclaim all the real
-> > dentries. IOWs, it goes back to behaving like LRUs are supposed to
-> > behaving.
+On Wed, Aug 29, 2018 at 01:11:08PM -0400, Waiman Long wrote:
+> On 08/28/2018 08:11 PM, Dave Chinner wrote:
+> > On Tue, Aug 28, 2018 at 01:19:39PM -0400, Waiman Long wrote:
+> >> The current dentry number tracking code doesn't distinguish between
+> >> positive & negative dentries. It just reports the total number of
+> >> dentries in the LRU lists.
+> >>
+> >> As excessive number of negative dentries can have an impact on system
+> >> performance, it will be wise to track the number of positive and
+> >> negative dentries separately.
+> >>
+> >> This patch adds tracking for the total number of negative dentries in
+> >> the system LRU lists and reports it in the /proc/sys/fs/dentry-state
+> >> file. The number, however, does not include negative dentries that are
+> >> in flight but not in the LRU yet.
+> >>
+> >> The number of positive dentries in the LRU lists can be roughly found
+> >> by subtracting the number of negative dentries from the total.
+> >>
+> >> Signed-off-by: Waiman Long <longman@redhat.com>
+> >> ---
+> >>  Documentation/sysctl/fs.txt | 19 +++++++++++++------
+> >>  fs/dcache.c                 | 45 +++++++++++++++++++++++++++++++++++++++++++++
+> >>  include/linux/dcache.h      |  7 ++++---
+> >>  3 files changed, 62 insertions(+), 9 deletions(-)
+> >>
+> >> diff --git a/Documentation/sysctl/fs.txt b/Documentation/sysctl/fs.txt
+> >> index 819caf8..118bb93 100644
+> >> --- a/Documentation/sysctl/fs.txt
+> >> +++ b/Documentation/sysctl/fs.txt
+> >> @@ -63,19 +63,26 @@ struct {
+> >>          int nr_unused;
+> >>          int age_limit;         /* age in seconds */
+> >>          int want_pages;        /* pages requested by system */
+> >> -        int dummy[2];
+> >> +        int nr_negative;       /* # of unused negative dentries */
+> >> +        int dummy;
+> >>  } dentry_stat = {0, 0, 45, 0,};
+> > That's not a backwards compatible ABI change. Those dummy fields
+> > used to represent some metric we no longer calculate, and there are
+> > probably still monitoring apps out there that think they still have
+> > the old meaning. i.e. they are still visible to userspace:
 > >
-> > IOWs, reclaim behaviour of negative dentries will be
-> > highly unpredictable, it will not easily retain a working set, nor
-> > will the working set it does retain be predictable or easy to eject
-> > from memory when the workload changes.
+> > $ cat /proc/sys/fs/dentry-state 
+> > 83090	67661	45	0	0	0
+> > $
 > >
-> > Is this the behavour what we want for negative dentries?
+> > IOWs, you can add new fields for new metrics to the end of the
+> > structure, but you can't re-use existing fields even if they
+> > aren't calculated anymore.
+> >
+> > [....]
 > 
-> I am aware that the behavior is not strictly LRU for negative dentries.
-> This is a compromise for using one LRU list for 2 different classes of
-> dentries.
+> I looked up the git history and the state of the dentry_stat structure
+> hadn't changed since it was first put into git in 2.6.12-rc2 on Apr 16,
+> 2005. That was over 13 years ago. Even adding an extra argument can have
+> the potential of breaking old applications depending on how the parsing
+> code was written.
 
-Thus demonstrating just enough knowledge to be dangerous.
+I'm pretty we've had this discussion many times before  w.r.t.
+/proc/self/mount* and other multi-field proc files. 
 
-We already 3 different classes of dentries on the LRU list:
+IIRC, The answer has always been that it's OK to extend lines with
+new fields as existing apps /should/ ignore them, but it's not OK to
+remove or redefine existing fields in the line because existing apps
+/will/ misinterpret what that field means.
 
-	- in use dentries (because we use lazy removal to avoid
-	  lru list lock contention on cache hit lookups)
-	- unused, referenced dentries
-	- unused, unreferenced dentries.
+> Given that systems that are still using some very old tools are not
+> likely to upgrade to the latest kernel anyway. I don't see that as a big
+> problem.
 
-Each of these classes of dentries are treated differently by the
-shrinker, but the key point is that they are all aged the same way
-and so there's consistent maintenance of the working set under
-memory pressure. Putting negative dentries at the head of the list
-doesn't create a new "class" of object on the LRU, it just changes
-the ordering of the lru list. This will cause unpredictable
-behaviour because objects haven't had a chance to age gracefully
-before they are reclaimed.
-
-FYI, the inode cache has the same list_lru setup, object types and
-shrinker algorithm as the dentry cache, so this isn't a one-off.
-Indeed, the XFS buffer cache has a multi-reference heirarchy of 13
-different types of {unused, referenced} buffers in it's list_lru to
-implement a quasi aging-NFU reclaim algorithm in it's shrinker.
-
-i.e. the list_lru infrastructure has never provided or enforced a
-pure LRU algorithm. It is common infrastructure intended to provide
-a scalable, flexible and memcg-aware FIFO-like object tracking
-system that interates tightly with memory reclaim to allow
-subsystems to implement cache reclaim algorithms that are optimal
-for that subsystem.
-
-IOWs, the list_lru doesn't define the reclaim algorithm the
-subsystem uses and there's no reason why we can't extend the
-infrastructure to support more complex algorithms without impacting
-existing subsystem reclaim algorithms at all. Only the subsystems
-that use the new infrastructure and algorithms would need careful
-examination.  Of course, the overall system cache balancing
-behaviour under different and changing workloads would still need to
-be verified, but you have to do that for any cache reclaim algorithm
-change that is made....
-
-> The basic idea is that negative dentries that are used only
-> once will go first irrespective of their age.
-
-Using MRU for negative dentries, as I've previously explained, is a
-flawed concept. It might be expedient to solve your specific
-problem, but it's not a solution to the general problem of negative
-dentry management.
-
-> > Perhaps a second internal LRU list in the list_lru for "immediate
-> > reclaim" objects would be a better solution. i.e. similar to the
-> > active/inactive lists used for prioritising the working set iover
-> > single use pages in page reclaim. negative dentries go onto the
-> > immediate list, real dentries go on the existing list. Both are LRU,
-> > and the shrinker operates on the immediate list first. When we
-> > rotate referenced negative dentries on the immediate list, promote
-> > them to the active list with all the real dentries so they age out
-> > with the rest of the working set. That way single use negative
-> > dentries get removed in LRU order in preference to the working set
-> > of real dentries.
-> >
-> > Being able to make changes to the list implementation easily was one
-> > of the reasons I hid the implementation of the list_lru from the
-> > interface callers use....
-> >
-> > [...]
-> 
-> I have thought about using 2 lists for dentries. That will require much
-> more extensive changes to the code and hence much more testing will be
-> needed to verify their correctness.  That is the main reason why I try to
-> avoid doing that.
-
-i.e. expediency.
-
-However, you're changing the behaviour of core caching and memory
-reclaim algorithms. The amount and level of testing and verification
-you need to do is the same regardless of whether it's a small change
-or a large change.  Sure, you've shown that *one* artificial
-micro-benchmark improves, but what about everything else?
-
-> As you have suggested, we could implement this 2-level LRU list in the
-> list_lru API. But it is used by other subsystems as well. Extensive
-> change like that will have similar issue in term of testing and
-> verification effort.
-
-I know what changing reclaim algorithm involves, how difficult
-it is to balance the competing caches quickly and to the desired
-ratios for acceptable performance, how difficult it is to measure
-and control the system reacts to transient and impulse memory
-pressure events, etc.
-
-I also know that "simple" and/or "obviously correct" subsystem
-changes can cause very unexepected system level effects, and that
-it's almost never what you think it is that caused the unexpected
-behaviour.  IOWs, getting anything even slightly wrong in these
-algorithms will adversely affect system performance and balance
-significantly.  Hence the bar is /always/ set high for core caching
-algorithm changes like this.
+I don't think that matters when it comes to changing what
+information we expose in proc files.
 
 Cheers,
 
