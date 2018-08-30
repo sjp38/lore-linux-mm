@@ -1,92 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 14D276B4FF8
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 12:26:43 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id l65-v6so5256571pge.17
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 09:26:43 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id z16-v6si6847783pgi.252.2018.08.30.09.26.41
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A5F16B5230
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 12:41:02 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id h40-v6so3903120edb.2
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 09:41:01 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e20-v6si2066604edj.214.2018.08.30.09.41.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Aug 2018 09:26:42 -0700 (PDT)
-Message-ID: <1535646146.26689.11.camel@intel.com>
-Subject: Re: [RFC PATCH v3 19/24] x86/cet/shstk: Introduce WRUSS instruction
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Date: Thu, 30 Aug 2018 09:22:26 -0700
-In-Reply-To: <CALCETrW78UKt6AQJeN8GkhtxjuASnH1PV5QSpzQtDz9-2d3Asw@mail.gmail.com>
-References: <20180830143904.3168-1-yu-cheng.yu@intel.com>
-	 <20180830143904.3168-20-yu-cheng.yu@intel.com>
-	 <CAG48ez3uZrC-9uJ0uMoVPTtxRXRN8D+3zs5FknZD2woTT6mazg@mail.gmail.com>
-	 <CALCETrW78UKt6AQJeN8GkhtxjuASnH1PV5QSpzQtDz9-2d3Asw@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        Thu, 30 Aug 2018 09:41:00 -0700 (PDT)
+Date: Thu, 30 Aug 2018 18:40:57 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE mappings
+Message-ID: <20180830164057.GK2656@dhcp22.suse.cz>
+References: <82CA00EB-BF8E-4137-953B-8BC4B74B99AF@cs.rutgers.edu>
+ <20180829154744.GC10223@dhcp22.suse.cz>
+ <39BE14E6-D0FB-428A-B062-8B5AEDC06E61@cs.rutgers.edu>
+ <20180829162528.GD10223@dhcp22.suse.cz>
+ <20180829192451.GG10223@dhcp22.suse.cz>
+ <E97C9342-9BA0-48DD-A580-738ACEE49B41@cs.rutgers.edu>
+ <20180830070021.GB2656@dhcp22.suse.cz>
+ <4AFDF557-46E3-4C62-8A43-C28E8F2A54CF@cs.rutgers.edu>
+ <20180830134549.GI2656@dhcp22.suse.cz>
+ <C0146217-821B-4530-A2E2-57D4CCDE8102@cs.rutgers.edu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <C0146217-821B-4530-A2E2-57D4CCDE8102@cs.rutgers.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Jann Horn <jannh@google.com>
-Cc: the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
 
-On Thu, 2018-08-30 at 08:55 -0700, Andy Lutomirski wrote:
-> On Thu, Aug 30, 2018 at 8:39 AM, Jann Horn <jannh@google.com> wrote:
-> > 
-> > On Thu, Aug 30, 2018 at 4:44 PM Yu-cheng Yu <yu-cheng.yu@intel.com
-> > > wrote:
-> > > 
-> > > 
-> > > WRUSS is a new kernel-mode instruction but writes directly
-> > > to user shadow stack memory.A A This is used to construct
-> > > a return address on the shadow stack for the signal
-> > > handler.
-> > > 
-> > > This instruction can fault if the user shadow stack is
-> > > invalid shadow stack memory.A A In that case, the kernel does
-> > > fixup.
-> > > 
-> > > Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> > [...]
-> > > 
-> > > +static inline int write_user_shstk_64(unsigned long addr,
-> > > unsigned long val)
-> > > +{
-> > > +A A A A A A A int err = 0;
-> > > +
-> > > +A A A A A A A asm volatile("1: wrussq %1, (%0)\n"
-> > > +A A A A A A A A A A A A A A A A A A A A "2:\n"
-> > > +A A A A A A A A A A A A A A A A A A A A _ASM_EXTABLE_HANDLE(1b, 2b,
-> > > ex_handler_wruss)
-> > > +A A A A A A A A A A A A A A A A A A A A :
-> > > +A A A A A A A A A A A A A A A A A A A A : "r" (addr), "r" (val));
-> > > +
-> > > +A A A A A A A return err;
-> > > +}
-> > What's up with "err"? You set it to zero, and then you return it,
-> > but
-> > nothing can ever set it to non-zero, right?
-> > 
-> > > 
-> > > +__visible bool ex_handler_wruss(const struct
-> > > exception_table_entry *fixup,
-> > > +A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A struct pt_regs *regs, int
-> > > trapnr)
-> > > +{
-> > > +A A A A A A A regs->ip = ex_fixup_addr(fixup);
-> > > +A A A A A A A regs->ax = -1;
-> > > +A A A A A A A return true;
-> > > +}
-> > And here you just write into regs->ax, but your "asm volatile"
-> > doesn't
-> > reserve that register. This looks wrong to me.
-> > 
-> > I think you probably want to add something like an explicit
-> > `"+&a"(err)` output to the asm statements.
-> We require asm goto support these days.A A How about using that?A A You
-> won't even need a special exception handler.
+On Thu 30-08-18 10:02:23, Zi Yan wrote:
+> On 30 Aug 2018, at 9:45, Michal Hocko wrote:
 > 
-> Also, please change the BUG to WARN in the you-did-it-wrong 32-bit
-> case.A A And return -EFAULT.
+> > On Thu 30-08-18 09:22:21, Zi Yan wrote:
+> >> On 30 Aug 2018, at 3:00, Michal Hocko wrote:
+> >>
+> >>> On Wed 29-08-18 18:54:23, Zi Yan wrote:
+> >>> [...]
+> >>>> I tested it against Linusa??s tree with a??memhog -r3 130ga?? in a two-socket machine with 128GB memory on
+> >>>> each node and got the results below. I expect this test should fill one node, then fall back to the other.
+> >>>>
+> >>>> 1. madvise(MADV_HUGEPAGE) + defrag = {always, madvise, defer+madvise}:
+> >>>> no swap, THPs are allocated in the fallback node.
+> >>>> 2. madvise(MADV_HUGEPAGE) + defrag = defer: pages got swapped to the
+> >>>> disk instead of being allocated in the fallback node.
+> >>>> 3. no madvise, THP is on by default + defrag = {always, defer,
+> >>>> defer+madvise}: pages got swapped to the disk instead of being
+> >>>> allocated in the fallback node.
+> >>>> 4. no madvise, THP is on by default + defrag = madvise: no swap, base
+> >>>> pages are allocated in the fallback node.
+> >>>>
+> >>>> The result 2 and 3 seems unexpected, since pages should be allocated in the fallback node.
+> >>>>
+> >>>> The reason, as Andrea mentioned in his email, is that the combination
+> >>>> of __THIS_NODE and __GFP_DIRECT_RECLAIM (plus __GFP_KSWAPD_RECLAIM
+> >>>> from this experiment).
+> >>>
+> >>> But we do not set __GFP_THISNODE along with __GFP_DIRECT_RECLAIM AFAICS.
+> >>> We do for __GFP_KSWAPD_RECLAIM though and I guess that it is expected to
+> >>> see kswapd do the reclaim to balance the node. If the node is full of
+> >>> anonymous pages then there is no other way than swap out.
+> >>
+> >> GFP_TRANSHUGE implies __GFP_DIRECT_RECLAIM. When no madvise is given, THP is on
+> >> + defrag=always, gfp_mask has __GFP_THISNODE and __GFP_DIRECT_RECLAIM, so swapping
+> >> can be triggered.
+> >
+> > Yes, but the setup tells that you are willing to pay price to get a THP.
+> > defered=always uses that special __GFP_NORETRY (unless it is madvised
+> > mapping) that should back off if the compaction failed recently. How
+> > much that reduces the reclaim is not really clear to me right now to be
+> > honest.
+> >
+> >> The key issue here is that a??memhog -r3 130ga?? uses the default memory policy (MPOL_DEFAULT),
+> >> which should allow page allocation fallback to other nodes, but as shown in
+> >> result 3, swapping is triggered instead of page allocation fallback.
+> >
+> > Well, I guess this really depends. Fallback to a different node might be
+> > seen as a bad thing and worse than the reclaim on the local node.
+> >
+> >>>> __THIS_NODE uses ZONELIST_NOFALLBACK, which
+> >>>> removes the fallback possibility and __GFP_*_RECLAIM triggers page
+> >>>> reclaim in the first page allocation node when fallback nodes are
+> >>>> removed by ZONELIST_NOFALLBACK.
+> >>>
+> >>> Yes but the point is that the allocations which use __GFP_THISNODE are
+> >>> optimistic so they shouldn't fallback to remote NUMA nodes.
+> >>
+> >> This can be achieved by using MPOL_BIND memory policy which restricts
+> >> nodemask in struct alloc_context for user space memory allocations.
+> >
+> > Yes, but that requires and explicit NUMA handling. And we are trying to
+> > handle those cases which do not really give a damn and just want to use
+> > THP if it is available or try harder when they ask by using madvise.
+> >
+> >>>> IMHO, __THIS_NODE should not be used for user memory allocation at
+> >>>> all, since it fights against most of memory policies.  But kernel
+> >>>> memory allocation would need it as a kernel MPOL_BIND memory policy.
+> >>>
+> >>> __GFP_THISNODE is indeed an ugliness. I would really love to get rid of
+> >>> it here. But the problem is that optimistic THP allocations should
+> >>> prefer a local node because a remote node might easily offset the
+> >>> advantage of the THP. I do not have a great idea how to achieve that
+> >>> without __GFP_THISNODE though.
+> >>
+> >> MPOL_PREFERRED memory policy can be used to achieve this optimistic
+> >> THP allocation for user space. Even with the default memory policy,
+> >> local memory node will be used first until it is full. It seems to
+> >> me that __GFP_THISNODE is not necessary if a proper memory policy is
+> >> used.
+> >>
+> >> Let me know if I miss anything. Thanks.
+> >
+> > You are missing that we are trying to define a sensible model for those
+> > who do not really care about mempolicies. THP shouldn't cause more harm
+> > than good for those.
+> >
+> > I wish we could come up with a remotely sane and comprehensible model.
+> > That means that you know how hard the allocator tries to get a THP for
+> > you depending on the defrag configuration, your memory policy and your
+> > madvise setting. The easiest one I can think of is to
+> > - always follow mempolicy when specified because you asked for it
+> >   explicitly
+> > - stay node local and low latency for the light THP defrag mode (defrag,
+> >   madvise without hint and none) because THP is a nice to have
+> > - if the defrag mode is always then you are willing to pay the latency
+> >   price but off-node might be still a no-no.
+> > - allow fallback for madvised mappings because you really want THP. If
+> >   you care about specific numa placement then combine with the
+> >   mempolicy.
+> >
+> > As you can see I do not really mention anything about the direct reclaim
+> > because that is just an implementation detail of the page allocator and
+> > compaction interaction.
+> >
+> > Maybe you can formulate a saner matrix with all the available modes that
+> > we have.
+> >
+> > Anyway, I guess we can agree that (almost) unconditional __GFP_THISNODE
+> > is clearly wrong and we should address that first. Either Andrea's
+> > option 2) patch or mine which does the similar thing except at the
+> > proper layer (I believe). We can continue discussing other odd cases on
+> > top I guess. Unless somebody has much brighter idea, of course.
 > 
-> --Andy
+> Thanks for your explanation. It makes sense to me. I am fine with your patch.
+> You can add my Tested-by: Zi Yan <zi.yan@cs.rutgers.edu>, since
+> my test result 1 shows that the problem mentioned in your changelog is solved.
 
-I will look into that.
-
-Yu-cheng
+Thanks for your and Stefan's testing. I will wait for some more
+feedback. I will be offline next few days and if there are no major
+objections I will repost with both tested-bys early next week.
+-- 
+Michal Hocko
+SUSE Labs
