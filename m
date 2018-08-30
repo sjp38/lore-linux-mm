@@ -1,158 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A5F16B5230
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 12:41:02 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id h40-v6so3903120edb.2
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 09:41:01 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e20-v6si2066604edj.214.2018.08.30.09.41.00
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ABFED6B5237
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 12:57:55 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id o18-v6so8868098qtm.11
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 09:57:55 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id 51-v6si3919800qvp.53.2018.08.30.09.57.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Aug 2018 09:41:00 -0700 (PDT)
-Date: Thu, 30 Aug 2018 18:40:57 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE mappings
-Message-ID: <20180830164057.GK2656@dhcp22.suse.cz>
-References: <82CA00EB-BF8E-4137-953B-8BC4B74B99AF@cs.rutgers.edu>
- <20180829154744.GC10223@dhcp22.suse.cz>
- <39BE14E6-D0FB-428A-B062-8B5AEDC06E61@cs.rutgers.edu>
- <20180829162528.GD10223@dhcp22.suse.cz>
- <20180829192451.GG10223@dhcp22.suse.cz>
- <E97C9342-9BA0-48DD-A580-738ACEE49B41@cs.rutgers.edu>
- <20180830070021.GB2656@dhcp22.suse.cz>
- <4AFDF557-46E3-4C62-8A43-C28E8F2A54CF@cs.rutgers.edu>
- <20180830134549.GI2656@dhcp22.suse.cz>
- <C0146217-821B-4530-A2E2-57D4CCDE8102@cs.rutgers.edu>
+        Thu, 30 Aug 2018 09:57:54 -0700 (PDT)
+Date: Thu, 30 Aug 2018 12:57:51 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH v6 1/2] mm: migration: fix migration of huge PMD shared
+ pages
+Message-ID: <20180830165751.GD3529@redhat.com>
+References: <6063f215-a5c8-2f0c-465a-2c515ddc952d@oracle.com>
+ <20180827074645.GB21556@dhcp22.suse.cz>
+ <20180827134633.GB3930@redhat.com>
+ <9209043d-3240-105b-72a3-b4cd30f1b1f1@oracle.com>
+ <20180829181424.GB3784@redhat.com>
+ <20180829183906.GF10223@dhcp22.suse.cz>
+ <20180829211106.GC3784@redhat.com>
+ <20180830105616.GD2656@dhcp22.suse.cz>
+ <20180830140825.GA3529@redhat.com>
+ <20180830161800.GJ2656@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <C0146217-821B-4530-A2E2-57D4CCDE8102@cs.rutgers.edu>
+In-Reply-To: <20180830161800.GJ2656@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-rdma@vger.kernel.org, Matan Barak <matanb@mellanox.com>, Leon Romanovsky <leonro@mellanox.com>, Dimitri Sivanich <sivanich@sgi.com>
 
-On Thu 30-08-18 10:02:23, Zi Yan wrote:
-> On 30 Aug 2018, at 9:45, Michal Hocko wrote:
+On Thu, Aug 30, 2018 at 06:19:52PM +0200, Michal Hocko wrote:
+> On Thu 30-08-18 10:08:25, Jerome Glisse wrote:
+> > On Thu, Aug 30, 2018 at 12:56:16PM +0200, Michal Hocko wrote:
+> > > On Wed 29-08-18 17:11:07, Jerome Glisse wrote:
+> > > > On Wed, Aug 29, 2018 at 08:39:06PM +0200, Michal Hocko wrote:
+> > > > > On Wed 29-08-18 14:14:25, Jerome Glisse wrote:
+> > > > > > On Wed, Aug 29, 2018 at 10:24:44AM -0700, Mike Kravetz wrote:
+> > > > > [...]
+> > > > > > > What would be the best mmu notifier interface to use where there are no
+> > > > > > > start/end calls?
+> > > > > > > Or, is the best solution to add the start/end calls as is done in later
+> > > > > > > versions of the code?  If that is the suggestion, has there been any change
+> > > > > > > in invalidate start/end semantics that we should take into account?
+> > > > > > 
+> > > > > > start/end would be the one to add, 4.4 seems broken in respect to THP
+> > > > > > and mmu notification. Another solution is to fix user of mmu notifier,
+> > > > > > they were only a handful back then. For instance properly adjust the
+> > > > > > address to match first address covered by pmd or pud and passing down
+> > > > > > correct page size to mmu_notifier_invalidate_page() would allow to fix
+> > > > > > this easily.
+> > > > > > 
+> > > > > > This is ok because user of try_to_unmap_one() replace the pte/pmd/pud
+> > > > > > with an invalid one (either poison, migration or swap) inside the
+> > > > > > function. So anyone racing would synchronize on those special entry
+> > > > > > hence why it is fine to delay mmu_notifier_invalidate_page() to after
+> > > > > > dropping the page table lock.
+> > > > > > 
+> > > > > > Adding start/end might the solution with less code churn as you would
+> > > > > > only need to change try_to_unmap_one().
+> > > > > 
+> > > > > What about dependencies? 369ea8242c0fb sounds like it needs work for all
+> > > > > notifiers need to be updated as well.
+> > > > 
+> > > > This commit remove mmu_notifier_invalidate_page() hence why everything
+> > > > need to be updated. But in 4.4 you can get away with just adding start/
+> > > > end and keep around mmu_notifier_invalidate_page() to minimize disruption.
+> > > 
+> > > OK, this is really interesting. I was really worried to change the
+> > > semantic of the mmu notifiers in stable kernels because this is really
+> > > a hard to review change and high risk for anybody running those old
+> > > kernels. If we can keep the mmu_notifier_invalidate_page and wrap them
+> > > into the range scope API then this sounds like the best way forward.
+> > > 
+> > > So just to make sure we are at the same page. Does this sounds goo for
+> > > stable 4.4. backport? Mike's hugetlb pmd shared fixup can be applied on
+> > > top. What do you think?
+> > 
+> > You need to invalidate outside page table lock so before the call to
+> > page_check_address(). For instance like below patch, which also only
+> > do the range invalidation for huge page which would avoid too much of
+> > a behavior change for user of mmu notifier.
 > 
-> > On Thu 30-08-18 09:22:21, Zi Yan wrote:
-> >> On 30 Aug 2018, at 3:00, Michal Hocko wrote:
-> >>
-> >>> On Wed 29-08-18 18:54:23, Zi Yan wrote:
-> >>> [...]
-> >>>> I tested it against Linusa??s tree with a??memhog -r3 130ga?? in a two-socket machine with 128GB memory on
-> >>>> each node and got the results below. I expect this test should fill one node, then fall back to the other.
-> >>>>
-> >>>> 1. madvise(MADV_HUGEPAGE) + defrag = {always, madvise, defer+madvise}:
-> >>>> no swap, THPs are allocated in the fallback node.
-> >>>> 2. madvise(MADV_HUGEPAGE) + defrag = defer: pages got swapped to the
-> >>>> disk instead of being allocated in the fallback node.
-> >>>> 3. no madvise, THP is on by default + defrag = {always, defer,
-> >>>> defer+madvise}: pages got swapped to the disk instead of being
-> >>>> allocated in the fallback node.
-> >>>> 4. no madvise, THP is on by default + defrag = madvise: no swap, base
-> >>>> pages are allocated in the fallback node.
-> >>>>
-> >>>> The result 2 and 3 seems unexpected, since pages should be allocated in the fallback node.
-> >>>>
-> >>>> The reason, as Andrea mentioned in his email, is that the combination
-> >>>> of __THIS_NODE and __GFP_DIRECT_RECLAIM (plus __GFP_KSWAPD_RECLAIM
-> >>>> from this experiment).
-> >>>
-> >>> But we do not set __GFP_THISNODE along with __GFP_DIRECT_RECLAIM AFAICS.
-> >>> We do for __GFP_KSWAPD_RECLAIM though and I guess that it is expected to
-> >>> see kswapd do the reclaim to balance the node. If the node is full of
-> >>> anonymous pages then there is no other way than swap out.
-> >>
-> >> GFP_TRANSHUGE implies __GFP_DIRECT_RECLAIM. When no madvise is given, THP is on
-> >> + defrag=always, gfp_mask has __GFP_THISNODE and __GFP_DIRECT_RECLAIM, so swapping
-> >> can be triggered.
-> >
-> > Yes, but the setup tells that you are willing to pay price to get a THP.
-> > defered=always uses that special __GFP_NORETRY (unless it is madvised
-> > mapping) that should back off if the compaction failed recently. How
-> > much that reduces the reclaim is not really clear to me right now to be
-> > honest.
-> >
-> >> The key issue here is that a??memhog -r3 130ga?? uses the default memory policy (MPOL_DEFAULT),
-> >> which should allow page allocation fallback to other nodes, but as shown in
-> >> result 3, swapping is triggered instead of page allocation fallback.
-> >
-> > Well, I guess this really depends. Fallback to a different node might be
-> > seen as a bad thing and worse than the reclaim on the local node.
-> >
-> >>>> __THIS_NODE uses ZONELIST_NOFALLBACK, which
-> >>>> removes the fallback possibility and __GFP_*_RECLAIM triggers page
-> >>>> reclaim in the first page allocation node when fallback nodes are
-> >>>> removed by ZONELIST_NOFALLBACK.
-> >>>
-> >>> Yes but the point is that the allocations which use __GFP_THISNODE are
-> >>> optimistic so they shouldn't fallback to remote NUMA nodes.
-> >>
-> >> This can be achieved by using MPOL_BIND memory policy which restricts
-> >> nodemask in struct alloc_context for user space memory allocations.
-> >
-> > Yes, but that requires and explicit NUMA handling. And we are trying to
-> > handle those cases which do not really give a damn and just want to use
-> > THP if it is available or try harder when they ask by using madvise.
-> >
-> >>>> IMHO, __THIS_NODE should not be used for user memory allocation at
-> >>>> all, since it fights against most of memory policies.  But kernel
-> >>>> memory allocation would need it as a kernel MPOL_BIND memory policy.
-> >>>
-> >>> __GFP_THISNODE is indeed an ugliness. I would really love to get rid of
-> >>> it here. But the problem is that optimistic THP allocations should
-> >>> prefer a local node because a remote node might easily offset the
-> >>> advantage of the THP. I do not have a great idea how to achieve that
-> >>> without __GFP_THISNODE though.
-> >>
-> >> MPOL_PREFERRED memory policy can be used to achieve this optimistic
-> >> THP allocation for user space. Even with the default memory policy,
-> >> local memory node will be used first until it is full. It seems to
-> >> me that __GFP_THISNODE is not necessary if a proper memory policy is
-> >> used.
-> >>
-> >> Let me know if I miss anything. Thanks.
-> >
-> > You are missing that we are trying to define a sensible model for those
-> > who do not really care about mempolicies. THP shouldn't cause more harm
-> > than good for those.
-> >
-> > I wish we could come up with a remotely sane and comprehensible model.
-> > That means that you know how hard the allocator tries to get a THP for
-> > you depending on the defrag configuration, your memory policy and your
-> > madvise setting. The easiest one I can think of is to
-> > - always follow mempolicy when specified because you asked for it
-> >   explicitly
-> > - stay node local and low latency for the light THP defrag mode (defrag,
-> >   madvise without hint and none) because THP is a nice to have
-> > - if the defrag mode is always then you are willing to pay the latency
-> >   price but off-node might be still a no-no.
-> > - allow fallback for madvised mappings because you really want THP. If
-> >   you care about specific numa placement then combine with the
-> >   mempolicy.
-> >
-> > As you can see I do not really mention anything about the direct reclaim
-> > because that is just an implementation detail of the page allocator and
-> > compaction interaction.
-> >
-> > Maybe you can formulate a saner matrix with all the available modes that
-> > we have.
-> >
-> > Anyway, I guess we can agree that (almost) unconditional __GFP_THISNODE
-> > is clearly wrong and we should address that first. Either Andrea's
-> > option 2) patch or mine which does the similar thing except at the
-> > proper layer (I believe). We can continue discussing other odd cases on
-> > top I guess. Unless somebody has much brighter idea, of course.
-> 
-> Thanks for your explanation. It makes sense to me. I am fine with your patch.
-> You can add my Tested-by: Zi Yan <zi.yan@cs.rutgers.edu>, since
-> my test result 1 shows that the problem mentioned in your changelog is solved.
+> Right. I would rather not make this PageHuge special though. So the
+> fixed version should be.
 
-Thanks for your and Stefan's testing. I will wait for some more
-feedback. I will be offline next few days and if there are no major
-objections I will repost with both tested-bys early next week.
--- 
-Michal Hocko
-SUSE Labs
+Why not testing for huge ? Only huge is broken and thus only that
+need the extra range invalidation. Doing the double invalidation
+for single page is bit overkill.
+
+Also below is bogus you need to add a out_notify: label to avoid
+an inbalance in start/end callback.
+
+> 
+> From c05849f6789ec36e2ff11adcd8fa6cfb05e870a9 Mon Sep 17 00:00:00 2001
+> From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+> Date: Thu, 31 Aug 2017 17:17:27 -0400
+> Subject: [PATCH] mm/rmap: update to new mmu_notifier semantic v2
+> MIME-Version: 1.0
+> Content-Type: text/plain; charset=UTF-8
+> Content-Transfer-Encoding: 8bit
+> 
+> commit 369ea8242c0fb5239b4ddf0dc568f694bd244de4 upstrea.
+> 
+> Please note that this patch differs from the mainline because we do not
+> really replace mmu_notifier_invalidate_page by mmu_notifier_invalidate_range
+> because that requires changes to most of existing mmu notifiers. We also
+> do not want to change the semantic of this API in old kernels. Anyway
+> Jerome has suggested that it should be sufficient to simply wrap
+> mmu_notifier_invalidate_page by *_invalidate_range_start()/end() to fix
+> invalidation of larger than pte mappings (e.g. THP/hugetlb pages during
+> migration). We need this change to handle large (hugetlb/THP) pages
+> migration properly.
+> 
+> Note that because we can not presume the pmd value or pte value we have
+> to assume the worst and unconditionaly report an invalidation as
+> happening.
+> 
+> Changed since v2:
+>   - try_to_unmap_one() only one call to mmu_notifier_invalidate_range()
+>   - compute end with PAGE_SIZE << compound_order(page)
+>   - fix PageHuge() case in try_to_unmap_one()
+> 
+> Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+> Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Cc: Bernhard Held <berny156@gmx.de>
+> Cc: Adam Borowski <kilobyte@angband.pl>
+> Cc: Radim KrA?mA!A? <rkrcmar@redhat.com>
+> Cc: Wanpeng Li <kernellwp@gmail.com>
+> Cc: Paolo Bonzini <pbonzini@redhat.com>
+> Cc: Takashi Iwai <tiwai@suse.de>
+> Cc: Nadav Amit <nadav.amit@gmail.com>
+> Cc: Mike Galbraith <efault@gmx.de>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: axie <axie@amd.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+> Signed-off-by: Michal Hocko <mhocko@suse.com> # backport to 4.4
+> ---
+>  mm/rmap.c | 10 ++++++++++
+>  1 file changed, 10 insertions(+)
+> 
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 1bceb49aa214..aba994f55d6c 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -1324,12 +1324,21 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>  	pte_t pteval;
+>  	spinlock_t *ptl;
+>  	int ret = SWAP_AGAIN;
+> +	unsigned long start = address, end;
+>  	enum ttu_flags flags = (enum ttu_flags)arg;
+>  
+>  	/* munlock has nothing to gain from examining un-locked vmas */
+>  	if ((flags & TTU_MUNLOCK) && !(vma->vm_flags & VM_LOCKED))
+>  		goto out;
+>  
+> +	/*
+> +	 * We have to assume the worse case ie pmd for invalidation. Note that
+> +	 * the page can not be free in this function as call of try_to_unmap()
+> +	 * must hold a reference on the page.
+> +	 */
+> +	end = min(vma->vm_end, start + (PAGE_SIZE << compound_order(page)));
+> +	mmu_notifier_invalidate_range_start(vma->vm_mm, start, end);
+> +
+>  	pte = page_check_address(page, mm, address, &ptl, 0);
+>  	if (!pte)
+>  		goto out;
+
+Instead
+
+>  		goto out_notify;
+
+> @@ -1450,6 +1459,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>  	if (ret != SWAP_FAIL && ret != SWAP_MLOCK && !(flags & TTU_MUNLOCK))
+>  		mmu_notifier_invalidate_page(mm, address);
+
++out_notify:
+
+> +	mmu_notifier_invalidate_range_end(vma->vm_mm, start, end);
+>  out:
+>  	return ret;
+>  }
+>  
+> -- 
+> 2.18.0
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
