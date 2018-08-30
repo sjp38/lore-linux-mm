@@ -1,83 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 79C4D6B50F5
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 06:44:18 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id x2-v6so4871845pgp.4
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 03:44:18 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id i26-v6si6587385pgn.589.2018.08.30.03.44.17
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F21926B5103
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 06:56:19 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id r21-v6so3351390edp.23
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 03:56:19 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e3-v6si6064638edi.191.2018.08.30.03.56.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Aug 2018 03:44:17 -0700 (PDT)
-Date: Fri, 31 Aug 2018 03:23:13 +0800
-From: Yi Zhang <yi.z.zhang@linux.intel.com>
-Subject: Re: [PATCH V4 4/4] kvm: add a check if pfn is from NVDIMM pmem.
-Message-ID: <20180830192312.GA84758@tiger-server>
-References: <cover.1534934405.git.yi.z.zhang@linux.intel.com>
- <a4183c0f0adfb6d123599dd306062fd193e83f5a.1534934405.git.yi.z.zhang@linux.intel.com>
- <380594559.7598107.1535537748154.JavaMail.zimbra@redhat.com>
+        Thu, 30 Aug 2018 03:56:18 -0700 (PDT)
+Date: Thu, 30 Aug 2018 12:56:16 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v6 1/2] mm: migration: fix migration of huge PMD shared
+ pages
+Message-ID: <20180830105616.GD2656@dhcp22.suse.cz>
+References: <20180823205917.16297-1-mike.kravetz@oracle.com>
+ <20180823205917.16297-2-mike.kravetz@oracle.com>
+ <20180824084157.GD29735@dhcp22.suse.cz>
+ <6063f215-a5c8-2f0c-465a-2c515ddc952d@oracle.com>
+ <20180827074645.GB21556@dhcp22.suse.cz>
+ <20180827134633.GB3930@redhat.com>
+ <9209043d-3240-105b-72a3-b4cd30f1b1f1@oracle.com>
+ <20180829181424.GB3784@redhat.com>
+ <20180829183906.GF10223@dhcp22.suse.cz>
+ <20180829211106.GC3784@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <380594559.7598107.1535537748154.JavaMail.zimbra@redhat.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180829211106.GC3784@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pankaj Gupta <pagupta@redhat.com>
-Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pbonzini@redhat.com, dan j williams <dan.j.williams@intel.com>, dave jiang <dave.jiang@intel.com>, yu c zhang <yu.c.zhang@intel.com>, david@redhat.com, jack@suse.cz, hch@lst.de, linux-mm@kvack.org, rkrcmar@redhat.com, jglisse@redhat.com, yi z zhang <yi.z.zhang@intel.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-rdma@vger.kernel.org, Matan Barak <matanb@mellanox.com>, Leon Romanovsky <leonro@mellanox.com>, Dimitri Sivanich <sivanich@sgi.com>
 
-On 2018-08-29 at 06:15:48 -0400, Pankaj Gupta wrote:
+On Wed 29-08-18 17:11:07, Jerome Glisse wrote:
+> On Wed, Aug 29, 2018 at 08:39:06PM +0200, Michal Hocko wrote:
+> > On Wed 29-08-18 14:14:25, Jerome Glisse wrote:
+> > > On Wed, Aug 29, 2018 at 10:24:44AM -0700, Mike Kravetz wrote:
+> > [...]
+> > > > What would be the best mmu notifier interface to use where there are no
+> > > > start/end calls?
+> > > > Or, is the best solution to add the start/end calls as is done in later
+> > > > versions of the code?  If that is the suggestion, has there been any change
+> > > > in invalidate start/end semantics that we should take into account?
+> > > 
+> > > start/end would be the one to add, 4.4 seems broken in respect to THP
+> > > and mmu notification. Another solution is to fix user of mmu notifier,
+> > > they were only a handful back then. For instance properly adjust the
+> > > address to match first address covered by pmd or pud and passing down
+> > > correct page size to mmu_notifier_invalidate_page() would allow to fix
+> > > this easily.
+> > > 
+> > > This is ok because user of try_to_unmap_one() replace the pte/pmd/pud
+> > > with an invalid one (either poison, migration or swap) inside the
+> > > function. So anyone racing would synchronize on those special entry
+> > > hence why it is fine to delay mmu_notifier_invalidate_page() to after
+> > > dropping the page table lock.
+> > > 
+> > > Adding start/end might the solution with less code churn as you would
+> > > only need to change try_to_unmap_one().
+> > 
+> > What about dependencies? 369ea8242c0fb sounds like it needs work for all
+> > notifiers need to be updated as well.
 > 
-> > 
-> > For device specific memory space, when we move these area of pfn to
-> > memory zone, we will set the page reserved flag at that time, some of
-> > these reserved for device mmio, and some of these are not, such as
-> > NVDIMM pmem.
-> > 
-> > Now, we map these dev_dax or fs_dax pages to kvm for DIMM/NVDIMM
-> > backend, since these pages are reserved, the check of
-> > kvm_is_reserved_pfn() misconceives those pages as MMIO. Therefor, we
-> > introduce 2 page map types, MEMORY_DEVICE_FS_DAX/MEMORY_DEVICE_DEV_DAX,
-> > to identify these pages are from NVDIMM pmem and let kvm treat these
-> > as normal pages.
-> > 
-> > Without this patch, many operations will be missed due to this
-> > mistreatment to pmem pages, for example, a page may not have chance to
-> > be unpinned for KVM guest(in kvm_release_pfn_clean), not able to be
-> > marked as dirty/accessed(in kvm_set_pfn_dirty/accessed) etc.
-> > 
-> > Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
-> > ---
-> >  virt/kvm/kvm_main.c | 8 ++++++--
-> >  1 file changed, 6 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-> > index c44c406..969b6ca 100644
-> > --- a/virt/kvm/kvm_main.c
-> > +++ b/virt/kvm/kvm_main.c
-> > @@ -147,8 +147,12 @@ __weak void
-> > kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
-> >  
-> >  bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
-> >  {
-> > -	if (pfn_valid(pfn))
-> > -		return PageReserved(pfn_to_page(pfn));
-> > +	struct page *page;
-> > +
-> > +	if (pfn_valid(pfn)) {
-> > +		page = pfn_to_page(pfn);
-> > +		return PageReserved(page) && !is_dax_page(page);
-> > +	}
-> >  
-> >  	return true;
-> >  }
-> 
-> Acked-by: Pankaj Gupta <pagupta@redhat.com>
+> This commit remove mmu_notifier_invalidate_page() hence why everything
+> need to be updated. But in 4.4 you can get away with just adding start/
+> end and keep around mmu_notifier_invalidate_page() to minimize disruption.
 
-Thanks for your kindly review, Pankaj, as all the patch [1,2,3,4]/4 got
-the reviewed[acked]-by, can we Queue this by now?
+OK, this is really interesting. I was really worried to change the
+semantic of the mmu notifiers in stable kernels because this is really
+a hard to review change and high risk for anybody running those old
+kernels. If we can keep the mmu_notifier_invalidate_page and wrap them
+into the range scope API then this sounds like the best way forward.
 
-> 
-> > --
-> > 2.7.4
-> > 
-> > 
+So just to make sure we are at the same page. Does this sounds goo for
+stable 4.4. backport? Mike's hugetlb pmd shared fixup can be applied on
+top. What do you think?
