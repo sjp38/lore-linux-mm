@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 68E3F6B522D
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F070B6B5231
 	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 10:43:47 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id g9-v6so5141607pgc.16
+Received: by mail-pg1-f199.google.com with SMTP id r2-v6so5168109pgp.3
         for <linux-mm@kvack.org>; Thu, 30 Aug 2018 07:43:47 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id z73-v6si6610727pgd.471.2018.08.30.07.43.46
+        by mx.google.com with ESMTPS id w13-v6si6403728pll.449.2018.08.30.07.43.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 30 Aug 2018 07:43:46 -0700 (PDT)
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [RFC PATCH v3 14/24] mm: Handle shadow stack page fault
-Date: Thu, 30 Aug 2018 07:38:54 -0700
-Message-Id: <20180830143904.3168-15-yu-cheng.yu@intel.com>
+Subject: [RFC PATCH v3 16/24] mm: Update can_follow_write_pte/pmd for shadow stack
+Date: Thu, 30 Aug 2018 07:38:56 -0700
+Message-Id: <20180830143904.3168-17-yu-cheng.yu@intel.com>
 In-Reply-To: <20180830143904.3168-1-yu-cheng.yu@intel.com>
 References: <20180830143904.3168-1-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,89 +20,141 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
 
-When a task does fork(), its shadow stack must be duplicated for
-the child.  However, the child may not actually use all pages of
-of the copied shadow stack.  This patch implements a flow that
-is similar to copy-on-write of an anonymous page, but for shadow
-stack memory.  A shadow stack PTE needs to be RO and dirty.  We
-use this dirty bit requirement to effect the copying of shadow
-stack pages.
+can_follow_write_pte/pmd look for the (RO & DIRTY) PTE/PMD to
+verify an exclusive RO page still exists after a broken COW.
 
-In copy_one_pte(), we clear the dirty bit from the shadow stack
-PTE.  On the next shadow stack access to the PTE, a page fault
-occurs.  At that time, we then copy/re-use the page and fix the
-PTE.
+A shadow stack PTE is RO & PAGE_DIRTY_SW when it is shared,
+otherwise RO & PAGE_DIRTY_HW.
+
+Introduce pte_exclusive() and pmd_exclusive() to also verify a
+shadow stack PTE is exclusive.
+
+Also rename can_follow_write_pte/pmd() to can_follow_write() to
+make their meaning clear; i.e. "Can we write to the page?", not
+"Is the PTE writable?"
 
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/mm/pgtable.c         | 10 ++++++++++
- include/asm-generic/pgtable.h |  7 +++++++
- mm/memory.c                   |  3 +++
- 3 files changed, 20 insertions(+)
+ arch/x86/mm/pgtable.c         | 18 ++++++++++++++++++
+ include/asm-generic/pgtable.h | 18 ++++++++++++++++++
+ mm/gup.c                      |  8 +++++---
+ mm/huge_memory.c              |  8 +++++---
+ 4 files changed, 46 insertions(+), 6 deletions(-)
 
 diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index e848a4811785..c63261128ac3 100644
+index 0ab38bfbedfc..13dd18ad6fd8 100644
 --- a/arch/x86/mm/pgtable.c
 +++ b/arch/x86/mm/pgtable.c
-@@ -872,3 +872,13 @@ int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
- 
- #endif /* CONFIG_X86_64 */
- #endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
-+
-+#ifdef CONFIG_X86_INTEL_SHADOW_STACK_USER
-+inline pte_t pte_set_vma_features(pte_t pte, struct vm_area_struct *vma)
-+{
-+	if (vma->vm_flags & VM_SHSTK)
-+		return pte_mkdirty_shstk(pte);
-+	else
-+		return pte;
-+}
-+#endif /* CONFIG_X86_INTEL_SHADOW_STACK_USER */
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index aa5271717126..558a485617cd 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -1146,6 +1146,13 @@ static inline bool pmd_dirty_hw(pmd_t pmd)
- {
- 	return false;
+@@ -889,4 +889,22 @@ inline pmd_t pmd_set_vma_features(pmd_t pmd, struct vm_area_struct *vma)
+ 	else
+ 		return pmd;
  }
 +
-+static inline pte_t pte_set_vma_features(pte_t pte, struct vm_area_struct *vma)
++inline bool pte_exclusive(pte_t pte, struct vm_area_struct *vma)
 +{
-+	return pte;
++	if (vma->vm_flags & VM_SHSTK)
++		return pte_dirty_hw(pte);
++	else
++		return pte_dirty(pte);
 +}
-+#else
-+pte_t pte_set_vma_features(pte_t pte, struct vm_area_struct *vma);
++
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++inline bool pmd_exclusive(pmd_t pmd, struct vm_area_struct *vma)
++{
++	if (vma->vm_flags & VM_SHSTK)
++		return pmd_dirty_hw(pmd);
++	else
++		return pmd_dirty(pmd);
++}
++#endif
+ #endif /* CONFIG_X86_INTEL_SHADOW_STACK_USER */
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 0f25186cd38d..2e8e7fa4ab71 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -1156,9 +1156,27 @@ static inline pmd_t pmd_set_vma_features(pmd_t pmd, struct vm_area_struct *vma)
+ {
+ 	return pmd;
+ }
++
++#ifdef CONFIG_MMU
++static inline bool pte_exclusive(pte_t pte, struct vm_area_struct *vma)
++{
++	return pte_dirty(pte);
++}
++
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static inline bool pmd_exclusive(pmd_t pmd, struct vm_area_struct *vma)
++{
++	return pmd_dirty(pmd);
++}
++#endif
++#endif /* CONFIG_MMU */
+ #else
+ pte_t pte_set_vma_features(pte_t pte, struct vm_area_struct *vma);
+ pmd_t pmd_set_vma_features(pmd_t pmd, struct vm_area_struct *vma);
++bool pte_exclusive(pte_t pte, struct vm_area_struct *vma);
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++bool pmd_exclusive(pmd_t pmd, struct vm_area_struct *vma);
++#endif
  #endif
  
  #endif /* _ASM_GENERIC_PGTABLE_H */
-diff --git a/mm/memory.c b/mm/memory.c
-index c467102a5cbc..9b4e11944b5d 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2462,6 +2462,7 @@ static inline void wp_page_reuse(struct vm_fault *vmf)
- 	flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));
- 	entry = pte_mkyoung(vmf->orig_pte);
- 	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-+	entry = pte_set_vma_features(entry, vma);
- 	if (ptep_set_access_flags(vma, vmf->address, vmf->pte, entry, 1))
- 		update_mmu_cache(vma, vmf->address, vmf->pte);
- 	pte_unmap_unlock(vmf->pte, vmf->ptl);
-@@ -2535,6 +2536,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
- 		flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));
- 		entry = mk_pte(new_page, vma->vm_page_prot);
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-+		entry = pte_set_vma_features(entry, vma);
- 		/*
- 		 * Clear the pte entry and flush it first, before updating the
- 		 * pte with the new entry. This will avoid a race condition
-@@ -3187,6 +3189,7 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
- 	entry = mk_pte(page, vma->vm_page_prot);
- 	if (vma->vm_flags & VM_WRITE)
- 		entry = pte_mkwrite(pte_mkdirty(entry));
-+	entry = pte_set_vma_features(entry, vma);
+diff --git a/mm/gup.c b/mm/gup.c
+index 1abc8b4afff6..03cb2e331f80 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -64,10 +64,12 @@ static int follow_pfn_pte(struct vm_area_struct *vma, unsigned long address,
+  * FOLL_FORCE can write to even unwritable pte's, but only
+  * after we've gone through a COW cycle and they are dirty.
+  */
+-static inline bool can_follow_write_pte(pte_t pte, unsigned int flags)
++static inline bool can_follow_write(pte_t pte, unsigned int flags,
++				    struct vm_area_struct *vma)
+ {
+ 	return pte_write(pte) ||
+-		((flags & FOLL_FORCE) && (flags & FOLL_COW) && pte_dirty(pte));
++		((flags & FOLL_FORCE) && (flags & FOLL_COW) &&
++		 pte_exclusive(pte, vma));
+ }
  
- 	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, vmf->address,
- 			&vmf->ptl);
+ static struct page *follow_page_pte(struct vm_area_struct *vma,
+@@ -105,7 +107,7 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
+ 	}
+ 	if ((flags & FOLL_NUMA) && pte_protnone(pte))
+ 		goto no_page;
+-	if ((flags & FOLL_WRITE) && !can_follow_write_pte(pte, flags)) {
++	if ((flags & FOLL_WRITE) && !can_follow_write(pte, flags, vma)) {
+ 		pte_unmap_unlock(ptep, ptl);
+ 		return NULL;
+ 	}
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 5b4c8f2fb85e..702650eec0b2 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1387,10 +1387,12 @@ vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
+  * FOLL_FORCE can write to even unwritable pmd's, but only
+  * after we've gone through a COW cycle and they are dirty.
+  */
+-static inline bool can_follow_write_pmd(pmd_t pmd, unsigned int flags)
++static inline bool can_follow_write(pmd_t pmd, unsigned int flags,
++				    struct vm_area_struct *vma)
+ {
+ 	return pmd_write(pmd) ||
+-	       ((flags & FOLL_FORCE) && (flags & FOLL_COW) && pmd_dirty(pmd));
++	       ((flags & FOLL_FORCE) && (flags & FOLL_COW) &&
++		pmd_exclusive(pmd, vma));
+ }
+ 
+ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
+@@ -1403,7 +1405,7 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
+ 
+ 	assert_spin_locked(pmd_lockptr(mm, pmd));
+ 
+-	if (flags & FOLL_WRITE && !can_follow_write_pmd(*pmd, flags))
++	if (flags & FOLL_WRITE && !can_follow_write(*pmd, flags, vma))
+ 		goto out;
+ 
+ 	/* Avoid dumping huge zero page */
 -- 
 2.17.1
