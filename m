@@ -1,74 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 019B06B5230
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 11:50:22 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id m197-v6so7712561oig.18
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 08:50:21 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k185-v6sor6659934oif.68.2018.08.30.08.50.21
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0935E6B4FE2
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 11:54:38 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id g12-v6so4169584plo.1
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 08:54:37 -0700 (PDT)
+Received: from NAM05-DM3-obe.outbound.protection.outlook.com (mail-eopbgr730110.outbound.protection.outlook.com. [40.107.73.110])
+        by mx.google.com with ESMTPS id v17-v6si7032163pgk.178.2018.08.30.08.54.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 30 Aug 2018 08:50:21 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 30 Aug 2018 08:54:37 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Subject: Re: [PATCH RFCv2 0/6] mm: online/offline_pages called w.o.
+ mem_hotplug_lock
+Date: Thu, 30 Aug 2018 15:54:30 +0000
+Message-ID: <b9eb96e7-3846-1aaa-d257-895ca142b1ef@microsoft.com>
+References: <20180821104418.12710-1-david@redhat.com>
+ <37ea507e-b16d-ae8d-4da8-128b621869f2@redhat.com>
+In-Reply-To: <37ea507e-b16d-ae8d-4da8-128b621869f2@redhat.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <C3DB3B11124F444D8932C0F350E2E1D9@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-References: <20180830143904.3168-1-yu-cheng.yu@intel.com> <20180830143904.3168-13-yu-cheng.yu@intel.com>
-In-Reply-To: <20180830143904.3168-13-yu-cheng.yu@intel.com>
-From: Jann Horn <jannh@google.com>
-Date: Thu, 30 Aug 2018 17:49:53 +0200
-Message-ID: <CAG48ez0Rca0XsdXJZ07c+iGPyep0Gpxw+sxQuACP5gyPaBgDKA@mail.gmail.com>
-Subject: Re: [RFC PATCH v3 12/24] x86/mm: Modify ptep_set_wrprotect and
- pmdp_set_wrprotect for _PAGE_DIRTY_SW
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yu-cheng.yu@intel.com
-Cc: the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, hjl.tools@gmail.com, Jonathan Corbet <corbet@lwn.net>, keescook@chromiun.org, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, ravi.v.shankar@intel.com, vedvyas.shanbhogue@intel.com
+To: David Hildenbrand <david@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Haiyang Zhang <haiyangz@microsoft.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, John Allen <jallen@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, KY Srinivasan <kys@microsoft.com>, Len Brown <lenb@kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Mathieu Malaterre <malat@debian.org>, Michael Ellerman <mpe@ellerman.id.au>, Michael Neuling <mikey@neuling.org>, Michal Hocko <mhocko@suse.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Oscar Salvador <osalvador@suse.de>, Paul Mackerras <paulus@samba.org>, Philippe Ombredanne <pombredanne@nexb.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Rashmica Gupta <rashmica.g@gmail.com>, Stephen Hemminger <sthemmin@microsoft.com>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
 
-On Thu, Aug 30, 2018 at 4:43 PM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
->
-> When Shadow Stack is enabled, the read-only and PAGE_DIRTY_HW PTE
-> setting is reserved only for the Shadow Stack.  To track dirty of
-> non-Shadow Stack read-only PTEs, we use PAGE_DIRTY_SW.
->
-> Update ptep_set_wrprotect() and pmdp_set_wrprotect().
->
-> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> ---
->  arch/x86/include/asm/pgtable.h | 42 ++++++++++++++++++++++++++++++++++
->  1 file changed, 42 insertions(+)
->
-> diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-> index 4d50de77ea96..556ef258eeff 100644
-> --- a/arch/x86/include/asm/pgtable.h
-> +++ b/arch/x86/include/asm/pgtable.h
-> @@ -1203,7 +1203,28 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
->  static inline void ptep_set_wrprotect(struct mm_struct *mm,
->                                       unsigned long addr, pte_t *ptep)
->  {
-> +       pte_t pte;
-> +
->         clear_bit(_PAGE_BIT_RW, (unsigned long *)&ptep->pte);
-> +       pte = *ptep;
-> +
-> +       /*
-> +        * Some processors can start a write, but ending up seeing
-> +        * a read-only PTE by the time they get to the Dirty bit.
-> +        * In this case, they will set the Dirty bit, leaving a
-> +        * read-only, Dirty PTE which looks like a Shadow Stack PTE.
-> +        *
-> +        * However, this behavior has been improved and will not occur
-> +        * on processors supporting Shadow Stacks.  Without this
-> +        * guarantee, a transition to a non-present PTE and flush the
-> +        * TLB would be needed.
-> +        *
-> +        * When change a writable PTE to read-only and if the PTE has
-> +        * _PAGE_DIRTY_HW set, we move that bit to _PAGE_DIRTY_SW so
-> +        * that the PTE is not a valid Shadow Stack PTE.
-> +        */
-> +       pte = pte_move_flags(pte, _PAGE_DIRTY_HW, _PAGE_DIRTY_SW);
-> +       set_pte_at(mm, addr, ptep, pte);
->  }
-
-I don't understand why it's okay that you first atomically clear the
-RW bit, then atomically switch from DIRTY_HW to DIRTY_SW. Doesn't that
-mean that between the two atomic writes, another core can incorrectly
-see a shadow stack?
+DQoNCk9uIDgvMzAvMTggODozMSBBTSwgRGF2aWQgSGlsZGVuYnJhbmQgd3JvdGU6DQo+IE9uIDIx
+LjA4LjIwMTggMTI6NDQsIERhdmlkIEhpbGRlbmJyYW5kIHdyb3RlOg0KPj4gVGhpcyBpcyB0aGUg
+c2FtZSBhcHByb2FjaCBhcyBpbiB0aGUgZmlyc3QgUkZDLCBidXQgdGhpcyB0aW1lIHdpdGhvdXQN
+Cj4+IGV4cG9ydGluZyBkZXZpY2VfaG90cGx1Z19sb2NrIChyZXF1ZXN0ZWQgYnkgR3JlZykgYW5k
+IHdpdGggc29tZSBtb3JlDQo+PiBkZXRhaWxzIGFuZCBkb2N1bWVudGF0aW9uIHJlZ2FyZGluZyBs
+b2NraW5nLiBUZXN0ZWQgb25seSBvbiB4ODYgc28gZmFyLg0KPj4NCj4gDQo+IEknbGwgYmUgb24g
+dmFjYXRpb24gZm9yIHR3byB3ZWVrcyBzdGFydGluZyBvbiBTYXR1cmRheS4gSWYgdGhlcmUgYXJl
+IG5vDQo+IGNvbW1lbnRzIEknbGwgc2VuZCB0aGlzIGFzICFSRkMgb25jZSBJIHJldHVybi4NCj4N
+CkkgYW0gc3R1ZHlpbmcgdGhpcyBzZXJpZXMsIHdpbGwgc2VuZCBteSBjb21tZW50cyBsYXRlciB0
+b2RheS4NCg0KUGF2ZWw=
