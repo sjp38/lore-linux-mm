@@ -1,150 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3337A6B4E6E
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 20:13:58 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id x19-v6so3699883pfh.15
-        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 17:13:58 -0700 (PDT)
-Received: from smtprelay.synopsys.com (smtprelay.synopsys.com. [198.182.60.111])
-        by mx.google.com with ESMTPS id b8-v6si4874546pls.392.2018.08.29.17.13.56
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 09A636B4E87
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2018 20:40:25 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id a15-v6so6291464qtj.15
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2018 17:40:25 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id 32-v6si5195016qth.354.2018.08.29.17.40.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Aug 2018 17:13:56 -0700 (PDT)
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Subject: Re: [PATCH 3/4] mm/tlb, x86/mm: Support invalidating TLB caches for
- RCU_TABLE_FREE
-Date: Thu, 30 Aug 2018 00:13:50 +0000
-Message-ID: <C2D7FE5348E1B147BCA15975FBA23075012B090CA3@us01wembx1.internal.synopsys.com>
-References: <20180823134525.5f12b0d3@roar.ozlabs.ibm.com>
- <CA+55aFxneZTFxxxAjLZmj92VUJg6z7hERxJ2cHoth-GC0RuELw@mail.gmail.com>
- <776104d4c8e4fc680004d69e3a4c2594b638b6d1.camel@au1.ibm.com>
- <CA+55aFzM77G9-Q6LboPLJ=5gHma66ZQKiMGCMqXoKABirdF98w@mail.gmail.com>
- <20180823133958.GA1496@brain-police>
- <20180824084717.GK24124@hirez.programming.kicks-ass.net>
- <20180824113214.GK24142@hirez.programming.kicks-ass.net>
- <20180824113953.GL24142@hirez.programming.kicks-ass.net>
- <20180827150008.13bce08f@roar.ozlabs.ibm.com>
- <20180827074701.GW24124@hirez.programming.kicks-ass.net>
- <20180827110017.GO24142@hirez.programming.kicks-ass.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Wed, 29 Aug 2018 17:40:23 -0700 (PDT)
+Subject: Re: [PATCH v6 1/2] mm: migration: fix migration of huge PMD shared
+ pages
+References: <20180823205917.16297-1-mike.kravetz@oracle.com>
+ <20180823205917.16297-2-mike.kravetz@oracle.com>
+ <20180824084157.GD29735@dhcp22.suse.cz>
+ <6063f215-a5c8-2f0c-465a-2c515ddc952d@oracle.com>
+ <20180827074645.GB21556@dhcp22.suse.cz> <20180827134633.GB3930@redhat.com>
+ <9209043d-3240-105b-72a3-b4cd30f1b1f1@oracle.com>
+ <20180829181424.GB3784@redhat.com> <20180829183906.GF10223@dhcp22.suse.cz>
+ <20180829211106.GC3784@redhat.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <8689d0ba-1303-9765-4cae-ad24d2a1435b@oracle.com>
+Date: Wed, 29 Aug 2018 17:40:13 -0700
 MIME-Version: 1.0
+In-Reply-To: <20180829211106.GC3784@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, Nicholas Piggin <npiggin@gmail.com>
-Cc: Will Deacon <will.deacon@arm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Benjamin Herrenschmidt <benh@au1.ibm.com>, Andrew Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@surriel.com>, Jann Horn <jannh@google.com>, Adin Scannell <ascannell@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel
- Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, "jejb@parisc-linux.org" <jejb@parisc-linux.org>
+To: Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-rdma@vger.kernel.org, Matan Barak <matanb@mellanox.com>, Leon Romanovsky <leonro@mellanox.com>, Dimitri Sivanich <sivanich@sgi.com>
 
-On 08/27/2018 04:00 AM, Peter Zijlstra wrote:=0A=
->=0A=
-> The one obvious thing SH and ARM want is a sensible default for=0A=
-> tlb_start_vma(). (also: https://lkml.org/lkml/2004/1/15/6 )=0A=
->=0A=
-> The below make tlb_start_vma() default to flush_cache_range(), which=0A=
-> should be right and sufficient. The only exceptions that I found where=0A=
-> (oddly):=0A=
->=0A=
->   - m68k-mmu=0A=
->   - sparc64=0A=
->   - unicore=0A=
->=0A=
-> Those architectures appear to have a non-NOP flush_cache_range(), but=0A=
-> their current tlb_start_vma() does not call it.=0A=
-=0A=
-So indeed we follow the DaveM's insight from 2004 about tlb_{start,end}_vma=
-() and=0A=
-those are No-ops for ARC for the general case. For the historic VIPT aliasi=
-ng=0A=
-dcache they are what they should be per 2004 link above - I presume that is=
- all=0A=
-hunky dory with you ?=0A=
-=0A=
-> Furthermore, I think tlb_flush() is broken on arc and parisc; in=0A=
-> particular they don't appear to have any TLB invalidate for the=0A=
-> shift_arg_pages() case, where we do not call tlb_*_vma() and fullmm=3D0.=
-=0A=
-=0A=
-Care to explain this issue a bit more ?=0A=
-And that is independent of the current discussion.=0A=
-=0A=
-> Possibly shift_arg_pages() should be fixed instead.=0A=
->=0A=
-> Some archs (nds32,sparc32) avoid this by having an unconditional=0A=
-> flush_tlb_mm() in tlb_flush(), which seems somewhat suboptimal if you=0A=
-> have flush_tlb_range().  TLB_FLUSH_VMA() might be an option, however=0A=
-> hideous it is.=0A=
->=0A=
-> ---=0A=
->=0A=
-> diff --git a/arch/arc/include/asm/tlb.h b/arch/arc/include/asm/tlb.h=0A=
-> index a9db5f62aaf3..7af2b373ebe7 100644=0A=
-> --- a/arch/arc/include/asm/tlb.h=0A=
-> +++ b/arch/arc/include/asm/tlb.h=0A=
-> @@ -23,15 +23,6 @@ do {						\=0A=
->   *=0A=
->   * Note, read http://lkml.org/lkml/2004/1/15/6=0A=
->   */=0A=
-> -#ifndef CONFIG_ARC_CACHE_VIPT_ALIASING=0A=
-> -#define tlb_start_vma(tlb, vma)=0A=
-> -#else=0A=
-> -#define tlb_start_vma(tlb, vma)						\=0A=
-> -do {									\=0A=
-> -	if (!tlb->fullmm)						\=0A=
-> -		flush_cache_range(vma, vma->vm_start, vma->vm_end);	\=0A=
-> -} while(0)=0A=
-> -#endif=0A=
->  =0A=
->  #define tlb_end_vma(tlb, vma)						\=0A=
->  do {									\=0A=
-=0A=
-[snip..]=0A=
-=0A=
-> 				      \=0A=
-> diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h=0A=
-> index e811ef7b8350..1d037fd5bb7a 100644=0A=
-> --- a/include/asm-generic/tlb.h=0A=
-> +++ b/include/asm-generic/tlb.h=0A=
-> @@ -181,19 +181,21 @@ static inline void tlb_remove_check_page_size_chang=
-e(struct mmu_gather *tlb,=0A=
->   * the vmas are adjusted to only cover the region to be torn down.=0A=
->   */=0A=
->  #ifndef tlb_start_vma=0A=
-> -#define tlb_start_vma(tlb, vma) do { } while (0)=0A=
-> +#define tlb_start_vma(tlb, vma)						\=0A=
-> +do {									\=0A=
-> +	if (!tlb->fullmm)						\=0A=
-> +		flush_cache_range(vma, vma->vm_start, vma->vm_end);	\=0A=
-> +} while (0)=0A=
->  #endif=0A=
-=0A=
-So for non aliasing arches to be not affected, this relies on flush_cache_r=
-ange()=0A=
-to be no-op ?=0A=
-=0A=
-> -#define __tlb_end_vma(tlb, vma)					\=0A=
-> -	do {							\=0A=
-> -		if (!tlb->fullmm && tlb->end) {			\=0A=
-> -			tlb_flush(tlb);				\=0A=
-> -			__tlb_reset_range(tlb);			\=0A=
-> -		}						\=0A=
-> -	} while (0)=0A=
-> -=0A=
->  #ifndef tlb_end_vma=0A=
-> -#define tlb_end_vma	__tlb_end_vma=0A=
-> +#define tlb_end_vma(tlb, vma)						\=0A=
-> +	do {								\=0A=
-> +		if (!tlb->fullmm && tlb->end) {				\=0A=
-> +			tlb_flush(tlb);					\=0A=
-> +			__tlb_reset_range(tlb);				\=0A=
-> +		}							\=0A=
-> +	} while (0)=0A=
->  #endif=0A=
->  =0A=
->  #ifndef __tlb_remove_tlb_entry=0A=
-=0A=
-And this one is for shift_arg_pages() but will also cause extraneous flushe=
-s for=0A=
-other cases - not happening currently !=0A=
-=0A=
--Vineet=0A=
-=0A=
+On 08/29/2018 02:11 PM, Jerome Glisse wrote:
+> On Wed, Aug 29, 2018 at 08:39:06PM +0200, Michal Hocko wrote:
+>> On Wed 29-08-18 14:14:25, Jerome Glisse wrote:
+>>> On Wed, Aug 29, 2018 at 10:24:44AM -0700, Mike Kravetz wrote:
+>> [...]
+>>>> What would be the best mmu notifier interface to use where there are no
+>>>> start/end calls?
+>>>> Or, is the best solution to add the start/end calls as is done in later
+>>>> versions of the code?  If that is the suggestion, has there been any change
+>>>> in invalidate start/end semantics that we should take into account?
+>>>
+>>> start/end would be the one to add, 4.4 seems broken in respect to THP
+>>> and mmu notification. Another solution is to fix user of mmu notifier,
+>>> they were only a handful back then. For instance properly adjust the
+>>> address to match first address covered by pmd or pud and passing down
+>>> correct page size to mmu_notifier_invalidate_page() would allow to fix
+>>> this easily.
+>>>
+>>> This is ok because user of try_to_unmap_one() replace the pte/pmd/pud
+>>> with an invalid one (either poison, migration or swap) inside the
+>>> function. So anyone racing would synchronize on those special entry
+>>> hence why it is fine to delay mmu_notifier_invalidate_page() to after
+>>> dropping the page table lock.
+>>>
+>>> Adding start/end might the solution with less code churn as you would
+>>> only need to change try_to_unmap_one().
+>>
+>> What about dependencies? 369ea8242c0fb sounds like it needs work for all
+>> notifiers need to be updated as well.
+> 
+> This commit remove mmu_notifier_invalidate_page() hence why everything
+> need to be updated. But in 4.4 you can get away with just adding start/
+> end and keep around mmu_notifier_invalidate_page() to minimize disruption.
+> 
+> So the new semantic in 369ea8242c0fb is that all page table changes are
+> bracketed with mmu notifier start/end calls and invalidate_range right
+> after tlb flush. This simplify thing and make it more reliable for mmu
+> notifier users like IOMMU or ODP or GPUs drivers.
+
+Here is what I came up with by adding the start/end calls to the 4.4 version
+of try_to_unmap_one.  Note that this assumes/uses the new routine
+adjust_range_if_pmd_sharing_possible to adjust the notifier/flush range if
+huge pmd sharing is possible.  I changed the mmu_notifier_invalidate_page
+to a mmu_notifier_invalidate_range, but am not sure if that needs to happen
+earlier in the routine (like right after tlb flush as you said above).
+Does this look reasonable?
+
+diff --git a/mm/rmap.c b/mm/rmap.c
+index b577fbb98d4b..7ba8bfeddb4b 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1302,11 +1302,30 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 	pte_t pteval;
+ 	spinlock_t *ptl;
+ 	int ret = SWAP_AGAIN;
++	unsigned long start = address, end;
+ 	enum ttu_flags flags = (enum ttu_flags)arg;
+ 
+ 	/* munlock has nothing to gain from examining un-locked vmas */
+ 	if ((flags & TTU_MUNLOCK) && !(vma->vm_flags & VM_LOCKED))
+-		goto out;
++		return ret;
++
++	/*
++	 * For THP, we have to assume the worse case ie pmd for invalidation.
++	 * For hugetlb, it could be much worse if we need to do pud
++	 * invalidation in the case of pmd sharing.
++	 *
++	 * Note that the page can not be free in this function as call of
++	 * try_to_unmap() must hold a reference on the page.
++	 */
++	end = min(vma->vm_end, start + (PAGE_SIZE << compound_order(page)));
++	if (PageHuge(page)) {
++		/*
++		 * If sharing is possible, start and end will be adjusted
++		 * accordingly.
++		 */
++		adjust_range_if_pmd_sharing_possible(vma, &start, &end);
++	}
++	mmu_notifier_invalidate_range_start(vma->vm_mm, start, end);
+ 
+ 	pte = page_check_address(page, mm, address, &ptl, 0);
+ 	if (!pte)
+@@ -1334,6 +1353,29 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 		}
+   	}
+ 
++	if (PageHuge(page) && huge_pmd_unshare(mm, &address, pte)) {
++		/*
++		 * huge_pmd_unshare unmapped an entire PMD page.  There is
++		 * no way of knowing exactly which PMDs may be cached for
++		 * this mm, so flush them all.  start/end were already
++		 * adjusted to cover this range.
++		 */
++		flush_cache_range(vma, start, end);
++		flush_tlb_range(vma, start, end);
++
++		/*
++		 * The ref count of the PMD page was dropped which is part
++		 * of the way map counting is done for shared PMDs.  When
++		 * there is no other sharing, huge_pmd_unshare returns false
++		 * and we will unmap the actual page and drop map count
++		 * to zero.
++		 *
++		 * Note that huge_pmd_unshare modified address and is likely
++		 * not what you would expect.
++		 */
++		goto out_unmap;
++	}
++
+ 	/* Nuke the page table entry. */
+ 	flush_cache_page(vma, address, page_to_pfn(page));
+ 	if (should_defer_flush(mm, flags)) {
+@@ -1424,10 +1466,11 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 	page_cache_release(page);
+ 
+ out_unmap:
+-	pte_unmap_unlock(pte, ptl);
+ 	if (ret != SWAP_FAIL && ret != SWAP_MLOCK && !(flags & TTU_MUNLOCK))
+-		mmu_notifier_invalidate_page(mm, address);
++		mmu_notifier_invalidate_range(mm, start, end);
++	pte_unmap_unlock(pte, ptl);
+ out:
++	mmu_notifier_invalidate_range_end(vma->vm_mm, start, end);
+ 	return ret;
+ }
+ 
+-- 
+Mike Kravetz
