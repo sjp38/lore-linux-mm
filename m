@@ -1,101 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 579006B5133
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 11:58:22 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id o18-v6so8516987qtm.11
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 08:58:22 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id p13-v6si6971070qtj.126.2018.08.30.08.58.21
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B90B76B5143
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 12:06:20 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id 90-v6so4138779pla.18
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 09:06:20 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id b2-v6si7264778plm.202.2018.08.30.09.06.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Aug 2018 08:58:21 -0700 (PDT)
-Date: Thu, 30 Aug 2018 11:58:19 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: A crash on ARM64 in move_freepages_block due to uninitialized
- pages in reserved memory
-In-Reply-To: <541193a6-2bce-f042-5bb2-88913d5f1047@arm.com>
-Message-ID: <alpine.LRH.2.02.1808301148260.18300@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1808171527220.2385@file01.intranet.prod.int.rdu2.redhat.com> <20180821104418.GA16611@dhcp22.suse.cz> <e35b7c14-c7ea-412d-2763-c961b74576f3@arm.com> <alpine.LRH.2.02.1808220808050.17906@file01.intranet.prod.int.rdu2.redhat.com>
- <c823eace-8710-9bf5-6e76-d01b139c0859@arm.com> <20180824114158.GJ29735@dhcp22.suse.cz> <541193a6-2bce-f042-5bb2-88913d5f1047@arm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Thu, 30 Aug 2018 09:06:19 -0700 (PDT)
+Message-ID: <1535644924.26689.7.camel@intel.com>
+Subject: Re: [RFC PATCH v3 12/24] x86/mm: Modify ptep_set_wrprotect and
+ pmdp_set_wrprotect for _PAGE_DIRTY_SW
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Date: Thu, 30 Aug 2018 09:02:04 -0700
+In-Reply-To: <CAG48ez0Rca0XsdXJZ07c+iGPyep0Gpxw+sxQuACP5gyPaBgDKA@mail.gmail.com>
+References: <20180830143904.3168-1-yu-cheng.yu@intel.com>
+	 <20180830143904.3168-13-yu-cheng.yu@intel.com>
+	 <CAG48ez0Rca0XsdXJZ07c+iGPyep0Gpxw+sxQuACP5gyPaBgDKA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Pavel Tatashin <Pavel.Tatashin@microsoft.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
+To: Jann Horn <jannh@google.com>
+Cc: the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, hjl.tools@gmail.com, Jonathan Corbet <corbet@lwn.net>, keescook@chromiun.org, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, ravi.v.shankar@intel.com, vedvyas.shanbhogue@intel.com
 
+On Thu, 2018-08-30 at 17:49 +0200, Jann Horn wrote:
+> On Thu, Aug 30, 2018 at 4:43 PM Yu-cheng Yu <yu-cheng.yu@intel.com>
+> wrote:
+> > 
+> > 
+> > When Shadow Stack is enabled, the read-only and PAGE_DIRTY_HW PTE
+> > setting is reserved only for the Shadow Stack.A A To track dirty of
+> > non-Shadow Stack read-only PTEs, we use PAGE_DIRTY_SW.
+> > 
+> > Update ptep_set_wrprotect() and pmdp_set_wrprotect().
+> > 
+> > Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+> > ---
+> > A arch/x86/include/asm/pgtable.h | 42
+> > ++++++++++++++++++++++++++++++++++
+> > A 1 file changed, 42 insertions(+)
+> > 
+> > diff --git a/arch/x86/include/asm/pgtable.h
+> > b/arch/x86/include/asm/pgtable.h
+> > index 4d50de77ea96..556ef258eeff 100644
+> > --- a/arch/x86/include/asm/pgtable.h
+> > +++ b/arch/x86/include/asm/pgtable.h
+> > @@ -1203,7 +1203,28 @@ static inline pte_t
+> > ptep_get_and_clear_full(struct mm_struct *mm,
+> > A static inline void ptep_set_wrprotect(struct mm_struct *mm,
+> > A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A unsigned long addr, pte_t
+> > *ptep)
+> > A {
+> > +A A A A A A A pte_t pte;
+> > +
+> > A A A A A A A A clear_bit(_PAGE_BIT_RW, (unsigned long *)&ptep->pte);
+> > +A A A A A A A pte = *ptep;
+> > +
+> > +A A A A A A A /*
+> > +A A A A A A A A * Some processors can start a write, but ending up seeing
+> > +A A A A A A A A * a read-only PTE by the time they get to the Dirty bit.
+> > +A A A A A A A A * In this case, they will set the Dirty bit, leaving a
+> > +A A A A A A A A * read-only, Dirty PTE which looks like a Shadow Stack
+> > PTE.
+> > +A A A A A A A A *
+> > +A A A A A A A A * However, this behavior has been improved and will not
+> > occur
+> > +A A A A A A A A * on processors supporting Shadow Stacks.A A Without this
+> > +A A A A A A A A * guarantee, a transition to a non-present PTE and flush
+> > the
+> > +A A A A A A A A * TLB would be needed.
+> > +A A A A A A A A *
+> > +A A A A A A A A * When change a writable PTE to read-only and if the PTE
+> > has
+> > +A A A A A A A A * _PAGE_DIRTY_HW set, we move that bit to _PAGE_DIRTY_SW
+> > so
+> > +A A A A A A A A * that the PTE is not a valid Shadow Stack PTE.
+> > +A A A A A A A A */
+> > +A A A A A A A pte = pte_move_flags(pte, _PAGE_DIRTY_HW, _PAGE_DIRTY_SW);
+> > +A A A A A A A set_pte_at(mm, addr, ptep, pte);
+> > A }
+> I don't understand why it's okay that you first atomically clear the
+> RW bit, then atomically switch from DIRTY_HW to DIRTY_SW. Doesn't
+> that
+> mean that between the two atomic writes, another core can
+> incorrectly
+> see a shadow stack?
 
+Yes, we had that concern earlier and checked.
+On processors supporting Shadow Stacks, that will not happen.
 
-On Wed, 29 Aug 2018, James Morse wrote:
-
-> Hi Michal,
-> 
-> (CC: +Ard)
-> 
-> On 24/08/18 12:41, Michal Hocko wrote:
-> > On Thu 23-08-18 15:06:08, James Morse wrote:
-> > [...]
-> >> My best-guess is that pfn_valid_within() shouldn't be optimised out if
-> > ARCH_HAS_HOLES_MEMORYMODEL, even if HOLES_IN_ZONE isn't set.
-> >>
-> >> Does something like this solve the problem?:
-> >> ============================%<============================
-> >> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> >> index 32699b2dc52a..5e27095a15f4 100644
-> >> --- a/include/linux/mmzone.h
-> >> +++ b/include/linux/mmzone.h
-> >> @@ -1295,7 +1295,7 @@ void memory_present(int nid, unsigned long start, unsigned
-> >> long end);
-> >>   * pfn_valid_within() should be used in this case; we optimise this away
-> >>   * when we have no holes within a MAX_ORDER_NR_PAGES block.
-> >>   */
-> >> -#ifdef CONFIG_HOLES_IN_ZONE
-> >> +#if defined(CONFIG_HOLES_IN_ZONE) || defined(CONFIG_ARCH_HAS_HOLES_MEMORYMODEL)
-> >>  #define pfn_valid_within(pfn) pfn_valid(pfn)
-> >>  #else
-> >>  #define pfn_valid_within(pfn) (1)
-> >> ============================%<============================
-> 
-> After plenty of greping, git-archaeology and help from others, I think I've a
-> clearer picture of what these options do.
-> 
-> 
-> Please correct me if I've explained something wrong here:
-> 
-> > This is the first time I hear about CONFIG_ARCH_HAS_HOLES_MEMORYMODEL.
-> 
-> The comment in include/linux/mmzone.h describes this as relevant when parts the
-> memmap have been free()d. This would happen on systems where memory is smaller
-> than a sparsemem-section, and the extra struct pages are expensive.
-> pfn_valid() on these systems returns true for the whole sparsemem-section, so an
-> extra memmap_valid_within() check is needed.
-> 
-> This is independent of nomap, and isn't relevant on arm64 as our pfn_valid()
-> always tests the page in memblock due to nomap pages, which can occur anywhere.
-> (I will propose a patch removing ARCH_HAS_HOLES_MEMORYMODEL for arm64.)
-> 
-> 
-> HOLES_IN_ZONE is similar, if some memory is smaller than MAX_ORDER_NR_PAGES,
-> possibly due to nomap holes.
-> 
-> 6d526ee26ccd only enabled it for NUMA systems on arm64, because the NUMA code
-> was first to fall foul of this, but there is nothing NUMA specific about nomap
-> holes within a MAX_ORDER_NR_PAGES region.
-> 
-> I'm convinced arm64 should always enable HOLES_IN_ZONE because nomap pages can
-> occur anywhere. I'll post a fix.
-
-But x86 had the same bug -
-https://bugzilla.redhat.com/show_bug.cgi?id=1598462
-
-And x86 fixed it without enabling HOLES_IN_ZONE. On x86, the BIOS can also 
-reserve any memory range - so you can have arbitrary holes there that are 
-not predictable when the kernel is compiled.
-
-Currently HOLES_IN_ZONE is selected only for ia64, mips/octeon - so does 
-it mean that all the other architectures don't have holes in the memory 
-map?
-
-What should be architecture-independent way how to handle the holes?
-
-Mikulas
+Yu-cheng
