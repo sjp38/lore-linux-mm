@@ -1,196 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AE4146B525D
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 10:45:47 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id b6-v6so4051892pls.16
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 07:45:47 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id c15-v6si6092534plo.232.2018.08.30.07.43.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Aug 2018 07:43:45 -0700 (PDT)
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [RFC PATCH v3 24/24] x86/cet/shstk: Add Shadow Stack instructions to opcode map
-Date: Thu, 30 Aug 2018 07:39:04 -0700
-Message-Id: <20180830143904.3168-25-yu-cheng.yu@intel.com>
-In-Reply-To: <20180830143904.3168-1-yu-cheng.yu@intel.com>
-References: <20180830143904.3168-1-yu-cheng.yu@intel.com>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 944866B5274
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 11:05:47 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id w185-v6so7734429oig.19
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 08:05:47 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id i7-v6si5066299oib.262.2018.08.30.08.05.45
+        for <linux-mm@kvack.org>;
+        Thu, 30 Aug 2018 08:05:45 -0700 (PDT)
+From: James Morse <james.morse@arm.com>
+Subject: [PATCH] arm64: mm: always enable CONFIG_HOLES_IN_ZONE
+Date: Thu, 30 Aug 2018 16:05:32 +0100
+Message-Id: <20180830150532.22745-1-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
-Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
+To: linux-arm-kernel@lists.infradead.org
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Pavel Tatashin <Pavel.Tatashin@microsoft.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, James Morse <james.morse@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-Add the following shadow stack management instructions.
+Commit 6d526ee26ccd ("arm64: mm: enable CONFIG_HOLES_IN_ZONE for NUMA")
+only enabled HOLES_IN_ZONE for NUMA systems because the NUMA code was
+choking on the missing zone for nomap pages. This problem doesn't just
+apply to NUMA systems.
 
-INCSSP:
-    Increment shadow stack pointer by the steps specified.
+If the architecture doesn't set HAVE_ARCH_PFN_VALID, pfn_valid() will
+return true if the pfn is part of a valid sparsemem section.
 
-RDSSP:
-    Read SSP register into a GPR.
+When working with multiple pages, the mm code uses pfn_valid_within()
+to test each page it uses within the sparsemem section is valid. On
+most systems memory comes in MAX_ORDER_NR_PAGES chunks which all
+have valid/initialised struct pages. In this case pfn_valid_within()
+is optimised out.
 
-SAVEPREVSSP:
-    Use "prev ssp" token at top of current shadow stack to
-    create a "restore token" on previous shadow stack.
+Systems where this isn't true (e.g. due to nomap) should set
+HOLES_IN_ZONE and provide HAVE_ARCH_PFN_VALID so that mm tests each
+page as it works with it.
 
-RSTORSSP:
-    Restore from a "restore token" pointed by a GPR to SSP.
+Currently non-NUMA arm64 systems can't enable HOLES_IN_ZONE, leading to
+VM_BUG_ON():
+| page:fffffdff802e1780 is uninitialized and poisoned
+| raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff ffffffffffffffff
+| raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff ffffffffffffffff
+| page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
+| ------------[ cut here ]------------
+| kernel BUG at include/linux/mm.h:978!
+| Internal error: Oops - BUG: 0 [#1] PREEMPT SMP
+[...]
+| CPU: 1 PID: 25236 Comm: dd Not tainted 4.18.0 #7
+| Hardware name: QEMU KVM Virtual Machine, BIOS 0.0.0 02/06/2015
+| pstate: 40000085 (nZcv daIf -PAN -UAO)
+| pc : move_freepages_block+0x144/0x248
+| lr : move_freepages_block+0x144/0x248
+| sp : fffffe0071177680
+[...]
+| Process dd (pid: 25236, stack limit = 0x0000000094cc07fb)
+| Call trace:
+|  move_freepages_block+0x144/0x248
+|  steal_suitable_fallback+0x100/0x16c
+|  get_page_from_freelist+0x440/0xb20
+|  __alloc_pages_nodemask+0xe8/0x838
+|  new_slab+0xd4/0x418
+|  ___slab_alloc.constprop.27+0x380/0x4a8
+|  __slab_alloc.isra.21.constprop.26+0x24/0x34
+|  kmem_cache_alloc+0xa8/0x180
+|  alloc_buffer_head+0x1c/0x90
+|  alloc_page_buffers+0x68/0xb0
+|  create_empty_buffers+0x20/0x1ec
+|  create_page_buffers+0xb0/0xf0
+|  __block_write_begin_int+0xc4/0x564
+|  __block_write_begin+0x10/0x18
+|  block_write_begin+0x48/0xd0
+|  blkdev_write_begin+0x28/0x30
+|  generic_perform_write+0x98/0x16c
+|  __generic_file_write_iter+0x138/0x168
+|  blkdev_write_iter+0x80/0xf0
+|  __vfs_write+0xe4/0x10c
+|  vfs_write+0xb4/0x168
+|  ksys_write+0x44/0x88
+|  sys_write+0xc/0x14
+|  el0_svc_naked+0x30/0x34
+| Code: aa1303e0 90001a01 91296421 94008902 (d4210000)
+| ---[ end trace 1601ba47f6e883fe ]---
 
-WRSS:
-    Write to kernel-mode shadow stack (kernel-mode instruction).
+Remove the NUMA dependency.
 
-WRUSS:
-    Write to user-mode shadow stack (kernel-mode instruction).
-
-SETSSBSY:
-    Verify the "supervisor token" pointed by IA32_PL0_SSP MSR,
-    if valid, set the token to busy, and set SSP to the value
-    of IA32_PL0_SSP MSR.
-
-CLRSSBSY:
-    Verify the "supervisor token" pointed by a GPR, if valid,
-    clear the busy bit from the token.
-
-Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Reported-by: Mikulas Patocka <mpatocka@redhat.com>
+Link: https://www.spinics.net/lists/arm-kernel/msg671851.html
+Fixes: 6d526ee26ccd ("arm64: mm: enable CONFIG_HOLES_IN_ZONE for NUMA")
+CC: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Signed-off-by: James Morse <james.morse@arm.com>
 ---
- arch/x86/lib/x86-opcode-map.txt               | 26 +++++++++++++------
- tools/objtool/arch/x86/lib/x86-opcode-map.txt | 26 +++++++++++++------
- 2 files changed, 36 insertions(+), 16 deletions(-)
+ arch/arm64/Kconfig | 1 -
+ 1 file changed, 1 deletion(-)
 
-diff --git a/arch/x86/lib/x86-opcode-map.txt b/arch/x86/lib/x86-opcode-map.txt
-index e0b85930dd77..c5e825d44766 100644
---- a/arch/x86/lib/x86-opcode-map.txt
-+++ b/arch/x86/lib/x86-opcode-map.txt
-@@ -366,7 +366,7 @@ AVXcode: 1
- 1b: BNDCN Gv,Ev (F2) | BNDMOV Ev,Gv (66) | BNDMK Gv,Ev (F3) | BNDSTX Ev,Gv
- 1c:
- 1d:
--1e:
-+1e: RDSSP Rd (F3),REX.W
- 1f: NOP Ev
- # 0x0f 0x20-0x2f
- 20: MOV Rd,Cd
-@@ -610,7 +610,17 @@ fe: paddd Pq,Qq | vpaddd Vx,Hx,Wx (66),(v1)
- ff: UD0
- EndTable
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 29e75b47becd..1b1a0e95c751 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -763,7 +763,6 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
  
--Table: 3-byte opcode 1 (0x0f 0x38)
-+Table: 3-byte opcode 1 (0x0f 0x01)
-+Referrer:
-+AVXcode:
-+# Skip 0x00-0xe7
-+e8: SETSSBSY (f3)
-+e9:
-+ea: SAVEPREVSSP (f3)
-+# Skip 0xeb-0xff
-+EndTable
-+
-+Table: 3-byte opcode 2 (0x0f 0x38)
- Referrer: 3-byte escape 1
- AVXcode: 2
- # 0x0f 0x38 0x00-0x0f
-@@ -789,12 +799,12 @@ f0: MOVBE Gy,My | MOVBE Gw,Mw (66) | CRC32 Gd,Eb (F2) | CRC32 Gd,Eb (66&F2)
- f1: MOVBE My,Gy | MOVBE Mw,Gw (66) | CRC32 Gd,Ey (F2) | CRC32 Gd,Ew (66&F2)
- f2: ANDN Gy,By,Ey (v)
- f3: Grp17 (1A)
--f5: BZHI Gy,Ey,By (v) | PEXT Gy,By,Ey (F3),(v) | PDEP Gy,By,Ey (F2),(v)
--f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v)
-+f5: BZHI Gy,Ey,By (v) | PEXT Gy,By,Ey (F3),(v) | PDEP Gy,By,Ey (F2),(v) | WRUSS Pq,Qq (66),REX.W
-+f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v) | WRSS Pq,Qq (66),REX.W
- f7: BEXTR Gy,Ey,By (v) | SHLX Gy,Ey,By (66),(v) | SARX Gy,Ey,By (F3),(v) | SHRX Gy,Ey,By (F2),(v)
- EndTable
+ config HOLES_IN_ZONE
+ 	def_bool y
+-	depends on NUMA
  
--Table: 3-byte opcode 2 (0x0f 0x3a)
-+Table: 3-byte opcode 3 (0x0f 0x3a)
- Referrer: 3-byte escape 2
- AVXcode: 3
- # 0x0f 0x3a 0x00-0xff
-@@ -948,7 +958,7 @@ GrpTable: Grp7
- 2: LGDT Ms | XGETBV (000),(11B) | XSETBV (001),(11B) | VMFUNC (100),(11B) | XEND (101)(11B) | XTEST (110)(11B)
- 3: LIDT Ms
- 4: SMSW Mw/Rv
--5: rdpkru (110),(11B) | wrpkru (111),(11B)
-+5: rdpkru (110),(11B) | wrpkru (111),(11B) | RSTORSSP Mq (F3)
- 6: LMSW Ew
- 7: INVLPG Mb | SWAPGS (o64),(000),(11B) | RDTSCP (001),(11B)
- EndTable
-@@ -1019,8 +1029,8 @@ GrpTable: Grp15
- 2: vldmxcsr Md (v1) | WRFSBASE Ry (F3),(11B)
- 3: vstmxcsr Md (v1) | WRGSBASE Ry (F3),(11B)
- 4: XSAVE | ptwrite Ey (F3),(11B)
--5: XRSTOR | lfence (11B)
--6: XSAVEOPT | clwb (66) | mfence (11B)
-+5: XRSTOR | lfence (11B) | INCSSP Rd (F3),REX.W
-+6: XSAVEOPT | clwb (66) | mfence (11B) | CLRSSBSY Mq (F3)
- 7: clflush | clflushopt (66) | sfence (11B)
- EndTable
- 
-diff --git a/tools/objtool/arch/x86/lib/x86-opcode-map.txt b/tools/objtool/arch/x86/lib/x86-opcode-map.txt
-index e0b85930dd77..c5e825d44766 100644
---- a/tools/objtool/arch/x86/lib/x86-opcode-map.txt
-+++ b/tools/objtool/arch/x86/lib/x86-opcode-map.txt
-@@ -366,7 +366,7 @@ AVXcode: 1
- 1b: BNDCN Gv,Ev (F2) | BNDMOV Ev,Gv (66) | BNDMK Gv,Ev (F3) | BNDSTX Ev,Gv
- 1c:
- 1d:
--1e:
-+1e: RDSSP Rd (F3),REX.W
- 1f: NOP Ev
- # 0x0f 0x20-0x2f
- 20: MOV Rd,Cd
-@@ -610,7 +610,17 @@ fe: paddd Pq,Qq | vpaddd Vx,Hx,Wx (66),(v1)
- ff: UD0
- EndTable
- 
--Table: 3-byte opcode 1 (0x0f 0x38)
-+Table: 3-byte opcode 1 (0x0f 0x01)
-+Referrer:
-+AVXcode:
-+# Skip 0x00-0xe7
-+e8: SETSSBSY (f3)
-+e9:
-+ea: SAVEPREVSSP (f3)
-+# Skip 0xeb-0xff
-+EndTable
-+
-+Table: 3-byte opcode 2 (0x0f 0x38)
- Referrer: 3-byte escape 1
- AVXcode: 2
- # 0x0f 0x38 0x00-0x0f
-@@ -789,12 +799,12 @@ f0: MOVBE Gy,My | MOVBE Gw,Mw (66) | CRC32 Gd,Eb (F2) | CRC32 Gd,Eb (66&F2)
- f1: MOVBE My,Gy | MOVBE Mw,Gw (66) | CRC32 Gd,Ey (F2) | CRC32 Gd,Ew (66&F2)
- f2: ANDN Gy,By,Ey (v)
- f3: Grp17 (1A)
--f5: BZHI Gy,Ey,By (v) | PEXT Gy,By,Ey (F3),(v) | PDEP Gy,By,Ey (F2),(v)
--f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v)
-+f5: BZHI Gy,Ey,By (v) | PEXT Gy,By,Ey (F3),(v) | PDEP Gy,By,Ey (F2),(v) | WRUSS Pq,Qq (66),REX.W
-+f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v) | WRSS Pq,Qq (66),REX.W
- f7: BEXTR Gy,Ey,By (v) | SHLX Gy,Ey,By (66),(v) | SARX Gy,Ey,By (F3),(v) | SHRX Gy,Ey,By (F2),(v)
- EndTable
- 
--Table: 3-byte opcode 2 (0x0f 0x3a)
-+Table: 3-byte opcode 3 (0x0f 0x3a)
- Referrer: 3-byte escape 2
- AVXcode: 3
- # 0x0f 0x3a 0x00-0xff
-@@ -948,7 +958,7 @@ GrpTable: Grp7
- 2: LGDT Ms | XGETBV (000),(11B) | XSETBV (001),(11B) | VMFUNC (100),(11B) | XEND (101)(11B) | XTEST (110)(11B)
- 3: LIDT Ms
- 4: SMSW Mw/Rv
--5: rdpkru (110),(11B) | wrpkru (111),(11B)
-+5: rdpkru (110),(11B) | wrpkru (111),(11B) | RSTORSSP Mq (F3)
- 6: LMSW Ew
- 7: INVLPG Mb | SWAPGS (o64),(000),(11B) | RDTSCP (001),(11B)
- EndTable
-@@ -1019,8 +1029,8 @@ GrpTable: Grp15
- 2: vldmxcsr Md (v1) | WRFSBASE Ry (F3),(11B)
- 3: vstmxcsr Md (v1) | WRGSBASE Ry (F3),(11B)
- 4: XSAVE | ptwrite Ey (F3),(11B)
--5: XRSTOR | lfence (11B)
--6: XSAVEOPT | clwb (66) | mfence (11B)
-+5: XRSTOR | lfence (11B) | INCSSP Rd (F3),REX.W
-+6: XSAVEOPT | clwb (66) | mfence (11B) | CLRSSBSY Mq (F3)
- 7: clflush | clflushopt (66) | sfence (11B)
- EndTable
+ source kernel/Kconfig.hz
  
 -- 
-2.17.1
+2.18.0
