@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C37B6B525C
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 10:45:37 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id bh1-v6so4060177plb.15
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 07:45:37 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id w13-v6si6403728pll.449.2018.08.30.07.43.46
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AE4146B525D
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 10:45:47 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id b6-v6so4051892pls.16
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 07:45:47 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id c15-v6si6092534plo.232.2018.08.30.07.43.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Aug 2018 07:43:46 -0700 (PDT)
+        Thu, 30 Aug 2018 07:43:45 -0700 (PDT)
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [RFC PATCH v3 22/24] x86/cet/shstk: Handle thread shadow stack
-Date: Thu, 30 Aug 2018 07:39:02 -0700
-Message-Id: <20180830143904.3168-23-yu-cheng.yu@intel.com>
+Subject: [RFC PATCH v3 24/24] x86/cet/shstk: Add Shadow Stack instructions to opcode map
+Date: Thu, 30 Aug 2018 07:39:04 -0700
+Message-Id: <20180830143904.3168-25-yu-cheng.yu@intel.com>
 In-Reply-To: <20180830143904.3168-1-yu-cheng.yu@intel.com>
 References: <20180830143904.3168-1-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,151 +20,177 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
 
-The shadow stack for clone/fork is handled as the following:
+Add the following shadow stack management instructions.
 
-(1) If ((clone_flags & (CLONE_VFORK | CLONE_VM)) == CLONE_VM),
-    the kernel allocates (and frees on thread exit) a new SHSTK
-    for the child.
+INCSSP:
+    Increment shadow stack pointer by the steps specified.
 
-    It is possible for the kernel to complete the clone syscall
-    and set the child's SHSTK pointer to NULL and let the child
-    thread allocate a SHSTK for itself.  There are two issues
-    in this approach: It is not compatible with existing code
-    that does inline syscall and it cannot handle signals before
-    the child can successfully allocate a SHSTK.
+RDSSP:
+    Read SSP register into a GPR.
 
-(2) For (clone_flags & CLONE_VFORK), the child uses the existing
-    SHSTK.
+SAVEPREVSSP:
+    Use "prev ssp" token at top of current shadow stack to
+    create a "restore token" on previous shadow stack.
 
-(3) For all other cases, the SHSTK is copied/reused whenever the
-    parent or the child does a call/ret.
+RSTORSSP:
+    Restore from a "restore token" pointed by a GPR to SSP.
 
-This patch handles cases (1) & (2).  Case (3) is handled in
-the SHSTK page fault patches.
+WRSS:
+    Write to kernel-mode shadow stack (kernel-mode instruction).
+
+WRUSS:
+    Write to user-mode shadow stack (kernel-mode instruction).
+
+SETSSBSY:
+    Verify the "supervisor token" pointed by IA32_PL0_SSP MSR,
+    if valid, set the token to busy, and set SSP to the value
+    of IA32_PL0_SSP MSR.
+
+CLRSSBSY:
+    Verify the "supervisor token" pointed by a GPR, if valid,
+    clear the busy bit from the token.
 
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/include/asm/cet.h         |  2 ++
- arch/x86/include/asm/mmu_context.h |  3 +++
- arch/x86/kernel/cet.c              | 34 ++++++++++++++++++++++++++++++
- arch/x86/kernel/process.c          |  1 +
- arch/x86/kernel/process_64.c       |  7 ++++++
- 5 files changed, 47 insertions(+)
+ arch/x86/lib/x86-opcode-map.txt               | 26 +++++++++++++------
+ tools/objtool/arch/x86/lib/x86-opcode-map.txt | 26 +++++++++++++------
+ 2 files changed, 36 insertions(+), 16 deletions(-)
 
-diff --git a/arch/x86/include/asm/cet.h b/arch/x86/include/asm/cet.h
-index d9ae3d86cdd7..b7b33e1026bb 100644
---- a/arch/x86/include/asm/cet.h
-+++ b/arch/x86/include/asm/cet.h
-@@ -17,12 +17,14 @@ struct cet_status {
+diff --git a/arch/x86/lib/x86-opcode-map.txt b/arch/x86/lib/x86-opcode-map.txt
+index e0b85930dd77..c5e825d44766 100644
+--- a/arch/x86/lib/x86-opcode-map.txt
++++ b/arch/x86/lib/x86-opcode-map.txt
+@@ -366,7 +366,7 @@ AVXcode: 1
+ 1b: BNDCN Gv,Ev (F2) | BNDMOV Ev,Gv (66) | BNDMK Gv,Ev (F3) | BNDSTX Ev,Gv
+ 1c:
+ 1d:
+-1e:
++1e: RDSSP Rd (F3),REX.W
+ 1f: NOP Ev
+ # 0x0f 0x20-0x2f
+ 20: MOV Rd,Cd
+@@ -610,7 +610,17 @@ fe: paddd Pq,Qq | vpaddd Vx,Hx,Wx (66),(v1)
+ ff: UD0
+ EndTable
  
- #ifdef CONFIG_X86_INTEL_CET
- int cet_setup_shstk(void);
-+int cet_setup_thread_shstk(struct task_struct *p);
- void cet_disable_shstk(void);
- void cet_disable_free_shstk(struct task_struct *p);
- int cet_restore_signal(unsigned long ssp);
- int cet_setup_signal(bool ia32, unsigned long rstor, unsigned long *new_ssp);
- #else
- static inline int cet_setup_shstk(void) { return 0; }
-+static inline int cet_setup_thread_shstk(struct task_struct *p) { return 0; }
- static inline void cet_disable_shstk(void) {}
- static inline void cet_disable_free_shstk(struct task_struct *p) {}
- static inline int cet_restore_signal(unsigned long ssp) { return 0; }
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index eeeb9289c764..8da7c999b7ee 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -13,6 +13,7 @@
- #include <asm/tlbflush.h>
- #include <asm/paravirt.h>
- #include <asm/mpx.h>
-+#include <asm/cet.h>
+-Table: 3-byte opcode 1 (0x0f 0x38)
++Table: 3-byte opcode 1 (0x0f 0x01)
++Referrer:
++AVXcode:
++# Skip 0x00-0xe7
++e8: SETSSBSY (f3)
++e9:
++ea: SAVEPREVSSP (f3)
++# Skip 0xeb-0xff
++EndTable
++
++Table: 3-byte opcode 2 (0x0f 0x38)
+ Referrer: 3-byte escape 1
+ AVXcode: 2
+ # 0x0f 0x38 0x00-0x0f
+@@ -789,12 +799,12 @@ f0: MOVBE Gy,My | MOVBE Gw,Mw (66) | CRC32 Gd,Eb (F2) | CRC32 Gd,Eb (66&F2)
+ f1: MOVBE My,Gy | MOVBE Mw,Gw (66) | CRC32 Gd,Ey (F2) | CRC32 Gd,Ew (66&F2)
+ f2: ANDN Gy,By,Ey (v)
+ f3: Grp17 (1A)
+-f5: BZHI Gy,Ey,By (v) | PEXT Gy,By,Ey (F3),(v) | PDEP Gy,By,Ey (F2),(v)
+-f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v)
++f5: BZHI Gy,Ey,By (v) | PEXT Gy,By,Ey (F3),(v) | PDEP Gy,By,Ey (F2),(v) | WRUSS Pq,Qq (66),REX.W
++f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v) | WRSS Pq,Qq (66),REX.W
+ f7: BEXTR Gy,Ey,By (v) | SHLX Gy,Ey,By (66),(v) | SARX Gy,Ey,By (F3),(v) | SHRX Gy,Ey,By (F2),(v)
+ EndTable
  
- extern atomic64_t last_mm_ctx_id;
+-Table: 3-byte opcode 2 (0x0f 0x3a)
++Table: 3-byte opcode 3 (0x0f 0x3a)
+ Referrer: 3-byte escape 2
+ AVXcode: 3
+ # 0x0f 0x3a 0x00-0xff
+@@ -948,7 +958,7 @@ GrpTable: Grp7
+ 2: LGDT Ms | XGETBV (000),(11B) | XSETBV (001),(11B) | VMFUNC (100),(11B) | XEND (101)(11B) | XTEST (110)(11B)
+ 3: LIDT Ms
+ 4: SMSW Mw/Rv
+-5: rdpkru (110),(11B) | wrpkru (111),(11B)
++5: rdpkru (110),(11B) | wrpkru (111),(11B) | RSTORSSP Mq (F3)
+ 6: LMSW Ew
+ 7: INVLPG Mb | SWAPGS (o64),(000),(11B) | RDTSCP (001),(11B)
+ EndTable
+@@ -1019,8 +1029,8 @@ GrpTable: Grp15
+ 2: vldmxcsr Md (v1) | WRFSBASE Ry (F3),(11B)
+ 3: vstmxcsr Md (v1) | WRGSBASE Ry (F3),(11B)
+ 4: XSAVE | ptwrite Ey (F3),(11B)
+-5: XRSTOR | lfence (11B)
+-6: XSAVEOPT | clwb (66) | mfence (11B)
++5: XRSTOR | lfence (11B) | INCSSP Rd (F3),REX.W
++6: XSAVEOPT | clwb (66) | mfence (11B) | CLRSSBSY Mq (F3)
+ 7: clflush | clflushopt (66) | sfence (11B)
+ EndTable
  
-@@ -223,6 +224,8 @@ do {						\
- #else
- #define deactivate_mm(tsk, mm)			\
- do {						\
-+	if (!tsk->vfork_done)			\
-+		cet_disable_free_shstk(tsk);	\
- 	load_gs_index(0);			\
- 	loadsegment(fs, 0);			\
- } while (0)
-diff --git a/arch/x86/kernel/cet.c b/arch/x86/kernel/cet.c
-index 5cc4be6e0982..ce0b3b7b1160 100644
---- a/arch/x86/kernel/cet.c
-+++ b/arch/x86/kernel/cet.c
-@@ -134,6 +134,40 @@ int cet_setup_shstk(void)
- 	return 0;
- }
+diff --git a/tools/objtool/arch/x86/lib/x86-opcode-map.txt b/tools/objtool/arch/x86/lib/x86-opcode-map.txt
+index e0b85930dd77..c5e825d44766 100644
+--- a/tools/objtool/arch/x86/lib/x86-opcode-map.txt
++++ b/tools/objtool/arch/x86/lib/x86-opcode-map.txt
+@@ -366,7 +366,7 @@ AVXcode: 1
+ 1b: BNDCN Gv,Ev (F2) | BNDMOV Ev,Gv (66) | BNDMK Gv,Ev (F3) | BNDSTX Ev,Gv
+ 1c:
+ 1d:
+-1e:
++1e: RDSSP Rd (F3),REX.W
+ 1f: NOP Ev
+ # 0x0f 0x20-0x2f
+ 20: MOV Rd,Cd
+@@ -610,7 +610,17 @@ fe: paddd Pq,Qq | vpaddd Vx,Hx,Wx (66),(v1)
+ ff: UD0
+ EndTable
  
-+int cet_setup_thread_shstk(struct task_struct *tsk)
-+{
-+	unsigned long addr, size;
-+	struct cet_user_state *state;
+-Table: 3-byte opcode 1 (0x0f 0x38)
++Table: 3-byte opcode 1 (0x0f 0x01)
++Referrer:
++AVXcode:
++# Skip 0x00-0xe7
++e8: SETSSBSY (f3)
++e9:
++ea: SAVEPREVSSP (f3)
++# Skip 0xeb-0xff
++EndTable
 +
-+	if (!current->thread.cet.shstk_enabled)
-+		return 0;
-+
-+	state = get_xsave_addr(&tsk->thread.fpu.state.xsave,
-+			       XFEATURE_MASK_SHSTK_USER);
-+
-+	if (!state)
-+		return -EINVAL;
-+
-+	size = tsk->thread.cet.shstk_size;
-+	if (size == 0)
-+		size = rlimit(RLIMIT_STACK);
-+
-+	addr = do_mmap_locked(0, size, PROT_READ,
-+			      MAP_ANONYMOUS | MAP_PRIVATE, VM_SHSTK);
-+
-+	if (addr >= TASK_SIZE_MAX) {
-+		tsk->thread.cet.shstk_base = 0;
-+		tsk->thread.cet.shstk_size = 0;
-+		tsk->thread.cet.shstk_enabled = 0;
-+		return -ENOMEM;
-+	}
-+
-+	state->user_ssp = (u64)(addr + size - sizeof(u64));
-+	tsk->thread.cet.shstk_base = addr;
-+	tsk->thread.cet.shstk_size = size;
-+	return 0;
-+}
-+
- void cet_disable_shstk(void)
- {
- 	u64 r;
-diff --git a/arch/x86/kernel/process.c b/arch/x86/kernel/process.c
-index 4a776da4c28c..440f012ef925 100644
---- a/arch/x86/kernel/process.c
-+++ b/arch/x86/kernel/process.c
-@@ -125,6 +125,7 @@ void exit_thread(struct task_struct *tsk)
++Table: 3-byte opcode 2 (0x0f 0x38)
+ Referrer: 3-byte escape 1
+ AVXcode: 2
+ # 0x0f 0x38 0x00-0x0f
+@@ -789,12 +799,12 @@ f0: MOVBE Gy,My | MOVBE Gw,Mw (66) | CRC32 Gd,Eb (F2) | CRC32 Gd,Eb (66&F2)
+ f1: MOVBE My,Gy | MOVBE Mw,Gw (66) | CRC32 Gd,Ey (F2) | CRC32 Gd,Ew (66&F2)
+ f2: ANDN Gy,By,Ey (v)
+ f3: Grp17 (1A)
+-f5: BZHI Gy,Ey,By (v) | PEXT Gy,By,Ey (F3),(v) | PDEP Gy,By,Ey (F2),(v)
+-f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v)
++f5: BZHI Gy,Ey,By (v) | PEXT Gy,By,Ey (F3),(v) | PDEP Gy,By,Ey (F2),(v) | WRUSS Pq,Qq (66),REX.W
++f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v) | WRSS Pq,Qq (66),REX.W
+ f7: BEXTR Gy,Ey,By (v) | SHLX Gy,Ey,By (66),(v) | SARX Gy,Ey,By (F3),(v) | SHRX Gy,Ey,By (F2),(v)
+ EndTable
  
- 	free_vm86(t);
+-Table: 3-byte opcode 2 (0x0f 0x3a)
++Table: 3-byte opcode 3 (0x0f 0x3a)
+ Referrer: 3-byte escape 2
+ AVXcode: 3
+ # 0x0f 0x3a 0x00-0xff
+@@ -948,7 +958,7 @@ GrpTable: Grp7
+ 2: LGDT Ms | XGETBV (000),(11B) | XSETBV (001),(11B) | VMFUNC (100),(11B) | XEND (101)(11B) | XTEST (110)(11B)
+ 3: LIDT Ms
+ 4: SMSW Mw/Rv
+-5: rdpkru (110),(11B) | wrpkru (111),(11B)
++5: rdpkru (110),(11B) | wrpkru (111),(11B) | RSTORSSP Mq (F3)
+ 6: LMSW Ew
+ 7: INVLPG Mb | SWAPGS (o64),(000),(11B) | RDTSCP (001),(11B)
+ EndTable
+@@ -1019,8 +1029,8 @@ GrpTable: Grp15
+ 2: vldmxcsr Md (v1) | WRFSBASE Ry (F3),(11B)
+ 3: vstmxcsr Md (v1) | WRGSBASE Ry (F3),(11B)
+ 4: XSAVE | ptwrite Ey (F3),(11B)
+-5: XRSTOR | lfence (11B)
+-6: XSAVEOPT | clwb (66) | mfence (11B)
++5: XRSTOR | lfence (11B) | INCSSP Rd (F3),REX.W
++6: XSAVEOPT | clwb (66) | mfence (11B) | CLRSSBSY Mq (F3)
+ 7: clflush | clflushopt (66) | sfence (11B)
+ EndTable
  
-+	cet_disable_free_shstk(tsk);
- 	fpu__drop(fpu);
- }
- 
-diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
-index a451bc374b9b..cfe955d8d6b2 100644
---- a/arch/x86/kernel/process_64.c
-+++ b/arch/x86/kernel/process_64.c
-@@ -317,6 +317,13 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
- 	if (sp)
- 		childregs->sp = sp;
- 
-+	/* Allocate a new shadow stack for pthread */
-+	if ((clone_flags & (CLONE_VFORK | CLONE_VM)) == CLONE_VM) {
-+		err = cet_setup_thread_shstk(p);
-+		if (err)
-+			goto out;
-+	}
-+
- 	err = -ENOMEM;
- 	if (unlikely(test_tsk_thread_flag(me, TIF_IO_BITMAP))) {
- 		p->thread.io_bitmap_ptr = kmemdup(me->thread.io_bitmap_ptr,
 -- 
 2.17.1
