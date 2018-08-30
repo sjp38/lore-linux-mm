@@ -1,118 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 49A676B5301
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 16:39:51 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id v21-v6so6861724wrc.2
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 13:39:51 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id v14-v6si7078147wrt.69.2018.08.30.13.39.50
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F3276B5348
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 16:45:12 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id u74-v6so8720926oie.16
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 13:45:12 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y11-v6sor6618791oix.10.2018.08.30.13.45.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Aug 2018 13:39:50 -0700 (PDT)
-Date: Thu, 30 Aug 2018 22:39:48 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC PATCH v3 05/24] Documentation/x86: Add CET description
-Message-ID: <20180830203948.GB1936@amd>
-References: <20180830143904.3168-1-yu-cheng.yu@intel.com>
- <20180830143904.3168-6-yu-cheng.yu@intel.com>
+        (Google Transport Security);
+        Thu, 30 Aug 2018 13:45:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="z6Eq5LdranGa6ru8"
-Content-Disposition: inline
-In-Reply-To: <20180830143904.3168-6-yu-cheng.yu@intel.com>
+References: <20180830143904.3168-1-yu-cheng.yu@intel.com> <20180830143904.3168-13-yu-cheng.yu@intel.com>
+ <CAG48ez0Rca0XsdXJZ07c+iGPyep0Gpxw+sxQuACP5gyPaBgDKA@mail.gmail.com>
+ <079a55f2-4654-4adf-a6ef-6e480b594a2f@linux.intel.com> <CAG48ez2gHOD9hH4+0wek5vUOv9upj79XWoug2SXjdwfXWoQqxw@mail.gmail.com>
+ <ce051b5b-feef-376f-e085-11f65a5f2215@linux.intel.com> <1535649960.26689.15.camel@intel.com>
+ <33d45a12-513c-eba2-a2de-3d6b630e928e@linux.intel.com> <1535651666.27823.6.camel@intel.com>
+ <CAG48ez3ixWROuQc6WZze6qPL6q0e_gCnMU4XF11JUWziePsBJg@mail.gmail.com> <1535660494.28258.36.camel@intel.com>
+In-Reply-To: <1535660494.28258.36.camel@intel.com>
+From: Jann Horn <jannh@google.com>
+Date: Thu, 30 Aug 2018 22:44:43 +0200
+Message-ID: <CAG48ez0yOuDhqxB779aO3Kss3gQ3cZTJL1VphDXQm+_M9jFPvQ@mail.gmail.com>
+Subject: Re: [RFC PATCH v3 12/24] x86/mm: Modify ptep_set_wrprotect and
+ pmdp_set_wrprotect for _PAGE_DIRTY_SW
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromiun.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: yu-cheng.yu@intel.com
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, hjl.tools@gmail.com, Jonathan Corbet <corbet@lwn.net>, keescook@chromiun.org, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, ravi.v.shankar@intel.com, vedvyas.shanbhogue@intel.com
 
+On Thu, Aug 30, 2018 at 10:25 PM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
+>
+> On Thu, 2018-08-30 at 19:59 +0200, Jann Horn wrote:
+> > On Thu, Aug 30, 2018 at 7:58 PM Yu-cheng Yu <yu-cheng.yu@intel.com>
+> > wrote:
+> > >
+> > >
+> > > On Thu, 2018-08-30 at 10:33 -0700, Dave Hansen wrote:
+> > > >
+> > > > On 08/30/2018 10:26 AM, Yu-cheng Yu wrote:
+> > > > >
+> > > > >
+> > > > > We don't have the guard page now, but there is a shadow stack
+> > > > > token
+> > > > > there, which cannot be used as a return address.
+> > > > The overall concern is that we could overflow into a page that
+> > > > we
+> > > > did
+> > > > not intend.  Either another actual shadow stack or something
+> > > > that a
+> > > > page
+> > > > that the attacker constructed, like the transient scenario Jann
+> > > > described.
+> > > >
+> > > A task could go beyond the bottom of its shadow stack by doing
+> > > either
+> > > 'ret' or 'incssp'.  If it is the 'ret' case, the token prevents
+> > > it.
+> > >  If it is the 'incssp' case, a guard page cannot prevent it
+> > > entirely,
+> > > right?
+> > I mean the other direction, on "call".
+>
+> In the flow you described, if C writes to the overflow page before B
+> gets in with a 'call', the return address is still correct for B.  To
+> make an attack, C needs to write again before the TLB flush.  I agree
+> that is possible.
+>
+> Assume we have a guard page, can someone in the short window do
+> recursive calls in B, move ssp to the end of the guard page, and
+> trigger the same again?  He can simply take the incssp route.
 
---z6Eq5LdranGa6ru8
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-Hi!
-
-> diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentat=
-ion/admin-guide/kernel-parameters.txt
-> index 9871e649ffef..b090787188b4 100644
-> --- a/Documentation/admin-guide/kernel-parameters.txt
-> +++ b/Documentation/admin-guide/kernel-parameters.txt
-> @@ -2764,6 +2764,12 @@
->  			noexec=3Don: enable non-executable mappings (default)
->  			noexec=3Doff: disable non-executable mappings
-> =20
-> +	no_cet_ibt	[X86-64] Disable indirect branch tracking for user-mode
-> +			applications
-> +
-> +	no_cet_shstk	[X86-64] Disable shadow stack support for user-mode
-> +			applications
-
-Hmm, not too consistent with "nosmap" below. Would it make sense to
-have cet=3Don/off/ibt/shstk instead?
-
-> +++ b/Documentation/x86/intel_cet.rst
-> @@ -0,0 +1,252 @@
-> +=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> +Control Flow Enforcement Technology (CET)
-> +=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> +
-> +[1] Overview
-> +=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> +
-> +Control Flow Enforcement Technology (CET) provides protection against
-> +return/jump-oriented programing (ROP) attacks.
-
-Can you add something like "It attempts to protect process from
-running arbitrary code even after attacker has control of its stack"
--- for people that don't know what ROP is, and perhaps link to
-wikipedia explaining ROP or something...
-
-> It can be implemented
-> +to protect both the kernel and applications.  In the first phase,
-> +only the user-mode protection is implemented for the 64-bit kernel.
-> +Thirty-two bit applications are supported under the compatibility
-
-32-bit (for consistency).
-
-Ok, so CET stops execution of malicious code before architectural
-effects are visible, correct? Does it prevent micro-architectural
-effects of the malicious code? (cache content would be one example;
-see Spectre).
-
-> +[3] Application Enabling
-> +=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-
-"Enabling CET in applications" ?
-
-> +Signal
-> +------
-> +
-> +The main program and its signal handlers use the same SHSTK.  Because
-> +the SHSTK stores only return addresses, we can estimate a large
-> +enough SHSTK to cover the condition that both the program stack and
-> +the sigaltstack run out.
-
-English? Is it estimate or is it large enough? "a large" -- "a" should
-be deleted AFAICT.
-=20
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
-
---z6Eq5LdranGa6ru8
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAluIVhQACgkQMOfwapXb+vJ0KACgu6nabChmCkBFO6OaHfHWveVH
-9MgAn36uXjrnPChLkXN2JkbfiY+qF9bI
-=mbZW
------END PGP SIGNATURE-----
-
---z6Eq5LdranGa6ru8--
+I don't understand what you're saying. If the shadow stack is between
+guard pages, you should never be able to move SSP past that area's
+guard pages without an appropriate shadow stack token (not even with
+INCSSP, since that has a maximum range of PAGE_SIZE/2), and therefore,
+it shouldn't matter whether memory outside that range is incorrectly
+marked as shadow stack. Am I missing something?
