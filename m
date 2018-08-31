@@ -1,56 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 14D566B5652
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 05:53:24 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id v1-v6so3162402wmh.4
-        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 02:53:24 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id i1-v6si8715595wrq.11.2018.08.31.02.53.22
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A7786B566D
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 06:22:57 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id r130-v6so3917419pgr.13
+        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 03:22:57 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r14-v6si9191417pgl.490.2018.08.31.03.22.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 31 Aug 2018 02:53:22 -0700 (PDT)
-Date: Fri, 31 Aug 2018 11:53:00 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC PATCH v3 12/24] x86/mm: Modify ptep_set_wrprotect and
- pmdp_set_wrprotect for _PAGE_DIRTY_SW
-Message-ID: <20180831095300.GF24124@hirez.programming.kicks-ass.net>
-References: <ce051b5b-feef-376f-e085-11f65a5f2215@linux.intel.com>
- <1535649960.26689.15.camel@intel.com>
- <33d45a12-513c-eba2-a2de-3d6b630e928e@linux.intel.com>
- <1535651666.27823.6.camel@intel.com>
- <CAG48ez3ixWROuQc6WZze6qPL6q0e_gCnMU4XF11JUWziePsBJg@mail.gmail.com>
- <1535660494.28258.36.camel@intel.com>
- <CAG48ez0yOuDhqxB779aO3Kss3gQ3cZTJL1VphDXQm+_M9jFPvQ@mail.gmail.com>
- <1535662366.28781.6.camel@intel.com>
- <CAG48ez0mkr95_TbLQnDGuGUd6G+eJVLZ-fEjDkwA6dSrm+9tLw@mail.gmail.com>
- <CAG48ez3S3+DzAyo_SnoUW1GO0Cpd_x0A83MOx2p_MkogoAatLQ@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 31 Aug 2018 03:22:55 -0700 (PDT)
+Date: Fri, 31 Aug 2018 12:22:48 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mm: fix BUG_ON() in vmf_insert_pfn_pud() from
+ VM_MIXEDMAP removal
+Message-ID: <20180831102248.GE11622@quack2.suse.cz>
+References: <153565957352.35524.1005746906902065126.stgit@djiang5-desk3.ch.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAG48ez3S3+DzAyo_SnoUW1GO0Cpd_x0A83MOx2p_MkogoAatLQ@mail.gmail.com>
+In-Reply-To: <153565957352.35524.1005746906902065126.stgit@djiang5-desk3.ch.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jannh@google.com>
-Cc: yu-cheng.yu@intel.com, Dave Hansen <dave.hansen@linux.intel.com>, the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, hjl.tools@gmail.com, Jonathan Corbet <corbet@lwn.net>, keescook@chromiun.org, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, ravi.v.shankar@intel.com, vedvyas.shanbhogue@intel.com
+To: Dave Jiang <dave.jiang@intel.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, dan.j.williams@intel.com, vishal.l.verma@intel.com, jack@suse.com
 
-On Thu, Aug 30, 2018 at 11:47:16PM +0200, Jann Horn wrote:
->         do {
->                 pte = pte_wrprotect(pte);
->                 /* note: relies on _PAGE_DIRTY_HW < _PAGE_DIRTY_SW */
->                 /* dirty direct bit-twiddling; you can probably write
-> this in a nicer way */
->                 pte.pte |= (pte.pte & _PAGE_DIRTY_HW) >>
-> _PAGE_BIT_DIRTY_HW << _PAGE_BIT_DIRTY_SW;
->                 pte.pte &= ~_PAGE_DIRTY_HW;
->                 pte = cmpxchg(ptep, pte, new_pte);
->         } while (pte != new_pte);
+On Thu 30-08-18 13:06:13, Dave Jiang wrote:
+> It looks like I missed the PUD path when doing VM_MIXEDMAP removal.
+> This can be triggered by:
+> 1. Boot with memmap=4G!8G
+> 2. build ndctl with destructive flag on
+> 3. make TESTS=device-dax check
+> 
+> [  +0.000675] kernel BUG at mm/huge_memory.c:824!
+> 
+> Applying the same change that was applied to vmf_insert_pfn_pmd() in the
+> original patch.
+> 
+> Fixes: e1fb4a08649 ("dax: remove VM_MIXEDMAP for fsdax and device dax")
+> 
+> Reported-by: Vishal Verma <vishal.l.verma@intel.com>
+> Signed-off-by: Dave Jiang <dave.jiang@intel.com>
 
-Please use the form:
+Looks good. You can add:
 
-	pte_t new_pte, pte = READ_ONCE(*ptep);
-	do {
-		new_pte = /* ... */;
-	} while (!try_cmpxchg(ptep, &pte, new_pte);
+Reviewed-by: Jan Kara <jack@suse.cz>
 
-Also, this will fail to build on i386-PAE, but I suspect this code will
-be under some CONFIG option specific to x86_64 anyway.
+								Honza
+
+> ---
+>  mm/huge_memory.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index c3bc7e9c9a2a..533f9b00147d 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -821,11 +821,11 @@ vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
+>  	 * but we need to be consistent with PTEs and architectures that
+>  	 * can't support a 'special' bit.
+>  	 */
+> -	BUG_ON(!(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)));
+> +	BUG_ON(!(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)) &&
+> +			!pfn_t_devmap(pfn));
+>  	BUG_ON((vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)) ==
+>  						(VM_PFNMAP|VM_MIXEDMAP));
+>  	BUG_ON((vma->vm_flags & VM_PFNMAP) && is_cow_mapping(vma->vm_flags));
+> -	BUG_ON(!pfn_t_devmap(pfn));
+>  
+>  	if (addr < vma->vm_start || addr >= vma->vm_end)
+>  		return VM_FAULT_SIGBUS;
+> 
+> 
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
