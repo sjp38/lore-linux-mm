@@ -1,81 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 911E86B53D2
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 19:11:55 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id d22-v6so5593064pfn.3
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 16:11:55 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j16-v6sor2278739pga.230.2018.08.30.16.11.54
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CD0FD6B5416
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 20:21:09 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id 90-v6so4801952pla.18
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 17:21:09 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id h14-v6si8076537pgl.289.2018.08.30.17.21.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 30 Aug 2018 16:11:54 -0700 (PDT)
-Date: Fri, 31 Aug 2018 09:11:48 +1000
-From: Balbir Singh <bsingharora@gmail.com>
-Subject: Re: [PATCH 5/7] mm/hmm: use a structure for update callback
- parameters
-Message-ID: <20180830231148.GC28695@350D>
-References: <20180824192549.30844-1-jglisse@redhat.com>
- <20180824192549.30844-6-jglisse@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180824192549.30844-6-jglisse@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Aug 2018 17:21:08 -0700 (PDT)
+Date: Thu, 30 Aug 2018 17:21:05 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/2] scripts: add kmemleak2pprof.py for slab usage
+ analysis
+Message-Id: <20180830172105.3f30f3831c370f51e2067a6c@linux-foundation.org>
+In-Reply-To: <20180830072939.i33m43mj7uslhvmz@axis.com>
+References: <20180828103914.30434-1-vincent.whitchurch@axis.com>
+	<20180828103914.30434-2-vincent.whitchurch@axis.com>
+	<20180828162804.4ee225124cbde3f39f53fd80@linux-foundation.org>
+	<20180830072939.i33m43mj7uslhvmz@axis.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jglisse@redhat.com
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>
+To: Vincent Whitchurch <vincent.whitchurch@axis.com>
+Cc: catalin.marinas@arm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Aug 24, 2018 at 03:25:47PM -0400, jglisse@redhat.com wrote:
-> From: Jerome Glisse <jglisse@redhat.com>
+On Thu, 30 Aug 2018 09:29:40 +0200 Vincent Whitchurch <vincent.whitchurch@axis.com> wrote:
+
+> On Tue, Aug 28, 2018 at 04:28:04PM -0700, Andrew Morton wrote:
+> > On Tue, 28 Aug 2018 12:39:14 +0200 Vincent Whitchurch <vincent.whitchurch@axis.com> wrote:
+> > 
+> > > Add a script which converts /sys/kernel/debug/kmemleak_all to the pprof
+> > > format, which can be used for analysing memory usage.  See
+> > > https://github.com/google/pprof.
+> > 
+> > Why is this better than /proc/slabinfo?
 > 
-> Use a structure to gather all the parameters for the update callback.
-> This make it easier when adding new parameters by avoiding having to
-> update all callback function signature.
+> slabinfo just tells you how much memory is being used in a particular
+> slab, it doesn't give you a breakdown of who allocated all that memory.
+> slabinfo can't also tell you how much memory a particular subsystem is
+> using.
 > 
-> Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> Cc: Ralph Campbell <rcampbell@nvidia.com>
-> Cc: John Hubbard <jhubbard@nvidia.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> ---
->  include/linux/hmm.h | 25 +++++++++++++++++--------
->  mm/hmm.c            | 27 ++++++++++++++-------------
->  2 files changed, 31 insertions(+), 21 deletions(-)
+> For example, here we can see that tracer_init_tracefs() and its callers
+> are using ~12% of the total tracked memory:
 > 
-> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> index 1ff4bae7ada7..a7f7600b6bb0 100644
-> --- a/include/linux/hmm.h
-> +++ b/include/linux/hmm.h
-> @@ -274,13 +274,26 @@ static inline uint64_t hmm_pfn_from_pfn(const struct hmm_range *range,
->  struct hmm_mirror;
+>  $ pprof -top -compact_labels -cum prof 
+>  Showing nodes accounting for 13418.95kB, 92.07% of 14575.28kB total
+>  Dropped 4069 nodes (cum <= 72.88kB)
+>        flat  flat%   sum%        cum   cum%
+>        ...
+>           0     0% 56.71%  1832.15kB 12.57%  tracer_init_tracefs+0x74/0x1cc
+> 
 >  
->  /*
-> - * enum hmm_update_type - type of update
-> + * enum hmm_update_event - type of update
->   * @HMM_UPDATE_INVALIDATE: invalidate range (no indication as to why)
->   */
-> -enum hmm_update_type {
-> +enum hmm_update_event {
->  	HMM_UPDATE_INVALIDATE,
->  };
->  
-> +/*
-> + * struct hmm_update - HMM update informations for callback
-> + *
-> + * @start: virtual start address of the range to update
-> + * @end: virtual end address of the range to update
-> + * @event: event triggering the update (what is happening)
-> + */
-> +struct hmm_update {
-> +	unsigned long start;
-> +	unsigned long end;
-> +	enum hmm_update_event event;
-> +};
-> +
+> And that tracefs' dentrys use 500 KiB and its inodes use 1+ MiB:
+>  	
+>  $ pprof -text -compact_labels -focus tracer_init_tracefs -nodecount 2 prof
+>  Main binary filename not available.
+>  Showing nodes accounting for 1794.85kB, 12.31% of 14575.28kB total
+>  Dropped 1912 nodes (cum <= 72.88kB)
+>  Showing top 2 nodes out of 32
+>        flat  flat%   sum%        cum   cum%
+>   1294.56kB  8.88%  8.88%  1294.56kB  8.88%  new_inode_pseudo+0x8/0x4c
+>    500.29kB  3.43% 12.31%   500.29kB  3.43%  d_alloc+0x10/0x78
+>    ...
 
-I wonder if you want to add further information about the range,
-like page_size, I guess the other side does not care about the
-size. Do we care about sending multiple discontig ranges in
-hmm_update? Should it be an array?
-
-Balbir Singh
+OK, thanks.  Please include this info in future changelogs?
