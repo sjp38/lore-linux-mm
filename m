@@ -1,88 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C2496B57DB
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 12:24:36 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id w11-v6so6261369plq.8
-        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 09:24:36 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id o12-v6si8977548pls.94.2018.08.31.09.24.35
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CFFC6B57E2
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 12:29:52 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id s62-v6so3363424wmf.1
+        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 09:29:52 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id u11-v6si3304102wmg.158.2018.08.31.09.29.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Aug 2018 09:24:35 -0700 (PDT)
-Message-ID: <1535732418.3789.7.camel@intel.com>
-Subject: Re: [RFC PATCH v3 06/24] x86/cet: Control protection exception
- handler
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Date: Fri, 31 Aug 2018 09:20:18 -0700
-In-Reply-To: <CAG48ez0jvsDw189=YoCCa8tmJUENeUd_ypcP5bYJ+eLMPCYCOQ@mail.gmail.com>
-References: <20180830143904.3168-1-yu-cheng.yu@intel.com>
-	 <20180830143904.3168-7-yu-cheng.yu@intel.com>
-	 <CAG48ez0jvsDw189=YoCCa8tmJUENeUd_ypcP5bYJ+eLMPCYCOQ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 31 Aug 2018 09:29:51 -0700 (PDT)
+Date: Fri, 31 Aug 2018 18:29:20 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC PATCH v3 12/24] x86/mm: Modify ptep_set_wrprotect and
+ pmdp_set_wrprotect for _PAGE_DIRTY_SW
+Message-ID: <20180831162920.GQ24124@hirez.programming.kicks-ass.net>
+References: <1535660494.28258.36.camel@intel.com>
+ <CAG48ez0yOuDhqxB779aO3Kss3gQ3cZTJL1VphDXQm+_M9jFPvQ@mail.gmail.com>
+ <1535662366.28781.6.camel@intel.com>
+ <CAG48ez0mkr95_TbLQnDGuGUd6G+eJVLZ-fEjDkwA6dSrm+9tLw@mail.gmail.com>
+ <CAG48ez3S3+DzAyo_SnoUW1GO0Cpd_x0A83MOx2p_MkogoAatLQ@mail.gmail.com>
+ <20180831095300.GF24124@hirez.programming.kicks-ass.net>
+ <1535726032.32537.0.camel@intel.com>
+ <f5a36e32-7c5f-91fe-9e98-fb44867fda11@linux.intel.com>
+ <1535730524.501.13.camel@intel.com>
+ <6d31bd30-6d5b-bbde-1e97-1d8255eff76d@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6d31bd30-6d5b-bbde-1e97-1d8255eff76d@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jannh@google.com>
-Cc: the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, hjl.tools@gmail.com, Jonathan Corbet <corbet@lwn.net>, keescook@chromium.org, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, ravi.v.shankar@intel.com, vedvyas.shanbhogue@intel.com
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>, Jann Horn <jannh@google.com>, the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, hjl.tools@gmail.com, Jonathan Corbet <corbet@lwn.net>, keescook@chromiun.org, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, ravi.v.shankar@intel.com, vedvyas.shanbhogue@intel.com
 
-On Fri, 2018-08-31 at 17:01 +0200, Jann Horn wrote:
+On Fri, Aug 31, 2018 at 08:58:39AM -0700, Dave Hansen wrote:
+> On 08/31/2018 08:48 AM, Yu-cheng Yu wrote:
+> > To trigger a race in ptep_set_wrprotect(), we need to fork from one of
+> > three pthread siblings.
+> > 
+> > Or do we measure only how much this affects fork?
+> > If there is no racing, the effect should be minimal.
+> 
+> We don't need a race.
+> 
+> I think the cmpxchg will be slower, even without a race, than the code
+> that was there before.  The cmpxchg is a simple, straightforward
+> solution, but we're putting it in place of a plain memory write, which
+> is suboptimal.
 
-> Is there a reason why all the code in this patch isn't #ifdef'ed
-> away
-> on builds that don't support CET? It looks like the CET handler is
-> hooked up to the IDT conditionally, but the handler code is always
-> built?
-
-Yes, in idt.c, it should have been:
-
-#ifdef CONFIG_X86_64
-	INTG(X86_TRAP_CP,		control_protection),
-#endif
-
-I will fix it.
-
-> > +dotraplinkage void
-> > +do_control_protection(struct pt_regs *regs, long error_code)
-> > +{
-> > +A A A A A A A struct task_struct *tsk;
-> > +
-> > +A A A A A A A RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't
-> > wake RCU");
-> > +A A A A A A A if (notify_die(DIE_TRAP, "control protection fault", regs,
-> > +A A A A A A A A A A A A A A A A A A A A A A error_code, X86_TRAP_CP, SIGSEGV) ==
-> > NOTIFY_STOP)
-> > +A A A A A A A A A A A A A A A return;
-> > +A A A A A A A cond_local_irq_enable(regs);
-> > +
-> > +A A A A A A A if (!user_mode(regs))
-> > +A A A A A A A A A A A A A A A die("kernel control protection fault", regs,
-> > error_code);
-> > +
-> > +A A A A A A A if (!static_cpu_has(X86_FEATURE_SHSTK) &&
-> > +A A A A A A A A A A A !static_cpu_has(X86_FEATURE_IBT))
-> > +A A A A A A A A A A A A A A A WARN_ONCE(1, "CET is disabled but got control "
-> > +A A A A A A A A A A A A A A A A A A A A A A A A A "protection fault\n");
-> > +
-> > +A A A A A A A tsk = current;
-> > +A A A A A A A tsk->thread.error_code = error_code;
-> > +A A A A A A A tsk->thread.trap_nr = X86_TRAP_CP;
-> > +
-> > +A A A A A A A if (show_unhandled_signals && unhandled_signal(tsk,
-> > SIGSEGV) &&
-> > +A A A A A A A A A A A printk_ratelimit()) {
-> > +A A A A A A A A A A A A A A A unsigned int max_err;
-> > +
-> > +A A A A A A A A A A A A A A A max_err = ARRAY_SIZE(control_protection_err) - 1;
-> > +A A A A A A A A A A A A A A A if ((error_code < 0) || (error_code > max_err))
-> > +A A A A A A A A A A A A A A A A A A A A A A A error_code = 0;
-> > +A A A A A A A A A A A A A A A pr_info("%s[%d] control protection ip:%lx sp:%lx
-> > error:%lx(%s)",
-> > +A A A A A A A A A A A A A A A A A A A A A A A tsk->comm, task_pid_nr(tsk),
-> > +A A A A A A A A A A A A A A A A A A A A A A A regs->ip, regs->sp, error_code,
-> > +A A A A A A A A A A A A A A A A A A A A A A A control_protection_err[error_code]);
-> > +A A A A A A A A A A A A A A A print_vma_addr(" in ", regs->ip);
-> Shouldn't this be using KERN_CONT, like other callers of
-> print_vma_addr(), to get the desired output?
-
-I will change it.
+Note quite, the clear_bit() is LOCK prefixed.
