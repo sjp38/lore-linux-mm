@@ -1,44 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D287A6B55E3
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 04:00:52 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id q21-v6so6363725pff.21
-        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 01:00:52 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id k24-v6si9316988pgn.574.2018.08.31.01.00.51
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C0CB56B55F0
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 04:11:28 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id w6-v6so7781015wrc.22
+        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 01:11:28 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x185-v6sor1893186wme.27.2018.08.31.01.11.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Aug 2018 01:00:51 -0700 (PDT)
-Date: Sat, 1 Sep 2018 00:39:42 +0800
-From: Yi Zhang <yi.z.zhang@linux.intel.com>
-Subject: Re: [PATCH V4 4/4] kvm: add a check if pfn is from NVDIMM pmem.
-Message-ID: <20180831163941.GA1220@tiger-server>
-References: <cover.1534934405.git.yi.z.zhang@linux.intel.com>
- <a4183c0f0adfb6d123599dd306062fd193e83f5a.1534934405.git.yi.z.zhang@linux.intel.com>
- <4192066a-79f3-2b3e-386f-c4ec9b6dd8fd@intel.com>
+        (Google Transport Security);
+        Fri, 31 Aug 2018 01:11:27 -0700 (PDT)
+Date: Fri, 31 Aug 2018 10:11:24 +0200
+From: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Subject: Re: [PATCH v6 11/11] arm64: annotate user pointers casts detected by
+ sparse
+Message-ID: <20180831081123.6mo62xnk54pvlxmc@ltop.local>
+References: <cover.1535629099.git.andreyknvl@google.com>
+ <5d54526e5ff2e5ad63d0dfdd9ab17cf359afa4f2.1535629099.git.andreyknvl@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4192066a-79f3-2b3e-386f-c4ec9b6dd8fd@intel.com>
+In-Reply-To: <5d54526e5ff2e5ad63d0dfdd9ab17cf359afa4f2.1535629099.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pbonzini@redhat.com, dan.j.williams@intel.com, dave.jiang@intel.com, yu.c.zhang@intel.com, pagupta@redhat.com, david@redhat.com, jack@suse.cz, hch@lst.de, linux-mm@kvack.org, rkrcmar@redhat.com, jglisse@redhat.com, yi.z.zhang@intel.com
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>
 
-On 2018-08-30 at 12:07:11 -0700, Dave Hansen wrote:
-> On 08/22/2018 03:58 AM, Zhang Yi wrote:
-> >  bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
-> >  {
-> > -	if (pfn_valid(pfn))
-> > -		return PageReserved(pfn_to_page(pfn));
-> > +	struct page *page;
-> > +
-> > +	if (pfn_valid(pfn)) {
-> > +		page = pfn_to_page(pfn);
-> > +		return PageReserved(page) && !is_dax_page(page);
-> > +	}
+On Thu, Aug 30, 2018 at 01:41:16PM +0200, Andrey Konovalov wrote:
+> This patch adds __force annotations for __user pointers casts detected by
+> sparse with the -Wcast-from-as flag enabled (added in [1]).
 > 
-> This is in desperate need of commenting about what it is doing and why.
-> 
-> The changelog alone doesn't cut it.
-Thanks, Dave, Will add some comments
+> [1] https://github.com/lucvoo/sparse-dev/commit/5f960cb10f56ec2017c128ef9d16060e0145f292
+
+Hi,
+
+It would be nice to have some explanation for why these added __force
+are useful.
+
+-- Luc Van Oostenryck
