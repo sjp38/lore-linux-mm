@@ -1,97 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BF5896B5920
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 17:49:33 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id v52-v6so16213551qtc.3
-        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 14:49:33 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h14-v6si9910258qka.90.2018.08.31.14.49.32
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D1016B5927
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 17:54:01 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id h65-v6so7457563pfk.18
+        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 14:54:01 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id n6-v6si8364825plk.255.2018.08.31.14.54.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Aug 2018 14:49:32 -0700 (PDT)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 1/1] userfaultfd: allow get_mempolicy(MPOL_F_NODE|MPOL_F_ADDR) to trigger userfaults
-Date: Fri, 31 Aug 2018 17:48:48 -0400
-Message-Id: <20180831214848.23676-1-aarcange@redhat.com>
+        Fri, 31 Aug 2018 14:54:00 -0700 (PDT)
+Message-ID: <1535752180.31230.4.camel@intel.com>
+Subject: Re: [RFC PATCH v3 19/24] x86/cet/shstk: Introduce WRUSS instruction
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Date: Fri, 31 Aug 2018 14:49:40 -0700
+In-Reply-To: <1535646146.26689.11.camel@intel.com>
+References: <20180830143904.3168-1-yu-cheng.yu@intel.com>
+	 <20180830143904.3168-20-yu-cheng.yu@intel.com>
+	 <CAG48ez3uZrC-9uJ0uMoVPTtxRXRN8D+3zs5FknZD2woTT6mazg@mail.gmail.com>
+	 <CALCETrW78UKt6AQJeN8GkhtxjuASnH1PV5QSpzQtDz9-2d3Asw@mail.gmail.com>
+	 <1535646146.26689.11.camel@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Maxime Coquelin <maxime.coquelin@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Andy Lutomirski <luto@amacapital.net>, Jann Horn <jannh@google.com>
+Cc: the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>
 
-get_mempolicy(MPOL_F_NODE|MPOL_F_ADDR) called a get_user_pages that
-would not be waiting for userfaults before failing and it would hit on
-a SIGBUS instead. Using get_user_pages_locked/unlocked instead will
-allow get_mempolicy to allow userfaults to resolve the fault and fill
-the hole, before grabbing the node id of the page.
+On Thu, 2018-08-30 at 09:22 -0700, Yu-cheng Yu wrote:
+> On Thu, 2018-08-30 at 08:55 -0700, Andy Lutomirski wrote:
+> > 
+> > On Thu, Aug 30, 2018 at 8:39 AM, Jann Horn <jannh@google.com>
+> > wrote:
+> > > 
+> > > 
+> > > On Thu, Aug 30, 2018 at 4:44 PM Yu-cheng Yu <yu-cheng.yu@intel.c
+> > > om
+> > > > 
+> > > > wrote:
+> > > > 
+> > > > 
+> > > > WRUSS is a new kernel-mode instruction but writes directly
+> > > > to user shadow stack memory.A A This is used to construct
+> > > > a return address on the shadow stack for the signal
+> > > > handler.
+> > > > 
+> > > > This instruction can fault if the user shadow stack is
+> > > > invalid shadow stack memory.A A In that case, the kernel does
+> > > > fixup.
+> > > > 
+> > > > Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+> > > [...]
+> > > > 
+> > > > 
+> > > > +static inline int write_user_shstk_64(unsigned long addr,
+> > > > unsigned long val)
+> > > > +{
+> > > > +A A A A A A A int err = 0;
+> > > > +
+> > > > +A A A A A A A asm volatile("1: wrussq %1, (%0)\n"
+> > > > +A A A A A A A A A A A A A A A A A A A A "2:\n"
+> > > > +A A A A A A A A A A A A A A A A A A A A _ASM_EXTABLE_HANDLE(1b, 2b,
+> > > > ex_handler_wruss)
+> > > > +A A A A A A A A A A A A A A A A A A A A :
+> > > > +A A A A A A A A A A A A A A A A A A A A : "r" (addr), "r" (val));
+> > > > +
+> > > > +A A A A A A A return err;
+> > > > +}
+> > > What's up with "err"? You set it to zero, and then you return
+> > > it,
+> > > but
+> > > nothing can ever set it to non-zero, right?
+> > > 
+> > > > 
+> > > > 
+> > > > +__visible bool ex_handler_wruss(const struct
+> > > > exception_table_entry *fixup,
+> > > > +A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A struct pt_regs *regs, int
+> > > > trapnr)
+> > > > +{
+> > > > +A A A A A A A regs->ip = ex_fixup_addr(fixup);
+> > > > +A A A A A A A regs->ax = -1;
+> > > > +A A A A A A A return true;
+> > > > +}
+> > > And here you just write into regs->ax, but your "asm volatile"
+> > > doesn't
+> > > reserve that register. This looks wrong to me.
+> > > 
+> > > I think you probably want to add something like an explicit
+> > > `"+&a"(err)` output to the asm statements.
+> > We require asm goto support these days.A A How about using
+> > that?A A You
+> > won't even need a special exception handler.
 
-Reported-by: Maxime Coquelin <maxime.coquelin@redhat.com>
-Tested-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- mm/mempolicy.c | 24 +++++++++++++++++++-----
- 1 file changed, 19 insertions(+), 5 deletions(-)
+Maybe something like this? A It looks simple now.
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 01f1a14facc4..a7f7f5415936 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -797,16 +797,19 @@ static void get_policy_nodemask(struct mempolicy *p, nodemask_t *nodes)
- 	}
- }
- 
--static int lookup_node(unsigned long addr)
-+static int lookup_node(struct mm_struct *mm, unsigned long addr)
- {
- 	struct page *p;
- 	int err;
- 
--	err = get_user_pages(addr & PAGE_MASK, 1, 0, &p, NULL);
-+	int locked = 1;
-+	err = get_user_pages_locked(addr & PAGE_MASK, 1, 0, &p, &locked);
- 	if (err >= 0) {
- 		err = page_to_nid(p);
- 		put_page(p);
- 	}
-+	if (locked)
-+		up_read(&mm->mmap_sem);
- 	return err;
- }
- 
-@@ -817,7 +820,7 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
- 	int err;
- 	struct mm_struct *mm = current->mm;
- 	struct vm_area_struct *vma = NULL;
--	struct mempolicy *pol = current->mempolicy;
-+	struct mempolicy *pol = current->mempolicy, *pol_refcount = NULL;
- 
- 	if (flags &
- 		~(unsigned long)(MPOL_F_NODE|MPOL_F_ADDR|MPOL_F_MEMS_ALLOWED))
-@@ -857,7 +860,16 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
- 
- 	if (flags & MPOL_F_NODE) {
- 		if (flags & MPOL_F_ADDR) {
--			err = lookup_node(addr);
-+			/*
-+			 * Take a refcount on the mpol, lookup_node()
-+			 * wil drop the mmap_sem, so after calling
-+			 * lookup_node() only "pol" remains valid, "vma"
-+			 * is stale.
-+			 */
-+			pol_refcount = pol;
-+			vma = NULL;
-+			mpol_get(pol);
-+			err = lookup_node(mm, addr);
- 			if (err < 0)
- 				goto out;
- 			*policy = err;
-@@ -892,7 +904,9 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
-  out:
- 	mpol_cond_put(pol);
- 	if (vma)
--		up_read(&current->mm->mmap_sem);
-+		up_read(&mm->mmap_sem);
-+	if (pol_refcount)
-+		mpol_put(pol_refcount);
- 	return err;
- }
- 
+static inline int write_user_shstk_64(unsigned long addr, unsigned
+long val)
+{
+	asm_volatile_goto("wrussq %1, (%0)\n"
+		A A A A A "jmp %l[ok]\n"
+		A A A A A ".section .fixup,\"ax\"n"
+		A A A A A "jmp %l[fail]\n"
+		A A A A A ".previous\n"
+		A A A A A :: "r" (addr), "r" (val)
+		A A A A A :: ok, fail);
+ok:
+	return 0;
+fail:
+	return -1;
+}
