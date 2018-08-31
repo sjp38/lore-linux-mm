@@ -1,53 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CD7B56B5750
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 10:05:02 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id f34-v6so13929677qtk.16
-        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 07:05:02 -0700 (PDT)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0138.outbound.protection.outlook.com. [104.47.33.138])
-        by mx.google.com with ESMTPS id p43-v6si493634qtb.253.2018.08.31.07.05.01
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EA0986B5768
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 10:31:11 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id t23-v6so6910712pfe.20
+        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 07:31:11 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id f40-v6si10306766plb.504.2018.08.31.07.31.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 31 Aug 2018 07:05:01 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: Re: [PATCH] mm/page_alloc: Clean up check_for_memory
-Date: Fri, 31 Aug 2018 14:04:59 +0000
-Message-ID: <b2fea9ef-84e9-84dc-c847-5b944a8d832f@microsoft.com>
-References: <20180828210158.4617-1-osalvador@techadventures.net>
- <332d9ea1-cdd0-6bb6-8e83-28af25096637@microsoft.com>
- <20180831122401.GA2123@techadventures.net>
-In-Reply-To: <20180831122401.GA2123@techadventures.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <18361ACBE0182B419F357C275908FB63@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 31 Aug 2018 07:31:10 -0700 (PDT)
+Date: Fri, 31 Aug 2018 07:31:00 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 1/2] fs/dcache: Track & report number of negative dentries
+Message-ID: <20180831143100.GA6379@bombadil.infradead.org>
+References: <1535476780-5773-1-git-send-email-longman@redhat.com>
+ <1535476780-5773-2-git-send-email-longman@redhat.com>
+ <20180829001153.GD1572@dastard>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180829001153.GD1572@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@suse.com" <mhocko@suse.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oscar Salvador <osalvador@suse.de>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Waiman Long <longman@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>
 
-DQoNCk9uIDgvMzEvMTggODoyNCBBTSwgT3NjYXIgU2FsdmFkb3Igd3JvdGU6DQo+IE9uIFRodSwg
-QXVnIDMwLCAyMDE4IGF0IDAxOjU1OjI5QU0gKzAwMDAsIFBhc2hhIFRhdGFzaGluIHdyb3RlOg0K
-Pj4gSSB3b3VsZCByZS13cml0ZSB0aGUgYWJvdmUgZnVuY3Rpb24gbGlrZSB0aGlzOg0KPj4gc3Rh
-dGljIHZvaWQgY2hlY2tfZm9yX21lbW9yeShwZ19kYXRhX3QgKnBnZGF0LCBpbnQgbmlkKQ0KPj4g
-ew0KPj4gICAgICAgICBlbnVtIHpvbmVfdHlwZSB6b25lX3R5cGU7DQo+Pg0KPj4gICAgICAgICBm
-b3IgKHpvbmVfdHlwZSA9IDA7IHpvbmVfdHlwZSA8IFpPTkVfTU9WQUJMRTsgem9uZV90eXBlKysp
-IHsNCj4+ICAgICAgICAgICAgICAgICBpZiAocG9wdWxhdGVkX3pvbmUoJnBnZGF0LT5ub2RlX3pv
-bmVzW3pvbmVfdHlwZV0pKSB7IA0KPj4gICAgICAgICAgICAgICAgICAgICAgICAgbm9kZV9zZXRf
-c3RhdGUobmlkLCB6b25lX3R5cGUgPD0gWk9ORV9OT1JNQUwgPw0KPj4gICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgTl9OT1JNQUxfTUVNT1JZOiBOX0hJR0hfTUVNT1JZKTsN
-Cj4+ICAgICAgICAgICAgICAgICAgICAgICAgIGJyZWFrOw0KPj4gICAgICAgICAgICAgICAgIH0N
-Cj4+ICAgICAgICAgfQ0KPj4gfQ0KPiANCj4gSGkgUGF2ZWwsDQo+IA0KPiB0aGUgYWJvdmUgd291
-bGQgbm90IHdvcmsgZmluZS4NCj4gWW91IHNldCBlaXRoZXIgTl9OT1JNQUxfTUVNT1JZIG9yIE5f
-SElHSF9NRU1PUlksIGJ1dCBhIG5vZGUgY2FuIGhhdmUgYm90aA0KPiB0eXBlcyBvZiBtZW1vcnkg
-YXQgdGhlIHNhbWUgdGltZSAob24gQ09ORklHX0hJR0hNRU0gc3lzdGVtcykuDQo+IA0KPiBOX0hJ
-R0hfTUVNT1JZIHN0YW5kcyBmb3IgcmVndWxhciBvciBoaWdoIG1lbW9yeQ0KPiB3aGlsZSBOX05P
-Uk1BTF9NRU1PUlkgc3RhbmRzIG9ubHkgZm9yIHJlZ3VsYXIgbWVtb3J5LA0KPiB0aGF0IGlzIHdo
-eSB3ZSBzZXQgaXQgb25seSBpbiBjYXNlIHRoZSB6b25lIGlzIDw9IFpPTkVfTk9STUFMLg0KDQpI
-aSBPc2NhciwNCg0KQXJlIHlvdSBzYXlpbmcgdGhlIGNvZGUgdGhhdCBpcyBpbiBtYWlubGluZSBp
-cyBicm9rZW4/IEJlY2F1c2Ugd2Ugc2V0DQpub2RlX3NldF9zdGF0ZShuaWQsIE5fTk9STUFMX01F
-TU9SWSk7IGV2ZW4gb24gbm9kZSB3aXRoIE5fSElHSF9NRU1PUlk6DQoNCjY4MjYJCQlpZiAoTl9O
-T1JNQUxfTUVNT1JZICE9IE5fSElHSF9NRU1PUlkgJiYNCjY4MjcJCQkgICAgem9uZV90eXBlIDw9
-IFpPTkVfTk9STUFMKQ0KNjgyOAkJCQlub2RlX3NldF9zdGF0ZShuaWQsIE5fTk9STUFMX01FTU9S
-WSk7DQoNClRoYW5rIHlvdSwNClBhdmVs
+On Wed, Aug 29, 2018 at 10:11:53AM +1000, Dave Chinner wrote:
+> > +++ b/Documentation/sysctl/fs.txt
+> > @@ -63,19 +63,26 @@ struct {
+> >          int nr_unused;
+> >          int age_limit;         /* age in seconds */
+> >          int want_pages;        /* pages requested by system */
+> > -        int dummy[2];
+> > +        int nr_negative;       /* # of unused negative dentries */
+> > +        int dummy;
+> >  } dentry_stat = {0, 0, 45, 0,};
+> 
+> That's not a backwards compatible ABI change. Those dummy fields
+> used to represent some metric we no longer calculate, and there are
+> probably still monitoring apps out there that think they still have
+> the old meaning. i.e. they are still visible to userspace:
+
+I believe you are incorrect.  dentry_stat was introduced in 2.1.60 with
+this hunk:
+
++struct {
++       int nr_dentry;
++       int nr_unused;
++       int age_limit;          /* age in seconds */
++       int want_pages;         /* pages requested by system */
++       int dummy[2];
++} dentry_stat = {0, 0, 45, 0,};
++
+
+Looking through the rest of the dentry_stat changes in the 2.1.60 release,
+it's not replacing anything, it's adding new information.
