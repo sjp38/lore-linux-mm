@@ -1,98 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 93A676B579E
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 11:19:53 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id w194-v6so11354273oiw.5
-        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 08:19:53 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id t194-v6si7525773oif.388.2018.08.31.08.19.51
-        for <linux-mm@kvack.org>;
-        Fri, 31 Aug 2018 08:19:52 -0700 (PDT)
-From: James Morse <james.morse@arm.com>
-Subject: [PATCH] arm64: Kconfig: Remove ARCH_HAS_HOLES_MEMORYMODEL
-Date: Fri, 31 Aug 2018 16:19:43 +0100
-Message-Id: <20180831151943.9281-1-james.morse@arm.com>
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id ADBCE6B57A7
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 11:26:51 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id 2-v6so6195283plc.11
+        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 08:26:51 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 3-v6sor3457296plu.100.2018.08.31.08.26.50
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 31 Aug 2018 08:26:50 -0700 (PDT)
+Date: Fri, 31 Aug 2018 09:26:47 -0600
+From: Tycho Andersen <tycho@tycho.ws>
+Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs
+ in mind (for KVM to isolate its guests per CPU)
+Message-ID: <20180831152647.GC15213@cisco.cisco.com>
+References: <CA+55aFxyUdhYjnQdnmWAt8tTwn4HQ1xz3SAMZJiawkLpMiJ_+w@mail.gmail.com>
+ <ciirm8a7p3alos.fsf@u54ee758033e858cfa736.ant.amazon.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <ciirm8a7p3alos.fsf@u54ee758033e858cfa736.ant.amazon.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org
-Cc: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org
+To: Julian Stecklina <jsteckli@amazon.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, David Woodhouse <dwmw@amazon.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, juerg.haefliger@hpe.com, deepa.srinivasan@oracle.com, Jim Mattson <jmattson@google.com>, Andrew Cooper <andrew.cooper3@citrix.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, joao.m.martins@oracle.com, pradeep.vincent@oracle.com, Andi Kleen <ak@linux.intel.com>, Khalid Aziz <khalid.aziz@oracle.com>, kanth.ghatraju@oracle.com, Liran Alon <liran.alon@oracle.com>, Kees Cook <keescook@google.com>, Kernel Hardening <kernel-hardening@lists.openwall.com>, chris.hyser@oracle.com, Tyler Hicks <tyhicks@canonical.com>, John Haxby <john.haxby@oracle.com>, Jon Masters <jcm@redhat.com>
 
-include/linux/mmzone.h describes ARCH_HAS_HOLES_MEMORYMODEL as
-relevant when parts the memmap have been free()d. This would
-happen on systems where memory is smaller than a sparsemem-section,
-and the extra struct pages are expensive. pfn_valid() on these
-systems returns true for the whole sparsemem-section, so an extra
-memmap_valid_within() check is needed.
+On Thu, Aug 30, 2018 at 06:00:51PM +0200, Julian Stecklina wrote:
+> Hey everyone,
+> 
+> On Mon, 20 Aug 2018 15:27 Linus Torvalds <torvalds@linux-foundation.org> wrote:
+> > On Mon, Aug 20, 2018 at 3:02 PM Woodhouse, David <dwmw@amazon.co.uk> wrote:
+> >>
+> >> It's the *kernel* we don't want being able to access those pages,
+> >> because of the multitude of unfixable cache load gadgets.
+> >
+> > Ahh.
+> > 
+> > I guess the proof is in the pudding. Did somebody try to forward-port
+> > that patch set and see what the performance is like?
+> 
+> I've been spending some cycles on the XPFO patch set this week. For the
+> patch set as it was posted for v4.13, the performance overhead of
+> compiling a Linux kernel is ~40% on x86_64[1]. The overhead comes almost
+> completely from TLB flushing. If we can live with stale TLB entries
+> allowing temporary access (which I think is reasonable), we can remove
+> all TLB flushing (on x86). This reduces the overhead to 2-3% for
+> kernel compile.
 
-On arm64 we have nomap memory, so always provide pfn_valid() to test
-for nomap pages. This means ARCH_HAS_HOLES_MEMORYMODEL's extra checks
-are already rolled up into pfn_valid().
+Cool, thanks for doing this! Do you have any thoughts about what the
+2-3% is? It seems to me like if we're not doing the TLB flushes, the
+rest of this should be *really* cheap, even cheaper than 2-3%. Dave
+Hansen had suggested coalescing things on a per mapping basis vs.
+doing it per page, which might help?
 
-Remove it.
+> > It used to be just 500 LOC. Was that because they took horrible
+> > shortcuts?
+> 
+> The patch is still fairly small. As for the horrible shortcuts, I let
+> others comment on that.
 
-Signed-off-by: James Morse <james.morse@arm.com>
----
- arch/arm64/Kconfig            | 5 +----
- arch/arm64/include/asm/page.h | 2 --
- arch/arm64/mm/init.c          | 2 --
- 3 files changed, 1 insertion(+), 8 deletions(-)
+Heh, things like xpfo_temp_map() aren't awesome, but that can
+hopefully be fixed by keeping a little bit of memory around for use
+where we are mapping things and can't fail. I remember some discussion
+about hopefully not having to sprinkle xpfo mapping calls everywhere
+in the kernel, so perhaps we could get rid of it entirely?
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 1b1a0e95c751..6082d47bfc32 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -769,9 +769,6 @@ source kernel/Kconfig.hz
- config ARCH_SUPPORTS_DEBUG_PAGEALLOC
- 	def_bool y
- 
--config ARCH_HAS_HOLES_MEMORYMODEL
--	def_bool y if SPARSEMEM
--
- config ARCH_SPARSEMEM_ENABLE
- 	def_bool y
- 	select SPARSEMEM_VMEMMAP_ENABLE
-@@ -786,7 +783,7 @@ config ARCH_FLATMEM_ENABLE
- 	def_bool !NUMA
- 
- config HAVE_ARCH_PFN_VALID
--	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
-+	def_bool y
- 
- config HW_PERF_EVENTS
- 	def_bool y
-diff --git a/arch/arm64/include/asm/page.h b/arch/arm64/include/asm/page.h
-index 60d02c81a3a2..c88a3cb117a1 100644
---- a/arch/arm64/include/asm/page.h
-+++ b/arch/arm64/include/asm/page.h
-@@ -37,9 +37,7 @@ extern void clear_page(void *to);
- 
- typedef struct page *pgtable_t;
- 
--#ifdef CONFIG_HAVE_ARCH_PFN_VALID
- extern int pfn_valid(unsigned long);
--#endif
- 
- #include <asm/memory.h>
- 
-diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-index 787e27964ab9..3cf87341859f 100644
---- a/arch/arm64/mm/init.c
-+++ b/arch/arm64/mm/init.c
-@@ -284,7 +284,6 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
- 
- #endif /* CONFIG_NUMA */
- 
--#ifdef CONFIG_HAVE_ARCH_PFN_VALID
- int pfn_valid(unsigned long pfn)
- {
- 	phys_addr_t addr = pfn << PAGE_SHIFT;
-@@ -294,7 +293,6 @@ int pfn_valid(unsigned long pfn)
- 	return memblock_is_map_memory(addr);
- }
- EXPORT_SYMBOL(pfn_valid);
--#endif
- 
- #ifndef CONFIG_SPARSEMEM
- static void __init arm64_memory_present(void)
--- 
-2.18.0
+Anyway, I'm working on some other stuff for the kernel right now, but
+I hope (:D) that it should be close to done, and I'll have more cycles
+to work on this soon too.
+
+Tycho
