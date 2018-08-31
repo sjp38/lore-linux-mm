@@ -1,69 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CD0FD6B5416
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 20:21:09 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id 90-v6so4801952pla.18
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 17:21:09 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id h14-v6si8076537pgl.289.2018.08.30.17.21.08
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E74BF6B5452
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 21:23:19 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id 2-v6so4925286plc.11
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 18:23:19 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w5-v6sor2445985pfn.0.2018.08.30.18.23.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Aug 2018 17:21:08 -0700 (PDT)
-Date: Thu, 30 Aug 2018 17:21:05 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] scripts: add kmemleak2pprof.py for slab usage
- analysis
-Message-Id: <20180830172105.3f30f3831c370f51e2067a6c@linux-foundation.org>
-In-Reply-To: <20180830072939.i33m43mj7uslhvmz@axis.com>
-References: <20180828103914.30434-1-vincent.whitchurch@axis.com>
-	<20180828103914.30434-2-vincent.whitchurch@axis.com>
-	<20180828162804.4ee225124cbde3f39f53fd80@linux-foundation.org>
-	<20180830072939.i33m43mj7uslhvmz@axis.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Thu, 30 Aug 2018 18:23:18 -0700 (PDT)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (1.0)
+Subject: Re: [RFC PATCH v3 12/24] x86/mm: Modify ptep_set_wrprotect and pmdp_set_wrprotect for _PAGE_DIRTY_SW
+From: Andy Lutomirski <luto@amacapital.net>
+In-Reply-To: <CAG48ez3ixWROuQc6WZze6qPL6q0e_gCnMU4XF11JUWziePsBJg@mail.gmail.com>
+Date: Thu, 30 Aug 2018 18:23:15 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <337F9DA7-ED07-4CD0-B41C-22D570527362@amacapital.net>
+References: <20180830143904.3168-1-yu-cheng.yu@intel.com> <20180830143904.3168-13-yu-cheng.yu@intel.com> <CAG48ez0Rca0XsdXJZ07c+iGPyep0Gpxw+sxQuACP5gyPaBgDKA@mail.gmail.com> <079a55f2-4654-4adf-a6ef-6e480b594a2f@linux.intel.com> <CAG48ez2gHOD9hH4+0wek5vUOv9upj79XWoug2SXjdwfXWoQqxw@mail.gmail.com> <ce051b5b-feef-376f-e085-11f65a5f2215@linux.intel.com> <1535649960.26689.15.camel@intel.com> <33d45a12-513c-eba2-a2de-3d6b630e928e@linux.intel.com> <1535651666.27823.6.camel@intel.com> <CAG48ez3ixWROuQc6WZze6qPL6q0e_gCnMU4XF11JUWziePsBJg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vincent Whitchurch <vincent.whitchurch@axis.com>
-Cc: catalin.marinas@arm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jann Horn <jannh@google.com>
+Cc: yu-cheng.yu@intel.com, Dave Hansen <dave.hansen@linux.intel.com>, the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, hjl.tools@gmail.com, Jonathan Corbet <corbet@lwn.net>, keescook@chromiun.org, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, ravi.v.shankar@intel.com, vedvyas.shanbhogue@intel.com
 
-On Thu, 30 Aug 2018 09:29:40 +0200 Vincent Whitchurch <vincent.whitchurch@axis.com> wrote:
 
-> On Tue, Aug 28, 2018 at 04:28:04PM -0700, Andrew Morton wrote:
-> > On Tue, 28 Aug 2018 12:39:14 +0200 Vincent Whitchurch <vincent.whitchurch@axis.com> wrote:
-> > 
-> > > Add a script which converts /sys/kernel/debug/kmemleak_all to the pprof
-> > > format, which can be used for analysing memory usage.  See
-> > > https://github.com/google/pprof.
-> > 
-> > Why is this better than /proc/slabinfo?
-> 
-> slabinfo just tells you how much memory is being used in a particular
-> slab, it doesn't give you a breakdown of who allocated all that memory.
-> slabinfo can't also tell you how much memory a particular subsystem is
-> using.
-> 
-> For example, here we can see that tracer_init_tracefs() and its callers
-> are using ~12% of the total tracked memory:
-> 
->  $ pprof -top -compact_labels -cum prof 
->  Showing nodes accounting for 13418.95kB, 92.07% of 14575.28kB total
->  Dropped 4069 nodes (cum <= 72.88kB)
->        flat  flat%   sum%        cum   cum%
->        ...
->           0     0% 56.71%  1832.15kB 12.57%  tracer_init_tracefs+0x74/0x1cc
-> 
->  
-> And that tracefs' dentrys use 500 KiB and its inodes use 1+ MiB:
->  	
->  $ pprof -text -compact_labels -focus tracer_init_tracefs -nodecount 2 prof
->  Main binary filename not available.
->  Showing nodes accounting for 1794.85kB, 12.31% of 14575.28kB total
->  Dropped 1912 nodes (cum <= 72.88kB)
->  Showing top 2 nodes out of 32
->        flat  flat%   sum%        cum   cum%
->   1294.56kB  8.88%  8.88%  1294.56kB  8.88%  new_inode_pseudo+0x8/0x4c
->    500.29kB  3.43% 12.31%   500.29kB  3.43%  d_alloc+0x10/0x78
->    ...
 
-OK, thanks.  Please include this info in future changelogs?
+> On Aug 30, 2018, at 10:59 AM, Jann Horn <jannh@google.com> wrote:
+>=20
+>> On Thu, Aug 30, 2018 at 7:58 PM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote=
+:
+>>=20
+>>> On Thu, 2018-08-30 at 10:33 -0700, Dave Hansen wrote:
+>>>> On 08/30/2018 10:26 AM, Yu-cheng Yu wrote:
+>>>>=20
+>>>> We don't have the guard page now, but there is a shadow stack
+>>>> token
+>>>> there, which cannot be used as a return address.
+>>> The overall concern is that we could overflow into a page that we
+>>> did
+>>> not intend.  Either another actual shadow stack or something that a
+>>> page
+>>> that the attacker constructed, like the transient scenario Jann
+>>> described.
+>>>=20
+>>=20
+>> A task could go beyond the bottom of its shadow stack by doing either
+>> 'ret' or 'incssp'.  If it is the 'ret' case, the token prevents it.
+>> If it is the 'incssp' case, a guard page cannot prevent it entirely,
+>> right?
+>=20
+> I mean the other direction, on "call".
+
+I still think that shadow stacks should work just like mmap and that mmap sh=
+ould learn to add guard pages for all non-MAP_FIXED allocations.=
