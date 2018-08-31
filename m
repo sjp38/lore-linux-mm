@@ -1,58 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 284076B5717
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 09:12:14 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id d1-v6so13674593qth.21
-        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 06:12:14 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id v17-v6si7179329qtq.288.2018.08.31.06.12.13
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Aug 2018 06:12:13 -0700 (PDT)
-Subject: Re: [PATCH RFCv2 1/6] mm/memory_hotplug: make remove_memory() take
- the device_hotplug_lock
-References: <20180821104418.12710-1-david@redhat.com>
- <20180821104418.12710-2-david@redhat.com>
- <46a0119b-da16-0203-a8c2-d127738517f4@microsoft.com>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <5b1f79cd-553b-4f9d-2690-8d7fb553278e@redhat.com>
-Date: Fri, 31 Aug 2018 15:12:05 +0200
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CA7E46B5730
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 09:35:17 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id 20-v6so11004769ois.21
+        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 06:35:17 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id m130-v6si6696749oif.200.2018.08.31.06.35.16
+        for <linux-mm@kvack.org>;
+        Fri, 31 Aug 2018 06:35:16 -0700 (PDT)
+Subject: Re: [PATCH v2 13/40] vfio: Add support for Shared Virtual Addressing
+References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
+ <20180511190641.23008-14-jean-philippe.brucker@arm.com>
+ <5B83B11E.7010807@huawei.com>
+From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
+Message-ID: <1d5b6529-4e5a-723c-3f1b-dd5a9adb490c@arm.com>
+Date: Fri, 31 Aug 2018 14:34:52 +0100
 MIME-Version: 1.0
-In-Reply-To: <46a0119b-da16-0203-a8c2-d127738517f4@microsoft.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <5B83B11E.7010807@huawei.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <Pavel.Tatashin@microsoft.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Rashmica Gupta <rashmica.g@gmail.com>, Michael Neuling <mikey@neuling.org>, Balbir Singh <bsingharora@gmail.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, John Allen <jallen@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Oscar Salvador <osalvador@suse.de>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Mathieu Malaterre <malat@debian.org>
+To: Xu Zaibo <xuzaibo@huawei.com>, linux-arm-kernel@lists.infradead.org, linux-pci@vger.kernel.org, linux-acpi@vger.kernel.org, devicetree@vger.kernel.org, iommu@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org
+Cc: joro@8bytes.org, will.deacon@arm.com, robin.murphy@arm.com, alex.williamson@redhat.com, tn@semihalf.com, liubo95@huawei.com, thunder.leizhen@huawei.com, xieyisheng1@huawei.com, ilias.apalodimas@linaro.org, jonathan.cameron@huawei.com, liudongdong3@huawei.com, shunyong.yang@hxt-semitech.com, nwatters@codeaurora.org, okaya@codeaurora.org, jcrouse@codeaurora.org, rfranz@cavium.com, dwmw2@infradead.org, jacob.jun.pan@linux.intel.com, yi.l.liu@intel.com, ashok.raj@intel.com, kevin.tian@intel.com, baolu.lu@linux.intel.com, robdclark@gmail.com, christian.koenig@amd.com, bharatku@xilinx.com, rgummal@xilinx.com, =?UTF-8?B?57Gz57Gz?= <kenneth-lee-2012@foxmail.com>, wangzhou1 <wangzhou1@hisilicon.com>, liguozhu <liguozhu@hisilicon.com>, fanghao11 <fanghao11@huawei.com>
 
-On 30.08.2018 21:35, Pasha Tatashin wrote:
->> +
->> +void __ref remove_memory(int nid, u64 start, u64 size)
-> 
-> Remove __ref, otherwise looks good:
+Hi Zaibo,
 
-Indeed, will do.
+On 27/08/18 09:06, Xu Zaibo wrote:
+>> +struct vfio_iommu_type1_bind_process {
+>> +    __u32    flags;
+>> +#define VFIO_IOMMU_BIND_PID        (1 << 0)
+>> +    __u32    pasid;
+> As I am doing some works on the SVA patch set. I just consider why the
+> user space need this pasid.
+> Maybe, is it much more reasonable to set the pasid into all devices
+> under the vfio container by
+> a call back function from 'vfio_devices'  while
+> 'VFIO_IOMMU_BIND_PROCESS' CMD is executed
+> in kernel land? I am not sure because there exists no suitable call back
+> in 'vfio_device' at present.
 
-Thanks for the review. Will resend in two weeks when I'm back from vacation.
+When using vfio-pci, the kernel doesn't know how to program the PASID
+into the device because the only kernel driver for the device is the
+generic vfio-pci module. The PCI specification doesn't describe a way of
+setting up the PASID, it's vendor-specific. Only the userspace
+application owning the device (and calling VFIO_IOMMU_BIND) knows how to
+do it, so we return the allocated PASID.
 
-Cheers!
-
-> 
-> Reviewed-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
-> 
->> +{
->> +	lock_device_hotplug();
->> +	__remove_memory(nid, start, size);
->> +	unlock_device_hotplug();
->> +}
->>  EXPORT_SYMBOL_GPL(remove_memory);
->>  #endif /* CONFIG_MEMORY_HOTREMOVE */
-
-
--- 
+Note that unlike vfio-mdev where applications share slices of a
+function, with vfio-pci one application owns the whole function so it's
+safe to let userspace set the PASID in hardware. With vfio-mdev it's the
+kernel driver that should be in charge of setting the PASID as you
+described, and we wouldn't have a reason to return the PASID in the
+vfio_iommu_type1_bind_process structure.
 
 Thanks,
-
-David / dhildenb
+Jean
