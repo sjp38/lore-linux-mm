@@ -1,82 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CEC236B58D2
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 16:35:13 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id b5-v6so15946410qtk.4
-        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 13:35:13 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id i33-v6si5352326qtb.238.2018.08.31.13.35.12
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 718566B58DE
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 16:45:46 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id k96-v6so9486406wrc.3
+        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 13:45:46 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z78-v6sor6735784wrb.45.2018.08.31.13.45.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Aug 2018 13:35:12 -0700 (PDT)
-From: Roman Gushchin <guro@fb.com>
-Subject: [PATCH] mm: slowly shrink slabs with a relatively small number of objects
-Date: Fri, 31 Aug 2018 13:34:50 -0700
-Message-ID: <20180831203450.2536-1-guro@fb.com>
+        (Google Transport Security);
+        Fri, 31 Aug 2018 13:45:45 -0700 (PDT)
+Date: Fri, 31 Aug 2018 22:45:43 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH] mm/page_alloc: Clean up check_for_memory
+Message-ID: <20180831204543.GA3885@techadventures.net>
+References: <20180828210158.4617-1-osalvador@techadventures.net>
+ <332d9ea1-cdd0-6bb6-8e83-28af25096637@microsoft.com>
+ <20180831122401.GA2123@techadventures.net>
+ <b2fea9ef-84e9-84dc-c847-5b944a8d832f@microsoft.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b2fea9ef-84e9-84dc-c847-5b944a8d832f@microsoft.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, kernel-team@fb.com, Roman Gushchin <guro@fb.com>, Josef Bacik <jbacik@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@suse.com" <mhocko@suse.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oscar Salvador <osalvador@suse.de>
 
-Commit 9092c71bb724 ("mm: use sc->priority for slab shrink targets")
-changed the way how target the slab pressure is calculated and
-made it priority-based:
+On Fri, Aug 31, 2018 at 02:04:59PM +0000, Pasha Tatashin wrote:
+> Are you saying the code that is in mainline is broken? Because we set
+> node_set_state(nid, N_NORMAL_MEMORY); even on node with N_HIGH_MEMORY:
+> 
+> 6826			if (N_NORMAL_MEMORY != N_HIGH_MEMORY &&
+> 6827			    zone_type <= ZONE_NORMAL)
+> 6828				node_set_state(nid, N_NORMAL_MEMORY);
 
-    delta = freeable >> priority;
-    delta *= 4;
-    do_div(delta, shrinker->seeks);
+Yes, and that is fine. Although the curent code is subtle for the reasons
+I expplained in the changelog.
+What I am saying is that the code you suggested would not work
+because your code either sets N_NORMAL_MEMORY or N_HIGH_MEMORY and then
+breaks the loop.
 
-The problem is that on a default priority (which is 12) no pressure
-is applied at all, if the number of potentially reclaimable objects
-is less than 4096.
+That is wrong because when we are on a CONFIG_HIGHMEM system,
+it can happen that we have a node with both types, so we have to set
+both types of memory.
 
-It wouldn't be a big deal, if only these objects were not pinning the
-corresponding dying memory cgroups. 4096 dentries/inodes/radix tree
-nodes/... is a reasonable number, but 4096 dying cgroups is not.
+N_HIGH_MEMORY, and N_NORMAL_MEMORY if the zone is <= ZONE_NORMAL.
 
-If there are no big spikes in memory pressure, and new memory cgroups
-are created and destroyed periodically, this causes the number of
-dying cgroups grow steadily, causing a slow-ish and hard-to-detect
-memory "leak". It's not a real leak, as the memory can be eventually
-reclaimed, but it could not happen in a real life at all. I've seen
-hosts with a steadily climbing number of dying cgroups, which doesn't
-show any signs of a decline in months, despite the host is loaded
-with a production workload.
-
-It is an obvious waste of memory, and to prevent it, let's apply
-a minimal pressure even on small shrinker lists. E.g. if there are
-freeable objects, let's scan at least min(freeable, scan_batch)
-objects.
-
-This fix significantly improves a chance of a dying cgroup to be
-reclaimed, and together with some previous patches stops the steady
-growth of the dying cgroups number on some of our hosts.
-
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Cc: Josef Bacik <jbacik@fb.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@surriel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- mm/vmscan.c | 4 ++++
- 1 file changed, 4 insertions(+)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index fa2c150ab7b9..c910cf6bf606 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -476,6 +476,10 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
- 	delta = freeable >> priority;
- 	delta *= 4;
- 	do_div(delta, shrinker->seeks);
-+
-+	if (delta == 0 && freeable > 0)
-+		delta = min(freeable, batch_size);
-+
- 	total_scan += delta;
- 	if (total_scan < 0) {
- 		pr_err("shrink_slab: %pF negative objects to delete nr=%ld\n",
+Thanks
 -- 
-2.17.1
+Oscar Salvador
+SUSE L3
