@@ -1,67 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 661966B578C
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 11:03:34 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id z44-v6so14323110qtg.5
-        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 08:03:34 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id m77-v6si9000169qkl.347.2018.08.31.08.03.33
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 155A06B5790
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 11:05:12 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id x5-v6so10781291ioa.6
+        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 08:05:12 -0700 (PDT)
+Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0090.outbound.protection.outlook.com. [104.47.37.90])
+        by mx.google.com with ESMTPS id k200-v6si6609822ioe.87.2018.08.31.08.05.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Aug 2018 08:03:33 -0700 (PDT)
-Subject: Re: [PATCH 1/2] fs/dcache: Track & report number of negative dentries
-References: <1535476780-5773-1-git-send-email-longman@redhat.com>
- <1535476780-5773-2-git-send-email-longman@redhat.com>
- <20180829001153.GD1572@dastard>
- <20180831143100.GA6379@bombadil.infradead.org>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <2b1fcabb-ff53-7906-c4d3-dfe19f8449e6@redhat.com>
-Date: Fri, 31 Aug 2018 11:03:31 -0400
-MIME-Version: 1.0
-In-Reply-To: <20180831143100.GA6379@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 31 Aug 2018 08:05:10 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Subject: [PATCH] mm: Disable deferred struct page for 32-bit arches
+Date: Fri, 31 Aug 2018 15:05:09 +0000
+Message-ID: <20180831150506.31246-1-pavel.tatashin@microsoft.com>
 Content-Language: en-US
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jglisse@redhat.com" <jglisse@redhat.com>, Pasha Tatashin <Pavel.Tatashin@microsoft.com>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "jslaby@suse.cz" <jslaby@suse.cz>
 
-On 08/31/2018 10:31 AM, Matthew Wilcox wrote:
-> On Wed, Aug 29, 2018 at 10:11:53AM +1000, Dave Chinner wrote:
->>> +++ b/Documentation/sysctl/fs.txt
->>> @@ -63,19 +63,26 @@ struct {
->>>          int nr_unused;
->>>          int age_limit;         /* age in seconds */
->>>          int want_pages;        /* pages requested by system */
->>> -        int dummy[2];
->>> +        int nr_negative;       /* # of unused negative dentries */
->>> +        int dummy;
->>>  } dentry_stat = {0, 0, 45, 0,};
->> That's not a backwards compatible ABI change. Those dummy fields
->> used to represent some metric we no longer calculate, and there are
->> probably still monitoring apps out there that think they still have
->> the old meaning. i.e. they are still visible to userspace:
-> I believe you are incorrect.  dentry_stat was introduced in 2.1.60 with
-> this hunk:
->
-> +struct {
-> +       int nr_dentry;
-> +       int nr_unused;
-> +       int age_limit;          /* age in seconds */
-> +       int want_pages;         /* pages requested by system */
-> +       int dummy[2];
-> +} dentry_stat = {0, 0, 45, 0,};
-> +
->
-> Looking through the rest of the dentry_stat changes in the 2.1.60 release,
-> it's not replacing anything, it's adding new information.
+Deferred struct page init is needed only on systems with large amount of
+physical memory to improve boot performance. 32-bit systems do not benefit
+from this feature.
 
-Thanks for looking up earlier non-git source tree. If that is the case,
-the dummy[2] was there just for future extension purpose. It should be
-perfectly fine to reuse one of the dummy entry for negative dentry count
-then as no sane application would have checked the last 2 entries of
-dentry-state and do dummy things if they are non-zero.
+Jiri reported a problem where deferred struct pages do not work well with
+x86-32:
 
-Cheers,
-Longman
+[    0.035162] Dentry cache hash table entries: 131072 (order: 7, 524288 by=
+tes)
+[    0.035725] Inode-cache hash table entries: 65536 (order: 6, 262144 byte=
+s)
+[    0.036269] Initializing CPU#0
+[    0.036513] Initializing HighMem for node 0 (00036ffe:0007ffe0)
+[    0.038459] page:f6780000 is uninitialized and poisoned
+[    0.038460] raw: ffffffff ffffffff ffffffff ffffffff ffffffff ffffffff f=
+fffffff ffffffff
+[    0.039509] page dumped because: VM_BUG_ON_PAGE(1 && PageCompound(page))
+[    0.040038] ------------[ cut here ]------------
+[    0.040399] kernel BUG at include/linux/page-flags.h:293!
+[    0.040823] invalid opcode: 0000 [#1] SMP PTI
+[    0.041166] CPU: 0 PID: 0 Comm: swapper Not tainted 4.19.0-rc1_pt_jiri #=
+9
+[    0.041694] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS =
+1.11.0-20171110_100015-anatol 04/01/2014
+[    0.042496] EIP: free_highmem_page+0x64/0x80
+[    0.042839] Code: 13 46 d8 c1 e8 18 5d 83 e0 03 8d 04 c0 c1 e0 06 ff 80 =
+ec 5f 44 d8 c3 8d b4 26 00 00 00 00 ba 08 65 28 d8 89 d8 e8 fc 71 02 00 <0f=
+> 0b 8d 76 00 8d bc 27 00 00 00 00 ba d0 b1 26 d8 89 d8 e8 e4 71
+[    0.044338] EAX: 0000003c EBX: f6780000 ECX: 00000000 EDX: d856cbe8
+[    0.044868] ESI: 0007ffe0 EDI: d838df20 EBP: d838df00 ESP: d838defc
+[    0.045372] DS: 007b ES: 007b FS: 00d8 GS: 00e0 SS: 0068 EFLAGS: 0021008=
+6
+[    0.045913] CR0: 80050033 CR2: 00000000 CR3: 18556000 CR4: 00040690
+[    0.046413] DR0: 00000000 DR1: 00000000 DR2: 00000000 DR3: 00000000
+[    0.046913] DR6: fffe0ff0 DR7: 00000400
+[    0.047220] Call Trace:
+[    0.047419]  add_highpages_with_active_regions+0xbd/0x10d
+[    0.047854]  set_highmem_pages_init+0x5b/0x71
+[    0.048202]  mem_init+0x2b/0x1e8
+[    0.048460]  start_kernel+0x1d2/0x425
+[    0.048757]  i386_start_kernel+0x93/0x97
+[    0.049073]  startup_32_smp+0x164/0x168
+[    0.049379] Modules linked in:
+[    0.049626] ---[ end trace 337949378db0abbb ]---
+
+We free highmem pages before their struct pages are initialized:
+
+mem_init()
+ set_highmem_pages_init()
+  add_highpages_with_active_regions()
+   free_highmem_page()
+    .. Access uninitialized struct page here..
+
+Because there is no reason to have this feature on 32-bit systems, just
+disable it.
+
+Fixes: 2e3ca40f03bb ("mm: relax deferred struct page requirements")
+Cc: stable@vger.kernel.org
+
+Reported-by: Jiri Slaby <jslaby@suse.cz>
+Signed-off-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
+---
+ mm/Kconfig | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mm/Kconfig b/mm/Kconfig
+index a550635ea5c3..de64ea658716 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -637,6 +637,7 @@ config DEFERRED_STRUCT_PAGE_INIT
+ 	depends on NO_BOOTMEM
+ 	depends on SPARSEMEM
+ 	depends on !NEED_PER_CPU_KM
++	depends on 64BIT
+ 	help
+ 	  Ordinarily all struct pages are initialised during early boot in a
+ 	  single thread. On very large machines this can take a considerable
+--=20
+2.18.0
