@@ -1,56 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D51AF6B57C1
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 11:58:41 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id j15-v6so7052354pfi.10
-        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 08:58:41 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id l3-v6si10060949pga.137.2018.08.31.08.58.40
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A3CFC6B57CF
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 12:12:33 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id o18-v6so14480078qtm.11
+        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 09:12:33 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id i50-v6si203574qte.298.2018.08.31.09.12.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Aug 2018 08:58:40 -0700 (PDT)
-Subject: Re: [RFC PATCH v3 12/24] x86/mm: Modify ptep_set_wrprotect and
- pmdp_set_wrprotect for _PAGE_DIRTY_SW
-References: <ce051b5b-feef-376f-e085-11f65a5f2215@linux.intel.com>
- <1535649960.26689.15.camel@intel.com>
- <33d45a12-513c-eba2-a2de-3d6b630e928e@linux.intel.com>
- <1535651666.27823.6.camel@intel.com>
- <CAG48ez3ixWROuQc6WZze6qPL6q0e_gCnMU4XF11JUWziePsBJg@mail.gmail.com>
- <1535660494.28258.36.camel@intel.com>
- <CAG48ez0yOuDhqxB779aO3Kss3gQ3cZTJL1VphDXQm+_M9jFPvQ@mail.gmail.com>
- <1535662366.28781.6.camel@intel.com>
- <CAG48ez0mkr95_TbLQnDGuGUd6G+eJVLZ-fEjDkwA6dSrm+9tLw@mail.gmail.com>
- <CAG48ez3S3+DzAyo_SnoUW1GO0Cpd_x0A83MOx2p_MkogoAatLQ@mail.gmail.com>
- <20180831095300.GF24124@hirez.programming.kicks-ass.net>
- <1535726032.32537.0.camel@intel.com>
- <f5a36e32-7c5f-91fe-9e98-fb44867fda11@linux.intel.com>
- <1535730524.501.13.camel@intel.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <6d31bd30-6d5b-bbde-1e97-1d8255eff76d@linux.intel.com>
-Date: Fri, 31 Aug 2018 08:58:39 -0700
+        Fri, 31 Aug 2018 09:12:32 -0700 (PDT)
+Date: Fri, 31 Aug 2018 12:12:30 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 5/7] mm/hmm: use a structure for update callback
+ parameters
+Message-ID: <20180831161230.GA4111@redhat.com>
+References: <20180824192549.30844-1-jglisse@redhat.com>
+ <20180824192549.30844-6-jglisse@redhat.com>
+ <20180830231148.GC28695@350D>
 MIME-Version: 1.0
-In-Reply-To: <1535730524.501.13.camel@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180830231148.GC28695@350D>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>, Peter Zijlstra <peterz@infradead.org>, Jann Horn <jannh@google.com>
-Cc: the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, hjl.tools@gmail.com, Jonathan Corbet <corbet@lwn.net>, keescook@chromiun.org, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, ravi.v.shankar@intel.com, vedvyas.shanbhogue@intel.com
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>
 
-On 08/31/2018 08:48 AM, Yu-cheng Yu wrote:
-> To trigger a race in ptep_set_wrprotect(), we need to fork from one of
-> three pthread siblings.
+On Fri, Aug 31, 2018 at 09:11:48AM +1000, Balbir Singh wrote:
+> On Fri, Aug 24, 2018 at 03:25:47PM -0400, jglisse@redhat.com wrote:
+> > From: Jerome Glisse <jglisse@redhat.com>
+> > 
+> > Use a structure to gather all the parameters for the update callback.
+> > This make it easier when adding new parameters by avoiding having to
+> > update all callback function signature.
+> > 
+> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> > Cc: Ralph Campbell <rcampbell@nvidia.com>
+> > Cc: John Hubbard <jhubbard@nvidia.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > ---
+> >  include/linux/hmm.h | 25 +++++++++++++++++--------
+> >  mm/hmm.c            | 27 ++++++++++++++-------------
+> >  2 files changed, 31 insertions(+), 21 deletions(-)
+> > 
+> > diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> > index 1ff4bae7ada7..a7f7600b6bb0 100644
+> > --- a/include/linux/hmm.h
+> > +++ b/include/linux/hmm.h
+> > @@ -274,13 +274,26 @@ static inline uint64_t hmm_pfn_from_pfn(const struct hmm_range *range,
+> >  struct hmm_mirror;
+> >  
+> >  /*
+> > - * enum hmm_update_type - type of update
+> > + * enum hmm_update_event - type of update
+> >   * @HMM_UPDATE_INVALIDATE: invalidate range (no indication as to why)
+> >   */
+> > -enum hmm_update_type {
+> > +enum hmm_update_event {
+> >  	HMM_UPDATE_INVALIDATE,
+> >  };
+> >  
+> > +/*
+> > + * struct hmm_update - HMM update informations for callback
+> > + *
+> > + * @start: virtual start address of the range to update
+> > + * @end: virtual end address of the range to update
+> > + * @event: event triggering the update (what is happening)
+> > + */
+> > +struct hmm_update {
+> > +	unsigned long start;
+> > +	unsigned long end;
+> > +	enum hmm_update_event event;
+> > +};
+> > +
 > 
-> Or do we measure only how much this affects fork?
-> If there is no racing, the effect should be minimal.
+> I wonder if you want to add further information about the range,
+> like page_size, I guess the other side does not care about the
+> size. Do we care about sending multiple discontig ranges in
+> hmm_update? Should it be an array?
+> 
+> Balbir Singh
 
-We don't need a race.
+This is a range of virtual address if a huge page is fully unmapped
+then the range will cover the full huge page. It mirror mmu notifier
+range callback because 99% of the time it is just use to pass down
+mmu notifier invalidation. So we don't care about multi range at
+least not yet.
 
-I think the cmpxchg will be slower, even without a race, than the code
-that was there before.  The cmpxchg is a simple, straightforward
-solution, but we're putting it in place of a plain memory write, which
-is suboptimal.
+Nor do we care about page size as it might vary in the range (range
+can have a mix of THP and regular page) moreover the device driver
+usualy ignore the page size.
 
-But, before I nitpick the performance, I wanted to see if we could even
-detect a delta.
+
+Cheers,
+Jerome
