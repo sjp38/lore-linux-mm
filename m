@@ -1,59 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CA7E46B5730
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 09:35:17 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id 20-v6so11004769ois.21
-        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 06:35:17 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id m130-v6si6696749oif.200.2018.08.31.06.35.16
-        for <linux-mm@kvack.org>;
-        Fri, 31 Aug 2018 06:35:16 -0700 (PDT)
-Subject: Re: [PATCH v2 13/40] vfio: Add support for Shared Virtual Addressing
-References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
- <20180511190641.23008-14-jean-philippe.brucker@arm.com>
- <5B83B11E.7010807@huawei.com>
-From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
-Message-ID: <1d5b6529-4e5a-723c-3f1b-dd5a9adb490c@arm.com>
-Date: Fri, 31 Aug 2018 14:34:52 +0100
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E5FE86B573A
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 09:43:03 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id j22-v6so8457198wre.7
+        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 06:43:03 -0700 (PDT)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
+        by mx.google.com with ESMTPS id a5-v6si7730308wrt.56.2018.08.31.06.43.02
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 31 Aug 2018 06:43:02 -0700 (PDT)
+Date: Fri, 31 Aug 2018 14:42:44 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH v6 11/11] arm64: annotate user pointers casts detected by
+ sparse
+Message-ID: <20180831134244.GB19965@ZenIV.linux.org.uk>
+References: <cover.1535629099.git.andreyknvl@google.com>
+ <5d54526e5ff2e5ad63d0dfdd9ab17cf359afa4f2.1535629099.git.andreyknvl@google.com>
+ <20180831081123.6mo62xnk54pvlxmc@ltop.local>
 MIME-Version: 1.0
-In-Reply-To: <5B83B11E.7010807@huawei.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180831081123.6mo62xnk54pvlxmc@ltop.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xu Zaibo <xuzaibo@huawei.com>, linux-arm-kernel@lists.infradead.org, linux-pci@vger.kernel.org, linux-acpi@vger.kernel.org, devicetree@vger.kernel.org, iommu@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org
-Cc: joro@8bytes.org, will.deacon@arm.com, robin.murphy@arm.com, alex.williamson@redhat.com, tn@semihalf.com, liubo95@huawei.com, thunder.leizhen@huawei.com, xieyisheng1@huawei.com, ilias.apalodimas@linaro.org, jonathan.cameron@huawei.com, liudongdong3@huawei.com, shunyong.yang@hxt-semitech.com, nwatters@codeaurora.org, okaya@codeaurora.org, jcrouse@codeaurora.org, rfranz@cavium.com, dwmw2@infradead.org, jacob.jun.pan@linux.intel.com, yi.l.liu@intel.com, ashok.raj@intel.com, kevin.tian@intel.com, baolu.lu@linux.intel.com, robdclark@gmail.com, christian.koenig@amd.com, bharatku@xilinx.com, rgummal@xilinx.com, =?UTF-8?B?57Gz57Gz?= <kenneth-lee-2012@foxmail.com>, wangzhou1 <wangzhou1@hisilicon.com>, liguozhu <liguozhu@hisilicon.com>, fanghao11 <fanghao11@huawei.com>
+To: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Cc: Andrey Konovalov <andreyknvl@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>
 
-Hi Zaibo,
+On Fri, Aug 31, 2018 at 10:11:24AM +0200, Luc Van Oostenryck wrote:
+> On Thu, Aug 30, 2018 at 01:41:16PM +0200, Andrey Konovalov wrote:
+> > This patch adds __force annotations for __user pointers casts detected by
+> > sparse with the -Wcast-from-as flag enabled (added in [1]).
+> > 
+> > [1] https://github.com/lucvoo/sparse-dev/commit/5f960cb10f56ec2017c128ef9d16060e0145f292
+> 
+> Hi,
+> 
+> It would be nice to have some explanation for why these added __force
+> are useful.
 
-On 27/08/18 09:06, Xu Zaibo wrote:
->> +struct vfio_iommu_type1_bind_process {
->> +    __u32    flags;
->> +#define VFIO_IOMMU_BIND_PID        (1 << 0)
->> +    __u32    pasid;
-> As I am doing some works on the SVA patch set. I just consider why the
-> user space need this pasid.
-> Maybe, is it much more reasonable to set the pasid into all devices
-> under the vfio container by
-> a call back function from 'vfio_devices'  while
-> 'VFIO_IOMMU_BIND_PROCESS' CMD is executed
-> in kernel land? I am not sure because there exists no suitable call back
-> in 'vfio_device' at present.
+	It would be even more useful if that series would either deal with
+the noise for real ("that's what we intend here, that's what we intend there,
+here's a primitive for such-and-such kind of cases, here we actually
+ought to pass __user pointer instead of unsigned long", etc.) or left it
+unmasked.
 
-When using vfio-pci, the kernel doesn't know how to program the PASID
-into the device because the only kernel driver for the device is the
-generic vfio-pci module. The PCI specification doesn't describe a way of
-setting up the PASID, it's vendor-specific. Only the userspace
-application owning the device (and calling VFIO_IOMMU_BIND) knows how to
-do it, so we return the allocated PASID.
+	As it is, __force says only one thing: "I know the code is doing
+the right thing here".  That belongs in primitives, and I do *not* mean the
+#define cast_to_ulong(x) ((__force unsigned long)(x))
+kind.
 
-Note that unlike vfio-mdev where applications share slices of a
-function, with vfio-pci one application owns the whole function so it's
-safe to let userspace set the PASID in hardware. With vfio-mdev it's the
-kernel driver that should be in charge of setting the PASID as you
-described, and we wouldn't have a reason to return the PASID in the
-vfio_iommu_type1_bind_process structure.
+	Folks, if you don't want to deal with that - leave the warnings be.
+They do carry more information than "someone has slapped __force in that place".
 
-Thanks,
-Jean
+Al, very annoyed by that kind of information-hiding crap...
