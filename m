@@ -1,102 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 155A06B5790
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 11:05:12 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id x5-v6so10781291ioa.6
-        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 08:05:12 -0700 (PDT)
-Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0090.outbound.protection.outlook.com. [104.47.37.90])
-        by mx.google.com with ESMTPS id k200-v6si6609822ioe.87.2018.08.31.08.05.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 31 Aug 2018 08:05:10 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: [PATCH] mm: Disable deferred struct page for 32-bit arches
-Date: Fri, 31 Aug 2018 15:05:09 +0000
-Message-ID: <20180831150506.31246-1-pavel.tatashin@microsoft.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 93A676B579E
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 11:19:53 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id w194-v6so11354273oiw.5
+        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 08:19:53 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id t194-v6si7525773oif.388.2018.08.31.08.19.51
+        for <linux-mm@kvack.org>;
+        Fri, 31 Aug 2018 08:19:52 -0700 (PDT)
+From: James Morse <james.morse@arm.com>
+Subject: [PATCH] arm64: Kconfig: Remove ARCH_HAS_HOLES_MEMORYMODEL
+Date: Fri, 31 Aug 2018 16:19:43 +0100
+Message-Id: <20180831151943.9281-1-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jglisse@redhat.com" <jglisse@redhat.com>, Pasha Tatashin <Pavel.Tatashin@microsoft.com>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "jslaby@suse.cz" <jslaby@suse.cz>
+To: linux-arm-kernel@lists.infradead.org
+Cc: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org
 
-Deferred struct page init is needed only on systems with large amount of
-physical memory to improve boot performance. 32-bit systems do not benefit
-from this feature.
+include/linux/mmzone.h describes ARCH_HAS_HOLES_MEMORYMODEL as
+relevant when parts the memmap have been free()d. This would
+happen on systems where memory is smaller than a sparsemem-section,
+and the extra struct pages are expensive. pfn_valid() on these
+systems returns true for the whole sparsemem-section, so an extra
+memmap_valid_within() check is needed.
 
-Jiri reported a problem where deferred struct pages do not work well with
-x86-32:
+On arm64 we have nomap memory, so always provide pfn_valid() to test
+for nomap pages. This means ARCH_HAS_HOLES_MEMORYMODEL's extra checks
+are already rolled up into pfn_valid().
 
-[    0.035162] Dentry cache hash table entries: 131072 (order: 7, 524288 by=
-tes)
-[    0.035725] Inode-cache hash table entries: 65536 (order: 6, 262144 byte=
-s)
-[    0.036269] Initializing CPU#0
-[    0.036513] Initializing HighMem for node 0 (00036ffe:0007ffe0)
-[    0.038459] page:f6780000 is uninitialized and poisoned
-[    0.038460] raw: ffffffff ffffffff ffffffff ffffffff ffffffff ffffffff f=
-fffffff ffffffff
-[    0.039509] page dumped because: VM_BUG_ON_PAGE(1 && PageCompound(page))
-[    0.040038] ------------[ cut here ]------------
-[    0.040399] kernel BUG at include/linux/page-flags.h:293!
-[    0.040823] invalid opcode: 0000 [#1] SMP PTI
-[    0.041166] CPU: 0 PID: 0 Comm: swapper Not tainted 4.19.0-rc1_pt_jiri #=
-9
-[    0.041694] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS =
-1.11.0-20171110_100015-anatol 04/01/2014
-[    0.042496] EIP: free_highmem_page+0x64/0x80
-[    0.042839] Code: 13 46 d8 c1 e8 18 5d 83 e0 03 8d 04 c0 c1 e0 06 ff 80 =
-ec 5f 44 d8 c3 8d b4 26 00 00 00 00 ba 08 65 28 d8 89 d8 e8 fc 71 02 00 <0f=
-> 0b 8d 76 00 8d bc 27 00 00 00 00 ba d0 b1 26 d8 89 d8 e8 e4 71
-[    0.044338] EAX: 0000003c EBX: f6780000 ECX: 00000000 EDX: d856cbe8
-[    0.044868] ESI: 0007ffe0 EDI: d838df20 EBP: d838df00 ESP: d838defc
-[    0.045372] DS: 007b ES: 007b FS: 00d8 GS: 00e0 SS: 0068 EFLAGS: 0021008=
-6
-[    0.045913] CR0: 80050033 CR2: 00000000 CR3: 18556000 CR4: 00040690
-[    0.046413] DR0: 00000000 DR1: 00000000 DR2: 00000000 DR3: 00000000
-[    0.046913] DR6: fffe0ff0 DR7: 00000400
-[    0.047220] Call Trace:
-[    0.047419]  add_highpages_with_active_regions+0xbd/0x10d
-[    0.047854]  set_highmem_pages_init+0x5b/0x71
-[    0.048202]  mem_init+0x2b/0x1e8
-[    0.048460]  start_kernel+0x1d2/0x425
-[    0.048757]  i386_start_kernel+0x93/0x97
-[    0.049073]  startup_32_smp+0x164/0x168
-[    0.049379] Modules linked in:
-[    0.049626] ---[ end trace 337949378db0abbb ]---
+Remove it.
 
-We free highmem pages before their struct pages are initialized:
-
-mem_init()
- set_highmem_pages_init()
-  add_highpages_with_active_regions()
-   free_highmem_page()
-    .. Access uninitialized struct page here..
-
-Because there is no reason to have this feature on 32-bit systems, just
-disable it.
-
-Fixes: 2e3ca40f03bb ("mm: relax deferred struct page requirements")
-Cc: stable@vger.kernel.org
-
-Reported-by: Jiri Slaby <jslaby@suse.cz>
-Signed-off-by: Pavel Tatashin <pavel.tatashin@microsoft.com>
+Signed-off-by: James Morse <james.morse@arm.com>
 ---
- mm/Kconfig | 1 +
- 1 file changed, 1 insertion(+)
+ arch/arm64/Kconfig            | 5 +----
+ arch/arm64/include/asm/page.h | 2 --
+ arch/arm64/mm/init.c          | 2 --
+ 3 files changed, 1 insertion(+), 8 deletions(-)
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index a550635ea5c3..de64ea658716 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -637,6 +637,7 @@ config DEFERRED_STRUCT_PAGE_INIT
- 	depends on NO_BOOTMEM
- 	depends on SPARSEMEM
- 	depends on !NEED_PER_CPU_KM
-+	depends on 64BIT
- 	help
- 	  Ordinarily all struct pages are initialised during early boot in a
- 	  single thread. On very large machines this can take a considerable
---=20
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 1b1a0e95c751..6082d47bfc32 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -769,9 +769,6 @@ source kernel/Kconfig.hz
+ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+ 	def_bool y
+ 
+-config ARCH_HAS_HOLES_MEMORYMODEL
+-	def_bool y if SPARSEMEM
+-
+ config ARCH_SPARSEMEM_ENABLE
+ 	def_bool y
+ 	select SPARSEMEM_VMEMMAP_ENABLE
+@@ -786,7 +783,7 @@ config ARCH_FLATMEM_ENABLE
+ 	def_bool !NUMA
+ 
+ config HAVE_ARCH_PFN_VALID
+-	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
++	def_bool y
+ 
+ config HW_PERF_EVENTS
+ 	def_bool y
+diff --git a/arch/arm64/include/asm/page.h b/arch/arm64/include/asm/page.h
+index 60d02c81a3a2..c88a3cb117a1 100644
+--- a/arch/arm64/include/asm/page.h
++++ b/arch/arm64/include/asm/page.h
+@@ -37,9 +37,7 @@ extern void clear_page(void *to);
+ 
+ typedef struct page *pgtable_t;
+ 
+-#ifdef CONFIG_HAVE_ARCH_PFN_VALID
+ extern int pfn_valid(unsigned long);
+-#endif
+ 
+ #include <asm/memory.h>
+ 
+diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+index 787e27964ab9..3cf87341859f 100644
+--- a/arch/arm64/mm/init.c
++++ b/arch/arm64/mm/init.c
+@@ -284,7 +284,6 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
+ 
+ #endif /* CONFIG_NUMA */
+ 
+-#ifdef CONFIG_HAVE_ARCH_PFN_VALID
+ int pfn_valid(unsigned long pfn)
+ {
+ 	phys_addr_t addr = pfn << PAGE_SHIFT;
+@@ -294,7 +293,6 @@ int pfn_valid(unsigned long pfn)
+ 	return memblock_is_map_memory(addr);
+ }
+ EXPORT_SYMBOL(pfn_valid);
+-#endif
+ 
+ #ifndef CONFIG_SPARSEMEM
+ static void __init arm64_memory_present(void)
+-- 
 2.18.0
