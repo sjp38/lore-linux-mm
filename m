@@ -1,56 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E74BF6B5452
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 21:23:19 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id 2-v6so4925286plc.11
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 18:23:19 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w5-v6sor2445985pfn.0.2018.08.30.18.23.18
+	by kanga.kvack.org (Postfix) with ESMTP id C10896B54B0
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2018 22:57:16 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id n4-v6so4231171plk.7
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2018 19:57:16 -0700 (PDT)
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id r64-v6si8739576pfd.37.2018.08.30.19.57.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 30 Aug 2018 18:23:18 -0700 (PDT)
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (1.0)
-Subject: Re: [RFC PATCH v3 12/24] x86/mm: Modify ptep_set_wrprotect and pmdp_set_wrprotect for _PAGE_DIRTY_SW
-From: Andy Lutomirski <luto@amacapital.net>
-In-Reply-To: <CAG48ez3ixWROuQc6WZze6qPL6q0e_gCnMU4XF11JUWziePsBJg@mail.gmail.com>
-Date: Thu, 30 Aug 2018 18:23:15 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Aug 2018 19:57:15 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 2/2] mm: zero remaining unavailable struct pages
+Date: Fri, 31 Aug 2018 02:55:36 +0000
+Message-ID: <20180831025536.GA29753@hori1.linux.bs1.fc.nec.co.jp>
+References: <20180823182513.8801-1-msys.mizuma@gmail.com>
+ <20180823182513.8801-2-msys.mizuma@gmail.com>
+ <7c773dec-ded0-7a1e-b3ad-6c6826851015@microsoft.com>
+ <484388a7-1e75-0782-fdfb-20345e1bda0d@gmail.com>
+In-Reply-To: <484388a7-1e75-0782-fdfb-20345e1bda0d@gmail.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <28F8C1C11C8CAF4DBC43C8E161F8BB11@gisp.nec.co.jp>
 Content-Transfer-Encoding: quoted-printable
-Message-Id: <337F9DA7-ED07-4CD0-B41C-22D570527362@amacapital.net>
-References: <20180830143904.3168-1-yu-cheng.yu@intel.com> <20180830143904.3168-13-yu-cheng.yu@intel.com> <CAG48ez0Rca0XsdXJZ07c+iGPyep0Gpxw+sxQuACP5gyPaBgDKA@mail.gmail.com> <079a55f2-4654-4adf-a6ef-6e480b594a2f@linux.intel.com> <CAG48ez2gHOD9hH4+0wek5vUOv9upj79XWoug2SXjdwfXWoQqxw@mail.gmail.com> <ce051b5b-feef-376f-e085-11f65a5f2215@linux.intel.com> <1535649960.26689.15.camel@intel.com> <33d45a12-513c-eba2-a2de-3d6b630e928e@linux.intel.com> <1535651666.27823.6.camel@intel.com> <CAG48ez3ixWROuQc6WZze6qPL6q0e_gCnMU4XF11JUWziePsBJg@mail.gmail.com>
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jannh@google.com>
-Cc: yu-cheng.yu@intel.com, Dave Hansen <dave.hansen@linux.intel.com>, the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Florian Weimer <fweimer@redhat.com>, hjl.tools@gmail.com, Jonathan Corbet <corbet@lwn.net>, keescook@chromiun.org, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, ravi.v.shankar@intel.com, vedvyas.shanbhogue@intel.com
+To: Masayoshi Mizuma <msys.mizuma@gmail.com>
+Cc: "Pavel.Tatashin@microsoft.com" <Pavel.Tatashin@microsoft.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>
 
-
-
-> On Aug 30, 2018, at 10:59 AM, Jann Horn <jannh@google.com> wrote:
+On Wed, Aug 29, 2018 at 11:16:30AM -0400, Masayoshi Mizuma wrote:
+> Hi Horiguchi-san and Pavel
 >=20
->> On Thu, Aug 30, 2018 at 7:58 PM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote=
-:
->>=20
->>> On Thu, 2018-08-30 at 10:33 -0700, Dave Hansen wrote:
->>>> On 08/30/2018 10:26 AM, Yu-cheng Yu wrote:
->>>>=20
->>>> We don't have the guard page now, but there is a shadow stack
->>>> token
->>>> there, which cannot be used as a return address.
->>> The overall concern is that we could overflow into a page that we
->>> did
->>> not intend.  Either another actual shadow stack or something that a
->>> page
->>> that the attacker constructed, like the transient scenario Jann
->>> described.
->>>=20
->>=20
->> A task could go beyond the bottom of its shadow stack by doing either
->> 'ret' or 'incssp'.  If it is the 'ret' case, the token prevents it.
->> If it is the 'incssp' case, a guard page cannot prevent it entirely,
->> right?
+> Thank you for your comments!
+> The Pavel's additional patch looks good to me, so I will add it to this s=
+eries.
 >=20
-> I mean the other direction, on "call".
+> However, unfortunately, the movable_node option has something wrong yet..=
+.
+> When I offline the memory which belongs to movable zone, I got the follow=
+ing
+> warning. I'm trying to debug it.
+>=20
+> I try to describe the issue as following.=20
+> If you have any comments, please let me know.
+>=20
+> WARNING: CPU: 156 PID: 25611 at mm/page_alloc.c:7730 has_unmovable_pages+=
+0x1bf/0x200
+> RIP: 0010:has_unmovable_pages+0x1bf/0x200
+> ...
+> Call Trace:
+>  is_mem_section_removable+0xd3/0x160
+>  show_mem_removable+0x8e/0xb0
+>  dev_attr_show+0x1c/0x50
+>  sysfs_kf_seq_show+0xb3/0x110
+>  seq_read+0xee/0x480
+>  __vfs_read+0x36/0x190
+>  vfs_read+0x89/0x130
+>  ksys_read+0x52/0xc0
+>  do_syscall_64+0x5b/0x180
+>  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+> RIP: 0033:0x7fe7b7823f70
+> ...
+>=20
+> I added a printk to catch the unmovable page.
+> ---
+> @@ -7713,8 +7719,12 @@ bool has_unmovable_pages(struct zone *zone, struct=
+ page *page, int count,
+>                  * is set to both of a memory hole page and a _used_ kern=
+el
+>                  * page at boot.
+>                  */
+> -               if (found > count)
+> +               if (found > count) {
+> +                       pr_info("DEBUG: %s zone: %lx page: %lx pfn: %lx f=
+lags: %lx found: %ld count: %ld \n",
+> +                               __func__, zone, page, page_to_pfn(page), =
+page->flags, found, count);
+>                         goto unmovable;
+> +               }
+> ---
+>=20
+> Then I got the following. The page (PFN: 0x1c0ff130d) flag is=20
+> 0xdfffffc0040048 (uptodate|active|swapbacked)
+>=20
+> ---
+> DEBUG: has_unmovable_pages zone: 0xffff8c0ffff80380 page: 0xffffea703fc4c=
+340 pfn: 0x1c0ff130d flags: 0xdfffffc0040048 found: 1 count: 0=20
+> ---
+>=20
+> And I got the owner from /sys/kernel/debug/page_owner.
+>=20
+> Page allocated via order 0, mask 0x6280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO=
+)
+> PFN 7532909325 type Movable Block 14712713 type Movable Flags 0xdfffffc00=
+40048(uptodate|active|swapbacked)
+>  __alloc_pages_nodemask+0xfc/0x270
+>  alloc_pages_vma+0x7c/0x1e0
+>  handle_pte_fault+0x399/0xe50
+>  __handle_mm_fault+0x38e/0x520
+>  handle_mm_fault+0xdc/0x210
+>  __do_page_fault+0x243/0x4c0
+>  do_page_fault+0x31/0x130
+>  page_fault+0x1e/0x30
+>=20
+> The page is allocated as anonymous page via page fault.
+> I'm not sure, but lru flag should be added to the page...?
 
-I still think that shadow stacks should work just like mmap and that mmap sh=
-ould learn to add guard pages for all non-MAP_FIXED allocations.=
+There is a small window of no PageLRU flag just after page allocation
+until the page is linked to some LRU list.
+This kind of unmovability is transient, so retrying can work.
+
+I guess that this warning seems to be visible since commit 15c30bc09085
+("mm, memory_hotplug: make has_unmovable_pages more robust")
+which turned off the optimization based on the assumption that pages
+under ZONE_MOVABLE are always movable.
+I think that it helps developers find the issue that permanently
+unmovable pages are accidentally located in ZONE_MOVABLE zone.
+But even ZONE_MOVABLE zone could have transiently unmovable pages,
+so the reported warning seems to me a false charge and should be avoided.
+Doing lru_add_drain_all()/drain_all_pages() before has_unmovable_pages()
+might be helpful?
+
+Thanks,
+Naoya Horiguchi=
