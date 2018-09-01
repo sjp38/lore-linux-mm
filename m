@@ -1,120 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 32E976B5EF4
-	for <linux-mm@kvack.org>; Sat,  1 Sep 2018 18:33:24 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id 1-v6so20493285qtp.10
-        for <linux-mm@kvack.org>; Sat, 01 Sep 2018 15:33:24 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b87-v6sor7090182qkj.54.2018.09.01.15.33.23
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 651B16B5FD8
+	for <linux-mm@kvack.org>; Sat,  1 Sep 2018 22:21:10 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id r20-v6so8862753pgv.20
+        for <linux-mm@kvack.org>; Sat, 01 Sep 2018 19:21:10 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id x19-v6si12798679pgf.477.2018.09.01.19.21.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 01 Sep 2018 15:33:23 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 01 Sep 2018 19:21:09 -0700 (PDT)
+Message-Id: <20180901124811.530300789@intel.com>
+Date: Sat, 01 Sep 2018 19:28:20 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [RFC][PATCH 2/5] [PATCH 2/5] proc: introduce /proc/PID/idle_bitmap
+References: <20180901112818.126790961@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFzHj_GNZWG4K2oDu4DPP9sZdTZ9PY7sBxGB6WoN9g8d=A@mail.gmail.com>
-References: <CA+55aFxyUdhYjnQdnmWAt8tTwn4HQ1xz3SAMZJiawkLpMiJ_+w@mail.gmail.com>
- <ciirm8a7p3alos.fsf@u54ee758033e858cfa736.ant.amazon.com> <CA+55aFzHj_GNZWG4K2oDu4DPP9sZdTZ9PY7sBxGB6WoN9g8d=A@mail.gmail.com>
-From: Wes Turner <wes.turner@gmail.com>
-Date: Sat, 1 Sep 2018 18:33:22 -0400
-Message-ID: <CACfEFw_h5uup-anKZwfBcWMJB7gHxb9NEPTRSUAY0+t11RiQbg@mail.gmail.com>
-Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs
- in mind (for KVM to isolate its guests per CPU)
-Content-Type: multipart/alternative; boundary="00000000000054a9830574d6e505"
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline; filename=0002-proc-introduce-proc-PID-idle_bitmap.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: "jsteckli@amazon.de" <jsteckli@amazon.de>, David Woodhouse <dwmw@amazon.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "juerg.haefliger@hpe.com" <juerg.haefliger@hpe.com>, "deepa.srinivasan@oracle.com" <deepa.srinivasan@oracle.com>, Jim Mattson <jmattson@google.com>, Andrew Cooper <andrew.cooper3@citrix.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, "joao.m.martins@oracle.com" <joao.m.martins@oracle.com>, "pradeep.vincent@oracle.com" <pradeep.vincent@oracle.com>, Andi Kleen <ak@linux.intel.com>, Khalid Aziz <khalid.aziz@oracle.com>, "kanth.ghatraju@oracle.com" <kanth.ghatraju@oracle.com>, Liran Alon <liran.alon@oracle.com>, Kees Cook <keescook@google.com>, Kernel Hardening <kernel-hardening@lists.openwall.com>, "chris.hyser@oracle.com" <chris.hyser@oracle.com>, Tyler Hicks <tyhicks@canonical.com>, John Haxby <john.haxby@oracle.com>, Jon Masters <jcm@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Huang Ying <ying.huang@intel.com>, Brendan Gregg <bgregg@netflix.com>, Fengguang Wu <fengguang.wu@intel.com>, Peng DongX <dongx.peng@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Dong Eddie <eddie.dong@intel.com>, Dave Hansen <dave.hansen@intel.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
---00000000000054a9830574d6e505
-Content-Type: text/plain; charset="UTF-8"
+This will be similar to /sys/kernel/mm/page_idle/bitmap documented in
+Documentation/admin-guide/mm/idle_page_tracking.rst, however indexed
+by process virtual address.
 
-Speaking of pages and slowdowns,
-is there a better place to ask this question:
+When using the global PFN indexed idle bitmap, we find 2 kind of
+overheads:
 
->From "'Turning Tables' shared page tables vuln":
+- to track a task's working set, Brendan Gregg end up writing wss-v1
+  for small tasks and wss-v2 for large tasks:
 
-"""
-'New "Turning Tables" Technique Bypasses All Windows Kernel Mitigations'
-https://www.bleepingcomputer.com/news/security/new-turning-tables-technique-bypasses-all-windows-kernel-mitigations/
+  https://github.com/brendangregg/wss
 
-> Furthermore, since the concept of page tables is also used by Apple and
-the Linux project, macOS and Linux are, in theory, also vulnerable to this
-technique, albeit the researchers have not verified such attacks, as of yet.
+  That's because VAs may point to random PAs throughout the physical
+  address space. So we either query /proc/pid/pagemap first and access
+  the lots of random PFNs (with lots of syscalls) in the bitmap, or
+  write+read the whole system idle bitmap beforehand.
 
-Slides:
-https://cdn2.hubspot.net/hubfs/487909/Turning%20(Page)%20Tables_Slides.pdf
+- page table walking by PFN has much more overheads than to walk a
+  page table in its natural order:
+  - rmap queries
+  - more locking
+  - random memory reads/writes
 
-Naturally, I took notice and decided to forward the latest scary headline
-to this list to see if this is already being addressed?
-"""
+This interface provides a cheap path for the majority non-shared mapping
+pages. To walk 1TB memory of 4k active pages, it costs 2s vs 15s system
+time to scan the per-task/global idle bitmaps. Which means ~7x speedup.
+The gap will be enlarged if consider
 
-On Saturday, September 1, 2018, Linus Torvalds <
-torvalds@linux-foundation.org> wrote:
+- the extra /proc/pid/pagemap walk
+- natural page table walks can skip the whole 512 PTEs if PMD is idle
 
-> On Fri, Aug 31, 2018 at 12:45 AM Julian Stecklina <jsteckli@amazon.de>
-> wrote:
-> >
-> > I've been spending some cycles on the XPFO patch set this week. For the
-> > patch set as it was posted for v4.13, the performance overhead of
-> > compiling a Linux kernel is ~40% on x86_64[1]. The overhead comes almost
-> > completely from TLB flushing. If we can live with stale TLB entries
-> > allowing temporary access (which I think is reasonable), we can remove
-> > all TLB flushing (on x86). This reduces the overhead to 2-3% for
-> > kernel compile.
->
-> I have to say, even 2-3% for a kernel compile sounds absolutely horrendous.
->
-> Kernel bullds are 90% user space at least for me, so a 2-3% slowdown
-> from a kernel is not some small unnoticeable thing.
->
->            Linus
->
+OTOH, the per-task idle bitmap is not suitable in some situations:
 
---00000000000054a9830574d6e505
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+- not accurate for shared pages
+- don't work with non-mapped file pages
+- don't perform well for sparse page tables (pointed out by Huang Ying)
 
-Speaking of pages and slowdowns,<div>is there a better place to ask this qu=
-estion:</div><div><br></div><div>From &quot;&#39;Turning Tables&#39; shared=
- page tables vuln&quot;:</div><div><br></div><div>&quot;&quot;&quot;</div><=
-div><div>&#39;New &quot;Turning Tables&quot; Technique Bypasses All Windows=
- Kernel Mitigations&#39;</div><div><a href=3D"https://www.bleepingcomputer.=
-com/news/security/new-turning-tables-technique-bypasses-all-windows-kernel-=
-mitigations/">https://www.bleepingcomputer.com/news/security/new-turning-ta=
-bles-technique-bypasses-all-windows-kernel-mitigations/</a></div><div><br><=
-/div><div>&gt; Furthermore, since the concept of page tables is also used b=
-y Apple and the Linux project, macOS and Linux are, in theory, also vulnera=
-ble to this technique, albeit the researchers have not verified such attack=
-s, as of yet.</div><div><br></div><div>Slides: <a href=3D"https://cdn2.hubs=
-pot.net/hubfs/487909/Turning%20(Page)%20Tables_Slides.pdf">https://cdn2.hub=
-spot.net/hubfs/487909/Turning%20(Page)%20Tables_Slides.pdf</a></div><div><b=
-r></div><div>Naturally, I took notice and decided to forward the latest sca=
-ry headline to this list to see if this is already being addressed?</div><d=
-iv>&quot;&quot;&quot;</div><br>On Saturday, September 1, 2018, Linus Torval=
-ds &lt;<a href=3D"mailto:torvalds@linux-foundation.org">torvalds@linux-foun=
-dation.org</a>&gt; wrote:<br><blockquote class=3D"gmail_quote" style=3D"mar=
-gin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">On Fri, Aug 31,=
- 2018 at 12:45 AM Julian Stecklina &lt;<a href=3D"mailto:jsteckli@amazon.de=
-">jsteckli@amazon.de</a>&gt; wrote:<br>
-&gt;<br>
-&gt; I&#39;ve been spending some cycles on the XPFO patch set this week. Fo=
-r the<br>
-&gt; patch set as it was posted for v4.13, the performance overhead of<br>
-&gt; compiling a Linux kernel is ~40% on x86_64[1]. The overhead comes almo=
-st<br>
-&gt; completely from TLB flushing. If we can live with stale TLB entries<br=
->
-&gt; allowing temporary access (which I think is reasonable), we can remove=
-<br>
-&gt; all TLB flushing (on x86). This reduces the overhead to 2-3% for<br>
-&gt; kernel compile.<br>
-<br>
-I have to say, even 2-3% for a kernel compile sounds absolutely horrendous.=
-<br>
-<br>
-Kernel bullds are 90% user space at least for me, so a 2-3% slowdown<br>
-from a kernel is not some small unnoticeable thing.<br>
-<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Linus<br>
-</blockquote></div>
+So it's more about complementing the existing global idle bitmap.
 
---00000000000054a9830574d6e505--
+CC: Huang Ying <ying.huang@intel.com>
+CC: Brendan Gregg <bgregg@netflix.com>
+Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+---
+ fs/proc/base.c     |  2 ++
+ fs/proc/internal.h |  1 +
+ fs/proc/task_mmu.c | 63 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 66 insertions(+)
+
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index aaffc0c30216..d81322b5b8d2 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -2942,6 +2942,7 @@ static const struct pid_entry tgid_base_stuff[] = {
+ 	REG("smaps",      S_IRUGO, proc_pid_smaps_operations),
+ 	REG("smaps_rollup", S_IRUGO, proc_pid_smaps_rollup_operations),
+ 	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
++	REG("idle_bitmap", S_IRUSR|S_IWUSR, proc_mm_idle_operations),
+ #endif
+ #ifdef CONFIG_SECURITY
+ 	DIR("attr",       S_IRUGO|S_IXUGO, proc_attr_dir_inode_operations, proc_attr_dir_operations),
+@@ -3327,6 +3328,7 @@ static const struct pid_entry tid_base_stuff[] = {
+ 	REG("smaps",     S_IRUGO, proc_tid_smaps_operations),
+ 	REG("smaps_rollup", S_IRUGO, proc_pid_smaps_rollup_operations),
+ 	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
++	REG("idle_bitmap", S_IRUSR|S_IWUSR, proc_mm_idle_operations),
+ #endif
+ #ifdef CONFIG_SECURITY
+ 	DIR("attr",      S_IRUGO|S_IXUGO, proc_attr_dir_inode_operations, proc_attr_dir_operations),
+diff --git a/fs/proc/internal.h b/fs/proc/internal.h
+index da3dbfa09e79..732a502acc27 100644
+--- a/fs/proc/internal.h
++++ b/fs/proc/internal.h
+@@ -305,6 +305,7 @@ extern const struct file_operations proc_pid_smaps_rollup_operations;
+ extern const struct file_operations proc_tid_smaps_operations;
+ extern const struct file_operations proc_clear_refs_operations;
+ extern const struct file_operations proc_pagemap_operations;
++extern const struct file_operations proc_mm_idle_operations;
+ 
+ extern unsigned long task_vsize(struct mm_struct *);
+ extern unsigned long task_statm(struct mm_struct *,
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index dfd73a4616ce..376406a9cf45 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -1564,6 +1564,69 @@ const struct file_operations proc_pagemap_operations = {
+ 	.open		= pagemap_open,
+ 	.release	= pagemap_release,
+ };
++
++/* will be filled when kvm_ept_idle module loads */
++struct file_operations proc_ept_idle_operations = {
++};
++EXPORT_SYMBOL_GPL(proc_ept_idle_operations);
++
++static ssize_t mm_idle_read(struct file *file, char __user *buf,
++			    size_t count, loff_t *ppos)
++{
++	struct task_struct *task = file->private_data;
++	ssize_t ret = -ESRCH;
++
++	// TODO: implement mm_walk for normal tasks
++
++	if (task_kvm(task)) {
++		if (proc_ept_idle_operations.read)
++			return proc_ept_idle_operations.read(file, buf, count, ppos);
++	}
++
++	return ret;
++}
++
++
++static int mm_idle_open(struct inode *inode, struct file *file)
++{
++	struct task_struct *task = get_proc_task(inode);
++
++	if (!task)
++		return -ESRCH;
++
++	file->private_data = task;
++
++	if (task_kvm(task)) {
++		if (proc_ept_idle_operations.open)
++			return proc_ept_idle_operations.open(inode, file);
++	}
++
++	return 0;
++}
++
++static int mm_idle_release(struct inode *inode, struct file *file)
++{
++	struct task_struct *task = file->private_data;
++
++	if (!task)
++		return 0;
++
++	if (task_kvm(task)) {
++		if (proc_ept_idle_operations.release)
++			return proc_ept_idle_operations.release(inode, file);
++	}
++
++	put_task_struct(task);
++	return 0;
++}
++
++const struct file_operations proc_mm_idle_operations = {
++	.llseek		= mem_lseek, /* borrow this */
++	.read		= mm_idle_read,
++	.open		= mm_idle_open,
++	.release	= mm_idle_release,
++};
++
+ #endif /* CONFIG_PROC_PAGE_MONITOR */
+ 
+ #ifdef CONFIG_NUMA
+-- 
+2.15.0
