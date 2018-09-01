@@ -1,123 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E5EA6B5939
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 18:16:39 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id w18-v6so249172plp.3
-        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 15:16:39 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id bb7-v6si10651852plb.359.2018.08.31.15.16.38
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C2FEF6B59F6
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 21:27:10 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id u45-v6so16591485qte.12
+        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 18:27:10 -0700 (PDT)
+Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
+        by mx.google.com with ESMTPS id y6-v6si3349715qvb.91.2018.08.31.18.27.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Aug 2018 15:16:38 -0700 (PDT)
-Received: from mail-wr1-f46.google.com (mail-wr1-f46.google.com [209.85.221.46])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 8416820844
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 22:16:37 +0000 (UTC)
-Received: by mail-wr1-f46.google.com with SMTP id w11-v6so12463977wrc.5
-        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 15:16:37 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1535752180.31230.4.camel@intel.com>
-References: <20180830143904.3168-1-yu-cheng.yu@intel.com> <20180830143904.3168-20-yu-cheng.yu@intel.com>
- <CAG48ez3uZrC-9uJ0uMoVPTtxRXRN8D+3zs5FknZD2woTT6mazg@mail.gmail.com>
- <CALCETrW78UKt6AQJeN8GkhtxjuASnH1PV5QSpzQtDz9-2d3Asw@mail.gmail.com>
- <1535646146.26689.11.camel@intel.com> <1535752180.31230.4.camel@intel.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Fri, 31 Aug 2018 15:16:15 -0700
-Message-ID: <CALCETrV_aDasfkd6LD1cT11Hs1dO064uHjROLQPyhQfy_iuS8w@mail.gmail.com>
-Subject: Re: [RFC PATCH v3 19/24] x86/cet/shstk: Introduce WRUSS instruction
-Content-Type: text/plain; charset="UTF-8"
+        Fri, 31 Aug 2018 18:27:10 -0700 (PDT)
+Message-ID: <68c883be3b4562970cef76c574e2e345e0d514e6.camel@surriel.com>
+Subject: Re: [PATCH] mm: slowly shrink slabs with a relatively small number
+ of objects
+From: Rik van Riel <riel@surriel.com>
+Date: Fri, 31 Aug 2018 21:27:03 -0400
+In-Reply-To: <20180831213138.GA9159@tower.DHCP.thefacebook.com>
+References: <20180831203450.2536-1-guro@fb.com>
+	 <3b05579f964cca1d44551913f1a9ee79d96f198e.camel@surriel.com>
+	 <20180831213138.GA9159@tower.DHCP.thefacebook.com>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-3/ubquztSqUU4YdQHWI2"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: Jann Horn <jannh@google.com>, the arch/x86 maintainers <x86@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel list <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Josef Bacik <jbacik@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, Aug 31, 2018 at 2:49 PM, Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
-> On Thu, 2018-08-30 at 09:22 -0700, Yu-cheng Yu wrote:
->> On Thu, 2018-08-30 at 08:55 -0700, Andy Lutomirski wrote:
->> >
->> > On Thu, Aug 30, 2018 at 8:39 AM, Jann Horn <jannh@google.com>
->> > wrote:
->> > >
->> > >
->> > > On Thu, Aug 30, 2018 at 4:44 PM Yu-cheng Yu <yu-cheng.yu@intel.c
->> > > om
->> > > >
->> > > > wrote:
->> > > >
->> > > >
->> > > > WRUSS is a new kernel-mode instruction but writes directly
->> > > > to user shadow stack memory.  This is used to construct
->> > > > a return address on the shadow stack for the signal
->> > > > handler.
->> > > >
->> > > > This instruction can fault if the user shadow stack is
->> > > > invalid shadow stack memory.  In that case, the kernel does
->> > > > fixup.
->> > > >
->> > > > Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
->> > > [...]
->> > > >
->> > > >
->> > > > +static inline int write_user_shstk_64(unsigned long addr,
->> > > > unsigned long val)
->> > > > +{
->> > > > +       int err = 0;
->> > > > +
->> > > > +       asm volatile("1: wrussq %1, (%0)\n"
->> > > > +                    "2:\n"
->> > > > +                    _ASM_EXTABLE_HANDLE(1b, 2b,
->> > > > ex_handler_wruss)
->> > > > +                    :
->> > > > +                    : "r" (addr), "r" (val));
->> > > > +
->> > > > +       return err;
->> > > > +}
->> > > What's up with "err"? You set it to zero, and then you return
->> > > it,
->> > > but
->> > > nothing can ever set it to non-zero, right?
->> > >
->> > > >
->> > > >
->> > > > +__visible bool ex_handler_wruss(const struct
->> > > > exception_table_entry *fixup,
->> > > > +                               struct pt_regs *regs, int
->> > > > trapnr)
->> > > > +{
->> > > > +       regs->ip = ex_fixup_addr(fixup);
->> > > > +       regs->ax = -1;
->> > > > +       return true;
->> > > > +}
->> > > And here you just write into regs->ax, but your "asm volatile"
->> > > doesn't
->> > > reserve that register. This looks wrong to me.
->> > >
->> > > I think you probably want to add something like an explicit
->> > > `"+&a"(err)` output to the asm statements.
->> > We require asm goto support these days.  How about using
->> > that?  You
->> > won't even need a special exception handler.
->
-> Maybe something like this?  It looks simple now.
->
-> static inline int write_user_shstk_64(unsigned long addr, unsigned
-> long val)
-> {
->         asm_volatile_goto("wrussq %1, (%0)\n"
->                      "jmp %l[ok]\n"
->                      ".section .fixup,\"ax\"n"
->                      "jmp %l[fail]\n"
->                      ".previous\n"
->                      :: "r" (addr), "r" (val)
->                      :: ok, fail);
-> ok:
->         return 0;
-> fail:
->         return -1;
-> }
->
 
-I think you can get rid of 'jmp %l[ok]' and the ok label and just fall
-through.  And you don't need an explicit jmp to fail -- just set the
-_EX_HANDLER entry to land on the fail label.
+--=-3/ubquztSqUU4YdQHWI2
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+On Fri, 2018-08-31 at 14:31 -0700, Roman Gushchin wrote:
+> On Fri, Aug 31, 2018 at 05:15:39PM -0400, Rik van Riel wrote:
+> > On Fri, 2018-08-31 at 13:34 -0700, Roman Gushchin wrote:
+> >=20
+> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > index fa2c150ab7b9..c910cf6bf606 100644
+> > > --- a/mm/vmscan.c
+> > > +++ b/mm/vmscan.c
+> > > @@ -476,6 +476,10 @@ static unsigned long do_shrink_slab(struct
+> > > shrink_control *shrinkctl,
+> > >  	delta =3D freeable >> priority;
+> > >  	delta *=3D 4;
+> > >  	do_div(delta, shrinker->seeks);
+> > > +
+> > > +	if (delta =3D=3D 0 && freeable > 0)
+> > > +		delta =3D min(freeable, batch_size);
+> > > +
+> > >  	total_scan +=3D delta;
+> > >  	if (total_scan < 0) {
+> > >  		pr_err("shrink_slab: %pF negative objects to delete
+> > > nr=3D%ld\n",
+> >=20
+> > I agree that we need to shrink slabs with fewer than
+> > 4096 objects, but do we want to put more pressure on
+> > a slab the moment it drops below 4096 than we applied
+> > when it had just over 4096 objects on it?
+> >=20
+> > With this patch, a slab with 5000 objects on it will
+> > get 1 item scanned, while a slab with 4000 objects on
+> > it will see shrinker->batch or SHRINK_BATCH objects
+> > scanned every time.
+> >=20
+> > I don't know if this would cause any issues, just
+> > something to ponder.
+>=20
+> Hm, fair enough. So, basically we can always do
+>=20
+>     delta =3D max(delta, min(freeable, batch_size));
+>=20
+> Does it look better?
+
+Yeah, that looks fine to me.
+
+That will read to small cgroups having small caches
+reclaimed relatively more quickly than large caches
+getting reclaimed, but small caches should also be
+faster to refill once they are needed again, so it
+is probably fine.
+
+--=20
+All Rights Reversed.
+
+--=-3/ubquztSqUU4YdQHWI2
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAluJ6ucACgkQznnekoTE
+3oPKyQf+MxHOnVs6t4PZLXi0UsLb/iVrpKqFJmOeMFpXlBV9SL+JtNNRynMahji6
+Jf2R4XiQ+l83xdynzaawtTXfPb5bUSkyYXqpgXSYkul7whLIJqVvD7PmN77BLugs
+siPBZp/rfoOJHCae7wazEJb3f3xa0420d5EViVTHLrTGnRJS9raWAFtGJr8wR+dK
+c5PMVPSOJAFgAKwDb00SUSj/DiMa9hgZsp0joVxxr+ofkpabFIr3/5JOcyuaZLo7
+3Mw6J9hgCML5LZA3WzBEdsAQormFOG2JZZvNW/ipbIMXJpyapSVKlZ9qCwH6IIt9
+MoxJLSKdtF/0N5cih5kR9xUwDR23yQ==
+=ogZz
+-----END PGP SIGNATURE-----
+
+--=-3/ubquztSqUU4YdQHWI2--
