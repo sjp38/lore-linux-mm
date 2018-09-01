@@ -1,103 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C2FEF6B59F6
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 21:27:10 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id u45-v6so16591485qte.12
-        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 18:27:10 -0700 (PDT)
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id y6-v6si3349715qvb.91.2018.08.31.18.27.09
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5319E6B5A2E
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2018 22:23:31 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id i68-v6so7851051pfb.9
+        for <linux-mm@kvack.org>; Fri, 31 Aug 2018 19:23:31 -0700 (PDT)
+Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
+        by mx.google.com with ESMTPS id w10-v6si11635782pfk.162.2018.08.31.19.23.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Aug 2018 18:27:10 -0700 (PDT)
-Message-ID: <68c883be3b4562970cef76c574e2e345e0d514e6.camel@surriel.com>
-Subject: Re: [PATCH] mm: slowly shrink slabs with a relatively small number
- of objects
-From: Rik van Riel <riel@surriel.com>
-Date: Fri, 31 Aug 2018 21:27:03 -0400
-In-Reply-To: <20180831213138.GA9159@tower.DHCP.thefacebook.com>
-References: <20180831203450.2536-1-guro@fb.com>
-	 <3b05579f964cca1d44551913f1a9ee79d96f198e.camel@surriel.com>
-	 <20180831213138.GA9159@tower.DHCP.thefacebook.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-3/ubquztSqUU4YdQHWI2"
-Mime-Version: 1.0
+        Fri, 31 Aug 2018 19:23:30 -0700 (PDT)
+Subject: Re: [PATCH v2 13/40] vfio: Add support for Shared Virtual Addressing
+References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
+ <20180511190641.23008-14-jean-philippe.brucker@arm.com>
+ <5B83B11E.7010807@huawei.com> <1d5b6529-4e5a-723c-3f1b-dd5a9adb490c@arm.com>
+From: Xu Zaibo <xuzaibo@huawei.com>
+Message-ID: <5B89F818.7060300@huawei.com>
+Date: Sat, 1 Sep 2018 10:23:20 +0800
+MIME-Version: 1.0
+In-Reply-To: <1d5b6529-4e5a-723c-3f1b-dd5a9adb490c@arm.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Josef Bacik <jbacik@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>, linux-arm-kernel@lists.infradead.org, linux-pci@vger.kernel.org, linux-acpi@vger.kernel.org, devicetree@vger.kernel.org, iommu@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org
+Cc: joro@8bytes.org, will.deacon@arm.com, robin.murphy@arm.com, alex.williamson@redhat.com, tn@semihalf.com, liubo95@huawei.com, thunder.leizhen@huawei.com, xieyisheng1@huawei.com, ilias.apalodimas@linaro.org, jonathan.cameron@huawei.com, liudongdong3@huawei.com, shunyong.yang@hxt-semitech.com, nwatters@codeaurora.org, okaya@codeaurora.org, jcrouse@codeaurora.org, rfranz@cavium.com, dwmw2@infradead.org, jacob.jun.pan@linux.intel.com, yi.l.liu@intel.com, ashok.raj@intel.com, kevin.tian@intel.com, baolu.lu@linux.intel.com, robdclark@gmail.com, christian.koenig@amd.com, bharatku@xilinx.com, rgummal@xilinx.com, =?UTF-8?B?57Gz57Gz?= <kenneth-lee-2012@foxmail.com>, wangzhou1 <wangzhou1@hisilicon.com>, liguozhu <liguozhu@hisilicon.com>, fanghao11 <fanghao11@huawei.com>
 
+Hi Jean,
 
---=-3/ubquztSqUU4YdQHWI2
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+On 2018/8/31 21:34, Jean-Philippe Brucker wrote:
+> On 27/08/18 09:06, Xu Zaibo wrote:
+>>> +struct vfio_iommu_type1_bind_process {
+>>> +    __u32    flags;
+>>> +#define VFIO_IOMMU_BIND_PID        (1 << 0)
+>>> +    __u32    pasid;
+>> As I am doing some works on the SVA patch set. I just consider why the
+>> user space need this pasid.
+>> Maybe, is it much more reasonable to set the pasid into all devices
+>> under the vfio container by
+>> a call back function from 'vfio_devices'  while
+>> 'VFIO_IOMMU_BIND_PROCESS' CMD is executed
+>> in kernel land? I am not sure because there exists no suitable call back
+>> in 'vfio_device' at present.
+> When using vfio-pci, the kernel doesn't know how to program the PASID
+> into the device because the only kernel driver for the device is the
+> generic vfio-pci module. The PCI specification doesn't describe a way of
+> setting up the PASID, it's vendor-specific. Only the userspace
+> application owning the device (and calling VFIO_IOMMU_BIND) knows how to
+> do it, so we return the allocated PASID.
+>
+> Note that unlike vfio-mdev where applications share slices of a
+> function, with vfio-pci one application owns the whole function so it's
+> safe to let userspace set the PASID in hardware. With vfio-mdev it's the
+> kernel driver that should be in charge of setting the PASID as you
+> described, and we wouldn't have a reason to return the PASID in the
+> vfio_iommu_type1_bind_process structure.
+Understood. But I still get the following confusion:
 
-On Fri, 2018-08-31 at 14:31 -0700, Roman Gushchin wrote:
-> On Fri, Aug 31, 2018 at 05:15:39PM -0400, Rik van Riel wrote:
-> > On Fri, 2018-08-31 at 13:34 -0700, Roman Gushchin wrote:
-> >=20
-> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > > index fa2c150ab7b9..c910cf6bf606 100644
-> > > --- a/mm/vmscan.c
-> > > +++ b/mm/vmscan.c
-> > > @@ -476,6 +476,10 @@ static unsigned long do_shrink_slab(struct
-> > > shrink_control *shrinkctl,
-> > >  	delta =3D freeable >> priority;
-> > >  	delta *=3D 4;
-> > >  	do_div(delta, shrinker->seeks);
-> > > +
-> > > +	if (delta =3D=3D 0 && freeable > 0)
-> > > +		delta =3D min(freeable, batch_size);
-> > > +
-> > >  	total_scan +=3D delta;
-> > >  	if (total_scan < 0) {
-> > >  		pr_err("shrink_slab: %pF negative objects to delete
-> > > nr=3D%ld\n",
-> >=20
-> > I agree that we need to shrink slabs with fewer than
-> > 4096 objects, but do we want to put more pressure on
-> > a slab the moment it drops below 4096 than we applied
-> > when it had just over 4096 objects on it?
-> >=20
-> > With this patch, a slab with 5000 objects on it will
-> > get 1 item scanned, while a slab with 4000 objects on
-> > it will see shrinker->batch or SHRINK_BATCH objects
-> > scanned every time.
-> >=20
-> > I don't know if this would cause any issues, just
-> > something to ponder.
->=20
-> Hm, fair enough. So, basically we can always do
->=20
->     delta =3D max(delta, min(freeable, batch_size));
->=20
-> Does it look better?
+As one application takes a whole function while using VFIO-PCI, why do 
+the application and the
+function need to enable PASID capability? (Since just one I/O page table 
+is enough for them.)
 
-Yeah, that looks fine to me.
+Maybe I misunderstood, hope you can help me clear it. Thank you very much.
 
-That will read to small cgroups having small caches
-reclaimed relatively more quickly than large caches
-getting reclaimed, but small caches should also be
-faster to refill once they are needed again, so it
-is probably fine.
+Thanks,
+Zaibo
 
---=20
-All Rights Reversed.
-
---=-3/ubquztSqUU4YdQHWI2
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAluJ6ucACgkQznnekoTE
-3oPKyQf+MxHOnVs6t4PZLXi0UsLb/iVrpKqFJmOeMFpXlBV9SL+JtNNRynMahji6
-Jf2R4XiQ+l83xdynzaawtTXfPb5bUSkyYXqpgXSYkul7whLIJqVvD7PmN77BLugs
-siPBZp/rfoOJHCae7wazEJb3f3xa0420d5EViVTHLrTGnRJS9raWAFtGJr8wR+dK
-c5PMVPSOJAFgAKwDb00SUSj/DiMa9hgZsp0joVxxr+ofkpabFIr3/5JOcyuaZLo7
-3Mw6J9hgCML5LZA3WzBEdsAQormFOG2JZZvNW/ipbIMXJpyapSVKlZ9qCwH6IIt9
-MoxJLSKdtF/0N5cih5kR9xUwDR23yQ==
-=ogZz
------END PGP SIGNATURE-----
-
---=-3/ubquztSqUU4YdQHWI2--
+.
