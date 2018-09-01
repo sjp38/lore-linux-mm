@@ -1,67 +1,51 @@
-From: Tony Battersby <tonyb-vFAe+i1/wJI5UWNf+nJyDw@public.gmane.org>
-Subject: [PATCH v3 01/10] dmapool: fix boundary comparison
-Date: Tue, 7 Aug 2018 12:45:08 -0400
-Message-ID: <ff153f28-925e-83ea-69a9-bb602d238024@cybernetics.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Return-path: <iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 770C96B5C64
+	for <linux-mm@kvack.org>; Sat,  1 Sep 2018 07:49:28 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id r2-v6so8238751pgp.3
+        for <linux-mm@kvack.org>; Sat, 01 Sep 2018 04:49:28 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id 92-v6si12896647plw.81.2018.09.01.04.49.26
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 01 Sep 2018 04:49:27 -0700 (PDT)
+Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
+ processes.
+References: <1533389386-3501-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <1533389386-3501-4-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180806134550.GO19540@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1808061315220.43071@chino.kir.corp.google.com>
+ <20180806205121.GM10003@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <0aeb76e1-558f-e38e-4c66-77be3ce56b34@I-love.SAKURA.ne.jp>
+Date: Sat, 1 Sep 2018 20:48:57 +0900
+MIME-Version: 1.0
+In-Reply-To: <20180806205121.GM10003@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-List-Unsubscribe: <https://lists.linuxfoundation.org/mailman/options/iommu>,
-	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
-List-Archive: <http://lists.linuxfoundation.org/pipermail/iommu/>
-List-Post: <mailto:iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
-List-Help: <mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
-List-Subscribe: <https://lists.linuxfoundation.org/mailman/listinfo/iommu>,
-	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
-Sender: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-Errors-To: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-To: Matthew Wilcox <willy-wEGCiKHe2LqWVfeAwA7xHQ@public.gmane.org>, Christoph Hellwig <hch-jcswGhMUV9g@public.gmane.org>, Marek Szyprowski <m.szyprowski-Sze3O3UU22JBDgjK7y7TUQ@public.gmane.org>, Sathya Prakash <sathya.prakash-dY08KVG/lbpWk0Htik3J/w@public.gmane.org>, Chaitra P B <chaitra.basappa-dY08KVG/lbpWk0Htik3J/w@public.gmane.org>, Suganath Prabu Subramani <suganath-prabu.subramani-dY08KVG/lbpWk0Htik3J/w@public.gmane.org>, "iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org" <iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>, "linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org" <linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org>, "linux-scsi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <linux-scsi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "MPT-FusionLinux.pdl-dY08KVG/lbpWk0Htik3J/w@public.gmane.org" <MPT-FusionLinux.pdl-dY08KVG/lbpWk0Htik3J/w@public.gmane.org>
-List-Id: linux-mm.kvack.org
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>
 
-Fix the boundary comparison when constructing the list of free blocks
-for the case that 'size' is a power of two.  Since 'boundary' is also a
-power of two, that would make 'boundary' a multiple of 'size', in which
-case a single block would never cross the boundary.  This bug would
-cause some of the allocated memory to be wasted (but not leaked).
+On 2018/08/07 5:51, Michal Hocko wrote:
+>> At the risk of continually repeating the same statement, the oom reaper 
+>> cannot provide the direct feedback for all possible memory freeing.  
+>> Waking up periodically and finding mm->mmap_sem contended is one problem, 
+>> but the other problem that I've already shown is the unnecessary oom 
+>> killing of additional processes while a thread has already reached 
+>> exit_mmap().  The oom reaper cannot free page tables which is problematic 
+>> for malloc implementations such as tcmalloc that do not release virtual 
+>> memory. 
+> 
+> But once we know that the exit path is past the point of blocking we can
+> have MMF_OOM_SKIP handover from the oom_reaper to the exit path. So the
+> oom_reaper doesn't hide the current victim too early and we can safely
+> wait for the exit path to reclaim the rest. So there is a feedback
+> channel. I would even do not mind to poll for that state few times -
+> similar to polling for the mmap_sem. But it would still be some feedback
+> rather than a certain amount of time has passed since the last check.
 
-Example:
-
-size       = 512
-boundary   = 2048
-allocation = 4096
-
-Address range
-   0 -  511
- 512 - 1023
-1024 - 1535
-1536 - 2047 *
-2048 - 2559
-2560 - 3071
-3072 - 3583
-3584 - 4095 *
-
-Prior to this fix, the address ranges marked with "*" would not have
-been used even though they didn't cross the given boundary.
-
-Fixes: e34f44b3517f ("pool: Improve memory usage for devices which can't cross boundaries")
-Signed-off-by: Tony Battersby <tonyb-vFAe+i1/wJI5UWNf+nJyDw@public.gmane.org>
----
-
-No changes since v2.
-
-Even though I described this as a "fix", it does not seem important
-enough to Cc: stable from a strict reading of the stable kernel rules. 
-IOW, it is not "bothering" anyone.
-
---- linux/mm/dmapool.c.orig	2018-08-01 17:57:04.000000000 -0400
-+++ linux/mm/dmapool.c	2018-08-01 17:57:16.000000000 -0400
-@@ -210,7 +210,7 @@ static void pool_initialise_page(struct 
- 
- 	do {
- 		unsigned int next = offset + pool->size;
--		if (unlikely((next + pool->size) >= next_boundary)) {
-+		if (unlikely((next + pool->size) > next_boundary)) {
- 			next = next_boundary;
- 			next_boundary += pool->boundary;
- 		}
+Michal, will you show us how we can handover as an actual patch? I'm not
+happy with postponing current situation with just your wish to handover.
