@@ -1,55 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DC4F06B5CEB
-	for <linux-mm@kvack.org>; Sat,  1 Sep 2018 10:04:09 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id d18-v6so18856366qtj.20
-        for <linux-mm@kvack.org>; Sat, 01 Sep 2018 07:04:09 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id t7-v6si3890000qkc.322.2018.09.01.07.04.08
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 459C16B5EBD
+	for <linux-mm@kvack.org>; Sat,  1 Sep 2018 17:38:56 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id z72-v6so8541515itc.8
+        for <linux-mm@kvack.org>; Sat, 01 Sep 2018 14:38:56 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u15-v6sor5017915jah.8.2018.09.01.14.38.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 01 Sep 2018 07:04:08 -0700 (PDT)
-Subject: Re: [PATCH RFCv2 0/6] mm: online/offline_pages called w.o.
- mem_hotplug_lock
-References: <20180821104418.12710-1-david@redhat.com>
- <20180831205457.GB3945@techadventures.net>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <d4b6608b-0b21-b925-4adc-d11e4706f69d@redhat.com>
-Date: Sat, 1 Sep 2018 16:03:58 +0200
+        (Google Transport Security);
+        Sat, 01 Sep 2018 14:38:55 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180831205457.GB3945@techadventures.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <CA+55aFxyUdhYjnQdnmWAt8tTwn4HQ1xz3SAMZJiawkLpMiJ_+w@mail.gmail.com>
+ <ciirm8a7p3alos.fsf@u54ee758033e858cfa736.ant.amazon.com>
+In-Reply-To: <ciirm8a7p3alos.fsf@u54ee758033e858cfa736.ant.amazon.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Sat, 1 Sep 2018 14:38:43 -0700
+Message-ID: <CA+55aFzHj_GNZWG4K2oDu4DPP9sZdTZ9PY7sBxGB6WoN9g8d=A@mail.gmail.com>
+Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs
+ in mind (for KVM to isolate its guests per CPU)
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, xen-devel@lists.xenproject.org, devel@linuxdriverproject.org, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Haiyang Zhang <haiyangz@microsoft.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, John Allen <jallen@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Len Brown <lenb@kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Mathieu Malaterre <malat@debian.org>, Michael Ellerman <mpe@ellerman.id.au>, Michael Neuling <mikey@neuling.org>, Michal Hocko <mhocko@suse.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Oscar Salvador <osalvador@suse.de>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Philippe Ombredanne <pombredanne@nexb.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Rashmica Gupta <rashmica.g@gmail.com>, Stephen Hemminger <sthemmin@microsoft.com>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
+To: jsteckli@amazon.de
+Cc: David Woodhouse <dwmw@amazon.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, juerg.haefliger@hpe.com, deepa.srinivasan@oracle.com, Jim Mattson <jmattson@google.com>, Andrew Cooper <andrew.cooper3@citrix.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, joao.m.martins@oracle.com, pradeep.vincent@oracle.com, Andi Kleen <ak@linux.intel.com>, Khalid Aziz <khalid.aziz@oracle.com>, kanth.ghatraju@oracle.com, Liran Alon <liran.alon@oracle.com>, Kees Cook <keescook@google.com>, Kernel Hardening <kernel-hardening@lists.openwall.com>, chris.hyser@oracle.com, Tyler Hicks <tyhicks@canonical.com>, John Haxby <john.haxby@oracle.com>, Jon Masters <jcm@redhat.com>
 
-On 31.08.2018 22:54, Oscar Salvador wrote:
-> On Tue, Aug 21, 2018 at 12:44:12PM +0200, David Hildenbrand wrote:
->> This is the same approach as in the first RFC, but this time without
->> exporting device_hotplug_lock (requested by Greg) and with some more
->> details and documentation regarding locking. Tested only on x86 so far.
-> 
-> Hi David,
-> 
-> I would like to review this but I am on vacation, so I will not be able to get to it
-> soon.
-> I plan to do it once I am back.
+On Fri, Aug 31, 2018 at 12:45 AM Julian Stecklina <jsteckli@amazon.de> wrote:
+>
+> I've been spending some cycles on the XPFO patch set this week. For the
+> patch set as it was posted for v4.13, the performance overhead of
+> compiling a Linux kernel is ~40% on x86_64[1]. The overhead comes almost
+> completely from TLB flushing. If we can live with stale TLB entries
+> allowing temporary access (which I think is reasonable), we can remove
+> all TLB flushing (on x86). This reduces the overhead to 2-3% for
+> kernel compile.
 
-Sure, I won't be resending within next two weeks either way, as I am
-also on vacation.
+I have to say, even 2-3% for a kernel compile sounds absolutely horrendous.
 
-Have a nice vacation!
+Kernel bullds are 90% user space at least for me, so a 2-3% slowdown
+from a kernel is not some small unnoticeable thing.
 
-> 
-> Thanks
-> 
-
-
--- 
-
-Thanks,
-
-David / dhildenb
+           Linus
