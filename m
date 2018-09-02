@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 261666B626D
-	for <linux-mm@kvack.org>; Sun,  2 Sep 2018 09:14:43 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id m3-v6so586879plt.9
-        for <linux-mm@kvack.org>; Sun, 02 Sep 2018 06:14:43 -0700 (PDT)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0124.outbound.protection.outlook.com. [104.47.40.124])
-        by mx.google.com with ESMTPS id 20-v6si15462185pfr.242.2018.09.02.06.14.42
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D19A6B626E
+	for <linux-mm@kvack.org>; Sun,  2 Sep 2018 09:14:45 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id o27-v6so9653601pfj.6
+        for <linux-mm@kvack.org>; Sun, 02 Sep 2018 06:14:45 -0700 (PDT)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0134.outbound.protection.outlook.com. [104.47.40.134])
+        by mx.google.com with ESMTPS id r39-v6si15068432pld.218.2018.09.02.06.14.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 02 Sep 2018 06:14:42 -0700 (PDT)
+        Sun, 02 Sep 2018 06:14:44 -0700 (PDT)
 From: Sasha Levin <Alexander.Levin@microsoft.com>
-Subject: [PATCH AUTOSEL 4.9 27/62] x86/mm: Remove in_nmi() warning from
- vmalloc_fault()
-Date: Sun, 2 Sep 2018 13:14:36 +0000
-Message-ID: <20180902131411.183978-17-alexander.levin@microsoft.com>
+Subject: [PATCH AUTOSEL 4.9 28/62] x86/kexec: Allocate 8k PGDs for PTI
+Date: Sun, 2 Sep 2018 13:14:39 +0000
+Message-ID: <20180902131411.183978-18-alexander.levin@microsoft.com>
 References: <20180902131411.183978-1-alexander.levin@microsoft.com>
 In-Reply-To: <20180902131411.183978-1-alexander.levin@microsoft.com>
 Content-Language: en-US
@@ -28,11 +27,20 @@ Cc: Joerg Roedel <jroedel@suse.de>, Thomas Gleixner <tglx@linutronix.de>, "H .
 
 From: Joerg Roedel <jroedel@suse.de>
 
-[ Upstream commit 6863ea0cda8725072522cd78bda332d9a0b73150 ]
+[ Upstream commit ca38dc8f2724d101038b1205122c93a1c7f38f11 ]
 
-It is perfectly okay to take page-faults, especially on the
-vmalloc area while executing an NMI handler. Remove the
-warning.
+Fuzzing the PTI-x86-32 code with trinity showed unhandled
+kernel paging request oops-messages that looked a lot like
+silent data corruption.
+
+Lot's of debugging and testing lead to the kexec-32bit code,
+which is still allocating 4k PGDs when PTI is enabled. But
+since it uses native_set_pud() to build the page-table, it
+will unevitably call into __pti_set_user_pgtbl(), which
+writes beyond the allocated 4k page.
+
+Use PGD_ALLOCATION_ORDER to allocate PGDs in the kexec code
+to fix the issue.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
@@ -66,26 +74,37 @@ Cc: Alexander Shishkin <alexander.shishkin@linux.intel.com>
 Cc: Jiri Olsa <jolsa@redhat.com>
 Cc: Namhyung Kim <namhyung@kernel.org>
 Cc: joro@8bytes.org
-Link: https://lkml.kernel.org/r/1532533683-5988-2-git-send-email-joro@8byte=
+Link: https://lkml.kernel.org/r/1532533683-5988-4-git-send-email-joro@8byte=
 s.org
 Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
 ---
- arch/x86/mm/fault.c | 2 --
- 1 file changed, 2 deletions(-)
+ arch/x86/kernel/machine_kexec_32.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index acef3c6a32a2..5c419b8f99a0 100644
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -330,8 +330,6 @@ static noinline int vmalloc_fault(unsigned long address=
-)
- 	if (!(address >=3D VMALLOC_START && address < VMALLOC_END))
- 		return -1;
+diff --git a/arch/x86/kernel/machine_kexec_32.c b/arch/x86/kernel/machine_k=
+exec_32.c
+index fd7e9937ddd6..e9359272c5cb 100644
+--- a/arch/x86/kernel/machine_kexec_32.c
++++ b/arch/x86/kernel/machine_kexec_32.c
+@@ -70,7 +70,7 @@ static void load_segments(void)
 =20
--	WARN_ON_ONCE(in_nmi());
--
- 	/*
- 	 * Synchronize this task's top level page-table
- 	 * with the 'reference' page table.
+ static void machine_kexec_free_page_tables(struct kimage *image)
+ {
+-	free_page((unsigned long)image->arch.pgd);
++	free_pages((unsigned long)image->arch.pgd, PGD_ALLOCATION_ORDER);
+ 	image->arch.pgd =3D NULL;
+ #ifdef CONFIG_X86_PAE
+ 	free_page((unsigned long)image->arch.pmd0);
+@@ -86,7 +86,8 @@ static void machine_kexec_free_page_tables(struct kimage =
+*image)
+=20
+ static int machine_kexec_alloc_page_tables(struct kimage *image)
+ {
+-	image->arch.pgd =3D (pgd_t *)get_zeroed_page(GFP_KERNEL);
++	image->arch.pgd =3D (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
++						    PGD_ALLOCATION_ORDER);
+ #ifdef CONFIG_X86_PAE
+ 	image->arch.pmd0 =3D (pmd_t *)get_zeroed_page(GFP_KERNEL);
+ 	image->arch.pmd1 =3D (pmd_t *)get_zeroed_page(GFP_KERNEL);
 --=20
 2.17.1
