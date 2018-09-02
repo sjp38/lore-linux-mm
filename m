@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D2666B6263
-	for <linux-mm@kvack.org>; Sun,  2 Sep 2018 09:07:21 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id l6-v6so15489324iog.4
-        for <linux-mm@kvack.org>; Sun, 02 Sep 2018 06:07:21 -0700 (PDT)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0091.outbound.protection.outlook.com. [104.47.36.91])
-        by mx.google.com with ESMTPS id s16-v6si9489055ioa.165.2018.09.02.06.07.20
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 261666B626D
+	for <linux-mm@kvack.org>; Sun,  2 Sep 2018 09:14:43 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id m3-v6so586879plt.9
+        for <linux-mm@kvack.org>; Sun, 02 Sep 2018 06:14:43 -0700 (PDT)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0124.outbound.protection.outlook.com. [104.47.40.124])
+        by mx.google.com with ESMTPS id 20-v6si15462185pfr.242.2018.09.02.06.14.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 02 Sep 2018 06:07:20 -0700 (PDT)
+        Sun, 02 Sep 2018 06:14:42 -0700 (PDT)
 From: Sasha Levin <Alexander.Levin@microsoft.com>
-Subject: [PATCH AUTOSEL 4.14 47/89] x86/mm: Remove in_nmi() warning from
+Subject: [PATCH AUTOSEL 4.9 27/62] x86/mm: Remove in_nmi() warning from
  vmalloc_fault()
-Date: Sun, 2 Sep 2018 13:07:06 +0000
-Message-ID: <20180902064918.183387-47-alexander.levin@microsoft.com>
-References: <20180902064918.183387-1-alexander.levin@microsoft.com>
-In-Reply-To: <20180902064918.183387-1-alexander.levin@microsoft.com>
+Date: Sun, 2 Sep 2018 13:14:36 +0000
+Message-ID: <20180902131411.183978-17-alexander.levin@microsoft.com>
+References: <20180902131411.183978-1-alexander.levin@microsoft.com>
+In-Reply-To: <20180902131411.183978-1-alexander.levin@microsoft.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
@@ -74,10 +74,10 @@ Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
  1 file changed, 2 deletions(-)
 
 diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index c2faff548f59..794c35c4ca73 100644
+index acef3c6a32a2..5c419b8f99a0 100644
 --- a/arch/x86/mm/fault.c
 +++ b/arch/x86/mm/fault.c
-@@ -317,8 +317,6 @@ static noinline int vmalloc_fault(unsigned long address=
+@@ -330,8 +330,6 @@ static noinline int vmalloc_fault(unsigned long address=
 )
  	if (!(address >=3D VMALLOC_START && address < VMALLOC_END))
  		return -1;
