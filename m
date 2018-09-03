@@ -1,132 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A53BD6B6651
-	for <linux-mm@kvack.org>; Mon,  3 Sep 2018 01:56:58 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id s54-v6so6683923eda.20
-        for <linux-mm@kvack.org>; Sun, 02 Sep 2018 22:56:58 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l8-v6si10546878edb.116.2018.09.02.22.56.56
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C7FD6B66A5
+	for <linux-mm@kvack.org>; Mon,  3 Sep 2018 03:22:17 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id j15-v6so10741629pff.12
+        for <linux-mm@kvack.org>; Mon, 03 Sep 2018 00:22:17 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id j67-v6si17958478pfg.34.2018.09.03.00.22.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 02 Sep 2018 22:56:57 -0700 (PDT)
-Date: Mon, 3 Sep 2018 07:56:54 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v6 1/2] mm: migration: fix migration of huge PMD shared
- pages
-Message-ID: <20180903055654.GA14951@dhcp22.suse.cz>
-References: <9209043d-3240-105b-72a3-b4cd30f1b1f1@oracle.com>
- <20180829181424.GB3784@redhat.com>
- <20180829183906.GF10223@dhcp22.suse.cz>
- <20180829211106.GC3784@redhat.com>
- <20180830105616.GD2656@dhcp22.suse.cz>
- <20180830140825.GA3529@redhat.com>
- <20180830161800.GJ2656@dhcp22.suse.cz>
- <20180830165751.GD3529@redhat.com>
- <e0c0c966-6706-4ca2-4077-e79322756a9b@oracle.com>
- <20180830183944.GE3529@redhat.com>
+        Mon, 03 Sep 2018 00:22:14 -0700 (PDT)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V5 00/21] swap: Swapout/swapin THP in one piece
+Date: Mon,  3 Sep 2018 15:21:53 +0800
+Message-Id: <20180903072214.24602-1-ying.huang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180830183944.GE3529@redhat.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-rdma@vger.kernel.org, Matan Barak <matanb@mellanox.com>, Leon Romanovsky <leonro@mellanox.com>, Dimitri Sivanich <sivanich@sgi.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-On Thu 30-08-18 14:39:44, Jerome Glisse wrote:
-> On Thu, Aug 30, 2018 at 11:05:16AM -0700, Mike Kravetz wrote:
-> > On 08/30/2018 09:57 AM, Jerome Glisse wrote:
-> > > On Thu, Aug 30, 2018 at 06:19:52PM +0200, Michal Hocko wrote:
-> > >> On Thu 30-08-18 10:08:25, Jerome Glisse wrote:
-> > >>> On Thu, Aug 30, 2018 at 12:56:16PM +0200, Michal Hocko wrote:
-> > >>>> On Wed 29-08-18 17:11:07, Jerome Glisse wrote:
-> > >>>>> On Wed, Aug 29, 2018 at 08:39:06PM +0200, Michal Hocko wrote:
-> > >>>>>> On Wed 29-08-18 14:14:25, Jerome Glisse wrote:
-> > >>>>>>> On Wed, Aug 29, 2018 at 10:24:44AM -0700, Mike Kravetz wrote:
-> > >>>>>> [...]
-> > >>>>>>>> What would be the best mmu notifier interface to use where there are no
-> > >>>>>>>> start/end calls?
-> > >>>>>>>> Or, is the best solution to add the start/end calls as is done in later
-> > >>>>>>>> versions of the code?  If that is the suggestion, has there been any change
-> > >>>>>>>> in invalidate start/end semantics that we should take into account?
-> > >>>>>>>
-> > >>>>>>> start/end would be the one to add, 4.4 seems broken in respect to THP
-> > >>>>>>> and mmu notification. Another solution is to fix user of mmu notifier,
-> > >>>>>>> they were only a handful back then. For instance properly adjust the
-> > >>>>>>> address to match first address covered by pmd or pud and passing down
-> > >>>>>>> correct page size to mmu_notifier_invalidate_page() would allow to fix
-> > >>>>>>> this easily.
-> > >>>>>>>
-> > >>>>>>> This is ok because user of try_to_unmap_one() replace the pte/pmd/pud
-> > >>>>>>> with an invalid one (either poison, migration or swap) inside the
-> > >>>>>>> function. So anyone racing would synchronize on those special entry
-> > >>>>>>> hence why it is fine to delay mmu_notifier_invalidate_page() to after
-> > >>>>>>> dropping the page table lock.
-> > >>>>>>>
-> > >>>>>>> Adding start/end might the solution with less code churn as you would
-> > >>>>>>> only need to change try_to_unmap_one().
-> > >>>>>>
-> > >>>>>> What about dependencies? 369ea8242c0fb sounds like it needs work for all
-> > >>>>>> notifiers need to be updated as well.
-> > >>>>>
-> > >>>>> This commit remove mmu_notifier_invalidate_page() hence why everything
-> > >>>>> need to be updated. But in 4.4 you can get away with just adding start/
-> > >>>>> end and keep around mmu_notifier_invalidate_page() to minimize disruption.
-> > >>>>
-> > >>>> OK, this is really interesting. I was really worried to change the
-> > >>>> semantic of the mmu notifiers in stable kernels because this is really
-> > >>>> a hard to review change and high risk for anybody running those old
-> > >>>> kernels. If we can keep the mmu_notifier_invalidate_page and wrap them
-> > >>>> into the range scope API then this sounds like the best way forward.
-> > >>>>
-> > >>>> So just to make sure we are at the same page. Does this sounds goo for
-> > >>>> stable 4.4. backport? Mike's hugetlb pmd shared fixup can be applied on
-> > >>>> top. What do you think?
-> > >>>
-> > >>> You need to invalidate outside page table lock so before the call to
-> > >>> page_check_address(). For instance like below patch, which also only
-> > >>> do the range invalidation for huge page which would avoid too much of
-> > >>> a behavior change for user of mmu notifier.
-> > >>
-> > >> Right. I would rather not make this PageHuge special though. So the
-> > >> fixed version should be.
-> > > 
-> > > Why not testing for huge ? Only huge is broken and thus only that
-> > > need the extra range invalidation. Doing the double invalidation
-> > > for single page is bit overkill.
-> > 
-> > I am a bit confused, and hope this does not add to any confusion by others.
-> > 
-> > IIUC, the patch below does not attempt to 'fix' anything.  It is simply
-> > there to add the start/end notifiers to the v4.4 version of this routine
-> > so that a subsequent patch can use them (with modified ranges) to handle
-> > unmapping a shared pmd huge page.  That is the mainline fix which started
-> > this thread.
-> > 
-> > Since we are only/mostly interested in fixing the shared pmd issue in
-> > 4.4, how about just adding the start/end notifiers to the very specific
-> > case where pmd sharing is possible?
-> > 
-> > I can see the value in trying to back port dependent patches such as this
-> > so that stable releases look more like mainline.  However, I am not sure of
-> > the value in this case as this patch was part of a larger set changing
-> > notifier semantics.
-> 
-> For all intents and purposes this is not a backport of the original
-> patch so maybe we should just drop the commit reference and just
-> explains that it is there to fix mmu notifier in respect to huge page
-> migration.
-> 
-> The original patches fix more than this case because newer featurers
-> like THP migration, THP swapping, ... added more cases where things
-> would have been wrong. But in 4.4 frame there is only huge tlb fs
-> migration.
+Hi, Andrew, could you help me to check whether the overall design is
+reasonable?
 
-And THP migration is still a problem with 4.4 AFAICS. All other cases
-simply split the huge page but THP migration keeps it in one piece and
-as such it is theoretically broken as you have explained. So I would
-stick with what I posted with some more clarifications in the changelog
-if you think it is appropriate (suggestions welcome).
--- 
-Michal Hocko
-SUSE Labs
+Hi, Hugh, Shaohua, Minchan and Rik, could you help me to review the
+swap part of the patchset?  Especially [02/21], [03/21], [04/21],
+[05/21], [06/21], [07/21], [08/21], [09/21], [10/21], [11/21],
+[12/21], [20/21], [21/21].
+
+Hi, Andrea and Kirill, could you help me to review the THP part of the
+patchset?  Especially [01/21], [07/21], [09/21], [11/21], [13/21],
+[15/21], [16/21], [17/21], [18/21], [19/21], [20/21].
+
+Hi, Johannes and Michal, could you help me to review the cgroup part
+of the patchset?  Especially [14/21].
+
+And for all, Any comment is welcome!
+
+This patchset is based on the 2018-08-23 head of mmotm/master.
+
+This is the final step of THP (Transparent Huge Page) swap
+optimization.  After the first and second step, the splitting huge
+page is delayed from almost the first step of swapout to after swapout
+has been finished.  In this step, we avoid splitting THP for swapout
+and swapout/swapin the THP in one piece.
+
+We tested the patchset with vm-scalability benchmark swap-w-seq test
+case, with 16 processes.  The test case forks 16 processes.  Each
+process allocates large anonymous memory range, and writes it from
+begin to end for 8 rounds.  The first round will swapout, while the
+remaining rounds will swapin and swapout.  The test is done on a Xeon
+E5 v3 system, the swap device used is a RAM simulated PMEM (persistent
+memory) device.  The test result is as follow,
+
+            base                  optimized
+---------------- -------------------------- 
+         %stddev     %change         %stddev
+             \          |                \  
+   1417897 A+-  2%    +992.8%   15494673        vm-scalability.throughput
+   1020489 A+-  4%   +1091.2%   12156349        vmstat.swap.si
+   1255093 A+-  3%    +940.3%   13056114        vmstat.swap.so
+   1259769 A+-  7%   +1818.3%   24166779        meminfo.AnonHugePages
+  28021761           -10.7%   25018848 A+-  2%  meminfo.AnonPages
+  64080064 A+-  4%     -95.6%    2787565 A+- 33%  interrupts.CAL:Function_call_interrupts
+     13.91 A+-  5%     -13.8        0.10 A+- 27%  perf-profile.children.cycles-pp.native_queued_spin_lock_slowpath
+
+Where, the score of benchmark (bytes written per second) improved
+992.8%.  The swapout/swapin throughput improved 1008% (from about
+2.17GB/s to 24.04GB/s).  The performance difference is huge.  In base
+kernel, for the first round of writing, the THP is swapout and split,
+so in the remaining rounds, there is only normal page swapin and
+swapout.  While in optimized kernel, the THP is kept after first
+swapout, so THP swapin and swapout is used in the remaining rounds.
+This shows the key benefit to swapout/swapin THP in one piece, the THP
+will be kept instead of being split.  meminfo information verified
+this, in base kernel only 4.5% of anonymous page are THP during the
+test, while in optimized kernel, that is 96.6%.  The TLB flushing IPI
+(represented as interrupts.CAL:Function_call_interrupts) reduced
+95.6%, while cycles for spinlock reduced from 13.9% to 0.1%.  These
+are performance benefit of THP swapout/swapin too.
+
+Below is the description for all steps of THP swap optimization.
+
+Recently, the performance of the storage devices improved so fast that
+we cannot saturate the disk bandwidth with single logical CPU when do
+page swapping even on a high-end server machine.  Because the
+performance of the storage device improved faster than that of single
+logical CPU.  And it seems that the trend will not change in the near
+future.  On the other hand, the THP becomes more and more popular
+because of increased memory size.  So it becomes necessary to optimize
+THP swap performance.
+
+The advantages to swapout/swapin a THP in one piece include:
+
+- Batch various swap operations for the THP.  Many operations need to
+  be done once per THP instead of per normal page, for example,
+  allocating/freeing the swap space, writing/reading the swap space,
+  flushing TLB, page fault, etc.  This will improve the performance of
+  the THP swap greatly.
+
+- The THP swap space read/write will be large sequential IO (2M on
+  x86_64).  It is particularly helpful for the swapin, which are
+  usually 4k random IO.  This will improve the performance of the THP
+  swap too.
+
+- It will help the memory fragmentation, especially when the THP is
+  heavily used by the applications.  The THP order pages will be free
+  up after THP swapout.
+
+- It will improve the THP utilization on the system with the swap
+  turned on.  Because the speed for khugepaged to collapse the normal
+  pages into the THP is quite slow.  After the THP is split during the
+  swapout, it will take quite long time for the normal pages to
+  collapse back into the THP after being swapin.  The high THP
+  utilization helps the efficiency of the page based memory management
+  too.
+
+There are some concerns regarding THP swapin, mainly because possible
+enlarged read/write IO size (for swapout/swapin) may put more overhead
+on the storage device.  To deal with that, the THP swapin is turned on
+only when necessary.  A new sysfs interface:
+/sys/kernel/mm/transparent_hugepage/swapin_enabled is added to
+configure it.  It uses "always/never/madvise" logic, to be turned on
+globally, turned off globally, or turned on only for VMA with
+MADV_HUGEPAGE, etc.
+GE, etc.
+
+Changelog
+---------
+
+v5:
+
+- Rebased on 8/9 HEAD of mmotm/master
+
+- Merged the swap operations implementation for the huge and the
+  normal swap entries when possible
+
+- Added more code comments to improve code readability
+
+- Changed function parameter style to avoid to use Boolean parameter
+  as much as possible
+
+- Fixed a deadlock issue in do_huge_pmd_swap_page(), thanks 0-Day and sparse
+
+v4:
+
+- Rebased on 6/14 HEAD of mmotm/master
+
+- Fixed one build bug and several coding style issues, Thanks Daniel Jordon
+
+v3:
+
+- Rebased on 5/18 HEAD of mmotm/master
+
+- Fixed a build bug, Thanks 0-Day!
+
+v2:
+
+- Fixed several build bugs, Thanks 0-Day!
+
+- Improved documentation as suggested by Randy Dunlap.
+
+- Fixed several bugs in reading huge swap cluster
