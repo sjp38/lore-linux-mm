@@ -1,61 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5988C6B685C
-	for <linux-mm@kvack.org>; Mon,  3 Sep 2018 11:10:03 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id y46-v6so799061qth.9
-        for <linux-mm@kvack.org>; Mon, 03 Sep 2018 08:10:03 -0700 (PDT)
-Received: from smtp-fw-9102.amazon.com (smtp-fw-9102.amazon.com. [207.171.184.29])
-        by mx.google.com with ESMTPS id z12-v6si5801594qva.223.2018.09.03.08.10.02
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 746A56B687D
+	for <linux-mm@kvack.org>; Mon,  3 Sep 2018 11:10:33 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id t10-v6so735600wrs.17
+        for <linux-mm@kvack.org>; Mon, 03 Sep 2018 08:10:33 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 141-v6sor7409963wmg.12.2018.09.03.08.10.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Sep 2018 08:10:02 -0700 (PDT)
-From: Julian Stecklina <jsteckli@amazon.de>
-Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs in mind (for KVM to isolate its guests per CPU)
-References: <CA+55aFxyUdhYjnQdnmWAt8tTwn4HQ1xz3SAMZJiawkLpMiJ_+w@mail.gmail.com>
-	<ciirm8a7p3alos.fsf@u54ee758033e858cfa736.ant.amazon.com>
-	<CA+55aFzHj_GNZWG4K2oDu4DPP9sZdTZ9PY7sBxGB6WoN9g8d=A@mail.gmail.com>
-Date: Mon, 03 Sep 2018 16:51:35 +0200
-In-Reply-To: <CA+55aFzHj_GNZWG4K2oDu4DPP9sZdTZ9PY7sBxGB6WoN9g8d=A@mail.gmail.com>
-	(Linus Torvalds's message of "Sat, 1 Sep 2018 14:38:43 -0700")
-Message-ID: <ciirm8zhwyiqh4.fsf@u54ee758033e858cfa736.ant.amazon.com>
+        (Google Transport Security);
+        Mon, 03 Sep 2018 08:10:31 -0700 (PDT)
+Date: Mon, 3 Sep 2018 17:10:27 +0200
+From: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Subject: Re: [PATCH v6 11/11] arm64: annotate user pointers casts detected by
+ sparse
+Message-ID: <20180903151026.n2jak3e4yqusnogt@ltop.local>
+References: <cover.1535629099.git.andreyknvl@google.com>
+ <5d54526e5ff2e5ad63d0dfdd9ab17cf359afa4f2.1535629099.git.andreyknvl@google.com>
+ <20180831081123.6mo62xnk54pvlxmc@ltop.local>
+ <20180831134244.GB19965@ZenIV.linux.org.uk>
+ <CAAeHK+w86m6YztnTGhuZPKRczb-+znZ1hiJskPXeQok4SgcaOw@mail.gmail.com>
+ <01cadefd-c929-cb45-500d-7043cf3943f6@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <01cadefd-c929-cb45-500d-7043cf3943f6@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: David Woodhouse <dwmw@amazon.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, juerg.haefliger@hpe.com, deepa.srinivasan@oracle.com, Jim Mattson <jmattson@google.com>, Andrew Cooper <andrew.cooper3@citrix.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, joao.m.martins@oracle.com, pradeep.vincent@oracle.com, Andi Kleen <ak@linux.intel.com>, Khalid Aziz <khalid.aziz@oracle.com>, kanth.ghatraju@oracle.com, Liran Alon <liran.alon@oracle.com>, Kees Cook <keescook@google.com>, Kernel Hardening <kernel-hardening@lists.openwall.com>, chris.hyser@oracle.com, Tyler Hicks <tyhicks@canonical.com>, John Haxby <john.haxby@oracle.com>, Jon Masters <jcm@redhat.com>
+To: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Cc: Andrey Konovalov <andreyknvl@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Mark Rutland <mark.rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, linux-doc@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Kostya Serebryany <kcc@google.com>, linux-kselftest@vger.kernel.org, Chintan Pandya <cpandya@codeaurora.org>, Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>, linux-arch@vger.kernel.org, Jacob Bramley <Jacob.Bramley@arm.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Evgeniy Stepanov <eugenis@google.com>, Kees Cook <keescook@chromium.org>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Dmitry Vyukov <dvyukov@google.com>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, Lee Smith <Lee.Smith@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Robin Murphy <robin.murphy@arm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-Linus Torvalds <torvalds@linux-foundation.org> writes:
+On Mon, Sep 03, 2018 at 02:49:38PM +0100, Vincenzo Frascino wrote:
+> On 03/09/18 13:34, Andrey Konovalov wrote:
+> > On Fri, Aug 31, 2018 at 3:42 PM, Al Viro <viro@zeniv.linux.org.uk> wrote:
+> >> On Fri, Aug 31, 2018 at 10:11:24AM +0200, Luc Van Oostenryck wrote:
+> >>> On Thu, Aug 30, 2018 at 01:41:16PM +0200, Andrey Konovalov wrote:
+> >>>> This patch adds __force annotations for __user pointers casts detected by
+> >>>> sparse with the -Wcast-from-as flag enabled (added in [1]).
+> >>>>
+> >>>> [1] https://github.com/lucvoo/sparse-dev/commit/5f960cb10f56ec2017c128ef9d16060e0145f292
+> >>>
+> >>> Hi,
+> >>>
+> >>> It would be nice to have some explanation for why these added __force
+> >>> are useful.
+> > 
+> > I'll add this in the next version, thanks!
+> > 
+> >>         It would be even more useful if that series would either deal with
+> >> the noise for real ("that's what we intend here, that's what we intend there,
+> >> here's a primitive for such-and-such kind of cases, here we actually
+> >> ought to pass __user pointer instead of unsigned long", etc.) or left it
+> >> unmasked.
+> >>
+> >>         As it is, __force says only one thing: "I know the code is doing
+> >> the right thing here".  That belongs in primitives, and I do *not* mean the
+> >> #define cast_to_ulong(x) ((__force unsigned long)(x))
+> >> kind.
+> >>
+> >>         Folks, if you don't want to deal with that - leave the warnings be.
+> >> They do carry more information than "someone has slapped __force in that place".
+> >>
+> >> Al, very annoyed by that kind of information-hiding crap...
+> > 
+> > This patch only adds __force to hide the reports I've looked at and
+> > decided that the code does the right thing. The cases where this is
+> > not the case are handled by the previous patches in the patchset. I'll
+> > this to the patch description as well. Is that OK?
+> > 
+> I think as well that we should make explicit the information that
+> __force is hiding.
+> A possible solution could be defining some new address spaces and use
+> them where it is relevant in the kernel. Something like:
+> 
+> # define __compat_ptr __attribute__((noderef, address_space(5)))
+> # define __tagged_ptr __attribute__((noderef, address_space(6)))
+> 
+> In this way sparse can still identify the casting and trigger a warning.
+> 
+> We could at that point modify sparse to ignore these conversions when a
+> specific flag is passed (i.e. -Wignore-compat-ptr, -Wignore-tagged-ptr)
+> to exclude from the generated warnings the ones we have already dealt
+> with.
+> 
+> What do you think about this approach?
 
-> On Fri, Aug 31, 2018 at 12:45 AM Julian Stecklina <jsteckli@amazon.de> wrote:
->>
->> I've been spending some cycles on the XPFO patch set this week. For the
->> patch set as it was posted for v4.13, the performance overhead of
->> compiling a Linux kernel is ~40% on x86_64[1]. The overhead comes almost
->> completely from TLB flushing. If we can live with stale TLB entries
->> allowing temporary access (which I think is reasonable), we can remove
->> all TLB flushing (on x86). This reduces the overhead to 2-3% for
->> kernel compile.
->
-> I have to say, even 2-3% for a kernel compile sounds absolutely horrendous.
+I'll be happy to add such warnings to sparse if it is useful to detect
+(and correct!) problems. I'm also thinking to other possiblities, like
+having some weaker form of __force (maybe simply __force_as (which will
+'only' force the address space) or even __force_as(TO, FROM) (with TO
+and FROM being a mask of the address space allowed).
 
-Well, it's at least in a range where it doesn't look hopeless.
+However, for the specific situation here, I'm not sure that using
+address spaces is the right choice because I suspect that the concept
+of tagged pointer is orthogonal to the one of (the usual) address space
+(it won't be possible for a pointer to be __tagged_ptr *and* __user).
 
-> Kernel bullds are 90% user space at least for me, so a 2-3% slowdown
-> from a kernel is not some small unnoticeable thing.
+OTOH, when I see already the tons of warnings for concepts established
+since many years (I'm thinking especially at __bitwise, see [1]) I'm a
+bit affraid of adding new, more specialized ones that people will
+understand even less how/when they need to use them.
 
-The overhead seems to come from the hooks that XPFO adds to
-alloc/free_pages. These hooks add a couple of atomic operations per
-allocated (4K) page for book keeping. Some of these atomic ops are only
-for debugging and could be removed. There is also some opportunity to
-streamline the per-page space overhead of XPFO.
 
-I'll do some more in-depth profiling later this week.
+-- Luc
 
-Julian
-Amazon Development Center Germany GmbH
-Berlin - Dresden - Aachen
-main office: Krausenstr. 38, 10117 Berlin
-Geschaeftsfuehrer: Dr. Ralf Herbrich, Christian Schlaeger
-Ust-ID: DE289237879
-Eingetragen am Amtsgericht Charlottenburg HRB 149173 B
+[1] Here are the warnings reported on v18-rc1 x86-64 with defconfig:
+    469 symbol was not declared. Should it be static?
+    241 incorrect type in argument (different address spaces)
+    186 context imbalance - unexpected unlock
+    147 restricted type degrades to integer
+    122 incompatible types in comparison expression (different address spaces)
+    117 context imbalance - different lock contexts for basic block
+    102 incorrect type in assignment (different address spaces)
+    101 incorrect type in initializer (different address spaces)
+     82 dereference of noderef expression
+     79 cast to restricted type
+     74 incorrect type in argument (different base types)
+     72 bad integer constant expression
+     68 context imbalance - wrong count at exit
+     65 incorrect type in assignment (different base types)
+     44 cast removes address space of expression
+     38 Using plain integer as NULL pointer
+     20 Variable length array is used.
+     14 symbol redeclared with different type - different modifiers
+     14 cast from restricted type
+     13 function with external linkage has definition
+     12 subtraction of functions? Share your drugs
+     11 directive in argument list
+      8 incorrect type in return expression (different address spaces)
+      6 cast truncates bits from constant value
+      5 invalid assignement
+      5 incorrect type in return expression (different base types)
+      5 incorrect type in initializer (different base types)
+      4 "Sparse checking disabled for this file"
+      3 memset with byte count of ...
+      3 incorrect type in initializer (different modifiers)
+      2 Initializer entry defined twice
+      2 incorrect type in assignment (different modifiers)
+      2 incorrect type in argument (different modifiers)
+      2 arithmetics on pointers to functions
+      1 trying to concatenate long character string (8191 bytes max)
+      1 too long token expansion
+      1 symbol redeclared with different type - incompatible argument (different address spaces)
+      1 memcpy with byte count of ...
+      1 marked inline, but without a definition
+      1 invalid initializer
+      1 incorrect type in argument (incompatible argument (different signedness))
+      1 incompatible types in comparison expression (different base types)
+      1 dubious: !x | y
+      1 constant is so big it is ...
