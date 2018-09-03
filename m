@@ -1,78 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DA7526B6735
-	for <linux-mm@kvack.org>; Mon,  3 Sep 2018 05:40:32 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id l7-v6so25576099qte.2
-        for <linux-mm@kvack.org>; Mon, 03 Sep 2018 02:40:32 -0700 (PDT)
-Received: from EUR04-VI1-obe.outbound.protection.outlook.com (mail-eopbgr80093.outbound.protection.outlook.com. [40.107.8.93])
-        by mx.google.com with ESMTPS id r10-v6si37970qvi.112.2018.09.03.02.40.31
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 03 Sep 2018 02:40:31 -0700 (PDT)
-Subject: Re: [PATCH v2] arm64: kasan: add interceptors for strcmp/strncmp
- functions
-References: <1535014606-176525-1-git-send-email-kyeongdon.kim@lge.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <dff9a2f3-7db5-9e60-072a-312b6cfbe0f0@virtuozzo.com>
-Date: Mon, 3 Sep 2018 12:40:44 +0300
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AA60F6B6765
+	for <linux-mm@kvack.org>; Mon,  3 Sep 2018 06:34:50 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id l191-v6so60578oig.23
+        for <linux-mm@kvack.org>; Mon, 03 Sep 2018 03:34:50 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id d187-v6si13420985oib.105.2018.09.03.03.34.49
+        for <linux-mm@kvack.org>;
+        Mon, 03 Sep 2018 03:34:49 -0700 (PDT)
+From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
+Subject: Re: [PATCH v2 13/40] vfio: Add support for Shared Virtual Addressing
+References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
+ <20180511190641.23008-14-jean-philippe.brucker@arm.com>
+ <5B83B11E.7010807@huawei.com> <1d5b6529-4e5a-723c-3f1b-dd5a9adb490c@arm.com>
+ <5B89F818.7060300@huawei.com>
+Message-ID: <3a961aff-e830-64bb-b6a9-14e08de1abf5@arm.com>
+Date: Mon, 3 Sep 2018 11:34:29 +0100
 MIME-Version: 1.0
-In-Reply-To: <1535014606-176525-1-git-send-email-kyeongdon.kim@lge.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <5B89F818.7060300@huawei.com>
+Content-Type: text/plain; charset=iso-2022-jp
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kyeongdon Kim <kyeongdon.kim@lge.com>, catalin.marinas@arm.com, will.deacon@arm.com, glider@google.com, dvyukov@google.com
-Cc: Jason@zx2c4.com, robh@kernel.org, ard.biesheuvel@linaro.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
+To: Xu Zaibo <xuzaibo@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "joro@8bytes.org" <joro@8bytes.org>, Will Deacon <Will.Deacon@arm.com>, Robin Murphy <Robin.Murphy@arm.com>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "tn@semihalf.com" <tn@semihalf.com>, "liubo95@huawei.com" <liubo95@huawei.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "rfranz@cavium.com" <rfranz@cavium.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "jacob.jun.pan@linux.intel.com" <jacob.jun.pan@linux.intel.com>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "kevin.tian@intel.com" <kevin.tian@intel.com>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>, "robdclark@gmail.com" <robdclark@gmail.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "rgummal@xilinx.com" <rgummal@xilinx.com>, =?UTF-8?B?57Gz57Gz?= <kenneth-lee-2012@foxmail.com>, wangzhou1 <wangzhou1@hisilicon.com>, "liguozhu@hisilicon.com" <liguozhu@hisilicon.com>, fanghao11 <fanghao11@huawei.com>
 
+On 01/09/18 03:23, Xu Zaibo wrote:
+> As one application takes a whole function while using VFIO-PCI, why do 
+> the application and the
+> function need to enable PASID capability? (Since just one I/O page table 
+> is enough for them.)
 
+At the moment the series doesn't provide support for SVA without PASID
+(on the I/O page fault path, 08/40). In addition the BIND ioctl could be
+used by the owner application to bind other processes (slaves) and
+perform sub-assignment. But that feature is incomplete because we don't
+send stop_pasid notification to the owner when a slave dies.
 
-On 08/23/2018 11:56 AM, Kyeongdon Kim wrote:
-
-> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-> index c3bd520..61ad7f1 100644
-> --- a/mm/kasan/kasan.c
-> +++ b/mm/kasan/kasan.c
-> @@ -304,6 +304,29 @@ void *memcpy(void *dest, const void *src, size_t len)
->  
->  	return __memcpy(dest, src, len);
->  }
-> +#ifdef CONFIG_ARM64
-> +/*
-> + * Arch arm64 use assembly variant for strcmp/strncmp,
-> + * xtensa use inline asm operations and x86_64 use c one,
-> + * so now this interceptors only for arm64 kasan.
-> + */
-> +#undef strcmp
-> +int strcmp(const char *cs, const char *ct)
-> +{
-> +	check_memory_region((unsigned long)cs, 1, false, _RET_IP_);
-> +	check_memory_region((unsigned long)ct, 1, false, _RET_IP_);
-> +
-
-Well this is definitely wrong. strcmp() often accesses far more than one byte.
-
-> +	return __strcmp(cs, ct);
-> +}
-> +#undef strncmp
-> +int strncmp(const char *cs, const char *ct, size_t len)
-> +{
-> +	check_memory_region((unsigned long)cs, len, false, _RET_IP_);
-> +	check_memory_region((unsigned long)ct, len, false, _RET_IP_);
-
-This will cause false positives. Both 'cs', and 'ct' could be less than len bytes.
-
-There is no need in these interceptors, just use the C implementations from lib/string.c
-like you did in your first patch.
-The only thing that was wrong in the first patch is that assembly implementations
-were compiled out instead of being declared week.
-
-
-> +
-> +	return __strncmp(cs, ct, len);
-> +}
-> +#endif
->  
->  void kasan_alloc_pages(struct page *page, unsigned int order)
->  {
-> 
+Thanks,
+Jean
