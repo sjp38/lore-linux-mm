@@ -1,64 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F0FF6B6823
-	for <linux-mm@kvack.org>; Mon,  3 Sep 2018 09:42:25 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id p105-v6so555084wrc.11
-        for <linux-mm@kvack.org>; Mon, 03 Sep 2018 06:42:25 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id l12-v6si16604394wro.140.2018.09.03.06.42.24
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Sep 2018 06:42:24 -0700 (PDT)
-Date: Mon, 3 Sep 2018 15:42:22 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH AUTOSEL 4.4 22/47] x86/mm: Remove in_nmi() warning from
- vmalloc_fault()
-Message-ID: <20180903134222.GA9051@amd>
-References: <20180902131533.184092-1-alexander.levin@microsoft.com>
- <20180902131533.184092-22-alexander.levin@microsoft.com>
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B7176B682C
+	for <linux-mm@kvack.org>; Mon,  3 Sep 2018 09:49:46 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id b8-v6so539521oib.4
+        for <linux-mm@kvack.org>; Mon, 03 Sep 2018 06:49:46 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id u206-v6si12549892oia.326.2018.09.03.06.49.45
+        for <linux-mm@kvack.org>;
+        Mon, 03 Sep 2018 06:49:45 -0700 (PDT)
+Subject: Re: [PATCH v6 11/11] arm64: annotate user pointers casts detected by
+ sparse
+References: <cover.1535629099.git.andreyknvl@google.com>
+ <5d54526e5ff2e5ad63d0dfdd9ab17cf359afa4f2.1535629099.git.andreyknvl@google.com>
+ <20180831081123.6mo62xnk54pvlxmc@ltop.local>
+ <20180831134244.GB19965@ZenIV.linux.org.uk>
+ <CAAeHK+w86m6YztnTGhuZPKRczb-+znZ1hiJskPXeQok4SgcaOw@mail.gmail.com>
+From: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Message-ID: <01cadefd-c929-cb45-500d-7043cf3943f6@arm.com>
+Date: Mon, 3 Sep 2018 14:49:38 +0100
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="xHFwDpU9dbj6ez1V"
-Content-Disposition: inline
-In-Reply-To: <20180902131533.184092-22-alexander.levin@microsoft.com>
+In-Reply-To: <CAAeHK+w86m6YztnTGhuZPKRczb-+znZ1hiJskPXeQok4SgcaOw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <Alexander.Levin@microsoft.com>
-Cc: "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Joerg Roedel <jroedel@suse.de>, Thomas Gleixner <tglx@linutronix.de>, "H . Peter Anvin" <hpa@zytor.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "aliguori@amazon.com" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, "hughd@google.com" <hughd@google.com>, "keescook@google.com" <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, "joro@8bytes.org" <joro@8bytes.org>
+To: Andrey Konovalov <andreyknvl@google.com>, Al Viro <viro@zeniv.linux.org.uk>
+Cc: Mark Rutland <mark.rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, linux-doc@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Kostya Serebryany <kcc@google.com>, linux-kselftest@vger.kernel.org, Chintan Pandya <cpandya@codeaurora.org>, Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>, linux-arch@vger.kernel.org, Jacob Bramley <Jacob.Bramley@arm.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Evgeniy Stepanov <eugenis@google.com>, Kees Cook <keescook@chromium.org>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Dmitry Vyukov <dvyukov@google.com>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Lee Smith <Lee.Smith@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Robin Murphy <robin.murphy@arm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
+On 03/09/18 13:34, Andrey Konovalov wrote:
+> On Fri, Aug 31, 2018 at 3:42 PM, Al Viro <viro@zeniv.linux.org.uk> wrote:
+>> On Fri, Aug 31, 2018 at 10:11:24AM +0200, Luc Van Oostenryck wrote:
+>>> On Thu, Aug 30, 2018 at 01:41:16PM +0200, Andrey Konovalov wrote:
+>>>> This patch adds __force annotations for __user pointers casts detected by
+>>>> sparse with the -Wcast-from-as flag enabled (added in [1]).
+>>>>
+>>>> [1] https://github.com/lucvoo/sparse-dev/commit/5f960cb10f56ec2017c128ef9d16060e0145f292
+>>>
+>>> Hi,
+>>>
+>>> It would be nice to have some explanation for why these added __force
+>>> are useful.
+> 
+> I'll add this in the next version, thanks!
+> 
+>>         It would be even more useful if that series would either deal with
+>> the noise for real ("that's what we intend here, that's what we intend there,
+>> here's a primitive for such-and-such kind of cases, here we actually
+>> ought to pass __user pointer instead of unsigned long", etc.) or left it
+>> unmasked.
+>>
+>>         As it is, __force says only one thing: "I know the code is doing
+>> the right thing here".  That belongs in primitives, and I do *not* mean the
+>> #define cast_to_ulong(x) ((__force unsigned long)(x))
+>> kind.
+>>
+>>         Folks, if you don't want to deal with that - leave the warnings be.
+>> They do carry more information than "someone has slapped __force in that place".
+>>
+>> Al, very annoyed by that kind of information-hiding crap...
+> 
+> This patch only adds __force to hide the reports I've looked at and
+> decided that the code does the right thing. The cases where this is
+> not the case are handled by the previous patches in the patchset. I'll
+> this to the patch description as well. Is that OK?
+> 
+I think as well that we should make explicit the information that
+__force is hiding.
+A possible solution could be defining some new address spaces and use
+them where it is relevant in the kernel. Something like:
 
---xHFwDpU9dbj6ez1V
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+# define __compat_ptr __attribute__((noderef, address_space(5)))
+# define __tagged_ptr __attribute__((noderef, address_space(6)))
 
-On Sun 2018-09-02 13:16:04, Sasha Levin wrote:
-> From: Joerg Roedel <jroedel@suse.de>
->=20
-> [ Upstream commit 6863ea0cda8725072522cd78bda332d9a0b73150 ]
->=20
-> It is perfectly okay to take page-faults, especially on the
-> vmalloc area while executing an NMI handler. Remove the
-> warning.
+In this way sparse can still identify the casting and trigger a warning.
 
-I don't think this meets stable kernel criteria, as documented.
-								Pavel
-							=09
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
+We could at that point modify sparse to ignore these conversions when a
+specific flag is passed (i.e. -Wignore-compat-ptr, -Wignore-tagged-ptr)
+to exclude from the generated warnings the ones we have already dealt
+with.
 
---xHFwDpU9dbj6ez1V
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
+What do you think about this approach?
+> _______________________________________________
+> linux-arm-kernel mailing list
+> linux-arm-kernel@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+> 
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAluNOj4ACgkQMOfwapXb+vLQ5ACggisQLs6xPNkrhLyLzaD65oRe
-eN0An2dy6POaB9++gQ4es36+ZqRbEOTc
-=gAlJ
------END PGP SIGNATURE-----
-
---xHFwDpU9dbj6ez1V--
+-- 
+Regards,
+Vincenzo
