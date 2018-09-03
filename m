@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 715156B66A9
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 82E576B66AB
 	for <linux-mm@kvack.org>; Mon,  3 Sep 2018 03:22:35 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id q21-v6so10804204pff.21
+Received: by mail-pg1-f200.google.com with SMTP id e124-v6so10205929pgc.11
         for <linux-mm@kvack.org>; Mon, 03 Sep 2018 00:22:35 -0700 (PDT)
 Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id r24-v6si4679764pgg.403.2018.09.03.00.22.34
+        by mx.google.com with ESMTPS id b5-v6si19104766plk.176.2018.09.03.00.22.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 03 Sep 2018 00:22:34 -0700 (PDT)
 From: Huang Ying <ying.huang@intel.com>
-Subject: [PATCH -V5 02/21] swap: Add __swap_duplicate_locked()
-Date: Mon,  3 Sep 2018 15:21:55 +0800
-Message-Id: <20180903072214.24602-3-ying.huang@intel.com>
+Subject: [PATCH -V5 04/21] swap: Support PMD swap mapping in put_swap_page()
+Date: Mon,  3 Sep 2018 15:21:57 +0800
+Message-Id: <20180903072214.24602-5-ying.huang@intel.com>
 In-Reply-To: <20180903072214.24602-1-ying.huang@intel.com>
 References: <20180903072214.24602-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,13 +20,15 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-The part of __swap_duplicate() with lock held is separated into a new
-function __swap_duplicate_locked().  Because we will add more logic
-about the PMD swap mapping into __swap_duplicate() and keep the most
-PTE swap mapping related logic in __swap_duplicate_locked().
-
-Just mechanical code refactoring, there is no any functional change in
-this patch.
+Previously, during swapout, all PMD page mapping will be split and
+replaced with PTE swap mapping.  And when clearing the SWAP_HAS_CACHE
+flag for the huge swap cluster in put_swap_page(), the huge swap
+cluster will be split.  Now, during swapout, the PMD page mappings to
+the THP will be changed to PMD swap mappings to the corresponding swap
+cluster.  So when clearing the SWAP_HAS_CACHE flag, the huge swap
+cluster will only be split if the PMD swap mapping count is 0.
+Otherwise, we will keep it as the huge swap cluster.  So that we can
+swapin a THP in one piece later.
 
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
@@ -42,105 +44,59 @@ Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Zi Yan <zi.yan@cs.rutgers.edu>
 Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- mm/swapfile.c | 63 +++++++++++++++++++++++++++++++++--------------------------
- 1 file changed, 35 insertions(+), 28 deletions(-)
+ mm/swapfile.c | 31 ++++++++++++++++++++++++-------
+ 1 file changed, 24 insertions(+), 7 deletions(-)
 
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 1996dcd732b6..532de6f8ff39 100644
+index 746e7c4eb2e6..32f4e661a7e1 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -3436,32 +3436,12 @@ void si_swapinfo(struct sysinfo *val)
- 	spin_unlock(&swap_lock);
- }
+@@ -1314,6 +1314,15 @@ void swap_free(swp_entry_t entry)
  
--/*
-- * Verify that a swap entry is valid and increment its swap map count.
-- *
-- * Returns error code in following case.
-- * - success -> 0
-- * - swp_entry is invalid -> EINVAL
-- * - swp_entry is migration entry -> EINVAL
-- * - swap-cache reference is requested but there is already one. -> EEXIST
-- * - swap-cache reference is requested but the entry is not used. -> ENOENT
-- * - swap-mapped reference requested but needs continued swap count. -> ENOMEM
-- */
--static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
-+static int __swap_duplicate_locked(struct swap_info_struct *p,
-+				   unsigned long offset, unsigned char usage)
- {
--	struct swap_info_struct *p;
--	struct swap_cluster_info *ci;
--	unsigned long offset;
- 	unsigned char count;
- 	unsigned char has_cache;
--	int err = -EINVAL;
--
--	p = get_swap_device(entry);
--	if (!p)
--		goto out;
--
--	offset = swp_offset(entry);
--	ci = lock_cluster_or_swap_info(p, offset);
-+	int err = 0;
- 
- 	count = p->swap_map[offset];
- 
-@@ -3471,12 +3451,11 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
- 	 */
- 	if (unlikely(swap_count(count) == SWAP_MAP_BAD)) {
- 		err = -ENOENT;
--		goto unlock_out;
-+		goto out;
- 	}
- 
- 	has_cache = count & SWAP_HAS_CACHE;
- 	count &= ~SWAP_HAS_CACHE;
--	err = 0;
- 
- 	if (usage == SWAP_HAS_CACHE) {
- 
-@@ -3503,11 +3482,39 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
- 
- 	p->swap_map[offset] = count | has_cache;
- 
--unlock_out:
-+out:
-+	return err;
-+}
-+
-+/*
-+ * Verify that a swap entry is valid and increment its swap map count.
+ /*
+  * Called after dropping swapcache to decrease refcnt to swap entries.
 + *
-+ * Returns error code in following case.
-+ * - success -> 0
-+ * - swp_entry is invalid -> EINVAL
-+ * - swp_entry is migration entry -> EINVAL
-+ * - swap-cache reference is requested but there is already one. -> EEXIST
-+ * - swap-cache reference is requested but the entry is not used. -> ENOENT
-+ * - swap-mapped reference requested but needs continued swap count. -> ENOMEM
-+ */
-+static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
-+{
-+	struct swap_info_struct *p;
-+	struct swap_cluster_info *ci;
-+	unsigned long offset;
-+	int err = -EINVAL;
-+
-+	p = get_swap_device(entry);
-+	if (!p)
-+		goto out;
-+
-+	offset = swp_offset(entry);
-+	ci = lock_cluster_or_swap_info(p, offset);
-+	err = __swap_duplicate_locked(p, offset, usage);
- 	unlock_cluster_or_swap_info(p, ci);
-+
-+	put_swap_device(p);
- out:
--	if (p)
--		put_swap_device(p);
- 	return err;
- }
++ * When a THP is added into swap cache, the SWAP_HAS_CACHE flag will
++ * be set in the swap_map[] of all swap entries in the huge swap
++ * cluster backing the THP.  This huge swap cluster will not be split
++ * unless the THP is split even if its PMD swap mapping count dropped
++ * to 0.  Later, when the THP is removed from swap cache, the
++ * SWAP_HAS_CACHE flag will be cleared in the swap_map[] of all swap
++ * entries in the huge swap cluster.  And this huge swap cluster will
++ * be split if its PMD swap mapping count is 0.
+  */
+ void put_swap_page(struct page *page, swp_entry_t entry)
+ {
+@@ -1332,15 +1341,23 @@ void put_swap_page(struct page *page, swp_entry_t entry)
  
+ 	ci = lock_cluster_or_swap_info(si, offset);
+ 	if (size == SWAPFILE_CLUSTER) {
+-		VM_BUG_ON(!cluster_is_huge(ci));
++		VM_BUG_ON(!IS_ALIGNED(offset, size));
+ 		map = si->swap_map + offset;
+-		for (i = 0; i < SWAPFILE_CLUSTER; i++) {
+-			val = map[i];
+-			VM_BUG_ON(!(val & SWAP_HAS_CACHE));
+-			if (val == SWAP_HAS_CACHE)
+-				free_entries++;
++		/*
++		 * No PMD swap mapping, the swap cluster will be freed
++		 * if all swap entries becoming free, otherwise the
++		 * huge swap cluster will be split.
++		 */
++		if (!cluster_swapcount(ci)) {
++			for (i = 0; i < SWAPFILE_CLUSTER; i++) {
++				val = map[i];
++				VM_BUG_ON(!(val & SWAP_HAS_CACHE));
++				if (val == SWAP_HAS_CACHE)
++					free_entries++;
++			}
++			if (free_entries != SWAPFILE_CLUSTER)
++				cluster_clear_huge(ci);
+ 		}
+-		cluster_clear_huge(ci);
+ 		if (free_entries == SWAPFILE_CLUSTER) {
+ 			unlock_cluster_or_swap_info(si, ci);
+ 			spin_lock(&si->lock);
 -- 
 2.16.4
