@@ -1,42 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AA60F6B6765
-	for <linux-mm@kvack.org>; Mon,  3 Sep 2018 06:34:50 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id l191-v6so60578oig.23
-        for <linux-mm@kvack.org>; Mon, 03 Sep 2018 03:34:50 -0700 (PDT)
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 866066B6777
+	for <linux-mm@kvack.org>; Mon,  3 Sep 2018 06:50:26 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id s200-v6so133422oie.6
+        for <linux-mm@kvack.org>; Mon, 03 Sep 2018 03:50:26 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id d187-v6si13420985oib.105.2018.09.03.03.34.49
+        by mx.google.com with ESMTP id e77-v6si12390072oib.82.2018.09.03.03.50.25
         for <linux-mm@kvack.org>;
-        Mon, 03 Sep 2018 03:34:49 -0700 (PDT)
-From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
-Subject: Re: [PATCH v2 13/40] vfio: Add support for Shared Virtual Addressing
-References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
- <20180511190641.23008-14-jean-philippe.brucker@arm.com>
- <5B83B11E.7010807@huawei.com> <1d5b6529-4e5a-723c-3f1b-dd5a9adb490c@arm.com>
- <5B89F818.7060300@huawei.com>
-Message-ID: <3a961aff-e830-64bb-b6a9-14e08de1abf5@arm.com>
-Date: Mon, 3 Sep 2018 11:34:29 +0100
+        Mon, 03 Sep 2018 03:50:25 -0700 (PDT)
+Date: Mon, 3 Sep 2018 11:50:38 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH] arm64: Kconfig: Remove ARCH_HAS_HOLES_MEMORYMODEL
+Message-ID: <20180903105037.GC11055@arm.com>
+References: <20180831151943.9281-1-james.morse@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <5B89F818.7060300@huawei.com>
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180831151943.9281-1-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xu Zaibo <xuzaibo@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "joro@8bytes.org" <joro@8bytes.org>, Will Deacon <Will.Deacon@arm.com>, Robin Murphy <Robin.Murphy@arm.com>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "tn@semihalf.com" <tn@semihalf.com>, "liubo95@huawei.com" <liubo95@huawei.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "rfranz@cavium.com" <rfranz@cavium.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "jacob.jun.pan@linux.intel.com" <jacob.jun.pan@linux.intel.com>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "kevin.tian@intel.com" <kevin.tian@intel.com>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>, "robdclark@gmail.com" <robdclark@gmail.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "rgummal@xilinx.com" <rgummal@xilinx.com>, =?UTF-8?B?57Gz57Gz?= <kenneth-lee-2012@foxmail.com>, wangzhou1 <wangzhou1@hisilicon.com>, "liguozhu@hisilicon.com" <liguozhu@hisilicon.com>, fanghao11 <fanghao11@huawei.com>
+To: James Morse <james.morse@arm.com>
+Cc: linux-arm-kernel@lists.infradead.org, Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org
 
-On 01/09/18 03:23, Xu Zaibo wrote:
-> As one application takes a whole function while using VFIO-PCI, why do 
-> the application and the
-> function need to enable PASID capability? (Since just one I/O page table 
-> is enough for them.)
+On Fri, Aug 31, 2018 at 04:19:43PM +0100, James Morse wrote:
+> include/linux/mmzone.h describes ARCH_HAS_HOLES_MEMORYMODEL as
+> relevant when parts the memmap have been free()d. This would
+> happen on systems where memory is smaller than a sparsemem-section,
+> and the extra struct pages are expensive. pfn_valid() on these
+> systems returns true for the whole sparsemem-section, so an extra
+> memmap_valid_within() check is needed.
+> 
+> On arm64 we have nomap memory, so always provide pfn_valid() to test
+> for nomap pages. This means ARCH_HAS_HOLES_MEMORYMODEL's extra checks
+> are already rolled up into pfn_valid().
+> 
+> Remove it.
+> 
+> Signed-off-by: James Morse <james.morse@arm.com>
+> ---
+>  arch/arm64/Kconfig            | 5 +----
+>  arch/arm64/include/asm/page.h | 2 --
+>  arch/arm64/mm/init.c          | 2 --
+>  3 files changed, 1 insertion(+), 8 deletions(-)
 
-At the moment the series doesn't provide support for SVA without PASID
-(on the I/O page fault path, 08/40). In addition the BIND ioctl could be
-used by the owner application to bind other processes (slaves) and
-perform sub-assignment. But that feature is incomplete because we don't
-send stop_pasid notification to the owner when a slave dies.
+Acked-by: Will Deacon <will.deacon@arm.com>
 
-Thanks,
-Jean
+Will
