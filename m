@@ -1,46 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C64CB6B6F95
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 17:28:28 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id l125-v6so2411283pga.1
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 14:28:28 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id b124-v6si2488559pgc.620.2018.09.04.14.28.27
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 33FC86B6F87
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 17:44:50 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id r19-v6so5440709itc.4
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 14:44:50 -0700 (PDT)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0135.outbound.protection.outlook.com. [104.47.41.135])
+        by mx.google.com with ESMTPS id m130-v6si231082ith.36.2018.09.04.14.44.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Sep 2018 14:28:27 -0700 (PDT)
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: Plumbers 2018 - Performance and Scalability Microconference
-Message-ID: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com>
-Date: Tue, 4 Sep 2018 17:28:13 -0400
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 04 Sep 2018 14:44:49 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Subject: Re: [PATCH 1/2] mm: Move page struct poisoning from CONFIG_DEBUG_VM
+ to CONFIG_DEBUG_VM_PGFLAGS
+Date: Tue, 4 Sep 2018 21:44:47 +0000
+Message-ID: <aa2d3299-a064-7118-ea10-b05279238b96@microsoft.com>
+References: <20180904181550.4416.50701.stgit@localhost.localdomain>
+ <20180904183339.4416.44582.stgit@localhost.localdomain>
+ <47657613-688d-e701-4a30-39fbd92734ba@microsoft.com>
+ <CAKgT0Uf4xNkPLcDvcYMwVqxoENrBZhkLkh37nC8Qbn2varsX9w@mail.gmail.com>
+In-Reply-To: 
+ <CAKgT0Uf4xNkPLcDvcYMwVqxoENrBZhkLkh37nC8Qbn2varsX9w@mail.gmail.com>
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <0E4192E93781114291DFC49DC3D2CB23@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Aaron Lu <aaron.lu@intel.com>, alex.kogan@oracle.com, akpm@linux-foundation.org, boqun.feng@gmail.com, brouer@redhat.com, daniel.m.jordan@oracle.com, dave@stgolabs.net, dave.dice@oracle.com, Dhaval Giani <dhaval.giani@oracle.com>, ktkhai@virtuozzo.com, ldufour@linux.vnet.ibm.com, Pavel.Tatashin@microsoft.com, paulmck@linux.vnet.ibm.com, shady.issa@oracle.com, tariqt@mellanox.com, tglx@linutronix.de, tim.c.chen@intel.com, vbabka@suse.cz, longman@redhat.com, yang.shi@linux.alibaba.com, shy828301@gmail.com, Huang Ying <ying.huang@intel.com>brouer@redhat.com, subhra.mazumdar@oracle.com, Steven Sistare <steven.sistare@oracle.com>, jwadams@google.com, ashwinch@google.com, sqazi@google.com, Shakeel Butt <shakeelb@google.com>, walken@google.com, rientjes@google.com, junaids@google.com, Neha Agarwal <nehaagarwal@google.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Duyck, Alexander H" <alexander.h.duyck@intel.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Pavel Tatashin, Ying Huang, and I are excited to be organizing a performance and scalability microconference this year at Plumbers[*], which is happening in Vancouver this year.  The microconference is scheduled for the morning of the second day (Wed, Nov 14).
-
-We have a preliminary agenda and a list of confirmed and interested attendees (cc'ed), and are seeking more of both!
-
-Some of the items on the agenda as it stands now are:
-
-  - Promoting huge page usage:  With memory sizes becoming ever larger, huge pages are becoming more and more important to reduce TLB misses and the overhead of memory management itself--that is, to make the system scalable with the memory size.  But there are still some remaining gaps that prevent huge pages from being deployed in some situations, such as huge page allocation latency and memory fragmentation.
-
-  - Reducing the number of users of mmap_sem:  This semaphore is frequently used throughout the kernel.  In order to facilitate scaling this longstanding bottleneck, these uses should be documented and unnecessary users should be fixed.
-
-  - Parallelizing cpu-intensive kernel work:  Resolve problems of past approaches including extra threads interfering with other processes, playing well with power management, and proper cgroup accounting for the extra threads.  Bonus topic: proper accounting of workqueue threads running on behalf of cgroups.
-
-  - Preserving userland during kexec with a hibernation-like mechanism.
-
-These center around our interests, but having lots of topics to choose from ensures we cover what's most important to the community, so we would like to hear about additional topics and extensions to those listed here.  This includes, but is certainly not limited to, work in progress that would benefit from in-person discussion, real-world performance problems, and experimental and academic work.
-
-If you haven't already done so, please let us know if you are interested in attending, or have suggestions for other attendees.
-
-Thanks,
-Daniel
-
-[*] https://blog.linuxplumbersconf.org/2018/performance-mc/
+DQoNCk9uIDkvNC8xOCA1OjEzIFBNLCBBbGV4YW5kZXIgRHV5Y2sgd3JvdGU6DQo+IE9uIFR1ZSwg
+U2VwIDQsIDIwMTggYXQgMTowNyBQTSBQYXNoYSBUYXRhc2hpbg0KPiA8UGF2ZWwuVGF0YXNoaW5A
+bWljcm9zb2Z0LmNvbT4gd3JvdGU6DQo+Pg0KPj4gSGkgQWxleGFuZGVyLA0KPj4NCj4+IFRoaXMg
+aXMgYSB3cm9uZyB3YXkgdG8gZG8gaXQuIG1lbWJsb2NrX3ZpcnRfYWxsb2NfdHJ5X25pZF9yYXco
+KSBkb2VzIG5vdA0KPj4gaW5pdGlhbGl6ZSBhbGxvY2F0ZWQgbWVtb3J5LCBhbmQgYnkgc2V0dGlu
+ZyBtZW1vcnkgdG8gYWxsIG9uZXMgaW4gZGVidWcNCj4+IGJ1aWxkIHdlIGVuc3VyZSB0aGF0IG5v
+IGNhbGxlcnMgcmVseSBvbiB0aGlzIGZ1bmN0aW9uIHRvIHJldHVybiB6ZXJvZWQNCj4+IG1lbW9y
+eSBqdXN0IGJ5IGFjY2lkZW50Lg0KPiANCj4gSSBnZXQgdGhhdCwgYnV0IHNldHRpbmcgdGhpcyB0
+byBhbGwgMSdzIGlzIHN0aWxsIGp1c3QgZGVidWdnaW5nIGNvZGUNCj4gYW5kIHRoYXQgaXMgYWRk
+aW5nIHNpZ25pZmljYW50IG92ZXJoZWFkLg0KDQpUaGF0J3MgY29ycmVjdCBkZWJ1Z2dpbmcgY29k
+ZSBvbiBkZWJ1Z2dpbmcga2VybmVsLg0KDQo+IA0KPj4gQW5kLCB0aGUgYWNjaWRlbnRzIGFyZSBm
+cmVxdWVudCBiZWNhdXNlIG1vc3Qgb2YgdGhlIEJJT1NlcyBhbmQNCj4+IGh5cGVydmlzb3JzIHpl
+cm8gbWVtb3J5IGZvciB1cy4gVGhlIGV4Y2VwdGlvbiBpcyBrZXhlYyByZWJvb3QuDQo+Pg0KPj4g
+U28sIHRoZSBmYWN0IHRoYXQgcGFnZSBmbGFncyBjaGVja3MgdGhpcyBwYXR0ZXJuLCBkb2VzIG5v
+dCBtZWFuIHRoYXQNCj4+IHRoaXMgaXMgdGhlIG9ubHkgdXNlci4gTWVtb3J5IHRoYXQgaXMgcmV0
+dXJuZWQgYnkNCj4+IG1lbWJsb2NrX3ZpcnRfYWxsb2NfdHJ5X25pZF9yYXcoKSBpcyB1c2VkIGZv
+ciBwYWdlIHRhYmxlIGFzIHdlbGwsIGFuZA0KPj4gY2FuIGJlIHVzZWQgaW4gb3RoZXIgcGxhY2Vz
+IGFzIHdlbGwgdGhhdCBkb24ndCB3YW50IG1lbWJsb2NrIHRvIHplcm8gdGhlDQo+PiBtZW1vcnkg
+Zm9yIHRoZW0gZm9yIHBlcmZvcm1hbmNlIHJlYXNvbnMuDQo+IA0KPiBUaGUgbG9naWMgYmVoaW5k
+IHRoaXMgc3RhdGVtZW50IGlzIGNvbmZ1c2luZy4gWW91IGFyZSBzYXlpbmcgdGhleQ0KPiBkb24n
+dCB3YW50IG1lbWJsb2NrIHRvIHplcm8gdGhlIG1lbW9yeSBmb3IgcGVyZm9ybWFuY2UgcmVhc29u
+cywgeWV0DQo+IHlvdSBhcmUgc2V0dGluZyBpdCB0byBhbGwgMSdzIGZvciBkZWJ1Z2dpbmcgcmVh
+c29ucz8gSSBnZXQgdGhhdCBpdCBpcw0KPiB3cmFwcGVkLCBidXQgaW4gbXkgbWluZCBqdXN0IHVz
+aW5nIENPTkZJR19ERUJVR19WTSBpcyB0b28gYnJvYWQgb2YgYQ0KPiBicnVzaC4gRXNwZWNpYWxs
+eSB3aXRoIGRpc3Ryb3MgbGlrZSBGZWRvcmEgZW5hYmxpbmcgaXQgYnkgZGVmYXVsdC4NCg0KVGhl
+IGlkZWEgaXMgbm90IHRvIHplcm8gbWVtb3J5IG9uIHByb2R1Y3Rpb24ga2VybmVsLCBhbmQgZW5z
+dXJlIHRoYXQgbm90DQp6ZXJvaW5nIG1lbW9yeSBkb2VzIG5vdCBjYXVzZSBhbnkgYWNjaWRlbnRh
+bCBidWdzIGJ5IGhhdmluZyBkZWJ1ZyBjb2RlDQpvbiBkZWJ1ZyBrZXJuZWwuDQoNCj4gDQo+PiBJ
+IGFtIHN1cnByaXNlZCB0aGF0IENPTkZJR19ERUJVR19WTSBpcyB1c2VkIGluIHByb2R1Y3Rpb24g
+a2VybmVsLCBidXQgaWYNCj4+IHNvIHBlcmhhcHMgYSBuZXcgQ09ORklHIHNob3VsZCBiZSBhZGRl
+ZDogQ09ORklHX0RFQlVHX01FTUJMT0NLDQo+Pg0KPj4gVGhhbmsgeW91LA0KPj4gUGF2ZWwNCj4g
+DQo+IEkgZG9uJ3Qga25vdyBhYm91dCBwcm9kdWN0aW9uLiBJIGFtIHJ1bm5pbmcgYSBGZWRvcmEg
+a2VybmVsIG9uIG15DQo+IGRldmVsb3BtZW50IHN5c3RlbSBhbmQgaXQgaGFzIGl0IGVuYWJsZWQu
+IEl0IGxvb2tzIGxpa2UgaXQgaGFzIGJlZW4NCj4gdGhhdCB3YXkgZm9yIGEgd2hpbGUgYmFzZWQg
+b24gYSBGQzIwIEJ1Z3ppbGxhDQo+IChodHRwczovL2J1Z3ppbGxhLnJlZGhhdC5jb20vc2hvd19i
+dWcuY2dpP2lkPTEwNzQ3MTApLiBBIHF1aWNrIGxvb2sgYXQNCj4gb25lIG9mIG15IENlbnRPUyBz
+eXN0ZW1zIHNob3dzIHRoYXQgaXQgZG9lc24ndCBoYXZlIGl0IHNldC4gSSBzdXNwZWN0DQo+IGl0
+IHdpbGwgdmFyeSBmcm9tIGRpc3RybyB0byBkaXN0cm8uIEkganVzdCBrbm93IGl0IHNwb29rZWQg
+bWUgd2hlbiBJDQo+IHdhcyBzdHVjayBzdGFyaW5nIGF0IGEgYmxhbmsgc2NyZWVuIGZvciB0aHJl
+ZSBtaW51dGVzIHdoZW4gSSB3YXMNCj4gYm9vdGluZyBhIHN5c3RlbSB3aXRoIDEyVEIgb2YgbWVt
+b3J5IHNpbmNlIHRoaXMgZGVsYXkgY2FuIGhpdCB5b3UNCj4gZWFybHkgaW4gdGhlIGJvb3QuDQoN
+CkkgdW5kZXJzdGFuZCwgdGhpcyBpcyB0aGUgZGVsYXkgdGhhdCBJIGZpeGVkIHdoZW4gSSByZW1v
+dmVkIG1lbXNldCgwKQ0KZnJvbSBzdHJ1Y3QgcGFnZSBpbml0aWFsaXphdGlvbiBjb2RlLiBIb3dl
+dmVyLCB3ZSBzdGlsbCBuZWVkIHRvIGtlZXANCnRoaXMgZGVidWcgY29kZSBtZW1zZXQoMSkgaW4g
+b3JkZXIgdG8gY2F0Y2ggc29tZSBidWdzLiBBbmQgd2UgZG8gZnJvbQ0KdGltZSB0byB0aW1lLg0K
+DQpGb3IgZmFyIHRvbyBsb25nIGxpbnV4IHdhcyBleHBlY3RpbmcgdGhhdCB0aGUgbWVtb3J5IHRo
+YXQgaXMgcmV0dXJuZWQgYnkNCm1lbWJsb2NrIGFuZCBib290IGFsbG9jYXRvciBpcyBhbHdheXMg
+emVyb2VkLg0KDQo+IA0KPiBJIGhhZCBjb25zaWRlcmVkIGFkZGluZyBhIGNvbXBsZXRlbHkgbmV3
+IENPTkZJRy4gVGhlIG9ubHkgdGhpbmcgaXMgaXQNCj4gZG9lc24ndCBtYWtlIG11Y2ggc2Vuc2Ug
+dG8gaGF2ZSB0aGUgbG9naWMgc2V0dGluZyB0aGUgdmFsdWUgdG8gYWxsIDEncw0KPiB3aXRob3V0
+IGFueSBsb2dpYyB0byB0ZXN0IGZvciBpdC4gDQoNCldoZW4gbWVtb3J5IGlzIHplcm9lZCwgcGFn
+ZSB0YWJsZSB3b3JrcyBieSBhY2NpZGVudCBhcyB0aGUgZW50cmllcyBhcmUNCmVtcHR5LiBIb3dl
+dmVyLCB3aGVuIGVudHJpZXMgYXJlIGFsbCBvbmVzLCBhbmQgd2UgYWNjaWRlbnRhbGx5IHRyeSB0
+bw0KdXNlIHRoYXQgbWVtb3J5IGFzIHBhZ2UgdGFibGUgaW52YWxpZCBWQSBpbiBwYWdlIHRhYmxl
+IHdpbGwgY3Jhc2ggZGVidWcNCmtlcm5lbCAoYW5kIGl0IGhhcyBpbiB0aGUgcGFzdCBoZWxwZWQg
+ZmluZGluZyBzb21lIGJ1Z3MpLg0KDQpTbywgdGhlIHRlc3RpbmcgaXMgbm90IG9ubHkgdGhhdCB1
+bmluaXRpYWxpemVkIHN0cnVjdCBwYWdlcyBhcmUgbm90DQphY2Nlc3NlZCwgYnV0IGFsc28gdGhh
+dCBvbmx5IGV4cGxpY2l0bHkgaW5pdGlhbGl6ZWQgcGFnZSB0YWJsZXMgYXJlDQphY2Nlc3NlZC4N
+Cg0KDQpUaGF0IGlzIHdoeSBJIHRob3VnaHQgaXQgbWFkZSBtb3JlDQo+IHNlbnNlIHRvIGp1c3Qg
+Zm9sZCBpdCBpbnRvIENPTkZJR19ERUJVR19WTV9QR0ZMQUdTLiBJIHN1cHBvc2UgSSBjb3VsZA0K
+PiBsb29rIGF0IHNvbWV0aGluZyBsaWtlIENPTkZJR19ERUJVR19QQUdFX0lOSVQgaWYgd2Ugd2Fu
+dCB0byBnbyB0aGF0DQo+IHJvdXRlLiBJIGZpZ3VyZSB1c2luZyBzb21ldGhpbmcgbGlrZSBNRU1C
+TE9DSyBwcm9iYWJseSB3b3VsZG4ndCBtYWtlDQo+IHNlbnNlIHNpbmNlIHRoaXMgYWxzbyBpbXBh
+Y3RzIHNwYXJzZSBzZWN0aW9uIGluaXQuDQoNCklmIGRpc3Ryb3MgYXJlIHVzaW5nIENPTkZJR19E
+RUJVR19WTSBpbiBwcm9kdWN0aW9uIGtlcm5lbHMgKGFzIHlvdQ0KcG9pbnRlZCBvdXQgYWJvdmUp
+LCBpdCBtYWtlcyBzZW5zZSB0byBhZGQgQ09ORklHX0RFQlVHX01FTUJMT0NLLg0KDQpUaGFuayB5
+b3UsDQpQYXZlbA==
