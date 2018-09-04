@@ -1,84 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AFE616B6CCF
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 05:38:55 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id l7-v6so3449112qte.2
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 02:38:55 -0700 (PDT)
-Received: from smtp-fw-6002.amazon.com (smtp-fw-6002.amazon.com. [52.95.49.90])
-        by mx.google.com with ESMTPS id 33-v6si5281398qtc.294.2018.09.04.02.38.54
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 131C86B6CEF
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 06:10:14 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id b5-v6so3502860qtk.4
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 03:10:14 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0133.outbound.protection.outlook.com. [104.47.0.133])
+        by mx.google.com with ESMTPS id m62-v6si6332154qkd.345.2018.09.04.03.10.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Sep 2018 02:38:54 -0700 (PDT)
-From: Julian Stecklina <jsteckli@amazon.de>
-Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs in mind (for KVM to isolate its guests per CPU)
-References: <CA+55aFxyUdhYjnQdnmWAt8tTwn4HQ1xz3SAMZJiawkLpMiJ_+w@mail.gmail.com>
-	<ciirm8a7p3alos.fsf@u54ee758033e858cfa736.ant.amazon.com>
-	<CA+55aFzHj_GNZWG4K2oDu4DPP9sZdTZ9PY7sBxGB6WoN9g8d=A@mail.gmail.com>
-	<20180903152616.GE27886@tassilo.jf.intel.com>
-Date: Tue, 04 Sep 2018 11:37:25 +0200
-In-Reply-To: <20180903152616.GE27886@tassilo.jf.intel.com> (Andi Kleen's
-	message of "Mon, 3 Sep 2018 08:26:16 -0700")
-Message-ID: <ciirm88t4hhacq.fsf@u54ee758033e858cfa736.ant.amazon.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 04 Sep 2018 03:10:12 -0700 (PDT)
+Subject: Re: [PATCH v2] arm64: kasan: add interceptors for strcmp/strncmp
+ functions
+References: <1535014606-176525-1-git-send-email-kyeongdon.kim@lge.com>
+ <dff9a2f3-7db5-9e60-072a-312b6cfbe0f0@virtuozzo.com>
+ <ad334e64-28d1-4b91-aeba-8352934a9c46@lge.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <6954711c-6441-04df-62a9-a83c867e06ad@virtuozzo.com>
+Date: Tue, 4 Sep 2018 13:10:23 +0300
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <ad334e64-28d1-4b91-aeba-8352934a9c46@lge.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, David Woodhouse <dwmw@amazon.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, deepa.srinivasan@oracle.com, Jim Mattson <jmattson@google.com>, Andrew Cooper <andrew.cooper3@citrix.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, joao.m.martins@oracle.com, pradeep.vincent@oracle.com, Khalid Aziz <khalid.aziz@oracle.com>, kanth.ghatraju@oracle.com, Liran Alon <liran.alon@oracle.com>, Kees Cook <keescook@google.com>, Kernel Hardening <kernel-hardening@lists.openwall.com>, chris.hyser@oracle.com, Tyler Hicks <tyhicks@canonical.com>, John Haxby <john.haxby@oracle.com>, Jon Masters <jcm@redhat.com>
+To: Kyeongdon Kim <kyeongdon.kim@lge.com>
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, glider@google.com, dvyukov@google.com, Jason@zx2c4.com, robh@kernel.org, ard.biesheuvel@linaro.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
 
-Andi Kleen <ak@linux.intel.com> writes:
 
-> On Sat, Sep 01, 2018 at 02:38:43PM -0700, Linus Torvalds wrote:
->> On Fri, Aug 31, 2018 at 12:45 AM Julian Stecklina <jsteckli@amazon.de> wrote:
->> >
->> > I've been spending some cycles on the XPFO patch set this week. For the
->> > patch set as it was posted for v4.13, the performance overhead of
->> > compiling a Linux kernel is ~40% on x86_64[1]. The overhead comes almost
->> > completely from TLB flushing. If we can live with stale TLB entries
->> > allowing temporary access (which I think is reasonable), we can remove
->> > all TLB flushing (on x86). This reduces the overhead to 2-3% for
->> > kernel compile.
->> 
->> I have to say, even 2-3% for a kernel compile sounds absolutely horrendous.
->> 
->> Kernel bullds are 90% user space at least for me, so a 2-3% slowdown
->> from a kernel is not some small unnoticeable thing.
->
-> Also the problem is that depending on the workload everything may fit
-> into the TLBs, so the temporary stale TLB entries may be around
-> for a long time. Modern CPUs have very large TLBs, and good
-> LRU policies. For the kernel entries with global bit set and
-> which are used for something there may be no reason ever to evict.
->
-> Julian, I think you would need at least some quantitative perfmon data about
-> TLB replacement rates in the kernel to show that it's "reasonable"
-> instead of hand waving.
 
-That's a fair point. It definitely depends on the workload. My idle
-laptop gnome GUI session still causes ~40k dtlb-load-misses per second
-per core. My idle server (some shells, IRC client) still has ~8k dTLB
-load misses per second per core. Compiling something pushes this to
-millions of misses per second.
+On 09/04/2018 09:59 AM, Kyeongdon Kim wrote:
 
-For comparison according to https://www.7-cpu.com/cpu/Skylake_X.html SKX
-can fit 1536 entries into its L2 dTLB.
+>> > +#undef strncmp
+>> > +int strncmp(const char *cs, const char *ct, size_t len)
+>> > +{
+>> > + check_memory_region((unsigned long)cs, len, false, _RET_IP_);
+>> > + check_memory_region((unsigned long)ct, len, false, _RET_IP_);
+>>
+>> This will cause false positives. Both 'cs', and 'ct' could be less than len bytes.
+>>
+>> There is no need in these interceptors, just use the C implementations from lib/string.c
+>> like you did in your first patch.
+>> The only thing that was wrong in the first patch is that assembly implementations
+>> were compiled out instead of being declared week.
+>>
+> Well, at first I thought so..
+> I would remove diff code in /mm/kasan/kasan.c then use C implementations in lib/string.c
+> w/ assem implementations as weak :
+> 
+> diff --git a/lib/string.c b/lib/string.c
+> index 2c0900a..a18b18f 100644
+> --- a/lib/string.c
+> +++ b/lib/string.c
+> @@ -312,7 +312,7 @@ size_t strlcat(char *dest, const char *src, size_t count)
+> A EXPORT_SYMBOL(strlcat);
+> A #endif
+> 
+> -#ifndef __HAVE_ARCH_STRCMP
+> +#if (defined(CONFIG_ARM64) && defined(CONFIG_KASAN)) || !defined(__HAVE_ARCH_STRCMP)
 
-> Most likely I suspect you would need a low frequency regular TLB
-> flush for the global entries at least, which will increase
-> the overhead again.
+No. What part of "like you did in your first patch" is unclear to you?
 
-Given the tiny experiment above, I don't think this is necessary except
-for highly special usecases. If stale TLB entries are a concern, the
-better intermediate step is to do INVLPG on the core that modified the
-page table.
-
-And even with these shortcomings, XPFO severely limits the data an
-attacker can leak from the kernel.
-
-Julian
-Amazon Development Center Germany GmbH
-Berlin - Dresden - Aachen
-main office: Krausenstr. 38, 10117 Berlin
-Geschaeftsfuehrer: Dr. Ralf Herbrich, Christian Schlaeger
-Ust-ID: DE289237879
-Eingetragen am Amtsgericht Charlottenburg HRB 149173 B
+> A /**
+> A  * strcmp - Compare two strings
+> A  * @cs: One string
+> @@ -336,7 +336,7 @@ int strcmp(const char *cs, const char *ct)
+> A EXPORT_SYMBOL(strcmp);
+> A #endif
+> 
+> -#ifndef __HAVE_ARCH_STRNCMP
+> +#if (defined(CONFIG_ARM64) && defined(CONFIG_KASAN)) || !defined(__HAVE_ARCH_STRNCMP)
+> A /**
+> A  * strncmp - Compare two length-limited strings
+> 
+> Can I get your opinion wrt this ?
+> 
+> Thanks,
+> 
