@@ -1,99 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 33FC86B6F87
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 17:44:50 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id r19-v6so5440709itc.4
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 14:44:50 -0700 (PDT)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0135.outbound.protection.outlook.com. [104.47.41.135])
-        by mx.google.com with ESMTPS id m130-v6si231082ith.36.2018.09.04.14.44.48
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 952FB6B6FE2
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 18:47:33 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id 3-v6so3690791qkj.13
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 15:47:33 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id g129-v6si69023qkc.246.2018.09.04.15.47.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 04 Sep 2018 14:44:49 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: Re: [PATCH 1/2] mm: Move page struct poisoning from CONFIG_DEBUG_VM
- to CONFIG_DEBUG_VM_PGFLAGS
-Date: Tue, 4 Sep 2018 21:44:47 +0000
-Message-ID: <aa2d3299-a064-7118-ea10-b05279238b96@microsoft.com>
-References: <20180904181550.4416.50701.stgit@localhost.localdomain>
- <20180904183339.4416.44582.stgit@localhost.localdomain>
- <47657613-688d-e701-4a30-39fbd92734ba@microsoft.com>
- <CAKgT0Uf4xNkPLcDvcYMwVqxoENrBZhkLkh37nC8Qbn2varsX9w@mail.gmail.com>
-In-Reply-To: 
- <CAKgT0Uf4xNkPLcDvcYMwVqxoENrBZhkLkh37nC8Qbn2varsX9w@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <0E4192E93781114291DFC49DC3D2CB23@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Sep 2018 15:47:32 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: [PATCH v2] mm: slowly shrink slabs with a relatively small number of objects
+Date: Tue, 4 Sep 2018 15:47:07 -0700
+Message-ID: <20180904224707.10356-1-guro@fb.com>
 MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Duyck, Alexander H" <alexander.h.duyck@intel.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, kernel-team@fb.com, Rik van Riel <riel@surriel.com>, Roman Gushchin <guro@fb.com>, Josef Bacik <jbacik@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
 
-DQoNCk9uIDkvNC8xOCA1OjEzIFBNLCBBbGV4YW5kZXIgRHV5Y2sgd3JvdGU6DQo+IE9uIFR1ZSwg
-U2VwIDQsIDIwMTggYXQgMTowNyBQTSBQYXNoYSBUYXRhc2hpbg0KPiA8UGF2ZWwuVGF0YXNoaW5A
-bWljcm9zb2Z0LmNvbT4gd3JvdGU6DQo+Pg0KPj4gSGkgQWxleGFuZGVyLA0KPj4NCj4+IFRoaXMg
-aXMgYSB3cm9uZyB3YXkgdG8gZG8gaXQuIG1lbWJsb2NrX3ZpcnRfYWxsb2NfdHJ5X25pZF9yYXco
-KSBkb2VzIG5vdA0KPj4gaW5pdGlhbGl6ZSBhbGxvY2F0ZWQgbWVtb3J5LCBhbmQgYnkgc2V0dGlu
-ZyBtZW1vcnkgdG8gYWxsIG9uZXMgaW4gZGVidWcNCj4+IGJ1aWxkIHdlIGVuc3VyZSB0aGF0IG5v
-IGNhbGxlcnMgcmVseSBvbiB0aGlzIGZ1bmN0aW9uIHRvIHJldHVybiB6ZXJvZWQNCj4+IG1lbW9y
-eSBqdXN0IGJ5IGFjY2lkZW50Lg0KPiANCj4gSSBnZXQgdGhhdCwgYnV0IHNldHRpbmcgdGhpcyB0
-byBhbGwgMSdzIGlzIHN0aWxsIGp1c3QgZGVidWdnaW5nIGNvZGUNCj4gYW5kIHRoYXQgaXMgYWRk
-aW5nIHNpZ25pZmljYW50IG92ZXJoZWFkLg0KDQpUaGF0J3MgY29ycmVjdCBkZWJ1Z2dpbmcgY29k
-ZSBvbiBkZWJ1Z2dpbmcga2VybmVsLg0KDQo+IA0KPj4gQW5kLCB0aGUgYWNjaWRlbnRzIGFyZSBm
-cmVxdWVudCBiZWNhdXNlIG1vc3Qgb2YgdGhlIEJJT1NlcyBhbmQNCj4+IGh5cGVydmlzb3JzIHpl
-cm8gbWVtb3J5IGZvciB1cy4gVGhlIGV4Y2VwdGlvbiBpcyBrZXhlYyByZWJvb3QuDQo+Pg0KPj4g
-U28sIHRoZSBmYWN0IHRoYXQgcGFnZSBmbGFncyBjaGVja3MgdGhpcyBwYXR0ZXJuLCBkb2VzIG5v
-dCBtZWFuIHRoYXQNCj4+IHRoaXMgaXMgdGhlIG9ubHkgdXNlci4gTWVtb3J5IHRoYXQgaXMgcmV0
-dXJuZWQgYnkNCj4+IG1lbWJsb2NrX3ZpcnRfYWxsb2NfdHJ5X25pZF9yYXcoKSBpcyB1c2VkIGZv
-ciBwYWdlIHRhYmxlIGFzIHdlbGwsIGFuZA0KPj4gY2FuIGJlIHVzZWQgaW4gb3RoZXIgcGxhY2Vz
-IGFzIHdlbGwgdGhhdCBkb24ndCB3YW50IG1lbWJsb2NrIHRvIHplcm8gdGhlDQo+PiBtZW1vcnkg
-Zm9yIHRoZW0gZm9yIHBlcmZvcm1hbmNlIHJlYXNvbnMuDQo+IA0KPiBUaGUgbG9naWMgYmVoaW5k
-IHRoaXMgc3RhdGVtZW50IGlzIGNvbmZ1c2luZy4gWW91IGFyZSBzYXlpbmcgdGhleQ0KPiBkb24n
-dCB3YW50IG1lbWJsb2NrIHRvIHplcm8gdGhlIG1lbW9yeSBmb3IgcGVyZm9ybWFuY2UgcmVhc29u
-cywgeWV0DQo+IHlvdSBhcmUgc2V0dGluZyBpdCB0byBhbGwgMSdzIGZvciBkZWJ1Z2dpbmcgcmVh
-c29ucz8gSSBnZXQgdGhhdCBpdCBpcw0KPiB3cmFwcGVkLCBidXQgaW4gbXkgbWluZCBqdXN0IHVz
-aW5nIENPTkZJR19ERUJVR19WTSBpcyB0b28gYnJvYWQgb2YgYQ0KPiBicnVzaC4gRXNwZWNpYWxs
-eSB3aXRoIGRpc3Ryb3MgbGlrZSBGZWRvcmEgZW5hYmxpbmcgaXQgYnkgZGVmYXVsdC4NCg0KVGhl
-IGlkZWEgaXMgbm90IHRvIHplcm8gbWVtb3J5IG9uIHByb2R1Y3Rpb24ga2VybmVsLCBhbmQgZW5z
-dXJlIHRoYXQgbm90DQp6ZXJvaW5nIG1lbW9yeSBkb2VzIG5vdCBjYXVzZSBhbnkgYWNjaWRlbnRh
-bCBidWdzIGJ5IGhhdmluZyBkZWJ1ZyBjb2RlDQpvbiBkZWJ1ZyBrZXJuZWwuDQoNCj4gDQo+PiBJ
-IGFtIHN1cnByaXNlZCB0aGF0IENPTkZJR19ERUJVR19WTSBpcyB1c2VkIGluIHByb2R1Y3Rpb24g
-a2VybmVsLCBidXQgaWYNCj4+IHNvIHBlcmhhcHMgYSBuZXcgQ09ORklHIHNob3VsZCBiZSBhZGRl
-ZDogQ09ORklHX0RFQlVHX01FTUJMT0NLDQo+Pg0KPj4gVGhhbmsgeW91LA0KPj4gUGF2ZWwNCj4g
-DQo+IEkgZG9uJ3Qga25vdyBhYm91dCBwcm9kdWN0aW9uLiBJIGFtIHJ1bm5pbmcgYSBGZWRvcmEg
-a2VybmVsIG9uIG15DQo+IGRldmVsb3BtZW50IHN5c3RlbSBhbmQgaXQgaGFzIGl0IGVuYWJsZWQu
-IEl0IGxvb2tzIGxpa2UgaXQgaGFzIGJlZW4NCj4gdGhhdCB3YXkgZm9yIGEgd2hpbGUgYmFzZWQg
-b24gYSBGQzIwIEJ1Z3ppbGxhDQo+IChodHRwczovL2J1Z3ppbGxhLnJlZGhhdC5jb20vc2hvd19i
-dWcuY2dpP2lkPTEwNzQ3MTApLiBBIHF1aWNrIGxvb2sgYXQNCj4gb25lIG9mIG15IENlbnRPUyBz
-eXN0ZW1zIHNob3dzIHRoYXQgaXQgZG9lc24ndCBoYXZlIGl0IHNldC4gSSBzdXNwZWN0DQo+IGl0
-IHdpbGwgdmFyeSBmcm9tIGRpc3RybyB0byBkaXN0cm8uIEkganVzdCBrbm93IGl0IHNwb29rZWQg
-bWUgd2hlbiBJDQo+IHdhcyBzdHVjayBzdGFyaW5nIGF0IGEgYmxhbmsgc2NyZWVuIGZvciB0aHJl
-ZSBtaW51dGVzIHdoZW4gSSB3YXMNCj4gYm9vdGluZyBhIHN5c3RlbSB3aXRoIDEyVEIgb2YgbWVt
-b3J5IHNpbmNlIHRoaXMgZGVsYXkgY2FuIGhpdCB5b3UNCj4gZWFybHkgaW4gdGhlIGJvb3QuDQoN
-CkkgdW5kZXJzdGFuZCwgdGhpcyBpcyB0aGUgZGVsYXkgdGhhdCBJIGZpeGVkIHdoZW4gSSByZW1v
-dmVkIG1lbXNldCgwKQ0KZnJvbSBzdHJ1Y3QgcGFnZSBpbml0aWFsaXphdGlvbiBjb2RlLiBIb3dl
-dmVyLCB3ZSBzdGlsbCBuZWVkIHRvIGtlZXANCnRoaXMgZGVidWcgY29kZSBtZW1zZXQoMSkgaW4g
-b3JkZXIgdG8gY2F0Y2ggc29tZSBidWdzLiBBbmQgd2UgZG8gZnJvbQ0KdGltZSB0byB0aW1lLg0K
-DQpGb3IgZmFyIHRvbyBsb25nIGxpbnV4IHdhcyBleHBlY3RpbmcgdGhhdCB0aGUgbWVtb3J5IHRo
-YXQgaXMgcmV0dXJuZWQgYnkNCm1lbWJsb2NrIGFuZCBib290IGFsbG9jYXRvciBpcyBhbHdheXMg
-emVyb2VkLg0KDQo+IA0KPiBJIGhhZCBjb25zaWRlcmVkIGFkZGluZyBhIGNvbXBsZXRlbHkgbmV3
-IENPTkZJRy4gVGhlIG9ubHkgdGhpbmcgaXMgaXQNCj4gZG9lc24ndCBtYWtlIG11Y2ggc2Vuc2Ug
-dG8gaGF2ZSB0aGUgbG9naWMgc2V0dGluZyB0aGUgdmFsdWUgdG8gYWxsIDEncw0KPiB3aXRob3V0
-IGFueSBsb2dpYyB0byB0ZXN0IGZvciBpdC4gDQoNCldoZW4gbWVtb3J5IGlzIHplcm9lZCwgcGFn
-ZSB0YWJsZSB3b3JrcyBieSBhY2NpZGVudCBhcyB0aGUgZW50cmllcyBhcmUNCmVtcHR5LiBIb3dl
-dmVyLCB3aGVuIGVudHJpZXMgYXJlIGFsbCBvbmVzLCBhbmQgd2UgYWNjaWRlbnRhbGx5IHRyeSB0
-bw0KdXNlIHRoYXQgbWVtb3J5IGFzIHBhZ2UgdGFibGUgaW52YWxpZCBWQSBpbiBwYWdlIHRhYmxl
-IHdpbGwgY3Jhc2ggZGVidWcNCmtlcm5lbCAoYW5kIGl0IGhhcyBpbiB0aGUgcGFzdCBoZWxwZWQg
-ZmluZGluZyBzb21lIGJ1Z3MpLg0KDQpTbywgdGhlIHRlc3RpbmcgaXMgbm90IG9ubHkgdGhhdCB1
-bmluaXRpYWxpemVkIHN0cnVjdCBwYWdlcyBhcmUgbm90DQphY2Nlc3NlZCwgYnV0IGFsc28gdGhh
-dCBvbmx5IGV4cGxpY2l0bHkgaW5pdGlhbGl6ZWQgcGFnZSB0YWJsZXMgYXJlDQphY2Nlc3NlZC4N
-Cg0KDQpUaGF0IGlzIHdoeSBJIHRob3VnaHQgaXQgbWFkZSBtb3JlDQo+IHNlbnNlIHRvIGp1c3Qg
-Zm9sZCBpdCBpbnRvIENPTkZJR19ERUJVR19WTV9QR0ZMQUdTLiBJIHN1cHBvc2UgSSBjb3VsZA0K
-PiBsb29rIGF0IHNvbWV0aGluZyBsaWtlIENPTkZJR19ERUJVR19QQUdFX0lOSVQgaWYgd2Ugd2Fu
-dCB0byBnbyB0aGF0DQo+IHJvdXRlLiBJIGZpZ3VyZSB1c2luZyBzb21ldGhpbmcgbGlrZSBNRU1C
-TE9DSyBwcm9iYWJseSB3b3VsZG4ndCBtYWtlDQo+IHNlbnNlIHNpbmNlIHRoaXMgYWxzbyBpbXBh
-Y3RzIHNwYXJzZSBzZWN0aW9uIGluaXQuDQoNCklmIGRpc3Ryb3MgYXJlIHVzaW5nIENPTkZJR19E
-RUJVR19WTSBpbiBwcm9kdWN0aW9uIGtlcm5lbHMgKGFzIHlvdQ0KcG9pbnRlZCBvdXQgYWJvdmUp
-LCBpdCBtYWtlcyBzZW5zZSB0byBhZGQgQ09ORklHX0RFQlVHX01FTUJMT0NLLg0KDQpUaGFuayB5
-b3UsDQpQYXZlbA==
+Commit 9092c71bb724 ("mm: use sc->priority for slab shrink targets")
+changed the way how the target slab pressure is calculated and
+made it priority-based:
+
+    delta = freeable >> priority;
+    delta *= 4;
+    do_div(delta, shrinker->seeks);
+
+The problem is that on a default priority (which is 12) no pressure
+is applied at all, if the number of potentially reclaimable objects
+is less than 4096 (1<<12).
+
+This causes the last objects on slab caches of no longer used cgroups
+to never get reclaimed, resulting in dead cgroups staying around forever.
+
+Slab LRU lists are reparented on memcg offlining, but corresponding
+objects are still holding a reference to the dying cgroup.
+If we don't scan them at all, the dying cgroup can't go away.
+Most likely, the parent cgroup hasn't any directly associated objects,
+only remaining objects from dying children cgroups. So it can easily
+hold a reference to hundreds of dying cgroups.
+
+If there are no big spikes in memory pressure, and new memory cgroups
+are created and destroyed periodically, this causes the number of
+dying cgroups grow steadily, causing a slow-ish and hard-to-detect
+memory "leak". It's not a real leak, as the memory can be eventually
+reclaimed, but it could not happen in a real life at all. I've seen
+hosts with a steadily climbing number of dying cgroups, which doesn't
+show any signs of a decline in months, despite the host is loaded
+with a production workload.
+
+It is an obvious waste of memory, and to prevent it, let's apply
+a minimal pressure even on small shrinker lists. E.g. if there are
+freeable objects, let's scan at least min(freeable, scan_batch)
+objects.
+
+This fix significantly improves a chance of a dying cgroup to be
+reclaimed, and together with some previous patches stops the steady
+growth of the dying cgroups number on some of our hosts.
+
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Acked-by: Rik van Riel <riel@surriel.com>
+Cc: Josef Bacik <jbacik@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+---
+ mm/vmscan.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index fa2c150ab7b9..8544f4c5cd4f 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -476,6 +476,17 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 	delta = freeable >> priority;
+ 	delta *= 4;
+ 	do_div(delta, shrinker->seeks);
++
++	/*
++	 * Make sure we apply some minimal pressure even on
++	 * small cgroups. This is necessary because some of
++	 * belonging objects can hold a reference to a dying
++	 * child cgroup. If we don't scan them, the dying
++	 * cgroup can't go away unless the memory pressure
++	 * (and the scanning priority) raise significantly.
++	 */
++	delta = max(delta, min(freeable, batch_size));
++
+ 	total_scan += delta;
+ 	if (total_scan < 0) {
+ 		pr_err("shrink_slab: %pF negative objects to delete nr=%ld\n",
+-- 
+2.17.1
