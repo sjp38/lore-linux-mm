@@ -1,72 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B11DE6B6C6A
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 03:55:22 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id e88-v6so3212318qtb.1
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 00:55:22 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id a5-v6si3029807qtp.320.2018.09.04.00.55.21
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1024D6B6C6E
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 03:57:13 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id i188-v6so2853463itf.6
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 00:57:13 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id y204-v6si16569197ioy.120.2018.09.04.00.57.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Sep 2018 00:55:21 -0700 (PDT)
-From: Peter Xu <peterx@redhat.com>
-Subject: [PATCH] mm: hugepage: mark splitted page dirty when needed
-Date: Tue,  4 Sep 2018 15:55:10 +0800
-Message-Id: <20180904075510.22338-1-peterx@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+        Tue, 04 Sep 2018 00:57:12 -0700 (PDT)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 11.5 \(3445.9.1\))
+Subject: Re: [RFC][PATCH 3/5] [PATCH 3/5] kvm-ept-idle: HVA indexed EPT read
+From: Nikita Leshenko <nikita.leshchenko@oracle.com>
+In-Reply-To: <20180901124811.591511876@intel.com>
+Date: Tue, 4 Sep 2018 09:57:01 +0200
+Content-Transfer-Encoding: 7bit
+Message-Id: <37B30FD3-7955-4C0B-AAB5-544359F4D157@oracle.com>
+References: <20180901112818.126790961@intel.com>
+ <20180901124811.591511876@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: peterx@redhat.com, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Huang Ying <ying.huang@intel.com>, Dan Williams <dan.j.williams@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Peng DongX <dongx.peng@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Dong Eddie <eddie.dong@intel.com>, Dave Hansen <dave.hansen@intel.com>, Huang Ying <ying.huang@intel.com>, Brendan Gregg <bgregg@netflix.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-When splitting a huge page, we should set all small pages as dirty if
-the original huge page has the dirty bit set before.  Otherwise we'll
-lose the original dirty bit.
+On 1 Sep 2018, at 13:28, Fengguang Wu <fengguang.wu@intel.com> wrote:
+> +static ssize_t ept_idle_read(struct file *file, char *buf,
+> +			     size_t count, loff_t *ppos)
+> +{
+> +	struct task_struct *task = file->private_data;
+> +	struct ept_idle_ctrl *eic;
+> +	unsigned long hva_start = *ppos << BITMAP_BYTE2PVA_SHIFT;
+> +	unsigned long hva_end = hva_start + (count << BITMAP_BYTE2PVA_SHIFT);
+> +	int ret;
+> +
+> +	if (*ppos % IDLE_BITMAP_CHUNK_SIZE ||
+> +	    count % IDLE_BITMAP_CHUNK_SIZE)
+> +		return -EINVAL;
+> +
+> +	eic = kzalloc(sizeof(*eic), GFP_KERNEL);
+> +	if (!eic)
+> +		return -EBUSY;
+> +
+> +	eic->buf = buf;
+> +	eic->buf_size = count;
+> +	eic->kvm = task_kvm(task);
+> +	if (!eic->kvm) {
+> +		ret = -EINVAL;
+> +		goto out_free;
+> +	}
+I think you need to increment the refcount while using kvm,
+otherwise kvm can be destroyed from another thread while you're
+walking it.
 
-CC: Andrea Arcangeli <aarcange@redhat.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-CC: Michal Hocko <mhocko@suse.com>
-CC: Zi Yan <zi.yan@cs.rutgers.edu>
-CC: Huang Ying <ying.huang@intel.com>
-CC: Dan Williams <dan.j.williams@intel.com>
-CC: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-CC: "JA(C)rA'me Glisse" <jglisse@redhat.com>
-CC: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-CC: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-CC: Souptick Joarder <jrdr.linux@gmail.com>
-CC: linux-mm@kvack.org
-CC: linux-kernel@vger.kernel.org
-Signed-off-by: Peter Xu <peterx@redhat.com>
----
-
-To the reviewers: I'm new to the mm world so sorry if this patch is
-making silly mistakes, however it did solve a problem for me when
-testing with a customized Linux tree mostly based on Andrea's userfault
-write-protect work.  Without the change, my customized QEMU/tcg tree
-will not be able to do correct UFFDIO_WRITEPROTECT and then QEMU will
-get a SIGBUS when faulting multiple times.  With the change (or of
-course disabling THP) then UFFDIO_WRITEPROTECT will be able to correctly
-resolve the write protections then it runs well.  Any comment would be
-welcomed.  TIA.
----
- mm/huge_memory.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index c3bc7e9c9a2a..0754a16923d5 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2176,6 +2176,8 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 				entry = pte_mkold(entry);
- 			if (soft_dirty)
- 				entry = pte_mksoft_dirty(entry);
-+			if (dirty)
-+				entry = pte_mkdirty(entry);
- 		}
- 		pte = pte_offset_map(&_pmd, addr);
- 		BUG_ON(!pte_none(*pte));
--- 
-2.17.1
+-Nikita
+> +
+> +	ret = ept_idle_walk_hva_range(eic, hva_start, hva_end);
+> +	if (ret)
+> +		goto out_free;
+> +
+> +	ret = eic->bytes_copied;
+> +	*ppos += ret;
+> +out_free:
+> +	kfree(eic);
+> +
+> +	return ret;
+> +}
