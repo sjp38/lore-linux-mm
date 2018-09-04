@@ -1,142 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 99C6D6B6DD5
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 10:00:41 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id u45-v6so4016553qte.12
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 07:00:41 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id c74-v6si157743qkg.374.2018.09.04.07.00.40
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B5596B6E07
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 10:52:23 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id w19-v6so2081501pfa.14
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 07:52:23 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id e1-v6si19474183pgo.325.2018.09.04.07.52.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Sep 2018 07:00:40 -0700 (PDT)
-Date: Tue, 4 Sep 2018 10:00:36 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH v6 1/2] mm: migration: fix migration of huge PMD shared
- pages
-Message-ID: <20180904140035.GA3526@redhat.com>
-References: <20180829181424.GB3784@redhat.com>
- <20180829183906.GF10223@dhcp22.suse.cz>
- <20180829211106.GC3784@redhat.com>
- <20180830105616.GD2656@dhcp22.suse.cz>
- <20180830140825.GA3529@redhat.com>
- <20180830161800.GJ2656@dhcp22.suse.cz>
- <20180830165751.GD3529@redhat.com>
- <e0c0c966-6706-4ca2-4077-e79322756a9b@oracle.com>
- <20180830183944.GE3529@redhat.com>
- <20180903055654.GA14951@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+        Tue, 04 Sep 2018 07:52:22 -0700 (PDT)
+Message-ID: <1536072478.12366.2.camel@intel.com>
+Subject: Re: [RFC PATCH v3 00/24] Control Flow Enforcement: Shadow Stack
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Date: Tue, 04 Sep 2018 07:47:58 -0700
+In-Reply-To: <20180902081350.GF28695@350D>
+References: <20180830143904.3168-1-yu-cheng.yu@intel.com>
+	 <20180902081350.GF28695@350D>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180903055654.GA14951@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-rdma@vger.kernel.org, Matan Barak <matanb@mellanox.com>, Leon Romanovsky <leonro@mellanox.com>, Dimitri Sivanich <sivanich@sgi.com>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, "H.J.
+ Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
 
-On Mon, Sep 03, 2018 at 07:56:54AM +0200, Michal Hocko wrote:
-> On Thu 30-08-18 14:39:44, Jerome Glisse wrote:
-> > On Thu, Aug 30, 2018 at 11:05:16AM -0700, Mike Kravetz wrote:
-> > > On 08/30/2018 09:57 AM, Jerome Glisse wrote:
-> > > > On Thu, Aug 30, 2018 at 06:19:52PM +0200, Michal Hocko wrote:
-> > > >> On Thu 30-08-18 10:08:25, Jerome Glisse wrote:
-> > > >>> On Thu, Aug 30, 2018 at 12:56:16PM +0200, Michal Hocko wrote:
-> > > >>>> On Wed 29-08-18 17:11:07, Jerome Glisse wrote:
-> > > >>>>> On Wed, Aug 29, 2018 at 08:39:06PM +0200, Michal Hocko wrote:
-> > > >>>>>> On Wed 29-08-18 14:14:25, Jerome Glisse wrote:
-> > > >>>>>>> On Wed, Aug 29, 2018 at 10:24:44AM -0700, Mike Kravetz wrote:
-> > > >>>>>> [...]
-> > > >>>>>>>> What would be the best mmu notifier interface to use where there are no
-> > > >>>>>>>> start/end calls?
-> > > >>>>>>>> Or, is the best solution to add the start/end calls as is done in later
-> > > >>>>>>>> versions of the code?  If that is the suggestion, has there been any change
-> > > >>>>>>>> in invalidate start/end semantics that we should take into account?
-> > > >>>>>>>
-> > > >>>>>>> start/end would be the one to add, 4.4 seems broken in respect to THP
-> > > >>>>>>> and mmu notification. Another solution is to fix user of mmu notifier,
-> > > >>>>>>> they were only a handful back then. For instance properly adjust the
-> > > >>>>>>> address to match first address covered by pmd or pud and passing down
-> > > >>>>>>> correct page size to mmu_notifier_invalidate_page() would allow to fix
-> > > >>>>>>> this easily.
-> > > >>>>>>>
-> > > >>>>>>> This is ok because user of try_to_unmap_one() replace the pte/pmd/pud
-> > > >>>>>>> with an invalid one (either poison, migration or swap) inside the
-> > > >>>>>>> function. So anyone racing would synchronize on those special entry
-> > > >>>>>>> hence why it is fine to delay mmu_notifier_invalidate_page() to after
-> > > >>>>>>> dropping the page table lock.
-> > > >>>>>>>
-> > > >>>>>>> Adding start/end might the solution with less code churn as you would
-> > > >>>>>>> only need to change try_to_unmap_one().
-> > > >>>>>>
-> > > >>>>>> What about dependencies? 369ea8242c0fb sounds like it needs work for all
-> > > >>>>>> notifiers need to be updated as well.
-> > > >>>>>
-> > > >>>>> This commit remove mmu_notifier_invalidate_page() hence why everything
-> > > >>>>> need to be updated. But in 4.4 you can get away with just adding start/
-> > > >>>>> end and keep around mmu_notifier_invalidate_page() to minimize disruption.
-> > > >>>>
-> > > >>>> OK, this is really interesting. I was really worried to change the
-> > > >>>> semantic of the mmu notifiers in stable kernels because this is really
-> > > >>>> a hard to review change and high risk for anybody running those old
-> > > >>>> kernels. If we can keep the mmu_notifier_invalidate_page and wrap them
-> > > >>>> into the range scope API then this sounds like the best way forward.
-> > > >>>>
-> > > >>>> So just to make sure we are at the same page. Does this sounds goo for
-> > > >>>> stable 4.4. backport? Mike's hugetlb pmd shared fixup can be applied on
-> > > >>>> top. What do you think?
-> > > >>>
-> > > >>> You need to invalidate outside page table lock so before the call to
-> > > >>> page_check_address(). For instance like below patch, which also only
-> > > >>> do the range invalidation for huge page which would avoid too much of
-> > > >>> a behavior change for user of mmu notifier.
-> > > >>
-> > > >> Right. I would rather not make this PageHuge special though. So the
-> > > >> fixed version should be.
-> > > > 
-> > > > Why not testing for huge ? Only huge is broken and thus only that
-> > > > need the extra range invalidation. Doing the double invalidation
-> > > > for single page is bit overkill.
-> > > 
-> > > I am a bit confused, and hope this does not add to any confusion by others.
-> > > 
-> > > IIUC, the patch below does not attempt to 'fix' anything.  It is simply
-> > > there to add the start/end notifiers to the v4.4 version of this routine
-> > > so that a subsequent patch can use them (with modified ranges) to handle
-> > > unmapping a shared pmd huge page.  That is the mainline fix which started
-> > > this thread.
-> > > 
-> > > Since we are only/mostly interested in fixing the shared pmd issue in
-> > > 4.4, how about just adding the start/end notifiers to the very specific
-> > > case where pmd sharing is possible?
-> > > 
-> > > I can see the value in trying to back port dependent patches such as this
-> > > so that stable releases look more like mainline.  However, I am not sure of
-> > > the value in this case as this patch was part of a larger set changing
-> > > notifier semantics.
+On Sun, 2018-09-02 at 18:13 +1000, Balbir Singh wrote:
+> On Thu, Aug 30, 2018 at 07:38:40AM -0700, Yu-cheng Yu wrote:
 > > 
-> > For all intents and purposes this is not a backport of the original
-> > patch so maybe we should just drop the commit reference and just
-> > explains that it is there to fix mmu notifier in respect to huge page
-> > migration.
+> > The previous version of CET patches can be found in the following
+> > link.
 > > 
-> > The original patches fix more than this case because newer featurers
-> > like THP migration, THP swapping, ... added more cases where things
-> > would have been wrong. But in 4.4 frame there is only huge tlb fs
-> > migration.
+> > A  https://lkml.org/lkml/2018/7/10/1031
+> > 
+> > Summary of changes from v2:
+> > 
+> > A  Move Shadow Stack page fault handling logic to arch/x86.
+> > A  Update can_follow_write_pte/pmd; move logic to arch/x86.
+> > A  Fix problems in WRUSS in-line assembly.
+> > A  Fix issues in ELF parser.
+> > A  Split out IBT/PTRACE patches to a second set.
+> > A  Other small fixes.
+> > 
+> Quick question -- is there a simulator or some other way you've
+> been testing this? Just curious, if it's possible to run these
+> patches or just a review and internal hardware/simulator where
+> they are run and posted
 > 
-> And THP migration is still a problem with 4.4 AFAICS. All other cases
-> simply split the huge page but THP migration keeps it in one piece and
-> as such it is theoretically broken as you have explained. So I would
-> stick with what I posted with some more clarifications in the changelog
-> if you think it is appropriate (suggestions welcome).
+> Balbir Singh.
 
-Reading code there is no THP migration in 4.4 only huge tlb migration.
-Look at handle_mm_fault which do not know how to handle swap pmd, only
-the huge tlb fs fault handler knows how to handle those. Hence why i
-was checking for huge tlb exactly as page_check_address() to only range
-invalidate for huge tlb fs migration.
+Currently only for review.
 
-But i am fine with doing the range invalidation with all.
-
-Cheers,
-Jerome
+Yu-cheng
