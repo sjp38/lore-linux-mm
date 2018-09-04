@@ -1,111 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 25A7B6B6C5E
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 03:43:59 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id x145-v6so3246276oia.10
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 00:43:59 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id r185-v6si13638519oif.34.2018.09.04.00.43.57
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B11DE6B6C6A
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 03:55:22 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id e88-v6so3212318qtb.1
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 00:55:22 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id a5-v6si3029807qtp.320.2018.09.04.00.55.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Sep 2018 00:43:58 -0700 (PDT)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w847eCIx159533
-	for <linux-mm@kvack.org>; Tue, 4 Sep 2018 03:43:57 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2m9m1u4jv2-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 04 Sep 2018 03:43:57 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Tue, 4 Sep 2018 08:43:55 +0100
-Subject: Re: [RFC][PATCH 1/5] [PATCH 1/5] kvm: register in task_struct
-References: <D3FBF73C-3C33-4F94-8BBB-CE6C70B81A70@oracle.com>
- <0ef9ccdc-3eae-f0b9-5304-8552cb94d166@de.ibm.com>
- <20180904002818.nq2ejxlsn4o34anl@wfg-t540p.sh.intel.com>
- <20180904004621.aqhemgpefwtq3kif@wfg-t540p.sh.intel.com>
- <F0A5145C-E401-43E8-9FE9-56A4470CD13E@oracle.com>
- <20180904071552.f4cmxo7hwtjw22dc@wfg-t540p.sh.intel.com>
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Tue, 4 Sep 2018 09:43:50 +0200
+        Tue, 04 Sep 2018 00:55:21 -0700 (PDT)
+From: Peter Xu <peterx@redhat.com>
+Subject: [PATCH] mm: hugepage: mark splitted page dirty when needed
+Date: Tue,  4 Sep 2018 15:55:10 +0800
+Message-Id: <20180904075510.22338-1-peterx@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20180904071552.f4cmxo7hwtjw22dc@wfg-t540p.sh.intel.com>
-Content-Language: en-US
-Message-Id: <45efb10a-a55a-b917-589c-de55e88ec18f@de.ibm.com>
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>, Nikita Leshenko <nikita.leshchenko@oracle.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, dongx.peng@intel.com, jingqi.liu@intel.com, eddie.dong@intel.com, dave.hansen@intel.com, ying.huang@intel.com, bgregg@netflix.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: peterx@redhat.com, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Huang Ying <ying.huang@intel.com>, Dan Williams <dan.j.williams@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org
 
+When splitting a huge page, we should set all small pages as dirty if
+the original huge page has the dirty bit set before.  Otherwise we'll
+lose the original dirty bit.
 
+CC: Andrea Arcangeli <aarcange@redhat.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+CC: Michal Hocko <mhocko@suse.com>
+CC: Zi Yan <zi.yan@cs.rutgers.edu>
+CC: Huang Ying <ying.huang@intel.com>
+CC: Dan Williams <dan.j.williams@intel.com>
+CC: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+CC: "JA(C)rA'me Glisse" <jglisse@redhat.com>
+CC: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+CC: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+CC: Souptick Joarder <jrdr.linux@gmail.com>
+CC: linux-mm@kvack.org
+CC: linux-kernel@vger.kernel.org
+Signed-off-by: Peter Xu <peterx@redhat.com>
+---
 
-On 09/04/2018 09:15 AM, Fengguang Wu wrote:
-> On Tue, Sep 04, 2018 at 08:37:03AM +0200, Nikita Leshenko wrote:
->> On 4 Sep 2018, at 2:46, Fengguang Wu <fengguang.wu@intel.com> wrote:
->>>
->>> Here it goes:
->>>
->>> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
->>> index 99ce070e7dcb..27c5446f3deb 100644
->>> --- a/include/linux/mm_types.h
->>> +++ b/include/linux/mm_types.h
->>> @@ -27,6 +27,7 @@ typedef int vm_fault_t;
->>> struct address_space;
->>> struct mem_cgroup;
->>> struct hmm;
->>> +struct kvm;
->>> /*
->>> * Each physical page in the system has a struct page associated with
->>> @@ -489,10 +490,19 @@ struct mm_struct {
->>> A A A A /* HMM needs to track a few things per mm */
->>> A A A A struct hmm *hmm;
->>> #endif
->>> +#if IS_ENABLED(CONFIG_KVM)
->>> +A A A  struct kvm *kvm;
->>> +#endif
->>> } __randomize_layout;
->>> extern struct mm_struct init_mm;
->>> +#if IS_ENABLED(CONFIG_KVM)
->>> +static inline struct kvm *mm_kvm(struct mm_struct *mm) { return mm->kvm; }
->>> +#else
->>> +static inline struct kvm *mm_kvm(struct mm_struct *mm) { return NULL; }
->>> +#endif
->>> +
->>> static inline void mm_init_cpumask(struct mm_struct *mm)
->>> {
->>> #ifdef CONFIG_CPUMASK_OFFSTACK
->>> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
->>> index 0c483720de8d..dca6156a7b35 100644
->>> --- a/virt/kvm/kvm_main.c
->>> +++ b/virt/kvm/kvm_main.c
->>> @@ -3892,7 +3892,7 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
->>> A A A A if (type == KVM_EVENT_CREATE_VM) {
->>> A A A A A A A  add_uevent_var(env, "EVENT=create");
->>> A A A A A A A  kvm->userspace_pid = task_pid_nr(current);
->>> -A A A A A A A  current->kvm = kvm;
->>> +A A A A A A A  current->mm->kvm = kvm;
->> I think you also need to reset kvm to NULL once the VM is
->> destroyed, otherwise it would point to dangling memory.
-> 
-> Good point! Here is the incremental patch:
-> 
-> --- a/virt/kvm/kvm_main.c
-> +++ b/virt/kvm/kvm_main.c
-> @@ -3894,6 +3894,7 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
-> A A A A A A A A A A A A A A  kvm->userspace_pid = task_pid_nr(current);
-> A A A A A A A A A A A A A A  current->mm->kvm = kvm;
-> A A A A A A  } else if (type == KVM_EVENT_DESTROY_VM) {
-> +A A A A A A A A A A A A A A  current->mm->kvm = NULL;
-> A A A A A A A A A A A A A A  add_uevent_var(env, "EVENT=destroy");
-> A A A A A A  }
-> A A A A A A  add_uevent_var(env, "PID=%d", kvm->userspace_pid);
+To the reviewers: I'm new to the mm world so sorry if this patch is
+making silly mistakes, however it did solve a problem for me when
+testing with a customized Linux tree mostly based on Andrea's userfault
+write-protect work.  Without the change, my customized QEMU/tcg tree
+will not be able to do correct UFFDIO_WRITEPROTECT and then QEMU will
+get a SIGBUS when faulting multiple times.  With the change (or of
+course disabling THP) then UFFDIO_WRITEPROTECT will be able to correctly
+resolve the write protections then it runs well.  Any comment would be
+welcomed.  TIA.
+---
+ mm/huge_memory.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
-I think you should put both code snippets somewhere else. This has probably nothing to do
-with the uevent. Instead this should go into kvm_destroy_vm and kvm_create_vm. Make sure
-to take care of the error handling.
-
-Can you point us to the original discussion about the why and what you are
-trying to achieve?
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index c3bc7e9c9a2a..0754a16923d5 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2176,6 +2176,8 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 				entry = pte_mkold(entry);
+ 			if (soft_dirty)
+ 				entry = pte_mksoft_dirty(entry);
++			if (dirty)
++				entry = pte_mkdirty(entry);
+ 		}
+ 		pte = pte_offset_map(&_pmd, addr);
+ 		BUG_ON(!pte_none(*pte));
+-- 
+2.17.1
