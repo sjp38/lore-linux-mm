@@ -1,91 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B4CE26B6C42
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 03:16:00 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id 33-v6so1464664plf.19
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 00:16:00 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id y22-v6si20369023pgj.436.2018.09.04.00.15.59
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A3BDC6B6C56
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 03:37:26 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id p14-v6so3261147oip.0
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 00:37:26 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id k64-v6si14159338oih.154.2018.09.04.00.37.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Sep 2018 00:15:59 -0700 (PDT)
-Date: Tue, 4 Sep 2018 15:15:52 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [RFC][PATCH 1/5] [PATCH 1/5] kvm: register in task_struct
-Message-ID: <20180904071552.f4cmxo7hwtjw22dc@wfg-t540p.sh.intel.com>
-References: <D3FBF73C-3C33-4F94-8BBB-CE6C70B81A70@oracle.com>
- <0ef9ccdc-3eae-f0b9-5304-8552cb94d166@de.ibm.com>
- <20180904002818.nq2ejxlsn4o34anl@wfg-t540p.sh.intel.com>
- <20180904004621.aqhemgpefwtq3kif@wfg-t540p.sh.intel.com>
- <F0A5145C-E401-43E8-9FE9-56A4470CD13E@oracle.com>
+        Tue, 04 Sep 2018 00:37:25 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w847XwWx104920
+	for <linux-mm@kvack.org>; Tue, 4 Sep 2018 03:37:25 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2m9m9tv09f-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 04 Sep 2018 03:37:25 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 4 Sep 2018 08:37:23 +0100
+Date: Tue, 4 Sep 2018 10:37:18 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/1] userfaultfd: allow
+ get_mempolicy(MPOL_F_NODE|MPOL_F_ADDR) to trigger userfaults
+References: <20180831214848.23676-1-aarcange@redhat.com>
+ <20180903163312.4d758536e1208f8927d886e9@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <F0A5145C-E401-43E8-9FE9-56A4470CD13E@oracle.com>
+In-Reply-To: <20180903163312.4d758536e1208f8927d886e9@linux-foundation.org>
+Message-Id: <20180904073718.GA26916@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nikita Leshenko <nikita.leshchenko@oracle.com>
-Cc: Christian Borntraeger <borntraeger@de.ibm.com>, akpm@linux-foundation.org, linux-mm@kvack.org, dongx.peng@intel.com, jingqi.liu@intel.com, eddie.dong@intel.com, dave.hansen@intel.com, ying.huang@intel.com, bgregg@netflix.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Maxime Coquelin <maxime.coquelin@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>
 
-On Tue, Sep 04, 2018 at 08:37:03AM +0200, Nikita Leshenko wrote:
->On 4 Sep 2018, at 2:46, Fengguang Wu <fengguang.wu@intel.com> wrote:
->>
->> Here it goes:
->>
->> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
->> index 99ce070e7dcb..27c5446f3deb 100644
->> --- a/include/linux/mm_types.h
->> +++ b/include/linux/mm_types.h
->> @@ -27,6 +27,7 @@ typedef int vm_fault_t;
->> struct address_space;
->> struct mem_cgroup;
->> struct hmm;
->> +struct kvm;
->> /*
->> * Each physical page in the system has a struct page associated with
->> @@ -489,10 +490,19 @@ struct mm_struct {
->> 	/* HMM needs to track a few things per mm */
->> 	struct hmm *hmm;
->> #endif
->> +#if IS_ENABLED(CONFIG_KVM)
->> +	struct kvm *kvm;
->> +#endif
->> } __randomize_layout;
->> extern struct mm_struct init_mm;
->> +#if IS_ENABLED(CONFIG_KVM)
->> +static inline struct kvm *mm_kvm(struct mm_struct *mm) { return mm->kvm; }
->> +#else
->> +static inline struct kvm *mm_kvm(struct mm_struct *mm) { return NULL; }
->> +#endif
->> +
->> static inline void mm_init_cpumask(struct mm_struct *mm)
->> {
->> #ifdef CONFIG_CPUMASK_OFFSTACK
->> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
->> index 0c483720de8d..dca6156a7b35 100644
->> --- a/virt/kvm/kvm_main.c
->> +++ b/virt/kvm/kvm_main.c
->> @@ -3892,7 +3892,7 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
->> 	if (type == KVM_EVENT_CREATE_VM) {
->> 		add_uevent_var(env, "EVENT=create");
->> 		kvm->userspace_pid = task_pid_nr(current);
->> -		current->kvm = kvm;
->> +		current->mm->kvm = kvm;
->I think you also need to reset kvm to NULL once the VM is
->destroyed, otherwise it would point to dangling memory.
+On Mon, Sep 03, 2018 at 04:33:12PM -0700, Andrew Morton wrote:
+> On Fri, 31 Aug 2018 17:48:48 -0400 Andrea Arcangeli <aarcange@redhat.com> wrote:
+> 
+> > get_mempolicy(MPOL_F_NODE|MPOL_F_ADDR) called a get_user_pages that
+> > would not be waiting for userfaults before failing and it would hit on
+> > a SIGBUS instead. Using get_user_pages_locked/unlocked instead will
+> > allow get_mempolicy to allow userfaults to resolve the fault and fill
+> > the hole, before grabbing the node id of the page.
+> 
+> What is the userspace visible impact of this change?
+> 
 
-Good point! Here is the incremental patch:
+If the user calls get_mempolicy() with MPOL_F_ADDR | MPOL_F_NODE for an
+address inside an area managed by uffd and there is no page at that
+address, the page allocation from within get_mempolicy() will fail because
+get_user_pages() does not allow for page fault retry required for uffd; the
+user will get SIGBUS.
 
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -3894,6 +3894,7 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
-                kvm->userspace_pid = task_pid_nr(current);
-                current->mm->kvm = kvm;
-        } else if (type == KVM_EVENT_DESTROY_VM) {
-+               current->mm->kvm = NULL;
-                add_uevent_var(env, "EVENT=destroy");
-        }
-        add_uevent_var(env, "PID=%d", kvm->userspace_pid);
+With this patch, the page fault will be resolved by the uffd and the
+get_mempolicy() will continue normally.
 
-Thanks,
-Fengguang
+-- 
+Sincerely yours,
+Mike.
