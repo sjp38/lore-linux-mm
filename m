@@ -1,81 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ECDD6B6F86
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 17:13:43 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id z20-v6so4927406iol.1
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 14:13:43 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h3-v6sor117487itb.36.2018.09.04.14.13.41
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C64CB6B6F95
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 17:28:28 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id l125-v6so2411283pga.1
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 14:28:28 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id b124-v6si2488559pgc.620.2018.09.04.14.28.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Sep 2018 14:13:41 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Sep 2018 14:28:27 -0700 (PDT)
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Plumbers 2018 - Performance and Scalability Microconference
+Message-ID: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com>
+Date: Tue, 4 Sep 2018 17:28:13 -0400
 MIME-Version: 1.0
-References: <20180904181550.4416.50701.stgit@localhost.localdomain>
- <20180904183339.4416.44582.stgit@localhost.localdomain> <47657613-688d-e701-4a30-39fbd92734ba@microsoft.com>
-In-Reply-To: <47657613-688d-e701-4a30-39fbd92734ba@microsoft.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Tue, 4 Sep 2018 14:13:29 -0700
-Message-ID: <CAKgT0Uf4xNkPLcDvcYMwVqxoENrBZhkLkh37nC8Qbn2varsX9w@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm: Move page struct poisoning from CONFIG_DEBUG_VM
- to CONFIG_DEBUG_VM_PGFLAGS
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel.Tatashin@microsoft.com
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Duyck, Alexander H" <alexander.h.duyck@intel.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Aaron Lu <aaron.lu@intel.com>, alex.kogan@oracle.com, akpm@linux-foundation.org, boqun.feng@gmail.com, brouer@redhat.com, daniel.m.jordan@oracle.com, dave@stgolabs.net, dave.dice@oracle.com, Dhaval Giani <dhaval.giani@oracle.com>, ktkhai@virtuozzo.com, ldufour@linux.vnet.ibm.com, Pavel.Tatashin@microsoft.com, paulmck@linux.vnet.ibm.com, shady.issa@oracle.com, tariqt@mellanox.com, tglx@linutronix.de, tim.c.chen@intel.com, vbabka@suse.cz, longman@redhat.com, yang.shi@linux.alibaba.com, shy828301@gmail.com, Huang Ying <ying.huang@intel.com>brouer@redhat.com, subhra.mazumdar@oracle.com, Steven Sistare <steven.sistare@oracle.com>, jwadams@google.com, ashwinch@google.com, sqazi@google.com, Shakeel Butt <shakeelb@google.com>, walken@google.com, rientjes@google.com, junaids@google.com, Neha Agarwal <nehaagarwal@google.com>
 
-On Tue, Sep 4, 2018 at 1:07 PM Pasha Tatashin
-<Pavel.Tatashin@microsoft.com> wrote:
->
-> Hi Alexander,
->
-> This is a wrong way to do it. memblock_virt_alloc_try_nid_raw() does not
-> initialize allocated memory, and by setting memory to all ones in debug
-> build we ensure that no callers rely on this function to return zeroed
-> memory just by accident.
+Pavel Tatashin, Ying Huang, and I are excited to be organizing a performance and scalability microconference this year at Plumbers[*], which is happening in Vancouver this year.  The microconference is scheduled for the morning of the second day (Wed, Nov 14).
 
-I get that, but setting this to all 1's is still just debugging code
-and that is adding significant overhead.
+We have a preliminary agenda and a list of confirmed and interested attendees (cc'ed), and are seeking more of both!
 
-> And, the accidents are frequent because most of the BIOSes and
-> hypervisors zero memory for us. The exception is kexec reboot.
->
-> So, the fact that page flags checks this pattern, does not mean that
-> this is the only user. Memory that is returned by
-> memblock_virt_alloc_try_nid_raw() is used for page table as well, and
-> can be used in other places as well that don't want memblock to zero the
-> memory for them for performance reasons.
+Some of the items on the agenda as it stands now are:
 
-The logic behind this statement is confusing. You are saying they
-don't want memblock to zero the memory for performance reasons, yet
-you are setting it to all 1's for debugging reasons? I get that it is
-wrapped, but in my mind just using CONFIG_DEBUG_VM is too broad of a
-brush. Especially with distros like Fedora enabling it by default.
+  - Promoting huge page usage:  With memory sizes becoming ever larger, huge pages are becoming more and more important to reduce TLB misses and the overhead of memory management itself--that is, to make the system scalable with the memory size.  But there are still some remaining gaps that prevent huge pages from being deployed in some situations, such as huge page allocation latency and memory fragmentation.
 
-> I am surprised that CONFIG_DEBUG_VM is used in production kernel, but if
-> so perhaps a new CONFIG should be added: CONFIG_DEBUG_MEMBLOCK
->
-> Thank you,
-> Pavel
+  - Reducing the number of users of mmap_sem:  This semaphore is frequently used throughout the kernel.  In order to facilitate scaling this longstanding bottleneck, these uses should be documented and unnecessary users should be fixed.
 
-I don't know about production. I am running a Fedora kernel on my
-development system and it has it enabled. It looks like it has been
-that way for a while based on a FC20 Bugzilla
-(https://bugzilla.redhat.com/show_bug.cgi?id=1074710). A quick look at
-one of my CentOS systems shows that it doesn't have it set. I suspect
-it will vary from distro to distro. I just know it spooked me when I
-was stuck staring at a blank screen for three minutes when I was
-booting a system with 12TB of memory since this delay can hit you
-early in the boot.
+  - Parallelizing cpu-intensive kernel work:  Resolve problems of past approaches including extra threads interfering with other processes, playing well with power management, and proper cgroup accounting for the extra threads.  Bonus topic: proper accounting of workqueue threads running on behalf of cgroups.
 
-I had considered adding a completely new CONFIG. The only thing is it
-doesn't make much sense to have the logic setting the value to all 1's
-without any logic to test for it. That is why I thought it made more
-sense to just fold it into CONFIG_DEBUG_VM_PGFLAGS. I suppose I could
-look at something like CONFIG_DEBUG_PAGE_INIT if we want to go that
-route. I figure using something like MEMBLOCK probably wouldn't make
-sense since this also impacts sparse section init.
+  - Preserving userland during kexec with a hibernation-like mechanism.
 
-Thanks.
+These center around our interests, but having lots of topics to choose from ensures we cover what's most important to the community, so we would like to hear about additional topics and extensions to those listed here.  This includes, but is certainly not limited to, work in progress that would benefit from in-person discussion, real-world performance problems, and experimental and academic work.
 
-- Alex
+If you haven't already done so, please let us know if you are interested in attending, or have suggestions for other attendees.
+
+Thanks,
+Daniel
+
+[*] https://blog.linuxplumbersconf.org/2018/performance-mc/
