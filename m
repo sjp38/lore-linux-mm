@@ -1,128 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E5D36B6F37
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 15:50:03 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id b29-v6so2511414pfm.1
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 12:50:03 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id v23-v6si22801904plo.19.2018.09.04.12.50.01
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 10D656B6F3E
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 15:55:04 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id i188-v6so5053031itf.6
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 12:55:04 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n81-v6sor38283itb.99.2018.09.04.12.55.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Sep 2018 12:50:01 -0700 (PDT)
-Date: Tue, 4 Sep 2018 12:50:00 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Hugepages mixed with stacks in process address space
-Message-Id: <20180904125000.e2dd2c5403a965bb249b0a02@linux-foundation.org>
-In-Reply-To: <ptihjzjmxbrcpgbmabkt@xekh>
-References: <ptihjzjmxbrcpgbmabkt@xekh>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Tue, 04 Sep 2018 12:55:03 -0700 (PDT)
+MIME-Version: 1.0
+References: <20180904181550.4416.50701.stgit@localhost.localdomain>
+ <20180904183339.4416.44582.stgit@localhost.localdomain> <fe84cdb4-7be7-8ad8-58ca-681f46e2e55c@intel.com>
+In-Reply-To: <fe84cdb4-7be7-8ad8-58ca-681f46e2e55c@intel.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Tue, 4 Sep 2018 12:54:50 -0700
+Message-ID: <CAKgT0Uc+UuXfK+KcN=9L2M7i+h7oUX9W912z82q-Vs0TFDJEpg@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm: Move page struct poisoning from CONFIG_DEBUG_VM
+ to CONFIG_DEBUG_VM_PGFLAGS
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jacek Tomaka <Jacek.Tomaka@poczta.fm>
-Cc: kirill.shutemov@linux.intel.com, mingo@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Duyck, Alexander H" <alexander.h.duyck@intel.com>, pavel.tatashin@microsoft.com, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-(cc linux-mm).
+On Tue, Sep 4, 2018 at 12:25 PM Dave Hansen <dave.hansen@intel.com> wrote:
+>
+> On 09/04/2018 11:33 AM, Alexander Duyck wrote:
+> > --- a/mm/memblock.c
+> > +++ b/mm/memblock.c
+> > @@ -1444,7 +1444,7 @@ void * __init memblock_virt_alloc_try_nid_raw(
+> >
+> >       ptr = memblock_virt_alloc_internal(size, align,
+> >                                          min_addr, max_addr, nid);
+> > -#ifdef CONFIG_DEBUG_VM
+> > +#ifdef CONFIG_DEBUG_VM_PGFLAGS
+> >       if (ptr && size > 0)
+> >               memset(ptr, PAGE_POISON_PATTERN, size);
+> >  #endif
+> > diff --git a/mm/sparse.c b/mm/sparse.c
+> > index 10b07eea9a6e..0fd9ad5021b0 100644
+> > --- a/mm/sparse.c
+> > +++ b/mm/sparse.c
+> > @@ -696,7 +696,7 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
+> >               goto out;
+> >       }
+> >
+> > -#ifdef CONFIG_DEBUG_VM
+> > +#ifdef CONFIG_DEBUG_VM_PGFLAGS
+> >       /*
+> >        * Poison uninitialized struct pages in order to catch invalid flags
+> >        * combinations.
+>
+> I think this is the wrong way to do this.  It keeps the setting and
+> checking still rather tenuously connected.  If you were to leave it this
+> way, it needs commenting.  It's also rather odd that we're memsetting
+> the entire 'struct page' for a config option that's supposedly dealing
+> with page->flags.  That deserves _some_ addressing in a comment or
+> changelog.
+>
+> How about:
+>
+> #ifdef CONFIG_DEBUG_VM_PGFLAGS
+> #define VM_BUG_ON_PGFLAGS(cond, page) VM_BUG_ON_PAGE(cond, page)
+> +static inline void poison_struct_pages(struct page *pages, int nr)
+> +{
+> +       memset(pages, PAGE_POISON_PATTERN, size * sizeof(...));
+> +}
+> #else
+> #define VM_BUG_ON_PGFLAGS(cond, page) BUILD_BUG_ON_INVALID(cond)
+> static inline void poison_struct_pages(struct page *pages, int nr) {}
+> #endif
+>
+> That puts the setting and checking in one spot, and also removes a
+> couple of #ifdefs from .c files.
 
-And thanks.
+So the only issue with this is the fact that the code here is wrapped
+in a check for CONFIG_DEBUG_VM, so if that isn't defined we end up
+with build errors.
 
-On Tue, 04 Sep 2018 17:08:34 +0200 Jacek Tomaka <Jacek.Tomaka@poczta.fm> wrote:
+If the goal is to consolidate things I could probably look at adding a
+function in include/linux/page-flags.h, probably next to PagePoisoned.
+I could then probably just look at wrapping the memset call itself
+with the CONFIG_DEBUG_VM_PGFLAGS instead of the entire function. I
+could then place some code documentation in there explaining why it is
+wrapped.
 
-> Hello, 
-> 
-> I was trying to track down the performance differences of one of my applications 
-> between running it on kernel used in Centos 7.4 and the latest 4.x version. 
-> On 4.x kernels its performance depended on the run and the variability 
-> was more than 30%. 
-> 
-> Bisecting showed that my issue  was introduced by : 
-> fd8526ad14c182605e42b64646344b95befd9f94 :x86/mm: Implement ASLR for 
-> hugetlb mappings
-> 
-> But it was not the ASLR aspect of that commit that created the issue but the 
-> change from bottom-up to top-down unmapped area lookup when allocating 
-> huge pages. 
-> 
-> After that change, the huge page allocations could become intertwined with 
-> stacks. Before, the stacks and huge pages were on the other side of the process 
-> address space. 
-> 
-> The machine i am seeing it on is Knights Landing 7250, with 68 cores x 4 
-> hyper-threads. 
-> 
-> My application spawns 272 threads and each thread allocates its memory - a 
-> couple of 2MB huge pages and does some computation, dominated by memory 
-> accesses. 
-> 
-> My theory is that because KNL has 8-way 2MB TLB,  when the huge pages are 
-> exactly 8 pages apart they collide.  And this is where the variability comes from, 
-> if the stacks come in between, they increase chances of them colliding. 
-> 
-> I do realise that the application is (I am ) doing a few things dubiously:  it
-> allocates memory on each thread and each huge page separately.  But i thought
-> you might want to know about this behaviour change. 
-> 
-> When i allocate all my memory before i start threads, the problem goes away. 
-> 
-> /proc/PID/maps: 
-> After change: 
-> 7f5e06a00000-7f5e06c00000 rw-p 00000000 00:0f 31809                      /anon_hugepage (deleted)
-> 7f5e06c00000-7f5e06e00000 rw-p 00000000 00:0f 29767                      /anon_hugepage (deleted)
-> 7f5e06e00000-7f5e07000000 rw-p 00000000 00:0f 30787                      /anon_hugepage (deleted)
-> 7f5e07000000-7f5e07200000 rw-p 00000000 00:0f 30786                      /anon_hugepage (deleted)
-> 7f5e07200000-7f5e07400000 rw-p 00000000 00:0f 28744                      /anon_hugepage (deleted)
-> 7f5e075ff000-7f5e07600000 ---p 00000000 00:00 0 
-> 7f5e07600000-7f5e07e00000 rw-p 00000000 00:00 0 
-> 7f5e07e00000-7f5e08000000 rw-p 00000000 00:0f 30785                      /anon_hugepage (deleted)
-> 7f5e08000000-7f5e08021000 rw-p 00000000 00:00 0 
-> 7f5e08021000-7f5e0c000000 ---p 00000000 00:00 0 
-> 7f5e0c000000-7f5e0c021000 rw-p 00000000 00:00 0 
-> 7f5e0c021000-7f5e10000000 ---p 00000000 00:00 0 
-> 7f5e10000000-7f5e10021000 rw-p 00000000 00:00 0 
-> 7f5e10021000-7f5e14000000 ---p 00000000 00:00 0 
-> 7f5e14200000-7f5e14400000 rw-p 00000000 00:0f 29765                      /anon_hugepage (deleted)
-> 7f5e14400000-7f5e14600000 rw-p 00000000 00:0f 28743                      /anon_hugepage (deleted)
-> 7f5e14600000-7f5e14800000 rw-p 00000000 00:0f 29764                      /anon_hugepage (deleted)
-> (...)
-> 
-> Before change: 
-> 2aaaaac00000-2aaaaae00000 rw-p 00000000 00:0f 25582                      /anon_hugepage (deleted)
-> 2aaaaae00000-2aaaab000000 rw-p 00000000 00:0f 25583                      /anon_hugepage (deleted)
-> 2aaaab000000-2aaaab200000 rw-p 00000000 00:0f 25584                      /anon_hugepage (deleted)
-> 2aaaab200000-2aaaab400000 rw-p 00000000 00:0f 25585                      /anon_hugepage (deleted)
-> 2aaaab400000-2aaaab600000 rw-p 00000000 00:0f 25601                      /anon_hugepage (deleted)
-> 2aaaab600000-2aaaab800000 rw-p 00000000 00:0f 25599                      /anon_hugepage (deleted)
-> 2aaaab800000-2aaaaba00000 rw-p 00000000 00:0f 25602                      /anon_hugepage (deleted)
-> 2aaaaba00000-2aaaabc00000 rw-p 00000000 00:0f 26652                      /anon_hugepage (deleted)
-> (...)
-> 7fc4f0021000-7fc4f4000000 ---p 00000000 00:00 0 
-> 7fc4f4000000-7fc4f4021000 rw-p 00000000 00:00 0 
-> 7fc4f4021000-7fc4f8000000 ---p 00000000 00:00 0 
-> 7fc4f8000000-7fc4f8021000 rw-p 00000000 00:00 0 
-> 7fc4f8021000-7fc4fc000000 ---p 00000000 00:00 0 
-> 7fc4fc000000-7fc4fc021000 rw-p 00000000 00:00 0 
-> 7fc4fc021000-7fc500000000 ---p 00000000 00:00 0 
-> 7fc500000000-7fc500021000 rw-p 00000000 00:00 0 
-> 7fc500021000-7fc504000000 ---p 00000000 00:00 0 
-> 7fc504000000-7fc504021000 rw-p 00000000 00:00 0 
-> 7fc504021000-7fc508000000 ---p 00000000 00:00 0 
-> 7fc508000000-7fc508021000 rw-p 00000000 00:00 0 
-> 7fc508021000-7fc50c000000 ---p 00000000 00:00 0 
-> (...)
-> 
-> I was wondering if this intertwined stacks and hugepages is an expected 
-> feature of ASLR? If not, maybe mmap's MAP_STACK flag could finally start 
-> to be used by the kernel to keep all the stacks together in process address 
-> space?
-> 
-> Or should users just not allocate huge pages on separate threads?
-> 
-> MAP_STACK could also be used to mark a VMA as a mapping for stack, 
-> (if there are flags left) to re-implement: 
-> 65376df582174ffcec9e6471bf5b0dd79ba05e4a proc: revert /proc/<pid>/maps [stack:TID] annotation
-> correctly, as having these pieces of information in place would greatly 
-> simplify my investigation. 
-> 
-> Regards.
-> Jacek Tomaka
+- Alex
