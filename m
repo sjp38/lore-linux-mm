@@ -1,86 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D53676B6F4C
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 16:07:13 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id q5-v6so5143372ith.1
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 13:07:13 -0700 (PDT)
-Received: from NAM05-DM3-obe.outbound.protection.outlook.com (mail-eopbgr730114.outbound.protection.outlook.com. [40.107.73.114])
-        by mx.google.com with ESMTPS id l5-v6si14378250iog.42.2018.09.04.13.07.12
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E89286B6F55
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 16:14:31 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id c22-v6so3296237qkb.18
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 13:14:31 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k8-v6si12333967qtp.52.2018.09.04.13.14.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 04 Sep 2018 13:07:12 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: Re: [PATCH 1/2] mm: Move page struct poisoning from CONFIG_DEBUG_VM
- to CONFIG_DEBUG_VM_PGFLAGS
-Date: Tue, 4 Sep 2018 20:07:11 +0000
-Message-ID: <47657613-688d-e701-4a30-39fbd92734ba@microsoft.com>
-References: <20180904181550.4416.50701.stgit@localhost.localdomain>
- <20180904183339.4416.44582.stgit@localhost.localdomain>
-In-Reply-To: <20180904183339.4416.44582.stgit@localhost.localdomain>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <C081A26A63C4DE4785412FAE6F232CA2@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Sep 2018 13:14:30 -0700 (PDT)
+Date: Tue, 4 Sep 2018 16:14:25 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 1/1] userfaultfd: allow
+ get_mempolicy(MPOL_F_NODE|MPOL_F_ADDR) to trigger userfaults
+Message-ID: <20180904201425.GH4762@redhat.com>
+References: <20180831214848.23676-1-aarcange@redhat.com>
+ <20180903163312.4d758536e1208f8927d886e9@linux-foundation.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180903163312.4d758536e1208f8927d886e9@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: "alexander.h.duyck@intel.com" <alexander.h.duyck@intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@kernel.org" <mingo@kernel.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Maxime Coquelin <maxime.coquelin@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-SGkgQWxleGFuZGVyLA0KDQpUaGlzIGlzIGEgd3Jvbmcgd2F5IHRvIGRvIGl0LiBtZW1ibG9ja192
-aXJ0X2FsbG9jX3RyeV9uaWRfcmF3KCkgZG9lcyBub3QNCmluaXRpYWxpemUgYWxsb2NhdGVkIG1l
-bW9yeSwgYW5kIGJ5IHNldHRpbmcgbWVtb3J5IHRvIGFsbCBvbmVzIGluIGRlYnVnDQpidWlsZCB3
-ZSBlbnN1cmUgdGhhdCBubyBjYWxsZXJzIHJlbHkgb24gdGhpcyBmdW5jdGlvbiB0byByZXR1cm4g
-emVyb2VkDQptZW1vcnkganVzdCBieSBhY2NpZGVudC4NCg0KQW5kLCB0aGUgYWNjaWRlbnRzIGFy
-ZSBmcmVxdWVudCBiZWNhdXNlIG1vc3Qgb2YgdGhlIEJJT1NlcyBhbmQNCmh5cGVydmlzb3JzIHpl
-cm8gbWVtb3J5IGZvciB1cy4gVGhlIGV4Y2VwdGlvbiBpcyBrZXhlYyByZWJvb3QuDQoNClNvLCB0
-aGUgZmFjdCB0aGF0IHBhZ2UgZmxhZ3MgY2hlY2tzIHRoaXMgcGF0dGVybiwgZG9lcyBub3QgbWVh
-biB0aGF0DQp0aGlzIGlzIHRoZSBvbmx5IHVzZXIuIE1lbW9yeSB0aGF0IGlzIHJldHVybmVkIGJ5
-DQptZW1ibG9ja192aXJ0X2FsbG9jX3RyeV9uaWRfcmF3KCkgaXMgdXNlZCBmb3IgcGFnZSB0YWJs
-ZSBhcyB3ZWxsLCBhbmQNCmNhbiBiZSB1c2VkIGluIG90aGVyIHBsYWNlcyBhcyB3ZWxsIHRoYXQg
-ZG9uJ3Qgd2FudCBtZW1ibG9jayB0byB6ZXJvIHRoZQ0KbWVtb3J5IGZvciB0aGVtIGZvciBwZXJm
-b3JtYW5jZSByZWFzb25zLg0KDQpJIGFtIHN1cnByaXNlZCB0aGF0IENPTkZJR19ERUJVR19WTSBp
-cyB1c2VkIGluIHByb2R1Y3Rpb24ga2VybmVsLCBidXQgaWYNCnNvIHBlcmhhcHMgYSBuZXcgQ09O
-RklHIHNob3VsZCBiZSBhZGRlZDogQ09ORklHX0RFQlVHX01FTUJMT0NLDQoNClRoYW5rIHlvdSwN
-ClBhdmVsDQoNCk9uIDkvNC8xOCAyOjMzIFBNLCBBbGV4YW5kZXIgRHV5Y2sgd3JvdGU6DQo+IEZy
-b206IEFsZXhhbmRlciBEdXljayA8YWxleGFuZGVyLmguZHV5Y2tAaW50ZWwuY29tPg0KPiANCj4g
-T24gc3lzdGVtcyB3aXRoIGEgbGFyZ2UgYW1vdW50IG9mIG1lbW9yeSBpdCBjYW4gdGFrZSBhIHNp
-Z25pZmljYW50IGFtb3VudA0KPiBvZiB0aW1lIHRvIGluaXRpYWxpemUgYWxsIG9mIHRoZSBwYWdl
-IHN0cnVjdHMgd2l0aCB0aGUgUEFHRV9QT0lTT05fUEFUVEVSTg0KPiB2YWx1ZS4gSSBoYXZlIHNl
-ZW4gaXQgdGFrZSBvdmVyIDIgbWludXRlcyB0byBpbml0aWFsaXplIGEgc3lzdGVtIHdpdGgNCj4g
-b3ZlciAxMkdCIG9mIFJBTS4NCj4gDQo+IEluIG9yZGVyIHRvIHdvcmsgYXJvdW5kIHRoZSBpc3N1
-ZSBJIGhhZCB0byBkaXNhYmxlIENPTkZJR19ERUJVR19WTSBhbmQgdGhlbg0KPiB0aGUgYm9vdCB0
-aW1lIHJldHVybmVkIHRvIHNvbWV0aGluZyBtdWNoIG1vcmUgcmVhc29uYWJsZSBhcyB0aGUNCj4g
-YXJjaF9hZGRfbWVtb3J5IGNhbGwgY29tcGxldGVkIGluIG1pbGxpc2Vjb25kcyB2ZXJzdXMgc2Vj
-b25kcy4gSG93ZXZlciBpbg0KPiBkb2luZyB0aGF0IEkgaGFkIHRvIGRpc2FibGUgYWxsIG9mIHRo
-ZSBvdGhlciBWTSBkZWJ1Z2dpbmcgb24gdGhlIHN5c3RlbS4NCj4gDQo+IEkgZGlkIGEgYml0IG9m
-IHJlc2VhcmNoIGFuZCBpdCBzZWVtcyBsaWtlIHRoZSBvbmx5IGZ1bmN0aW9uIHRoYXQgY2hlY2tz
-DQo+IGZvciB0aGlzIHBvaXNvbiB2YWx1ZSBpcyB0aGUgUGFnZVBvaXNvbmVkIGZ1bmN0aW9uLCBh
-bmQgaXQgaXMgb25seSBjYWxsZWQNCj4gaW4gdHdvIHNwb3RzLiBPbmUgaXMgdGhlIFBGX1BPSVNP
-TkVEX0NIRUNLIG1hY3JvIHRoYXQgaXMgb25seSBpbiB1c2Ugd2hlbg0KPiBDT05GSUdfREVCVUdf
-Vk1fUEdGTEFHUyBpcyBkZWZpbmVkLCBhbmQgdGhlIG90aGVyIGlzIGFzIGEgcGFydCBvZiB0aGUN
-Cj4gX19kdW1wX3BhZ2UgZnVuY3Rpb24gd2hpY2ggaXMgdXNpbmcgdGhlIGNoZWNrIHRvIHByZXZl
-bnQgYSByZWN1cnNpdmUNCj4gZmFpbHVyZSBpbiB0aGUgZXZlbnQgb2YgZGlzY292ZXJpbmcgYSBw
-b2lzb25lZCBwYWdlLg0KPiANCj4gV2l0aCB0aGlzIGJlaW5nIHRoZSBjYXNlIEkgYW0gb3B0aW5n
-IHRvIG1vdmUgdGhlIHBvaXNvbmluZyBvZiB0aGUgcGFnZQ0KPiBzdHJ1Y3RzIGZyb20gQ09ORklH
-X0RFQlVHX1ZNIHRvIENPTkZJR19ERUJVR19WTV9QR0ZMQUdTIHNvIHRoYXQgd2UgYXJlDQo+IG9u
-bHkgcGVyZm9ybWluZyB0aGUgbWVtc2V0IGlmIGl0IHdpbGwgYmUgdXNlZCB0byB0ZXN0IGZvciBm
-YWlsdXJlcy4NCj4gDQo+IFNpZ25lZC1vZmYtYnk6IEFsZXhhbmRlciBEdXljayA8YWxleGFuZGVy
-LmguZHV5Y2tAaW50ZWwuY29tPg0KPiAtLS0NCj4gIG1tL21lbWJsb2NrLmMgfCAgICAyICstDQo+
-ICBtbS9zcGFyc2UuYyAgIHwgICAgMiArLQ0KPiAgMiBmaWxlcyBjaGFuZ2VkLCAyIGluc2VydGlv
-bnMoKyksIDIgZGVsZXRpb25zKC0pDQo+IA0KPiBkaWZmIC0tZ2l0IGEvbW0vbWVtYmxvY2suYyBi
-L21tL21lbWJsb2NrLmMNCj4gaW5kZXggMjM3OTQ0NDc5ZDI1Li41MWU4YWU5MjcyNTcgMTAwNjQ0
-DQo+IC0tLSBhL21tL21lbWJsb2NrLmMNCj4gKysrIGIvbW0vbWVtYmxvY2suYw0KPiBAQCAtMTQ0
-NCw3ICsxNDQ0LDcgQEAgdm9pZCAqIF9faW5pdCBtZW1ibG9ja192aXJ0X2FsbG9jX3RyeV9uaWRf
-cmF3KA0KPiAgDQo+ICAJcHRyID0gbWVtYmxvY2tfdmlydF9hbGxvY19pbnRlcm5hbChzaXplLCBh
-bGlnbiwNCj4gIAkJCQkJICAgbWluX2FkZHIsIG1heF9hZGRyLCBuaWQpOw0KPiAtI2lmZGVmIENP
-TkZJR19ERUJVR19WTQ0KPiArI2lmZGVmIENPTkZJR19ERUJVR19WTV9QR0ZMQUdTDQo+ICAJaWYg
-KHB0ciAmJiBzaXplID4gMCkNCj4gIAkJbWVtc2V0KHB0ciwgUEFHRV9QT0lTT05fUEFUVEVSTiwg
-c2l6ZSk7DQo+ICAjZW5kaWYNCj4gZGlmZiAtLWdpdCBhL21tL3NwYXJzZS5jIGIvbW0vc3BhcnNl
-LmMNCj4gaW5kZXggMTBiMDdlZWE5YTZlLi4wZmQ5YWQ1MDIxYjAgMTAwNjQ0DQo+IC0tLSBhL21t
-L3NwYXJzZS5jDQo+ICsrKyBiL21tL3NwYXJzZS5jDQo+IEBAIC02OTYsNyArNjk2LDcgQEAgaW50
-IF9fbWVtaW5pdCBzcGFyc2VfYWRkX29uZV9zZWN0aW9uKHN0cnVjdCBwZ2xpc3RfZGF0YSAqcGdk
-YXQsDQo+ICAJCWdvdG8gb3V0Ow0KPiAgCX0NCj4gIA0KPiAtI2lmZGVmIENPTkZJR19ERUJVR19W
-TQ0KPiArI2lmZGVmIENPTkZJR19ERUJVR19WTV9QR0ZMQUdTDQo+ICAJLyoNCj4gIAkgKiBQb2lz
-b24gdW5pbml0aWFsaXplZCBzdHJ1Y3QgcGFnZXMgaW4gb3JkZXIgdG8gY2F0Y2ggaW52YWxpZCBm
-bGFncw0KPiAgCSAqIGNvbWJpbmF0aW9ucy4NCj4g
+Hi Andrew,
+
+On Mon, Sep 03, 2018 at 04:33:12PM -0700, Andrew Morton wrote:
+> On Fri, 31 Aug 2018 17:48:48 -0400 Andrea Arcangeli <aarcange@redhat.com> wrote:
+> 
+> > get_mempolicy(MPOL_F_NODE|MPOL_F_ADDR) called a get_user_pages that
+> > would not be waiting for userfaults before failing and it would hit on
+> > a SIGBUS instead. Using get_user_pages_locked/unlocked instead will
+> > allow get_mempolicy to allow userfaults to resolve the fault and fill
+> > the hole, before grabbing the node id of the page.
+> 
+> What is the userspace visible impact of this change?
+
+Yes that's a good question because there's a visible impact, but it's
+of the non problematic kind.
+
+>From code review, previously the syscall would have returned -EFAULT
+(vm_fault_to_errno), now it will block and wait for an userfault (if
+it's waken before the fault is resolved it'll still -EFAULT).
+
+This way get_mempolicy will give a chance to an "unaware" app to be
+compliant with userfaults.
+
+The reason this visible change is that becoming "userfault compliant"
+cannot regress anything: all other syscalls including read(2)/write(2)
+had to become "userfault compliant" long time ago (that's one of the
+things userfaultfd can do that PROT_NONE and trapping segfaults
+can't).
+
+So this is just one more syscall that become "userfault compliant"
+like all other major ones already were.
+
+This has been happening on virtio-bridge dpdk process which just
+called get_mempolicy on the guest space post live migration, but
+before the memory had a chance to be migrated to destination.
+
+I didn't run an strace to be able to show the -EFAULT going away, but
+I've the confirmation of the below debug aid information (only visible
+with CONFIG_DEBUG_VM=y) going away with the patch:
+
+    [20116.371461] FAULT_FLAG_ALLOW_RETRY missing 0
+    [20116.371464] CPU: 1 PID: 13381 Comm: vhost-events Not tainted 4.17.12-200.fc28.x86_64 #1
+    [20116.371465] Hardware name: LENOVO 20FAS2BN0A/20FAS2BN0A, BIOS N1CET54W (1.22 ) 02/10/2017
+    [20116.371466] Call Trace:
+    [20116.371473]  dump_stack+0x5c/0x80
+    [20116.371476]  handle_userfault.cold.37+0x1b/0x22
+    [20116.371479]  ? remove_wait_queue+0x20/0x60
+    [20116.371481]  ? poll_freewait+0x45/0xa0
+    [20116.371483]  ? do_sys_poll+0x31c/0x520
+    [20116.371485]  ? radix_tree_lookup_slot+0x1e/0x50
+    [20116.371488]  shmem_getpage_gfp+0xce7/0xe50
+    [20116.371491]  ? page_add_file_rmap+0x1a/0x2c0
+    [20116.371493]  shmem_fault+0x78/0x1e0
+    [20116.371495]  ? filemap_map_pages+0x3a1/0x450
+    [20116.371498]  __do_fault+0x1f/0xc0
+    [20116.371500]  __handle_mm_fault+0xe2e/0x12f0
+    [20116.371502]  handle_mm_fault+0xda/0x200
+    [20116.371504]  __get_user_pages+0x238/0x790
+    [20116.371506]  get_user_pages+0x3e/0x50
+    [20116.371510]  kernel_get_mempolicy+0x40b/0x700
+    [20116.371512]  ? vfs_write+0x170/0x1a0
+    [20116.371515]  __x64_sys_get_mempolicy+0x21/0x30
+    [20116.371517]  do_syscall_64+0x5b/0x160
+    [20116.371520]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+The above harmless debug message (not a kernel crash, just a
+dump_stack()) is shown with CONFIG_DEBUG_VM=y to more quickly identify
+and improve kernel spots that may have to become "userfaultfd
+compliant" like this one (without having to run an strace and search
+for syscall misbehavior). Spots like the above are more closer to a
+kernel bug for the non-cooperative usages that Mike focuses on, than
+for for dpdk qemu-cooperative usages that reproduced it, but it's
+still nicer to get this fixed for dpdk too.
+
+The part of the patch that that gave me to think is only the
+implementation issue of mpol_get, but it looks like it should work
+safe no matter the kind of mempolicy structure that is (the default
+static policy also starts at 1 so it'll go to 2 and back to 1 without
+crashing everything at 0).
+
+Thanks!
+Andrea
