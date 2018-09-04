@@ -1,74 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A502A6B6EC1
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 13:56:09 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id y137-v6so3296574ywy.0
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 10:56:09 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id 11-v6si5508743ybq.307.2018.09.04.10.56.08
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A94776B6ECD
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 14:06:36 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id i68-v6so2385156pfb.9
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 11:06:36 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s16-v6si20015139plp.317.2018.09.04.11.06.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Sep 2018 10:56:08 -0700 (PDT)
-Subject: Re: [PATCH v6 1/2] mm: migration: fix migration of huge PMD shared
- pages
-References: <20180829181424.GB3784@redhat.com>
- <20180829183906.GF10223@dhcp22.suse.cz> <20180829211106.GC3784@redhat.com>
- <20180830105616.GD2656@dhcp22.suse.cz> <20180830140825.GA3529@redhat.com>
- <20180830161800.GJ2656@dhcp22.suse.cz> <20180830165751.GD3529@redhat.com>
- <e0c0c966-6706-4ca2-4077-e79322756a9b@oracle.com>
- <20180830183944.GE3529@redhat.com> <20180903055654.GA14951@dhcp22.suse.cz>
- <20180904140035.GA3526@redhat.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <4b275965-3e6e-2a68-4b39-d09902bbc573@oracle.com>
-Date: Tue, 4 Sep 2018 10:55:54 -0700
+        Tue, 04 Sep 2018 11:06:35 -0700 (PDT)
+Date: Tue, 4 Sep 2018 20:06:31 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: slowly shrink slabs with a relatively small number
+ of objects
+Message-ID: <20180904180631.GR14951@dhcp22.suse.cz>
+References: <20180831203450.2536-1-guro@fb.com>
+ <3b05579f964cca1d44551913f1a9ee79d96f198e.camel@surriel.com>
+ <20180831213138.GA9159@tower.DHCP.thefacebook.com>
+ <20180903182956.GE15074@dhcp22.suse.cz>
+ <20180903202803.GA6227@castle.DHCP.thefacebook.com>
+ <20180904070005.GG14951@dhcp22.suse.cz>
+ <20180904153445.GA22328@tower.DHCP.thefacebook.com>
+ <20180904161431.GP14951@dhcp22.suse.cz>
+ <20180904175243.GA4889@tower.DHCP.thefacebook.com>
 MIME-Version: 1.0
-In-Reply-To: <20180904140035.GA3526@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180904175243.GA4889@tower.DHCP.thefacebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-rdma@vger.kernel.org, Matan Barak <matanb@mellanox.com>, Leon Romanovsky <leonro@mellanox.com>, Dimitri Sivanich <sivanich@sgi.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Josef Bacik <jbacik@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 09/04/2018 07:00 AM, Jerome Glisse wrote:
-> On Mon, Sep 03, 2018 at 07:56:54AM +0200, Michal Hocko wrote:
->> On Thu 30-08-18 14:39:44, Jerome Glisse wrote:
->>> For all intents and purposes this is not a backport of the original
->>> patch so maybe we should just drop the commit reference and just
->>> explains that it is there to fix mmu notifier in respect to huge page
->>> migration.
->>>
->>> The original patches fix more than this case because newer featurers
->>> like THP migration, THP swapping, ... added more cases where things
->>> would have been wrong. But in 4.4 frame there is only huge tlb fs
->>> migration.
->>
->> And THP migration is still a problem with 4.4 AFAICS. All other cases
->> simply split the huge page but THP migration keeps it in one piece and
->> as such it is theoretically broken as you have explained. So I would
->> stick with what I posted with some more clarifications in the changelog
->> if you think it is appropriate (suggestions welcome).
+On Tue 04-09-18 10:52:46, Roman Gushchin wrote:
+> On Tue, Sep 04, 2018 at 06:14:31PM +0200, Michal Hocko wrote:
+[...]
+> > I am not opposing your patch but I am trying to figure out whether that
+> > is the best approach.
 > 
-> Reading code there is no THP migration in 4.4 only huge tlb migration.
-> Look at handle_mm_fault which do not know how to handle swap pmd, only
-> the huge tlb fs fault handler knows how to handle those. Hence why i
-> was checking for huge tlb exactly as page_check_address() to only range
-> invalidate for huge tlb fs migration.
+> I don't think the current logic does make sense. Why should cgroups
+> with less than 4k kernel objects be excluded from being scanned?
 
-I agree with JA(C)rA'me that THP migration was added after 4.4.  But, I could
-be missing something.
+How is it any different from the the LRU reclaim? Maybe it is just not
+that visible because there usually more pages there. But in principle it
+is the same issue AFAICS.
 
-> But i am fine with doing the range invalidation with all.
+> Reparenting of all pages is definitely an option to consider,
+> but it's not free in any case, so if there is no problem,
+> why should we? Let's keep it as a last measure. In my case,
+> the proposed patch works perfectly: the number of dying cgroups
+> jumps around 100, where it grew steadily to 2k and more before.
 
-Since the shared pmd patch which will ultimately go on top of this needs
-the PageHuge checks, my preference would be JA(C)rA'me's patch.
+Let me emphasise that I am not opposing the patch. I just think that we
+have made some decisions which are not ideal but I would really like to
+prevent from building workarounds on top. If we have to reconsider some
+of those decisions then let's do it. Maybe the priority scaling is just
+too coarse and what seem to work work for normal LRUs doesn't work for
+shrinkers.
 
-However, IMO I am not certain we really need/want a separate patch.  We
-could just add the notifiers to the shared pmd patch.  Back porting the
-shared pmd patch will also require some fixup.
+> I believe that reparenting of LRU lists is required to minimize
+> the number of LRU lists to scan, but I'm not sure.
 
-Either would work.  I'll admit I do not know what stable maintainers would
-prefer.
+Well, we do have more lists to scan for normal LRUs. It is true that
+shrinkers add multiplining factor to that but in principle I guess we
+really want to distinguish dead memcgs because we do want to reclaim
+those much more than the rest. Those objects are basically of no use
+just eating resources. The pagecache has some chance to be reused at
+least but I fail to see why we should keep kernel objects around. Sure,
+some of them might be harder to reclaim due to different life time and
+internal object management but this doesn't change the fact that we
+should try hard to reclaim those. So my gut feeling tells me that we
+should have a way to distinguish them.
+
+Btw. I do not see Vladimir on the CC list. Added (the thread starts
+here http://lkml.kernel.org/r/20180831203450.2536-1-guro@fb.com)
 -- 
-Mike Kravetz
+Michal Hocko
+SUSE Labs
