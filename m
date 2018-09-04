@@ -1,229 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E597C6B6C10
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 02:29:08 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id w18-v6so1424619plp.3
-        for <linux-mm@kvack.org>; Mon, 03 Sep 2018 23:29:08 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (lgeamrelo12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id w17-v6si22090117pfl.171.2018.09.03.23.29.06
-        for <linux-mm@kvack.org>;
-        Mon, 03 Sep 2018 23:29:07 -0700 (PDT)
-Subject: Re: Re: [PATCH v2] arm64: kasan: add interceptors for strcmp/strncmp
- functions
-References: <1535014606-176525-1-git-send-email-kyeongdon.kim@lge.com>
- <7387f67e-1ac5-12e1-c9be-060e9c403bf7@lge.com>
- <CACT4Y+YGa5riLQavMw4vQ55CeYzakQHSLgEE29RRKi47=J21Ow@mail.gmail.com>
-From: Kyeongdon Kim <kyeongdon.kim@lge.com>
-Message-ID: <cafbdd21-1ae7-0901-f846-8b4e42db2127@lge.com>
-Date: Tue, 4 Sep 2018 15:29:04 +0900
-MIME-Version: 1.0
-In-Reply-To: <CACT4Y+YGa5riLQavMw4vQ55CeYzakQHSLgEE29RRKi47=J21Ow@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 153156B6C1A
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 02:37:17 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id w196-v6so2559778itb.4
+        for <linux-mm@kvack.org>; Mon, 03 Sep 2018 23:37:17 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id u66-v6si12431080jad.5.2018.09.03.23.37.15
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 03 Sep 2018 23:37:16 -0700 (PDT)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 11.5 \(3445.9.1\))
+Subject: Re: [RFC][PATCH 1/5] [PATCH 1/5] kvm: register in task_struct
+From: Nikita Leshenko <nikita.leshchenko@oracle.com>
+In-Reply-To: <20180904004621.aqhemgpefwtq3kif@wfg-t540p.sh.intel.com>
+Date: Tue, 4 Sep 2018 08:37:03 +0200
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <F0A5145C-E401-43E8-9FE9-56A4470CD13E@oracle.com>
+References: <D3FBF73C-3C33-4F94-8BBB-CE6C70B81A70@oracle.com>
+ <0ef9ccdc-3eae-f0b9-5304-8552cb94d166@de.ibm.com>
+ <20180904002818.nq2ejxlsn4o34anl@wfg-t540p.sh.intel.com>
+ <20180904004621.aqhemgpefwtq3kif@wfg-t540p.sh.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Alexander Potapenko <glider@google.com>, "Jason A. Donenfeld" <Jason@zx2c4.com>, Rob Herring <robh@kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Christian Borntraeger <borntraeger@de.ibm.com>, akpm@linux-foundation.org, linux-mm@kvack.org, dongx.peng@intel.com, jingqi.liu@intel.com, eddie.dong@intel.com, dave.hansen@intel.com, ying.huang@intel.com, bgregg@netflix.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hello Dmitry,
+On 4 Sep 2018, at 2:46, Fengguang Wu <fengguang.wu@intel.com> wrote:
+>=20
+> Here it goes:
+>=20
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index 99ce070e7dcb..27c5446f3deb 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -27,6 +27,7 @@ typedef int vm_fault_t;
+> struct address_space;
+> struct mem_cgroup;
+> struct hmm;
+> +struct kvm;
+> /*
+> * Each physical page in the system has a struct page associated with
+> @@ -489,10 +490,19 @@ struct mm_struct {
+> 	/* HMM needs to track a few things per mm */
+> 	struct hmm *hmm;
+> #endif
+> +#if IS_ENABLED(CONFIG_KVM)
+> +	struct kvm *kvm;
+> +#endif
+> } __randomize_layout;
+> extern struct mm_struct init_mm;
+> +#if IS_ENABLED(CONFIG_KVM)
+> +static inline struct kvm *mm_kvm(struct mm_struct *mm) { return =
+mm->kvm; }
+> +#else
+> +static inline struct kvm *mm_kvm(struct mm_struct *mm) { return NULL; =
+}
+> +#endif
+> +
+> static inline void mm_init_cpumask(struct mm_struct *mm)
+> {
+> #ifdef CONFIG_CPUMASK_OFFSTACK
+> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+> index 0c483720de8d..dca6156a7b35 100644
+> --- a/virt/kvm/kvm_main.c
+> +++ b/virt/kvm/kvm_main.c
+> @@ -3892,7 +3892,7 @@ static void kvm_uevent_notify_change(unsigned =
+int type, struct kvm *kvm)
+> 	if (type =3D=3D KVM_EVENT_CREATE_VM) {
+> 		add_uevent_var(env, "EVENT=3Dcreate");
+> 		kvm->userspace_pid =3D task_pid_nr(current);
+> -		current->kvm =3D kvm;
+> +		current->mm->kvm =3D kvm;
+I think you also need to reset kvm to NULL once the VM is
+destroyed, otherwise it would point to dangling memory.
 
-
-On 2018-09-03 i??i?? 6:13, Dmitry Vyukov wrote:
-> On Mon, Sep 3, 2018 at 11:02 AM, Kyeongdon Kim <kyeongdon.kim@lge.com> 
-> wrote:
-> > Dear all,
-> >
-> > Could anyone review this and provide me appropriate approach ?
-> > I think str[n]cmp are frequently used functions so I believe very 
-> useful w/
-> > arm64 KASAN.
->
-> Hi Kyeongdon,
->
-> Please add tests for this to lib/test_kasan.c.
->
-I'll add tests for this patch after next version upload.
-
-Thanks,
->
-> >>
-> >> This patch declares strcmp/strncmp as weak symbols.
-> >> (2 of them are the most used string operations)
-> >>
-> >> Original functions declared as weak and
-> >> strong ones in mm/kasan/kasan.c could replace them.
-> >>
-> >> Assembly optimized strcmp/strncmp functions cannot detect KASan bug.
-> >> But, now we can detect them like the call trace below.
-> >>
-> >> ==================================================================
-> >> BUG: KASAN: use-after-free in platform_match+0x1c/0x5c at addr
-> >> ffffffc0ad313500
-> >> Read of size 1 by task swapper/0/1
-> >> CPU: 3 PID: 1 Comm: swapper/0 Tainted: G B 4.9.77+ #1
-> >> Hardware name: Generic (DT) based system
-> >> Call trace:
-> >> dump_backtrace+0x0/0x2e0
-> >> show_stack+0x14/0x1c
-> >> dump_stack+0x88/0xb0
-> >> kasan_object_err+0x24/0x7c
-> >> kasan_report+0x2f0/0x484
-> >> check_memory_region+0x20/0x14c
-> >> strcmp+0x1c/0x5c
-> >> platform_match+0x40/0xe4
-> >> __driver_attach+0x40/0x130
-> >> bus_for_each_dev+0xc4/0xe0
-> >> driver_attach+0x30/0x3c
-> >> bus_add_driver+0x2dc/0x328
-> >> driver_register+0x118/0x160
-> >> __platform_driver_register+0x7c/0x88
-> >> alarmtimer_init+0x154/0x1e4
-> >> do_one_initcall+0x184/0x1a4
-> >> kernel_init_freeable+0x2ec/0x2f0
-> >> kernel_init+0x18/0x10c
-> >> ret_from_fork+0x10/0x50
-> >>
-> >> In case of xtensa and x86_64 kasan, no need to use this patch now.
-> >>
-> >> Signed-off-by: Kyeongdon Kim <kyeongdon.kim@lge.com>
-> >> ---
-> >> arch/arm64/include/asm/string.h | 5 +++++
-> >> arch/arm64/kernel/arm64ksyms.c | 2 ++
-> >> arch/arm64/kernel/image.h | 2 ++
-> >> arch/arm64/lib/strcmp.S | 3 +++
-> >> arch/arm64/lib/strncmp.S | 3 +++
-> >> mm/kasan/kasan.c | 23 +++++++++++++++++++++++
-> >> 6 files changed, 38 insertions(+)
-> >>
-> >> diff --git a/arch/arm64/include/asm/string.h
-> >> b/arch/arm64/include/asm/string.h
-> >> index dd95d33..ab60349 100644
-> >> --- a/arch/arm64/include/asm/string.h
-> >> +++ b/arch/arm64/include/asm/string.h
-> >> @@ -24,9 +24,11 @@ extern char *strchr(const char *, int c);
-> >>
-> >> #define __HAVE_ARCH_STRCMP
-> >> extern int strcmp(const char *, const char *);
-> >> +extern int __strcmp(const char *, const char *);
-> >>
-> >> #define __HAVE_ARCH_STRNCMP
-> >> extern int strncmp(const char *, const char *, __kernel_size_t);
-> >> +extern int __strncmp(const char *, const char *, __kernel_size_t);
-> >>
-> >> #define __HAVE_ARCH_STRLEN
-> >> extern __kernel_size_t strlen(const char *);
-> >> @@ -68,6 +70,9 @@ void memcpy_flushcache(void *dst, const void *src,
-> >> size_t cnt);
-> >> #define memmove(dst, src, len) __memmove(dst, src, len)
-> >> #define memset(s, c, n) __memset(s, c, n)
-> >>
-> >> +#define strcmp(cs, ct) __strcmp(cs, ct)
-> >> +#define strncmp(cs, ct, n) __strncmp(cs, ct, n)
-> >> +
-> >> #ifndef __NO_FORTIFY
-> >> #define __NO_FORTIFY /* FORTIFY_SOURCE uses __builtin_memcpy, etc. */
-> >> #endif
-> >> diff --git a/arch/arm64/kernel/arm64ksyms.c
-> >> b/arch/arm64/kernel/arm64ksyms.c
-> >> index d894a20..10b1164 100644
-> >> --- a/arch/arm64/kernel/arm64ksyms.c
-> >> +++ b/arch/arm64/kernel/arm64ksyms.c
-> >> @@ -50,6 +50,8 @@ EXPORT_SYMBOL(strcmp);
-> >> EXPORT_SYMBOL(strncmp);
-> >> EXPORT_SYMBOL(strlen);
-> >> EXPORT_SYMBOL(strnlen);
-> >> +EXPORT_SYMBOL(__strcmp);
-> >> +EXPORT_SYMBOL(__strncmp);
-> >> EXPORT_SYMBOL(memset);
-> >> EXPORT_SYMBOL(memcpy);
-> >> EXPORT_SYMBOL(memmove);
-> >> diff --git a/arch/arm64/kernel/image.h b/arch/arm64/kernel/image.h
-> >> index a820ed0..5ef7a57 100644
-> >> --- a/arch/arm64/kernel/image.h
-> >> +++ b/arch/arm64/kernel/image.h
-> >> @@ -110,6 +110,8 @@ __efistub___flush_dcache_area =
-> >> KALLSYMS_HIDE(__pi___flush_dcache_area);
-> >> __efistub___memcpy = KALLSYMS_HIDE(__pi_memcpy);
-> >> __efistub___memmove = KALLSYMS_HIDE(__pi_memmove);
-> >> __efistub___memset = KALLSYMS_HIDE(__pi_memset);
-> >> +__efistub___strcmp = KALLSYMS_HIDE(__pi_strcmp);
-> >> +__efistub___strncmp = KALLSYMS_HIDE(__pi_strncmp);
-> >> #endif
-> >>
-> >> __efistub__text = KALLSYMS_HIDE(_text);
-> >> diff --git a/arch/arm64/lib/strcmp.S b/arch/arm64/lib/strcmp.S
-> >> index 471fe61..0dffef7 100644
-> >> --- a/arch/arm64/lib/strcmp.S
-> >> +++ b/arch/arm64/lib/strcmp.S
-> >> @@ -60,6 +60,8 @@ tmp3 .req x9
-> >> zeroones .req x10
-> >> pos .req x11
-> >>
-> >> +.weak strcmp
-> >> +ENTRY(__strcmp)
-> >> ENTRY(strcmp)
-> >> eor tmp1, src1, src2
-> >> mov zeroones, #REP8_01
-> >> @@ -232,3 +234,4 @@ CPU_BE( orr syndrome, diff, has_nul )
-> >> sub result, data1, data2, lsr #56
-> >> ret
-> >> ENDPIPROC(strcmp)
-> >> +ENDPROC(__strcmp)
-> >> diff --git a/arch/arm64/lib/strncmp.S b/arch/arm64/lib/strncmp.S
-> >> index e267044..b2648c7 100644
-> >> --- a/arch/arm64/lib/strncmp.S
-> >> +++ b/arch/arm64/lib/strncmp.S
-> >> @@ -64,6 +64,8 @@ limit_wd .req x13
-> >> mask .req x14
-> >> endloop .req x15
-> >>
-> >> +.weak strncmp
-> >> +ENTRY(__strncmp)
-> >> ENTRY(strncmp)
-> >> cbz limit, .Lret0
-> >> eor tmp1, src1, src2
-> >> @@ -308,3 +310,4 @@ CPU_BE( orr syndrome, diff, has_nul )
-> >> mov result, #0
-> >> ret
-> >> ENDPIPROC(strncmp)
-> >> +ENDPROC(__strncmp)
-> >> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-> >> index c3bd520..61ad7f1 100644
-> >> --- a/mm/kasan/kasan.c
-> >> +++ b/mm/kasan/kasan.c
-> >> @@ -304,6 +304,29 @@ void *memcpy(void *dest, const void *src, 
-> size_t len)
-> >>
-> >> return __memcpy(dest, src, len);
-> >> }
-> >> +#ifdef CONFIG_ARM64
-> >> +/*
-> >> + * Arch arm64 use assembly variant for strcmp/strncmp,
-> >> + * xtensa use inline asm operations and x86_64 use c one,
-> >> + * so now this interceptors only for arm64 kasan.
-> >> + */
-> >> +#undef strcmp
-> >> +int strcmp(const char *cs, const char *ct)
-> >> +{
-> >> + check_memory_region((unsigned long)cs, 1, false, _RET_IP_);
-> >> + check_memory_region((unsigned long)ct, 1, false, _RET_IP_);
-> >> +
-> >> + return __strcmp(cs, ct);
-> >> +}
-> >> +#undef strncmp
-> >> +int strncmp(const char *cs, const char *ct, size_t len)
-> >> +{
-> >> + check_memory_region((unsigned long)cs, len, false, _RET_IP_);
-> >> + check_memory_region((unsigned long)ct, len, false, _RET_IP_);
-> >> +
-> >> + return __strncmp(cs, ct, len);
-> >> +}
-> >> +#endif
-> >>
-> >> void kasan_alloc_pages(struct page *page, unsigned int order)
-> >> {
-> >> --
-> >> 2.6.2
-> >
-> >
+-Nikita
+> 	} else if (type =3D=3D KVM_EVENT_DESTROY_VM) {
+> 		add_uevent_var(env, "EVENT=3Ddestroy");
+> 	}
