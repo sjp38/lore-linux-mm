@@ -1,82 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E8616B6F0F
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 15:14:44 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id bg5-v6so2367449plb.20
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 12:14:44 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id 17-v6si7471385pgl.166.2018.09.04.12.14.42
+	by kanga.kvack.org (Postfix) with ESMTP id F37A96B6F1C
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 15:25:50 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id s22-v6so2376481plq.21
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 12:25:50 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id e11-v6si21876622plb.373.2018.09.04.12.25.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Sep 2018 12:14:43 -0700 (PDT)
-Date: Tue, 4 Sep 2018 12:14:25 -0700
-From: Sean Christopherson <sean.j.christopherson@intel.com>
-Subject: Re: [RFC][PATCH 5/5] [PATCH 5/5] kvm-ept-idle: enable module
-Message-ID: <20180904191424.GC5869@linux.intel.com>
-References: <20180901112818.126790961@intel.com>
- <20180901124811.703808090@intel.com>
+        Tue, 04 Sep 2018 12:25:49 -0700 (PDT)
+Subject: Re: [PATCH 1/2] mm: Move page struct poisoning from CONFIG_DEBUG_VM
+ to CONFIG_DEBUG_VM_PGFLAGS
+References: <20180904181550.4416.50701.stgit@localhost.localdomain>
+ <20180904183339.4416.44582.stgit@localhost.localdomain>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <fe84cdb4-7be7-8ad8-58ca-681f46e2e55c@intel.com>
+Date: Tue, 4 Sep 2018 12:25:49 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180901124811.703808090@intel.com>
+In-Reply-To: <20180904183339.4416.44582.stgit@localhost.localdomain>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Peng DongX <dongx.peng@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Dong Eddie <eddie.dong@intel.com>, Dave Hansen <dave.hansen@intel.com>, Huang Ying <ying.huang@intel.com>, Brendan Gregg <bgregg@netflix.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Alexander Duyck <alexander.duyck@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: alexander.h.duyck@intel.com, pavel.tatashin@microsoft.com, mhocko@suse.com, akpm@linux-foundation.org, mingo@kernel.org, kirill.shutemov@linux.intel.com
 
-On Sat, Sep 01, 2018 at 07:28:23PM +0800, Fengguang Wu wrote:
-> Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
-> ---
->  arch/x86/kvm/Kconfig  | 11 +++++++++++
->  arch/x86/kvm/Makefile |  4 ++++
->  2 files changed, 15 insertions(+)
-> 
-> diff --git a/arch/x86/kvm/Kconfig b/arch/x86/kvm/Kconfig
-> index 1bbec387d289..4c6dec47fac6 100644
-> --- a/arch/x86/kvm/Kconfig
-> +++ b/arch/x86/kvm/Kconfig
-> @@ -96,6 +96,17 @@ config KVM_MMU_AUDIT
->  	 This option adds a R/W kVM module parameter 'mmu_audit', which allows
->  	 auditing of KVM MMU events at runtime.
+On 09/04/2018 11:33 AM, Alexander Duyck wrote:
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -1444,7 +1444,7 @@ void * __init memblock_virt_alloc_try_nid_raw(
 >  
-> +config KVM_EPT_IDLE
-> +	tristate "KVM EPT idle page tracking"
-
-KVM_MMU_IDLE_INTEL might be a more user friendly name, I doubt that
-all Kconfig users would immediately associate EPT with Intel's two
-dimensional paging.  And it meshes nicely with KVM_MMU_IDLE as a base
-name if we ever want to move common functionality to its own module,
-as well as all of the other KVM_MMU_* nomenclature.
-
-> +	depends on KVM_INTEL
-> +	depends on PROC_PAGE_MONITOR
-> +	---help---
-> +	  Provides support for walking EPT to get the A bits on Intel
-> +	  processors equipped with the VT extensions.
-> +
-> +	  To compile this as a module, choose M here: the module
-> +	  will be called kvm-ept-idle.
-> +
->  # OK, it's a little counter-intuitive to do this, but it puts it neatly under
->  # the virtualization menu.
->  source drivers/vhost/Kconfig
-> diff --git a/arch/x86/kvm/Makefile b/arch/x86/kvm/Makefile
-> index dc4f2fdf5e57..5cad0590205d 100644
-> --- a/arch/x86/kvm/Makefile
-> +++ b/arch/x86/kvm/Makefile
-> @@ -19,6 +19,10 @@ kvm-y			+= x86.o mmu.o emulate.o i8259.o irq.o lapic.o \
->  kvm-intel-y		+= vmx.o pmu_intel.o
->  kvm-amd-y		+= svm.o pmu_amd.o
+>  	ptr = memblock_virt_alloc_internal(size, align,
+>  					   min_addr, max_addr, nid);
+> -#ifdef CONFIG_DEBUG_VM
+> +#ifdef CONFIG_DEBUG_VM_PGFLAGS
+>  	if (ptr && size > 0)
+>  		memset(ptr, PAGE_POISON_PATTERN, size);
+>  #endif
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 10b07eea9a6e..0fd9ad5021b0 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -696,7 +696,7 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
+>  		goto out;
+>  	}
 >  
-> +kvm-ept-idle-y		+= ept_idle.o
-> +
->  obj-$(CONFIG_KVM)	+= kvm.o
->  obj-$(CONFIG_KVM_INTEL)	+= kvm-intel.o
->  obj-$(CONFIG_KVM_AMD)	+= kvm-amd.o
-> +
-> +obj-$(CONFIG_KVM_EPT_IDLE)	+= kvm-ept-idle.o
-> -- 
-> 2.15.0
-> 
-> 
-> 
+> -#ifdef CONFIG_DEBUG_VM
+> +#ifdef CONFIG_DEBUG_VM_PGFLAGS
+>  	/*
+>  	 * Poison uninitialized struct pages in order to catch invalid flags
+>  	 * combinations.
+
+I think this is the wrong way to do this.  It keeps the setting and
+checking still rather tenuously connected.  If you were to leave it this
+way, it needs commenting.  It's also rather odd that we're memsetting
+the entire 'struct page' for a config option that's supposedly dealing
+with page->flags.  That deserves _some_ addressing in a comment or
+changelog.
+
+How about:
+
+#ifdef CONFIG_DEBUG_VM_PGFLAGS
+#define VM_BUG_ON_PGFLAGS(cond, page) VM_BUG_ON_PAGE(cond, page)
++static inline void poison_struct_pages(struct page *pages, int nr)
++{
++	memset(pages, PAGE_POISON_PATTERN, size * sizeof(...));
++}
+#else
+#define VM_BUG_ON_PGFLAGS(cond, page) BUILD_BUG_ON_INVALID(cond)
+static inline void poison_struct_pages(struct page *pages, int nr) {}
+#endif
+
+That puts the setting and checking in one spot, and also removes a
+couple of #ifdefs from .c files.
