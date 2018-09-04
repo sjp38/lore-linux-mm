@@ -1,197 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D99716B6D54
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 07:45:22 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id w185-v6so3795703oig.19
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 04:45:22 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id e80-v6si4549869oib.276.2018.09.04.04.45.20
-        for <linux-mm@kvack.org>;
-        Tue, 04 Sep 2018 04:45:20 -0700 (PDT)
-From: Will Deacon <will.deacon@arm.com>
-Subject: [PATCH v2 3/5] asm-generic/tlb: Track which levels of the page tables have been cleared
-Date: Tue,  4 Sep 2018 12:45:31 +0100
-Message-Id: <1536061533-16188-4-git-send-email-will.deacon@arm.com>
-In-Reply-To: <1536061533-16188-1-git-send-email-will.deacon@arm.com>
-References: <1536061533-16188-1-git-send-email-will.deacon@arm.com>
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 121F96B6D90
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 08:54:45 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id l14-v6so831475lja.20
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 05:54:45 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d2-v6sor6508755lfg.14.2018.09.04.05.54.43
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 04 Sep 2018 05:54:43 -0700 (PDT)
+MIME-Version: 1.0
+References: <bug-198497-200779@https.bugzilla.kernel.org/> <bug-198497-200779-43rwxa1kcg@https.bugzilla.kernel.org/>
+ <CAKf6xpuYvCMUVHdP71F8OWm=bQGFxeRd7SddH-5DDo-AQjbbQg@mail.gmail.com>
+ <20180420133951.GC10788@bombadil.infradead.org> <CAKf6xpuVrPwc=AxYruPVfdxx1Yv7NF7NKiGx7vT2WKLogUoqfA@mail.gmail.com>
+ <f10cdd77-2fe2-2003-4cac-dfec50f0ee43@suse.com>
+In-Reply-To: <f10cdd77-2fe2-2003-4cac-dfec50f0ee43@suse.com>
+From: Jason Andryuk <jandryuk@gmail.com>
+Date: Tue, 4 Sep 2018 08:54:31 -0400
+Message-ID: <CAKf6xpuaBRQRaM-UV9T1b6McR984U8RtXNg5+1v8MLm5Dp1A+w@mail.gmail.com>
+Subject: Re: [Bug 198497] handle_mm_fault / xen_pmd_val / radix_tree_lookup_slot
+ Null pointer
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: peterz@infradead.org, npiggin@gmail.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, aneesh.kumar@linux.vnet.ibm.com
+To: Juergen Gross <jgross@suse.com>
+Cc: Matthew Wilcox <willy@infradead.org>, bugzilla-daemon@bugzilla.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, labbott@redhat.com, xen-devel@lists.xen.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-It is common for architectures with hugepage support to require only a
-single TLB invalidation operation per hugepage during unmap(), rather than
-iterating through the mapping at a PAGE_SIZE increment. Currently,
-however, the level in the page table where the unmap() operation occurs
-is not stored in the mmu_gather structure, therefore forcing
-architectures to issue additional TLB invalidation operations or to give
-up and over-invalidate by e.g. invalidating the entire TLB.
+On Mon, Apr 23, 2018 at 4:17 AM Juergen Gross <jgross@suse.com> wrote:
+> On 20/04/18 17:20, Jason Andryuk wrote:
+> > Adding xen-devel and the Linux Xen maintainers.
+> >
+> > Summary: Some Xen users (and maybe others) are hitting a BUG in
+> > __radix_tree_lookup() under do_swap_page() - example backtrace is
+> > provided at the end.  Matthew Wilcox provided a band-aid patch that
+> > prints errors like the following instead of triggering the bug.
+> >
+> > Skylake 32bit PAE Dom0:
+> > Bad swp_entry: 80000000
+> > mm/swap_state.c:683: bad pte d3a39f1c(8000000400000000)
+> >
+> > Ivy Bridge 32bit PAE Dom0:
+> > Bad swp_entry: 40000000
+> > mm/swap_state.c:683: bad pte d3a05f1c(8000000200000000)
+> >
+> > Other 32bit DomU:
+> > Bad swp_entry: 4000000
+> > mm/swap_state.c:683: bad pte e2187f30(8000000200000000)
+> >
+> > Other 32bit:
+> > Bad swp_entry: 2000000
+> > mm/swap_state.c:683: bad pte ef3a3f38(8000000100000000)
+> >
+> > The Linux bugzilla has more info
+> > https://bugzilla.kernel.org/show_bug.cgi?id=198497
+> >
+> > This may not be exclusive to Xen Linux, but most of the reports are on
+> > Xen.  Matthew wonders if Xen might be stepping on the upper bits of a
+> > pte.
+> >
+<snip>
+>
+> Could it be we just have a race regarding pte_clear()? This will set
+> the low part of the pte to zero first and then the hight part.
+>
+> In case pte_clear() is used in interrupt mode especially Xen will be
+> rather slow as it emulates the two writes to the page table resulting
+> in a larger window where the race might happen.
 
-Ideally, we could add an interval rbtree to the mmu_gather structure,
-which would allow us to associate the correct mapping granule with the
-various sub-mappings within the range being invalidated. However, this
-is costly in terms of book-keeping and memory management, so instead we
-approximate by keeping track of the page table levels that are cleared
-and provide a means to query the smallest granule required for invalidation.
+It looks like Juergen was correct.  With the L1TF vulnerability, the
+Xen hypervisor needs to detect vulnerable PTEs.  For 32bit PAE, Xen
+would trap on PTEs like 0x8000'0002'0000'0000  - the same format as
+seen in this bug.  He wrote two patches for Linux, now upstream, to
+write PTEs with 64bit operations or hypercalls and avoid the invalid
+PTEs:
+f7c90c2aa400 "x86/xen: don't write ptes directly in 32-bit PV guests"
+b2d7a075a1cc "x86/pae: use 64 bit atomic xchg function in
+native_ptep_get_and_clear"
 
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Acked-by: Nicholas Piggin <npiggin@gmail.com>
-Signed-off-by: Will Deacon <will.deacon@arm.com>
----
- include/asm-generic/tlb.h | 58 ++++++++++++++++++++++++++++++++++++++++-------
- mm/memory.c               |  4 +++-
- 2 files changed, 53 insertions(+), 9 deletions(-)
+With those patches, I have not seen a "Bad swp_entry", so this seems
+fixed for me on Xen.
 
-diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
-index 2b444ad94566..9791e98122a0 100644
---- a/include/asm-generic/tlb.h
-+++ b/include/asm-generic/tlb.h
-@@ -116,6 +116,14 @@ struct mmu_gather {
- 	 */
- 	unsigned int		freed_tables : 1;
- 
-+	/*
-+	 * at which levels have we cleared entries?
-+	 */
-+	unsigned int		cleared_ptes : 1;
-+	unsigned int		cleared_pmds : 1;
-+	unsigned int		cleared_puds : 1;
-+	unsigned int		cleared_p4ds : 1;
-+
- 	struct mmu_gather_batch *active;
- 	struct mmu_gather_batch	local;
- 	struct page		*__pages[MMU_GATHER_BUNDLE];
-@@ -150,6 +158,10 @@ static inline void __tlb_reset_range(struct mmu_gather *tlb)
- 		tlb->end = 0;
- 	}
- 	tlb->freed_tables = 0;
-+	tlb->cleared_ptes = 0;
-+	tlb->cleared_pmds = 0;
-+	tlb->cleared_puds = 0;
-+	tlb->cleared_p4ds = 0;
- }
- 
- static inline void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
-@@ -199,6 +211,25 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
- }
- #endif
- 
-+static inline unsigned long tlb_get_unmap_shift(struct mmu_gather *tlb)
-+{
-+	if (tlb->cleared_ptes)
-+		return PAGE_SHIFT;
-+	if (tlb->cleared_pmds)
-+		return PMD_SHIFT;
-+	if (tlb->cleared_puds)
-+		return PUD_SHIFT;
-+	if (tlb->cleared_p4ds)
-+		return P4D_SHIFT;
-+
-+	return PAGE_SHIFT;
-+}
-+
-+static inline unsigned long tlb_get_unmap_size(struct mmu_gather *tlb)
-+{
-+	return 1UL << tlb_get_unmap_shift(tlb);
-+}
-+
- /*
-  * In the case of tlb vma handling, we can optimise these away in the
-  * case where we're doing a full MM flush.  When we're doing a munmap,
-@@ -232,13 +263,19 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
- #define tlb_remove_tlb_entry(tlb, ptep, address)		\
- 	do {							\
- 		__tlb_adjust_range(tlb, address, PAGE_SIZE);	\
-+		tlb->cleared_ptes = 1;				\
- 		__tlb_remove_tlb_entry(tlb, ptep, address);	\
- 	} while (0)
- 
--#define tlb_remove_huge_tlb_entry(h, tlb, ptep, address)	     \
--	do {							     \
--		__tlb_adjust_range(tlb, address, huge_page_size(h)); \
--		__tlb_remove_tlb_entry(tlb, ptep, address);	     \
-+#define tlb_remove_huge_tlb_entry(h, tlb, ptep, address)	\
-+	do {							\
-+		unsigned long _sz = huge_page_size(h);		\
-+		__tlb_adjust_range(tlb, address, _sz);		\
-+		if (_sz == PMD_SIZE)				\
-+			tlb->cleared_pmds = 1;			\
-+		else if (_sz == PUD_SIZE)			\
-+			tlb->cleared_puds = 1;			\
-+		__tlb_remove_tlb_entry(tlb, ptep, address);	\
- 	} while (0)
- 
- /**
-@@ -252,6 +289,7 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
- #define tlb_remove_pmd_tlb_entry(tlb, pmdp, address)			\
- 	do {								\
- 		__tlb_adjust_range(tlb, address, HPAGE_PMD_SIZE);	\
-+		tlb->cleared_pmds = 1;					\
- 		__tlb_remove_pmd_tlb_entry(tlb, pmdp, address);		\
- 	} while (0)
- 
-@@ -266,6 +304,7 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
- #define tlb_remove_pud_tlb_entry(tlb, pudp, address)			\
- 	do {								\
- 		__tlb_adjust_range(tlb, address, HPAGE_PUD_SIZE);	\
-+		tlb->cleared_puds = 1;					\
- 		__tlb_remove_pud_tlb_entry(tlb, pudp, address);		\
- 	} while (0)
- 
-@@ -291,7 +330,8 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
- #define pte_free_tlb(tlb, ptep, address)			\
- 	do {							\
- 		__tlb_adjust_range(tlb, address, PAGE_SIZE);	\
--		tlb->freed_tables = 1;			\
-+		tlb->freed_tables = 1;				\
-+		tlb->cleared_pmds = 1;				\
- 		__pte_free_tlb(tlb, ptep, address);		\
- 	} while (0)
- #endif
-@@ -300,7 +340,8 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
- #define pmd_free_tlb(tlb, pmdp, address)			\
- 	do {							\
- 		__tlb_adjust_range(tlb, address, PAGE_SIZE);	\
--		tlb->freed_tables = 1;			\
-+		tlb->freed_tables = 1;				\
-+		tlb->cleared_puds = 1;				\
- 		__pmd_free_tlb(tlb, pmdp, address);		\
- 	} while (0)
- #endif
-@@ -310,7 +351,8 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
- #define pud_free_tlb(tlb, pudp, address)			\
- 	do {							\
- 		__tlb_adjust_range(tlb, address, PAGE_SIZE);	\
--		tlb->freed_tables = 1;			\
-+		tlb->freed_tables = 1;				\
-+		tlb->cleared_p4ds = 1;				\
- 		__pud_free_tlb(tlb, pudp, address);		\
- 	} while (0)
- #endif
-@@ -321,7 +363,7 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
- #define p4d_free_tlb(tlb, pudp, address)			\
- 	do {							\
- 		__tlb_adjust_range(tlb, address, PAGE_SIZE);	\
--		tlb->freed_tables = 1;			\
-+		tlb->freed_tables = 1;				\
- 		__p4d_free_tlb(tlb, pudp, address);		\
- 	} while (0)
- #endif
-diff --git a/mm/memory.c b/mm/memory.c
-index c467102a5cbc..9135f48e8d84 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -267,8 +267,10 @@ void arch_tlb_finish_mmu(struct mmu_gather *tlb,
- {
- 	struct mmu_gather_batch *batch, *next;
- 
--	if (force)
-+	if (force) {
-+		__tlb_reset_range(tlb);
- 		__tlb_adjust_range(tlb, start, end - start);
-+	}
- 
- 	tlb_flush_mmu(tlb);
- 
--- 
-2.1.4
+There was also a report of a non-Xen kernel being affected.  Is there
+an underlying problem that native PAE code updates PTEs in two writes,
+but there is no locking to prevent the intermediate PTE from being
+used elsewhere in the kernel?
+
+Regards,
+Jason
