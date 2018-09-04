@@ -1,37 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DF4746B6C74
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 04:01:23 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id a8-v6so1535282pla.10
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 01:01:23 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s188-v6sor4544101pgb.256.2018.09.04.01.01.22
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CCBAA6B6C7D
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 04:12:05 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id b29-v6so1622489pfm.1
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 01:12:05 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id l59-v6si19731262plb.519.2018.09.04.01.12.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Sep 2018 01:01:22 -0700 (PDT)
-Date: Tue, 4 Sep 2018 11:01:16 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: hugepage: mark splitted page dirty when needed
-Message-ID: <20180904080115.o2zj4mlo7yzjdqfl@kshutemo-mobl1>
-References: <20180904075510.22338-1-peterx@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Sep 2018 01:12:04 -0700 (PDT)
+From: "Peng, DongX" <dongx.peng@intel.com>
+Subject: RE: [RFC][PATCH 3/5] [PATCH 3/5] kvm-ept-idle: HVA indexed EPT read
+Date: Tue, 4 Sep 2018 08:12:00 +0000
+Message-ID: <5249147EF0246348BBCB3713DC3757BF8D0D0C@shsmsx102.ccr.corp.intel.com>
+References: <20180901112818.126790961@intel.com>
+ <20180901124811.591511876@intel.com>
+ <37B30FD3-7955-4C0B-AAB5-544359F4D157@oracle.com>
+In-Reply-To: <37B30FD3-7955-4C0B-AAB5-544359F4D157@oracle.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180904075510.22338-1-peterx@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Xu <peterx@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Huang Ying <ying.huang@intel.com>, Dan Williams <dan.j.williams@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org
+To: Nikita Leshenko <nikita.leshchenko@oracle.com>, "Wu, Fengguang" <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, "Liu, Jingqi" <jingqi.liu@intel.com>, "Dong, Eddie" <eddie.dong@intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Huang, Ying" <ying.huang@intel.com>, Brendan Gregg <bgregg@netflix.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Sep 04, 2018 at 03:55:10PM +0800, Peter Xu wrote:
-> When splitting a huge page, we should set all small pages as dirty if
-> the original huge page has the dirty bit set before.  Otherwise we'll
-> lose the original dirty bit.
+kvm_get_kvm() kvm_put_kvm()
 
-We don't lose it. It got transfered to struct page flag:
+-----Original Message-----
+From: Nikita Leshenko [mailto:nikita.leshchenko@oracle.com]=20
+Sent: Tuesday, September 4, 2018 3:57 PM
+To: Wu, Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>; Linux Memory Management List=
+ <linux-mm@kvack.org>; Peng, DongX <dongx.peng@intel.com>; Liu, Jingqi <jin=
+gqi.liu@intel.com>; Dong, Eddie <eddie.dong@intel.com>; Hansen, Dave <dave.=
+hansen@intel.com>; Huang, Ying <ying.huang@intel.com>; Brendan Gregg <bgreg=
+g@netflix.com>; kvm@vger.kernel.org; LKML <linux-kernel@vger.kernel.org>
+Subject: Re: [RFC][PATCH 3/5] [PATCH 3/5] kvm-ept-idle: HVA indexed EPT rea=
+d
 
-	if (pmd_dirty(old_pmd))
-		SetPageDirty(page);
+On 1 Sep 2018, at 13:28, Fengguang Wu <fengguang.wu@intel.com> wrote:
+> +static ssize_t ept_idle_read(struct file *file, char *buf,
+> +			     size_t count, loff_t *ppos)
+> +{
+> +	struct task_struct *task =3D file->private_data;
+> +	struct ept_idle_ctrl *eic;
+> +	unsigned long hva_start =3D *ppos << BITMAP_BYTE2PVA_SHIFT;
+> +	unsigned long hva_end =3D hva_start + (count << BITMAP_BYTE2PVA_SHIFT);
+> +	int ret;
+> +
+> +	if (*ppos % IDLE_BITMAP_CHUNK_SIZE ||
+> +	    count % IDLE_BITMAP_CHUNK_SIZE)
+> +		return -EINVAL;
+> +
+> +	eic =3D kzalloc(sizeof(*eic), GFP_KERNEL);
+> +	if (!eic)
+> +		return -EBUSY;
+> +
+> +	eic->buf =3D buf;
+> +	eic->buf_size =3D count;
+> +	eic->kvm =3D task_kvm(task);
+> +	if (!eic->kvm) {
+> +		ret =3D -EINVAL;
+> +		goto out_free;
+> +	}
+I think you need to increment the refcount while using kvm, otherwise kvm c=
+an be destroyed from another thread while you're walking it.
 
--- 
- Kirill A. Shutemov
+-Nikita
+> +
+> +	ret =3D ept_idle_walk_hva_range(eic, hva_start, hva_end);
+> +	if (ret)
+> +		goto out_free;
+> +
+> +	ret =3D eic->bytes_copied;
+> +	*ppos +=3D ret;
+> +out_free:
+> +	kfree(eic);
+> +
+> +	return ret;
+> +}
