@@ -1,95 +1,226 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 952FB6B6FE2
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 18:47:33 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id 3-v6so3690791qkj.13
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 15:47:33 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id g129-v6si69023qkc.246.2018.09.04.15.47.32
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D66EC6B6FF5
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 19:04:04 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id bh1-v6so2640788plb.15
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 16:04:04 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 7-v6si111527pgq.637.2018.09.04.16.04.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Sep 2018 15:47:32 -0700 (PDT)
-From: Roman Gushchin <guro@fb.com>
-Subject: [PATCH v2] mm: slowly shrink slabs with a relatively small number of objects
-Date: Tue, 4 Sep 2018 15:47:07 -0700
-Message-ID: <20180904224707.10356-1-guro@fb.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Tue, 04 Sep 2018 16:04:03 -0700 (PDT)
+Date: Tue, 04 Sep 2018 16:04:01 -0700
+From: akpm@linux-foundation.org
+Subject: mmotm 2018-09-04-16-03 uploaded
+Message-ID: <20180904230401.QR8dL%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, kernel-team@fb.com, Rik van Riel <riel@surriel.com>, Roman Gushchin <guro@fb.com>, Josef Bacik <jbacik@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
+To: broonie@kernel.org, mhocko@suse.cz, sfr@canb.auug.org.au, linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org
 
-Commit 9092c71bb724 ("mm: use sc->priority for slab shrink targets")
-changed the way how the target slab pressure is calculated and
-made it priority-based:
+The mm-of-the-moment snapshot 2018-09-04-16-03 has been uploaded to
 
-    delta = freeable >> priority;
-    delta *= 4;
-    do_div(delta, shrinker->seeks);
+   http://www.ozlabs.org/~akpm/mmotm/
 
-The problem is that on a default priority (which is 12) no pressure
-is applied at all, if the number of potentially reclaimable objects
-is less than 4096 (1<<12).
+mmotm-readme.txt says
 
-This causes the last objects on slab caches of no longer used cgroups
-to never get reclaimed, resulting in dead cgroups staying around forever.
+README for mm-of-the-moment:
 
-Slab LRU lists are reparented on memcg offlining, but corresponding
-objects are still holding a reference to the dying cgroup.
-If we don't scan them at all, the dying cgroup can't go away.
-Most likely, the parent cgroup hasn't any directly associated objects,
-only remaining objects from dying children cgroups. So it can easily
-hold a reference to hundreds of dying cgroups.
+http://www.ozlabs.org/~akpm/mmotm/
 
-If there are no big spikes in memory pressure, and new memory cgroups
-are created and destroyed periodically, this causes the number of
-dying cgroups grow steadily, causing a slow-ish and hard-to-detect
-memory "leak". It's not a real leak, as the memory can be eventually
-reclaimed, but it could not happen in a real life at all. I've seen
-hosts with a steadily climbing number of dying cgroups, which doesn't
-show any signs of a decline in months, despite the host is loaded
-with a production workload.
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
 
-It is an obvious waste of memory, and to prevent it, let's apply
-a minimal pressure even on small shrinker lists. E.g. if there are
-freeable objects, let's scan at least min(freeable, scan_batch)
-objects.
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
 
-This fix significantly improves a chance of a dying cgroup to be
-reclaimed, and together with some previous patches stops the steady
-growth of the dying cgroups number on some of our hosts.
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
 
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Acked-by: Rik van Riel <riel@surriel.com>
-Cc: Josef Bacik <jbacik@fb.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- mm/vmscan.c | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index fa2c150ab7b9..8544f4c5cd4f 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -476,6 +476,17 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
- 	delta = freeable >> priority;
- 	delta *= 4;
- 	do_div(delta, shrinker->seeks);
-+
-+	/*
-+	 * Make sure we apply some minimal pressure even on
-+	 * small cgroups. This is necessary because some of
-+	 * belonging objects can hold a reference to a dying
-+	 * child cgroup. If we don't scan them, the dying
-+	 * cgroup can't go away unless the memory pressure
-+	 * (and the scanning priority) raise significantly.
-+	 */
-+	delta = max(delta, min(freeable, batch_size));
-+
- 	total_scan += delta;
- 	if (total_scan < 0) {
- 		pr_err("shrink_slab: %pF negative objects to delete nr=%ld\n",
--- 
-2.17.1
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
+
+
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
+
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+
+To develop on top of mmotm git:
+
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
+
+To rebase a branch with older patches to a new mmotm release:
+
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
+
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 4.19-rc2:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+* mm-memcontrol-print-proper-oom-header-when-no-eligible-victim-left.patch
+* mm-oom-fix-missing-tlb_finish_mmu-in-__oom_reap_task_mm.patch
+* mm-respect-arch_dup_mmap-return-value.patch
+* kmemleak-always-register-debugfs-file.patch
+* tools-vm-slabinfoc-fix-sign-compare-warning.patch
+* tools-vm-page-typesc-fix-defined-but-not-used-warning.patch
+* mm-utilc-improve-kvfree-kerneldoc.patch
+* mm-hugetlb-filter-out-hugetlb-pages-if-hugepage-migration-is-not-supported.patch
+* ipc-shm-properly-return-eidrm-in-shm_lock.patch
+* checkpatch-add-optional-static-const-to-blank-line-declarations-test.patch
+* memory_hotplug-fix-kernel_panic-on-offline-page-processing.patch
+* uapi-linux-keyctlh-dont-use-c-reserved-keyword-as-a-struct-member-name.patch
+* mm-fix-bug_on-in-vmf_insert_pfn_pud-from-vm_mixedmap-removal.patch
+* checkpatch-add-__ro_after_init-to-known-attribute.patch
+* lib-fix-three-typos-in-kconfig-help-text.patch
+* device-dax-convert-variable-to-vm_fault_t-type.patch
+* nilfs2-convert-to-spdx-license-tags.patch
+* proc-kcore-fix-invalid-memory-access-in-multi-page-read-optimization.patch
+* mm-migration-fix-migration-of-huge-pmd-shared-pages.patch
+* hugetlb-take-pmd-sharing-into-account-when-flushing-tlb-caches.patch
+* fix-crash-on-ocfs2_duplicate_clusters_by_page.patch
+* fix-crash-on-ocfs2_duplicate_clusters_by_page-v5.patch
+* fix-crash-on-ocfs2_duplicate_clusters_by_page-v5-checkpatch-fixes.patch
+* fork-report-pid-exhaustion-correctly.patch
+* mm-disable-deferred-struct-page-for-32-bit-arches.patch
+* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
+* ocfs2-get-rid-of-ocfs2_is_o2cb_active-function.patch
+* ocfs2-without-quota-support-try-to-avoid-calling-quota-recovery.patch
+* ocfs2-dont-use-iocb-when-eiocbqueued-returns.patch
+* ocfs2-fix-a-misuse-a-of-brelse-after-failing-ocfs2_check_dir_entry.patch
+* ocfs2-dont-put-and-assigning-null-to-bh-allocated-outside.patch
+* ocfs2-dlmglue-clean-up-timestamp-handling.patch
+* fix-dead-lock-caused-by-ocfs2_defrag_extent.patch
+* ocfs2-fix-dead-lock-caused-by-ocfs2_defrag_extent.patch
+* fix-clusters-leak-in-ocfs2_defrag_extent.patch
+* fix-clusters-leak-in-ocfs2_defrag_extent-fix.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+* fs-iomap-change-return-type-to-vm_fault_t.patch
+* fs-convert-return-type-int-to-vm_fault_t.patch
+* fs-convert-return-type-int-to-vm_fault_t-v2.patch
+  mm.patch
+* mm-slubc-switch-to-bitmap_zalloc.patch
+* mm-rework-memcg-kernel-stack-accounting.patch
+* mm-drain-memcg-stocks-on-css-offlining.patch
+* mm-dont-miss-the-last-page-because-of-round-off-error.patch
+* mmpage_alloc-pf_wq_worker-threads-must-sleep-at-should_reclaim_retry.patch
+* mmpage_alloc-pf_wq_worker-threads-must-sleep-at-should_reclaim_retry-fix.patch
+* xen-gntdev-fix-up-blockable-calls-to-mn_invl_range_start.patch
+* mm-mmu_notifier-be-explicit-about-range-invalition-non-blocking-mode.patch
+* revert-mm-mmu_notifier-annotate-mmu-notifiers-with-blockable-invalidate-callbacks.patch
+* kmemleak-add-module-param-to-print-warnings-to-dmesg.patch
+* swap-use-__try_to_reclaim_swap-in-free_swap_and_cache.patch
+* swap-call-free_swap_slot-in-__swap_entry_free.patch
+* swap-clear-si-swap_map-in-swap_free_cluster.patch
+* mm-page_alloc-clean-up-check_for_memory.patch
+* mm-conveted-to-use-vm_fault_t.patch
+* mm-remove-vm_insert_mixed.patch
+* mm-introduce-vmf_insert_pfn_prot.patch
+* x86-convert-vdso-to-use-vm_fault_t.patch
+* mm-make-vm_insert_pfn_prot-static.patch
+* mm-remove-references-to-vm_insert_pfn.patch
+* mm-remove-vm_insert_pfn.patch
+* mm-inline-vm_insert_pfn_prot-into-caller.patch
+* mm-convert-__vm_insert_mixed-to-vm_fault_t.patch
+* mm-convert-insert_pfn-to-vm_fault_t.patch
+* cramfs-convert-to-use-vmf_insert_mixed-v2.patch
+* mm-cow-dont-bother-write-protectig-already-write-protected-huge-pages.patch
+* mm-cow-optimise-pte-dirty-accessed-bits-handling-in-fork.patch
+* mm-optimise-pte-dirty-accessed-bit-setting-by-demand-based-pte-insertion.patch
+* hexagon-switch-to-no_bootmem.patch
+* of-ignore-sub-page-memory-regions.patch
+* nios2-use-generic-early_init_dt_add_memory_arch.patch
+* nios2-switch-to-no_bootmem.patch
+* um-setup_physmem-stop-using-global-variables.patch
+* um-switch-to-no_bootmem.patch
+* unicore32-switch-to-no_bootmem.patch
+* alpha-switch-to-no_bootmem.patch
+* userfaultfd-allow-get_mempolicympol_f_nodempol_f_addr-to-trigger-userfaults.patch
+* arm-arm64-introduce-config_have_memblock_pfn_valid.patch
+* mm-page_alloc-remain-memblock_next_valid_pfn-on-arm-arm64.patch
+* mm-page_alloc-reduce-unnecessary-binary-search-in-memblock_next_valid_pfn.patch
+* mm-page_alloc-reduce-unnecessary-binary-search-in-memblock_next_valid_pfn-fix.patch
+* mm-page_alloc-reduce-unnecessary-binary-search-in-memblock_next_valid_pfn-fix-fix.patch
+* mm-memblock-introduce-memblock_search_pfn_regions.patch
+* mm-memblock-introduce-memblock_search_pfn_regions-fix.patch
+* mm-memblock-introduce-pfn_valid_region.patch
+* mm-page_alloc-reduce-unnecessary-binary-search-in-early_pfn_valid.patch
+* z3fold-fix-wrong-handling-of-headless-pages.patch
+* mm-make-memmap_init-a-proper-function.patch
+* mm-calculate-deferred-pages-after-skipping-mirrored-memory.patch
+* mm-calculate-deferred-pages-after-skipping-mirrored-memory-v2.patch
+* mm-calculate-deferred-pages-after-skipping-mirrored-memory-fix.patch
+* mm-move-mirrored-memory-specific-code-outside-of-memmap_init_zone.patch
+* mm-move-mirrored-memory-specific-code-outside-of-memmap_init_zone-v2.patch
+* mm-swap-fix-race-between-swapoff-and-some-swap-operations.patch
+* mm-swap-fix-race-between-swapoff-and-some-swap-operations-v6.patch
+* mm-fix-race-between-swapoff-and-mincore.patch
+* list_lru-prefetch-neighboring-list-entries-before-acquiring-lock.patch
+* list_lru-prefetch-neighboring-list-entries-before-acquiring-lock-fix.patch
+* mm-add-strictlimit-knob-v2.patch
+* mm-dont-expose-page-to-fast-gup-before-its-ready.patch
+* mm-page_owner-align-with-pageblock_nr_pages.patch
+* mm-page_owner-align-with-pageblock_nr-pages.patch
+* info-task-hung-in-generic_file_write_iter.patch
+* lib-bitmapc-remove-wrong-documentation.patch
+* linux-bitmaph-handle-constant-zero-size-bitmaps-correctly.patch
+* linux-bitmaph-remove-redundant-uses-of-small_const_nbits.patch
+* linux-bitmaph-fix-type-of-nbits-in-bitmap_shift_right.patch
+* linux-bitmaph-relax-comment-on-compile-time-constant-nbits.patch
+* lib-bitmapc-fix-remaining-space-computation-in-bitmap_print_to_pagebuf.patch
+* lib-bitmapc-fix-remaining-space-computation-in-bitmap_print_to_pagebuf-fix.patch
+* lib-bitmapc-fix-remaining-space-computation-in-bitmap_print_to_pagebuf-fix-fix.patch
+* lib-bitmapc-simplify-bitmap_print_to_pagebuf.patch
+* lib-parserc-switch-match_strdup-over-to-use-kmemdup_nul.patch
+* lib-parserc-switch-match_u64int-over-to-use-match_strdup.patch
+* checkpatch-remove-gcc_binary_constant-warning.patch
+* init-do_mountsc-add-root=partlabel=name-support.patch
+* hfsplus-prevent-btree-data-loss-on-root-split.patch
+* hfsplus-fix-bug-on-bnode-parent-update.patch
+* hfsplus-prevent-btree-data-loss-on-enospc.patch
+* hfs-prevent-btree-data-loss-on-root-split.patch
+* hfs-fix-bug-on-bnode-parent-update.patch
+* hfs-prevent-btree-data-loss-on-enospc.patch
+* reiserfs-propagate-errors-from-fill_with_dentries-properly.patch
+* bfs-add-sanity-check-at-bfs_fill_super.patch
+  linux-next.patch
+* vfs-replace-current_kernel_time64-with-ktime-equivalent.patch
+* fix-read-buffer-overflow-in-delta-ipc.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  mutex-subsystem-synchro-test-module.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  slab-leaks3-default-y.patch
+  workaround-for-a-pci-restoring-bug.patch
