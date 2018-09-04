@@ -1,60 +1,229 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F5766B6B0F
-	for <linux-mm@kvack.org>; Mon,  3 Sep 2018 22:12:47 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id f13-v6so960910pgs.15
-        for <linux-mm@kvack.org>; Mon, 03 Sep 2018 19:12:47 -0700 (PDT)
-Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id h9-v6si20583360pgr.260.2018.09.03.19.12.46
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Sep 2018 19:12:46 -0700 (PDT)
-Subject: Re: [PATCH v2 13/40] vfio: Add support for Shared Virtual Addressing
-References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
- <20180511190641.23008-14-jean-philippe.brucker@arm.com>
- <5B83B11E.7010807@huawei.com> <1d5b6529-4e5a-723c-3f1b-dd5a9adb490c@arm.com>
- <5B89F818.7060300@huawei.com> <3a961aff-e830-64bb-b6a9-14e08de1abf5@arm.com>
-From: Xu Zaibo <xuzaibo@huawei.com>
-Message-ID: <5B8DEA15.7020404@huawei.com>
-Date: Tue, 4 Sep 2018 10:12:37 +0800
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E597C6B6C10
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 02:29:08 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id w18-v6so1424619plp.3
+        for <linux-mm@kvack.org>; Mon, 03 Sep 2018 23:29:08 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (lgeamrelo12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id w17-v6si22090117pfl.171.2018.09.03.23.29.06
+        for <linux-mm@kvack.org>;
+        Mon, 03 Sep 2018 23:29:07 -0700 (PDT)
+Subject: Re: Re: [PATCH v2] arm64: kasan: add interceptors for strcmp/strncmp
+ functions
+References: <1535014606-176525-1-git-send-email-kyeongdon.kim@lge.com>
+ <7387f67e-1ac5-12e1-c9be-060e9c403bf7@lge.com>
+ <CACT4Y+YGa5riLQavMw4vQ55CeYzakQHSLgEE29RRKi47=J21Ow@mail.gmail.com>
+From: Kyeongdon Kim <kyeongdon.kim@lge.com>
+Message-ID: <cafbdd21-1ae7-0901-f846-8b4e42db2127@lge.com>
+Date: Tue, 4 Sep 2018 15:29:04 +0900
 MIME-Version: 1.0
-In-Reply-To: <3a961aff-e830-64bb-b6a9-14e08de1abf5@arm.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CACT4Y+YGa5riLQavMw4vQ55CeYzakQHSLgEE29RRKi47=J21Ow@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "joro@8bytes.org" <joro@8bytes.org>, Will Deacon <Will.Deacon@arm.com>, Robin Murphy <Robin.Murphy@arm.com>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "tn@semihalf.com" <tn@semihalf.com>, "liubo95@huawei.com" <liubo95@huawei.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "rfranz@cavium.com" <rfranz@cavium.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "jacob.jun.pan@linux.intel.com" <jacob.jun.pan@linux.intel.com>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "kevin.tian@intel.com" <kevin.tian@intel.com>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>, "robdclark@gmail.com" <robdclark@gmail.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "rgummal@xilinx.com" <rgummal@xilinx.com>, =?UTF-8?B?57Gz57Gz?= <kenneth-lee-2012@foxmail.com>, wangzhou1 <wangzhou1@hisilicon.com>, "liguozhu@hisilicon.com" <liguozhu@hisilicon.com>, fanghao11 <fanghao11@huawei.com>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Alexander Potapenko <glider@google.com>, "Jason A. Donenfeld" <Jason@zx2c4.com>, Rob Herring <robh@kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
+
+Hello Dmitry,
 
 
-
-On 2018/9/3 18:34, Jean-Philippe Brucker wrote:
-> On 01/09/18 03:23, Xu Zaibo wrote:
->> As one application takes a whole function while using VFIO-PCI, why do
->> the application and the
->> function need to enable PASID capability? (Since just one I/O page table
->> is enough for them.)
-> At the moment the series doesn't provide support for SVA without PASID
-> (on the I/O page fault path, 08/40). In addition the BIND ioctl could be
-> used by the owner application to bind other processes (slaves) and
-> perform sub-assignment. But that feature is incomplete because we don't
-> send stop_pasid notification to the owner when a slave dies.
+On 2018-09-03 i??i?? 6:13, Dmitry Vyukov wrote:
+> On Mon, Sep 3, 2018 at 11:02 AM, Kyeongdon Kim <kyeongdon.kim@lge.com> 
+> wrote:
+> > Dear all,
+> >
+> > Could anyone review this and provide me appropriate approach ?
+> > I think str[n]cmp are frequently used functions so I believe very 
+> useful w/
+> > arm64 KASAN.
 >
-So, Could I understand like this?
-
-     1. While the series are finished well, VFIO-PCI device can be held 
-by only one process
-         through binding IOCTL command without PASID (without PASID 
-being exposed user space).
-
-     2. While using VFIO-PCI device to support multiple processes with 
-SVA series, a primary
-         process with multiple secondary processes must be deployed just 
-like DPDK(https://www.dpdk.org/).
-         And, the PASID still has to be exposed to user land.
-
+> Hi Kyeongdon,
+>
+> Please add tests for this to lib/test_kasan.c.
+>
+I'll add tests for this patch after next version upload.
 
 Thanks,
-Zaibo
-
-.
+>
+> >>
+> >> This patch declares strcmp/strncmp as weak symbols.
+> >> (2 of them are the most used string operations)
+> >>
+> >> Original functions declared as weak and
+> >> strong ones in mm/kasan/kasan.c could replace them.
+> >>
+> >> Assembly optimized strcmp/strncmp functions cannot detect KASan bug.
+> >> But, now we can detect them like the call trace below.
+> >>
+> >> ==================================================================
+> >> BUG: KASAN: use-after-free in platform_match+0x1c/0x5c at addr
+> >> ffffffc0ad313500
+> >> Read of size 1 by task swapper/0/1
+> >> CPU: 3 PID: 1 Comm: swapper/0 Tainted: G B 4.9.77+ #1
+> >> Hardware name: Generic (DT) based system
+> >> Call trace:
+> >> dump_backtrace+0x0/0x2e0
+> >> show_stack+0x14/0x1c
+> >> dump_stack+0x88/0xb0
+> >> kasan_object_err+0x24/0x7c
+> >> kasan_report+0x2f0/0x484
+> >> check_memory_region+0x20/0x14c
+> >> strcmp+0x1c/0x5c
+> >> platform_match+0x40/0xe4
+> >> __driver_attach+0x40/0x130
+> >> bus_for_each_dev+0xc4/0xe0
+> >> driver_attach+0x30/0x3c
+> >> bus_add_driver+0x2dc/0x328
+> >> driver_register+0x118/0x160
+> >> __platform_driver_register+0x7c/0x88
+> >> alarmtimer_init+0x154/0x1e4
+> >> do_one_initcall+0x184/0x1a4
+> >> kernel_init_freeable+0x2ec/0x2f0
+> >> kernel_init+0x18/0x10c
+> >> ret_from_fork+0x10/0x50
+> >>
+> >> In case of xtensa and x86_64 kasan, no need to use this patch now.
+> >>
+> >> Signed-off-by: Kyeongdon Kim <kyeongdon.kim@lge.com>
+> >> ---
+> >> arch/arm64/include/asm/string.h | 5 +++++
+> >> arch/arm64/kernel/arm64ksyms.c | 2 ++
+> >> arch/arm64/kernel/image.h | 2 ++
+> >> arch/arm64/lib/strcmp.S | 3 +++
+> >> arch/arm64/lib/strncmp.S | 3 +++
+> >> mm/kasan/kasan.c | 23 +++++++++++++++++++++++
+> >> 6 files changed, 38 insertions(+)
+> >>
+> >> diff --git a/arch/arm64/include/asm/string.h
+> >> b/arch/arm64/include/asm/string.h
+> >> index dd95d33..ab60349 100644
+> >> --- a/arch/arm64/include/asm/string.h
+> >> +++ b/arch/arm64/include/asm/string.h
+> >> @@ -24,9 +24,11 @@ extern char *strchr(const char *, int c);
+> >>
+> >> #define __HAVE_ARCH_STRCMP
+> >> extern int strcmp(const char *, const char *);
+> >> +extern int __strcmp(const char *, const char *);
+> >>
+> >> #define __HAVE_ARCH_STRNCMP
+> >> extern int strncmp(const char *, const char *, __kernel_size_t);
+> >> +extern int __strncmp(const char *, const char *, __kernel_size_t);
+> >>
+> >> #define __HAVE_ARCH_STRLEN
+> >> extern __kernel_size_t strlen(const char *);
+> >> @@ -68,6 +70,9 @@ void memcpy_flushcache(void *dst, const void *src,
+> >> size_t cnt);
+> >> #define memmove(dst, src, len) __memmove(dst, src, len)
+> >> #define memset(s, c, n) __memset(s, c, n)
+> >>
+> >> +#define strcmp(cs, ct) __strcmp(cs, ct)
+> >> +#define strncmp(cs, ct, n) __strncmp(cs, ct, n)
+> >> +
+> >> #ifndef __NO_FORTIFY
+> >> #define __NO_FORTIFY /* FORTIFY_SOURCE uses __builtin_memcpy, etc. */
+> >> #endif
+> >> diff --git a/arch/arm64/kernel/arm64ksyms.c
+> >> b/arch/arm64/kernel/arm64ksyms.c
+> >> index d894a20..10b1164 100644
+> >> --- a/arch/arm64/kernel/arm64ksyms.c
+> >> +++ b/arch/arm64/kernel/arm64ksyms.c
+> >> @@ -50,6 +50,8 @@ EXPORT_SYMBOL(strcmp);
+> >> EXPORT_SYMBOL(strncmp);
+> >> EXPORT_SYMBOL(strlen);
+> >> EXPORT_SYMBOL(strnlen);
+> >> +EXPORT_SYMBOL(__strcmp);
+> >> +EXPORT_SYMBOL(__strncmp);
+> >> EXPORT_SYMBOL(memset);
+> >> EXPORT_SYMBOL(memcpy);
+> >> EXPORT_SYMBOL(memmove);
+> >> diff --git a/arch/arm64/kernel/image.h b/arch/arm64/kernel/image.h
+> >> index a820ed0..5ef7a57 100644
+> >> --- a/arch/arm64/kernel/image.h
+> >> +++ b/arch/arm64/kernel/image.h
+> >> @@ -110,6 +110,8 @@ __efistub___flush_dcache_area =
+> >> KALLSYMS_HIDE(__pi___flush_dcache_area);
+> >> __efistub___memcpy = KALLSYMS_HIDE(__pi_memcpy);
+> >> __efistub___memmove = KALLSYMS_HIDE(__pi_memmove);
+> >> __efistub___memset = KALLSYMS_HIDE(__pi_memset);
+> >> +__efistub___strcmp = KALLSYMS_HIDE(__pi_strcmp);
+> >> +__efistub___strncmp = KALLSYMS_HIDE(__pi_strncmp);
+> >> #endif
+> >>
+> >> __efistub__text = KALLSYMS_HIDE(_text);
+> >> diff --git a/arch/arm64/lib/strcmp.S b/arch/arm64/lib/strcmp.S
+> >> index 471fe61..0dffef7 100644
+> >> --- a/arch/arm64/lib/strcmp.S
+> >> +++ b/arch/arm64/lib/strcmp.S
+> >> @@ -60,6 +60,8 @@ tmp3 .req x9
+> >> zeroones .req x10
+> >> pos .req x11
+> >>
+> >> +.weak strcmp
+> >> +ENTRY(__strcmp)
+> >> ENTRY(strcmp)
+> >> eor tmp1, src1, src2
+> >> mov zeroones, #REP8_01
+> >> @@ -232,3 +234,4 @@ CPU_BE( orr syndrome, diff, has_nul )
+> >> sub result, data1, data2, lsr #56
+> >> ret
+> >> ENDPIPROC(strcmp)
+> >> +ENDPROC(__strcmp)
+> >> diff --git a/arch/arm64/lib/strncmp.S b/arch/arm64/lib/strncmp.S
+> >> index e267044..b2648c7 100644
+> >> --- a/arch/arm64/lib/strncmp.S
+> >> +++ b/arch/arm64/lib/strncmp.S
+> >> @@ -64,6 +64,8 @@ limit_wd .req x13
+> >> mask .req x14
+> >> endloop .req x15
+> >>
+> >> +.weak strncmp
+> >> +ENTRY(__strncmp)
+> >> ENTRY(strncmp)
+> >> cbz limit, .Lret0
+> >> eor tmp1, src1, src2
+> >> @@ -308,3 +310,4 @@ CPU_BE( orr syndrome, diff, has_nul )
+> >> mov result, #0
+> >> ret
+> >> ENDPIPROC(strncmp)
+> >> +ENDPROC(__strncmp)
+> >> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+> >> index c3bd520..61ad7f1 100644
+> >> --- a/mm/kasan/kasan.c
+> >> +++ b/mm/kasan/kasan.c
+> >> @@ -304,6 +304,29 @@ void *memcpy(void *dest, const void *src, 
+> size_t len)
+> >>
+> >> return __memcpy(dest, src, len);
+> >> }
+> >> +#ifdef CONFIG_ARM64
+> >> +/*
+> >> + * Arch arm64 use assembly variant for strcmp/strncmp,
+> >> + * xtensa use inline asm operations and x86_64 use c one,
+> >> + * so now this interceptors only for arm64 kasan.
+> >> + */
+> >> +#undef strcmp
+> >> +int strcmp(const char *cs, const char *ct)
+> >> +{
+> >> + check_memory_region((unsigned long)cs, 1, false, _RET_IP_);
+> >> + check_memory_region((unsigned long)ct, 1, false, _RET_IP_);
+> >> +
+> >> + return __strcmp(cs, ct);
+> >> +}
+> >> +#undef strncmp
+> >> +int strncmp(const char *cs, const char *ct, size_t len)
+> >> +{
+> >> + check_memory_region((unsigned long)cs, len, false, _RET_IP_);
+> >> + check_memory_region((unsigned long)ct, len, false, _RET_IP_);
+> >> +
+> >> + return __strncmp(cs, ct, len);
+> >> +}
+> >> +#endif
+> >>
+> >> void kasan_alloc_pages(struct page *page, unsigned int order)
+> >> {
+> >> --
+> >> 2.6.2
+> >
+> >
