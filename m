@@ -1,95 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 30D806B72B8
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 06:53:54 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id d1-v6so3745303pfo.16
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 03:53:54 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id 7-v6si1685910pgq.637.2018.09.05.03.53.52
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Sep 2018 03:53:52 -0700 (PDT)
-Subject: Re: INFO: task hung in ext4_da_get_block_prep
-References: <0000000000004a6b700575178b5a@google.com>
- <CACT4Y+aPRGUqAdJCMDWM=Zcy8ZQcHyrsB1ZuWS4VB_+wvLfeaQ@mail.gmail.com>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <0252ad5d-46e6-0d7f-ef91-4e316657a83d@i-love.sakura.ne.jp>
-Date: Wed, 5 Sep 2018 19:53:38 +0900
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 95CD56B72C3
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 07:02:50 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id l191-v6so7973469oig.23
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 04:02:50 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id y136-v6si1124268oia.410.2018.09.05.04.02.49
+        for <linux-mm@kvack.org>;
+        Wed, 05 Sep 2018 04:02:49 -0700 (PDT)
+Subject: Re: [PATCH v2 13/40] vfio: Add support for Shared Virtual Addressing
+References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
+ <20180511190641.23008-14-jean-philippe.brucker@arm.com>
+ <5B83B11E.7010807@huawei.com> <1d5b6529-4e5a-723c-3f1b-dd5a9adb490c@arm.com>
+ <5B89F818.7060300@huawei.com> <3a961aff-e830-64bb-b6a9-14e08de1abf5@arm.com>
+ <5B8DEA15.7020404@huawei.com> <bc27f902-4d12-21b7-b9e9-18bcae170503@arm.com>
+ <5B8F4A59.20004@huawei.com>
+From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
+Message-ID: <b51107b8-a525-13ce-f4c3-d423b8502c27@arm.com>
+Date: Wed, 5 Sep 2018 12:02:29 +0100
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+aPRGUqAdJCMDWM=Zcy8ZQcHyrsB1ZuWS4VB_+wvLfeaQ@mail.gmail.com>
+In-Reply-To: <5B8F4A59.20004@huawei.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>, syzbot <syzbot+f0fc7f62e88b1de99af3@syzkaller.appspotmail.com>
-Cc: 'Dmitry Vyukov' via syzkaller-upstream-moderation <syzkaller-upstream-moderation@googlegroups.com>, linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>
+To: Xu Zaibo <xuzaibo@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "joro@8bytes.org" <joro@8bytes.org>, Will Deacon <Will.Deacon@arm.com>, Robin Murphy <Robin.Murphy@arm.com>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "tn@semihalf.com" <tn@semihalf.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "rfranz@cavium.com" <rfranz@cavium.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "jacob.jun.pan@linux.intel.com" <jacob.jun.pan@linux.intel.com>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "kevin.tian@intel.com" <kevin.tian@intel.com>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>, "robdclark@gmail.com" <robdclark@gmail.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "rgummal@xilinx.com" <rgummal@xilinx.com>, =?UTF-8?B?57Gz57Gz?= <kenneth-lee-2012@foxmail.com>, wangzhou1 <wangzhou1@hisilicon.com>, "liguozhu@hisilicon.com" <liguozhu@hisilicon.com>, fanghao11 <fanghao11@huawei.com>
 
-On 2018/09/05 16:22, Dmitry Vyukov wrote:
-> On Wed, Sep 5, 2018 at 5:41 AM, syzbot
-> <syzbot+f0fc7f62e88b1de99af3@syzkaller.appspotmail.com> wrote:
->> Hello,
+On 05/09/2018 04:15, Xu Zaibo wrote:
+>>>       1. While the series are finished well, VFIO-PCI device can be held
+>>> by only one process
+>>>           through binding IOCTL command without PASID (without PASID
+>>> being exposed user space).
+>> It could, but isn't supported at the moment. In addition to adding
+>> support in the I/O page fault code, we'd also need to update the VFIO
+>> API. Currently a VFIO_TYPE1 domain always supports the MAP/UNMAP ioctl.
+>> The case you describe isn't compatible with MAP/UNMAP, since the process
+>> manages the shared address space with mmap or malloc. We'd probably need
+>> to introduce a new VFIO IOMMU type, in which case the bind could be
+>> performed implicitly when the process does VFIO_SET_IOMMU. Then the
+>> process wouldn't need to send an additional BIND IOCTL.
+> ok. got it.  This is the legacy mode, so all the VFIO APIs are kept 
+> unchanged?
+
+Yes, existing VFIO semantics are preserved
+
+>>>       2. While using VFIO-PCI device to support multiple processes with
+>>> SVA series, a primary
+>>>           process with multiple secondary processes must be deployed just
+>>> like DPDK(https://www.dpdk.org/).
+>>>           And, the PASID still has to be exposed to user land.
+>> Right. A third case, also implemented by this patch (and complete), is
+>> the primary process simply doing a BIND for itself, and using the
+>> returned PASID to share its own address space with the device.
 >>
->> syzbot found the following crash on:
->>
->> HEAD commit:    f2b6e66e9885 Add linux-next specific files for 20180904
->> git tree:       linux-next
->> console output: https://syzkaller.appspot.com/x/log.txt?x=1735dc92400000
->> kernel config:  https://syzkaller.appspot.com/x/.config?x=15ad48400e39c1b3
->> dashboard link: https://syzkaller.appspot.com/bug?extid=f0fc7f62e88b1de99af3
->> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
->> CC:             [adilger.kernel@dilger.ca linux-ext4@vger.kernel.org
->> linux-kernel@vger.kernel.org tytso@mit.edu]
->>
->> Unfortunately, I don't have any reproducer for this crash yet.
->>
->> IMPORTANT: if you fix the bug, please add the following tag to the commit:
->> Reported-by: syzbot+f0fc7f62e88b1de99af3@syzkaller.appspotmail.com
->>
->> [   7961]     0  7961    17585     8737   131072        0             0
->> syz-executor3
+> ok. But I am worried that the sulotion of one primary processes with 
+> several secondary ones
 > 
-> Hi Tetsuo,
-> 
-> Maybe you know what are these repeated lines with numbers?
-> We started getting them on linux-next recently, also:
-> https://syzkaller.appspot.com/bug?extid=f8fa79b458bcae4d913d
-> They seem to cause various hangs/stalls.
+> is a little bit limited. Maybe, users don't want to depend on the 
+> primary process. :)
 
-Yes, these lines are from the OOM killer. (Thus, if we can, I want to
-remove ext4 people before upstreaming this report.)
+I don't see a better way for vfio-pci, though. But more importantly, I
+don't know of any users :) While the feature is great for testing new
+hardware, and I've been using it for all kinds of stress testing, I
+haven't received feedback from possible users in production settings
+(DPDK etc) and can't speculate about what they'd prefer.
 
-  dump_tasks mm/oom_kill.c:420 [inline]
-  dump_header+0xf0d/0xf70 mm/oom_kill.c:450
-  oom_kill_process.cold.28+0x10/0x95a mm/oom_kill.c:953
-  out_of_memory+0xa88/0x1430 mm/oom_kill.c:1120
-
-What is annoying is that one for_each_process() traversal with printk() is
-taking 52 seconds which is too long to do under RCU section. Under such
-situation, invoking the OOM killer for three times will exceed khungtaskd
-threshold 140 seconds. Was syzbot trying to test fork bomb situation?
-
-Anyway, we might need to introduce rcu_lock_break() like
-check_hung_uninterruptible_tasks() does...
-
-[  999.629589] [  16497]     0 16497    17585     8739   126976        0             0 syz-executor5
-[ 1026.435955] [  32764]     0 32764    17585     8739   126976        0             0 syz-executor5
-[ 1026.445027] [    311]     0   311    17585     8737   131072        0             0 syz-executor3
-[ 1047.914324] [  10315]     0 10315    17585     8271   126976        0             0 syz-executor0
-[ 1047.923384] Out of memory: Kill process 4670 (syz-fuzzer) score 53 or sacrifice child
-[ 1047.931934] Killed process 5032 (syz-executor1) total-vm:70212kB, anon-rss:60kB, file-rss:0kB, shmem-rss:0kB
-[ 1047.988138] syz-executor2 invoked oom-killer: gfp_mask=0x6040c0(GFP_KERNEL|__GFP_COMP), nodemask=(null), order=1, oom_score_adj=0
-[ 1048.000015] syz-executor2 cpuset=syz2 mems_allowed=0
-[ 1048.005199] CPU: 0 PID: 4700 Comm: syz-executor2 Not tainted 4.19.0-rc2-next-20180904+ #55
-[ 1048.740679] [   2347]     0  2347      278      186    32768        0             0 none
-[ 1051.319928] [  16497]     0 16497    17585     8739   126976        0             0 syz-executor5
-[ 1096.740878] [   8841]     0  8841    17585     8232   126976        0             0 syz-executor5
-[ 1078.140677] [  32764]     0 32764    17585     8739   126976        0             0 syz-executor5
-[ 1078.149807] [    311]     0   311    17585     8737   131072        0             0 syz-executor3
-[ 1096.740878] [   8841]     0  8841    17585     8232   126976        0             0 syz-executor5
-
-Also, another notable thing is that the backtrace for some reason includes
-
-[ 1048.211540]  ? oom_killer_disable+0x3a0/0x3a0
-
-line. Was syzbot testing process freezing functionality?
+Thanks,
+Jean
