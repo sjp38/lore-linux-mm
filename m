@@ -1,55 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AFD886B758C
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 19:07:41 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id c8-v6so4753088pfn.2
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 16:07:41 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id j185-v6si3264577pgc.419.2018.09.05.16.07.40
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BFEB26B7590
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 19:09:04 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id d18-v6so9526641qtj.20
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 16:09:04 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id l15-v6si2321225qvh.192.2018.09.05.16.09.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 05 Sep 2018 16:07:40 -0700 (PDT)
-Date: Wed, 5 Sep 2018 16:07:37 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC PATCH] mm/hugetlb: make hugetlb_lock irq safe
-Message-ID: <20180905230737.GA14977@bombadil.infradead.org>
-References: <20180905112341.21355-1-aneesh.kumar@linux.ibm.com>
- <20180905130440.GA3729@bombadil.infradead.org>
- <d76771e6-1664-5d38-a5a0-e98f1120494c@linux.ibm.com>
- <20180905134848.GB3729@bombadil.infradead.org>
- <20180905125846.eb0a9ed907b293c1b4c23c23@linux-foundation.org>
- <78b08258-14c8-0e90-97c7-d647a11acb30@oracle.com>
- <20180905150008.59d477c1f78f966a8f9c3cc8@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Sep 2018 16:09:03 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: [PATCH v3] mm: slowly shrink slabs with a relatively small number of objects
+Date: Wed, 5 Sep 2018 16:07:59 -0700
+Message-ID: <20180905230759.12236-1-guro@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180905150008.59d477c1f78f966a8f9c3cc8@linux-foundation.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, kernel-team@fb.com, Rik van Riel <riel@surriel.com>, Roman Gushchin <guro@fb.com>, Josef Bacik <jbacik@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Shakeel Butt <shakeelb@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Sep 05, 2018 at 03:00:08PM -0700, Andrew Morton wrote:
-> On Wed, 5 Sep 2018 14:35:11 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
-> 
-> > >                                            so perhaps we could put some
-> > > stopgap workaround into that site and add a runtime warning into the
-> > > put_page() code somewhere to detect puttage of huge pages from hardirq
-> > > and softirq contexts.
-> > 
-> > I think we would add the warning/etc at free_huge_page.  The issue would
-> > only apply to hugetlb pages, not THP.
-> > 
-> > But, the more I think about it the more I think Aneesh's patch to do
-> > spin_lock/unlock_irqsave is the right way to go.  Currently, we only
-> > know of one place where a put_page of hugetlb pages is done from softirq
-> > context.  So, we could take the spin_lock/unlock_bh as Matthew suggested.
-> > When the powerpc iommu code was added, I doubt this was taken into account.
-> > I would be afraid of someone adding put_page from hardirq context.
-> 
-> Me too.  If we're going to do this, surely we should make hugepages
-> behave in the same fashion as PAGE_SIZE pages.
+Commit 9092c71bb724 ("mm: use sc->priority for slab shrink targets")
+changed the way how the target slab pressure is calculated and
+made it priority-based:
 
-But these aren't vanilla hugepages, they're specifically hugetlbfs pages.
-I don't believe there's any problem with calling put_page() on a normally
-allocated huge page or THP.
+    delta = freeable >> priority;
+    delta *= 4;
+    do_div(delta, shrinker->seeks);
+
+The problem is that on a default priority (which is 12) no pressure
+is applied at all, if the number of potentially reclaimable objects
+is less than 4096 (1<<12).
+
+This causes the last objects on slab caches of no longer used cgroups
+to (almost) never get reclaimed. It's obviously a waste of memory.
+
+It can be especially painful, if these stale objects are holding
+a reference to a dying cgroup. Slab LRU lists are reparented on memcg
+offlining, but corresponding objects are still holding a reference
+to the dying cgroup. If we don't scan these objects, the dying cgroup
+can't go away. Most likely, the parent cgroup hasn't any directly
+charged objects, only remaining objects from dying children cgroups.
+So it can easily hold a reference to hundreds of dying cgroups.
+
+If there are no big spikes in memory pressure, and new memory cgroups
+are created and destroyed periodically, this causes the number of
+dying cgroups grow steadily, causing a slow-ish and hard-to-detect
+memory "leak". It's not a real leak, as the memory can be eventually
+reclaimed, but it could not happen in a real life at all. I've seen
+hosts with a steadily climbing number of dying cgroups, which doesn't
+show any signs of a decline in months, despite the host is loaded
+with a production workload.
+
+It is an obvious waste of memory, and to prevent it, let's apply
+a minimal pressure even on small shrinker lists. E.g. if there are
+freeable objects, let's scan at least min(freeable, scan_batch)
+objects.
+
+This fix significantly improves a chance of a dying cgroup to be
+reclaimed, and together with some previous patches stops the steady
+growth of the dying cgroups number on some of our hosts.
+
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Acked-by: Rik van Riel <riel@surriel.com>
+Cc: Josef Bacik <jbacik@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shakeel Butt <shakeelb@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+---
+ mm/vmscan.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index fa2c150ab7b9..858d7558909e 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -476,6 +476,17 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 	delta = freeable >> priority;
+ 	delta *= 4;
+ 	do_div(delta, shrinker->seeks);
++
++	/*
++	 * Make sure we apply some minimal pressure on default priority
++	 * even on small cgroups. Stale objects are not only consuming memory
++	 * by themselves, but can also hold a reference to a dying cgroup,
++	 * preventing it from being reclaimed. A dying cgroup with all
++	 * corresponding structures like per-cpu stats and kmem caches
++	 * can be really big, so it may lead to a significant waste of memory.
++	 */
++	delta = max_t(unsigned long long, delta, min(freeable, batch_size));
++
+ 	total_scan += delta;
+ 	if (total_scan < 0) {
+ 		pr_err("shrink_slab: %pF negative objects to delete nr=%ld\n",
+-- 
+2.17.1
