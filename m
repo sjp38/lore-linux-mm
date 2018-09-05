@@ -1,70 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E57566B7556
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 17:47:45 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id t9-v6so5960831ywg.8
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 14:47:45 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id u7-v6si820744ywf.365.2018.09.05.14.47.44
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 02E266B753A
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 17:54:49 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id o18-v6so8759962ioh.23
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 14:54:48 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m4-v6sor1571541iof.266.2018.09.05.14.54.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Sep 2018 14:47:45 -0700 (PDT)
-Date: Wed, 5 Sep 2018 14:47:34 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH v2] mm: slowly shrink slabs with a relatively small
- number of objects
-Message-ID: <20180905214731.GA30226@tower.DHCP.thefacebook.com>
-References: <20180904224707.10356-1-guro@fb.com>
- <20180905135152.1238c7103b2ecd6da206733c@linux-foundation.org>
- <20180905212241.GA26422@tower.DHCP.thefacebook.com>
- <CALvZod4-7cMOqYR5dF82PWuB4qDr5QKu+ScersCVgp74jhvvWA@mail.gmail.com>
+        (Google Transport Security);
+        Wed, 05 Sep 2018 14:54:48 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <CALvZod4-7cMOqYR5dF82PWuB4qDr5QKu+ScersCVgp74jhvvWA@mail.gmail.com>
+References: <20180905211041.3286.19083.stgit@localhost.localdomain>
+ <20180905211328.3286.71674.stgit@localhost.localdomain> <cd1fc4c6-cc86-8bf7-6aa0-b722c56057e3@microsoft.com>
+ <CAKgT0UcC2=Nrk+TDkidxjidnJzvhUPyYRD1uZ09BBWLcmcaOug@mail.gmail.com> <985fe87b-b8f4-de58-ea2a-970cbe51b72d@microsoft.com>
+In-Reply-To: <985fe87b-b8f4-de58-ea2a-970cbe51b72d@microsoft.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Wed, 5 Sep 2018 14:54:35 -0700
+Message-ID: <CAKgT0Ud12tMA_LcJ6_yAD4aMObHWCHqKPbwrEdNGcWsiKuVLYg@mail.gmail.com>
+Subject: Re: [PATCH v2 1/2] mm: Move page struct poisoning to CONFIG_DEBUG_VM_PAGE_INIT_POISON
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kernel-team@fb.com, Rik van Riel <riel@surriel.com>, jbacik@fb.com, Johannes Weiner <hannes@cmpxchg.org>
+To: Pavel.Tatashin@microsoft.com
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Duyck, Alexander H" <alexander.h.duyck@intel.com>, Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Sep 05, 2018 at 02:35:29PM -0700, Shakeel Butt wrote:
-> On Wed, Sep 5, 2018 at 2:23 PM Roman Gushchin <guro@fb.com> wrote:
+On Wed, Sep 5, 2018 at 2:38 PM Pasha Tatashin
+<Pavel.Tatashin@microsoft.com> wrote:
+>
+>
+>
+> On 9/5/18 5:29 PM, Alexander Duyck wrote:
+> > On Wed, Sep 5, 2018 at 2:22 PM Pasha Tatashin
+> > <Pavel.Tatashin@microsoft.com> wrote:
+> >>
+> >>
+> >>
+> >> On 9/5/18 5:13 PM, Alexander Duyck wrote:
+> >>> From: Alexander Duyck <alexander.h.duyck@intel.com>
+> >>>
+> >>> On systems with a large amount of memory it can take a significant amount
+> >>> of time to initialize all of the page structs with the PAGE_POISON_PATTERN
+> >>> value. I have seen it take over 2 minutes to initialize a system with
+> >>> over 12GB of RAM.
+> >>>
+> >>> In order to work around the issue I had to disable CONFIG_DEBUG_VM and then
+> >>> the boot time returned to something much more reasonable as the
+> >>> arch_add_memory call completed in milliseconds versus seconds. However in
+> >>> doing that I had to disable all of the other VM debugging on the system.
+> >>>
+> >>> Instead of keeping the value in CONFIG_DEBUG_VM I am adding a new CONFIG
+> >>> value called CONFIG_DEBUG_VM_PAGE_INIT_POISON that will control the page
+> >>> poisoning independent of the CONFIG_DEBUG_VM option.
+> >>>
+> >>> Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
+> >>> ---
+> >>>  include/linux/page-flags.h |    8 ++++++++
+> >>>  lib/Kconfig.debug          |   14 ++++++++++++++
+> >>>  mm/memblock.c              |    5 ++---
+> >>>  mm/sparse.c                |    4 +---
+> >>>  4 files changed, 25 insertions(+), 6 deletions(-)
+> >>>
+> >>> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> >>> index 74bee8cecf4c..0e95ca63375a 100644
+> >>> --- a/include/linux/page-flags.h
+> >>> +++ b/include/linux/page-flags.h
+> >>> @@ -13,6 +13,7 @@
+> >>>  #include <linux/mm_types.h>
+> >>>  #include <generated/bounds.h>
+> >>>  #endif /* !__GENERATING_BOUNDS_H */
+> >>> +#include <linux/string.h>
+> >>>
+> >>>  /*
+> >>>   * Various page->flags bits:
+> >>> @@ -162,6 +163,13 @@ static inline int PagePoisoned(const struct page *page)
+> >>>       return page->flags == PAGE_POISON_PATTERN;
+> >>>  }
+> >>>
+> >>> +static inline void page_init_poison(struct page *page, size_t size)
+> >>> +{
+> >>> +#ifdef CONFIG_DEBUG_VM_PAGE_INIT_POISON
+> >>> +     memset(page, PAGE_POISON_PATTERN, size);
+> >>> +#endif
+> >>> +}
+> >>> +
+> >>>  /*
+> >>>   * Page flags policies wrt compound pages
+> >>>   *
+> >>> diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+> >>> index 613316724c6a..3b1277c52fed 100644
+> >>> --- a/lib/Kconfig.debug
+> >>> +++ b/lib/Kconfig.debug
+> >>> @@ -637,6 +637,20 @@ config DEBUG_VM_PGFLAGS
+> >>>
+> >>>         If unsure, say N.
+> >>>
+> >>> +config DEBUG_VM_PAGE_INIT_POISON
+> >>> +     bool "Enable early page metadata poisoning"
+> >>> +     default y
+> >>> +     depends on DEBUG_VM
+> >>> +     help
+> >>> +       Seed the page metadata with a poison pattern to improve the
+> >>> +       likelihood of detecting attempts to access the page prior to
+> >>> +       initialization by the memory subsystem.
+> >>> +
+> >>> +       This initialization can result in a longer boot time for systems
+> >>> +       with a large amount of memory.
+> >>
+> >> What happens when DEBUG_VM_PGFLAGS = y and
+> >> DEBUG_VM_PAGE_INIT_POISON = n ?
+> >>
+> >> We are testing for pattern that was not set?
+> >>
+> >> I think DEBUG_VM_PAGE_INIT_POISON must depend on DEBUG_VM_PGFLAGS instead.
+> >>
+> >> Looks good otherwise.
+> >>
+> >> Thank you,
+> >> Pavel
 > >
-> > On Wed, Sep 05, 2018 at 01:51:52PM -0700, Andrew Morton wrote:
-> > > On Tue, 4 Sep 2018 15:47:07 -0700 Roman Gushchin <guro@fb.com> wrote:
-> > >
-> > > > Commit 9092c71bb724 ("mm: use sc->priority for slab shrink targets")
-> > > > changed the way how the target slab pressure is calculated and
-> > > > made it priority-based:
-> > > >
-> > > >     delta = freeable >> priority;
-> > > >     delta *= 4;
-> > > >     do_div(delta, shrinker->seeks);
-> > > >
-> > > > The problem is that on a default priority (which is 12) no pressure
-> > > > is applied at all, if the number of potentially reclaimable objects
-> > > > is less than 4096 (1<<12).
-> > > >
-> > > > This causes the last objects on slab caches of no longer used cgroups
-> > > > to never get reclaimed, resulting in dead cgroups staying around forever.
-> > >
-> > > But this problem pertains to all types of objects, not just the cgroup
-> > > cache, yes?
+> > The problem is that I then end up in the same situation I had in the
+> > last patch where you have to have DEBUG_VM_PGFLAGS on in order to do
+> > the seeding with poison.
+>
+> OK
+>
 > >
-> > Well, of course, but there is a dramatic difference in size.
-> >
-> > Most of these objects are taking few hundreds bytes (or less),
-> > while a memcg can take few hundred kilobytes on a modern multi-CPU
-> > machine. Mostly due to per-cpu stats and events counters.
-> >
-> 
-> Beside memcg, all of its kmem caches, most empty, are stuck in memory
-> as well. For SLAB even the memory overhead of an empty kmem cache is
-> not negligible.
+> > I can wrap the bit of code in PagePoisoned to just always return false
+> > if we didn't set the pattern. I figure there is value to be had for
+> > running DEBUG_VM_PGFLAGS regardless of the poison check, or
+> > DEBUG_VM_PAGE_INIT_POISON without the PGFLAGS check. That is why I
+> > wanted to leave them independent.
+>
+> How about:
+>
+> Remove "depends on DEBUG_VM", but make DEBUG_VM_PGFLAGS to depend on
+> both DEBUG_VM and DEBUG_VM_PAGE_INIT_POISON?
+>
+> DEBUG_VM_PGFLAGS is already extremely slow, so having this extra
+> dependency is OK.
+>
+> Thank you,
+> Pavel
 
-Right!
+Why create the extra dependency though? In the case of DEBUG_VM I am
+doing it so that we can retain the original behavior where enabling
+DEBUG_VM should enable the poisoning. I want to avoid this just
+getting disabled by default and want to try to stick to the original
+behavior as closely as possible unless we want to go in and explicitly
+turn it off.
 
-I mean the main part of the problem is not in these 4k (mostly vfs-cache related)
-objects themselves, but in objects, which are referenced by these 4k objects.
+>From what I can tell the original code prior to your changes didn't
+bother checking for the poison value when testing the page flags. The
+poison value only applies prior to the page being initialized, so the
+value add for having it is only so much. It makes more sense to me to
+have these as two separate config options where enabling both would
+give you the maximum benefit, but you could test with either one or
+the other if you so desired.
 
-Thanks!
+- Alex
