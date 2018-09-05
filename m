@@ -1,87 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D5AAC6B7379
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 09:55:37 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id a8-v6so3822445pla.10
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 06:55:37 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CD5036B7383
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 10:04:56 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id a10-v6so3784272pls.23
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 07:04:56 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e7-v6si2129441pgm.649.2018.09.05.06.55.36
+        by mx.google.com with ESMTPS id p9-v6si2348420pll.298.2018.09.05.07.04.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Sep 2018 06:55:36 -0700 (PDT)
-Date: Wed, 5 Sep 2018 15:55:32 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: linux-next test error
-Message-ID: <20180905135532.GE24902@quack2.suse.cz>
-References: <0000000000004f6b5805751a8189@google.com>
- <20180905085545.GD24902@quack2.suse.cz>
- <CAFqt6zZtjPFdfAGxp43oqN3=z9+vAGzdOvDcgFaU+05ffCGu7A@mail.gmail.com>
+        Wed, 05 Sep 2018 07:04:55 -0700 (PDT)
+Date: Wed, 5 Sep 2018 16:04:51 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,page_alloc: PF_WQ_WORKER threads must sleep at
+ should_reclaim_retry().
+Message-ID: <20180905140451.GG14951@dhcp22.suse.cz>
+References: <cb2d635c-c14d-c2cc-868a-d4c447364f0d@i-love.sakura.ne.jp>
+ <alpine.DEB.2.21.1808231544001.150774@chino.kir.corp.google.com>
+ <201808240031.w7O0V5hT019529@www262.sakura.ne.jp>
+ <195a512f-aecc-f8cf-f409-6c42ee924a8c@i-love.sakura.ne.jp>
+ <20180905134038.GE14951@dhcp22.suse.cz>
+ <81cc1f29-e42e-7813-dc70-5d6d9e999dd1@i-love.sakura.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAFqt6zZtjPFdfAGxp43oqN3=z9+vAGzdOvDcgFaU+05ffCGu7A@mail.gmail.com>
+In-Reply-To: <81cc1f29-e42e-7813-dc70-5d6d9e999dd1@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, syzbot+87a05ae4accd500f5242@syzkaller.appspotmail.com, ak@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, mawilcox@microsoft.com, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com, tim.c.chen@linux.intel.com, zwisler@kernel.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 05-09-18 15:20:16, Souptick Joarder wrote:
-> On Wed, Sep 5, 2018 at 2:25 PM Jan Kara <jack@suse.cz> wrote:
-> >
-> > On Wed 05-09-18 00:13:02, syzbot wrote:
-> > > Hello,
-> > >
-> > > syzbot found the following crash on:
-> > >
-> > > HEAD commit:    387ac6229ecf Add linux-next specific files for 20180905
-> > > git tree:       linux-next
-> > > console output: https://syzkaller.appspot.com/x/log.txt?x=149c67a6400000
-> > > kernel config:  https://syzkaller.appspot.com/x/.config?x=ad5163873ecfbc32
-> > > dashboard link: https://syzkaller.appspot.com/bug?extid=87a05ae4accd500f5242
-> > > compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
-> > >
-> > > Unfortunately, I don't have any reproducer for this crash yet.
-> > >
-> > > IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> > > Reported-by: syzbot+87a05ae4accd500f5242@syzkaller.appspotmail.com
-> > >
-> > > INFO: task hung in do_page_mkwriteINFO: task syz-fuzzer:4876 blocked for
-> > > more than 140 seconds.
-> > >       Not tainted 4.19.0-rc2-next-20180905+ #56
-> > > "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> > > syz-fuzzer      D21704  4876   4871 0x00000000
-> > > Call Trace:
-> > >  context_switch kernel/sched/core.c:2825 [inline]
-> > >  __schedule+0x87c/0x1df0 kernel/sched/core.c:3473
-> > >  schedule+0xfb/0x450 kernel/sched/core.c:3517
-> > >  io_schedule+0x1c/0x70 kernel/sched/core.c:5140
-> > >  wait_on_page_bit_common mm/filemap.c:1100 [inline]
-> > >  __lock_page+0x5b7/0x7a0 mm/filemap.c:1273
-> > >  lock_page include/linux/pagemap.h:483 [inline]
-> > >  do_page_mkwrite+0x429/0x520 mm/memory.c:2391
-> >
-> > Waiting for page lock after ->page_mkwrite callback. Which means
-> > ->page_mkwrite did not return VM_FAULT_LOCKED but 0. Looking into
-> > linux-next... indeed "fs: convert return type int to vm_fault_t" has busted
-> > block_page_mkwrite(). It has to return VM_FAULT_LOCKED and not 0 now.
-> > Souptick, can I ask you to run 'fstests' for at least common filesystems
-> > like ext4, xfs, btrfs when you change generic filesystem code please? That
-> > would catch a bug like this immediately. Thanks.
-> >
+On Wed 05-09-18 22:53:33, Tetsuo Handa wrote:
+> On 2018/09/05 22:40, Michal Hocko wrote:
+> > Changelog said 
+> > 
+> > "Although this is possible in principle let's wait for it to actually
+> > happen in real life before we make the locking more complex again."
+> > 
+> > So what is the real life workload that hits it? The log you have pasted
+> > below doesn't tell much.
 > 
-> "fs: convert return type int to vm_fault_t" is still under
-> review/discusson and not yet merge
-> into linux-next. I am not seeing it into linux-next tree.Can you
-> please share the commit id ?
+> Nothing special. I just ran a multi-threaded memory eater on a CONFIG_PREEMPT=y kernel.
 
-As Ted wrote, it is currently commit
-83c0adddcc6ed128168e7b87eaed0c21eac908e4, and it came from mm tree. But the
-commit ID is going to change tomorrow since linux-next is rebuilt every
-day... I'm not sure how that patch got to mm tree. That's a question for
-Andrew but you should have been notified about that by his mailing
-machinery.
-
-								Honza
+I strongly suspec that your test doesn't really represent or simulate
+any real and useful workload. Sure it triggers a rare race and we kill
+another oom victim. Does this warrant to make the code more complex?
+Well, I am not convinced, as I've said countless times.
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
