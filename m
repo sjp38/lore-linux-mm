@@ -1,91 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 630726B71F1
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 03:30:56 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id q26-v6so7037945qtj.14
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 00:30:56 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id v8-v6si809811qtp.169.2018.09.05.00.30.55
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Sep 2018 00:30:55 -0700 (PDT)
-Date: Wed, 5 Sep 2018 15:30:37 +0800
-From: Peter Xu <peterx@redhat.com>
-Subject: Re: [PATCH] mm: hugepage: mark splitted page dirty when needed
-Message-ID: <20180905073037.GA23021@xz-x1>
-References: <20180904075510.22338-1-peterx@redhat.com>
- <20180904080115.o2zj4mlo7yzjdqfl@kshutemo-mobl1>
- <D3B32B41-61D5-47B3-B1FC-77B0F71ADA47@cs.rutgers.edu>
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AD3A6B71E2
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 03:45:01 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id d132-v6so3187164pgc.22
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 00:45:01 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (lgeamrelo11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id 97-v6si1251115plm.290.2018.09.05.00.44.59
+        for <linux-mm@kvack.org>;
+        Wed, 05 Sep 2018 00:44:59 -0700 (PDT)
+Subject: Re: Re: [PATCH v2] arm64: kasan: add interceptors for strcmp/strncmp
+ functions
+References: <1535014606-176525-1-git-send-email-kyeongdon.kim@lge.com>
+ <12d4e435-e229-b4af-4286-a53fa77cb09d@virtuozzo.com>
+From: Kyeongdon Kim <kyeongdon.kim@lge.com>
+Message-ID: <0bde837e-2804-c6d6-4bda-8b166bdcfc6b@lge.com>
+Date: Wed, 5 Sep 2018 16:44:54 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <D3B32B41-61D5-47B3-B1FC-77B0F71ADA47@cs.rutgers.edu>
+In-Reply-To: <12d4e435-e229-b4af-4286-a53fa77cb09d@virtuozzo.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Dan Williams <dan.j.williams@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, glider@google.com, dvyukov@google.com, Jason@zx2c4.com, robh@kernel.org, ard.biesheuvel@linaro.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
 
-On Tue, Sep 04, 2018 at 10:00:28AM -0400, Zi Yan wrote:
-> On 4 Sep 2018, at 4:01, Kirill A. Shutemov wrote:
-> 
-> > On Tue, Sep 04, 2018 at 03:55:10PM +0800, Peter Xu wrote:
-> >> When splitting a huge page, we should set all small pages as dirty if
-> >> the original huge page has the dirty bit set before.  Otherwise we'll
-> >> lose the original dirty bit.
+
+
+On 2018-09-05 i??i ? 1:24, Andrey Ryabinin wrote:
+>
+>
+> On 09/04/2018 01:10 PM, Andrey Ryabinin wrote:
 > >
-> > We don't lose it. It got transfered to struct page flag:
 > >
-> > 	if (pmd_dirty(old_pmd))
-> > 		SetPageDirty(page);
+> > On 09/04/2018 09:59 AM, Kyeongdon Kim wrote:
 > >
-> 
-> Plus, when split_huge_page_to_list() splits a THP, its subroutine __split_huge_page()
-> propagates the dirty bit in the head page flag to all subpages in __split_huge_page_tail().
+> >>>> +#undef strncmp
+> >>>> +int strncmp(const char *cs, const char *ct, size_t len)
+> >>>> +{
+> >>>> + check_memory_region((unsigned long)cs, len, false, _RET_IP_);
+> >>>> + check_memory_region((unsigned long)ct, len, false, _RET_IP_);
+> >>>
+> >>> This will cause false positives. Both 'cs', and 'ct' could be less 
+> than len bytes.
+> >>>
+> >>> There is no need in these interceptors, just use the C 
+> implementations from lib/string.c
+> >>> like you did in your first patch.
+> >>> The only thing that was wrong in the first patch is that assembly 
+> implementations
+> >>> were compiled out instead of being declared week.
+> >>>
+> >> Well, at first I thought so..
+> >> I would remove diff code in /mm/kasan/kasan.c then use C 
+> implementations in lib/string.c
+> >> w/ assem implementations as weak :
+> >>
+> >> diff --git a/lib/string.c b/lib/string.c
+> >> index 2c0900a..a18b18f 100644
+> >> --- a/lib/string.c
+> >> +++ b/lib/string.c
+> >> @@ -312,7 +312,7 @@ size_t strlcat(char *dest, const char *src, 
+> size_t count)
+> >> A EXPORT_SYMBOL(strlcat);
+> >> A #endif
+> >>
+> >> -#ifndef __HAVE_ARCH_STRCMP
+> >> +#if (defined(CONFIG_ARM64) && defined(CONFIG_KASAN)) || 
+> !defined(__HAVE_ARCH_STRCMP)
+> >
+> > No. What part of "like you did in your first patch" is unclear to you?
+>
+> Just to be absolutely clear, I meant #ifdef out __HAVE_ARCH_* defines 
+> like it has been done in this patch
+> http://lkml.kernel.org/r/<1534233322-106271-1-git-send-email-kyeongdon.kim@lge.com> 
+>
+I understood what you're saying, but I might think the wrong patch.
 
-Hi, Kirill, Zi,
+So, thinking about the other way as below:
+can pick up assem variant or c one, declare them as weak.
+---
+diff --git a/arch/arm64/include/asm/string.h 
+b/arch/arm64/include/asm/string.h
+index dd95d33..53a2ae0 100644
+--- a/arch/arm64/include/asm/string.h
++++ b/arch/arm64/include/asm/string.h
+@@ -22,11 +22,22 @@ extern char *strrchr(const char *, int c);
+ A #define __HAVE_ARCH_STRCHR
+ A extern char *strchr(const char *, int c);
 
-Thanks for your responses!
++#ifdef CONFIG_KASAN
++extern int __strcmp(const char *, const char *);
++extern int __strncmp(const char *, const char *, __kernel_size_t);
++
++#ifndef __SANITIZE_ADDRESS__
++#define strcmp(cs, ct) __strcmp(cs, ct)
++#define strncmp(cs, ct, n) __strncmp(cs, ct, n)
++#endif
++
++#else
+ A #define __HAVE_ARCH_STRCMP
+ A extern int strcmp(const char *, const char *);
 
-Though in my test the huge page seems to be splitted not by
-split_huge_page_to_list() but by explicit calls to
-change_protection().  The stack looks like this (again, this is a
-customized kernel, and I added an explicit dump_stack() there):
+ A #define __HAVE_ARCH_STRNCMP
+ A extern int strncmp(const char *, const char *, __kernel_size_t);
++#endif
 
-  kernel:  dump_stack+0x5c/0x7b
-  kernel:  __split_huge_pmd+0x192/0xdc0
-  kernel:  ? update_load_avg+0x8b/0x550
-  kernel:  ? update_load_avg+0x8b/0x550
-  kernel:  ? account_entity_enqueue+0xc5/0xf0
-  kernel:  ? enqueue_entity+0x112/0x650
-  kernel:  change_protection+0x3a2/0xab0
-  kernel:  mwriteprotect_range+0xdd/0x110
-  kernel:  userfaultfd_ioctl+0x50b/0x1210
-  kernel:  ? do_futex+0x2cf/0xb20
-  kernel:  ? tty_write+0x1d2/0x2f0
-  kernel:  ? do_vfs_ioctl+0x9f/0x610
-  kernel:  do_vfs_ioctl+0x9f/0x610
-  kernel:  ? __x64_sys_futex+0x88/0x180
-  kernel:  ksys_ioctl+0x70/0x80
-  kernel:  __x64_sys_ioctl+0x16/0x20
-  kernel:  do_syscall_64+0x55/0x150
-  kernel:  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+ A #define __HAVE_ARCH_STRLEN
+ A extern __kernel_size_t strlen(const char *);
+diff --git a/arch/arm64/kernel/arm64ksyms.c b/arch/arm64/kernel/arm64ksyms.c
+index d894a20..9aeffd5 100644
+--- a/arch/arm64/kernel/arm64ksyms.c
++++ b/arch/arm64/kernel/arm64ksyms.c
+@@ -50,6 +50,10 @@ EXPORT_SYMBOL(strcmp);
+ A EXPORT_SYMBOL(strncmp);
+ A EXPORT_SYMBOL(strlen);
+ A EXPORT_SYMBOL(strnlen);
++#ifdef CONFIG_KASAN
++EXPORT_SYMBOL(__strcmp);
++EXPORT_SYMBOL(__strncmp);
++#endif
+ A EXPORT_SYMBOL(memset);
+ A EXPORT_SYMBOL(memcpy);
+ A EXPORT_SYMBOL(memmove);
+diff --git a/arch/arm64/kernel/image.h b/arch/arm64/kernel/image.h
+index a820ed0..5ef7a57 100644
+--- a/arch/arm64/kernel/image.h
++++ b/arch/arm64/kernel/image.h
+@@ -110,6 +110,8 @@ __efistub___flush_dcache_areaA A A  = 
+KALLSYMS_HIDE(__pi___flush_dcache_area);
+ A __efistub___memcpyA A A  A A A  = KALLSYMS_HIDE(__pi_memcpy);
+ A __efistub___memmoveA A A  A A A  = KALLSYMS_HIDE(__pi_memmove);
+ A __efistub___memsetA A A  A A A  = KALLSYMS_HIDE(__pi_memset);
++__efistub___strcmpA A A  A A A  = KALLSYMS_HIDE(__pi_strcmp);
++__efistub___strncmpA A A  A A A  = KALLSYMS_HIDE(__pi_strncmp);
+ A #endif
 
-At the very time the userspace is sending an UFFDIO_WRITEPROTECT ioctl
-to kernel space, which is handled by mwriteprotect_range().  In case
-you'd like to refer to the kernel, it's basically this one from
-Andrea's (with very trivial changes):
+ A __efistub__textA A A  A A A  A A A  = KALLSYMS_HIDE(_text);
+diff --git a/arch/arm64/lib/strcmp.S b/arch/arm64/lib/strcmp.S
+index 471fe61..0dffef7 100644
+--- a/arch/arm64/lib/strcmp.S
++++ b/arch/arm64/lib/strcmp.S
+@@ -60,6 +60,8 @@ tmp3A A A  A A A  .reqA A A  x9
+ A zeroonesA A A  .reqA A A  x10
+ A posA A A  A A A  .reqA A A  x11
 
-  https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git userfault
++.weak strcmp
++ENTRY(__strcmp)
+ A ENTRY(strcmp)
+ A A A A  eorA A A  tmp1, src1, src2
+ A A A A  movA A A  zeroones, #REP8_01
+@@ -232,3 +234,4 @@ CPU_BE(A A A  orrA A A  syndrome, diff, has_nul )
+ A A A A  subA A A  result, data1, data2, lsr #56
+ A A A A  ret
+ A ENDPIPROC(strcmp)
++ENDPROC(__strcmp)
+diff --git a/arch/arm64/lib/strncmp.S b/arch/arm64/lib/strncmp.S
+index e267044..b2648c7 100644
+--- a/arch/arm64/lib/strncmp.S
++++ b/arch/arm64/lib/strncmp.S
+@@ -64,6 +64,8 @@ limit_wdA A A  .reqA A A  x13
+ A maskA A A  A A A  .reqA A A  x14
+ A endloopA A A  A A A  .reqA A A  x15
 
-So... do we have two paths to split the huge pages separately?
-
-Another (possibly very naive) question is: could any of you hint me
-how the page dirty bit is finally applied to the PTEs?  These two
-dirty flags confused me for a few days already (the SetPageDirty() one
-which sets the page dirty flag, and the pte_mkdirty() which sets that
-onto the real PTEs).
-
-Regards,
-
++.weak strncmp
++ENTRY(__strncmp)
+ A ENTRY(strncmp)
+ A A A A  cbzA A A  limit, .Lret0
+ A A A A  eorA A A  tmp1, src1, src2
+@@ -308,3 +310,4 @@ CPU_BE( orrA A A  syndrome, diff, has_nul )
+ A A A A  movA A A  result, #0
+ A A A A  ret
+ A ENDPIPROC(strncmp)
++ENDPROC(__strncmp)
 -- 
-Peter Xu
+Could you review this diff?
