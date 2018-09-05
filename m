@@ -1,117 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E5C086B753C
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 17:23:05 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id 1-v6so6024109ywd.9
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 14:23:05 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id o65-v6si788340ywf.623.2018.09.05.14.23.04
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E03C66B7544
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 17:29:20 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id r206-v6so8890512iod.2
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 14:29:20 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d193-v6sor1532313ioe.130.2018.09.05.14.29.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Sep 2018 14:23:04 -0700 (PDT)
-Date: Wed, 5 Sep 2018 14:22:44 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH v2] mm: slowly shrink slabs with a relatively small
- number of objects
-Message-ID: <20180905212241.GA26422@tower.DHCP.thefacebook.com>
-References: <20180904224707.10356-1-guro@fb.com>
- <20180905135152.1238c7103b2ecd6da206733c@linux-foundation.org>
+        (Google Transport Security);
+        Wed, 05 Sep 2018 14:29:19 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20180905135152.1238c7103b2ecd6da206733c@linux-foundation.org>
+References: <20180905211041.3286.19083.stgit@localhost.localdomain>
+ <20180905211328.3286.71674.stgit@localhost.localdomain> <cd1fc4c6-cc86-8bf7-6aa0-b722c56057e3@microsoft.com>
+In-Reply-To: <cd1fc4c6-cc86-8bf7-6aa0-b722c56057e3@microsoft.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Wed, 5 Sep 2018 14:29:07 -0700
+Message-ID: <CAKgT0UcC2=Nrk+TDkidxjidnJzvhUPyYRD1uZ09BBWLcmcaOug@mail.gmail.com>
+Subject: Re: [PATCH v2 1/2] mm: Move page struct poisoning to CONFIG_DEBUG_VM_PAGE_INIT_POISON
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Rik van Riel <riel@surriel.com>, Josef Bacik <jbacik@fb.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Pavel.Tatashin@microsoft.com
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Duyck, Alexander H" <alexander.h.duyck@intel.com>, Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Sep 05, 2018 at 01:51:52PM -0700, Andrew Morton wrote:
-> On Tue, 4 Sep 2018 15:47:07 -0700 Roman Gushchin <guro@fb.com> wrote:
-> 
-> > Commit 9092c71bb724 ("mm: use sc->priority for slab shrink targets")
-> > changed the way how the target slab pressure is calculated and
-> > made it priority-based:
-> > 
-> >     delta = freeable >> priority;
-> >     delta *= 4;
-> >     do_div(delta, shrinker->seeks);
-> > 
-> > The problem is that on a default priority (which is 12) no pressure
-> > is applied at all, if the number of potentially reclaimable objects
-> > is less than 4096 (1<<12).
-> > 
-> > This causes the last objects on slab caches of no longer used cgroups
-> > to never get reclaimed, resulting in dead cgroups staying around forever.
-> 
-> But this problem pertains to all types of objects, not just the cgroup
-> cache, yes?
-
-Well, of course, but there is a dramatic difference in size.
-
-Most of these objects are taking few hundreds bytes (or less),
-while a memcg can take few hundred kilobytes on a modern multi-CPU
-machine. Mostly due to per-cpu stats and events counters.
-
-> 
-> > Slab LRU lists are reparented on memcg offlining, but corresponding
-> > objects are still holding a reference to the dying cgroup.
-> > If we don't scan them at all, the dying cgroup can't go away.
-> > Most likely, the parent cgroup hasn't any directly associated objects,
-> > only remaining objects from dying children cgroups. So it can easily
-> > hold a reference to hundreds of dying cgroups.
-> > 
-> > If there are no big spikes in memory pressure, and new memory cgroups
-> > are created and destroyed periodically, this causes the number of
-> > dying cgroups grow steadily, causing a slow-ish and hard-to-detect
-> > memory "leak". It's not a real leak, as the memory can be eventually
-> > reclaimed, but it could not happen in a real life at all. I've seen
-> > hosts with a steadily climbing number of dying cgroups, which doesn't
-> > show any signs of a decline in months, despite the host is loaded
-> > with a production workload.
-> > 
-> > It is an obvious waste of memory, and to prevent it, let's apply
-> > a minimal pressure even on small shrinker lists. E.g. if there are
-> > freeable objects, let's scan at least min(freeable, scan_batch)
-> > objects.
-> > 
-> > This fix significantly improves a chance of a dying cgroup to be
-> > reclaimed, and together with some previous patches stops the steady
-> > growth of the dying cgroups number on some of our hosts.
-> > 
-> > ...
-> >
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -476,6 +476,17 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
-> >  	delta = freeable >> priority;
-> >  	delta *= 4;
-> >  	do_div(delta, shrinker->seeks);
-> > +
-> > +	/*
-> > +	 * Make sure we apply some minimal pressure even on
-> > +	 * small cgroups. This is necessary because some of
-> > +	 * belonging objects can hold a reference to a dying
-> > +	 * child cgroup. If we don't scan them, the dying
-> > +	 * cgroup can't go away unless the memory pressure
-> > +	 * (and the scanning priority) raise significantly.
-> > +	 */
-> > +	delta = max(delta, min(freeable, batch_size));
-> > +
-> 
-> If so I think the comment should be cast in more general terms.  Maybe
-> with a final sentence "the cgroup cache is one such case".
-
-So, I think that we have to leave explicitly explained memcg refcounting
-case, but I'll add a line about other cases as well.
-
-> 
-> Also, please use all 80 columns in block comments to save a few display
-> lines.
-> 
-> And `delta' has type ULL whereas the other two are longs.  We'll
-> presumably hit warnings here, preventable with max_t.
+On Wed, Sep 5, 2018 at 2:22 PM Pasha Tatashin
+<Pavel.Tatashin@microsoft.com> wrote:
 >
+>
+>
+> On 9/5/18 5:13 PM, Alexander Duyck wrote:
+> > From: Alexander Duyck <alexander.h.duyck@intel.com>
+> >
+> > On systems with a large amount of memory it can take a significant amount
+> > of time to initialize all of the page structs with the PAGE_POISON_PATTERN
+> > value. I have seen it take over 2 minutes to initialize a system with
+> > over 12GB of RAM.
+> >
+> > In order to work around the issue I had to disable CONFIG_DEBUG_VM and then
+> > the boot time returned to something much more reasonable as the
+> > arch_add_memory call completed in milliseconds versus seconds. However in
+> > doing that I had to disable all of the other VM debugging on the system.
+> >
+> > Instead of keeping the value in CONFIG_DEBUG_VM I am adding a new CONFIG
+> > value called CONFIG_DEBUG_VM_PAGE_INIT_POISON that will control the page
+> > poisoning independent of the CONFIG_DEBUG_VM option.
+> >
+> > Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
+> > ---
+> >  include/linux/page-flags.h |    8 ++++++++
+> >  lib/Kconfig.debug          |   14 ++++++++++++++
+> >  mm/memblock.c              |    5 ++---
+> >  mm/sparse.c                |    4 +---
+> >  4 files changed, 25 insertions(+), 6 deletions(-)
+> >
+> > diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> > index 74bee8cecf4c..0e95ca63375a 100644
+> > --- a/include/linux/page-flags.h
+> > +++ b/include/linux/page-flags.h
+> > @@ -13,6 +13,7 @@
+> >  #include <linux/mm_types.h>
+> >  #include <generated/bounds.h>
+> >  #endif /* !__GENERATING_BOUNDS_H */
+> > +#include <linux/string.h>
+> >
+> >  /*
+> >   * Various page->flags bits:
+> > @@ -162,6 +163,13 @@ static inline int PagePoisoned(const struct page *page)
+> >       return page->flags == PAGE_POISON_PATTERN;
+> >  }
+> >
+> > +static inline void page_init_poison(struct page *page, size_t size)
+> > +{
+> > +#ifdef CONFIG_DEBUG_VM_PAGE_INIT_POISON
+> > +     memset(page, PAGE_POISON_PATTERN, size);
+> > +#endif
+> > +}
+> > +
+> >  /*
+> >   * Page flags policies wrt compound pages
+> >   *
+> > diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+> > index 613316724c6a..3b1277c52fed 100644
+> > --- a/lib/Kconfig.debug
+> > +++ b/lib/Kconfig.debug
+> > @@ -637,6 +637,20 @@ config DEBUG_VM_PGFLAGS
+> >
+> >         If unsure, say N.
+> >
+> > +config DEBUG_VM_PAGE_INIT_POISON
+> > +     bool "Enable early page metadata poisoning"
+> > +     default y
+> > +     depends on DEBUG_VM
+> > +     help
+> > +       Seed the page metadata with a poison pattern to improve the
+> > +       likelihood of detecting attempts to access the page prior to
+> > +       initialization by the memory subsystem.
+> > +
+> > +       This initialization can result in a longer boot time for systems
+> > +       with a large amount of memory.
+>
+> What happens when DEBUG_VM_PGFLAGS = y and
+> DEBUG_VM_PAGE_INIT_POISON = n ?
+>
+> We are testing for pattern that was not set?
+>
+> I think DEBUG_VM_PAGE_INIT_POISON must depend on DEBUG_VM_PGFLAGS instead.
+>
+> Looks good otherwise.
+>
+> Thank you,
+> Pavel
 
-Let me fix this in v3.
+The problem is that I then end up in the same situation I had in the
+last patch where you have to have DEBUG_VM_PGFLAGS on in order to do
+the seeding with poison.
 
-Thank you!
+I can wrap the bit of code in PagePoisoned to just always return false
+if we didn't set the pattern. I figure there is value to be had for
+running DEBUG_VM_PGFLAGS regardless of the poison check, or
+DEBUG_VM_PAGE_INIT_POISON without the PGFLAGS check. That is why I
+wanted to leave them independent.
+
+- Alex
