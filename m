@@ -1,95 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A1C06B71AD
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 02:24:32 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id v9-v6so3253581ply.13
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 23:24:32 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d35-v6si1024468pla.116.2018.09.04.23.24.31
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 99E1A6B71BC
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 02:39:05 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id j5-v6so7435353oiw.13
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 23:39:05 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id v76-v6si780542oif.114.2018.09.04.23.39.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Sep 2018 23:24:31 -0700 (PDT)
-Date: Wed, 5 Sep 2018 08:24:28 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm: Create non-atomic version of SetPageReserved for
- init use
-Message-ID: <20180905062428.GV14951@dhcp22.suse.cz>
-References: <20180904181550.4416.50701.stgit@localhost.localdomain>
- <20180904183345.4416.76515.stgit@localhost.localdomain>
+        Tue, 04 Sep 2018 23:39:04 -0700 (PDT)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w856ceY7040263
+	for <linux-mm@kvack.org>; Wed, 5 Sep 2018 02:39:03 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2ma89ac7hq-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 05 Sep 2018 02:39:03 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Wed, 5 Sep 2018 07:39:00 +0100
+Date: Wed, 5 Sep 2018 09:38:46 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: Plumbers 2018 - Performance and Scalability Microconference
+References: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180904183345.4416.76515.stgit@localhost.localdomain>
+In-Reply-To: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com>
+Message-Id: <20180905063845.GA23342@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, alexander.h.duyck@intel.com, pavel.tatashin@microsoft.com, akpm@linux-foundation.org, mingo@kernel.org, kirill.shutemov@linux.intel.com
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Aaron Lu <aaron.lu@intel.com>, alex.kogan@oracle.com, akpm@linux-foundation.org, boqun.feng@gmail.com, brouer@redhat.com, dave@stgolabs.net, dave.dice@oracle.com, Dhaval Giani <dhaval.giani@oracle.com>, ktkhai@virtuozzo.com, ldufour@linux.vnet.ibm.com, Pavel.Tatashin@microsoft.com, paulmck@linux.vnet.ibm.com, shady.issa@oracle.com, tariqt@mellanox.com, tglx@linutronix.de, tim.c.chen@intel.com, vbabka@suse.cz, longman@redhat.com, yang.shi@linux.alibaba.com, shy828301@gmail.com, Huang Ying <ying.huang@intel.com>, subhra.mazumdar@oracle.com, Steven Sistare <steven.sistare@oracle.com>, jwadams@google.com, ashwinch@google.com, sqazi@google.com, Shakeel Butt <shakeelb@google.com>, walken@google.com, rientjes@google.com, junaids@google.com, Neha Agarwal <nehaagarwal@google.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Andrei Vagin <avagin@virtuozzo.com>
 
-On Tue 04-09-18 11:33:45, Alexander Duyck wrote:
-> From: Alexander Duyck <alexander.h.duyck@intel.com>
+On Tue, Sep 04, 2018 at 05:28:13PM -0400, Daniel Jordan wrote:
+> Pavel Tatashin, Ying Huang, and I are excited to be organizing a performance and scalability microconference this year at Plumbers[*], which is happening in Vancouver this year.  The microconference is scheduled for the morning of the second day (Wed, Nov 14).
 > 
-> It doesn't make much sense to use the atomic SetPageReserved at init time
-> when we are using memset to clear the memory and manipulating the page
-> flags via simple "&=" and "|=" operations in __init_single_page.
+> We have a preliminary agenda and a list of confirmed and interested attendees (cc'ed), and are seeking more of both!
 > 
-> This patch adds a non-atomic version __SetPageReserved that can be used
-> during page init and shows about a 10% improvement in initialization times
-> on the systems I have available for testing.
-
-I agree with Dave about a comment is due. I am also quite surprised that
-this leads to such a large improvement. Could you be more specific about
-your test and machines you were testing on?
-
-Other than that the patch makes sense to me.
-
-> Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
-
-With the above addressed, feel free to add
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-Thanks!
-
-> ---
->  include/linux/page-flags.h |    1 +
->  mm/page_alloc.c            |    4 ++--
->  2 files changed, 3 insertions(+), 2 deletions(-)
+> Some of the items on the agenda as it stands now are:
 > 
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 74bee8cecf4c..57ec3fef7e9f 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -292,6 +292,7 @@ static inline int PagePoisoned(const struct page *page)
->  
->  PAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
->  	__CLEARPAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
-> +	__SETPAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
->  PAGEFLAG(SwapBacked, swapbacked, PF_NO_TAIL)
->  	__CLEARPAGEFLAG(SwapBacked, swapbacked, PF_NO_TAIL)
->  	__SETPAGEFLAG(SwapBacked, swapbacked, PF_NO_TAIL)
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 05e983f42316..9c7d6e971630 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1231,7 +1231,7 @@ void __meminit reserve_bootmem_region(phys_addr_t start, phys_addr_t end)
->  			/* Avoid false-positive PageTail() */
->  			INIT_LIST_HEAD(&page->lru);
->  
-> -			SetPageReserved(page);
-> +			__SetPageReserved(page);
->  		}
->  	}
->  }
-> @@ -5518,7 +5518,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->  		page = pfn_to_page(pfn);
->  		__init_single_page(page, pfn, zone, nid);
->  		if (context == MEMMAP_HOTPLUG)
-> -			SetPageReserved(page);
-> +			__SetPageReserved(page);
->  
->  		/*
->  		 * Mark the block movable so that blocks are reserved for
+>  - Promoting huge page usage:  With memory sizes becoming ever larger, huge pages are becoming more and more important to reduce TLB misses and the overhead of memory management itself--that is, to make the system scalable with the memory size.  But there are still some remaining gaps that prevent huge pages from being deployed in some situations, such as huge page allocation latency and memory fragmentation.
+> 
+>  - Reducing the number of users of mmap_sem:  This semaphore is frequently used throughout the kernel.  In order to facilitate scaling this longstanding bottleneck, these uses should be documented and unnecessary users should be fixed.
+> 
+>  - Parallelizing cpu-intensive kernel work:  Resolve problems of past approaches including extra threads interfering with other processes, playing well with power management, and proper cgroup accounting for the extra threads.  Bonus topic: proper accounting of workqueue threads running on behalf of cgroups.
+> 
+>  - Preserving userland during kexec with a hibernation-like mechanism.
+
+Just some crazy idea: have you considered using checkpoint-restore as a
+replacement or an addition to hibernation?
+ 
+> These center around our interests, but having lots of topics to choose from ensures we cover what's most important to the community, so we would like to hear about additional topics and extensions to those listed here.  This includes, but is certainly not limited to, work in progress that would benefit from in-person discussion, real-world performance problems, and experimental and academic work.
+> 
+> If you haven't already done so, please let us know if you are interested in attending, or have suggestions for other attendees.
+> 
+> Thanks,
+> Daniel
+> 
+> [*] https://blog.linuxplumbersconf.org/2018/performance-mc/
 > 
 
 -- 
-Michal Hocko
-SUSE Labs
+Sincerely yours,
+Mike.
