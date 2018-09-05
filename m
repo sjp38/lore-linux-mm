@@ -1,506 +1,896 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B3DB6B73F3
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 12:00:06 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id t3-v6so9141274oif.20
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 09:00:06 -0700 (PDT)
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A359E6B73F5
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 12:00:13 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id l191-v6so8950768oig.23
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 09:00:13 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id a200-v6si1503752oib.18.2018.09.05.09.00.04
+        by mx.google.com with ESMTPS id z81-v6si1628120oig.180.2018.09.05.09.00.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Sep 2018 09:00:05 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w85FvI7F044759
-	for <linux-mm@kvack.org>; Wed, 5 Sep 2018 12:00:04 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2magp9w2km-1
+        Wed, 05 Sep 2018 09:00:11 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w85FuYXd022358
+	for <linux-mm@kvack.org>; Wed, 5 Sep 2018 12:00:10 -0400
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2magp9d9w8-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 05 Sep 2018 12:00:01 -0400
+	for <linux-mm@kvack.org>; Wed, 05 Sep 2018 12:00:09 -0400
 Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 5 Sep 2018 16:59:58 +0100
+	Wed, 5 Sep 2018 17:00:04 +0100
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [RFC PATCH 02/29] mm: remove CONFIG_NO_BOOTMEM
-Date: Wed,  5 Sep 2018 18:59:17 +0300
+Subject: [RFC PATCH 04/29] mm: remove bootmem allocator implementation.
+Date: Wed,  5 Sep 2018 18:59:19 +0300
 In-Reply-To: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
 References: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1536163184-26356-3-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1536163184-26356-5-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ingo Molnar <mingo@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Paul Burton <paul.burton@mips.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-All achitectures select NO_BOOTMEM which essentially becomes 'Y' for any
-kernel configuration and therefore it can be removed.
+All architectures have been converted to use MEMBLOCK + NO_BOOTMEM. The
+bootmem allocator implementation can be removed.
 
 Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 ---
- arch/alpha/Kconfig      |  1 -
- arch/arc/Kconfig        |  1 -
- arch/arm/Kconfig        |  1 -
- arch/arm64/Kconfig      |  1 -
- arch/c6x/Kconfig        |  1 -
- arch/h8300/Kconfig      |  1 -
- arch/hexagon/Kconfig    |  1 -
- arch/ia64/Kconfig       |  1 -
- arch/m68k/Kconfig       |  1 -
- arch/microblaze/Kconfig |  1 -
- arch/mips/Kconfig       |  1 -
- arch/nds32/Kconfig      |  1 -
- arch/nios2/Kconfig      |  1 -
- arch/openrisc/Kconfig   |  1 -
- arch/parisc/Kconfig     |  1 -
- arch/powerpc/Kconfig    |  1 -
- arch/riscv/Kconfig      |  1 -
- arch/s390/Kconfig       |  1 -
- arch/sh/Kconfig         |  1 -
- arch/sparc/Kconfig      |  1 -
- arch/um/Kconfig         |  1 -
- arch/unicore32/Kconfig  |  1 -
- arch/x86/Kconfig        |  3 ---
- arch/xtensa/Kconfig     |  1 -
- include/linux/bootmem.h | 36 ++----------------------------------
- include/linux/mmzone.h  |  5 +----
- mm/Kconfig              |  3 ---
- mm/Makefile             |  7 +------
- mm/memblock.c           |  2 --
- 29 files changed, 4 insertions(+), 75 deletions(-)
+ include/linux/bootmem.h |  16 -
+ mm/bootmem.c            | 811 ------------------------------------------------
+ 2 files changed, 827 deletions(-)
+ delete mode 100644 mm/bootmem.c
 
-diff --git a/arch/alpha/Kconfig b/arch/alpha/Kconfig
-index 620b0a7..04de6be 100644
---- a/arch/alpha/Kconfig
-+++ b/arch/alpha/Kconfig
-@@ -32,7 +32,6 @@ config ALPHA
- 	select OLD_SIGSUSPEND
- 	select CPU_NO_EFFICIENT_FFS if !ALPHA_EV67
- 	select HAVE_MEMBLOCK
--	select NO_BOOTMEM
- 	help
- 	  The Alpha is a 64-bit general-purpose processor designed and
- 	  marketed by the Digital Equipment Corporation of blessed memory,
-diff --git a/arch/arc/Kconfig b/arch/arc/Kconfig
-index b4441b0..04ebead 100644
---- a/arch/arc/Kconfig
-+++ b/arch/arc/Kconfig
-@@ -44,7 +44,6 @@ config ARC
- 	select HANDLE_DOMAIN_IRQ
- 	select IRQ_DOMAIN
- 	select MODULES_USE_ELF_RELA
--	select NO_BOOTMEM
- 	select OF
- 	select OF_EARLY_FLATTREE
- 	select OF_RESERVED_MEM
-diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index ed74be4..61ea3dd 100644
---- a/arch/arm/Kconfig
-+++ b/arch/arm/Kconfig
-@@ -100,7 +100,6 @@ config ARM
- 	select IRQ_FORCED_THREADING
- 	select MODULES_USE_ELF_REL
- 	select NEED_DMA_MAP_STATE
--	select NO_BOOTMEM
- 	select OF_EARLY_FLATTREE if OF
- 	select OF_RESERVED_MEM if OF
- 	select OLD_SIGACTION
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index c05ab9e..0065653 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -154,7 +154,6 @@ config ARM64
- 	select MULTI_IRQ_HANDLER
- 	select NEED_DMA_MAP_STATE
- 	select NEED_SG_DMA_LENGTH
--	select NO_BOOTMEM
- 	select OF
- 	select OF_EARLY_FLATTREE
- 	select OF_RESERVED_MEM
-diff --git a/arch/c6x/Kconfig b/arch/c6x/Kconfig
-index 85ed568..a641b0b 100644
---- a/arch/c6x/Kconfig
-+++ b/arch/c6x/Kconfig
-@@ -14,7 +14,6 @@ config C6X
- 	select GENERIC_IRQ_SHOW
- 	select HAVE_ARCH_TRACEHOOK
- 	select HAVE_MEMBLOCK
--	select NO_BOOTMEM
- 	select SPARSE_IRQ
- 	select IRQ_DOMAIN
- 	select OF
-diff --git a/arch/h8300/Kconfig b/arch/h8300/Kconfig
-index 0b334b6..5e89d40 100644
---- a/arch/h8300/Kconfig
-+++ b/arch/h8300/Kconfig
-@@ -16,7 +16,6 @@ config H8300
- 	select OF_IRQ
- 	select OF_EARLY_FLATTREE
- 	select HAVE_MEMBLOCK
--	select NO_BOOTMEM
- 	select TIMER_OF
- 	select H8300_TMR8
- 	select HAVE_KERNEL_GZIP
-diff --git a/arch/hexagon/Kconfig b/arch/hexagon/Kconfig
-index f793499..fb7e0ba 100644
---- a/arch/hexagon/Kconfig
-+++ b/arch/hexagon/Kconfig
-@@ -31,7 +31,6 @@ config HEXAGON
- 	select GENERIC_CPU_DEVICES
- 	select HAVE_MEMBLOCK
- 	select ARCH_DISCARD_MEMBLOCK
--	select NO_BOOTMEM
- 	---help---
- 	  Qualcomm Hexagon is a processor architecture designed for high
- 	  performance and low power across a wide variety of applications.
-diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
-index 8b4a0c17..2bf4ef7 100644
---- a/arch/ia64/Kconfig
-+++ b/arch/ia64/Kconfig
-@@ -28,7 +28,6 @@ config IA64
- 	select HAVE_ARCH_TRACEHOOK
- 	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
--	select NO_BOOTMEM
- 	select HAVE_VIRT_CPU_ACCOUNTING
- 	select ARCH_HAS_DMA_MARK_CLEAN
- 	select ARCH_HAS_SG_CHAIN
-diff --git a/arch/m68k/Kconfig b/arch/m68k/Kconfig
-index 0705537..8c7111d 100644
---- a/arch/m68k/Kconfig
-+++ b/arch/m68k/Kconfig
-@@ -29,7 +29,6 @@ config M68K
- 	select DMA_NONCOHERENT_OPS if HAS_DMA
- 	select HAVE_MEMBLOCK
- 	select ARCH_DISCARD_MEMBLOCK
--	select NO_BOOTMEM
- 
- config CPU_BIG_ENDIAN
- 	def_bool y
-diff --git a/arch/microblaze/Kconfig b/arch/microblaze/Kconfig
-index ace5c5b..56379b9 100644
---- a/arch/microblaze/Kconfig
-+++ b/arch/microblaze/Kconfig
-@@ -28,7 +28,6 @@ config MICROBLAZE
- 	select HAVE_FTRACE_MCOUNT_RECORD
- 	select HAVE_FUNCTION_GRAPH_TRACER
- 	select HAVE_FUNCTION_TRACER
--	select NO_BOOTMEM
- 	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select HAVE_OPROFILE
-diff --git a/arch/mips/Kconfig b/arch/mips/Kconfig
-index f744d25..1a119fd 100644
---- a/arch/mips/Kconfig
-+++ b/arch/mips/Kconfig
-@@ -78,7 +78,6 @@ config MIPS
- 	select RTC_LIB if !MACH_LOONGSON64
- 	select SYSCTL_EXCEPTION_TRACE
- 	select VIRT_TO_BUS
--	select NO_BOOTMEM
- 
- menu "Machine selection"
- 
-diff --git a/arch/nds32/Kconfig b/arch/nds32/Kconfig
-index 7068f34..06b1259 100644
---- a/arch/nds32/Kconfig
-+++ b/arch/nds32/Kconfig
-@@ -36,7 +36,6 @@ config NDS32
- 	select MODULES_USE_ELF_RELA
- 	select OF
- 	select OF_EARLY_FLATTREE
--	select NO_BOOTMEM
- 	select NO_IOPORT_MAP
- 	select RTC_LIB
- 	select THREAD_INFO_IN_TASK
-diff --git a/arch/nios2/Kconfig b/arch/nios2/Kconfig
-index 5ddf272..ebfae50 100644
---- a/arch/nios2/Kconfig
-+++ b/arch/nios2/Kconfig
-@@ -25,7 +25,6 @@ config NIOS2
- 	select CPU_NO_EFFICIENT_FFS
- 	select HAVE_MEMBLOCK
- 	select ARCH_DISCARD_MEMBLOCK
--	select NO_BOOTMEM
- 
- config GENERIC_CSUM
- 	def_bool y
-diff --git a/arch/openrisc/Kconfig b/arch/openrisc/Kconfig
-index e0081e7..25c6c2e 100644
---- a/arch/openrisc/Kconfig
-+++ b/arch/openrisc/Kconfig
-@@ -32,7 +32,6 @@ config OPENRISC
- 	select HAVE_DEBUG_STACKOVERFLOW
- 	select OR1K_PIC
- 	select CPU_NO_EFFICIENT_FFS if !OPENRISC_HAVE_INST_FF1
--	select NO_BOOTMEM
- 	select ARCH_USE_QUEUED_SPINLOCKS
- 	select ARCH_USE_QUEUED_RWLOCKS
- 	select OMPIC if SMP
-diff --git a/arch/parisc/Kconfig b/arch/parisc/Kconfig
-index 8e6d83f..1d6332c 100644
---- a/arch/parisc/Kconfig
-+++ b/arch/parisc/Kconfig
-@@ -16,7 +16,6 @@ config PARISC
- 	select RTC_DRV_GENERIC
- 	select INIT_ALL_POSSIBLE
- 	select HAVE_MEMBLOCK
--	select NO_BOOTMEM
- 	select BUG
- 	select BUILDTIME_EXTABLE_SORT
- 	select HAVE_PERF_EVENTS
-diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index a806692..304cdce 100644
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -228,7 +228,6 @@ config PPC
- 	select MODULES_USE_ELF_RELA
- 	select NEED_DMA_MAP_STATE		if PPC64 || NOT_COHERENT_CACHE
- 	select NEED_SG_DMA_LENGTH
--	select NO_BOOTMEM
- 	select OF
- 	select OF_EARLY_FLATTREE
- 	select OF_RESERVED_MEM
-diff --git a/arch/riscv/Kconfig b/arch/riscv/Kconfig
-index a344980..63301c8 100644
---- a/arch/riscv/Kconfig
-+++ b/arch/riscv/Kconfig
-@@ -34,7 +34,6 @@ config RISCV
- 	select HAVE_GENERIC_DMA_COHERENT
- 	select HAVE_PERF_EVENTS
- 	select IRQ_DOMAIN
--	select NO_BOOTMEM
- 	select RISCV_ISA_A if SMP
- 	select SPARSE_IRQ
- 	select SYSCTL_EXCEPTION_TRACE
-diff --git a/arch/s390/Kconfig b/arch/s390/Kconfig
-index 9a9c7a6..b388e05 100644
---- a/arch/s390/Kconfig
-+++ b/arch/s390/Kconfig
-@@ -166,7 +166,6 @@ config S390
- 	select HAVE_SYSCALL_TRACEPOINTS
- 	select HAVE_VIRT_CPU_ACCOUNTING
- 	select MODULES_USE_ELF_RELA
--	select NO_BOOTMEM
- 	select OLD_SIGACTION
- 	select OLD_SIGSUSPEND3
- 	select SPARSE_IRQ
-diff --git a/arch/sh/Kconfig b/arch/sh/Kconfig
-index 1fb7b6d..e254226 100644
---- a/arch/sh/Kconfig
-+++ b/arch/sh/Kconfig
-@@ -10,7 +10,6 @@ config SUPERH
- 	select HAVE_IDE if HAS_IOPORT_MAP
- 	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
--	select NO_BOOTMEM
- 	select ARCH_DISCARD_MEMBLOCK
- 	select HAVE_OPROFILE
- 	select HAVE_GENERIC_DMA_COHERENT
-diff --git a/arch/sparc/Kconfig b/arch/sparc/Kconfig
-index e6f2a38..5e8aaee 100644
---- a/arch/sparc/Kconfig
-+++ b/arch/sparc/Kconfig
-@@ -46,7 +46,6 @@ config SPARC
- 	select NEED_DMA_MAP_STATE
- 	select NEED_SG_DMA_LENGTH
- 	select HAVE_MEMBLOCK
--	select NO_BOOTMEM
- 
- config SPARC32
- 	def_bool !64BIT
-diff --git a/arch/um/Kconfig b/arch/um/Kconfig
-index 10c15b8..ce3d562 100644
---- a/arch/um/Kconfig
-+++ b/arch/um/Kconfig
-@@ -13,7 +13,6 @@ config UML
- 	select HAVE_FUTEX_CMPXCHG if FUTEX
- 	select HAVE_DEBUG_KMEMLEAK
- 	select HAVE_MEMBLOCK
--	select NO_BOOTMEM
- 	select GENERIC_IRQ_SHOW
- 	select GENERIC_CPU_DEVICES
- 	select GENERIC_CLOCKEVENTS
-diff --git a/arch/unicore32/Kconfig b/arch/unicore32/Kconfig
-index 6f38f7f..60eae74 100644
---- a/arch/unicore32/Kconfig
-+++ b/arch/unicore32/Kconfig
-@@ -5,7 +5,6 @@ config UNICORE32
- 	select ARCH_MIGHT_HAVE_PC_PARPORT
- 	select ARCH_MIGHT_HAVE_PC_SERIO
- 	select HAVE_MEMBLOCK
--	select NO_BOOTMEM
- 	select HAVE_GENERIC_DMA_COHERENT
- 	select HAVE_KERNEL_GZIP
- 	select HAVE_KERNEL_BZIP2
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index fc5439d..5a861bd 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -831,9 +831,6 @@ config JAILHOUSE_GUEST
- 
- endif #HYPERVISOR_GUEST
- 
--config NO_BOOTMEM
--	def_bool y
--
- source "arch/x86/Kconfig.cpu"
- 
- config HPET_TIMER
-diff --git a/arch/xtensa/Kconfig b/arch/xtensa/Kconfig
-index 04d038f..e4f7d12 100644
---- a/arch/xtensa/Kconfig
-+++ b/arch/xtensa/Kconfig
-@@ -33,7 +33,6 @@ config XTENSA
- 	select HAVE_STACKPROTECTOR
- 	select IRQ_DOMAIN
- 	select MODULES_USE_ELF_RELA
--	select NO_BOOTMEM
- 	select PERF_USE_VMALLOC
- 	select VIRT_TO_BUS
- 	help
 diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
-index 4251519..1f005b5 100644
+index ee61ac3..fce6278 100644
 --- a/include/linux/bootmem.h
 +++ b/include/linux/bootmem.h
-@@ -26,34 +26,6 @@ extern unsigned long max_pfn;
+@@ -26,14 +26,6 @@ extern unsigned long max_pfn;
   */
  extern unsigned long long max_possible_pfn;
  
--#ifndef CONFIG_NO_BOOTMEM
--/**
-- * struct bootmem_data - per-node information used by the bootmem allocator
-- * @node_min_pfn: the starting physical address of the node's memory
-- * @node_low_pfn: the end physical address of the directly addressable memory
-- * @node_bootmem_map: is a bitmap pointer - the bits represent all physical
-- *		      memory pages (including holes) on the node.
-- * @last_end_off: the offset within the page of the end of the last allocation;
-- *                if 0, the page used is full
-- * @hint_idx: the PFN of the page used with the last allocation;
-- *            together with using this with the @last_end_offset field,
-- *            a test can be made to see if allocations can be merged
-- *            with the page used for the last allocation rather than
-- *            using up a full new page.
-- * @list: list entry in the linked list ordered by the memory addresses
+-extern unsigned long bootmem_bootmap_pages(unsigned long);
+-
+-extern unsigned long init_bootmem_node(pg_data_t *pgdat,
+-				       unsigned long freepfn,
+-				       unsigned long startpfn,
+-				       unsigned long endpfn);
+-extern unsigned long init_bootmem(unsigned long addr, unsigned long memend);
+-
+ extern unsigned long free_all_bootmem(void);
+ extern void reset_node_managed_pages(pg_data_t *pgdat);
+ extern void reset_all_zones_managed_pages(void);
+@@ -55,14 +47,6 @@ extern void free_bootmem_late(unsigned long physaddr, unsigned long size);
+ #define BOOTMEM_DEFAULT		0
+ #define BOOTMEM_EXCLUSIVE	(1<<0)
+ 
+-extern int reserve_bootmem(unsigned long addr,
+-			   unsigned long size,
+-			   int flags);
+-extern int reserve_bootmem_node(pg_data_t *pgdat,
+-				unsigned long physaddr,
+-				unsigned long size,
+-				int flags);
+-
+ extern void *__alloc_bootmem(unsigned long size,
+ 			     unsigned long align,
+ 			     unsigned long goal);
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+deleted file mode 100644
+index 97db0e8..0000000
+--- a/mm/bootmem.c
++++ /dev/null
+@@ -1,811 +0,0 @@
+-// SPDX-License-Identifier: GPL-2.0
+-/*
+- *  bootmem - A boot-time physical memory allocator and configurator
+- *
+- *  Copyright (C) 1999 Ingo Molnar
+- *                1999 Kanoj Sarcar, SGI
+- *                2008 Johannes Weiner
+- *
+- * Access to this subsystem has to be serialized externally (which is true
+- * for the boot process anyway).
 - */
--typedef struct bootmem_data {
--	unsigned long node_min_pfn;
--	unsigned long node_low_pfn;
--	void *node_bootmem_map;
--	unsigned long last_end_off;
--	unsigned long hint_idx;
--	struct list_head list;
--} bootmem_data_t;
+-#include <linux/init.h>
+-#include <linux/pfn.h>
+-#include <linux/slab.h>
+-#include <linux/export.h>
+-#include <linux/kmemleak.h>
+-#include <linux/range.h>
+-#include <linux/bug.h>
+-#include <linux/io.h>
+-#include <linux/bootmem.h>
 -
--extern bootmem_data_t bootmem_node_data[];
+-#include "internal.h"
+-
+-/**
+- * DOC: bootmem overview
+- *
+- * Bootmem is a boot-time physical memory allocator and configurator.
+- *
+- * It is used early in the boot process before the page allocator is
+- * set up.
+- *
+- * Bootmem is based on the most basic of allocators, a First Fit
+- * allocator which uses a bitmap to represent memory. If a bit is 1,
+- * the page is allocated and 0 if unallocated. To satisfy allocations
+- * of sizes smaller than a page, the allocator records the Page Frame
+- * Number (PFN) of the last allocation and the offset the allocation
+- * ended at. Subsequent small allocations are merged together and
+- * stored on the same page.
+- *
+- * The information used by the bootmem allocator is represented by
+- * :c:type:`struct bootmem_data`. An array to hold up to %MAX_NUMNODES
+- * such structures is statically allocated and then it is discarded
+- * when the system initialization completes. Each entry in this array
+- * corresponds to a node with memory. For UMA systems only entry 0 is
+- * used.
+- *
+- * The bootmem allocator is initialized during early architecture
+- * specific setup. Each architecture is required to supply a
+- * :c:func:`setup_arch` function which, among other tasks, is
+- * responsible for acquiring the necessary parameters to initialise
+- * the boot memory allocator. These parameters define limits of usable
+- * physical memory:
+- *
+- * * @min_low_pfn - the lowest PFN that is available in the system
+- * * @max_low_pfn - the highest PFN that may be addressed by low
+- *   memory (%ZONE_NORMAL)
+- * * @max_pfn - the last PFN available to the system.
+- *
+- * After those limits are determined, the :c:func:`init_bootmem` or
+- * :c:func:`init_bootmem_node` function should be called to initialize
+- * the bootmem allocator. The UMA case should use the `init_bootmem`
+- * function. It will initialize ``contig_page_data`` structure that
+- * represents the only memory node in the system. In the NUMA case the
+- * `init_bootmem_node` function should be called to initialize the
+- * bootmem allocator for each node.
+- *
+- * Once the allocator is set up, it is possible to use either single
+- * node or NUMA variant of the allocation APIs.
+- */
+-
+-#ifndef CONFIG_NEED_MULTIPLE_NODES
+-struct pglist_data __refdata contig_page_data = {
+-	.bdata = &bootmem_node_data[0]
+-};
+-EXPORT_SYMBOL(contig_page_data);
 -#endif
 -
- extern unsigned long bootmem_bootmap_pages(unsigned long);
- 
- extern unsigned long init_bootmem_node(pg_data_t *pgdat,
-@@ -125,12 +97,8 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
- 				      unsigned long align,
- 				      unsigned long goal) __malloc;
- 
--#ifdef CONFIG_NO_BOOTMEM
- /* We are using top down, so it is safe to use 0 here */
- #define BOOTMEM_LOW_LIMIT 0
--#else
--#define BOOTMEM_LOW_LIMIT __pa(MAX_DMA_ADDRESS)
--#endif
- 
- #ifndef ARCH_LOW_ADDRESS_LIMIT
- #define ARCH_LOW_ADDRESS_LIMIT  0xffffffffUL
-@@ -165,7 +133,7 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
- 	__alloc_bootmem_low_node(pgdat, x, PAGE_SIZE, 0)
- 
- 
--#if defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM)
-+#if defined(CONFIG_HAVE_MEMBLOCK)
- 
- /* FIXME: use MEMBLOCK_ALLOC_* variants here */
- #define BOOTMEM_ALLOC_ACCESSIBLE	0
-@@ -373,7 +341,7 @@ static inline void __init memblock_free_late(
- {
- 	free_bootmem_late(base, size);
- }
--#endif /* defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM) */
-+#endif /* defined(CONFIG_HAVE_MEMBLOCK) */
- 
- extern void *alloc_large_system_hash(const char *tablename,
- 				     unsigned long bucketsize,
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index f09d27c..f09b437 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -631,9 +631,6 @@ typedef struct pglist_data {
- 	struct page_ext *node_page_ext;
- #endif
- #endif
--#ifndef CONFIG_NO_BOOTMEM
--	struct bootmem_data *bdata;
--#endif
- #if defined(CONFIG_MEMORY_HOTPLUG) || defined(CONFIG_DEFERRED_STRUCT_PAGE_INIT)
- 	/*
- 	 * Must be held any time you expect node_start_pfn, node_present_pages
-@@ -877,7 +874,7 @@ static inline int is_highmem_idx(enum zone_type idx)
- }
- 
- /**
-- * is_highmem - helper function to quickly check if a struct zone is a 
-+ * is_highmem - helper function to quickly check if a struct zone is a
-  *              highmem zone or not.  This is an attempt to keep references
-  *              to ZONE_{DMA/NORMAL/HIGHMEM/etc} in general code to a minimum.
-  * @zone - pointer to struct zone variable
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 7bf074b..16ceea0 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -145,9 +145,6 @@ config HAVE_GENERIC_GUP
- config ARCH_DISCARD_MEMBLOCK
- 	bool
- 
--config NO_BOOTMEM
--	bool
+-unsigned long max_low_pfn;
+-unsigned long min_low_pfn;
+-unsigned long max_pfn;
+-unsigned long long max_possible_pfn;
 -
- config MEMORY_ISOLATION
- 	bool
- 
-diff --git a/mm/Makefile b/mm/Makefile
-index 26ef77a..c4da6de 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -42,12 +42,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
- 			   debug.o $(mmu-y)
- 
- obj-y += init-mm.o
+-bootmem_data_t bootmem_node_data[MAX_NUMNODES] __initdata;
 -
--ifdef CONFIG_NO_BOOTMEM
--	obj-y		+= nobootmem.o
--else
--	obj-y		+= bootmem.o
--endif
-+obj-y += nobootmem.o
- 
- ifdef CONFIG_MMU
- 	obj-$(CONFIG_ADVISE_SYSCALLS)	+= madvise.o
-diff --git a/mm/memblock.c b/mm/memblock.c
-index b9f593da..2a5940c 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1393,7 +1393,6 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
- 	return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
- }
- 
--#if defined(CONFIG_NO_BOOTMEM)
- /**
-  * memblock_virt_alloc_internal - allocate boot memory block
-  * @size: size of memory block to be allocated in bytes
-@@ -1600,7 +1599,6 @@ void * __init memblock_virt_alloc_try_nid(
- 	      __func__, (u64)size, (u64)align, nid, &min_addr, &max_addr);
- 	return NULL;
- }
+-static struct list_head bdata_list __initdata = LIST_HEAD_INIT(bdata_list);
+-
+-static int bootmem_debug;
+-
+-static int __init bootmem_debug_setup(char *buf)
+-{
+-	bootmem_debug = 1;
+-	return 0;
+-}
+-early_param("bootmem_debug", bootmem_debug_setup);
+-
+-#define bdebug(fmt, args...) ({				\
+-	if (unlikely(bootmem_debug))			\
+-		pr_info("bootmem::%s " fmt,		\
+-			__func__, ## args);		\
+-})
+-
+-static unsigned long __init bootmap_bytes(unsigned long pages)
+-{
+-	unsigned long bytes = DIV_ROUND_UP(pages, BITS_PER_BYTE);
+-
+-	return ALIGN(bytes, sizeof(long));
+-}
+-
+-/**
+- * bootmem_bootmap_pages - calculate bitmap size in pages
+- * @pages: number of pages the bitmap has to represent
+- *
+- * Return: the number of pages needed to hold the bitmap.
+- */
+-unsigned long __init bootmem_bootmap_pages(unsigned long pages)
+-{
+-	unsigned long bytes = bootmap_bytes(pages);
+-
+-	return PAGE_ALIGN(bytes) >> PAGE_SHIFT;
+-}
+-
+-/*
+- * link bdata in order
+- */
+-static void __init link_bootmem(bootmem_data_t *bdata)
+-{
+-	bootmem_data_t *ent;
+-
+-	list_for_each_entry(ent, &bdata_list, list) {
+-		if (bdata->node_min_pfn < ent->node_min_pfn) {
+-			list_add_tail(&bdata->list, &ent->list);
+-			return;
+-		}
+-	}
+-
+-	list_add_tail(&bdata->list, &bdata_list);
+-}
+-
+-/*
+- * Called once to set up the allocator itself.
+- */
+-static unsigned long __init init_bootmem_core(bootmem_data_t *bdata,
+-	unsigned long mapstart, unsigned long start, unsigned long end)
+-{
+-	unsigned long mapsize;
+-
+-	mminit_validate_memmodel_limits(&start, &end);
+-	bdata->node_bootmem_map = phys_to_virt(PFN_PHYS(mapstart));
+-	bdata->node_min_pfn = start;
+-	bdata->node_low_pfn = end;
+-	link_bootmem(bdata);
+-
+-	/*
+-	 * Initially all pages are reserved - setup_arch() has to
+-	 * register free RAM areas explicitly.
+-	 */
+-	mapsize = bootmap_bytes(end - start);
+-	memset(bdata->node_bootmem_map, 0xff, mapsize);
+-
+-	bdebug("nid=%td start=%lx map=%lx end=%lx mapsize=%lx\n",
+-		bdata - bootmem_node_data, start, mapstart, end, mapsize);
+-
+-	return mapsize;
+-}
+-
+-/**
+- * init_bootmem_node - register a node as boot memory
+- * @pgdat: node to register
+- * @freepfn: pfn where the bitmap for this node is to be placed
+- * @startpfn: first pfn on the node
+- * @endpfn: first pfn after the node
+- *
+- * Return: the number of bytes needed to hold the bitmap for this node.
+- */
+-unsigned long __init init_bootmem_node(pg_data_t *pgdat, unsigned long freepfn,
+-				unsigned long startpfn, unsigned long endpfn)
+-{
+-	return init_bootmem_core(pgdat->bdata, freepfn, startpfn, endpfn);
+-}
+-
+-/**
+- * init_bootmem - register boot memory
+- * @start: pfn where the bitmap is to be placed
+- * @pages: number of available physical pages
+- *
+- * Return: the number of bytes needed to hold the bitmap.
+- */
+-unsigned long __init init_bootmem(unsigned long start, unsigned long pages)
+-{
+-	max_low_pfn = pages;
+-	min_low_pfn = start;
+-	return init_bootmem_core(NODE_DATA(0)->bdata, start, 0, pages);
+-}
+-
+-void __init free_bootmem_late(unsigned long physaddr, unsigned long size)
+-{
+-	unsigned long cursor, end;
+-
+-	kmemleak_free_part_phys(physaddr, size);
+-
+-	cursor = PFN_UP(physaddr);
+-	end = PFN_DOWN(physaddr + size);
+-
+-	for (; cursor < end; cursor++) {
+-		__free_pages_bootmem(pfn_to_page(cursor), cursor, 0);
+-		totalram_pages++;
+-	}
+-}
+-
+-static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+-{
+-	struct page *page;
+-	unsigned long *map, start, end, pages, cur, count = 0;
+-
+-	if (!bdata->node_bootmem_map)
+-		return 0;
+-
+-	map = bdata->node_bootmem_map;
+-	start = bdata->node_min_pfn;
+-	end = bdata->node_low_pfn;
+-
+-	bdebug("nid=%td start=%lx end=%lx\n",
+-		bdata - bootmem_node_data, start, end);
+-
+-	while (start < end) {
+-		unsigned long idx, vec;
+-		unsigned shift;
+-
+-		idx = start - bdata->node_min_pfn;
+-		shift = idx & (BITS_PER_LONG - 1);
+-		/*
+-		 * vec holds at most BITS_PER_LONG map bits,
+-		 * bit 0 corresponds to start.
+-		 */
+-		vec = ~map[idx / BITS_PER_LONG];
+-
+-		if (shift) {
+-			vec >>= shift;
+-			if (end - start >= BITS_PER_LONG)
+-				vec |= ~map[idx / BITS_PER_LONG + 1] <<
+-					(BITS_PER_LONG - shift);
+-		}
+-		/*
+-		 * If we have a properly aligned and fully unreserved
+-		 * BITS_PER_LONG block of pages in front of us, free
+-		 * it in one go.
+-		 */
+-		if (IS_ALIGNED(start, BITS_PER_LONG) && vec == ~0UL) {
+-			int order = ilog2(BITS_PER_LONG);
+-
+-			__free_pages_bootmem(pfn_to_page(start), start, order);
+-			count += BITS_PER_LONG;
+-			start += BITS_PER_LONG;
+-		} else {
+-			cur = start;
+-
+-			start = ALIGN(start + 1, BITS_PER_LONG);
+-			while (vec && cur != start) {
+-				if (vec & 1) {
+-					page = pfn_to_page(cur);
+-					__free_pages_bootmem(page, cur, 0);
+-					count++;
+-				}
+-				vec >>= 1;
+-				++cur;
+-			}
+-		}
+-	}
+-
+-	cur = bdata->node_min_pfn;
+-	page = virt_to_page(bdata->node_bootmem_map);
+-	pages = bdata->node_low_pfn - bdata->node_min_pfn;
+-	pages = bootmem_bootmap_pages(pages);
+-	count += pages;
+-	while (pages--)
+-		__free_pages_bootmem(page++, cur++, 0);
+-	bdata->node_bootmem_map = NULL;
+-
+-	bdebug("nid=%td released=%lx\n", bdata - bootmem_node_data, count);
+-
+-	return count;
+-}
+-
+-static int reset_managed_pages_done __initdata;
+-
+-void reset_node_managed_pages(pg_data_t *pgdat)
+-{
+-	struct zone *z;
+-
+-	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
+-		z->managed_pages = 0;
+-}
+-
+-void __init reset_all_zones_managed_pages(void)
+-{
+-	struct pglist_data *pgdat;
+-
+-	if (reset_managed_pages_done)
+-		return;
+-
+-	for_each_online_pgdat(pgdat)
+-		reset_node_managed_pages(pgdat);
+-
+-	reset_managed_pages_done = 1;
+-}
+-
+-unsigned long __init free_all_bootmem(void)
+-{
+-	unsigned long total_pages = 0;
+-	bootmem_data_t *bdata;
+-
+-	reset_all_zones_managed_pages();
+-
+-	list_for_each_entry(bdata, &bdata_list, list)
+-		total_pages += free_all_bootmem_core(bdata);
+-
+-	totalram_pages += total_pages;
+-
+-	return total_pages;
+-}
+-
+-static void __init __free(bootmem_data_t *bdata,
+-			unsigned long sidx, unsigned long eidx)
+-{
+-	unsigned long idx;
+-
+-	bdebug("nid=%td start=%lx end=%lx\n", bdata - bootmem_node_data,
+-		sidx + bdata->node_min_pfn,
+-		eidx + bdata->node_min_pfn);
+-
+-	if (WARN_ON(bdata->node_bootmem_map == NULL))
+-		return;
+-
+-	if (bdata->hint_idx > sidx)
+-		bdata->hint_idx = sidx;
+-
+-	for (idx = sidx; idx < eidx; idx++)
+-		if (!test_and_clear_bit(idx, bdata->node_bootmem_map))
+-			BUG();
+-}
+-
+-static int __init __reserve(bootmem_data_t *bdata, unsigned long sidx,
+-			unsigned long eidx, int flags)
+-{
+-	unsigned long idx;
+-	int exclusive = flags & BOOTMEM_EXCLUSIVE;
+-
+-	bdebug("nid=%td start=%lx end=%lx flags=%x\n",
+-		bdata - bootmem_node_data,
+-		sidx + bdata->node_min_pfn,
+-		eidx + bdata->node_min_pfn,
+-		flags);
+-
+-	if (WARN_ON(bdata->node_bootmem_map == NULL))
+-		return 0;
+-
+-	for (idx = sidx; idx < eidx; idx++)
+-		if (test_and_set_bit(idx, bdata->node_bootmem_map)) {
+-			if (exclusive) {
+-				__free(bdata, sidx, idx);
+-				return -EBUSY;
+-			}
+-			bdebug("silent double reserve of PFN %lx\n",
+-				idx + bdata->node_min_pfn);
+-		}
+-	return 0;
+-}
+-
+-static int __init mark_bootmem_node(bootmem_data_t *bdata,
+-				unsigned long start, unsigned long end,
+-				int reserve, int flags)
+-{
+-	unsigned long sidx, eidx;
+-
+-	bdebug("nid=%td start=%lx end=%lx reserve=%d flags=%x\n",
+-		bdata - bootmem_node_data, start, end, reserve, flags);
+-
+-	BUG_ON(start < bdata->node_min_pfn);
+-	BUG_ON(end > bdata->node_low_pfn);
+-
+-	sidx = start - bdata->node_min_pfn;
+-	eidx = end - bdata->node_min_pfn;
+-
+-	if (reserve)
+-		return __reserve(bdata, sidx, eidx, flags);
+-	else
+-		__free(bdata, sidx, eidx);
+-	return 0;
+-}
+-
+-static int __init mark_bootmem(unsigned long start, unsigned long end,
+-				int reserve, int flags)
+-{
+-	unsigned long pos;
+-	bootmem_data_t *bdata;
+-
+-	pos = start;
+-	list_for_each_entry(bdata, &bdata_list, list) {
+-		int err;
+-		unsigned long max;
+-
+-		if (pos < bdata->node_min_pfn ||
+-		    pos >= bdata->node_low_pfn) {
+-			BUG_ON(pos != start);
+-			continue;
+-		}
+-
+-		max = min(bdata->node_low_pfn, end);
+-
+-		err = mark_bootmem_node(bdata, pos, max, reserve, flags);
+-		if (reserve && err) {
+-			mark_bootmem(start, pos, 0, 0);
+-			return err;
+-		}
+-
+-		if (max == end)
+-			return 0;
+-		pos = bdata->node_low_pfn;
+-	}
+-	BUG();
+-}
+-
+-void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
+-			      unsigned long size)
+-{
+-	unsigned long start, end;
+-
+-	kmemleak_free_part_phys(physaddr, size);
+-
+-	start = PFN_UP(physaddr);
+-	end = PFN_DOWN(physaddr + size);
+-
+-	mark_bootmem_node(pgdat->bdata, start, end, 0, 0);
+-}
+-
+-void __init free_bootmem(unsigned long physaddr, unsigned long size)
+-{
+-	unsigned long start, end;
+-
+-	kmemleak_free_part_phys(physaddr, size);
+-
+-	start = PFN_UP(physaddr);
+-	end = PFN_DOWN(physaddr + size);
+-
+-	mark_bootmem(start, end, 0, 0);
+-}
+-
+-/**
+- * reserve_bootmem_node - mark a page range as reserved
+- * @pgdat: node the range resides on
+- * @physaddr: starting address of the range
+- * @size: size of the range in bytes
+- * @flags: reservation flags (see linux/bootmem.h)
+- *
+- * Partial pages will be reserved.
+- *
+- * The range must reside completely on the specified node.
+- *
+- * Return: 0 on success, -errno on failure.
+- */
+-int __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
+-				 unsigned long size, int flags)
+-{
+-	unsigned long start, end;
+-
+-	start = PFN_DOWN(physaddr);
+-	end = PFN_UP(physaddr + size);
+-
+-	return mark_bootmem_node(pgdat->bdata, start, end, 1, flags);
+-}
+-
+-/**
+- * reserve_bootmem - mark a page range as reserved
+- * @addr: starting address of the range
+- * @size: size of the range in bytes
+- * @flags: reservation flags (see linux/bootmem.h)
+- *
+- * Partial pages will be reserved.
+- *
+- * The range must be contiguous but may span node boundaries.
+- *
+- * Return: 0 on success, -errno on failure.
+- */
+-int __init reserve_bootmem(unsigned long addr, unsigned long size,
+-			    int flags)
+-{
+-	unsigned long start, end;
+-
+-	start = PFN_DOWN(addr);
+-	end = PFN_UP(addr + size);
+-
+-	return mark_bootmem(start, end, 1, flags);
+-}
+-
+-static unsigned long __init align_idx(struct bootmem_data *bdata,
+-				      unsigned long idx, unsigned long step)
+-{
+-	unsigned long base = bdata->node_min_pfn;
+-
+-	/*
+-	 * Align the index with respect to the node start so that the
+-	 * combination of both satisfies the requested alignment.
+-	 */
+-
+-	return ALIGN(base + idx, step) - base;
+-}
+-
+-static unsigned long __init align_off(struct bootmem_data *bdata,
+-				      unsigned long off, unsigned long align)
+-{
+-	unsigned long base = PFN_PHYS(bdata->node_min_pfn);
+-
+-	/* Same as align_idx for byte offsets */
+-
+-	return ALIGN(base + off, align) - base;
+-}
+-
+-static void * __init alloc_bootmem_bdata(struct bootmem_data *bdata,
+-					unsigned long size, unsigned long align,
+-					unsigned long goal, unsigned long limit)
+-{
+-	unsigned long fallback = 0;
+-	unsigned long min, max, start, sidx, midx, step;
+-
+-	bdebug("nid=%td size=%lx [%lu pages] align=%lx goal=%lx limit=%lx\n",
+-		bdata - bootmem_node_data, size, PAGE_ALIGN(size) >> PAGE_SHIFT,
+-		align, goal, limit);
+-
+-	BUG_ON(!size);
+-	BUG_ON(align & (align - 1));
+-	BUG_ON(limit && goal + size > limit);
+-
+-	if (!bdata->node_bootmem_map)
+-		return NULL;
+-
+-	min = bdata->node_min_pfn;
+-	max = bdata->node_low_pfn;
+-
+-	goal >>= PAGE_SHIFT;
+-	limit >>= PAGE_SHIFT;
+-
+-	if (limit && max > limit)
+-		max = limit;
+-	if (max <= min)
+-		return NULL;
+-
+-	step = max(align >> PAGE_SHIFT, 1UL);
+-
+-	if (goal && min < goal && goal < max)
+-		start = ALIGN(goal, step);
+-	else
+-		start = ALIGN(min, step);
+-
+-	sidx = start - bdata->node_min_pfn;
+-	midx = max - bdata->node_min_pfn;
+-
+-	if (bdata->hint_idx > sidx) {
+-		/*
+-		 * Handle the valid case of sidx being zero and still
+-		 * catch the fallback below.
+-		 */
+-		fallback = sidx + 1;
+-		sidx = align_idx(bdata, bdata->hint_idx, step);
+-	}
+-
+-	while (1) {
+-		int merge;
+-		void *region;
+-		unsigned long eidx, i, start_off, end_off;
+-find_block:
+-		sidx = find_next_zero_bit(bdata->node_bootmem_map, midx, sidx);
+-		sidx = align_idx(bdata, sidx, step);
+-		eidx = sidx + PFN_UP(size);
+-
+-		if (sidx >= midx || eidx > midx)
+-			break;
+-
+-		for (i = sidx; i < eidx; i++)
+-			if (test_bit(i, bdata->node_bootmem_map)) {
+-				sidx = align_idx(bdata, i, step);
+-				if (sidx == i)
+-					sidx += step;
+-				goto find_block;
+-			}
+-
+-		if (bdata->last_end_off & (PAGE_SIZE - 1) &&
+-				PFN_DOWN(bdata->last_end_off) + 1 == sidx)
+-			start_off = align_off(bdata, bdata->last_end_off, align);
+-		else
+-			start_off = PFN_PHYS(sidx);
+-
+-		merge = PFN_DOWN(start_off) < sidx;
+-		end_off = start_off + size;
+-
+-		bdata->last_end_off = end_off;
+-		bdata->hint_idx = PFN_UP(end_off);
+-
+-		/*
+-		 * Reserve the area now:
+-		 */
+-		if (__reserve(bdata, PFN_DOWN(start_off) + merge,
+-				PFN_UP(end_off), BOOTMEM_EXCLUSIVE))
+-			BUG();
+-
+-		region = phys_to_virt(PFN_PHYS(bdata->node_min_pfn) +
+-				start_off);
+-		memset(region, 0, size);
+-		/*
+-		 * The min_count is set to 0 so that bootmem allocated blocks
+-		 * are never reported as leaks.
+-		 */
+-		kmemleak_alloc(region, size, 0, 0);
+-		return region;
+-	}
+-
+-	if (fallback) {
+-		sidx = align_idx(bdata, fallback - 1, step);
+-		fallback = 0;
+-		goto find_block;
+-	}
+-
+-	return NULL;
+-}
+-
+-static void * __init alloc_bootmem_core(unsigned long size,
+-					unsigned long align,
+-					unsigned long goal,
+-					unsigned long limit)
+-{
+-	bootmem_data_t *bdata;
+-	void *region;
+-
+-	if (WARN_ON_ONCE(slab_is_available()))
+-		return kzalloc(size, GFP_NOWAIT);
+-
+-	list_for_each_entry(bdata, &bdata_list, list) {
+-		if (goal && bdata->node_low_pfn <= PFN_DOWN(goal))
+-			continue;
+-		if (limit && bdata->node_min_pfn >= PFN_DOWN(limit))
+-			break;
+-
+-		region = alloc_bootmem_bdata(bdata, size, align, goal, limit);
+-		if (region)
+-			return region;
+-	}
+-
+-	return NULL;
+-}
+-
+-static void * __init ___alloc_bootmem_nopanic(unsigned long size,
+-					      unsigned long align,
+-					      unsigned long goal,
+-					      unsigned long limit)
+-{
+-	void *ptr;
+-
+-restart:
+-	ptr = alloc_bootmem_core(size, align, goal, limit);
+-	if (ptr)
+-		return ptr;
+-	if (goal) {
+-		goal = 0;
+-		goto restart;
+-	}
+-
+-	return NULL;
+-}
+-
+-void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
+-					unsigned long goal)
+-{
+-	unsigned long limit = 0;
+-
+-	return ___alloc_bootmem_nopanic(size, align, goal, limit);
+-}
+-
+-static void * __init ___alloc_bootmem(unsigned long size, unsigned long align,
+-					unsigned long goal, unsigned long limit)
+-{
+-	void *mem = ___alloc_bootmem_nopanic(size, align, goal, limit);
+-
+-	if (mem)
+-		return mem;
+-	/*
+-	 * Whoops, we cannot satisfy the allocation request.
+-	 */
+-	pr_alert("bootmem alloc of %lu bytes failed!\n", size);
+-	panic("Out of memory");
+-	return NULL;
+-}
+-
+-void * __init __alloc_bootmem(unsigned long size, unsigned long align,
+-			      unsigned long goal)
+-{
+-	unsigned long limit = 0;
+-
+-	return ___alloc_bootmem(size, align, goal, limit);
+-}
+-
+-void * __init ___alloc_bootmem_node_nopanic(pg_data_t *pgdat,
+-				unsigned long size, unsigned long align,
+-				unsigned long goal, unsigned long limit)
+-{
+-	void *ptr;
+-
+-	if (WARN_ON_ONCE(slab_is_available()))
+-		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+-again:
+-
+-	/* do not panic in alloc_bootmem_bdata() */
+-	if (limit && goal + size > limit)
+-		limit = 0;
+-
+-	ptr = alloc_bootmem_bdata(pgdat->bdata, size, align, goal, limit);
+-	if (ptr)
+-		return ptr;
+-
+-	ptr = alloc_bootmem_core(size, align, goal, limit);
+-	if (ptr)
+-		return ptr;
+-
+-	if (goal) {
+-		goal = 0;
+-		goto again;
+-	}
+-
+-	return NULL;
+-}
+-
+-void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned long size,
+-				   unsigned long align, unsigned long goal)
+-{
+-	return ___alloc_bootmem_node_nopanic(pgdat, size, align, goal, 0);
+-}
+-
+-void * __init ___alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
+-				    unsigned long align, unsigned long goal,
+-				    unsigned long limit)
+-{
+-	void *ptr;
+-
+-	ptr = ___alloc_bootmem_node_nopanic(pgdat, size, align, goal, 0);
+-	if (ptr)
+-		return ptr;
+-
+-	pr_alert("bootmem alloc of %lu bytes failed!\n", size);
+-	panic("Out of memory");
+-	return NULL;
+-}
+-
+-void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
+-				   unsigned long align, unsigned long goal)
+-{
+-	if (WARN_ON_ONCE(slab_is_available()))
+-		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+-
+-	return  ___alloc_bootmem_node(pgdat, size, align, goal, 0);
+-}
+-
+-void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned long size,
+-				   unsigned long align, unsigned long goal)
+-{
+-#ifdef MAX_DMA32_PFN
+-	unsigned long end_pfn;
+-
+-	if (WARN_ON_ONCE(slab_is_available()))
+-		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+-
+-	/* update goal according ...MAX_DMA32_PFN */
+-	end_pfn = pgdat_end_pfn(pgdat);
+-
+-	if (end_pfn > MAX_DMA32_PFN + (128 >> (20 - PAGE_SHIFT)) &&
+-	    (goal >> PAGE_SHIFT) < MAX_DMA32_PFN) {
+-		void *ptr;
+-		unsigned long new_goal;
+-
+-		new_goal = MAX_DMA32_PFN << PAGE_SHIFT;
+-		ptr = alloc_bootmem_bdata(pgdat->bdata, size, align,
+-						 new_goal, 0);
+-		if (ptr)
+-			return ptr;
+-	}
 -#endif
- 
- /**
-  * __memblock_free_early - free boot memory block
+-
+-	return __alloc_bootmem_node(pgdat, size, align, goal);
+-
+-}
+-
+-void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
+-				  unsigned long goal)
+-{
+-	return ___alloc_bootmem(size, align, goal, ARCH_LOW_ADDRESS_LIMIT);
+-}
+-
+-void * __init __alloc_bootmem_low_nopanic(unsigned long size,
+-					  unsigned long align,
+-					  unsigned long goal)
+-{
+-	return ___alloc_bootmem_nopanic(size, align, goal,
+-					ARCH_LOW_ADDRESS_LIMIT);
+-}
+-
+-void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
+-				       unsigned long align, unsigned long goal)
+-{
+-	if (WARN_ON_ONCE(slab_is_available()))
+-		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+-
+-	return ___alloc_bootmem_node(pgdat, size, align,
+-				     goal, ARCH_LOW_ADDRESS_LIMIT);
+-}
 -- 
 2.7.4
