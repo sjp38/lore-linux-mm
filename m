@@ -1,52 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0586B6B7493
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 14:44:47 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id n4-v6so4209519plk.7
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 11:44:46 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id w14-v6si2516870plp.183.2018.09.05.11.44.45
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BF2F6B74A6
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 15:03:22 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id c14-v6so5896788wmb.2
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 12:03:22 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r196-v6sor2171257wmg.11.2018.09.05.12.03.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 05 Sep 2018 11:44:46 -0700 (PDT)
-Date: Wed, 5 Sep 2018 11:44:33 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: linux-next test error
-Message-ID: <20180905184433.GA31174@infradead.org>
-References: <0000000000004f6b5805751a8189@google.com>
- <20180905085545.GD24902@quack2.suse.cz>
- <CAFqt6zZtjPFdfAGxp43oqN3=z9+vAGzdOvDcgFaU+05ffCGu7A@mail.gmail.com>
- <20180905133459.GF23909@thunk.org>
+        (Google Transport Security);
+        Wed, 05 Sep 2018 12:03:20 -0700 (PDT)
+Date: Wed, 5 Sep 2018 21:03:17 +0200
+From: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Subject: Re: [PATCH v6 11/11] arm64: annotate user pointers casts detected by
+ sparse
+Message-ID: <20180905190316.a34yycthgbamx2t3@ltop.local>
+References: <cover.1535629099.git.andreyknvl@google.com>
+ <5d54526e5ff2e5ad63d0dfdd9ab17cf359afa4f2.1535629099.git.andreyknvl@google.com>
+ <20180831081123.6mo62xnk54pvlxmc@ltop.local>
+ <20180831134244.GB19965@ZenIV.linux.org.uk>
+ <CAAeHK+w86m6YztnTGhuZPKRczb-+znZ1hiJskPXeQok4SgcaOw@mail.gmail.com>
+ <01cadefd-c929-cb45-500d-7043cf3943f6@arm.com>
+ <20180903151026.n2jak3e4yqusnogt@ltop.local>
+ <a31d3400-4523-2bda-a429-f2a221e69ee8@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180905133459.GF23909@thunk.org>
+In-Reply-To: <a31d3400-4523-2bda-a429-f2a221e69ee8@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Theodore Y. Ts'o" <tytso@mit.edu>, Souptick Joarder <jrdr.linux@gmail.com>, Jan Kara <jack@suse.cz>, syzbot+87a05ae4accd500f5242@syzkaller.appspotmail.com, ak@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, mawilcox@microsoft.com, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com, tim.c.chen@linux.intel.com, zwisler@kernel.org, willy@infradead.org
+To: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Cc: Andrey Konovalov <andreyknvl@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Mark Rutland <mark.rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, linux-doc@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Kostya Serebryany <kcc@google.com>, linux-kselftest@vger.kernel.org, Chintan Pandya <cpandya@codeaurora.org>, Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>, linux-arch@vger.kernel.org, Jacob Bramley <Jacob.Bramley@arm.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Evgeniy Stepanov <eugenis@google.com>, Kees Cook <keescook@chromium.org>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Dmitry Vyukov <dvyukov@google.com>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, Lee Smith <Lee.Smith@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Robin Murphy <robin.murphy@arm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Sep 05, 2018 at 09:34:59AM -0400, Theodore Y. Ts'o wrote:
-> It's at: 83c0adddcc6ed128168e7b87eaed0c21eac908e4 in the Linux Next
-> branch.
+On Tue, Sep 04, 2018 at 12:27:23PM +0100, Vincenzo Frascino wrote:
+> On 03/09/18 16:10, Luc Van Oostenryck wrote:
+> > On Mon, Sep 03, 2018 at 02:49:38PM +0100, Vincenzo Frascino wrote:
+> >> On 03/09/18 13:34, Andrey Konovalov wrote:
+> >>> On Fri, Aug 31, 2018 at 3:42 PM, Al Viro <viro@zeniv.linux.org.uk> wrote:
+> >>>> On Fri, Aug 31, 2018 at 10:11:24AM +0200, Luc Van Oostenryck wrote:
+> >>>>> On Thu, Aug 30, 2018 at 01:41:16PM +0200, Andrey Konovalov wrote:
+> >>>>>> This patch adds __force annotations for __user pointers casts detected by
+> >>>>>> sparse with the -Wcast-from-as flag enabled (added in [1]).
+> >>>>>>
+> >>>>>> [1] https://github.com/lucvoo/sparse-dev/commit/5f960cb10f56ec2017c128ef9d16060e0145f292
+> >>>>>
+> >>>>> Hi,
+> >>>>>
+> >>>>> It would be nice to have some explanation for why these added __force
+> >>>>> are useful.
+> >>>
+> >>> I'll add this in the next version, thanks!
+> >>>
+> >>>>         It would be even more useful if that series would either deal with
+> >>>> the noise for real ("that's what we intend here, that's what we intend there,
+> >>>> here's a primitive for such-and-such kind of cases, here we actually
+> >>>> ought to pass __user pointer instead of unsigned long", etc.) or left it
+> >>>> unmasked.
+> >>>>
+> >>>>         As it is, __force says only one thing: "I know the code is doing
+> >>>> the right thing here".  That belongs in primitives, and I do *not* mean the
+> >>>> #define cast_to_ulong(x) ((__force unsigned long)(x))
+> >>>> kind.
+> >>>>
+> >>>>         Folks, if you don't want to deal with that - leave the warnings be.
+> >>>> They do carry more information than "someone has slapped __force in that place".
+> >>>>
+> >>>> Al, very annoyed by that kind of information-hiding crap...
+> >>>
+> >>> This patch only adds __force to hide the reports I've looked at and
+> >>> decided that the code does the right thing. The cases where this is
+> >>> not the case are handled by the previous patches in the patchset. I'll
+> >>> this to the patch description as well. Is that OK?
+> >>>
+> >> I think as well that we should make explicit the information that
+> >> __force is hiding.
+> >> A possible solution could be defining some new address spaces and use
+> >> them where it is relevant in the kernel. Something like:
+> >>
+> >> # define __compat_ptr __attribute__((noderef, address_space(5)))
+> >> # define __tagged_ptr __attribute__((noderef, address_space(6)))
+> >>
+> >> In this way sparse can still identify the casting and trigger a warning.
+> >>
+> >> We could at that point modify sparse to ignore these conversions when a
+> >> specific flag is passed (i.e. -Wignore-compat-ptr, -Wignore-tagged-ptr)
+> >> to exclude from the generated warnings the ones we have already dealt
+> >> with.
+> >>
+> >> What do you think about this approach?
+> > 
+> > I'll be happy to add such warnings to sparse if it is useful to detect
+> > (and correct!) problems. I'm also thinking to other possiblities, like
+> > having some weaker form of __force (maybe simply __force_as (which will
+> > 'only' force the address space) or even __force_as(TO, FROM) (with TO
+> > and FROM being a mask of the address space allowed).I believe we need something here to address this type of problems and I like
+> your proposal of adding a weaker force in the form of __force_as(TO, FROM)
+> because I think it provides the right level information. 
 > 
-> Dmitry, can you try reverting this commit and see if it makes the
-> problem go away?
-> 
-> Souptick, can we just NACK this patch and completely drop it from all
-> trees?
-> 
-> I think we need to be a *lot* more careful about this vm_fault_t patch
-> thing.  If you can't be bothered to run xfstests, we need to introduce
-> a new function which replaces block_page_mkwrite() --- and then let
-> each file system try to convert over to it at their own pace, after
-> they've done regression testing.
+> > However, for the specific situation here, I'm not sure that using
+> > address spaces is the right choice because I suspect that the concept
+> > of tagged pointer is orthogonal to the one of (the usual) address space
+> > (it won't be possible for a pointer to be __tagged_ptr *and* __user).
+> I was thinking to address spaces because the information seems easily accessible
+> in sparse [1], but I am certainly open to any solution that can be semantically
+> more correct.
 
-block_page_mkwrite is only called by ext4 and nilfs2 anyway, so
-converting both callers over should not be a problem, as long as
-it actually is done properly.
+Yes, adding a new address space is easy (and doesn't need any modification
+to sparse). Here, I think adding a new 'modifier' __tagged (much like
+__nocast, __noderef, ...) would be much more appropriate.
+I think that at this point, it would be nice to have a clear description
+of the problem and what sort of checks are wanted.
+ 
+> > 
+> > OTOH, when I see already the tons of warnings for concepts established
+> > since many years (I'm thinking especially at __bitwise, see [1]) I'm a
+> > bit affraid of adding new, more specialized ones that people will
+> > understand even less how/when they need to use them.
+> Thanks for providing this statistic, it is very interesting. I understand your
+> concern, but I think that in this case we need a more specialized option not only
+> to find potential problems but even to provide the right amount of information
+> to who reads the code. 
+> 
+> A solution could be to let __force_as(TO, FROM) behave like __force and silence
+> the warning by default, but have an option in sparse to re-enable it 
+> (i.e. -Wshow-force-as). 
 
-Which is my main beef with this mess of a conversation - it should
-have been posted as a single series that actually does a mostly
-scriped conversion after fixing up the initial harder issues, and
-be properly tested.  It has been pretty much an example of how not
-do things, and been dragging on forever while wasting everyones time.
+That would be, indeed, a simple solution but IMO even more dangerous than
+__force itself (since by readingthe code with this annotation  people would 
+naturally think it only involves the AS will in fact it would be the same
+as __force). I prefer to directly implement a plain __force_as, forcing
+only the AS).
+ 
+> [1]
+> ---
+> commit ee7985f0c2b29c96aefe78df4139209eb4e719d8
+> Author: Vincenzo Frascino <vincenzo.frascino@arm.com>
+> Date:   Wed Aug 15 10:55:44 2018 +0100
+> 
+>     print address space number for explicit cast to ulong
+>     
+>     This patch build on top of commit b34880d ("stricter warning
+>     for explicit cast to ulong") and prints the address space
+>     number when a "warning: cast removes address space of expression"
+>     is triggered.
+>     
+>     This makes easier to discriminate in between different address
+>     spaces.
+>     
+>     A validation example is provided as well as part of this patch.
+>     
+>     Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+> 
+> diff --git a/evaluate.c b/evaluate.c
+> index 6d5d479..2fc0ebc 100644
+> --- a/evaluate.c
+> +++ b/evaluate.c
+> @@ -3017,8 +3017,12 @@ static struct symbol *evaluate_cast(struct expression *expr)
+>  		sas = stype->ctype.as;
+>  	}
+>  
+> -	if (!tas && sas > 0)
+> -		warning(expr->pos, "cast removes address space of expression");
+> +	if (!tas && sas > 0) {
+> +		if (Wcast_from_as)
+> +			warning(expr->pos, "cast removes address space of expression (<asn:%d>)", sas);
+> +		else
+> +			warning(expr->pos, "cast removes address space of expression");
+> +	}
+
+I think that the if (Wcast_from_as) is unneeded, the <asn:%d> can be added
+even if Wcast_from_as is false. Woukd it be OK for you?
+
+-- Luc
