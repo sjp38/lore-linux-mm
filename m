@@ -1,76 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B7B0C6B754F
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 17:35:42 -0400 (EDT)
-Received: by mail-yb1-f198.google.com with SMTP id 1-v6so3141447ybe.18
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 14:35:42 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id u17-v6si796068ybp.122.2018.09.05.14.35.41
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E09596B7522
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 17:38:22 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id w196-v6so9146591itb.4
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 14:38:22 -0700 (PDT)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0124.outbound.protection.outlook.com. [104.47.41.124])
+        by mx.google.com with ESMTPS id u5-v6si2118594itf.89.2018.09.05.14.38.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Sep 2018 14:35:41 -0700 (PDT)
-Subject: Re: [RFC PATCH] mm/hugetlb: make hugetlb_lock irq safe
-References: <20180905112341.21355-1-aneesh.kumar@linux.ibm.com>
- <20180905130440.GA3729@bombadil.infradead.org>
- <d76771e6-1664-5d38-a5a0-e98f1120494c@linux.ibm.com>
- <20180905134848.GB3729@bombadil.infradead.org>
- <20180905125846.eb0a9ed907b293c1b4c23c23@linux-foundation.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <78b08258-14c8-0e90-97c7-d647a11acb30@oracle.com>
-Date: Wed, 5 Sep 2018 14:35:11 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180905125846.eb0a9ed907b293c1b4c23c23@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 05 Sep 2018 14:38:21 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Subject: Re: [PATCH v2 1/2] mm: Move page struct poisoning to
+ CONFIG_DEBUG_VM_PAGE_INIT_POISON
+Date: Wed, 5 Sep 2018 21:38:19 +0000
+Message-ID: <985fe87b-b8f4-de58-ea2a-970cbe51b72d@microsoft.com>
+References: <20180905211041.3286.19083.stgit@localhost.localdomain>
+ <20180905211328.3286.71674.stgit@localhost.localdomain>
+ <cd1fc4c6-cc86-8bf7-6aa0-b722c56057e3@microsoft.com>
+ <CAKgT0UcC2=Nrk+TDkidxjidnJzvhUPyYRD1uZ09BBWLcmcaOug@mail.gmail.com>
+In-Reply-To: 
+ <CAKgT0UcC2=Nrk+TDkidxjidnJzvhUPyYRD1uZ09BBWLcmcaOug@mail.gmail.com>
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <8BDB1FB44F3B424CBF10481CF01F3207@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Duyck, Alexander H" <alexander.h.duyck@intel.com>, Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A.
+ Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 09/05/2018 12:58 PM, Andrew Morton wrote:
-> On Wed, 5 Sep 2018 06:48:48 -0700 Matthew Wilcox <willy@infradead.org> wrote:
-> 
->>> I didn't. The reason I looked at current patch is to enable the usage of
->>> put_page() from irq context. We do allow that for non hugetlb pages. So was
->>> not sure adding that additional restriction for hugetlb
->>> is really needed. Further the conversion to irqsave/irqrestore was
->>> straightforward.
->>
->> straightforward, sure.  but is it the right thing to do?  do we want to
->> be able to put_page() a hugetlb page from hardirq context?
-> 
-> Calling put_page() against a huge page from hardirq seems like the
-> right thing to do - even if it's rare now, it will presumably become
-> more common as the hugepage virus spreads further across the kernel. 
-> And the present asymmetry is quite a wart.
-> 
-> That being said, arch/powerpc/mm/mmu_context_iommu.c:mm_iommu_free() is
-> the only known site which does this (yes?)
-
-IIUC, the powerpc iommu code 'remaps' user allocated hugetlb pages.  It is
-these pages that are of issue at put_page time.  I'll admit that code is new
-to me and I may not fully understand.  However, if this is accurate then it
-makes it really difficult to track down any other similar usage patterns.
-I can not find a reference to PageHuge in the powerpc iommu code.
-
->                                            so perhaps we could put some
-> stopgap workaround into that site and add a runtime warning into the
-> put_page() code somewhere to detect puttage of huge pages from hardirq
-> and softirq contexts.
-
-I think we would add the warning/etc at free_huge_page.  The issue would
-only apply to hugetlb pages, not THP.
-
-But, the more I think about it the more I think Aneesh's patch to do
-spin_lock/unlock_irqsave is the right way to go.  Currently, we only
-know of one place where a put_page of hugetlb pages is done from softirq
-context.  So, we could take the spin_lock/unlock_bh as Matthew suggested.
-When the powerpc iommu code was added, I doubt this was taken into account.
-I would be afraid of someone adding put_page from hardirq context.
-
--- 
-Mike Kravetz
-
-> And attention will need to be paid to -stable backporting.  How long
-> has mm_iommu_free() existed, and been doing this?
+DQoNCk9uIDkvNS8xOCA1OjI5IFBNLCBBbGV4YW5kZXIgRHV5Y2sgd3JvdGU6DQo+IE9uIFdlZCwg
+U2VwIDUsIDIwMTggYXQgMjoyMiBQTSBQYXNoYSBUYXRhc2hpbg0KPiA8UGF2ZWwuVGF0YXNoaW5A
+bWljcm9zb2Z0LmNvbT4gd3JvdGU6DQo+Pg0KPj4NCj4+DQo+PiBPbiA5LzUvMTggNToxMyBQTSwg
+QWxleGFuZGVyIER1eWNrIHdyb3RlOg0KPj4+IEZyb206IEFsZXhhbmRlciBEdXljayA8YWxleGFu
+ZGVyLmguZHV5Y2tAaW50ZWwuY29tPg0KPj4+DQo+Pj4gT24gc3lzdGVtcyB3aXRoIGEgbGFyZ2Ug
+YW1vdW50IG9mIG1lbW9yeSBpdCBjYW4gdGFrZSBhIHNpZ25pZmljYW50IGFtb3VudA0KPj4+IG9m
+IHRpbWUgdG8gaW5pdGlhbGl6ZSBhbGwgb2YgdGhlIHBhZ2Ugc3RydWN0cyB3aXRoIHRoZSBQQUdF
+X1BPSVNPTl9QQVRURVJODQo+Pj4gdmFsdWUuIEkgaGF2ZSBzZWVuIGl0IHRha2Ugb3ZlciAyIG1p
+bnV0ZXMgdG8gaW5pdGlhbGl6ZSBhIHN5c3RlbSB3aXRoDQo+Pj4gb3ZlciAxMkdCIG9mIFJBTS4N
+Cj4+Pg0KPj4+IEluIG9yZGVyIHRvIHdvcmsgYXJvdW5kIHRoZSBpc3N1ZSBJIGhhZCB0byBkaXNh
+YmxlIENPTkZJR19ERUJVR19WTSBhbmQgdGhlbg0KPj4+IHRoZSBib290IHRpbWUgcmV0dXJuZWQg
+dG8gc29tZXRoaW5nIG11Y2ggbW9yZSByZWFzb25hYmxlIGFzIHRoZQ0KPj4+IGFyY2hfYWRkX21l
+bW9yeSBjYWxsIGNvbXBsZXRlZCBpbiBtaWxsaXNlY29uZHMgdmVyc3VzIHNlY29uZHMuIEhvd2V2
+ZXIgaW4NCj4+PiBkb2luZyB0aGF0IEkgaGFkIHRvIGRpc2FibGUgYWxsIG9mIHRoZSBvdGhlciBW
+TSBkZWJ1Z2dpbmcgb24gdGhlIHN5c3RlbS4NCj4+Pg0KPj4+IEluc3RlYWQgb2Yga2VlcGluZyB0
+aGUgdmFsdWUgaW4gQ09ORklHX0RFQlVHX1ZNIEkgYW0gYWRkaW5nIGEgbmV3IENPTkZJRw0KPj4+
+IHZhbHVlIGNhbGxlZCBDT05GSUdfREVCVUdfVk1fUEFHRV9JTklUX1BPSVNPTiB0aGF0IHdpbGwg
+Y29udHJvbCB0aGUgcGFnZQ0KPj4+IHBvaXNvbmluZyBpbmRlcGVuZGVudCBvZiB0aGUgQ09ORklH
+X0RFQlVHX1ZNIG9wdGlvbi4NCj4+Pg0KPj4+IFNpZ25lZC1vZmYtYnk6IEFsZXhhbmRlciBEdXlj
+ayA8YWxleGFuZGVyLmguZHV5Y2tAaW50ZWwuY29tPg0KPj4+IC0tLQ0KPj4+ICBpbmNsdWRlL2xp
+bnV4L3BhZ2UtZmxhZ3MuaCB8ICAgIDggKysrKysrKysNCj4+PiAgbGliL0tjb25maWcuZGVidWcg
+ICAgICAgICAgfCAgIDE0ICsrKysrKysrKysrKysrDQo+Pj4gIG1tL21lbWJsb2NrLmMgICAgICAg
+ICAgICAgIHwgICAgNSArKy0tLQ0KPj4+ICBtbS9zcGFyc2UuYyAgICAgICAgICAgICAgICB8ICAg
+IDQgKy0tLQ0KPj4+ICA0IGZpbGVzIGNoYW5nZWQsIDI1IGluc2VydGlvbnMoKyksIDYgZGVsZXRp
+b25zKC0pDQo+Pj4NCj4+PiBkaWZmIC0tZ2l0IGEvaW5jbHVkZS9saW51eC9wYWdlLWZsYWdzLmgg
+Yi9pbmNsdWRlL2xpbnV4L3BhZ2UtZmxhZ3MuaA0KPj4+IGluZGV4IDc0YmVlOGNlY2Y0Yy4uMGU5
+NWNhNjMzNzVhIDEwMDY0NA0KPj4+IC0tLSBhL2luY2x1ZGUvbGludXgvcGFnZS1mbGFncy5oDQo+
+Pj4gKysrIGIvaW5jbHVkZS9saW51eC9wYWdlLWZsYWdzLmgNCj4+PiBAQCAtMTMsNiArMTMsNyBA
+QA0KPj4+ICAjaW5jbHVkZSA8bGludXgvbW1fdHlwZXMuaD4NCj4+PiAgI2luY2x1ZGUgPGdlbmVy
+YXRlZC9ib3VuZHMuaD4NCj4+PiAgI2VuZGlmIC8qICFfX0dFTkVSQVRJTkdfQk9VTkRTX0ggKi8N
+Cj4+PiArI2luY2x1ZGUgPGxpbnV4L3N0cmluZy5oPg0KPj4+DQo+Pj4gIC8qDQo+Pj4gICAqIFZh
+cmlvdXMgcGFnZS0+ZmxhZ3MgYml0czoNCj4+PiBAQCAtMTYyLDYgKzE2MywxMyBAQCBzdGF0aWMg
+aW5saW5lIGludCBQYWdlUG9pc29uZWQoY29uc3Qgc3RydWN0IHBhZ2UgKnBhZ2UpDQo+Pj4gICAg
+ICAgcmV0dXJuIHBhZ2UtPmZsYWdzID09IFBBR0VfUE9JU09OX1BBVFRFUk47DQo+Pj4gIH0NCj4+
+Pg0KPj4+ICtzdGF0aWMgaW5saW5lIHZvaWQgcGFnZV9pbml0X3BvaXNvbihzdHJ1Y3QgcGFnZSAq
+cGFnZSwgc2l6ZV90IHNpemUpDQo+Pj4gK3sNCj4+PiArI2lmZGVmIENPTkZJR19ERUJVR19WTV9Q
+QUdFX0lOSVRfUE9JU09ODQo+Pj4gKyAgICAgbWVtc2V0KHBhZ2UsIFBBR0VfUE9JU09OX1BBVFRF
+Uk4sIHNpemUpOw0KPj4+ICsjZW5kaWYNCj4+PiArfQ0KPj4+ICsNCj4+PiAgLyoNCj4+PiAgICog
+UGFnZSBmbGFncyBwb2xpY2llcyB3cnQgY29tcG91bmQgcGFnZXMNCj4+PiAgICoNCj4+PiBkaWZm
+IC0tZ2l0IGEvbGliL0tjb25maWcuZGVidWcgYi9saWIvS2NvbmZpZy5kZWJ1Zw0KPj4+IGluZGV4
+IDYxMzMxNjcyNGM2YS4uM2IxMjc3YzUyZmVkIDEwMDY0NA0KPj4+IC0tLSBhL2xpYi9LY29uZmln
+LmRlYnVnDQo+Pj4gKysrIGIvbGliL0tjb25maWcuZGVidWcNCj4+PiBAQCAtNjM3LDYgKzYzNywy
+MCBAQCBjb25maWcgREVCVUdfVk1fUEdGTEFHUw0KPj4+DQo+Pj4gICAgICAgICBJZiB1bnN1cmUs
+IHNheSBOLg0KPj4+DQo+Pj4gK2NvbmZpZyBERUJVR19WTV9QQUdFX0lOSVRfUE9JU09ODQo+Pj4g
+KyAgICAgYm9vbCAiRW5hYmxlIGVhcmx5IHBhZ2UgbWV0YWRhdGEgcG9pc29uaW5nIg0KPj4+ICsg
+ICAgIGRlZmF1bHQgeQ0KPj4+ICsgICAgIGRlcGVuZHMgb24gREVCVUdfVk0NCj4+PiArICAgICBo
+ZWxwDQo+Pj4gKyAgICAgICBTZWVkIHRoZSBwYWdlIG1ldGFkYXRhIHdpdGggYSBwb2lzb24gcGF0
+dGVybiB0byBpbXByb3ZlIHRoZQ0KPj4+ICsgICAgICAgbGlrZWxpaG9vZCBvZiBkZXRlY3Rpbmcg
+YXR0ZW1wdHMgdG8gYWNjZXNzIHRoZSBwYWdlIHByaW9yIHRvDQo+Pj4gKyAgICAgICBpbml0aWFs
+aXphdGlvbiBieSB0aGUgbWVtb3J5IHN1YnN5c3RlbS4NCj4+PiArDQo+Pj4gKyAgICAgICBUaGlz
+IGluaXRpYWxpemF0aW9uIGNhbiByZXN1bHQgaW4gYSBsb25nZXIgYm9vdCB0aW1lIGZvciBzeXN0
+ZW1zDQo+Pj4gKyAgICAgICB3aXRoIGEgbGFyZ2UgYW1vdW50IG9mIG1lbW9yeS4NCj4+DQo+PiBX
+aGF0IGhhcHBlbnMgd2hlbiBERUJVR19WTV9QR0ZMQUdTID0geSBhbmQNCj4+IERFQlVHX1ZNX1BB
+R0VfSU5JVF9QT0lTT04gPSBuID8NCj4+DQo+PiBXZSBhcmUgdGVzdGluZyBmb3IgcGF0dGVybiB0
+aGF0IHdhcyBub3Qgc2V0Pw0KPj4NCj4+IEkgdGhpbmsgREVCVUdfVk1fUEFHRV9JTklUX1BPSVNP
+TiBtdXN0IGRlcGVuZCBvbiBERUJVR19WTV9QR0ZMQUdTIGluc3RlYWQuDQo+Pg0KPj4gTG9va3Mg
+Z29vZCBvdGhlcndpc2UuDQo+Pg0KPj4gVGhhbmsgeW91LA0KPj4gUGF2ZWwNCj4gDQo+IFRoZSBw
+cm9ibGVtIGlzIHRoYXQgSSB0aGVuIGVuZCB1cCBpbiB0aGUgc2FtZSBzaXR1YXRpb24gSSBoYWQg
+aW4gdGhlDQo+IGxhc3QgcGF0Y2ggd2hlcmUgeW91IGhhdmUgdG8gaGF2ZSBERUJVR19WTV9QR0ZM
+QUdTIG9uIGluIG9yZGVyIHRvIGRvDQo+IHRoZSBzZWVkaW5nIHdpdGggcG9pc29uLg0KDQpPSw0K
+DQo+IA0KPiBJIGNhbiB3cmFwIHRoZSBiaXQgb2YgY29kZSBpbiBQYWdlUG9pc29uZWQgdG8ganVz
+dCBhbHdheXMgcmV0dXJuIGZhbHNlDQo+IGlmIHdlIGRpZG4ndCBzZXQgdGhlIHBhdHRlcm4uIEkg
+ZmlndXJlIHRoZXJlIGlzIHZhbHVlIHRvIGJlIGhhZCBmb3INCj4gcnVubmluZyBERUJVR19WTV9Q
+R0ZMQUdTIHJlZ2FyZGxlc3Mgb2YgdGhlIHBvaXNvbiBjaGVjaywgb3INCj4gREVCVUdfVk1fUEFH
+RV9JTklUX1BPSVNPTiB3aXRob3V0IHRoZSBQR0ZMQUdTIGNoZWNrLiBUaGF0IGlzIHdoeSBJDQo+
+IHdhbnRlZCB0byBsZWF2ZSB0aGVtIGluZGVwZW5kZW50Lg0KDQpIb3cgYWJvdXQ6DQoNClJlbW92
+ZSAiZGVwZW5kcyBvbiBERUJVR19WTSIsIGJ1dCBtYWtlIERFQlVHX1ZNX1BHRkxBR1MgdG8gZGVw
+ZW5kIG9uDQpib3RoIERFQlVHX1ZNIGFuZCBERUJVR19WTV9QQUdFX0lOSVRfUE9JU09OPw0KDQpE
+RUJVR19WTV9QR0ZMQUdTIGlzIGFscmVhZHkgZXh0cmVtZWx5IHNsb3csIHNvIGhhdmluZyB0aGlz
+IGV4dHJhDQpkZXBlbmRlbmN5IGlzIE9LLg0KDQpUaGFuayB5b3UsDQpQYXZlbA0KDQo+IA0KPiAt
+IEFsZXgNCj4g
