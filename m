@@ -1,100 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CE7976B7448
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 13:47:17 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id q5-v6so8747576ith.1
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 10:47:17 -0700 (PDT)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0116.outbound.protection.outlook.com. [104.47.36.116])
-        by mx.google.com with ESMTPS id k7-v6si1857084ite.30.2018.09.05.10.47.16
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C5C466B7448
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 14:16:38 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id o27-v6so4413598pfj.6
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 11:16:38 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id x22-v6si2516529pfh.84.2018.09.05.11.16.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 05 Sep 2018 10:47:16 -0700 (PDT)
-Date: Wed, 5 Sep 2018 10:47:10 -0700
-From: Paul Burton <paul.burton@mips.com>
-Subject: Re: [PATCH RESEND] mips: switch to NO_BOOTMEM
-Message-ID: <20180905174709.pz2rmyt2oob6bxpz@pburton-laptop>
-References: <1535356775-20396-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20180830214856.cwqyjksz36ujxydm@pburton-laptop>
- <20180831211747.GA31133@rapoport-lnx>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Sep 2018 11:16:37 -0700 (PDT)
+Date: Wed, 5 Sep 2018 11:18:35 -0700
+From: Jacob Pan <jacob.jun.pan@linux.intel.com>
+Subject: Re: [PATCH v2 03/40] iommu/sva: Manage process address spaces
+Message-ID: <20180905111835.7f3ae40e@jacob-builder>
+In-Reply-To: <d785ec89-6743-d0f1-1a7f-85599a033e5b@redhat.com>
+References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
+	<20180511190641.23008-4-jean-philippe.brucker@arm.com>
+	<d785ec89-6743-d0f1-1a7f-85599a033e5b@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180831211747.GA31133@rapoport-lnx>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Serge Semin <fancer.lancer@gmail.com>, Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>, Huacai Chen <chenhc@lemote.com>, Michal Hocko <mhocko@kernel.org>, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Auger Eric <eric.auger@redhat.com>
+Cc: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>, linux-arm-kernel@lists.infradead.org, linux-pci@vger.kernel.org, linux-acpi@vger.kernel.org, devicetree@vger.kernel.org, iommu@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, xieyisheng1@huawei.com, liubo95@huawei.com, xuzaibo@huawei.com, thunder.leizhen@huawei.com, will.deacon@arm.com, okaya@codeaurora.org, yi.l.liu@intel.com, ashok.raj@intel.com, tn@semihalf.com, joro@8bytes.org, bharatku@xilinx.com, liudongdong3@huawei.com, rfranz@cavium.com, kevin.tian@intel.com, jcrouse@codeaurora.org, rgummal@xilinx.com, jonathan.cameron@huawei.com, shunyong.yang@hxt-semitech.com, robin.murphy@arm.com, ilias.apalodimas@linaro.org, alex.williamson@redhat.com, robdclark@gmail.com, dwmw2@infradead.org, christian.koenig@amd.com, nwatters@codeaurora.org, baolu.lu@linux.intel.com, jacob.jun.pan@linux.intel.com
 
-Hi Mike,
+On Wed, 5 Sep 2018 14:14:12 +0200
+Auger Eric <eric.auger@redhat.com> wrote:
 
-On Sat, Sep 01, 2018 at 12:17:48AM +0300, Mike Rapoport wrote:
-> On Thu, Aug 30, 2018 at 02:48:57PM -0700, Paul Burton wrote:
-> > On Mon, Aug 27, 2018 at 10:59:35AM +0300, Mike Rapoport wrote:
-> > > MIPS already has memblock support and all the memory is already registered
-> > > with it.
-> > > 
-> > > This patch replaces bootmem memory reservations with memblock ones and
-> > > removes the bootmem initialization.
-> > > 
-> > > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> > > ---
-> > > 
-> > >  arch/mips/Kconfig                      |  1 +
-> > >  arch/mips/kernel/setup.c               | 89 +++++-----------------------------
-> > >  arch/mips/loongson64/loongson-3/numa.c | 34 ++++++-------
-> > >  arch/mips/sgi-ip27/ip27-memory.c       | 11 ++---
-> > >  4 files changed, 33 insertions(+), 102 deletions(-)
-> > 
-> > Thanks for working on this. Unfortunately it breaks boot for at least a
-> > 32r6el_defconfig kernel on QEMU:
-> > 
-> >   $ qemu-system-mips64el \
-> >     -M boston \
-> >     -kernel arch/mips/boot/vmlinux.gz.itb \
-> >     -serial stdio \
-> >     -append "earlycon=uart8250,mmio32,0x17ffe000,115200 console=ttyS0,115200 debug memblock=debug mminit_loglevel=4"
-> >   [    0.000000] Linux version 4.19.0-rc1-00008-g82d0f342eecd (pburton@pburton-laptop) (gcc version 8.1.0 (GCC)) #23 SMP Thu Aug 30 14:38:06 PDT 2018
-> >   [    0.000000] CPU0 revision is: 0001a900 (MIPS I6400)
-> >   [    0.000000] FPU revision is: 20f30300
-> >   [    0.000000] MSA revision is: 00000300
-> >   [    0.000000] MIPS: machine is img,boston
-> >   [    0.000000] Determined physical RAM map:
-> >   [    0.000000]  memory: 10000000 @ 00000000 (usable)
-> >   [    0.000000]  memory: 30000000 @ 90000000 (usable)
-> >   [    0.000000] earlycon: uart8250 at MMIO32 0x17ffe000 (options '115200')
-> >   [    0.000000] bootconsole [uart8250] enabled
-> >   [    0.000000] memblock_reserve: [0x00000000-0x009a8fff] setup_arch+0x224/0x718
-> >   [    0.000000] memblock_reserve: [0x01360000-0x01361ca7] setup_arch+0x3d8/0x718
-> >   [    0.000000] Initrd not found or empty - disabling initrd
-> >   [    0.000000] memblock_virt_alloc_try_nid: 7336 bytes align=0x40 nid=-1 from=0x00000000 max_addr=0x00000000 early_init_dt_alloc_memory_arch+0x20/0x2c
-> >   [    0.000000] memblock_reserve: [0xbfffe340-0xbfffffe7] memblock_virt_alloc_internal+0x120/0x1ec
-> >   <hang>
-> > 
-> > It looks like we took a TLB store exception after calling memset() with
-> > a bogus address from memblock_virt_alloc_try_nid() or something inlined
-> > into it.
-> 
-> Memblock tries to allocate from the top and the resulting address ends up
-> in the high memory. 
-> 
-> With the hunk below I was able to get to "VFS: Cannot open root device"
-> 
-> diff --git a/arch/mips/kernel/setup.c b/arch/mips/kernel/setup.c
-> index 4114d3c..4a9b0f7 100644
-> --- a/arch/mips/kernel/setup.c
-> +++ b/arch/mips/kernel/setup.c
-> @@ -577,6 +577,8 @@ static void __init bootmem_init(void)
->          * Reserve initrd memory if needed.
->          */
->         finalize_initrd();
-> +
-> +       memblock_set_bottom_up(true);
->  }
-
-That does seem to fix it, and some basic tests are looking good.
-
-I notice you submitted this as part of your larger series to remove
-bootmem - are you still happy for me to take this one through mips-next?
-
-Thanks,
-    Paul
+> > + *
+> > + * On Arm and AMD IOMMUs, entry 0 of the PASID table can be used
+> > to hold
+> > + * non-PASID translations. In this case PASID 0 is reserved and
+> > entry 0 points
+> > + * to the io_pgtable base. On Intel IOMMU, the io_pgtable base
+> > would be held in
+> > + * the device table and PASID 0 would be available to the
+> > allocator.
+> > + */  
+> very nice explanation
+With the new Vt-d 3.0 spec., 2nd level IO page table base is no longer
+held in the device context table. Instead it is held in the PASID table
+entry pointed by the RID_PASID field in the device context entry. If
+RID_PASID = 0, then it is the same as ARM and AMD IOMMUs.
+You can refer to ch3.4.3 of the VT-d spec.
