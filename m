@@ -1,44 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C303E6B7544
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 17:55:47 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id g36-v6so4441348plb.5
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 14:55:47 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u2-v6sor660542pfm.93.2018.09.05.14.55.46
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FF646B755E
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 17:57:58 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id l125-v6so4343254pga.1
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 14:57:58 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o16-v6si2863580pgv.402.2018.09.05.14.57.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 05 Sep 2018 14:55:46 -0700 (PDT)
-MIME-Version: 1.0
-References: <cover.1535462971.git.andreyknvl@google.com> <20180905141032.b1ddaab53d1b2b3bada95415@linux-foundation.org>
-In-Reply-To: <20180905141032.b1ddaab53d1b2b3bada95415@linux-foundation.org>
-From: Nick Desaulniers <ndesaulniers@google.com>
-Date: Wed, 5 Sep 2018 14:55:34 -0700
-Message-ID: <CAKwvOdn7fG0ykS5jjKMJsDmFoV7T3g6p=YucVLxrKgewhMT=Fw@mail.gmail.com>
-Subject: Re: [PATCH v6 00/18] khwasan: kernel hardware assisted address sanitizer
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Sep 2018 14:57:57 -0700 (PDT)
+Date: Wed, 5 Sep 2018 14:57:55 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v11 0/3] remain and optimize memblock_next_valid_pfn on
+ arm and arm64
+Message-Id: <20180905145755.cc89819d446f311e4b8e8f95@linux-foundation.org>
+In-Reply-To: <1534907237-2982-1-git-send-email-jia.he@hxt-semitech.com>
+References: <1534907237-2982-1-git-send-email-jia.he@hxt-semitech.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg KH <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgenii Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
+To: Jia He <hejianet@gmail.com>
+Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jia He <jia.he@hxt-semitech.com>
 
-On Wed, Sep 5, 2018 at 2:10 PM Andrew Morton <akpm@linux-foundation.org> wrote:
->
-> On Wed, 29 Aug 2018 13:35:04 +0200 Andrey Konovalov <andreyknvl@google.com> wrote:
->
-> > This patchset adds a new mode to KASAN [1], which is called KHWASAN
-> > (Kernel HardWare assisted Address SANitizer).
->
-> We're at v6 and there are no reviewed-by's or acked-by's to be seen.
-> Is that a fair commentary on what has been happening, or have people
-> been remiss in sending and gathering such things?
->
+On Wed, 22 Aug 2018 11:07:14 +0800 Jia He <hejianet@gmail.com> wrote:
 
-I'm anxious to use these for Pixel Android devices.  Looks like the
-series has been aggregating changes from valuable feedback.  Maybe if
-the ARM maintainers and KASAN maintainers could Ack or Nack these, we
-could decide to merge these or what needs more work?
+> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+> where possible") optimized the loop in memmap_init_zone(). But it causes
+> possible panic bug. So Daniel Vacek reverted it later.
+> 
+> But as suggested by Daniel Vacek, it is fine to using memblock to skip
+> gaps and finding next valid frame with CONFIG_HAVE_ARCH_PFN_VALID.
+> 
+> More from what Daniel said:
+> "On arm and arm64, memblock is used by default. But generic version of
+> pfn_valid() is based on mem sections and memblock_next_valid_pfn() does
+> not always return the next valid one but skips more resulting in some
+> valid frames to be skipped (as if they were invalid). And that's why
+> kernel was eventually crashing on some !arm machines."
+> 
+> About the performance consideration:
+> As said by James in b92df1de5,
+> "I have tested this patch on a virtual model of a Samurai CPU with a
+> sparse memory map.  The kernel boot time drops from 109 to 62 seconds."
+> Thus it would be better if we remain memblock_next_valid_pfn on arm/arm64.
+> 
+> Besides we can remain memblock_next_valid_pfn, there is still some room
+> for improvement. After this set, I can see the time overhead of memmap_init
+> is reduced from 27956us to 13537us in my armv8a server(QDF2400 with 96G
+> memory, pagesize 64k). I believe arm server will benefit more if memory is
+> larger than TBs
 
--- 
-Thanks,
-~Nick Desaulniers
+Thanks.  I switched to v11.  It would be nice to see some confirmation
+from ARM people please?
