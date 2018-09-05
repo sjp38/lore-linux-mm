@@ -1,56 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FF646B755E
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 17:57:58 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id l125-v6so4343254pga.1
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 14:57:58 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D4B516B7563
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 18:00:11 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id h4-v6so4391022pls.17
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 15:00:11 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id o16-v6si2863580pgv.402.2018.09.05.14.57.57
+        by mx.google.com with ESMTPS id cc7-v6si3481276plb.97.2018.09.05.15.00.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Sep 2018 14:57:57 -0700 (PDT)
-Date: Wed, 5 Sep 2018 14:57:55 -0700
+        Wed, 05 Sep 2018 15:00:10 -0700 (PDT)
+Date: Wed, 5 Sep 2018 15:00:08 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v11 0/3] remain and optimize memblock_next_valid_pfn on
- arm and arm64
-Message-Id: <20180905145755.cc89819d446f311e4b8e8f95@linux-foundation.org>
-In-Reply-To: <1534907237-2982-1-git-send-email-jia.he@hxt-semitech.com>
-References: <1534907237-2982-1-git-send-email-jia.he@hxt-semitech.com>
+Subject: Re: [RFC PATCH] mm/hugetlb: make hugetlb_lock irq safe
+Message-Id: <20180905150008.59d477c1f78f966a8f9c3cc8@linux-foundation.org>
+In-Reply-To: <78b08258-14c8-0e90-97c7-d647a11acb30@oracle.com>
+References: <20180905112341.21355-1-aneesh.kumar@linux.ibm.com>
+	<20180905130440.GA3729@bombadil.infradead.org>
+	<d76771e6-1664-5d38-a5a0-e98f1120494c@linux.ibm.com>
+	<20180905134848.GB3729@bombadil.infradead.org>
+	<20180905125846.eb0a9ed907b293c1b4c23c23@linux-foundation.org>
+	<78b08258-14c8-0e90-97c7-d647a11acb30@oracle.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jia He <hejianet@gmail.com>
-Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jia He <jia.he@hxt-semitech.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Matthew Wilcox <willy@infradead.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 22 Aug 2018 11:07:14 +0800 Jia He <hejianet@gmail.com> wrote:
+On Wed, 5 Sep 2018 14:35:11 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 
-> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
-> where possible") optimized the loop in memmap_init_zone(). But it causes
-> possible panic bug. So Daniel Vacek reverted it later.
+> >                                            so perhaps we could put some
+> > stopgap workaround into that site and add a runtime warning into the
+> > put_page() code somewhere to detect puttage of huge pages from hardirq
+> > and softirq contexts.
 > 
-> But as suggested by Daniel Vacek, it is fine to using memblock to skip
-> gaps and finding next valid frame with CONFIG_HAVE_ARCH_PFN_VALID.
+> I think we would add the warning/etc at free_huge_page.  The issue would
+> only apply to hugetlb pages, not THP.
 > 
-> More from what Daniel said:
-> "On arm and arm64, memblock is used by default. But generic version of
-> pfn_valid() is based on mem sections and memblock_next_valid_pfn() does
-> not always return the next valid one but skips more resulting in some
-> valid frames to be skipped (as if they were invalid). And that's why
-> kernel was eventually crashing on some !arm machines."
-> 
-> About the performance consideration:
-> As said by James in b92df1de5,
-> "I have tested this patch on a virtual model of a Samurai CPU with a
-> sparse memory map.  The kernel boot time drops from 109 to 62 seconds."
-> Thus it would be better if we remain memblock_next_valid_pfn on arm/arm64.
-> 
-> Besides we can remain memblock_next_valid_pfn, there is still some room
-> for improvement. After this set, I can see the time overhead of memmap_init
-> is reduced from 27956us to 13537us in my armv8a server(QDF2400 with 96G
-> memory, pagesize 64k). I believe arm server will benefit more if memory is
-> larger than TBs
+> But, the more I think about it the more I think Aneesh's patch to do
+> spin_lock/unlock_irqsave is the right way to go.  Currently, we only
+> know of one place where a put_page of hugetlb pages is done from softirq
+> context.  So, we could take the spin_lock/unlock_bh as Matthew suggested.
+> When the powerpc iommu code was added, I doubt this was taken into account.
+> I would be afraid of someone adding put_page from hardirq context.
 
-Thanks.  I switched to v11.  It would be nice to see some confirmation
-from ARM people please?
+Me too.  If we're going to do this, surely we should make hugepages
+behave in the same fashion as PAGE_SIZE pages.
