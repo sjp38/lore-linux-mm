@@ -1,173 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BF2F6B74A6
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 15:03:22 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id c14-v6so5896788wmb.2
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 12:03:22 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 82D896B74A9
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 15:04:14 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id l14-v6so1750956lja.20
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 12:04:14 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r196-v6sor2171257wmg.11.2018.09.05.12.03.20
+        by mx.google.com with SMTPS id c4-v6sor1543295lja.3.2018.09.05.12.04.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 05 Sep 2018 12:03:20 -0700 (PDT)
-Date: Wed, 5 Sep 2018 21:03:17 +0200
-From: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: Re: [PATCH v6 11/11] arm64: annotate user pointers casts detected by
- sparse
-Message-ID: <20180905190316.a34yycthgbamx2t3@ltop.local>
-References: <cover.1535629099.git.andreyknvl@google.com>
- <5d54526e5ff2e5ad63d0dfdd9ab17cf359afa4f2.1535629099.git.andreyknvl@google.com>
- <20180831081123.6mo62xnk54pvlxmc@ltop.local>
- <20180831134244.GB19965@ZenIV.linux.org.uk>
- <CAAeHK+w86m6YztnTGhuZPKRczb-+znZ1hiJskPXeQok4SgcaOw@mail.gmail.com>
- <01cadefd-c929-cb45-500d-7043cf3943f6@arm.com>
- <20180903151026.n2jak3e4yqusnogt@ltop.local>
- <a31d3400-4523-2bda-a429-f2a221e69ee8@arm.com>
+        Wed, 05 Sep 2018 12:04:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a31d3400-4523-2bda-a429-f2a221e69ee8@arm.com>
+References: <0000000000004f6b5805751a8189@google.com> <20180905085545.GD24902@quack2.suse.cz>
+In-Reply-To: <20180905085545.GD24902@quack2.suse.cz>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Thu, 6 Sep 2018 00:37:06 +0530
+Message-ID: <CAFqt6zaeOzrzMCqtnv=3gF4+K9HGtbB0C7bOeE+6YmBvvxBaxQ@mail.gmail.com>
+Subject: Re: linux-next test error
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Mark Rutland <mark.rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, linux-doc@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Kostya Serebryany <kcc@google.com>, linux-kselftest@vger.kernel.org, Chintan Pandya <cpandya@codeaurora.org>, Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>, linux-arch@vger.kernel.org, Jacob Bramley <Jacob.Bramley@arm.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Evgeniy Stepanov <eugenis@google.com>, Kees Cook <keescook@chromium.org>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Dmitry Vyukov <dvyukov@google.com>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, Lee Smith <Lee.Smith@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Robin Murphy <robin.murphy@arm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Jan Kara <jack@suse.cz>
+Cc: syzbot+87a05ae4accd500f5242@syzkaller.appspotmail.com, ak@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, mawilcox@microsoft.com, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com, tim.c.chen@linux.intel.com, zwisler@kernel.org
 
-On Tue, Sep 04, 2018 at 12:27:23PM +0100, Vincenzo Frascino wrote:
-> On 03/09/18 16:10, Luc Van Oostenryck wrote:
-> > On Mon, Sep 03, 2018 at 02:49:38PM +0100, Vincenzo Frascino wrote:
-> >> On 03/09/18 13:34, Andrey Konovalov wrote:
-> >>> On Fri, Aug 31, 2018 at 3:42 PM, Al Viro <viro@zeniv.linux.org.uk> wrote:
-> >>>> On Fri, Aug 31, 2018 at 10:11:24AM +0200, Luc Van Oostenryck wrote:
-> >>>>> On Thu, Aug 30, 2018 at 01:41:16PM +0200, Andrey Konovalov wrote:
-> >>>>>> This patch adds __force annotations for __user pointers casts detected by
-> >>>>>> sparse with the -Wcast-from-as flag enabled (added in [1]).
-> >>>>>>
-> >>>>>> [1] https://github.com/lucvoo/sparse-dev/commit/5f960cb10f56ec2017c128ef9d16060e0145f292
-> >>>>>
-> >>>>> Hi,
-> >>>>>
-> >>>>> It would be nice to have some explanation for why these added __force
-> >>>>> are useful.
-> >>>
-> >>> I'll add this in the next version, thanks!
-> >>>
-> >>>>         It would be even more useful if that series would either deal with
-> >>>> the noise for real ("that's what we intend here, that's what we intend there,
-> >>>> here's a primitive for such-and-such kind of cases, here we actually
-> >>>> ought to pass __user pointer instead of unsigned long", etc.) or left it
-> >>>> unmasked.
-> >>>>
-> >>>>         As it is, __force says only one thing: "I know the code is doing
-> >>>> the right thing here".  That belongs in primitives, and I do *not* mean the
-> >>>> #define cast_to_ulong(x) ((__force unsigned long)(x))
-> >>>> kind.
-> >>>>
-> >>>>         Folks, if you don't want to deal with that - leave the warnings be.
-> >>>> They do carry more information than "someone has slapped __force in that place".
-> >>>>
-> >>>> Al, very annoyed by that kind of information-hiding crap...
-> >>>
-> >>> This patch only adds __force to hide the reports I've looked at and
-> >>> decided that the code does the right thing. The cases where this is
-> >>> not the case are handled by the previous patches in the patchset. I'll
-> >>> this to the patch description as well. Is that OK?
-> >>>
-> >> I think as well that we should make explicit the information that
-> >> __force is hiding.
-> >> A possible solution could be defining some new address spaces and use
-> >> them where it is relevant in the kernel. Something like:
-> >>
-> >> # define __compat_ptr __attribute__((noderef, address_space(5)))
-> >> # define __tagged_ptr __attribute__((noderef, address_space(6)))
-> >>
-> >> In this way sparse can still identify the casting and trigger a warning.
-> >>
-> >> We could at that point modify sparse to ignore these conversions when a
-> >> specific flag is passed (i.e. -Wignore-compat-ptr, -Wignore-tagged-ptr)
-> >> to exclude from the generated warnings the ones we have already dealt
-> >> with.
-> >>
-> >> What do you think about this approach?
-> > 
-> > I'll be happy to add such warnings to sparse if it is useful to detect
-> > (and correct!) problems. I'm also thinking to other possiblities, like
-> > having some weaker form of __force (maybe simply __force_as (which will
-> > 'only' force the address space) or even __force_as(TO, FROM) (with TO
-> > and FROM being a mask of the address space allowed).I believe we need something here to address this type of problems and I like
-> your proposal of adding a weaker force in the form of __force_as(TO, FROM)
-> because I think it provides the right level information. 
-> 
-> > However, for the specific situation here, I'm not sure that using
-> > address spaces is the right choice because I suspect that the concept
-> > of tagged pointer is orthogonal to the one of (the usual) address space
-> > (it won't be possible for a pointer to be __tagged_ptr *and* __user).
-> I was thinking to address spaces because the information seems easily accessible
-> in sparse [1], but I am certainly open to any solution that can be semantically
-> more correct.
+On Wed, Sep 5, 2018 at 2:25 PM Jan Kara <jack@suse.cz> wrote:
+>
+> On Wed 05-09-18 00:13:02, syzbot wrote:
+> > Hello,
+> >
+> > syzbot found the following crash on:
+> >
+> > HEAD commit:    387ac6229ecf Add linux-next specific files for 20180905
+> > git tree:       linux-next
+> > console output: https://syzkaller.appspot.com/x/log.txt?x=149c67a6400000
+> > kernel config:  https://syzkaller.appspot.com/x/.config?x=ad5163873ecfbc32
+> > dashboard link: https://syzkaller.appspot.com/bug?extid=87a05ae4accd500f5242
+> > compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+> >
+> > Unfortunately, I don't have any reproducer for this crash yet.
+> >
+> > IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> > Reported-by: syzbot+87a05ae4accd500f5242@syzkaller.appspotmail.com
+> >
+> > INFO: task hung in do_page_mkwriteINFO: task syz-fuzzer:4876 blocked for
+> > more than 140 seconds.
+> >       Not tainted 4.19.0-rc2-next-20180905+ #56
+> > "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> > syz-fuzzer      D21704  4876   4871 0x00000000
+> > Call Trace:
+> >  context_switch kernel/sched/core.c:2825 [inline]
+> >  __schedule+0x87c/0x1df0 kernel/sched/core.c:3473
+> >  schedule+0xfb/0x450 kernel/sched/core.c:3517
+> >  io_schedule+0x1c/0x70 kernel/sched/core.c:5140
+> >  wait_on_page_bit_common mm/filemap.c:1100 [inline]
+> >  __lock_page+0x5b7/0x7a0 mm/filemap.c:1273
+> >  lock_page include/linux/pagemap.h:483 [inline]
+> >  do_page_mkwrite+0x429/0x520 mm/memory.c:2391
+>
+> Waiting for page lock after ->page_mkwrite callback. Which means
+> ->page_mkwrite did not return VM_FAULT_LOCKED but 0. Looking into
+> linux-next... indeed "fs: convert return type int to vm_fault_t" has busted
+> block_page_mkwrite(). It has to return VM_FAULT_LOCKED and not 0 now.
+> Souptick, can I ask you to run 'fstests' for at least common filesystems
+> like ext4, xfs, btrfs when you change generic filesystem code please? That
+> would catch a bug like this immediately. Thanks.
 
-Yes, adding a new address space is easy (and doesn't need any modification
-to sparse). Here, I think adding a new 'modifier' __tagged (much like
-__nocast, __noderef, ...) would be much more appropriate.
-I think that at this point, it would be nice to have a clear description
-of the problem and what sort of checks are wanted.
- 
-> > 
-> > OTOH, when I see already the tons of warnings for concepts established
-> > since many years (I'm thinking especially at __bitwise, see [1]) I'm a
-> > bit affraid of adding new, more specialized ones that people will
-> > understand even less how/when they need to use them.
-> Thanks for providing this statistic, it is very interesting. I understand your
-> concern, but I think that in this case we need a more specialized option not only
-> to find potential problems but even to provide the right amount of information
-> to who reads the code. 
-> 
-> A solution could be to let __force_as(TO, FROM) behave like __force and silence
-> the warning by default, but have an option in sparse to re-enable it 
-> (i.e. -Wshow-force-as). 
+Looking into existing code block_page_mkwrite() returns 0, not VM_FAULT_LOCKED
+in true path and this patch doesn't change any existing behaviour of
+block_page_mkwrite()
+except adding one new input parameter to return err value to caller function.
 
-That would be, indeed, a simple solution but IMO even more dangerous than
-__force itself (since by readingthe code with this annotation  people would 
-naturally think it only involves the AS will in fact it would be the same
-as __force). I prefer to directly implement a plain __force_as, forcing
-only the AS).
- 
-> [1]
-> ---
-> commit ee7985f0c2b29c96aefe78df4139209eb4e719d8
-> Author: Vincenzo Frascino <vincenzo.frascino@arm.com>
-> Date:   Wed Aug 15 10:55:44 2018 +0100
-> 
->     print address space number for explicit cast to ulong
->     
->     This patch build on top of commit b34880d ("stricter warning
->     for explicit cast to ulong") and prints the address space
->     number when a "warning: cast removes address space of expression"
->     is triggered.
->     
->     This makes easier to discriminate in between different address
->     spaces.
->     
->     A validation example is provided as well as part of this patch.
->     
->     Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
-> 
-> diff --git a/evaluate.c b/evaluate.c
-> index 6d5d479..2fc0ebc 100644
-> --- a/evaluate.c
-> +++ b/evaluate.c
-> @@ -3017,8 +3017,12 @@ static struct symbol *evaluate_cast(struct expression *expr)
->  		sas = stype->ctype.as;
->  	}
->  
-> -	if (!tas && sas > 0)
-> -		warning(expr->pos, "cast removes address space of expression");
-> +	if (!tas && sas > 0) {
-> +		if (Wcast_from_as)
-> +			warning(expr->pos, "cast removes address space of expression (<asn:%d>)", sas);
-> +		else
-> +			warning(expr->pos, "cast removes address space of expression");
-> +	}
+-int ext4_page_mkwrite(struct vm_fault *vmf)
++vm_fault_t ext4_page_mkwrite(struct vm_fault *vmf)
 
-I think that the if (Wcast_from_as) is unneeded, the <asn:%d> can be added
-even if Wcast_from_as is false. Woukd it be OK for you?
++       err = 0;
++       ret = block_page_mkwrite(vma, vmf, get_block, &err);
+        if (!ret && ext4_should_journal_data(inode)) {
+                if (ext4_walk_page_buffers(handle, page_buffers(page), 0,
+                          PAGE_SIZE, NULL, do_journal_get_write_access)) {
+                        unlock_page(page);
+-                       ret = VM_FAULT_SIGBUS;
 
--- Luc
+I think, this part has created problem where page_mkwrite()
+end up with returning 0.
+
+Correct me if I am wrong.
