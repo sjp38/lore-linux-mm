@@ -1,59 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CFEE6B7557
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 18:18:17 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id f32-v6so4352268pgm.14
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 15:18:17 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v12-v6sor716896pfd.95.2018.09.05.15.18.16
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E66916B7584
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 19:01:22 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id w6-v6so8054591wrc.22
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 16:01:22 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id q18-v6si3320524wrg.14.2018.09.05.16.01.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 05 Sep 2018 15:18:16 -0700 (PDT)
-Date: Thu, 6 Sep 2018 08:18:02 +1000
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: [PATCH 3/3] mm: optimise pte dirty/accessed bit setting by
- demand based pte insertion
-Message-ID: <20180906081802.210984d7@roar.ozlabs.ibm.com>
-In-Reply-To: <20180905142951.GA15680@roeck-us.net>
-References: <20180828112034.30875-1-npiggin@gmail.com>
-	<20180828112034.30875-4-npiggin@gmail.com>
-	<20180905142951.GA15680@roeck-us.net>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 05 Sep 2018 16:01:21 -0700 (PDT)
+Date: Thu, 6 Sep 2018 01:01:09 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: Plumbers 2018 - Performance and Scalability Microconference
+In-Reply-To: <839e2703-1588-0873-00a7-d04810f403cf@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.21.1809060059390.1416@nanos.tec.linutronix.de>
+References: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com> <01000165aa490dc9-64abf872-afd1-4a81-a46d-a50d0131de93-000000@email.amazonses.com> <839e2703-1588-0873-00a7-d04810f403cf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Guenter Roeck <linux@roeck-us.net>
-Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ley Foon Tan <lftan@altera.com>, nios2-dev@lists.rocketboards.org
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: Christopher Lameter <cl@linux.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Aaron Lu <aaron.lu@intel.com>, alex.kogan@oracle.com, akpm@linux-foundation.org, boqun.feng@gmail.com, brouer@redhat.com, dave@stgolabs.net, dave.dice@oracle.com, Dhaval Giani <dhaval.giani@oracle.com>, ktkhai@virtuozzo.com, Pavel.Tatashin@microsoft.com, paulmck@linux.vnet.ibm.com, shady.issa@oracle.com, tariqt@mellanox.com, tim.c.chen@intel.com, vbabka@suse.cz, longman@redhat.com, yang.shi@linux.alibaba.com, shy828301@gmail.com, Huang Ying <ying.huang@intel.com>, subhra.mazumdar@oracle.com, Steven Sistare <steven.sistare@oracle.com>, jwadams@google.com, ashwinch@google.com, sqazi@google.com, Shakeel Butt <shakeelb@google.com>, walken@google.com, rientjes@google.com, junaids@google.com, Neha Agarwal <nehaagarwal@google.com>
 
-On Wed, 5 Sep 2018 07:29:51 -0700
-Guenter Roeck <linux@roeck-us.net> wrote:
+On Wed, 5 Sep 2018, Laurent Dufour wrote:
+> On 05/09/2018 17:10, Christopher Lameter wrote:
+> > Large page sizes also reduce contention there.
+> 
+> That's true for the page fault path, but for process's actions manipulating the
+> memory process's layout (mmap,munmap,madvise,mprotect) the impact is minimal
+> unless the code has to manipulate the page tables.
 
-> Hi,
->=20
-> On Tue, Aug 28, 2018 at 09:20:34PM +1000, Nicholas Piggin wrote:
-> > Similarly to the previous patch, this tries to optimise dirty/accessed
-> > bits in ptes to avoid access costs of hardware setting them.
-> >  =20
->=20
-> This patch results in silent nios2 boot failures, silent meaning that
-> the boot stalls.
->=20
-> ...
-> Unpacking initramfs...
-> Freeing initrd memory: 2168K
-> workingset: timestamp_bits=3D30 max_order=3D15 bucket_order=3D0
-> jffs2: version 2.2. (NAND) =C2=A9 2001-2006 Red Hat, Inc.
-> random: fast init done
-> random: crng init done
->=20
-> [no further activity until the qemu session is aborted]
->=20
-> Reverting the patch fixes the problem. Bisect log is attached.
-
-Thanks for bisecting it, I'll try to reproduce. Just qemu with no
-obscure options? Interesting that it's hit nios2 but apparently not
-other archs (yet).
+And how exactly are you going to do any of those operations _without_
+manipulating the page tables?
 
 Thanks,
-Nick
+
+	tglx
