@@ -1,705 +1,1011 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FA096B73FA
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 12:00:16 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id m197-v6so8955522oig.18
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 09:00:16 -0700 (PDT)
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EEA506B73FD
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 12:00:20 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id v4-v6so9170205oix.2
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 09:00:20 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id t131-v6si1587462oig.46.2018.09.05.09.00.14
+        by mx.google.com with ESMTPS id e6-v6si1614095oiy.426.2018.09.05.09.00.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Sep 2018 09:00:14 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w85FtVwm022465
-	for <linux-mm@kvack.org>; Wed, 5 Sep 2018 12:00:13 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2maj548jbh-1
+        Wed, 05 Sep 2018 09:00:18 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w85FuTKa043195
+	for <linux-mm@kvack.org>; Wed, 5 Sep 2018 12:00:17 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2mahf5ancu-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 05 Sep 2018 12:00:04 -0400
+	for <linux-mm@kvack.org>; Wed, 05 Sep 2018 12:00:16 -0400
 Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 5 Sep 2018 17:00:02 +0100
+	Wed, 5 Sep 2018 17:00:13 +0100
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [RFC PATCH 03/29] mm: remove CONFIG_HAVE_MEMBLOCK
-Date: Wed,  5 Sep 2018 18:59:18 +0300
+Subject: [RFC PATCH 07/29] memblock: remove _virt from APIs returning virtual address
+Date: Wed,  5 Sep 2018 18:59:22 +0300
 In-Reply-To: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
 References: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1536163184-26356-4-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1536163184-26356-8-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ingo Molnar <mingo@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Paul Burton <paul.burton@mips.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-All architecures use memblock for early memory management. There is no need
-for the CONFIG_HAVE_MEMBLOCK configuration option.
+The conversion is done using
+
+sed -i 's@memblock_virt_alloc@memblock_alloc@g' \
+	$(git grep -l memblock_virt_alloc)
 
 Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 ---
- arch/alpha/Kconfig                  |   1 -
- arch/arc/Kconfig                    |   1 -
- arch/arm/Kconfig                    |   1 -
- arch/arm64/Kconfig                  |   1 -
- arch/c6x/Kconfig                    |   1 -
- arch/h8300/Kconfig                  |   1 -
- arch/hexagon/Kconfig                |   1 -
- arch/ia64/Kconfig                   |   1 -
- arch/m68k/Kconfig                   |   1 -
- arch/microblaze/Kconfig             |   1 -
- arch/mips/Kconfig                   |   1 -
- arch/nds32/Kconfig                  |   1 -
- arch/nios2/Kconfig                  |   1 -
- arch/openrisc/Kconfig               |   1 -
- arch/parisc/Kconfig                 |   1 -
- arch/powerpc/Kconfig                |   1 -
- arch/riscv/Kconfig                  |   1 -
- arch/s390/Kconfig                   |   1 -
- arch/sh/Kconfig                     |   1 -
- arch/sparc/Kconfig                  |   1 -
- arch/um/Kconfig                     |   1 -
- arch/unicore32/Kconfig              |   1 -
- arch/x86/Kconfig                    |   1 -
- arch/xtensa/Kconfig                 |   1 -
- drivers/of/fdt.c                    |   2 -
- drivers/of/of_reserved_mem.c        |  13 +----
- drivers/staging/android/ion/Kconfig |   2 +-
- fs/pstore/Kconfig                   |   1 -
- include/linux/bootmem.h             | 112 ------------------------------------
- include/linux/memblock.h            |   2 -
- include/linux/mm.h                  |   2 +-
- lib/Kconfig.debug                   |   3 +-
- mm/Kconfig                          |   5 +-
- mm/Makefile                         |   2 +-
- mm/nobootmem.c                      |   4 --
- mm/page_alloc.c                     |   4 +-
- 36 files changed, 8 insertions(+), 168 deletions(-)
+ arch/arm/kernel/setup.c                   |  4 ++--
+ arch/arm/mach-omap2/omap_hwmod.c          |  2 +-
+ arch/arm64/mm/kasan_init.c                |  2 +-
+ arch/arm64/mm/numa.c                      |  2 +-
+ arch/powerpc/kernel/pci_32.c              |  2 +-
+ arch/powerpc/lib/alloc.c                  |  2 +-
+ arch/powerpc/mm/mmu_context_nohash.c      |  6 ++---
+ arch/powerpc/platforms/powermac/nvram.c   |  2 +-
+ arch/powerpc/platforms/powernv/pci-ioda.c |  6 ++---
+ arch/powerpc/platforms/ps3/setup.c        |  2 +-
+ arch/powerpc/sysdev/msi_bitmap.c          |  2 +-
+ arch/s390/kernel/setup.c                  | 12 +++++-----
+ arch/s390/kernel/smp.c                    |  2 +-
+ arch/s390/kernel/topology.c               |  4 ++--
+ arch/s390/numa/mode_emu.c                 |  2 +-
+ arch/s390/numa/toptree.c                  |  2 +-
+ arch/x86/mm/kasan_init_64.c               |  4 ++--
+ arch/xtensa/mm/kasan_init.c               |  2 +-
+ drivers/clk/ti/clk.c                      |  2 +-
+ drivers/firmware/memmap.c                 |  2 +-
+ drivers/of/fdt.c                          |  2 +-
+ drivers/of/unittest.c                     |  2 +-
+ include/linux/bootmem.h                   | 38 +++++++++++++++----------------
+ init/main.c                               |  6 ++---
+ kernel/dma/swiotlb.c                      |  8 +++----
+ kernel/power/snapshot.c                   |  2 +-
+ kernel/printk/printk.c                    |  4 ++--
+ lib/cpumask.c                             |  2 +-
+ mm/hugetlb.c                              |  2 +-
+ mm/kasan/kasan_init.c                     |  2 +-
+ mm/memblock.c                             | 26 ++++++++++-----------
+ mm/page_alloc.c                           |  8 +++----
+ mm/page_ext.c                             |  2 +-
+ mm/percpu.c                               | 28 +++++++++++------------
+ mm/sparse-vmemmap.c                       |  2 +-
+ mm/sparse.c                               | 12 +++++-----
+ 36 files changed, 105 insertions(+), 105 deletions(-)
 
-diff --git a/arch/alpha/Kconfig b/arch/alpha/Kconfig
-index 04de6be..5b4f883 100644
---- a/arch/alpha/Kconfig
-+++ b/arch/alpha/Kconfig
-@@ -31,7 +31,6 @@ config ALPHA
- 	select ODD_RT_SIGACTION
- 	select OLD_SIGSUSPEND
- 	select CPU_NO_EFFICIENT_FFS if !ALPHA_EV67
--	select HAVE_MEMBLOCK
- 	help
- 	  The Alpha is a 64-bit general-purpose processor designed and
- 	  marketed by the Digital Equipment Corporation of blessed memory,
-diff --git a/arch/arc/Kconfig b/arch/arc/Kconfig
-index 04ebead..5260440 100644
---- a/arch/arc/Kconfig
-+++ b/arch/arc/Kconfig
-@@ -37,7 +37,6 @@ config ARC
- 	select HAVE_KERNEL_LZMA
- 	select HAVE_KPROBES
- 	select HAVE_KRETPROBES
--	select HAVE_MEMBLOCK
- 	select HAVE_MOD_ARCH_SPECIFIC
- 	select HAVE_OPROFILE
- 	select HAVE_PERF_EVENTS
-diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 61ea3dd..07468e6 100644
---- a/arch/arm/Kconfig
-+++ b/arch/arm/Kconfig
-@@ -82,7 +82,6 @@ config ARM
- 	select HAVE_KERNEL_XZ
- 	select HAVE_KPROBES if !XIP_KERNEL && !CPU_ENDIAN_BE32 && !CPU_V7M
- 	select HAVE_KRETPROBES if (HAVE_KPROBES)
--	select HAVE_MEMBLOCK
- 	select HAVE_MOD_ARCH_SPECIFIC
- 	select HAVE_NMI
- 	select HAVE_OPROFILE if (HAVE_PERF_EVENTS)
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 0065653..7d7d813 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -133,7 +133,6 @@ config ARM64
- 	select HAVE_GENERIC_DMA_COHERENT
- 	select HAVE_HW_BREAKPOINT if PERF_EVENTS
- 	select HAVE_IRQ_TIME_ACCOUNTING
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP if NUMA
- 	select HAVE_NMI
- 	select HAVE_PATA_PLATFORM
-diff --git a/arch/c6x/Kconfig b/arch/c6x/Kconfig
-index a641b0b..833fdb0 100644
---- a/arch/c6x/Kconfig
-+++ b/arch/c6x/Kconfig
-@@ -13,7 +13,6 @@ config C6X
- 	select GENERIC_ATOMIC64
- 	select GENERIC_IRQ_SHOW
- 	select HAVE_ARCH_TRACEHOOK
--	select HAVE_MEMBLOCK
- 	select SPARSE_IRQ
- 	select IRQ_DOMAIN
- 	select OF
-diff --git a/arch/h8300/Kconfig b/arch/h8300/Kconfig
-index 5e89d40..d19c6b16 100644
---- a/arch/h8300/Kconfig
-+++ b/arch/h8300/Kconfig
-@@ -15,7 +15,6 @@ config H8300
- 	select OF
- 	select OF_IRQ
- 	select OF_EARLY_FLATTREE
--	select HAVE_MEMBLOCK
- 	select TIMER_OF
- 	select H8300_TMR8
- 	select HAVE_KERNEL_GZIP
-diff --git a/arch/hexagon/Kconfig b/arch/hexagon/Kconfig
-index fb7e0ba..d86e134 100644
---- a/arch/hexagon/Kconfig
-+++ b/arch/hexagon/Kconfig
-@@ -29,7 +29,6 @@ config HEXAGON
- 	select GENERIC_CLOCKEVENTS_BROADCAST
- 	select MODULES_USE_ELF_RELA
- 	select GENERIC_CPU_DEVICES
--	select HAVE_MEMBLOCK
- 	select ARCH_DISCARD_MEMBLOCK
- 	---help---
- 	  Qualcomm Hexagon is a processor architecture designed for high
-diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
-index 2bf4ef7..36773de 100644
---- a/arch/ia64/Kconfig
-+++ b/arch/ia64/Kconfig
-@@ -26,7 +26,6 @@ config IA64
- 	select HAVE_FUNCTION_TRACER
- 	select TTY
- 	select HAVE_ARCH_TRACEHOOK
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select HAVE_VIRT_CPU_ACCOUNTING
- 	select ARCH_HAS_DMA_MARK_CLEAN
-diff --git a/arch/m68k/Kconfig b/arch/m68k/Kconfig
-index 8c7111d..e88588b 100644
---- a/arch/m68k/Kconfig
-+++ b/arch/m68k/Kconfig
-@@ -27,7 +27,6 @@ config M68K
- 	select OLD_SIGSUSPEND3
- 	select OLD_SIGACTION
- 	select DMA_NONCOHERENT_OPS if HAS_DMA
--	select HAVE_MEMBLOCK
- 	select ARCH_DISCARD_MEMBLOCK
+diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
+index 4c249cb..39e6090 100644
+--- a/arch/arm/kernel/setup.c
++++ b/arch/arm/kernel/setup.c
+@@ -857,7 +857,7 @@ static void __init request_standard_resources(const struct machine_desc *mdesc)
+ 		 */
+ 		boot_alias_start = phys_to_idmap(start);
+ 		if (arm_has_idmap_alias() && boot_alias_start != IDMAP_INVALID_ADDR) {
+-			res = memblock_virt_alloc(sizeof(*res), 0);
++			res = memblock_alloc(sizeof(*res), 0);
+ 			res->name = "System RAM (boot alias)";
+ 			res->start = boot_alias_start;
+ 			res->end = phys_to_idmap(end);
+@@ -865,7 +865,7 @@ static void __init request_standard_resources(const struct machine_desc *mdesc)
+ 			request_resource(&iomem_resource, res);
+ 		}
  
- config CPU_BIG_ENDIAN
-diff --git a/arch/microblaze/Kconfig b/arch/microblaze/Kconfig
-index 56379b9..c77eaef 100644
---- a/arch/microblaze/Kconfig
-+++ b/arch/microblaze/Kconfig
-@@ -28,7 +28,6 @@ config MICROBLAZE
- 	select HAVE_FTRACE_MCOUNT_RECORD
- 	select HAVE_FUNCTION_GRAPH_TRACER
- 	select HAVE_FUNCTION_TRACER
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select HAVE_OPROFILE
- 	select IRQ_DOMAIN
-diff --git a/arch/mips/Kconfig b/arch/mips/Kconfig
-index 1a119fd..be5786b 100644
---- a/arch/mips/Kconfig
-+++ b/arch/mips/Kconfig
-@@ -60,7 +60,6 @@ config MIPS
- 	select HAVE_IRQ_TIME_ACCOUNTING
- 	select HAVE_KPROBES
- 	select HAVE_KRETPROBES
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select HAVE_MOD_ARCH_SPECIFIC
- 	select HAVE_NMI
-diff --git a/arch/nds32/Kconfig b/arch/nds32/Kconfig
-index 06b1259..605d148 100644
---- a/arch/nds32/Kconfig
-+++ b/arch/nds32/Kconfig
-@@ -29,7 +29,6 @@ config NDS32
- 	select HANDLE_DOMAIN_IRQ
- 	select HAVE_ARCH_TRACEHOOK
- 	select HAVE_DEBUG_KMEMLEAK
--	select HAVE_MEMBLOCK
- 	select HAVE_REGS_AND_STACK_ACCESS_API
- 	select IRQ_DOMAIN
- 	select LOCKDEP_SUPPORT
-diff --git a/arch/nios2/Kconfig b/arch/nios2/Kconfig
-index ebfae50..6f43bc4 100644
---- a/arch/nios2/Kconfig
-+++ b/arch/nios2/Kconfig
-@@ -23,7 +23,6 @@ config NIOS2
- 	select SPARSE_IRQ
- 	select USB_ARCH_HAS_HCD if USB_SUPPORT
- 	select CPU_NO_EFFICIENT_FFS
--	select HAVE_MEMBLOCK
- 	select ARCH_DISCARD_MEMBLOCK
+-		res = memblock_virt_alloc(sizeof(*res), 0);
++		res = memblock_alloc(sizeof(*res), 0);
+ 		res->name  = "System RAM";
+ 		res->start = start;
+ 		res->end = end;
+diff --git a/arch/arm/mach-omap2/omap_hwmod.c b/arch/arm/mach-omap2/omap_hwmod.c
+index cd65ea4..314284e 100644
+--- a/arch/arm/mach-omap2/omap_hwmod.c
++++ b/arch/arm/mach-omap2/omap_hwmod.c
+@@ -725,7 +725,7 @@ static int __init _setup_clkctrl_provider(struct device_node *np)
+ 	struct clkctrl_provider *provider;
+ 	u64 size;
  
- config GENERIC_CSUM
-diff --git a/arch/openrisc/Kconfig b/arch/openrisc/Kconfig
-index 25c6c2e..2ba6c6d 100644
---- a/arch/openrisc/Kconfig
-+++ b/arch/openrisc/Kconfig
-@@ -12,7 +12,6 @@ config OPENRISC
- 	select OF_EARLY_FLATTREE
- 	select IRQ_DOMAIN
- 	select HANDLE_DOMAIN_IRQ
--	select HAVE_MEMBLOCK
- 	select GPIOLIB
-         select HAVE_ARCH_TRACEHOOK
- 	select SPARSE_IRQ
-diff --git a/arch/parisc/Kconfig b/arch/parisc/Kconfig
-index 1d6332c..c8a6fda 100644
---- a/arch/parisc/Kconfig
-+++ b/arch/parisc/Kconfig
-@@ -15,7 +15,6 @@ config PARISC
- 	select RTC_CLASS
- 	select RTC_DRV_GENERIC
- 	select INIT_ALL_POSSIBLE
--	select HAVE_MEMBLOCK
- 	select BUG
- 	select BUILDTIME_EXTABLE_SORT
- 	select HAVE_PERF_EVENTS
-diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index 304cdce..47c16ae 100644
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -203,7 +203,6 @@ config PPC
- 	select HAVE_KRETPROBES
- 	select HAVE_LD_DEAD_CODE_DATA_ELIMINATION
- 	select HAVE_LIVEPATCH			if HAVE_DYNAMIC_FTRACE_WITH_REGS
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select HAVE_MOD_ARCH_SPECIFIC
- 	select HAVE_NMI				if PERF_EVENTS || (PPC64 && PPC_BOOK3S)
-diff --git a/arch/riscv/Kconfig b/arch/riscv/Kconfig
-index 63301c8..b92ee2f 100644
---- a/arch/riscv/Kconfig
-+++ b/arch/riscv/Kconfig
-@@ -28,7 +28,6 @@ config RISCV
- 	select GENERIC_STRNLEN_USER
- 	select GENERIC_SMP_IDLE_THREAD
- 	select GENERIC_ATOMIC64 if !64BIT || !RISCV_ISA_A
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select HAVE_DMA_CONTIGUOUS
- 	select HAVE_GENERIC_DMA_COHERENT
-diff --git a/arch/s390/Kconfig b/arch/s390/Kconfig
-index b388e05..2ccad0b 100644
---- a/arch/s390/Kconfig
-+++ b/arch/s390/Kconfig
-@@ -154,7 +154,6 @@ config S390
- 	select HAVE_LIVEPATCH
- 	select HAVE_PERF_REGS
- 	select HAVE_PERF_USER_STACK_DUMP
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select HAVE_MEMBLOCK_PHYS_MAP
- 	select HAVE_MOD_ARCH_SPECIFIC
-diff --git a/arch/sh/Kconfig b/arch/sh/Kconfig
-index e254226..f89a172 100644
---- a/arch/sh/Kconfig
-+++ b/arch/sh/Kconfig
-@@ -8,7 +8,6 @@ config SUPERH
- 	select HAVE_PATA_PLATFORM
- 	select CLKDEV_LOOKUP
- 	select HAVE_IDE if HAS_IOPORT_MAP
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select ARCH_DISCARD_MEMBLOCK
- 	select HAVE_OPROFILE
-diff --git a/arch/sparc/Kconfig b/arch/sparc/Kconfig
-index 5e8aaee..3b2a2f3 100644
---- a/arch/sparc/Kconfig
-+++ b/arch/sparc/Kconfig
-@@ -45,7 +45,6 @@ config SPARC
- 	select LOCKDEP_SMALL if LOCKDEP
- 	select NEED_DMA_MAP_STATE
- 	select NEED_SG_DMA_LENGTH
--	select HAVE_MEMBLOCK
+-	provider = memblock_virt_alloc(sizeof(*provider), 0);
++	provider = memblock_alloc(sizeof(*provider), 0);
+ 	if (!provider)
+ 		return -ENOMEM;
  
- config SPARC32
- 	def_bool !64BIT
-diff --git a/arch/um/Kconfig b/arch/um/Kconfig
-index ce3d562..6b99389 100644
---- a/arch/um/Kconfig
-+++ b/arch/um/Kconfig
-@@ -12,7 +12,6 @@ config UML
- 	select HAVE_UID16
- 	select HAVE_FUTEX_CMPXCHG if FUTEX
- 	select HAVE_DEBUG_KMEMLEAK
--	select HAVE_MEMBLOCK
- 	select GENERIC_IRQ_SHOW
- 	select GENERIC_CPU_DEVICES
- 	select GENERIC_CLOCKEVENTS
-diff --git a/arch/unicore32/Kconfig b/arch/unicore32/Kconfig
-index 60eae74..8726acd 100644
---- a/arch/unicore32/Kconfig
-+++ b/arch/unicore32/Kconfig
-@@ -4,7 +4,6 @@ config UNICORE32
- 	select ARCH_HAS_DEVMEM_IS_ALLOWED
- 	select ARCH_MIGHT_HAVE_PC_PARPORT
- 	select ARCH_MIGHT_HAVE_PC_SERIO
--	select HAVE_MEMBLOCK
- 	select HAVE_GENERIC_DMA_COHERENT
- 	select HAVE_KERNEL_GZIP
- 	select HAVE_KERNEL_BZIP2
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 5a861bd..875bef8e 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -167,7 +167,6 @@ config X86
- 	select HAVE_KRETPROBES
- 	select HAVE_KVM
- 	select HAVE_LIVEPATCH			if X86_64
--	select HAVE_MEMBLOCK
- 	select HAVE_MEMBLOCK_NODE_MAP
- 	select HAVE_MIXED_BREAKPOINTS_REGS
- 	select HAVE_MOD_ARCH_SPECIFIC
-diff --git a/arch/xtensa/Kconfig b/arch/xtensa/Kconfig
-index e4f7d12..2f7c086 100644
---- a/arch/xtensa/Kconfig
-+++ b/arch/xtensa/Kconfig
-@@ -27,7 +27,6 @@ config XTENSA
- 	select HAVE_FUTEX_CMPXCHG if !MMU
- 	select HAVE_HW_BREAKPOINT if PERF_EVENTS
- 	select HAVE_IRQ_TIME_ACCOUNTING
--	select HAVE_MEMBLOCK
- 	select HAVE_OPROFILE
- 	select HAVE_PERF_EVENTS
- 	select HAVE_STACKPROTECTOR
+diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
+index 1214587..2391560 100644
+--- a/arch/arm64/mm/kasan_init.c
++++ b/arch/arm64/mm/kasan_init.c
+@@ -38,7 +38,7 @@ static pgd_t tmp_pg_dir[PTRS_PER_PGD] __initdata __aligned(PGD_SIZE);
+ 
+ static phys_addr_t __init kasan_alloc_zeroed_page(int node)
+ {
+-	void *p = memblock_virt_alloc_try_nid(PAGE_SIZE, PAGE_SIZE,
++	void *p = memblock_alloc_try_nid(PAGE_SIZE, PAGE_SIZE,
+ 					      __pa(MAX_DMA_ADDRESS),
+ 					      MEMBLOCK_ALLOC_ACCESSIBLE, node);
+ 	return __pa(p);
+diff --git a/arch/arm64/mm/numa.c b/arch/arm64/mm/numa.c
+index e5aacd6..8f2e0e8 100644
+--- a/arch/arm64/mm/numa.c
++++ b/arch/arm64/mm/numa.c
+@@ -168,7 +168,7 @@ static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size,
+ {
+ 	int nid = early_cpu_to_node(cpu);
+ 
+-	return  memblock_virt_alloc_try_nid(size, align,
++	return  memblock_alloc_try_nid(size, align,
+ 			__pa(MAX_DMA_ADDRESS), MEMBLOCK_ALLOC_ACCESSIBLE, nid);
+ }
+ 
+diff --git a/arch/powerpc/kernel/pci_32.c b/arch/powerpc/kernel/pci_32.c
+index d63b488..2fb4781 100644
+--- a/arch/powerpc/kernel/pci_32.c
++++ b/arch/powerpc/kernel/pci_32.c
+@@ -204,7 +204,7 @@ pci_create_OF_bus_map(void)
+ 	struct property* of_prop;
+ 	struct device_node *dn;
+ 
+-	of_prop = memblock_virt_alloc(sizeof(struct property) + 256, 0);
++	of_prop = memblock_alloc(sizeof(struct property) + 256, 0);
+ 	dn = of_find_node_by_path("/");
+ 	if (dn) {
+ 		memset(of_prop, -1, sizeof(struct property) + 256);
+diff --git a/arch/powerpc/lib/alloc.c b/arch/powerpc/lib/alloc.c
+index 06796de..bf87d6e 100644
+--- a/arch/powerpc/lib/alloc.c
++++ b/arch/powerpc/lib/alloc.c
+@@ -14,7 +14,7 @@ void * __ref zalloc_maybe_bootmem(size_t size, gfp_t mask)
+ 	if (slab_is_available())
+ 		p = kzalloc(size, mask);
+ 	else {
+-		p = memblock_virt_alloc(size, 0);
++		p = memblock_alloc(size, 0);
+ 	}
+ 	return p;
+ }
+diff --git a/arch/powerpc/mm/mmu_context_nohash.c b/arch/powerpc/mm/mmu_context_nohash.c
+index 4d80239..954f198 100644
+--- a/arch/powerpc/mm/mmu_context_nohash.c
++++ b/arch/powerpc/mm/mmu_context_nohash.c
+@@ -461,10 +461,10 @@ void __init mmu_context_init(void)
+ 	/*
+ 	 * Allocate the maps used by context management
+ 	 */
+-	context_map = memblock_virt_alloc(CTX_MAP_SIZE, 0);
+-	context_mm = memblock_virt_alloc(sizeof(void *) * (LAST_CONTEXT + 1), 0);
++	context_map = memblock_alloc(CTX_MAP_SIZE, 0);
++	context_mm = memblock_alloc(sizeof(void *) * (LAST_CONTEXT + 1), 0);
+ #ifdef CONFIG_SMP
+-	stale_map[boot_cpuid] = memblock_virt_alloc(CTX_MAP_SIZE, 0);
++	stale_map[boot_cpuid] = memblock_alloc(CTX_MAP_SIZE, 0);
+ 
+ 	cpuhp_setup_state_nocalls(CPUHP_POWERPC_MMU_CTX_PREPARE,
+ 				  "powerpc/mmu/ctx:prepare",
+diff --git a/arch/powerpc/platforms/powermac/nvram.c b/arch/powerpc/platforms/powermac/nvram.c
+index 60b03a1..f45b369 100644
+--- a/arch/powerpc/platforms/powermac/nvram.c
++++ b/arch/powerpc/platforms/powermac/nvram.c
+@@ -513,7 +513,7 @@ static int __init core99_nvram_setup(struct device_node *dp, unsigned long addr)
+ 		printk(KERN_ERR "nvram: no address\n");
+ 		return -EINVAL;
+ 	}
+-	nvram_image = memblock_virt_alloc(NVRAM_SIZE, 0);
++	nvram_image = memblock_alloc(NVRAM_SIZE, 0);
+ 	nvram_data = ioremap(addr, NVRAM_SIZE*2);
+ 	nvram_naddrs = 1; /* Make sure we get the correct case */
+ 
+diff --git a/arch/powerpc/platforms/powernv/pci-ioda.c b/arch/powerpc/platforms/powernv/pci-ioda.c
+index cde7102..23a67b5 100644
+--- a/arch/powerpc/platforms/powernv/pci-ioda.c
++++ b/arch/powerpc/platforms/powernv/pci-ioda.c
+@@ -3770,7 +3770,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
+ 	phb_id = be64_to_cpup(prop64);
+ 	pr_debug("  PHB-ID  : 0x%016llx\n", phb_id);
+ 
+-	phb = memblock_virt_alloc(sizeof(*phb), 0);
++	phb = memblock_alloc(sizeof(*phb), 0);
+ 
+ 	/* Allocate PCI controller */
+ 	phb->hose = hose = pcibios_alloc_controller(np);
+@@ -3816,7 +3816,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
+ 	else
+ 		phb->diag_data_size = PNV_PCI_DIAG_BUF_SIZE;
+ 
+-	phb->diag_data = memblock_virt_alloc(phb->diag_data_size, 0);
++	phb->diag_data = memblock_alloc(phb->diag_data_size, 0);
+ 
+ 	/* Parse 32-bit and IO ranges (if any) */
+ 	pci_process_bridge_OF_ranges(hose, np, !hose->global_number);
+@@ -3875,7 +3875,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
+ 	}
+ 	pemap_off = size;
+ 	size += phb->ioda.total_pe_num * sizeof(struct pnv_ioda_pe);
+-	aux = memblock_virt_alloc(size, 0);
++	aux = memblock_alloc(size, 0);
+ 	phb->ioda.pe_alloc = aux;
+ 	phb->ioda.m64_segmap = aux + m64map_off;
+ 	phb->ioda.m32_segmap = aux + m32map_off;
+diff --git a/arch/powerpc/platforms/ps3/setup.c b/arch/powerpc/platforms/ps3/setup.c
+index 77a3752..1251985 100644
+--- a/arch/powerpc/platforms/ps3/setup.c
++++ b/arch/powerpc/platforms/ps3/setup.c
+@@ -126,7 +126,7 @@ static void __init prealloc(struct ps3_prealloc *p)
+ 	if (!p->size)
+ 		return;
+ 
+-	p->address = memblock_virt_alloc(p->size, p->align);
++	p->address = memblock_alloc(p->size, p->align);
+ 
+ 	printk(KERN_INFO "%s: %lu bytes at %p\n", p->name, p->size,
+ 	       p->address);
+diff --git a/arch/powerpc/sysdev/msi_bitmap.c b/arch/powerpc/sysdev/msi_bitmap.c
+index e64a411..349a9ff 100644
+--- a/arch/powerpc/sysdev/msi_bitmap.c
++++ b/arch/powerpc/sysdev/msi_bitmap.c
+@@ -128,7 +128,7 @@ int __ref msi_bitmap_alloc(struct msi_bitmap *bmp, unsigned int irq_count,
+ 	if (bmp->bitmap_from_slab)
+ 		bmp->bitmap = kzalloc(size, GFP_KERNEL);
+ 	else {
+-		bmp->bitmap = memblock_virt_alloc(size, 0);
++		bmp->bitmap = memblock_alloc(size, 0);
+ 		/* the bitmap won't be freed from memblock allocator */
+ 		kmemleak_not_leak(bmp->bitmap);
+ 	}
+diff --git a/arch/s390/kernel/setup.c b/arch/s390/kernel/setup.c
+index 2f2ee43..2e29456 100644
+--- a/arch/s390/kernel/setup.c
++++ b/arch/s390/kernel/setup.c
+@@ -311,7 +311,7 @@ static void __init setup_lowcore(void)
+ 	 * Setup lowcore for boot cpu
+ 	 */
+ 	BUILD_BUG_ON(sizeof(struct lowcore) != LC_PAGES * PAGE_SIZE);
+-	lc = memblock_virt_alloc_low(sizeof(*lc), sizeof(*lc));
++	lc = memblock_alloc_low(sizeof(*lc), sizeof(*lc));
+ 	lc->restart_psw.mask = PSW_KERNEL_BITS;
+ 	lc->restart_psw.addr = (unsigned long) restart_int_handler;
+ 	lc->external_new_psw.mask = PSW_KERNEL_BITS |
+@@ -332,10 +332,10 @@ static void __init setup_lowcore(void)
+ 	lc->kernel_stack = ((unsigned long) &init_thread_union)
+ 		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
+ 	lc->async_stack = (unsigned long)
+-		memblock_virt_alloc(ASYNC_SIZE, ASYNC_SIZE)
++		memblock_alloc(ASYNC_SIZE, ASYNC_SIZE)
+ 		+ ASYNC_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
+ 	lc->panic_stack = (unsigned long)
+-		memblock_virt_alloc(PAGE_SIZE, PAGE_SIZE)
++		memblock_alloc(PAGE_SIZE, PAGE_SIZE)
+ 		+ PAGE_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
+ 	lc->current_task = (unsigned long)&init_task;
+ 	lc->lpp = LPP_MAGIC;
+@@ -357,7 +357,7 @@ static void __init setup_lowcore(void)
+ 	lc->last_update_timer = S390_lowcore.last_update_timer;
+ 	lc->last_update_clock = S390_lowcore.last_update_clock;
+ 
+-	restart_stack = memblock_virt_alloc(ASYNC_SIZE, ASYNC_SIZE);
++	restart_stack = memblock_alloc(ASYNC_SIZE, ASYNC_SIZE);
+ 	restart_stack += ASYNC_SIZE;
+ 
+ 	/*
+@@ -423,7 +423,7 @@ static void __init setup_resources(void)
+ 	bss_resource.end = (unsigned long) __bss_stop - 1;
+ 
+ 	for_each_memblock(memory, reg) {
+-		res = memblock_virt_alloc(sizeof(*res), 8);
++		res = memblock_alloc(sizeof(*res), 8);
+ 		res->flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM;
+ 
+ 		res->name = "System RAM";
+@@ -437,7 +437,7 @@ static void __init setup_resources(void)
+ 			    std_res->start > res->end)
+ 				continue;
+ 			if (std_res->end > res->end) {
+-				sub_res = memblock_virt_alloc(sizeof(*sub_res), 8);
++				sub_res = memblock_alloc(sizeof(*sub_res), 8);
+ 				*sub_res = *std_res;
+ 				sub_res->end = res->end;
+ 				std_res->start = res->end + 1;
+diff --git a/arch/s390/kernel/smp.c b/arch/s390/kernel/smp.c
+index 2f8f7d7..8f3aafc 100644
+--- a/arch/s390/kernel/smp.c
++++ b/arch/s390/kernel/smp.c
+@@ -751,7 +751,7 @@ void __init smp_detect_cpus(void)
+ 	u16 address;
+ 
+ 	/* Get CPU information */
+-	info = memblock_virt_alloc(sizeof(*info), 8);
++	info = memblock_alloc(sizeof(*info), 8);
+ 	smp_get_core_info(info, 1);
+ 	/* Find boot CPU type */
+ 	if (sclp.has_core_type) {
+diff --git a/arch/s390/kernel/topology.c b/arch/s390/kernel/topology.c
+index e8184a1..799a918 100644
+--- a/arch/s390/kernel/topology.c
++++ b/arch/s390/kernel/topology.c
+@@ -519,7 +519,7 @@ static void __init alloc_masks(struct sysinfo_15_1_x *info,
+ 		nr_masks *= info->mag[TOPOLOGY_NR_MAG - offset - 1 - i];
+ 	nr_masks = max(nr_masks, 1);
+ 	for (i = 0; i < nr_masks; i++) {
+-		mask->next = memblock_virt_alloc(sizeof(*mask->next), 8);
++		mask->next = memblock_alloc(sizeof(*mask->next), 8);
+ 		mask = mask->next;
+ 	}
+ }
+@@ -537,7 +537,7 @@ void __init topology_init_early(void)
+ 	}
+ 	if (!MACHINE_HAS_TOPOLOGY)
+ 		goto out;
+-	tl_info = memblock_virt_alloc(PAGE_SIZE, PAGE_SIZE);
++	tl_info = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+ 	info = tl_info;
+ 	store_topology(info);
+ 	pr_info("The CPU configuration topology of the machine is: %d %d %d %d %d %d / %d\n",
+diff --git a/arch/s390/numa/mode_emu.c b/arch/s390/numa/mode_emu.c
+index 83b222c..5a381fc 100644
+--- a/arch/s390/numa/mode_emu.c
++++ b/arch/s390/numa/mode_emu.c
+@@ -313,7 +313,7 @@ static void __ref create_core_to_node_map(void)
+ {
+ 	int i;
+ 
+-	emu_cores = memblock_virt_alloc(sizeof(*emu_cores), 8);
++	emu_cores = memblock_alloc(sizeof(*emu_cores), 8);
+ 	for (i = 0; i < ARRAY_SIZE(emu_cores->to_node_id); i++)
+ 		emu_cores->to_node_id[i] = NODE_ID_FREE;
+ }
+diff --git a/arch/s390/numa/toptree.c b/arch/s390/numa/toptree.c
+index 21d1e8a..7f61cc3 100644
+--- a/arch/s390/numa/toptree.c
++++ b/arch/s390/numa/toptree.c
+@@ -34,7 +34,7 @@ struct toptree __ref *toptree_alloc(int level, int id)
+ 	if (slab_is_available())
+ 		res = kzalloc(sizeof(*res), GFP_KERNEL);
+ 	else
+-		res = memblock_virt_alloc(sizeof(*res), 8);
++		res = memblock_alloc(sizeof(*res), 8);
+ 	if (!res)
+ 		return res;
+ 
+diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+index e3e7752..77b857c 100644
+--- a/arch/x86/mm/kasan_init_64.c
++++ b/arch/x86/mm/kasan_init_64.c
+@@ -28,10 +28,10 @@ static p4d_t tmp_p4d_table[MAX_PTRS_PER_P4D] __initdata __aligned(PAGE_SIZE);
+ static __init void *early_alloc(size_t size, int nid, bool panic)
+ {
+ 	if (panic)
+-		return memblock_virt_alloc_try_nid(size, size,
++		return memblock_alloc_try_nid(size, size,
+ 			__pa(MAX_DMA_ADDRESS), BOOTMEM_ALLOC_ACCESSIBLE, nid);
+ 	else
+-		return memblock_virt_alloc_try_nid_nopanic(size, size,
++		return memblock_alloc_try_nid_nopanic(size, size,
+ 			__pa(MAX_DMA_ADDRESS), BOOTMEM_ALLOC_ACCESSIBLE, nid);
+ }
+ 
+diff --git a/arch/xtensa/mm/kasan_init.c b/arch/xtensa/mm/kasan_init.c
+index 6b532b6..1a30a25 100644
+--- a/arch/xtensa/mm/kasan_init.c
++++ b/arch/xtensa/mm/kasan_init.c
+@@ -43,7 +43,7 @@ static void __init populate(void *start, void *end)
+ 	unsigned long vaddr = (unsigned long)start;
+ 	pgd_t *pgd = pgd_offset_k(vaddr);
+ 	pmd_t *pmd = pmd_offset(pgd, vaddr);
+-	pte_t *pte = memblock_virt_alloc(n_pages * sizeof(pte_t), PAGE_SIZE);
++	pte_t *pte = memblock_alloc(n_pages * sizeof(pte_t), PAGE_SIZE);
+ 
+ 	pr_debug("%s: %p - %p\n", __func__, start, end);
+ 
+diff --git a/drivers/clk/ti/clk.c b/drivers/clk/ti/clk.c
+index 33001a7..a0136ed 100644
+--- a/drivers/clk/ti/clk.c
++++ b/drivers/clk/ti/clk.c
+@@ -347,7 +347,7 @@ void __init omap2_clk_legacy_provider_init(int index, void __iomem *mem)
+ {
+ 	struct clk_iomap *io;
+ 
+-	io = memblock_virt_alloc(sizeof(*io), 0);
++	io = memblock_alloc(sizeof(*io), 0);
+ 
+ 	io->mem = mem;
+ 
+diff --git a/drivers/firmware/memmap.c b/drivers/firmware/memmap.c
+index 5de3ed2..03cead6 100644
+--- a/drivers/firmware/memmap.c
++++ b/drivers/firmware/memmap.c
+@@ -333,7 +333,7 @@ int __init firmware_map_add_early(u64 start, u64 end, const char *type)
+ {
+ 	struct firmware_map_entry *entry;
+ 
+-	entry = memblock_virt_alloc(sizeof(struct firmware_map_entry), 0);
++	entry = memblock_alloc(sizeof(struct firmware_map_entry), 0);
+ 	if (WARN_ON(!entry))
+ 		return -ENOMEM;
+ 
 diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
-index 76c83c1..bd841bb 100644
+index bd841bb..34dd878 100644
 --- a/drivers/of/fdt.c
 +++ b/drivers/of/fdt.c
-@@ -1115,13 +1115,11 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
- 	return 1;
- }
+@@ -1198,7 +1198,7 @@ int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
  
--#ifdef CONFIG_HAVE_MEMBLOCK
- #ifndef MIN_MEMBLOCK_ADDR
- #define MIN_MEMBLOCK_ADDR	__pa(PAGE_OFFSET)
- #endif
- #ifndef MAX_MEMBLOCK_ADDR
- #define MAX_MEMBLOCK_ADDR	((phys_addr_t)~0)
--#endif
- 
- void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
+ static void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
  {
-diff --git a/drivers/of/of_reserved_mem.c b/drivers/of/of_reserved_mem.c
-index 895c83e..d6255c2 100644
---- a/drivers/of/of_reserved_mem.c
-+++ b/drivers/of/of_reserved_mem.c
-@@ -20,13 +20,12 @@
- #include <linux/of_reserved_mem.h>
- #include <linux/sort.h>
- #include <linux/slab.h>
-+#include <linux/memblock.h>
- 
- #define MAX_RESERVED_REGIONS	32
- static struct reserved_mem reserved_mem[MAX_RESERVED_REGIONS];
- static int reserved_mem_count;
- 
--#if defined(CONFIG_HAVE_MEMBLOCK)
--#include <linux/memblock.h>
- int __init __weak early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
- 	phys_addr_t align, phys_addr_t start, phys_addr_t end, bool nomap,
- 	phys_addr_t *res_base)
-@@ -54,16 +53,6 @@ int __init __weak early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
- 		return memblock_remove(base, size);
- 	return 0;
+-	return memblock_virt_alloc(size, align);
++	return memblock_alloc(size, align);
  }
--#else
--int __init __weak early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
--	phys_addr_t align, phys_addr_t start, phys_addr_t end, bool nomap,
--	phys_addr_t *res_base)
--{
--	pr_err("Reserved memory not supported, ignoring region 0x%llx%s\n",
--		  size, nomap ? " (nomap)" : "");
--	return -ENOSYS;
--}
--#endif
  
- /**
-  * res_mem_save_node() - save fdt node for second pass initialization
-diff --git a/drivers/staging/android/ion/Kconfig b/drivers/staging/android/ion/Kconfig
-index c16dd16..0fdda6f 100644
---- a/drivers/staging/android/ion/Kconfig
-+++ b/drivers/staging/android/ion/Kconfig
-@@ -1,6 +1,6 @@
- menuconfig ION
- 	bool "Ion Memory Manager"
--	depends on HAVE_MEMBLOCK && HAS_DMA && MMU
-+	depends on HAS_DMA && MMU
- 	select GENERIC_ALLOCATOR
- 	select DMA_SHARED_BUFFER
- 	help
-diff --git a/fs/pstore/Kconfig b/fs/pstore/Kconfig
-index 503086f..0d19d19 100644
---- a/fs/pstore/Kconfig
-+++ b/fs/pstore/Kconfig
-@@ -141,7 +141,6 @@ config PSTORE_RAM
- 	tristate "Log panic/oops to a RAM buffer"
- 	depends on PSTORE
- 	depends on HAS_IOMEM
--	depends on HAVE_MEMBLOCK
- 	select REED_SOLOMON
- 	select REED_SOLOMON_ENC8
- 	select REED_SOLOMON_DEC8
+ bool __init early_init_dt_verify(void *params)
+diff --git a/drivers/of/unittest.c b/drivers/of/unittest.c
+index d9d0121..bc2a78f 100644
+--- a/drivers/of/unittest.c
++++ b/drivers/of/unittest.c
+@@ -2182,7 +2182,7 @@ static struct device_node *overlay_base_root;
+ 
+ static void * __init dt_alloc_memory(u64 size, u64 align)
+ {
+-	return memblock_virt_alloc(size, align);
++	return memblock_alloc(size, align);
+ }
+ 
+ /*
 diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
-index 1f005b5..ee61ac3 100644
+index b74bafd1..7d91f0f 100644
 --- a/include/linux/bootmem.h
 +++ b/include/linux/bootmem.h
-@@ -132,9 +132,6 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
- #define alloc_bootmem_low_pages_node(pgdat, x) \
- 	__alloc_bootmem_low_node(pgdat, x, PAGE_SIZE, 0)
- 
--
--#if defined(CONFIG_HAVE_MEMBLOCK)
--
- /* FIXME: use MEMBLOCK_ALLOC_* variants here */
- #define BOOTMEM_ALLOC_ACCESSIBLE	0
+@@ -95,78 +95,78 @@ extern void *__alloc_bootmem_low(unsigned long size,
  #define BOOTMEM_ALLOC_ANYWHERE		(~(phys_addr_t)0)
-@@ -234,115 +231,6 @@ static inline void __init memblock_free_late(
- 	__memblock_free_late(base, size);
- }
  
--#else
--
--#define BOOTMEM_ALLOC_ACCESSIBLE	0
--
--
--/* Fall back to all the existing bootmem APIs */
+ /* FIXME: Move to memblock.h at a point where we remove nobootmem.c */
+-void *memblock_virt_alloc_try_nid_raw(phys_addr_t size, phys_addr_t align,
++void *memblock_alloc_try_nid_raw(phys_addr_t size, phys_addr_t align,
+ 				      phys_addr_t min_addr,
+ 				      phys_addr_t max_addr, int nid);
+-void *memblock_virt_alloc_try_nid_nopanic(phys_addr_t size,
++void *memblock_alloc_try_nid_nopanic(phys_addr_t size,
+ 		phys_addr_t align, phys_addr_t min_addr,
+ 		phys_addr_t max_addr, int nid);
+-void *memblock_virt_alloc_try_nid(phys_addr_t size, phys_addr_t align,
++void *memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align,
+ 		phys_addr_t min_addr, phys_addr_t max_addr, int nid);
+ void __memblock_free_early(phys_addr_t base, phys_addr_t size);
+ void __memblock_free_late(phys_addr_t base, phys_addr_t size);
+ 
 -static inline void * __init memblock_virt_alloc(
--					phys_addr_t size,  phys_addr_t align)
--{
--	if (!align)
--		align = SMP_CACHE_BYTES;
--	return __alloc_bootmem(size, align, BOOTMEM_LOW_LIMIT);
--}
--
--static inline void * __init memblock_virt_alloc_raw(
--					phys_addr_t size,  phys_addr_t align)
--{
--	if (!align)
--		align = SMP_CACHE_BYTES;
--	return __alloc_bootmem_nopanic(size, align, BOOTMEM_LOW_LIMIT);
--}
--
--static inline void * __init memblock_virt_alloc_nopanic(
--					phys_addr_t size, phys_addr_t align)
--{
--	if (!align)
--		align = SMP_CACHE_BYTES;
--	return __alloc_bootmem_nopanic(size, align, BOOTMEM_LOW_LIMIT);
--}
--
--static inline void * __init memblock_virt_alloc_low(
--					phys_addr_t size, phys_addr_t align)
--{
--	if (!align)
--		align = SMP_CACHE_BYTES;
--	return __alloc_bootmem_low(size, align, 0);
--}
--
--static inline void * __init memblock_virt_alloc_low_nopanic(
--					phys_addr_t size, phys_addr_t align)
--{
--	if (!align)
--		align = SMP_CACHE_BYTES;
--	return __alloc_bootmem_low_nopanic(size, align, 0);
--}
--
--static inline void * __init memblock_virt_alloc_from_nopanic(
--		phys_addr_t size, phys_addr_t align, phys_addr_t min_addr)
--{
--	return __alloc_bootmem_nopanic(size, align, min_addr);
--}
--
--static inline void * __init memblock_virt_alloc_node(
--						phys_addr_t size, int nid)
--{
--	return __alloc_bootmem_node(NODE_DATA(nid), size, SMP_CACHE_BYTES,
--				     BOOTMEM_LOW_LIMIT);
--}
--
--static inline void * __init memblock_virt_alloc_node_nopanic(
--						phys_addr_t size, int nid)
--{
--	return __alloc_bootmem_node_nopanic(NODE_DATA(nid), size,
--					     SMP_CACHE_BYTES,
--					     BOOTMEM_LOW_LIMIT);
--}
--
--static inline void * __init memblock_virt_alloc_try_nid(phys_addr_t size,
--	phys_addr_t align, phys_addr_t min_addr, phys_addr_t max_addr, int nid)
--{
--	return __alloc_bootmem_node_high(NODE_DATA(nid), size, align,
--					  min_addr);
--}
--
--static inline void * __init memblock_virt_alloc_try_nid_raw(
--			phys_addr_t size, phys_addr_t align,
--			phys_addr_t min_addr, phys_addr_t max_addr, int nid)
--{
--	return ___alloc_bootmem_node_nopanic(NODE_DATA(nid), size, align,
--				min_addr, max_addr);
--}
--
--static inline void * __init memblock_virt_alloc_try_nid_nopanic(
--			phys_addr_t size, phys_addr_t align,
--			phys_addr_t min_addr, phys_addr_t max_addr, int nid)
--{
--	return ___alloc_bootmem_node_nopanic(NODE_DATA(nid), size, align,
--				min_addr, max_addr);
--}
--
--static inline void __init memblock_free_early(
--					phys_addr_t base, phys_addr_t size)
--{
--	free_bootmem(base, size);
--}
--
--static inline void __init memblock_free_early_nid(
--				phys_addr_t base, phys_addr_t size, int nid)
--{
--	free_bootmem_node(NODE_DATA(nid), base, size);
--}
--
--static inline void __init memblock_free_late(
--					phys_addr_t base, phys_addr_t size)
--{
--	free_bootmem_late(base, size);
--}
--#endif /* defined(CONFIG_HAVE_MEMBLOCK) */
--
- extern void *alloc_large_system_hash(const char *tablename,
- 				     unsigned long bucketsize,
- 				     unsigned long numentries,
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 58697ad..3c96a16 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -2,7 +2,6 @@
- #define _LINUX_MEMBLOCK_H
- #ifdef __KERNEL__
- 
--#ifdef CONFIG_HAVE_MEMBLOCK
- /*
-  * Logical memory blocks.
-  *
-@@ -462,7 +461,6 @@ static inline phys_addr_t memblock_alloc(phys_addr_t size, phys_addr_t align)
++static inline void * __init memblock_alloc(
+ 					phys_addr_t size,  phys_addr_t align)
  {
- 	return 0;
+-	return memblock_virt_alloc_try_nid(size, align, BOOTMEM_LOW_LIMIT,
++	return memblock_alloc_try_nid(size, align, BOOTMEM_LOW_LIMIT,
+ 					    BOOTMEM_ALLOC_ACCESSIBLE,
+ 					    NUMA_NO_NODE);
  }
--#endif /* CONFIG_HAVE_MEMBLOCK */
  
- #endif /* __KERNEL__ */
+-static inline void * __init memblock_virt_alloc_raw(
++static inline void * __init memblock_alloc_raw(
+ 					phys_addr_t size,  phys_addr_t align)
+ {
+-	return memblock_virt_alloc_try_nid_raw(size, align, BOOTMEM_LOW_LIMIT,
++	return memblock_alloc_try_nid_raw(size, align, BOOTMEM_LOW_LIMIT,
+ 					    BOOTMEM_ALLOC_ACCESSIBLE,
+ 					    NUMA_NO_NODE);
+ }
  
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index bd5e246..6215168 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2143,7 +2143,7 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
- 					struct mminit_pfnnid_cache *state);
- #endif
+-static inline void * __init memblock_virt_alloc_nopanic(
++static inline void * __init memblock_alloc_nopanic(
+ 					phys_addr_t size, phys_addr_t align)
+ {
+-	return memblock_virt_alloc_try_nid_nopanic(size, align,
++	return memblock_alloc_try_nid_nopanic(size, align,
+ 						    BOOTMEM_LOW_LIMIT,
+ 						    BOOTMEM_ALLOC_ACCESSIBLE,
+ 						    NUMA_NO_NODE);
+ }
  
--#if defined(CONFIG_HAVE_MEMBLOCK) && !defined(CONFIG_FLAT_NODE_MEM_MAP)
-+#if !defined(CONFIG_FLAT_NODE_MEM_MAP)
- void zero_resv_unavail(void);
- #else
- static inline void zero_resv_unavail(void) {}
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 121d869..321117f 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -1311,7 +1311,7 @@ config DEBUG_KOBJECT
- 	depends on DEBUG_KERNEL
- 	help
- 	  If you say Y here, some extra kobject debugging messages will be sent
--	  to the syslog. 
-+	  to the syslog.
+-static inline void * __init memblock_virt_alloc_low(
++static inline void * __init memblock_alloc_low(
+ 					phys_addr_t size, phys_addr_t align)
+ {
+-	return memblock_virt_alloc_try_nid(size, align,
++	return memblock_alloc_try_nid(size, align,
+ 						   BOOTMEM_LOW_LIMIT,
+ 						   ARCH_LOW_ADDRESS_LIMIT,
+ 						   NUMA_NO_NODE);
+ }
+-static inline void * __init memblock_virt_alloc_low_nopanic(
++static inline void * __init memblock_alloc_low_nopanic(
+ 					phys_addr_t size, phys_addr_t align)
+ {
+-	return memblock_virt_alloc_try_nid_nopanic(size, align,
++	return memblock_alloc_try_nid_nopanic(size, align,
+ 						   BOOTMEM_LOW_LIMIT,
+ 						   ARCH_LOW_ADDRESS_LIMIT,
+ 						   NUMA_NO_NODE);
+ }
  
- config DEBUG_KOBJECT_RELEASE
- 	bool "kobject release debugging"
-@@ -1988,7 +1988,6 @@ endif # RUNTIME_TESTING_MENU
+-static inline void * __init memblock_virt_alloc_from_nopanic(
++static inline void * __init memblock_alloc_from_nopanic(
+ 		phys_addr_t size, phys_addr_t align, phys_addr_t min_addr)
+ {
+-	return memblock_virt_alloc_try_nid_nopanic(size, align, min_addr,
++	return memblock_alloc_try_nid_nopanic(size, align, min_addr,
+ 						    BOOTMEM_ALLOC_ACCESSIBLE,
+ 						    NUMA_NO_NODE);
+ }
  
- config MEMTEST
- 	bool "Memtest"
--	depends on HAVE_MEMBLOCK
- 	---help---
- 	  This option adds a kernel parameter 'memtest', which allows memtest
- 	  to be set.
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 16ceea0..c6a0d82 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -127,9 +127,6 @@ config SPARSEMEM_VMEMMAP
- 	 pfn_to_page and page_to_pfn operations.  This is the most
- 	 efficient option when sufficient kernel resources are available.
+-static inline void * __init memblock_virt_alloc_node(
++static inline void * __init memblock_alloc_node(
+ 						phys_addr_t size, int nid)
+ {
+-	return memblock_virt_alloc_try_nid(size, 0, BOOTMEM_LOW_LIMIT,
++	return memblock_alloc_try_nid(size, 0, BOOTMEM_LOW_LIMIT,
+ 					    BOOTMEM_ALLOC_ACCESSIBLE, nid);
+ }
  
--config HAVE_MEMBLOCK
--	bool
--
- config HAVE_MEMBLOCK_NODE_MAP
- 	bool
+-static inline void * __init memblock_virt_alloc_node_nopanic(
++static inline void * __init memblock_alloc_node_nopanic(
+ 						phys_addr_t size, int nid)
+ {
+-	return memblock_virt_alloc_try_nid_nopanic(size, 0, BOOTMEM_LOW_LIMIT,
++	return memblock_alloc_try_nid_nopanic(size, 0, BOOTMEM_LOW_LIMIT,
+ 						    BOOTMEM_ALLOC_ACCESSIBLE,
+ 						    nid);
+ }
+diff --git a/init/main.c b/init/main.c
+index 18f8f01..d0b92bd 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -375,10 +375,10 @@ static inline void smp_prepare_cpus(unsigned int maxcpus) { }
+ static void __init setup_command_line(char *command_line)
+ {
+ 	saved_command_line =
+-		memblock_virt_alloc(strlen(boot_command_line) + 1, 0);
++		memblock_alloc(strlen(boot_command_line) + 1, 0);
+ 	initcall_command_line =
+-		memblock_virt_alloc(strlen(boot_command_line) + 1, 0);
+-	static_command_line = memblock_virt_alloc(strlen(command_line) + 1, 0);
++		memblock_alloc(strlen(boot_command_line) + 1, 0);
++	static_command_line = memblock_alloc(strlen(command_line) + 1, 0);
+ 	strcpy(saved_command_line, boot_command_line);
+ 	strcpy(static_command_line, command_line);
+ }
+diff --git a/kernel/dma/swiotlb.c b/kernel/dma/swiotlb.c
+index 4f8a6db..d9fd062 100644
+--- a/kernel/dma/swiotlb.c
++++ b/kernel/dma/swiotlb.c
+@@ -215,7 +215,7 @@ int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
+ 	/*
+ 	 * Get the overflow emergency buffer
+ 	 */
+-	v_overflow_buffer = memblock_virt_alloc_low_nopanic(
++	v_overflow_buffer = memblock_alloc_low_nopanic(
+ 						PAGE_ALIGN(io_tlb_overflow),
+ 						PAGE_SIZE);
+ 	if (!v_overflow_buffer)
+@@ -228,10 +228,10 @@ int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
+ 	 * to find contiguous free memory regions of size up to IO_TLB_SEGSIZE
+ 	 * between io_tlb_start and io_tlb_end.
+ 	 */
+-	io_tlb_list = memblock_virt_alloc(
++	io_tlb_list = memblock_alloc(
+ 				PAGE_ALIGN(io_tlb_nslabs * sizeof(int)),
+ 				PAGE_SIZE);
+-	io_tlb_orig_addr = memblock_virt_alloc(
++	io_tlb_orig_addr = memblock_alloc(
+ 				PAGE_ALIGN(io_tlb_nslabs * sizeof(phys_addr_t)),
+ 				PAGE_SIZE);
+ 	for (i = 0; i < io_tlb_nslabs; i++) {
+@@ -266,7 +266,7 @@ swiotlb_init(int verbose)
+ 	bytes = io_tlb_nslabs << IO_TLB_SHIFT;
  
-@@ -481,7 +478,7 @@ config FRONTSWAP
+ 	/* Get IO TLB memory from the low pages */
+-	vstart = memblock_virt_alloc_low_nopanic(PAGE_ALIGN(bytes), PAGE_SIZE);
++	vstart = memblock_alloc_low_nopanic(PAGE_ALIGN(bytes), PAGE_SIZE);
+ 	if (vstart && !swiotlb_init_with_tbl(vstart, io_tlb_nslabs, verbose))
+ 		return;
  
- config CMA
- 	bool "Contiguous Memory Allocator"
--	depends on HAVE_MEMBLOCK && MMU
-+	depends on MMU
- 	select MIGRATION
- 	select MEMORY_ISOLATION
- 	help
-diff --git a/mm/Makefile b/mm/Makefile
-index c4da6de..0a3e72e 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -43,11 +43,11 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
+diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
+index 3d37c27..34116a6 100644
+--- a/kernel/power/snapshot.c
++++ b/kernel/power/snapshot.c
+@@ -963,7 +963,7 @@ void __init __register_nosave_region(unsigned long start_pfn,
+ 		BUG_ON(!region);
+ 	} else {
+ 		/* This allocation cannot fail */
+-		region = memblock_virt_alloc(sizeof(struct nosave_region), 0);
++		region = memblock_alloc(sizeof(struct nosave_region), 0);
+ 	}
+ 	region->start_pfn = start_pfn;
+ 	region->end_pfn = end_pfn;
+diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
+index fd6f8ed..72e6d38 100644
+--- a/kernel/printk/printk.c
++++ b/kernel/printk/printk.c
+@@ -1107,9 +1107,9 @@ void __init setup_log_buf(int early)
  
- obj-y += init-mm.o
- obj-y += nobootmem.o
-+obj-y += memblock.o
+ 	if (early) {
+ 		new_log_buf =
+-			memblock_virt_alloc(new_log_buf_len, LOG_ALIGN);
++			memblock_alloc(new_log_buf_len, LOG_ALIGN);
+ 	} else {
+-		new_log_buf = memblock_virt_alloc_nopanic(new_log_buf_len,
++		new_log_buf = memblock_alloc_nopanic(new_log_buf_len,
+ 							  LOG_ALIGN);
+ 	}
  
- ifdef CONFIG_MMU
- 	obj-$(CONFIG_ADVISE_SYSCALLS)	+= madvise.o
- endif
--obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.o
+diff --git a/lib/cpumask.c b/lib/cpumask.c
+index beca624..1405cb2 100644
+--- a/lib/cpumask.c
++++ b/lib/cpumask.c
+@@ -163,7 +163,7 @@ EXPORT_SYMBOL(zalloc_cpumask_var);
+  */
+ void __init alloc_bootmem_cpumask_var(cpumask_var_t *mask)
+ {
+-	*mask = memblock_virt_alloc(cpumask_size(), 0);
++	*mask = memblock_alloc(cpumask_size(), 0);
+ }
  
- obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o swap_slots.o
- obj-$(CONFIG_FRONTSWAP)	+= frontswap.o
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index 439af3b..d4d0cd4 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -23,10 +23,6 @@
+ /**
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 9530d7c..3f5419c 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -2100,7 +2100,7 @@ int __alloc_bootmem_huge_page(struct hstate *h)
+ 	for_each_node_mask_to_alloc(h, nr_nodes, node, &node_states[N_MEMORY]) {
+ 		void *addr;
  
- #include "internal.h"
+-		addr = memblock_virt_alloc_try_nid_raw(
++		addr = memblock_alloc_try_nid_raw(
+ 				huge_page_size(h), huge_page_size(h),
+ 				0, BOOTMEM_ALLOC_ACCESSIBLE, node);
+ 		if (addr) {
+diff --git a/mm/kasan/kasan_init.c b/mm/kasan/kasan_init.c
+index 7a2a2f1..24d734b 100644
+--- a/mm/kasan/kasan_init.c
++++ b/mm/kasan/kasan_init.c
+@@ -83,7 +83,7 @@ static inline bool kasan_zero_page_entry(pte_t pte)
  
--#ifndef CONFIG_HAVE_MEMBLOCK
--#error CONFIG_HAVE_MEMBLOCK not defined
--#endif
--
- #ifndef CONFIG_NEED_MULTIPLE_NODES
- struct pglist_data __refdata contig_page_data;
- EXPORT_SYMBOL(contig_page_data);
+ static __init void *early_alloc(size_t size, int node)
+ {
+-	return memblock_virt_alloc_try_nid(size, size, __pa(MAX_DMA_ADDRESS),
++	return memblock_alloc_try_nid(size, size, __pa(MAX_DMA_ADDRESS),
+ 					BOOTMEM_ALLOC_ACCESSIBLE, node);
+ }
+ 
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 0ab9507..8d35107 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1394,7 +1394,7 @@ phys_addr_t __init memblock_phys_alloc_try_nid(phys_addr_t size, phys_addr_t ali
+ }
+ 
+ /**
+- * memblock_virt_alloc_internal - allocate boot memory block
++ * memblock_alloc_internal - allocate boot memory block
+  * @size: size of memory block to be allocated in bytes
+  * @align: alignment of the region and block's size
+  * @min_addr: the lower bound of the memory region to allocate (phys address)
+@@ -1420,7 +1420,7 @@ phys_addr_t __init memblock_phys_alloc_try_nid(phys_addr_t size, phys_addr_t ali
+  * Return:
+  * Virtual address of allocated memory block on success, NULL on failure.
+  */
+-static void * __init memblock_virt_alloc_internal(
++static void * __init memblock_alloc_internal(
+ 				phys_addr_t size, phys_addr_t align,
+ 				phys_addr_t min_addr, phys_addr_t max_addr,
+ 				int nid)
+@@ -1487,7 +1487,7 @@ static void * __init memblock_virt_alloc_internal(
+ }
+ 
+ /**
+- * memblock_virt_alloc_try_nid_raw - allocate boot memory block without zeroing
++ * memblock_alloc_try_nid_raw - allocate boot memory block without zeroing
+  * memory and without panicking
+  * @size: size of memory block to be allocated in bytes
+  * @align: alignment of the region and block's size
+@@ -1505,7 +1505,7 @@ static void * __init memblock_virt_alloc_internal(
+  * Return:
+  * Virtual address of allocated memory block on success, NULL on failure.
+  */
+-void * __init memblock_virt_alloc_try_nid_raw(
++void * __init memblock_alloc_try_nid_raw(
+ 			phys_addr_t size, phys_addr_t align,
+ 			phys_addr_t min_addr, phys_addr_t max_addr,
+ 			int nid)
+@@ -1516,7 +1516,7 @@ void * __init memblock_virt_alloc_try_nid_raw(
+ 		     __func__, (u64)size, (u64)align, nid, &min_addr,
+ 		     &max_addr, (void *)_RET_IP_);
+ 
+-	ptr = memblock_virt_alloc_internal(size, align,
++	ptr = memblock_alloc_internal(size, align,
+ 					   min_addr, max_addr, nid);
+ #ifdef CONFIG_DEBUG_VM
+ 	if (ptr && size > 0)
+@@ -1526,7 +1526,7 @@ void * __init memblock_virt_alloc_try_nid_raw(
+ }
+ 
+ /**
+- * memblock_virt_alloc_try_nid_nopanic - allocate boot memory block
++ * memblock_alloc_try_nid_nopanic - allocate boot memory block
+  * @size: size of memory block to be allocated in bytes
+  * @align: alignment of the region and block's size
+  * @min_addr: the lower bound of the memory region from where the allocation
+@@ -1542,7 +1542,7 @@ void * __init memblock_virt_alloc_try_nid_raw(
+  * Return:
+  * Virtual address of allocated memory block on success, NULL on failure.
+  */
+-void * __init memblock_virt_alloc_try_nid_nopanic(
++void * __init memblock_alloc_try_nid_nopanic(
+ 				phys_addr_t size, phys_addr_t align,
+ 				phys_addr_t min_addr, phys_addr_t max_addr,
+ 				int nid)
+@@ -1553,7 +1553,7 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
+ 		     __func__, (u64)size, (u64)align, nid, &min_addr,
+ 		     &max_addr, (void *)_RET_IP_);
+ 
+-	ptr = memblock_virt_alloc_internal(size, align,
++	ptr = memblock_alloc_internal(size, align,
+ 					   min_addr, max_addr, nid);
+ 	if (ptr)
+ 		memset(ptr, 0, size);
+@@ -1561,7 +1561,7 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
+ }
+ 
+ /**
+- * memblock_virt_alloc_try_nid - allocate boot memory block with panicking
++ * memblock_alloc_try_nid - allocate boot memory block with panicking
+  * @size: size of memory block to be allocated in bytes
+  * @align: alignment of the region and block's size
+  * @min_addr: the lower bound of the memory region from where the allocation
+@@ -1571,14 +1571,14 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
+  *	      allocate only from memory limited by memblock.current_limit value
+  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
+  *
+- * Public panicking version of memblock_virt_alloc_try_nid_nopanic()
++ * Public panicking version of memblock_alloc_try_nid_nopanic()
+  * which provides debug information (including caller info), if enabled,
+  * and panics if the request can not be satisfied.
+  *
+  * Return:
+  * Virtual address of allocated memory block on success, NULL on failure.
+  */
+-void * __init memblock_virt_alloc_try_nid(
++void * __init memblock_alloc_try_nid(
+ 			phys_addr_t size, phys_addr_t align,
+ 			phys_addr_t min_addr, phys_addr_t max_addr,
+ 			int nid)
+@@ -1588,7 +1588,7 @@ void * __init memblock_virt_alloc_try_nid(
+ 	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=%pa max_addr=%pa %pF\n",
+ 		     __func__, (u64)size, (u64)align, nid, &min_addr,
+ 		     &max_addr, (void *)_RET_IP_);
+-	ptr = memblock_virt_alloc_internal(size, align,
++	ptr = memblock_alloc_internal(size, align,
+ 					   min_addr, max_addr, nid);
+ 	if (ptr) {
+ 		memset(ptr, 0, size);
+@@ -1605,7 +1605,7 @@ void * __init memblock_virt_alloc_try_nid(
+  * @base: phys starting address of the  boot memory block
+  * @size: size of the boot memory block in bytes
+  *
+- * Free boot memory block previously allocated by memblock_virt_alloc_xx() API.
++ * Free boot memory block previously allocated by memblock_alloc_xx() API.
+  * The freeing memory will not be released to the buddy allocator.
+  */
+ void __init __memblock_free_early(phys_addr_t base, phys_addr_t size)
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 61e664d..a4985cd 100644
+index a4985cd..2ade7b6 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -6442,7 +6442,7 @@ void __init free_area_init_node(int nid, unsigned long *zones_size,
- 	free_area_init_core(pgdat);
+@@ -6131,7 +6131,7 @@ static void __ref setup_usemap(struct pglist_data *pgdat,
+ 	zone->pageblock_flags = NULL;
+ 	if (usemapsize)
+ 		zone->pageblock_flags =
+-			memblock_virt_alloc_node_nopanic(usemapsize,
++			memblock_alloc_node_nopanic(usemapsize,
+ 							 pgdat->node_id);
+ }
+ #else
+@@ -6373,7 +6373,7 @@ static void __ref alloc_node_mem_map(struct pglist_data *pgdat)
+ 		end = pgdat_end_pfn(pgdat);
+ 		end = ALIGN(end, MAX_ORDER_NR_PAGES);
+ 		size =  (end - start) * sizeof(struct page);
+-		map = memblock_virt_alloc_node_nopanic(size, pgdat->node_id);
++		map = memblock_alloc_node_nopanic(size, pgdat->node_id);
+ 		pgdat->node_mem_map = map + offset;
+ 	}
+ 	pr_debug("%s: node %d, pgdat %08lx, node_mem_map %08lx\n",
+@@ -7626,9 +7626,9 @@ void *__init alloc_large_system_hash(const char *tablename,
+ 		size = bucketsize << log2qty;
+ 		if (flags & HASH_EARLY) {
+ 			if (flags & HASH_ZERO)
+-				table = memblock_virt_alloc_nopanic(size, 0);
++				table = memblock_alloc_nopanic(size, 0);
+ 			else
+-				table = memblock_virt_alloc_raw(size, 0);
++				table = memblock_alloc_raw(size, 0);
+ 		} else if (hashdist) {
+ 			table = __vmalloc(size, gfp_flags, PAGE_KERNEL);
+ 		} else {
+diff --git a/mm/page_ext.c b/mm/page_ext.c
+index a9826da..e77c0f0 100644
+--- a/mm/page_ext.c
++++ b/mm/page_ext.c
+@@ -161,7 +161,7 @@ static int __init alloc_node_page_ext(int nid)
+ 
+ 	table_size = get_entry_size() * nr_pages;
+ 
+-	base = memblock_virt_alloc_try_nid_nopanic(
++	base = memblock_alloc_try_nid_nopanic(
+ 			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
+ 			BOOTMEM_ALLOC_ACCESSIBLE, nid);
+ 	if (!base)
+diff --git a/mm/percpu.c b/mm/percpu.c
+index a749d4d..86bb9f6 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -1101,7 +1101,7 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
+ 	region_size = ALIGN(start_offset + map_size, lcm_align);
+ 
+ 	/* allocate chunk */
+-	chunk = memblock_virt_alloc(sizeof(struct pcpu_chunk) +
++	chunk = memblock_alloc(sizeof(struct pcpu_chunk) +
+ 				    BITS_TO_LONGS(region_size >> PAGE_SHIFT),
+ 				    0);
+ 
+@@ -1114,11 +1114,11 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
+ 	chunk->nr_pages = region_size >> PAGE_SHIFT;
+ 	region_bits = pcpu_chunk_map_bits(chunk);
+ 
+-	chunk->alloc_map = memblock_virt_alloc(BITS_TO_LONGS(region_bits) *
++	chunk->alloc_map = memblock_alloc(BITS_TO_LONGS(region_bits) *
+ 					       sizeof(chunk->alloc_map[0]), 0);
+-	chunk->bound_map = memblock_virt_alloc(BITS_TO_LONGS(region_bits + 1) *
++	chunk->bound_map = memblock_alloc(BITS_TO_LONGS(region_bits + 1) *
+ 					       sizeof(chunk->bound_map[0]), 0);
+-	chunk->md_blocks = memblock_virt_alloc(pcpu_chunk_nr_blocks(chunk) *
++	chunk->md_blocks = memblock_alloc(pcpu_chunk_nr_blocks(chunk) *
+ 					       sizeof(chunk->md_blocks[0]), 0);
+ 	pcpu_init_md_blocks(chunk);
+ 
+@@ -1887,7 +1887,7 @@ struct pcpu_alloc_info * __init pcpu_alloc_alloc_info(int nr_groups,
+ 			  __alignof__(ai->groups[0].cpu_map[0]));
+ 	ai_size = base_size + nr_units * sizeof(ai->groups[0].cpu_map[0]);
+ 
+-	ptr = memblock_virt_alloc_nopanic(PFN_ALIGN(ai_size), PAGE_SIZE);
++	ptr = memblock_alloc_nopanic(PFN_ALIGN(ai_size), PAGE_SIZE);
+ 	if (!ptr)
+ 		return NULL;
+ 	ai = ptr;
+@@ -2074,12 +2074,12 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
+ 
+ 	/* process group information and build config tables accordingly */
+-	group_offsets = memblock_virt_alloc(ai->nr_groups *
++	group_offsets = memblock_alloc(ai->nr_groups *
+ 					     sizeof(group_offsets[0]), 0);
+-	group_sizes = memblock_virt_alloc(ai->nr_groups *
++	group_sizes = memblock_alloc(ai->nr_groups *
+ 					   sizeof(group_sizes[0]), 0);
+-	unit_map = memblock_virt_alloc(nr_cpu_ids * sizeof(unit_map[0]), 0);
+-	unit_off = memblock_virt_alloc(nr_cpu_ids * sizeof(unit_off[0]), 0);
++	unit_map = memblock_alloc(nr_cpu_ids * sizeof(unit_map[0]), 0);
++	unit_off = memblock_alloc(nr_cpu_ids * sizeof(unit_off[0]), 0);
+ 
+ 	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
+ 		unit_map[cpu] = UINT_MAX;
+@@ -2143,7 +2143,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	 * empty chunks.
+ 	 */
+ 	pcpu_nr_slots = __pcpu_size_to_slot(pcpu_unit_size) + 2;
+-	pcpu_slot = memblock_virt_alloc(
++	pcpu_slot = memblock_alloc(
+ 			pcpu_nr_slots * sizeof(pcpu_slot[0]), 0);
+ 	for (i = 0; i < pcpu_nr_slots; i++)
+ 		INIT_LIST_HEAD(&pcpu_slot[i]);
+@@ -2457,7 +2457,7 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 	size_sum = ai->static_size + ai->reserved_size + ai->dyn_size;
+ 	areas_size = PFN_ALIGN(ai->nr_groups * sizeof(void *));
+ 
+-	areas = memblock_virt_alloc_nopanic(areas_size, 0);
++	areas = memblock_alloc_nopanic(areas_size, 0);
+ 	if (!areas) {
+ 		rc = -ENOMEM;
+ 		goto out_free;
+@@ -2598,7 +2598,7 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
+ 	/* unaligned allocations can't be freed, round up to page size */
+ 	pages_size = PFN_ALIGN(unit_pages * num_possible_cpus() *
+ 			       sizeof(pages[0]));
+-	pages = memblock_virt_alloc(pages_size, 0);
++	pages = memblock_alloc(pages_size, 0);
+ 
+ 	/* allocate pages */
+ 	j = 0;
+@@ -2687,7 +2687,7 @@ EXPORT_SYMBOL(__per_cpu_offset);
+ static void * __init pcpu_dfl_fc_alloc(unsigned int cpu, size_t size,
+ 				       size_t align)
+ {
+-	return  memblock_virt_alloc_from_nopanic(
++	return  memblock_alloc_from_nopanic(
+ 			size, align, __pa(MAX_DMA_ADDRESS));
  }
  
--#if defined(CONFIG_HAVE_MEMBLOCK) && !defined(CONFIG_FLAT_NODE_MEM_MAP)
-+#if !defined(CONFIG_FLAT_NODE_MEM_MAP)
- /*
-  * Only struct pages that are backed by physical memory are zeroed and
-  * initialized by going through __init_single_page(). But, there are some
-@@ -6483,7 +6483,7 @@ void __init zero_resv_unavail(void)
- 	if (pgcnt)
- 		pr_info("Reserved but unavailable: %lld pages", pgcnt);
+@@ -2736,7 +2736,7 @@ void __init setup_per_cpu_areas(void)
+ 	void *fc;
+ 
+ 	ai = pcpu_alloc_alloc_info(1, 1);
+-	fc = memblock_virt_alloc_from_nopanic(unit_size,
++	fc = memblock_alloc_from_nopanic(unit_size,
+ 					      PAGE_SIZE,
+ 					      __pa(MAX_DMA_ADDRESS));
+ 	if (!ai || !fc)
+diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+index 8301293..91c2c3d 100644
+--- a/mm/sparse-vmemmap.c
++++ b/mm/sparse-vmemmap.c
+@@ -42,7 +42,7 @@ static void * __ref __earlyonly_bootmem_alloc(int node,
+ 				unsigned long align,
+ 				unsigned long goal)
+ {
+-	return memblock_virt_alloc_try_nid_raw(size, align, goal,
++	return memblock_alloc_try_nid_raw(size, align, goal,
+ 					       BOOTMEM_ALLOC_ACCESSIBLE, node);
  }
--#endif /* CONFIG_HAVE_MEMBLOCK && !CONFIG_FLAT_NODE_MEM_MAP */
-+#endif /* !CONFIG_FLAT_NODE_MEM_MAP */
  
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 10b07ee..04e97af 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -68,7 +68,7 @@ static noinline struct mem_section __ref *sparse_index_alloc(int nid)
+ 	if (slab_is_available())
+ 		section = kzalloc_node(array_size, GFP_KERNEL, nid);
+ 	else
+-		section = memblock_virt_alloc_node(array_size, nid);
++		section = memblock_alloc_node(array_size, nid);
  
+ 	return section;
+ }
+@@ -216,7 +216,7 @@ void __init memory_present(int nid, unsigned long start, unsigned long end)
+ 
+ 		size = sizeof(struct mem_section*) * NR_SECTION_ROOTS;
+ 		align = 1 << (INTERNODE_CACHE_SHIFT);
+-		mem_section = memblock_virt_alloc(size, align);
++		mem_section = memblock_alloc(size, align);
+ 	}
+ #endif
+ 
+@@ -306,7 +306,7 @@ sparse_early_usemaps_alloc_pgdat_section(struct pglist_data *pgdat,
+ 	limit = goal + (1UL << PA_SECTION_SHIFT);
+ 	nid = early_pfn_to_nid(goal >> PAGE_SHIFT);
+ again:
+-	p = memblock_virt_alloc_try_nid_nopanic(size,
++	p = memblock_alloc_try_nid_nopanic(size,
+ 						SMP_CACHE_BYTES, goal, limit,
+ 						nid);
+ 	if (!p && limit) {
+@@ -362,7 +362,7 @@ static unsigned long * __init
+ sparse_early_usemaps_alloc_pgdat_section(struct pglist_data *pgdat,
+ 					 unsigned long size)
+ {
+-	return memblock_virt_alloc_node_nopanic(size, pgdat->node_id);
++	return memblock_alloc_node_nopanic(size, pgdat->node_id);
+ }
+ 
+ static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
+@@ -391,7 +391,7 @@ struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid,
+ 	if (map)
+ 		return map;
+ 
+-	map = memblock_virt_alloc_try_nid(size,
++	map = memblock_alloc_try_nid(size,
+ 					  PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
+ 					  BOOTMEM_ALLOC_ACCESSIBLE, nid);
+ 	return map;
+@@ -405,7 +405,7 @@ static void __init sparse_buffer_init(unsigned long size, int nid)
+ {
+ 	WARN_ON(sparsemap_buf);	/* forgot to call sparse_buffer_fini()? */
+ 	sparsemap_buf =
+-		memblock_virt_alloc_try_nid_raw(size, PAGE_SIZE,
++		memblock_alloc_try_nid_raw(size, PAGE_SIZE,
+ 						__pa(MAX_DMA_ADDRESS),
+ 						BOOTMEM_ALLOC_ACCESSIBLE, nid);
+ 	sparsemap_buf_end = sparsemap_buf + size;
 -- 
 2.7.4
