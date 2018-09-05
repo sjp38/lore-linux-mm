@@ -1,84 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EFC06B74F3
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 16:18:39 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id m13-v6so8618619ioq.9
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 13:18:39 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q15-v6sor1464691jam.107.2018.09.05.13.18.36
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 309486B74F9
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 16:22:19 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id u45-v6so9018106qte.12
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 13:22:19 -0700 (PDT)
+Received: from NAM04-BN3-obe.outbound.protection.outlook.com (mail-eopbgr680123.outbound.protection.outlook.com. [40.107.68.123])
+        by mx.google.com with ESMTPS id j30-v6si2256611qtl.368.2018.09.05.13.22.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 05 Sep 2018 13:18:36 -0700 (PDT)
-MIME-Version: 1.0
-References: <20180904181550.4416.50701.stgit@localhost.localdomain>
- <20180904183345.4416.76515.stgit@localhost.localdomain> <20180905062428.GV14951@dhcp22.suse.cz>
-In-Reply-To: <20180905062428.GV14951@dhcp22.suse.cz>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Wed, 5 Sep 2018 13:18:24 -0700
-Message-ID: <CAKgT0UeT1dL0VNMo1RSDkjABYBGLKjMsz5LsE_ML-EV+w2OURg@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 05 Sep 2018 13:22:18 -0700 (PDT)
+From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
 Subject: Re: [PATCH 2/2] mm: Create non-atomic version of SetPageReserved for
  init use
-Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 5 Sep 2018 20:22:16 +0000
+Message-ID: <ec060d9b-d313-417c-4389-2ac7b482f94c@microsoft.com>
+References: <20180904181550.4416.50701.stgit@localhost.localdomain>
+ <20180904183345.4416.76515.stgit@localhost.localdomain>
+ <20180905062428.GV14951@dhcp22.suse.cz>
+ <CAKgT0UeT1dL0VNMo1RSDkjABYBGLKjMsz5LsE_ML-EV+w2OURg@mail.gmail.com>
+In-Reply-To: 
+ <CAKgT0UeT1dL0VNMo1RSDkjABYBGLKjMsz5LsE_ML-EV+w2OURg@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <D530C61FA69D414E962C6F3BC858F096@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Duyck, Alexander H" <alexander.h.duyck@intel.com>, pavel.tatashin@microsoft.com, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>, "mhocko@kernel.org" <mhocko@kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Duyck, Alexander H" <alexander.h.duyck@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A.
+ Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue, Sep 4, 2018 at 11:24 PM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Tue 04-09-18 11:33:45, Alexander Duyck wrote:
-> > From: Alexander Duyck <alexander.h.duyck@intel.com>
-> >
-> > It doesn't make much sense to use the atomic SetPageReserved at init time
-> > when we are using memset to clear the memory and manipulating the page
-> > flags via simple "&=" and "|=" operations in __init_single_page.
-> >
-> > This patch adds a non-atomic version __SetPageReserved that can be used
-> > during page init and shows about a 10% improvement in initialization times
-> > on the systems I have available for testing.
->
-> I agree with Dave about a comment is due. I am also quite surprised that
-> this leads to such a large improvement. Could you be more specific about
-> your test and machines you were testing on?
-
-So my test case has been just initializing 4 3TB blocks of persistent
-memory with a few trace_printk values added to track total time in
-move_pfn_range_to_zone.
-
-What I have been seeing is that the time needed for the call drops on
-average from 35-36 seconds down to around 31-32.
-
-> Other than that the patch makes sense to me.
->
-> > Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
->
-> With the above addressed, feel free to add
-> Acked-by: Michal Hocko <mhocko@suse.com>
->
-> Thanks!
-
-As far as adding a comment are we just talking about why it is
-reserved, or do we need a description of the __SetPageReserved versus
-SetPageReserved. For now I was looking at adding a comment like:
-@@ -5517,8 +5517,13 @@ void __meminit memmap_init_zone(unsigned long
-size, int nid, unsigned long zone,
- not_early:
-                page = pfn_to_page(pfn);
-                __init_single_page(page, pfn, zone, nid);
-+
-+               /*
-+                * Mark page reserved as it will need to wait for onlining
-+                * phase for it to be fully associated with a zone.
-+                */
-                if (context == MEMMAP_HOTPLUG)
--                       SetPageReserved(page);
-+                       __SetPageReserved(page);
-
-                /*
-                 * Mark the block movable so that blocks are reserved for
-
-Any thoughts on this?
-
-Thanks.
-
-- Alex
+DQoNCk9uIDkvNS8xOCA0OjE4IFBNLCBBbGV4YW5kZXIgRHV5Y2sgd3JvdGU6DQo+IE9uIFR1ZSwg
+U2VwIDQsIDIwMTggYXQgMTE6MjQgUE0gTWljaGFsIEhvY2tvIDxtaG9ja29Aa2VybmVsLm9yZz4g
+d3JvdGU6DQo+Pg0KPj4gT24gVHVlIDA0LTA5LTE4IDExOjMzOjQ1LCBBbGV4YW5kZXIgRHV5Y2sg
+d3JvdGU6DQo+Pj4gRnJvbTogQWxleGFuZGVyIER1eWNrIDxhbGV4YW5kZXIuaC5kdXlja0BpbnRl
+bC5jb20+DQo+Pj4NCj4+PiBJdCBkb2Vzbid0IG1ha2UgbXVjaCBzZW5zZSB0byB1c2UgdGhlIGF0
+b21pYyBTZXRQYWdlUmVzZXJ2ZWQgYXQgaW5pdCB0aW1lDQo+Pj4gd2hlbiB3ZSBhcmUgdXNpbmcg
+bWVtc2V0IHRvIGNsZWFyIHRoZSBtZW1vcnkgYW5kIG1hbmlwdWxhdGluZyB0aGUgcGFnZQ0KPj4+
+IGZsYWdzIHZpYSBzaW1wbGUgIiY9IiBhbmQgInw9IiBvcGVyYXRpb25zIGluIF9faW5pdF9zaW5n
+bGVfcGFnZS4NCj4+Pg0KPj4+IFRoaXMgcGF0Y2ggYWRkcyBhIG5vbi1hdG9taWMgdmVyc2lvbiBf
+X1NldFBhZ2VSZXNlcnZlZCB0aGF0IGNhbiBiZSB1c2VkDQo+Pj4gZHVyaW5nIHBhZ2UgaW5pdCBh
+bmQgc2hvd3MgYWJvdXQgYSAxMCUgaW1wcm92ZW1lbnQgaW4gaW5pdGlhbGl6YXRpb24gdGltZXMN
+Cj4+PiBvbiB0aGUgc3lzdGVtcyBJIGhhdmUgYXZhaWxhYmxlIGZvciB0ZXN0aW5nLg0KPj4NCj4+
+IEkgYWdyZWUgd2l0aCBEYXZlIGFib3V0IGEgY29tbWVudCBpcyBkdWUuIEkgYW0gYWxzbyBxdWl0
+ZSBzdXJwcmlzZWQgdGhhdA0KPj4gdGhpcyBsZWFkcyB0byBzdWNoIGEgbGFyZ2UgaW1wcm92ZW1l
+bnQuIENvdWxkIHlvdSBiZSBtb3JlIHNwZWNpZmljIGFib3V0DQo+PiB5b3VyIHRlc3QgYW5kIG1h
+Y2hpbmVzIHlvdSB3ZXJlIHRlc3Rpbmcgb24/DQo+IA0KPiBTbyBteSB0ZXN0IGNhc2UgaGFzIGJl
+ZW4ganVzdCBpbml0aWFsaXppbmcgNCAzVEIgYmxvY2tzIG9mIHBlcnNpc3RlbnQNCj4gbWVtb3J5
+IHdpdGggYSBmZXcgdHJhY2VfcHJpbnRrIHZhbHVlcyBhZGRlZCB0byB0cmFjayB0b3RhbCB0aW1l
+IGluDQo+IG1vdmVfcGZuX3JhbmdlX3RvX3pvbmUuDQo+IA0KPiBXaGF0IEkgaGF2ZSBiZWVuIHNl
+ZWluZyBpcyB0aGF0IHRoZSB0aW1lIG5lZWRlZCBmb3IgdGhlIGNhbGwgZHJvcHMgb24NCj4gYXZl
+cmFnZSBmcm9tIDM1LTM2IHNlY29uZHMgZG93biB0byBhcm91bmQgMzEtMzIuDQoNCkp1c3QgY3Vy
+aW91cyB3aHkgaXMgdGhlcmUgdmFyaWFuY2U/IER1cmluZyBib290IHRpbWUgaXMgdXN1YWxseSBw
+cmV0dHkNCmNvbnNpc3RlbnQsIGFzIHRoZXJlIGlzIG9ubHkgb25lIHRocmVhZCBhbmQgc3lzdGVt
+IGlzIGluIHByZXR0eSBtdWNoIHRoZQ0Kc2FtZSBzdGF0ZS4NCg0KQSBkbWVzZyBvdXRwdXQgaW4g
+dGhlIGNvbW1pdCBsb2cgd291bGQgYmUgaGVscGZ1bC4NCg0KVGhhbmsgeW91LA0KUGF2ZWwNCg0K
+PiANCj4+IE90aGVyIHRoYW4gdGhhdCB0aGUgcGF0Y2ggbWFrZXMgc2Vuc2UgdG8gbWUuDQo+Pg0K
+Pj4+IFNpZ25lZC1vZmYtYnk6IEFsZXhhbmRlciBEdXljayA8YWxleGFuZGVyLmguZHV5Y2tAaW50
+ZWwuY29tPg0KPj4NCj4+IFdpdGggdGhlIGFib3ZlIGFkZHJlc3NlZCwgZmVlbCBmcmVlIHRvIGFk
+ZA0KPj4gQWNrZWQtYnk6IE1pY2hhbCBIb2NrbyA8bWhvY2tvQHN1c2UuY29tPg0KPj4NCj4+IFRo
+YW5rcyENCj4gDQo+IEFzIGZhciBhcyBhZGRpbmcgYSBjb21tZW50IGFyZSB3ZSBqdXN0IHRhbGtp
+bmcgYWJvdXQgd2h5IGl0IGlzDQo+IHJlc2VydmVkLCBvciBkbyB3ZSBuZWVkIGEgZGVzY3JpcHRp
+b24gb2YgdGhlIF9fU2V0UGFnZVJlc2VydmVkIHZlcnN1cw0KPiBTZXRQYWdlUmVzZXJ2ZWQuIEZv
+ciBub3cgSSB3YXMgbG9va2luZyBhdCBhZGRpbmcgYSBjb21tZW50IGxpa2U6DQo+IEBAIC01NTE3
+LDggKzU1MTcsMTMgQEAgdm9pZCBfX21lbWluaXQgbWVtbWFwX2luaXRfem9uZSh1bnNpZ25lZCBs
+b25nDQo+IHNpemUsIGludCBuaWQsIHVuc2lnbmVkIGxvbmcgem9uZSwNCj4gIG5vdF9lYXJseToN
+Cj4gICAgICAgICAgICAgICAgIHBhZ2UgPSBwZm5fdG9fcGFnZShwZm4pOw0KPiAgICAgICAgICAg
+ICAgICAgX19pbml0X3NpbmdsZV9wYWdlKHBhZ2UsIHBmbiwgem9uZSwgbmlkKTsNCj4gKw0KPiAr
+ICAgICAgICAgICAgICAgLyoNCj4gKyAgICAgICAgICAgICAgICAqIE1hcmsgcGFnZSByZXNlcnZl
+ZCBhcyBpdCB3aWxsIG5lZWQgdG8gd2FpdCBmb3Igb25saW5pbmcNCj4gKyAgICAgICAgICAgICAg
+ICAqIHBoYXNlIGZvciBpdCB0byBiZSBmdWxseSBhc3NvY2lhdGVkIHdpdGggYSB6b25lLg0KPiAr
+ICAgICAgICAgICAgICAgICovDQo+ICAgICAgICAgICAgICAgICBpZiAoY29udGV4dCA9PSBNRU1N
+QVBfSE9UUExVRykNCj4gLSAgICAgICAgICAgICAgICAgICAgICAgU2V0UGFnZVJlc2VydmVkKHBh
+Z2UpOw0KPiArICAgICAgICAgICAgICAgICAgICAgICBfX1NldFBhZ2VSZXNlcnZlZChwYWdlKTsN
+Cj4gDQo+ICAgICAgICAgICAgICAgICAvKg0KPiAgICAgICAgICAgICAgICAgICogTWFyayB0aGUg
+YmxvY2sgbW92YWJsZSBzbyB0aGF0IGJsb2NrcyBhcmUgcmVzZXJ2ZWQgZm9yDQo+IA0KPiBBbnkg
+dGhvdWdodHMgb24gdGhpcz8NCj4gDQo+IFRoYW5rcy4NCj4gDQo+IC0gQWxleA0KPiA=
