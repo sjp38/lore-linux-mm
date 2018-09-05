@@ -1,101 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id ADBC06B7539
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 17:22:19 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id 20-v6so10310879ois.21
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 14:22:19 -0700 (PDT)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0123.outbound.protection.outlook.com. [104.47.34.123])
-        by mx.google.com with ESMTPS id t62-v6si1792789oig.270.2018.09.05.14.22.18
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E5C086B753C
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 17:23:05 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id 1-v6so6024109ywd.9
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 14:23:05 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id o65-v6si788340ywf.623.2018.09.05.14.23.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 05 Sep 2018 14:22:18 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: Re: [PATCH v2 1/2] mm: Move page struct poisoning to
- CONFIG_DEBUG_VM_PAGE_INIT_POISON
-Date: Wed, 5 Sep 2018 21:22:16 +0000
-Message-ID: <cd1fc4c6-cc86-8bf7-6aa0-b722c56057e3@microsoft.com>
-References: <20180905211041.3286.19083.stgit@localhost.localdomain>
- <20180905211328.3286.71674.stgit@localhost.localdomain>
-In-Reply-To: <20180905211328.3286.71674.stgit@localhost.localdomain>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <123193DEE291BE4DA55BBBB41E557B2F@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Sep 2018 14:23:04 -0700 (PDT)
+Date: Wed, 5 Sep 2018 14:22:44 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH v2] mm: slowly shrink slabs with a relatively small
+ number of objects
+Message-ID: <20180905212241.GA26422@tower.DHCP.thefacebook.com>
+References: <20180904224707.10356-1-guro@fb.com>
+ <20180905135152.1238c7103b2ecd6da206733c@linux-foundation.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180905135152.1238c7103b2ecd6da206733c@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: "alexander.h.duyck@intel.com" <alexander.h.duyck@intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@kernel.org" <mingo@kernel.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Rik van Riel <riel@surriel.com>, Josef Bacik <jbacik@fb.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-DQoNCk9uIDkvNS8xOCA1OjEzIFBNLCBBbGV4YW5kZXIgRHV5Y2sgd3JvdGU6DQo+IEZyb206IEFs
-ZXhhbmRlciBEdXljayA8YWxleGFuZGVyLmguZHV5Y2tAaW50ZWwuY29tPg0KPiANCj4gT24gc3lz
-dGVtcyB3aXRoIGEgbGFyZ2UgYW1vdW50IG9mIG1lbW9yeSBpdCBjYW4gdGFrZSBhIHNpZ25pZmlj
-YW50IGFtb3VudA0KPiBvZiB0aW1lIHRvIGluaXRpYWxpemUgYWxsIG9mIHRoZSBwYWdlIHN0cnVj
-dHMgd2l0aCB0aGUgUEFHRV9QT0lTT05fUEFUVEVSTg0KPiB2YWx1ZS4gSSBoYXZlIHNlZW4gaXQg
-dGFrZSBvdmVyIDIgbWludXRlcyB0byBpbml0aWFsaXplIGEgc3lzdGVtIHdpdGgNCj4gb3ZlciAx
-MkdCIG9mIFJBTS4NCj4gDQo+IEluIG9yZGVyIHRvIHdvcmsgYXJvdW5kIHRoZSBpc3N1ZSBJIGhh
-ZCB0byBkaXNhYmxlIENPTkZJR19ERUJVR19WTSBhbmQgdGhlbg0KPiB0aGUgYm9vdCB0aW1lIHJl
-dHVybmVkIHRvIHNvbWV0aGluZyBtdWNoIG1vcmUgcmVhc29uYWJsZSBhcyB0aGUNCj4gYXJjaF9h
-ZGRfbWVtb3J5IGNhbGwgY29tcGxldGVkIGluIG1pbGxpc2Vjb25kcyB2ZXJzdXMgc2Vjb25kcy4g
-SG93ZXZlciBpbg0KPiBkb2luZyB0aGF0IEkgaGFkIHRvIGRpc2FibGUgYWxsIG9mIHRoZSBvdGhl
-ciBWTSBkZWJ1Z2dpbmcgb24gdGhlIHN5c3RlbS4NCj4gDQo+IEluc3RlYWQgb2Yga2VlcGluZyB0
-aGUgdmFsdWUgaW4gQ09ORklHX0RFQlVHX1ZNIEkgYW0gYWRkaW5nIGEgbmV3IENPTkZJRw0KPiB2
-YWx1ZSBjYWxsZWQgQ09ORklHX0RFQlVHX1ZNX1BBR0VfSU5JVF9QT0lTT04gdGhhdCB3aWxsIGNv
-bnRyb2wgdGhlIHBhZ2UNCj4gcG9pc29uaW5nIGluZGVwZW5kZW50IG9mIHRoZSBDT05GSUdfREVC
-VUdfVk0gb3B0aW9uLg0KPiANCj4gU2lnbmVkLW9mZi1ieTogQWxleGFuZGVyIER1eWNrIDxhbGV4
-YW5kZXIuaC5kdXlja0BpbnRlbC5jb20+DQo+IC0tLQ0KPiAgaW5jbHVkZS9saW51eC9wYWdlLWZs
-YWdzLmggfCAgICA4ICsrKysrKysrDQo+ICBsaWIvS2NvbmZpZy5kZWJ1ZyAgICAgICAgICB8ICAg
-MTQgKysrKysrKysrKysrKysNCj4gIG1tL21lbWJsb2NrLmMgICAgICAgICAgICAgIHwgICAgNSAr
-Ky0tLQ0KPiAgbW0vc3BhcnNlLmMgICAgICAgICAgICAgICAgfCAgICA0ICstLS0NCj4gIDQgZmls
-ZXMgY2hhbmdlZCwgMjUgaW5zZXJ0aW9ucygrKSwgNiBkZWxldGlvbnMoLSkNCj4gDQo+IGRpZmYg
-LS1naXQgYS9pbmNsdWRlL2xpbnV4L3BhZ2UtZmxhZ3MuaCBiL2luY2x1ZGUvbGludXgvcGFnZS1m
-bGFncy5oDQo+IGluZGV4IDc0YmVlOGNlY2Y0Yy4uMGU5NWNhNjMzNzVhIDEwMDY0NA0KPiAtLS0g
-YS9pbmNsdWRlL2xpbnV4L3BhZ2UtZmxhZ3MuaA0KPiArKysgYi9pbmNsdWRlL2xpbnV4L3BhZ2Ut
-ZmxhZ3MuaA0KPiBAQCAtMTMsNiArMTMsNyBAQA0KPiAgI2luY2x1ZGUgPGxpbnV4L21tX3R5cGVz
-Lmg+DQo+ICAjaW5jbHVkZSA8Z2VuZXJhdGVkL2JvdW5kcy5oPg0KPiAgI2VuZGlmIC8qICFfX0dF
-TkVSQVRJTkdfQk9VTkRTX0ggKi8NCj4gKyNpbmNsdWRlIDxsaW51eC9zdHJpbmcuaD4NCj4gIA0K
-PiAgLyoNCj4gICAqIFZhcmlvdXMgcGFnZS0+ZmxhZ3MgYml0czoNCj4gQEAgLTE2Miw2ICsxNjMs
-MTMgQEAgc3RhdGljIGlubGluZSBpbnQgUGFnZVBvaXNvbmVkKGNvbnN0IHN0cnVjdCBwYWdlICpw
-YWdlKQ0KPiAgCXJldHVybiBwYWdlLT5mbGFncyA9PSBQQUdFX1BPSVNPTl9QQVRURVJOOw0KPiAg
-fQ0KPiAgDQo+ICtzdGF0aWMgaW5saW5lIHZvaWQgcGFnZV9pbml0X3BvaXNvbihzdHJ1Y3QgcGFn
-ZSAqcGFnZSwgc2l6ZV90IHNpemUpDQo+ICt7DQo+ICsjaWZkZWYgQ09ORklHX0RFQlVHX1ZNX1BB
-R0VfSU5JVF9QT0lTT04NCj4gKwltZW1zZXQocGFnZSwgUEFHRV9QT0lTT05fUEFUVEVSTiwgc2l6
-ZSk7DQo+ICsjZW5kaWYNCj4gK30NCj4gKw0KPiAgLyoNCj4gICAqIFBhZ2UgZmxhZ3MgcG9saWNp
-ZXMgd3J0IGNvbXBvdW5kIHBhZ2VzDQo+ICAgKg0KPiBkaWZmIC0tZ2l0IGEvbGliL0tjb25maWcu
-ZGVidWcgYi9saWIvS2NvbmZpZy5kZWJ1Zw0KPiBpbmRleCA2MTMzMTY3MjRjNmEuLjNiMTI3N2M1
-MmZlZCAxMDA2NDQNCj4gLS0tIGEvbGliL0tjb25maWcuZGVidWcNCj4gKysrIGIvbGliL0tjb25m
-aWcuZGVidWcNCj4gQEAgLTYzNyw2ICs2MzcsMjAgQEAgY29uZmlnIERFQlVHX1ZNX1BHRkxBR1MN
-Cj4gIA0KPiAgCSAgSWYgdW5zdXJlLCBzYXkgTi4NCj4gIA0KPiArY29uZmlnIERFQlVHX1ZNX1BB
-R0VfSU5JVF9QT0lTT04NCj4gKwlib29sICJFbmFibGUgZWFybHkgcGFnZSBtZXRhZGF0YSBwb2lz
-b25pbmciDQo+ICsJZGVmYXVsdCB5DQo+ICsJZGVwZW5kcyBvbiBERUJVR19WTQ0KPiArCWhlbHAN
-Cj4gKwkgIFNlZWQgdGhlIHBhZ2UgbWV0YWRhdGEgd2l0aCBhIHBvaXNvbiBwYXR0ZXJuIHRvIGlt
-cHJvdmUgdGhlDQo+ICsJICBsaWtlbGlob29kIG9mIGRldGVjdGluZyBhdHRlbXB0cyB0byBhY2Nl
-c3MgdGhlIHBhZ2UgcHJpb3IgdG8NCj4gKwkgIGluaXRpYWxpemF0aW9uIGJ5IHRoZSBtZW1vcnkg
-c3Vic3lzdGVtLg0KPiArDQo+ICsJICBUaGlzIGluaXRpYWxpemF0aW9uIGNhbiByZXN1bHQgaW4g
-YSBsb25nZXIgYm9vdCB0aW1lIGZvciBzeXN0ZW1zDQo+ICsJICB3aXRoIGEgbGFyZ2UgYW1vdW50
-IG9mIG1lbW9yeS4NCg0KV2hhdCBoYXBwZW5zIHdoZW4gREVCVUdfVk1fUEdGTEFHUyA9IHkgYW5k
-DQpERUJVR19WTV9QQUdFX0lOSVRfUE9JU09OID0gbiA/DQoNCldlIGFyZSB0ZXN0aW5nIGZvciBw
-YXR0ZXJuIHRoYXQgd2FzIG5vdCBzZXQ/DQoNCkkgdGhpbmsgREVCVUdfVk1fUEFHRV9JTklUX1BP
-SVNPTiBtdXN0IGRlcGVuZCBvbiBERUJVR19WTV9QR0ZMQUdTIGluc3RlYWQuDQoNCkxvb2tzIGdv
-b2Qgb3RoZXJ3aXNlLg0KDQpUaGFuayB5b3UsDQpQYXZlbA0KDQo+ICsNCj4gKwkgIElmIHVuc3Vy
-ZSwgc2F5IFkuDQo+ICsNCj4gIGNvbmZpZyBBUkNIX0hBU19ERUJVR19WSVJUVUFMDQo+ICAJYm9v
-bA0KPiAgDQo+IGRpZmYgLS1naXQgYS9tbS9tZW1ibG9jay5jIGIvbW0vbWVtYmxvY2suYw0KPiBp
-bmRleCAyMzc5NDQ0NzlkMjUuLmE4NTMxNTA4M2I1YSAxMDA2NDQNCj4gLS0tIGEvbW0vbWVtYmxv
-Y2suYw0KPiArKysgYi9tbS9tZW1ibG9jay5jDQo+IEBAIC0xNDQ0LDEwICsxNDQ0LDkgQEAgdm9p
-ZCAqIF9faW5pdCBtZW1ibG9ja192aXJ0X2FsbG9jX3RyeV9uaWRfcmF3KA0KPiAgDQo+ICAJcHRy
-ID0gbWVtYmxvY2tfdmlydF9hbGxvY19pbnRlcm5hbChzaXplLCBhbGlnbiwNCj4gIAkJCQkJICAg
-bWluX2FkZHIsIG1heF9hZGRyLCBuaWQpOw0KPiAtI2lmZGVmIENPTkZJR19ERUJVR19WTQ0KPiAg
-CWlmIChwdHIgJiYgc2l6ZSA+IDApDQo+IC0JCW1lbXNldChwdHIsIFBBR0VfUE9JU09OX1BBVFRF
-Uk4sIHNpemUpOw0KPiAtI2VuZGlmDQo+ICsJCXBhZ2VfaW5pdF9wb2lzb24ocHRyLCBzaXplKTsN
-Cj4gKw0KPiAgCXJldHVybiBwdHI7DQo+ICB9DQo+ICANCj4gZGlmZiAtLWdpdCBhL21tL3NwYXJz
-ZS5jIGIvbW0vc3BhcnNlLmMNCj4gaW5kZXggMTBiMDdlZWE5YTZlLi42N2FkMDYxZjdmYjggMTAw
-NjQ0DQo+IC0tLSBhL21tL3NwYXJzZS5jDQo+ICsrKyBiL21tL3NwYXJzZS5jDQo+IEBAIC02OTYs
-MTMgKzY5NiwxMSBAQCBpbnQgX19tZW1pbml0IHNwYXJzZV9hZGRfb25lX3NlY3Rpb24oc3RydWN0
-IHBnbGlzdF9kYXRhICpwZ2RhdCwNCj4gIAkJZ290byBvdXQ7DQo+ICAJfQ0KPiAgDQo+IC0jaWZk
-ZWYgQ09ORklHX0RFQlVHX1ZNDQo+ICAJLyoNCj4gIAkgKiBQb2lzb24gdW5pbml0aWFsaXplZCBz
-dHJ1Y3QgcGFnZXMgaW4gb3JkZXIgdG8gY2F0Y2ggaW52YWxpZCBmbGFncw0KPiAgCSAqIGNvbWJp
-bmF0aW9ucy4NCj4gIAkgKi8NCj4gLQltZW1zZXQobWVtbWFwLCBQQUdFX1BPSVNPTl9QQVRURVJO
-LCBzaXplb2Yoc3RydWN0IHBhZ2UpICogUEFHRVNfUEVSX1NFQ1RJT04pOw0KPiAtI2VuZGlmDQo+
-ICsJcGFnZV9pbml0X3BvaXNvbihtZW1tYXAsIHNpemVvZihzdHJ1Y3QgcGFnZSkgKiBQQUdFU19Q
-RVJfU0VDVElPTik7DQo+ICANCj4gIAlzZWN0aW9uX21hcmtfcHJlc2VudChtcyk7DQo+ICAJc3Bh
-cnNlX2luaXRfb25lX3NlY3Rpb24obXMsIHNlY3Rpb25fbnIsIG1lbW1hcCwgdXNlbWFwKTsNCj4g
+On Wed, Sep 05, 2018 at 01:51:52PM -0700, Andrew Morton wrote:
+> On Tue, 4 Sep 2018 15:47:07 -0700 Roman Gushchin <guro@fb.com> wrote:
+> 
+> > Commit 9092c71bb724 ("mm: use sc->priority for slab shrink targets")
+> > changed the way how the target slab pressure is calculated and
+> > made it priority-based:
+> > 
+> >     delta = freeable >> priority;
+> >     delta *= 4;
+> >     do_div(delta, shrinker->seeks);
+> > 
+> > The problem is that on a default priority (which is 12) no pressure
+> > is applied at all, if the number of potentially reclaimable objects
+> > is less than 4096 (1<<12).
+> > 
+> > This causes the last objects on slab caches of no longer used cgroups
+> > to never get reclaimed, resulting in dead cgroups staying around forever.
+> 
+> But this problem pertains to all types of objects, not just the cgroup
+> cache, yes?
+
+Well, of course, but there is a dramatic difference in size.
+
+Most of these objects are taking few hundreds bytes (or less),
+while a memcg can take few hundred kilobytes on a modern multi-CPU
+machine. Mostly due to per-cpu stats and events counters.
+
+> 
+> > Slab LRU lists are reparented on memcg offlining, but corresponding
+> > objects are still holding a reference to the dying cgroup.
+> > If we don't scan them at all, the dying cgroup can't go away.
+> > Most likely, the parent cgroup hasn't any directly associated objects,
+> > only remaining objects from dying children cgroups. So it can easily
+> > hold a reference to hundreds of dying cgroups.
+> > 
+> > If there are no big spikes in memory pressure, and new memory cgroups
+> > are created and destroyed periodically, this causes the number of
+> > dying cgroups grow steadily, causing a slow-ish and hard-to-detect
+> > memory "leak". It's not a real leak, as the memory can be eventually
+> > reclaimed, but it could not happen in a real life at all. I've seen
+> > hosts with a steadily climbing number of dying cgroups, which doesn't
+> > show any signs of a decline in months, despite the host is loaded
+> > with a production workload.
+> > 
+> > It is an obvious waste of memory, and to prevent it, let's apply
+> > a minimal pressure even on small shrinker lists. E.g. if there are
+> > freeable objects, let's scan at least min(freeable, scan_batch)
+> > objects.
+> > 
+> > This fix significantly improves a chance of a dying cgroup to be
+> > reclaimed, and together with some previous patches stops the steady
+> > growth of the dying cgroups number on some of our hosts.
+> > 
+> > ...
+> >
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -476,6 +476,17 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+> >  	delta = freeable >> priority;
+> >  	delta *= 4;
+> >  	do_div(delta, shrinker->seeks);
+> > +
+> > +	/*
+> > +	 * Make sure we apply some minimal pressure even on
+> > +	 * small cgroups. This is necessary because some of
+> > +	 * belonging objects can hold a reference to a dying
+> > +	 * child cgroup. If we don't scan them, the dying
+> > +	 * cgroup can't go away unless the memory pressure
+> > +	 * (and the scanning priority) raise significantly.
+> > +	 */
+> > +	delta = max(delta, min(freeable, batch_size));
+> > +
+> 
+> If so I think the comment should be cast in more general terms.  Maybe
+> with a final sentence "the cgroup cache is one such case".
+
+So, I think that we have to leave explicitly explained memcg refcounting
+case, but I'll add a line about other cases as well.
+
+> 
+> Also, please use all 80 columns in block comments to save a few display
+> lines.
+> 
+> And `delta' has type ULL whereas the other two are longs.  We'll
+> presumably hit warnings here, preventable with max_t.
+>
+
+Let me fix this in v3.
+
+Thank you!
