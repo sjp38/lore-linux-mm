@@ -1,413 +1,348 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CF296B73EC
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 11:59:59 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id t3-v6so9140866oif.20
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 08:59:59 -0700 (PDT)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E97186B73F0
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 12:00:01 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id j17-v6so8985492oii.8
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 09:00:01 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id t65-v6si1601678oib.193.2018.09.05.08.59.57
+        by mx.google.com with ESMTPS id a12-v6si1497385oii.168.2018.09.05.09.00.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Sep 2018 08:59:57 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w85FuTtc043236
-	for <linux-mm@kvack.org>; Wed, 5 Sep 2018 11:59:56 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2mahf5ams9-1
+        Wed, 05 Sep 2018 09:00:00 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w85FvwbV104049
+	for <linux-mm@kvack.org>; Wed, 5 Sep 2018 11:59:59 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2maj3wrhpb-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 05 Sep 2018 11:59:56 -0400
+	for <linux-mm@kvack.org>; Wed, 05 Sep 2018 11:59:59 -0400
 Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 5 Sep 2018 16:59:54 +0100
+	Wed, 5 Sep 2018 16:59:57 +0100
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [RFC PATCH 00/29] mm: remove bootmem allocator
-Date: Wed,  5 Sep 2018 18:59:15 +0300
-Message-Id: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
+Subject: [RFC PATCH 01/29] mips: switch to NO_BOOTMEM
+Date: Wed,  5 Sep 2018 18:59:16 +0300
+In-Reply-To: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
+References: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1536163184-26356-2-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ingo Molnar <mingo@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Paul Burton <paul.burton@mips.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-Hi,
+MIPS already has memblock support and all the memory is already registered
+with it.
 
-These patches switch early memory managment to use memblock directly
-without any bootmem compatibility wrappers. As the result both bootmem and
-nobootmem are removed.
+This patch replaces bootmem memory reservations with memblock ones and
+removes the bootmem initialization.
 
-There are still a couple of things to sort out, the most important is the
-removal of bootmem usage in MIPS. 
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+---
+ arch/mips/Kconfig                      |  1 +
+ arch/mips/kernel/setup.c               | 91 ++++++----------------------------
+ arch/mips/loongson64/loongson-3/numa.c | 34 ++++++-------
+ arch/mips/sgi-ip27/ip27-memory.c       | 11 ++--
+ 4 files changed, 35 insertions(+), 102 deletions(-)
 
-Still, IMHO, the series is in sufficient state to post and get the early
-feedback.
-
-The patches are build-tested with defconfig for most architectures (I
-couldn't find a compiler for nds32 and unicore32) and boot-tested on x86
-VM.
-
-Mike Rapoport (29):
-  mips: switch to NO_BOOTMEM
-  mm: remove CONFIG_NO_BOOTMEM
-  mm: remove CONFIG_HAVE_MEMBLOCK
-  mm: remove bootmem allocator implementation.
-  mm: nobootmem: remove dead code
-  memblock: rename memblock_alloc{_nid,_try_nid} to memblock_phys_alloc*
-  memblock: remove _virt from APIs returning virtual address
-  memblock: replace alloc_bootmem_align with memblock_alloc
-  memblock: replace alloc_bootmem_low with memblock_alloc_low
-  memblock: replace __alloc_bootmem_node_nopanic with
-    memblock_alloc_try_nid_nopanic
-  memblock: replace alloc_bootmem_pages_nopanic with
-    memblock_alloc_nopanic
-  memblock: replace alloc_bootmem_low with memblock_alloc_low
-  memblock: replace __alloc_bootmem_nopanic with
-    memblock_alloc_from_nopanic
-  memblock: add align parameter to memblock_alloc_node()
-  memblock: replace alloc_bootmem_pages_node with memblock_alloc_node
-  memblock: replace __alloc_bootmem_node with appropriate memblock_ API
-  memblock: replace alloc_bootmem_node with memblock_alloc_node
-  memblock: replace alloc_bootmem_low_pages with memblock_alloc_low
-  memblock: replace alloc_bootmem_pages with memblock_alloc
-  memblock: replace __alloc_bootmem with memblock_alloc_from
-  memblock: replace alloc_bootmem with memblock_alloc
-  mm: nobootmem: remove bootmem allocation APIs
-  memblock: replace free_bootmem{_node} with memblock_free
-  memblock: replace free_bootmem_late with memblock_free_late
-  memblock: rename free_all_bootmem to memblock_free_all
-  memblock: rename __free_pages_bootmem to memblock_free_pages
-  mm: remove nobootmem
-  memblock: replace BOOTMEM_ALLOC_* with MEMBLOCK variants
-  mm: remove include/linux/bootmem.h
-
- arch/alpha/Kconfig                          |   2 -
- arch/alpha/kernel/core_cia.c                |   4 +-
- arch/alpha/kernel/core_irongate.c           |   4 +-
- arch/alpha/kernel/core_marvel.c             |   6 +-
- arch/alpha/kernel/core_titan.c              |   2 +-
- arch/alpha/kernel/core_tsunami.c            |   2 +-
- arch/alpha/kernel/pci-noop.c                |   6 +-
- arch/alpha/kernel/pci.c                     |   6 +-
- arch/alpha/kernel/pci_iommu.c               |  14 +-
- arch/alpha/kernel/setup.c                   |   3 +-
- arch/alpha/kernel/sys_nautilus.c            |   2 +-
- arch/alpha/mm/init.c                        |   4 +-
- arch/alpha/mm/numa.c                        |   1 -
- arch/arc/Kconfig                            |   2 -
- arch/arc/kernel/unwind.c                    |   6 +-
- arch/arc/mm/highmem.c                       |   4 +-
- arch/arc/mm/init.c                          |   3 +-
- arch/arm/Kconfig                            |   2 -
- arch/arm/kernel/devtree.c                   |   1 -
- arch/arm/kernel/setup.c                     |   5 +-
- arch/arm/mach-omap2/omap_hwmod.c            |   4 +-
- arch/arm/mm/dma-mapping.c                   |   1 -
- arch/arm/mm/init.c                          |   3 +-
- arch/arm/mm/mmu.c                           |   2 +-
- arch/arm/xen/mm.c                           |   1 -
- arch/arm/xen/p2m.c                          |   2 +-
- arch/arm64/Kconfig                          |   2 -
- arch/arm64/kernel/acpi.c                    |   1 -
- arch/arm64/kernel/acpi_numa.c               |   1 -
- arch/arm64/kernel/setup.c                   |   3 +-
- arch/arm64/mm/dma-mapping.c                 |   2 +-
- arch/arm64/mm/init.c                        |   5 +-
- arch/arm64/mm/kasan_init.c                  |   3 +-
- arch/arm64/mm/mmu.c                         |   2 +-
- arch/arm64/mm/numa.c                        |   5 +-
- arch/c6x/Kconfig                            |   2 -
- arch/c6x/kernel/setup.c                     |   1 -
- arch/c6x/mm/dma-coherent.c                  |   4 +-
- arch/c6x/mm/init.c                          |   7 +-
- arch/h8300/Kconfig                          |   2 -
- arch/h8300/kernel/setup.c                   |   1 -
- arch/h8300/mm/init.c                        |   6 +-
- arch/hexagon/Kconfig                        |   2 -
- arch/hexagon/kernel/dma.c                   |   2 +-
- arch/hexagon/kernel/setup.c                 |   2 +-
- arch/hexagon/mm/init.c                      |   3 +-
- arch/ia64/Kconfig                           |   2 -
- arch/ia64/kernel/crash.c                    |   2 +-
- arch/ia64/kernel/efi.c                      |   2 +-
- arch/ia64/kernel/ia64_ksyms.c               |   2 +-
- arch/ia64/kernel/iosapic.c                  |   2 +-
- arch/ia64/kernel/mca.c                      |  10 +-
- arch/ia64/kernel/mca_drv.c                  |   2 +-
- arch/ia64/kernel/setup.c                    |   1 -
- arch/ia64/kernel/smpboot.c                  |   2 +-
- arch/ia64/kernel/topology.c                 |   2 +-
- arch/ia64/kernel/unwind.c                   |   2 +-
- arch/ia64/mm/contig.c                       |   6 +-
- arch/ia64/mm/discontig.c                    |   7 +-
- arch/ia64/mm/init.c                         |  11 +-
- arch/ia64/mm/numa.c                         |   2 +-
- arch/ia64/mm/tlb.c                          |   6 +-
- arch/ia64/pci/pci.c                         |   2 +-
- arch/ia64/sn/kernel/bte.c                   |   2 +-
- arch/ia64/sn/kernel/io_common.c             |   9 +-
- arch/ia64/sn/kernel/setup.c                 |   6 +-
- arch/m68k/Kconfig                           |   2 -
- arch/m68k/atari/stram.c                     |   5 +-
- arch/m68k/coldfire/m54xx.c                  |   2 +-
- arch/m68k/kernel/setup_mm.c                 |   1 -
- arch/m68k/kernel/setup_no.c                 |   1 -
- arch/m68k/kernel/uboot.c                    |   2 +-
- arch/m68k/mm/init.c                         |   6 +-
- arch/m68k/mm/mcfmmu.c                       |   5 +-
- arch/m68k/mm/motorola.c                     |   8 +-
- arch/m68k/mm/sun3mmu.c                      |   6 +-
- arch/m68k/sun3/config.c                     |   2 +-
- arch/m68k/sun3/dvma.c                       |   2 +-
- arch/m68k/sun3/mmu_emu.c                    |   2 +-
- arch/m68k/sun3/sun3dvma.c                   |   5 +-
- arch/m68k/sun3x/dvma.c                      |   2 +-
- arch/microblaze/Kconfig                     |   2 -
- arch/microblaze/mm/consistent.c             |   2 +-
- arch/microblaze/mm/init.c                   |   7 +-
- arch/microblaze/pci/pci-common.c            |   2 +-
- arch/mips/Kconfig                           |   1 -
- arch/mips/ar7/memory.c                      |   2 +-
- arch/mips/ath79/setup.c                     |   2 +-
- arch/mips/bcm63xx/prom.c                    |   2 +-
- arch/mips/bcm63xx/setup.c                   |   2 +-
- arch/mips/bmips/setup.c                     |   2 +-
- arch/mips/cavium-octeon/dma-octeon.c        |   4 +-
- arch/mips/dec/prom/memory.c                 |   2 +-
- arch/mips/emma/common/prom.c                |   2 +-
- arch/mips/fw/arc/memory.c                   |   2 +-
- arch/mips/jazz/jazzdma.c                    |   2 +-
- arch/mips/kernel/crash.c                    |   2 +-
- arch/mips/kernel/crash_dump.c               |   2 +-
- arch/mips/kernel/prom.c                     |   2 +-
- arch/mips/kernel/setup.c                    |  96 +---
- arch/mips/kernel/traps.c                    |   4 +-
- arch/mips/kernel/vpe.c                      |   2 +-
- arch/mips/kvm/commpage.c                    |   2 +-
- arch/mips/kvm/dyntrans.c                    |   2 +-
- arch/mips/kvm/emulate.c                     |   2 +-
- arch/mips/kvm/interrupt.c                   |   2 +-
- arch/mips/kvm/mips.c                        |   2 +-
- arch/mips/lantiq/prom.c                     |   2 +-
- arch/mips/lasat/prom.c                      |   2 +-
- arch/mips/loongson64/common/init.c          |   2 +-
- arch/mips/loongson64/loongson-3/numa.c      |  37 +-
- arch/mips/mm/init.c                         |   7 +-
- arch/mips/mm/pgtable-32.c                   |   2 +-
- arch/mips/mti-malta/malta-memory.c          |   2 +-
- arch/mips/netlogic/xlp/dt.c                 |   2 +-
- arch/mips/pci/pci-legacy.c                  |   2 +-
- arch/mips/pci/pci.c                         |   2 +-
- arch/mips/ralink/of.c                       |   2 +-
- arch/mips/rb532/prom.c                      |   2 +-
- arch/mips/sgi-ip27/ip27-memory.c            |  14 +-
- arch/mips/sibyte/common/cfe.c               |   2 +-
- arch/mips/sibyte/swarm/setup.c              |   2 +-
- arch/mips/txx9/rbtx4938/prom.c              |   2 +-
- arch/nds32/Kconfig                          |   2 -
- arch/nds32/kernel/setup.c                   |   3 +-
- arch/nds32/mm/highmem.c                     |   2 +-
- arch/nds32/mm/init.c                        |  13 +-
- arch/nios2/Kconfig                          |   2 -
- arch/nios2/kernel/prom.c                    |   2 +-
- arch/nios2/kernel/setup.c                   |   1 -
- arch/nios2/mm/init.c                        |   4 +-
- arch/openrisc/Kconfig                       |   2 -
- arch/openrisc/kernel/setup.c                |   3 +-
- arch/openrisc/mm/init.c                     |   7 +-
- arch/openrisc/mm/ioremap.c                  |   2 +-
- arch/parisc/Kconfig                         |   2 -
- arch/parisc/mm/init.c                       |   3 +-
- arch/powerpc/Kconfig                        |   2 -
- arch/powerpc/kernel/dt_cpu_ftrs.c           |   4 +-
- arch/powerpc/kernel/paca.c                  |   2 +-
- arch/powerpc/kernel/pci_32.c                |   4 +-
- arch/powerpc/kernel/prom.c                  |   2 +-
- arch/powerpc/kernel/setup-common.c          |   3 +-
- arch/powerpc/kernel/setup_32.c              |  10 +-
- arch/powerpc/kernel/setup_64.c              |  11 +-
- arch/powerpc/lib/alloc.c                    |   4 +-
- arch/powerpc/mm/hugetlbpage.c               |   1 -
- arch/powerpc/mm/mem.c                       |   5 +-
- arch/powerpc/mm/mmu_context_nohash.c        |   8 +-
- arch/powerpc/mm/numa.c                      |   5 +-
- arch/powerpc/mm/pgtable_32.c                |   2 +-
- arch/powerpc/mm/ppc_mmu_32.c                |   2 +-
- arch/powerpc/platforms/pasemi/iommu.c       |   2 +-
- arch/powerpc/platforms/powermac/nvram.c     |   4 +-
- arch/powerpc/platforms/powernv/opal.c       |   2 +-
- arch/powerpc/platforms/powernv/pci-ioda.c   |   9 +-
- arch/powerpc/platforms/ps3/setup.c          |   4 +-
- arch/powerpc/sysdev/dart_iommu.c            |   2 +-
- arch/powerpc/sysdev/msi_bitmap.c            |   4 +-
- arch/riscv/Kconfig                          |   2 -
- arch/riscv/mm/init.c                        |   5 +-
- arch/s390/Kconfig                           |   2 -
- arch/s390/kernel/crash_dump.c               |   5 +-
- arch/s390/kernel/setup.c                    |  16 +-
- arch/s390/kernel/smp.c                      |   5 +-
- arch/s390/kernel/topology.c                 |   6 +-
- arch/s390/kernel/vdso.c                     |   2 +-
- arch/s390/mm/extmem.c                       |   2 +-
- arch/s390/mm/init.c                         |   5 +-
- arch/s390/mm/vmem.c                         |   7 +-
- arch/s390/numa/mode_emu.c                   |   3 +-
- arch/s390/numa/numa.c                       |   3 +-
- arch/s390/numa/toptree.c                    |   4 +-
- arch/sh/Kconfig                             |   2 -
- arch/sh/mm/init.c                           |   9 +-
- arch/sh/mm/ioremap_fixed.c                  |   2 +-
- arch/sparc/Kconfig                          |   2 -
- arch/sparc/kernel/mdesc.c                   |   7 +-
- arch/sparc/kernel/prom_32.c                 |   4 +-
- arch/sparc/kernel/prom_64.c                 |   2 +-
- arch/sparc/kernel/setup_64.c                |  12 +-
- arch/sparc/kernel/smp_64.c                  |  18 +-
- arch/sparc/mm/init_32.c                     |   5 +-
- arch/sparc/mm/init_64.c                     |  27 +-
- arch/sparc/mm/srmmu.c                       |  12 +-
- arch/um/Kconfig                             |   2 -
- arch/um/drivers/net_kern.c                  |   4 +-
- arch/um/drivers/vector_kern.c               |   4 +-
- arch/um/kernel/initrd.c                     |   4 +-
- arch/um/kernel/mem.c                        |  16 +-
- arch/um/kernel/physmem.c                    |   1 -
- arch/unicore32/Kconfig                      |   2 -
- arch/unicore32/kernel/hibernate.c           |   2 +-
- arch/unicore32/kernel/setup.c               |   5 +-
- arch/unicore32/mm/init.c                    |   7 +-
- arch/unicore32/mm/mmu.c                     |   3 +-
- arch/x86/Kconfig                            |   4 -
- arch/x86/kernel/acpi/boot.c                 |   5 +-
- arch/x86/kernel/acpi/sleep.c                |   1 -
- arch/x86/kernel/apic/apic.c                 |   2 +-
- arch/x86/kernel/apic/io_apic.c              |   7 +-
- arch/x86/kernel/cpu/common.c                |   2 +-
- arch/x86/kernel/e820.c                      |   5 +-
- arch/x86/kernel/mpparse.c                   |   1 -
- arch/x86/kernel/pci-dma.c                   |   2 +-
- arch/x86/kernel/pci-swiotlb.c               |   2 +-
- arch/x86/kernel/pvclock.c                   |   2 +-
- arch/x86/kernel/setup.c                     |   1 -
- arch/x86/kernel/setup_percpu.c              |  14 +-
- arch/x86/kernel/smpboot.c                   |   2 +-
- arch/x86/kernel/tce_64.c                    |   6 +-
- arch/x86/mm/amdtopology.c                   |   1 -
- arch/x86/mm/fault.c                         |   2 +-
- arch/x86/mm/highmem_32.c                    |   4 +-
- arch/x86/mm/init.c                          |   1 -
- arch/x86/mm/init_32.c                       |   5 +-
- arch/x86/mm/init_64.c                       |   7 +-
- arch/x86/mm/ioremap.c                       |   2 +-
- arch/x86/mm/kasan_init_64.c                 |  11 +-
- arch/x86/mm/numa.c                          |   3 +-
- arch/x86/mm/numa_32.c                       |   1 -
- arch/x86/mm/numa_64.c                       |   2 +-
- arch/x86/mm/numa_emulation.c                |   1 -
- arch/x86/mm/pageattr-test.c                 |   2 +-
- arch/x86/mm/pageattr.c                      |   2 +-
- arch/x86/mm/pat.c                           |   2 +-
- arch/x86/mm/physaddr.c                      |   2 +-
- arch/x86/pci/i386.c                         |   2 +-
- arch/x86/platform/efi/efi.c                 |   3 +-
- arch/x86/platform/efi/efi_64.c              |   2 +-
- arch/x86/platform/efi/quirks.c              |   7 +-
- arch/x86/platform/olpc/olpc_dt.c            |   4 +-
- arch/x86/power/hibernate_32.c               |   2 +-
- arch/x86/xen/enlighten.c                    |   2 +-
- arch/x86/xen/enlighten_pv.c                 |   3 +-
- arch/x86/xen/mmu_pv.c                       |   2 +-
- arch/x86/xen/p2m.c                          |   6 +-
- arch/xtensa/Kconfig                         |   2 -
- arch/xtensa/kernel/pci.c                    |   2 +-
- arch/xtensa/mm/cache.c                      |   2 +-
- arch/xtensa/mm/init.c                       |   4 +-
- arch/xtensa/mm/kasan_init.c                 |   5 +-
- arch/xtensa/mm/mmu.c                        |   4 +-
- arch/xtensa/platforms/iss/network.c         |   4 +-
- arch/xtensa/platforms/iss/setup.c           |   6 +-
- block/blk-settings.c                        |   2 +-
- block/bounce.c                              |   2 +-
- drivers/acpi/numa.c                         |   1 -
- drivers/acpi/tables.c                       |   3 +-
- drivers/base/platform.c                     |   2 +-
- drivers/clk/ti/clk.c                        |   4 +-
- drivers/firmware/dmi_scan.c                 |   2 +-
- drivers/firmware/efi/apple-properties.c     |   4 +-
- drivers/firmware/efi/memmap.c               |   2 +-
- drivers/firmware/iscsi_ibft_find.c          |   2 +-
- drivers/firmware/memmap.c                   |   4 +-
- drivers/iommu/mtk_iommu.c                   |   2 +-
- drivers/iommu/mtk_iommu_v1.c                |   2 +-
- drivers/macintosh/smu.c                     |   7 +-
- drivers/mtd/ar7part.c                       |   2 +-
- drivers/net/arcnet/arc-rimi.c               |   2 +-
- drivers/net/arcnet/com20020-isa.c           |   2 +-
- drivers/net/arcnet/com90io.c                |   2 +-
- drivers/of/fdt.c                            |   5 +-
- drivers/of/of_reserved_mem.c                |  13 +-
- drivers/of/unittest.c                       |   4 +-
- drivers/s390/char/fs3270.c                  |   2 +-
- drivers/s390/char/tty3270.c                 |   2 +-
- drivers/s390/cio/cmf.c                      |   2 +-
- drivers/s390/virtio/virtio_ccw.c            |   2 +-
- drivers/sfi/sfi_core.c                      |   2 +-
- drivers/staging/android/ion/Kconfig         |   2 +-
- drivers/tty/serial/cpm_uart/cpm_uart_core.c |   2 +-
- drivers/tty/serial/cpm_uart/cpm_uart_cpm1.c |   2 +-
- drivers/tty/serial/cpm_uart/cpm_uart_cpm2.c |   2 +-
- drivers/usb/early/xhci-dbc.c                |  14 +-
- drivers/xen/balloon.c                       |   2 +-
- drivers/xen/events/events_base.c            |   2 +-
- drivers/xen/grant-table.c                   |   2 +-
- drivers/xen/swiotlb-xen.c                   |   8 +-
- drivers/xen/xen-selfballoon.c               |   2 +-
- fs/dcache.c                                 |   2 +-
- fs/inode.c                                  |   2 +-
- fs/namespace.c                              |   2 +-
- fs/proc/kcore.c                             |   2 +-
- fs/proc/page.c                              |   2 +-
- fs/proc/vmcore.c                            |   2 +-
- fs/pstore/Kconfig                           |   1 -
- include/linux/bootmem.h                     | 404 --------------
- include/linux/memblock.h                    | 159 +++++-
- include/linux/mm.h                          |   2 +-
- include/linux/mmzone.h                      |   5 +-
- init/main.c                                 |  12 +-
- kernel/dma/swiotlb.c                        |  10 +-
- kernel/futex.c                              |   2 +-
- kernel/locking/qspinlock_paravirt.h         |   2 +-
- kernel/pid.c                                |   2 +-
- kernel/power/snapshot.c                     |   4 +-
- kernel/printk/printk.c                      |   5 +-
- kernel/profile.c                            |   2 +-
- lib/Kconfig.debug                           |   3 +-
- lib/cpumask.c                               |   4 +-
- mm/Kconfig                                  |   8 +-
- mm/Makefile                                 |   8 +-
- mm/bootmem.c                                | 811 ----------------------------
- mm/hugetlb.c                                |   6 +-
- mm/internal.h                               |   2 +-
- mm/kasan/kasan_init.c                       |   7 +-
- mm/kmemleak.c                               |   2 +-
- mm/memblock.c                               | 153 +++++-
- mm/memory_hotplug.c                         |   1 -
- mm/nobootmem.c                              | 445 ---------------
- mm/page_alloc.c                             |  17 +-
- mm/page_ext.c                               |   6 +-
- mm/page_idle.c                              |   2 +-
- mm/page_owner.c                             |   2 +-
- mm/page_poison.c                            |   2 +-
- mm/percpu.c                                 |  30 +-
- mm/sparse-vmemmap.c                         |   6 +-
- mm/sparse.c                                 |  18 +-
- net/ipv4/inet_hashtables.c                  |   2 +-
- net/ipv4/tcp.c                              |   2 +-
- net/ipv4/udp.c                              |   2 +-
- net/sctp/protocol.c                         |   2 +-
- net/xfrm/xfrm_hash.c                        |   2 +-
- 325 files changed, 846 insertions(+), 2478 deletions(-)
- delete mode 100644 include/linux/bootmem.h
- delete mode 100644 mm/bootmem.c
- delete mode 100644 mm/nobootmem.c
-
+diff --git a/arch/mips/Kconfig b/arch/mips/Kconfig
+index 1a119fd..f744d25 100644
+--- a/arch/mips/Kconfig
++++ b/arch/mips/Kconfig
+@@ -78,6 +78,7 @@ config MIPS
+ 	select RTC_LIB if !MACH_LOONGSON64
+ 	select SYSCTL_EXCEPTION_TRACE
+ 	select VIRT_TO_BUS
++	select NO_BOOTMEM
+ 
+ menu "Machine selection"
+ 
+diff --git a/arch/mips/kernel/setup.c b/arch/mips/kernel/setup.c
+index 32fc11d..08f8251 100644
+--- a/arch/mips/kernel/setup.c
++++ b/arch/mips/kernel/setup.c
+@@ -333,7 +333,7 @@ static void __init finalize_initrd(void)
+ 
+ 	maybe_bswap_initrd();
+ 
+-	reserve_bootmem(__pa(initrd_start), size, BOOTMEM_DEFAULT);
++	memblock_reserve(__pa(initrd_start), size);
+ 	initrd_below_start_ok = 1;
+ 
+ 	pr_info("Initial ramdisk at: 0x%lx (%lu bytes)\n",
+@@ -370,20 +370,10 @@ static void __init bootmem_init(void)
+ 
+ #else  /* !CONFIG_SGI_IP27 */
+ 
+-static unsigned long __init bootmap_bytes(unsigned long pages)
+-{
+-	unsigned long bytes = DIV_ROUND_UP(pages, 8);
+-
+-	return ALIGN(bytes, sizeof(long));
+-}
+-
+ static void __init bootmem_init(void)
+ {
+ 	unsigned long reserved_end;
+-	unsigned long mapstart = ~0UL;
+-	unsigned long bootmap_size;
+ 	phys_addr_t ramstart = PHYS_ADDR_MAX;
+-	bool bootmap_valid = false;
+ 	int i;
+ 
+ 	/*
+@@ -395,6 +385,8 @@ static void __init bootmem_init(void)
+ 	init_initrd();
+ 	reserved_end = (unsigned long) PFN_UP(__pa_symbol(&_end));
+ 
++	memblock_reserve(PHYS_OFFSET, reserved_end << PAGE_SHIFT);
++
+ 	/*
+ 	 * max_low_pfn is not a number of pages. The number of pages
+ 	 * of the system is given by 'max_low_pfn - min_low_pfn'.
+@@ -442,9 +434,6 @@ static void __init bootmem_init(void)
+ 		if (initrd_end && end <= (unsigned long)PFN_UP(__pa(initrd_end)))
+ 			continue;
+ #endif
+-		if (start >= mapstart)
+-			continue;
+-		mapstart = max(reserved_end, start);
+ 	}
+ 
+ 	if (min_low_pfn >= max_low_pfn)
+@@ -456,9 +445,11 @@ static void __init bootmem_init(void)
+ 	/*
+ 	 * Reserve any memory between the start of RAM and PHYS_OFFSET
+ 	 */
+-	if (ramstart > PHYS_OFFSET)
++	if (ramstart > PHYS_OFFSET) {
+ 		add_memory_region(PHYS_OFFSET, ramstart - PHYS_OFFSET,
+ 				  BOOT_MEM_RESERVED);
++		memblock_reserve(PHYS_OFFSET, ramstart - PHYS_OFFSET);
++	}
+ 
+ 	if (min_low_pfn > ARCH_PFN_OFFSET) {
+ 		pr_info("Wasting %lu bytes for tracking %lu unused pages\n",
+@@ -483,52 +474,6 @@ static void __init bootmem_init(void)
+ 		max_low_pfn = PFN_DOWN(HIGHMEM_START);
+ 	}
+ 
+-#ifdef CONFIG_BLK_DEV_INITRD
+-	/*
+-	 * mapstart should be after initrd_end
+-	 */
+-	if (initrd_end)
+-		mapstart = max(mapstart, (unsigned long)PFN_UP(__pa(initrd_end)));
+-#endif
+-
+-	/*
+-	 * check that mapstart doesn't overlap with any of
+-	 * memory regions that have been reserved through eg. DTB
+-	 */
+-	bootmap_size = bootmap_bytes(max_low_pfn - min_low_pfn);
+-
+-	bootmap_valid = memory_region_available(PFN_PHYS(mapstart),
+-						bootmap_size);
+-	for (i = 0; i < boot_mem_map.nr_map && !bootmap_valid; i++) {
+-		unsigned long mapstart_addr;
+-
+-		switch (boot_mem_map.map[i].type) {
+-		case BOOT_MEM_RESERVED:
+-			mapstart_addr = PFN_ALIGN(boot_mem_map.map[i].addr +
+-						boot_mem_map.map[i].size);
+-			if (PHYS_PFN(mapstart_addr) < mapstart)
+-				break;
+-
+-			bootmap_valid = memory_region_available(mapstart_addr,
+-								bootmap_size);
+-			if (bootmap_valid)
+-				mapstart = PHYS_PFN(mapstart_addr);
+-			break;
+-		default:
+-			break;
+-		}
+-	}
+-
+-	if (!bootmap_valid)
+-		panic("No memory area to place a bootmap bitmap");
+-
+-	/*
+-	 * Initialize the boot-time allocator with low memory only.
+-	 */
+-	if (bootmap_size != init_bootmem_node(NODE_DATA(0), mapstart,
+-					 min_low_pfn, max_low_pfn))
+-		panic("Unexpected memory size required for bootmap");
+-
+ 	for (i = 0; i < boot_mem_map.nr_map; i++) {
+ 		unsigned long start, end;
+ 
+@@ -577,9 +522,9 @@ static void __init bootmem_init(void)
+ 		default:
+ 			/* Not usable memory */
+ 			if (start > min_low_pfn && end < max_low_pfn)
+-				reserve_bootmem(boot_mem_map.map[i].addr,
+-						boot_mem_map.map[i].size,
+-						BOOTMEM_DEFAULT);
++				memblock_reserve(boot_mem_map.map[i].addr,
++						boot_mem_map.map[i].size);
++
+ 			continue;
+ 		}
+ 
+@@ -602,15 +547,9 @@ static void __init bootmem_init(void)
+ 		size = end - start;
+ 
+ 		/* Register lowmem ranges */
+-		free_bootmem(PFN_PHYS(start), size << PAGE_SHIFT);
+ 		memory_present(0, start, end);
+ 	}
+ 
+-	/*
+-	 * Reserve the bootmap memory.
+-	 */
+-	reserve_bootmem(PFN_PHYS(mapstart), bootmap_size, BOOTMEM_DEFAULT);
+-
+ #ifdef CONFIG_RELOCATABLE
+ 	/*
+ 	 * The kernel reserves all memory below its _end symbol as bootmem,
+@@ -638,6 +577,8 @@ static void __init bootmem_init(void)
+ 	 * Reserve initrd memory if needed.
+ 	 */
+ 	finalize_initrd();
++
++	memblock_set_bottom_up(true);
+ }
+ 
+ #endif	/* CONFIG_SGI_IP27 */
+@@ -911,17 +852,15 @@ static void __init arch_mem_init(char **cmdline_p)
+ 	if (setup_elfcorehdr && setup_elfcorehdr_size) {
+ 		printk(KERN_INFO "kdump reserved memory at %lx-%lx\n",
+ 		       setup_elfcorehdr, setup_elfcorehdr_size);
+-		reserve_bootmem(setup_elfcorehdr, setup_elfcorehdr_size,
+-				BOOTMEM_DEFAULT);
++		memblock_reserve(setup_elfcorehdr, setup_elfcorehdr_size);
+ 	}
+ #endif
+ 
+ 	mips_parse_crashkernel();
+ #ifdef CONFIG_KEXEC
+ 	if (crashk_res.start != crashk_res.end)
+-		reserve_bootmem(crashk_res.start,
+-				crashk_res.end - crashk_res.start + 1,
+-				BOOTMEM_DEFAULT);
++		memblock_reserve(crashk_res.start,
++				 crashk_res.end - crashk_res.start + 1);
+ #endif
+ 	device_tree_init();
+ 	sparse_init();
+@@ -931,7 +870,7 @@ static void __init arch_mem_init(char **cmdline_p)
+ 	/* Tell bootmem about cma reserved memblock section */
+ 	for_each_memblock(reserved, reg)
+ 		if (reg->size != 0)
+-			reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
++			memblock_reserve(reg->base, reg->size);
+ 
+ 	reserve_bootmem_region(__pa_symbol(&__nosave_begin),
+ 			__pa_symbol(&__nosave_end)); /* Reserve for hibernation */
+diff --git a/arch/mips/loongson64/loongson-3/numa.c b/arch/mips/loongson64/loongson-3/numa.c
+index 9717106..c1e6ec5 100644
+--- a/arch/mips/loongson64/loongson-3/numa.c
++++ b/arch/mips/loongson64/loongson-3/numa.c
+@@ -180,43 +180,39 @@ static void __init szmem(unsigned int node)
+ 
+ static void __init node_mem_init(unsigned int node)
+ {
+-	unsigned long bootmap_size;
+ 	unsigned long node_addrspace_offset;
+-	unsigned long start_pfn, end_pfn, freepfn;
++	unsigned long start_pfn, end_pfn;
+ 
+ 	node_addrspace_offset = nid_to_addroffset(node);
+ 	pr_info("Node%d's addrspace_offset is 0x%lx\n",
+ 			node, node_addrspace_offset);
+ 
+ 	get_pfn_range_for_nid(node, &start_pfn, &end_pfn);
+-	freepfn = start_pfn;
+-	if (node == 0)
+-		freepfn = PFN_UP(__pa_symbol(&_end)); /* kernel end address */
+-	pr_info("Node%d: start_pfn=0x%lx, end_pfn=0x%lx, freepfn=0x%lx\n",
+-		node, start_pfn, end_pfn, freepfn);
++	pr_info("Node%d: start_pfn=0x%lx, end_pfn=0x%lx\n",
++		node, start_pfn, end_pfn);
+ 
+ 	__node_data[node] = prealloc__node_data + node;
+ 
+-	NODE_DATA(node)->bdata = &bootmem_node_data[node];
+ 	NODE_DATA(node)->node_start_pfn = start_pfn;
+ 	NODE_DATA(node)->node_spanned_pages = end_pfn - start_pfn;
+ 
+-	bootmap_size = init_bootmem_node(NODE_DATA(node), freepfn,
+-					start_pfn, end_pfn);
+ 	free_bootmem_with_active_regions(node, end_pfn);
+-	if (node == 0) /* used by finalize_initrd() */
++
++	if (node == 0) {
++		/* kernel end address */
++		unsigned long kernel_end_pfn = PFN_UP(__pa_symbol(&_end));
++
++		/* used by finalize_initrd() */
+ 		max_low_pfn = end_pfn;
+ 
+-	/* This is reserved for the kernel and bdata->node_bootmem_map */
+-	reserve_bootmem_node(NODE_DATA(node), start_pfn << PAGE_SHIFT,
+-		((freepfn - start_pfn) << PAGE_SHIFT) + bootmap_size,
+-		BOOTMEM_DEFAULT);
++		/* Reserve the kernel text/data/bss */
++		memblock_reserve(start_pfn << PAGE_SHIFT,
++				 ((kernel_end_pfn - start_pfn) << PAGE_SHIFT));
+ 
+-	if (node == 0 && node_end_pfn(0) >= (0xffffffff >> PAGE_SHIFT)) {
+ 		/* Reserve 0xfe000000~0xffffffff for RS780E integrated GPU */
+-		reserve_bootmem_node(NODE_DATA(node),
+-				(node_addrspace_offset | 0xfe000000),
+-				32 << 20, BOOTMEM_DEFAULT);
++		if (node_end_pfn(0) >= (0xffffffff >> PAGE_SHIFT))
++			memblock_reserve((node_addrspace_offset | 0xfe000000),
++					 32 << 20);
+ 	}
+ 
+ 	sparse_memory_present_with_active_regions(node);
+diff --git a/arch/mips/sgi-ip27/ip27-memory.c b/arch/mips/sgi-ip27/ip27-memory.c
+index 59133d0a..6f7bef0 100644
+--- a/arch/mips/sgi-ip27/ip27-memory.c
++++ b/arch/mips/sgi-ip27/ip27-memory.c
+@@ -389,7 +389,6 @@ static void __init node_mem_init(cnodeid_t node)
+ {
+ 	unsigned long slot_firstpfn = slot_getbasepfn(node, 0);
+ 	unsigned long slot_freepfn = node_getfirstfree(node);
+-	unsigned long bootmap_size;
+ 	unsigned long start_pfn, end_pfn;
+ 
+ 	get_pfn_range_for_nid(node, &start_pfn, &end_pfn);
+@@ -400,7 +399,6 @@ static void __init node_mem_init(cnodeid_t node)
+ 	__node_data[node] = __va(slot_freepfn << PAGE_SHIFT);
+ 	memset(__node_data[node], 0, PAGE_SIZE);
+ 
+-	NODE_DATA(node)->bdata = &bootmem_node_data[node];
+ 	NODE_DATA(node)->node_start_pfn = start_pfn;
+ 	NODE_DATA(node)->node_spanned_pages = end_pfn - start_pfn;
+ 
+@@ -409,12 +407,11 @@ static void __init node_mem_init(cnodeid_t node)
+ 	slot_freepfn += PFN_UP(sizeof(struct pglist_data) +
+ 			       sizeof(struct hub_data));
+ 
+-	bootmap_size = init_bootmem_node(NODE_DATA(node), slot_freepfn,
+-					start_pfn, end_pfn);
+ 	free_bootmem_with_active_regions(node, end_pfn);
+-	reserve_bootmem_node(NODE_DATA(node), slot_firstpfn << PAGE_SHIFT,
+-		((slot_freepfn - slot_firstpfn) << PAGE_SHIFT) + bootmap_size,
+-		BOOTMEM_DEFAULT);
++
++	memblock_reserve(slot_firstpfn << PAGE_SHIFT,
++			 ((slot_freepfn - slot_firstpfn) << PAGE_SHIFT));
++
+ 	sparse_memory_present_with_active_regions(node);
+ }
+ 
 -- 
 2.7.4
