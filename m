@@ -1,82 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DFE26B70F0
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 23:15:50 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id a23-v6so3074322pfo.23
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 20:15:50 -0700 (PDT)
-Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
-        by mx.google.com with ESMTPS id b19-v6si760455pfb.89.2018.09.04.20.15.48
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CEBD36B710D
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2018 23:44:09 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id c14-v6so6474303qtc.7
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2018 20:44:09 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o4-v6si565305qkb.21.2018.09.04.20.44.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Sep 2018 20:15:49 -0700 (PDT)
-Subject: Re: [PATCH v2 13/40] vfio: Add support for Shared Virtual Addressing
-References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
- <20180511190641.23008-14-jean-philippe.brucker@arm.com>
- <5B83B11E.7010807@huawei.com> <1d5b6529-4e5a-723c-3f1b-dd5a9adb490c@arm.com>
- <5B89F818.7060300@huawei.com> <3a961aff-e830-64bb-b6a9-14e08de1abf5@arm.com>
- <5B8DEA15.7020404@huawei.com> <bc27f902-4d12-21b7-b9e9-18bcae170503@arm.com>
-From: Xu Zaibo <xuzaibo@huawei.com>
-Message-ID: <5B8F4A59.20004@huawei.com>
-Date: Wed, 5 Sep 2018 11:15:37 +0800
+        Tue, 04 Sep 2018 20:44:08 -0700 (PDT)
+Date: Tue, 4 Sep 2018 23:44:03 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE mappings
+Message-ID: <20180905034403.GN4762@redhat.com>
+References: <20180829154744.GC10223@dhcp22.suse.cz>
+ <39BE14E6-D0FB-428A-B062-8B5AEDC06E61@cs.rutgers.edu>
+ <20180829162528.GD10223@dhcp22.suse.cz>
+ <20180829192451.GG10223@dhcp22.suse.cz>
+ <E97C9342-9BA0-48DD-A580-738ACEE49B41@cs.rutgers.edu>
+ <20180830070021.GB2656@dhcp22.suse.cz>
+ <4AFDF557-46E3-4C62-8A43-C28E8F2A54CF@cs.rutgers.edu>
+ <20180830134549.GI2656@dhcp22.suse.cz>
+ <C0146217-821B-4530-A2E2-57D4CCDE8102@cs.rutgers.edu>
+ <20180830164057.GK2656@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <bc27f902-4d12-21b7-b9e9-18bcae170503@arm.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180830164057.GK2656@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "joro@8bytes.org" <joro@8bytes.org>, Will Deacon <Will.Deacon@arm.com>, Robin Murphy <Robin.Murphy@arm.com>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "tn@semihalf.com" <tn@semihalf.com>, "liubo95@huawei.com" <liubo95@huawei.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "rfranz@cavium.com" <rfranz@cavium.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "jacob.jun.pan@linux.intel.com" <jacob.jun.pan@linux.intel.com>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "kevin.tian@intel.com" <kevin.tian@intel.com>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>, "robdclark@gmail.com" <robdclark@gmail.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "rgummal@xilinx.com" <rgummal@xilinx.com>, =?UTF-8?B?57Gz57Gz?= <kenneth-lee-2012@foxmail.com>, wangzhou1 <wangzhou1@hisilicon.com>, "liguozhu@hisilicon.com" <liguozhu@hisilicon.com>, fanghao11 <fanghao11@huawei.com>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
 
-Hi,
+On Thu, Aug 30, 2018 at 06:40:57PM +0200, Michal Hocko wrote:
+> On Thu 30-08-18 10:02:23, Zi Yan wrote:
+> > On 30 Aug 2018, at 9:45, Michal Hocko wrote:
+> > 
+> > > On Thu 30-08-18 09:22:21, Zi Yan wrote:
+> > >> On 30 Aug 2018, at 3:00, Michal Hocko wrote:
+> > >>
+> > >>> On Wed 29-08-18 18:54:23, Zi Yan wrote:
+> > >>> [...]
+> > >>>> I tested it against Linusa??s tree with a??memhog -r3 130ga?? in a two-socket machine with 128GB memory on
+> > >>>> each node and got the results below. I expect this test should fill one node, then fall back to the other.
+> > >>>>
+> > >>>> 1. madvise(MADV_HUGEPAGE) + defrag = {always, madvise, defer+madvise}:
+> > >>>> no swap, THPs are allocated in the fallback node.
 
-On 2018/9/4 18:57, Jean-Philippe Brucker wrote:
-> On 04/09/2018 03:12, Xu Zaibo wrote:
->> On 2018/9/3 18:34, Jean-Philippe Brucker wrote:
->>> On 01/09/18 03:23, Xu Zaibo wrote:
->>>> As one application takes a whole function while using VFIO-PCI, why do
->>>> the application and the
->>>> function need to enable PASID capability? (Since just one I/O page table
->>>> is enough for them.)
->>> At the moment the series doesn't provide support for SVA without PASID
->>> (on the I/O page fault path, 08/40). In addition the BIND ioctl could be
->>> used by the owner application to bind other processes (slaves) and
->>> perform sub-assignment. But that feature is incomplete because we don't
->>> send stop_pasid notification to the owner when a slave dies.
->>>
->> So, Could I understand like this?
->>
->>       1. While the series are finished well, VFIO-PCI device can be held
->> by only one process
->>           through binding IOCTL command without PASID (without PASID
->> being exposed user space).
-> It could, but isn't supported at the moment. In addition to adding
-> support in the I/O page fault code, we'd also need to update the VFIO
-> API. Currently a VFIO_TYPE1 domain always supports the MAP/UNMAP ioctl.
-> The case you describe isn't compatible with MAP/UNMAP, since the process
-> manages the shared address space with mmap or malloc. We'd probably need
-> to introduce a new VFIO IOMMU type, in which case the bind could be
-> performed implicitly when the process does VFIO_SET_IOMMU. Then the
-> process wouldn't need to send an additional BIND IOCTL.
-ok. got it.  This is the legacy mode, so all the VFIO APIs are kept 
-unchanged?
->>       2. While using VFIO-PCI device to support multiple processes with
->> SVA series, a primary
->>           process with multiple secondary processes must be deployed just
->> like DPDK(https://www.dpdk.org/).
->>           And, the PASID still has to be exposed to user land.
-> Right. A third case, also implemented by this patch (and complete), is
-> the primary process simply doing a BIND for itself, and using the
-> returned PASID to share its own address space with the device.
->
-ok. But I am worried that the sulotion of one primary processes with 
-several secondary ones
+no swap
 
-is a little bit limited. Maybe, users don't want to depend on the 
-primary process. :)
+> > >>>> 2. madvise(MADV_HUGEPAGE) + defrag = defer: pages got swapped to the
+> > >>>> disk instead of being allocated in the fallback node.
 
+swap
 
+> > >>>> 3. no madvise, THP is on by default + defrag = {always, defer,
+> > >>>> defer+madvise}: pages got swapped to the disk instead of being
+> > >>>> allocated in the fallback node.
+
+swap
+
+> > >>>> 4. no madvise, THP is on by default + defrag = madvise: no swap, base
+> > >>>> pages are allocated in the fallback node.
+
+no swap
+
+> > >>>> The result 2 and 3 seems unexpected, since pages should be allocated in the fallback node.
+
+I agree it's not great for 2 and 3.
+
+I don't see how the above can be considered a 100% "pass" to the test,
+at best it's a 50% pass.
+
+Let me clarify the setup to be sure:
+
+1) There was no hard bind at all
+
+2) Let's also ignore NUMA balancing which is all but restrictive at
+   the start and it's meant to converge over time if current
+   conditions don't allow immediate convergence. For simplicity let's
+   assume NUMA balancing off.
+
+So what the test exercised is the plain normal allocation of RAM with
+THP main knob enabled to "always" on a NUMA system.
+
+No matter the madvise used or not used, 2 cases over 4 decided to
+swapout instead of allocating totally free THP or PAGE_SIZEd pages.
+
+As opposed there would have been absolutely zero swapouts in the exact
+same test if the main THP knob would have been disabled with:
+
+     echo never >/sys/kernel/mm/transparent_hugepage/enabled
+
+There is no way that enabling THP (no matter what other defrag
+settings were and no matter if MADV_HUGEPAGE was used or not) should
+cause heavy swap storms during page faults allocating memory, when
+disabling THP doesn't swap even a single 4k page. That can't possibly
+be right.
+
+This is because there is no way the overhead of swapping can be
+compensated by the THP improvement.
+
+And with swapping I really mean "reclaim", just testing with the
+swapout testcase is simpler and doesn't require an iommu pinning all
+memory. So setting may_swap and may_unmap to zero won't move the
+needle because my test showed just massive CPU consumption in trying
+so hard to generate THP from the local node, but nothing got swapped
+out because of the iommu pins.
+
+That kind of swapping may only pay off in the very long long term,
+which is what khugepaged is for. khugepaged already takes care of the
+long term, so we could later argue and think if khugepaged should
+swapout or not in such condition, but I don't think there's much to
+argue about the page fault.
+
+> Thanks for your and Stefan's testing. I will wait for some more
+> feedback. I will be offline next few days and if there are no major
+> objections I will repost with both tested-bys early next week.
+
+I'm not so positive about 2 of the above tests if I understood the
+test correctly.
+
+Those results are totally fine if you used the non default memory
+policy, but with MPOL_DEFAULT and in turn no hard bind of the memory,
+I'm afraid it'll be even be harder to reproduce when things will go
+wrong again in those two cases.
 
 Thanks,
-Zaibo
-
-.
+Andrea
