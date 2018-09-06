@@ -1,59 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BEB6E6B78CE
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 08:45:56 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id l191-v6so12466728oig.23
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 05:45:56 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id c188-v6si3411569oia.340.2018.09.06.05.45.55
-        for <linux-mm@kvack.org>;
-        Thu, 06 Sep 2018 05:45:55 -0700 (PDT)
-Subject: Re: [PATCH v2 01/40] iommu: Introduce Shared Virtual Addressing API
-References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
- <20180511190641.23008-2-jean-philippe.brucker@arm.com>
- <bf42affd-e9d0-e4fc-6d28-f3c3f7795348@redhat.com>
- <03d31ba5-1eda-ea86-8c0c-91d14c86fe83@arm.com>
- <ed39159c-087e-7e56-7d29-d1de9fa1677f@amd.com>
-From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
-Message-ID: <f0b317d5-e2e9-5478-952c-05e8b97bd68b@arm.com>
-Date: Thu, 6 Sep 2018 13:45:36 +0100
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4309F6B78D4
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 08:49:58 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id v4-v6so12759358oix.2
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 05:49:58 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id e67-v6si3112345oia.360.2018.09.06.05.49.57
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Sep 2018 05:49:57 -0700 (PDT)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w86Cmxdb044041
+	for <linux-mm@kvack.org>; Thu, 6 Sep 2018 08:49:56 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mb3t12cr0-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 06 Sep 2018 08:49:56 -0400
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Thu, 6 Sep 2018 13:49:53 +0100
+Date: Thu, 6 Sep 2018 15:49:44 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 14/29] memblock: add align parameter to
+ memblock_alloc_node()
+References: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1536163184-26356-15-git-send-email-rppt@linux.vnet.ibm.com>
+ <20180906080614.GW14951@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <ed39159c-087e-7e56-7d29-d1de9fa1677f@amd.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180906080614.GW14951@dhcp22.suse.cz>
+Message-Id: <20180906124944.GF27492@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>, Auger Eric <eric.auger@redhat.com>, linux-arm-kernel@lists.infradead.org, linux-pci@vger.kernel.org, linux-acpi@vger.kernel.org, devicetree@vger.kernel.org, iommu@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org
-Cc: xieyisheng1@huawei.com, liubo95@huawei.com, xuzaibo@huawei.com, thunder.leizhen@huawei.com, will.deacon@arm.com, okaya@codeaurora.org, yi.l.liu@intel.com, ashok.raj@intel.com, tn@semihalf.com, joro@8bytes.org, bharatku@xilinx.com, liudongdong3@huawei.com, rfranz@cavium.com, kevin.tian@intel.com, jacob.jun.pan@linux.intel.com, jcrouse@codeaurora.org, rgummal@xilinx.com, jonathan.cameron@huawei.com, shunyong.yang@hxt-semitech.com, robin.murphy@arm.com, ilias.apalodimas@linaro.org, alex.williamson@redhat.com, robdclark@gmail.com, dwmw2@infradead.org, nwatters@codeaurora.org, baolu.lu@linux.intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ingo Molnar <mingo@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Burton <paul.burton@mips.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 06/09/2018 12:12, Christian KA?nig wrote:
-> Am 06.09.2018 um 13:09 schrieb Jean-Philippe Brucker:
->> Hi Eric,
->>
->> Thanks for reviewing
->>
->> On 05/09/2018 12:29, Auger Eric wrote:
->>>> +int iommu_sva_device_init(struct device *dev, unsigned long features,
->>>> +A A A A A A A A A A A A A  unsigned int max_pasid)
->>> what about min_pasid?
->> No one asked for it... The max_pasid parameter is here for drivers that
->> have vendor-specific PASID size limits, such as AMD KFD (see
->> kfd_iommu_device_init and
->> https://patchwork.kernel.org/patch/9989307/#21389571). But in most cases
->> the PASID size will only depend on the PCI PASID capability and the
->> IOMMU limits, both known by the IOMMU driver, so device drivers won't
->> have to set max_pasid.
->>
->> IOMMU drivers need to set min_pasid in the sva_device_init callback
->> because it may be either 1 (e.g. Arm where PASID #0 is reserved) or 0
->> (Intel Vt-d rev2), but at the moment I can't see a reason for device
->> drivers to override min_pasid
+On Thu, Sep 06, 2018 at 10:06:14AM +0200, Michal Hocko wrote:
+> On Wed 05-09-18 18:59:29, Mike Rapoport wrote:
+> > With the align parameter memblock_alloc_node() can be used as drop in
+> > replacement for alloc_bootmem_pages_node().
 > 
-> Sorry to ruin your day, but if I'm not completely mistaken PASID zero is
-> reserved in the AMD KFD as well.
+> Why do we need an additional translation later? Sparse code which is the
+> only one to use it already uses memblock_alloc_try_nid elsewhere
+> (sparse_mem_map_populate).
 
-Heh, fair enough. I'll add the min_pasid parameter
+It is also used in later patches to replace alloc_bootmem* in several
+places and most of them explicitly set the alignment.
+ 
+> > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> > ---
+> >  include/linux/bootmem.h | 4 ++--
+> >  mm/sparse.c             | 2 +-
+> >  2 files changed, 3 insertions(+), 3 deletions(-)
+> > 
+> > diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
+> > index 7d91f0f..3896af2 100644
+> > --- a/include/linux/bootmem.h
+> > +++ b/include/linux/bootmem.h
+> > @@ -157,9 +157,9 @@ static inline void * __init memblock_alloc_from_nopanic(
+> >  }
+> >  
+> >  static inline void * __init memblock_alloc_node(
+> > -						phys_addr_t size, int nid)
+> > +		phys_addr_t size, phys_addr_t align, int nid)
+> >  {
+> > -	return memblock_alloc_try_nid(size, 0, BOOTMEM_LOW_LIMIT,
+> > +	return memblock_alloc_try_nid(size, align, BOOTMEM_LOW_LIMIT,
+> >  					    BOOTMEM_ALLOC_ACCESSIBLE, nid);
+> >  }
+> >  
+> > diff --git a/mm/sparse.c b/mm/sparse.c
+> > index 04e97af..509828f 100644
+> > --- a/mm/sparse.c
+> > +++ b/mm/sparse.c
+> > @@ -68,7 +68,7 @@ static noinline struct mem_section __ref *sparse_index_alloc(int nid)
+> >  	if (slab_is_available())
+> >  		section = kzalloc_node(array_size, GFP_KERNEL, nid);
+> >  	else
+> > -		section = memblock_alloc_node(array_size, nid);
+> > +		section = memblock_alloc_node(array_size, 0, nid);
+> >  
+> >  	return section;
+> >  }
+> > -- 
+> > 2.7.4
+> > 
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
 
-Thanks,
-Jean
+-- 
+Sincerely yours,
+Mike.
