@@ -1,103 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 358F06B79A9
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 13:03:42 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id l65-v6so5737260pge.17
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 10:03:42 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 5-v6si5462191plx.27.2018.09.06.10.03.40
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 61A276B79C3
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 13:06:37 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id y130-v6so8432476qka.1
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 10:06:37 -0700 (PDT)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00096.outbound.protection.outlook.com. [40.107.0.96])
+        by mx.google.com with ESMTPS id l67-v6si2398588qkb.61.2018.09.06.10.06.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Sep 2018 10:03:40 -0700 (PDT)
-Date: Thu, 6 Sep 2018 19:03:34 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 1/2] mm: Move page struct poisoning to
- CONFIG_DEBUG_VM_PAGE_INIT_POISON
-Message-ID: <20180906170334.GE14951@dhcp22.suse.cz>
-References: <20180905211041.3286.19083.stgit@localhost.localdomain>
- <20180905211328.3286.71674.stgit@localhost.localdomain>
- <20180906054735.GJ14951@dhcp22.suse.cz>
- <0c1c36f7-f45a-8fe9-dd52-0f60b42064a9@intel.com>
- <20180906151336.GD14951@dhcp22.suse.cz>
- <CAKgT0UfiKWZO6hyjc1RpRTgD+CvM=KnbYokSueLFi7X5h+GMKQ@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 06 Sep 2018 10:06:36 -0700 (PDT)
+Subject: Re: [PATCH v2] arm64: kasan: add interceptors for strcmp/strncmp
+ functions
+References: <1535014606-176525-1-git-send-email-kyeongdon.kim@lge.com>
+ <12d4e435-e229-b4af-4286-a53fa77cb09d@virtuozzo.com>
+ <0bde837e-2804-c6d6-4bda-8b166bdcfc6b@lge.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <4301317d-74a1-963c-e423-781808de215a@virtuozzo.com>
+Date: Thu, 6 Sep 2018 20:06:48 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKgT0UfiKWZO6hyjc1RpRTgD+CvM=KnbYokSueLFi7X5h+GMKQ@mail.gmail.com>
+In-Reply-To: <0bde837e-2804-c6d6-4bda-8b166bdcfc6b@lge.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Duyck, Alexander H" <alexander.h.duyck@intel.com>, pavel.tatashin@microsoft.com, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Kyeongdon Kim <kyeongdon.kim@lge.com>
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, glider@google.com, dvyukov@google.com, Jason@zx2c4.com, robh@kernel.org, ard.biesheuvel@linaro.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
 
-On Thu 06-09-18 08:41:52, Alexander Duyck wrote:
-> On Thu, Sep 6, 2018 at 8:13 AM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > On Thu 06-09-18 07:59:03, Dave Hansen wrote:
-> > > On 09/05/2018 10:47 PM, Michal Hocko wrote:
-> > > > why do you have to keep DEBUG_VM enabled for workloads where the boot
-> > > > time matters so much that few seconds matter?
-> > >
-> > > There are a number of distributions that run with it enabled in the
-> > > default build.  Fedora, for one.  We've basically assumed for a while
-> > > that we have to live with it in production environments.
-> > >
-> > > So, where does leave us?  I think we either need a _generic_ debug
-> > > option like:
-> > >
-> > >       CONFIG_DEBUG_VM_SLOW_AS_HECK
-> > >
-> > > under which we can put this an other really slow VM debugging.  Or, we
-> > > need some kind of boot-time parameter to trigger the extra checking
-> > > instead of a new CONFIG option.
-> >
-> > I strongly suspect nobody will ever enable such a scary looking config
-> > TBH. Besides I am not sure what should go under that config option.
-> > Something that takes few cycles but it is called often or one time stuff
-> > that takes quite a long but less than aggregated overhead of the former?
-> >
-> > Just consider this particular case. It basically re-adds an overhead
-> > that has always been there before the struct page init optimization
-> > went it. The poisoning just returns it in a different form to catch
-> > potential left overs. And we would like to have as many people willing
-> > to running in debug mode to test for those paths because they are
-> > basically impossible to review by the code inspection. More importantnly
-> > the major overhead is boot time so my question still stands. Is this
-> > worth a separate config option almost nobody is going to enable?
-> >
-> > Enabling DEBUG_VM by Fedora and others serves us a very good testing
-> > coverage and I appreciate that because it has generated some useful bug
-> > reports. Those people are paying quite a lot of overhead in runtime
-> > which can aggregate over time is it so much to ask about one time boot
-> > overhead?
+On 09/05/2018 10:44 AM, Kyeongdon Kim wrote:
 > 
-> The kind of boot time add-on I saw as a result of this was about 170
-> seconds, or 2 minutes and 50 seconds on a 12TB system.
+> 
+> On 2018-09-05 i??i ? 1:24, Andrey Ryabinin wrote:
+>>
+>>
+>> On 09/04/2018 01:10 PM, Andrey Ryabinin wrote:
+>> >
+>> >
+>> > On 09/04/2018 09:59 AM, Kyeongdon Kim wrote:
+>> >
+>> >>>> +#undef strncmp
+>> >>>> +int strncmp(const char *cs, const char *ct, size_t len)
+>> >>>> +{
+>> >>>> + check_memory_region((unsigned long)cs, len, false, _RET_IP_);
+>> >>>> + check_memory_region((unsigned long)ct, len, false, _RET_IP_);
+>> >>>
+>> >>> This will cause false positives. Both 'cs', and 'ct' could be less than len bytes.
+>> >>>
+>> >>> There is no need in these interceptors, just use the C implementations from lib/string.c
+>> >>> like you did in your first patch.
+>> >>> The only thing that was wrong in the first patch is that assembly implementations
+>> >>> were compiled out instead of being declared week.
+>> >>>
+>> >> Well, at first I thought so..
+>> >> I would remove diff code in /mm/kasan/kasan.c then use C implementations in lib/string.c
+>> >> w/ assem implementations as weak :
+>> >>
+>> >> diff --git a/lib/string.c b/lib/string.c
+>> >> index 2c0900a..a18b18f 100644
+>> >> --- a/lib/string.c
+>> >> +++ b/lib/string.c
+>> >> @@ -312,7 +312,7 @@ size_t strlcat(char *dest, const char *src, size_t count)
+>> >> A EXPORT_SYMBOL(strlcat);
+>> >> A #endif
+>> >>
+>> >> -#ifndef __HAVE_ARCH_STRCMP
+>> >> +#if (defined(CONFIG_ARM64) && defined(CONFIG_KASAN)) || !defined(__HAVE_ARCH_STRCMP)
+>> >
+>> > No. What part of "like you did in your first patch" is unclear to you?
+>>
+>> Just to be absolutely clear, I meant #ifdef out __HAVE_ARCH_* defines like it has been done in this patch
+>> http://lkml.kernel.org/r/<1534233322-106271-1-git-send-email-kyeongdon.kim@lge.com>
+> I understood what you're saying, but I might think the wrong patch.
+> 
+> So, thinking about the other way as below:
+> can pick up assem variant or c one, declare them as weak.
 
-Just curious. How long does it take to get from power on to even reaach
-boot loader on that machine... ;)
 
-> I spent a
-> couple minutes wondering if I had built a bad kernel or not as I was
-> staring at a dead console the entire time after the grub prompt since
-> I hit this so early in the boot. That is the reason why I am so eager
-> to slice this off and make it something separate. I could easily see
-> this as something that would get in the way of other debugging that is
-> going on in a system.
-
-But you would get the same overhead a kernel release ago when the
-memmap init optimization was merged. So you are basically back to what
-we used to have for years. Unless I misremember.
-
-> If we don't want to do a config option, then what about adding a
-> kernel parameter to put a limit on how much memory we will initialize
-> like this before we just start skipping it. We could put a default
-> limit on it like 256GB and then once we cross that threshold we just
-> don't bother poisoning any more memory. With that we would probably be
-> able to at least cover most of the early memory init, and that value
-> should cover most systems without getting into delays on the order of
-> minutes.
-
-No, this will defeat the purpose of the check.
--- 
-Michal Hocko
-SUSE Labs
+It's was much easier for me to explain with patch how this should be done in my opinion.
+So I just sent the patches, take a look.
