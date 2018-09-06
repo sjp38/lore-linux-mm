@@ -1,94 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 74EF36B78A8
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 08:13:35 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id m4-v6so5448562pgq.19
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 05:13:35 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id h14-v6si4991321pgg.540.2018.09.06.05.13.33
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C42D6B78AD
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 08:16:05 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id z30-v6so3609511edd.19
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 05:16:05 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h26-v6si522574edj.421.2018.09.06.05.16.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Sep 2018 05:13:34 -0700 (PDT)
-Message-ID: <5B911B03.2060602@intel.com>
-Date: Thu, 06 Sep 2018 20:18:11 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        Thu, 06 Sep 2018 05:16:04 -0700 (PDT)
+Date: Thu, 6 Sep 2018 14:16:01 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, oom: Introduce time limit for dump_tasks duration.
+Message-ID: <20180906121601.GU14951@dhcp22.suse.cz>
+References: <0252ad5d-46e6-0d7f-ef91-4e316657a83d@i-love.sakura.ne.jp>
+ <CACT4Y+Yp6ZbusCWg5C1zaJpcS8=XnGPboKgWfyxVk1axQA2nbw@mail.gmail.com>
+ <201809060553.w865rmpj036017@www262.sakura.ne.jp>
+ <CACT4Y+YKJWJr-5rBQidt6nY7+VF=BAsvHyh+XTaf8spwNy3qPA@mail.gmail.com>
+ <58aa0543-86d0-b2ad-7fb9-9bed7c6a1f6c@i-love.sakura.ne.jp>
+ <20180906112306.GO14951@dhcp22.suse.cz>
+ <1611e45d-235e-67e9-26e3-d0228255fa2f@i-love.sakura.ne.jp>
+ <20180906115320.GS14951@dhcp22.suse.cz>
+ <CACT4Y+byA7dLar5=9y+7RApT2WdxgVA9c29q83NEVkd5KCLgjg@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v36 0/5] Virtio-balloon: support free page reporting
-References: <1532075585-39067-1-git-send-email-wei.w.wang@intel.com> <20180723122342-mutt-send-email-mst@kernel.org> <20180723143604.GB2457@work-vm>
-In-Reply-To: <20180723143604.GB2457@work-vm>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACT4Y+byA7dLar5=9y+7RApT2WdxgVA9c29q83NEVkd5KCLgjg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, syzbot <syzbot+f0fc7f62e88b1de99af3@syzkaller.appspotmail.com>, 'Dmitry Vyukov' via syzkaller-upstream-moderation <syzkaller-upstream-moderation@googlegroups.com>, linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>
 
-On 07/23/2018 10:36 PM, Dr. David Alan Gilbert wrote:
-> * Michael S. Tsirkin (mst@redhat.com) wrote:
->> On Fri, Jul 20, 2018 at 04:33:00PM +0800, Wei Wang wrote:
->>> This patch series is separated from the previous "Virtio-balloon
->>> Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_HINT,
->>> implemented by this series enables the virtio-balloon driver to report
->>> hints of guest free pages to the host. It can be used to accelerate live
->>> migration of VMs. Here is an introduction of this usage:
->>>
->>> Live migration needs to transfer the VM's memory from the source machine
->>> to the destination round by round. For the 1st round, all the VM's memory
->>> is transferred. From the 2nd round, only the pieces of memory that were
->>> written by the guest (after the 1st round) are transferred. One method
->>> that is popularly used by the hypervisor to track which part of memory is
->>> written is to write-protect all the guest memory.
->>>
->>> This feature enables the optimization by skipping the transfer of guest
->>> free pages during VM live migration. It is not concerned that the memory
->>> pages are used after they are given to the hypervisor as a hint of the
->>> free pages, because they will be tracked by the hypervisor and transferred
->>> in the subsequent round if they are used and written.
->>>
->>> * Tests
->>> - Test Environment
->>>      Host: Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz
->>>      Guest: 8G RAM, 4 vCPU
->>>      Migration setup: migrate_set_speed 100G, migrate_set_downtime 2 second
->>>
->>> - Test Results
->>>      - Idle Guest Live Migration Time (results are averaged over 10 runs):
->>>          - Optimization v.s. Legacy = 409ms vs 1757ms --> ~77% reduction
->>> 	(setting page poisoning zero and enabling ksm don't affect the
->>>           comparison result)
->>>      - Guest with Linux Compilation Workload (make bzImage -j4):
->>>          - Live Migration Time (average)
->>>            Optimization v.s. Legacy = 1407ms v.s. 2528ms --> ~44% reduction
->>>          - Linux Compilation Time
->>>            Optimization v.s. Legacy = 5min4s v.s. 5min12s
->>>            --> no obvious difference
->> I'd like to see dgilbert's take on whether this kind of gain
->> justifies adding a PV interfaces, and what kind of guest workload
->> is appropriate.
->>
->> Cc'd.
-> Well, 44% is great ... although the measurement is a bit weird.
->
-> a) A 2 second downtime is very large; 300-500ms is more normal
-> b) I'm not sure what the 'average' is  - is that just between a bunch of
-> repeated migrations?
-> c) What load was running in the guest during the live migration?
->
-> An interesting measurement to add would be to do the same test but
-> with a VM with a lot more RAM but the same load;  you'd hope the gain
-> would be even better.
-> It would be interesting, especially because the users who are interested
-> are people creating VMs allocated with lots of extra memory (for the
-> worst case) but most of the time migrating when it's fairly idle.
->
-> Dave
->
+Ccing Oleg.
 
-Hi Dave,
+On Thu 06-09-18 14:08:43, Dmitry Vyukov wrote:
+[...]
+> So does anybody know if it can live lock picking up new tasks all the
+> time? That's what it looks like at first glance. I also don't remember
+> seeing anything similar in the past.
 
-The results of the added experiments have been shown in the v37 cover 
-letter.
-Could you have a look at https://lkml.org/lkml/2018/8/27/29 . Thanks.
+That is an interesting question. I find it unlikely here because it is
+quite hard to get new tasks spawned while you are genuinely OOM. But we
+do have these for_each_process loops at other places as well. Some of
+them even controlled from the userspace. Some of them like exit path
+(zap_threads) sound even more interesting even when that is a rare path.
 
-Best,
-Wei
+So a question for Oleg I guess. Is it possible that for_each_process
+live locks (or stalls for way too long/unbounded amount of time) under
+heavy fork/exit loads? Is there any protection from that?
+
+> If it's a live lock and we resolve it, then we don't need to solve the
+> problem of too many tasks here.
+
+-- 
+Michal Hocko
+SUSE Labs
