@@ -1,64 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DAF4F6B7906
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 10:06:55 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id c5-v6so5601641plo.2
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 07:06:55 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id b13-v6si5476452pgh.255.2018.09.06.07.06.54
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F42B6B7916
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 10:07:49 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id e196-v6so6973861ywe.12
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 07:07:49 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id w13-v6si1320862ybm.90.2018.09.06.07.07.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Sep 2018 07:06:54 -0700 (PDT)
-Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
- processes.
-References: <1533389386-3501-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <1533389386-3501-4-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180806134550.GO19540@dhcp22.suse.cz>
- <alpine.DEB.2.21.1808061315220.43071@chino.kir.corp.google.com>
- <20180806205121.GM10003@dhcp22.suse.cz>
- <0aeb76e1-558f-e38e-4c66-77be3ce56b34@I-love.SAKURA.ne.jp>
- <20180906113553.GR14951@dhcp22.suse.cz>
- <87b76eea-9881-724a-442a-c6079cbf1016@i-love.sakura.ne.jp>
- <20180906120508.GT14951@dhcp22.suse.cz>
- <37b763c1-b83e-1632-3187-55fb360a914e@i-love.sakura.ne.jp>
- <20180906135615.GA14951@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <8dd6bc67-3f35-fdc6-a86a-cf8426608c75@i-love.sakura.ne.jp>
-Date: Thu, 6 Sep 2018 23:06:40 +0900
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 06 Sep 2018 07:07:48 -0700 (PDT)
+Date: Thu, 6 Sep 2018 10:07:44 -0400
+From: "Theodore Y. Ts'o" <tytso@mit.edu>
+Subject: Re: linux-next test error
+Message-ID: <20180906140744.GB5098@thunk.org>
+References: <0000000000004f6b5805751a8189@google.com>
+ <20180905085545.GD24902@quack2.suse.cz>
+ <CAFqt6zZtjPFdfAGxp43oqN3=z9+vAGzdOvDcgFaU+05ffCGu7A@mail.gmail.com>
+ <20180905133459.GF23909@thunk.org>
+ <CAFqt6za5OvHgONOgpmhxS+YsYZyiXUhzpmOgZYyHWPHEO34QwQ@mail.gmail.com>
+ <20180906083800.GC19319@quack2.suse.cz>
+ <CAFqt6zZ=uaArS0hrbgZGLe38HgSPhZBHzsGEJOZiQGm4Y2N0yw@mail.gmail.com>
+ <20180906131212.GG2331@thunk.org>
 MIME-Version: 1.0
-In-Reply-To: <20180906135615.GA14951@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180906131212.GG2331@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>
+To: Souptick Joarder <jrdr.linux@gmail.com>, Jan Kara <jack@suse.cz>, syzbot+87a05ae4accd500f5242@syzkaller.appspotmail.com, ak@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com, tim.c.chen@linux.intel.com, zwisler@kernel.org, Matthew Wilcox <willy@infradead.org>
 
-On 2018/09/06 22:56, Michal Hocko wrote:
-> On Thu 06-09-18 22:40:24, Tetsuo Handa wrote:
->> On 2018/09/06 21:05, Michal Hocko wrote:
->>>> If you are too busy, please show "the point of no-blocking" using source code
->>>> instead. If such "the point of no-blocking" really exists, it can be executed
->>>> by allocating threads.
->>>
->>> I would have to study this much deeper but I _suspect_ that we are not
->>> taking any blocking locks right after we return from unmap_vmas. In
->>> other words the place we used to have synchronization with the
->>> oom_reaper in the past.
->>
->> See commit 97b1255cb27c551d ("mm,oom_reaper: check for MMF_OOM_SKIP before
->> complaining"). Since this dependency is inode-based (i.e. irrelevant with
->> OOM victims), waiting for this lock can livelock.
->>
->> So, where is safe "the point of no-blocking" ?
-> 
-> Ohh, right unlink_file_vma and its i_mmap_rwsem lock. As I've said I
-> have to think about that some more. Maybe we can split those into two parts.
-> 
+P.S.  This is the second time the vm_fualt_t change has broken things.
+The first time, when it went through the ext4 tree, I NACK'ed it after
+a 60 seconds smoke test showed it was broken.  This time it went
+through the mm tree...
 
-Meanwhile, I'd really like to use timeout based back off. Like I wrote at
-http://lkml.kernel.org/r/201809060703.w8673Kbs076435@www262.sakura.ne.jp ,
-we need to wait for some period after all.
+In the future, even for "trivial" changes, could you *please* run the
+kvm-xfstests[1] or gce-xfstests[2][3]?
 
-We can replace timeout based back off after we got safe "the point of no-blocking" .
+[1] https://github.com/tytso/xfstests-bld/blob/master/Documentation/kvm-quickstart.md
+[2] https://github.com/tytso/xfstests-bld/blob/master/Documentation/gce-xfstests.md
+[3] https:/thunk.org/gce-xfstests
+
+Or if you're too lazy to run the smoke tests, please send it through
+the ext4 tree so *I* can run the smoke tests.
+
+						- Ted
