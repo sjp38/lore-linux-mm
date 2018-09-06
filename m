@@ -1,105 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AFF86B78D7
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 08:50:56 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id r131-v6so12761727oie.14
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 05:50:56 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id g8-v6si3663848oic.418.2018.09.06.05.50.55
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 088366B787B
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 08:53:59 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id b4-v6so3656014ede.4
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 05:53:58 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i1-v6si4976624edj.108.2018.09.06.05.53.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Sep 2018 05:50:55 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w86Cmw9e043943
-	for <linux-mm@kvack.org>; Thu, 6 Sep 2018 08:50:55 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mb3t12dwh-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 06 Sep 2018 08:50:54 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Thu, 6 Sep 2018 13:50:51 +0100
-Date: Thu, 6 Sep 2018 15:50:42 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH 16/29] memblock: replace __alloc_bootmem_node with
- appropriate memblock_ API
-References: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
- <1536163184-26356-17-git-send-email-rppt@linux.vnet.ibm.com>
- <20180906083841.GA14951@dhcp22.suse.cz>
+        Thu, 06 Sep 2018 05:53:57 -0700 (PDT)
+Date: Thu, 6 Sep 2018 14:53:56 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH V2 4/4] powerpc/mm/iommu: Allow migration of cma
+ allocated pages during mm_iommu_get
+Message-ID: <20180906125356.GX14951@dhcp22.suse.cz>
+References: <20180906054342.25094-1-aneesh.kumar@linux.ibm.com>
+ <20180906054342.25094-4-aneesh.kumar@linux.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180906083841.GA14951@dhcp22.suse.cz>
-Message-Id: <20180906125041.GG27492@rapoport-lnx>
+In-Reply-To: <20180906054342.25094-4-aneesh.kumar@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ingo Molnar <mingo@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Burton <paul.burton@mips.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: akpm@linux-foundation.org, Alexey Kardashevskiy <aik@ozlabs.ru>, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-On Thu, Sep 06, 2018 at 10:38:41AM +0200, Michal Hocko wrote:
-> On Wed 05-09-18 18:59:31, Mike Rapoport wrote:
-> > Use memblock_alloc_try_nid whenever goal (i.e. mininal address is
-> > specified) and memblock_alloc_node otherwise.
+On Thu 06-09-18 11:13:42, Aneesh Kumar K.V wrote:
+> Current code doesn't do page migration if the page allocated is a compound page.
+> With HugeTLB migration support, we can end up allocating hugetlb pages from
+> CMA region. Also THP pages can be allocated from CMA region. This patch updates
+> the code to handle compound pages correctly.
 > 
-> I suspect you wanted to say (i.e. minimal address) is specified
+> This use the new helper get_user_pages_cma_migrate. It does one get_user_pages
+> with right count, instead of doing one get_user_pages per page. That avoids
+> reading page table multiple times.
+> 
+> The patch also convert the hpas member of mm_iommu_table_group_mem_t to a union.
+> We use the same storage location to store pointers to struct page. We cannot
+> update alll the code path use struct page *, because we access hpas in real mode
+> and we can't do that struct page * to pfn conversion in real mode.
 
-Yep
- 
-> > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> 
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> One note below
-> 
-> > ---
-> >  arch/ia64/mm/discontig.c       |  6 ++++--
-> >  arch/ia64/mm/init.c            |  2 +-
-> >  arch/powerpc/kernel/setup_64.c |  6 ++++--
-> >  arch/sparc/kernel/setup_64.c   | 10 ++++------
-> >  arch/sparc/kernel/smp_64.c     |  4 ++--
-> >  5 files changed, 15 insertions(+), 13 deletions(-)
-> > 
-> > diff --git a/arch/ia64/mm/discontig.c b/arch/ia64/mm/discontig.c
-> > index 1928d57..918dda9 100644
-> > --- a/arch/ia64/mm/discontig.c
-> > +++ b/arch/ia64/mm/discontig.c
-> > @@ -451,8 +451,10 @@ static void __init *memory_less_node_alloc(int nid, unsigned long pernodesize)
-> >  	if (bestnode == -1)
-> >  		bestnode = anynode;
-> >  
-> > -	ptr = __alloc_bootmem_node(pgdat_list[bestnode], pernodesize,
-> > -		PERCPU_PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
-> > +	ptr = memblock_alloc_try_nid(pernodesize, PERCPU_PAGE_SIZE,
-> > +				     __pa(MAX_DMA_ADDRESS),
-> > +				     BOOTMEM_ALLOC_ACCESSIBLE,
-> > +				     bestnode);
-> >  
-> >  	return ptr;
-> >  }
-> > diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
-> > index ffcc358..2169ca5 100644
-> > --- a/arch/ia64/mm/init.c
-> > +++ b/arch/ia64/mm/init.c
-> > @@ -459,7 +459,7 @@ int __init create_mem_map_page_table(u64 start, u64 end, void *arg)
-> >  		pte = pte_offset_kernel(pmd, address);
-> >  
-> >  		if (pte_none(*pte))
-> > -			set_pte(pte, pfn_pte(__pa(memblock_alloc_node(PAGE_SIZE, PAGE_SIZE, node))) >> PAGE_SHIFT,
-> > +			set_pte(pte, pfn_pte(__pa(memblock_alloc_node(PAGE_SIZE, PAGE_SIZE, node)) >> PAGE_SHIFT,
-> >  					     PAGE_KERNEL));
-> 
-> This doesn't seem to belong to the patch, right?
+I am not fmailiar with this code so bear with me. I am completely
+missing the purpose of this patch. The changelog doesn't really explain
+that AFAICS. I can only guess that you do not want to establish long
+pins on CMA pages, right? So whenever you are about to pin a page that
+is in CMA you migrate it away to a different !__GFP_MOVABLE page, right?
+If that is the case then how do you handle pins which are already in
+zone_movable? I do not see any specific check for those.
 
-Right, will fix.
- 
-> >  	}
-> >  	return 0;
-> -- 
-> Michal Hocko
-> SUSE Labs
-> 
-
+Btw. why is this a proper thing to do? Problems with longterm pins are
+not only for CMA/ZONE_MOVABLE pages. Pinned pages are not reclaimable as
+well so there is a risk of OOMs if there are too many of them. We have
+discussed approaches that would allow to force pin invalidation/revocation
+at LSF/MM. Isn't that a more appropriate solution to the problem you are
+seeing?
 -- 
-Sincerely yours,
-Mike.
+Michal Hocko
+SUSE Labs
