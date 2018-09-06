@@ -1,102 +1,403 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4417E6B78C5
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 09:12:19 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id p127-v6so7002486ywg.1
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 06:12:19 -0700 (PDT)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id k16-v6si1269065ybp.437.2018.09.06.06.12.18
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BA4256B78CB
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 09:14:52 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id x145-v6so12810176oia.10
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 06:14:52 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id c83-v6si3294963oia.350.2018.09.06.06.14.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 06 Sep 2018 06:12:18 -0700 (PDT)
-Date: Thu, 6 Sep 2018 09:12:12 -0400
-From: "Theodore Y. Ts'o" <tytso@mit.edu>
-Subject: Re: linux-next test error
-Message-ID: <20180906131212.GG2331@thunk.org>
-References: <0000000000004f6b5805751a8189@google.com>
- <20180905085545.GD24902@quack2.suse.cz>
- <CAFqt6zZtjPFdfAGxp43oqN3=z9+vAGzdOvDcgFaU+05ffCGu7A@mail.gmail.com>
- <20180905133459.GF23909@thunk.org>
- <CAFqt6za5OvHgONOgpmhxS+YsYZyiXUhzpmOgZYyHWPHEO34QwQ@mail.gmail.com>
- <20180906083800.GC19319@quack2.suse.cz>
- <CAFqt6zZ=uaArS0hrbgZGLe38HgSPhZBHzsGEJOZiQGm4Y2N0yw@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Sep 2018 06:14:51 -0700 (PDT)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w86DEU1P077922
+	for <linux-mm@kvack.org>; Thu, 6 Sep 2018 09:14:50 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mb2a57dvt-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 06 Sep 2018 09:14:46 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Thu, 6 Sep 2018 14:14:44 +0100
+Date: Thu, 6 Sep 2018 16:14:34 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 21/29] memblock: replace alloc_bootmem with
+ memblock_alloc
+References: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1536163184-26356-22-git-send-email-rppt@linux.vnet.ibm.com>
+ <20180906085515.GF14951@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAFqt6zZ=uaArS0hrbgZGLe38HgSPhZBHzsGEJOZiQGm4Y2N0yw@mail.gmail.com>
+In-Reply-To: <20180906085515.GF14951@dhcp22.suse.cz>
+Message-Id: <20180906131433.GI27492@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, syzbot+87a05ae4accd500f5242@syzkaller.appspotmail.com, ak@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com, tim.c.chen@linux.intel.com, zwisler@kernel.org, Matthew Wilcox <willy@infradead.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ingo Molnar <mingo@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Burton <paul.burton@mips.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Sep 06, 2018 at 05:56:31PM +0530, Souptick Joarder wrote:
-> > Yes, I'd start with converting ext4_page_mkwrite() - that should be pretty
-> > straightforward - and we can leave block_page_mkwrite() as is for now. I
-> > don't think allocating other VM_FAULT_ codes is going to cut it as
-> > generally the filesystem may need to communicate different error codes back
-> > and you don't know in advance which are interesting.
+On Thu, Sep 06, 2018 at 10:55:15AM +0200, Michal Hocko wrote:
+> On Wed 05-09-18 18:59:36, Mike Rapoport wrote:
+> > The conversion is done using the following semantic patch:
+> > 
+> > @@
+> > expression e;
+> > @@
+> > - __alloc_bootmem(e)
+> 
+> Did you mean alloc_bottmem? Anyway the only difference from
+> _alloc_bootmem is SMP_CACHE_BYTES and so you can use 0 alignment for
+> memblock_virt_alloc. Why do we need memblock_alloc_from at all?
 
-Changing the return values of ext4_page_mkwrite() and
-ext4_filemap_fault() is definitely safe.  If you want to start
-changing the type of "ret" to vm_fault_t and introduce a new variable
-"err", now you have to be super careful not to screw things up.  (I
-believe one of the earlier patches didn't get that right.)
+Here again, I've copied the wrong script to the changelog. Will fix.
+Should have been
 
-> As block_page_mkwrite() is getting called from 2 places in ext4 and nilfs and
-> both places fault handler code convert errno to VM_FAULT_CODE using
-> block_page_mkwrite_return(), is it required to migrate block_page_mkwrite()
-> to use vm_fault_t return type and further complicate the API or better to
-> leave this API in current state ??
+- alloc_bootmem(size)
++ memblock_alloc(size, 0)
+ 
+> > + memblock_alloc_from(e, 0)
+> > 
+> > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> > ---
+> >  arch/alpha/kernel/core_marvel.c     | 4 ++--
+> >  arch/alpha/kernel/pci-noop.c        | 4 ++--
+> >  arch/alpha/kernel/pci.c             | 4 ++--
+> >  arch/alpha/kernel/pci_iommu.c       | 4 ++--
+> >  arch/ia64/kernel/mca.c              | 4 ++--
+> >  arch/ia64/mm/tlb.c                  | 4 ++--
+> >  arch/m68k/sun3/sun3dvma.c           | 3 ++-
+> >  arch/microblaze/mm/init.c           | 2 +-
+> >  arch/mips/kernel/setup.c            | 2 +-
+> >  arch/um/drivers/net_kern.c          | 2 +-
+> >  arch/um/drivers/vector_kern.c       | 2 +-
+> >  arch/um/kernel/initrd.c             | 2 +-
+> >  arch/x86/kernel/acpi/boot.c         | 3 ++-
+> >  arch/x86/kernel/apic/io_apic.c      | 2 +-
+> >  arch/x86/kernel/e820.c              | 2 +-
+> >  arch/x86/platform/olpc/olpc_dt.c    | 2 +-
+> >  arch/xtensa/platforms/iss/network.c | 2 +-
+> >  arch/xtensa/platforms/iss/setup.c   | 4 ++--
+> >  drivers/macintosh/smu.c             | 2 +-
+> >  init/main.c                         | 4 ++--
+> >  20 files changed, 30 insertions(+), 28 deletions(-)
+> > 
+> > diff --git a/arch/alpha/kernel/core_marvel.c b/arch/alpha/kernel/core_marvel.c
+> > index bdebb8c2..1f00c94 100644
+> > --- a/arch/alpha/kernel/core_marvel.c
+> > +++ b/arch/alpha/kernel/core_marvel.c
+> > @@ -82,7 +82,7 @@ mk_resource_name(int pe, int port, char *str)
+> >  	char *name;
+> >  	
+> >  	sprintf(tmp, "PCI %s PE %d PORT %d", str, pe, port);
+> > -	name = alloc_bootmem(strlen(tmp) + 1);
+> > +	name = memblock_alloc(strlen(tmp) + 1, 0);
+> >  	strcpy(name, tmp);
+> >  
+> >  	return name;
+> > @@ -117,7 +117,7 @@ alloc_io7(unsigned int pe)
+> >  		return NULL;
+> >  	}
+> >  
+> > -	io7 = alloc_bootmem(sizeof(*io7));
+> > +	io7 = memblock_alloc(sizeof(*io7), 0);
+> >  	io7->pe = pe;
+> >  	raw_spin_lock_init(&io7->irq_lock);
+> >  
+> > diff --git a/arch/alpha/kernel/pci-noop.c b/arch/alpha/kernel/pci-noop.c
+> > index c7c5879..59cbfc2 100644
+> > --- a/arch/alpha/kernel/pci-noop.c
+> > +++ b/arch/alpha/kernel/pci-noop.c
+> > @@ -33,7 +33,7 @@ alloc_pci_controller(void)
+> >  {
+> >  	struct pci_controller *hose;
+> >  
+> > -	hose = alloc_bootmem(sizeof(*hose));
+> > +	hose = memblock_alloc(sizeof(*hose), 0);
+> >  
+> >  	*hose_tail = hose;
+> >  	hose_tail = &hose->next;
+> > @@ -44,7 +44,7 @@ alloc_pci_controller(void)
+> >  struct resource * __init
+> >  alloc_resource(void)
+> >  {
+> > -	return alloc_bootmem(sizeof(struct resource));
+> > +	return memblock_alloc(sizeof(struct resource), 0);
+> >  }
+> >  
+> >  SYSCALL_DEFINE3(pciconfig_iobase, long, which, unsigned long, bus,
+> > diff --git a/arch/alpha/kernel/pci.c b/arch/alpha/kernel/pci.c
+> > index c668c3b..4cc3eb9 100644
+> > --- a/arch/alpha/kernel/pci.c
+> > +++ b/arch/alpha/kernel/pci.c
+> > @@ -392,7 +392,7 @@ alloc_pci_controller(void)
+> >  {
+> >  	struct pci_controller *hose;
+> >  
+> > -	hose = alloc_bootmem(sizeof(*hose));
+> > +	hose = memblock_alloc(sizeof(*hose), 0);
+> >  
+> >  	*hose_tail = hose;
+> >  	hose_tail = &hose->next;
+> > @@ -403,7 +403,7 @@ alloc_pci_controller(void)
+> >  struct resource * __init
+> >  alloc_resource(void)
+> >  {
+> > -	return alloc_bootmem(sizeof(struct resource));
+> > +	return memblock_alloc(sizeof(struct resource), 0);
+> >  }
+> >  
+> >  
+> > diff --git a/arch/alpha/kernel/pci_iommu.c b/arch/alpha/kernel/pci_iommu.c
+> > index 0c05493..5d178c7 100644
+> > --- a/arch/alpha/kernel/pci_iommu.c
+> > +++ b/arch/alpha/kernel/pci_iommu.c
+> > @@ -79,7 +79,7 @@ iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
+> >  		printk("%s: couldn't allocate arena from node %d\n"
+> >  		       "    falling back to system-wide allocation\n",
+> >  		       __func__, nid);
+> > -		arena = alloc_bootmem(sizeof(*arena));
+> > +		arena = memblock_alloc(sizeof(*arena), 0);
+> >  	}
+> >  
+> >  	arena->ptes = memblock_alloc_node(sizeof(*arena), align, nid);
+> > @@ -92,7 +92,7 @@ iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
+> >  
+> >  #else /* CONFIG_DISCONTIGMEM */
+> >  
+> > -	arena = alloc_bootmem(sizeof(*arena));
+> > +	arena = memblock_alloc(sizeof(*arena), 0);
+> >  	arena->ptes = memblock_alloc_from(mem_size, align, 0);
+> >  
+> >  #endif /* CONFIG_DISCONTIGMEM */
+> > diff --git a/arch/ia64/kernel/mca.c b/arch/ia64/kernel/mca.c
+> > index 5586926..7120976 100644
+> > --- a/arch/ia64/kernel/mca.c
+> > +++ b/arch/ia64/kernel/mca.c
+> > @@ -361,9 +361,9 @@ static ia64_state_log_t ia64_state_log[IA64_MAX_LOG_TYPES];
+> >  
+> >  #define IA64_LOG_ALLOCATE(it, size) \
+> >  	{ia64_state_log[it].isl_log[IA64_LOG_CURR_INDEX(it)] = \
+> > -		(ia64_err_rec_t *)alloc_bootmem(size); \
+> > +		(ia64_err_rec_t *)memblock_alloc(size, 0); \
+> >  	ia64_state_log[it].isl_log[IA64_LOG_NEXT_INDEX(it)] = \
+> > -		(ia64_err_rec_t *)alloc_bootmem(size);}
+> > +		(ia64_err_rec_t *)memblock_alloc(size, 0);}
+> >  #define IA64_LOG_LOCK_INIT(it) spin_lock_init(&ia64_state_log[it].isl_lock)
+> >  #define IA64_LOG_LOCK(it)      spin_lock_irqsave(&ia64_state_log[it].isl_lock, s)
+> >  #define IA64_LOG_UNLOCK(it)    spin_unlock_irqrestore(&ia64_state_log[it].isl_lock,s)
+> > diff --git a/arch/ia64/mm/tlb.c b/arch/ia64/mm/tlb.c
+> > index acf10eb..5554863 100644
+> > --- a/arch/ia64/mm/tlb.c
+> > +++ b/arch/ia64/mm/tlb.c
+> > @@ -59,8 +59,8 @@ struct ia64_tr_entry *ia64_idtrs[NR_CPUS];
+> >  void __init
+> >  mmu_context_init (void)
+> >  {
+> > -	ia64_ctx.bitmap = alloc_bootmem((ia64_ctx.max_ctx+1)>>3);
+> > -	ia64_ctx.flushmap = alloc_bootmem((ia64_ctx.max_ctx+1)>>3);
+> > +	ia64_ctx.bitmap = memblock_alloc((ia64_ctx.max_ctx + 1) >> 3, 0);
+> > +	ia64_ctx.flushmap = memblock_alloc((ia64_ctx.max_ctx + 1) >> 3, 0);
+> >  }
+> >  
+> >  /*
+> > diff --git a/arch/m68k/sun3/sun3dvma.c b/arch/m68k/sun3/sun3dvma.c
+> > index 8546922..72d9458 100644
+> > --- a/arch/m68k/sun3/sun3dvma.c
+> > +++ b/arch/m68k/sun3/sun3dvma.c
+> > @@ -267,7 +267,8 @@ void __init dvma_init(void)
+> >  
+> >  	list_add(&(hole->list), &hole_list);
+> >  
+> > -	iommu_use = alloc_bootmem(IOMMU_TOTAL_ENTRIES * sizeof(unsigned long));
+> > +	iommu_use = memblock_alloc(IOMMU_TOTAL_ENTRIES * sizeof(unsigned long),
+> > +				   0);
+> >  
+> >  	dvma_unmap_iommu(DVMA_START, DVMA_SIZE);
+> >  
+> > diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
+> > index df6de7c..8c7f074 100644
+> > --- a/arch/microblaze/mm/init.c
+> > +++ b/arch/microblaze/mm/init.c
+> > @@ -377,7 +377,7 @@ void * __ref zalloc_maybe_bootmem(size_t size, gfp_t mask)
+> >  	if (mem_init_done)
+> >  		p = kzalloc(size, mask);
+> >  	else {
+> > -		p = alloc_bootmem(size);
+> > +		p = memblock_alloc(size, 0);
+> >  		if (p)
+> >  			memset(p, 0, size);
+> >  	}
+> > diff --git a/arch/mips/kernel/setup.c b/arch/mips/kernel/setup.c
+> > index 08f8251..419dfc42 100644
+> > --- a/arch/mips/kernel/setup.c
+> > +++ b/arch/mips/kernel/setup.c
+> > @@ -901,7 +901,7 @@ static void __init resource_init(void)
+> >  		if (end >= HIGHMEM_START)
+> >  			end = HIGHMEM_START - 1;
+> >  
+> > -		res = alloc_bootmem(sizeof(struct resource));
+> > +		res = memblock_alloc(sizeof(struct resource), 0);
+> >  
+> >  		res->start = start;
+> >  		res->end = end;
+> > diff --git a/arch/um/drivers/net_kern.c b/arch/um/drivers/net_kern.c
+> > index 3ef1b48..ef19a39 100644
+> > --- a/arch/um/drivers/net_kern.c
+> > +++ b/arch/um/drivers/net_kern.c
+> > @@ -650,7 +650,7 @@ static int __init eth_setup(char *str)
+> >  		return 1;
+> >  	}
+> >  
+> > -	new = alloc_bootmem(sizeof(*new));
+> > +	new = memblock_alloc(sizeof(*new), 0);
+> >  
+> >  	INIT_LIST_HEAD(&new->list);
+> >  	new->index = n;
+> > diff --git a/arch/um/drivers/vector_kern.c b/arch/um/drivers/vector_kern.c
+> > index c84133c..9d77579 100644
+> > --- a/arch/um/drivers/vector_kern.c
+> > +++ b/arch/um/drivers/vector_kern.c
+> > @@ -1575,7 +1575,7 @@ static int __init vector_setup(char *str)
+> >  				 str, error);
+> >  		return 1;
+> >  	}
+> > -	new = alloc_bootmem(sizeof(*new));
+> > +	new = memblock_alloc(sizeof(*new), 0);
+> >  	INIT_LIST_HEAD(&new->list);
+> >  	new->unit = n;
+> >  	new->arguments = str;
+> > diff --git a/arch/um/kernel/initrd.c b/arch/um/kernel/initrd.c
+> > index 6f6e789..844056c 100644
+> > --- a/arch/um/kernel/initrd.c
+> > +++ b/arch/um/kernel/initrd.c
+> > @@ -36,7 +36,7 @@ int __init read_initrd(void)
+> >  		return 0;
+> >  	}
+> >  
+> > -	area = alloc_bootmem(size);
+> > +	area = memblock_alloc(size, 0);
+> >  
+> >  	if (load_initrd(initrd, area, size) == -1)
+> >  		return 0;
+> > diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
+> > index 3b20607..fd887c1 100644
+> > --- a/arch/x86/kernel/acpi/boot.c
+> > +++ b/arch/x86/kernel/acpi/boot.c
+> > @@ -932,7 +932,8 @@ static int __init acpi_parse_hpet(struct acpi_table_header *table)
+> >  	 * the resource tree during the lateinit timeframe.
+> >  	 */
+> >  #define HPET_RESOURCE_NAME_SIZE 9
+> > -	hpet_res = alloc_bootmem(sizeof(*hpet_res) + HPET_RESOURCE_NAME_SIZE);
+> > +	hpet_res = memblock_alloc(sizeof(*hpet_res) + HPET_RESOURCE_NAME_SIZE,
+> > +				  0);
+> >  
+> >  	hpet_res->name = (void *)&hpet_res[1];
+> >  	hpet_res->flags = IORESOURCE_MEM;
+> > diff --git a/arch/x86/kernel/apic/io_apic.c b/arch/x86/kernel/apic/io_apic.c
+> > index e25118f..8c74509 100644
+> > --- a/arch/x86/kernel/apic/io_apic.c
+> > +++ b/arch/x86/kernel/apic/io_apic.c
+> > @@ -2578,7 +2578,7 @@ static struct resource * __init ioapic_setup_resources(void)
+> >  	n = IOAPIC_RESOURCE_NAME_SIZE + sizeof(struct resource);
+> >  	n *= nr_ioapics;
+> >  
+> > -	mem = alloc_bootmem(n);
+> > +	mem = memblock_alloc(n, 0);
+> >  	res = (void *)mem;
+> >  
+> >  	mem += sizeof(struct resource) * nr_ioapics;
+> > diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+> > index c88c23c..7ea8748 100644
+> > --- a/arch/x86/kernel/e820.c
+> > +++ b/arch/x86/kernel/e820.c
+> > @@ -1094,7 +1094,7 @@ void __init e820__reserve_resources(void)
+> >  	struct resource *res;
+> >  	u64 end;
+> >  
+> > -	res = alloc_bootmem(sizeof(*res) * e820_table->nr_entries);
+> > +	res = memblock_alloc(sizeof(*res) * e820_table->nr_entries, 0);
+> >  	e820_res = res;
+> >  
+> >  	for (i = 0; i < e820_table->nr_entries; i++) {
+> > diff --git a/arch/x86/platform/olpc/olpc_dt.c b/arch/x86/platform/olpc/olpc_dt.c
+> > index d6ee929..140cd76 100644
+> > --- a/arch/x86/platform/olpc/olpc_dt.c
+> > +++ b/arch/x86/platform/olpc/olpc_dt.c
+> > @@ -141,7 +141,7 @@ void * __init prom_early_alloc(unsigned long size)
+> >  		 * fast enough on the platforms we care about while minimizing
+> >  		 * wasted bootmem) and hand off chunks of it to callers.
+> >  		 */
+> > -		res = alloc_bootmem(chunk_size);
+> > +		res = memblock_alloc(chunk_size, 0);
+> >  		BUG_ON(!res);
+> >  		prom_early_allocated += chunk_size;
+> >  		memset(res, 0, chunk_size);
+> > diff --git a/arch/xtensa/platforms/iss/network.c b/arch/xtensa/platforms/iss/network.c
+> > index d027ddd..206b9d4 100644
+> > --- a/arch/xtensa/platforms/iss/network.c
+> > +++ b/arch/xtensa/platforms/iss/network.c
+> > @@ -646,7 +646,7 @@ static int __init iss_net_setup(char *str)
+> >  		return 1;
+> >  	}
+> >  
+> > -	new = alloc_bootmem(sizeof(*new));
+> > +	new = memblock_alloc(sizeof(*new), 0);
+> >  	if (new == NULL) {
+> >  		pr_err("Alloc_bootmem failed\n");
+> >  		return 1;
+> > diff --git a/arch/xtensa/platforms/iss/setup.c b/arch/xtensa/platforms/iss/setup.c
+> > index f4bbb28..a922511 100644
+> > --- a/arch/xtensa/platforms/iss/setup.c
+> > +++ b/arch/xtensa/platforms/iss/setup.c
+> > @@ -82,8 +82,8 @@ void __init platform_setup(char **p_cmdline)
+> >  	int argv_size = simc_argv_size();
+> >  
+> >  	if (argc > 1) {
+> > -		void **argv = alloc_bootmem(argv_size);
+> > -		char *cmdline = alloc_bootmem(argv_size);
+> > +		void **argv = memblock_alloc(argv_size, 0);
+> > +		char *cmdline = memblock_alloc(argv_size, 0);
+> >  		int i;
+> >  
+> >  		cmdline[0] = 0;
+> > diff --git a/drivers/macintosh/smu.c b/drivers/macintosh/smu.c
+> > index e8ae2e5..332fcca 100644
+> > --- a/drivers/macintosh/smu.c
+> > +++ b/drivers/macintosh/smu.c
+> > @@ -493,7 +493,7 @@ int __init smu_init (void)
+> >  		goto fail_np;
+> >  	}
+> >  
+> > -	smu = alloc_bootmem(sizeof(struct smu_device));
+> > +	smu = memblock_alloc(sizeof(struct smu_device), 0);
+> >  
+> >  	spin_lock_init(&smu->lock);
+> >  	INIT_LIST_HEAD(&smu->cmd_list);
+> > diff --git a/init/main.c b/init/main.c
+> > index d0b92bd..99a9e99 100644
+> > --- a/init/main.c
+> > +++ b/init/main.c
+> > @@ -768,8 +768,8 @@ static int __init initcall_blacklist(char *str)
+> >  		str_entry = strsep(&str, ",");
+> >  		if (str_entry) {
+> >  			pr_debug("blacklisting initcall %s\n", str_entry);
+> > -			entry = alloc_bootmem(sizeof(*entry));
+> > -			entry->buf = alloc_bootmem(strlen(str_entry) + 1);
+> > +			entry = memblock_alloc(sizeof(*entry), 0);
+> > +			entry->buf = memblock_alloc(strlen(str_entry) + 1, 0);
+> >  			strcpy(entry->buf, str_entry);
+> >  			list_add(&entry->next, &blacklisted_initcalls);
+> >  		}
+> > -- 
+> > 2.7.4
+> > 
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
 
-So I don't see the point of changing return value block_page_mkwrite()
-(although to be honest I haven't see the value of the vm_fault_t
-change at all in the first place, at least not compared to the pain it
-has caused) but no, I don't think it's worth it.
-
-The API for block_page_mkwrite() can simply be defined as "0 on
-success, < 0 on error".  You can add documentation that it's up to
-caller of block_page_mkwrite() to call block_page_mkwrite_return() to
-translate the error to a vm_fault_t.
-
-> > One solution for passing error codes we could use with vm_fault_t is a
-> > scheme similar to ERR_PTR. So we can store full error code in vm_fault_t
-> > and still have a plenty of space for the special VM_FAULT_ return codes...
-> > With that scheme converting block_page_mkwrite() would be trivial.
-> >
-> I didn't get this part. Any reference code will be helpful ?
-
-So what we do for functions that need to either return an error or a
-pointer is to call encode the error as a "pointer" by using ERR_PTR(),
-and the caller can determine whether or not it is a valid pointer or
-an error code by using IS_ERR_VALUE() and turning it back into an
-error by using PTR_ERR().   See include/linux/err.h.
-
-Similarly, all valid vm_fault_t's composed of VM_FAULT_xxx are
-positive integers, and all errors are passed using the kernel's
-convention of using a negative error code.  So going through lots of
-machinations to return both an error code and a vm_fault_t *really*
-wasn't necessary.
-
-The issue, as near as I can understand things, for why we're going
-through all of this churn, was there was a concern that in the mm
-code, that all of the places which received a vm_fault_t would
-sometimes see a negative error code.  The proposal here is to just
-*accept* that this will happen, and just simply have them *check* to
-see if it's a negative error code, and convert it to the appropriate
-vm_fault_t in that case.  It puts the onus of the change on the mm
-layer, where as the "blast radius" of the vm_fault_t "cleanup" is
-spread out across a large number of subsystems.
-
-Which I wouldn't mind, if it wasn't causing pain.  But it *is* causing
-pain.
-
-And it's common kernel convention to overload an error and a pointer
-using the exact same trick.  We do it *all* over the place, and quite
-frankly, it's less error prone than changing functions to return a
-pointer and an error.  No one has said, "let's do to the ERR_PTR
-convention what we've done to the vm_fault_t -- it's too confusing
-that a pointer might be an error, since people might forget to check
-for it."  If they did that, it would be NACK'ed right, left and
-center.  But yet it's a good idea for vm_fault_t?
-
-	     	      	     	      - Ted
+-- 
+Sincerely yours,
+Mike.
