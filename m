@@ -1,74 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A139B6B7A91
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 16:30:14 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id u22-v6so8819709qkk.10
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 13:30:14 -0700 (PDT)
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id j9-v6si1046419qtb.398.2018.09.06.13.30.11
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F41326B7ABA
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 17:13:27 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id f32-v6so6045892pgm.14
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 14:13:27 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id f21-v6si6553081pgk.418.2018.09.06.14.13.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Sep 2018 13:30:11 -0700 (PDT)
-Message-ID: <fa7c625dfbbe103b37bc3ab5ea4b7283fd13b998.camel@surriel.com>
-Subject: Re: [RFC PATCH 1/2] mm: move tlb_table_flush to tlb_flush_mmu_free
-From: Rik van Riel <riel@surriel.com>
-Date: Thu, 06 Sep 2018 16:29:59 -0400
-In-Reply-To: <20180823084709.19717-2-npiggin@gmail.com>
-References: <20180823084709.19717-1-npiggin@gmail.com>
-	 <20180823084709.19717-2-npiggin@gmail.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-QttmgVvdlWOXMEILqZsq"
-Mime-Version: 1.0
+        Thu, 06 Sep 2018 14:13:26 -0700 (PDT)
+Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
+ processes.
+References: <20180806134550.GO19540@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1808061315220.43071@chino.kir.corp.google.com>
+ <20180806205121.GM10003@dhcp22.suse.cz>
+ <0aeb76e1-558f-e38e-4c66-77be3ce56b34@I-love.SAKURA.ne.jp>
+ <20180906113553.GR14951@dhcp22.suse.cz>
+ <87b76eea-9881-724a-442a-c6079cbf1016@i-love.sakura.ne.jp>
+ <20180906120508.GT14951@dhcp22.suse.cz>
+ <37b763c1-b83e-1632-3187-55fb360a914e@i-love.sakura.ne.jp>
+ <20180906135615.GA14951@dhcp22.suse.cz>
+ <8dd6bc67-3f35-fdc6-a86a-cf8426608c75@i-love.sakura.ne.jp>
+ <20180906141632.GB14951@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <55a3fb37-3246-73d7-0f45-5835a3f4831c@i-love.sakura.ne.jp>
+Date: Fri, 7 Sep 2018 06:13:13 +0900
+MIME-Version: 1.0
+In-Reply-To: <20180906141632.GB14951@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: torvalds@linux-foundation.org, luto@kernel.org, x86@kernel.org, bp@alien8.de, will.deacon@arm.com, jannh@google.com, ascannell@google.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, linux-arch@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>
 
+On 2018/09/06 23:16, Michal Hocko wrote:
+> On Thu 06-09-18 23:06:40, Tetsuo Handa wrote:
+>> On 2018/09/06 22:56, Michal Hocko wrote:
+>>> On Thu 06-09-18 22:40:24, Tetsuo Handa wrote:
+>>>> On 2018/09/06 21:05, Michal Hocko wrote:
+>>>>>> If you are too busy, please show "the point of no-blocking" using source code
+>>>>>> instead. If such "the point of no-blocking" really exists, it can be executed
+>>>>>> by allocating threads.
+>>>>>
+>>>>> I would have to study this much deeper but I _suspect_ that we are not
+>>>>> taking any blocking locks right after we return from unmap_vmas. In
+>>>>> other words the place we used to have synchronization with the
+>>>>> oom_reaper in the past.
+>>>>
+>>>> See commit 97b1255cb27c551d ("mm,oom_reaper: check for MMF_OOM_SKIP before
+>>>> complaining"). Since this dependency is inode-based (i.e. irrelevant with
+>>>> OOM victims), waiting for this lock can livelock.
+>>>>
+>>>> So, where is safe "the point of no-blocking" ?
+>>>
+>>> Ohh, right unlink_file_vma and its i_mmap_rwsem lock. As I've said I
+>>> have to think about that some more. Maybe we can split those into two parts.
+>>>
+>>
+>> Meanwhile, I'd really like to use timeout based back off. Like I wrote at
+>> http://lkml.kernel.org/r/201809060703.w8673Kbs076435@www262.sakura.ne.jp ,
+>> we need to wait for some period after all.
+>>
+>> We can replace timeout based back off after we got safe "the point of no-blocking" .
+> 
+> Why don't you invest your time in the long term solution rather than
+> playing with something that doesn't solve anything just papers over the
+> issue?
+> 
 
---=-QttmgVvdlWOXMEILqZsq
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-On Thu, 2018-08-23 at 18:47 +1000, Nicholas Piggin wrote:
-> There is no need to call this from tlb_flush_mmu_tlbonly, it
-> logically belongs with tlb_flush_mmu_free. This allows some
-> code consolidation with a subsequent fix.
->=20
-> Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
-
-Reviewed-by: Rik van Riel <riel@surriel.com>
-
-This patch also fixes an infinite recursion bug
-with CONFIG_HAVE_RCU_TABLE_FREE enabled, which
-has this call trace:
-
-tlb_table_flush
-  -> tlb_table_invalidate
-     -> tlb_flush_mmu_tlbonly
-        -> tlb_table_flush
-           -> ... (infinite recursion)
-
-This should probably be applied sooner rather than
-later.
-
---=20
-All Rights Reversed.
-
---=-QttmgVvdlWOXMEILqZsq
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAluRjkcACgkQznnekoTE
-3oOfdAgAgn63e88Lj0I9lDDOx5WKhEfgPfWM7o5JhGZg8FxNA8lfLlgA3tFPYd4+
-mYWwbBpKSf+yLLRvy4V7V4pv7b0gk7jYTvxir3iOfFcFZ0OQVKYrbr2+txZJb6Xj
-tosM9v5SsYMwJHGw+1cD0DQsvR/6uio0TthxchcpV4bNVvW1X8HlzFarPY32kpf8
-HRU7NF/7gS2sxPQLPC/i+m4YgnuIq5xfseMOVVFp7H+uNI5BLCyrDm74zbFbtj1A
-HtFG9Yp4pj0KX/Bq7oiLOQ9suEtcJUI46sERyergDvFFRhTwoBGRxJ/wbKRQkxIF
-elqWT6jifgV0u6aRFHPPkEIuIUdTbg==
-=/CHW
------END PGP SIGNATURE-----
-
---=-QttmgVvdlWOXMEILqZsq--
+I am not a MM people. I am a secure programmer from security subsystem.
+You are almost always introducing bugs (like you call dragons) rather
+than starting from safe changes. The OOM killer _is_ always racy. Even
+your what you think the long term solution _shall be_ racy. I can't
+waste my time in what you think the long term solution. Please don't
+refuse/ignore my (or David's) patches without your counter patches.
