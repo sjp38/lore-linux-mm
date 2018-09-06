@@ -1,68 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B78CE6B7AD7
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 17:36:54 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id e15-v6so6426870pfi.5
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 14:36:54 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id u24-v6si6431386pgk.72.2018.09.06.14.36.53
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 838DA6B7AEB
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 17:54:08 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id g36-v6so6059981plb.5
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 14:54:08 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id f89-v6si5806810plf.20.2018.09.06.14.54.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Sep 2018 14:36:53 -0700 (PDT)
-Subject: Re: Plumbers 2018 - Performance and Scalability Microconference
-References: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com>
- <01000165aa490dc9-64abf872-afd1-4a81-a46d-a50d0131de93-000000@email.amazonses.com>
- <877ejzqtdy.fsf@yhuang-dev.intel.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <bd6f6f8b-4880-6c20-62f5-bb6ca3b5e6f7@oracle.com>
-Date: Thu, 6 Sep 2018 14:36:38 -0700
+        Thu, 06 Sep 2018 14:54:07 -0700 (PDT)
+Subject: Re: [PATCH] mm, oom: Introduce time limit for dump_tasks duration.
+References: <0252ad5d-46e6-0d7f-ef91-4e316657a83d@i-love.sakura.ne.jp>
+ <CACT4Y+Yp6ZbusCWg5C1zaJpcS8=XnGPboKgWfyxVk1axQA2nbw@mail.gmail.com>
+ <201809060553.w865rmpj036017@www262.sakura.ne.jp>
+ <CACT4Y+YKJWJr-5rBQidt6nY7+VF=BAsvHyh+XTaf8spwNy3qPA@mail.gmail.com>
+ <58aa0543-86d0-b2ad-7fb9-9bed7c6a1f6c@i-love.sakura.ne.jp>
+ <20180906112306.GO14951@dhcp22.suse.cz>
+ <1611e45d-235e-67e9-26e3-d0228255fa2f@i-love.sakura.ne.jp>
+ <20180906115320.GS14951@dhcp22.suse.cz>
+ <7f50772a-f2ef-d16e-4d09-7f34f4bf9227@i-love.sakura.ne.jp>
+ <20180906143905.GC14951@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <32c58019-5e2d-b3a1-a6ad-ea374ccd8b60@i-love.sakura.ne.jp>
+Date: Fri, 7 Sep 2018 05:58:06 +0900
 MIME-Version: 1.0
-In-Reply-To: <877ejzqtdy.fsf@yhuang-dev.intel.com>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <20180906143905.GC14951@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>, Christopher Lameter <cl@linux.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Aaron Lu <aaron.lu@intel.com>, alex.kogan@oracle.com, akpm@linux-foundation.org, boqun.feng@gmail.com, brouer@redhat.com, dave@stgolabs.net, dave.dice@oracle.com, Dhaval Giani <dhaval.giani@oracle.com>, ktkhai@virtuozzo.com, ldufour@linux.vnet.ibm.com, Pavel.Tatashin@microsoft.com, paulmck@linux.vnet.ibm.com, shady.issa@oracle.com, tariqt@mellanox.com, tglx@linutronix.de, tim.c.chen@intel.com, vbabka@suse.cz, longman@redhat.com, yang.shi@linux.alibaba.com, shy828301@gmail.com, subhra.mazumdar@oracle.com, Steven Sistare <steven.sistare@oracle.com>, jwadams@google.com, ashwinch@google.com, sqazi@google.com, Shakeel Butt <shakeelb@google.com>, walken@google.com, rientjes@google.com, junaids@google.com, Neha Agarwal <nehaagarwal@google.com>, Hugh Dickins <hughd@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, syzbot <syzbot+f0fc7f62e88b1de99af3@syzkaller.appspotmail.com>, 'Dmitry Vyukov' via syzkaller-upstream-moderation <syzkaller-upstream-moderation@googlegroups.com>, linux-mm <linux-mm@kvack.org>
 
-On 09/05/2018 06:58 PM, Huang, Ying wrote:
-> Hi, Christopher,
-> 
-> Christopher Lameter <cl@linux.com> writes:
-> 
->> On Tue, 4 Sep 2018, Daniel Jordan wrote:
+On 2018/09/06 23:39, Michal Hocko wrote:
+>>>> I know /proc/sys/vm/oom_dump_tasks . Showing some entries while not always
+>>>> printing all entries might be helpful.
+>>>
+>>> Not really. It could be more confusing than helpful. The main purpose of
+>>> the listing is to double check the list to understand the oom victim
+>>> selection. If you have a partial list you simply cannot do that.
 >>
->>>  - Promoting huge page usage:  With memory sizes becoming ever larger, huge
->>> pages are becoming more and more important to reduce TLB misses and the
->>> overhead of memory management itself--that is, to make the system scalable
->>> with the memory size.  But there are still some remaining gaps that prevent
->>> huge pages from being deployed in some situations, such as huge page
->>> allocation latency and memory fragmentation.
+>> It serves as a safeguard for avoiding RCU stall warnings.
 >>
->> You forgot the major issue that huge pages in the page cache are not
->> supported and thus we have performance issues with fast NVME drives that
->> are now able to do 3Gbytes per sec that are only possible to reach with
->> directio and huge pages.
-> 
-> Yes.  That is an important gap for huge page.  Although we have huge
-> page cache support for tmpfs, we lacks that for normal file systems.
-> 
->> IMHO the huge page issue is just the reflection of a certain hardware
->> manufacturer inflicting pain for over a decade on its poor users by not
->> supporting larger base page sizes than 4k. No such workarounds needed on
->> platforms that support large sizes. Things just zoom along without
->> contortions necessary to deal with huge pages etc.
+>>>
+>>> If the iteration takes too long and I can imagine it does with zillions
+>>> of tasks then the proper way around it is either release the lock
+>>> periodically after N tasks is processed or outright skip the whole thing
+>>> if there are too many tasks. The first option is obviously tricky to
+>>> prevent from duplicate entries or other artifacts.
+>>>
 >>
->> Can we come up with a 2M base page VM or something? We have possible
->> memory sizes of a couple TB now. That should give us a million or so 2M
->> pages to work with.
+>> Can we add rcu_lock_break() like check_hung_uninterruptible_tasks() does?
 > 
-> That sounds a good idea.  Don't know whether someone has tried this.
+> This would be a better variant of your timeout based approach. But it
+> can still produce an incomplete task list so it still consumes a lot of
+> resources to print a long list of tasks potentially while that list is not
+> useful for any evaluation. Maybe that is good enough. I don't know. I
+> would generally recommend to disable the whole thing with workloads with
+> many tasks though.
+> 
 
-IIRC, Hugh Dickins and some others at Google tried going down this path.
-There was a brief discussion at LSF/MM.  It is something I too would like
-to explore in my spare time.
-
--- 
-Mike Kravetz
+The "safeguard" is useful when there are _unexpectedly_ many tasks (like
+syzbot in this case). Why not to allow those who want to avoid lockup to
+avoid lockup rather than forcing them to disable the whole thing?
