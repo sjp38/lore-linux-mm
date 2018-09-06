@@ -1,80 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 80DD36B7635
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 21:58:27 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id a10-v6so4672572pls.23
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 18:58:27 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id e4-v6si3800224pgk.630.2018.09.05.18.58.25
+Received: from mail-ua1-f71.google.com (mail-ua1-f71.google.com [209.85.222.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 283146B765B
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 22:34:27 -0400 (EDT)
+Received: by mail-ua1-f71.google.com with SMTP id g9-v6so4021346uam.17
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 19:34:27 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e67-v6sor810050vkh.214.2018.09.05.19.34.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Sep 2018 18:58:26 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: Plumbers 2018 - Performance and Scalability Microconference
-References: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com>
-	<01000165aa490dc9-64abf872-afd1-4a81-a46d-a50d0131de93-000000@email.amazonses.com>
-Date: Thu, 06 Sep 2018 09:58:17 +0800
-In-Reply-To: <01000165aa490dc9-64abf872-afd1-4a81-a46d-a50d0131de93-000000@email.amazonses.com>
-	(Christopher Lameter's message of "Wed, 5 Sep 2018 15:10:39 +0000")
-Message-ID: <877ejzqtdy.fsf@yhuang-dev.intel.com>
+        (Google Transport Security);
+        Wed, 05 Sep 2018 19:34:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+References: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
+In-Reply-To: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
+From: Greentime Hu <green.hu@gmail.com>
+Date: Thu, 6 Sep 2018 10:33:48 +0800
+Message-ID: <CAEbi=3dKL1zOYc0DC3yXm=7srw6tUfx-JR=o9n4pVrGp+Sosug@mail.gmail.com>
+Subject: Re: [RFC PATCH 00/29] mm: remove bootmem allocator
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Aaron Lu <aaron.lu@intel.com>, alex.kogan@oracle.com, akpm@linux-foundation.org, boqun.feng@gmail.com, brouer@redhat.com, dave@stgolabs.net, dave.dice@oracle.com, Dhaval Giani <dhaval.giani@oracle.com>, ktkhai@virtuozzo.com, ldufour@linux.vnet.ibm.com, Pavel.Tatashin@microsoft.com, paulmck@linux.vnet.ibm.com, shady.issa@oracle.com, tariqt@mellanox.com, tglx@linutronix.de, tim.c.chen@intel.com, vbabka@suse.cz, longman@redhat.com, yang.shi@linux.alibaba.com, shy828301@gmail.com, subhra.mazumdar@oracle.com, Steven Sistare <steven.sistare@oracle.com>, jwadams@google.com, ashwinch@google.com, sqazi@google.com, Shakeel Butt <shakeelb@google.com>, walken@google.com, rientjes@google.com, junaids@google.com, Neha Agarwal <nehaagarwal@google.com>
+To: rppt@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, gregkh@linuxfoundation.org, mingo@redhat.com, mpe@ellerman.id.au, mhocko@suse.com, paul.burton@mips.com, Thomas Gleixner <tglx@linutronix.de>, tony.luck@intel.com, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, sparclinux <sparclinux@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Hi, Christopher,
-
-Christopher Lameter <cl@linux.com> writes:
-
-> On Tue, 4 Sep 2018, Daniel Jordan wrote:
+Mike Rapoport <rppt@linux.vnet.ibm.com> =E6=96=BC 2018=E5=B9=B49=E6=9C=886=
+=E6=97=A5 =E9=80=B1=E5=9B=9B =E4=B8=8A=E5=8D=8812:04=E5=AF=AB=E9=81=93=EF=
+=BC=9A
 >
->>  - Promoting huge page usage:  With memory sizes becoming ever larger, huge
->> pages are becoming more and more important to reduce TLB misses and the
->> overhead of memory management itself--that is, to make the system scalable
->> with the memory size.  But there are still some remaining gaps that prevent
->> huge pages from being deployed in some situations, such as huge page
->> allocation latency and memory fragmentation.
+> Hi,
 >
-> You forgot the major issue that huge pages in the page cache are not
-> supported and thus we have performance issues with fast NVME drives that
-> are now able to do 3Gbytes per sec that are only possible to reach with
-> directio and huge pages.
-
-Yes.  That is an important gap for huge page.  Although we have huge
-page cache support for tmpfs, we lacks that for normal file systems.
-
-> IMHO the huge page issue is just the reflection of a certain hardware
-> manufacturer inflicting pain for over a decade on its poor users by not
-> supporting larger base page sizes than 4k. No such workarounds needed on
-> platforms that support large sizes. Things just zoom along without
-> contortions necessary to deal with huge pages etc.
+> These patches switch early memory managment to use memblock directly
+> without any bootmem compatibility wrappers. As the result both bootmem an=
+d
+> nobootmem are removed.
 >
-> Can we come up with a 2M base page VM or something? We have possible
-> memory sizes of a couple TB now. That should give us a million or so 2M
-> pages to work with.
-
-That sounds a good idea.  Don't know whether someone has tried this.
-
->>  - Reducing the number of users of mmap_sem:  This semaphore is frequently
->> used throughout the kernel.  In order to facilitate scaling this longstanding
->> bottleneck, these uses should be documented and unnecessary users should be
->> fixed.
+> There are still a couple of things to sort out, the most important is the
+> removal of bootmem usage in MIPS.
 >
+> Still, IMHO, the series is in sufficient state to post and get the early
+> feedback.
 >
-> Large page sizes also reduce contention there.
-
-Yes.
-
->> If you haven't already done so, please let us know if you are interested in
->> attending, or have suggestions for other attendees.
+> The patches are build-tested with defconfig for most architectures (I
+> couldn't find a compiler for nds32 and unicore32) and boot-tested on x86
+> VM.
 >
-> Certainly interested in attending but this overlaps supercomputing 2018 in
-> Dallas Texas...
+Hi Mike,
 
-Sorry to know this.  It appears that there are too many conferences in
-November...
+There are nds32 toolchains.
+https://mirrors.edge.kernel.org/pub/tools/crosstool/files/bin/x86_64/8.1.0/=
+x86_64-gcc-8.1.0-nolibc-nds32le-linux.tar.gz
+https://github.com/vincentzwc/prebuilt-nds32-toolchain/releases/download/20=
+180521/nds32le-linux-glibc-v3-upstream.tar.gz
 
-Best Regards,
-Huang, Ying
+Sorry, we have no qemu yet.
