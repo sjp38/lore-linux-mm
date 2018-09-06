@@ -1,66 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 85BDE6B7854
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 06:59:04 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id h40-v6so3553726edb.2
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 03:59:04 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l8-v6si3915845edb.116.2018.09.06.03.59.03
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B80266B785D
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 07:06:25 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id k143-v6so11208368ite.5
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 04:06:25 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r198-v6sor2806375itc.105.2018.09.06.04.06.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Sep 2018 03:59:03 -0700 (PDT)
-Subject: Re: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE mappings
-References: <20180823105253.GB29735@dhcp22.suse.cz>
- <20180828075321.GD10223@dhcp22.suse.cz>
- <20180828081837.GG10223@dhcp22.suse.cz>
- <D5F4A33C-0A37-495C-9468-D6866A862097@cs.rutgers.edu>
- <20180829142816.GX10223@dhcp22.suse.cz>
- <20180829143545.GY10223@dhcp22.suse.cz>
- <82CA00EB-BF8E-4137-953B-8BC4B74B99AF@cs.rutgers.edu>
- <20180829154744.GC10223@dhcp22.suse.cz>
- <39BE14E6-D0FB-428A-B062-8B5AEDC06E61@cs.rutgers.edu>
- <20180829162528.GD10223@dhcp22.suse.cz>
- <20180829192451.GG10223@dhcp22.suse.cz>
- <E97C9342-9BA0-48DD-A580-738ACEE49B41@cs.rutgers.edu>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <2208ad4d-e5eb-fc53-cdc8-a351f2b6b9d1@suse.cz>
-Date: Thu, 6 Sep 2018 12:59:00 +0200
+        (Google Transport Security);
+        Thu, 06 Sep 2018 04:06:24 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <E97C9342-9BA0-48DD-A580-738ACEE49B41@cs.rutgers.edu>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180906100543.GI3592@arm.com>
+References: <cover.1535462971.git.andreyknvl@google.com> <20180905141032.b1ddaab53d1b2b3bada95415@linux-foundation.org>
+ <20180906100543.GI3592@arm.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Thu, 6 Sep 2018 13:06:23 +0200
+Message-ID: <CAAeHK+wStsNwh2oKv-KCG4kx5538FuDMQ6Yw2X=sK5LPrw2DZg@mail.gmail.com>
+Subject: Re: [PATCH v6 00/18] khwasan: kernel hardware assisted address sanitizer
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>, Michal Hocko <mhocko@suse.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
 
-On 08/30/2018 12:54 AM, Zi Yan wrote:
-> 
-> Thanks for your patch.
-> 
-> I tested it against Linusa??s tree with a??memhog -r3 130ga?? in a two-socket machine with 128GB memory on
-> each node and got the results below. I expect this test should fill one node, then fall back to the other.
-> 
-> 1. madvise(MADV_HUGEPAGE) + defrag = {always, madvise, defer+madvise}: no swap, THPs are allocated in the fallback node.
-> 2. madvise(MADV_HUGEPAGE) + defrag = defer: pages got swapped to the disk instead of being allocated in the fallback node.
+On Thu, Sep 6, 2018 at 12:05 PM, Will Deacon <will.deacon@arm.com> wrote:
+> On Wed, Sep 05, 2018 at 02:10:32PM -0700, Andrew Morton wrote:
+>> On Wed, 29 Aug 2018 13:35:04 +0200 Andrey Konovalov <andreyknvl@google.com> wrote:
+>>
+>> > This patchset adds a new mode to KASAN [1], which is called KHWASAN
+>> > (Kernel HardWare assisted Address SANitizer).
+>>
+>> We're at v6 and there are no reviewed-by's or acked-by's to be seen.
+>> Is that a fair commentary on what has been happening, or have people
+>> been remiss in sending and gathering such things?
+>
+> I still have concerns about the consequences of merging this as anything
+> other than a debug option [1]. Unfortunately, merging it as a debug option
+> defeats the whole point, so I think we need to spend more effort on developing
+> tools that can help us to find and fix the subtle bugs which will arise from
+> enabling tagged pointers in the kernel.
 
-Hmm this is GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM | __GFP_THISNODE.
-No direct reclaim, so it would have to be kswapd causing the swapping? I
-wouldn't expect it to be significant and over-reclaiming. What exactly
-is your definition of "pages got swapped"?
+I totally don't mind calling it a debug option. Do I need to somehow
+specify it somewhere?
 
-> 3. no madvise, THP is on by default + defrag = {always, defer, defer+madvise}: pages got swapped to the disk instead of
-> being allocated in the fallback node.
-
-So this should be the most common case (no madvise, THP on). If it's
-causing too much reclaim, it's not good IMHO.
-
-depending on defrag:
-defer (the default) = same as above, so it would have to be kswapd
-always = GFP_TRANSHUGE_LIGHT | __GFP_DIRECT_RECLAIM | __GFP_NORETRY |
-__GFP_THISNODE
-  - so direct reclaim also overreclaims despite __GFP_NORETRY?
-defer+madvise = same as defer
-
-Vlastimil
+Why does it defeat the point? The point is to ease KASAN-like testing
+on devices with limited memory.
