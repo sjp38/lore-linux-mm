@@ -1,95 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D0876B79DA
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 13:23:59 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id u45-v6so11494763qte.12
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 10:23:59 -0700 (PDT)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0118.outbound.protection.outlook.com. [104.47.36.118])
-        by mx.google.com with ESMTPS id z9-v6si4082435qtf.74.2018.09.06.10.23.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Sep 2018 10:23:57 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: Re: [PATCH v2 1/2] mm: Move page struct poisoning to
- CONFIG_DEBUG_VM_PAGE_INIT_POISON
-Date: Thu, 6 Sep 2018 17:23:55 +0000
-Message-ID: <253d702e-aa68-878d-716b-85002a9d9387@microsoft.com>
-References: <20180905211041.3286.19083.stgit@localhost.localdomain>
- <20180905211328.3286.71674.stgit@localhost.localdomain>
- <20180906054735.GJ14951@dhcp22.suse.cz>
- <0c1c36f7-f45a-8fe9-dd52-0f60b42064a9@intel.com>
- <20180906151336.GD14951@dhcp22.suse.cz>
- <CAKgT0UfiKWZO6hyjc1RpRTgD+CvM=KnbYokSueLFi7X5h+GMKQ@mail.gmail.com>
- <20180906170334.GE14951@dhcp22.suse.cz>
-In-Reply-To: <20180906170334.GE14951@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <5C57372D2399DD40950C1BD0611D1F55@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 65B086B79EA
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 13:41:11 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id s200-v6so13664977oie.6
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 10:41:11 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id f2-v6si3907997oih.58.2018.09.06.10.41.09
+        for <linux-mm@kvack.org>;
+        Thu, 06 Sep 2018 10:41:10 -0700 (PDT)
+Subject: Re: [PATCH v2 03/40] iommu/sva: Manage process address spaces
+References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
+ <20180511190641.23008-4-jean-philippe.brucker@arm.com>
+ <d785ec89-6743-d0f1-1a7f-85599a033e5b@redhat.com>
+ <20180905111835.7f3ae40e@jacob-builder>
+From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
+Message-ID: <574a1792-7ac5-e4db-6eae-16ef700cba02@arm.com>
+Date: Thu, 6 Sep 2018 18:40:49 +0100
 MIME-Version: 1.0
+In-Reply-To: <20180905111835.7f3ae40e@jacob-builder>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Alexander Duyck <alexander.duyck@gmail.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Duyck, Alexander H" <alexander.h.duyck@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Jacob Pan <jacob.jun.pan@linux.intel.com>, Auger Eric <eric.auger@redhat.com>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "liubo95@huawei.com" <liubo95@huawei.com>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, Will Deacon <Will.Deacon@arm.com>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "tn@semihalf.com" <tn@semihalf.com>, "joro@8bytes.org" <joro@8bytes.org>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "rfranz@cavium.com" <rfranz@cavium.com>, "kevin.tian@intel.com" <kevin.tian@intel.com>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "rgummal@xilinx.com" <rgummal@xilinx.com>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, Robin Murphy <Robin.Murphy@arm.com>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "robdclark@gmail.com" <robdclark@gmail.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "christian.koenig@amd.com" <christian.koenig@amd.com>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>
 
-DQoNCk9uIDkvNi8xOCAxOjAzIFBNLCBNaWNoYWwgSG9ja28gd3JvdGU6DQo+IE9uIFRodSAwNi0w
-OS0xOCAwODo0MTo1MiwgQWxleGFuZGVyIER1eWNrIHdyb3RlOg0KPj4gT24gVGh1LCBTZXAgNiwg
-MjAxOCBhdCA4OjEzIEFNIE1pY2hhbCBIb2NrbyA8bWhvY2tvQGtlcm5lbC5vcmc+IHdyb3RlOg0K
-Pj4+DQo+Pj4gT24gVGh1IDA2LTA5LTE4IDA3OjU5OjAzLCBEYXZlIEhhbnNlbiB3cm90ZToNCj4+
-Pj4gT24gMDkvMDUvMjAxOCAxMDo0NyBQTSwgTWljaGFsIEhvY2tvIHdyb3RlOg0KPj4+Pj4gd2h5
-IGRvIHlvdSBoYXZlIHRvIGtlZXAgREVCVUdfVk0gZW5hYmxlZCBmb3Igd29ya2xvYWRzIHdoZXJl
-IHRoZSBib290DQo+Pj4+PiB0aW1lIG1hdHRlcnMgc28gbXVjaCB0aGF0IGZldyBzZWNvbmRzIG1h
-dHRlcj8NCj4+Pj4NCj4+Pj4gVGhlcmUgYXJlIGEgbnVtYmVyIG9mIGRpc3RyaWJ1dGlvbnMgdGhh
-dCBydW4gd2l0aCBpdCBlbmFibGVkIGluIHRoZQ0KPj4+PiBkZWZhdWx0IGJ1aWxkLiAgRmVkb3Jh
-LCBmb3Igb25lLiAgV2UndmUgYmFzaWNhbGx5IGFzc3VtZWQgZm9yIGEgd2hpbGUNCj4+Pj4gdGhh
-dCB3ZSBoYXZlIHRvIGxpdmUgd2l0aCBpdCBpbiBwcm9kdWN0aW9uIGVudmlyb25tZW50cy4NCj4+
-Pj4NCj4+Pj4gU28sIHdoZXJlIGRvZXMgbGVhdmUgdXM/ICBJIHRoaW5rIHdlIGVpdGhlciBuZWVk
-IGEgX2dlbmVyaWNfIGRlYnVnDQo+Pj4+IG9wdGlvbiBsaWtlOg0KPj4+Pg0KPj4+PiAgICAgICBD
-T05GSUdfREVCVUdfVk1fU0xPV19BU19IRUNLDQo+Pj4+DQo+Pj4+IHVuZGVyIHdoaWNoIHdlIGNh
-biBwdXQgdGhpcyBhbiBvdGhlciByZWFsbHkgc2xvdyBWTSBkZWJ1Z2dpbmcuICBPciwgd2UNCj4+
-Pj4gbmVlZCBzb21lIGtpbmQgb2YgYm9vdC10aW1lIHBhcmFtZXRlciB0byB0cmlnZ2VyIHRoZSBl
-eHRyYSBjaGVja2luZw0KPj4+PiBpbnN0ZWFkIG9mIGEgbmV3IENPTkZJRyBvcHRpb24uDQo+Pj4N
-Cj4+PiBJIHN0cm9uZ2x5IHN1c3BlY3Qgbm9ib2R5IHdpbGwgZXZlciBlbmFibGUgc3VjaCBhIHNj
-YXJ5IGxvb2tpbmcgY29uZmlnDQo+Pj4gVEJILiBCZXNpZGVzIEkgYW0gbm90IHN1cmUgd2hhdCBz
-aG91bGQgZ28gdW5kZXIgdGhhdCBjb25maWcgb3B0aW9uLg0KPj4+IFNvbWV0aGluZyB0aGF0IHRh
-a2VzIGZldyBjeWNsZXMgYnV0IGl0IGlzIGNhbGxlZCBvZnRlbiBvciBvbmUgdGltZSBzdHVmZg0K
-Pj4+IHRoYXQgdGFrZXMgcXVpdGUgYSBsb25nIGJ1dCBsZXNzIHRoYW4gYWdncmVnYXRlZCBvdmVy
-aGVhZCBvZiB0aGUgZm9ybWVyPw0KPj4+DQo+Pj4gSnVzdCBjb25zaWRlciB0aGlzIHBhcnRpY3Vs
-YXIgY2FzZS4gSXQgYmFzaWNhbGx5IHJlLWFkZHMgYW4gb3ZlcmhlYWQNCj4+PiB0aGF0IGhhcyBh
-bHdheXMgYmVlbiB0aGVyZSBiZWZvcmUgdGhlIHN0cnVjdCBwYWdlIGluaXQgb3B0aW1pemF0aW9u
-DQo+Pj4gd2VudCBpdC4gVGhlIHBvaXNvbmluZyBqdXN0IHJldHVybnMgaXQgaW4gYSBkaWZmZXJl
-bnQgZm9ybSB0byBjYXRjaA0KPj4+IHBvdGVudGlhbCBsZWZ0IG92ZXJzLiBBbmQgd2Ugd291bGQg
-bGlrZSB0byBoYXZlIGFzIG1hbnkgcGVvcGxlIHdpbGxpbmcNCj4+PiB0byBydW5uaW5nIGluIGRl
-YnVnIG1vZGUgdG8gdGVzdCBmb3IgdGhvc2UgcGF0aHMgYmVjYXVzZSB0aGV5IGFyZQ0KPj4+IGJh
-c2ljYWxseSBpbXBvc3NpYmxlIHRvIHJldmlldyBieSB0aGUgY29kZSBpbnNwZWN0aW9uLiBNb3Jl
-IGltcG9ydGFudG5seQ0KPj4+IHRoZSBtYWpvciBvdmVyaGVhZCBpcyBib290IHRpbWUgc28gbXkg
-cXVlc3Rpb24gc3RpbGwgc3RhbmRzLiBJcyB0aGlzDQo+Pj4gd29ydGggYSBzZXBhcmF0ZSBjb25m
-aWcgb3B0aW9uIGFsbW9zdCBub2JvZHkgaXMgZ29pbmcgdG8gZW5hYmxlPw0KPj4+DQo+Pj4gRW5h
-YmxpbmcgREVCVUdfVk0gYnkgRmVkb3JhIGFuZCBvdGhlcnMgc2VydmVzIHVzIGEgdmVyeSBnb29k
-IHRlc3RpbmcNCj4+PiBjb3ZlcmFnZSBhbmQgSSBhcHByZWNpYXRlIHRoYXQgYmVjYXVzZSBpdCBo
-YXMgZ2VuZXJhdGVkIHNvbWUgdXNlZnVsIGJ1Zw0KPj4+IHJlcG9ydHMuIFRob3NlIHBlb3BsZSBh
-cmUgcGF5aW5nIHF1aXRlIGEgbG90IG9mIG92ZXJoZWFkIGluIHJ1bnRpbWUNCj4+PiB3aGljaCBj
-YW4gYWdncmVnYXRlIG92ZXIgdGltZSBpcyBpdCBzbyBtdWNoIHRvIGFzayBhYm91dCBvbmUgdGlt
-ZSBib290DQo+Pj4gb3ZlcmhlYWQ/DQo+Pg0KPj4gVGhlIGtpbmQgb2YgYm9vdCB0aW1lIGFkZC1v
-biBJIHNhdyBhcyBhIHJlc3VsdCBvZiB0aGlzIHdhcyBhYm91dCAxNzANCj4+IHNlY29uZHMsIG9y
-IDIgbWludXRlcyBhbmQgNTAgc2Vjb25kcyBvbiBhIDEyVEIgc3lzdGVtLg0KPiANCj4gSnVzdCBj
-dXJpb3VzLiBIb3cgbG9uZyBkb2VzIGl0IHRha2UgdG8gZ2V0IGZyb20gcG93ZXIgb24gdG8gZXZl
-biByZWFhY2gNCj4gYm9vdCBsb2FkZXIgb24gdGhhdCBtYWNoaW5lLi4uIDspDQo+IA0KPj4gSSBz
-cGVudCBhDQo+PiBjb3VwbGUgbWludXRlcyB3b25kZXJpbmcgaWYgSSBoYWQgYnVpbHQgYSBiYWQg
-a2VybmVsIG9yIG5vdCBhcyBJIHdhcw0KPj4gc3RhcmluZyBhdCBhIGRlYWQgY29uc29sZSB0aGUg
-ZW50aXJlIHRpbWUgYWZ0ZXIgdGhlIGdydWIgcHJvbXB0IHNpbmNlDQo+PiBJIGhpdCB0aGlzIHNv
-IGVhcmx5IGluIHRoZSBib290LiBUaGF0IGlzIHRoZSByZWFzb24gd2h5IEkgYW0gc28gZWFnZXIN
-Cj4+IHRvIHNsaWNlIHRoaXMgb2ZmIGFuZCBtYWtlIGl0IHNvbWV0aGluZyBzZXBhcmF0ZS4gSSBj
-b3VsZCBlYXNpbHkgc2VlDQo+PiB0aGlzIGFzIHNvbWV0aGluZyB0aGF0IHdvdWxkIGdldCBpbiB0
-aGUgd2F5IG9mIG90aGVyIGRlYnVnZ2luZyB0aGF0IGlzDQo+PiBnb2luZyBvbiBpbiBhIHN5c3Rl
-bS4NCj4gDQo+IEJ1dCB5b3Ugd291bGQgZ2V0IHRoZSBzYW1lIG92ZXJoZWFkIGEga2VybmVsIHJl
-bGVhc2UgYWdvIHdoZW4gdGhlDQo+IG1lbW1hcCBpbml0IG9wdGltaXphdGlvbiB3YXMgbWVyZ2Vk
-LiBTbyB5b3UgYXJlIGJhc2ljYWxseSBiYWNrIHRvIHdoYXQNCj4gd2UgdXNlZCB0byBoYXZlIGZv
-ciB5ZWFycy4gVW5sZXNzIEkgbWlzcmVtZW1iZXIuDQoNCllvdSByZW1lYmVyIHRoaXMgY29ycmVj
-dGx5Og0KDQoyZjQ3YTkxZjRkYWIxOWFhYWEwNWNkY2ZjZWQ5ZGZjYWYzZjUyNTdlIGhhcyBkYXRh
-IGJlZm9yZSB2cyBhZnRlcg0KemVyb2luZyBtZW1vcnkgaW4gbWVtYmxvY2sgYWxsb2NhdG9yLg0K
-DQpPbiBTUEFSQyB3aXRoIDE1VCB3ZSBzYXZlZCA1NS40cywgYmVjYXVzZSBTUEFSQyBoYXMgbGFy
-Z2VyIGJhc2UgcGFnZXMsDQp0aHVzIGZld2VyIHN0cnVjdCBwYWdlcy4NCg0KT24geDg2IHdpdGgg
-MVQgc2F2ZWQgMTUuOHM6ICB3aGljaCBpcyAxODkuNnMgaWYgaXQgd2FzIDEyVCBtYWNoaW5lDQpB
-bGV4YW5kZXIgaXMgdXNpbmcsIGNsb3NlIHRvIDE3MHMgaGUgaXMgc2VlaW5nLCBidXQgQ1BVIG11
-c3QgYmUgZmFzdGVyLg0KDQpQYXZlbA==
+On 05/09/2018 19:18, Jacob Pan wrote:
+> On Wed, 5 Sep 2018 14:14:12 +0200
+> Auger Eric <eric.auger@redhat.com> wrote:
+> 
+>>> + *
+>>> + * On Arm and AMD IOMMUs, entry 0 of the PASID table can be used
+>>> to hold
+>>> + * non-PASID translations. In this case PASID 0 is reserved and
+>>> entry 0 points
+>>> + * to the io_pgtable base. On Intel IOMMU, the io_pgtable base
+>>> would be held in
+>>> + * the device table and PASID 0 would be available to the
+>>> allocator.
+>>> + */  
+>> very nice explanation
+> With the new Vt-d 3.0 spec., 2nd level IO page table base is no longer
+> held in the device context table. Instead it is held in the PASID table
+> entry pointed by the RID_PASID field in the device context entry. If
+> RID_PASID = 0, then it is the same as ARM and AMD IOMMUs.
+> You can refer to ch3.4.3 of the VT-d spec.
+
+I could simplify that paragraph by removing the specific implementations:
+
+"In some IOMMUs, entry 0 of the PASID table can be used to hold
+non-PASID translations. In this case PASID 0 is reserved and entry 0
+points to the io_pgtable base. In other IOMMUs the io_pgtable base is
+held in the device table and PASID 0 is available to the allocator."
+
+I guess in Linux there isn't any reason to set RID_PASID to a non-zero
+value? Otherwise the iommu-sva allocator will need minor changes.
+
+Thanks,
+Jean
