@@ -1,78 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F41326B7ABA
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 17:13:27 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id f32-v6so6045892pgm.14
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 14:13:27 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id f21-v6si6553081pgk.418.2018.09.06.14.13.26
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C0B0D6B7ABC
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 17:13:53 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id a10-v6so15974037itc.9
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 14:13:53 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r201-v6sor2933376itc.14.2018.09.06.14.13.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Sep 2018 14:13:26 -0700 (PDT)
-Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
- processes.
-References: <20180806134550.GO19540@dhcp22.suse.cz>
- <alpine.DEB.2.21.1808061315220.43071@chino.kir.corp.google.com>
- <20180806205121.GM10003@dhcp22.suse.cz>
- <0aeb76e1-558f-e38e-4c66-77be3ce56b34@I-love.SAKURA.ne.jp>
- <20180906113553.GR14951@dhcp22.suse.cz>
- <87b76eea-9881-724a-442a-c6079cbf1016@i-love.sakura.ne.jp>
- <20180906120508.GT14951@dhcp22.suse.cz>
- <37b763c1-b83e-1632-3187-55fb360a914e@i-love.sakura.ne.jp>
- <20180906135615.GA14951@dhcp22.suse.cz>
- <8dd6bc67-3f35-fdc6-a86a-cf8426608c75@i-love.sakura.ne.jp>
- <20180906141632.GB14951@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <55a3fb37-3246-73d7-0f45-5835a3f4831c@i-love.sakura.ne.jp>
-Date: Fri, 7 Sep 2018 06:13:13 +0900
+        (Google Transport Security);
+        Thu, 06 Sep 2018 14:13:52 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180906141632.GB14951@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <cover.1535629099.git.andreyknvl@google.com> <5d54526e5ff2e5ad63d0dfdd9ab17cf359afa4f2.1535629099.git.andreyknvl@google.com>
+In-Reply-To: <5d54526e5ff2e5ad63d0dfdd9ab17cf359afa4f2.1535629099.git.andreyknvl@google.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 6 Sep 2018 14:13:41 -0700
+Message-ID: <CA+55aFyW9N2tSb2bQvkthbVVyY6nt5yFeWQRLHp1zruBmb5ocw@mail.gmail.com>
+Subject: Re: [PATCH v6 11/11] arm64: annotate user pointers casts detected by sparse
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, eugenis@google.com, Lee.Smith@arm.com, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob.Bramley@arm.com, Ruben.Ayrapetyan@arm.com, cpandya@codeaurora.org
 
-On 2018/09/06 23:16, Michal Hocko wrote:
-> On Thu 06-09-18 23:06:40, Tetsuo Handa wrote:
->> On 2018/09/06 22:56, Michal Hocko wrote:
->>> On Thu 06-09-18 22:40:24, Tetsuo Handa wrote:
->>>> On 2018/09/06 21:05, Michal Hocko wrote:
->>>>>> If you are too busy, please show "the point of no-blocking" using source code
->>>>>> instead. If such "the point of no-blocking" really exists, it can be executed
->>>>>> by allocating threads.
->>>>>
->>>>> I would have to study this much deeper but I _suspect_ that we are not
->>>>> taking any blocking locks right after we return from unmap_vmas. In
->>>>> other words the place we used to have synchronization with the
->>>>> oom_reaper in the past.
->>>>
->>>> See commit 97b1255cb27c551d ("mm,oom_reaper: check for MMF_OOM_SKIP before
->>>> complaining"). Since this dependency is inode-based (i.e. irrelevant with
->>>> OOM victims), waiting for this lock can livelock.
->>>>
->>>> So, where is safe "the point of no-blocking" ?
->>>
->>> Ohh, right unlink_file_vma and its i_mmap_rwsem lock. As I've said I
->>> have to think about that some more. Maybe we can split those into two parts.
->>>
->>
->> Meanwhile, I'd really like to use timeout based back off. Like I wrote at
->> http://lkml.kernel.org/r/201809060703.w8673Kbs076435@www262.sakura.ne.jp ,
->> we need to wait for some period after all.
->>
->> We can replace timeout based back off after we got safe "the point of no-blocking" .
-> 
-> Why don't you invest your time in the long term solution rather than
-> playing with something that doesn't solve anything just papers over the
-> issue?
-> 
+On Thu, Aug 30, 2018 at 4:41 AM Andrey Konovalov <andreyknvl@google.com> wrote:
+>
+> This patch adds __force annotations for __user pointers casts detected by
+> sparse with the -Wcast-from-as flag enabled (added in [1]).
 
-I am not a MM people. I am a secure programmer from security subsystem.
-You are almost always introducing bugs (like you call dragons) rather
-than starting from safe changes. The OOM killer _is_ always racy. Even
-your what you think the long term solution _shall be_ racy. I can't
-waste my time in what you think the long term solution. Please don't
-refuse/ignore my (or David's) patches without your counter patches.
+No, several of these are wrong, and just silence a warning that shows a problem.
+
+So for example:
+
+>  static inline compat_uptr_t ptr_to_compat(void __user *uptr)
+>  {
+> -       return (u32)(unsigned long)uptr;
+> +       return (u32)(__force unsigned long)uptr;
+>  }
+
+this actually looks correct.
+
+But:
+
+> --- a/arch/arm64/include/asm/uaccess.h
+> +++ b/arch/arm64/include/asm/uaccess.h
+> @@ -76,7 +76,7 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
+>  {
+>         unsigned long ret, limit = current_thread_info()->addr_limit;
+>
+> -       __chk_user_ptr(addr);
+> +       __chk_user_ptr((void __force *)addr);
+
+This looks actively wrong. The whole - and only - point of
+"__chk_user_ptr()" is that it warns about a lack of a "__user *" type.
+
+So the above makes no sense at all.
+
+There are other similar "that makes no sense what-so-ever", like this one:
+
+> -               struct compat_group_req __user *gr32 = (void *)optval;
+> +               struct compat_group_req __user *gr32 = (__force void *)optval;
+
+no, the additionl of __force is not the right thing, the problem, is
+that a __user pointer is cast to a non-user 'void *' only to be
+assigned to another user type.
+
+The fix should have been to use (void __user *) as the cast instead,
+no __force needed.
+
+In general, I think the patch shows all the signs of "mindlessly just
+add casts", which is exactly the wrong thing to do to sparse warnings.
+
+                   Linus
