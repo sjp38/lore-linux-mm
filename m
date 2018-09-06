@@ -1,89 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D2E96B76B3
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 00:00:15 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id v4-v6so11432871oix.2
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 21:00:15 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id k19-v6si2547983oic.67.2018.09.05.21.00.12
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E6CE6B76B8
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 00:03:56 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id q11-v6so11431827oih.15
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 21:03:56 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id t88-v6si2819680oij.117.2018.09.05.21.03.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Sep 2018 21:00:12 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w863sOrD084312
-	for <linux-mm@kvack.org>; Thu, 6 Sep 2018 00:00:11 -0400
+        Wed, 05 Sep 2018 21:03:55 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w863tng8128115
+	for <linux-mm@kvack.org>; Thu, 6 Sep 2018 00:03:54 -0400
 Received: from e32.co.us.ibm.com (e32.co.us.ibm.com [32.97.110.150])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mat3sw79q-1
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2mathwcr85-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 06 Sep 2018 00:00:11 -0400
+	for <linux-mm@kvack.org>; Thu, 06 Sep 2018 00:03:54 -0400
 Received: from localhost
 	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Wed, 5 Sep 2018 22:00:10 -0600
+	Wed, 5 Sep 2018 22:03:53 -0600
 Subject: Re: [RFC PATCH] mm/hugetlb: make hugetlb_lock irq safe
 References: <20180905112341.21355-1-aneesh.kumar@linux.ibm.com>
  <20180905130440.GA3729@bombadil.infradead.org>
  <d76771e6-1664-5d38-a5a0-e98f1120494c@linux.ibm.com>
  <20180905134848.GB3729@bombadil.infradead.org>
+ <20180905125846.eb0a9ed907b293c1b4c23c23@linux-foundation.org>
+ <78b08258-14c8-0e90-97c7-d647a11acb30@oracle.com>
+ <20180905150008.59d477c1f78f966a8f9c3cc8@linux-foundation.org>
+ <20180905230737.GA14977@bombadil.infradead.org>
+ <c03c8851-ce18-56c6-3f37-47f585d70b19@oracle.com>
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Date: Thu, 6 Sep 2018 09:30:02 +0530
+Date: Thu, 6 Sep 2018 09:33:45 +0530
 MIME-Version: 1.0
-In-Reply-To: <20180905134848.GB3729@bombadil.infradead.org>
+In-Reply-To: <c03c8851-ce18-56c6-3f37-47f585d70b19@oracle.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Message-Id: <95b9a5d9-1e46-b969-4188-14c0a6efb215@linux.ibm.com>
+Message-Id: <bb3054c8-3bf3-ba54-793c-a6939bc0acb4@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: akpm@linux-foundation.org, Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mike Kravetz <mike.kravetz@oracle.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 09/05/2018 07:18 PM, Matthew Wilcox wrote:
-> On Wed, Sep 05, 2018 at 06:56:19PM +0530, Aneesh Kumar K.V wrote:
->> On 09/05/2018 06:34 PM, Matthew Wilcox wrote:
->>> On Wed, Sep 05, 2018 at 04:53:41PM +0530, Aneesh Kumar K.V wrote:
->>>>    inconsistent {SOFTIRQ-ON-W} -> {IN-SOFTIRQ-W} usage.
->>>
->>> How do you go from "can be taken in softirq context" problem report to
->>> "must disable hard interrupts" solution?  Please explain why spin_lock_bh()
->>> is not a sufficient fix.
->>>
->>>>    swapper/68/0 [HC0[0]:SC1[1]:HE1:SE0] takes:
->>>>    0000000052a030a7 (hugetlb_lock){+.?.}, at: free_huge_page+0x9c/0x340
->>>>    {SOFTIRQ-ON-W} state was registered at:
->>>>      lock_acquire+0xd4/0x230
->>>>      _raw_spin_lock+0x44/0x70
->>>>      set_max_huge_pages+0x4c/0x360
->>>>      hugetlb_sysctl_handler_common+0x108/0x160
->>>>      proc_sys_call_handler+0x134/0x190
->>>>      __vfs_write+0x3c/0x1f0
->>>>      vfs_write+0xd8/0x220
->>>
->>> Also, this only seems to trigger here.  Is it possible we _already_
->>> have softirqs disabled through every other code path, and it's just this
->>> one sysctl handler that needs to disable softirqs?  Rather than every
->>> lock access?
->>
->> Are you asking whether I looked at moving that put_page to a worker thread?
+On 09/06/2018 05:21 AM, Mike Kravetz wrote:
+
 > 
-> No.  I'm asking "why not disable softirqs in the sysctl handler".  Or
-> perhaps equivalently, just replace spin_lock() with spin_lock_bh() in
-> set_max_huge_pages().
+> BTW, free_huge_page called by put_page for hugetlbfs pages may also take
+> a subpool specific lock via spin_lock().  See hugepage_subpool_put_pages.
+> So, this would also need to take irq context into account.
 > 
 
-Disabling only in sysctl handler is not enough right? Every usage of 
-locks taken by the page destructor need to be converted to disable 
-softirqs right?
-
-
->> I didn't. The reason I looked at current patch is to enable the usage of
->> put_page() from irq context. We do allow that for non hugetlb pages. So was
->> not sure adding that additional restriction for hugetlb
->> is really needed. Further the conversion to irqsave/irqrestore was
->> straightforward.
-> 
-> straightforward, sure.  but is it the right thing to do?  do we want to
-> be able to put_page() a hugetlb page from hardirq context?
-> 
+I missed that. I can take care of that in next patch update based on 
+what we decide w.r.t this patch.
 
 -aneesh
