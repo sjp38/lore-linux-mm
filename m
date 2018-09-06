@@ -1,55 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua1-f71.google.com (mail-ua1-f71.google.com [209.85.222.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 283146B765B
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 22:34:27 -0400 (EDT)
-Received: by mail-ua1-f71.google.com with SMTP id g9-v6so4021346uam.17
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 19:34:27 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e67-v6sor810050vkh.214.2018.09.05.19.34.25
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 252726B76A9
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2018 23:54:28 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id w194-v6so11424416oiw.5
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 20:54:28 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id a84-v6si2524561oif.101.2018.09.05.20.54.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 05 Sep 2018 19:34:25 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Sep 2018 20:54:26 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w863sQqM002868
+	for <linux-mm@kvack.org>; Wed, 5 Sep 2018 23:54:26 -0400
+Received: from e36.co.us.ibm.com (e36.co.us.ibm.com [32.97.110.154])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2masq2wqna-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 05 Sep 2018 23:54:25 -0400
+Received: from localhost
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Wed, 5 Sep 2018 21:54:25 -0600
+Subject: Re: [RFC PATCH] mm/hugetlb: make hugetlb_lock irq safe
+References: <20180905112341.21355-1-aneesh.kumar@linux.ibm.com>
+ <20180905130440.GA3729@bombadil.infradead.org>
+ <d76771e6-1664-5d38-a5a0-e98f1120494c@linux.ibm.com>
+ <20180905134848.GB3729@bombadil.infradead.org>
+ <20180905125846.eb0a9ed907b293c1b4c23c23@linux-foundation.org>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Date: Thu, 6 Sep 2018 09:24:17 +0530
 MIME-Version: 1.0
-References: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
-In-Reply-To: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
-From: Greentime Hu <green.hu@gmail.com>
-Date: Thu, 6 Sep 2018 10:33:48 +0800
-Message-ID: <CAEbi=3dKL1zOYc0DC3yXm=7srw6tUfx-JR=o9n4pVrGp+Sosug@mail.gmail.com>
-Subject: Re: [RFC PATCH 00/29] mm: remove bootmem allocator
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20180905125846.eb0a9ed907b293c1b4c23c23@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <19bb32a4-7acc-29ea-c00c-65cd2ebf9878@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rppt@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, gregkh@linuxfoundation.org, mingo@redhat.com, mpe@ellerman.id.au, mhocko@suse.com, paul.burton@mips.com, Thomas Gleixner <tglx@linutronix.de>, tony.luck@intel.com, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, sparclinux <sparclinux@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Mike Rapoport <rppt@linux.vnet.ibm.com> =E6=96=BC 2018=E5=B9=B49=E6=9C=886=
-=E6=97=A5 =E9=80=B1=E5=9B=9B =E4=B8=8A=E5=8D=8812:04=E5=AF=AB=E9=81=93=EF=
-=BC=9A
->
-> Hi,
->
-> These patches switch early memory managment to use memblock directly
-> without any bootmem compatibility wrappers. As the result both bootmem an=
-d
-> nobootmem are removed.
->
-> There are still a couple of things to sort out, the most important is the
-> removal of bootmem usage in MIPS.
->
-> Still, IMHO, the series is in sufficient state to post and get the early
-> feedback.
->
-> The patches are build-tested with defconfig for most architectures (I
-> couldn't find a compiler for nds32 and unicore32) and boot-tested on x86
-> VM.
->
-Hi Mike,
+On 09/06/2018 01:28 AM, Andrew Morton wrote:
+> On Wed, 5 Sep 2018 06:48:48 -0700 Matthew Wilcox <willy@infradead.org> wrote:
+> 
+>>> I didn't. The reason I looked at current patch is to enable the usage of
+>>> put_page() from irq context. We do allow that for non hugetlb pages. So was
+>>> not sure adding that additional restriction for hugetlb
+>>> is really needed. Further the conversion to irqsave/irqrestore was
+>>> straightforward.
+>>
+>> straightforward, sure.  but is it the right thing to do?  do we want to
+>> be able to put_page() a hugetlb page from hardirq context?
+> 
+> Calling put_page() against a huge page from hardirq seems like the
+> right thing to do - even if it's rare now, it will presumably become
+> more common as the hugepage virus spreads further across the kernel.
+> And the present asymmetry is quite a wart.
+> 
+> That being said, arch/powerpc/mm/mmu_context_iommu.c:mm_iommu_free() is
+> the only known site which does this (yes?) so perhaps we could put some
+> stopgap workaround into that site and add a runtime warning into the
+> put_page() code somewhere to detect puttage of huge pages from hardirq
+> and softirq contexts.
+> 
+> And attention will need to be paid to -stable backporting.  How long
+> has mm_iommu_free() existed, and been doing this?
+> 
 
-There are nds32 toolchains.
-https://mirrors.edge.kernel.org/pub/tools/crosstool/files/bin/x86_64/8.1.0/=
-x86_64-gcc-8.1.0-nolibc-nds32le-linux.tar.gz
-https://github.com/vincentzwc/prebuilt-nds32-toolchain/releases/download/20=
-180521/nds32le-linux-glibc-v3-upstream.tar.gz
+That is old code that goes back to v4.2 ( 
+15b244a88e1b2895605be4300b40b575345bcf50)
 
-Sorry, we have no qemu yet.
+
+
+-aneesh
