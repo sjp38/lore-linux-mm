@@ -1,101 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AE5536B7718
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 01:41:59 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id c25-v6so3150167edb.12
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 22:41:59 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w37-v6si3390749edb.15.2018.09.05.22.41.58
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F3C06B771C
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 01:44:01 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id j17-v6so11476202oii.8
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 22:44:01 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id b74-v6si2785014oii.106.2018.09.05.22.44.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Sep 2018 22:41:58 -0700 (PDT)
-Date: Thu, 6 Sep 2018 07:41:57 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm: Create non-atomic version of SetPageReserved for
- init use
-Message-ID: <20180906054157.GI14951@dhcp22.suse.cz>
-References: <20180904181550.4416.50701.stgit@localhost.localdomain>
- <20180904183345.4416.76515.stgit@localhost.localdomain>
- <20180905062428.GV14951@dhcp22.suse.cz>
- <CAKgT0UeT1dL0VNMo1RSDkjABYBGLKjMsz5LsE_ML-EV+w2OURg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKgT0UeT1dL0VNMo1RSDkjABYBGLKjMsz5LsE_ML-EV+w2OURg@mail.gmail.com>
+        Wed, 05 Sep 2018 22:44:00 -0700 (PDT)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w865hgVf010700
+	for <linux-mm@kvack.org>; Thu, 6 Sep 2018 01:43:59 -0400
+Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mat7a8kc9-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 06 Sep 2018 01:43:59 -0400
+Received: from localhost
+	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Thu, 6 Sep 2018 01:43:58 -0400
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Subject: [RFC PATCH V2 1/4] mm: Export alloc_migrate_huge_page
+Date: Thu,  6 Sep 2018 11:13:39 +0530
+Message-Id: <20180906054342.25094-1-aneesh.kumar@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Duyck, Alexander H" <alexander.h.duyck@intel.com>, pavel.tatashin@microsoft.com, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: akpm@linux-foundation.org, Alexey Kardashevskiy <aik@ozlabs.ru>, mpe@ellerman.id.au
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
 
-On Wed 05-09-18 13:18:24, Alexander Duyck wrote:
-> On Tue, Sep 4, 2018 at 11:24 PM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > On Tue 04-09-18 11:33:45, Alexander Duyck wrote:
-> > > From: Alexander Duyck <alexander.h.duyck@intel.com>
-> > >
-> > > It doesn't make much sense to use the atomic SetPageReserved at init time
-> > > when we are using memset to clear the memory and manipulating the page
-> > > flags via simple "&=" and "|=" operations in __init_single_page.
-> > >
-> > > This patch adds a non-atomic version __SetPageReserved that can be used
-> > > during page init and shows about a 10% improvement in initialization times
-> > > on the systems I have available for testing.
-> >
-> > I agree with Dave about a comment is due. I am also quite surprised that
-> > this leads to such a large improvement. Could you be more specific about
-> > your test and machines you were testing on?
-> 
-> So my test case has been just initializing 4 3TB blocks of persistent
-> memory with a few trace_printk values added to track total time in
-> move_pfn_range_to_zone.
-> 
-> What I have been seeing is that the time needed for the call drops on
-> average from 35-36 seconds down to around 31-32.
+We want to use this to support customized huge page migration.
 
-This information belongs to the changelog.
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+---
+ include/linux/hugetlb.h | 2 ++
+ mm/hugetlb.c            | 4 ++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)
 
-> 
-> > Other than that the patch makes sense to me.
-> >
-> > > Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
-> >
-> > With the above addressed, feel free to add
-> > Acked-by: Michal Hocko <mhocko@suse.com>
-> >
-> > Thanks!
-> 
-> As far as adding a comment are we just talking about why it is
-> reserved, or do we need a description of the __SetPageReserved versus
-> SetPageReserved. For now I was looking at adding a comment like:
-
-the later. The reason why we make it reserved should be quite clear. A
-comment wouldn't hurt of course and what you have is a good start. But
-it is usually atomic vs. non-atomic SetPage$Foo which needs some
-clarification.
-
-> @@ -5517,8 +5517,13 @@ void __meminit memmap_init_zone(unsigned long
-> size, int nid, unsigned long zone,
->  not_early:
->                 page = pfn_to_page(pfn);
->                 __init_single_page(page, pfn, zone, nid);
-> +
-> +               /*
-> +                * Mark page reserved as it will need to wait for onlining
-> +                * phase for it to be fully associated with a zone.
-> +                */
->                 if (context == MEMMAP_HOTPLUG)
-> -                       SetPageReserved(page);
-> +                       __SetPageReserved(page);
-> 
->                 /*
->                  * Mark the block movable so that blocks are reserved for
-> 
-> Any thoughts on this?
-> 
-> Thanks.
-> 
-> - Alex
-
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index c39d9170a8a0..98c9c6dc308c 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -357,6 +357,8 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
+ 				nodemask_t *nmask);
+ struct page *alloc_huge_page_vma(struct hstate *h, struct vm_area_struct *vma,
+ 				unsigned long address);
++struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
++				     int nid, nodemask_t *nmask);
+ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
+ 			pgoff_t idx);
+ 
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 47566bb0b4b1..88881b3f8628 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1586,8 +1586,8 @@ static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
+ 	return page;
+ }
+ 
+-static struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
+-		int nid, nodemask_t *nmask)
++struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
++				     int nid, nodemask_t *nmask)
+ {
+ 	struct page *page;
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.17.1
