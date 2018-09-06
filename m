@@ -1,75 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A9F3D6B78F0
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 09:21:39 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id l14-v6so12820375oii.9
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 06:21:39 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id e4-v6si3607657oih.240.2018.09.06.06.21.38
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4067A6B78F5
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 09:24:07 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id q130-v6so12607202oic.22
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 06:24:07 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id c15-v6si3384527oig.152.2018.09.06.06.24.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Sep 2018 06:21:38 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w86DEjDP008383
-	for <linux-mm@kvack.org>; Thu, 6 Sep 2018 09:21:38 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2mb2y9p56q-1
+        Thu, 06 Sep 2018 06:24:06 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w86DEgjb138933
+	for <linux-mm@kvack.org>; Thu, 6 Sep 2018 09:24:05 -0400
+Received: from e31.co.us.ibm.com (e31.co.us.ibm.com [32.97.110.149])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mb3vnbnu4-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 06 Sep 2018 09:21:37 -0400
+	for <linux-mm@kvack.org>; Thu, 06 Sep 2018 09:24:05 -0400
 Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Thu, 6 Sep 2018 14:21:35 +0100
-Date: Thu, 6 Sep 2018 16:21:26 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH 00/29] mm: remove bootmem allocator
-References: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20180906091538.GN14951@dhcp22.suse.cz>
- <46ae5e64-7b1a-afab-bfef-d00183a7ef76@microsoft.com>
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Thu, 6 Sep 2018 07:24:04 -0600
+Subject: Re: [RFC PATCH V2 2/4] mm: Add get_user_pages_cma_migrate
+References: <20180906054342.25094-1-aneesh.kumar@linux.ibm.com>
+ <20180906054342.25094-2-aneesh.kumar@linux.ibm.com>
+ <20180906124504.GW14951@dhcp22.suse.cz>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Date: Thu, 6 Sep 2018 18:53:55 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <46ae5e64-7b1a-afab-bfef-d00183a7ef76@microsoft.com>
-Message-Id: <20180906132126.GK27492@rapoport-lnx>
+In-Reply-To: <20180906124504.GW14951@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <cbcae00a-e42c-0279-1ccb-9192e486abf1@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Cc: Michal Hocko <mhocko@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ingo Molnar <mingo@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Burton <paul.burton@mips.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linux-mips@linux-mips.org" <linux-mips@linux-mips.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, Alexey Kardashevskiy <aik@ozlabs.ru>, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-On Thu, Sep 06, 2018 at 01:04:47PM +0000, Pasha Tatashin wrote:
+On 09/06/2018 06:15 PM, Michal Hocko wrote:
+> On Thu 06-09-18 11:13:40, Aneesh Kumar K.V wrote:
+>> This helper does a get_user_pages_fast and if it find pages in the CMA area
+>> it will try to migrate them before taking page reference. This makes sure that
+>> we don't keep non-movable pages (due to page reference count) in the CMA area.
+>> Not able to move pages out of CMA area result in CMA allocation failures.
 > 
+> Again, there is no user so it is hard to guess the intention completely.
+> There is no documentation to describe the expected context and
+> assumptions about locking etc.
 > 
-> On 9/6/18 5:15 AM, Michal Hocko wrote:
-> > On Wed 05-09-18 18:59:15, Mike Rapoport wrote:
-> > [...]
-> >>  325 files changed, 846 insertions(+), 2478 deletions(-)
-> >>  delete mode 100644 include/linux/bootmem.h
-> >>  delete mode 100644 mm/bootmem.c
-> >>  delete mode 100644 mm/nobootmem.c
-> > 
-> > This is really impressive! Thanks a lot for working on this. I wish we
-> > could simplify the memblock API as well. There are just too many public
-> > functions with subtly different semantic and barely any useful
-> > documentation.
-> > 
-> > But even this is a great step forward!
-> 
-> This is a great simplification of boot process. Thank you Mike!
-> 
-> I agree, with Michal in the future, once nobootmem kernel stabalizes
-> after this effort, we should start simplifying memblock allocator API:
-> it won't be as big effort as this one, as I think, that can be done in
-> incremental phases, but it will help to make early boot much more stable
-> and uniform across arches.
 
-It's not only about the memblock APIs. Every arch has its own way of memory
-detection and initialization, all this should be revisited at some point.
-But yes, apart from the memblock APIs update which will be quite
-disruptive, the arches memory initialization can be updated incrementally.
- 
-> Thank you,
-> Pavel
+patch 4 is the user for the new helper. I will add the documentation 
+update.
 
--- 
-Sincerely yours,
-Mike.
+> As noted in the previous email. You should better describe why you are
+> bypassing hugetlb pools. I assume that the reason is to guarantee a
+> forward progress because those might be sitting in the CMA pools
+> already, right?
+> 
+
+The reason for that is explained in the code
+
++		struct hstate *h = page_hstate(page);
++		/*
++		 * We don't want to dequeue from the pool because pool pages will
++		 * mostly be from the CMA region.
++		 */
++		return alloc_migrate_huge_page(h, gfp_mask, nid, NULL);
+
+-aneesh
