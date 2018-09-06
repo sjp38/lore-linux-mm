@@ -1,80 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 657126B788A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 08:05:11 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id k16-v6so3601632ede.6
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 05:05:11 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b50-v6si42096edc.408.2018.09.06.05.05.10
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 74D236B78A2
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 08:09:05 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id a8-v6so5471000pla.10
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 05:09:05 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u26-v6sor938494pgl.244.2018.09.06.05.09.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Sep 2018 05:05:10 -0700 (PDT)
-Date: Thu, 6 Sep 2018 14:05:08 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
- processes.
-Message-ID: <20180906120508.GT14951@dhcp22.suse.cz>
-References: <1533389386-3501-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <1533389386-3501-4-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180806134550.GO19540@dhcp22.suse.cz>
- <alpine.DEB.2.21.1808061315220.43071@chino.kir.corp.google.com>
- <20180806205121.GM10003@dhcp22.suse.cz>
- <0aeb76e1-558f-e38e-4c66-77be3ce56b34@I-love.SAKURA.ne.jp>
- <20180906113553.GR14951@dhcp22.suse.cz>
- <87b76eea-9881-724a-442a-c6079cbf1016@i-love.sakura.ne.jp>
+        (Google Transport Security);
+        Thu, 06 Sep 2018 05:09:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87b76eea-9881-724a-442a-c6079cbf1016@i-love.sakura.ne.jp>
+In-Reply-To: <20180906115320.GS14951@dhcp22.suse.cz>
+References: <0252ad5d-46e6-0d7f-ef91-4e316657a83d@i-love.sakura.ne.jp>
+ <CACT4Y+Yp6ZbusCWg5C1zaJpcS8=XnGPboKgWfyxVk1axQA2nbw@mail.gmail.com>
+ <201809060553.w865rmpj036017@www262.sakura.ne.jp> <CACT4Y+YKJWJr-5rBQidt6nY7+VF=BAsvHyh+XTaf8spwNy3qPA@mail.gmail.com>
+ <58aa0543-86d0-b2ad-7fb9-9bed7c6a1f6c@i-love.sakura.ne.jp>
+ <20180906112306.GO14951@dhcp22.suse.cz> <1611e45d-235e-67e9-26e3-d0228255fa2f@i-love.sakura.ne.jp>
+ <20180906115320.GS14951@dhcp22.suse.cz>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Thu, 6 Sep 2018 14:08:43 +0200
+Message-ID: <CACT4Y+byA7dLar5=9y+7RApT2WdxgVA9c29q83NEVkd5KCLgjg@mail.gmail.com>
+Subject: Re: [PATCH] mm, oom: Introduce time limit for dump_tasks duration.
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, syzbot <syzbot+f0fc7f62e88b1de99af3@syzkaller.appspotmail.com>, 'Dmitry Vyukov' via syzkaller-upstream-moderation <syzkaller-upstream-moderation@googlegroups.com>, linux-mm <linux-mm@kvack.org>
 
-On Thu 06-09-18 20:50:53, Tetsuo Handa wrote:
-> On 2018/09/06 20:35, Michal Hocko wrote:
-> > On Sat 01-09-18 20:48:57, Tetsuo Handa wrote:
-> >> On 2018/08/07 5:51, Michal Hocko wrote:
-> >>>> At the risk of continually repeating the same statement, the oom reaper 
-> >>>> cannot provide the direct feedback for all possible memory freeing.  
-> >>>> Waking up periodically and finding mm->mmap_sem contended is one problem, 
-> >>>> but the other problem that I've already shown is the unnecessary oom 
-> >>>> killing of additional processes while a thread has already reached 
-> >>>> exit_mmap().  The oom reaper cannot free page tables which is problematic 
-> >>>> for malloc implementations such as tcmalloc that do not release virtual 
-> >>>> memory. 
-> >>>
-> >>> But once we know that the exit path is past the point of blocking we can
-> >>> have MMF_OOM_SKIP handover from the oom_reaper to the exit path. So the
-> >>> oom_reaper doesn't hide the current victim too early and we can safely
-> >>> wait for the exit path to reclaim the rest. So there is a feedback
-> >>> channel. I would even do not mind to poll for that state few times -
-> >>> similar to polling for the mmap_sem. But it would still be some feedback
-> >>> rather than a certain amount of time has passed since the last check.
-> >>
-> >> Michal, will you show us how we can handover as an actual patch? I'm not
-> >> happy with postponing current situation with just your wish to handover.
-> > 
-> > I am sorry but I am bussy with other higher priority issues. I believe I
-> > have outlined the scheme that might work (see above). All it takes is to
-> > look into that closer a play with it.
-> 
-> If you are too busy, please show "the point of no-blocking" using source code
-> instead. If such "the point of no-blocking" really exists, it can be executed
-> by allocating threads.
+On Thu, Sep 6, 2018 at 1:53 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Thu 06-09-18 20:40:34, Tetsuo Handa wrote:
+>> On 2018/09/06 20:23, Michal Hocko wrote:
+>> > On Thu 06-09-18 19:58:25, Tetsuo Handa wrote:
+>> > [...]
+>> >> >From 18876f287dd69a7c33f65c91cfcda3564233f55e Mon Sep 17 00:00:00 2001
+>> >> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+>> >> Date: Thu, 6 Sep 2018 19:53:18 +0900
+>> >> Subject: [PATCH] mm, oom: Introduce time limit for dump_tasks duration.
+>> >>
+>> >> Since printk() is slow, printing one line takes nearly 0.01 second.
+>> >> As a result, syzbot is stalling for 52 seconds trying to dump 5600
+>> >> tasks at for_each_process() under RCU. Since such situation is almost
+>> >> inflight fork bomb attack (the OOM killer will print similar tasks for
+>> >> so many times), it makes little sense to print all candidate tasks.
+>> >> Thus, this patch introduces 3 seconds limit for printing.
+>> >>
+>> >> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+>> >> Cc: Dmitry Vyukov <dvyukov@google.com>
+>> >
+>> > You really love timeout based solutions with randomly chosen timeouts,
+>> > don't you. This is just ugly as hell. We already have means to disable
+>> > tasks dumping (see /proc/sys/vm/oom_dump_tasks).
+>>
+>> I know /proc/sys/vm/oom_dump_tasks . Showing some entries while not always
+>> printing all entries might be helpful.
+>
+> Not really. It could be more confusing than helpful. The main purpose of
+> the listing is to double check the list to understand the oom victim
+> selection. If you have a partial list you simply cannot do that.
+>
+> If the iteration takes too long and I can imagine it does with zillions
+> of tasks then the proper way around it is either release the lock
+> periodically after N tasks is processed or outright skip the whole thing
+> if there are too many tasks. The first option is obviously tricky to
+> prevent from duplicate entries or other artifacts.
 
-I would have to study this much deeper but I _suspect_ that we are not
-taking any blocking locks right after we return from unmap_vmas. In
-other words the place we used to have synchronization with the
-oom_reaper in the past.
 
-> I think that such "the point of no-blocking" is so late stage of
-> freeing that it makes no difference with timeout based back off.
-
-It is! It is feedback driven rather than a random time passed approach.
-And more importantly this syncing with exit_mmap matters only when there
-is going to be way much more memory in page tables than in mappings
-which is a _rare_ case.
--- 
-Michal Hocko
-SUSE Labs
+So does anybody know if it can live lock picking up new tasks all the
+time? That's what it looks like at first glance. I also don't remember
+seeing anything similar in the past.
+If it's a live lock and we resolve it, then we don't need to solve the
+problem of too many tasks here.
