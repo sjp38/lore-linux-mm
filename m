@@ -1,47 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F42B6B7916
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 10:07:49 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id e196-v6so6973861ywe.12
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 07:07:49 -0700 (PDT)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id w13-v6si1320862ybm.90.2018.09.06.07.07.48
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C7B976B7919
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 10:08:49 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id bh1-v6so5592515plb.15
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 07:08:49 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e11-v6sor1252995plt.34.2018.09.06.07.08.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 06 Sep 2018 07:07:48 -0700 (PDT)
-Date: Thu, 6 Sep 2018 10:07:44 -0400
-From: "Theodore Y. Ts'o" <tytso@mit.edu>
-Subject: Re: linux-next test error
-Message-ID: <20180906140744.GB5098@thunk.org>
-References: <0000000000004f6b5805751a8189@google.com>
- <20180905085545.GD24902@quack2.suse.cz>
- <CAFqt6zZtjPFdfAGxp43oqN3=z9+vAGzdOvDcgFaU+05ffCGu7A@mail.gmail.com>
- <20180905133459.GF23909@thunk.org>
- <CAFqt6za5OvHgONOgpmhxS+YsYZyiXUhzpmOgZYyHWPHEO34QwQ@mail.gmail.com>
- <20180906083800.GC19319@quack2.suse.cz>
- <CAFqt6zZ=uaArS0hrbgZGLe38HgSPhZBHzsGEJOZiQGm4Y2N0yw@mail.gmail.com>
- <20180906131212.GG2331@thunk.org>
+        (Google Transport Security);
+        Thu, 06 Sep 2018 07:08:48 -0700 (PDT)
+Date: Thu, 6 Sep 2018 17:08:42 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: hugepage: mark splitted page dirty when needed
+Message-ID: <20180906140842.jzf7tluzocb5nv3f@kshutemo-mobl1>
+References: <20180904075510.22338-1-peterx@redhat.com>
+ <20180904080115.o2zj4mlo7yzjdqfl@kshutemo-mobl1>
+ <D3B32B41-61D5-47B3-B1FC-77B0F71ADA47@cs.rutgers.edu>
+ <20180905073037.GA23021@xz-x1>
+ <20180905125522.x2puwfn5sr2zo3go@kshutemo-mobl1>
+ <20180906113933.GG16937@xz-x1>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180906131212.GG2331@thunk.org>
+In-Reply-To: <20180906113933.GG16937@xz-x1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>, Jan Kara <jack@suse.cz>, syzbot+87a05ae4accd500f5242@syzkaller.appspotmail.com, ak@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com, tim.c.chen@linux.intel.com, zwisler@kernel.org, Matthew Wilcox <willy@infradead.org>
+To: Peter Xu <peterx@redhat.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Dan Williams <dan.j.williams@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org
 
-P.S.  This is the second time the vm_fualt_t change has broken things.
-The first time, when it went through the ext4 tree, I NACK'ed it after
-a 60 seconds smoke test showed it was broken.  This time it went
-through the mm tree...
+On Thu, Sep 06, 2018 at 07:39:33PM +0800, Peter Xu wrote:
+> On Wed, Sep 05, 2018 at 03:55:22PM +0300, Kirill A. Shutemov wrote:
+> > On Wed, Sep 05, 2018 at 03:30:37PM +0800, Peter Xu wrote:
+> > > On Tue, Sep 04, 2018 at 10:00:28AM -0400, Zi Yan wrote:
+> > > > On 4 Sep 2018, at 4:01, Kirill A. Shutemov wrote:
+> > > > 
+> > > > > On Tue, Sep 04, 2018 at 03:55:10PM +0800, Peter Xu wrote:
+> > > > >> When splitting a huge page, we should set all small pages as dirty if
+> > > > >> the original huge page has the dirty bit set before.  Otherwise we'll
+> > > > >> lose the original dirty bit.
+> > > > >
+> > > > > We don't lose it. It got transfered to struct page flag:
+> > > > >
+> > > > > 	if (pmd_dirty(old_pmd))
+> > > > > 		SetPageDirty(page);
+> > > > >
+> > > > 
+> > > > Plus, when split_huge_page_to_list() splits a THP, its subroutine __split_huge_page()
+> > > > propagates the dirty bit in the head page flag to all subpages in __split_huge_page_tail().
+> > > 
+> > > Hi, Kirill, Zi,
+> > > 
+> > > Thanks for your responses!
+> > > 
+> > > Though in my test the huge page seems to be splitted not by
+> > > split_huge_page_to_list() but by explicit calls to
+> > > change_protection().  The stack looks like this (again, this is a
+> > > customized kernel, and I added an explicit dump_stack() there):
+> > > 
+> > >   kernel:  dump_stack+0x5c/0x7b
+> > >   kernel:  __split_huge_pmd+0x192/0xdc0
+> > >   kernel:  ? update_load_avg+0x8b/0x550
+> > >   kernel:  ? update_load_avg+0x8b/0x550
+> > >   kernel:  ? account_entity_enqueue+0xc5/0xf0
+> > >   kernel:  ? enqueue_entity+0x112/0x650
+> > >   kernel:  change_protection+0x3a2/0xab0
+> > >   kernel:  mwriteprotect_range+0xdd/0x110
+> > >   kernel:  userfaultfd_ioctl+0x50b/0x1210
+> > >   kernel:  ? do_futex+0x2cf/0xb20
+> > >   kernel:  ? tty_write+0x1d2/0x2f0
+> > >   kernel:  ? do_vfs_ioctl+0x9f/0x610
+> > >   kernel:  do_vfs_ioctl+0x9f/0x610
+> > >   kernel:  ? __x64_sys_futex+0x88/0x180
+> > >   kernel:  ksys_ioctl+0x70/0x80
+> > >   kernel:  __x64_sys_ioctl+0x16/0x20
+> > >   kernel:  do_syscall_64+0x55/0x150
+> > >   kernel:  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+> > > 
+> > > At the very time the userspace is sending an UFFDIO_WRITEPROTECT ioctl
+> > > to kernel space, which is handled by mwriteprotect_range().  In case
+> > > you'd like to refer to the kernel, it's basically this one from
+> > > Andrea's (with very trivial changes):
+> > > 
+> > >   https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git userfault
+> > > 
+> > > So... do we have two paths to split the huge pages separately?
+> > 
+> > We have two entiries that can be split: page table enties and underlying
+> > compound page.
+> > 
+> > split_huge_pmd() (and variants of it) split the PMD entry into a PTE page
+> > table. It doens't touch underlying compound page. The page still can be
+> > mapped in other place as huge.
+> > 
+> > split_huge_page() (and ivariants of it) split compound page into a number
+> > of 4k (or whatever PAGE_SIZE is). The operation requires splitting all
+> > PMD, but not other way around.
+> > 
+> > > 
+> > > Another (possibly very naive) question is: could any of you hint me
+> > > how the page dirty bit is finally applied to the PTEs?  These two
+> > > dirty flags confused me for a few days already (the SetPageDirty() one
+> > > which sets the page dirty flag, and the pte_mkdirty() which sets that
+> > > onto the real PTEs).
+> > 
+> > Dirty bit from page table entries transferes to sturct page flug and used
+> > for decision making in reclaim path.
+> 
+> Thanks for explaining.  It's much clearer for me.
+> 
+> Though for the issue I have encountered, I am still confused on why
+> that dirty bit can be ignored for the splitted PTEs.  Indeed we have:
+> 
+> 	if (pmd_dirty(old_pmd))
+> 		SetPageDirty(page);
+> 
+> However to me this only transfers (as you explained above) the dirty
+> bit (AFAIU it's possibly set by the hardware when the page is written)
+> to the page struct of the compound page.  It did not really apply to
+> every small page of the splitted huge page.  As you also explained,
+> this __split_huge_pmd() only splits the PMD entry but it keeps the
+> compound huge page there, then IMHO it should also apply the dirty
+> bits from the huge page to all the small page entries, no?
 
-In the future, even for "trivial" changes, could you *please* run the
-kvm-xfstests[1] or gce-xfstests[2][3]?
+The bit on compound page represents all small subpages. PageDirty() on any
+subpage will return you true if the compound page is dirty.
 
-[1] https://github.com/tytso/xfstests-bld/blob/master/Documentation/kvm-quickstart.md
-[2] https://github.com/tytso/xfstests-bld/blob/master/Documentation/gce-xfstests.md
-[3] https:/thunk.org/gce-xfstests
+> These dirty bits are really important to my scenario since AFAIU the
+> change_protection() call is using these dirty bits to decide whether
+> it should append the WRITE bit - it finally corresponds to the lines
+> in change_pte_range():
+> 
+>         /* Avoid taking write faults for known dirty pages */
+>         if (dirty_accountable && pte_dirty(ptent) &&
+>                         (pte_soft_dirty(ptent) ||
+>                                 !(vma->vm_flags & VM_SOFTDIRTY))) {
+>                 ptent = pte_mkwrite(ptent);
+>         }
+> 
+> So when mprotect() with that range (my case is UFFDIO_WRITEPROTECT,
+> which is similar) although we pass in the new protocol with VM_WRITE
+> here it'll still mask it since the dirty bit is not set, then the
+> userspace program (in my case, the QEMU thread that handles write
+> protect failures) can never fixup the write-protected page fault.
 
-Or if you're too lazy to run the smoke tests, please send it through
-the ext4 tree so *I* can run the smoke tests.
+I don't follow here.
 
-						- Ted
+The code you quoting above is an apportunistic optimization and should not
+be mission-critical. The dirty and writable bits can go away as soon as
+you drop page table lock for the page.
+
+-- 
+ Kirill A. Shutemov
