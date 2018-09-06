@@ -1,53 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F0826B7AC1
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 17:16:32 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id h5-v6so15239962itb.3
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 14:16:32 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d1-v6sor3950804itj.44.2018.09.06.14.16.31
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B78CE6B7AD7
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 17:36:54 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id e15-v6so6426870pfi.5
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 14:36:54 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id u24-v6si6431386pgk.72.2018.09.06.14.36.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Sep 2018 14:16:31 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Sep 2018 14:36:53 -0700 (PDT)
+Subject: Re: Plumbers 2018 - Performance and Scalability Microconference
+References: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com>
+ <01000165aa490dc9-64abf872-afd1-4a81-a46d-a50d0131de93-000000@email.amazonses.com>
+ <877ejzqtdy.fsf@yhuang-dev.intel.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <bd6f6f8b-4880-6c20-62f5-bb6ca3b5e6f7@oracle.com>
+Date: Thu, 6 Sep 2018 14:36:38 -0700
 MIME-Version: 1.0
-References: <cover.1535629099.git.andreyknvl@google.com> <5d54526e5ff2e5ad63d0dfdd9ab17cf359afa4f2.1535629099.git.andreyknvl@google.com>
- <CA+55aFyW9N2tSb2bQvkthbVVyY6nt5yFeWQRLHp1zruBmb5ocw@mail.gmail.com>
-In-Reply-To: <CA+55aFyW9N2tSb2bQvkthbVVyY6nt5yFeWQRLHp1zruBmb5ocw@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 6 Sep 2018 14:16:19 -0700
-Message-ID: <CA+55aFy2t_MHgr_CgwbhtFkL+djaCq2qMM1G+f2DwJ0qEr1URQ@mail.gmail.com>
-Subject: Re: [PATCH v6 11/11] arm64: annotate user pointers casts detected by sparse
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <877ejzqtdy.fsf@yhuang-dev.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, eugenis@google.com, Lee.Smith@arm.com, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob.Bramley@arm.com, Ruben.Ayrapetyan@arm.com, cpandya@codeaurora.org
+To: "Huang, Ying" <ying.huang@intel.com>, Christopher Lameter <cl@linux.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Aaron Lu <aaron.lu@intel.com>, alex.kogan@oracle.com, akpm@linux-foundation.org, boqun.feng@gmail.com, brouer@redhat.com, dave@stgolabs.net, dave.dice@oracle.com, Dhaval Giani <dhaval.giani@oracle.com>, ktkhai@virtuozzo.com, ldufour@linux.vnet.ibm.com, Pavel.Tatashin@microsoft.com, paulmck@linux.vnet.ibm.com, shady.issa@oracle.com, tariqt@mellanox.com, tglx@linutronix.de, tim.c.chen@intel.com, vbabka@suse.cz, longman@redhat.com, yang.shi@linux.alibaba.com, shy828301@gmail.com, subhra.mazumdar@oracle.com, Steven Sistare <steven.sistare@oracle.com>, jwadams@google.com, ashwinch@google.com, sqazi@google.com, Shakeel Butt <shakeelb@google.com>, walken@google.com, rientjes@google.com, junaids@google.com, Neha Agarwal <nehaagarwal@google.com>, Hugh Dickins <hughd@google.com>
 
-On Thu, Sep 6, 2018 at 2:13 PM Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> So for example:
->
-> >  static inline compat_uptr_t ptr_to_compat(void __user *uptr)
-> >  {
-> > -       return (u32)(unsigned long)uptr;
-> > +       return (u32)(__force unsigned long)uptr;
-> >  }
->
-> this actually looks correct.
+On 09/05/2018 06:58 PM, Huang, Ying wrote:
+> Hi, Christopher,
+> 
+> Christopher Lameter <cl@linux.com> writes:
+> 
+>> On Tue, 4 Sep 2018, Daniel Jordan wrote:
+>>
+>>>  - Promoting huge page usage:  With memory sizes becoming ever larger, huge
+>>> pages are becoming more and more important to reduce TLB misses and the
+>>> overhead of memory management itself--that is, to make the system scalable
+>>> with the memory size.  But there are still some remaining gaps that prevent
+>>> huge pages from being deployed in some situations, such as huge page
+>>> allocation latency and memory fragmentation.
+>>
+>> You forgot the major issue that huge pages in the page cache are not
+>> supported and thus we have performance issues with fast NVME drives that
+>> are now able to do 3Gbytes per sec that are only possible to reach with
+>> directio and huge pages.
+> 
+> Yes.  That is an important gap for huge page.  Although we have huge
+> page cache support for tmpfs, we lacks that for normal file systems.
+> 
+>> IMHO the huge page issue is just the reflection of a certain hardware
+>> manufacturer inflicting pain for over a decade on its poor users by not
+>> supporting larger base page sizes than 4k. No such workarounds needed on
+>> platforms that support large sizes. Things just zoom along without
+>> contortions necessary to deal with huge pages etc.
+>>
+>> Can we come up with a 2M base page VM or something? We have possible
+>> memory sizes of a couple TB now. That should give us a million or so 2M
+>> pages to work with.
+> 
+> That sounds a good idea.  Don't know whether someone has tried this.
 
-Side note: I do think that while the above is correct, the rest of the
-patch shows that we might be better off simply not havign the warning
-for address space changes at all for the "cast a pointer to an integer
-type" case.
+IIRC, Hugh Dickins and some others at Google tried going down this path.
+There was a brief discussion at LSF/MM.  It is something I too would like
+to explore in my spare time.
 
-When you cast to a non-pointer type, the address space issue simply
-doesn't exist at all, so the warning makes less sense.
-
-It's really just he "pointer to one address space" being cast to
-"pointer to another address space" that should really warn, and that
-might need that "__force" thing.
-
-Hmm? So maybe a sparse change is better for most of that patch.
-
-             Linus
+-- 
+Mike Kravetz
