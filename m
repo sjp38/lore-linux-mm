@@ -1,223 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D37206B7723
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 01:44:13 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id p14-v6so11752147oip.0
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 22:44:13 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id z206-v6si2797093oiz.239.2018.09.05.22.44.12
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 701806B7728
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 01:47:38 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id x20-v6so3220219eda.22
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2018 22:47:38 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g5-v6si3560583edh.109.2018.09.05.22.47.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Sep 2018 22:44:12 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w865hh4A146778
-	for <linux-mm@kvack.org>; Thu, 6 Sep 2018 01:44:12 -0400
-Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2masq310jp-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 06 Sep 2018 01:44:11 -0400
-Received: from localhost
-	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Thu, 6 Sep 2018 01:44:10 -0400
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [RFC PATCH V2 4/4] powerpc/mm/iommu: Allow migration of cma allocated pages during mm_iommu_get
-Date: Thu,  6 Sep 2018 11:13:42 +0530
-In-Reply-To: <20180906054342.25094-1-aneesh.kumar@linux.ibm.com>
-References: <20180906054342.25094-1-aneesh.kumar@linux.ibm.com>
-Message-Id: <20180906054342.25094-4-aneesh.kumar@linux.ibm.com>
+        Wed, 05 Sep 2018 22:47:37 -0700 (PDT)
+Date: Thu, 6 Sep 2018 07:47:35 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 1/2] mm: Move page struct poisoning to
+ CONFIG_DEBUG_VM_PAGE_INIT_POISON
+Message-ID: <20180906054735.GJ14951@dhcp22.suse.cz>
+References: <20180905211041.3286.19083.stgit@localhost.localdomain>
+ <20180905211328.3286.71674.stgit@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180905211328.3286.71674.stgit@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, Alexey Kardashevskiy <aik@ozlabs.ru>, mpe@ellerman.id.au
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, alexander.h.duyck@intel.com, pavel.tatashin@microsoft.com, dave.hansen@intel.com, akpm@linux-foundation.org, mingo@kernel.org, kirill.shutemov@linux.intel.com
 
-Current code doesn't do page migration if the page allocated is a compound page.
-With HugeTLB migration support, we can end up allocating hugetlb pages from
-CMA region. Also THP pages can be allocated from CMA region. This patch updates
-the code to handle compound pages correctly.
+On Wed 05-09-18 14:13:28, Alexander Duyck wrote:
+> From: Alexander Duyck <alexander.h.duyck@intel.com>
+> 
+> On systems with a large amount of memory it can take a significant amount
+> of time to initialize all of the page structs with the PAGE_POISON_PATTERN
+> value. I have seen it take over 2 minutes to initialize a system with
+> over 12GB of RAM.
+> 
+> In order to work around the issue I had to disable CONFIG_DEBUG_VM and then
+> the boot time returned to something much more reasonable as the
+> arch_add_memory call completed in milliseconds versus seconds. However in
+> doing that I had to disable all of the other VM debugging on the system.
+> 
+> Instead of keeping the value in CONFIG_DEBUG_VM I am adding a new CONFIG
+> value called CONFIG_DEBUG_VM_PAGE_INIT_POISON that will control the page
+> poisoning independent of the CONFIG_DEBUG_VM option.
 
-This use the new helper get_user_pages_cma_migrate. It does one get_user_pages
-with right count, instead of doing one get_user_pages per page. That avoids
-reading page table multiple times.
+As explained in other thread (please slow down when posting a new
+version until the previous discussion reaches a consensus next time), I
+really detest a new config. We have way too many of those. If you really
+have to then make sure to describe _why_ it is needed. Sure
+initialization takes some time and that is one-off overhead. So why does
+it matter at all for somebody willing to pat runtime overhead all over
+the MM code paths. In other words, why do you have to keep DEBUG_VM
+enabled for workloads where the boot time matters so much that few
+seconds matter?
 
-The patch also convert the hpas member of mm_iommu_table_group_mem_t to a union.
-We use the same storage location to store pointers to struct page. We cannot
-update alll the code path use struct page *, because we access hpas in real mode
-and we can't do that struct page * to pfn conversion in real mode.
+> Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
+> ---
+>  include/linux/page-flags.h |    8 ++++++++
+>  lib/Kconfig.debug          |   14 ++++++++++++++
+>  mm/memblock.c              |    5 ++---
+>  mm/sparse.c                |    4 +---
+>  4 files changed, 25 insertions(+), 6 deletions(-)
+> 
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index 74bee8cecf4c..0e95ca63375a 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -13,6 +13,7 @@
+>  #include <linux/mm_types.h>
+>  #include <generated/bounds.h>
+>  #endif /* !__GENERATING_BOUNDS_H */
+> +#include <linux/string.h>
+>  
+>  /*
+>   * Various page->flags bits:
+> @@ -162,6 +163,13 @@ static inline int PagePoisoned(const struct page *page)
+>  	return page->flags == PAGE_POISON_PATTERN;
+>  }
+>  
+> +static inline void page_init_poison(struct page *page, size_t size)
+> +{
+> +#ifdef CONFIG_DEBUG_VM_PAGE_INIT_POISON
+> +	memset(page, PAGE_POISON_PATTERN, size);
+> +#endif
+> +}
+> +
+>  /*
+>   * Page flags policies wrt compound pages
+>   *
+> diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+> index 613316724c6a..3b1277c52fed 100644
+> --- a/lib/Kconfig.debug
+> +++ b/lib/Kconfig.debug
+> @@ -637,6 +637,20 @@ config DEBUG_VM_PGFLAGS
+>  
+>  	  If unsure, say N.
+>  
+> +config DEBUG_VM_PAGE_INIT_POISON
+> +	bool "Enable early page metadata poisoning"
+> +	default y
+> +	depends on DEBUG_VM
+> +	help
+> +	  Seed the page metadata with a poison pattern to improve the
+> +	  likelihood of detecting attempts to access the page prior to
+> +	  initialization by the memory subsystem.
+> +
+> +	  This initialization can result in a longer boot time for systems
+> +	  with a large amount of memory.
+> +
+> +	  If unsure, say Y.
+> +
+>  config ARCH_HAS_DEBUG_VIRTUAL
+>  	bool
+>  
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index 237944479d25..a85315083b5a 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -1444,10 +1444,9 @@ void * __init memblock_virt_alloc_try_nid_raw(
+>  
+>  	ptr = memblock_virt_alloc_internal(size, align,
+>  					   min_addr, max_addr, nid);
+> -#ifdef CONFIG_DEBUG_VM
+>  	if (ptr && size > 0)
+> -		memset(ptr, PAGE_POISON_PATTERN, size);
+> -#endif
+> +		page_init_poison(ptr, size);
+> +
+>  	return ptr;
+>  }
+>  
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 10b07eea9a6e..67ad061f7fb8 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -696,13 +696,11 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
+>  		goto out;
+>  	}
+>  
+> -#ifdef CONFIG_DEBUG_VM
+>  	/*
+>  	 * Poison uninitialized struct pages in order to catch invalid flags
+>  	 * combinations.
+>  	 */
+> -	memset(memmap, PAGE_POISON_PATTERN, sizeof(struct page) * PAGES_PER_SECTION);
+> -#endif
+> +	page_init_poison(memmap, sizeof(struct page) * PAGES_PER_SECTION);
+>  
+>  	section_mark_present(ms);
+>  	sparse_init_one_section(ms, section_nr, memmap, usemap);
+> 
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
----
- arch/powerpc/mm/mmu_context_iommu.c | 124 +++++++++-------------------
- 1 file changed, 37 insertions(+), 87 deletions(-)
-
-diff --git a/arch/powerpc/mm/mmu_context_iommu.c b/arch/powerpc/mm/mmu_context_iommu.c
-index f472965f7638..607acd03ab06 100644
---- a/arch/powerpc/mm/mmu_context_iommu.c
-+++ b/arch/powerpc/mm/mmu_context_iommu.c
-@@ -20,6 +20,7 @@
- #include <linux/swap.h>
- #include <asm/mmu_context.h>
- #include <asm/pte-walk.h>
-+#include <linux/mm_inline.h>
- 
- static DEFINE_MUTEX(mem_list_mutex);
- 
-@@ -30,8 +31,18 @@ struct mm_iommu_table_group_mem_t {
- 	atomic64_t mapped;
- 	unsigned int pageshift;
- 	u64 ua;			/* userspace address */
--	u64 entries;		/* number of entries in hpas[] */
--	u64 *hpas;		/* vmalloc'ed */
-+	u64 entries;		/* number of entries in hpages[] */
-+	/*
-+	 * in mm_iommu_get we temporarily use this to store
-+	 * struct page address.
-+	 *
-+	 * We need to convert ua to hpa in real mode. Make it
-+	 * simpler by storing physicall address.
-+	 */
-+	union {
-+		struct page **hpages;	/* vmalloc'ed */
-+		phys_addr_t *hpas;
-+	};
- };
- 
- static long mm_iommu_adjust_locked_vm(struct mm_struct *mm,
-@@ -74,63 +85,12 @@ bool mm_iommu_preregistered(struct mm_struct *mm)
- }
- EXPORT_SYMBOL_GPL(mm_iommu_preregistered);
- 
--/*
-- * Taken from alloc_migrate_target with changes to remove CMA allocations
-- */
--struct page *new_iommu_non_cma_page(struct page *page, unsigned long private)
--{
--	gfp_t gfp_mask = GFP_USER;
--	struct page *new_page;
--
--	if (PageCompound(page))
--		return NULL;
--
--	if (PageHighMem(page))
--		gfp_mask |= __GFP_HIGHMEM;
--
--	/*
--	 * We don't want the allocation to force an OOM if possibe
--	 */
--	new_page = alloc_page(gfp_mask | __GFP_NORETRY | __GFP_NOWARN);
--	return new_page;
--}
--
--static int mm_iommu_move_page_from_cma(struct page *page)
--{
--	int ret = 0;
--	LIST_HEAD(cma_migrate_pages);
--
--	/* Ignore huge pages for now */
--	if (PageCompound(page))
--		return -EBUSY;
--
--	lru_add_drain();
--	ret = isolate_lru_page(page);
--	if (ret)
--		return ret;
--
--	list_add(&page->lru, &cma_migrate_pages);
--	put_page(page); /* Drop the gup reference */
--
--	ret = migrate_pages(&cma_migrate_pages, new_iommu_non_cma_page,
--				NULL, 0, MIGRATE_SYNC, MR_CONTIG_RANGE);
--	if (ret) {
--		if (!list_empty(&cma_migrate_pages))
--			putback_movable_pages(&cma_migrate_pages);
--	}
--
--	return 0;
--}
--
- long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
- 		struct mm_iommu_table_group_mem_t **pmem)
- {
- 	struct mm_iommu_table_group_mem_t *mem;
--	long i, j, ret = 0, locked_entries = 0;
-+	long i, ret = 0, locked_entries = 0;
- 	unsigned int pageshift;
--	unsigned long flags;
--	unsigned long cur_ua;
--	struct page *page = NULL;
- 
- 	mutex_lock(&mem_list_mutex);
- 
-@@ -177,47 +137,37 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
- 		goto unlock_exit;
- 	}
- 
-+	ret = get_user_pages_cma_migrate(ua, entries, 1, mem->hpages);
-+	if (ret != entries) {
-+		/* free the reference taken */
-+		for (i = 0; i < ret; i++)
-+			put_page(mem->hpages[i]);
-+
-+		vfree(mem->hpas);
-+		kfree(mem);
-+		ret = -EFAULT;
-+		goto unlock_exit;
-+	} else
-+		ret = 0;
-+
-+	pageshift = PAGE_SHIFT;
- 	for (i = 0; i < entries; ++i) {
--		cur_ua = ua + (i << PAGE_SHIFT);
--		if (1 != get_user_pages_fast(cur_ua,
--					1/* pages */, 1/* iswrite */, &page)) {
--			ret = -EFAULT;
--			for (j = 0; j < i; ++j)
--				put_page(pfn_to_page(mem->hpas[j] >>
--						PAGE_SHIFT));
--			vfree(mem->hpas);
--			kfree(mem);
--			goto unlock_exit;
--		}
-+		struct page *page = mem->hpages[i];
- 		/*
--		 * If we get a page from the CMA zone, since we are going to
--		 * be pinning these entries, we might as well move them out
--		 * of the CMA zone if possible. NOTE: faulting in + migration
--		 * can be expensive. Batching can be considered later
-+		 * Allow to use larger than 64k IOMMU pages. Only do that
-+		 * if we are backed by hugetlb.
- 		 */
--		if (is_migrate_cma_page(page)) {
--			if (mm_iommu_move_page_from_cma(page))
--				goto populate;
--			if (1 != get_user_pages_fast(cur_ua,
--						1/* pages */, 1/* iswrite */,
--						&page)) {
--				ret = -EFAULT;
--				for (j = 0; j < i; ++j)
--					put_page(pfn_to_page(mem->hpas[j] >>
--								PAGE_SHIFT));
--				vfree(mem->hpas);
--				kfree(mem);
--				goto unlock_exit;
--			}
--		}
--populate:
--		pageshift = PAGE_SHIFT;
--		if (mem->pageshift > PAGE_SHIFT && PageHuge(page)) {
-+		if ((mem->pageshift > PAGE_SHIFT) && PageHuge(page)) {
- 			struct page *head = compound_head(page);
- 			pageshift = compound_order(head) + PAGE_SHIFT;
- 		}
- 		mem->pageshift = min(mem->pageshift, pageshift);
-+		/*
-+		 * We don't need struct page reference any more, switch
-+		 * physicall address.
-+		 */
- 		mem->hpas[i] = page_to_pfn(page) << PAGE_SHIFT;
-+
- 	}
- 
- 	atomic64_set(&mem->mapped, 1);
 -- 
-2.17.1
+Michal Hocko
+SUSE Labs
