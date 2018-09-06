@@ -1,41 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C8CF6B7802
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 05:15:40 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id g15-v6so3413631edm.11
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 02:15:40 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s19-v6si2848944edc.383.2018.09.06.02.15.39
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D5B66B7811
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 05:54:25 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id f32-v6so5296050pgm.14
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 02:54:25 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q7-v6sor965881pgv.155.2018.09.06.02.54.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Sep 2018 02:15:39 -0700 (PDT)
-Date: Thu, 6 Sep 2018 11:15:38 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 00/29] mm: remove bootmem allocator
-Message-ID: <20180906091538.GN14951@dhcp22.suse.cz>
-References: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
+        (Google Transport Security);
+        Thu, 06 Sep 2018 02:54:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1536163184-26356-1-git-send-email-rppt@linux.vnet.ibm.com>
+In-Reply-To: <201809060553.w865rmpj036017@www262.sakura.ne.jp>
+References: <0252ad5d-46e6-0d7f-ef91-4e316657a83d@i-love.sakura.ne.jp>
+ <CACT4Y+Yp6ZbusCWg5C1zaJpcS8=XnGPboKgWfyxVk1axQA2nbw@mail.gmail.com> <201809060553.w865rmpj036017@www262.sakura.ne.jp>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Thu, 6 Sep 2018 11:54:02 +0200
+Message-ID: <CACT4Y+YKJWJr-5rBQidt6nY7+VF=BAsvHyh+XTaf8spwNy3qPA@mail.gmail.com>
+Subject: Re: INFO: task hung in ext4_da_get_block_prep
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ingo Molnar <mingo@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Burton <paul.burton@mips.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: syzbot <syzbot+f0fc7f62e88b1de99af3@syzkaller.appspotmail.com>, 'Dmitry Vyukov' via syzkaller-upstream-moderation <syzkaller-upstream-moderation@googlegroups.com>, linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>
 
-On Wed 05-09-18 18:59:15, Mike Rapoport wrote:
-[...]
->  325 files changed, 846 insertions(+), 2478 deletions(-)
->  delete mode 100644 include/linux/bootmem.h
->  delete mode 100644 mm/bootmem.c
->  delete mode 100644 mm/nobootmem.c
+On Thu, Sep 6, 2018 at 7:53 AM, Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
+> Dmitry Vyukov wrote:
+>> > Also, another notable thing is that the backtrace for some reason includes
+>> >
+>> > [ 1048.211540]  ? oom_killer_disable+0x3a0/0x3a0
+>> >
+>> > line. Was syzbot testing process freezing functionality?
+>>
+>> What's the API for this?
+>>
+>
+> I'm not a user of suspend/hibernation. But it seems that usage of the API
+> is to write one of words listed in /sys/power/state into /sys/power/state .
+>
+> # echo suspend > /sys/power/state
 
-This is really impressive! Thanks a lot for working on this. I wish we
-could simplify the memblock API as well. There are just too many public
-functions with subtly different semantic and barely any useful
-documentation.
-
-But even this is a great step forward!
--- 
-Michal Hocko
-SUSE Labs
+syzkaller should not write to /sys/power/state. The only mention of
+"power" is in some selinux contexts.
