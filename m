@@ -1,21 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 317246B7878
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 07:17:42 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id v52-v6so10796339qtc.3
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 04:17:42 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o20-v6sor2065363qta.58.2018.09.06.04.17.41
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D7B7C6B787B
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 07:18:54 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id c25-v6so3451792edb.12
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 04:18:54 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e37-v6si1621367ede.202.2018.09.06.04.18.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Sep 2018 04:17:41 -0700 (PDT)
-From: "Zi Yan" <zi.yan@cs.rutgers.edu>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Sep 2018 04:18:53 -0700 (PDT)
 Subject: Re: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE mappings
-Date: Thu, 06 Sep 2018 07:17:38 -0400
-Message-ID: <5526DAD7-00AB-45D0-B14C-0B8C78A17C3F@cs.rutgers.edu>
-In-Reply-To: <2208ad4d-e5eb-fc53-cdc8-a351f2b6b9d1@suse.cz>
-References: <20180823105253.GB29735@dhcp22.suse.cz>
- <20180828075321.GD10223@dhcp22.suse.cz>
+References: <20180828075321.GD10223@dhcp22.suse.cz>
  <20180828081837.GG10223@dhcp22.suse.cz>
  <D5F4A33C-0A37-495C-9468-D6866A862097@cs.rutgers.edu>
  <20180829142816.GX10223@dhcp22.suse.cz>
@@ -25,70 +20,35 @@ References: <20180823105253.GB29735@dhcp22.suse.cz>
  <39BE14E6-D0FB-428A-B062-8B5AEDC06E61@cs.rutgers.edu>
  <20180829162528.GD10223@dhcp22.suse.cz>
  <20180829192451.GG10223@dhcp22.suse.cz>
- <E97C9342-9BA0-48DD-A580-738ACEE49B41@cs.rutgers.edu>
- <2208ad4d-e5eb-fc53-cdc8-a351f2b6b9d1@suse.cz>
+ <20180830064732.GA2656@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <4b23ded6-c1a0-eb13-4537-b9bc4bfb9cc9@suse.cz>
+Date: Thu, 6 Sep 2018 13:18:52 +0200
 MIME-Version: 1.0
-Content-Type: multipart/signed;
- boundary="=_MailMate_51544ED5-FD1F-4082-99F8-5530E3BFCD86_=";
- micalg=pgp-sha512; protocol="application/pgp-signature"
+In-Reply-To: <20180830064732.GA2656@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+To: Michal Hocko <mhocko@suse.com>, Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
 
-This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
+On 08/30/2018 08:47 AM, Michal Hocko wrote:
+> -static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
+> +static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma, unsigned long addr)
+>  {
+>  	const bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
+> +	gfp_t this_node = 0;
+> +	struct mempolicy *pol;
+> +
+> +#ifdef CONFIG_NUMA
+> +	/* __GFP_THISNODE makes sense only if there is no explicit binding */
+> +	pol = get_vma_policy(vma, addr);
+> +	if (pol->mode != MPOL_BIND)
+> +		this_node = __GFP_THISNODE;
+> +	mpol_cond_put(pol);
 
---=_MailMate_51544ED5-FD1F-4082-99F8-5530E3BFCD86_=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-
-On 6 Sep 2018, at 6:59, Vlastimil Babka wrote:
-
-> On 08/30/2018 12:54 AM, Zi Yan wrote:
->>
->> Thanks for your patch.
->>
->> I tested it against Linus=E2=80=99s tree with =E2=80=9Cmemhog -r3 130g=
-=E2=80=9D in a two-socket machine with 128GB memory on
->> each node and got the results below. I expect this test should fill on=
-e node, then fall back to the other.
->>
->> 1. madvise(MADV_HUGEPAGE) + defrag =3D {always, madvise, defer+madvise=
-}: no swap, THPs are allocated in the fallback node.
->> 2. madvise(MADV_HUGEPAGE) + defrag =3D defer: pages got swapped to the=
- disk instead of being allocated in the fallback node.
->
-> Hmm this is GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM | __GFP_THISNODE=
-=2E
-> No direct reclaim, so it would have to be kswapd causing the swapping? =
-I
-> wouldn't expect it to be significant and over-reclaiming. What exactly
-> is your definition of "pages got swapped"?
-
-About 4GB pages are swapped to the disk (my swap disk size is 4.7GB).
-My machine has 128GB memory in each node and memhog uses 130GB memory.
-When one node is filled up, the oldest pages are swapped into disk
-until memhog finishes touching all 130GB memory.
-
-=E2=80=94
-Best Regards,
-Yan Zi
-
---=_MailMate_51544ED5-FD1F-4082-99F8-5530E3BFCD86_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename=signature.asc
-Content-Type: application/pgp-signature; name=signature.asc
-
------BEGIN PGP SIGNATURE-----
-
-iQFKBAEBCgA0FiEEOXBxLIohamfZUwd5QYsvEZxOpswFAluRDNIWHHppLnlhbkBj
-cy5ydXRnZXJzLmVkdQAKCRBBiy8RnE6mzG+BB/4nHTfGNyOdEaEzV3mCiQWIjz5k
-N6rDTzVsENOq4UB09cM0iusMf4xfh0/QhvMCT/yjbd/d3R6u5zXRshSPdwi7RCrA
-QoIUpsPmktuWqOe34gXc9LqEYTS/GupsqLM7UpVdvptmxffUunYZ37AAGMYrH2Qj
-+yxvgOhurIhW/fmnPEJQ/3UIWy7vv0rYdq8NbjsIGFSAi94hcXCFKdhoxXd+RDHA
-4EWlXNBk3aUT/ZHn7lxMcJjWhELzYMO4sdlo05ikJnSh9Eee3msB6+qokg3b3co1
-HyKs2D/f3EaKBE7QcYDzN6K9DHIqA9lrjr8KqF0zYIkzBAjnynkG6dsoKG4d
-=IYXf
------END PGP SIGNATURE-----
-
---=_MailMate_51544ED5-FD1F-4082-99F8-5530E3BFCD86_=--
+The code is better without the hack in alloc_pages_vma() but I'm not
+thrilled about getting vma policy here and then immediately again in
+alloc_pages_vma(). But if it can't be helped...
