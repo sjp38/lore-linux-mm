@@ -1,70 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E4C5A6B786B
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 07:10:59 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id f13-v6so5382654pgs.15
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 04:10:59 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d20-v6si5021549pgj.535.2018.09.06.04.10.58
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Sep 2018 04:10:58 -0700 (PDT)
-Subject: Re: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE mappings
-References: <39BE14E6-D0FB-428A-B062-8B5AEDC06E61@cs.rutgers.edu>
- <20180829162528.GD10223@dhcp22.suse.cz>
- <20180829192451.GG10223@dhcp22.suse.cz>
- <E97C9342-9BA0-48DD-A580-738ACEE49B41@cs.rutgers.edu>
- <20180830070021.GB2656@dhcp22.suse.cz>
- <4AFDF557-46E3-4C62-8A43-C28E8F2A54CF@cs.rutgers.edu>
- <20180830134549.GI2656@dhcp22.suse.cz>
- <C0146217-821B-4530-A2E2-57D4CCDE8102@cs.rutgers.edu>
- <20180830164057.GK2656@dhcp22.suse.cz> <20180905034403.GN4762@redhat.com>
- <20180905070803.GZ14951@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <99ee1104-9258-e801-2ba3-a643892cc6c1@suse.cz>
-Date: Thu, 6 Sep 2018 13:10:53 +0200
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B42EF6B786E
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 07:11:18 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id p14-v6so12549053oip.0
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 04:11:18 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id b188-v6si3087921oif.246.2018.09.06.04.11.17
+        for <linux-mm@kvack.org>;
+        Thu, 06 Sep 2018 04:11:17 -0700 (PDT)
+From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
+Subject: Re: [PATCH v2 04/40] iommu/sva: Add a mm_exit callback for device
+ drivers
+References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
+ <20180511190641.23008-5-jean-philippe.brucker@arm.com>
+ <d1dc28c4-7742-9c41-3f91-3fbcb8b13c1c@redhat.com>
+Message-ID: <27b964dc-68c4-3bb3-288c-166c25864e45@arm.com>
+Date: Thu, 6 Sep 2018 12:10:58 +0100
 MIME-Version: 1.0
-In-Reply-To: <20180905070803.GZ14951@dhcp22.suse.cz>
+In-Reply-To: <d1dc28c4-7742-9c41-3f91-3fbcb8b13c1c@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, David Rientjes <rientjes@google.com>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+To: Auger Eric <eric.auger@redhat.com>, linux-arm-kernel@lists.infradead.org, linux-pci@vger.kernel.org, linux-acpi@vger.kernel.org, devicetree@vger.kernel.org, iommu@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org
+Cc: xieyisheng1@huawei.com, liubo95@huawei.com, xuzaibo@huawei.com, thunder.leizhen@huawei.com, will.deacon@arm.com, okaya@codeaurora.org, yi.l.liu@intel.com, ashok.raj@intel.com, tn@semihalf.com, joro@8bytes.org, bharatku@xilinx.com, liudongdong3@huawei.com, rfranz@cavium.com, kevin.tian@intel.com, jacob.jun.pan@linux.intel.com, jcrouse@codeaurora.org, rgummal@xilinx.com, jonathan.cameron@huawei.com, shunyong.yang@hxt-semitech.com, robin.murphy@arm.com, ilias.apalodimas@linaro.org, alex.williamson@redhat.com, robdclark@gmail.com, dwmw2@infradead.org, christian.koenig@amd.com, nwatters@codeaurora.org, baolu.lu@linux.intel.com
 
-On 09/05/2018 09:08 AM, Michal Hocko wrote:
-> On Tue 04-09-18 23:44:03, Andrea Arcangeli wrote:
-> [...]
->> That kind of swapping may only pay off in the very long long term,
->> which is what khugepaged is for. khugepaged already takes care of the
->> long term, so we could later argue and think if khugepaged should
->> swapout or not in such condition, but I don't think there's much to
->> argue about the page fault.
-> 
-> I agree that defrag==always doing a reclaim is not really good and
-> benefits are questionable. If you remember this was the primary reason
-> why the default has been changed.
-> 
->>> Thanks for your and Stefan's testing. I will wait for some more
->>> feedback. I will be offline next few days and if there are no major
->>> objections I will repost with both tested-bys early next week.
->>
->> I'm not so positive about 2 of the above tests if I understood the
->> test correctly.
->>
->> Those results are totally fine if you used the non default memory
->> policy, but with MPOL_DEFAULT and in turn no hard bind of the memory,
->> I'm afraid it'll be even be harder to reproduce when things will go
->> wrong again in those two cases.
-> 
-> We can and should think about this much more but I would like to have
-> this regression closed. So can we address GFP_THISNODE part first and
-> build more complex solution on top?
-> 
-> Is there any objection to my patch which does the similar thing to your
-> patch v2 in a different location?
+On 05/09/2018 14:23, Auger Eric wrote:
+>> + * If the driver intends to share process address spaces, it should pass a valid
+>> + * @mm_exit handler. Otherwise @mm_exit can be NULL.
+> I don't get case where mm_exit is allowed to be NULL.
 
-Similar but not the same. It fixes the madvise case, but I wonder about
-the no-madvise defrag=defer case, where Zi Yan reports it still causes
-swapping.
+Right, this comment is a bit premature. Next version adds a "private
+PASID" patch to allocate private address spaces per PASID (modifiable
+with map/unmap). That mode doesn't require mm_exit, and I can move the
+comment there
+
+Thanks,
+Jean
