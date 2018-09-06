@@ -1,117 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A42A66B789C
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 07:43:59 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id x204-v6so7570010qka.6
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 04:43:59 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id x18-v6si414463qtq.218.2018.09.06.04.43.58
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C70C36B786C
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 07:51:02 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id 2-v6so5413812plc.11
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 04:51:02 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id p12-v6si4346972pls.53.2018.09.06.04.51.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Sep 2018 04:43:58 -0700 (PDT)
-Date: Thu, 6 Sep 2018 19:43:50 +0800
-From: Peter Xu <peterx@redhat.com>
-Subject: Re: [PATCH] mm: hugepage: mark splitted page dirty when needed
-Message-ID: <20180906114350.GH16937@xz-x1>
-References: <20180904075510.22338-1-peterx@redhat.com>
- <20180904080115.o2zj4mlo7yzjdqfl@kshutemo-mobl1>
- <D3B32B41-61D5-47B3-B1FC-77B0F71ADA47@cs.rutgers.edu>
- <20180905073037.GA23021@xz-x1>
- <BB56C67D-BDA0-4C14-B787-77504EC989C6@cs.rutgers.edu>
+        Thu, 06 Sep 2018 04:51:01 -0700 (PDT)
+Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
+ processes.
+References: <1533389386-3501-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <1533389386-3501-4-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180806134550.GO19540@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1808061315220.43071@chino.kir.corp.google.com>
+ <20180806205121.GM10003@dhcp22.suse.cz>
+ <0aeb76e1-558f-e38e-4c66-77be3ce56b34@I-love.SAKURA.ne.jp>
+ <20180906113553.GR14951@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <87b76eea-9881-724a-442a-c6079cbf1016@i-love.sakura.ne.jp>
+Date: Thu, 6 Sep 2018 20:50:53 +0900
 MIME-Version: 1.0
+In-Reply-To: <20180906113553.GR14951@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <BB56C67D-BDA0-4C14-B787-77504EC989C6@cs.rutgers.edu>
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Dan Williams <dan.j.williams@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>
 
-On Wed, Sep 05, 2018 at 08:49:20AM -0400, Zi Yan wrote:
-> On 5 Sep 2018, at 3:30, Peter Xu wrote:
+On 2018/09/06 20:35, Michal Hocko wrote:
+> On Sat 01-09-18 20:48:57, Tetsuo Handa wrote:
+>> On 2018/08/07 5:51, Michal Hocko wrote:
+>>>> At the risk of continually repeating the same statement, the oom reaper 
+>>>> cannot provide the direct feedback for all possible memory freeing.  
+>>>> Waking up periodically and finding mm->mmap_sem contended is one problem, 
+>>>> but the other problem that I've already shown is the unnecessary oom 
+>>>> killing of additional processes while a thread has already reached 
+>>>> exit_mmap().  The oom reaper cannot free page tables which is problematic 
+>>>> for malloc implementations such as tcmalloc that do not release virtual 
+>>>> memory. 
+>>>
+>>> But once we know that the exit path is past the point of blocking we can
+>>> have MMF_OOM_SKIP handover from the oom_reaper to the exit path. So the
+>>> oom_reaper doesn't hide the current victim too early and we can safely
+>>> wait for the exit path to reclaim the rest. So there is a feedback
+>>> channel. I would even do not mind to poll for that state few times -
+>>> similar to polling for the mmap_sem. But it would still be some feedback
+>>> rather than a certain amount of time has passed since the last check.
+>>
+>> Michal, will you show us how we can handover as an actual patch? I'm not
+>> happy with postponing current situation with just your wish to handover.
 > 
-> > On Tue, Sep 04, 2018 at 10:00:28AM -0400, Zi Yan wrote:
-> >> On 4 Sep 2018, at 4:01, Kirill A. Shutemov wrote:
-> >>
-> >>> On Tue, Sep 04, 2018 at 03:55:10PM +0800, Peter Xu wrote:
-> >>>> When splitting a huge page, we should set all small pages as dirty if
-> >>>> the original huge page has the dirty bit set before.  Otherwise we'll
-> >>>> lose the original dirty bit.
-> >>>
-> >>> We don't lose it. It got transfered to struct page flag:
-> >>>
-> >>> 	if (pmd_dirty(old_pmd))
-> >>> 		SetPageDirty(page);
-> >>>
-> >>
-> >> Plus, when split_huge_page_to_list() splits a THP, its subroutine __split_huge_page()
-> >> propagates the dirty bit in the head page flag to all subpages in __split_huge_page_tail().
-> >
-> > Hi, Kirill, Zi,
-> >
-> > Thanks for your responses!
-> >
-> > Though in my test the huge page seems to be splitted not by
-> > split_huge_page_to_list() but by explicit calls to
-> > change_protection().  The stack looks like this (again, this is a
-> > customized kernel, and I added an explicit dump_stack() there):
-> >
-> >   kernel:  dump_stack+0x5c/0x7b
-> >   kernel:  __split_huge_pmd+0x192/0xdc0
-> >   kernel:  ? update_load_avg+0x8b/0x550
-> >   kernel:  ? update_load_avg+0x8b/0x550
-> >   kernel:  ? account_entity_enqueue+0xc5/0xf0
-> >   kernel:  ? enqueue_entity+0x112/0x650
-> >   kernel:  change_protection+0x3a2/0xab0
-> >   kernel:  mwriteprotect_range+0xdd/0x110
-> >   kernel:  userfaultfd_ioctl+0x50b/0x1210
-> >   kernel:  ? do_futex+0x2cf/0xb20
-> >   kernel:  ? tty_write+0x1d2/0x2f0
-> >   kernel:  ? do_vfs_ioctl+0x9f/0x610
-> >   kernel:  do_vfs_ioctl+0x9f/0x610
-> >   kernel:  ? __x64_sys_futex+0x88/0x180
-> >   kernel:  ksys_ioctl+0x70/0x80
-> >   kernel:  __x64_sys_ioctl+0x16/0x20
-> >   kernel:  do_syscall_64+0x55/0x150
-> >   kernel:  entry_SYSCALL_64_after_hwframe+0x44/0xa9
-> >
-> > At the very time the userspace is sending an UFFDIO_WRITEPROTECT ioctl
-> > to kernel space, which is handled by mwriteprotect_range().  In case
-> > you'd like to refer to the kernel, it's basically this one from
-> > Andrea's (with very trivial changes):
-> >
-> >   https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git userfault
-> >
-> > So... do we have two paths to split the huge pages separately?
-> >
-> > Another (possibly very naive) question is: could any of you hint me
-> > how the page dirty bit is finally applied to the PTEs?  These two
-> > dirty flags confused me for a few days already (the SetPageDirty() one
-> > which sets the page dirty flag, and the pte_mkdirty() which sets that
-> > onto the real PTEs).
-> 
-> change_protection() only causes splitting a PMD entry into multiple PTEs
-> but not the physical compound page, so my answer does not apply to your case.
-> It is unclear how the dirty bit makes your QEMU get a SIGBUS. I think you
-> need to describe your problem with more details.
+> I am sorry but I am bussy with other higher priority issues. I believe I
+> have outlined the scheme that might work (see above). All it takes is to
+> look into that closer a play with it.
 
-Hi, Zi,
-
-I explained with some more details on my problem in my other reply to
-Kirill.  Please have a look.
-
-> 
-> AFAIK, the PageDirty bit will not apply back to any PTEs. So for your case,
-> when reporting a pagea??s dirty bit information, some function in the kernel only checks
-> the PTEa??s dirty bit but not the dirty bit in the struct page flags, which
-> might provide a wrong answer.
-
-Are you suggesting that we should always check both places (the PTE
-dirty bit) and also the page flag to know whether a page is dirty
-(hence, either of the bit set should mean the page is dirty)?
-
-Thanks,
-
--- 
-Peter Xu
+If you are too busy, please show "the point of no-blocking" using source code
+instead. If such "the point of no-blocking" really exists, it can be executed
+by allocating threads. I think that such "the point of no-blocking" is so late
+stage of freeing that it makes no difference with timeout based back off.
