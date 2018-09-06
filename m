@@ -1,72 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 74D236B78A2
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 08:09:05 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id a8-v6so5471000pla.10
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 05:09:05 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u26-v6sor938494pgl.244.2018.09.06.05.09.04
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 74EF36B78A8
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 08:13:35 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id m4-v6so5448562pgq.19
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 05:13:35 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id h14-v6si4991321pgg.540.2018.09.06.05.13.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Sep 2018 05:09:04 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Sep 2018 05:13:34 -0700 (PDT)
+Message-ID: <5B911B03.2060602@intel.com>
+Date: Thu, 06 Sep 2018 20:18:11 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180906115320.GS14951@dhcp22.suse.cz>
-References: <0252ad5d-46e6-0d7f-ef91-4e316657a83d@i-love.sakura.ne.jp>
- <CACT4Y+Yp6ZbusCWg5C1zaJpcS8=XnGPboKgWfyxVk1axQA2nbw@mail.gmail.com>
- <201809060553.w865rmpj036017@www262.sakura.ne.jp> <CACT4Y+YKJWJr-5rBQidt6nY7+VF=BAsvHyh+XTaf8spwNy3qPA@mail.gmail.com>
- <58aa0543-86d0-b2ad-7fb9-9bed7c6a1f6c@i-love.sakura.ne.jp>
- <20180906112306.GO14951@dhcp22.suse.cz> <1611e45d-235e-67e9-26e3-d0228255fa2f@i-love.sakura.ne.jp>
- <20180906115320.GS14951@dhcp22.suse.cz>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Thu, 6 Sep 2018 14:08:43 +0200
-Message-ID: <CACT4Y+byA7dLar5=9y+7RApT2WdxgVA9c29q83NEVkd5KCLgjg@mail.gmail.com>
-Subject: Re: [PATCH] mm, oom: Introduce time limit for dump_tasks duration.
-Content-Type: text/plain; charset="UTF-8"
+Subject: Re: [PATCH v36 0/5] Virtio-balloon: support free page reporting
+References: <1532075585-39067-1-git-send-email-wei.w.wang@intel.com> <20180723122342-mutt-send-email-mst@kernel.org> <20180723143604.GB2457@work-vm>
+In-Reply-To: <20180723143604.GB2457@work-vm>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, syzbot <syzbot+f0fc7f62e88b1de99af3@syzkaller.appspotmail.com>, 'Dmitry Vyukov' via syzkaller-upstream-moderation <syzkaller-upstream-moderation@googlegroups.com>, linux-mm <linux-mm@kvack.org>
+To: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
 
-On Thu, Sep 6, 2018 at 1:53 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Thu 06-09-18 20:40:34, Tetsuo Handa wrote:
->> On 2018/09/06 20:23, Michal Hocko wrote:
->> > On Thu 06-09-18 19:58:25, Tetsuo Handa wrote:
->> > [...]
->> >> >From 18876f287dd69a7c33f65c91cfcda3564233f55e Mon Sep 17 00:00:00 2001
->> >> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
->> >> Date: Thu, 6 Sep 2018 19:53:18 +0900
->> >> Subject: [PATCH] mm, oom: Introduce time limit for dump_tasks duration.
->> >>
->> >> Since printk() is slow, printing one line takes nearly 0.01 second.
->> >> As a result, syzbot is stalling for 52 seconds trying to dump 5600
->> >> tasks at for_each_process() under RCU. Since such situation is almost
->> >> inflight fork bomb attack (the OOM killer will print similar tasks for
->> >> so many times), it makes little sense to print all candidate tasks.
->> >> Thus, this patch introduces 3 seconds limit for printing.
->> >>
->> >> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
->> >> Cc: Dmitry Vyukov <dvyukov@google.com>
->> >
->> > You really love timeout based solutions with randomly chosen timeouts,
->> > don't you. This is just ugly as hell. We already have means to disable
->> > tasks dumping (see /proc/sys/vm/oom_dump_tasks).
+On 07/23/2018 10:36 PM, Dr. David Alan Gilbert wrote:
+> * Michael S. Tsirkin (mst@redhat.com) wrote:
+>> On Fri, Jul 20, 2018 at 04:33:00PM +0800, Wei Wang wrote:
+>>> This patch series is separated from the previous "Virtio-balloon
+>>> Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_HINT,
+>>> implemented by this series enables the virtio-balloon driver to report
+>>> hints of guest free pages to the host. It can be used to accelerate live
+>>> migration of VMs. Here is an introduction of this usage:
+>>>
+>>> Live migration needs to transfer the VM's memory from the source machine
+>>> to the destination round by round. For the 1st round, all the VM's memory
+>>> is transferred. From the 2nd round, only the pieces of memory that were
+>>> written by the guest (after the 1st round) are transferred. One method
+>>> that is popularly used by the hypervisor to track which part of memory is
+>>> written is to write-protect all the guest memory.
+>>>
+>>> This feature enables the optimization by skipping the transfer of guest
+>>> free pages during VM live migration. It is not concerned that the memory
+>>> pages are used after they are given to the hypervisor as a hint of the
+>>> free pages, because they will be tracked by the hypervisor and transferred
+>>> in the subsequent round if they are used and written.
+>>>
+>>> * Tests
+>>> - Test Environment
+>>>      Host: Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz
+>>>      Guest: 8G RAM, 4 vCPU
+>>>      Migration setup: migrate_set_speed 100G, migrate_set_downtime 2 second
+>>>
+>>> - Test Results
+>>>      - Idle Guest Live Migration Time (results are averaged over 10 runs):
+>>>          - Optimization v.s. Legacy = 409ms vs 1757ms --> ~77% reduction
+>>> 	(setting page poisoning zero and enabling ksm don't affect the
+>>>           comparison result)
+>>>      - Guest with Linux Compilation Workload (make bzImage -j4):
+>>>          - Live Migration Time (average)
+>>>            Optimization v.s. Legacy = 1407ms v.s. 2528ms --> ~44% reduction
+>>>          - Linux Compilation Time
+>>>            Optimization v.s. Legacy = 5min4s v.s. 5min12s
+>>>            --> no obvious difference
+>> I'd like to see dgilbert's take on whether this kind of gain
+>> justifies adding a PV interfaces, and what kind of guest workload
+>> is appropriate.
 >>
->> I know /proc/sys/vm/oom_dump_tasks . Showing some entries while not always
->> printing all entries might be helpful.
+>> Cc'd.
+> Well, 44% is great ... although the measurement is a bit weird.
 >
-> Not really. It could be more confusing than helpful. The main purpose of
-> the listing is to double check the list to understand the oom victim
-> selection. If you have a partial list you simply cannot do that.
+> a) A 2 second downtime is very large; 300-500ms is more normal
+> b) I'm not sure what the 'average' is  - is that just between a bunch of
+> repeated migrations?
+> c) What load was running in the guest during the live migration?
 >
-> If the iteration takes too long and I can imagine it does with zillions
-> of tasks then the proper way around it is either release the lock
-> periodically after N tasks is processed or outright skip the whole thing
-> if there are too many tasks. The first option is obviously tricky to
-> prevent from duplicate entries or other artifacts.
+> An interesting measurement to add would be to do the same test but
+> with a VM with a lot more RAM but the same load;  you'd hope the gain
+> would be even better.
+> It would be interesting, especially because the users who are interested
+> are people creating VMs allocated with lots of extra memory (for the
+> worst case) but most of the time migrating when it's fairly idle.
+>
+> Dave
+>
 
+Hi Dave,
 
-So does anybody know if it can live lock picking up new tasks all the
-time? That's what it looks like at first glance. I also don't remember
-seeing anything similar in the past.
-If it's a live lock and we resolve it, then we don't need to solve the
-problem of too many tasks here.
+The results of the added experiments have been shown in the v37 cover 
+letter.
+Could you have a look at https://lkml.org/lkml/2018/8/27/29 . Thanks.
+
+Best,
+Wei
