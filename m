@@ -1,66 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D39486B7B23
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 18:46:31 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id z72-v6so15872011itc.8
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 15:46:31 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id f12-v6si4462617jam.101.2018.09.06.15.46.29
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1535A6B7B3A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 19:09:04 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id z11-v6so8434021wma.4
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 16:09:04 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n15-v6sor4639488wrm.3.2018.09.06.16.09.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Sep 2018 15:46:30 -0700 (PDT)
-Subject: Re: [PATCH] mm, oom: distinguish blockable mode for mmu notifiers
-References: <20180824120339.GL29735@dhcp22.suse.cz>
- <eb546bcb-9c5f-7d5d-43a7-bfde489f0e7f@amd.com>
- <20180824123341.GN29735@dhcp22.suse.cz>
- <b11df415-baf8-0a41-3c16-60dfe8d32bd3@amd.com>
- <20180824130132.GP29735@dhcp22.suse.cz>
- <23d071d2-82e4-9b78-1000-be44db5f6523@gmail.com>
- <20180824132442.GQ29735@dhcp22.suse.cz>
- <86bd94d5-0ce8-c67f-07a5-ca9ebf399cdd@gmail.com>
- <20180824134009.GS29735@dhcp22.suse.cz>
- <735b0a53-5237-8827-d20e-e57fa24d798f@amd.com>
- <20180824135257.GU29735@dhcp22.suse.cz>
- <b78f8b3a-7bc6-0dea-6752-5ea798eccb6b@i-love.sakura.ne.jp>
- <0e80c531-4e91-fb1d-e7eb-46a7aecc4c9d@amd.com>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <841ae1fb-bb5a-8b1e-6383-ca2e70b6e759@i-love.sakura.ne.jp>
-Date: Fri, 7 Sep 2018 07:46:09 +0900
+        (Google Transport Security);
+        Thu, 06 Sep 2018 16:09:02 -0700 (PDT)
+Date: Fri, 7 Sep 2018 01:08:59 +0200
+From: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Subject: Re: [PATCH v6 11/11] arm64: annotate user pointers casts detected by
+ sparse
+Message-ID: <20180906230858.psedqdai3dw2cvvl@ltop.local>
+References: <cover.1535629099.git.andreyknvl@google.com>
+ <5d54526e5ff2e5ad63d0dfdd9ab17cf359afa4f2.1535629099.git.andreyknvl@google.com>
+ <CA+55aFyW9N2tSb2bQvkthbVVyY6nt5yFeWQRLHp1zruBmb5ocw@mail.gmail.com>
+ <CA+55aFy2t_MHgr_CgwbhtFkL+djaCq2qMM1G+f2DwJ0qEr1URQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <0e80c531-4e91-fb1d-e7eb-46a7aecc4c9d@amd.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFy2t_MHgr_CgwbhtFkL+djaCq2qMM1G+f2DwJ0qEr1URQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>, Michal Hocko <mhocko@kernel.org>
-Cc: kvm@vger.kernel.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Sudeep Dutt <sudeep.dutt@intel.com>, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Dimitri Sivanich <sivanich@sgi.com>, Jason Gunthorpe <jgg@ziepe.ca>, linux-rdma@vger.kernel.org, amd-gfx@lists.freedesktop.org, David Airlie <airlied@linux.ie>, Doug Ledford <dledford@redhat.com>, David Rientjes <rientjes@google.com>, xen-devel@lists.xenproject.org, intel-gfx@lists.freedesktop.org, Leon Romanovsky <leonro@mellanox.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Rodrigo Vivi <rodrigo.vivi@intel.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, LKML <linux-kernel@vger.kernel.org>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Alex Deucher <alexander.deucher@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Felix Kuehling <felix.kuehling@amd.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrey Konovalov <andreyknvl@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, eugenis@google.com, Lee.Smith@arm.com, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob.Bramley@arm.com, Ruben.Ayrapetyan@arm.com, cpandya@codeaurora.org
 
-On 2018/08/27 16:41, Christian KA?nig wrote:
-> Am 26.08.2018 um 10:40 schrieb Tetsuo Handa:
->> I'm not following. Why don't we need to do like below (given that
->> nobody except amdgpu_mn_read_lock() holds ->read_lock) because e.g.
->> drm_sched_fence_create() from drm_sched_job_init() from amdgpu_cs_submit()
->> is doing GFP_KERNEL memory allocation with ->lock held for write?
+On Thu, Sep 06, 2018 at 02:16:19PM -0700, Linus Torvalds wrote:
+> On Thu, Sep 6, 2018 at 2:13 PM Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
+> >
+> > So for example:
+> >
+> > >  static inline compat_uptr_t ptr_to_compat(void __user *uptr)
+> > >  {
+> > > -       return (u32)(unsigned long)uptr;
+> > > +       return (u32)(__force unsigned long)uptr;
+> > >  }
+> >
+> > this actually looks correct.
 > 
-> That's a bug which needs to be fixed separately.
+> Side note: I do think that while the above is correct, the rest of the
+> patch shows that we might be better off simply not havign the warning
+> for address space changes at all for the "cast a pointer to an integer
+> type" case.
 > 
-> Allocating memory with GFP_KERNEL while holding a lock which is also taken in the reclaim code path is illegal not matter what you do.
+> When you cast to a non-pointer type, the address space issue simply
+> doesn't exist at all, so the warning makes less sense.
 > 
-> Patches to fix this are already on the appropriate mailing list and will be pushed upstream today.
+> It's really just he "pointer to one address space" being cast to
+> "pointer to another address space" that should really warn, and that
+> might need that "__force" thing.
 > 
-> Regards,
-> Christian.
+> Hmm? So maybe a sparse change is better for most of that patch.
 
-Commit 4a2de54dc1d7668f ("drm/amdgpu: fix holding mn_lock while allocating memory")
-seems to be calling amdgpu_mn_unlock() without amdgpu_mn_lock() when
-drm_sched_job_init() failed... 
+Unless I'm misunderstanding something, I don't think there is
+anything to change for this specific point. Sparse don't warn
+(by default) on "cast from pointer with address space to integer",
+as it always been the case, I think. I think it's the good choice.
+
+It's just that recently, I've added a new flag -Wcast-from-as [1],
+defaulting to 'no', specifically to *detect* these cast because of
+these tagged pointers.
+
+Note: I tend to think more and more that __force is simply too
+      strong and weaker form, like __force_as and __force_bitwise
+      would be more appropriate.
 
 
+-- Luc Van Oostenryck
 
-Michal, you are asking me to fix all bugs (including out of tree code) and prevent
-future bugs just because you want to avoid using timeout in order to avoid OOM lockup
-( https://marc.info/?i=55a3fb37-3246-73d7-0f45-5835a3f4831c@i-love.sakura.ne.jp ).
-That is a too much request which is impossible for even you. More you count on
-the OOM reaper, we exponentially complicates dependency and more likely to stumble
-over unreviewed/untested code...
+[1] d96da358c ("stricter warning for explicit cast to ulong")
