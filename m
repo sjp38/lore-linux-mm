@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 94A8C8E0001
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 18:37:10 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id q12-v6so7806544pgp.6
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 15:37:10 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id f40-v6si9484448plb.504.2018.09.07.15.37.09
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 833748E0001
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 18:37:38 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id m4-v6so7796002pgq.19
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 15:37:38 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id 10-v6si9957731ple.60.2018.09.07.15.37.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Sep 2018 15:37:09 -0700 (PDT)
-Date: Fri, 7 Sep 2018 15:37:51 -0700
+        Fri, 07 Sep 2018 15:37:37 -0700 (PDT)
+Date: Fri, 7 Sep 2018 15:38:10 -0700
 From: Alison Schofield <alison.schofield@intel.com>
-Subject: [RFC 09/12] mm: Restrict memory encryption to anonymous VMA's
-Message-ID: <f69e3d4f96504185054d951c7c85075ebf63e47a.1536356108.git.alison.schofield@intel.com>
+Subject: [RFC 10/12] x86/pconfig: Program memory encryption keys on a
+ system-wide basis
+Message-ID: <0947e4ad711e8b7c1f581a446e808f514620b49b.1536356108.git.alison.schofield@intel.com>
 References: <cover.1536356108.git.alison.schofield@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -23,57 +24,85 @@ List-ID: <linux-mm.kvack.org>
 To: dhowells@redhat.com, tglx@linutronix.de
 Cc: Kai Huang <kai.huang@intel.com>, Jun Nakajima <jun.nakajima@intel.com>, Kirill Shutemov <kirill.shutemov@intel.com>, Dave Hansen <dave.hansen@intel.com>, Jarkko Sakkinen <jarkko.sakkinen@intel.com>, jmorris@namei.org, keyrings@vger.kernel.org, linux-security-module@vger.kernel.org, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-mm@kvack.org
 
-Memory encryption is only supported for mappings that are ANONYMOUS.
-Test the entire range of VMA's in an encrypt_mprotect() request to
-make sure they all meet that requirement before encrypting any.
+The kernel manages the MKTME (Multi-Key Total Memory Encryption) Keys
+as a system wide single pool of keys. The hardware, however, manages
+the keys on a per physical package basis. Each physical package
+maintains a key table that all CPU's in that package share.
 
-The encrypt_mprotect syscall will return -EINVAL and will not encrypt
-any VMA's if this check fails.
+In order to maintain the consistent, system wide view that the kernel
+requires, program all physical packages during a key program request.
 
 Signed-off-by: Alison Schofield <alison.schofield@intel.com>
 ---
- mm/mprotect.c | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ arch/x86/include/asm/intel_pconfig.h | 42 ++++++++++++++++++++++++++++++------
+ 1 file changed, 36 insertions(+), 6 deletions(-)
 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 6c2e1106525c..3384b755aad1 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -311,6 +311,24 @@ unsigned long change_protection(struct vm_area_struct *vma, unsigned long start,
- 	return pages;
- }
+diff --git a/arch/x86/include/asm/intel_pconfig.h b/arch/x86/include/asm/intel_pconfig.h
+index 3cb002b1d0f9..d3bf0a297e89 100644
+--- a/arch/x86/include/asm/intel_pconfig.h
++++ b/arch/x86/include/asm/intel_pconfig.h
+@@ -3,6 +3,7 @@
  
-+/*
-+ * Encrypted mprotect is only supported on anonymous mappings.
-+ * All VMA's in the requested range must be anonymous. If this
-+ * test fails on any single VMA, the entire mprotect request fails.
-+ */
-+bool mem_supports_encryption(struct vm_area_struct *vma, unsigned long end)
-+{
-+	struct vm_area_struct *test_vma = vma;
+ #include <asm/asm.h>
+ #include <asm/processor.h>
++#include <linux/cpu.h>
+ 
+ enum pconfig_target {
+ 	INVALID_TARGET	= 0,
+@@ -47,19 +48,48 @@ struct mktme_key_program {
+ 	u8 key_field_2[64];
+ } __packed __aligned(256);
+ 
+-static inline int mktme_key_program(struct mktme_key_program *key_program)
++struct mktme_key_program_info {
++	struct mktme_key_program *key_program;
++	unsigned long status;
++};
 +
-+	do {
-+		if (!vma_is_anonymous(test_vma))
-+			return false;
++static void mktme_package_program(void *key_program_info)
+ {
++	struct mktme_key_program_info *info = key_program_info;
+ 	unsigned long rax = MKTME_KEY_PROGRAM;
+ 
++	asm volatile(PCONFIG
++		: "=a" (rax), "=b" (info->key_program)
++		: "0" (rax), "1" (info->key_program)
++		: "memory", "cc");
 +
-+		test_vma = test_vma->vm_next;
-+	} while (test_vma && test_vma->vm_start < end);
-+	return true;
++	if (rax != MKTME_PROG_SUCCESS)
++		WRITE_ONCE(info->status, rax);
 +}
 +
- int
- mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
- 	       unsigned long start, unsigned long end, unsigned long newflags,
-@@ -491,6 +509,10 @@ static int do_mprotect_ext(unsigned long start, size_t len,
- 				goto out;
- 		}
- 	}
-+	if (keyid > 0 && !mem_supports_encryption(vma, end)) {
-+		error = -EINVAL;
-+		goto out;
-+	}
- 	if (start > vma->vm_start)
- 		prev = vma;
++/*
++ * MKTME keys are managed as a system-wide single pool of keys.
++ * In the hardware, each physical package maintains a separate key
++ * table. Program all physical packages with the same key info to
++ * maintain that system-wide kernel view.
++ */
++static inline int mktme_key_program(struct mktme_key_program *key_program,
++				    cpumask_var_t mktme_cpumask)
++{
++	struct mktme_key_program_info info = {
++		.key_program = key_program,
++		.status = MKTME_PROG_SUCCESS,
++	};
++
+ 	if (!pconfig_target_supported(MKTME_TARGET))
+ 		return -ENXIO;
  
+-	asm volatile(PCONFIG
+-		: "=a" (rax), "=b" (key_program)
+-		: "0" (rax), "1" (key_program)
+-		: "memory", "cc");
++	get_online_cpus();
++	on_each_cpu_mask(mktme_cpumask, mktme_package_program,
++			 &info, 1);
++	put_online_cpus();
+ 
+-	return rax;
++	return info.status;
+ }
+ 
+ #endif	/* _ASM_X86_INTEL_PCONFIG_H */
 -- 
 2.14.1
