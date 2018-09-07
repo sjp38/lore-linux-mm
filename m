@@ -1,61 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B0FC46B7E8D
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 09:30:22 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id m21-v6so16673814oic.7
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 06:30:22 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id d84-v6si5438099oia.219.2018.09.07.06.30.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Sep 2018 06:30:21 -0700 (PDT)
-Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
- processes.
-References: <20180906113553.GR14951@dhcp22.suse.cz>
- <87b76eea-9881-724a-442a-c6079cbf1016@i-love.sakura.ne.jp>
- <20180906120508.GT14951@dhcp22.suse.cz>
- <37b763c1-b83e-1632-3187-55fb360a914e@i-love.sakura.ne.jp>
- <20180906135615.GA14951@dhcp22.suse.cz>
- <8dd6bc67-3f35-fdc6-a86a-cf8426608c75@i-love.sakura.ne.jp>
- <20180906141632.GB14951@dhcp22.suse.cz>
- <55a3fb37-3246-73d7-0f45-5835a3f4831c@i-love.sakura.ne.jp>
- <20180907111038.GH19621@dhcp22.suse.cz>
- <4e1bcda7-ab40-3a79-f566-454e1f24c0ff@i-love.sakura.ne.jp>
- <20180907115132.GJ19621@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <9d838223-5a57-e291-eca3-8a4b04a78b65@i-love.sakura.ne.jp>
-Date: Fri, 7 Sep 2018 22:30:06 +0900
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 478F66B7E9A
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 09:43:47 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id c18-v6so17018423oiy.3
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 06:43:47 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id b135-v6si5865143oii.71.2018.09.07.06.43.45
+        for <linux-mm@kvack.org>;
+        Fri, 07 Sep 2018 06:43:46 -0700 (PDT)
+Date: Fri, 7 Sep 2018 14:44:00 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [RFC PATCH 1/2] mm: move tlb_table_flush to tlb_flush_mmu_free
+Message-ID: <20180907134359.GA12187@arm.com>
+References: <20180823084709.19717-1-npiggin@gmail.com>
+ <20180823084709.19717-2-npiggin@gmail.com>
+ <fa7c625dfbbe103b37bc3ab5ea4b7283fd13b998.camel@surriel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180907115132.GJ19621@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <fa7c625dfbbe103b37bc3ab5ea4b7283fd13b998.camel@surriel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Rik van Riel <riel@surriel.com>
+Cc: Nicholas Piggin <npiggin@gmail.com>, Peter Zijlstra <peterz@infradead.org>, torvalds@linux-foundation.org, luto@kernel.org, x86@kernel.org, bp@alien8.de, jannh@google.com, ascannell@google.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, linux-arch@vger.kernel.org
 
-On 2018/09/07 20:51, Michal Hocko wrote:
-> On Fri 07-09-18 20:36:31, Tetsuo Handa wrote:
->> On 2018/09/07 20:10, Michal Hocko wrote:
->>>> I can't waste my time in what you think the long term solution. Please
->>>> don't refuse/ignore my (or David's) patches without your counter
->>>> patches.
->>>
->>> If you do not care about long term sanity of the code and if you do not
->>> care about a larger picture then I am not interested in any patches from
->>> you. MM code is far from trivial and no playground. This attitude of
->>> yours is just dangerous.
->>>
->>
->> Then, please explain how we guarantee that enough CPU resource is spent
->> between "exit_mmap() set MMF_OOM_SKIP" and "the OOM killer finds MMF_OOM_SKIP
->> was already set" so that last second allocation with high watermark can't fail
->> when 50% of available memory was already reclaimed.
+On Thu, Sep 06, 2018 at 04:29:59PM -0400, Rik van Riel wrote:
+> On Thu, 2018-08-23 at 18:47 +1000, Nicholas Piggin wrote:
+> > There is no need to call this from tlb_flush_mmu_tlbonly, it
+> > logically belongs with tlb_flush_mmu_free. This allows some
+> > code consolidation with a subsequent fix.
+> > 
+> > Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
 > 
-> There is no guarantee. Full stop! This is an inherently racy land. We
-> can strive to work reasonably well but this will never be perfect.
+> Reviewed-by: Rik van Riel <riel@surriel.com>
+> 
+> This patch also fixes an infinite recursion bug
+> with CONFIG_HAVE_RCU_TABLE_FREE enabled, which
+> has this call trace:
+> 
+> tlb_table_flush
+>   -> tlb_table_invalidate
+>      -> tlb_flush_mmu_tlbonly
+>         -> tlb_table_flush
+>            -> ... (infinite recursion)
+> 
+> This should probably be applied sooner rather than
+> later.
 
-That is enough explanation that we have no choice but mitigate it using
-heuristics. No feedback based approach is possible. My or David's patch
-has been justified. Thank you!
+It's already in mainline with a cc stable afaict.
+
+Will
