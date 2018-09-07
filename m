@@ -1,74 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1535A6B7B3A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 19:09:04 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id z11-v6so8434021wma.4
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 16:09:04 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n15-v6sor4639488wrm.3.2018.09.06.16.09.02
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A30A6B7B94
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 20:37:46 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id 20-v6so16538651itb.7
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 17:37:46 -0700 (PDT)
+Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0126.outbound.protection.outlook.com. [104.47.36.126])
+        by mx.google.com with ESMTPS id l4-v6si3704582ioh.12.2018.09.06.17.37.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Sep 2018 16:09:02 -0700 (PDT)
-Date: Fri, 7 Sep 2018 01:08:59 +0200
-From: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: Re: [PATCH v6 11/11] arm64: annotate user pointers casts detected by
- sparse
-Message-ID: <20180906230858.psedqdai3dw2cvvl@ltop.local>
-References: <cover.1535629099.git.andreyknvl@google.com>
- <5d54526e5ff2e5ad63d0dfdd9ab17cf359afa4f2.1535629099.git.andreyknvl@google.com>
- <CA+55aFyW9N2tSb2bQvkthbVVyY6nt5yFeWQRLHp1zruBmb5ocw@mail.gmail.com>
- <CA+55aFy2t_MHgr_CgwbhtFkL+djaCq2qMM1G+f2DwJ0qEr1URQ@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Sep 2018 17:37:45 -0700 (PDT)
+From: Sasha Levin <Alexander.Levin@microsoft.com>
+Subject: [PATCH AUTOSEL 4.18 87/88] x86/mm/pti: Add an overflow check to
+ pti_clone_pmds()
+Date: Fri, 7 Sep 2018 00:36:53 +0000
+Message-ID: <20180907003547.57567-87-alexander.levin@microsoft.com>
+References: <20180907003547.57567-1-alexander.levin@microsoft.com>
+In-Reply-To: <20180907003547.57567-1-alexander.levin@microsoft.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFy2t_MHgr_CgwbhtFkL+djaCq2qMM1G+f2DwJ0qEr1URQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrey Konovalov <andreyknvl@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, eugenis@google.com, Lee.Smith@arm.com, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob.Bramley@arm.com, Ruben.Ayrapetyan@arm.com, cpandya@codeaurora.org
+To: "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: Joerg Roedel <jroedel@suse.de>, Thomas Gleixner <tglx@linutronix.de>, "H .
+ Peter Anvin" <hpa@zytor.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "aliguori@amazon.com" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, "hughd@google.com" <hughd@google.com>, "keescook@google.com" <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, "joro@8bytes.org" <joro@8bytes.org>, Sasha Levin <Alexander.Levin@microsoft.com>
 
-On Thu, Sep 06, 2018 at 02:16:19PM -0700, Linus Torvalds wrote:
-> On Thu, Sep 6, 2018 at 2:13 PM Linus Torvalds
-> <torvalds@linux-foundation.org> wrote:
-> >
-> > So for example:
-> >
-> > >  static inline compat_uptr_t ptr_to_compat(void __user *uptr)
-> > >  {
-> > > -       return (u32)(unsigned long)uptr;
-> > > +       return (u32)(__force unsigned long)uptr;
-> > >  }
-> >
-> > this actually looks correct.
-> 
-> Side note: I do think that while the above is correct, the rest of the
-> patch shows that we might be better off simply not havign the warning
-> for address space changes at all for the "cast a pointer to an integer
-> type" case.
-> 
-> When you cast to a non-pointer type, the address space issue simply
-> doesn't exist at all, so the warning makes less sense.
-> 
-> It's really just he "pointer to one address space" being cast to
-> "pointer to another address space" that should really warn, and that
-> might need that "__force" thing.
-> 
-> Hmm? So maybe a sparse change is better for most of that patch.
+From: Joerg Roedel <jroedel@suse.de>
 
-Unless I'm misunderstanding something, I don't think there is
-anything to change for this specific point. Sparse don't warn
-(by default) on "cast from pointer with address space to integer",
-as it always been the case, I think. I think it's the good choice.
+[ Upstream commit 935232ce28dfabff1171e5a7113b2d865fa9ee63 ]
 
-It's just that recently, I've added a new flag -Wcast-from-as [1],
-defaulting to 'no', specifically to *detect* these cast because of
-these tagged pointers.
+The addr counter will overflow if the last PMD of the address space is
+cloned, resulting in an endless loop.
 
-Note: I tend to think more and more that __force is simply too
-      strong and weaker form, like __force_as and __force_bitwise
-      would be more appropriate.
+Check for that and bail out of the loop when it happens.
 
+Signed-off-by: Joerg Roedel <jroedel@suse.de>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Tested-by: Pavel Machek <pavel@ucw.cz>
+Cc: "H . Peter Anvin" <hpa@zytor.com>
+Cc: linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Juergen Gross <jgross@suse.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Jiri Kosina <jkosina@suse.cz>
+Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: David Laight <David.Laight@aculab.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: Eduardo Valentin <eduval@amazon.com>
+Cc: Greg KH <gregkh@linuxfoundation.org>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: aliguori@amazon.com
+Cc: daniel.gruss@iaik.tugraz.at
+Cc: hughd@google.com
+Cc: keescook@google.com
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Waiman Long <llong@redhat.com>
+Cc: "David H . Gutteridge" <dhgutteridge@sympatico.ca>
+Cc: joro@8bytes.org
+Link: https://lkml.kernel.org/r/1531906876-13451-25-git-send-email-joro@8by=
+tes.org
+Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
+---
+ arch/x86/mm/pti.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
--- Luc Van Oostenryck
-
-[1] d96da358c ("stricter warning for explicit cast to ulong")
+diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+index ffa2f0f67904..1d2106d83b4e 100644
+--- a/arch/x86/mm/pti.c
++++ b/arch/x86/mm/pti.c
+@@ -306,6 +306,10 @@ pti_clone_pmds(unsigned long start, unsigned long end,=
+ pmdval_t clear)
+ 		p4d_t *p4d;
+ 		pud_t *pud;
+=20
++		/* Overflow check */
++		if (addr < start)
++			break;
++
+ 		pgd =3D pgd_offset_k(addr);
+ 		if (WARN_ON(pgd_none(*pgd)))
+ 			return;
+--=20
+2.17.1
