@@ -1,97 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AE45D6B7F03
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 11:26:22 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id w185-v6so17296195oig.19
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 08:26:22 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id c81-v6si5873445oif.174.2018.09.07.08.26.08
-        for <linux-mm@kvack.org>;
-        Fri, 07 Sep 2018 08:26:08 -0700 (PDT)
-Date: Fri, 7 Sep 2018 16:26:00 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v6 11/11] arm64: annotate user pointers casts detected by
- sparse
-Message-ID: <20180907152600.myidisza5o4kdmvf@armageddon.cambridge.arm.com>
-References: <cover.1535629099.git.andreyknvl@google.com>
- <5d54526e5ff2e5ad63d0dfdd9ab17cf359afa4f2.1535629099.git.andreyknvl@google.com>
- <CA+55aFyW9N2tSb2bQvkthbVVyY6nt5yFeWQRLHp1zruBmb5ocw@mail.gmail.com>
- <CA+55aFy2t_MHgr_CgwbhtFkL+djaCq2qMM1G+f2DwJ0qEr1URQ@mail.gmail.com>
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EE11D6B7F08
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 11:29:04 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id f4-v6so248960ioh.13
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 08:29:04 -0700 (PDT)
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id 5-v6sor5077088jaz.63.2018.09.07.08.29.03
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 07 Sep 2018 08:29:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFy2t_MHgr_CgwbhtFkL+djaCq2qMM1G+f2DwJ0qEr1URQ@mail.gmail.com>
+Date: Fri, 07 Sep 2018 08:29:03 -0700
+In-Reply-To: <000000000000edab9e0575497f40@google.com>
+Message-ID: <000000000000e16cba057549aab6@google.com>
+Subject: Re: BUG: bad usercopy in __check_object_size (2)
+From: syzbot <syzbot+a3c9d2673837ccc0f22b@syzkaller.appspotmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrey Konovalov <andreyknvl@google.com>, Mark Rutland <mark.rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Will Deacon <will.deacon@arm.com>, Kostya Serebryany <kcc@google.com>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, cpandya@codeaurora.org, Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Jacob.Bramley@arm.com, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, eugenis@google.com, Kees Cook <keescook@chromium.org>, Ruben.Ayrapetyan@arm.com, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Dmitry Vyukov <dvyukov@google.com>, linux-mm <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lee.Smith@arm.com, Andrew Morton <akpm@linux-foundation.org>, Robin Murphy <robin.murphy@arm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: crecklin@redhat.com, dvyukov@google.com, hpa@zytor.com, keescook@chromium.org, keescook@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, luto@kernel.org, mingo@redhat.com, syzkaller-bugs@googlegroups.com, tglx@linutronix.de, x86@kernel.org
 
-On Thu, Sep 06, 2018 at 02:16:19PM -0700, Linus Torvalds wrote:
-> On Thu, Sep 6, 2018 at 2:13 PM Linus Torvalds
-> <torvalds@linux-foundation.org> wrote:
-> >
-> > So for example:
-> >
-> > >  static inline compat_uptr_t ptr_to_compat(void __user *uptr)
-> > >  {
-> > > -       return (u32)(unsigned long)uptr;
-> > > +       return (u32)(__force unsigned long)uptr;
-> > >  }
-> >
-> > this actually looks correct.
-> 
-> Side note: I do think that while the above is correct, the rest of the
-> patch shows that we might be better off simply not havign the warning
-> for address space changes at all for the "cast a pointer to an integer
-> type" case.
-> 
-> When you cast to a non-pointer type, the address space issue simply
-> doesn't exist at all, so the warning makes less sense.
+syzbot has found a reproducer for the following crash on:
 
-That's actually a new (potential) issue introduced by these patches. The
-arm64 architecture has a feature called Top Byte Ignore (TBI, a.k.a.
-tagged pointers) where the top 8-bit of a 64-bit pointer can be set to
-anything and the hardware automatically ignores it when dereferencing.
-The arm64 user/kernel ABI currently mandates that any pointer passed
-from user space to the kernel must have the top byte 0.
+HEAD commit:    28619527b8a7 Merge git://git.kernel.org/pub/scm/linux/kern..
+git tree:       bpf
+console output: https://syzkaller.appspot.com/x/log.txt?x=124e64d1400000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=62e9b447c16085cf
+dashboard link: https://syzkaller.appspot.com/bug?extid=a3c9d2673837ccc0f22b
+compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=179f9cd1400000
+C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=11b3e8be400000
 
-This patchset is proposing to relax the ABI so that user pointers with a
-non-zero top byte can be actually passed via kernel syscalls. It
-basically moves the responsibility to remove the pointer tag (where
-needed) from user to the kernel (and for some good reasons, user space
-can't always do it given the way hwasan is implemented in LLVM).
+IMPORTANT: if you fix the bug, please add the following tag to the commit:
+Reported-by: syzbot+a3c9d2673837ccc0f22b@syzkaller.appspotmail.com
 
-The downside is that now a tagged user pointer may not represent just a
-virtual address but address|tag, so things like access_ok() or
-find_extended_vma() need to untag (clear the top byte of) the pointer
-before use. Note that copy_from_user() etc. can safely dereference a
-tagged user pointer as the tag is automatically ignored by the hardware.
-
-The arm64 maintainers asked for a more reliable approach to identifying
-existing and new cases where such explicit untagging is required and one
-of the proposals was a sparse option. Based on some observations, it
-seems that untagging is needed when a pointer is cast to a long and the
-pointer tag information can be dropped. With the sparse patch, there are
-lots of warnings where we actually can preserve the tag (e.g. compat
-user pointers should be ignored since the top 32-bit are always 0), so
-Andrey is trying to mask such warnings out so that we can detect new
-potential issues as the kernel evolves.
-
-So it's not about casting to another pointer; it's rather about no
-longer using the value as a user pointer but as an actual (untyped,
-untagged) virtual address.
-
-There may be better options to address this but I haven't seen any
-concrete proposal so far. Or we could simply consider that we've found
-all places where it matters and not bother with any static analysis
-tools (but for the time being it's still worth investigating whether we
-can do better than this).
-
-> It's really just he "pointer to one address space" being cast to
-> "pointer to another address space" that should really warn, and that
-> might need that "__force" thing.
-
-I think sparse already warns if changing the address space of a pointer.
-
--- 
-Catalin
+  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+RIP: 0033:0x440479
+usercopy: Kernel memory overwrite attempt detected to spans multiple pages  
+(offset 0, size 64)!
+------------[ cut here ]------------
+kernel BUG at mm/usercopy.c:102!
+invalid opcode: 0000 [#1] PREEMPT SMP KASAN
+CPU: 0 PID: 5340 Comm: syz-executor610 Not tainted 4.19.0-rc2+ #50
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+RIP: 0010:usercopy_abort+0xbb/0xbd mm/usercopy.c:90
+Code: c0 e8 8a 23 b2 ff 48 8b 55 c0 49 89 d9 4d 89 f0 ff 75 c8 4c 89 e1 4c  
+89 ee 48 c7 c7 80 48 15 88 ff 75 d0 41 57 e8 5a 38 98 ff <0f> 0b e8 5f 23  
+b2 ff e8 8a 6e f5 ff 8b 95 5c fe ff ff 4d 89 e0 31
+RSP: 0018:ffff8801bbcf6d50 EFLAGS: 00010086
+RAX: 000000000000005f RBX: ffffffff881545a0 RCX: 0000000000000000
+RDX: 0000000000000000 RSI: ffffffff8164f825 RDI: 0000000000000005
+RBP: ffff8801bbcf6da8 R08: ffff8801d8f1a500 R09: ffffed003b5c3ee2
+R10: ffffed003b5c3ee2 R11: ffff8801dae1f717 R12: ffffffff88154ac0
+R13: ffffffff881546e0 R14: ffffffff881545a0 R15: ffffffff881545a0
+FS:  000000000225c880(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 0000000000455350 CR3: 00000001d90eb000 CR4: 00000000001406f0
+Call Trace:
+  check_page_span mm/usercopy.c:212 [inline]
+  check_heap_object mm/usercopy.c:241 [inline]
+  __check_object_size.cold.2+0x23/0x134 mm/usercopy.c:266
+  check_object_size include/linux/thread_info.h:119 [inline]
+  __copy_from_user_inatomic include/linux/uaccess.h:65 [inline]
+  __probe_kernel_read+0xda/0x1c0 mm/maccess.c:33
+  show_opcodes+0x4c/0x70 arch/x86/kernel/dumpstack.c:109
+  show_ip+0x31/0x36 arch/x86/kernel/dumpstack.c:126
+  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:131
+  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
+  show_regs_if_on_stack.constprop.10+0x36/0x39  
+arch/x86/kernel/dumpstack.c:149
+  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:274
+  show_stack+0x38/0x3a arch/x86/kernel/dumpstack.c:293
+  __dump_stack lib/dump_stack.c:77 [inline]
+  dump_stack+0x1c4/0x2b4 lib/dump_stack.c:113
+  fail_dump lib/fault-inject.c:51 [inline]
+  should_fail.cold.4+0xa/0x17 lib/fault-inject.c:149
+  __should_failslab+0x124/0x180 mm/failslab.c:32
+  should_failslab+0x9/0x14 mm/slab_common.c:1557
+  slab_pre_alloc_hook mm/slab.h:423 [inline]
+  slab_alloc mm/slab.c:3378 [inline]
+  kmem_cache_alloc_trace+0x2d7/0x750 mm/slab.c:3618
+  kmalloc include/linux/slab.h:513 [inline]
+  kzalloc include/linux/slab.h:707 [inline]
+  aa_alloc_file_ctx security/apparmor/include/file.h:60 [inline]
+  apparmor_file_alloc_security+0x168/0xaa0 security/apparmor/lsm.c:438
+  security_file_alloc+0x4c/0xa0 security/security.c:884
+  __alloc_file+0x12a/0x470 fs/file_table.c:105
+  alloc_empty_file+0x72/0x170 fs/file_table.c:150
+  dentry_open+0x71/0x1d0 fs/open.c:894
+  open_related_ns+0x1b0/0x210 fs/nsfs.c:177
+  __tun_chr_ioctl+0x48d/0x4690 drivers/net/tun.c:2901
+  tun_chr_ioctl+0x2a/0x40 drivers/net/tun.c:3179
+  vfs_ioctl fs/ioctl.c:46 [inline]
+  file_ioctl fs/ioctl.c:501 [inline]
+  do_vfs_ioctl+0x1de/0x1720 fs/ioctl.c:685
+  ksys_ioctl+0xa9/0xd0 fs/ioctl.c:702
+  __do_sys_ioctl fs/ioctl.c:709 [inline]
+  __se_sys_ioctl fs/ioctl.c:707 [inline]
+  __x64_sys_ioctl+0x73/0xb0 fs/ioctl.c:707
+  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+RIP: 0033:0x440479
+Code: 18 89 d0 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 48 89 f8 48 89 f7  
+48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff  
+ff 0f 83 5b 14 fc ff c3 66 2e 0f 1f 84 00 00 00 00
+RSP: 002b:00007ffe3cf83628 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 0000000000440479
+RDX: 0000000000000000 RSI: 000000000000894c RDI: 0000000000000004
+RBP: 00000000006cb018 R08: 0000000000000001 R09: 0000000000000034
+R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000005
+R13: ffffffffffffffff R14: 0000000000000000 R15: 0000000000000000
+Modules linked in:
+Dumping ftrace buffer:
+    (ftrace buffer empty)
+---[ end trace 125c9e5841391893 ]---
+RIP: 0010:usercopy_abort+0xbb/0xbd mm/usercopy.c:90
+Code: c0 e8 8a 23 b2 ff 48 8b 55 c0 49 89 d9 4d 89 f0 ff 75 c8 4c 89 e1 4c  
+89 ee 48 c7 c7 80 48 15 88 ff 75 d0 41 57 e8 5a 38 98 ff <0f> 0b e8 5f 23  
+b2 ff e8 8a 6e f5 ff 8b 95 5c fe ff ff 4d 89 e0 31
+RSP: 0018:ffff8801bbcf6d50 EFLAGS: 00010086
+RAX: 000000000000005f RBX: ffffffff881545a0 RCX: 0000000000000000
+RDX: 0000000000000000 RSI: ffffffff8164f825 RDI: 0000000000000005
+RBP: ffff8801bbcf6da8 R08: ffff8801d8f1a500 R09: ffffed003b5c3ee2
+R10: ffffed003b5c3ee2 R11: ffff8801dae1f717 R12: ffffffff88154ac0
+R13: ffffffff881546e0 R14: ffffffff881545a0 R15: ffffffff881545a0
+FS:  000000000225c880(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 0000000000455350 CR3: 00000001d90eb000 CR4: 00000000001406f0
