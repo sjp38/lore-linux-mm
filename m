@@ -1,108 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 51C7D6B7E03
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 07:10:41 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id p51-v6so4576684eda.18
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 04:10:41 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p91-v6si1278370edd.11.2018.09.07.04.10.39
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A5A6F6B7E0C
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 07:17:54 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id m197-v6so16253936oig.18
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 04:17:54 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id q6-v6si5149648oih.23.2018.09.07.04.17.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Sep 2018 04:10:39 -0700 (PDT)
-Date: Fri, 7 Sep 2018 13:10:38 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/4] mm, oom: Fix unnecessary killing of additional
- processes.
-Message-ID: <20180907111038.GH19621@dhcp22.suse.cz>
-References: <20180806205121.GM10003@dhcp22.suse.cz>
- <0aeb76e1-558f-e38e-4c66-77be3ce56b34@I-love.SAKURA.ne.jp>
- <20180906113553.GR14951@dhcp22.suse.cz>
- <87b76eea-9881-724a-442a-c6079cbf1016@i-love.sakura.ne.jp>
- <20180906120508.GT14951@dhcp22.suse.cz>
- <37b763c1-b83e-1632-3187-55fb360a914e@i-love.sakura.ne.jp>
- <20180906135615.GA14951@dhcp22.suse.cz>
- <8dd6bc67-3f35-fdc6-a86a-cf8426608c75@i-love.sakura.ne.jp>
- <20180906141632.GB14951@dhcp22.suse.cz>
- <55a3fb37-3246-73d7-0f45-5835a3f4831c@i-love.sakura.ne.jp>
+        Fri, 07 Sep 2018 04:17:53 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w87BHlLv059926
+	for <linux-mm@kvack.org>; Fri, 7 Sep 2018 07:17:52 -0400
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mbnqmxfrk-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 07 Sep 2018 07:17:52 -0400
+Received: from localhost
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Fri, 7 Sep 2018 05:15:18 -0600
+Subject: Re: [RFC PATCH V2 4/4] powerpc/mm/iommu: Allow migration of cma
+ allocated pages during mm_iommu_get
+References: <20180906054342.25094-1-aneesh.kumar@linux.ibm.com>
+ <20180906054342.25094-4-aneesh.kumar@linux.ibm.com>
+ <20180906125356.GX14951@dhcp22.suse.cz>
+ <50d355bf-17d0-ee01-ec35-7f04e79ca277@linux.ibm.com>
+ <20180907090312.GF19621@dhcp22.suse.cz>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Date: Fri, 7 Sep 2018 16:45:09 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55a3fb37-3246-73d7-0f45-5835a3f4831c@i-love.sakura.ne.jp>
+In-Reply-To: <20180907090312.GF19621@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <8337fdcc-3344-04dd-ddb2-68f86912f333@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, Alexey Kardashevskiy <aik@ozlabs.ru>, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-On Fri 07-09-18 06:13:13, Tetsuo Handa wrote:
-> On 2018/09/06 23:16, Michal Hocko wrote:
-> > On Thu 06-09-18 23:06:40, Tetsuo Handa wrote:
-> >> On 2018/09/06 22:56, Michal Hocko wrote:
-> >>> On Thu 06-09-18 22:40:24, Tetsuo Handa wrote:
-> >>>> On 2018/09/06 21:05, Michal Hocko wrote:
-> >>>>>> If you are too busy, please show "the point of no-blocking" using source code
-> >>>>>> instead. If such "the point of no-blocking" really exists, it can be executed
-> >>>>>> by allocating threads.
-> >>>>>
-> >>>>> I would have to study this much deeper but I _suspect_ that we are not
-> >>>>> taking any blocking locks right after we return from unmap_vmas. In
-> >>>>> other words the place we used to have synchronization with the
-> >>>>> oom_reaper in the past.
-> >>>>
-> >>>> See commit 97b1255cb27c551d ("mm,oom_reaper: check for MMF_OOM_SKIP before
-> >>>> complaining"). Since this dependency is inode-based (i.e. irrelevant with
-> >>>> OOM victims), waiting for this lock can livelock.
-> >>>>
-> >>>> So, where is safe "the point of no-blocking" ?
-> >>>
-> >>> Ohh, right unlink_file_vma and its i_mmap_rwsem lock. As I've said I
-> >>> have to think about that some more. Maybe we can split those into two parts.
-> >>>
-> >>
-> >> Meanwhile, I'd really like to use timeout based back off. Like I wrote at
-> >> http://lkml.kernel.org/r/201809060703.w8673Kbs076435@www262.sakura.ne.jp ,
-> >> we need to wait for some period after all.
-> >>
-> >> We can replace timeout based back off after we got safe "the point of no-blocking" .
-> > 
-> > Why don't you invest your time in the long term solution rather than
-> > playing with something that doesn't solve anything just papers over the
-> > issue?
-> > 
+On 09/07/2018 02:33 PM, Michal Hocko wrote:
+> On Thu 06-09-18 19:00:43, Aneesh Kumar K.V wrote:
+>> On 09/06/2018 06:23 PM, Michal Hocko wrote:
+>>> On Thu 06-09-18 11:13:42, Aneesh Kumar K.V wrote:
+>>>> Current code doesn't do page migration if the page allocated is a compound page.
+>>>> With HugeTLB migration support, we can end up allocating hugetlb pages from
+>>>> CMA region. Also THP pages can be allocated from CMA region. This patch updates
+>>>> the code to handle compound pages correctly.
+>>>>
+>>>> This use the new helper get_user_pages_cma_migrate. It does one get_user_pages
+>>>> with right count, instead of doing one get_user_pages per page. That avoids
+>>>> reading page table multiple times.
+>>>>
+>>>> The patch also convert the hpas member of mm_iommu_table_group_mem_t to a union.
+>>>> We use the same storage location to store pointers to struct page. We cannot
+>>>> update alll the code path use struct page *, because we access hpas in real mode
+>>>> and we can't do that struct page * to pfn conversion in real mode.
+>>>
+>>> I am not fmailiar with this code so bear with me. I am completely
+>>> missing the purpose of this patch. The changelog doesn't really explain
+>>> that AFAICS. I can only guess that you do not want to establish long
+>>> pins on CMA pages, right? So whenever you are about to pin a page that
+>>> is in CMA you migrate it away to a different !__GFP_MOVABLE page, right?
+>>
+>> That is right.
+>>
+>>> If that is the case then how do you handle pins which are already in
+>>> zone_movable? I do not see any specific check for those.
+>>
+>>
+>>>
+>>> Btw. why is this a proper thing to do? Problems with longterm pins are
+>>> not only for CMA/ZONE_MOVABLE pages. Pinned pages are not reclaimable as
+>>> well so there is a risk of OOMs if there are too many of them. We have
+>>> discussed approaches that would allow to force pin invalidation/revocation
+>>> at LSF/MM. Isn't that a more appropriate solution to the problem you are
+>>> seeing?
+>>>
+>>
+>> The CMA area is used on powerpc platforms to allocate guest specific page
+>> table (hash page table). If we don't have sufficient free pages we fail to
+>> allocate hash page table that result in failure to start guest.
+>>
+>> Now with vfio, we end up pinning the entire guest RAM. There is a
+>> possibility that these guest RAM  pages got allocated from CMA region. We
+>> already do supporting migrating those pages out except for compound pages.
+>> What this patch does is to start supporting compound page migration that got
+>> allocated out of CMA region (ie, THP pages and hugetlb pages if platform
+>> supported hugetlb migration).
 > 
-> I am not a MM people. I am a secure programmer from security subsystem.
+> This definitely belongs to the changelog.
+> 
+>> Now to do that I added a helper get_user_pages_cma_migrate().
+>>
+>> I agree that long term pinned pages do have other issues. The patchset is
+>> not solving that issue.
+> 
+> It would be great to note why a generic approach is not viable. I assume
+> the main reason is that those pins are pretty much permanent for the
+> guest lifetime so the situation has to be handled in advance. In other
+> words, more information please.
+> 
 
-OK, so let me be completely honest with you. You have pretty strong
-statements about the MM code while you are not considering yourself an
-MM person. You are suggesting hacks which do not solve real underlying
-problems and I will keep shooting those down.
+That is correct. I will add these details to commit message. And will 
+also do a cover letter for the patch series.
 
-> You are almost always introducing bugs (like you call dragons) rather
-> than starting from safe changes. The OOM killer _is_ always racy. Even
-> your what you think the long term solution _shall be_ racy. 
-
-The reason why this area is so easy to to get wrong is basically a lack
-of comprehensible design.  We have historical hacks here and there. I
-really do not want to follow that direction and as long as my word has
-some weigh (which is not my decision of course) I will keep fighting
-for simplifications and an overall design refinements. If we are to add
-heuristic they should be backed by well understood workloads we do care
-about.
-
-You might have your toy workload that hits different corner cases and
-testing those is fine. But I absolutely disagree to base any non trivial
-changes for that kind of workload unless they are a general improvement.
-
-If you disagree then we have to agree to disagree and it doesn't make
-much sense to continue in discussion.
-
-> I can't waste my time in what you think the long term solution. Please
-> don't refuse/ignore my (or David's) patches without your counter
-> patches.
-
-If you do not care about long term sanity of the code and if you do not
-care about a larger picture then I am not interested in any patches from
-you. MM code is far from trivial and no playground. This attitude of
-yours is just dangerous.
--- 
-Michal Hocko
-SUSE Labs
+-aneesh
