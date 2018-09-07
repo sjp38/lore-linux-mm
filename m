@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 38F288E0001
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 18:36:11 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id d1-v6so8117349pfo.16
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 15:36:11 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id 1-v6si8956466plz.220.2018.09.07.15.36.09
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B63668E0001
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 18:36:45 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id w18-v6so7663148plp.3
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 15:36:45 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id g10-v6si9010950pgl.425.2018.09.07.15.36.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Sep 2018 15:36:09 -0700 (PDT)
-Date: Fri, 7 Sep 2018 15:36:51 -0700
+        Fri, 07 Sep 2018 15:36:44 -0700 (PDT)
+Date: Fri, 7 Sep 2018 15:37:25 -0700
 From: Alison Schofield <alison.schofield@intel.com>
-Subject: [RFC 06/12] mm: Add the encrypt_mprotect() system call
-Message-ID: <7d27511b07c8337e15096214622b66ef8f0fa345.1536356108.git.alison.schofield@intel.com>
+Subject: [RFC 08/12] mm: Track VMA's in use for each memory encryption keyid
+Message-ID: <3c891d076a376c8cff04403e90d04cf98b203960.1536356108.git.alison.schofield@intel.com>
 References: <cover.1536356108.git.alison.schofield@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -23,208 +23,182 @@ List-ID: <linux-mm.kvack.org>
 To: dhowells@redhat.com, tglx@linutronix.de
 Cc: Kai Huang <kai.huang@intel.com>, Jun Nakajima <jun.nakajima@intel.com>, Kirill Shutemov <kirill.shutemov@intel.com>, Dave Hansen <dave.hansen@intel.com>, Jarkko Sakkinen <jarkko.sakkinen@intel.com>, jmorris@namei.org, keyrings@vger.kernel.org, linux-security-module@vger.kernel.org, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-mm@kvack.org
 
-Implement memory encryption with a new system call that is an
-extension of the legacy mprotect() system call.
+Keep track of the VMA's oustanding for each memory encryption keyid.
+The count is used by the MKTME (Multi-Key Total Memory Encryption)
+Key Service to determine when it is safe to reprogram a hardware
+encryption key.
 
-In encrypt_mprotect the caller must pass a handle to a previously
-allocated and programmed encryption key. Validate the key and store
-the keyid bits in the vm_page_prot for each VMA in the protection
-range.
+Approach here is to do gets and puts on the encryption reference
+wherever kmem_cache_alloc/free's of vma_area_cachep's are executed.
+A couple of these locations will not be hit until cgroup support is
+added. One of these locations should never hit, so use a VM_WARN_ON.
 
 Signed-off-by: Alison Schofield <alison.schofield@intel.com>
 ---
- fs/exec.c           |  4 ++--
- include/linux/key.h |  2 ++
- include/linux/mm.h  |  3 ++-
- mm/mprotect.c       | 67 ++++++++++++++++++++++++++++++++++++++++++++++++-----
- 4 files changed, 67 insertions(+), 9 deletions(-)
+ arch/x86/mm/mktme.c |  2 ++
+ kernel/fork.c       |  2 ++
+ mm/mmap.c           | 12 ++++++++++++
+ mm/nommu.c          |  4 ++++
+ 4 files changed, 20 insertions(+)
 
-diff --git a/fs/exec.c b/fs/exec.c
-index a1a246062561..b681a413db9c 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -754,8 +754,8 @@ int setup_arg_pages(struct linux_binprm *bprm,
- 	vm_flags |= mm->def_flags;
- 	vm_flags |= VM_STACK_INCOMPLETE_SETUP;
+diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
+index 5690ef51a79a..8a7c326d4546 100644
+--- a/arch/x86/mm/mktme.c
++++ b/arch/x86/mm/mktme.c
+@@ -72,10 +72,12 @@ void mprotect_set_encrypt(struct vm_area_struct *vma, int newkeyid)
+ 	if (newkeyid == oldkeyid)
+ 		return;
  
--	ret = mprotect_fixup(vma, &prev, vma->vm_start, vma->vm_end,
--			vm_flags);
-+	ret = mprotect_fixup(vma, &prev, vma->vm_start, vma->vm_end, vm_flags,
-+			     -1);
- 	if (ret)
- 		goto out_unlock;
- 	BUG_ON(prev != vma);
-diff --git a/include/linux/key.h b/include/linux/key.h
-index e58ee10f6e58..fb8a7d5f6149 100644
---- a/include/linux/key.h
-+++ b/include/linux/key.h
-@@ -346,6 +346,8 @@ static inline key_serial_t key_serial(const struct key *key)
- 
- extern void key_set_timeout(struct key *, unsigned);
- 
-+extern key_ref_t lookup_user_key(key_serial_t id, unsigned long lflags,
-+				 key_perm_t perm);
- /*
-  * The permissions required on a key that we're looking up.
-  */
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index ac85c0805761..0f9422c7841e 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1579,7 +1579,8 @@ extern unsigned long change_protection(struct vm_area_struct *vma, unsigned long
- 			      int dirty_accountable, int prot_numa);
- extern int mprotect_fixup(struct vm_area_struct *vma,
- 			  struct vm_area_struct **pprev, unsigned long start,
--			  unsigned long end, unsigned long newflags);
-+			  unsigned long end, unsigned long newflags,
-+			  int newkeyid);
++	vma_put_encrypt_ref(vma);
+ 	newprot = pgprot_val(vma->vm_page_prot);
+ 	newprot &= ~mktme_keyid_mask;
+ 	newprot |= (unsigned long)newkeyid << mktme_keyid_shift;
+ 	vma->vm_page_prot = __pgprot(newprot);
++	vma_get_encrypt_ref(vma);
+ }
  
  /*
-  * doesn't attempt to fault and will return short.
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 56e64ef7931e..6c2e1106525c 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -28,14 +28,17 @@
- #include <linux/ksm.h>
- #include <linux/uaccess.h>
- #include <linux/mm_inline.h>
-+#include <linux/key.h>
- #include <asm/pgtable.h>
- #include <asm/cacheflush.h>
- #include <asm/mmu_context.h>
- #include <asm/tlbflush.h>
-+#include <asm/mktme.h>
- 
- #include "internal.h"
- 
- #define NO_PKEY  -1
-+#define NO_KEYID -1
- 
- static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 		unsigned long addr, unsigned long end, pgprot_t newprot,
-@@ -310,7 +313,8 @@ unsigned long change_protection(struct vm_area_struct *vma, unsigned long start,
- 
- int
- mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
--	unsigned long start, unsigned long end, unsigned long newflags)
-+	       unsigned long start, unsigned long end, unsigned long newflags,
-+	       int newkeyid)
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	unsigned long oldflags = vma->vm_flags;
-@@ -320,10 +324,24 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
- 	int error;
- 	int dirty_accountable = 0;
- 
-+	/*
-+	 * Flags match and Keyids match or we have NO_KEYID.
-+	 * This _fixup is usually called from do_mprotect_ext() except
-+	 * for one special case: caller fs/exec.c/setup_arg_pages()
-+	 * In that case, newkeyid is passed as -1 (NO_KEYID).
-+	 */
-+	if (newflags == oldflags &&
-+	    (newkeyid == vma_keyid(vma) || newkeyid == NO_KEYID)) {
-+		*pprev = vma;
-+		return 0;
-+	}
-+	/* Flags match and Keyid changes */
- 	if (newflags == oldflags) {
-+		mprotect_set_encrypt(vma, newkeyid);
- 		*pprev = vma;
- 		return 0;
- 	}
-+	/* Flags and Keyids both change, continue. */
- 
- 	/*
- 	 * If we make a private mapping writable we increase our commit;
-@@ -373,6 +391,8 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
+diff --git a/kernel/fork.c b/kernel/fork.c
+index e5e7a220a124..2d0e507bde7c 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -459,6 +459,7 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
+ 		if (!tmp)
+ 			goto fail_nomem;
+ 		*tmp = *mpnt;
++		vma_get_encrypt_ref(tmp);	/* Track encrypted vma's */
+ 		INIT_LIST_HEAD(&tmp->anon_vma_chain);
+ 		retval = vma_dup_policy(mpnt, tmp);
+ 		if (retval)
+@@ -539,6 +540,7 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
+ fail_nomem_anon_vma_fork:
+ 	mpol_put(vma_policy(tmp));
+ fail_nomem_policy:
++	vma_put_encrypt_ref(tmp);		/* Track encrypted vma's */
+ 	kmem_cache_free(vm_area_cachep, tmp);
+ fail_nomem:
+ 	retval = -ENOMEM;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 4c604eb644b4..7390b8b69fd6 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -182,6 +182,7 @@ static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
+ 	if (vma->vm_file)
+ 		fput(vma->vm_file);
+ 	mpol_put(vma_policy(vma));
++	vma_put_encrypt_ref(vma);
+ 	kmem_cache_free(vm_area_cachep, vma);
+ 	return next;
+ }
+@@ -913,6 +914,7 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
+ 			anon_vma_merge(vma, next);
+ 		mm->map_count--;
+ 		mpol_put(vma_policy(next));
++		vma_put_encrypt_ref(next);
+ 		kmem_cache_free(vm_area_cachep, next);
+ 		/*
+ 		 * In mprotect's case 6 (see comments on vma_merge),
+@@ -1744,6 +1746,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+ 		goto unacct_error;
  	}
  
- success:
-+	if (newkeyid != NO_KEYID)
-+		mprotect_set_encrypt(vma, newkeyid);
- 	/*
- 	 * vm_flags and vm_page_prot are protected by the mmap_sem
- 	 * held in write mode.
-@@ -404,10 +424,15 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
++	vma_get_encrypt_ref(vma);
+ 	vma->vm_mm = mm;
+ 	vma->vm_start = addr;
+ 	vma->vm_end = addr + len;
+@@ -1839,6 +1842,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+ unmap_and_free_vma:
+ 	vma->vm_file = NULL;
+ 	fput(file);
++	vma_put_encrypt_ref(vma);
+ 
+ 	/* Undo any partial mapping done by a device driver. */
+ 	unmap_region(mm, vma, prev, vma->vm_start, vma->vm_end);
+@@ -2653,6 +2657,7 @@ int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		new->vm_pgoff += ((addr - vma->vm_start) >> PAGE_SHIFT);
+ 	}
+ 
++	vma_get_encrypt_ref(new);
+ 	err = vma_dup_policy(vma, new);
+ 	if (err)
+ 		goto out_free_vma;
+@@ -2686,6 +2691,7 @@ int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+  out_free_mpol:
+ 	mpol_put(vma_policy(new));
+  out_free_vma:
++	vma_put_encrypt_ref(new);
+ 	kmem_cache_free(vm_area_cachep, new);
+ 	return err;
+ }
+@@ -3007,6 +3013,7 @@ static int do_brk_flags(unsigned long addr, unsigned long len, unsigned long fla
+ 		return -ENOMEM;
+ 	}
+ 
++	vma_get_encrypt_ref(vma);
+ 	INIT_LIST_HEAD(&vma->anon_vma_chain);
+ 	vma->vm_mm = mm;
+ 	vma->vm_ops = &anon_vm_ops;
+@@ -3229,6 +3236,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
+ 		new_vma->vm_pgoff = pgoff;
+ 		if (vma_dup_policy(vma, new_vma))
+ 			goto out_free_vma;
++		vma_get_encrypt_ref(new_vma);
+ 		INIT_LIST_HEAD(&new_vma->anon_vma_chain);
+ 		if (anon_vma_clone(new_vma, vma))
+ 			goto out_free_mempol;
+@@ -3243,6 +3251,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
+ 
+ out_free_mempol:
+ 	mpol_put(vma_policy(new_vma));
++	vma_put_encrypt_ref(new_vma);
+ out_free_vma:
+ 	kmem_cache_free(vm_area_cachep, new_vma);
+ out:
+@@ -3372,6 +3381,9 @@ static struct vm_area_struct *__install_special_mapping(
+ 	if (unlikely(vma == NULL))
+ 		return ERR_PTR(-ENOMEM);
+ 
++	/* Do not expect a memory encrypted vma here */
++	VM_WARN_ON(vma_keyid(vma));
++
+ 	INIT_LIST_HEAD(&vma->anon_vma_chain);
+ 	vma->vm_mm = mm;
+ 	vma->vm_start = addr;
+diff --git a/mm/nommu.c b/mm/nommu.c
+index 73f66e81cfb0..85f04c174638 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -769,6 +769,7 @@ static void delete_vma(struct mm_struct *mm, struct vm_area_struct *vma)
+ 	if (vma->vm_file)
+ 		fput(vma->vm_file);
+ 	put_nommu_region(vma->vm_region);
++	vma_put_encrypt_ref(vma);
+ 	kmem_cache_free(vm_area_cachep, vma);
  }
  
- /*
-- * When pkey==NO_PKEY we get legacy mprotect behavior here.
-+ * do_mprotect_ext() supports the legacy mprotect behavior plus extensions
-+ * for protection keys and memory encryption keys. These extensions are
-+ * mutually exclusive and the behavior is:
-+ *	(pkey==NO_PKEY && keyid==NO_KEYID) ==> legacy mprotect
-+ *	(pkey is valid)  ==> legacy mprotect plus protection key extensions
-+ *	(keyid is valid) ==> legacy mprotect plus encryption key extensions
-  */
- static int do_mprotect_ext(unsigned long start, size_t len,
--		unsigned long prot, int pkey)
-+			   unsigned long prot, int pkey, int keyid)
- {
- 	unsigned long nstart, end, tmp, reqprot;
- 	struct vm_area_struct *vma, *prev;
-@@ -505,7 +530,8 @@ static int do_mprotect_ext(unsigned long start, size_t len,
- 		tmp = vma->vm_end;
- 		if (tmp > end)
- 			tmp = end;
--		error = mprotect_fixup(vma, &prev, nstart, tmp, newflags);
-+		error = mprotect_fixup(vma, &prev, nstart, tmp, newflags,
-+				       keyid);
- 		if (error)
- 			goto out;
- 		nstart = tmp;
-@@ -530,7 +556,7 @@ static int do_mprotect_ext(unsigned long start, size_t len,
- SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
- 		unsigned long, prot)
- {
--	return do_mprotect_ext(start, len, prot, NO_PKEY);
-+	return do_mprotect_ext(start, len, prot, NO_PKEY, NO_KEYID);
- }
+@@ -1215,6 +1216,7 @@ unsigned long do_mmap(struct file *file,
+ 	if (!vma)
+ 		goto error_getting_vma;
  
- #ifdef CONFIG_ARCH_HAS_PKEYS
-@@ -538,7 +564,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
- SYSCALL_DEFINE4(pkey_mprotect, unsigned long, start, size_t, len,
- 		unsigned long, prot, int, pkey)
- {
--	return do_mprotect_ext(start, len, prot, pkey);
-+	return do_mprotect_ext(start, len, prot, pkey, NO_KEYID);
- }
++	vma_get_encrypt_ref(vma);
+ 	region->vm_usage = 1;
+ 	region->vm_flags = vm_flags;
+ 	region->vm_pgoff = pgoff;
+@@ -1375,6 +1377,7 @@ unsigned long do_mmap(struct file *file,
+ 	kmem_cache_free(vm_region_jar, region);
+ 	if (vma->vm_file)
+ 		fput(vma->vm_file);
++	vma_put_encrypt_ref(vma);
+ 	kmem_cache_free(vm_area_cachep, vma);
+ 	return ret;
  
- SYSCALL_DEFINE2(pkey_alloc, unsigned long, flags, unsigned long, init_val)
-@@ -587,3 +613,32 @@ SYSCALL_DEFINE1(pkey_free, int, pkey)
- }
+@@ -1486,6 +1489,7 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	*new = *vma;
+ 	*region = *vma->vm_region;
+ 	new->vm_region = region;
++	vma_get_encrypt_ref(new);
  
- #endif /* CONFIG_ARCH_HAS_PKEYS */
-+
-+#ifdef CONFIG_X86_INTEL_MKTME
-+
-+SYSCALL_DEFINE4(encrypt_mprotect, unsigned long, start, size_t, len,
-+		unsigned long, prot, key_serial_t, serial)
-+{
-+	key_ref_t key_ref;
-+	int ret, keyid;
-+
-+	/* TODO MKTME key service must be initialized */
-+
-+	key_ref = lookup_user_key(serial, 0, KEY_NEED_VIEW);
-+	if (IS_ERR(key_ref))
-+		return PTR_ERR(key_ref);
-+
-+	mktme_map_lock();
-+	keyid = mktme_map_keyid_from_serial(serial);
-+	if (!keyid) {
-+		mktme_map_unlock();
-+		key_ref_put(key_ref);
-+		return -EINVAL;
-+	}
-+	ret = do_mprotect_ext(start, len, prot, NO_PKEY, keyid);
-+	mktme_map_unlock();
-+	key_ref_put(key_ref);
-+	return ret;
-+}
-+
-+#endif /* CONFIG_X86_INTEL_MKTME */
+ 	npages = (addr - vma->vm_start) >> PAGE_SHIFT;
+ 
 -- 
 2.14.1
