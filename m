@@ -1,74 +1,409 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CE4F6B7D5A
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 04:27:49 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id x19-v6so7235909pfh.15
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 01:27:49 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 72E716B7D68
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 04:39:31 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id g9-v6so6904041pgc.16
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 01:39:31 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c17-v6si7231976pgp.299.2018.09.07.01.27.47
+        by mx.google.com with ESMTPS id n22-v6si7784668pgd.375.2018.09.07.01.39.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Sep 2018 01:27:47 -0700 (PDT)
-Date: Fri, 7 Sep 2018 10:27:45 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, oom: Introduce time limit for dump_tasks duration.
-Message-ID: <20180907082745.GB19621@dhcp22.suse.cz>
-References: <CACT4Y+Yp6ZbusCWg5C1zaJpcS8=XnGPboKgWfyxVk1axQA2nbw@mail.gmail.com>
- <201809060553.w865rmpj036017@www262.sakura.ne.jp>
- <CACT4Y+YKJWJr-5rBQidt6nY7+VF=BAsvHyh+XTaf8spwNy3qPA@mail.gmail.com>
- <58aa0543-86d0-b2ad-7fb9-9bed7c6a1f6c@i-love.sakura.ne.jp>
- <20180906112306.GO14951@dhcp22.suse.cz>
- <1611e45d-235e-67e9-26e3-d0228255fa2f@i-love.sakura.ne.jp>
- <20180906115320.GS14951@dhcp22.suse.cz>
- <7f50772a-f2ef-d16e-4d09-7f34f4bf9227@i-love.sakura.ne.jp>
- <20180906143905.GC14951@dhcp22.suse.cz>
- <32c58019-5e2d-b3a1-a6ad-ea374ccd8b60@i-love.sakura.ne.jp>
+        Fri, 07 Sep 2018 01:39:29 -0700 (PDT)
+Subject: Re: [PATCH v6 6/6] Btrfs: support swap files
+References: <cover.1536305017.git.osandov@fb.com>
+ <77442bbbad9ebc37f3b72a47ca983a3a805e0718.1536305017.git.osandov@fb.com>
+From: Nikolay Borisov <nborisov@suse.com>
+Message-ID: <401845b3-f7b9-7dfb-dc9b-42350daff44e@suse.com>
+Date: Fri, 7 Sep 2018 11:39:25 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <32c58019-5e2d-b3a1-a6ad-ea374ccd8b60@i-love.sakura.ne.jp>
+In-Reply-To: <77442bbbad9ebc37f3b72a47ca983a3a805e0718.1536305017.git.osandov@fb.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, syzbot <syzbot+f0fc7f62e88b1de99af3@syzkaller.appspotmail.com>, 'Dmitry Vyukov' via syzkaller-upstream-moderation <syzkaller-upstream-moderation@googlegroups.com>, linux-mm <linux-mm@kvack.org>
+To: Omar Sandoval <osandov@osandov.com>, linux-btrfs@vger.kernel.org
+Cc: kernel-team@fb.com, linux-mm@kvack.org
 
-On Fri 07-09-18 05:58:06, Tetsuo Handa wrote:
-> On 2018/09/06 23:39, Michal Hocko wrote:
-> >>>> I know /proc/sys/vm/oom_dump_tasks . Showing some entries while not always
-> >>>> printing all entries might be helpful.
-> >>>
-> >>> Not really. It could be more confusing than helpful. The main purpose of
-> >>> the listing is to double check the list to understand the oom victim
-> >>> selection. If you have a partial list you simply cannot do that.
-> >>
-> >> It serves as a safeguard for avoiding RCU stall warnings.
-> >>
-> >>>
-> >>> If the iteration takes too long and I can imagine it does with zillions
-> >>> of tasks then the proper way around it is either release the lock
-> >>> periodically after N tasks is processed or outright skip the whole thing
-> >>> if there are too many tasks. The first option is obviously tricky to
-> >>> prevent from duplicate entries or other artifacts.
-> >>>
-> >>
-> >> Can we add rcu_lock_break() like check_hung_uninterruptible_tasks() does?
-> > 
-> > This would be a better variant of your timeout based approach. But it
-> > can still produce an incomplete task list so it still consumes a lot of
-> > resources to print a long list of tasks potentially while that list is not
-> > useful for any evaluation. Maybe that is good enough. I don't know. I
-> > would generally recommend to disable the whole thing with workloads with
-> > many tasks though.
-> > 
+
+
+On  7.09.2018 10:39, Omar Sandoval wrote:
+> From: Omar Sandoval <osandov@fb.com>
 > 
-> The "safeguard" is useful when there are _unexpectedly_ many tasks (like
-> syzbot in this case). Why not to allow those who want to avoid lockup to
-> avoid lockup rather than forcing them to disable the whole thing?
+> Implement the swap file a_ops on Btrfs. Activation needs to make sure
+> that the file can be used as a swap file, which currently means it must
+> be fully allocated as nocow with no compression on one device. It must
+> also do the proper tracking so that ioctls will not interfere with the
+> swap file. Deactivation clears this tracking.
+> 
+> Signed-off-by: Omar Sandoval <osandov@fb.com>
+> ---
+>  fs/btrfs/inode.c | 316 +++++++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 316 insertions(+)
+> 
+> diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
+> index 9357a19d2bff..55aba2d7074c 100644
+> --- a/fs/btrfs/inode.c
+> +++ b/fs/btrfs/inode.c
+> @@ -27,6 +27,7 @@
+>  #include <linux/uio.h>
+>  #include <linux/magic.h>
+>  #include <linux/iversion.h>
+> +#include <linux/swap.h>
+>  #include <asm/unaligned.h>
+>  #include "ctree.h"
+>  #include "disk-io.h"
+> @@ -10437,6 +10438,319 @@ void btrfs_set_range_writeback(struct extent_io_tree *tree, u64 start, u64 end)
+>  	}
+>  }
+>  
+> +/*
+> + * Add an entry indicating a block group or device which is pinned by a
+> + * swapfile. Returns 0 on success, 1 if there is already an entry for it, or a
+> + * negative errno on failure.
+> + */
+> +static int btrfs_add_swapfile_pin(struct inode *inode, void *ptr,
+> +				  bool is_block_group)
+> +{
+> +	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
+> +	struct btrfs_swapfile_pin *sp, *entry;
+> +	struct rb_node **p;
+> +	struct rb_node *parent = NULL;
+> +
+> +	sp = kmalloc(sizeof(*sp), GFP_NOFS);
+> +	if (!sp)
+> +		return -ENOMEM;
+> +	sp->ptr = ptr;
+> +	sp->inode = inode;
+> +	sp->is_block_group = is_block_group;
+> +
+> +	spin_lock(&fs_info->swapfile_pins_lock);
+> +	p = &fs_info->swapfile_pins.rb_node;
+> +	while (*p) {
+> +		parent = *p;
+> +		entry = rb_entry(parent, struct btrfs_swapfile_pin, node);
+> +		if (sp->ptr < entry->ptr ||
+> +		    (sp->ptr == entry->ptr && sp->inode < entry->inode)) {
+> +			p = &(*p)->rb_left;
+> +		} else if (sp->ptr > entry->ptr ||
+> +			   (sp->ptr == entry->ptr && sp->inode > entry->inode)) {
+> +			p = &(*p)->rb_right;
+> +		} else {
+> +			spin_unlock(&fs_info->swapfile_pins_lock);
+> +			kfree(sp);
+> +			return 1;
+> +		}
 
-So you get an rcu lockup splat and what? Unless you have panic_on_rcu_stall
-then this should be recoverable thing (assuming we cannot really
-livelock as described by Dmitry).
 
--- 
-Michal Hocko
-SUSE Labs
+I have to admit this is creative use of pointers but I dislike it:
+
+1. You are not really doing an interval tree of any sorts so rb seems a
+bit of an overkill. How many block groups/devices do you expect to have
+in the rb tree i.e how many swap files per file system so that the logn
+search behavior really matter? Why not a simple linked list and just an
+equality comparison of pointers?
+
+2. The code self-admits that using pointers for lt/gr comparison is a
+hack since in case pointers match you fall back to checking the inode
+pointer
+
+3. There is a discrepancy between the keys used for adding (ptr + inode)
+and deletion (just inode)
+
+
+At the very  least this hack needs to be at least mentioned in the
+changelog.
+
+> +	}
+> +	rb_link_node(&sp->node, parent, p);
+> +	rb_insert_color(&sp->node, &fs_info->swapfile_pins);
+> +	spin_unlock(&fs_info->swapfile_pins_lock);
+> +	return 0;
+> +}
+> +
+> +static void btrfs_free_swapfile_pins(struct inode *inode)
+> +{
+> +	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
+> +	struct btrfs_swapfile_pin *sp;
+> +	struct rb_node *node, *next;
+> +
+> +	spin_lock(&fs_info->swapfile_pins_lock);
+> +	node = rb_first(&fs_info->swapfile_pins);
+> +	while (node) {
+> +		next = rb_next(node);
+> +		sp = rb_entry(node, struct btrfs_swapfile_pin, node);
+> +		if (sp->inode == inode) {
+> +			rb_erase(&sp->node, &fs_info->swapfile_pins);
+> +			if (sp->is_block_group)
+> +				btrfs_put_block_group(sp->ptr);
+> +			kfree(sp);
+> +		}
+> +		node = next;
+> +	}
+> +	spin_unlock(&fs_info->swapfile_pins_lock);
+> +}
+> +
+> +struct btrfs_swap_info {
+> +	u64 start;
+> +	u64 block_start;
+> +	u64 block_len;
+> +	u64 lowest_ppage;
+> +	u64 highest_ppage;
+> +	unsigned long nr_pages;
+> +	int nr_extents;
+> +};
+> +
+> +static int btrfs_add_swap_extent(struct swap_info_struct *sis,
+> +				 struct btrfs_swap_info *bsi)
+> +{
+> +	unsigned long nr_pages;
+> +	u64 first_ppage, first_ppage_reported, next_ppage;
+
+what the does extra p stand for - physical?
+
+> +	int ret;
+> +
+> +	first_ppage = ALIGN(bsi->block_start, PAGE_SIZE) >> PAGE_SHIFT;
+> +	next_ppage = ALIGN_DOWN(bsi->block_start + bsi->block_len,
+> +				PAGE_SIZE) >> PAGE_SHIFT;
+> +
+> +	if (first_ppage >= next_ppage)
+> +		return 0;
+> +	nr_pages = next_ppage - first_ppage;
+> +
+> +	first_ppage_reported = first_ppage;
+> +	if (bsi->start == 0)
+> +		first_ppage_reported++;
+> +	if (bsi->lowest_ppage > first_ppage_reported)
+> +		bsi->lowest_ppage = first_ppage_reported;
+> +	if (bsi->highest_ppage < (next_ppage - 1))
+> +		bsi->highest_ppage = next_ppage - 1;
+> +
+> +	ret = add_swap_extent(sis, bsi->nr_pages, nr_pages, first_ppage);
+> +	if (ret < 0)
+> +		return ret;
+> +	bsi->nr_extents += ret;
+> +	bsi->nr_pages += nr_pages;
+> +	return 0;
+> +}
+> +
+> +static void btrfs_swap_deactivate(struct file *file)
+> +{
+> +	struct inode *inode = file_inode(file);
+> +
+> +	btrfs_free_swapfile_pins(inode);
+> +	atomic_dec(&BTRFS_I(inode)->root->nr_swapfiles);
+> +}
+> +
+> +static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
+> +			       sector_t *span)
+> +{
+> +	struct inode *inode = file_inode(file);
+> +	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
+> +	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+> +	struct extent_state *cached_state = NULL;
+> +	struct extent_map *em = NULL;
+> +	struct btrfs_device *device = NULL;
+> +	struct btrfs_swap_info bsi = {
+> +		.lowest_ppage = (sector_t)-1ULL,
+> +	};
+> +	int ret = 0;
+> +	u64 isize = inode->i_size;
+> +	u64 start;
+> +
+> +	/*
+> +	 * If the swap file was just created, make sure delalloc is done. If the
+> +	 * file changes again after this, the user is doing something stupid and
+> +	 * we don't really care.
+> +	 */
+> +	ret = btrfs_wait_ordered_range(inode, 0, (u64)-1);
+> +	if (ret)
+> +		return ret;
+> +
+> +	/*
+> +	 * The inode is locked, so these flags won't change after we check them.
+> +	 */
+> +	if (BTRFS_I(inode)->flags & BTRFS_INODE_COMPRESS) {
+> +		btrfs_info(fs_info, "swapfile must not be compressed");
+> +		return -EINVAL;
+> +	}
+> +	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATACOW)) {
+> +		btrfs_info(fs_info, "swapfile must not be copy-on-write");
+> +		return -EINVAL;
+> +	}
+> +
+> +	/*
+> +	 * Balance or device remove/replace/resize can move stuff around from
+> +	 * under us. The EXCL_OP flag makes sure they aren't running/won't run
+> +	 * concurrently while we are mapping the swap extents, and
+> +	 * fs_info->swapfile_pins prevents them from running while the swap file
+> +	 * is active and moving the extents. Note that this also prevents a
+> +	 * concurrent device add which isn't actually necessary, but it's not
+> +	 * really worth the trouble to allow it.
+> +	 */
+> +	if (test_and_set_bit(BTRFS_FS_EXCL_OP, &fs_info->flags))
+> +		return -EBUSY;
+> +	/*
+> +	 * Snapshots can create extents which require COW even if NODATACOW is
+> +	 * set. We use this counter to prevent snapshots. We must increment it
+> +	 * before walking the extents because we don't want a concurrent
+> +	 * snapshot to run after we've already checked the extents.
+> +	 */
+> +	atomic_inc(&BTRFS_I(inode)->root->nr_swapfiles);
+> +
+> +	lock_extent_bits(io_tree, 0, isize - 1, &cached_state);
+> +	start = 0;
+> +	while (start < isize) {
+> +		u64 end, logical_block_start, physical_block_start;
+> +		struct btrfs_block_group_cache *bg;
+> +		u64 len = isize - start;
+> +
+> +		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, start, len, 0);
+> +		if (IS_ERR(em)) {
+> +			ret = PTR_ERR(em);
+> +			goto out;
+> +		}
+> +		end = extent_map_end(em);
+> +
+> +		if (em->block_start == EXTENT_MAP_HOLE) {
+> +			btrfs_info(fs_info, "swapfile must not have holes");
+> +			ret = -EINVAL;
+> +			goto out;
+> +		}
+> +		if (em->block_start == EXTENT_MAP_INLINE) {
+> +			/*
+> +			 * It's unlikely we'll ever actually find ourselves
+> +			 * here, as a file small enough to fit inline won't be
+> +			 * big enough to store more than the swap header, but in
+> +			 * case something changes in the future, let's catch it
+> +			 * here rather than later.
+> +			 */
+> +			btrfs_info(fs_info, "swapfile must not be inline");
+> +			ret = -EINVAL;
+> +			goto out;
+> +		}
+> +		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
+> +			btrfs_info(fs_info, "swapfile must not be compressed");
+> +			ret = -EINVAL;
+> +			goto out;
+> +		}
+> +
+> +		logical_block_start = em->block_start + (start - em->start);
+> +		len = min(len, em->len - (start - em->start));
+> +		free_extent_map(em);
+> +		em = NULL;
+> +
+> +		ret = can_nocow_extent(inode, start, &len, NULL, NULL, NULL);
+> +		if (ret < 0) {
+> +			goto out;
+> +		} else if (ret) {
+> +			ret = 0;
+> +		} else {
+> +			btrfs_info(fs_info, "swapfile must not be copy-on-write");
+> +			ret = -EINVAL;
+> +			goto out;
+> +		}
+> +
+> +		em = btrfs_get_chunk_map(fs_info, logical_block_start, len);
+> +		if (IS_ERR(em)) {
+> +			ret = PTR_ERR(em);
+> +			goto out;
+> +		}
+> +
+> +		if (em->map_lookup->type & BTRFS_BLOCK_GROUP_PROFILE_MASK) {
+> +			btrfs_info(fs_info, "swapfile must have single data profile");
+> +			ret = -EINVAL;
+> +			goto out;
+> +		}
+> +
+> +		if (device == NULL) {
+> +			device = em->map_lookup->stripes[0].dev;
+> +			ret = btrfs_add_swapfile_pin(inode, device, false);
+> +			if (ret == 1)
+> +				ret = 0;
+> +			else if (ret)
+> +				goto out;
+> +		} else if (device != em->map_lookup->stripes[0].dev) {
+> +			btrfs_info(fs_info, "swapfile must be on one device");
+> +			ret = -EINVAL;
+> +			goto out;
+> +		}
+> +
+> +		physical_block_start = (em->map_lookup->stripes[0].physical +
+> +					(logical_block_start - em->start));
+> +		len = min(len, em->len - (logical_block_start - em->start));
+> +		free_extent_map(em);
+> +		em = NULL;
+> +
+> +		bg = btrfs_lookup_block_group(fs_info, logical_block_start);
+> +		if (!bg) {
+> +			btrfs_info(fs_info, "could not find block group containing swapfile");
+> +			ret = -EINVAL;
+> +			goto out;
+> +		}
+> +
+> +		ret = btrfs_add_swapfile_pin(inode, bg, true);
+> +		if (ret) {
+> +			btrfs_put_block_group(bg);
+> +			if (ret == 1)
+> +				ret = 0;
+> +			else
+> +				goto out;
+> +		}
+> +
+> +		if (bsi.block_len &&
+> +		    bsi.block_start + bsi.block_len == physical_block_start) {
+> +			bsi.block_len += len;
+> +		} else {
+> +			if (bsi.block_len) {
+> +				ret = btrfs_add_swap_extent(sis, &bsi);
+> +				if (ret)
+> +					goto out;
+> +			}
+> +			bsi.start = start;
+> +			bsi.block_start = physical_block_start;
+> +			bsi.block_len = len;
+> +		}
+> +
+> +		start = end;
+> +	}
+> +
+> +	if (bsi.block_len)
+> +		ret = btrfs_add_swap_extent(sis, &bsi);
+> +
+> +out:
+> +	if (!IS_ERR_OR_NULL(em))
+> +		free_extent_map(em);
+> +
+> +	unlock_extent_cached(io_tree, 0, isize - 1, &cached_state);
+> +
+> +	if (ret)
+> +		btrfs_swap_deactivate(file);
+> +
+> +	clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
+> +
+> +	if (ret)
+> +		return ret;
+> +
+> +	if (device)
+> +		sis->bdev = device->bdev;
+> +	*span = bsi.highest_ppage - bsi.lowest_ppage + 1;
+> +	sis->max = bsi.nr_pages;
+> +	sis->pages = bsi.nr_pages - 1;
+> +	sis->highest_bit = bsi.nr_pages - 1;
+> +	return bsi.nr_extents;
+> +}
+> +
+>  static const struct inode_operations btrfs_dir_inode_operations = {
+>  	.getattr	= btrfs_getattr,
+>  	.lookup		= btrfs_lookup,
+> @@ -10514,6 +10828,8 @@ static const struct address_space_operations btrfs_aops = {
+>  	.releasepage	= btrfs_releasepage,
+>  	.set_page_dirty	= btrfs_set_page_dirty,
+>  	.error_remove_page = generic_error_remove_page,
+> +	.swap_activate	= btrfs_swap_activate,
+> +	.swap_deactivate = btrfs_swap_deactivate,
+>  };
+>  
+>  static const struct address_space_operations btrfs_symlink_aops = {
+> 
