@@ -1,74 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 69C516B7DA6
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 05:25:06 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id l65-v6so6926264pge.17
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 02:25:06 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id d11-v6si8006684pgh.564.2018.09.07.02.25.05
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CD9C6B7DAE
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 05:37:18 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id g9-v6so6987275pgc.16
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 02:37:18 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v126-v6sor1195327pgv.289.2018.09.07.02.37.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Sep 2018 02:25:05 -0700 (PDT)
-From: Zhang Yi <yi.z.zhang@linux.intel.com>
-Subject: [PATCH V5 4/4] kvm: add a check if pfn is from NVDIMM pmem.
-Date: Sat,  8 Sep 2018 02:04:08 +0800
-Message-Id: <4e8c2e0facd46cfaf4ab79e19c9115958ab6f218.1536342881.git.yi.z.zhang@linux.intel.com>
-In-Reply-To: <cover.1536342881.git.yi.z.zhang@linux.intel.com>
-References: <cover.1536342881.git.yi.z.zhang@linux.intel.com>
+        (Google Transport Security);
+        Fri, 07 Sep 2018 02:37:17 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20180907082745.GB19621@dhcp22.suse.cz>
+References: <CACT4Y+Yp6ZbusCWg5C1zaJpcS8=XnGPboKgWfyxVk1axQA2nbw@mail.gmail.com>
+ <201809060553.w865rmpj036017@www262.sakura.ne.jp> <CACT4Y+YKJWJr-5rBQidt6nY7+VF=BAsvHyh+XTaf8spwNy3qPA@mail.gmail.com>
+ <58aa0543-86d0-b2ad-7fb9-9bed7c6a1f6c@i-love.sakura.ne.jp>
+ <20180906112306.GO14951@dhcp22.suse.cz> <1611e45d-235e-67e9-26e3-d0228255fa2f@i-love.sakura.ne.jp>
+ <20180906115320.GS14951@dhcp22.suse.cz> <7f50772a-f2ef-d16e-4d09-7f34f4bf9227@i-love.sakura.ne.jp>
+ <20180906143905.GC14951@dhcp22.suse.cz> <32c58019-5e2d-b3a1-a6ad-ea374ccd8b60@i-love.sakura.ne.jp>
+ <20180907082745.GB19621@dhcp22.suse.cz>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Fri, 7 Sep 2018 11:36:55 +0200
+Message-ID: <CACT4Y+bS+kqf+8fp11qSpQ4WtaZt_sVYmvwi_9LFX_=Dwk1N4A@mail.gmail.com>
+Subject: Re: [PATCH] mm, oom: Introduce time limit for dump_tasks duration.
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pbonzini@redhat.com, dan.j.williams@intel.com, dave.jiang@intel.com, yu.c.zhang@intel.com, pagupta@redhat.com, david@redhat.com, jack@suse.cz, hch@lst.de
-Cc: linux-mm@kvack.org, rkrcmar@redhat.com, jglisse@redhat.com, yi.z.zhang@intel.com, Zhang Yi <yi.z.zhang@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, syzbot <syzbot+f0fc7f62e88b1de99af3@syzkaller.appspotmail.com>, 'Dmitry Vyukov' via syzkaller-upstream-moderation <syzkaller-upstream-moderation@googlegroups.com>, linux-mm <linux-mm@kvack.org>
 
-For device specific memory space, when we move these area of pfn to
-memory zone, we will set the page reserved flag at that time, some of
-these reserved for device mmio, and some of these are not, such as
-NVDIMM pmem.
+On Fri, Sep 7, 2018 at 10:27 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Fri 07-09-18 05:58:06, Tetsuo Handa wrote:
+>> On 2018/09/06 23:39, Michal Hocko wrote:
+>> >>>> I know /proc/sys/vm/oom_dump_tasks . Showing some entries while not always
+>> >>>> printing all entries might be helpful.
+>> >>>
+>> >>> Not really. It could be more confusing than helpful. The main purpose of
+>> >>> the listing is to double check the list to understand the oom victim
+>> >>> selection. If you have a partial list you simply cannot do that.
+>> >>
+>> >> It serves as a safeguard for avoiding RCU stall warnings.
+>> >>
+>> >>>
+>> >>> If the iteration takes too long and I can imagine it does with zillions
+>> >>> of tasks then the proper way around it is either release the lock
+>> >>> periodically after N tasks is processed or outright skip the whole thing
+>> >>> if there are too many tasks. The first option is obviously tricky to
+>> >>> prevent from duplicate entries or other artifacts.
+>> >>>
+>> >>
+>> >> Can we add rcu_lock_break() like check_hung_uninterruptible_tasks() does?
+>> >
+>> > This would be a better variant of your timeout based approach. But it
+>> > can still produce an incomplete task list so it still consumes a lot of
+>> > resources to print a long list of tasks potentially while that list is not
+>> > useful for any evaluation. Maybe that is good enough. I don't know. I
+>> > would generally recommend to disable the whole thing with workloads with
+>> > many tasks though.
+>> >
+>>
+>> The "safeguard" is useful when there are _unexpectedly_ many tasks (like
+>> syzbot in this case). Why not to allow those who want to avoid lockup to
+>> avoid lockup rather than forcing them to disable the whole thing?
+>
+> So you get an rcu lockup splat and what? Unless you have panic_on_rcu_stall
+> then this should be recoverable thing (assuming we cannot really
+> livelock as described by Dmitry).
 
-Now, we map these dev_dax or fs_dax pages to kvm for DIMM/NVDIMM
-backend, since these pages are reserved, the check of
-kvm_is_reserved_pfn() misconceives those pages as MMIO. Therefor, we
-introduce 2 page map types, MEMORY_DEVICE_FS_DAX/MEMORY_DEVICE_DEV_DAX,
-to identify these pages are from NVDIMM pmem and let kvm treat these
-as normal pages.
 
-Without this patch, many operations will be missed due to this
-mistreatment to pmem pages, for example, a page may not have chance to
-be unpinned for KVM guest(in kvm_release_pfn_clean), not able to be
-marked as dirty/accessed(in kvm_set_pfn_dirty/accessed) etc.
+Should I add "vm.oom_dump_tasks = 0" to /etc/sysctl.conf on syzbot?
+It looks like it will make things faster, not pollute console output,
+prevent these stalls and that output does not seem to be too useful
+for debugging.
 
-Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
-Acked-by: Pankaj Gupta <pagupta@redhat.com>
----
- virt/kvm/kvm_main.c | 16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
-
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index c44c406..9c49634 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -147,8 +147,20 @@ __weak void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
- 
- bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
- {
--	if (pfn_valid(pfn))
--		return PageReserved(pfn_to_page(pfn));
-+	struct page *page;
-+
-+	if (pfn_valid(pfn)) {
-+		page = pfn_to_page(pfn);
-+
-+		/*
-+		 * For device specific memory space, there is a case
-+		 * which we need pass MEMORY_DEVICE_FS[DEV]_DAX pages
-+		 * to kvm, these pages marked reserved flag as it is a
-+		 * zone device memory, we need to identify these pages
-+		 * and let kvm treat these as normal pages
-+		 */
-+		return PageReserved(page) && !is_dax_page(page);
-+	}
- 
- 	return true;
- }
--- 
-2.7.4
+But I am still concerned as to what has changed recently. Potentially
+this happens only on linux-next, at least that's where I saw all
+existing reports.
+New tasks seem to be added to the tail of the tasks list, but this
+part does not seem to be changed recently in linux-next..
