@@ -1,79 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 12D988E0001
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 17:30:34 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id bh1-v6so7606263plb.15
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 14:30:34 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id d34-v6si8977114pld.301.2018.09.07.14.30.32
+	by kanga.kvack.org (Postfix) with ESMTP id 0F5338E0001
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 18:22:45 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id c5-v6so7652950plo.2
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 15:22:45 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id z10-v6si9491641pgh.310.2018.09.07.15.22.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Sep 2018 14:30:32 -0700 (PDT)
-Subject: Re: Redoing eXclusive Page Frame Ownership (XPFO) with isolated CPUs
- in mind (for KVM to isolate its guests per CPU)
-References: <ciirm8a7p3alos.fsf@u54ee758033e858cfa736.ant.amazon.com>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Message-ID: <80a75259-e38b-be94-dc4a-827eddfae931@oracle.com>
-Date: Fri, 7 Sep 2018 15:30:10 -0600
+        Fri, 07 Sep 2018 15:22:42 -0700 (PDT)
+Date: Fri, 7 Sep 2018 15:23:24 -0700
+From: Alison Schofield <alison.schofield@intel.com>
+Subject: [RFC 00/12] Multi-Key Total Memory Encryption API (MKTME)
+Message-ID: <cover.1536356108.git.alison.schofield@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <ciirm8a7p3alos.fsf@u54ee758033e858cfa736.ant.amazon.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Julian Stecklina <jsteckli@amazon.de>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: David Woodhouse <dwmw@amazon.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, juerg.haefliger@hpe.com, deepa.srinivasan@oracle.com, Jim Mattson <jmattson@google.com>, Andrew Cooper <andrew.cooper3@citrix.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, joao.m.martins@oracle.com, pradeep.vincent@oracle.com, Andi Kleen <ak@linux.intel.com>, kanth.ghatraju@oracle.com, Liran Alon <liran.alon@oracle.com>, Kees Cook <keescook@google.com>, Kernel Hardening <kernel-hardening@lists.openwall.com>, chris.hyser@oracle.com, Tyler Hicks <tyhicks@canonical.com>, John Haxby <john.haxby@oracle.com>, Jon Masters <jcm@redhat.com>
+To: dhowells@redhat.com, tglx@linutronix.de
+Cc: Kai Huang <kai.huang@intel.com>, Jun Nakajima <jun.nakajima@intel.com>, Kirill Shutemov <kirill.shutemov@intel.com>, Dave Hansen <dave.hansen@intel.com>, Jarkko Sakkinen <jarkko.sakkinen@intel.com>, jmorris@namei.org, keyrings@vger.kernel.org, linux-security-module@vger.kernel.org, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-mm@kvack.org
 
-On 08/30/2018 10:00 AM, Julian Stecklina wrote:
-> Hey everyone,
-> 
-> On Mon, 20 Aug 2018 15:27 Linus Torvalds <torvalds@linux-foundation.org> wrote:
->> On Mon, Aug 20, 2018 at 3:02 PM Woodhouse, David <dwmw@amazon.co.uk> wrote:
->>>
->>> It's the *kernel* we don't want being able to access those pages,
->>> because of the multitude of unfixable cache load gadgets.
->>
->> Ahh.
->>
->> I guess the proof is in the pudding. Did somebody try to forward-port
->> that patch set and see what the performance is like?
-> 
-> I've been spending some cycles on the XPFO patch set this week. For the
-> patch set as it was posted for v4.13, the performance overhead of
-> compiling a Linux kernel is ~40% on x86_64[1]. The overhead comes almost
-> completely from TLB flushing. If we can live with stale TLB entries
-> allowing temporary access (which I think is reasonable), we can remove
-> all TLB flushing (on x86). This reduces the overhead to 2-3% for
-> kernel compile.
-> 
-> There were no problems in forward-porting the patch set to master.
-> You can find the result here, including a patch makes the TLB flushing
-> configurable:
-> http://git.infradead.org/users/jsteckli/linux-xpfo.git/shortlog/refs/heads/xpfo-master
-> 
-> It survived some casual stress-ng runs. I can rerun the benchmarks on
-> this version, but I doubt there is any change.
-> 
->> It used to be just 500 LOC. Was that because they took horrible
->> shortcuts?
-> 
-> The patch is still fairly small. As for the horrible shortcuts, I let
-> others comment on that.
+Seeking comments on the APIs supporting MKTME on future Intel platforms.
+
+MKTME (Multi-Key Total Memory Encryption) is a technology supporting
+memory encryption on upcoming Intel platforms. Whereas TME allows
+encryption of the entire system memory using a single key, MKTME
+allows mulitple encryption domains, each having their own key. While 
+the main use case for the feature is virtual machine isolation, the
+API needs the flexibility to work for a wide range of use cases.
+
+This RFC presents the 2 API additions that enable userspace to:
+ 1) Create Encryption Keys: Kernel Key Service type "mktme"
+ 2) Use the Encryption Keys: system call encrypt_mprotect()
+
+In order to share between: the Kernel Key Service, the new system call,
+and the existing mm code, helper functions were created in arch/x86/mktme
+
+This patchset is built upon Kirill Shutemov's patchset for the core MKTME
+support. You can find that here:
+git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git mktme/wip
 
 
-Looks like the performance impact can be whole lot worse. On my test 
-system with 2 Xeon Platinum 8160 (HT enabled) CPUs and 768 GB of memory, 
-I am seeing very high penalty with XPFO when building 4.18.6 kernel 
-sources with "make -j60":
+Alison Schofield (12):
+  docs/x86: Document the Multi-Key Total Memory Encryption API
+  mm: Generalize the mprotect implementation to support extensions
+  syscall/x86: Wire up a new system call for memory encryption keys
+  x86/mm: Add helper functions to manage memory encryption keys
+  x86/mm: Add a helper function to set keyid bits in encrypted VMA's
+  mm: Add the encrypt_mprotect() system call
+  x86/mm: Add helper functions to track encrypted VMA's
+  mm: Track VMA's in use for each memory encryption keyid
+  mm: Restrict memory encryption to anonymous VMA's
+  x86/pconfig: Program memory encryption keys on a system-wide basis
+  keys/mktme: Add a new key service type for memory encryption keys
+  keys/mktme: Do not revoke in use memory encryption keys
 
-              No XPFO patch   XPFO patch(No TLB flush)  XPFO(TLB Flush)
-sys time      52m 54.036s       55m 47.897s              434m 8.645s
+ Documentation/x86/mktme-keys.txt       | 153 ++++++++++++++++
+ arch/x86/Kconfig                       |   1 +
+ arch/x86/entry/syscalls/syscall_32.tbl |   1 +
+ arch/x86/entry/syscalls/syscall_64.tbl |   1 +
+ arch/x86/include/asm/intel_pconfig.h   |  42 ++++-
+ arch/x86/include/asm/mktme.h           |  21 +++
+ arch/x86/mm/mktme.c                    | 141 ++++++++++++++
+ fs/exec.c                              |   4 +-
+ include/keys/mktme-type.h              |  28 +++
+ include/linux/key.h                    |   2 +
+ include/linux/mm.h                     |   9 +-
+ include/linux/syscalls.h               |   2 +
+ include/uapi/asm-generic/unistd.h      |   4 +-
+ kernel/fork.c                          |   2 +
+ kernel/sys_ni.c                        |   2 +
+ mm/mmap.c                              |  12 ++
+ mm/mprotect.c                          |  93 +++++++++-
+ mm/nommu.c                             |   4 +
+ security/keys/Kconfig                  |  11 ++
+ security/keys/Makefile                 |   1 +
+ security/keys/internal.h               |   6 +
+ security/keys/keyctl.c                 |   7 +
+ security/keys/mktme_keys.c             | 325 +++++++++++++++++++++++++++++++++
+ 23 files changed, 855 insertions(+), 17 deletions(-)
+ create mode 100644 Documentation/x86/mktme-keys.txt
+ create mode 100644 include/keys/mktme-type.h
+ create mode 100644 security/keys/mktme_keys.c
 
-That is ~8% worse with TLB flush disabled and ~720% worse with TLB flush 
-enabled. This test was with kernel sources being compiled on an ext4 
-filesystem. XPFO seems to affect ext2 even more. With ext2 filesystem, 
-impact was ~18.6% and ~900%.
-
---
-Khalid
+-- 
+2.14.1
