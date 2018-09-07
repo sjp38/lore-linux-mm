@@ -1,130 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EE11D6B7F08
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 11:29:04 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id f4-v6so248960ioh.13
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 08:29:04 -0700 (PDT)
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id 5-v6sor5077088jaz.63.2018.09.07.08.29.03
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 07 Sep 2018 08:29:03 -0700 (PDT)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 085036B7F16
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 11:45:24 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id t3-v6so17384425oif.20
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 08:45:24 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id p129-v6si5680752oif.151.2018.09.07.08.45.22
+        for <linux-mm@kvack.org>;
+        Fri, 07 Sep 2018 08:45:22 -0700 (PDT)
+Subject: Re: [PATCH v2 01/40] iommu: Introduce Shared Virtual Addressing API
+References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
+ <20180511190641.23008-2-jean-philippe.brucker@arm.com>
+ <bf42affd-e9d0-e4fc-6d28-f3c3f7795348@redhat.com>
+ <03d31ba5-1eda-ea86-8c0c-91d14c86fe83@arm.com>
+ <ed39159c-087e-7e56-7d29-d1de9fa1677f@amd.com>
+ <f0b317d5-e2e9-5478-952c-05e8b97bd68b@arm.com>
+ <2fd4a0a1-1a35-bf82-df84-b995cce011d9@amd.com>
+From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
+Message-ID: <65e7accd-4446-19f5-c667-c6407e89cfa6@arm.com>
+Date: Fri, 7 Sep 2018 16:45:02 +0100
 MIME-Version: 1.0
-Date: Fri, 07 Sep 2018 08:29:03 -0700
-In-Reply-To: <000000000000edab9e0575497f40@google.com>
-Message-ID: <000000000000e16cba057549aab6@google.com>
-Subject: Re: BUG: bad usercopy in __check_object_size (2)
-From: syzbot <syzbot+a3c9d2673837ccc0f22b@syzkaller.appspotmail.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+In-Reply-To: <2fd4a0a1-1a35-bf82-df84-b995cce011d9@amd.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: crecklin@redhat.com, dvyukov@google.com, hpa@zytor.com, keescook@chromium.org, keescook@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, luto@kernel.org, mingo@redhat.com, syzkaller-bugs@googlegroups.com, tglx@linutronix.de, x86@kernel.org
+To: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>, Auger Eric <eric.auger@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "liubo95@huawei.com" <liubo95@huawei.com>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, Will Deacon <Will.Deacon@arm.com>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "tn@semihalf.com" <tn@semihalf.com>, "joro@8bytes.org" <joro@8bytes.org>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "rfranz@cavium.com" <rfranz@cavium.com>, "kevin.tian@intel.com" <kevin.tian@intel.com>, "jacob.jun.pan@linux.intel.com" <jacob.jun.pan@linux.intel.com>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "rgummal@xilinx.com" <rgummal@xilinx.com>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, Robin Murphy <Robin.Murphy@arm.com>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "robdclark@gmail.com" <robdclark@gmail.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>
 
-syzbot has found a reproducer for the following crash on:
+On 07/09/2018 09:55, Christian KA?nig wrote:
+> I will take this as an opportunity to summarize some of the requirements 
+> we have for PASID management from the amdgpu driver point of view:
 
-HEAD commit:    28619527b8a7 Merge git://git.kernel.org/pub/scm/linux/kern..
-git tree:       bpf
-console output: https://syzkaller.appspot.com/x/log.txt?x=124e64d1400000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=62e9b447c16085cf
-dashboard link: https://syzkaller.appspot.com/bug?extid=a3c9d2673837ccc0f22b
-compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
-syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=179f9cd1400000
-C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=11b3e8be400000
+That's incredibly useful, thanks :)
 
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+a3c9d2673837ccc0f22b@syzkaller.appspotmail.com
+> 1. We need to be able to allocate PASID between 1 and some maximum. Zero 
+> is reserved as far as I know, but we don't necessary need a minimum.
 
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x440479
-usercopy: Kernel memory overwrite attempt detected to spans multiple pages  
-(offset 0, size 64)!
-------------[ cut here ]------------
-kernel BUG at mm/usercopy.c:102!
-invalid opcode: 0000 [#1] PREEMPT SMP KASAN
-CPU: 0 PID: 5340 Comm: syz-executor610 Not tainted 4.19.0-rc2+ #50
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-RIP: 0010:usercopy_abort+0xbb/0xbd mm/usercopy.c:90
-Code: c0 e8 8a 23 b2 ff 48 8b 55 c0 49 89 d9 4d 89 f0 ff 75 c8 4c 89 e1 4c  
-89 ee 48 c7 c7 80 48 15 88 ff 75 d0 41 57 e8 5a 38 98 ff <0f> 0b e8 5f 23  
-b2 ff e8 8a 6e f5 ff 8b 95 5c fe ff ff 4d 89 e0 31
-RSP: 0018:ffff8801bbcf6d50 EFLAGS: 00010086
-RAX: 000000000000005f RBX: ffffffff881545a0 RCX: 0000000000000000
-RDX: 0000000000000000 RSI: ffffffff8164f825 RDI: 0000000000000005
-RBP: ffff8801bbcf6da8 R08: ffff8801d8f1a500 R09: ffffed003b5c3ee2
-R10: ffffed003b5c3ee2 R11: ffff8801dae1f717 R12: ffffffff88154ac0
-R13: ffffffff881546e0 R14: ffffffff881545a0 R15: ffffffff881545a0
-FS:  000000000225c880(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 0000000000455350 CR3: 00000001d90eb000 CR4: 00000000001406f0
-Call Trace:
-  check_page_span mm/usercopy.c:212 [inline]
-  check_heap_object mm/usercopy.c:241 [inline]
-  __check_object_size.cold.2+0x23/0x134 mm/usercopy.c:266
-  check_object_size include/linux/thread_info.h:119 [inline]
-  __copy_from_user_inatomic include/linux/uaccess.h:65 [inline]
-  __probe_kernel_read+0xda/0x1c0 mm/maccess.c:33
-  show_opcodes+0x4c/0x70 arch/x86/kernel/dumpstack.c:109
-  show_ip+0x31/0x36 arch/x86/kernel/dumpstack.c:126
-  show_iret_regs+0x14/0x38 arch/x86/kernel/dumpstack.c:131
-  __show_regs+0x1c/0x60 arch/x86/kernel/process_64.c:72
-  show_regs_if_on_stack.constprop.10+0x36/0x39  
-arch/x86/kernel/dumpstack.c:149
-  show_trace_log_lvl+0x25d/0x28c arch/x86/kernel/dumpstack.c:274
-  show_stack+0x38/0x3a arch/x86/kernel/dumpstack.c:293
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0x1c4/0x2b4 lib/dump_stack.c:113
-  fail_dump lib/fault-inject.c:51 [inline]
-  should_fail.cold.4+0xa/0x17 lib/fault-inject.c:149
-  __should_failslab+0x124/0x180 mm/failslab.c:32
-  should_failslab+0x9/0x14 mm/slab_common.c:1557
-  slab_pre_alloc_hook mm/slab.h:423 [inline]
-  slab_alloc mm/slab.c:3378 [inline]
-  kmem_cache_alloc_trace+0x2d7/0x750 mm/slab.c:3618
-  kmalloc include/linux/slab.h:513 [inline]
-  kzalloc include/linux/slab.h:707 [inline]
-  aa_alloc_file_ctx security/apparmor/include/file.h:60 [inline]
-  apparmor_file_alloc_security+0x168/0xaa0 security/apparmor/lsm.c:438
-  security_file_alloc+0x4c/0xa0 security/security.c:884
-  __alloc_file+0x12a/0x470 fs/file_table.c:105
-  alloc_empty_file+0x72/0x170 fs/file_table.c:150
-  dentry_open+0x71/0x1d0 fs/open.c:894
-  open_related_ns+0x1b0/0x210 fs/nsfs.c:177
-  __tun_chr_ioctl+0x48d/0x4690 drivers/net/tun.c:2901
-  tun_chr_ioctl+0x2a/0x40 drivers/net/tun.c:3179
-  vfs_ioctl fs/ioctl.c:46 [inline]
-  file_ioctl fs/ioctl.c:501 [inline]
-  do_vfs_ioctl+0x1de/0x1720 fs/ioctl.c:685
-  ksys_ioctl+0xa9/0xd0 fs/ioctl.c:702
-  __do_sys_ioctl fs/ioctl.c:709 [inline]
-  __se_sys_ioctl fs/ioctl.c:707 [inline]
-  __x64_sys_ioctl+0x73/0xb0 fs/ioctl.c:707
-  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x440479
-Code: 18 89 d0 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 48 89 f8 48 89 f7  
-48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff  
-ff 0f 83 5b 14 fc ff c3 66 2e 0f 1f 84 00 00 00 00
-RSP: 002b:00007ffe3cf83628 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
-RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 0000000000440479
-RDX: 0000000000000000 RSI: 000000000000894c RDI: 0000000000000004
-RBP: 00000000006cb018 R08: 0000000000000001 R09: 0000000000000034
-R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000005
-R13: ffffffffffffffff R14: 0000000000000000 R15: 0000000000000000
-Modules linked in:
-Dumping ftrace buffer:
-    (ftrace buffer empty)
----[ end trace 125c9e5841391893 ]---
-RIP: 0010:usercopy_abort+0xbb/0xbd mm/usercopy.c:90
-Code: c0 e8 8a 23 b2 ff 48 8b 55 c0 49 89 d9 4d 89 f0 ff 75 c8 4c 89 e1 4c  
-89 ee 48 c7 c7 80 48 15 88 ff 75 d0 41 57 e8 5a 38 98 ff <0f> 0b e8 5f 23  
-b2 ff e8 8a 6e f5 ff 8b 95 5c fe ff ff 4d 89 e0 31
-RSP: 0018:ffff8801bbcf6d50 EFLAGS: 00010086
-RAX: 000000000000005f RBX: ffffffff881545a0 RCX: 0000000000000000
-RDX: 0000000000000000 RSI: ffffffff8164f825 RDI: 0000000000000005
-RBP: ffff8801bbcf6da8 R08: ffff8801d8f1a500 R09: ffffed003b5c3ee2
-R10: ffffed003b5c3ee2 R11: ffff8801dae1f717 R12: ffffffff88154ac0
-R13: ffffffff881546e0 R14: ffffffff881545a0 R15: ffffffff881545a0
-FS:  000000000225c880(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 0000000000455350 CR3: 00000001d90eb000 CR4: 00000000001406f0
+Should be fine. The PASID range is restricted by the PCI PASID
+capability, firmware description (for non-PCI devices), the IOMMU
+capacity, and what the device driver passes to iommu_sva_device_init.
+Not all IOMMUs reserve PASID 0 (AMD IOMMU without GIoSup doesn't, if I'm
+not mistaken), so the KFD driver will need to pass min_pasid=1 to make
+sure that 0 isn't allocated.
+
+> 2. We need to be able to allocate PASIDs without a process address space 
+> backing it. E.g. our hardware uses PASIDs even without Shared Virtual 
+> Addressing enabled to distinct clients from each other.
+>  A A A  A A A  Would be a pity if we need to still have a separate PASID 
+> handling because the system wide is only available when IOMMU is turned on.
+
+I'm still not sure about this one. From my point of view we shouldn't
+add to the IOMMU subsystem helpers for devices without an IOMMU.
+iommu-sva expects everywhere that the device has an iommu_domain, it's
+the first thing we check on entry. Bypassing all of this would call
+idr_alloc() directly, and wouldn't have any code in common with the
+current iommu-sva. So it seems like you need a layer on top of iommu-sva
+calling idr_alloc() when an IOMMU isn't present, but I don't think it
+should be in drivers/iommu/
+
+> 3. Even after destruction of a process address space we need some grace 
+> period before a PASID is reused because it can be that the specific 
+> PASID is still in some hardware queues etc...
+>  A A A  A A A  At bare minimum all device drivers using process binding need 
+> to explicitly note to the core when they are done with a PASID.
+
+Right, much of the horribleness in iommu-sva deals with this:
+
+The process dies, iommu-sva is notified and calls the mm_exit() function
+passed by the device driver to iommu_sva_device_init(). In mm_exit() the
+device driver needs to clear any reference to the PASID in hardware and
+in its own structures. When the device driver returns from mm_exit(), it
+effectively tells the core that it has finished using the PASID, and
+iommu-sva can reuse the PASID for another process. mm_exit() is allowed
+to block, so the device driver has time to clean up and flush the queues.
+
+If the device driver finishes using the PASID before the process exits,
+it just calls unbind().
+
+> 4. It would be nice to have to be able to set a "void *" for each 
+> PASID/device combination while binding to a process which then can be 
+> queried later on based on the PASID.
+>  A A A  A A A  E.g. when you have a per PASID/device structure around anyway, 
+> just add an extra field.
+
+iommu_sva_bind_device() takes a "drvdata" pointer that is stored
+internally for the PASID/device combination (iommu_bond). It is passed
+to mm_exit(), but I haven't added anything for the device driver to
+query it back.
+
+> 5. It would be nice to have to allocate multiple PASIDs for the same 
+> process address space.
+>  A A A  A A A  E.g. some teams at AMD want to use a separate GPU address space 
+> for their userspace client library. I'm still trying to avoid that, but 
+> it is perfectly possible that we are going to need that.
+
+Two PASIDs pointing to the same process pgd? At first glance it seems
+feasible, maybe with a flag passed to bind() and a few changes to
+internal structures. It will duplicate ATC invalidation commands for
+each process address space change (munmap etc) so you might take a
+performance hit.
+
+Intel's SVM code has the SVM_FLAG_PRIVATE_PASID which seems similar to
+what you describe, but I don't plan to support it in this series (the
+io_mm model is already pretty complicated). I think it can be added
+without too much effort in a future series, though with a different flag
+name since we'd like to use "private PASID" for something else
+(https://www.spinics.net/lists/dri-devel/msg177007.html).
+
+Thanks,
+Jean
+
+>  A A A  A A A  Additional to that it is sometimes quite useful for debugging 
+> to isolate where exactly an incorrect access (segfault) is coming from.
+> 
+> Let me know if there are some problems with that, especially I want to 
+> know if there is pushback on #5 so that I can forward that :)
+> 
+> Thanks,
+> Christian.
+> 
+>>
+>> Thanks,
+>> Jean
+> 
