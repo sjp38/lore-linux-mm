@@ -1,90 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 03D546B7B98
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 20:40:07 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id l7-v6so12678229qte.2
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 17:40:06 -0700 (PDT)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0111.outbound.protection.outlook.com. [104.47.33.111])
-        by mx.google.com with ESMTPS id l8-v6si4477841qvo.196.2018.09.06.17.40.05
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A5AD96B7BA8
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 20:53:21 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id v1-v6so8705437wmh.4
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 17:53:21 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id j12-v6sor4682843wrt.26.2018.09.06.17.53.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 06 Sep 2018 17:40:06 -0700 (PDT)
-From: Sasha Levin <Alexander.Levin@microsoft.com>
-Subject: [PATCH AUTOSEL 4.14 67/67] x86/mm/pti: Add an overflow check to
- pti_clone_pmds()
-Date: Fri, 7 Sep 2018 00:38:10 +0000
-Message-ID: <20180907003716.57737-67-alexander.levin@microsoft.com>
-References: <20180907003716.57737-1-alexander.levin@microsoft.com>
-In-Reply-To: <20180907003716.57737-1-alexander.levin@microsoft.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Thu, 06 Sep 2018 17:53:20 -0700 (PDT)
 MIME-Version: 1.0
+References: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com>
+ <01000165aa490dc9-64abf872-afd1-4a81-a46d-a50d0131de93-000000@email.amazonses.com>
+ <877ejzqtdy.fsf@yhuang-dev.intel.com> <bd6f6f8b-4880-6c20-62f5-bb6ca3b5e6f7@oracle.com>
+In-Reply-To: <bd6f6f8b-4880-6c20-62f5-bb6ca3b5e6f7@oracle.com>
+From: Hugh Dickins <hughd@google.com>
+Date: Thu, 6 Sep 2018 17:52:53 -0700
+Message-ID: <CANsGZ6bW0vJcRpnfAesH-9_9vnrrvMHYH-UjH50zqLtA4WALyg@mail.gmail.com>
+Subject: Re: Plumbers 2018 - Performance and Scalability Microconference
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: Joerg Roedel <jroedel@suse.de>, Thomas Gleixner <tglx@linutronix.de>, "H .
- Peter Anvin" <hpa@zytor.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "aliguori@amazon.com" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, "hughd@google.com" <hughd@google.com>, "keescook@google.com" <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, "joro@8bytes.org" <joro@8bytes.org>, Sasha Levin <Alexander.Levin@microsoft.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Christoph Lameter <cl@linux.com>, daniel.m.jordan@oracle.com, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, aaron.lu@intel.com, alex.kogan@oracle.com, Andrew Morton <akpm@linux-foundation.org>, boqun.feng@gmail.com, brouer@redhat.com, Davidlohr Bueso <dave@stgolabs.net>, dave.dice@oracle.com, dhaval.giani@oracle.com, ktkhai@virtuozzo.com, Laurent Dufour <ldufour@linux.vnet.ibm.com>, Pavel.Tatashin@microsoft.com, Paul McKenney <paulmck@linux.vnet.ibm.com>, shady.issa@oracle.com, tariqt@mellanox.com, Thomas Gleixner <tglx@linutronix.de>, Tim Chen <tim.c.chen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, longman@redhat.com, Yang Shi <yang.shi@linux.alibaba.com>, shy828301@gmail.com, subhra.mazumdar@oracle.com, Steven Sistare <steven.sistare@oracle.com>, Jonathan Adams <jwadams@google.com>, Ashwin Chaugule <ashwinch@google.com>, Salman Qazi <sqazi@google.com>, Shakeel Butt <shakeelb@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Junaid Shahid <junaids@google.com>, Neha Agarwal <nehaagarwal@google.com>, Greg Thelen <gthelen@google.com>
 
-From: Joerg Roedel <jroedel@suse.de>
+On Thu, Sep 6, 2018 at 2:36 PM Mike Kravetz <mike.kravetz@oracle.com> wrote:
+>
+> On 09/05/2018 06:58 PM, Huang, Ying wrote:
+> > Hi, Christopher,
+> >
+> > Christopher Lameter <cl@linux.com> writes:
+> >
+> >> On Tue, 4 Sep 2018, Daniel Jordan wrote:
+> >>
+> >>>  - Promoting huge page usage:  With memory sizes becoming ever larger, huge
+> >>> pages are becoming more and more important to reduce TLB misses and the
+> >>> overhead of memory management itself--that is, to make the system scalable
+> >>> with the memory size.  But there are still some remaining gaps that prevent
+> >>> huge pages from being deployed in some situations, such as huge page
+> >>> allocation latency and memory fragmentation.
+> >>
+> >> You forgot the major issue that huge pages in the page cache are not
+> >> supported and thus we have performance issues with fast NVME drives that
+> >> are now able to do 3Gbytes per sec that are only possible to reach with
+> >> directio and huge pages.
+> >
+> > Yes.  That is an important gap for huge page.  Although we have huge
+> > page cache support for tmpfs, we lacks that for normal file systems.
+> >
+> >> IMHO the huge page issue is just the reflection of a certain hardware
+> >> manufacturer inflicting pain for over a decade on its poor users by not
+> >> supporting larger base page sizes than 4k. No such workarounds needed on
+> >> platforms that support large sizes. Things just zoom along without
+> >> contortions necessary to deal with huge pages etc.
+> >>
+> >> Can we come up with a 2M base page VM or something? We have possible
+> >> memory sizes of a couple TB now. That should give us a million or so 2M
+> >> pages to work with.
+> >
+> > That sounds a good idea.  Don't know whether someone has tried this.
+>
+> IIRC, Hugh Dickins and some others at Google tried going down this path.
+> There was a brief discussion at LSF/MM.  It is something I too would like
+> to explore in my spare time.
 
-[ Upstream commit 935232ce28dfabff1171e5a7113b2d865fa9ee63 ]
+Almost: I never tried that path myself, but mentioned that Greg Thelen had.
 
-The addr counter will overflow if the last PMD of the address space is
-cloned, resulting in an endless loop.
-
-Check for that and bail out of the loop when it happens.
-
-Signed-off-by: Joerg Roedel <jroedel@suse.de>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Tested-by: Pavel Machek <pavel@ucw.cz>
-Cc: "H . Peter Anvin" <hpa@zytor.com>
-Cc: linux-mm@kvack.org
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Jiri Kosina <jkosina@suse.cz>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: David Laight <David.Laight@aculab.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: Eduardo Valentin <eduval@amazon.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: aliguori@amazon.com
-Cc: daniel.gruss@iaik.tugraz.at
-Cc: hughd@google.com
-Cc: keescook@google.com
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Waiman Long <llong@redhat.com>
-Cc: "David H . Gutteridge" <dhgutteridge@sympatico.ca>
-Cc: joro@8bytes.org
-Link: https://lkml.kernel.org/r/1531906876-13451-25-git-send-email-joro@8by=
-tes.org
-Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
----
- arch/x86/mm/pti.c | 4 ++++
- 1 file changed, 4 insertions(+)
-
-diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index 7786ab306225..b07e3ffc5ac5 100644
---- a/arch/x86/mm/pti.c
-+++ b/arch/x86/mm/pti.c
-@@ -291,6 +291,10 @@ pti_clone_pmds(unsigned long start, unsigned long end,=
- pmdval_t clear)
- 		p4d_t *p4d;
- 		pud_t *pud;
-=20
-+		/* Overflow check */
-+		if (addr < start)
-+			break;
-+
- 		pgd =3D pgd_offset_k(addr);
- 		if (WARN_ON(pgd_none(*pgd)))
- 			return;
---=20
-2.17.1
+Hugh
