@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A30A6B7B94
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 20:37:46 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id 20-v6so16538651itb.7
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 17:37:46 -0700 (PDT)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0126.outbound.protection.outlook.com. [104.47.36.126])
-        by mx.google.com with ESMTPS id l4-v6si3704582ioh.12.2018.09.06.17.37.44
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 03D546B7B98
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2018 20:40:07 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id l7-v6so12678229qte.2
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2018 17:40:06 -0700 (PDT)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0111.outbound.protection.outlook.com. [104.47.33.111])
+        by mx.google.com with ESMTPS id l8-v6si4477841qvo.196.2018.09.06.17.40.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Sep 2018 17:37:45 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 06 Sep 2018 17:40:06 -0700 (PDT)
 From: Sasha Levin <Alexander.Levin@microsoft.com>
-Subject: [PATCH AUTOSEL 4.18 87/88] x86/mm/pti: Add an overflow check to
+Subject: [PATCH AUTOSEL 4.14 67/67] x86/mm/pti: Add an overflow check to
  pti_clone_pmds()
-Date: Fri, 7 Sep 2018 00:36:53 +0000
-Message-ID: <20180907003547.57567-87-alexander.levin@microsoft.com>
-References: <20180907003547.57567-1-alexander.levin@microsoft.com>
-In-Reply-To: <20180907003547.57567-1-alexander.levin@microsoft.com>
+Date: Fri, 7 Sep 2018 00:38:10 +0000
+Message-ID: <20180907003716.57737-67-alexander.levin@microsoft.com>
+References: <20180907003716.57737-1-alexander.levin@microsoft.com>
+In-Reply-To: <20180907003716.57737-1-alexander.levin@microsoft.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
@@ -71,10 +71,10 @@ Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
  1 file changed, 4 insertions(+)
 
 diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index ffa2f0f67904..1d2106d83b4e 100644
+index 7786ab306225..b07e3ffc5ac5 100644
 --- a/arch/x86/mm/pti.c
 +++ b/arch/x86/mm/pti.c
-@@ -306,6 +306,10 @@ pti_clone_pmds(unsigned long start, unsigned long end,=
+@@ -291,6 +291,10 @@ pti_clone_pmds(unsigned long start, unsigned long end,=
  pmdval_t clear)
  		p4d_t *p4d;
  		pud_t *pud;
