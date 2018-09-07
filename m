@@ -1,49 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 373666B7DFC
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 07:24:08 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id w19-v6so7456362pfa.14
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 04:24:08 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id 64-v6si8499368pfs.7.2018.09.07.04.24.06
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 70F796B7E16
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 07:25:31 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id g18-v6so4756506edg.14
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 04:25:31 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p20-v6si3406586edi.276.2018.09.07.04.25.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Sep 2018 04:24:07 -0700 (PDT)
-Subject: Re: [PATCH] mm, oom: Introduce time limit for dump_tasks duration.
-References: <CACT4Y+Yp6ZbusCWg5C1zaJpcS8=XnGPboKgWfyxVk1axQA2nbw@mail.gmail.com>
- <201809060553.w865rmpj036017@www262.sakura.ne.jp>
- <CACT4Y+YKJWJr-5rBQidt6nY7+VF=BAsvHyh+XTaf8spwNy3qPA@mail.gmail.com>
- <58aa0543-86d0-b2ad-7fb9-9bed7c6a1f6c@i-love.sakura.ne.jp>
- <20180906112306.GO14951@dhcp22.suse.cz>
- <1611e45d-235e-67e9-26e3-d0228255fa2f@i-love.sakura.ne.jp>
- <20180906115320.GS14951@dhcp22.suse.cz>
- <7f50772a-f2ef-d16e-4d09-7f34f4bf9227@i-love.sakura.ne.jp>
- <20180906143905.GC14951@dhcp22.suse.cz>
- <32c58019-5e2d-b3a1-a6ad-ea374ccd8b60@i-love.sakura.ne.jp>
- <20180907082745.GB19621@dhcp22.suse.cz>
- <CACT4Y+bS+kqf+8fp11qSpQ4WtaZt_sVYmvwi_9LFX_=Dwk1N4A@mail.gmail.com>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <f9f75daf-beb1-0f74-9ff3-dcea3fae44ed@i-love.sakura.ne.jp>
-Date: Fri, 7 Sep 2018 19:49:42 +0900
+        Fri, 07 Sep 2018 04:25:30 -0700 (PDT)
+Date: Fri, 7 Sep 2018 13:25:28 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH V2 4/4] powerpc/mm/iommu: Allow migration of cma
+ allocated pages during mm_iommu_get
+Message-ID: <20180907112528.GI19621@dhcp22.suse.cz>
+References: <20180906054342.25094-1-aneesh.kumar@linux.ibm.com>
+ <20180906054342.25094-4-aneesh.kumar@linux.ibm.com>
+ <20180906125356.GX14951@dhcp22.suse.cz>
+ <50d355bf-17d0-ee01-ec35-7f04e79ca277@linux.ibm.com>
+ <20180907090312.GF19621@dhcp22.suse.cz>
+ <8337fdcc-3344-04dd-ddb2-68f86912f333@linux.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+bS+kqf+8fp11qSpQ4WtaZt_sVYmvwi_9LFX_=Dwk1N4A@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <8337fdcc-3344-04dd-ddb2-68f86912f333@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, syzbot <syzbot+f0fc7f62e88b1de99af3@syzkaller.appspotmail.com>, 'Dmitry Vyukov' via syzkaller-upstream-moderation <syzkaller-upstream-moderation@googlegroups.com>, linux-mm <linux-mm@kvack.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: akpm@linux-foundation.org, Alexey Kardashevskiy <aik@ozlabs.ru>, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-On 2018/09/07 18:36, Dmitry Vyukov wrote:
-> But I am still concerned as to what has changed recently. Potentially
-> this happens only on linux-next, at least that's where I saw all
-> existing reports.
-> New tasks seem to be added to the tail of the tasks list, but this
-> part does not seem to be changed recently in linux-next..
+On Fri 07-09-18 16:45:09, Aneesh Kumar K.V wrote:
+> On 09/07/2018 02:33 PM, Michal Hocko wrote:
+> > On Thu 06-09-18 19:00:43, Aneesh Kumar K.V wrote:
+> > > On 09/06/2018 06:23 PM, Michal Hocko wrote:
+> > > > On Thu 06-09-18 11:13:42, Aneesh Kumar K.V wrote:
+> > > > > Current code doesn't do page migration if the page allocated is a compound page.
+> > > > > With HugeTLB migration support, we can end up allocating hugetlb pages from
+> > > > > CMA region. Also THP pages can be allocated from CMA region. This patch updates
+> > > > > the code to handle compound pages correctly.
+> > > > > 
+> > > > > This use the new helper get_user_pages_cma_migrate. It does one get_user_pages
+> > > > > with right count, instead of doing one get_user_pages per page. That avoids
+> > > > > reading page table multiple times.
+> > > > > 
+> > > > > The patch also convert the hpas member of mm_iommu_table_group_mem_t to a union.
+> > > > > We use the same storage location to store pointers to struct page. We cannot
+> > > > > update alll the code path use struct page *, because we access hpas in real mode
+> > > > > and we can't do that struct page * to pfn conversion in real mode.
+> > > > 
+> > > > I am not fmailiar with this code so bear with me. I am completely
+> > > > missing the purpose of this patch. The changelog doesn't really explain
+> > > > that AFAICS. I can only guess that you do not want to establish long
+> > > > pins on CMA pages, right? So whenever you are about to pin a page that
+> > > > is in CMA you migrate it away to a different !__GFP_MOVABLE page, right?
+> > > 
+> > > That is right.
+> > > 
+> > > > If that is the case then how do you handle pins which are already in
+> > > > zone_movable? I do not see any specific check for those.
+> > > 
+> > > 
+> > > > 
+> > > > Btw. why is this a proper thing to do? Problems with longterm pins are
+> > > > not only for CMA/ZONE_MOVABLE pages. Pinned pages are not reclaimable as
+> > > > well so there is a risk of OOMs if there are too many of them. We have
+> > > > discussed approaches that would allow to force pin invalidation/revocation
+> > > > at LSF/MM. Isn't that a more appropriate solution to the problem you are
+> > > > seeing?
+> > > > 
+> > > 
+> > > The CMA area is used on powerpc platforms to allocate guest specific page
+> > > table (hash page table). If we don't have sufficient free pages we fail to
+> > > allocate hash page table that result in failure to start guest.
+> > > 
+> > > Now with vfio, we end up pinning the entire guest RAM. There is a
+> > > possibility that these guest RAM  pages got allocated from CMA region. We
+> > > already do supporting migrating those pages out except for compound pages.
+> > > What this patch does is to start supporting compound page migration that got
+> > > allocated out of CMA region (ie, THP pages and hugetlb pages if platform
+> > > supported hugetlb migration).
+> > 
+> > This definitely belongs to the changelog.
+> > 
+> > > Now to do that I added a helper get_user_pages_cma_migrate().
+> > > 
+> > > I agree that long term pinned pages do have other issues. The patchset is
+> > > not solving that issue.
+> > 
+> > It would be great to note why a generic approach is not viable. I assume
+> > the main reason is that those pins are pretty much permanent for the
+> > guest lifetime so the situation has to be handled in advance. In other
+> > words, more information please.
+> > 
 > 
+> That is correct. I will add these details to commit message. And will also
+> do a cover letter for the patch series.
 
-As far as dump_tasks() is saying, these tasks are alive. Thus, I want to know
-what these tasks are doing (i.e. SysRq-t output). Since this is occurring in
-linux-next, we can try CONFIG_DEBUG_AID_FOR_SYZBOT=y case like
-https://lkml.org/lkml/2018/9/3/353 does. 
+OK, then the early migration makes some sense. Although I suspect this
+will lead to other issues (OOM in kernel zones) but revocation approach
+is clearly not usable. An excessive pinning simply sucks.
+
+Thanks a lot for the updated information though!
+-- 
+Michal Hocko
+SUSE Labs
