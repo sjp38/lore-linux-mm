@@ -1,58 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BE02D6B7D28
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 03:37:02 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id e14-v6so13044775qtp.17
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 00:37:02 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id j14-v6sor2807768qvo.105.2018.09.07.00.36.59
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D1AE6B7D2C
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 03:39:38 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id x19-v6so7171466pfh.15
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 00:39:38 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d18-v6sor1321394pgp.3.2018.09.07.00.39.36
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 07 Sep 2018 00:36:59 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20180905214303.GA30178@cmpxchg.org>
-References: <20180828172258.3185-1-hannes@cmpxchg.org> <20180905214303.GA30178@cmpxchg.org>
-From: Daniel Drake <drake@endlessm.com>
-Date: Fri, 7 Sep 2018 15:36:56 +0800
-Message-ID: <CAD8Lp44vHpMiWZdU9+mp-pe2kXmnxF1zm20SNWf2BVunk8c46g@mail.gmail.com>
-Subject: Re: [PATCH 0/9] psi: pressure stall information for CPU, memory, and
- IO v4
-Content-Type: text/plain; charset="UTF-8"
+        Fri, 07 Sep 2018 00:39:36 -0700 (PDT)
+From: Omar Sandoval <osandov@osandov.com>
+Subject: [PATCH v6 0/6] Btrfs: implement swap file support
+Date: Fri,  7 Sep 2018 00:39:14 -0700
+Message-Id: <cover.1536305017.git.osandov@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Peter Enderborg <peter.enderborg@sony.com>, Shakeel Butt <shakeelb@google.com>, Mike Galbraith <efault@gmx.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, Linux Kernel <linux-kernel@vger.kernel.org>, kernel-team@fb.com
+To: linux-btrfs@vger.kernel.org
+Cc: kernel-team@fb.com, linux-mm@kvack.org
 
-On Thu, Sep 6, 2018 at 5:43 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> Peter, do the changes from v3 look sane to you?
->
-> If there aren't any further objections, I was hoping we could get this
-> lined up for 4.20.
+From: Omar Sandoval <osandov@fb.com>
 
-That would be excellent. I just retested the latest version at
-http://git.cmpxchg.org/cgit.cgi/linux-psi.git (Linux 4.18) and the
-results are great.
+Hi,
 
-Test setup:
-Endless OS
-GeminiLake N4200 low end laptop
-2GB RAM
-swap (and zram swap) disabled
+This series implements swap file support for Btrfs.
 
-Baseline test: open a handful of large-ish apps and several website
-tabs in Google Chrome.
-Results: after a couple of minutes, system is excessively thrashing,
-mouse cursor can barely be moved, UI is not responding to mouse
-clicks, so it's impractical to recover from this situation as an
-ordinary user
+Compared to v5 [1], this is pretty much feature-complete. It now
+supports:
 
-Add my simple killer:
-https://gist.github.com/dsd/a8988bf0b81a6163475988120fe8d9cd
-Results: when the thrashing causes the UI to become sluggish, the
-killer steps in and kills something (usually a chrome tab), and the
-system remains usable. I repeatedly opened more apps and more websites
-over a 15 minute period but I wasn't able to get the system to a point
-of UI unresponsiveness.
+- Balance (skips block groups containing an active swap file)
+- Resize (error if trying to shrink past a block group containing an
+  active swap file, allowed otherwise)
+- Device delete/replace (as long as the device in question does not
+  contain an active swap file)
 
-Thanks,
-Daniel
+This implementation Chris and I came up with is much cleaner than my
+earlier ideas: instead of adding any counters to struct
+btrfs_block_group_cache or struct btrfs_device, we just have a small
+red-black tree of block groups and devices which contain an active
+swapfile.
+
+I updated the xfstests for this series [2] to test this new
+functionality, and put it through the same tests as v5.
+
+Based on v4.19-rc2, please take a look.
+
+Thanks!
+
+1: https://www.spinics.net/lists/linux-btrfs/msg81550.html
+2: https://github.com/osandov/xfstests/tree/btrfs-swap
+
+Omar Sandoval (6):
+  mm: split SWP_FILE into SWP_ACTIVATED and SWP_FS
+  mm: export add_swap_extent()
+  vfs: update swap_{,de}activate documentation
+  Btrfs: prevent ioctls from interfering with a swap file
+  Btrfs: rename get_chunk_map() and make it non-static
+  Btrfs: support swap files
+
+ Documentation/filesystems/Locking |  17 +-
+ Documentation/filesystems/vfs.txt |  12 +-
+ fs/btrfs/ctree.h                  |  24 +++
+ fs/btrfs/dev-replace.c            |   8 +
+ fs/btrfs/disk-io.c                |   4 +
+ fs/btrfs/inode.c                  | 316 ++++++++++++++++++++++++++++++
+ fs/btrfs/ioctl.c                  |  31 ++-
+ fs/btrfs/relocation.c             |  18 +-
+ fs/btrfs/volumes.c                |  71 +++++--
+ fs/btrfs/volumes.h                |   9 +
+ include/linux/swap.h              |  13 +-
+ mm/page_io.c                      |   6 +-
+ mm/swapfile.c                     |  14 +-
+ 13 files changed, 492 insertions(+), 51 deletions(-)
+
+-- 
+2.18.0
