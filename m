@@ -1,92 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 88FCD6B7D88
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 05:03:15 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id g29-v6so4657398edb.1
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 02:03:15 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e5-v6si332172edm.2.2018.09.07.02.03.14
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F263A6B7D96
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 05:19:36 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id w12-v6so16009735oie.12
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 02:19:36 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id e132-v6si4808375oig.406.2018.09.07.02.19.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Sep 2018 02:03:14 -0700 (PDT)
-Date: Fri, 7 Sep 2018 11:03:12 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH V2 4/4] powerpc/mm/iommu: Allow migration of cma
- allocated pages during mm_iommu_get
-Message-ID: <20180907090312.GF19621@dhcp22.suse.cz>
-References: <20180906054342.25094-1-aneesh.kumar@linux.ibm.com>
- <20180906054342.25094-4-aneesh.kumar@linux.ibm.com>
- <20180906125356.GX14951@dhcp22.suse.cz>
- <50d355bf-17d0-ee01-ec35-7f04e79ca277@linux.ibm.com>
+        Fri, 07 Sep 2018 02:19:35 -0700 (PDT)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w879It3i121082
+	for <linux-mm@kvack.org>; Fri, 7 Sep 2018 05:19:35 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2mbmyx40aj-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 07 Sep 2018 05:19:35 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Fri, 7 Sep 2018 10:19:33 +0100
+Date: Fri, 7 Sep 2018 12:19:22 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 07/29] memblock: remove _virt from APIs returning
+ virtual address
+References: <1536163184-26356-8-git-send-email-rppt@linux.vnet.ibm.com>
+ <CABGGiswdb1x-=vqrgxZ9i2dnLdsgtXq4+5H9Y1JRd90YVMW69A@mail.gmail.com>
+ <20180905172017.GA2203@rapoport-lnx>
+ <20180906072800.GN14951@dhcp22.suse.cz>
+ <20180906124321.GD27492@rapoport-lnx>
+ <20180906130102.GY14951@dhcp22.suse.cz>
+ <20180906133958.GM27492@rapoport-lnx>
+ <20180906134627.GZ14951@dhcp22.suse.cz>
+ <20180907084211.GA19153@rapoport-lnx>
+ <20180907084756.GD19621@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <50d355bf-17d0-ee01-ec35-7f04e79ca277@linux.ibm.com>
+In-Reply-To: <20180907084756.GD19621@dhcp22.suse.cz>
+Message-Id: <20180907091922.GB19153@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: akpm@linux-foundation.org, Alexey Kardashevskiy <aik@ozlabs.ru>, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Rob Herring <robh@kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, davem@davemloft.net, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, mingo@redhat.com, Michael Ellerman <mpe@ellerman.id.au>, paul.burton@mips.com, Thomas Gleixner <tglx@linutronix.de>, tony.luck@intel.com, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu 06-09-18 19:00:43, Aneesh Kumar K.V wrote:
-> On 09/06/2018 06:23 PM, Michal Hocko wrote:
-> > On Thu 06-09-18 11:13:42, Aneesh Kumar K.V wrote:
-> > > Current code doesn't do page migration if the page allocated is a compound page.
-> > > With HugeTLB migration support, we can end up allocating hugetlb pages from
-> > > CMA region. Also THP pages can be allocated from CMA region. This patch updates
-> > > the code to handle compound pages correctly.
+On Fri, Sep 07, 2018 at 10:47:56AM +0200, Michal Hocko wrote:
+> On Fri 07-09-18 11:42:12, Mike Rapoport wrote:
+> > On Thu, Sep 06, 2018 at 03:46:27PM +0200, Michal Hocko wrote:
+> > > On Thu 06-09-18 16:39:58, Mike Rapoport wrote:
+> > > > On Thu, Sep 06, 2018 at 03:01:02PM +0200, Michal Hocko wrote:
+> > > > > On Thu 06-09-18 15:43:21, Mike Rapoport wrote:
+> > > > > > On Thu, Sep 06, 2018 at 09:28:00AM +0200, Michal Hocko wrote:
+> > > > > > > On Wed 05-09-18 20:20:18, Mike Rapoport wrote:
+> > > > > > > > On Wed, Sep 05, 2018 at 12:04:36PM -0500, Rob Herring wrote:
+> > > > > > > > > On Wed, Sep 5, 2018 at 11:00 AM Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+> > > > > > > > > >
+> > > > > > > > > > The conversion is done using
+> > > > > > > > > >
+> > > > > > > > > > sed -i 's@memblock_virt_alloc@memblock_alloc@g' \
+> > > > > > > > > >         $(git grep -l memblock_virt_alloc)
+> > > > > > > > > 
+> > > > > > > > > What's the reason to do this? It seems like a lot of churn even if a
+> > > > > > > > > mechanical change.
+> > > > > > > > 
+> > > > > > > > I felt that memblock_virt_alloc_ is too long for a prefix, e.g:
+> > > > > > > > memblock_virt_alloc_node_nopanic, memblock_virt_alloc_low_nopanic.
+> > > > > > > > 
+> > > > > > > > And for consistency I've changed the memblock_virt_alloc as well.
+> > > > > > > 
+> > > > > > > I would keep the current API unless the name is terribly misleading or
+> > > > > > > it can be improved a lot. Neither seems to be the case here. So I would
+> > > > > > > rather stick with the status quo.
+> > > > > > 
+> > > > > > I'm ok with the memblock_virt_alloc by itself, but having 'virt' in
+> > > > > > 'memblock_virt_alloc_try_nid_nopanic' and 'memblock_virt_alloc_low_nopanic'
+> > > > > > reduces code readability in my opinion.
+> > > > > 
+> > > > > Well, is _nopanic really really useful in the name. Do we even need/want
+> > > > > implicit panic/nopanic semantic? The code should rather check for the
+> > > > > return value and decide depending on the code path. I suspect removing
+> > > > > panic/nopanic would make the API slightly lighter.
+> > > >  
+> > > > I agree that panic/nopanic should be removed. But I prefer to start with
+> > > > equivalent replacement to make it as automated as possible and update
+> > > > memblock API when the dust settles a bit.
 > > > 
-> > > This use the new helper get_user_pages_cma_migrate. It does one get_user_pages
-> > > with right count, instead of doing one get_user_pages per page. That avoids
-> > > reading page table multiple times.
-> > > 
-> > > The patch also convert the hpas member of mm_iommu_table_group_mem_t to a union.
-> > > We use the same storage location to store pointers to struct page. We cannot
-> > > update alll the code path use struct page *, because we access hpas in real mode
-> > > and we can't do that struct page * to pfn conversion in real mode.
+> > > Yes, I agree with that approach. But that also doesn't justify the
+> > > renaming
 > > 
-> > I am not fmailiar with this code so bear with me. I am completely
-> > missing the purpose of this patch. The changelog doesn't really explain
-> > that AFAICS. I can only guess that you do not want to establish long
-> > pins on CMA pages, right? So whenever you are about to pin a page that
-> > is in CMA you migrate it away to a different !__GFP_MOVABLE page, right?
+> > Well, the renaming is automated :)
 > 
-> That is right.
+> Yes, it is. It also adds churn to the code so I tend to prefer an
+> existing naming unless it is completely misleading or incomprehensible.
 > 
-> > If that is the case then how do you handle pins which are already in
-> > zone_movable? I do not see any specific check for those.
-> 
-> 
-> > 
-> > Btw. why is this a proper thing to do? Problems with longterm pins are
-> > not only for CMA/ZONE_MOVABLE pages. Pinned pages are not reclaimable as
-> > well so there is a risk of OOMs if there are too many of them. We have
-> > discussed approaches that would allow to force pin invalidation/revocation
-> > at LSF/MM. Isn't that a more appropriate solution to the problem you are
-> > seeing?
-> > 
-> 
-> The CMA area is used on powerpc platforms to allocate guest specific page
-> table (hash page table). If we don't have sufficient free pages we fail to
-> allocate hash page table that result in failure to start guest.
-> 
-> Now with vfio, we end up pinning the entire guest RAM. There is a
-> possibility that these guest RAM  pages got allocated from CMA region. We
-> already do supporting migrating those pages out except for compound pages.
-> What this patch does is to start supporting compound page migration that got
-> allocated out of CMA region (ie, THP pages and hugetlb pages if platform
-> supported hugetlb migration).
+> Is this something to lose sleep over. Absolutely not! Does it make sense
+> to discuss further? I do not think so. If you strongly believe that the
+> renaming is a good thing then just do it.
 
-This definitely belongs to the changelog.
+I won't lose my sleep over it, but I do believe that renaming is a good thing. 
+I think that in the end we'll be able to reduce the memblock allocation API
+to a handful of memblock_alloc_ variants instead of ~20 we have now.
 
-> Now to do that I added a helper get_user_pages_cma_migrate().
+> -- 
+> Michal Hocko
+> SUSE Labs
 > 
-> I agree that long term pinned pages do have other issues. The patchset is
-> not solving that issue.
 
-It would be great to note why a generic approach is not viable. I assume
-the main reason is that those pins are pretty much permanent for the
-guest lifetime so the situation has to be handled in advance. In other
-words, more information please. 
 -- 
-Michal Hocko
-SUSE Labs
+Sincerely yours,
+Mike.
