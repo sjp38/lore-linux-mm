@@ -1,79 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CD9C6B7DAE
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 05:37:18 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id g9-v6so6987275pgc.16
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 02:37:18 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v126-v6sor1195327pgv.289.2018.09.07.02.37.17
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 840DE6B7DCB
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 06:17:01 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id t26-v6so7395647pfh.0
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 03:17:01 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.133])
+        by mx.google.com with ESMTPS id r6-v6si7356194pgp.591.2018.09.07.03.17.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 07 Sep 2018 02:37:17 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 07 Sep 2018 03:17:00 -0700 (PDT)
+Date: Fri, 7 Sep 2018 12:16:34 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 8/9] psi: pressure stall information for CPU, memory, and
+ IO
+Message-ID: <20180907101634.GO24106@hirez.programming.kicks-ass.net>
+References: <20180828172258.3185-1-hannes@cmpxchg.org>
+ <20180828172258.3185-9-hannes@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20180907082745.GB19621@dhcp22.suse.cz>
-References: <CACT4Y+Yp6ZbusCWg5C1zaJpcS8=XnGPboKgWfyxVk1axQA2nbw@mail.gmail.com>
- <201809060553.w865rmpj036017@www262.sakura.ne.jp> <CACT4Y+YKJWJr-5rBQidt6nY7+VF=BAsvHyh+XTaf8spwNy3qPA@mail.gmail.com>
- <58aa0543-86d0-b2ad-7fb9-9bed7c6a1f6c@i-love.sakura.ne.jp>
- <20180906112306.GO14951@dhcp22.suse.cz> <1611e45d-235e-67e9-26e3-d0228255fa2f@i-love.sakura.ne.jp>
- <20180906115320.GS14951@dhcp22.suse.cz> <7f50772a-f2ef-d16e-4d09-7f34f4bf9227@i-love.sakura.ne.jp>
- <20180906143905.GC14951@dhcp22.suse.cz> <32c58019-5e2d-b3a1-a6ad-ea374ccd8b60@i-love.sakura.ne.jp>
- <20180907082745.GB19621@dhcp22.suse.cz>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Fri, 7 Sep 2018 11:36:55 +0200
-Message-ID: <CACT4Y+bS+kqf+8fp11qSpQ4WtaZt_sVYmvwi_9LFX_=Dwk1N4A@mail.gmail.com>
-Subject: Re: [PATCH] mm, oom: Introduce time limit for dump_tasks duration.
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180828172258.3185-9-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, syzbot <syzbot+f0fc7f62e88b1de99af3@syzkaller.appspotmail.com>, 'Dmitry Vyukov' via syzkaller-upstream-moderation <syzkaller-upstream-moderation@googlegroups.com>, linux-mm <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Daniel Drake <drake@endlessm.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Peter Enderborg <peter.enderborg@sony.com>, Shakeel Butt <shakeelb@google.com>, Mike Galbraith <efault@gmx.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Fri, Sep 7, 2018 at 10:27 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Fri 07-09-18 05:58:06, Tetsuo Handa wrote:
->> On 2018/09/06 23:39, Michal Hocko wrote:
->> >>>> I know /proc/sys/vm/oom_dump_tasks . Showing some entries while not always
->> >>>> printing all entries might be helpful.
->> >>>
->> >>> Not really. It could be more confusing than helpful. The main purpose of
->> >>> the listing is to double check the list to understand the oom victim
->> >>> selection. If you have a partial list you simply cannot do that.
->> >>
->> >> It serves as a safeguard for avoiding RCU stall warnings.
->> >>
->> >>>
->> >>> If the iteration takes too long and I can imagine it does with zillions
->> >>> of tasks then the proper way around it is either release the lock
->> >>> periodically after N tasks is processed or outright skip the whole thing
->> >>> if there are too many tasks. The first option is obviously tricky to
->> >>> prevent from duplicate entries or other artifacts.
->> >>>
->> >>
->> >> Can we add rcu_lock_break() like check_hung_uninterruptible_tasks() does?
->> >
->> > This would be a better variant of your timeout based approach. But it
->> > can still produce an incomplete task list so it still consumes a lot of
->> > resources to print a long list of tasks potentially while that list is not
->> > useful for any evaluation. Maybe that is good enough. I don't know. I
->> > would generally recommend to disable the whole thing with workloads with
->> > many tasks though.
->> >
->>
->> The "safeguard" is useful when there are _unexpectedly_ many tasks (like
->> syzbot in this case). Why not to allow those who want to avoid lockup to
->> avoid lockup rather than forcing them to disable the whole thing?
->
-> So you get an rcu lockup splat and what? Unless you have panic_on_rcu_stall
-> then this should be recoverable thing (assuming we cannot really
-> livelock as described by Dmitry).
+On Tue, Aug 28, 2018 at 01:22:57PM -0400, Johannes Weiner wrote:
+> +enum psi_states {
+> +	PSI_IO_SOME,
+> +	PSI_IO_FULL,
+> +	PSI_MEM_SOME,
+> +	PSI_MEM_FULL,
+> +	PSI_CPU_SOME,
+> +	/* Only per-CPU, to weigh the CPU in the global average: */
+> +	PSI_NONIDLE,
+> +	NR_PSI_STATES,
+> +};
+
+> +static u32 get_recent_time(struct psi_group *group, int cpu,
+> +			   enum psi_states state)
+> +{
+> +	struct psi_group_cpu *groupc = per_cpu_ptr(group->pcpu, cpu);
+> +	unsigned int seq;
+> +	u32 time, delta;
+> +
+> +	do {
+> +		seq = read_seqcount_begin(&groupc->seq);
+> +
+> +		time = groupc->times[state];
+> +		/*
+> +		 * In addition to already concluded states, we also
+> +		 * incorporate currently active states on the CPU,
+> +		 * since states may last for many sampling periods.
+> +		 *
+> +		 * This way we keep our delta sampling buckets small
+> +		 * (u32) and our reported pressure close to what's
+> +		 * actually happening.
+> +		 */
+> +		if (test_state(groupc->tasks, state))
+> +			time += cpu_clock(cpu) - groupc->state_start;
+> +	} while (read_seqcount_retry(&groupc->seq, seq));
+> +
+> +	delta = time - groupc->times_prev[state];
+> +	groupc->times_prev[state] = time;
+> +
+> +	return delta;
+> +}
+
+> +static bool update_stats(struct psi_group *group)
+> +{
+> +	u64 deltas[NR_PSI_STATES - 1] = { 0, };
+> +	unsigned long missed_periods = 0;
+> +	unsigned long nonidle_total = 0;
+> +	u64 now, expires, period;
+> +	int cpu;
+> +	int s;
+> +
+> +	mutex_lock(&group->stat_lock);
+> +
+> +	/*
+> +	 * Collect the per-cpu time buckets and average them into a
+> +	 * single time sample that is normalized to wallclock time.
+> +	 *
+> +	 * For averaging, each CPU is weighted by its non-idle time in
+> +	 * the sampling period. This eliminates artifacts from uneven
+> +	 * loading, or even entirely idle CPUs.
+> +	 */
+> +	for_each_possible_cpu(cpu) {
+> +		u32 nonidle;
+> +
+> +		nonidle = get_recent_time(group, cpu, PSI_NONIDLE);
+> +		nonidle = nsecs_to_jiffies(nonidle);
+> +		nonidle_total += nonidle;
+> +
+> +		for (s = 0; s < PSI_NONIDLE; s++) {
+> +			u32 delta;
+> +
+> +			delta = get_recent_time(group, cpu, s);
+> +			deltas[s] += (u64)delta * nonidle;
+> +		}
+> +	}
+
+This does the whole seqcount thing 6x, which is a bit of a waste.
+
+struct snapshot {
+	u32 times[NR_PSI_STATES];
+};
+
+static inline struct snapshot get_times_snapshot(struct psi_group *pg, int cpu)
+{
+	struct pci_group_cpu *pgc = per_cpu_ptr(pg->pcpu, cpu);
+	struct snapshot s;
+	unsigned int seq;
+	u32 delta;
+	int i;
+
+	do {
+		seq = read_seqcount_begin(&pgc->seq);
+
+		delta = cpu_clock(cpu) - pgc->state_start;
+		for (i = 0; i < NR_PSI_STATES; i++) {
+			s.times[i] = gpc->times[i];
+			if (test_state(pgc->tasks, i))
+				s.times[i] += delta;
+		}
+
+	} while (read_seqcount_retry(&pgc->seq, seq);
+
+	return s;
+}
 
 
-Should I add "vm.oom_dump_tasks = 0" to /etc/sysctl.conf on syzbot?
-It looks like it will make things faster, not pollute console output,
-prevent these stalls and that output does not seem to be too useful
-for debugging.
+	for_each_possible_cpu(cpu) {
+		struct snapshot s = get_times_snapshot(pg, cpu);
 
-But I am still concerned as to what has changed recently. Potentially
-this happens only on linux-next, at least that's where I saw all
-existing reports.
-New tasks seem to be added to the tail of the tasks list, but this
-part does not seem to be changed recently in linux-next..
+		nonidle = nsecs_to_jiffies(s.times[PSI_NONIDLE]);
+		nonidle_total += nonidle;
+
+		for (i = 0; i < PSI_NONIDLE; i++)
+			deltas[s] += (u64)s.times[i] * nonidle;
+
+		/* ... */
+
+	}
+
+
+It's a bit cumbersome, but that's because of C.
