@@ -1,85 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A36386B7EC3
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 10:28:22 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id w126-v6so10582624qka.11
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 07:28:22 -0700 (PDT)
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id w136-v6si4198181qkb.110.2018.09.07.07.28.20
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9182C6B7ED5
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 10:44:30 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id v14-v6so8825865ywv.18
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 07:44:30 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y184-v6sor1258500ywe.426.2018.09.07.07.44.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Sep 2018 07:28:20 -0700 (PDT)
-Message-ID: <b686a7e397b992cf7a32b2e5e7c3503919a8c717.camel@surriel.com>
-Subject: Re: [RFC PATCH 1/2] mm: move tlb_table_flush to tlb_flush_mmu_free
-From: Rik van Riel <riel@surriel.com>
-Date: Fri, 07 Sep 2018 10:28:05 -0400
-In-Reply-To: <20180907134359.GA12187@arm.com>
-References: <20180823084709.19717-1-npiggin@gmail.com>
-	 <20180823084709.19717-2-npiggin@gmail.com>
-	 <fa7c625dfbbe103b37bc3ab5ea4b7283fd13b998.camel@surriel.com>
-	 <20180907134359.GA12187@arm.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-IFHu9I6W7+At+9sCwKHu"
-Mime-Version: 1.0
+        (Google Transport Security);
+        Fri, 07 Sep 2018 07:44:24 -0700 (PDT)
+Date: Fri, 7 Sep 2018 10:44:22 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 8/9] psi: pressure stall information for CPU, memory, and
+ IO
+Message-ID: <20180907144422.GA11088@cmpxchg.org>
+References: <20180828172258.3185-1-hannes@cmpxchg.org>
+ <20180828172258.3185-9-hannes@cmpxchg.org>
+ <20180907101634.GO24106@hirez.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180907101634.GO24106@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Nicholas Piggin <npiggin@gmail.com>, Peter Zijlstra <peterz@infradead.org>, torvalds@linux-foundation.org, luto@kernel.org, x86@kernel.org, bp@alien8.de, jannh@google.com, ascannell@google.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, linux-arch@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Suren Baghdasaryan <surenb@google.com>, Daniel Drake <drake@endlessm.com>, Vinayak Menon <vinmenon@codeaurora.org>, Christopher Lameter <cl@linux.com>, Peter Enderborg <peter.enderborg@sony.com>, Shakeel Butt <shakeelb@google.com>, Mike Galbraith <efault@gmx.de>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
+On Fri, Sep 07, 2018 at 12:16:34PM +0200, Peter Zijlstra wrote:
+> On Tue, Aug 28, 2018 at 01:22:57PM -0400, Johannes Weiner wrote:
+> > +enum psi_states {
+> > +	PSI_IO_SOME,
+> > +	PSI_IO_FULL,
+> > +	PSI_MEM_SOME,
+> > +	PSI_MEM_FULL,
+> > +	PSI_CPU_SOME,
+> > +	/* Only per-CPU, to weigh the CPU in the global average: */
+> > +	PSI_NONIDLE,
+> > +	NR_PSI_STATES,
+> > +};
+> 
+> > +static u32 get_recent_time(struct psi_group *group, int cpu,
+> > +			   enum psi_states state)
+> > +{
+> > +	struct psi_group_cpu *groupc = per_cpu_ptr(group->pcpu, cpu);
+> > +	unsigned int seq;
+> > +	u32 time, delta;
+> > +
+> > +	do {
+> > +		seq = read_seqcount_begin(&groupc->seq);
+> > +
+> > +		time = groupc->times[state];
+> > +		/*
+> > +		 * In addition to already concluded states, we also
+> > +		 * incorporate currently active states on the CPU,
+> > +		 * since states may last for many sampling periods.
+> > +		 *
+> > +		 * This way we keep our delta sampling buckets small
+> > +		 * (u32) and our reported pressure close to what's
+> > +		 * actually happening.
+> > +		 */
+> > +		if (test_state(groupc->tasks, state))
+> > +			time += cpu_clock(cpu) - groupc->state_start;
+> > +	} while (read_seqcount_retry(&groupc->seq, seq));
+> > +
+> > +	delta = time - groupc->times_prev[state];
+> > +	groupc->times_prev[state] = time;
+> > +
+> > +	return delta;
+> > +}
+> 
+> > +static bool update_stats(struct psi_group *group)
+> > +{
+> > +	u64 deltas[NR_PSI_STATES - 1] = { 0, };
+> > +	unsigned long missed_periods = 0;
+> > +	unsigned long nonidle_total = 0;
+> > +	u64 now, expires, period;
+> > +	int cpu;
+> > +	int s;
+> > +
+> > +	mutex_lock(&group->stat_lock);
+> > +
+> > +	/*
+> > +	 * Collect the per-cpu time buckets and average them into a
+> > +	 * single time sample that is normalized to wallclock time.
+> > +	 *
+> > +	 * For averaging, each CPU is weighted by its non-idle time in
+> > +	 * the sampling period. This eliminates artifacts from uneven
+> > +	 * loading, or even entirely idle CPUs.
+> > +	 */
+> > +	for_each_possible_cpu(cpu) {
+> > +		u32 nonidle;
+> > +
+> > +		nonidle = get_recent_time(group, cpu, PSI_NONIDLE);
+> > +		nonidle = nsecs_to_jiffies(nonidle);
+> > +		nonidle_total += nonidle;
+> > +
+> > +		for (s = 0; s < PSI_NONIDLE; s++) {
+> > +			u32 delta;
+> > +
+> > +			delta = get_recent_time(group, cpu, s);
+> > +			deltas[s] += (u64)delta * nonidle;
+> > +		}
+> > +	}
+> 
+> This does the whole seqcount thing 6x, which is a bit of a waste.
 
---=-IFHu9I6W7+At+9sCwKHu
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+[...]
 
-On Fri, 2018-09-07 at 14:44 +0100, Will Deacon wrote:
-> On Thu, Sep 06, 2018 at 04:29:59PM -0400, Rik van Riel wrote:
-> > On Thu, 2018-08-23 at 18:47 +1000, Nicholas Piggin wrote:
-> > > There is no need to call this from tlb_flush_mmu_tlbonly, it
-> > > logically belongs with tlb_flush_mmu_free. This allows some
-> > > code consolidation with a subsequent fix.
-> > >=20
-> > > Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
-> >=20
-> > Reviewed-by: Rik van Riel <riel@surriel.com>
-> >=20
-> > This patch also fixes an infinite recursion bug
-> > with CONFIG_HAVE_RCU_TABLE_FREE enabled, which
-> > has this call trace:
-> >=20
-> > tlb_table_flush
-> >   -> tlb_table_invalidate
-> >      -> tlb_flush_mmu_tlbonly
-> >         -> tlb_table_flush
-> >            -> ... (infinite recursion)
-> >=20
-> > This should probably be applied sooner rather than
-> > later.
->=20
-> It's already in mainline with a cc stable afaict.
+> It's a bit cumbersome, but that's because of C.
 
-Sure enough, it is.
+I was actually debating exactly this with Suren before, but since this
+is a super cold path I went with readability. I was also thinking that
+restarts could happen quite regularly under heavy scheduler load, and
+so keeping the individual retry sections small could be helpful - but
+I didn't instrument this in any way.
 
-I guess I have too many kernel trees on this
-system, and was looking at the wrong one somehow.
-
---=20
-All Rights Reversed.
-
---=-IFHu9I6W7+At+9sCwKHu
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAluSivUACgkQznnekoTE
-3oPhFwf/Qd/rrFLYEKAcJENv34o7Gk0YNVmPKKhyg9sj8nteRac1mnyeVpqmXfWW
-4yDdUx6glji8FWttmnTcpbb/frJlwsKFYBsoYDxBc/D73sTf+3Q8aAbhYAYGzcDq
-GNANhQ1BQXNHL5YfEZtpCFha66ZpAAPEMr+1PI6/k4oMWIOW+EqXko92WP+Vwr9I
-jfYaqKq9UfwFmy/ftaynlXP8yQjlSc2mYTA1SOEuAyiquvBH3TZo2f7bALCA1wP/
-i0lLnEPvFwlgxXDg5l2d/aQxbW4j2KnFLZ3AJMZpPhTfcWanSVSpkxOfZlmXQnPp
-DgV4H7ZrKkvWgRg8+/l1CpXX4ulpRA==
-=4rvN
------END PGP SIGNATURE-----
-
---=-IFHu9I6W7+At+9sCwKHu--
+No strong opinion from me, I can send an updated patch if you prefer.
