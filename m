@@ -1,76 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 00A7A6B7F43
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 12:30:47 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id m185-v6so22172808itm.1
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 09:30:47 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F6A26B7F60
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 13:05:01 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id x24-v6so5052177edm.13
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 10:05:01 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u15-v6sor5398201ite.84.2018.09.07.09.30.46
+        by mx.google.com with SMTPS id f22-v6sor8883422edd.5.2018.09.07.10.04.59
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 07 Sep 2018 09:30:46 -0700 (PDT)
+        Fri, 07 Sep 2018 10:04:59 -0700 (PDT)
+Date: Fri, 7 Sep 2018 17:04:51 +0000
+From: "Ahmed S. Darwish" <darwish.07@gmail.com>
+Subject: Re: [PATCH V5 0/4] Fix kvm misconceives NVDIMM pages as reserved mmio
+Message-ID: <20180907170451.GA5771@darwi-kernel>
+References: <cover.1536342881.git.yi.z.zhang@linux.intel.com>
 MIME-Version: 1.0
-References: <cover.1535629099.git.andreyknvl@google.com> <5d54526e5ff2e5ad63d0dfdd9ab17cf359afa4f2.1535629099.git.andreyknvl@google.com>
- <CA+55aFyW9N2tSb2bQvkthbVVyY6nt5yFeWQRLHp1zruBmb5ocw@mail.gmail.com>
- <CA+55aFy2t_MHgr_CgwbhtFkL+djaCq2qMM1G+f2DwJ0qEr1URQ@mail.gmail.com> <20180907152600.myidisza5o4kdmvf@armageddon.cambridge.arm.com>
-In-Reply-To: <20180907152600.myidisza5o4kdmvf@armageddon.cambridge.arm.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 7 Sep 2018 09:30:35 -0700
-Message-ID: <CA+55aFzQ+ykLu10q3AdyaaKJx8SDWWL9Qiu6WH2jbN_ugRUTOg@mail.gmail.com>
-Subject: Re: [PATCH v6 11/11] arm64: annotate user pointers casts detected by sparse
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <cover.1536342881.git.yi.z.zhang@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>, Mark Rutland <mark.rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Will Deacon <will.deacon@arm.com>, Kostya Serebryany <kcc@google.com>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, cpandya@codeaurora.org, Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Jacob Bramley <Jacob.Bramley@arm.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, Evgenii Stepanov <eugenis@google.com>, Kees Cook <keescook@chromium.org>, Ruben.Ayrapetyan@arm.com, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Dmitry Vyukov <dvyukov@google.com>, linux-mm <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lee Smith <Lee.Smith@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Robin Murphy <robin.murphy@arm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Zhang Yi <yi.z.zhang@linux.intel.com>
+Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, pbonzini@redhat.com, dan.j.williams@intel.com, dave.jiang@intel.com, yu.c.zhang@intel.com, pagupta@redhat.com, david@redhat.com, jack@suse.cz, hch@lst.de, linux-mm@kvack.org, rkrcmar@redhat.com, jglisse@redhat.com, yi.z.zhang@intel.com
 
-On Fri, Sep 7, 2018 at 8:26 AM Catalin Marinas <catalin.marinas@arm.com> wrote:
+Hi!
+
+On Sat, Sep 08, 2018 at 02:03:02AM +0800, Zhang Yi wrote:
+[...]
 >
-> So it's not about casting to another pointer; it's rather about no
-> longer using the value as a user pointer but as an actual (untyped,
-> untagged) virtual address.
+> V1:
+> https://lkml.org/lkml/2018/7/4/91
 >
-> There may be better options to address this but I haven't seen any
-> concrete proposal so far. Or we could simply consider that we've found
-> all places where it matters and not bother with any static analysis
-> tools (but for the time being it's still worth investigating whether we
-> can do better than this).
+> V2:
+> https://lkml.org/lkml/2018/7/10/135
+>
+> V3:
+> https://lkml.org/lkml/2018/8/9/17
+>
+> V4:
+> https://lkml.org/lkml/2018/8/22/17
+>
 
-I actually originally wanted to have sparse not just check types, but
-actually do transformations too, in order to check more.
+Can we please avoid referencing "lkml.org"?
 
-For example, for just the user pointer case, we actually have two
-wildy different kinds of user pointers: "checked" user pointers and
-"wild" user pointers.
+It's just an unreliable broken website. [1][2] Much more important
+though is that its URLs _hide_ the Message-Id field; running the
+threat of losing the e-mail reference forever at some point in the
+future.
 
-Most of the time it doesn't matter, but it does for the unsafe ones:
-"__get_user()" and friends.
+>From Documentation/process/submitting-patches.rst:
 
-So long long ago I wanted sparse to not just do the completely static
-type analysis, but also do actual "data flow" analysis where doing an
-"access_on()" on a pointer would turn it from "wild" to "checked", and
-then I could have warned about "hey, this function does __get_user(),
-but the flow analysis shows that you passed it a pointer that had
-never been checked".
+    If the patch follows from a mailing list discussion, give a
+    URL to the mailing list archive; use the https://lkml.kernel.org/
+    redirector with a ``Message-Id``, to ensure that the links
+    cannot become stale.
 
-But sparse never ended up doing that kind of much smarter things. Some
-of the lock context stuff does it on a very small local level, and not
-very well there either.
+So the V1 link above should've been either:
 
-But it sounds like this is exactly what you guys would want for the
-tagged pointers. Some functions can take a "wild" pointer, because
-they deal with the tag part natively. And others need to be "checked"
-and have gone through the cleaning and verification.
+    https://lore.kernel.org/lkml/cover.1530716899.git.yi.z.zhang@linux.intel.com
 
-But sparse is sadly not the right tool for this, and having a single
-"__user" address space is not sufficient. I guess for the arm64 case,
-you really could make up a *new* address space: "__user_untagged", and
-then have functions that convert from "void __user *" to "void
-__user_untagged *", and then mark the functions that need the tag
-removed as taking that new kind of user pointer.
+or:
 
-And if you never mix types, that would actually work. But I'm guessing
-you can also pass "__user_untagged" pointers to the regular user
-access functions, and you do?
+    https://lkml.kernel.org/r/cover.1530716899.git.yi.z.zhang@linux.intel.com
 
-                  Linus
+and so on..
+
+Thanks,
+
+[1] https://www.theregister.co.uk/2018/01/14/linux_kernel_mailing_list_archives_will_return_soon
+[2] The threading interface is also broken and in a lot of cases
+    does not show all messages in a thread
+
+--
+Darwi
+http://darwish.chasingpointers.com
