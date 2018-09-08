@@ -1,51 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 40AE28E0001
-	for <linux-mm@kvack.org>; Sat,  8 Sep 2018 06:24:16 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id f10-v6so11161004wmb.9
-        for <linux-mm@kvack.org>; Sat, 08 Sep 2018 03:24:16 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id g205-v6si8885683wma.135.2018.09.08.03.24.14
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AC9668E0001
+	for <linux-mm@kvack.org>; Sat,  8 Sep 2018 09:36:19 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id w185-v6so20527197oig.19
+        for <linux-mm@kvack.org>; Sat, 08 Sep 2018 06:36:19 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id a143-v6si8025858oih.126.2018.09.08.06.36.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sat, 08 Sep 2018 03:24:14 -0700 (PDT)
-Date: Sat, 8 Sep 2018 12:24:10 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: 32-bit PTI with THP = userspace corruption
-In-Reply-To: <20180831070722.wnulbbmillxkw7ke@suse.de>
-Message-ID: <alpine.DEB.2.21.1809081223450.1402@nanos.tec.linutronix.de>
-References: <alpine.LRH.2.21.1808301639570.15669@math.ut.ee> <20180830205527.dmemjwxfbwvkdzk2@suse.de> <alpine.LRH.2.21.1808310711380.17865@math.ut.ee> <20180831070722.wnulbbmillxkw7ke@suse.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 08 Sep 2018 06:36:17 -0700 (PDT)
+Subject: Re: [PATCH] mm: memcontrol: print proper OOM header when no eligible
+ victim left
+References: <20180821160406.22578-1-hannes@cmpxchg.org>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <b94f9964-c785-20c1-34af-e9013770b89a@I-love.SAKURA.ne.jp>
+Date: Sat, 8 Sep 2018 22:36:06 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20180821160406.22578-1-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <jroedel@suse.de>
-Cc: Meelis Roos <mroos@linux.ee>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-
-On Fri, 31 Aug 2018, Joerg Roedel wrote:
-
-> On Fri, Aug 31, 2018 at 07:12:44AM +0300, Meelis Roos wrote:
-> > > Thanks for the report! I'll try to reproduce the problem tomorrow and
-> > > investigate it. Can you please check if any of the kernel configurations
-> > > that show the bug has CONFIG_X86_PAE set? If not, can you please test
-> > > if enabling this option still triggers the problem?
-> > 
-> > Will check, but out of my memery there were 2 G3 HP Proliants that did 
-> > not fit into the pattern (problem did not appear). I have more than 4G 
-> > RAM in those and HIGHMEM_4G there, maybe that's it?
+On 2018/08/22 1:04, Johannes Weiner wrote:
+> When the memcg OOM killer runs out of killable tasks, it currently
+> prints a WARN with no further OOM context. This has caused some user
+> confusion.
 > 
-> Yeah, I thought a bit about it, and for legacy paging the PMD paging
-> level is the root-level where we do the mirroring between kernel and
-> user page-table for PTI. This means we also need to collect A/D bits
-> from both entries, which we don't do yet.
+> Warnings indicate a kernel problem. In a reported case, however, the
+> situation was triggered by a non-sensical memcg configuration (hard
+> limit set to 0). But without any VM context this wasn't obvious from
+> the report, and it took some back and forth on the mailing list to
+> identify what is actually a trivial issue.
 > 
-> But that all means it shouldn't happen with CONFIG_X86_PAE=y.
+> Handle this OOM condition like we handle it in the global OOM killer:
+> dump the full OOM context and tell the user we ran out of tasks.
 > 
-> I'll try to reproduce and work on a fix.
+> This way the user can identify misconfigurations easily by themselves
+> and rectify the problem - without having to go through the hassle of
+> running into an obscure but unsettling warning, finding the
+> appropriate kernel mailing list and waiting for a kernel developer to
+> remote-analyze that the memcg configuration caused this.
+> 
+> If users cannot make sense of why the OOM killer was triggered or why
+> it failed, they will still report it to the mailing list, we know that
+> from experience. So in case there is an actual kernel bug causing
+> this, kernel developers will very likely hear about it.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/memcontrol.c |  2 --
+>  mm/oom_kill.c   | 13 ++++++++++---
+>  2 files changed, 10 insertions(+), 5 deletions(-)
+> 
 
-Any progress on this?
-
-Thanks,
-
-	tglx
+Now that above patch went to 4.19-rc3, please apply below one.
