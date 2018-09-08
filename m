@@ -1,47 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DEBE38E0001
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2018 21:46:07 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id d40-v6so7778298pla.14
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 18:46:07 -0700 (PDT)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id y4-v6si10014269pgo.390.2018.09.07.18.46.06
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BDB48E0001
+	for <linux-mm@kvack.org>; Sat,  8 Sep 2018 00:13:11 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id e63-v6so26887526ite.2
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2018 21:13:11 -0700 (PDT)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id j18-v6si5995034ioa.193.2018.09.07.21.13.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Sep 2018 18:46:06 -0700 (PDT)
-From: "Wang, Wei W" <wei.w.wang@intel.com>
-Subject: RE: [PATCH v36 0/5] Virtio-balloon: support free page reporting
-Date: Sat, 8 Sep 2018 01:46:02 +0000
-Message-ID: <286AC319A985734F985F78AFA26841F7397924FE@shsmsx102.ccr.corp.intel.com>
-References: <1532075585-39067-1-git-send-email-wei.w.wang@intel.com>
- <20180723122342-mutt-send-email-mst@kernel.org>
- <20180723143604.GB2457@work-vm> <5B911B03.2060602@intel.com>
- <20180907122955.GD2544@work-vm>
-In-Reply-To: <20180907122955.GD2544@work-vm>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Fri, 07 Sep 2018 21:13:10 -0700 (PDT)
+Subject: Re: Plumbers 2018 - Performance and Scalability Microconference
+References: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <35c2c79f-efbe-f6b2-43a6-52da82145638@nvidia.com>
+Date: Fri, 7 Sep 2018 21:13:01 -0700
 MIME-Version: 1.0
+In-Reply-To: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US-large
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu0@gmail.com" <quan.xu0@gmail.com>, "nilal@redhat.com" <nilal@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "peterx@redhat.com" <peterx@redhat.com>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Aaron Lu <aaron.lu@intel.com>, alex.kogan@oracle.com, akpm@linux-foundation.org, boqun.feng@gmail.com, brouer@redhat.com, dave@stgolabs.net, dave.dice@oracle.com, Dhaval Giani <dhaval.giani@oracle.com>, ktkhai@virtuozzo.com, ldufour@linux.vnet.ibm.com, Pavel.Tatashin@microsoft.com, paulmck@linux.vnet.ibm.com, shady.issa@oracle.com, tariqt@mellanox.com, tglx@linutronix.de, tim.c.chen@intel.com, vbabka@suse.cz, longman@redhat.com, yang.shi@linux.alibaba.com, shy828301@gmail.com, Huang Ying <ying.huang@intel.com>, subhra.mazumdar@oracle.com, Steven
+ Sistare <steven.sistare@oracle.com>, jwadams@google.com, ashwinch@google.com, sqazi@google.com, Shakeel Butt <shakeelb@google.com>, walken@google.com, rientjes@google.com, junaids@google.com, Neha Agarwal <nehaagarwal@google.com>
 
-On Friday, September 7, 2018 8:30 PM, Dr. David Alan Gilbert wrote:
-> OK, that's much better.
-> The ~50% reducton with a 8G VM and a real workload is great, and it does
-> what you expect when you put a lot more RAM in and see the 84% reduction
-> on a guest with 128G RAM - 54s vs ~9s is a big win!
+On 9/4/18 2:28 PM, Daniel Jordan wrote:
+> Pavel Tatashin, Ying Huang, and I are excited to be organizing a performa=
+nce and scalability microconference this year at Plumbers[*], which is happ=
+ening in Vancouver this year.=C2=A0 The microconference is scheduled for th=
+e morning of the second day (Wed, Nov 14).
 >=20
-> (The migrate_set_speed is a bit high, since that's in bytes/s - but it's =
-not
-> important).
+> We have a preliminary agenda and a list of confirmed and interested atten=
+dees (cc'ed), and are seeking more of both!
 >=20
-> That looks good,
+> Some of the items on the agenda as it stands now are:
 >=20
+> =C2=A0- Promoting huge page usage:=C2=A0 With memory sizes becoming ever =
+larger, huge pages are becoming more and more important to reduce TLB misse=
+s and the overhead of memory management itself--that is, to make the system=
+ scalable with the memory size.=C2=A0 But there are still some remaining ga=
+ps that prevent huge pages from being deployed in some situations, such as =
+huge page allocation latency and memory fragmentation.
+>=20
+> =C2=A0- Reducing the number of users of mmap_sem:=C2=A0 This semaphore is=
+ frequently used throughout the kernel.=C2=A0 In order to facilitate scalin=
+g this longstanding bottleneck, these uses should be documented and unneces=
+sary users should be fixed.
+>=20
+> =C2=A0- Parallelizing cpu-intensive kernel work:=C2=A0 Resolve problems o=
+f past approaches including extra threads interfering with other processes,=
+ playing well with power management, and proper cgroup accounting for the e=
+xtra threads.=C2=A0 Bonus topic: proper accounting of workqueue threads run=
+ning on behalf of cgroups.
+>=20
+> =C2=A0- Preserving userland during kexec with a hibernation-like mechanis=
+m.
+>=20
+> These center around our interests, but having lots of topics to choose fr=
+om ensures we cover what's most important to the community, so we would lik=
+e to hear about additional topics and extensions to those listed here.=C2=
+=A0 This includes, but is certainly not limited to, work in progress that w=
+ould benefit from in-person discussion, real-world performance problems, an=
+d experimental and academic work.
+>=20
+> If you haven't already done so, please let us know if you are interested =
+in attending, or have suggestions for other attendees.
 
-Thanks Dave for the feedback.
-Hope you can join our discussion and review the v37 patches as well.
+Hi Daniel and all,
 
-Best,
-Wei
+I'm interested in the first 3 of those 4 topics, so if it doesn't conflict =
+with HMM topics or
+fix-gup-with-dma topics, I'd like to attend. GPUs generally need to access =
+large chunks of
+memory, and that includes migrating (dma-copying) pages around. =20
+
+So for example a multi-threaded migration of huge pages between normal RAM =
+and GPU memory is an=20
+intriguing direction (and I realize that it's a well-known topic, already).=
+ Doing that properly
+(how many threads to use?) seems like it requires scheduler interaction.
+
+It's also interesting that there are two main huge page systems (THP and Hu=
+getlbfs), and I sometimes
+wonder the obvious thing to wonder: are these sufficiently different to war=
+rant remaining separate,
+long-term?  Yes, I realize they're quite different in some ways, but still,=
+ one wonders. :)
+
+
+thanks,
+--=20
+John Hubbard
+NVIDIA
