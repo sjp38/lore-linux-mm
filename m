@@ -1,70 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 377A38E0001
-	for <linux-mm@kvack.org>; Sat,  8 Sep 2018 10:15:53 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id p14-v6so20759896oip.0
-        for <linux-mm@kvack.org>; Sat, 08 Sep 2018 07:15:53 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id r204-v6si7424462oih.29.2018.09.08.07.15.50
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C1FC8E0001
+	for <linux-mm@kvack.org>; Sat,  8 Sep 2018 11:15:27 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id o27-v6so8872796pfj.6
+        for <linux-mm@kvack.org>; Sat, 08 Sep 2018 08:15:27 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e7-v6sor2204019plk.26.2018.09.08.08.15.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 08 Sep 2018 07:15:51 -0700 (PDT)
-Subject: Re: [PATCH] mm: memcontrol: print proper OOM header when no eligible
- victim left
-References: <20180821160406.22578-1-hannes@cmpxchg.org>
- <b94f9964-c785-20c1-34af-e9013770b89a@I-love.SAKURA.ne.jp>
- <20180908135728.GA17637@cmpxchg.org>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <1bdda2c0-f01f-a687-ad98-16f0473e3e32@i-love.sakura.ne.jp>
-Date: Sat, 8 Sep 2018 23:15:44 +0900
+        (Google Transport Security);
+        Sat, 08 Sep 2018 08:15:25 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180908135728.GA17637@cmpxchg.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAGXu5jLLYCGnN66UNeYqcPCPN4EAb=PzGLuQj4-UZr_A0AHp-g@mail.gmail.com>
+References: <000000000000e16cba057549aab6@google.com> <14d5bccf-f12d-0fc1-eddc-9fb24dc0cf14@I-love.SAKURA.ne.jp>
+ <CAGXu5jLLYCGnN66UNeYqcPCPN4EAb=PzGLuQj4-UZr_A0AHp-g@mail.gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Sat, 8 Sep 2018 17:15:03 +0200
+Message-ID: <CACT4Y+Y5J_i1CpV3d5MFH0jZCqKyOTzaP8uDQ0CH3HD33m+UZA@mail.gmail.com>
+Subject: Re: BUG: bad usercopy in __check_object_size (2)
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Kees Cook <keescook@google.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, syzbot <syzbot+a3c9d2673837ccc0f22b@syzkaller.appspotmail.com>, Chris von Recklinghausen <crecklin@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Thomas Gleixner <tglx@linutronix.de>, X86 ML <x86@kernel.org>
 
-On 2018/09/08 22:57, Johannes Weiner wrote:
-> On Sat, Sep 08, 2018 at 10:36:06PM +0900, Tetsuo Handa wrote:
->> Due to commit d75da004c708c9fc ("oom: improve oom disable handling") and
->> commit 3100dab2aa09dc6e ("mm: memcontrol: print proper OOM header when
->> no eligible victim left"), all
+On Fri, Sep 7, 2018 at 9:57 PM, Kees Cook <keescook@google.com> wrote:
+> On Fri, Sep 7, 2018 at 9:17 AM, Tetsuo Handa
+> <penguin-kernel@i-love.sakura.ne.jp> wrote:
+>> On 2018/09/08 0:29, syzbot wrote:
+>>> syzbot has found a reproducer for the following crash on:
+>>>
+>>> HEAD commit:    28619527b8a7 Merge git://git.kernel.org/pub/scm/linux/kern..
+>>> git tree:       bpf
+>>> console output: https://syzkaller.appspot.com/x/log.txt?x=124e64d1400000
+>>> kernel config:  https://syzkaller.appspot.com/x/.config?x=62e9b447c16085cf
+>>> dashboard link: https://syzkaller.appspot.com/bug?extid=a3c9d2673837ccc0f22b
+>>> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+>>> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=179f9cd1400000
+>>> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=11b3e8be400000
+>>>
+>>> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+>>> Reported-by: syzbot+a3c9d2673837ccc0f22b@syzkaller.appspotmail.com
+>>>
+>>>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+>>> RIP: 0033:0x440479
+>>> usercopy: Kernel memory overwrite attempt detected to spans multiple pages (offset 0, size 64)!
 >>
->>   kworker/0:1 invoked oom-killer: gfp_mask=0x6000c0(GFP_KERNEL), nodemask=(null), order=-1, oom_score_adj=0
->>   (...snipped...)
->>   Out of memory and no killable processes...
->>   OOM request ignored. No task eligible
+>> Kees, is this because check_page_span() is failing to allow on-stack variable
 >>
->> lines are printed.
-> 
-> This doesn't explain the context, what you were trying to do here, and
-> what you expected to happen. Plus, you (...snipped...) the important
-> part to understand why it failed in the first place.
+>>    u8 opcodes[OPCODE_BUFSIZE];
+>>
+>> which by chance crossed PAGE_SIZE boundary?
+>
+> There are a lot of failure conditions for the PAGESPAN check. This
+> might be one (and one that I'm hoping to solve separately).
 
-I expect:
+Disabled CONFIG_HARDENED_USERCOPY_PAGESPAN on syzbot:
+https://github.com/google/syzkaller/commit/be20da425029ecd45b18e99fa5f09691ba0658ea
 
-  When SysRq-f did not find killable processes, it does not emit
-  message other than "OOM request ignored. No task eligible".
-
-There is no point with emitting memory information etc.
-
-> 
->> Let's not emit "invoked oom-killer" lines when SysRq-f failed.
-> 
-> I disagree. If the user asked for an OOM kill, it makes perfect sense
-> to dump the memory context and the outcome of the operation - even if
-> the outcome is "I didn't find anything to kill". I'd argue that the
-> failure case *in particular* is where I want to know about and have
-> all the information that could help me understand why it failed.
-
-How emitting memory information etc. helps you understand why it failed?
-"No task eligible" is sufficient for you to understand why, isn't it?
-
-> 
-> So NAK on the inferred patch premise, but please include way more
-> rationale, reproduction scenario etc. in future patches. It's not at
-> all clear *why* you think it should work the way you propose here.
-> 
+#syz invalid
