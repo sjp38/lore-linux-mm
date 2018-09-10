@@ -1,46 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D98D98E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 03:39:42 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id g11-v6so6633789edi.8
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 00:39:42 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k15-v6si1202401edb.253.2018.09.10.00.39.41
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A151A8E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 04:28:04 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id l24-v6so3244533iok.21
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 01:28:04 -0700 (PDT)
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id d76-v6sor9092576iod.199.2018.09.10.01.28.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 00:39:41 -0700 (PDT)
-Date: Mon, 10 Sep 2018 09:39:38 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, thp: relax __GFP_THISNODE for MADV_HUGEPAGE mappings
-Message-ID: <20180910073938.GA16723@dhcp22.suse.cz>
-References: <20180907130550.11885-1-mhocko@kernel.org>
- <f7ed71c1-d599-5257-fd8f-041eb24d9f29@profihost.ag>
+        (Google Transport Security);
+        Mon, 10 Sep 2018 01:28:02 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f7ed71c1-d599-5257-fd8f-041eb24d9f29@profihost.ag>
+Date: Mon, 10 Sep 2018 01:28:02 -0700
+Message-ID: <000000000000be864405758022a2@google.com>
+Subject: BUG: unable to handle kernel NULL pointer dereference in __do_page_cache_readahead
+From: syzbot <syzbot+d47b586c9bc26763ffce@syzkaller.appspotmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Zi Yan <zi.yan@cs.rutgers.edu>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org, axboe@kernel.dk, darrick.wong@oracle.com, dchinner@redhat.com, jbacik@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux@dominikbrodowski.net, mawilcox@microsoft.com, stockhausen@collogia.de, syzkaller-bugs@googlegroups.com
 
-[Cc Vlastimil. The full report is http://lkml.kernel.org/r/f7ed71c1-d599-5257-fd8f-041eb24d9f29@profihost.ag]
-On Sat 08-09-18 20:52:35, Stefan Priebe - Profihost AG wrote:
-> [305146.987742] khugepaged: page allocation stalls for 224236ms, order:9,
-> mode:0x4740ca(__GFP_HIGHMEM|__GFP_IO|__GFP_FS|__GFP_COMP|__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE|__GFP_MOVABLE|__GFP_DIRECT_RECLAIM), nodemask=(null)
+Hello,
 
-This is certainly not a result of this patch AFAICS. khugepaged does add
-__GFP_THISNODE regardless of what alloc_hugepage_khugepaged_gfpmask
-thinks about that flag. Something to look into as well I guess.
+syzbot found the following crash on:
 
-Anyway, I guess we want to look closer at what compaction is doing here
-because such a long stall is really not acceptable at all. Maybe this is
-something 4.12 kernel related. This is hard to tell. Unfortunatelly,
-upstream has lost the stall warning so you wouldn't know this is the
-case with newer kernels.
+HEAD commit:    3d0e7a9e00fd Merge tag 'md/4.19-rc2' of git://git.kernel.o..
+git tree:       upstream
+console output: https://syzkaller.appspot.com/x/log.txt?x=1654ac21400000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=8f59875069d721b6
+dashboard link: https://syzkaller.appspot.com/bug?extid=d47b586c9bc26763ffce
+compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
 
-Anyway, running with compaction tracepoints might tell us more.
-Vlastimil will surely help to tell you which of them to enable.
--- 
-Michal Hocko
-SUSE Labs
+Unfortunately, I don't have any reproducer for this crash yet.
+
+IMPORTANT: if you fix the bug, please add the following tag to the commit:
+Reported-by: syzbot+d47b586c9bc26763ffce@syzkaller.appspotmail.com
+
+EXT4-fs (sda1): warning: refusing change of dax flag with busy inodes while  
+remounting
+EXT4-fs (sda1): re-mounted. Opts: dax,,errors=continue
+EXT4-fs (sda1): DAX enabled. Warning: EXPERIMENTAL, use at your own risk
+EXT4-fs (sda1): warning: refusing change of dax flag with busy inodes while  
+remounting
+EXT4-fs (sda1): re-mounted. Opts: dax,,errors=continue
+BUG: unable to handle kernel NULL pointer dereference at 0000000000000000
+PGD 1cf0bc067 P4D 1cf0bc067 PUD 1c8d95067 PMD 0
+Oops: 0010 [#1] PREEMPT SMP KASAN
+CPU: 1 PID: 9112 Comm: syz-executor2 Not tainted 4.19.0-rc2+ #6
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+RIP: 0010:          (null)
+Code: Bad RIP value.
+RSP: 0018:ffff880184436a28 EFLAGS: 00010246
+RAX: 0000000000000000 RBX: dffffc0000000000 RCX: ffffc900062fe000
+RDX: 1ffffffff1036431 RSI: ffffea000602f280 RDI: ffff8801c86ce780
+RBP: ffff880184436c08 R08: ffff8801bf28a0c0 R09: fffff94000c05e56
+R10: fffff94000c05e56 R11: ffffea000602f2b7 R12: ffffea000602f288
+R13: ffffea000602f280 R14: 0000000000000000 R15: ffffed0030886d74
+FS:  00007f9fe8e5f700(0000) GS:ffff8801daf00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: ffffffffffffffd6 CR3: 000000018aff0000 CR4: 00000000001406e0
+Call Trace:
+  __do_page_cache_readahead+0x56d/0x980 mm/readahead.c:210
+  ra_submit mm/internal.h:66 [inline]
+  do_sync_mmap_readahead mm/filemap.c:2444 [inline]
+  filemap_fault+0xf4d/0x25f0 mm/filemap.c:2520
+  ext4_filemap_fault+0x82/0xad fs/ext4/inode.c:6257
+  __do_fault+0x100/0x6b0 mm/memory.c:3240
+  do_read_fault mm/memory.c:3652 [inline]
+  do_fault mm/memory.c:3752 [inline]
+  handle_pte_fault mm/memory.c:3983 [inline]
+  __handle_mm_fault+0x3709/0x53e0 mm/memory.c:4107
+  handle_mm_fault+0x54f/0xc70 mm/memory.c:4144
+  faultin_page mm/gup.c:518 [inline]
+  __get_user_pages+0x806/0x1b30 mm/gup.c:718
+  populate_vma_page_range+0x2db/0x3d0 mm/gup.c:1222
+  __mm_populate+0x286/0x4d0 mm/gup.c:1270
+  mm_populate include/linux/mm.h:2307 [inline]
+  vm_mmap_pgoff+0x27f/0x2c0 mm/util.c:362
+  ksys_mmap_pgoff+0x4da/0x660 mm/mmap.c:1585
+  __do_sys_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
+  __se_sys_mmap arch/x86/kernel/sys_x86_64.c:91 [inline]
+  __x64_sys_mmap+0xe9/0x1b0 arch/x86/kernel/sys_x86_64.c:91
+  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+RIP: 0033:0x457099
+Code: fd b4 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7  
+48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff  
+ff 0f 83 cb b4 fb ff c3 66 2e 0f 1f 84 00 00 00 00
+RSP: 002b:00007f9fe8e5ec78 EFLAGS: 00000246 ORIG_RAX: 0000000000000009
+RAX: ffffffffffffffda RBX: 00007f9fe8e5f6d4 RCX: 0000000000457099
+RDX: 00000000007ffffe RSI: 0000000000600000 RDI: 0000000020000000
+RBP: 0000000000930140 R08: 0000000000000005 R09: 0000000000000000
+R10: 0000000004002011 R11: 0000000000000246 R12: 00000000ffffffff
+R13: 00000000004d3168 R14: 00000000004c8161 R15: 0000000000000001
+Modules linked in:
+Dumping ftrace buffer:
+    (ftrace buffer empty)
+CR2: 0000000000000000
+---[ end trace e3fb6a18760358f2 ]---
+RIP: 0010:          (null)
+Code: Bad RIP value.
+RSP: 0018:ffff880184436a28 EFLAGS: 00010246
+RAX: 0000000000000000 RBX: dffffc0000000000 RCX: ffffc900062fe000
+RDX: 1ffffffff1036431 RSI: ffffea000602f280 RDI: ffff8801c86ce780
+RBP: ffff880184436c08 R08: ffff8801bf28a0c0 R09: fffff94000c05e56
+R10: fffff94000c05e56 R11: ffffea000602f2b7 R12: ffffea000602f288
+R13: ffffea000602f280 R14: 0000000000000000 R15: ffffed0030886d74
+FS:  00007f9fe8e5f700(0000) GS:ffff8801dae00000(0000) knlGS:0000000000000000
+kobject: 'loop3' (0000000092ea2d98): kobject_uevent_env
+kobject: 'loop3' (0000000092ea2d98): fill_kobj_path: path  
+= '/devices/virtual/block/loop3'
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+kobject: 'loop7' (00000000102bc430): kobject_uevent_env
+CR2: 00000000004d3d08 CR3: 000000018aff0000 CR4: 00000000001406f0
+kobject: 'loop7' (00000000102bc430): fill_kobj_path: path  
+= '/devices/virtual/block/loop7'
+kobject: 'loop1' (00000000bbec18b6): kobject_uevent_env
+kobject: 'loop5' (000000006bdd6403): kobject_uevent_env
+kobject: 'loop5' (000000006bdd6403): fill_kobj_path: path  
+= '/devices/virtual/block/loop5'
+kobject: 'loop1' (00000000bbec18b6): fill_kobj_path: path  
+= '/devices/virtual/block/loop1'
+
+
+---
+This bug is generated by a bot. It may contain errors.
+See https://goo.gl/tpsmEJ for more information about syzbot.
+syzbot engineers can be reached at syzkaller@googlegroups.com.
+
+syzbot will keep track of this bug report. See:
+https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
+syzbot.
