@@ -1,93 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D68B88E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 17:47:00 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id u13-v6so11686904pfm.8
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 14:47:00 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id i184-v6si19521396pfb.98.2018.09.10.14.46.59
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EC6008E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 17:56:51 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id r131-v6so29063785oie.14
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 14:56:51 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id v6-v6si11588568oix.348.2018.09.10.14.56.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 14:46:59 -0700 (PDT)
-Date: Mon, 10 Sep 2018 14:47:32 -0700
-From: Alison Schofield <alison.schofield@intel.com>
-Subject: Re: [RFC 11/12] keys/mktme: Add a new key service type for memory
- encryption keys
-Message-ID: <20180910214731.GA29337@alison-desk.jf.intel.com>
-References: <cover.1536356108.git.alison.schofield@intel.com>
- <1a14a6feb02f968c5e6b98360f6f16106b633b58.1536356108.git.alison.schofield@intel.com>
- <105F7BF4D0229846AF094488D65A098935424C2D@PGSMSX112.gar.corp.intel.com>
+        Mon, 10 Sep 2018 14:56:50 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: [PATCH RFC] mm: don't raise MEMCG_OOM event due to failed high-order allocation
+Date: Mon, 10 Sep 2018 14:56:22 -0700
+Message-ID: <20180910215622.4428-1-guro@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <105F7BF4D0229846AF094488D65A098935424C2D@PGSMSX112.gar.corp.intel.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Kai" <kai.huang@intel.com>
-Cc: "dhowells@redhat.com" <dhowells@redhat.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "Nakajima, Jun" <jun.nakajima@intel.com>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>, "jmorris@namei.org" <jmorris@namei.org>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, kernel-team@fb.com, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On Sun, Sep 09, 2018 at 08:29:29PM -0700, Huang, Kai wrote:
-> > -----Original Message-----
-> > From: keyrings-owner@vger.kernel.org [mailto:keyrings-
-> > owner@vger.kernel.org] On Behalf Of Alison Schofield
-> > Sent: Saturday, September 8, 2018 10:39 AM
-> > To: dhowells@redhat.com; tglx@linutronix.de
-> > Cc: Huang, Kai <kai.huang@intel.com>; Nakajima, Jun
-> > <jun.nakajima@intel.com>; Shutemov, Kirill <kirill.shutemov@intel.com>;
-> > Hansen, Dave <dave.hansen@intel.com>; Sakkinen, Jarkko
-> > <jarkko.sakkinen@intel.com>; jmorris@namei.org; keyrings@vger.kernel.org;
-> > linux-security-module@vger.kernel.org; mingo@redhat.com; hpa@zytor.com;
-> > x86@kernel.org; linux-mm@kvack.org
-> > Subject: [RFC 11/12] keys/mktme: Add a new key service type for memory
-> > encryption keys
-> > 
-> > MKTME (Multi-Key Total Memory Encryption) is a technology that allows
-> > transparent memory encryption in upcoming Intel platforms. MKTME will
-> > support mulitple encryption domains, each having their own key. The main use
-> > case for the feature is virtual machine isolation. The API needs the flexibility to
-> > work for a wide range of uses.
-> > 
-> > The MKTME key service type manages the addition and removal of the memory
-> > encryption keys. It maps software keys to hardware keyids and programs the
-> > hardware with the user requested encryption options.
-> > 
-> > The only supported encryption algorithm is AES-XTS 128.
-> > 
-> > The MKTME key service is half of the MKTME API level solution. It pairs with a
-> > new memory encryption system call: encrypt_mprotect() that uses the keys to
-> > encrypt memory.
-> > 
+The memcg OOM killer is never invoked due to a failed high-order
+allocation, however the MEMCG_OOM event can be easily raised.
 
+Under some memory pressure it can happen easily because of a
+concurrent allocation. Let's look at try_charge(). Even if we were
+able to reclaim enough memory, this check can fail due to a race
+with another allocation:
 
-Kai -
-Splitting out responses by subject...
+    if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
+        goto retry;
 
-> > +cpumask_var_t mktme_cpumask;		/* one cpu per pkg to program
-> > keys */
-> 
-> Oh the 'mktme_cpumask' is here. Sorry I didn't notice when replying to your patch 10. :)
-> 
-> But I think you can just move what you did in patch 10 here and leave intel_pconfig.h unchanged. It's much clearer. 
+For regular pages the following condition will save us from triggering
+the OOM:
 
-I'll try that out and see how it works.
+   if (nr_reclaimed && nr_pages <= (1 << PAGE_ALLOC_COSTLY_ORDER))
+       goto retry;
 
-> > +
-> > +	for_each_online_cpu(online_cpu) {
-> > +		online_pkgid = topology_physical_package_id(online_cpu);
-> > +
-> > +		for_each_cpu(mktme_cpu, mktme_cpumask) {
-> > +			mktme_pkgid =
-> > topology_physical_package_id(mktme_cpu);
-> > +			if (mktme_pkgid == online_pkgid)
-> > +				break;
-> > +		}
-> > +		if (mktme_pkgid != online_pkgid)
-> > +			cpumask_set_cpu(online_cpu, mktme_cpumask);
-> > +	}
-> 
-> Could we use 'for_each_online_node', 'cpumask_first/next', etc to simplify the logic?
+But for high-order allocation this condition will intentionally fail.
+The reason behind is that we'll likely fall to regular pages anyway,
+so it's ok and even preferred to return ENOMEM.
 
-Sure - I'll look at those. 
+In this case the idea of raising the MEMCG_OOM event looks dubious.
 
-Thanks!
-Alison
+Fix this by moving MEMCG_OOM raising to  mem_cgroup_oom() after
+allocation order check, so that the event won't be raised for high
+order allocations.
+
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+---
+ mm/memcontrol.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index fcec9b39e2a3..103ca3c31c04 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1669,6 +1669,8 @@ static enum oom_status mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int
+ 	if (order > PAGE_ALLOC_COSTLY_ORDER)
+ 		return OOM_SKIPPED;
+ 
++	memcg_memory_event(memcg, MEMCG_OOM);
++
+ 	/*
+ 	 * We are in the middle of the charge context here, so we
+ 	 * don't want to block when potentially sitting on a callstack
+@@ -2250,8 +2252,6 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	if (fatal_signal_pending(current))
+ 		goto force;
+ 
+-	memcg_memory_event(mem_over_limit, MEMCG_OOM);
+-
+ 	/*
+ 	 * keep retrying as long as the memcg oom killer is able to make
+ 	 * a forward progress or bypass the charge if the oom killer
+-- 
+2.17.1
