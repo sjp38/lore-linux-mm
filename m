@@ -1,46 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 05CE68E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 10:19:54 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id g11-v6so7051701edi.8
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 07:19:53 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BF7AA8E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 10:27:52 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id 57-v6so7305072edt.15
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 07:27:52 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w46-v6si3118236edm.238.2018.09.10.07.19.47
+        by mx.google.com with ESMTPS id p15-v6si698525edk.239.2018.09.10.07.27.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 07:19:48 -0700 (PDT)
-Date: Mon, 10 Sep 2018 16:19:46 +0200
+        Mon, 10 Sep 2018 07:27:51 -0700 (PDT)
+Date: Mon, 10 Sep 2018 16:27:48 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] memory_hotplug: fix the panic when memory end is not on
- the section boundary
-Message-ID: <20180910141946.GJ10951@dhcp22.suse.cz>
-References: <20180910123527.71209-1-zaslonko@linux.ibm.com>
- <20180910131754.GG10951@dhcp22.suse.cz>
- <e8d75768-9122-332b-3b16-cad032aeb27f@microsoft.com>
- <20180910135959.GI10951@dhcp22.suse.cz>
- <CAGM2reZuGAPmfO8x0TnHnqHci_Hsga3-CfM9+udJs=gUQCw-1g@mail.gmail.com>
+Subject: Re: [PATCH] mm: Use BUG_ON directly instead of a if condition
+ followed by BUG
+Message-ID: <20180910142748.GK10951@dhcp22.suse.cz>
+References: <1536588197-22115-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAGM2reZuGAPmfO8x0TnHnqHci_Hsga3-CfM9+udJs=gUQCw-1g@mail.gmail.com>
+In-Reply-To: <1536588197-22115-1-git-send-email-zhongjiang@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Cc: "zaslonko@linux.ibm.com" <zaslonko@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "osalvador@suse.de" <osalvador@suse.de>, "gerald.schaefer@de.ibm.com" <gerald.schaefer@de.ibm.com>
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: akpm@linux-foundation.org, pasha.tatashin@oracle.com, dan.j.williams@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 10-09-18 14:11:45, Pavel Tatashin wrote:
-> Hi Michal,
-> 
-> It is tricky, but probably can be done. Either change
-> memmap_init_zone() or its caller to also cover the ends and starts of
-> unaligned sections to initialize and reserve pages.
-> 
-> The same thing would also need to be done in deferred_init_memmap() to
-> cover the deferred init case.
+On Mon 10-09-18 22:03:17, zhong jiang wrote:
+> The if condition can be removed if we use BUG_ON directly.
+> The issule is detected with the help of Coccinelle.
 
-Well, I am not sure TBH. I have to think about that much more. Maybe it
-would be much more simple to make sure that we will never add incomplete
-memblocks and simply refuse them during the discovery. At least for now.
+typo here
+
+Is this really worth changing? If anything I would really love to see
+the BUG_ON going away rather than make a cosmetic changes to it.
+
+> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+> ---
+>  mm/memory_hotplug.c | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
+> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 38d94b7..280b26c 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1888,8 +1888,7 @@ void __ref remove_memory(int nid, u64 start, u64 size)
+>  	 */
+>  	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
+>  				check_memblock_offlined_cb);
+> -	if (ret)
+> -		BUG();
+> +	BUG(ret);
+>  
+>  	/* remove memmap entry */
+>  	firmware_map_remove(start, start + size, "System RAM");
+> -- 
+> 1.7.12.4
+> 
+
 -- 
 Michal Hocko
 SUSE Labs
