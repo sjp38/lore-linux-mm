@@ -1,62 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 18FA88E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 10:32:20 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id x19-v6so11311315pfh.15
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 07:32:20 -0700 (PDT)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0098.outbound.protection.outlook.com. [104.47.40.98])
-        by mx.google.com with ESMTPS id y26-v6si16127140pfe.269.2018.09.10.07.32.18
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DED928E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 10:37:17 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id s14-v6so761756ioc.0
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 07:37:17 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z189-v6sor10098695itd.16.2018.09.10.07.37.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 10 Sep 2018 07:32:18 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: Re: [PATCH] memory_hotplug: fix the panic when memory end is not on
- the section boundary
-Date: Mon, 10 Sep 2018 14:32:16 +0000
-Message-ID: 
- <CAGM2reZ5OD9SRW8j9iaQAk9jpr86pF2NqpBjv-dxH+1vJZs0=g@mail.gmail.com>
-References: <20180910123527.71209-1-zaslonko@linux.ibm.com>
- <20180910131754.GG10951@dhcp22.suse.cz>
- <e8d75768-9122-332b-3b16-cad032aeb27f@microsoft.com>
- <20180910135959.GI10951@dhcp22.suse.cz>
- <CAGM2reZuGAPmfO8x0TnHnqHci_Hsga3-CfM9+udJs=gUQCw-1g@mail.gmail.com>
- <20180910141946.GJ10951@dhcp22.suse.cz>
-In-Reply-To: <20180910141946.GJ10951@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <4B5AC2E24D7AED4EA6437DE74B7EC4FC@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (Google Transport Security);
+        Mon, 10 Sep 2018 07:37:16 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <CACT4Y+b8zxX+y4djztg=qnQBLzBT4rFpHCToJAwsF5ZiBWYfdA@mail.gmail.com>
+References: <CACT4Y+YKJWJr-5rBQidt6nY7+VF=BAsvHyh+XTaf8spwNy3qPA@mail.gmail.com>
+ <58aa0543-86d0-b2ad-7fb9-9bed7c6a1f6c@i-love.sakura.ne.jp>
+ <20180906112306.GO14951@dhcp22.suse.cz> <1611e45d-235e-67e9-26e3-d0228255fa2f@i-love.sakura.ne.jp>
+ <20180906115320.GS14951@dhcp22.suse.cz> <7f50772a-f2ef-d16e-4d09-7f34f4bf9227@i-love.sakura.ne.jp>
+ <20180906143905.GC14951@dhcp22.suse.cz> <32c58019-5e2d-b3a1-a6ad-ea374ccd8b60@i-love.sakura.ne.jp>
+ <20180907082745.GB19621@dhcp22.suse.cz> <CACT4Y+bS+kqf+8fp11qSpQ4WtaZt_sVYmvwi_9LFX_=Dwk1N4A@mail.gmail.com>
+ <20180907110817.GG19621@dhcp22.suse.cz> <CACT4Y+b8zxX+y4djztg=qnQBLzBT4rFpHCToJAwsF5ZiBWYfdA@mail.gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 10 Sep 2018 16:36:55 +0200
+Message-ID: <CACT4Y+b55n5bVR8+=+YqRcmMHUb2d712HtK=UN+NhgsofA1saQ@mail.gmail.com>
+Subject: Re: [PATCH] mm, oom: Introduce time limit for dump_tasks duration.
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "mhocko@kernel.org" <mhocko@kernel.org>
-Cc: "zaslonko@linux.ibm.com" <zaslonko@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "osalvador@suse.de" <osalvador@suse.de>, "gerald.schaefer@de.ibm.com" <gerald.schaefer@de.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, syzbot <syzbot+f0fc7f62e88b1de99af3@syzkaller.appspotmail.com>, 'Dmitry Vyukov' via syzkaller-upstream-moderation <syzkaller-upstream-moderation@googlegroups.com>, linux-mm <linux-mm@kvack.org>
 
-T24gTW9uLCBTZXAgMTAsIDIwMTggYXQgMTA6MTkgQU0gTWljaGFsIEhvY2tvIDxtaG9ja29Aa2Vy
-bmVsLm9yZz4gd3JvdGU6DQo+DQo+IE9uIE1vbiAxMC0wOS0xOCAxNDoxMTo0NSwgUGF2ZWwgVGF0
-YXNoaW4gd3JvdGU6DQo+ID4gSGkgTWljaGFsLA0KPiA+DQo+ID4gSXQgaXMgdHJpY2t5LCBidXQg
-cHJvYmFibHkgY2FuIGJlIGRvbmUuIEVpdGhlciBjaGFuZ2UNCj4gPiBtZW1tYXBfaW5pdF96b25l
-KCkgb3IgaXRzIGNhbGxlciB0byBhbHNvIGNvdmVyIHRoZSBlbmRzIGFuZCBzdGFydHMgb2YNCj4g
-PiB1bmFsaWduZWQgc2VjdGlvbnMgdG8gaW5pdGlhbGl6ZSBhbmQgcmVzZXJ2ZSBwYWdlcy4NCj4g
-Pg0KPiA+IFRoZSBzYW1lIHRoaW5nIHdvdWxkIGFsc28gbmVlZCB0byBiZSBkb25lIGluIGRlZmVy
-cmVkX2luaXRfbWVtbWFwKCkgdG8NCj4gPiBjb3ZlciB0aGUgZGVmZXJyZWQgaW5pdCBjYXNlLg0K
-Pg0KPiBXZWxsLCBJIGFtIG5vdCBzdXJlIFRCSC4gSSBoYXZlIHRvIHRoaW5rIGFib3V0IHRoYXQg
-bXVjaCBtb3JlLiBNYXliZSBpdA0KPiB3b3VsZCBiZSBtdWNoIG1vcmUgc2ltcGxlIHRvIG1ha2Ug
-c3VyZSB0aGF0IHdlIHdpbGwgbmV2ZXIgYWRkIGluY29tcGxldGUNCj4gbWVtYmxvY2tzIGFuZCBz
-aW1wbHkgcmVmdXNlIHRoZW0gZHVyaW5nIHRoZSBkaXNjb3ZlcnkuIEF0IGxlYXN0IGZvciBub3cu
-DQoNCk9uIHg4NiBtZW1ibG9ja3MgY2FuIGJlIHVwdG8gMkcgb24gbWFjaGluZXMgd2l0aCBvdmVy
-IDY0RyBvZiBSQU0uDQpBbHNvLCBtZW1vcnkgc2l6ZSBpcyB3YXkgdG8gZWFzeSB0b28gY2hhbmdl
-IHZpYSBxZW11IGFyZ3VtZW50cyB3aGVuIFZNDQpzdGFydHMuIElmIHdlIHNpbXBseSBkaXNhYmxl
-IHVuYWxpZ25lZCB0cmFpbGluZyBtZW1ibG9ja3MsIEkgYW0gc3VyZQ0Kd2Ugd291bGQgZ2V0IHRv
-bnMgb2Ygbm9pc2Ugb2YgbWlzc2luZyBtZW1vcnkuDQoNCkkgdGhpbmssIGFkZGluZyBjaGVja19o
-b3RwbHVnX21lbW9yeV9yYW5nZSgpIHdvdWxkIHdvcmsgdG8gZml4IHRoZQ0KaW1tZWRpYXRlIHBy
-b2JsZW0uIEJ1dCwgd2UgZG8gbmVlZCB0byBmaWd1cmUgb3V0ICBhIGJldHRlciBzb2x1dGlvbi4N
-Cg0KbWVtYmxvY2sgZGVzaWduIGlzIGJhc2VkIG9uIGFyY2hhaWMgYXNzdW1wdGlvbiB0aGF0IGhv
-dHBsdWcgdW5pdHMgYXJlDQpwaHlzaWNhbCBkaW1tcy4gVk1zIGFuZCBoeXBlcnZpc29ycyBjaGFu
-Z2VkIGFsbCBvZiB0aGF0LCBhbmQgd2UgY2FuDQpoYXZlIG11Y2ggZmluZXIgaG90cGx1ZyByZXF1
-ZXN0cyBvbiBtYWNoaW5lcyB3aXRoIGh1Z2UgRElNTXMuIFlldCwgd2UNCmRvIG5vdCB3YW50IHRv
-IHBvbGx1dGUgc3lzZnMgd2l0aCBtaWxsaW9ucyBvZiB0aW55IG1lbW9yeSBkZXZpY2VzLiBJDQph
-bSBub3Qgc3VyZSB3aGF0IGEgbG9uZyB0ZXJtIHByb3BlciBzb2x1dGlvbiBmb3IgdGhpcyBwcm9i
-bGVtIHNob3VsZA0KYmUsIGJ1dCBJIHNlZSB0aGF0IGxpbnV4IGhvdHBsdWcvaG90cmVtb3ZlIHN1
-YnN5c3RlbXMgbXVzdCBiZQ0KcmVkZXNpZ25lZCBiYXNlZCBvbiB0aGUgbmV3IHJlcXVpcmVtZW50
-cy4NCg0KUGF2ZWw=
+On Sat, Sep 8, 2018 at 4:00 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> On Fri, Sep 7, 2018 at 1:08 PM, Michal Hocko <mhocko@kernel.org> wrote:
+>>> >> >>>> I know /proc/sys/vm/oom_dump_tasks . Showing some entries while not always
+>>> >> >>>> printing all entries might be helpful.
+>>> >> >>>
+>>> >> >>> Not really. It could be more confusing than helpful. The main purpose of
+>>> >> >>> the listing is to double check the list to understand the oom victim
+>>> >> >>> selection. If you have a partial list you simply cannot do that.
+>>> >> >>
+>>> >> >> It serves as a safeguard for avoiding RCU stall warnings.
+>>> >> >>
+>>> >> >>>
+>>> >> >>> If the iteration takes too long and I can imagine it does with zillions
+>>> >> >>> of tasks then the proper way around it is either release the lock
+>>> >> >>> periodically after N tasks is processed or outright skip the whole thing
+>>> >> >>> if there are too many tasks. The first option is obviously tricky to
+>>> >> >>> prevent from duplicate entries or other artifacts.
+>>> >> >>>
+>>> >> >>
+>>> >> >> Can we add rcu_lock_break() like check_hung_uninterruptible_tasks() does?
+>>> >> >
+>>> >> > This would be a better variant of your timeout based approach. But it
+>>> >> > can still produce an incomplete task list so it still consumes a lot of
+>>> >> > resources to print a long list of tasks potentially while that list is not
+>>> >> > useful for any evaluation. Maybe that is good enough. I don't know. I
+>>> >> > would generally recommend to disable the whole thing with workloads with
+>>> >> > many tasks though.
+>>> >> >
+>>> >>
+>>> >> The "safeguard" is useful when there are _unexpectedly_ many tasks (like
+>>> >> syzbot in this case). Why not to allow those who want to avoid lockup to
+>>> >> avoid lockup rather than forcing them to disable the whole thing?
+>>> >
+>>> > So you get an rcu lockup splat and what? Unless you have panic_on_rcu_stall
+>>> > then this should be recoverable thing (assuming we cannot really
+>>> > livelock as described by Dmitry).
+>>>
+>>>
+>>> Should I add "vm.oom_dump_tasks = 0" to /etc/sysctl.conf on syzbot?
+>>> It looks like it will make things faster, not pollute console output,
+>>> prevent these stalls and that output does not seem to be too useful
+>>> for debugging.
+>>
+>> I think that oom_dump_tasks has only very limited usefulness for your
+>> testing.
+>>
+>>> But I am still concerned as to what has changed recently. Potentially
+>>> this happens only on linux-next, at least that's where I saw all
+>>> existing reports.
+>>> New tasks seem to be added to the tail of the tasks list, but this
+>>> part does not seem to be changed recently in linux-next..
+>>
+>> Yes, that would be interesting to find out.
+>
+>
+> Looking at another similar report:
+> https://syzkaller.appspot.com/bug?extid=0d867757fdc016c0157e
+> It looks like it can be just syzkaller learning how to do fork bombs
+> after all (same binary multiplied infinite amount of times). Probably
+> required some creativity because test programs do not contain loops
+> per se and clone syscall does not accept start function pc.
+> I will set vm.oom_dump_tasks = 0 and try to additionally restrict it
+> with cgroups.
+
+
+FTR, syzkaller now restricts test processes with pids.max=32. This
+should prevent any fork bombs.
+https://github.com/google/syzkaller/commit/f167cb6b0957d34f95b1067525aa87083f264035
