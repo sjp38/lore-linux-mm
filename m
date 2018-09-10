@@ -1,99 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BCDB48E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 11:27:00 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id u45-v6so21572953qte.12
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 08:27:00 -0700 (PDT)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0092.outbound.protection.outlook.com. [104.47.34.92])
-        by mx.google.com with ESMTPS id 100-v6si767566qkr.357.2018.09.10.08.26.59
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 222088E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 11:40:34 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id m21-v6so27156236oic.7
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 08:40:34 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id r204-v6si11066851oih.29.2018.09.10.08.40.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 10 Sep 2018 08:26:59 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: Re: [PATCH] memory_hotplug: fix the panic when memory end is not on
- the section boundary
-Date: Mon, 10 Sep 2018 15:26:55 +0000
-Message-ID: <abf84f61-82f3-e3d5-2e6e-82a11cb5dcf5@microsoft.com>
-References: <20180910123527.71209-1-zaslonko@linux.ibm.com>
- <20180910131754.GG10951@dhcp22.suse.cz>
- <e8d75768-9122-332b-3b16-cad032aeb27f@microsoft.com>
- <20180910135959.GI10951@dhcp22.suse.cz>
- <CAGM2reZuGAPmfO8x0TnHnqHci_Hsga3-CfM9+udJs=gUQCw-1g@mail.gmail.com>
- <20180910141946.GJ10951@dhcp22.suse.cz>
- <CAGM2reZ5OD9SRW8j9iaQAk9jpr86pF2NqpBjv-dxH+1vJZs0=g@mail.gmail.com>
- <20180910144152.GL10951@dhcp22.suse.cz>
-In-Reply-To: <20180910144152.GL10951@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <34C67F38B6F25441968EDEFB545BCD62@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Sep 2018 08:40:32 -0700 (PDT)
+Subject: Re: [RFC PATCH 0/3] rework mmap-exit vs. oom_reaper handover
+References: <1536382452-3443-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180910125513.311-1-mhocko@kernel.org>
+ <cc772297-5aeb-8410-d902-c224f4717514@i-love.sakura.ne.jp>
+ <20180910151127.GM10951@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <7e123109-fe7d-65cf-883e-74850fd2cf86@i-love.sakura.ne.jp>
+Date: Tue, 11 Sep 2018 00:40:23 +0900
 MIME-Version: 1.0
+In-Reply-To: <20180910151127.GM10951@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: "zaslonko@linux.ibm.com" <zaslonko@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "osalvador@suse.de" <osalvador@suse.de>, "gerald.schaefer@de.ibm.com" <gerald.schaefer@de.ibm.com>
+Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>
 
-DQoNCk9uIDkvMTAvMTggMTA6NDEgQU0sIE1pY2hhbCBIb2NrbyB3cm90ZToNCj4gT24gTW9uIDEw
-LTA5LTE4IDE0OjMyOjE2LCBQYXZlbCBUYXRhc2hpbiB3cm90ZToNCj4+IE9uIE1vbiwgU2VwIDEw
-LCAyMDE4IGF0IDEwOjE5IEFNIE1pY2hhbCBIb2NrbyA8bWhvY2tvQGtlcm5lbC5vcmc+IHdyb3Rl
-Og0KPj4+DQo+Pj4gT24gTW9uIDEwLTA5LTE4IDE0OjExOjQ1LCBQYXZlbCBUYXRhc2hpbiB3cm90
-ZToNCj4+Pj4gSGkgTWljaGFsLA0KPj4+Pg0KPj4+PiBJdCBpcyB0cmlja3ksIGJ1dCBwcm9iYWJs
-eSBjYW4gYmUgZG9uZS4gRWl0aGVyIGNoYW5nZQ0KPj4+PiBtZW1tYXBfaW5pdF96b25lKCkgb3Ig
-aXRzIGNhbGxlciB0byBhbHNvIGNvdmVyIHRoZSBlbmRzIGFuZCBzdGFydHMgb2YNCj4+Pj4gdW5h
-bGlnbmVkIHNlY3Rpb25zIHRvIGluaXRpYWxpemUgYW5kIHJlc2VydmUgcGFnZXMuDQo+Pj4+DQo+
-Pj4+IFRoZSBzYW1lIHRoaW5nIHdvdWxkIGFsc28gbmVlZCB0byBiZSBkb25lIGluIGRlZmVycmVk
-X2luaXRfbWVtbWFwKCkgdG8NCj4+Pj4gY292ZXIgdGhlIGRlZmVycmVkIGluaXQgY2FzZS4NCj4+
-Pg0KPj4+IFdlbGwsIEkgYW0gbm90IHN1cmUgVEJILiBJIGhhdmUgdG8gdGhpbmsgYWJvdXQgdGhh
-dCBtdWNoIG1vcmUuIE1heWJlIGl0DQo+Pj4gd291bGQgYmUgbXVjaCBtb3JlIHNpbXBsZSB0byBt
-YWtlIHN1cmUgdGhhdCB3ZSB3aWxsIG5ldmVyIGFkZCBpbmNvbXBsZXRlDQo+Pj4gbWVtYmxvY2tz
-IGFuZCBzaW1wbHkgcmVmdXNlIHRoZW0gZHVyaW5nIHRoZSBkaXNjb3ZlcnkuIEF0IGxlYXN0IGZv
-ciBub3cuDQo+Pg0KPj4gT24geDg2IG1lbWJsb2NrcyBjYW4gYmUgdXB0byAyRyBvbiBtYWNoaW5l
-cyB3aXRoIG92ZXIgNjRHIG9mIFJBTS4NCj4gDQo+IHNvcnJ5IEkgbWVhbnQgcGFnZWJsb2NrX25y
-X3BhZ2VzIHJhdGhlciB0aGFuIG1lbWJsb2Nrcy4NCg0KT0suIFRoaXMgc291bmQgcmVhc29uYWJs
-ZSwgYnV0LCB0byBiZSBob25lc3QgSSBhbSBub3Qgc3VyZSBob3cgdG8NCmFjaGlldmUgdGhpcyB5
-ZXQsIEkgbmVlZCB0byB0aGluayBtb3JlIGFib3V0IHRoaXMuIEluIHRoZW9yeSwgaWYgd2UgaGF2
-ZQ0Kc3BhcnNlIG1lbW9yeSBtb2RlbCwgaXQgbWFrZXMgc2Vuc2UgdG8gZW5mb3JjZSBtZW1vcnkg
-YWxpZ25tZW50IHRvDQpzZWN0aW9uIHNpemVzLCBzb3VuZHMgYSBsb3Qgc2FmZXIuDQoNCj4gDQo+
-PiBBbHNvLCBtZW1vcnkgc2l6ZSBpcyB3YXkgdG8gZWFzeSB0b28gY2hhbmdlIHZpYSBxZW11IGFy
-Z3VtZW50cyB3aGVuIFZNDQo+PiBzdGFydHMuIElmIHdlIHNpbXBseSBkaXNhYmxlIHVuYWxpZ25l
-ZCB0cmFpbGluZyBtZW1ibG9ja3MsIEkgYW0gc3VyZQ0KPj4gd2Ugd291bGQgZ2V0IHRvbnMgb2Yg
-bm9pc2Ugb2YgbWlzc2luZyBtZW1vcnkuDQo+Pg0KPj4gSSB0aGluaywgYWRkaW5nIGNoZWNrX2hv
-dHBsdWdfbWVtb3J5X3JhbmdlKCkgd291bGQgd29yayB0byBmaXggdGhlDQo+PiBpbW1lZGlhdGUg
-cHJvYmxlbS4gQnV0LCB3ZSBkbyBuZWVkIHRvIGZpZ3VyZSBvdXQgIGEgYmV0dGVyIHNvbHV0aW9u
-Lg0KPj4NCj4+IG1lbWJsb2NrIGRlc2lnbiBpcyBiYXNlZCBvbiBhcmNoYWljIGFzc3VtcHRpb24g
-dGhhdCBob3RwbHVnIHVuaXRzIGFyZQ0KPj4gcGh5c2ljYWwgZGltbXMuIFZNcyBhbmQgaHlwZXJ2
-aXNvcnMgY2hhbmdlZCBhbGwgb2YgdGhhdCwgYW5kIHdlIGNhbg0KPj4gaGF2ZSBtdWNoIGZpbmVy
-IGhvdHBsdWcgcmVxdWVzdHMgb24gbWFjaGluZXMgd2l0aCBodWdlIERJTU1zLiBZZXQsIHdlDQo+
-PiBkbyBub3Qgd2FudCB0byBwb2xsdXRlIHN5c2ZzIHdpdGggbWlsbGlvbnMgb2YgdGlueSBtZW1v
-cnkgZGV2aWNlcy4gSQ0KPj4gYW0gbm90IHN1cmUgd2hhdCBhIGxvbmcgdGVybSBwcm9wZXIgc29s
-dXRpb24gZm9yIHRoaXMgcHJvYmxlbSBzaG91bGQNCj4+IGJlLCBidXQgSSBzZWUgdGhhdCBsaW51
-eCBob3RwbHVnL2hvdHJlbW92ZSBzdWJzeXN0ZW1zIG11c3QgYmUNCj4+IHJlZGVzaWduZWQgYmFz
-ZWQgb24gdGhlIG5ldyByZXF1aXJlbWVudHMuDQo+IA0KPiBOb3QgYW4gZWFzeSB0YXNrIHRob3Vn
-aC4gQW55d2F5LCBzcGFyc2UgbWVtb3J5IG1vZGVseSBpcyBoaWdobHkgYmFzZWQgb24NCj4gbWVt
-b3J5IHNlY3Rpb25zIHNvIGl0IG1ha2VzIHNvbWUgc2Vuc2UgdG8gaGF2ZSBob3RwbHVnIHNlY3Rp
-b24gYmFzZWQgYXMNCj4gd2VsbC4gTWVtYmxvY2tzIGFzIGEgaGlnaGVyIGxvZ2ljYWwgdW5pdCBv
-biB0b3Agb2YgdGhhdCBpcyBraW5kYSBoYWNrLg0KPiBUaGUgdXNlcnNwYWNlIEFQSSBoYXMgbmV2
-ZXIgYmVlbiBwcm9wZXJseSB0aG91Z2h0IHRocm91Z2ggSSBhbSBhZnJhaWQuDQoNCkkgYWdyZWUg
-bWVtb3J5YmxvY2sgaXMgYSBoYWNrLCBpdCBmYWlscyB0byBkbyBib3RoIHRoaW5ncyBpdCB3YXMN
-CmRlc2lnbmVkIHRvIGRvOg0KDQoxLiBPbiBiYXJlIG1ldGFsIHlvdSBjYW5ub3QgZnJlZSBhIHBo
-eXNpY2FsIGRpbW0gb2YgbWVtb3J5IHVzaW5nDQptZW1vcnlibG9jayBncmFudWxhcml0eSBiZWNh
-dXNlIG1lbW9yeSBkZXZpY2VzIGRvIG5vdCBlcXVhbCB0byBwaHlzaWNhbA0KZGltbXMuIFRodXMs
-IGlmIGZvciBzb21lIHJlYXNvbiBhIHBhcnRpY3VsYXIgZGltbSBtdXN0IGJlDQpyZW1vdmUvcmVw
-bGFjZWQsIG1lbW9yeWJsb2NrIGRvZXMgbm90IGhlbHAgdXMuDQoNCjIuIE9uIG1hY2hpbmVzIHdp
-dGggaHlwZXJ2aXNvcnMgaXQgZmFpbHMgdG8gcHJvdmlkZSBhbiBhZGVxdWF0ZQ0KZ3JhbnVsYXJp
-dHkgdG8gYWRkL3JlbW92ZSBtZW1vcnkuDQoNCldlIHNob3VsZCBkZWZpbmUgYSBuZXcgdXNlciBp
-bnRlcmZhY2Ugd2hlcmUgbWVtb3J5IGNhbiBiZSBhZGRlZC9yZW1vdmVkDQphdCBhIGZpbmVyIGdy
-YW51bGFyaXR5OiBzcGFyc2Ugc2VjdGlvbiBzaXplLCBidXQgd2l0aG91dCBhIG1lbW9yeQ0KZGV2
-aWNlcyBmb3IgZWFjaCBzZWN0aW9uLiBXZSBzaG91bGQgYWxzbyBwcm92aWRlIGFuIG9wdGlvbmFs
-IGFjY2VzcyB0bw0KbGVnYWN5IGludGVyZmFjZSB3aGVyZSBtZW1vcnkgZGV2aWNlcyBhcmUgZXhw
-b3J0ZWQgYnV0IGVhY2ggaXMgb2YNCnNlY3Rpb24gc2l6ZS4NCg0KU28sIHdoZW4gbGVnYWN5IGlu
-dGVyZmFjZSBpcyBlbmFibGVkLCBjdXJyZW50IHdheSB3b3VsZCB3b3JrOg0KDQplY2hvIG9mZmxp
-bmUgPiAvc3lzL2RldmljZXMvc3lzdGVtL21lbW9yeS9tZW1vcnlYWFgvc3RhdGUNCg0KQW5kIG5l
-dyBpbnRlcmZhY2Ugd291bGQgYWxsb3cgdXMgdG8gZG8gc29tZXRoaW5nIGxpa2UgdGhpczoNCg0K
-ZWNobyBvZmZsaW5lIDI1Nk0gPiAvc3lzL2RldmljZXMvc3lzdGVtL25vZGUvbm9kZVhYWC9tZW1v
-cnkNCg0KV2l0aCBvcHRpb25hbCBzdGFydCBhZGRyZXNzIGZvciBvZmZsaW5lIG1lbW9yeS4NCmVj
-aG8gb2ZmbGluZSBbc3RhcnRfcGFdIHNpemUgPiAvc3lzL2RldmljZXMvc3lzdGVtL25vZGUvbm9k
-ZVhYWC9tZW1vcnkNCnN0YXJ0X3BhIGFuZCBzaXplIG11c3QgYmUgc2VjdGlvbiBzaXplIGFsaWdu
-ZWQgKDEyOE0pLg0KDQpJdCB3b3VsZCBwcm9iYWJseSBiZSBhIGdvb2QgZGlzY3Vzc2lvbiBmb3Ig
-dGhlIG5leHQgTU0gU3VtbWl0IGhvdyB0bw0Kc29sdmUgdGhlIGN1cnJlbnQgbWVtb3J5IGhvdHBs
-dWcgaW50ZXJmYWNlIGxpbWl0YXRpb25zLg0KDQpQYXZlbA==
+On 2018/09/11 0:11, Michal Hocko wrote:
+> On Mon 10-09-18 23:59:02, Tetsuo Handa wrote:
+>> Thank you for proposing a patch.
+>>
+>> On 2018/09/10 21:55, Michal Hocko wrote:
+>>> diff --git a/mm/mmap.c b/mm/mmap.c
+>>> index 5f2b2b1..99bb9ce 100644
+>>> --- a/mm/mmap.c
+>>> +++ b/mm/mmap.c
+>>> @@ -3091,7 +3081,31 @@ void exit_mmap(struct mm_struct *mm)
+>>>  	/* update_hiwater_rss(mm) here? but nobody should be looking */
+>>>  	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+>>>  	unmap_vmas(&tlb, vma, 0, -1);
+>>
+>> unmap_vmas() might involve hugepage path. Is it safe to race with the OOM reaper?
+>>
+>>   i_mmap_lock_write(vma->vm_file->f_mapping);
+>>   __unmap_hugepage_range_final(tlb, vma, start, end, NULL);
+>>   i_mmap_unlock_write(vma->vm_file->f_mapping);
+> 
+> We do not unmap hugetlb pages in the oom reaper.
+> 
+
+But the OOM reaper can run while __unmap_hugepage_range_final() is in progress.
+Then, I worry an overlooked race similar to clearing VM_LOCKED flag.
+
+> 
+>>
+>>>  	tlb_finish_mmu(&tlb, 0, -1);
+>>>  
+>>>  	/*
+>>
+>> Also, how do you plan to give this thread enough CPU resources, for this thread might
+>> be SCHED_IDLE priority? Since this thread might not be a thread which is exiting
+>> (because this is merely a thread which invoked __mmput()), we can't use boosting
+>> approach. CPU resource might be given eventually unless schedule_timeout_*() is used,
+>> but it might be deadly slow if allocating threads keep wasting CPU resources.
+> 
+> This is OOM path which is glacial slow path. This is btw. no different
+> from any other low priority tasks sitting on a lot of memory trying to
+> release the memory (either by unmapping or exiting). Why should be this
+> particular case any different?
+> 
+
+Not a problem if not under OOM situation. Since the OOM killer keeps wasting
+CPU resources until memory reclaim completes, we want to solve OOM situation
+as soon as possible.
+
+>> Also, why MMF_OOM_SKIP will not be set if the OOM reaper handed over?
+> 
+> The idea is that the mm is not visible to anybody (except for the oom
+> reaper) anymore. So MMF_OOM_SKIP shouldn't matter.
+> 
+
+I think it absolutely matters. The OOM killer waits until MMF_OOM_SKIP is set
+on a mm which is visible via task_struct->signal->oom_mm .
