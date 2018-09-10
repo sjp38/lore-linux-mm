@@ -1,18 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 99C688E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 19:43:38 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id bh1-v6so10644215plb.15
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 16:43:38 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 9A4E98E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 19:43:44 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id 2-v6so10572529plc.11
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 16:43:44 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i5-v6sor2564805pgl.368.2018.09.10.16.43.37
+        by mx.google.com with SMTPS id 69-v6sor3137841pla.99.2018.09.10.16.43.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 10 Sep 2018 16:43:37 -0700 (PDT)
-Subject: [PATCH 0/4] Address issues slowing persistent memory initialization
+        Mon, 10 Sep 2018 16:43:43 -0700 (PDT)
+Subject: [PATCH 1/4] mm: Provide kernel parameter to allow disabling page
+ init poisoning
 From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Mon, 10 Sep 2018 16:43:35 -0700
-Message-ID: <20180910232615.4068.29155.stgit@localhost.localdomain>
+Date: Mon, 10 Sep 2018 16:43:41 -0700
+Message-ID: <20180910234341.4068.26882.stgit@localhost.localdomain>
+In-Reply-To: <20180910232615.4068.29155.stgit@localhost.localdomain>
+References: <20180910232615.4068.29155.stgit@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -21,50 +24,128 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org
 Cc: pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com, mingo@kernel.org, dave.hansen@intel.com, jglisse@redhat.com, akpm@linux-foundation.org, logang@deltatee.com, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com
 
-This patch set is meant to be a v3 to my earlier patch set "Address issues
-slowing memory init"[1]. However I have added 2 additional patches to
-address issues seen in which NVDIMM memory was slow to initialize
-especially on systems with multiple NUMA nodes.
+From: Alexander Duyck <alexander.h.duyck@intel.com>
 
-Since v2 of the patch set I have replaced the config option to work around
-the page init poisoning with a kernel parameter. I also updated one comment
-based on input from Michal.
+On systems with a large amount of memory it can take a significant amount
+of time to initialize all of the page structs with the PAGE_POISON_PATTERN
+value. I have seen it take over 2 minutes to initialize a system with
+over 12GB of RAM.
 
-The third patch in this set is new and is meant to address the need to
-defer some page initialization to outside of the hot-plug lock. It is
-loosely based on the original patch set by Dan Williams to perform
-asynchronous page init for ZONE_DEVICE pages[2]. However, it is  based
-more around the deferred page init model where memory init is deferred to a
-fixed point, which in this case is to just outside of the hot-plug lock.
+In order to work around the issue I had to disable CONFIG_DEBUG_VM and then
+the boot time returned to something much more reasonable as the
+arch_add_memory call completed in milliseconds versus seconds. However in
+doing that I had to disable all of the other VM debugging on the system.
 
-The fourth patch allows nvdimm init to be more node specific where
-possible. I basically just copy/pasted the approach used in
-pci_call_probe to allow for us to get the initialization code on the node
-as close to the memory as possible. Doing so allows us to save considerably
-on init time.
+In order to work around a kernel that might have CONFIG_DEBUG_VM enabled on
+a system that has a large amount of memory I have added a new kernel
+parameter named "page_init_poison" that can be set to "off" in order to
+disable it.
 
-[1]: https://lkml.org/lkml/2018/9/5/924
-[2]: https://lkml.org/lkml/2018/7/16/828
-
+Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
 ---
+ Documentation/admin-guide/kernel-parameters.txt |    8 ++++++++
+ include/linux/page-flags.h                      |    8 ++++++++
+ mm/debug.c                                      |   16 ++++++++++++++++
+ mm/memblock.c                                   |    5 ++---
+ mm/sparse.c                                     |    4 +---
+ 5 files changed, 35 insertions(+), 6 deletions(-)
 
-Alexander Duyck (4):
-      mm: Provide kernel parameter to allow disabling page init poisoning
-      mm: Create non-atomic version of SetPageReserved for init use
-      mm: Defer ZONE_DEVICE page initialization to the point where we init pgmap
-      nvdimm: Trigger the device probe on a cpu local to the device
-
-
- Documentation/admin-guide/kernel-parameters.txt |    8 ++
- drivers/nvdimm/bus.c                            |   45 ++++++++++
- include/linux/mm.h                              |    2 
- include/linux/page-flags.h                      |    9 ++
- kernel/memremap.c                               |   24 ++---
- mm/debug.c                                      |   16 +++
- mm/hmm.c                                        |   12 ++-
- mm/memblock.c                                   |    5 -
- mm/page_alloc.c                                 |  106 ++++++++++++++++++++++-
- mm/sparse.c                                     |    4 -
- 10 files changed, 200 insertions(+), 31 deletions(-)
-
---
+diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+index 64a3bf54b974..7b21e0b9c394 100644
+--- a/Documentation/admin-guide/kernel-parameters.txt
++++ b/Documentation/admin-guide/kernel-parameters.txt
+@@ -3047,6 +3047,14 @@
+ 			off: turn off poisoning (default)
+ 			on: turn on poisoning
+ 
++	page_init_poison=	[KNL] Boot-time parameter changing the
++			state of poisoning of page structures during early
++			boot. Used to verify page metadata is not accessed
++			prior to initialization. Available with
++			CONFIG_DEBUG_VM=y.
++			off: turn off poisoning
++			on: turn on poisoning (default)
++
+ 	panic=		[KNL] Kernel behaviour on panic: delay <timeout>
+ 			timeout > 0: seconds before rebooting
+ 			timeout = 0: wait forever
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 74bee8cecf4c..d00216cf00f8 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -162,6 +162,14 @@ static inline int PagePoisoned(const struct page *page)
+ 	return page->flags == PAGE_POISON_PATTERN;
+ }
+ 
++#ifdef CONFIG_DEBUG_VM
++void page_init_poison(struct page *page, size_t size);
++#else
++static inline void page_init_poison(struct page *page, size_t size)
++{
++}
++#endif
++
+ /*
+  * Page flags policies wrt compound pages
+  *
+diff --git a/mm/debug.c b/mm/debug.c
+index 38c926520c97..c5420422c0b5 100644
+--- a/mm/debug.c
++++ b/mm/debug.c
+@@ -175,4 +175,20 @@ void dump_mm(const struct mm_struct *mm)
+ 	);
+ }
+ 
++static bool page_init_poisoning __read_mostly = true;
++
++static int __init page_init_poison_param(char *buf)
++{
++	if (!buf)
++		return -EINVAL;
++	return strtobool(buf, &page_init_poisoning);
++}
++early_param("page_init_poison", page_init_poison_param);
++
++void page_init_poison(struct page *page, size_t size)
++{
++	if (page_init_poisoning)
++		memset(page, PAGE_POISON_PATTERN, size);
++}
++EXPORT_SYMBOL_GPL(page_init_poison);
+ #endif		/* CONFIG_DEBUG_VM */
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 237944479d25..a85315083b5a 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1444,10 +1444,9 @@ void * __init memblock_virt_alloc_try_nid_raw(
+ 
+ 	ptr = memblock_virt_alloc_internal(size, align,
+ 					   min_addr, max_addr, nid);
+-#ifdef CONFIG_DEBUG_VM
+ 	if (ptr && size > 0)
+-		memset(ptr, PAGE_POISON_PATTERN, size);
+-#endif
++		page_init_poison(ptr, size);
++
+ 	return ptr;
+ }
+ 
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 10b07eea9a6e..67ad061f7fb8 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -696,13 +696,11 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
+ 		goto out;
+ 	}
+ 
+-#ifdef CONFIG_DEBUG_VM
+ 	/*
+ 	 * Poison uninitialized struct pages in order to catch invalid flags
+ 	 * combinations.
+ 	 */
+-	memset(memmap, PAGE_POISON_PATTERN, sizeof(struct page) * PAGES_PER_SECTION);
+-#endif
++	page_init_poison(memmap, sizeof(struct page) * PAGES_PER_SECTION);
+ 
+ 	section_mark_present(ms);
+ 	sparse_init_one_section(ms, section_nr, memmap, usemap);
