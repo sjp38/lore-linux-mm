@@ -1,124 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BD7CD8E0006
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 08:55:57 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id d47-v6so7204403edb.3
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 05:55:57 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v1-v6sor14861574edf.9.2018.09.10.05.55.56
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DB6CB8E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 09:17:57 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id w44-v6so7217290edb.16
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 06:17:57 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z9-v6si838457edq.28.2018.09.10.06.17.55
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 10 Sep 2018 05:55:56 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Sep 2018 06:17:55 -0700 (PDT)
+Date: Mon, 10 Sep 2018 15:17:54 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH 3/3] mm, oom: hand over MMF_OOM_SKIP to exit path if it is guranteed to finish
-Date: Mon, 10 Sep 2018 14:55:13 +0200
-Message-Id: <20180910125513.311-4-mhocko@kernel.org>
-In-Reply-To: <20180910125513.311-1-mhocko@kernel.org>
-References: <1536382452-3443-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180910125513.311-1-mhocko@kernel.org>
+Subject: Re: [PATCH] memory_hotplug: fix the panic when memory end is not on
+ the section boundary
+Message-ID: <20180910131754.GG10951@dhcp22.suse.cz>
+References: <20180910123527.71209-1-zaslonko@linux.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180910123527.71209-1-zaslonko@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+To: Mikhail Zaslonko <zaslonko@linux.ibm.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pavel.Tatashin@microsoft.com, osalvador@suse.de, gerald.schaefer@de.ibm.com
 
-From: Michal Hocko <mhocko@suse.com>
+[Cc Pavel]
 
-David Rientjes has noted that certain user space memory allocators leave
-a lot of page tables behind and the current implementation of oom_reaper
-doesn't deal with those workloads very well. In order to improve these
-workloads define a point when exit_mmap is guaranteed to finish the tear
-down without any further blocking etc. This is right after we unlink
-vmas (those still depend on locks which are held while performing memory
-allocations from other contexts) and before we start releasing page
-tables.
+On Mon 10-09-18 14:35:27, Mikhail Zaslonko wrote:
+> If memory end is not aligned with the linux memory section boundary, such
+> a section is only partly initialized. This may lead to VM_BUG_ON due to
+> uninitialized struct pages access from is_mem_section_removable() or
+> test_pages_in_a_zone() function.
+> 
+> Here is one of the panic examples:
+>  CONFIG_DEBUG_VM_PGFLAGS=y
+>  kernel parameter mem=3075M
 
-Opencode free_pgtables and explicitly unlink all vmas first. Then set
-mm->mmap to NULL (there shouldn't be anybody looking at it at this
-stage) and check for mm->mmap in the oom_reaper path. If the mm->mmap
-is NULL we rely on the exit path and won't set MMF_OOM_SKIP from the
-reaper.
+OK, so the last memory section is not full and we have a partial memory
+block right?
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/mmap.c     | 24 ++++++++++++++++++++----
- mm/oom_kill.c | 13 +++++++------
- 2 files changed, 27 insertions(+), 10 deletions(-)
+>  page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 3481424717ac..99bb9ce29bc5 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3085,8 +3085,27 @@ void exit_mmap(struct mm_struct *mm)
- 	/* oom_reaper cannot race with the page tables teardown */
- 	if (oom)
- 		down_write(&mm->mmap_sem);
-+	/*
-+	 * Hide vma from rmap and truncate_pagecache before freeing
-+	 * pgtables
-+	 */
-+	while (vma) {
-+		unlink_anon_vmas(vma);
-+		unlink_file_vma(vma);
-+		vma = vma->vm_next;
-+	}
-+	vma = mm->mmap;
-+	if (oom) {
-+		/*
-+		 * the exit path is guaranteed to finish without any unbound
-+		 * blocking at this stage so make it clear to the caller.
-+		 */
-+		mm->mmap = NULL;
-+		up_write(&mm->mmap_sem);
-+	}
- 
--	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
-+	free_pgd_range(&tlb, vma->vm_start, vma->vm_prev->vm_end,
-+			FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
- 	tlb_finish_mmu(&tlb, 0, -1);
- 
- 	/*
-@@ -3099,9 +3118,6 @@ void exit_mmap(struct mm_struct *mm)
- 		vma = remove_vma(vma);
- 	}
- 	vm_unacct_memory(nr_accounted);
--
--	if (oom)
--		up_write(&mm->mmap_sem);
- }
- 
- /* Insert vm structure into process list sorted by address
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 049e67dc039b..0ebf93c76c81 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -570,12 +570,10 @@ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 	}
- 
- 	/*
--	 * MMF_OOM_SKIP is set by exit_mmap when the OOM reaper can't
--	 * work on the mm anymore. The check for MMF_OOM_SKIP must run
--	 * under mmap_sem for reading because it serializes against the
--	 * down_write();up_write() cycle in exit_mmap().
-+	 * If exit path clear mm->mmap then we know it will finish the tear down
-+	 * and we can go and bail out here.
- 	 */
--	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
-+	if (!mm->mmap) {
- 		trace_skip_task_reaping(tsk->pid);
- 		goto out_unlock;
- 	}
-@@ -624,8 +622,11 @@ static void oom_reap_task(struct task_struct *tsk)
- 	/*
- 	 * Hide this mm from OOM killer because it has been either reaped or
- 	 * somebody can't call up_write(mmap_sem).
-+	 * Leave the MMF_OOM_SKIP to the exit path if it managed to reach the
-+	 * point it is guaranteed to finish without any blocking
- 	 */
--	set_bit(MMF_OOM_SKIP, &mm->flags);
-+	if (mm->mmap)
-+		set_bit(MMF_OOM_SKIP, &mm->flags);
- 
- 	/* Drop a reference taken by wake_oom_reaper */
- 	put_task_struct(tsk);
+OK, this means that the struct page is not fully initialized. Do you
+have a specific place which has triggered this assert?
+
+>  ------------[ cut here ]------------
+>  Call Trace:
+>  ([<000000000039b8a4>] is_mem_section_removable+0xcc/0x1c0)
+>   [<00000000009558ba>] show_mem_removable+0xda/0xe0
+>   [<00000000009325fc>] dev_attr_show+0x3c/0x80
+>   [<000000000047e7ea>] sysfs_kf_seq_show+0xda/0x160
+>   [<00000000003fc4e0>] seq_read+0x208/0x4c8
+>   [<00000000003cb80e>] __vfs_read+0x46/0x180
+>   [<00000000003cb9ce>] vfs_read+0x86/0x148
+>   [<00000000003cc06a>] ksys_read+0x62/0xc0
+>   [<0000000000c001c0>] system_call+0xdc/0x2d8
+> 
+> This fix checks if the page lies within the zone boundaries before
+> accessing the struct page data. The check is added to both functions.
+> Actually similar check has already been present in
+> is_pageblock_removable_nolock() function but only after the struct page
+> is accessed.
+> 
+
+Well, I am afraid this is not the proper solution. We are relying on the
+full pageblock worth of initialized struct pages at many other place. We
+used to do that in the past because we have initialized the full
+section but this has been changed recently. Pavel, do you have any ideas
+how to deal with this partial mem sections now?
+
+> Signed-off-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
+> Reviewed-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+> Cc: <stable@vger.kernel.org>
+> ---
+>  mm/memory_hotplug.c | 20 +++++++++++---------
+>  1 file changed, 11 insertions(+), 9 deletions(-)
+> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 9eea6e809a4e..8e20e8fcc3b0 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1229,9 +1229,8 @@ static struct page *next_active_pageblock(struct page *page)
+>  	return page + pageblock_nr_pages;
+>  }
+>  
+> -static bool is_pageblock_removable_nolock(struct page *page)
+> +static bool is_pageblock_removable_nolock(struct page *page, struct zone **zone)
+>  {
+> -	struct zone *zone;
+>  	unsigned long pfn;
+>  
+>  	/*
+> @@ -1241,15 +1240,14 @@ static bool is_pageblock_removable_nolock(struct page *page)
+>  	 * We have to take care about the node as well. If the node is offline
+>  	 * its NODE_DATA will be NULL - see page_zone.
+>  	 */
+> -	if (!node_online(page_to_nid(page)))
+> -		return false;
+> -
+> -	zone = page_zone(page);
+>  	pfn = page_to_pfn(page);
+> -	if (!zone_spans_pfn(zone, pfn))
+> +	if (*zone && !zone_spans_pfn(*zone, pfn))
+>  		return false;
+> +	if (!node_online(page_to_nid(page)))
+> +		return false;
+> +	*zone = page_zone(page);
+>  
+> -	return !has_unmovable_pages(zone, page, 0, MIGRATE_MOVABLE, true);
+> +	return !has_unmovable_pages(*zone, page, 0, MIGRATE_MOVABLE, true);
+>  }
+>  
+>  /* Checks if this range of memory is likely to be hot-removable. */
+> @@ -1257,10 +1255,11 @@ bool is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
+>  {
+>  	struct page *page = pfn_to_page(start_pfn);
+>  	struct page *end_page = page + nr_pages;
+> +	struct zone *zone = NULL;
+>  
+>  	/* Check the starting page of each pageblock within the range */
+>  	for (; page < end_page; page = next_active_pageblock(page)) {
+> -		if (!is_pageblock_removable_nolock(page))
+> +		if (!is_pageblock_removable_nolock(page, &zone))
+>  			return false;
+>  		cond_resched();
+>  	}
+> @@ -1296,6 +1295,9 @@ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
+>  				i++;
+>  			if (i == MAX_ORDER_NR_PAGES || pfn + i >= end_pfn)
+>  				continue;
+> +			/* Check if we got outside of the zone */
+> +			if (zone && !zone_spans_pfn(zone, pfn))
+> +				return 0;
+>  			page = pfn_to_page(pfn + i);
+>  			if (zone && page_zone(page) != zone)
+>  				return 0;
+> -- 
+> 2.16.4
+
 -- 
-2.18.0
+Michal Hocko
+SUSE Labs
