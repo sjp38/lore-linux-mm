@@ -1,98 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AA0C38E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 10:11:49 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id x15-v6so41433880ite.8
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 07:11:49 -0700 (PDT)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0094.outbound.protection.outlook.com. [104.47.36.94])
-        by mx.google.com with ESMTPS id k62-v6si10529288iok.137.2018.09.10.07.11.47
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C3578E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 10:15:34 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id 2-v6so10072153plc.11
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 07:15:34 -0700 (PDT)
+Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
+        by mx.google.com with ESMTPS id h23-v6si15708874pgv.356.2018.09.10.07.15.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 07:11:47 -0700 (PDT)
-From: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Subject: Re: [PATCH] memory_hotplug: fix the panic when memory end is not on
- the section boundary
-Date: Mon, 10 Sep 2018 14:11:45 +0000
-Message-ID: 
- <CAGM2reZuGAPmfO8x0TnHnqHci_Hsga3-CfM9+udJs=gUQCw-1g@mail.gmail.com>
-References: <20180910123527.71209-1-zaslonko@linux.ibm.com>
- <20180910131754.GG10951@dhcp22.suse.cz>
- <e8d75768-9122-332b-3b16-cad032aeb27f@microsoft.com>
- <20180910135959.GI10951@dhcp22.suse.cz>
-In-Reply-To: <20180910135959.GI10951@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <754194C804C91544ACE43C2AD97E1668@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        Mon, 10 Sep 2018 07:15:33 -0700 (PDT)
+From: zhong jiang <zhongjiang@huawei.com>
+Subject: [PATCH] mm: Use BUG_ON directly instead of a if condition followed by BUG
+Date: Mon, 10 Sep 2018 22:03:17 +0800
+Message-ID: <1536588197-22115-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "mhocko@kernel.org" <mhocko@kernel.org>
-Cc: "zaslonko@linux.ibm.com" <zaslonko@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "osalvador@suse.de" <osalvador@suse.de>, "gerald.schaefer@de.ibm.com" <gerald.schaefer@de.ibm.com>
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com, pasha.tatashin@oracle.com, dan.j.williams@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-SGkgTWljaGFsLA0KDQpJdCBpcyB0cmlja3ksIGJ1dCBwcm9iYWJseSBjYW4gYmUgZG9uZS4gRWl0
-aGVyIGNoYW5nZQ0KbWVtbWFwX2luaXRfem9uZSgpIG9yIGl0cyBjYWxsZXIgdG8gYWxzbyBjb3Zl
-ciB0aGUgZW5kcyBhbmQgc3RhcnRzIG9mDQp1bmFsaWduZWQgc2VjdGlvbnMgdG8gaW5pdGlhbGl6
-ZSBhbmQgcmVzZXJ2ZSBwYWdlcy4NCg0KVGhlIHNhbWUgdGhpbmcgd291bGQgYWxzbyBuZWVkIHRv
-IGJlIGRvbmUgaW4gZGVmZXJyZWRfaW5pdF9tZW1tYXAoKSB0bw0KY292ZXIgdGhlIGRlZmVycmVk
-IGluaXQgY2FzZS4NCg0KRm9yIGhvdHBsdWdnZWQgbWVtb3J5IHdlIGRvIG5vdCBuZWVkIHRvIHdv
-cnJ5LCBhcyB0aGF0IG9uZSBpcyBhbHdheXMNCnNlY3Rpb24gYWxpZ25lZC4NCg0KRG8geW91IHRo
-aW5rIHRoaXMgd291bGQgYmUgYSBiZXR0ZXIgYXBwcm9hY2g/DQoNClRoYW5rIHlvdSwNClBhdmVs
-DQpPbiBNb24sIFNlcCAxMCwgMjAxOCBhdCAxMDowMCBBTSBNaWNoYWwgSG9ja28gPG1ob2Nrb0Br
-ZXJuZWwub3JnPiB3cm90ZToNCj4NCj4gT24gTW9uIDEwLTA5LTE4IDEzOjQ2OjQ1LCBQYXZlbCBU
-YXRhc2hpbiB3cm90ZToNCj4gPg0KPiA+DQo+ID4gT24gOS8xMC8xOCA5OjE3IEFNLCBNaWNoYWwg
-SG9ja28gd3JvdGU6DQo+ID4gPiBbQ2MgUGF2ZWxdDQo+ID4gPg0KPiA+ID4gT24gTW9uIDEwLTA5
-LTE4IDE0OjM1OjI3LCBNaWtoYWlsIFphc2xvbmtvIHdyb3RlOg0KPiA+ID4+IElmIG1lbW9yeSBl
-bmQgaXMgbm90IGFsaWduZWQgd2l0aCB0aGUgbGludXggbWVtb3J5IHNlY3Rpb24gYm91bmRhcnks
-IHN1Y2gNCj4gPiA+PiBhIHNlY3Rpb24gaXMgb25seSBwYXJ0bHkgaW5pdGlhbGl6ZWQuIFRoaXMg
-bWF5IGxlYWQgdG8gVk1fQlVHX09OIGR1ZSB0bw0KPiA+ID4+IHVuaW5pdGlhbGl6ZWQgc3RydWN0
-IHBhZ2VzIGFjY2VzcyBmcm9tIGlzX21lbV9zZWN0aW9uX3JlbW92YWJsZSgpIG9yDQo+ID4gPj4g
-dGVzdF9wYWdlc19pbl9hX3pvbmUoKSBmdW5jdGlvbi4NCj4gPiA+Pg0KPiA+ID4+IEhlcmUgaXMg
-b25lIG9mIHRoZSBwYW5pYyBleGFtcGxlczoNCj4gPiA+PiAgQ09ORklHX0RFQlVHX1ZNX1BHRkxB
-R1M9eQ0KPiA+ID4+ICBrZXJuZWwgcGFyYW1ldGVyIG1lbT0zMDc1TQ0KPiA+ID4NCj4gPiA+IE9L
-LCBzbyB0aGUgbGFzdCBtZW1vcnkgc2VjdGlvbiBpcyBub3QgZnVsbCBhbmQgd2UgaGF2ZSBhIHBh
-cnRpYWwgbWVtb3J5DQo+ID4gPiBibG9jayByaWdodD8NCj4gPiA+DQo+ID4gPj4gIHBhZ2UgZHVt
-cGVkIGJlY2F1c2U6IFZNX0JVR19PTl9QQUdFKFBhZ2VQb2lzb25lZChwKSkNCj4gPiA+DQo+ID4g
-PiBPSywgdGhpcyBtZWFucyB0aGF0IHRoZSBzdHJ1Y3QgcGFnZSBpcyBub3QgZnVsbHkgaW5pdGlh
-bGl6ZWQuIERvIHlvdQ0KPiA+ID4gaGF2ZSBhIHNwZWNpZmljIHBsYWNlIHdoaWNoIGhhcyB0cmln
-Z2VyZWQgdGhpcyBhc3NlcnQ/DQo+ID4gPg0KPiA+ID4+ICAtLS0tLS0tLS0tLS1bIGN1dCBoZXJl
-IF0tLS0tLS0tLS0tLS0NCj4gPiA+PiAgQ2FsbCBUcmFjZToNCj4gPiA+PiAgKFs8MDAwMDAwMDAw
-MDM5YjhhND5dIGlzX21lbV9zZWN0aW9uX3JlbW92YWJsZSsweGNjLzB4MWMwKQ0KPiA+ID4+ICAg
-WzwwMDAwMDAwMDAwOTU1OGJhPl0gc2hvd19tZW1fcmVtb3ZhYmxlKzB4ZGEvMHhlMA0KPiA+ID4+
-ICAgWzwwMDAwMDAwMDAwOTMyNWZjPl0gZGV2X2F0dHJfc2hvdysweDNjLzB4ODANCj4gPiA+PiAg
-IFs8MDAwMDAwMDAwMDQ3ZTdlYT5dIHN5c2ZzX2tmX3NlcV9zaG93KzB4ZGEvMHgxNjANCj4gPiA+
-PiAgIFs8MDAwMDAwMDAwMDNmYzRlMD5dIHNlcV9yZWFkKzB4MjA4LzB4NGM4DQo+ID4gPj4gICBb
-PDAwMDAwMDAwMDAzY2I4MGU+XSBfX3Zmc19yZWFkKzB4NDYvMHgxODANCj4gPiA+PiAgIFs8MDAw
-MDAwMDAwMDNjYjljZT5dIHZmc19yZWFkKzB4ODYvMHgxNDgNCj4gPiA+PiAgIFs8MDAwMDAwMDAw
-MDNjYzA2YT5dIGtzeXNfcmVhZCsweDYyLzB4YzANCj4gPiA+PiAgIFs8MDAwMDAwMDAwMGMwMDFj
-MD5dIHN5c3RlbV9jYWxsKzB4ZGMvMHgyZDgNCj4gPiA+Pg0KPiA+ID4+IFRoaXMgZml4IGNoZWNr
-cyBpZiB0aGUgcGFnZSBsaWVzIHdpdGhpbiB0aGUgem9uZSBib3VuZGFyaWVzIGJlZm9yZQ0KPiA+
-ID4+IGFjY2Vzc2luZyB0aGUgc3RydWN0IHBhZ2UgZGF0YS4gVGhlIGNoZWNrIGlzIGFkZGVkIHRv
-IGJvdGggZnVuY3Rpb25zLg0KPiA+ID4+IEFjdHVhbGx5IHNpbWlsYXIgY2hlY2sgaGFzIGFscmVh
-ZHkgYmVlbiBwcmVzZW50IGluDQo+ID4gPj4gaXNfcGFnZWJsb2NrX3JlbW92YWJsZV9ub2xvY2so
-KSBmdW5jdGlvbiBidXQgb25seSBhZnRlciB0aGUgc3RydWN0IHBhZ2UNCj4gPiA+PiBpcyBhY2Nl
-c3NlZC4NCj4gPiA+Pg0KPiA+ID4NCj4gPiA+IFdlbGwsIEkgYW0gYWZyYWlkIHRoaXMgaXMgbm90
-IHRoZSBwcm9wZXIgc29sdXRpb24uIFdlIGFyZSByZWx5aW5nIG9uIHRoZQ0KPiA+ID4gZnVsbCBw
-YWdlYmxvY2sgd29ydGggb2YgaW5pdGlhbGl6ZWQgc3RydWN0IHBhZ2VzIGF0IG1hbnkgb3RoZXIg
-cGxhY2UuIFdlDQo+ID4gPiB1c2VkIHRvIGRvIHRoYXQgaW4gdGhlIHBhc3QgYmVjYXVzZSB3ZSBo
-YXZlIGluaXRpYWxpemVkIHRoZSBmdWxsDQo+ID4gPiBzZWN0aW9uIGJ1dCB0aGlzIGhhcyBiZWVu
-IGNoYW5nZWQgcmVjZW50bHkuIFBhdmVsLCBkbyB5b3UgaGF2ZSBhbnkgaWRlYXMNCj4gPiA+IGhv
-dyB0byBkZWFsIHdpdGggdGhpcyBwYXJ0aWFsIG1lbSBzZWN0aW9ucyBub3c/DQo+ID4NCj4gPiBX
-ZSBoYXZlOg0KPiA+DQo+ID4gcmVtb3ZlX21lbW9yeSgpDQo+ID4gICAgICAgQlVHX09OKGNoZWNr
-X2hvdHBsdWdfbWVtb3J5X3JhbmdlKHN0YXJ0LCBzaXplKSkNCj4gPg0KPiA+IFRoYXQgc3VwcG9z
-ZWQgdG8gc2FmZWx5IGNoZWNrIGZvciB0aGlzIGNvbmRpdGlvbjogaWYgW3N0YXJ0LCBzdGFydCAr
-DQo+ID4gc2l6ZSkgbm90IGJsb2NrIHNpemUgYWxpZ25lZCAoYW5kIHdlIGtub3cgYmxvY2sgc2l6
-ZSBpcyBzZWN0aW9uDQo+ID4gYWxpZ25lZCksIGhvdCByZW1vdmUgaXMgbm90IGFsbG93ZWQuIFRo
-ZSBwcm9ibGVtIGlzIHRoaXMgY2hlY2sgaXMgbGF0ZSwNCj4gPiBhbmQgb25seSBoYXBwZW5zIHdo
-ZW4gaW52YWxpZCByYW5nZSBoYXMgYWxyZWFkeSBwYXNzZWQgdGhyb3VnaCBwcmV2aW91cw0KPiA+
-IGNoZWNrcy4NCj4gPg0KPiA+IFdlIGNvdWxkIGFkZCBjaGVja19ob3RwbHVnX21lbW9yeV9yYW5n
-ZSgpIHRvIGlzX21lbV9zZWN0aW9uX3JlbW92YWJsZSgpOg0KPiA+DQo+ID4gaXNfbWVtX3NlY3Rp
-b25fcmVtb3ZhYmxlKHN0YXJ0X3BmbiwgbnJfcGFnZXMpDQo+ID4gIGlmIChjaGVja19ob3RwbHVn
-X21lbW9yeV9yYW5nZShQRk5fUEhZUyhzdGFydF9wZm4pLCBQRk5fUEhZUyhucl9wYWdlcykpKQ0K
-PiA+ICAgcmV0dXJuIGZhbHNlOw0KPiA+DQo+ID4gSSB0aGluayBpdCBzaG91bGQgd29yay4NCj4N
-Cj4gSSBkbyBub3QgdGhpbmsgd2Ugd2FudCB0byBzcHJpbmtsZSB0aGVzZSB0ZXN0cyBvdmVyIGFs
-bCBwZm4gd2Fsa2Vycy4gQ2FuDQo+IHdlIHNpbXBseSBpbml0aWFsaXplIHRob3NlIHVuaW5pdGlh
-bGl6ZWQgaG9sZXMgYXMgd2VsbCBhbmQgbWFrZSB0aGVtDQo+IHJlc2VydmVkIHdpdGhvdXQgaGFu
-ZGluZyB0aGVtIG92ZXIgdG8gdGhlIHBhZ2UgYWxsb2NhdG9yPyBUaGF0IHdvdWxkIGJlDQo+IG11
-Y2ggbW9yZSByb2J1c3QgYXBwcm9hY2ggSU1ITy4NCj4gLS0NCj4gTWljaGFsIEhvY2tvDQo+IFNV
-U0UgTGFicw0KPg==
+The if condition can be removed if we use BUG_ON directly.
+The issule is detected with the help of Coccinelle.
+
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+---
+ mm/memory_hotplug.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 38d94b7..280b26c 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1888,8 +1888,7 @@ void __ref remove_memory(int nid, u64 start, u64 size)
+ 	 */
+ 	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
+ 				check_memblock_offlined_cb);
+-	if (ret)
+-		BUG();
++	BUG(ret);
+ 
+ 	/* remove memmap entry */
+ 	firmware_map_remove(start, start + size, "System RAM");
+-- 
+1.7.12.4
