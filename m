@@ -1,129 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 27D078E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 19:40:50 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id bg5-v6so10627140plb.20
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 16:40:50 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id i2-v6si18577435pgh.565.2018.09.10.16.40.48
+	by kanga.kvack.org (Postfix) with ESMTP id 99C688E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 19:43:38 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id bh1-v6so10644215plb.15
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 16:43:38 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i5-v6sor2564805pgl.368.2018.09.10.16.43.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 16:40:49 -0700 (PDT)
-Date: Mon, 10 Sep 2018 16:41:13 -0700
-From: Alison Schofield <alison.schofield@intel.com>
-Subject: Re: [RFC 04/12] x86/mm: Add helper functions to manage memory
- encryption keys
-Message-ID: <20180910234112.GA31868@alison-desk.jf.intel.com>
-References: <cover.1536356108.git.alison.schofield@intel.com>
- <28a55df5da1ecfea28bac588d3ac429cf1419b42.1536356108.git.alison.schofield@intel.com>
- <105F7BF4D0229846AF094488D65A098935424B67@PGSMSX112.gar.corp.intel.com>
- <105F7BF4D0229846AF094488D65A098935426CD1@PGSMSX112.gar.corp.intel.com>
+        (Google Transport Security);
+        Mon, 10 Sep 2018 16:43:37 -0700 (PDT)
+Subject: [PATCH 0/4] Address issues slowing persistent memory initialization
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Mon, 10 Sep 2018 16:43:35 -0700
+Message-ID: <20180910232615.4068.29155.stgit@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <105F7BF4D0229846AF094488D65A098935426CD1@PGSMSX112.gar.corp.intel.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Kai" <kai.huang@intel.com>
-Cc: "dhowells@redhat.com" <dhowells@redhat.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "Nakajima, Jun" <jun.nakajima@intel.com>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>, "jmorris@namei.org" <jmorris@namei.org>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org
+Cc: pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com, mingo@kernel.org, dave.hansen@intel.com, jglisse@redhat.com, akpm@linux-foundation.org, logang@deltatee.com, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com
 
-On Mon, Sep 10, 2018 at 04:37:01PM -0700, Huang, Kai wrote:
-> > -----Original Message-----
-> > From: owner-linux-security-module@vger.kernel.org [mailto:owner-linux-
-> > security-module@vger.kernel.org] On Behalf Of Huang, Kai
-> > Sent: Monday, September 10, 2018 2:57 PM
-> > To: Schofield, Alison <alison.schofield@intel.com>; dhowells@redhat.com;
-> > tglx@linutronix.de
-> > Cc: Nakajima, Jun <jun.nakajima@intel.com>; Shutemov, Kirill
-> > <kirill.shutemov@intel.com>; Hansen, Dave <dave.hansen@intel.com>;
-> > Sakkinen, Jarkko <jarkko.sakkinen@intel.com>; jmorris@namei.org;
-> > keyrings@vger.kernel.org; linux-security-module@vger.kernel.org;
-> > mingo@redhat.com; hpa@zytor.com; x86@kernel.org; linux-mm@kvack.org
-> > Subject: RE: [RFC 04/12] x86/mm: Add helper functions to manage memory
-> > encryption keys
-> > 
-> > 
-> > > -----Original Message-----
-> > > From: owner-linux-security-module@vger.kernel.org [mailto:owner-linux-
-> > > security-module@vger.kernel.org] On Behalf Of Alison Schofield
-> > > Sent: Saturday, September 8, 2018 10:36 AM
-> > > To: dhowells@redhat.com; tglx@linutronix.de
-> > > Cc: Huang, Kai <kai.huang@intel.com>; Nakajima, Jun
-> > > <jun.nakajima@intel.com>; Shutemov, Kirill
-> > > <kirill.shutemov@intel.com>; Hansen, Dave <dave.hansen@intel.com>;
-> > > Sakkinen, Jarkko <jarkko.sakkinen@intel.com>; jmorris@namei.org;
-> > > keyrings@vger.kernel.org; linux-security-module@vger.kernel.org;
-> > > mingo@redhat.com; hpa@zytor.com; x86@kernel.org; linux-mm@kvack.org
-> > > Subject: [RFC 04/12] x86/mm: Add helper functions to manage memory
-> > > encryption keys
-> > >
-> > > Define a global mapping structure to track the mapping of userspace
-> > > keys to hardware keyids in MKTME (Multi-Key Total Memory Encryption).
-> > > This data will be used for the memory encryption system call and the
-> > > kernel key service API.
-> > >
-> > > Implement helper functions to access this mapping structure and make
-> > > them visible to the MKTME Kernel Key Service: security/keys/mktme_keys
-> > >
-> > > Signed-off-by: Alison Schofield <alison.schofield@intel.com>
-> > > ---
-> > >  arch/x86/include/asm/mktme.h | 11 ++++++
-> > >  arch/x86/mm/mktme.c          | 85
-> > > ++++++++++++++++++++++++++++++++++++++++++++
-> > >  2 files changed, 96 insertions(+)
-> > 
-> > Maybe it's better to put those changes to include/keys/mktme-type.h, and
-> > security/keys/mktme_key.c? It seems you don't have to involve linux-mm and
-> > x86 guys by doing so?
-> > 
-> > Thanks,
-> > -Kai
-> > >
-> > > diff --git a/arch/x86/include/asm/mktme.h
-> > > b/arch/x86/include/asm/mktme.h index dbfbd955da98..f6acd551457f 100644
-> > > --- a/arch/x86/include/asm/mktme.h
-> > > +++ b/arch/x86/include/asm/mktme.h
-> > > @@ -13,6 +13,17 @@ extern phys_addr_t mktme_keyid_mask;  extern int
-> > > mktme_nr_keyids;  extern int mktme_keyid_shift;
-> > >
-> > > +/* Manage mappings between hardware keyids and userspace keys */
-> > > +extern int mktme_map_alloc(void); extern void mktme_map_free(void);
-> > > +extern void mktme_map_lock(void); extern void mktme_map_unlock(void);
-> > > +extern int mktme_map_get_free_keyid(void); extern void
-> > > +mktme_map_clear_keyid(int keyid); extern void mktme_map_set_keyid(int
-> > > +keyid, unsigned int serial); extern int
-> > > +mktme_map_keyid_from_serial(unsigned int serial); extern unsigned int
-> > > +mktme_map_serial_from_keyid(int keyid);
-> > > +
-> > >  extern struct page_ext_operations page_mktme_ops;
-> > >
-> > >  #define page_keyid page_keyid
-> > > diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c index
-> > > 660caf6a5ce1..5246d8323359 100644
-> > > --- a/arch/x86/mm/mktme.c
-> > > +++ b/arch/x86/mm/mktme.c
-> > > @@ -63,6 +63,91 @@ int vma_keyid(struct vm_area_struct *vma)
-> > >  	return (prot & mktme_keyid_mask) >> mktme_keyid_shift;  }
-> > >
-> > > +/*
-> > > + * struct mktme_mapping and the mktme_map_* functions manage the
-> > > +mapping
-> > > + * of userspace keys to hardware keyids in MKTME. They are used by
-> > > +the
-> > > + * the encrypt_mprotect system call and the MKTME Key Service API.
-> > > + */
-> > > +struct mktme_mapping {
-> > > +	struct mutex	lock;		/* protect this map & HW state */
-> > > +	unsigned int	mapped_keyids;
-> > > +	unsigned int	serial[];
-> > > +};
-> 
-> Sorry one more comment that I missed yesterday:
-> 
-> I think 'key_serial_t' should be used  as type of serial throughout this patch, but not 'unsigned int'. 
-> 
-> Thanks,
-> -Kai
+This patch set is meant to be a v3 to my earlier patch set "Address issues
+slowing memory init"[1]. However I have added 2 additional patches to
+address issues seen in which NVDIMM memory was slow to initialize
+especially on systems with multiple NUMA nodes.
 
-I agree! It's not an oversight, but rather a header file include nightmare.
-I can look at it again.
+Since v2 of the patch set I have replaced the config option to work around
+the page init poisoning with a kernel parameter. I also updated one comment
+based on input from Michal.
+
+The third patch in this set is new and is meant to address the need to
+defer some page initialization to outside of the hot-plug lock. It is
+loosely based on the original patch set by Dan Williams to perform
+asynchronous page init for ZONE_DEVICE pages[2]. However, it is  based
+more around the deferred page init model where memory init is deferred to a
+fixed point, which in this case is to just outside of the hot-plug lock.
+
+The fourth patch allows nvdimm init to be more node specific where
+possible. I basically just copy/pasted the approach used in
+pci_call_probe to allow for us to get the initialization code on the node
+as close to the memory as possible. Doing so allows us to save considerably
+on init time.
+
+[1]: https://lkml.org/lkml/2018/9/5/924
+[2]: https://lkml.org/lkml/2018/7/16/828
+
+---
+
+Alexander Duyck (4):
+      mm: Provide kernel parameter to allow disabling page init poisoning
+      mm: Create non-atomic version of SetPageReserved for init use
+      mm: Defer ZONE_DEVICE page initialization to the point where we init pgmap
+      nvdimm: Trigger the device probe on a cpu local to the device
+
+
+ Documentation/admin-guide/kernel-parameters.txt |    8 ++
+ drivers/nvdimm/bus.c                            |   45 ++++++++++
+ include/linux/mm.h                              |    2 
+ include/linux/page-flags.h                      |    9 ++
+ kernel/memremap.c                               |   24 ++---
+ mm/debug.c                                      |   16 +++
+ mm/hmm.c                                        |   12 ++-
+ mm/memblock.c                                   |    5 -
+ mm/page_alloc.c                                 |  106 ++++++++++++++++++++++-
+ mm/sparse.c                                     |    4 -
+ 10 files changed, 200 insertions(+), 31 deletions(-)
+
+--
