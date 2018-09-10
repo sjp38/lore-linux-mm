@@ -1,58 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 27CF88E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 13:32:28 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id x85-v6so11526033pfe.13
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 10:32:28 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id f35-v6si15044557plh.33.2018.09.10.10.32.26
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E6F398E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 13:34:23 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id x5-v6so1279882ioa.6
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 10:34:23 -0700 (PDT)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id o3-v6si12411933iod.5.2018.09.10.10.34.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 10:32:27 -0700 (PDT)
-From: "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>
-Subject: Re: [RFC 01/12] docs/x86: Document the Multi-Key Total Memory
- Encryption API
-Date: Mon, 10 Sep 2018 17:32:20 +0000
-Message-ID: <437f79cf2512f3aef200f7d0bfba4c99a1834eff.camel@intel.com>
-References: <cover.1536356108.git.alison.schofield@intel.com>
-	 <b9c1e3805c700043d92117462bdb6018bb9f858a.1536356108.git.alison.schofield@intel.com>
-In-Reply-To: <b9c1e3805c700043d92117462bdb6018bb9f858a.1536356108.git.alison.schofield@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <5D15F5D9C149224FBCDC3F1CB66F788A@intel.com>
-Content-Transfer-Encoding: base64
+        Mon, 10 Sep 2018 10:34:23 -0700 (PDT)
+Subject: Re: Plumbers 2018 - Performance and Scalability Microconference
+References: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com>
+ <35c2c79f-efbe-f6b2-43a6-52da82145638@nvidia.com>
+ <55b44432-ade5-f090-bfe7-ea20f3e87285@redhat.com>
+ <20180910172011.GB3902@linux-r8p5>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <78fa0507-4789-415b-5b9c-18e3fcefebab@nvidia.com>
+Date: Mon, 10 Sep 2018 10:34:19 -0700
 MIME-Version: 1.0
+In-Reply-To: <20180910172011.GB3902@linux-r8p5>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US-large
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "tglx@linutronix.de" <tglx@linutronix.de>, "Schofield, Alison" <alison.schofield@intel.com>, "dhowells@redhat.com" <dhowells@redhat.com>
-Cc: "Shutemov, Kirill" <kirill.shutemov@intel.com>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "jmorris@namei.org" <jmorris@namei.org>, "Huang,
- Kai" <kai.huang@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Nakajima, Jun" <jun.nakajima@intel.com>
+To: Waiman Long <longman@redhat.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Aaron Lu <aaron.lu@intel.com>, alex.kogan@oracle.com, akpm@linux-foundation.org, boqun.feng@gmail.com, brouer@redhat.com, dave.dice@oracle.com, Dhaval Giani <dhaval.giani@oracle.com>, ktkhai@virtuozzo.com, ldufour@linux.vnet.ibm.com, Pavel.Tatashin@microsoft.com, paulmck@linux.vnet.ibm.com, shady.issa@oracle.com, tariqt@mellanox.com, tglx@linutronix.de, tim.c.chen@intel.com, vbabka@suse.cz, yang.shi@linux.alibaba.com, shy828301@gmail.com, Huang Ying <ying.huang@intel.com>, subhra.mazumdar@oracle.com, Steven Sistare <steven.sistare@oracle.com>, jwadams@google.com, ashwinch@google.com, sqazi@google.com, Shakeel Butt <shakeelb@google.com>, walken@google.com, rientjes@google.com, junaids@google.com, Neha Agarwal <nehaagarwal@google.com>
 
-T24gRnJpLCAyMDE4LTA5LTA3IGF0IDE1OjM0IC0wNzAwLCBBbGlzb24gU2Nob2ZpZWxkIHdyb3Rl
-Og0KPiBEb2N1bWVudCB0aGUgQVBJJ3MgdXNlZCBmb3IgTUtUTUUgb24gSW50ZWwgcGxhdGZvcm1z
-Lg0KPiBNS1RNRTogTXVsdGktS0VZIFRvdGFsIE1lbW9yeSBFbmNyeXB0aW9uDQo+IA0KPiBTaWdu
-ZWQtb2ZmLWJ5OiBBbGlzb24gU2Nob2ZpZWxkIDxhbGlzb24uc2Nob2ZpZWxkQGludGVsLmNvbT4N
-Cj4gLS0tDQo+ICBEb2N1bWVudGF0aW9uL3g4Ni9ta3RtZS1rZXlzLnR4dCB8IDE1Mw0KPiArKysr
-KysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysNCj4gIDEgZmlsZSBjaGFuZ2VkLCAx
-NTMgaW5zZXJ0aW9ucygrKQ0KPiAgY3JlYXRlIG1vZGUgMTAwNjQ0IERvY3VtZW50YXRpb24veDg2
-L21rdG1lLWtleXMudHh0DQo+IA0KPiBkaWZmIC0tZ2l0IGEvRG9jdW1lbnRhdGlvbi94ODYvbWt0
-bWUta2V5cy50eHQgYi9Eb2N1bWVudGF0aW9uL3g4Ni9ta3RtZS0NCj4ga2V5cy50eHQNCj4gbmV3
-IGZpbGUgbW9kZSAxMDA2NDQNCj4gaW5kZXggMDAwMDAwMDAwMDAwLi4yZGVhN2FjZDJhMTcNCj4g
-LS0tIC9kZXYvbnVsbA0KPiArKysgYi9Eb2N1bWVudGF0aW9uL3g4Ni9ta3RtZS1rZXlzLnR4dA0K
-PiBAQCAtMCwwICsxLDE1MyBAQA0KPiArTUtUTUUgKE11bHRpLUtleSBUb3RhbCBNZW1vcnkgRW5j
-cnlwdGlvbikgaXMgYSB0ZWNobm9sb2d5IHRoYXQgYWxsb3dzDQo+ICttZW1vcnkgZW5jcnlwdGlv
-biBvbiBJbnRlbCBwbGF0Zm9ybXMuIFdoZXJlYXMgVE1FIChUb3RhbCBNZW1vcnkgRW5jcnlwdGlv
-bikNCj4gK2FsbG93cyBlbmNyeXB0aW9uIG9mIHRoZSBlbnRpcmUgc3lzdGVtIG1lbW9yeSB1c2lu
-ZyBhIHNpbmdsZSBrZXksIE1LVE1FDQo+ICthbGxvd3MgbXVsdGlwbGUgZW5jcnlwdGlvbiBkb21h
-aW5zLCBlYWNoIGhhdmluZyB0aGVpciBvd24ga2V5LiBUaGUgbWFpbiB1c2UNCj4gK2Nhc2UgZm9y
-IHRoZSBmZWF0dXJlIGlzIHZpcnR1YWwgbWFjaGluZSBpc29sYXRpb24uIFRoZSBBUEkncyBpbnRy
-b2R1Y2VkIGhlcmUNCj4gK2FyZSBpbnRlbmRlZCB0byBvZmZlciBmbGV4aWJpbGl0eSB0byB3b3Jr
-IGluIGEgd2lkZSByYW5nZSBvZiB1c2VzLg0KPiArDQo+ICtUaGUgZXh0ZXJuYWxseSBhdmFpbGFi
-bGUgSW50ZWwgQXJjaGl0ZWN0dXJlIFNwZWM6DQo+ICtodHRwczovL3NvZnR3YXJlLmludGVsLmNv
-bS9zaXRlcy9kZWZhdWx0L2ZpbGVzL21hbmFnZWQvYTUvMTYvTXVsdGktS2V5LVRvdGFsLQ0KPiBN
-ZW1vcnktRW5jcnlwdGlvbi1TcGVjLnBkZg0KPiArDQo+ICs9PT09PT09PT09PT09PT09PT09PT09
-PT09PT09ICBBUEkgT3ZlcnZpZXcgID09PT09PT09PT09PT09PT09PT09PT09PT09PT0NCj4gKw0K
-PiArVGhlcmUgYXJlIDIgTUtUTUUgc3BlY2lmaWMgQVBJJ3MgdGhhdCBlbmFibGUgdXNlcnNwYWNl
-IHRvIGNyZWF0ZSBhbmQgdXNlDQo+ICt0aGUgbWVtb3J5IGVuY3J5cHRpb24ga2V5czoNCg0KVGhp
-cyBpcyBsaWtlIHNheWluZyB0aGF0IHRoZXkgYXJlIGRpZmZlcmVudCBBUElzIHRvIGRvIHNlbWFu
-dGljYWxseSB0aGUNCnNhbWUgZXhhY3QgdGhpbmcuIElzIHRoYXQgc28/DQoNCi9KYXJra28=
+On 9/10/18 10:20 AM, Davidlohr Bueso wrote:
+> On Mon, 10 Sep 2018, Waiman Long wrote:
+>> On 09/08/2018 12:13 AM, John Hubbard wrote:
+[...]
+>>> It's also interesting that there are two main huge page systems (THP an=
+d Hugetlbfs), and I sometimes
+>>> wonder the obvious thing to wonder: are these sufficiently different to=
+ warrant remaining separate,
+>>> long-term?=C2=A0 Yes, I realize they're quite different in some ways, b=
+ut still, one wonders. :)
+>>
+>> One major difference between hugetlbfs and THP is that the former has to
+>> be explicitly managed by the applications that use it whereas the latter
+>> is done automatically without the applications being aware that THP is
+>> being used at all. Performance wise, THP may or may not increase
+>> application performance depending on the exact memory access pattern,
+>> though the chance is usually higher that an application will benefit
+>> than suffer from it.
+>>
+>> If an application know what it is doing, using hughtblfs can boost
+>> performance more than it can ever achieved by THP. Many large enterprise
+>> applications, like Oracle DB, are using hugetlbfs and explicitly disable
+>> THP. So unless THP can improve its performance to a level that is
+>> comparable to hugetlbfs, I won't see the later going away.
+>=20
+> Yep, there are a few non-trivial workloads out there that flat out discou=
+rage
+> thp, ie: redis to avoid latency issues.
+>=20
+
+Yes, the need for guaranteed, available-now huge pages in some cases is=20
+understood. That's not the quite same as saying that there have to be two d=
+ifferent
+subsystems, though. Nor does it even necessarily imply that the pool has to=
+ be
+reserved in the same way as hugetlbfs does it...exactly.
+
+So I'm wondering if THP behavior can be made to mimic hugetlbfs enough (per=
+haps
+another option, in addition to "always, never, madvise") that we could just=
+ use
+THP in all cases. But the "transparent" could become a sliding scale that c=
+ould
+go all the way down to "opaque" (hugetlbfs behavior).
+
+
+thanks,
+--=20
+John Hubbard
+NVIDIA
