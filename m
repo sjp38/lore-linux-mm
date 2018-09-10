@@ -1,78 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E6F398E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 13:34:23 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id x5-v6so1279882ioa.6
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 10:34:23 -0700 (PDT)
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id o3-v6si12411933iod.5.2018.09.10.10.34.22
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B8B88E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 13:37:44 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id o27-v6so11522230pfj.6
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 10:37:44 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id a8-v6si8475338ple.99.2018.09.10.10.37.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 10:34:23 -0700 (PDT)
-Subject: Re: Plumbers 2018 - Performance and Scalability Microconference
-References: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com>
- <35c2c79f-efbe-f6b2-43a6-52da82145638@nvidia.com>
- <55b44432-ade5-f090-bfe7-ea20f3e87285@redhat.com>
- <20180910172011.GB3902@linux-r8p5>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <78fa0507-4789-415b-5b9c-18e3fcefebab@nvidia.com>
-Date: Mon, 10 Sep 2018 10:34:19 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180910172011.GB3902@linux-r8p5>
+        Mon, 10 Sep 2018 10:37:43 -0700 (PDT)
+From: "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>
+Subject: Re: [RFC 04/12] x86/mm: Add helper functions to manage memory
+ encryption keys
+Date: Mon, 10 Sep 2018 17:37:37 +0000
+Message-ID: <6fb38d67c7a43d3dec1d5f19c3daebb12126a7b1.camel@intel.com>
+References: <cover.1536356108.git.alison.schofield@intel.com>
+	 <28a55df5da1ecfea28bac588d3ac429cf1419b42.1536356108.git.alison.schofield@intel.com>
+In-Reply-To: <28a55df5da1ecfea28bac588d3ac429cf1419b42.1536356108.git.alison.schofield@intel.com>
+Content-Language: en-US
 Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US-large
-Content-Transfer-Encoding: quoted-printable
+Content-ID: <96E4EDDFB7C505469A6D37979DE5D03C@intel.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Aaron Lu <aaron.lu@intel.com>, alex.kogan@oracle.com, akpm@linux-foundation.org, boqun.feng@gmail.com, brouer@redhat.com, dave.dice@oracle.com, Dhaval Giani <dhaval.giani@oracle.com>, ktkhai@virtuozzo.com, ldufour@linux.vnet.ibm.com, Pavel.Tatashin@microsoft.com, paulmck@linux.vnet.ibm.com, shady.issa@oracle.com, tariqt@mellanox.com, tglx@linutronix.de, tim.c.chen@intel.com, vbabka@suse.cz, yang.shi@linux.alibaba.com, shy828301@gmail.com, Huang Ying <ying.huang@intel.com>, subhra.mazumdar@oracle.com, Steven Sistare <steven.sistare@oracle.com>, jwadams@google.com, ashwinch@google.com, sqazi@google.com, Shakeel Butt <shakeelb@google.com>, walken@google.com, rientjes@google.com, junaids@google.com, Neha Agarwal <nehaagarwal@google.com>
+To: "tglx@linutronix.de" <tglx@linutronix.de>, "Schofield, Alison" <alison.schofield@intel.com>, "dhowells@redhat.com" <dhowells@redhat.com>
+Cc: "Shutemov, Kirill" <kirill.shutemov@intel.com>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "jmorris@namei.org" <jmorris@namei.org>, "Huang,
+ Kai" <kai.huang@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Nakajima, Jun" <jun.nakajima@intel.com>
 
-On 9/10/18 10:20 AM, Davidlohr Bueso wrote:
-> On Mon, 10 Sep 2018, Waiman Long wrote:
->> On 09/08/2018 12:13 AM, John Hubbard wrote:
-[...]
->>> It's also interesting that there are two main huge page systems (THP an=
-d Hugetlbfs), and I sometimes
->>> wonder the obvious thing to wonder: are these sufficiently different to=
- warrant remaining separate,
->>> long-term?=C2=A0 Yes, I realize they're quite different in some ways, b=
-ut still, one wonders. :)
->>
->> One major difference between hugetlbfs and THP is that the former has to
->> be explicitly managed by the applications that use it whereas the latter
->> is done automatically without the applications being aware that THP is
->> being used at all. Performance wise, THP may or may not increase
->> application performance depending on the exact memory access pattern,
->> though the chance is usually higher that an application will benefit
->> than suffer from it.
->>
->> If an application know what it is doing, using hughtblfs can boost
->> performance more than it can ever achieved by THP. Many large enterprise
->> applications, like Oracle DB, are using hugetlbfs and explicitly disable
->> THP. So unless THP can improve its performance to a level that is
->> comparable to hugetlbfs, I won't see the later going away.
->=20
-> Yep, there are a few non-trivial workloads out there that flat out discou=
-rage
-> thp, ie: redis to avoid latency issues.
->=20
-
-Yes, the need for guaranteed, available-now huge pages in some cases is=20
-understood. That's not the quite same as saying that there have to be two d=
-ifferent
-subsystems, though. Nor does it even necessarily imply that the pool has to=
- be
-reserved in the same way as hugetlbfs does it...exactly.
-
-So I'm wondering if THP behavior can be made to mimic hugetlbfs enough (per=
-haps
-another option, in addition to "always, never, madvise") that we could just=
- use
-THP in all cases. But the "transparent" could become a sliding scale that c=
-ould
-go all the way down to "opaque" (hugetlbfs behavior).
-
-
-thanks,
---=20
-John Hubbard
-NVIDIA
+T24gRnJpLCAyMDE4LTA5LTA3IGF0IDE1OjM2IC0wNzAwLCBBbGlzb24gU2Nob2ZpZWxkIHdyb3Rl
+Og0KPiBEZWZpbmUgYSBnbG9iYWwgbWFwcGluZyBzdHJ1Y3R1cmUgdG8gdHJhY2sgdGhlIG1hcHBp
+bmcgb2YgdXNlcnNwYWNlDQo+IGtleXMgdG8gaGFyZHdhcmUga2V5aWRzIGluIE1LVE1FIChNdWx0
+aS1LZXkgVG90YWwgTWVtb3J5IEVuY3J5cHRpb24pLg0KPiBUaGlzIGRhdGEgd2lsbCBiZSB1c2Vk
+IGZvciB0aGUgbWVtb3J5IGVuY3J5cHRpb24gc3lzdGVtIGNhbGwgYW5kIHRoZQ0KPiBrZXJuZWwg
+a2V5IHNlcnZpY2UgQVBJLg0KDQpUaGlzIGlzIGFsc28gZm9yIGVhcmxpZXIgcGF0Y2hlcy4gSSBr
+aW5kIG9mIGZlZWwgdW5jb21mb3J0YWJsZSBiZWNhdXNlDQpJIGNhbiBuZWl0aGVyIFRNRSBub3Ig
+TUtUTUUgaG93IHRoZXkgcmVzaWRlIGluIHRoZSBjaGlwc2V0L2JvYXJkLiBBcmUNCnRoZXkgaW5z
+aWRlIHRoZSBDUFUgcGFja2FnZT8gT3IgaXMgaXQgcGVyaGFwcyBhIHNlcGFyYXRlIGNoaXAgb3V0
+c2lkZQ0KdGhlIENQVT8gSSB3b3VsZCBndWVzcyBub3QgYnV0IHRoZSBwcm9ibGVtIGlzIHRoYXQg
+SSBoYXZlIHRvIGd1ZXNzIGluDQp0aGUgZmlyc3QgcGxhY2UuDQoNCj4gSW1wbGVtZW50IGhlbHBl
+ciBmdW5jdGlvbnMgdG8gYWNjZXNzIHRoaXMgbWFwcGluZyBzdHJ1Y3R1cmUgYW5kIG1ha2UNCj4g
+dGhlbSB2aXNpYmxlIHRvIHRoZSBNS1RNRSBLZXJuZWwgS2V5IFNlcnZpY2U6IHNlY3VyaXR5L2tl
+eXMvbWt0bWVfa2V5cw0KPiANCj4gU2lnbmVkLW9mZi1ieTogQWxpc29uIFNjaG9maWVsZCA8YWxp
+c29uLnNjaG9maWVsZEBpbnRlbC5jb20+DQo+IC0tLQ0KPiAgYXJjaC94ODYvaW5jbHVkZS9hc20v
+bWt0bWUuaCB8IDExICsrKysrKw0KPiAgYXJjaC94ODYvbW0vbWt0bWUuYyAgICAgICAgICB8IDg1
+DQo+ICsrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrDQo+ICAyIGZp
+bGVzIGNoYW5nZWQsIDk2IGluc2VydGlvbnMoKykNCj4gDQo+IGRpZmYgLS1naXQgYS9hcmNoL3g4
+Ni9pbmNsdWRlL2FzbS9ta3RtZS5oIGIvYXJjaC94ODYvaW5jbHVkZS9hc20vbWt0bWUuaA0KPiBp
+bmRleCBkYmZiZDk1NWRhOTguLmY2YWNkNTUxNDU3ZiAxMDA2NDQNCj4gLS0tIGEvYXJjaC94ODYv
+aW5jbHVkZS9hc20vbWt0bWUuaA0KPiArKysgYi9hcmNoL3g4Ni9pbmNsdWRlL2FzbS9ta3RtZS5o
+DQo+IEBAIC0xMyw2ICsxMywxNyBAQCBleHRlcm4gcGh5c19hZGRyX3QgbWt0bWVfa2V5aWRfbWFz
+azsNCj4gIGV4dGVybiBpbnQgbWt0bWVfbnJfa2V5aWRzOw0KPiAgZXh0ZXJuIGludCBta3RtZV9r
+ZXlpZF9zaGlmdDsNCj4gIA0KPiArLyogTWFuYWdlIG1hcHBpbmdzIGJldHdlZW4gaGFyZHdhcmUg
+a2V5aWRzIGFuZCB1c2Vyc3BhY2Uga2V5cyAqLw0KPiArZXh0ZXJuIGludCBta3RtZV9tYXBfYWxs
+b2Modm9pZCk7DQo+ICtleHRlcm4gdm9pZCBta3RtZV9tYXBfZnJlZSh2b2lkKTsNCj4gK2V4dGVy
+biB2b2lkIG1rdG1lX21hcF9sb2NrKHZvaWQpOw0KPiArZXh0ZXJuIHZvaWQgbWt0bWVfbWFwX3Vu
+bG9jayh2b2lkKTsNCj4gK2V4dGVybiBpbnQgbWt0bWVfbWFwX2dldF9mcmVlX2tleWlkKHZvaWQp
+Ow0KPiArZXh0ZXJuIHZvaWQgbWt0bWVfbWFwX2NsZWFyX2tleWlkKGludCBrZXlpZCk7DQo+ICtl
+eHRlcm4gdm9pZCBta3RtZV9tYXBfc2V0X2tleWlkKGludCBrZXlpZCwgdW5zaWduZWQgaW50IHNl
+cmlhbCk7DQo+ICtleHRlcm4gaW50IG1rdG1lX21hcF9rZXlpZF9mcm9tX3NlcmlhbCh1bnNpZ25l
+ZCBpbnQgc2VyaWFsKTsNCj4gK2V4dGVybiB1bnNpZ25lZCBpbnQgbWt0bWVfbWFwX3NlcmlhbF9m
+cm9tX2tleWlkKGludCBrZXlpZCk7DQo+ICsNCj4gIGV4dGVybiBzdHJ1Y3QgcGFnZV9leHRfb3Bl
+cmF0aW9ucyBwYWdlX21rdG1lX29wczsNCj4gIA0KPiAgI2RlZmluZSBwYWdlX2tleWlkIHBhZ2Vf
+a2V5aWQNCj4gZGlmZiAtLWdpdCBhL2FyY2gveDg2L21tL21rdG1lLmMgYi9hcmNoL3g4Ni9tbS9t
+a3RtZS5jDQo+IGluZGV4IDY2MGNhZjZhNWNlMS4uNTI0NmQ4MzIzMzU5IDEwMDY0NA0KPiAtLS0g
+YS9hcmNoL3g4Ni9tbS9ta3RtZS5jDQo+ICsrKyBiL2FyY2gveDg2L21tL21rdG1lLmMNCj4gQEAg
+LTYzLDYgKzYzLDkxIEBAIGludCB2bWFfa2V5aWQoc3RydWN0IHZtX2FyZWFfc3RydWN0ICp2bWEp
+DQo+ICAJcmV0dXJuIChwcm90ICYgbWt0bWVfa2V5aWRfbWFzaykgPj4gbWt0bWVfa2V5aWRfc2hp
+ZnQ7DQo+ICB9DQo+ICANCj4gKy8qDQo+ICsgKiBzdHJ1Y3QgbWt0bWVfbWFwcGluZyBhbmQgdGhl
+IG1rdG1lX21hcF8qIGZ1bmN0aW9ucyBtYW5hZ2UgdGhlIG1hcHBpbmcNCj4gKyAqIG9mIHVzZXJz
+cGFjZSBrZXlzIHRvIGhhcmR3YXJlIGtleWlkcyBpbiBNS1RNRS4gVGhleSBhcmUgdXNlZCBieSB0
+aGUNCj4gKyAqIHRoZSBlbmNyeXB0X21wcm90ZWN0IHN5c3RlbSBjYWxsIGFuZCB0aGUgTUtUTUUg
+S2V5IFNlcnZpY2UgQVBJLg0KPiArICovDQo+ICtzdHJ1Y3QgbWt0bWVfbWFwcGluZyB7DQo+ICsJ
+c3RydWN0IG11dGV4CWxvY2s7CQkvKiBwcm90ZWN0IHRoaXMgbWFwICYgSFcNCj4gc3RhdGUgKi8N
+Cj4gKwl1bnNpZ25lZCBpbnQJbWFwcGVkX2tleWlkczsNCj4gKwl1bnNpZ25lZCBpbnQJc2VyaWFs
+W107DQo+ICt9Ow0KPiArDQo+ICtzdHJ1Y3QgbWt0bWVfbWFwcGluZyAqbWt0bWVfbWFwOw0KPiAr
+DQo+ICtzdGF0aWMgaW5saW5lIGxvbmcgbWt0bWVfbWFwX3NpemUodm9pZCkNCj4gK3sNCj4gKwls
+b25nIHNpemUgPSAwOw0KPiArDQo+ICsJc2l6ZSArPSBzaXplb2YobWt0bWVfbWFwKTsNCj4gKwlz
+aXplICs9IHNpemVvZihta3RtZV9tYXAtPnNlcmlhbFswXSkgKiBta3RtZV9ucl9rZXlpZHM7DQo+
+ICsJcmV0dXJuIHNpemU7DQo+ICt9DQo+ICsNCj4gK2ludCBta3RtZV9tYXBfYWxsb2Modm9pZCkN
+Cj4gK3sNCj4gKwlta3RtZV9tYXAgPSBremFsbG9jKG1rdG1lX21hcF9zaXplKCksIEdGUF9LRVJO
+RUwpOw0KPiArCWlmICghbWt0bWVfbWFwKQ0KPiArCQlyZXR1cm4gMDsNCj4gKwltdXRleF9pbml0
+KCZta3RtZV9tYXAtPmxvY2spOw0KPiArCXJldHVybiAxOw0KPiArfQ0KPiArDQo+ICt2b2lkIG1r
+dG1lX21hcF9mcmVlKHZvaWQpDQo+ICt7DQo+ICsJa2ZyZWUobWt0bWVfbWFwKTsNCj4gK30NCj4g
+Kw0KPiArdm9pZCBta3RtZV9tYXBfbG9jayh2b2lkKQ0KPiArew0KPiArCW11dGV4X2xvY2soJm1r
+dG1lX21hcC0+bG9jayk7DQo+ICt9DQo+ICsNCj4gK3ZvaWQgbWt0bWVfbWFwX3VubG9jayh2b2lk
+KQ0KPiArew0KPiArCW11dGV4X3VubG9jaygmbWt0bWVfbWFwLT5sb2NrKTsNCj4gK30NCj4gKw0K
+PiArdm9pZCBta3RtZV9tYXBfc2V0X2tleWlkKGludCBrZXlpZCwgdW5zaWduZWQgaW50IHNlcmlh
+bCkNCj4gK3sNCj4gKwlta3RtZV9tYXAtPnNlcmlhbFtrZXlpZF0gPSBzZXJpYWw7DQo+ICsJbWt0
+bWVfbWFwLT5tYXBwZWRfa2V5aWRzKys7DQo+ICt9DQo+ICsNCj4gK3ZvaWQgbWt0bWVfbWFwX2Ns
+ZWFyX2tleWlkKGludCBrZXlpZCkNCj4gK3sNCj4gKwlta3RtZV9tYXAtPnNlcmlhbFtrZXlpZF0g
+PSAwOw0KPiArCW1rdG1lX21hcC0+bWFwcGVkX2tleWlkcy0tOw0KPiArfQ0KPiArDQo+ICt1bnNp
+Z25lZCBpbnQgbWt0bWVfbWFwX3NlcmlhbF9mcm9tX2tleWlkKGludCBrZXlpZCkNCj4gK3sNCj4g
+KwlyZXR1cm4gbWt0bWVfbWFwLT5zZXJpYWxba2V5aWRdOw0KPiArfQ0KPiArDQo+ICtpbnQgbWt0
+bWVfbWFwX2tleWlkX2Zyb21fc2VyaWFsKHVuc2lnbmVkIGludCBzZXJpYWwpDQo+ICt7DQo+ICsJ
+aW50IGk7DQo+ICsNCj4gKwlmb3IgKGkgPSAxOyBpIDwgbWt0bWVfbnJfa2V5aWRzOyBpKyspDQo+
+ICsJCWlmIChta3RtZV9tYXAtPnNlcmlhbFtpXSA9PSBzZXJpYWwpDQo+ICsJCQlyZXR1cm4gaTsN
+Cj4gKwlyZXR1cm4gMDsNCj4gK30NCj4gKw0KPiAraW50IG1rdG1lX21hcF9nZXRfZnJlZV9rZXlp
+ZCh2b2lkKQ0KPiArew0KPiArCWludCBpOw0KPiArDQo+ICsJaWYgKG1rdG1lX21hcC0+bWFwcGVk
+X2tleWlkcyA8IG1rdG1lX25yX2tleWlkcykgew0KPiArCQlmb3IgKGkgPSAxOyBpIDwgbWt0bWVf
+bnJfa2V5aWRzOyBpKyspDQo+ICsJCQlpZiAobWt0bWVfbWFwLT5zZXJpYWxbaV0gPT0gMCkNCj4g
+KwkJCQlyZXR1cm4gaTsNCj4gKwl9DQo+ICsJcmV0dXJuIDA7DQo+ICt9DQoNCg0KVGhlIGtkb2Mg
+aGVhZGVyIGlzIG1pc3NpbmcgZnJvbSBhbGwgYWJvdmUuDQoNCi9KYXJra28=
