@@ -1,64 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 109438E0001
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 13:20:25 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id r25-v6so7374325edc.7
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 10:20:25 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e18-v6si1630530edb.332.2018.09.10.10.20.23
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A4588E0001
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2018 13:30:14 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id a10-v6so10231792pls.23
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2018 10:30:14 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id b13-v6si18400412pgh.255.2018.09.10.10.30.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Sep 2018 10:20:23 -0700 (PDT)
-Date: Mon, 10 Sep 2018 10:20:11 -0700
-From: Davidlohr Bueso <dave@stgolabs.net>
-Subject: Re: Plumbers 2018 - Performance and Scalability Microconference
-Message-ID: <20180910172011.GB3902@linux-r8p5>
-References: <1dc80ff6-f53f-ae89-be29-3408bf7d69cc@oracle.com>
- <35c2c79f-efbe-f6b2-43a6-52da82145638@nvidia.com>
- <55b44432-ade5-f090-bfe7-ea20f3e87285@redhat.com>
+        Mon, 10 Sep 2018 10:30:12 -0700 (PDT)
+From: "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>
+Subject: Re: [RFC 00/12] Multi-Key Total Memory Encryption API (MKTME)
+Date: Mon, 10 Sep 2018 17:29:52 +0000
+Message-ID: <0952428c3fe91573e840247ca4e579e1b4ea63f3.camel@intel.com>
+References: <cover.1536356108.git.alison.schofield@intel.com>
+In-Reply-To: <cover.1536356108.git.alison.schofield@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <36A7004BBD1CD242B599110B64093A54@intel.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <55b44432-ade5-f090-bfe7-ea20f3e87285@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>
-Cc: John Hubbard <jhubbard@nvidia.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Aaron Lu <aaron.lu@intel.com>, alex.kogan@oracle.com, akpm@linux-foundation.org, boqun.feng@gmail.com, brouer@redhat.com, dave.dice@oracle.com, Dhaval Giani <dhaval.giani@oracle.com>, ktkhai@virtuozzo.com, ldufour@linux.vnet.ibm.com, Pavel.Tatashin@microsoft.com, paulmck@linux.vnet.ibm.com, shady.issa@oracle.com, tariqt@mellanox.com, tglx@linutronix.de, tim.c.chen@intel.com, vbabka@suse.cz, yang.shi@linux.alibaba.com, shy828301@gmail.com, Huang Ying <ying.huang@intel.com>, subhra.mazumdar@oracle.com, Steven Sistare <steven.sistare@oracle.com>, jwadams@google.com, ashwinch@google.com, sqazi@google.com, Shakeel Butt <shakeelb@google.com>, walken@google.com, rientjes@google.com, junaids@google.com, Neha Agarwal <nehaagarwal@google.com>
+To: "tglx@linutronix.de" <tglx@linutronix.de>, "Schofield, Alison" <alison.schofield@intel.com>, "dhowells@redhat.com" <dhowells@redhat.com>
+Cc: "Shutemov, Kirill" <kirill.shutemov@intel.com>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "jmorris@namei.org" <jmorris@namei.org>, "Huang,
+ Kai" <kai.huang@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Nakajima, Jun" <jun.nakajima@intel.com>
 
-On Mon, 10 Sep 2018, Waiman Long wrote:
-
->On 09/08/2018 12:13 AM, John Hubbard wrote:
->>
->> Hi Daniel and all,
->>
->> I'm interested in the first 3 of those 4 topics, so if it doesn't conflict with HMM topics or
->> fix-gup-with-dma topics, I'd like to attend. GPUs generally need to access large chunks of
->> memory, and that includes migrating (dma-copying) pages around.
->>
->> So for example a multi-threaded migration of huge pages between normal RAM and GPU memory is an
->> intriguing direction (and I realize that it's a well-known topic, already). Doing that properly
->> (how many threads to use?) seems like it requires scheduler interaction.
->>
->> It's also interesting that there are two main huge page systems (THP and Hugetlbfs), and I sometimes
->> wonder the obvious thing to wonder: are these sufficiently different to warrant remaining separate,
->> long-term?  Yes, I realize they're quite different in some ways, but still, one wonders. :)
->
->One major difference between hugetlbfs and THP is that the former has to
->be explicitly managed by the applications that use it whereas the latter
->is done automatically without the applications being aware that THP is
->being used at all. Performance wise, THP may or may not increase
->application performance depending on the exact memory access pattern,
->though the chance is usually higher that an application will benefit
->than suffer from it.
->
->If an application know what it is doing, using hughtblfs can boost
->performance more than it can ever achieved by THP. Many large enterprise
->applications, like Oracle DB, are using hugetlbfs and explicitly disable
->THP. So unless THP can improve its performance to a level that is
->comparable to hugetlbfs, I won't see the later going away.
-
-Yep, there are a few non-trivial workloads out there that flat out discourage
-thp, ie: redis to avoid latency issues.
-
-Thanks,
-Davidlohr
+T24gRnJpLCAyMDE4LTA5LTA3IGF0IDE1OjIzIC0wNzAwLCBBbGlzb24gU2Nob2ZpZWxkIHdyb3Rl
+Og0KPiBTZWVraW5nIGNvbW1lbnRzIG9uIHRoZSBBUElzIHN1cHBvcnRpbmcgTUtUTUUgb24gZnV0
+dXJlIEludGVsIHBsYXRmb3Jtcy4NCj4gDQo+IE1LVE1FIChNdWx0aS1LZXkgVG90YWwgTWVtb3J5
+IEVuY3J5cHRpb24pIGlzIGEgdGVjaG5vbG9neSBzdXBwb3J0aW5nDQo+IG1lbW9yeSBlbmNyeXB0
+aW9uIG9uIHVwY29taW5nIEludGVsIHBsYXRmb3Jtcy4gV2hlcmVhcyBUTUUgYWxsb3dzDQo+IGVu
+Y3J5cHRpb24gb2YgdGhlIGVudGlyZSBzeXN0ZW0gbWVtb3J5IHVzaW5nIGEgc2luZ2xlIGtleSwg
+TUtUTUUNCj4gYWxsb3dzIG11bGl0cGxlIGVuY3J5cHRpb24gZG9tYWlucywgZWFjaCBoYXZpbmcg
+dGhlaXIgb3duIGtleS4gV2hpbGUgDQo+IHRoZSBtYWluIHVzZSBjYXNlIGZvciB0aGUgZmVhdHVy
+ZSBpcyB2aXJ0dWFsIG1hY2hpbmUgaXNvbGF0aW9uLCB0aGUNCj4gQVBJIG5lZWRzIHRoZSBmbGV4
+aWJpbGl0eSB0byB3b3JrIGZvciBhIHdpZGUgcmFuZ2Ugb2YgdXNlIGNhc2VzLg0KDQpJcyBpdCBh
+IGNvbW1vbiBrbm93bGVkZ2Ugd2hhdCBUTUUgaXM/IEkga2luZCBvZiBkcm9wcGVkIG91dCBvZiB0
+aGUgd2Fnb24NCmluIHRoZSAybmQgc2VudGVuY2Ugb2YgdGhpcyBwYXJhZ3JhcGguDQoNCi9KYXJr
+a28=
